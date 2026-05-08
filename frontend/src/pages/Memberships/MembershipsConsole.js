@@ -99,16 +99,19 @@ function MembershipsConsoleInner() {
   const pillBarRef = React.useRef(null);
   const studio = useStudioMode();
   // Studio Mode: 5-tab simplified layout for small teams.
-  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'studio-builder', 'studio-brain', 'timetable', 'members', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
+  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'studio-brain', 'timetable', 'classes', 'members', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
 
   const TABS = useMemo(() => [
     { id: 'start',     label: 'Start', icon: Sparkles },
     { id: 'dashboard', label: t('memberships_console.tab_dashboard'), icon: LayoutDashboard },
-    { id: 'studio-builder', label: 'Studio builder', icon: Wand2 },
+    // Iter 216ai — Sprint A item 6: merged Studio Builder + Timetable +
+    // Classes list into one "Classes & Timetable" tab with internal sub-pills.
+    // Old tab IDs (studio-builder, timetable, classes) still route here for
+    // deep-links / Start checklist CTAs — SchedulingHubTab picks the right
+    // sub-view based on the incoming tab value.
+    { id: 'schedule', label: 'Classes & Timetable', icon: Calendar },
     { id: 'studio-brain', label: 'Studio brain', icon: Brain },
     { id: 'members',   label: t('memberships_console.tab_members'),   icon: Users },
-    { id: 'timetable', label: t('memberships_console.tab_timetable'), icon: Calendar },
-    { id: 'classes',   label: t('memberships_console.tab_classes'),   icon: Dumbbell },
     { id: 'plans',     label: t('memberships_console.tab_plans'),     icon: PackageOpen },
     { id: 'family-billing', label: 'Family billing', icon: HeartHandshake },
     { id: 'parent-portal', label: 'Parent portal', icon: ShieldCheck },
@@ -289,11 +292,11 @@ function MembershipsConsoleInner() {
         )}
         {tab === 'start' && !(studio.studioMode && !studio.quickstartCompleted) && <MembershipsStartTab setTab={setTab} />}
         {tab === 'dashboard' && <DashboardTab key={`dash-${reloadKey}`} API={API} headers={headers} />}
-        {tab === 'studio-builder' && <StudioBuilderTab key={`sb-${reloadKey}`} API={API} headers={headers} />}
+        {['schedule', 'studio-builder', 'timetable', 'classes'].includes(tab) && (
+          <SchedulingHubTab key={`sch-${reloadKey}`} API={API} headers={headers} activeTabHint={tab} onSetTab={setTab} />
+        )}
         {tab === 'studio-brain' && <StudioBrainTab key={`br-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'members'   && <MembersTab   key={`mbr-${reloadKey}`} API={API} headers={headers} />}
-        {tab === 'timetable' && <TimetableTab key={`tt-${reloadKey}`} API={API} headers={headers} />}
-        {tab === 'classes'   && <ClassesTab   key={`cls-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'plans'     && <PlansTab     key={`pln-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'family-billing' && <FamilyBillingTab key={`fb-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'parent-portal' && <ParentPortalTab key={`pp-${reloadKey}`} API={API} headers={headers} />}
@@ -909,6 +912,76 @@ function RecordPaymentModal({ API, headers, memberId, plan, onClose }) {
       <p className="text-[10px] text-[color:var(--theme-text-muted)] leading-relaxed">The member's plan activates immediately. For class packs, credits are added on the spot.</p>
       <ModalActions onCancel={() => onClose(false)} onSave={submit} saving={saving} testId="mbr-record-save" />
     </ModalShell>
+  );
+}
+
+
+/* ─────────── Merged Classes & Timetable hub (Iter 216ai · Sprint A #6) ─────────── */
+
+/**
+ * Single tab that unifies the three scheduling surfaces that used to be
+ * separate tabs in the top bar. Three sub-pills:
+ *
+ *   • Timetable — materialised occurrences for the selected week.
+ *   • Weekly builder — drag-drop template grid + identity + terms.
+ *   • All classes — list of class templates with per-row edit/archive.
+ *
+ * `activeTabHint` lets deep links (Start checklist CTAs, old URLs, etc.)
+ * still land on the sub-view they expected:
+ *   'timetable'        → timetable sub-pill
+ *   'studio-builder'   → builder sub-pill
+ *   'classes'          → classes sub-pill
+ *   'schedule' | other → timetable (default, most-useful surface)
+ *
+ * Having `onSetTab` as a prop is useful for cross-links — e.g. the
+ * "Rebuild term" action in the builder can kick back to the timetable.
+ */
+function SchedulingHubTab({ API, headers, activeTabHint, onSetTab }) {
+  const initialView =
+    activeTabHint === 'studio-builder' ? 'builder' :
+    activeTabHint === 'classes' ? 'classes' :
+    'timetable';
+  const [view, setView] = useState(initialView);
+  // Keep the sub-pill in sync when the parent routes a deep-link change
+  // while the hub is already mounted (e.g. clicking "Studio Builder" CTA
+  // from the onboarding checklist while the user is already on 'schedule').
+  useEffect(() => { setView(initialView); }, [initialView]);
+
+  const pills = [
+    { id: 'timetable', label: 'Timetable',       icon: Calendar,    hint: 'This week' },
+    { id: 'builder',   label: 'Weekly builder',  icon: Wand2,       hint: 'Drag classes onto the grid' },
+    { id: 'classes',   label: 'All classes',     icon: Dumbbell,    hint: 'List + bulk edit' },
+  ];
+
+  return (
+    <div data-testid="mbr-schedule-hub">
+      <div className="flex items-center gap-2 flex-wrap mb-4" role="tablist" data-testid="mbr-schedule-subtabs">
+        {pills.map((p) => {
+          const Icon = p.icon;
+          const isActive = view === p.id;
+          return (
+            <button key={p.id} type="button"
+              onClick={() => setView(p.id)}
+              role="tab" aria-selected={isActive}
+              data-testid={`mbr-schedule-sub-${p.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold border transition-colors"
+              style={{
+                background: isActive ? 'var(--color-brand-cyan)' : 'transparent',
+                color: isActive ? 'var(--color-surface-darker)' : 'var(--theme-text)',
+                borderColor: isActive ? 'transparent' : 'var(--theme-border)',
+              }}>
+              <Icon size={11} /> {p.label}
+            </button>
+          );
+        })}
+        <p className="text-[10px] uppercase tracking-wider text-[color:var(--theme-text-muted)] ml-2 hidden sm:block">
+          {pills.find((p) => p.id === view)?.hint}
+        </p>
+      </div>
+      {view === 'timetable' && <TimetableTab API={API} headers={headers} />}
+      {view === 'builder'   && <StudioBuilderTab API={API} headers={headers} />}
+      {view === 'classes'   && <ClassesTab API={API} headers={headers} />}
+    </div>
   );
 }
 

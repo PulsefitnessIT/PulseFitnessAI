@@ -195,7 +195,7 @@ async def get_studio_onboarding(user: dict = Depends(get_current_user)):
             "id": "create_class",
             "title": "Build your first class",
             "note": "Name, duration, capacity, instructor",
-            "cta_tab": "studio-builder", "cta_label": "Open Studio Builder",
+            "cta_tab": "studio-builder", "cta_label": "Open Weekly builder",
             "done": class_templates > 0, "count": class_templates,
         },
         {

@@ -1,0 +1,115 @@
+{
+  "summary": "Iteration 216ai — Sprint A Item 6 (Merged Classes & Timetable Tab) testing complete. All features verified: (1) Old tabs removed (studio-builder, timetable, classes), (2) New merged 'Classes & Timetable' tab present with 3 sub-pills (Timetable, Weekly builder, All classes), (3) Deep-link routing works for all 4 tab values (schedule, studio-builder, timetable, classes), (4) Backend cta_label updated to 'Open Weekly builder', (5) All other tabs still functional (Dashboard, Members, Plans, Events, Parent portal, Studio brain).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_216ai.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MembershipsConsole.js: TABS list correctly trimmed - removed studio-builder/timetable/classes entries, added single 'schedule' entry with label 'Classes & Timetable'",
+    "MembershipsConsole.js: STUDIO_TAB_IDS extended to include all old + new IDs (schedule, studio-builder, timetable, classes) so Studio Mode still works",
+    "MembershipsConsole.js: Render block correctly routes all four old tab values to <SchedulingHubTab> with activeTabHint={tab}",
+    "MembershipsConsole.js: SchedulingHubTab component correctly implements 3 sub-pills with data-testids (mbr-schedule-sub-timetable, mbr-schedule-sub-builder, mbr-schedule-sub-classes)",
+    "MembershipsConsole.js: Deep-link routing works via useEffect that syncs initialView with activeTabHint prop changes",
+    "Backend studio.py: onboarding step create_class cta_label correctly updated to 'Open Weekly builder' (was 'Open Studio Builder')"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "operator": "Bob@knockers.com / Test123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "None - used existing Bob's org data",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 216ai Sprint A Item 6 verified: (1) Horizontal tab bar no longer shows separate 'Studio builder', 'Timetable', or 'Classes' pills - replaced with single 'Classes & Timetable' pill (data-testid mbr-tab-schedule). (2) Clicking the merged tab renders SchedulingHubTab (data-testid mbr-schedule-hub) with 3 sub-pills. (3) Default sub-view is 'timetable'. (4) Deep-link routing works: setTab('studio-builder') → builder sub-pill, setTab('timetable') → timetable sub-pill, setTab('classes') → classes sub-pill, setTab('schedule') → timetable (default). (5) Backend cta_label for create_class step is 'Open Weekly builder'. (6) All other tabs (Dashboard, Members, Plans, Events, Parent portal, Studio brain) still functional. (7) Studio Mode (5-tab layout) includes the merged tab via STUDIO_TAB_IDS.",
+  "features_verified": {
+    "old_tabs_removed": {
+      "status": "PASS",
+      "evidence": "data-testid mbr-tab-studio-builder, mbr-tab-timetable, mbr-tab-classes all return null"
+    },
+    "new_merged_tab_present": {
+      "status": "PASS",
+      "evidence": "data-testid mbr-tab-schedule visible with text 'Classes & Timetable'"
+    },
+    "scheduling_hub_renders": {
+      "status": "PASS",
+      "evidence": "data-testid mbr-schedule-hub visible after clicking merged tab"
+    },
+    "three_sub_pills_visible": {
+      "status": "PASS",
+      "evidence": "data-testid mbr-schedule-sub-timetable, mbr-schedule-sub-builder, mbr-schedule-sub-classes all visible"
+    },
+    "default_view_is_timetable": {
+      "status": "PASS",
+      "evidence": "data-testid mbr-timetable visible by default when clicking merged tab"
+    },
+    "builder_sub_view_works": {
+      "status": "PASS",
+      "evidence": "data-testid studio-builder visible after clicking Weekly builder sub-pill, studio-builder-new-class button visible"
+    },
+    "classes_sub_view_works": {
+      "status": "PASS",
+      "evidence": "data-testid mbr-classes visible after clicking All classes sub-pill, mbr-class-add button visible"
+    },
+    "deep_link_studio_builder": {
+      "status": "PASS",
+      "evidence": "gymaxis-jump event with target='studio-builder' activates builder sub-pill"
+    },
+    "deep_link_timetable": {
+      "status": "PASS",
+      "evidence": "gymaxis-jump event with target='timetable' activates timetable sub-pill"
+    },
+    "deep_link_classes": {
+      "status": "PASS",
+      "evidence": "gymaxis-jump event with target='classes' activates classes sub-pill"
+    },
+    "deep_link_schedule": {
+      "status": "PASS",
+      "evidence": "gymaxis-jump event with target='schedule' activates timetable sub-pill (default)"
+    },
+    "backend_cta_label_updated": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/studio/onboarding returns cta_label='Open Weekly builder' for create_class step"
+    },
+    "regression_dashboard_tab": {
+      "status": "PASS",
+      "evidence": "Dashboard tab visible and content loads"
+    },
+    "regression_members_tab": {
+      "status": "PASS",
+      "evidence": "Members tab visible and content loads"
+    },
+    "regression_plans_tab": {
+      "status": "PASS",
+      "evidence": "Plans tab visible and content loads"
+    },
+    "regression_events_tab": {
+      "status": "PASS",
+      "evidence": "Events tab visible"
+    },
+    "regression_parent_portal_tab": {
+      "status": "PASS",
+      "evidence": "Parent portal tab visible"
+    },
+    "regression_studio_brain_tab": {
+      "status": "PASS",
+      "evidence": "Studio brain tab visible and content loads"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}
