@@ -220,6 +220,16 @@ async def _poll_once() -> None:
     await _run_memberships_crm_loop()
     await _run_family_autopay()
     await _run_ppm_autogen()
+    await _run_svc_digest_dispatcher()
+
+
+async def _run_svc_digest_dispatcher() -> None:
+    """Phase 6+: send daily/weekly Service Ops digest emails when due."""
+    try:
+        from utils.svc_digest import run_svc_digest_dispatcher
+        await run_svc_digest_dispatcher()
+    except Exception:
+        logger.exception("[svc-digest] cycle failed")
 
 
 async def _run_family_autopay() -> None:

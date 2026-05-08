@@ -39,9 +39,12 @@ __integration_fields__ = {
 
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+import csv
+import io
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse, Response
 
 from utils.database import db
 from utils.auth import get_current_user
@@ -415,3 +418,334 @@ async def downtime(
 
 
 __all__ = ["router"]
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 6+ — CSV / PDF exports & helpers
+# ─────────────────────────────────────────────────────────────────
+
+_EXPORTABLE_TYPES = {"revenue", "ftfr", "sla", "ai", "downtime", "summary"}
+
+
+def _csv_response(filename: str, rows: list[list], headers: list[str]) -> StreamingResponse:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export.csv")
+async def export_csv(
+    type: str = Query("revenue"),
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None),
+    days: int = Query(30, ge=1, le=365),
+    user=Depends(get_current_user),
+):
+    """One-click CSV export for any report section."""
+    kind = (type or "").lower()
+    if kind not in _EXPORTABLE_TYPES:
+        raise HTTPException(400, f"type must be one of {sorted(_EXPORTABLE_TYPES)}")
+    # Org guard — exports are gated on tenant scope just like the underlying reports.
+    _of(user)
+
+    if kind == "revenue":
+        data = await revenue_by_engineer(from_, to, user)
+        rows = [[r.get("engineer_name", ""), r.get("engineer_id", ""),
+                 r.get("hours", 0), r.get("revenue", 0), r.get("cases", 0)]
+                for r in data["rows"]]
+        return _csv_response(f"revenue-by-engineer_{kind}.csv", rows,
+                             ["Engineer", "Engineer ID", "Hours", "Revenue (gross)", "Cases"])
+
+    if kind == "ftfr":
+        data = await first_time_fix(from_, to, user)
+        return _csv_response("ftfr.csv",
+                             [[data["from"], data["to"], data["total_closed"], data["ftf"], data["rate"]]],
+                             ["From", "To", "Total closed", "First-time fix", "Rate"])
+
+    if kind == "sla":
+        data = await sla(from_, to, user)
+        rows = [["__overall__", data["total"], data["on_time"], data["breached"], data["rate"]]]
+        for prio, b in (data.get("by_priority") or {}).items():
+            rate = round(b["on_time"] / b["total"], 3) if b.get("total") else 0.0
+            rows.append([prio, b["total"], b["on_time"], b["breached"], rate])
+        return _csv_response("sla-compliance.csv", rows,
+                             ["Priority", "Total", "On time", "Breached", "Rate"])
+
+    if kind == "ai":
+        data = await ai_observability(from_, to, user)
+        rows = [[r["kind"], r["calls"], r["ok"], r["ok_rate"], r["p50_latency_ms"], r["p95_latency_ms"],
+                 r["prompt_chars"], r["response_chars"]] for r in data["by_kind"]]
+        return _csv_response("ai-observability.csv", rows,
+                             ["Kind", "Calls", "OK", "OK rate", "p50 ms", "p95 ms",
+                              "Prompt chars", "Response chars"])
+
+    if kind == "downtime":
+        data = await downtime(days, user)
+        rows = [["asset", r.get("asset_name", ""), r.get("asset_id", ""),
+                 r.get("case_count", 0), r.get("downtime_hours", 0)] for r in data["top_assets"]]
+        rows += [["site", r.get("site_name", ""), r.get("site_id", ""),
+                  r.get("case_count", 0), r.get("downtime_hours", 0)] for r in data["top_sites"]]
+        return _csv_response("downtime.csv", rows,
+                             ["Scope", "Name", "ID", "Cases", "Downtime hours"])
+
+    # Summary
+    data = await summary(from_, to, user)
+    k = data["kpis"]
+    rows = [[data["from"], data["to"], k.get("open_cases"), k.get("cases_closed"),
+             k.get("chargeable_invoiced"), k.get("revenue_gross"), k.get("revenue_net"),
+             k.get("ai_calls")]]
+    return _csv_response("summary.csv", rows,
+                         ["From", "To", "Open cases", "Closed", "Chargeable invoiced",
+                          "Revenue gross", "Revenue net", "AI calls"])
+
+
+@router.get("/export.pdf")
+async def export_pdf(
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None),
+    days: int = Query(30, ge=1, le=365),
+    user=Depends(get_current_user),
+):
+    """Branded multi-section PDF — the same view operations sees on screen,
+    rendered for sharing with execs / customers.
+    """
+    of = _of(user)
+    summary_d = await summary(from_, to, user)
+    revenue_d = await revenue_by_engineer(from_, to, user)
+    ftfr_d = await first_time_fix(from_, to, user)
+    sla_d = await sla(from_, to, user)
+    downtime_d = await downtime(days, user)
+    org = await db.organizations.find_one({"id": of["organization_id"]}, {"_id": 0, "name": 1})
+    org_name = (org or {}).get("name") or "GymAxis"
+
+    # Render with reportlab — already used elsewhere in the codebase.
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,
+    )
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=18 * mm, rightMargin=18 * mm,
+        topMargin=18 * mm, bottomMargin=18 * mm,
+        title=f"Service ops report — {org_name}",
+    )
+    styles = getSampleStyleSheet()
+    H1 = ParagraphStyle("H1", parent=styles["Heading1"], textColor=colors.HexColor("#0f172a"), spaceAfter=4)
+    H2 = ParagraphStyle("H2", parent=styles["Heading2"], textColor=colors.HexColor("#1d4ed8"), spaceBefore=10, spaceAfter=4)
+    body = ParagraphStyle("body", parent=styles["BodyText"], textColor=colors.HexColor("#1e293b"))
+    eyebrow = ParagraphStyle("eyebrow", parent=body, textColor=colors.HexColor("#64748b"),
+                              fontSize=9, leading=11, spaceAfter=2)
+
+    flow = []
+    flow.append(Paragraph(f"{org_name} — Service Operations report", H1))
+    flow.append(Paragraph(
+        f"Window: {summary_d['from'][:10]} → {summary_d['to'][:10]} · Generated {datetime.now(timezone.utc).isoformat(timespec='minutes')}",
+        eyebrow,
+    ))
+    flow.append(Spacer(1, 6))
+
+    # KPIs
+    k = summary_d["kpis"]
+    kpi_table = Table([
+        ["Open cases", "Closed", "Chargeable invoiced", "Revenue (gross)", "AI calls", "Downtime"],
+        [str(k.get("open_cases", 0)), str(k.get("cases_closed", 0)),
+         str(k.get("chargeable_invoiced", 0)),
+         f"£{float(k.get('revenue_gross') or 0):,.0f}",
+         str(k.get("ai_calls", 0)),
+         f"{downtime_d.get('total_hours', 0):,}h"],
+    ], colWidths=[28 * mm] * 6)
+    kpi_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef2ff")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#1d4ed8")),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 8),
+        ("FONTSIZE", (0, 1), (-1, 1), 12),
+        ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    flow.append(kpi_table)
+
+    # FTFR + SLA gauges
+    flow.append(Paragraph("Quality & SLA", H2))
+    flow.append(Paragraph(
+        f"<b>First-time-fix:</b> {round((ftfr_d.get('rate') or 0) * 100)}% "
+        f"({ftfr_d.get('ftf', 0)} of {ftfr_d.get('total_closed', 0)} closed) &nbsp; "
+        f"<b>SLA compliance:</b> {round((sla_d.get('rate') or 0) * 100)}% "
+        f"({sla_d.get('on_time', 0)} on-time / {sla_d.get('breached', 0)} breached)",
+        body,
+    ))
+    if sla_d.get("by_priority"):
+        sla_rows = [["Priority", "Total", "On time", "Breached", "Rate"]]
+        for prio, b in sla_d["by_priority"].items():
+            rate = round((b["on_time"] / b["total"]) * 100) if b.get("total") else 0
+            sla_rows.append([prio.upper(), b["total"], b["on_time"], b["breached"], f"{rate}%"])
+        sla_table = Table(sla_rows, colWidths=[24 * mm, 24 * mm, 24 * mm, 24 * mm, 24 * mm])
+        sla_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
+        ]))
+        flow.append(Spacer(1, 4))
+        flow.append(sla_table)
+
+    # Revenue per engineer
+    flow.append(Paragraph("Revenue per engineer", H2))
+    if not revenue_d.get("rows"):
+        flow.append(Paragraph("<i>No invoiced labour in this window.</i>", body))
+    else:
+        rev_rows = [["Engineer", "Hours", "Cases", "Revenue (gross)"]]
+        for r in revenue_d["rows"][:25]:
+            rev_rows.append([r.get("engineer_name", "—"),
+                             f"{r.get('hours', 0):.1f}",
+                             str(r.get("cases", 0)),
+                             f"£{float(r.get('revenue') or 0):,.2f}"])
+        rev_table = Table(rev_rows, colWidths=[60 * mm, 24 * mm, 24 * mm, 32 * mm])
+        rev_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
+        ]))
+        flow.append(rev_table)
+
+    # Downtime
+    flow.append(PageBreak())
+    flow.append(Paragraph("Downtime — top assets", H2))
+    flow.append(Paragraph(
+        f"<b>Total fleet downtime:</b> {downtime_d.get('total_hours', 0):,}h "
+        f"across {downtime_d.get('case_count', 0)} cases ({downtime_d.get('window_days', 30)}-day window).",
+        body,
+    ))
+    if downtime_d.get("top_assets"):
+        rows = [["Asset", "Cases", "Downtime (h)"]]
+        for r in downtime_d["top_assets"][:15]:
+            rows.append([r.get("asset_name", "—"), str(r.get("case_count", 0)),
+                         f"{r.get('downtime_hours', 0):,.1f}"])
+        t = Table(rows, colWidths=[100 * mm, 24 * mm, 32 * mm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
+        ]))
+        flow.append(Spacer(1, 4))
+        flow.append(t)
+
+    flow.append(Paragraph("Downtime — top sites", H2))
+    if downtime_d.get("top_sites"):
+        rows = [["Site", "Cases", "Downtime (h)"]]
+        for r in downtime_d["top_sites"][:15]:
+            rows.append([r.get("site_name", "—"), str(r.get("case_count", 0)),
+                         f"{r.get('downtime_hours', 0):,.1f}"])
+        t = Table(rows, colWidths=[100 * mm, 24 * mm, 32 * mm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#e2e8f0")),
+        ]))
+        flow.append(Spacer(1, 4))
+        flow.append(t)
+
+    flow.append(Spacer(1, 12))
+    flow.append(Paragraph(
+        "<i>Generated by GymAxis Service Operations · figures are live from the operational database.</i>",
+        eyebrow,
+    ))
+
+    doc.build(flow)
+    pdf_bytes = buf.getvalue()
+    buf.close()
+    safe_org = "".join(c for c in org_name if c.isalnum() or c in "_-").lower() or "report"
+    filename = f"svc-ops-report-{safe_org}-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 6+ — Email digest settings (per-org)
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/digest/settings")
+async def digest_settings_get(user=Depends(get_current_user)):
+    """Read the org's digest cadence + recipient list."""
+    of = _of(user)
+    org = await db.organizations.find_one(
+        {"id": of["organization_id"]},
+        {"_id": 0, "svc_digest_enabled": 1, "svc_digest_cadence": 1,
+         "svc_digest_recipients": 1, "svc_digest_last_sent_at": 1},
+    ) or {}
+    return {
+        "enabled": bool(org.get("svc_digest_enabled", False)),
+        "cadence": org.get("svc_digest_cadence", "weekly"),
+        "recipients": org.get("svc_digest_recipients") or [],
+        "last_sent_at": org.get("svc_digest_last_sent_at"),
+    }
+
+
+@router.put("/digest/settings")
+async def digest_settings_put(data: dict, user=Depends(get_current_user)):
+    of = _of(user)
+    cadence = ((data or {}).get("cadence") or "weekly").lower()
+    if cadence not in ("daily", "weekly"):
+        raise HTTPException(400, "cadence must be daily | weekly")
+    raw_recipients = (data or {}).get("recipients") or []
+    if isinstance(raw_recipients, str):
+        raw_recipients = [r.strip() for r in raw_recipients.split(",")]
+    recipients = sorted({r.strip().lower() for r in raw_recipients
+                         if r and "@" in r})[:20]
+    enabled = bool((data or {}).get("enabled"))
+    if enabled and not recipients:
+        raise HTTPException(400, "At least one recipient is required when enabling the digest")
+    await db.organizations.update_one(
+        {"id": of["organization_id"]},
+        {"$set": {
+            "svc_digest_enabled": enabled,
+            "svc_digest_cadence": cadence,
+            "svc_digest_recipients": recipients,
+            "svc_digest_updated_at": _now_iso(),
+            "svc_digest_updated_by_id": user["id"],
+        }},
+    )
+    return await digest_settings_get(user)
+
+
+@router.post("/digest/send-test")
+async def digest_send_test(user=Depends(get_current_user)):
+    """Render and send the digest immediately to whatever recipient list is
+    configured. Useful for the `Send test` button on the settings UI.
+    """
+    of = _of(user)
+    from utils.svc_digest import send_digest_for_org  # local import — avoids cycle
+    sent = await send_digest_for_org(of["organization_id"], force=True)
+    return {"ok": True, "sent": sent}
+

@@ -82,6 +82,8 @@ from routes.svc.billing import router as svc_billing_router
 from routes.svc.reports import router as svc_reports_router
 # Iter 215dv — Phase 7b Customer Comms Hub
 from routes.svc.comms import router as svc_comms_router
+# Iter 216y — Phase 6+ Saved Views
+from routes.svc.views import router as svc_views_router
 # Iter 215dy — Phase 8 D Integrations admin console
 from routes.svc.integrations.health import router as svc_integrations_health_router
 
@@ -152,6 +154,8 @@ _UNGATED_ROUTERS = (
     svc_reports_router,
     # Iter 215dv — Phase 7b Comms Hub
     svc_comms_router,
+    # Iter 216y — Phase 6+ Saved Views
+    svc_views_router,
     # Iter 215dy — Phase 8 D Integrations admin console
     svc_integrations_health_router,
 )

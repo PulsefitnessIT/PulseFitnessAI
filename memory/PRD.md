@@ -11044,3 +11044,37 @@ Phase 4 (Comms Hub & ETA Notifications) finished end-to-end.
 
 ### Still mocked / dependent on env
 - Send results are `ok=False` in preview because `RESEND_API_KEY` isn't configured. In production / staging with the key set, these sends will be `ok=True` and the customer will receive real emails.
+
+---
+
+## Iter 216y — ServiceOps Phase 6+ Complete (2026-02-08)
+
+Phase 6+ (Reports export polish, Saved Views, Scheduled Email Digest) finished end-to-end.
+
+### Backend
+- **CSV export**: `GET /api/svc/reports/export.csv?type=…&from=&to=&days=` — streams CSV for `revenue|sla|ftfr|ai|downtime|summary` (uses csv module, sets `Content-Disposition: attachment`).
+- **PDF export**: `GET /api/svc/reports/export.pdf?from=&to=&days=` — branded multi-section A4 PDF (KPI grid + SLA table + Revenue table + Downtime tables) using `reportlab` (already in the codebase).
+- **Saved Views CRUD** in new `routes/svc/views.py`: `GET / POST / PUT / DELETE /api/svc/views`. Uses new `svc_saved_views` collection scoped by `organization_id` and `kind` (desk | reports | scheduler | parts). Soft uniqueness guard on `(kind, name)`.
+- **Email digest**:
+  - `GET / PUT /api/svc/reports/digest/settings` — toggles, cadence (daily/weekly), recipients (max 20).
+  - `POST /api/svc/reports/digest/send-test` — dispatches the digest immediately ignoring cadence (used by the "Send test" UI button).
+  - New util `utils/svc_digest.py` with `run_svc_digest_dispatcher()` (cron entry) and `send_digest_for_org()` (per-org renderer + sender).
+  - Wired into `utils/sicon_poller.py` `_run_svc_digest_dispatcher()` so it inherits the existing daily cron cadence.
+  - Email body is rich HTML: KPI tiles (open/new/closed/SLA breached), top open cases (SLA-risk first), recently closed table.
+- New router `svc_views_router` registered in `route_registry/features.py` under the per-org gated set.
+
+### Frontend
+- **Reports header toolbar** now includes: range selector → Export menu → Save view → Email digest → Refresh.
+- **Export menu** dropdown with 7 actions: Branded PDF, Summary CSV, Revenue CSV, SLA CSV, FTFR CSV, Downtime CSV, AI CSV. Uses Blob + anchor download to keep the auth header on the request.
+- **Saved Views chips** row below the toolbar — click a chip to load its filters/range; click `×` on a chip to delete (confirm prompt). Saving a view prompts for a name.
+- **Digest settings modal** with: enable toggle, cadence selector (daily/weekly), comma-separated recipients input, "Last sent" indicator, **Send test now** + **Save** footer buttons.
+
+### Verified end-to-end
+- CSV export of `revenue` returns correct headers + data; CSV export of `downtime` returns 5 rows including assets + sites.
+- PDF export returns valid `%PDF-1.4` document (4515 bytes, multi-section).
+- Saved view created via POST and survives reload; reports page renders chip pill.
+- Digest settings round-trip (PUT→GET) persists `enabled=true, cadence=weekly, recipients=[…]`. Send-test endpoint runs and updates `svc_digest_last_sent_at`.
+- Frontend smoke screenshots confirm toolbar, saved-view chips, and full digest modal render with prefilled data.
+
+### Mocked / dependent on env
+- Digest `sent` count is `0` in preview because `RESEND_API_KEY` isn't set (same as Phase 4 auto-notify). Will deliver real emails in production once the key is configured.

@@ -16,6 +16,7 @@ import axios from 'axios';
 import {
   BarChart3, RefreshCw, Sparkles, Activity, Gauge,
   ShieldCheck, Wrench, ClipboardList, Timer, MapPin,
+  Download, FileText, Bookmark, X, Mail, Send, Save, Loader2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ServiceOpsShell from './ServiceOpsShell';
@@ -66,6 +67,80 @@ export default function ServiceOpsReportsPage() {
 
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState('');
+  const [filters, setFilters] = useState({});
+  const [savedViews, setSavedViews] = useState([]);
+  const [digestOpen, setDigestOpen] = useState(false);
+
+  const loadSavedViews = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/svc/views`, { ...auth(), params: { kind: 'reports' } });
+      setSavedViews(r.data?.views || []);
+    } catch (e) {
+      // Soft-fail — saved views shouldn't break the page.
+      // eslint-disable-next-line no-console
+      console.warn('saved views load failed', e?.response?.data?.detail || e.message);
+    }
+  }, []);
+  useEffect(() => { loadSavedViews(); }, [loadSavedViews]);
+
+  const applyView = (view) => {
+    if (view?.range_id) setRangeId(view.range_id);
+    if (view?.filters) setFilters(view.filters);
+    notify.success('Loaded view', view.name);
+  };
+
+  const saveView = async () => {
+    const name = window.prompt('Name this view (e.g. "Weekly exec summary")');
+    if (!name) return;
+    try {
+      await axios.post(`${API}/svc/views`, {
+        name: name.trim(), kind: 'reports',
+        filters: { ...filters }, range_id: rangeId,
+        route: '/service-ops/reports',
+      }, auth());
+      await loadSavedViews();
+      notify.success('View saved', name);
+    } catch (e) {
+      notify.error('Save failed', e?.response?.data?.detail || e.message);
+    }
+  };
+
+  const deleteView = async (view) => {
+    if (!window.confirm(`Delete saved view "${view.name}"?`)) return;
+    try {
+      await axios.delete(`${API}/svc/views/${view.id}`, auth());
+      await loadSavedViews();
+      notify.success('View deleted');
+    } catch (e) {
+      notify.error('Delete failed', e?.response?.data?.detail || e.message);
+    }
+  };
+
+  const exportFile = async (kind) => {
+    const url = kind === 'pdf'
+      ? `${API}/svc/reports/export.pdf?days=${range.days}`
+      : `${API}/svc/reports/export.csv?type=${kind}&from=${encodeURIComponent(fromIso)}&days=${range.days}`;
+    setExporting(kind);
+    try {
+      const r = await axios.get(url, { ...auth(), responseType: 'blob' });
+      const cd = r.headers['content-disposition'] || '';
+      const m = /filename="([^"]+)"/.exec(cd);
+      const filename = m ? m[1] : (kind === 'pdf' ? 'svc-ops-report.pdf' : `svc-ops-${kind}.csv`);
+      const blob = new Blob([r.data], { type: r.headers['content-type'] || 'application/octet-stream' });
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      notify.success('Export ready', filename);
+    } catch (e) {
+      notify.error('Export failed', e?.response?.data?.detail || e.message);
+    } finally { setExporting(''); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,6 +190,24 @@ export default function ServiceOpsReportsPage() {
           <select value={rangeId} onChange={(e) => setRangeId(e.target.value)} className="svc-select svc-select-sm" style={{ width: 'auto' }} data-testid="reports-range">
             {RANGES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
           </select>
+          <ExportMenu exporting={exporting} onExport={exportFile} />
+          <button
+            type="button"
+            onClick={saveView}
+            className="svc-btn svc-btn-secondary svc-btn-sm"
+            data-testid="reports-save-view"
+            title="Save the current range / filters as a reusable view"
+          >
+            <Bookmark size={11} /> Save view
+          </button>
+          <button
+            type="button"
+            onClick={() => setDigestOpen(true)}
+            className="svc-btn svc-btn-secondary svc-btn-sm"
+            data-testid="reports-digest-open"
+          >
+            <Mail size={11} /> Email digest
+          </button>
           <button type="button" onClick={load} className="svc-btn svc-btn-secondary svc-btn-sm" data-testid="reports-refresh">
             <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -123,6 +216,44 @@ export default function ServiceOpsReportsPage() {
       active="reports"
       pageTestId="reports-page"
     >
+      {/* Saved views chips */}
+      {savedViews.length > 0 ? (
+        <div className="flex items-center gap-2 flex-wrap" data-testid="reports-saved-views">
+          <span className="text-[11px] uppercase tracking-wider svc-muted font-bold inline-flex items-center gap-1">
+            <Bookmark size={11} /> Saved views
+          </span>
+          {savedViews.map((v) => (
+            <span
+              key={v.id}
+              className="svc-pill svc-pill--info"
+              style={{ paddingRight: 4 }}
+              data-testid={`reports-saved-view-${v.id}`}
+            >
+              <button
+                type="button"
+                onClick={() => applyView(v)}
+                className="font-bold"
+                style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }}
+                data-testid={`reports-saved-view-apply-${v.id}`}
+              >
+                {v.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteView(v)}
+                aria-label={`Delete ${v.name}`}
+                style={{
+                  background: 'none', border: 0, cursor: 'pointer', color: 'inherit',
+                  padding: '0 2px', marginLeft: 2, opacity: 0.6,
+                }}
+                data-testid={`reports-saved-view-delete-${v.id}`}
+              >
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3" data-testid="reports-kpis">
         <KPI label="Open cases" value={kpis.open_cases ?? '—'} testid="kpi-open-cases" />
@@ -314,6 +445,227 @@ export default function ServiceOpsReportsPage() {
           </ol>
         )}
       </Section>
+      {digestOpen ? <DigestSettingsModal onClose={() => setDigestOpen(false)} /> : null}
     </ServiceOpsShell>
+  );
+}
+
+function ExportMenu({ exporting, onExport }) {
+  const [open, setOpen] = useState(false);
+  const items = [
+    { id: 'pdf',      label: 'Branded PDF report', icon: FileText },
+    { id: 'summary',  label: 'Summary KPIs (CSV)', icon: Download },
+    { id: 'revenue',  label: 'Revenue per engineer (CSV)', icon: Download },
+    { id: 'sla',      label: 'SLA compliance (CSV)', icon: Download },
+    { id: 'ftfr',     label: 'First-time-fix (CSV)', icon: Download },
+    { id: 'downtime', label: 'Downtime (CSV)', icon: Download },
+    { id: 'ai',       label: 'AI observability (CSV)', icon: Download },
+  ];
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex' }} data-testid="reports-export-menu">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="svc-btn svc-btn-secondary svc-btn-sm"
+        disabled={!!exporting}
+        data-testid="reports-export-btn"
+      >
+        {exporting ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+        {exporting ? `Exporting ${exporting}…` : 'Export'}
+      </button>
+      {open ? (
+        <>
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 30 }}
+          />
+          <ul
+            className="svc-card-base"
+            style={{
+              position: 'absolute', top: '100%', right: 0, marginTop: 4,
+              minWidth: 240, zIndex: 31, padding: 4,
+            }}
+            data-testid="reports-export-list"
+          >
+            {items.map((it) => {
+              const Icon = it.icon;
+              return (
+                <li key={it.id}>
+                  <button
+                    type="button"
+                    onClick={() => { setOpen(false); onExport(it.id); }}
+                    className="w-full text-left px-2 py-1.5 text-xs rounded inline-flex items-center gap-2 hover:bg-slate-100"
+                    style={{ color: 'inherit', background: 'transparent', border: 0, cursor: 'pointer' }}
+                    data-testid={`reports-export-${it.id}`}
+                  >
+                    <Icon size={12} /> {it.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function DigestSettingsModal({ onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [cadence, setCadence] = useState('weekly');
+  const [recipients, setRecipients] = useState('');
+  const [lastSentAt, setLastSentAt] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/svc/reports/digest/settings`, auth());
+      setEnabled(!!r.data?.enabled);
+      setCadence(r.data?.cadence || 'weekly');
+      setRecipients((r.data?.recipients || []).join(', '));
+      setLastSentAt(r.data?.last_sent_at || null);
+    } catch (e) {
+      notify.error('Failed to load digest settings', e?.response?.data?.detail || e.message);
+    } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const list = recipients.split(',').map((s) => s.trim()).filter((s) => s && s.includes('@'));
+      const r = await axios.put(`${API}/svc/reports/digest/settings`, {
+        enabled, cadence, recipients: list,
+      }, auth());
+      setEnabled(!!r.data?.enabled);
+      setCadence(r.data?.cadence || cadence);
+      setRecipients((r.data?.recipients || []).join(', '));
+      notify.success('Digest settings saved');
+    } catch (e) {
+      notify.error('Save failed', e?.response?.data?.detail || e.message);
+    } finally { setSaving(false); }
+  };
+
+  const sendTest = async () => {
+    setSending(true);
+    try {
+      const r = await axios.post(`${API}/svc/reports/digest/send-test`, {}, auth());
+      notify.success('Test digest dispatched', `${r.data?.sent ?? 0} email(s) sent`);
+      await load();
+    } catch (e) {
+      notify.error('Send failed', e?.response?.data?.detail || e.message);
+    } finally { setSending(false); }
+  };
+
+  return (
+    <div
+      className="svc-drawer-overlay"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      data-testid="reports-digest-modal"
+    >
+      <aside
+        className="svc-drawer"
+        role="dialog"
+        aria-label="Email digest settings"
+        style={{ maxWidth: 520 }}
+      >
+        <header className="svc-drawer-head">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="svc-eyebrow">Email digest</p>
+              <h2 className="svc-h1" style={{ fontSize: 19, marginTop: 2 }}>Service Operations summary</h2>
+            </div>
+            <button type="button" onClick={onClose} className="svc-icon-btn" aria-label="Close" data-testid="reports-digest-close">
+              <X size={16} />
+            </button>
+          </div>
+        </header>
+        <div className="svc-drawer-body space-y-3">
+          {loading ? (
+            <div className="svc-empty"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+          ) : (
+            <>
+              <p className="text-[11.5px] svc-muted">
+                Send a digest to your team with open cases, breached SLAs and recently
+                closed work. The dispatcher runs on the platform daily cron — recipients only
+                receive a fresh digest when one is due.
+              </p>
+
+              <label className="svc-card-base p-3 flex items-start gap-3 cursor-pointer" data-testid="reports-digest-enable-row">
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={(e) => setEnabled(e.target.checked)}
+                  data-testid="reports-digest-enabled"
+                />
+                <div>
+                  <p className="font-bold text-sm">Enable digest emails</p>
+                  <p className="text-[11.5px] svc-muted">Switch off to pause delivery without losing the recipient list.</p>
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="svc-label">Cadence</span>
+                <select
+                  value={cadence}
+                  onChange={(e) => setCadence(e.target.value)}
+                  className="svc-select"
+                  data-testid="reports-digest-cadence"
+                >
+                  <option value="daily">Daily — every morning</option>
+                  <option value="weekly">Weekly — every 7 days</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="svc-label">Recipients (comma-separated)</span>
+                <input
+                  value={recipients}
+                  onChange={(e) => setRecipients(e.target.value)}
+                  placeholder="ops@yourgym.com, desk@yourgym.com"
+                  className="svc-input"
+                  data-testid="reports-digest-recipients"
+                />
+                <span className="text-[11px] svc-muted block mt-1">Up to 20 valid email addresses.</span>
+              </label>
+
+              {lastSentAt ? (
+                <p className="text-[11px] svc-muted" data-testid="reports-digest-last-sent">
+                  Last sent: <strong>{new Date(lastSentAt).toLocaleString()}</strong>
+                </p>
+              ) : (
+                <p className="text-[11px] svc-muted">No digest has been sent yet.</p>
+              )}
+            </>
+          )}
+        </div>
+        <footer className="svc-drawer-foot space-y-2">
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={sendTest}
+              disabled={sending || saving}
+              className="svc-btn svc-btn-secondary svc-btn-sm"
+              data-testid="reports-digest-send-test"
+            >
+              {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+              {sending ? 'Sending…' : 'Send test now'}
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || sending}
+              className="svc-btn svc-btn-primary svc-btn-sm"
+              data-testid="reports-digest-save"
+            >
+              <Save size={11} /> {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </footer>
+      </aside>
+    </div>
   );
 }
