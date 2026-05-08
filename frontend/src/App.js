@@ -120,6 +120,7 @@ const MODSiteDashboard = lazy(() => import('./pages/MODPortal/MODSiteDashboard')
 const MODProDashboard = lazy(() => import('./pages/MODPortal/MODProDashboard'));
 const MembershipsConsole = lazy(() => import('./pages/Memberships/MembershipsConsole'));
 const MemberPortal = lazy(() => import('./pages/Memberships/MemberPortal'));
+const MemberClaimPage = lazy(() => import('./pages/Memberships/MemberClaimPage'));
 const InstructorPortal = lazy(() => import('./pages/Memberships/InstructorPortal'));
 const MembershipsSetupWizard = lazy(() => import('./pages/Memberships/SetupWizard'));
 const GymFloorPage = lazy(() => import('./pages/GymFloor/GymFloorPage'));
@@ -514,6 +515,7 @@ function App() {
  <Route path="/members" element={<MemberPortal />} />
  <Route path="/m/:slug" element={<BrandedMemberApp />} />
  <Route path="/m/:slug/c/:occId" element={<PublicClassPage />} />
+ <Route path="/m/:slug/claim" element={<MemberClaimPage />} />
 <Route path="/m/:slug/i/:instructorSlug" element={<PublicInstructorPage />} />
  <Route path="/embed/:slug/timetable" element={<EmbedTimetable />} />
  <Route path="/checkin/kiosk" element={<KioskCheckin />} />

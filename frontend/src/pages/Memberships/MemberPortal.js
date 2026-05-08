@@ -29,6 +29,7 @@ import {
 
 import FamilyTab from './FamilyTab';
 import HomeTab from './MemberHomeTab';
+import MemberEventsTab from './MemberEventsTab';
 import { StudioVocabProvider, useStudioVocab, capNoun } from '@/hooks/useStudioVocab';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -48,6 +49,7 @@ const TABS = [
 const MORE_ITEMS = [
   { id: 'plan',    label: 'My plan',           icon: CreditCard },
   { id: 'family',  label: 'Family accounts',   icon: Users },
+  { id: 'events',  label: 'Events & shows',    icon: Sparkles },
   { id: 'profile', label: 'Profile & settings',icon: User },
 ];
 
@@ -161,6 +163,7 @@ export default function MemberPortal({ slug }) {
         {tab === 'bookings' && <BookingsTab headers={headers} slug={slug} />}
         {tab === 'plan'     && <PlanTab headers={headers} member={member} slug={slug} />}
         {tab === 'family'   && <FamilyTab API={API} headers={headers} />}
+        {tab === 'events'   && <MemberEventsTab API={API} headers={headers} />}
         {tab === 'pass'     && <PassTab headers={headers} member={member} />}
         {tab === 'profile'  && <ProfileTab member={member} onSignOut={signOut} slug={slug} />}
       </main>

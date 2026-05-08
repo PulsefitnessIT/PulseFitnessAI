@@ -1,0 +1,87 @@
+{
+  "summary": "Iteration 216ak Sprint B Testing (G5, G6, G12) - Backend 95% pass (20/21), Frontend 100% pass. All core features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/member/events/{id}/tickets",
+        "issue": "quantity=0 returns 200 instead of 400. The code defaults 0 to 1 via `qty = int((body or {}).get('quantity') or 1)` before validation.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216ak_sprint_b.py",
+    "/app/test_reports/pytest/pytest_results_216ak.xml"
+  ],
+  "action_items": [
+    "MINOR: Fix quantity=0 validation in /api/member/events/{id}/tickets - change `qty = int((body or {}).get('quantity') or 1)` to `qty = int((body or {}).get('quantity', 1))` or validate before defaulting"
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216ak_sprint_b.py"
+  ],
+  "success_rate": {
+    "backend": "95% (20/21 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "operator": "Bob@knockers.com / Test123!",
+    "member": "test-member-nosite-216ag-4b650795@example.com / NewPass123!"
+  },
+  "seed_data_creation": "Created TEST_216ak_* prefixed members and events for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Sprint B features (G5, G6, G12) are fully functional. Backend APIs for invite-portal, claim-invite, revoke-portal, member events, and home-widget all working. Frontend InvitePortalButton shows correct 3 states (Invite/Resend/Active), MemberClaimPage has all required fields, MemberEventsTab shows empty state correctly, MemberHomeTab shows NEXT UP and QUICK REBOOK sections. Email transport is MOCKED (Resend unconfigured) - invite returns email_sent=false with claim_url for copy-paste.",
+  "features_verified": {
+    "G5_invite_portal": {
+      "backend": {
+        "POST /memberships/members/{id}/invite-portal": "PASS - returns ok, email_sent, expires_at, claim_url",
+        "POST /member-auth/claim-invite": "PASS - validates token, password length, returns JWT",
+        "POST /memberships/members/{id}/revoke-portal": "PASS - wipes token and disables access",
+        "idempotent_invite": "PASS - second call generates new token"
+      },
+      "frontend": {
+        "InvitePortalButton_3_states": "PASS - Invite (cyan), Resend (amber), Active (emerald)",
+        "stopPropagation": "PASS - clicking button does not open member detail drawer",
+        "success_toast": "PASS - shows 'Invite ready' toast after click",
+        "copy_button": "PASS - visible on Resend state"
+      }
+    },
+    "G6_event_ticketing": {
+      "backend": {
+        "GET /member/events": "PASS - returns upcoming events with my_tickets, tickets_remaining",
+        "POST /member/events/{id}/tickets": "PASS - creates ticket, increments tickets_sold",
+        "quantity_validation": "PARTIAL - quantity>8 returns 400, quantity=0 returns 200 (minor bug)",
+        "credit_payment_rejected": "PASS - returns 400",
+        "capacity_overflow": "PASS - returns 409"
+      },
+      "frontend": {
+        "MemberEventsTab": "PASS - shows title, subtitle, empty state",
+        "More_menu_entry": "PASS - 'Events & shows' entry in More sheet"
+      }
+    },
+    "G12_home_widget": {
+      "backend": {
+        "GET /member/home-widget": "PASS - returns next_class, last_booked, unread_notifications, unsigned_forms, outstanding_invoice_pence",
+        "no_500_with_no_bookings": "PASS - returns nulls gracefully"
+      },
+      "frontend": {
+        "MemberHomeTab_widget": "PASS - shows NEXT UP section with class name, time, capacity",
+        "QUICK_REBOOK": "PASS - shows last 3 class templates"
+      }
+    },
+    "regression": {
+      "operator_booking_endpoint": "PASS - POST /memberships/occurrences/{id}/bookings exists",
+      "onboarding_checklist": "PASS - returns 5+ steps including invite_portal"
+    }
+  },
+  "mocked_apis": {
+    "resend_email": "Email transport is MOCKED - invite-portal returns email_sent=false with claim_url for operators to copy-paste"
+  }
+}

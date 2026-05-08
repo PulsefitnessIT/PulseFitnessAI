@@ -545,4 +545,224 @@ async def ai_event_comms(
     }
 
 
+
+# ═════════════ Member-side event ticketing (iter 216ak · Sprint B · G6) ═════════════
+
+from routes.memberships.helpers import _require_current_member  # noqa: E402
+
+
+@router.get("/member/events")
+async def member_list_events(
+    member: dict = Depends(_require_current_member),
+    upcoming_only: bool = Query(True),
+):
+    """Member-facing: list events for the member's org. Used by the Events
+    tab in the member portal. Hides archived and past events by default.
+    Annotates each row with `my_tickets` (the member's own ticket count)
+    so the UI can show 'You have 2 tickets' inline."""
+    org_id = member.get("organization_id")
+    if not org_id:
+        raise HTTPException(400, "Member has no organization")
+    q: dict = {"organization_id": org_id, "archived": {"$ne": True}}
+    if upcoming_only:
+        q["ends_at"] = {"$gte": _now_iso()}
+    rows = await db.studio_events.find(q, {"_id": 0}).sort("starts_at", 1).to_list(200)
+
+    # Batch-load the member's own tickets so we can stamp counts without
+    # hitting the DB per-row.
+    event_ids = [r["id"] for r in rows]
+    my_counts: dict[str, int] = {}
+    if event_ids:
+        async for t in db.studio_event_tickets.find(
+            {"event_id": {"$in": event_ids}, "buyer_member_id": member["id"],
+             "status": {"$in": ["paid", "pending_invoice"]}},
+            {"_id": 0, "event_id": 1, "quantity": 1},
+        ):
+            my_counts[t["event_id"]] = my_counts.get(t["event_id"], 0) + int(t.get("quantity") or 1)
+    for r in rows:
+        r["my_tickets"] = my_counts.get(r["id"], 0)
+        r["tickets_remaining"] = max(
+            int(r.get("ticket_capacity") or 0) - int(r.get("tickets_sold") or 0), 0,
+        ) if int(r.get("ticket_capacity") or 0) > 0 else None
+    return {"events": rows, "count": len(rows)}
+
+
+@router.post("/member/events/{event_id}/tickets")
+async def member_buy_event_tickets(
+    event_id: str,
+    body: dict = Body(...),
+    member: dict = Depends(_require_current_member),
+):
+    """Member purchases N tickets for an event.
+
+    Body: { "quantity": 1..8, "payment": "credit"|"on-statement" }
+    - "on-statement" (default) adds the tickets as a line on the next
+      monthly invoice — same pattern as the costume→invoice hook. No
+      immediate charge, safest for family plans.
+    - "credit" reserved for future Stripe one-shot checkout; returns 400
+      for now so operators know it's not wired yet.
+
+    Enforces capacity (hard block), returns 409 when sold-out.
+    """
+    org_id = member.get("organization_id")
+    qty = int((body or {}).get("quantity") or 1)
+    if qty < 1 or qty > 8:
+        raise HTTPException(400, "quantity must be 1..8")
+    payment = ((body or {}).get("payment") or "on-statement").lower()
+    if payment == "credit":
+        raise HTTPException(400, "Card checkout for event tickets is not available yet — use 'on-statement'")
+    if payment not in ("on-statement",):
+        raise HTTPException(400, "payment must be 'on-statement'")
+
+    ev = await db.studio_events.find_one(
+        {"id": event_id, "organization_id": org_id, "archived": {"$ne": True}},
+        {"_id": 0},
+    )
+    if not ev:
+        raise HTTPException(404, "Event not found")
+    if ev.get("ends_at") and ev["ends_at"] < _now_iso():
+        raise HTTPException(400, "Event has ended")
+    cap = int(ev.get("ticket_capacity") or 0)
+    sold = int(ev.get("tickets_sold") or 0)
+    if cap > 0 and sold + qty > cap:
+        raise HTTPException(409, f"Only {max(cap - sold, 0)} ticket(s) left")
+
+    unit = int(ev.get("ticket_price_pence") or 0)
+    total = unit * qty
+
+    ticket = {
+        "id": _uuid(),
+        "organization_id": org_id,
+        "event_id": event_id,
+        "buyer_member_id": member["id"],
+        "quantity": qty,
+        "unit_pence": unit,
+        "total_pence": total,
+        "status": "paid" if total == 0 else "pending_invoice",
+        "payment_method": "on_statement",
+        "created_at": _now_iso(),
+    }
+    await db.studio_event_tickets.insert_one(ticket)
+    await db.studio_events.update_one(
+        {"id": event_id}, {"$inc": {"tickets_sold": qty}},
+    )
+    return {
+        "ok": True,
+        "ticket": {k: v for k, v in ticket.items() if k != "_id"},
+        "event_name": ev.get("name"),
+        "total_pence": total,
+    }
+
+
+# ═════════════ Home widget: "Next class" + unread (G12) ═════════════
+
+
+@router.get("/member/home-widget")
+async def member_home_widget(member: dict = Depends(_require_current_member)):
+    """Iter 216ak — compact endpoint powering the member portal's Home
+    hero. Single round-trip so the first paint is fast.
+
+    Returns:
+      {
+        next_class: { id, name, starts_at, room_name, in_minutes, booked_count },
+        last_booked: [... last 3 class occurrences ...],
+        unread_notifications: int,
+        unsigned_forms: int,
+        outstanding_invoice_pence: int,
+      }
+    """
+    org_id = member.get("organization_id")
+    now_iso = _now_iso()
+
+    # Next booking (own + sub-profiles) — the closest upcoming "booked"/"waitlist".
+    sub_ids: list[str] = []
+    async for sp in db.member_sub_profiles.find(
+        {"organization_id": org_id, "member_id": member["id"]}, {"_id": 0, "id": 1},
+    ):
+        sub_ids.append(sp["id"])
+    booking_q = {
+        "organization_id": org_id,
+        "status": {"$in": ["booked", "waitlist"]},
+        "$or": [{"member_id": member["id"]}],
+    }
+    if sub_ids:
+        booking_q["$or"].append({"attendee_sub_profile_id": {"$in": sub_ids}})
+    bookings = await db.bookings.find(
+        booking_q, {"_id": 0, "occurrence_id": 1, "status": 1},
+    ).to_list(50)
+    occ_ids = [b["occurrence_id"] for b in bookings]
+    next_class = None
+    if occ_ids:
+        occ_docs = await db.class_occurrences.find(
+            {"id": {"$in": occ_ids}, "starts_at": {"$gte": now_iso}, "status": "scheduled"},
+            {"_id": 0, "id": 1, "name": 1, "starts_at": 1, "ends_at": 1,
+             "room_name": 1, "bookings_count": 1, "capacity": 1},
+        ).sort("starts_at", 1).to_list(20)
+        if occ_docs:
+            top = occ_docs[0]
+            try:
+                delta = datetime.fromisoformat(top["starts_at"]) - datetime.now(timezone.utc)
+                in_minutes = max(int(delta.total_seconds() // 60), 0)
+            except Exception:  # noqa: BLE001
+                in_minutes = None
+            next_class = {
+                "id": top["id"],
+                "name": top.get("name"),
+                "starts_at": top["starts_at"],
+                "ends_at": top.get("ends_at"),
+                "room_name": top.get("room_name"),
+                "in_minutes": in_minutes,
+                "booked_count": int(top.get("bookings_count") or 0),
+                "capacity": int(top.get("capacity") or 0),
+            }
+
+    # "Last booked" — the 3 most recent class templates the member used.
+    # Used for the one-tap rebook widget.
+    recent_tpl_ids: list[str] = []
+    seen: set[str] = set()
+    recent_bookings = await db.bookings.find(
+        {"organization_id": org_id, "member_id": member["id"], "status": {"$in": ["attended", "booked"]}},
+        {"_id": 0, "occurrence_id": 1, "booked_at": 1},
+    ).sort("booked_at", -1).to_list(30)
+    for b in recent_bookings:
+        occ = await db.class_occurrences.find_one(
+            {"id": b["occurrence_id"]}, {"_id": 0, "template_id": 1, "name": 1},
+        )
+        if not occ or not occ.get("template_id"):
+            continue
+        tid = occ["template_id"]
+        if tid in seen:
+            continue
+        seen.add(tid)
+        recent_tpl_ids.append(tid)
+        if len(recent_tpl_ids) >= 3:
+            break
+    last_booked: list[dict] = []
+    if recent_tpl_ids:
+        last_booked = await db.class_templates.find(
+            {"id": {"$in": recent_tpl_ids}},
+            {"_id": 0, "id": 1, "name": 1, "duration_min": 1, "colour": 1},
+        ).to_list(10)
+
+    unsigned_forms = await db.member_consent_signatures.count_documents(
+        {"member_id": member["id"], "status": "due"},
+    ) if hasattr(db, "member_consent_signatures") else 0
+
+    inv_cursor = db.membership_class_invoices.aggregate([
+        {"$match": {"organization_id": org_id, "member_id": member["id"],
+                    "status": {"$in": ["sent", "overdue"]}}},
+        {"$group": {"_id": None, "total": {"$sum": "$total_pence"}}},
+    ])
+    inv_agg = await inv_cursor.to_list(length=1)
+    outstanding = int(inv_agg[0]["total"]) if inv_agg else 0
+
+    return {
+        "next_class": next_class,
+        "last_booked": last_booked,
+        "unread_notifications": 0,  # reserved
+        "unsigned_forms": int(unsigned_forms or 0),
+        "outstanding_invoice_pence": outstanding,
+    }
+
+
 __all__ = ["router"]

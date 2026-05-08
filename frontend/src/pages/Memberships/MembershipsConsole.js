@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
+import InvitePortalButton from '@/components/memberships/InvitePortalButton';
 import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import {
   Header, Kpi, StatusPill, CapacityBar, Loading, Empty, Input, Select, ModalShell, ModalActions,
@@ -603,10 +604,11 @@ function MembersTab({ API, headers }) {
                 <th className="px-4 py-3 text-left font-bold">Status</th>
                 <th className="px-4 py-3 text-left font-bold">Credits</th>
                 <th className="px-4 py-3 text-right font-bold">No-shows</th>
+                <th className="px-2 py-3 text-right font-bold">Portal</th>
               </tr>
             </thead>
           <tbody>
-            {loading && <tr><td colSpan={5} className="text-center text-[color:var(--theme-text-muted)] py-6">Loading…</td></tr>}
+            {loading && <tr><td colSpan={6} className="text-center text-[color:var(--theme-text-muted)] py-6">Loading…</td></tr>}
             {members.map((m) => (
               <tr key={m.id} onClick={() => setDetail(m.id)} className="border-t border-[color:var(--theme-border)] hover:bg-white dark:bg-zinc-900/[0.03] cursor-pointer" data-testid={`mbr-row-${m.id}`}>
                 <td className="px-4 py-3">
@@ -623,6 +625,7 @@ function MembersTab({ API, headers }) {
                 <td className="px-4 py-3"><StatusPill status={m.active_membership?.status || m.status} /></td>
                 <td className="px-4 py-3 text-xs text-[color:var(--theme-text-muted)]">{m.active_membership ? `${m.active_membership.credits_remaining ?? '∞'}` : '—'}</td>
                 <td className={`px-4 py-3 text-right text-xs font-bold ${(m.no_show_count || 0) > 2 ? 'text-red-300' : 'text-[color:var(--theme-text-muted)]'}`}>{m.no_show_count || 0}</td>
+                <td className="px-2 py-3 text-right"><InvitePortalButton API={API} headers={headers} member={m} onDone={load} /></td>
               </tr>
             ))}
           </tbody>
@@ -656,6 +659,9 @@ function MembersTab({ API, headers }) {
                     {m.no_show_count} no-show{m.no_show_count === 1 ? '' : 's'}
                   </span>
                 )}
+                <div className="shrink-0">
+                  <InvitePortalButton API={API} headers={headers} member={m} onDone={load} />
+                </div>
               </div>
             </button>
           ))}

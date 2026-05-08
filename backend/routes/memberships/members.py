@@ -553,3 +553,135 @@ async def members_cancel(member_id: str, body: dict = Body(...), user: dict = De
 
 
 # ═════════════════════ Class templates + occurrences ═════════════════════
+
+
+# ═════════════ Parent / member portal invite (iter 216ak · G5) ═════════════
+
+_INVITE_TTL_DAYS = 21
+
+
+@router.post(
+    "/memberships/members/{member_id}/invite-portal",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def invite_member_portal(
+    member_id: str,
+    body: dict = Body(default={}),
+    user: dict = Depends(get_current_user),
+):
+    """Operator-triggered — email the member a magic-link that lets them
+    set a password and sign into the parent/member portal.
+
+    Idempotent: calling twice re-issues a fresh token (old tokens die).
+    Body (optional):
+      { "note": "See you Saturday!" }  — appended to the email.
+
+    Stamps `members.portal_invited_at` + `portal_invite_token_hash` so
+    the onboarding checklist's `invite_portal` step flips to done.
+    """
+    import hashlib
+    import os as _os
+    from utils.email import send_email
+
+    org_id = await _require_operator_org(user)
+    m = await db.members.find_one(
+        {"id": member_id, "organization_id": org_id}, {"_id": 0},
+    )
+    if not m:
+        raise HTTPException(404, "Member not found")
+    if not m.get("email"):
+        raise HTTPException(400, "Add an email on the member before inviting them")
+
+    token = secrets.token_urlsafe(24)
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    expires = (datetime.now(timezone.utc) + timedelta(days=_INVITE_TTL_DAYS)).isoformat()
+
+    await db.members.update_one(
+        {"id": member_id},
+        {"$set": {
+            "portal_invited_at": _now_iso(),
+            "portal_invited_by": user.get("id"),
+            "portal_invite_token_hash": token_hash,
+            "portal_invite_expires_at": expires,
+            "portal_access_enabled": True,
+        }},
+    )
+
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "name": 1, "primary_color": 1, "slug": 1,
+                         "membership_app_slug": 1, "logo_url": 1},
+    ) or {}
+    # Resolve site-level branding so multi-site operators send the venue's
+    # name + colour (iter 216af/ag groundwork re-used).
+    from routes.sites import _effective_site_branding
+    site_doc = None
+    if m.get("site_id"):
+        site_doc = await db.sites.find_one(
+            {"id": m["site_id"], "organization_id": org_id}, {"_id": 0},
+        )
+    eff = _effective_site_branding(org, site_doc)
+    brand_name = eff.get("name") or org.get("name") or "Your studio"
+    primary = eff.get("primary_color") or "#19CDFF"
+
+    frontend = (
+        _os.environ.get("FRONTEND_URL")
+        or _os.environ.get("REACT_APP_BACKEND_URL")
+        or "https://gymaxisai.com"
+    ).rstrip("/")
+    slug = org.get("membership_app_slug") or org.get("slug") or org_id
+    claim_url = f"{frontend}/m/{slug}/claim?t={token}"
+
+    note_line = ""
+    raw_note = (body or {}).get("note")
+    if isinstance(raw_note, str) and raw_note.strip():
+        safe = sanitise_string(raw_note)[:300]
+        note_line = f"<p style='background:rgba(255,255,255,0.05);padding:10px 14px;border-left:3px solid {primary};border-radius:6px;font-size:13px'><em>{safe}</em></p>"
+
+    first = sanitise_string(m.get("first_name") or "there")
+    html = (
+        f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;color:#0A0C10'>"
+        f"<div style='background:{primary};padding:22px 26px;border-radius:12px 12px 0 0'>"
+        f"<h1 style='margin:0;font-size:22px'>Welcome to {brand_name}</h1></div>"
+        f"<div style='padding:24px;background:#0A0C10;color:#fff;border-radius:0 0 12px 12px'>"
+        f"<p>Hi {first},</p>"
+        f"<p>Your studio has set up a portal account for you. Tap the button below to set your password and start booking classes, managing your family, and paying invoices on your phone.</p>"
+        f"{note_line}"
+        f"<p style='margin:24px 0'>"
+        f"<a href='{claim_url}' style='display:inline-block;background:{primary};color:#0A0C10;padding:14px 26px;border-radius:999px;text-decoration:none;font-weight:800;font-size:15px'>Set up my portal →</a>"
+        f"</p>"
+        f"<p style='opacity:0.6;font-size:12px'>This link expires in {_INVITE_TTL_DAYS} days. If you weren't expecting this, you can safely ignore the email.</p>"
+        f"</div></div>"
+    )
+    sent = await send_email(m["email"], f"Your {brand_name} portal is ready", html)
+
+    return {
+        "ok": True,
+        "member_id": member_id,
+        "email": m["email"],
+        "expires_at": expires,
+        "email_sent": bool(sent),
+        "claim_url": claim_url,  # returned so operators can copy-paste if email bounces
+    }
+
+
+@router.post(
+    "/memberships/members/{member_id}/revoke-portal",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def revoke_member_portal(member_id: str, user: dict = Depends(get_current_user)):
+    """Kill switch — invalidates any outstanding invite token and blocks
+    portal sign-in. Used for disputed accounts, offboarded parents, etc."""
+    org_id = await _require_operator_org(user)
+    res = await db.members.update_one(
+        {"id": member_id, "organization_id": org_id},
+        {"$set": {
+            "portal_access_enabled": False,
+            "portal_invite_token_hash": None,
+            "portal_invite_revoked_at": _now_iso(),
+            "portal_invite_revoked_by": user.get("id"),
+        }},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Member not found")
+    return {"ok": True}
+

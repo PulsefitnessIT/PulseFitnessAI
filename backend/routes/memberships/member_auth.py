@@ -137,3 +137,55 @@ async def member_login(body: MemberLogin, request: Request):
 @router.get("/member-auth/me")
 async def member_me(member: dict = Depends(_require_current_member)):
     return {"member": _public_member(member)}
+
+
+
+# ═════════════ Portal invite claim (iter 216ak · Sprint B · G5) ═════════════
+
+
+class MemberClaimInvite(BaseModel):
+    token: str = Field(min_length=10, max_length=512)
+    password: str = Field(min_length=8, max_length=200)
+
+
+@router.post("/member-auth/claim-invite")
+async def member_claim_invite(body: MemberClaimInvite):
+    """Operator sent the member a magic link (see
+    `POST /memberships/members/{id}/invite-portal`). The link lands on
+    `/m/{slug}/claim?t=<token>` in the frontend; the frontend posts here
+    to finalise: verify the token hash, set the member's password, and
+    return a normal member bearer.
+    """
+    import hashlib
+    from datetime import datetime, timezone
+
+    h = hashlib.sha256(body.token.strip().encode("utf-8")).hexdigest()
+    m = await db.members.find_one(
+        {"portal_invite_token_hash": h, "portal_access_enabled": True},
+        {"_id": 0},
+    )
+    if not m:
+        raise HTTPException(400, "Invite is invalid or has been revoked")
+    exp = m.get("portal_invite_expires_at")
+    if exp:
+        try:
+            if datetime.fromisoformat(exp) < datetime.now(timezone.utc):
+                raise HTTPException(400, "Invite has expired — ask your studio to resend")
+        except ValueError:
+            pass  # malformed stamp — allow, but don't fail closed
+
+    await db.members.update_one(
+        {"id": m["id"]},
+        {
+            "$set": {
+                "password": pwd_ctx.hash(body.password),
+                "portal_claimed_at": _now_iso(),
+                "last_seen_at": _now_iso(),
+            },
+            # Burn the token so the link can't be replayed.
+            "$unset": {"portal_invite_token_hash": "", "portal_invite_expires_at": ""},
+        },
+    )
+    # Refresh the doc so the JWT + profile echo the claimed state.
+    m2 = await db.members.find_one({"id": m["id"]}, {"_id": 0})
+    return {"token": _member_token(m2), "member": _public_member(m2)}
