@@ -102,6 +102,16 @@ class InstructorIn(BaseModel):
     emergency_contact_phone: Optional[str] = Field(default=None, max_length=40)
     notes: Optional[str] = Field(default=None, max_length=4000)
     tags: list[str] = []
+    # Iter 216ae — Phase F safeguarding & payroll fields.
+    dbs_reference: Optional[str] = Field(default=None, max_length=40)
+    dbs_issued_on: Optional[str] = None      # YYYY-MM-DD
+    dbs_expires_on: Optional[str] = None     # YYYY-MM-DD
+    safeguarding_completed_on: Optional[str] = None
+    safeguarding_expires_on: Optional[str] = None
+    first_aid_completed_on: Optional[str] = None
+    first_aid_expires_on: Optional[str] = None
+    hourly_rate_pence: Optional[int] = Field(default=None, ge=0, le=100_000)
+    substitute_available: bool = True
 
 
 class InstructorPatch(BaseModel):
