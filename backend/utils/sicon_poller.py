@@ -219,6 +219,7 @@ async def _poll_once() -> None:
     await _run_marketing_autopilot()
     await _run_memberships_crm_loop()
     await _run_family_autopay()
+    await _run_ppm_autogen()
 
 
 async def _run_family_autopay() -> None:
@@ -252,6 +253,15 @@ async def _run_memberships_crm_loop() -> None:
         await run_crm_loop_cycle()
     except Exception:
         logger.exception("[memberships-crm-loop] cycle failed")
+
+
+async def _run_ppm_autogen() -> None:
+    """Phase 2: spawn service-desk cases from PPM tasks coming due."""
+    try:
+        from utils.ppm_autogen import run_ppm_autogen_cycle
+        await run_ppm_autogen_cycle()
+    except Exception:
+        logger.exception("[ppm-autogen] cycle failed")
 
 
 async def _run_marketing_autopilot() -> None:

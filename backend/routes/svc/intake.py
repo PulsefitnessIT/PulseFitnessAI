@@ -205,6 +205,35 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
             "created_at": quote_outbox.get("created_at"),
             "customer_po_number": quote_outbox.get("customer_po_number"),
         }
+
+    # Iter 216u (Phase 2) — best-effort AI engineer recommendation on every
+    # new case. Stamps `recommended_engineer_id/name/score/reason` so the
+    # service desk UI can show a one-click "Auto-assign" suggestion. Never
+    # blocks the case write; failures are silent.
+    try:
+        from routes.svc.scheduler import _score_engineers_for_case  # type: ignore
+        suggestions = await _score_engineers_for_case(case, organization_id=org_id, limit=1)
+        top = suggestions[0] if suggestions else None
+        if top:
+            await db.svc_cases.update_one(
+                {"id": case["id"]},
+                {"$set": {
+                    "recommended_engineer_id": top.get("engineer_id", ""),
+                    "recommended_engineer_name": top.get("engineer_name", ""),
+                    "recommended_engineer_score": top.get("score", 0),
+                    "recommended_engineer_reason": top.get("reason", ""),
+                }},
+            )
+            case["recommended_engineer_id"] = top.get("engineer_id", "")
+            case["recommended_engineer_name"] = top.get("engineer_name", "")
+            case["recommended_engineer_score"] = top.get("score", 0)
+            case["recommended_engineer_reason"] = top.get("reason", "")
+    except Exception as exc:
+        import logging as _log
+        _log.getLogger(__name__).info(
+            "intake auto-assign suggestion failed for %s: %s", case.get("id"), exc,
+        )
+
     return case
 
 

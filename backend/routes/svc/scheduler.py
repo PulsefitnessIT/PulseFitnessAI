@@ -270,24 +270,21 @@ def _score(engineer: dict, case: dict, *, engineer_open_jobs: int, van_skus: set
     }
 
 
-@router.post("/auto-assign")
-async def auto_assign(
-    case_id: str = Query(..., description="Case to auto-assign"),
-    commit: bool = Query(False, description="If true, actually assign the top engineer"),
-    user=Depends(get_current_user),
-):
-    """Score every active engineer for the given case and return a ranking."""
-    of = _of(user)
-    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
-    if not case:
-        raise HTTPException(404, "Case not found")
+async def _score_engineers_for_case(case: dict, organization_id: str, limit: int = 5) -> list[dict]:
+    """Reusable helper — used by ``/auto-assign`` and by the intake hot-path
+    to stamp ``recommended_engineer_*`` on every new case.
+
+    Returns the top ``limit`` engineer rankings; each dict adds a tiny
+    human-readable ``reason`` so the UI can render it inline (e.g.
+    "On-site postcode match · 2 likely parts on van").
+    """
+    of = {"organization_id": organization_id}
     engineers = await db.svc_engineers.find(
         {**of, "active": {"$ne": False}}, {"_id": 0},
     ).to_list(500)
     if not engineers:
-        raise HTTPException(409, "No active engineers — add one before auto-assigning")
+        return []
 
-    # Engineer load + van-stock SKUs in two round-trips.
     pipeline = [
         {"$match": {**of, "status": {"$in": list(OPEN_STATES)}, "assigned_engineer_id": {"$ne": ""}}},
         {"$group": {"_id": "$assigned_engineer_id", "n": {"$sum": 1}}},
@@ -312,6 +309,42 @@ async def auto_assign(
         key=lambda r: r["score"],
         reverse=True,
     )
+    for r in rankings:
+        b = r.get("breakdown", {})
+        bits: list[str] = []
+        if b.get("drive_minutes", 999) <= 15:
+            bits.append("local postcode")
+        elif b.get("drive_minutes", 0) <= 45:
+            bits.append("nearby region")
+        if b.get("van_match", 0) >= 1:
+            bits.append(f"{b['van_match']} likely part(s) on van")
+        if b.get("skill_mismatch", 0) == 0:
+            bits.append("skill match")
+        if b.get("sla_breach_risk", 0) >= 2:
+            bits.append("SLA risk pickup")
+        r["reason"] = " · ".join(bits) or "best available"
+    return rankings[:limit]
+
+
+@router.post("/auto-assign")
+async def auto_assign(
+    case_id: str = Query(..., description="Case to auto-assign"),
+    commit: bool = Query(False, description="If true, actually assign the top engineer"),
+    user=Depends(get_current_user),
+):
+    """Score every active engineer for the given case and return a ranking."""
+    of = _of(user)
+    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    engineers = await db.svc_engineers.find(
+        {**of, "active": {"$ne": False}}, {"_id": 0},
+    ).to_list(500)
+    if not engineers:
+        raise HTTPException(409, "No active engineers — add one before auto-assigning")
+
+    # Use the shared helper that adds the human-readable 'reason' field
+    rankings = await _score_engineers_for_case(case, organization_id=of["organization_id"], limit=500)
 
     response = {"case_id": case_id, "rankings": rankings[:5]}
 

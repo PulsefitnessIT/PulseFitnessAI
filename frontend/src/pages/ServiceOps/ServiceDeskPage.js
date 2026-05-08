@@ -12,7 +12,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Search, AlertTriangle, Clock, CircleAlert, RefreshCw, Phone, Filter } from 'lucide-react';
+import { Plus, Search, AlertTriangle, Clock, CircleAlert, RefreshCw, Phone, Filter, Sparkles } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ServiceDeskIntakeForm from './ServiceDeskIntakeForm';
 import ServiceCaseDrawer from './ServiceCaseDrawer';
@@ -241,7 +241,22 @@ export default function ServiceDeskPage() {
                     </td>
                     <td className="text-xs svc-muted">{c.site_name || '—'}</td>
                     <td className="text-xs"><span className="svc-pill">{STATUS_LABEL[c.status] || c.status}</span></td>
-                    <td className="text-xs svc-muted">{c.assigned_engineer_name || <span className="italic" style={{ opacity: 0.6 }}>unassigned</span>}</td>
+                    <td className="text-xs svc-muted">
+                      {c.assigned_engineer_name ? (
+                        c.assigned_engineer_name
+                      ) : c.recommended_engineer_name ? (
+                        <span
+                          className="inline-flex items-center gap-1"
+                          title={c.recommended_engineer_reason || 'AI suggestion'}
+                          data-testid={`case-recommended-${c.reference}`}
+                        >
+                          <Sparkles size={11} style={{ color: '#1d4ed8' }} />
+                          <span style={{ color: '#1d4ed8' }}>Suggest: {c.recommended_engineer_name}</span>
+                        </span>
+                      ) : (
+                        <span className="italic" style={{ opacity: 0.6 }}>unassigned</span>
+                      )}
+                    </td>
                     <td className="num"><SLAPill resolveAt={c.sla_resolve_at} /></td>
                   </tr>
                 );

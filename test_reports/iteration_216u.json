@@ -1,0 +1,89 @@
+{
+  "summary": "Tested iteration 216u — Phase 2 PPM Auto-gen & AI Auto-assign. All 12 backend tests pass. Fixed bug in /api/svc/scheduler/auto-assign endpoint that was missing 'reason' field in rankings. Frontend Service Desk verified: 'Suggest: <name>' with sparkles icon renders correctly for unassigned cases with recommendations.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216u_phase2_ppm_autogen.py",
+    "/app/test_reports/pytest/pytest_results_216u.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED: scheduler.py auto-assign endpoint was using _score() directly instead of _score_engineers_for_case(), causing 'reason' field to be missing from rankings. Now uses the shared helper.",
+    "intake.py:213-235 — correctly calls _score_engineers_for_case and stamps recommended_engineer_id/name/score/reason on new cases",
+    "ppm_autogen.py:33-136 — run_ppm_autogen_cycle() correctly spawns svc_cases from due ppm_tasks with LOOKAHEAD_DAYS=14",
+    "sicon_poller.py:258-264 — _run_ppm_autogen() correctly wired into poll cycle after _run_family_autopay()",
+    "ServiceDeskPage.js:244-259 — engineer column correctly renders: assigned name (no sparkles), 'Suggest: <name>' with sparkles for recommendations, 'unassigned' for no recommendation",
+    "ServiceDeskPage.js:250-251 — title attribute shows recommended_engineer_reason on hover, data-testid='case-recommended-{reference}' for testing"
+  ],
+  "updated_files": [
+    "/app/backend/routes/svc/scheduler.py",
+    "/app/backend/tests/test_iter_216u_phase2_ppm_autogen.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% (visual verification of Service Desk page)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Created 10+ test cases with TEST_ prefix via backend tests: TEST_Phase2_AutoAssign_Phone, TEST_Phase2_AutoAssign_Email, TEST_Phase2_AutoAssign_Portal, TEST_Phase2_Persist_Check, TEST_ListCases_Recommended, TEST_AutoAssign_Reason, TEST_AutoAssign_Commit, TEST_Reason_Format",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 PPM auto-gen and AI auto-assign features are working. Key changes: (1) POST /api/svc/intake/* now stamps recommended_engineer_id/name/score/reason on every new case when active engineers exist, (2) GET /api/svc/cases returns these fields, (3) POST /api/svc/scheduler/auto-assign now returns 'reason' field in rankings (bug fixed), (4) PPM autogen cycle spawns svc_cases from due ppm_tasks within 14-day lookahead, (5) Frontend Service Desk shows 'Suggest: <name>' with sparkles icon for unassigned cases with recommendations.",
+  "features_verified": {
+    "backend_intake_recommended_fields": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/intake/phone returns recommended_engineer_id, recommended_engineer_name, recommended_engineer_score, recommended_engineer_reason"
+    },
+    "backend_intake_persists_fields": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/cases/{id} returns persisted recommended_engineer_* fields"
+    },
+    "backend_list_cases_recommended_fields": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/cases returns recommended_engineer_* fields, no _id leakage"
+    },
+    "backend_auto_assign_reason_field": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/scheduler/auto-assign returns rankings with 'reason' field (BUG FIXED)"
+    },
+    "backend_auto_assign_commit": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/scheduler/auto-assign?commit=true assigns top engineer"
+    },
+    "backend_ppm_autogen_module": {
+      "status": "PASS",
+      "evidence": "utils/ppm_autogen.py exists with run_ppm_autogen_cycle() function"
+    },
+    "backend_cron_wiring": {
+      "status": "PASS",
+      "evidence": "sicon_poller.py includes _run_ppm_autogen() in poll cycle (line 222)"
+    },
+    "frontend_suggest_sparkles": {
+      "status": "PASS",
+      "evidence": "Screenshot shows 'Suggest: Master Admin' with sparkles icon in Engineer column for unassigned cases with recommendations"
+    },
+    "frontend_assigned_no_sparkles": {
+      "status": "PASS",
+      "evidence": "Screenshot shows 'Master Admin' (no sparkles) for manually assigned cases"
+    },
+    "frontend_unassigned_label": {
+      "status": "PASS",
+      "evidence": "Screenshot shows 'unassigned' for cases without recommendations"
+    }
+  },
+  "bug_fixed": {
+    "endpoint": "POST /api/svc/scheduler/auto-assign",
+    "issue": "Rankings were missing 'reason' field because endpoint used _score() directly instead of _score_engineers_for_case()",
+    "fix": "Changed auto_assign() to use _score_engineers_for_case() helper which adds the human-readable 'reason' field",
+    "file": "/app/backend/routes/svc/scheduler.py",
+    "lines_changed": "329-372"
+  }
+}
