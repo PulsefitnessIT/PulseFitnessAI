@@ -11222,3 +11222,32 @@ Phase D of the Studios Vision shipped end-to-end.
 ### Notes
 - Stripe ticket-checkout integration for public ticket sales is intentionally deferred to a follow-up. Current scope captures `ticket_price_pence + capacity + tickets_sold` so the data model is ready; the public checkout page is a 1-day add-on.
 - The AI comms endpoint requires `EMERGENT_LLM_KEY` in env; without it, a templated fallback returns instead of failing the request.
+
+---
+
+## Iter 216ad — Memberships Phase E: AI Studio Brain (2026-02-08)
+
+Phase E of the Studios Vision shipped end-to-end.
+
+### Backend (`routes/memberships/studio_brain.py` — new)
+- `GET /api/memberships/studio/retention-risk?weeks=N&limit=N` — per-attendee (member or sub-profile) churn score 0–100 using: days-since-last-attended (×1.5, capped 45), attendance-drop ratio (second half vs first half of the window, < 0.6 → +25), and cancellation streak in last 14d (+8 each, capped 24). Returns rows + summary (high/medium/low counts).
+- `GET /api/memberships/studio/occupancy-heatmap?weeks=N` — 7-day × 6-bucket grid (06/09/12/15/18/21) of capacity utilisation % over the lookback. Returns `cells`, `hottest`, `coldest`.
+- `GET /api/memberships/studio/timetable-suggestions` — heuristic seeds (slots ≥80% utilisation → "open extra slot"; slots <40% → "consolidate or drop"). Seeds are passed to Claude Haiku (emergentintegrations, Emergent LLM key) which expands them into a JSON array with per-suggestion `confidence`. Graceful fallback returns the heuristic output when the key/SDK is unavailable.
+- `GET /api/memberships/studio/boardroom` — single-call exec dashboard that composes: members_total / new_30d / growth_pct / revenue_30d / bookings_30d + retention summary + top 5 at-risk + hottest/coldest slot + top 5 AI suggestions + a computed **headline** (picks the most urgent bullet — high-risk students, overfull slot, or top AI suggestion).
+
+### Frontend (`pages/Memberships/StudioBrainTab.js` — new)
+- New **Studio brain** tab on the Memberships console (Brain icon, between Studio builder and Members).
+- Sections:
+  1. **Headline card** with gradient background and a refresh button — the single most actionable "do this week" insight.
+  2. **KPI strip** (4 tiles): Members, New (30d) with growth trend arrow, Revenue (30d), Bookings (30d).
+  3. **Retention risk leaderboard** — high/medium/low pills + per-student row with score pill, reasons bullets, days-since-last-attended. All-clear empty state when no risk.
+  4. **Occupancy heatmap** — 7×6 grid with gradient colour scale (blue <25% → red ≥90%), hover titles show raw booked/capacity/occurrences, plus "Hottest slot" / "Coldest slot" cards and a colour legend.
+  5. **AI timetable optimisation** — two-column layout ("Open another slot" vs "Consolidate or drop") with rationale + impact per suggestion, model pill (heuristic_only / heuristic_fallback / claude_haiku_4_5) in the header.
+
+### Verified end-to-end
+- Curl: all four endpoints return expected payloads. On a fresh org: retention `{scored_attendees: 0}`, heatmap 42 cells with correct `buckets` array, suggestions `heuristic_only` with 0 entries, boardroom with headline "Steady operations — keep monitoring class fill-rates." and zero-state KPIs.
+- Frontend smoke screenshot confirms full render: headline card, 4 KPI tiles, retention summary pills, 42-cell heatmap with colour legend, AI suggestion card with model pill.
+
+### Notes
+- Retention-risk is intentionally heuristic (not LLM) — it's fast, explainable, and surfaces the same reason strings to the UI. An LLM explanation layer could be added later but adds cost for zero accuracy gain on this dataset size.
+- The AI timetable endpoint requires `EMERGENT_LLM_KEY` for LLM-expanded suggestions; without it the heuristic seed returns directly (no failure). In preview env without the key, suggestions=[], model=`heuristic_only`.
