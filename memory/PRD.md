@@ -1,3 +1,40 @@
+## Iteration 216w — Memberships Phase F complete: Staff safeguarding + payroll (Feb 2026)
+
+**Goal**: Close out Phase F of the Memberships → Dance Studio evolution. Capture DBS / safeguarding / first-aid expiry per instructor, expose a substitute pool, and ship a payroll CSV export keyed off completed class occurrences.
+
+### What shipped
+
+**Backend — `/app/backend/routes/memberships/instructors.py`**
+- `InstructorIn` + `InstructorPatch` extended with `dbs_reference`, `dbs_issued_on`, `dbs_expires_on`, `safeguarding_completed_on`, `safeguarding_expires_on`, `first_aid_completed_on`, `first_aid_expires_on`, `hourly_rate_pence`, `substitute_available`.
+- New `_compliance_status(inst)` helper returns a traffic-light (`green` / `amber` / `red` / `missing`) across DBS / Safeguarding / First Aid with a 60-day amber threshold.
+- New endpoints (declared **before** `/{instructor_id}` dynamic route so FastAPI matches them first):
+  - `GET /api/memberships/instructors/substitutes?specialty=&discipline=` — sub pool, annotated with compliance + sorted green-first.
+  - `GET /api/memberships/instructors/compliance` — roster-wide compliance rollup + `{green, amber, red, missing, total}` summary.
+  - `GET /api/memberships/instructors/payroll.csv?date_from=&date_to=` — completed-occurrence payroll with rate resolution order `class_templates.instructor_rate_pence` → `membership_instructors.hourly_rate_pence × minutes/60` → legacy `users.instructor_rate_pence`. Validates dates (400 on malformed), emits `TOTAL` row.
+
+**Frontend — `/app/frontend/src/pages/Memberships/InstructorRosterView.js`**
+- Seed empty() extended with the Phase F fields so the drawer edits them.
+- Roster header: new **Export payroll** button opens `PayrollExportModal` (date range + This-month / Last-30d / YTD presets → downloads CSV blob).
+- Roster body: new `ComplianceKpi` strip (4 tiles) + per-card `ComplianceBadge` (`mbr-instructor-comp-<id>`) sourced from `/compliance`.
+- EditorDrawer: new **Compliance & pay** tab (`mbr-instructor-tab-safeguarding`) with DBS/safeguarding/first-aid dates, hourly rate (GBP ↔ pence converter), and substitute-available toggle.
+
+### Verification
+
+- `/app/test_reports/iteration_216w.json` — **19/19 backend tests pass** (substitutes, compliance, payroll CSV + validation, PATCH round-trip, substitute_available toggle, regression on `/performance` and `/{id}`), **frontend UI verified** (roster renders, payroll modal opens, Compliance & pay tab surfaces all 9 inputs, compliance badges render).
+- New pytest file lives at `/app/backend/tests/test_iter_216w_phase_f_safeguarding.py`.
+- Lint clean on the two touched files.
+
+### Files of reference
+- `/app/backend/routes/memberships/instructors.py` (Phase F block + reordered dynamic routes)
+- `/app/frontend/src/pages/Memberships/InstructorRosterView.js` (new tab, modal, badges, KPI strip)
+- `/app/backend/tests/test_iter_216w_phase_f_safeguarding.py` (new)
+
+### Known non-Phase-F observation
+- Testing agent noted a pre-existing UI-login redirect quirk (unrelated to Phase F); tracked but not fixed here.
+
+---
+
+
 ## Iteration 216o-3 — Mobile UI Playwright regression suite live (Feb 2026)
 
 **Goal**: Wire up the carried-over Playwright spec at `frontend/tests/mobile-regression/master-admin.spec.js` so it actually runs and guards against the recurring mobile layout regressions.
