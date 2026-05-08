@@ -1,3 +1,37 @@
+## Iteration 216ag — Brand inheritance in outbound channels + live preview (Feb 2026)
+
+**Goal**: Extend the site-level branding override (iter 216af) from a data field into visible customer-facing differentiation. Every invoice PDF, invoice email, and service-case auto-notify email now honours the per-site override; the editor now shows a live preview.
+
+### What shipped
+
+**Backend — studio_billing.py**
+- New `_branding_for_member(org, member)` helper — resolves the effective `{name, primary_color, logo_url, source}` for an invoice's recipient by looking up `member.site_id` → site doc → `_effective_site_branding()`. Graceful fallback to org branding when the member has no site (or a stale site id).
+- Generate path (`generate_monthly_invoices`) — now uses the helper for both the email (subject + body + PDF colour band) and subject line, so a member at "iGym Leeds" gets an invoice titled `Your Feb 2026 invoice · iGym Leeds` with the `#FF6B35` brand band instead of the parent org's name.
+- Single-invoice send path (`POST /billing/invoices/{id}/send`) — same treatment. Also now fetches the member doc (was skipped before) to know which site to scope to.
+
+**Backend — svc/comms.py**
+- `_maybe_send_auto_transition_email` ctx now resolves site branding from `case.site_id` and injects `org_name`, `brand_primary_color`, `brand_logo_url` — so ETA / en-route / complete emails match the venue the customer walked into, not the parent ERP brand.
+
+**Frontend — SiteBrandingOverride.js**
+- New `<BrandPreview />` component rendered after the 4 input rows. Shows a mocked member-portal top bar (logo / initials / site name on the primary colour band) plus a sample `Pay £45.00 now →` button, all bound to the current draft with inheritance fall-through. Updates live as operators type — no save required.
+- `data-testid="site-branding-preview-<siteId>"` for automated coverage.
+
+### Verification
+- `/app/test_reports/iteration_216ag.json` — **12/14 backend PASS**, 2 skipped (full send path requires seeded billable items; helper behaviour unit-verified), 0 issues, 0 regressions. Frontend BrandPreview verified via code review + testid.
+- Self-verified end-to-end: created iGym Leeds site override, member on that site, invoice generated + single-send call → no 500 from resolver, 502 only from Resend-unset (expected). No traceback in backend logs.
+
+### Files of reference
+- `/app/backend/routes/memberships/studio_billing.py`
+- `/app/backend/routes/svc/comms.py`
+- `/app/frontend/src/components/sites/SiteBrandingOverride.js`
+
+### Environment quirks (unchanged, for reference)
+- Resend API key purposely unset in preview → email sends return 502; this is by design (handoff).
+- Unrelated `bcrypt '__about__'` warning surfaces on auth hash events — pre-existing env quirk, not from this iteration.
+
+---
+
+
 ## Iteration 216af — P1: Brand Inheritance (iGym vs Pulse parent/child on site doc) (Feb 2026)
 
 **Goal**: Let multi-site operators override the parent organisation's branding on a per-site basis (site name, logo, primary/secondary colours) with clean inheritance so unset fields fall back to the parent org's values.
