@@ -471,19 +471,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  >
  <LifeBuoy size={16} /> Help &amp; Tutorials
  </button>
- {(isOnAuthApp) && onOpenSettings && (
- <button
- onClick={() => { 
- if (onOpenSettings) onOpenSettings(); 
- setShowUserMenu(false); 
- }}
- className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:opacity-80 transition-colors"
- style={{ color: 'var(--theme-text-muted)' }}
- data-testid="nav-settings-btn"
- >
- <Settings size={16} /> {t('nav.settings')}
- </button>
- )}
+ {/* Settings option removed iter202 — settings now live inside Account modal (Preferences section) */}
  {(isOnDashboard || isOnPulse) && onStartTour && (
  <button
  onClick={() => { onStartTour(); setShowUserMenu(false); }}
@@ -566,16 +554,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  >
  <UserCircle size={16} /> {t('nav.account')}
  </button>
- {(isOnAuthApp) && onOpenSettings && (
- <button
- onClick={() => { onOpenSettings(); setMobileMenuOpen(false); }}
- className="w-full flex items-center gap-2 px-3 py-2 hover:opacity-80"
- style={{ color: 'var(--theme-text-muted)' }}
- data-testid="mobile-settings-btn"
- >
- <Settings size={16} /> {t('nav.settings')}
- </button>
- )}
+ {/* Mobile: settings option removed iter202 — moved into Account modal */}
  {user?.is_master_admin && (isOnDashboard || isOnPulse) && onOpenMasterAdmin && (
  <button
  onClick={() => { onOpenMasterAdmin(); setMobileMenuOpen(false); }}
