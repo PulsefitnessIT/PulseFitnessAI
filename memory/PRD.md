@@ -1,3 +1,43 @@
+## Iteration 216af — P1: Brand Inheritance (iGym vs Pulse parent/child on site doc) (Feb 2026)
+
+**Goal**: Let multi-site operators override the parent organisation's branding on a per-site basis (site name, logo, primary/secondary colours) with clean inheritance so unset fields fall back to the parent org's values.
+
+### What shipped
+
+**Backend**
+- `/app/backend/routes/sites.py` — new `_effective_site_branding(org, site)` helper that merges:
+  `site.branding.<field> → org.branding.<field> → org.<direct field> → default (#19CDFF)`.
+  Also returns `_inherits` (per-field boolean) so the UI can show "Inherited / Overridden" badges.
+- `GET /api/sites/{site_id}/branding` — returns `{ site_id, site_name, effective, override, parent }`.
+- `PATCH /api/sites/{site_id}/branding` — owner/manager only; accepts any subset of `{name, logo_url, primary_color, secondary_color}`. Empty string on a field deletes that key so it reverts to inheriting. Writes a `site.branding.updated` audit row.
+- `/app/backend/routes/memberships_ops.py` — `GET /m/{slug}/branding` now accepts optional `?site=<id|code|slug>` and routes through the same helper so the public member portal can render site-scoped branding. Response gains `site_id`, `site_name`, `secondary_color`, `branding_source` (`"site"` | `"organization"`).
+
+**Frontend**
+- `/app/frontend/src/components/sites/SiteBrandingOverride.js` — NEW. Mirrors the shape of `SiteModulesOverride`: 4 fields (name + 2 colour pickers + logo URL), per-field Inherited/Overridden badge, colour swatches tied to text inputs, Save + Reset actions.
+- `/app/frontend/src/pages/PulseSettingsTab.js` — imports new component + `Palette` icon, adds `brandingOverridesOpen` state, renders a new **Branding** expand toggle next to the existing **Modules** toggle on every non-default site row. `data-testid="toggle-site-branding-<id>"` and `data-testid="site-branding-override-<id>"`.
+
+### Verification
+- `/app/test_reports/iteration_216af.json` — **14/15 backend tests PASS** (1 skipped: role-based 403 path needs a staff-token fixture; logic covered by the shared `require role` guard). 0 backend issues, 0 frontend UI bugs.
+  - Default inherit (all `_inherits: true`) ✓
+  - Single / multi-field override persistence ✓
+  - Empty-string → clear override → flip `_inherits` back ✓
+  - Wrong-org 404 ✓
+  - Public `/m/{slug}/branding` with and without `?site=` + correct `branding_source` ✓
+  - Org-level branding regression (PATCH `/organization/branding`) ✓
+- Self-verified with curl: create site → default inherits "Strong Fitness" + #19CDFF → patch primary/name/secondary → `_inherits` flips correctly → clear with empty strings → `_inherits` all true again.
+
+### Files of reference
+- `/app/backend/routes/sites.py`
+- `/app/backend/routes/memberships_ops.py`
+- `/app/frontend/src/components/sites/SiteBrandingOverride.js` (new)
+- `/app/frontend/src/pages/PulseSettingsTab.js`
+
+### Known pre-existing (not Phase-F/216af)
+- Login-redirect quirk noted in iter 216w frontend UI testing (token-injection workaround in the testing agent). Does not affect the branding feature.
+
+---
+
+
 ## Iteration 216ae — Costume→invoice hook + Vocabulary swap through parent portal (Feb 2026)
 
 **Goal**: Two near-zero-cost compounding wins on top of the Memberships module.
