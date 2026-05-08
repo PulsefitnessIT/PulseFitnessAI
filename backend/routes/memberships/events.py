@@ -605,7 +605,11 @@ async def member_buy_event_tickets(
     Enforces capacity (hard block), returns 409 when sold-out.
     """
     org_id = member.get("organization_id")
-    qty = int((body or {}).get("quantity") or 1)
+    raw_qty = (body or {}).get("quantity", 1)
+    try:
+        qty = int(raw_qty)
+    except (TypeError, ValueError):
+        qty = 0
     if qty < 1 or qty > 8:
         raise HTTPException(400, "quantity must be 1..8")
     payment = ((body or {}).get("payment") or "on-statement").lower()
