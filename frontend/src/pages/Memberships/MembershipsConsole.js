@@ -702,19 +702,18 @@ function MembersTab({ API, headers }) {
           {members.map((m) => {
             const checked = selectedIds.includes(m.id);
             return (
-            <div key={m.id} className={`flex items-start px-4 py-3 ${checked ? 'bg-[color:var(--color-brand-cyan)]/5' : ''}`} data-testid={`mbr-row-mobile-${m.id}`}>
+            <div key={m.id} className={`flex items-start px-4 py-3 gap-3 ${checked ? 'bg-[color:var(--color-brand-cyan)]/5' : ''}`} data-testid={`mbr-row-mobile-${m.id}`}>
               <input
                 type="checkbox"
                 checked={checked}
                 onChange={(e) => toggleOne(m.id, e.target.checked)}
-                className="h-4 w-4 accent-[color:var(--color-brand-cyan)] mr-3 mt-1 shrink-0"
+                className="h-4 w-4 accent-[color:var(--color-brand-cyan)] mt-1 shrink-0"
                 aria-label={`Select ${m.first_name} ${m.last_name}`}
                 data-testid={`mbr-select-mobile-${m.id}`}
               />
               <button onClick={() => setDetail(m.id)}
-                className="flex-1 text-left active:bg-white/5 hover:bg-white/5 transition-colors">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
+                className="flex-1 text-left active:bg-white/5 hover:bg-white/5 transition-colors min-w-0">
+                <div className="min-w-0">
                   <div className="font-bold text-white truncate">{m.first_name} {m.last_name}</div>
                   <div className="text-[11px] text-[color:var(--theme-text-muted)] truncate">{m.email}</div>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -729,16 +728,15 @@ function MembersTab({ API, headers }) {
                     )}
                   </div>
                 </div>
-                {(m.no_show_count || 0) > 0 && (
-                  <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${(m.no_show_count || 0) > 2 ? 'bg-red-500/15 text-red-300' : 'bg-white/5 text-[color:var(--theme-text-muted)]'}`}>
-                    {m.no_show_count} no-show{m.no_show_count === 1 ? '' : 's'}
-                  </span>
-                )}
-                <div className="shrink-0">
-                  <InvitePortalButton API={API} headers={headers} member={m} onDone={load} />
-                </div>
-              </div>
               </button>
+              {(m.no_show_count || 0) > 0 && (
+                <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${(m.no_show_count || 0) > 2 ? 'bg-red-500/15 text-red-300' : 'bg-white/5 text-[color:var(--theme-text-muted)]'}`}>
+                  {m.no_show_count} no-show{m.no_show_count === 1 ? '' : 's'}
+                </span>
+              )}
+              <div className="shrink-0">
+                <InvitePortalButton API={API} headers={headers} member={m} onDone={load} />
+              </div>
             </div>
           ); })}
         </div>

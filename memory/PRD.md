@@ -11483,3 +11483,71 @@ Phase E of the Studios Vision shipped end-to-end.
 ### Notes
 - Retention-risk is intentionally heuristic (not LLM) — it's fast, explainable, and surfaces the same reason strings to the UI. An LLM explanation layer could be added later but adds cost for zero accuracy gain on this dataset size.
 - The AI timetable endpoint requires `EMERGENT_LLM_KEY` for LLM-expanded suggestions; without it the heuristic seed returns directly (no failure). In preview env without the key, suggestions=[], model=`heuristic_only`.
+
+---
+
+## Iter 216al — Sprint C: Operator Multipliers (May 8, 2026)
+
+**Goal:** Give front-desk operators leverage on the member directory so "do one thing per member × 50 members" collapses into "do one thing × 1 batch."
+
+### Delivered
+
+1. **Bulk actions** — checkbox selection + sticky BulkBar above the table
+   with three actions, all via `POST /api/memberships/members/bulk-action`:
+   - `invite_portal` — fans out magic-link invites (reuses Sprint B flow)
+   - `send_reminder` — operator-authored subject+message → HTML email per member
+   - `add_tag` — `$addToSet` idempotent bulk-tag for future filtering
+   Per-member results returned so UI can show "18 succeeded, 2 skipped (no email)".
+   Hard cap: 200 members per batch.
+
+2. **Saved views** — dropdown next to search with 4 server-side presets:
+   - `trialists_7d` — active memberships ending in 7 days
+   - `no_shows_14d` — member_ids with ≥2 no-shows in last 14 days
+   - `uninvited` — members with no portal invite sent + email on file
+   - `new_this_week` — members created in last 7 days
+   Plus per-user custom saved views (name + filter JSON) persisted in
+   `memberships_member_views`. Presets cannot be deleted.
+
+3. **Unified activity timeline** — new "Activity" tab in MemberEditDrawer
+   (5th tab, between Payments and Family). Merges bookings + payments +
+   invoices + portal invites + membership audit entries + joined event
+   into one reverse-chronological feed with per-kind icons and relative
+   timestamps. Surface is read-only; actions live in their respective tabs.
+
+### New endpoints
+- `GET  /api/memberships/saved-views`
+- `POST /api/memberships/saved-views`
+- `DELETE /api/memberships/saved-views/{id}`
+- `GET  /api/memberships/members-filtered` (accepts `preset`, `q`, `status`, `tag`)
+- `POST /api/memberships/members/bulk-action`
+- `GET  /api/memberships/members/{id}/activity`
+
+### New collection
+- `memberships_member_views` — `{id, organization_id, user_id, name, filter, is_preset, created_at}`
+- `memberships_member_events` — `{id, organization_id, member_id, kind, actor_id, at, ...payload}` (sourced by portal_invited, reminder_sent, tag_added)
+
+### Files
+Backend:
+- `/app/backend/routes/memberships/members_ops.py` (new — all 4 endpoints + preset dispatcher)
+- `/app/backend/routes/memberships/__init__.py` (registered members_ops)
+- `/app/backend/routes/memberships/members.py` (added event-log write in invite_member_portal)
+
+Frontend:
+- `/app/frontend/src/components/memberships/SavedViewsDropdown.js` (new)
+- `/app/frontend/src/components/memberships/MembersBulkBar.js` (new)
+- `/app/frontend/src/pages/Memberships/ActivityTimelineTab.js` (new)
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js` (MembersTab: checkbox column, selection state, SavedViewsDropdown + MembersBulkBar integration)
+- `/app/frontend/src/pages/Memberships/MemberEditDrawer.js` (TABS now has 5 entries inc. Activity)
+
+### Also this session
+- **AuthContext token elevation** in `/app/frontend/src/App.js` — added `token`
+  to the AuthContext value (synced at login/logout/refresh/impersonation/
+  cross-tab). Fully backwards-compatible with existing
+  `localStorage.getItem('token')` callers.
+
+### Testing
+- Backend: 23/23 pytest cases passed (report: `/app/test_reports/iteration_216al.json`).
+- Frontend: full browser automation pass (presets filter table, checkboxes work,
+  bulk bar actions fire, Activity tab renders timeline). Nested-button HTML
+  validation warning fixed post-test by restructuring mobile row layout.
+
