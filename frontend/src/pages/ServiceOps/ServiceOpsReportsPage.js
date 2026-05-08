@@ -15,7 +15,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   BarChart3, RefreshCw, Sparkles, Activity, Gauge,
-  ShieldCheck, FileText, Wrench, ClipboardList,
+  ShieldCheck, Wrench, ClipboardList, Timer, MapPin,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ServiceOpsShell from './ServiceOpsShell';
@@ -71,19 +71,24 @@ export default function ServiceOpsReportsPage() {
     setLoading(true);
     const params = { from: fromIso };
     try {
-      const [s, r, f, sl, ai, a] = await Promise.all([
+      const [s, r, f, sl, ai, a, dt] = await Promise.all([
         axios.get(`${API}/svc/reports/summary`, { ...auth(), params }),
         axios.get(`${API}/svc/reports/revenue-by-engineer`, { ...auth(), params }),
         axios.get(`${API}/svc/reports/ftfr`, { ...auth(), params }),
         axios.get(`${API}/svc/reports/sla`, { ...auth(), params }),
         axios.get(`${API}/svc/reports/ai`, { ...auth(), params }),
         axios.get(`${API}/svc/reports/audit`, { ...auth(), params: { ...params, limit: 50 } }),
+        axios.get(`${API}/svc/reports/downtime`, { ...auth(), params: { days: range.days } })
+          .catch(() => ({ data: { top_assets: [], top_sites: [], total_hours: 0, case_count: 0 } })),
       ]);
-      setData({ summary: s.data, revenue: r.data, ftfr: f.data, sla: sl.data, ai: ai.data, audit: a.data });
+      setData({
+        summary: s.data, revenue: r.data, ftfr: f.data, sla: sl.data,
+        ai: ai.data, audit: a.data, downtime: dt.data,
+      });
     } catch (e) {
       notify.error('Failed to load reports', e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [fromIso]);
+  }, [fromIso, range.days]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -94,6 +99,11 @@ export default function ServiceOpsReportsPage() {
   const slaRate = data.sla?.rate || 0;
   const aiRows = data.ai?.by_kind || [];
   const audit = data.audit?.events || [];
+  const downtime = data.downtime || { top_assets: [], top_sites: [], total_hours: 0, case_count: 0 };
+  const topAssets = downtime.top_assets || [];
+  const topSites = downtime.top_sites || [];
+  const maxAssetHours = topAssets.reduce((m, r) => Math.max(m, r.downtime_hours || 0), 0) || 1;
+  const maxSiteHours = topSites.reduce((m, r) => Math.max(m, r.downtime_hours || 0), 0) || 1;
 
   return (
     <ServiceOpsShell
@@ -114,12 +124,18 @@ export default function ServiceOpsReportsPage() {
       pageTestId="reports-page"
     >
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="reports-kpis">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3" data-testid="reports-kpis">
         <KPI label="Open cases" value={kpis.open_cases ?? '—'} testid="kpi-open-cases" />
         <KPI label="Closed in window" value={kpis.cases_closed ?? '—'} testid="kpi-cases-closed" />
         <KPI label="Chargeable invoiced" value={kpis.chargeable_invoiced ?? '—'} testid="kpi-chargeable-invoiced" />
         <KPI label="Revenue (gross)" value={gbp(kpis.revenue_gross)} sub={kpis.revenue_net ? `Net ${gbp(kpis.revenue_net)}` : null} testid="kpi-revenue" />
         <KPI label="FTFR" value={pct(ftfrRate)} sub={`${data.ftfr?.ftf ?? 0} / ${data.ftfr?.total_closed ?? 0}`} testid="kpi-ftfr" />
+        <KPI
+          label="Downtime"
+          value={`${(downtime.total_hours ?? 0).toLocaleString()}h`}
+          sub={`${downtime.case_count ?? 0} cases`}
+          testid="kpi-downtime"
+        />
         <KPI label="AI calls" value={kpis.ai_calls ?? 0} testid="kpi-ai-calls" />
       </div>
 
@@ -180,6 +196,65 @@ export default function ServiceOpsReportsPage() {
             <div className="h-full" style={{ width: `${Math.round(ftfrRate * 100)}%`, background: ftfrRate >= 0.8 ? '#10b981' : ftfrRate >= 0.6 ? '#f59e0b' : '#ef4444' }} />
           </div>
           <p className="text-[11px] opacity-60 mt-2">A fix is &ldquo;first-time&rdquo; if the case never entered <code>paused_parts</code>. Lift this metric by improving van-stock accuracy and AI triage of likely parts.</p>
+        </Section>
+
+        {/* Asset downtime */}
+        <Section icon={Timer} title="Top assets by downtime" testid="reports-downtime-assets">
+          {topAssets.length === 0 ? (
+            <p className="text-xs opacity-60 italic">No downtime recorded in this window.</p>
+          ) : (
+            <ul className="space-y-2" data-testid="downtime-asset-rows">
+              {topAssets.map((r, idx) => (
+                <li key={`${r.asset_id || r.asset_name}-${idx}`} data-testid={`downtime-asset-row-${idx}`}>
+                  <div className="flex items-center justify-between text-xs gap-2">
+                    <span className="font-bold truncate">{r.asset_name || 'Unknown asset'}</span>
+                    <span className="tabular-nums whitespace-nowrap">
+                      {r.downtime_hours.toLocaleString()}h · {r.case_count} case{r.case_count === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border)' }}>
+                    <div
+                      className="h-full"
+                      style={{
+                        width: `${Math.max(2, Math.round((r.downtime_hours / maxAssetHours) * 100))}%`,
+                        background: '#ef4444',
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-[11px] opacity-60 mt-2">Total fleet downtime: <strong>{(downtime.total_hours ?? 0).toLocaleString()}h</strong> across {downtime.case_count ?? 0} cases. Use this to prioritise PPM frequency and replacement cycles.</p>
+        </Section>
+
+        {/* Site downtime */}
+        <Section icon={MapPin} title="Top sites by downtime" testid="reports-downtime-sites">
+          {topSites.length === 0 ? (
+            <p className="text-xs opacity-60 italic">No site downtime in this window.</p>
+          ) : (
+            <ul className="space-y-2" data-testid="downtime-site-rows">
+              {topSites.map((r, idx) => (
+                <li key={`${r.site_id || r.site_name}-${idx}`} data-testid={`downtime-site-row-${idx}`}>
+                  <div className="flex items-center justify-between text-xs gap-2">
+                    <span className="font-bold truncate">{r.site_name || 'Unknown site'}</span>
+                    <span className="tabular-nums whitespace-nowrap">
+                      {r.downtime_hours.toLocaleString()}h · {r.case_count} case{r.case_count === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border)' }}>
+                    <div
+                      className="h-full"
+                      style={{
+                        width: `${Math.max(2, Math.round((r.downtime_hours / maxSiteHours) * 100))}%`,
+                        background: '#f59e0b',
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </Section>
 
         {/* AI observability */}

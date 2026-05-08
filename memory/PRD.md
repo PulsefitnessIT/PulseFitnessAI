@@ -10978,3 +10978,35 @@ medium-effort items from Craig's executive review.
 ### P0 backlog
 - Phase 7 — Customer Comms Hub (email templates, supplier PO send, customer status updates) + Reports/Audit dashboards.
 - Phase 8 — Sicon cutover (drain all outboxes); multi-warehouse.
+
+---
+
+## Iter 216w — ServiceOps Phase 5 Complete (2026-02-08)
+
+Phase 5 (Service Desk Dashboard Polish) finished end-to-end.
+
+### Frontend additions
+- `ServiceDeskPage.js` — expanded KPI strip from 5 → 8 cards:
+  - Open · Unassigned · SLA at risk · Breached · **First-time fix %** · **Avg resolve hours** · **Skill gap** · **Field engineers (active/total)**
+- `ServiceDeskPage.js` — new **Live Engineers panel** below KPIs:
+  - Status pills summary: en route / on site / assigned / available / off-duty
+  - Per-engineer cards with status pill, current job link (clicks open Case Drawer), open-case count, and skill chips when idle
+  - Sorted: en_route → on_site → assigned → available → off_duty
+- `ServiceOpsReportsPage.js` — new **Downtime KPI** + **Top assets by downtime** + **Top sites by downtime** sections with horizontal bars, plus fleet downtime callout
+
+### Backend (already in place from prior context)
+- `GET /api/svc/desk/summary` — returns `first_time_fix_pct`, `avg_resolve_hours`, `skill_gap`
+- `GET /api/svc/desk/engineers` — adds `live_status` + `live_case` per engineer (derived from clock state on most-recent open case)
+- `GET /api/svc/reports/downtime?days=N` — per-asset/per-site downtime hours
+
+### Verification
+- Backend: all three endpoints return live data (curl verified against admin token)
+- Frontend: smoke screenshots confirm both pages render with all new test IDs present:
+  `kpi-ftf, kpi-avg-resolve, kpi-skill-gap, kpi-field-engineers, live-engineers-panel,
+  live-engineers-list, kpi-downtime, reports-downtime-assets, reports-downtime-sites,
+  downtime-asset-rows, downtime-site-rows`
+
+### Next up
+- Phase 4 — Comms Hub & ETA notifications
+- Phase 6+ — Reports export polish, scheduled digest, saved views
+- Sicon/Sage live cutover (BLOCKED on user credentials)
