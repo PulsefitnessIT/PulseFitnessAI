@@ -260,9 +260,29 @@ const ProductTour = forwardRef(({ variant = 'gymaxis' }, ref) => {
   }, [tourKey, variant]);
 
   const handleEvent = useCallback((event) => {
-    const { type, status } = event;
-    if (type === 'tour:end' || status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      localStorage.setItem(tourKey, 'true');
+    const { type, status, action } = event || {};
+    // Iter 216aj — persist the "seen" flag the MOMENT the tour ends by
+    // ANY path (finish, skip, close-X, Esc, error). Previously CLOSED /
+    // ERROR statuses slipped through and the operator got the tour again
+    // on the next login. Also mirror into the legacy global key so
+    // multi-tab sessions converge.
+    const terminated = (
+      type === 'tour:end' ||
+      status === STATUS.FINISHED ||
+      status === STATUS.SKIPPED ||
+      status === STATUS.PAUSED ||
+      action === 'close' ||
+      action === 'skip' ||
+      action === 'reset'
+    );
+    if (terminated) {
+      try {
+        localStorage.setItem(tourKey, 'true');
+        // Also set the non-scoped legacy key so we hit the early-return
+        // guard reliably on reload.
+        const legacyKey = tourKey.split(':')[0];
+        if (legacyKey && legacyKey !== tourKey) localStorage.setItem(legacyKey, 'true');
+      } catch { /* quota exceeded / private mode — ignore */ }
       setRun(false);
     }
   }, [tourKey]);

@@ -401,11 +401,21 @@ async def run_studio_quickstart(
         created["reused_existing"] = True
     else:
         tpl_id = _uuid()
+        # Iter 216aj — align the template shape with the canonical
+        # ClassTemplateIn schema so the class appears on the Studio
+        # Builder weekly grid (needs `recurs_days` + `start_time` +
+        # `duration_min`, not `duration_minutes`). Previously the
+        # template existed in DB but was invisible in the builder,
+        # which made operators think their Saturday class was missing.
+        target_weekday = max(1, min(7, int(payload.weekly_day))) - 1  # Mon=0 … Sun=6
+        start_time_str = payload.weekly_start_time or "18:00"
         await db.class_templates.insert_one({
             "id": tpl_id,
             "organization_id": org_id,
             "name": payload.class_name or "Open Flow Yoga",
             "description": "A welcoming class for all levels — breath, movement, stillness.",
+            "duration_min": int(payload.duration_minutes),
+            # legacy alias retained so older reports keep working
             "duration_minutes": int(payload.duration_minutes),
             "capacity": int(payload.class_capacity),
             "colour": "#10B981",
@@ -414,6 +424,8 @@ async def run_studio_quickstart(
             "credits_to_book": 1,
             "cancel_deadline_hours": 2,
             "active": True,
+            "recurs_days": [target_weekday],
+            "start_time": start_time_str,
             "created_at": now_iso,
             "studio_quickstart_tag": "first_class",
         })
