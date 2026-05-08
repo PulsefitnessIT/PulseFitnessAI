@@ -75,7 +75,7 @@ export default function ServiceDeskPage() {
   const [summary, setSummary] = useState(null);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: 'open', priority: '', search: '', sort: 'sla' });
+  const [filters, setFilters] = useState({ status: 'open', priority: '', case_type: '', search: '', sort: 'sla' });
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [activeCaseId, setActiveCaseId] = useState(null);
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -90,6 +90,7 @@ export default function ServiceDeskPage() {
           params: {
             status: filters.status || '',
             priority: filters.priority || '',
+            case_type: filters.case_type || '',
             search: filters.search || '',
             limit: 100,
           },
@@ -102,7 +103,7 @@ export default function ServiceDeskPage() {
     } catch (e) {
       notify.error('Failed to load service desk', e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [filters.status, filters.priority, filters.search]);
+  }, [filters.status, filters.priority, filters.case_type, filters.search]);
 
   useEffect(() => { load(); }, [load]);
   // Auto-refresh every 60s — the SLA clock ticks against the user's screen.
@@ -175,6 +176,18 @@ export default function ServiceDeskPage() {
             <option value="p2">P2 — High</option>
             <option value="p3">P3 — Standard</option>
             <option value="p4">P4 — Low</option>
+          </select>
+          <select
+            value={filters.case_type}
+            onChange={(e) => setFilters((f) => ({ ...f, case_type: e.target.value }))}
+            className="svc-select svc-select-sm"
+            style={{ width: 'auto' }}
+            data-testid="filter-case-type"
+          >
+            <option value="">All types</option>
+            <option value="repair">Repair</option>
+            <option value="ppm">PPM</option>
+            <option value="install">Install</option>
           </select>
           <div className="svc-search ml-auto" style={{ width: 280 }}>
             <Search size={13} />

@@ -341,6 +341,15 @@ export default function EngineerJobDetail() {
             >
               {(job.priority || 'p3').toUpperCase()}
             </span>
+            {job.case_type ? (
+              <span
+                className="px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider uppercase"
+                style={{ background: '#1d4ed822', color: '#1d4ed8' }}
+                data-testid="job-case-type-pill"
+              >
+                {job.case_type}
+              </span>
+            ) : null}
             <span className="text-[10px] font-bold uppercase tracking-wider opacity-70" data-testid="job-status-pill">
               {STATUS_LABEL[job.status] || job.status}
             </span>

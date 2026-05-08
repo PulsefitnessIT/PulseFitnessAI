@@ -1,0 +1,107 @@
+{
+  "summary": "Tested iteration 216t — case_type taxonomy split from cover_type. All 12 backend tests pass. Frontend UI verified: filter dropdown, intake form case_type dropdown, cover_type without PPM option.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216t_case_type.py",
+    "/app/test_reports/pytest/pytest_results_216t.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "intake.py:82-84 — case_type normalisation correctly defaults to 'repair' and validates against {repair, ppm, install}",
+    "cases.py:119 — case_type query param added to list endpoint filter",
+    "cases.py:201 — case_type added to _VALID_PATCH_FIELDS for PUT endpoint",
+    "sicon_sync.py:88-89 — JobTypeID correctly mapped from case_type, CallTypeID from cover_type",
+    "ServiceDeskIntakeForm.js:63 — caseType state initialized to 'repair'",
+    "ServiceDeskIntakeForm.js:415-421 — Case type dropdown with Repair/PPM/Install options",
+    "ServiceDeskIntakeForm.js:424-428 — Cover type dropdown correctly has only Contract/Warranty/Chargeable (no PPM)",
+    "ServiceDeskPage.js:78 — case_type added to filters state",
+    "ServiceDeskPage.js:180-191 — filter-case-type dropdown with All types/Repair/PPM/Install",
+    "ServiceCaseDrawer.js:370-376 — drawer-edit-case-type dropdown for editing case_type",
+    "ServiceCaseDrawer.js:378-384 — drawer-edit-cover dropdown without PPM option",
+    "EngineerJobDetail.js:344-352 — job-case-type-pill conditionally rendered next to priority pill"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216t_case_type.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Created 10+ test cases with TEST_ prefix via backend tests: TEST_PPM, TEST_Install, TEST_Repair, TEST_Invalid, TEST_Patch, TEST_Sicon",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "case_type taxonomy (repair|ppm|install) is now separate from cover_type (contract|warranty|chargeable). Backend: intake defaults to 'repair', validates against allowed values, filter works on list endpoint, PATCH allowed. Frontend: filter dropdown on Service Desk, case_type dropdown in intake form, cover_type dropdown no longer has PPM, drawer has editable case_type field, engineer job detail shows case_type pill. Sicon mapping: CallTypeID=cover_type, JobTypeID=case_type.",
+  "features_verified": {
+    "backend_intake_case_type_ppm": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/intake/phone with case_type='ppm' returns case_type='ppm' in response"
+    },
+    "backend_intake_case_type_install": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/intake/phone with case_type='install' returns case_type='install' in response"
+    },
+    "backend_intake_default_repair": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/intake/phone without case_type defaults to 'repair'"
+    },
+    "backend_intake_invalid_defaults_repair": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/intake/phone with case_type='xyz' defaults to 'repair'"
+    },
+    "backend_filter_case_type_ppm": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/cases?case_type=ppm returns only PPM cases"
+    },
+    "backend_filter_case_type_repair": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/cases?case_type=repair returns only repair cases"
+    },
+    "backend_filter_case_type_install": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/cases?case_type=install returns only install cases"
+    },
+    "backend_patch_case_type": {
+      "status": "PASS",
+      "evidence": "PUT /api/svc/cases/{id} with case_type='install' updates successfully, verified by GET"
+    },
+    "backend_sicon_mapping": {
+      "status": "PASS",
+      "evidence": "sicon_sync.py:88-89 maps cover_type->CallTypeID and case_type->JobTypeID"
+    },
+    "frontend_filter_case_type_dropdown": {
+      "status": "PASS",
+      "evidence": "data-testid='filter-case-type' found with options: All types, Repair, PPM, Install"
+    },
+    "frontend_intake_case_type_dropdown": {
+      "status": "PASS",
+      "evidence": "data-testid='intake-case-type' found with options: Repair, PPM, Install"
+    },
+    "frontend_intake_cover_type_no_ppm": {
+      "status": "PASS",
+      "evidence": "data-testid='intake-cover-type' has options: Contract, Warranty, Chargeable (no PPM)"
+    },
+    "frontend_drawer_case_type_field": {
+      "status": "PASS",
+      "evidence": "Code review: ServiceCaseDrawer.js:370-376 has drawer-edit-case-type with Repair/PPM/Install"
+    },
+    "frontend_drawer_cover_type_no_ppm": {
+      "status": "PASS",
+      "evidence": "Code review: ServiceCaseDrawer.js:378-384 has drawer-edit-cover without PPM option"
+    },
+    "frontend_engineer_case_type_pill": {
+      "status": "PASS",
+      "evidence": "Code review: EngineerJobDetail.js:344-352 has job-case-type-pill conditionally rendered"
+    }
+  }
+}

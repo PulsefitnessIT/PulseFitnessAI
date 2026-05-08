@@ -86,6 +86,7 @@ def _to_sicon_call(case: dict) -> dict:
         "StatusID": STATUS_CROSSWALK.get(case.get("status"), "Logged"),
         "PriorityID": PRIORITY_CROSSWALK.get(case.get("priority"), 3),
         "CallTypeID": case.get("cover_type") or "contract",
+        "JobTypeID": case.get("case_type") or "repair",
         "FaultCodeID": case.get("fault_code") or "",
         "FaultCategoryID": case.get("fault_category") or "",
         "EquipmentIDs": (case.get("equipment_ids") or ([case["asset_id"]] if case.get("asset_id") else [])),

@@ -59,7 +59,8 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
   // Description / chargeable / media / triage
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [coverType, setCoverType] = useState('contract'); // contract | warranty | chargeable | ppm
+  const [coverType, setCoverType] = useState('contract'); // contract | warranty | chargeable
+  const [caseType, setCaseType] = useState('repair');     // repair | ppm | install
   const [priority, setPriority] = useState('p3');
   const [quoteRequired, setQuoteRequired] = useState(false);
   const [customerPONumber, setCustomerPONumber] = useState('');
@@ -406,13 +407,24 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
               customerPONumber={customerPONumber}
               setCustomerPONumber={setCustomerPONumber}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              <Field label="Case type">
+                <select
+                  value={caseType}
+                  onChange={(e) => setCaseType(e.target.value)}
+                  className="svc-select"
+                  data-testid="intake-case-type"
+                >
+                  <option value="repair">Repair</option>
+                  <option value="ppm">PPM</option>
+                  <option value="install">Install</option>
+                </select>
+              </Field>
               <Field label="Cover type">
                 <select value={coverType} onChange={(e) => setCoverType(e.target.value)} className="svc-select" data-testid="intake-cover-type">
                   <option value="contract">Contract</option>
                   <option value="warranty">Warranty</option>
                   <option value="chargeable">Chargeable</option>
-                  <option value="ppm">PPM</option>
                 </select>
               </Field>
               <Field label="Priority">

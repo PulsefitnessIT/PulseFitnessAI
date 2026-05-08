@@ -35,6 +35,7 @@ __integration_fields__ = {
     "status":                 "sicon: StatusID (mapped via STATUS_CROSSWALK) · bidirectional",
     "fault_code":             "sicon: FaultCode · GymAxis → Sicon",
     "cover_type":             "sicon: CoverTypeID · sage: NominalCode (via COVER_NOMINAL) · GymAxis → both",
+    "case_type":              "sicon: JobTypeID (repair|ppm|install) · GymAxis → Sicon",
     "customer_name":          "sicon: CustomerContactName · sage: SLCustomerAccount.Name · bidirectional",
     "customer_phone":         "sicon: CustomerContactPhone · GymAxis → Sicon",
     "customer_email":         "sicon: CustomerContactEmail · GymAxis → Sicon",
@@ -115,6 +116,7 @@ async def list_cases(
     engineer_id: str = Query(""),
     contract_id: str = Query(""),
     cover_type: str = Query(""),
+    case_type: str = Query(""),
     search: str = Query(""),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -138,6 +140,8 @@ async def list_cases(
         q["contract_id"] = contract_id
     if cover_type:
         q["cover_type"] = cover_type
+    if case_type:
+        q["case_type"] = case_type
     if search:
         q["$or"] = [
             {"reference": {"$regex": search, "$options": "i"}},
@@ -194,7 +198,7 @@ _VALID_PATCH_FIELDS = {
     "title", "description", "priority", "fault_code", "fault_category",
     "assigned_engineer_id", "assigned_engineer_name", "scheduled_at",
     "asset_id", "asset_name", "site_id", "site_name", "site_postcode",
-    "contract_id", "cover_type", "customer_name", "customer_email",
+    "contract_id", "cover_type", "case_type", "customer_name", "customer_email",
     "customer_phone", "estimated_minutes", "tags",
     "equipment_ids", "equipment_serials", "required_skills",
 }

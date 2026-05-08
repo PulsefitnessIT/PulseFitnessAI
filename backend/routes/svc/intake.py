@@ -14,6 +14,7 @@ __integration_fields__ = {
     "intake.description":           "sicon: ServiceCallDescription · GymAxis → Sicon",
     "intake.priority":              "sicon: PriorityID (PRIORITY_CROSSWALK) · GymAxis → Sicon",
     "intake.cover_type":            "sicon: CoverTypeID · sage: NominalCode (COVER_NOMINAL) · GymAxis → both",
+    "intake.case_type":             "sicon: JobTypeID (repair|ppm|install) · GymAxis → Sicon",
     "intake.site_id":               "sicon: SubLocationID · sage: SLDeliveryAddressID · GymAxis → both",
     "intake.site_name":             "sicon: SubLocationName · GymAxis → Sicon",
     "intake.site_postcode":         "sicon: SubLocationPostcode · GymAxis → Sicon",
@@ -74,6 +75,13 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
 
     priority = _normalise_priority(payload.get("priority"))
     cover_type = (payload.get("cover_type") or "").lower()
+    # case_type is the workflow taxonomy (Repair / PPM / Install) introduced
+    # in iter 216t to separate it cleanly from cover_type (warranty / contract
+    # / chargeable). Defaulting to "repair" matches the historic implicit
+    # behaviour for back-compat with intake calls that omit the field.
+    case_type = (payload.get("case_type") or "repair").lower()
+    if case_type not in {"repair", "ppm", "install"}:
+        case_type = "repair"
 
     sla = await compute_sla_targets(
         organization_id=org_id, priority=priority, cover_type=cover_type,
@@ -87,6 +95,7 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
         "status": NEW,
         "priority": priority,
         "cover_type": cover_type,
+        "case_type": case_type,
         "title": title or description[:80],
         "description": description,
         "fault_code": payload.get("fault_code") or "",

@@ -367,13 +367,20 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               <Field label="Fault code">
                 <input value={merged.fault_code || ''} onChange={(e) => setEdit('fault_code', e.target.value)} className="svc-input" data-testid="drawer-edit-fault" />
               </Field>
+              <Field label="Case type">
+                <select value={merged.case_type || ''} onChange={(e) => setEdit('case_type', e.target.value)} className="svc-select" data-testid="drawer-edit-case-type">
+                  <option value="">—</option>
+                  <option value="repair">Repair</option>
+                  <option value="ppm">PPM</option>
+                  <option value="install">Install</option>
+                </select>
+              </Field>
               <Field label="Cover type">
                 <select value={merged.cover_type || ''} onChange={(e) => setEdit('cover_type', e.target.value)} className="svc-select" data-testid="drawer-edit-cover">
                   <option value="">—</option>
                   <option value="contract">Contract</option>
                   <option value="warranty">Warranty</option>
                   <option value="chargeable">Chargeable</option>
-                  <option value="ppm">PPM</option>
                 </select>
               </Field>
               <Field label="Engineer">
