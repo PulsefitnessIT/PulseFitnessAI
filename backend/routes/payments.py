@@ -300,9 +300,13 @@ async def _handle_checkout_completed(data: dict) -> None:
     session_id = data.get("id")
     metadata = data.get("metadata", {})
 
-    # Trial conversion path
+    # Trial conversion path — ONLY when Stripe confirms the payment as paid.
+    # Previously this fired on every `checkout.session.completed` regardless
+    # of payment_status, which let prospects exit Checkout uncharged yet keep
+    # full bundle access (iter202 bug — caught when reviewing Bob Knockers).
     trial_org_id = metadata.get("trial_org_id")
-    if trial_org_id and metadata.get("trial_convert") == "true":
+    payment_paid = data.get("payment_status") == "paid"
+    if trial_org_id and metadata.get("trial_convert") == "true" and payment_paid:
         await db.organizations.update_one(
             {"id": trial_org_id},
             {"$set": {
@@ -315,6 +319,11 @@ async def _handle_checkout_completed(data: dict) -> None:
             }}
         )
         logger.info(f"[Trial] Org {trial_org_id} converted via Stripe session {session_id}")
+        return
+    if trial_org_id and metadata.get("trial_convert") == "true" and not payment_paid:
+        # Stripe fired completion before the payment cleared (or it never will).
+        # Leave the trial flag untouched so the org keeps the proper trial state.
+        logger.info(f"[Trial] Skipped premature conversion for org {trial_org_id} (payment_status={data.get('payment_status')})")
         return
 
     user_id = metadata.get("user_id")

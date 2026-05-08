@@ -1,0 +1,80 @@
+{
+  "summary": "Tested iteration 216r — Trial enforcement bug fix and billing features. All backend tests pass (13/13). Frontend UI verified: Trial Banner visible with countdown, Account Settings Modal Plan & Billing tab shows trial card with countdown and Upgrade Plan button, modules section shows all 4 modules as Active, all modal sections work correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_trial_enforcement_216r.py",
+    "/app/test_reports/pytest/pytest_results_216r.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "payments.py line 303-326: Trial conversion gate correctly checks payment_status == 'paid' before converting trial — bug fix verified",
+    "AccountSettingsModal.js BillingSection: Trial card renders correctly with status-based border colors (amber for expiring_soon)",
+    "TrialBanner.js: Live countdown working correctly, shows 2d 8h remaining format"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_trial_enforcement_216r.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "test_credentials": {
+    "bob_trial_user": "bob@knockers.com / Test123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Bob's trial state was restored by main agent: is_trial=true, status='expiring_soon', days_left=2",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bob (bob@knockers.com / Test123!) is on a 3-day trial with status 'expiring_soon' and 2 days remaining. All modules are active during trial. The webhook payment_status gate fix has been verified — trial conversion only fires when payment_status='paid'.",
+  "features_verified": {
+    "webhook_payment_status_gate": {
+      "status": "PASS",
+      "evidence": "Code review confirms _handle_checkout_completed at line 303-326 checks payment_status == 'paid' before converting trial. Bob remains on trial (is_trial=true) confirming the fix works."
+    },
+    "bob_trial_state_restored": {
+      "status": "PASS",
+      "evidence": "GET /api/auth/me returns trial.is_trial=true, trial.status='expiring_soon', trial.days_left=2"
+    },
+    "pricing_endpoint": {
+      "status": "PASS",
+      "evidence": "GET /api/payments/pricing returns bundle (£150/mo) + 4 modules (memberships £29, crm £49, marketing £49, operations £59)"
+    },
+    "flex_checkout_bundle": {
+      "status": "PASS",
+      "evidence": "POST /api/payments/checkout/flex with plan='bundle' returns Stripe checkout URL"
+    },
+    "flex_checkout_module": {
+      "status": "PASS",
+      "evidence": "POST /api/payments/checkout/flex with plan='module', module_id='memberships' returns Stripe checkout URL"
+    },
+    "trial_banner_global": {
+      "status": "PASS",
+      "evidence": "TrialBanner visible at top of dashboard showing '2d 8h 53m remaining' with Upgrade Plan button"
+    },
+    "billing_trial_card": {
+      "status": "PASS",
+      "evidence": "Trial card visible in Plan & Billing with data-testid='account-billing-trial-card', shows 'TRIAL ENDING SOON' badge, '2 days remaining' countdown, and 'Upgrade Plan' button"
+    },
+    "billing_modules_section": {
+      "status": "PASS",
+      "evidence": "Modules section visible with data-testid='account-billing-modules', all 4 modules (memberships, crm, marketing, operations) show 'ACTIVE' badge"
+    },
+    "billing_upgrade_buttons": {
+      "status": "PASS",
+      "evidence": "Both data-testid='account-billing-upgrade-now-btn' (in trial card) and data-testid='account-billing-upgrade-btn' (in current plan card) are visible"
+    },
+    "modal_regression": {
+      "status": "PASS",
+      "evidence": "All 6 modal sections load correctly: Profile, Onboarding, Security, Preferences, Organisation, Team & Roles"
+    }
+  },
+  "rca_of_the_issue": "The original bug was in _handle_checkout_completed (payments.py line 303-326). The webhook handler was converting trials (setting is_trial=false, trial_status='converted') whenever checkout.session.completed fired, regardless of payment_status. This meant users who abandoned checkout or had unpaid sessions still got converted to paid status. The fix adds a gate: trial conversion only fires when data.get('payment_status') == 'paid'. Bob's account was restored to trial state by the main agent."
+}
