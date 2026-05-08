@@ -1,0 +1,84 @@
+{
+  "summary": "Tested iteration 216v — Phase 3 Engineers Admin, Reorder Alerts, Quote PDF. All 21 backend tests pass (1 skipped). Frontend verified: Engineers tab in nav strip, Engineers Admin page with table/form/skill chips, PDF button in QuoteEditor footer. Backend PDF endpoint returns valid PDF with correct headers.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216v_phase3_engineers_billing.py",
+    "/app/test_reports/pytest/pytest_results_216v.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "engineers_admin.py: Clean implementation with proper _require_admin() guard, _public() strips _id, open_jobs aggregation pipeline is efficient",
+    "EngineersAdminPage.js: All form fields have data-testid attributes, skill chips toggle correctly, error handling with toast notifications",
+    "BillingPage.js: PDF download button (data-testid='quote-download-pdf') correctly implemented with blob download pattern, only shows when quote exists",
+    "ServiceOpsShell.js: Engineers nav entry correctly positioned between Scheduler and Parts with HardHat icon"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216v_phase3_engineers_billing.py"
+  ],
+  "success_rate": {
+    "backend": "100% (21/21 tests passed, 1 skipped)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Created quote Q-00002 for case SVC-00006 to test PDF endpoint. PATCH test updated Master Admin engineer with TEST-216v-* values (mobile, vehicle_reg, sage_user_id, skills).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 3 features verified: (1) GET /api/svc/engineers returns engineers with open_jobs count, no _id leak, (2) POST/PATCH/DELETE engineers work with proper auth guards, (3) GET /api/svc/parts/reorder-alerts returns empty list (no parts with thresholds seeded), (4) GET /api/svc/billing/{case_id}/quote.pdf returns valid PDF with Content-Disposition header, (5) Frontend Engineers Admin page at /service-ops/engineers renders correctly with table, add form, skill chips, (6) PDF button in QuoteEditor footer only shows when quote exists.",
+  "features_verified": {
+    "backend_list_engineers": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/engineers returns {engineers:[...]} with open_jobs count, no _id leak"
+    },
+    "backend_create_engineer": {
+      "status": "PASS",
+      "evidence": "POST /api/svc/engineers validates email exists in org (404 if not), returns 409 for duplicate"
+    },
+    "backend_create_engineer_auth": {
+      "status": "PASS",
+      "evidence": "_require_admin() checks role in (owner, manager) or is_master_admin"
+    },
+    "backend_patch_engineer": {
+      "status": "PASS",
+      "evidence": "PATCH /api/svc/engineers/{user_id} updates skills, mobile, vehicle_reg, sage_user_id"
+    },
+    "backend_delete_engineer": {
+      "status": "PASS",
+      "evidence": "DELETE /api/svc/engineers/{user_id} sets active=false (soft-deactivate)"
+    },
+    "backend_reorder_alerts": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/parts/reorder-alerts returns {count, alerts:[...]} with correct structure"
+    },
+    "backend_quote_pdf": {
+      "status": "PASS",
+      "evidence": "GET /api/svc/billing/{case_id}/quote.pdf returns 200 application/pdf with Content-Disposition attachment"
+    },
+    "frontend_engineers_nav": {
+      "status": "PASS",
+      "evidence": "Engineers tab (HardHat icon) visible in nav strip between Scheduler and Parts"
+    },
+    "frontend_engineers_table": {
+      "status": "PASS",
+      "evidence": "Table renders with columns: Name, Mobile, Vehicle, Skills, Sage, Open jobs, Status"
+    },
+    "frontend_engineers_add_form": {
+      "status": "PASS",
+      "evidence": "Add engineer button opens form with email, full_name, mobile, vehicle, sage, skill chips"
+    },
+    "frontend_pdf_button": {
+      "status": "PASS",
+      "evidence": "Customer PDF button (data-testid='quote-download-pdf') in QuoteEditor footer, triggers blob download"
+    }
+  },
+  "notes": "The billing queue only shows cases with status in [closed, invoiced, awaiting_sign_off, repaired] AND cover_type=chargeable. Test case SVC-00006 has status=new so doesn't appear in billing queue UI, but the PDF endpoint was verified working via direct API call."
+}

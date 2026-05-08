@@ -23,13 +23,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ClipboardList, Calendar, Package, FileText, BarChart3, Mail,
-  Smartphone, Plus,
+  Smartphone, Plus, HardHat,
 } from 'lucide-react';
 import './_serviceops.css';
 
 const NAV = [
   { id: 'desk',      to: '/service-ops',           label: 'Desk',      Icon: ClipboardList },
   { id: 'scheduler', to: '/service-ops/scheduler', label: 'Scheduler', Icon: Calendar },
+  { id: 'engineers', to: '/service-ops/engineers', label: 'Engineers', Icon: HardHat },
   { id: 'parts',     to: '/service-ops/parts',     label: 'Parts',     Icon: Package, badge: 'lowStockCount' },
   { id: 'billing',   to: '/service-ops/billing',   label: 'Billing',   Icon: FileText },
   { id: 'reports',   to: '/service-ops/reports',   label: 'Reports',   Icon: BarChart3 },

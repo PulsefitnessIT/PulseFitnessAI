@@ -108,6 +108,7 @@ const MarketingSuite = lazy(() => import('./pages/MarketingSuite'));
 const ServiceDeskPage = lazy(() => import('./pages/ServiceDeskPage'));
 const ServiceOpsDeskPage = lazy(() => import('./pages/ServiceOps/ServiceDeskPage'));
 const ServiceOpsScheduler = lazy(() => import('./pages/ServiceOps/ServiceScheduler'));
+const ServiceOpsEngineers = lazy(() => import('./pages/ServiceOps/EngineersAdminPage'));
 const ServiceOpsParts = lazy(() => import('./pages/ServiceOps/PartsInventoryPage'));
 const ServiceOpsBilling = lazy(() => import('./pages/ServiceOps/BillingPage'));
 const ServiceOpsReports = lazy(() => import('./pages/ServiceOps/ServiceOpsReportsPage'));
@@ -480,6 +481,7 @@ function App() {
  <Route path="/service-desk" element={(user?.is_master_admin || user?.is_service_desk) ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
  <Route path="/service-ops" element={user ? <ServiceOpsDeskPage /> : <Navigate to="/login" replace />} />
  <Route path="/service-ops/scheduler" element={user ? <ServiceOpsScheduler /> : <Navigate to="/login" replace />} />
+ <Route path="/service-ops/engineers" element={user ? <ServiceOpsEngineers /> : <Navigate to="/login" replace />} />
  <Route path="/service-ops/parts" element={user ? <ServiceOpsParts /> : <Navigate to="/login" replace />} />
  <Route path="/service-ops/billing" element={user ? <ServiceOpsBilling /> : <Navigate to="/login" replace />} />
  <Route path="/service-ops/reports" element={user ? <ServiceOpsReports /> : <Navigate to="/login" replace />} />

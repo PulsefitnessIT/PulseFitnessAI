@@ -329,6 +329,36 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
           {quote && quote.status === 'approved' ? (
             <button type="button" onClick={voidQuote} disabled={busy === 'void'} className="px-3 py-1.5 rounded-md border text-xs font-bold disabled:opacity-60" style={{ borderColor: 'var(--theme-border)', color: '#b91c1c' }} data-testid="quote-void">Void quote</button>
           ) : null}
+          {quote ? (
+            <button
+              type="button"
+              onClick={async () => {
+                const token = localStorage.getItem('token');
+                try {
+                  const resp = await fetch(`${API}/svc/billing/${caseRow.id}/quote.pdf`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  if (!resp.ok) throw new Error('Download failed');
+                  const blob = await resp.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `quote-${caseRow.reference}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } catch (e) {
+                  notify.error('PDF download failed');
+                }
+              }}
+              className="px-3 py-1.5 rounded-md border text-xs font-bold inline-flex items-center gap-1"
+              style={{ borderColor: 'var(--theme-border)' }}
+              data-testid="quote-download-pdf"
+            >
+              <FileText size={11} /> Customer PDF
+            </button>
+          ) : null}
           {!isLocked ? (
             <>
               <button type="button" onClick={saveDraft} disabled={busy === 'save'} className="px-3 py-1.5 rounded-md border text-xs font-bold inline-flex items-center gap-1 disabled:opacity-60" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-save">
