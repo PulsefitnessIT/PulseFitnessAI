@@ -342,4 +342,76 @@ async def audit(
     return {"from": from_iso, "to": to_iso, "events": rows, "count": len(rows)}
 
 
+@router.get("/downtime")
+async def downtime(
+    days: int = Query(30, ge=1, le=365),
+    user=Depends(get_current_user),
+):
+    """Asset/site downtime hours: for every closed (or invoiced) case in the
+    window, sum (closed_at − created_at) per asset and per site. Active
+    (open) cases get their open-time-so-far included so the chart reflects
+    real-world impact, not just billed completions.
+    """
+    of = _of(user)
+    horizon_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    pipeline = [
+        {"$match": {**of, "created_at": {"$gte": horizon_iso}}},
+        {"$project": {
+            "asset_name": 1,
+            "asset_id": 1,
+            "site_name": 1,
+            "site_id": 1,
+            "status": 1,
+            "case_type": 1,
+            "duration_hours": {
+                "$divide": [
+                    {"$subtract": [
+                        {"$dateFromString": {"dateString": {"$ifNull": ["$closed_at", now_iso]}}},
+                        {"$dateFromString": {"dateString": "$created_at"}},
+                    ]},
+                    3600 * 1000,
+                ],
+            },
+        }},
+    ]
+    rows = []
+    async for d in db.svc_cases.aggregate(pipeline):
+        d.pop("_id", None)
+        rows.append(d)
+
+    by_asset: dict[str, dict] = {}
+    by_site: dict[str, dict] = {}
+    total_hours = 0.0
+    for r in rows:
+        h = max(0.0, float(r.get("duration_hours") or 0))
+        total_hours += h
+        akey = (r.get("asset_id") or r.get("asset_name") or "Unknown asset")
+        a = by_asset.setdefault(akey, {
+            "asset_id": r.get("asset_id", ""),
+            "asset_name": r.get("asset_name") or "Unknown asset",
+            "case_count": 0, "downtime_hours": 0.0,
+        })
+        a["case_count"] += 1
+        a["downtime_hours"] = round(a["downtime_hours"] + h, 1)
+        skey = (r.get("site_id") or r.get("site_name") or "Unknown site")
+        s = by_site.setdefault(skey, {
+            "site_id": r.get("site_id", ""),
+            "site_name": r.get("site_name") or "Unknown site",
+            "case_count": 0, "downtime_hours": 0.0,
+        })
+        s["case_count"] += 1
+        s["downtime_hours"] = round(s["downtime_hours"] + h, 1)
+
+    top_assets = sorted(by_asset.values(), key=lambda r: r["downtime_hours"], reverse=True)[:10]
+    top_sites = sorted(by_site.values(), key=lambda r: r["downtime_hours"], reverse=True)[:10]
+    return {
+        "window_days": days,
+        "total_hours": round(total_hours, 1),
+        "case_count": len(rows),
+        "top_assets": top_assets,
+        "top_sites": top_sites,
+    }
+
+
 __all__ = ["router"]

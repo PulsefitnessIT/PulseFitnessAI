@@ -91,6 +91,15 @@ async def desk_summary(user=Depends(get_current_user)):
     async for d in cursor:
         avg_resolve_h = round(float(d.get("avg") or 0), 1)
 
+    # Skill gap: how many open cases have a recommended engineer but no
+    # exact skill match (heuristic — recommended_engineer_score ≤ 50 implies
+    # AI couldn't find a great match, often skill-mismatch driven).
+    skill_gap_count = await db.svc_cases.count_documents({
+        **of, "status": {"$in": list(OPEN_STATES)},
+        "assigned_engineer_id": "",
+        "recommended_engineer_score": {"$lte": 50, "$gt": 0},
+    })
+
     return {
         "kpis": {
             "open": open_count,
@@ -100,6 +109,7 @@ async def desk_summary(user=Depends(get_current_user)):
             "first_time_fix_pct": ftf_pct,
             "closed_last_30d": closed_30,
             "avg_resolve_hours": avg_resolve_h,
+            "skill_gap": skill_gap_count,
         },
         "as_of": now,
     }
@@ -143,6 +153,47 @@ async def desk_engineers(user=Depends(get_current_user)):
     cursor = db.svc_cases.aggregate(pipeline)
     async for d in cursor:
         counts[d["_id"]] = d["count"]
+
+    # Live status — derived from clock events on each engineer's most-recent
+    # open case. travel|on_site → "en route"|"on site". No clock yet =
+    # "available" if active, "off duty" if not.
+    live_pipeline = [
+        {"$match": {
+            **of, "status": {"$in": list(OPEN_STATES)},
+            "assigned_engineer_id": {"$ne": ""},
+        }},
+        {"$sort": {"updated_at": -1}},
+        {"$group": {
+            "_id": "$assigned_engineer_id",
+            "case_id": {"$first": "$id"},
+            "case_reference": {"$first": "$reference"},
+            "case_title": {"$first": "$title"},
+            "site_name": {"$first": "$site_name"},
+            "clock_state": {"$first": "$clock_state"},
+        }},
+    ]
+    live: dict[str, dict] = {}
+    async for d in db.svc_cases.aggregate(live_pipeline):
+        live[d["_id"]] = d
     for e in engineers:
+        e.pop("_id", None)
         e["open_cases"] = counts.get(e.get("id"), 0)
+        ld = live.get(e.get("id"))
+        if ld:
+            cs = (ld.get("clock_state") or "").lower()
+            if cs == "on_site":
+                e["live_status"] = "on_site"
+            elif cs in ("travel", "en_route"):
+                e["live_status"] = "en_route"
+            else:
+                e["live_status"] = "assigned"
+            e["live_case"] = {
+                "id": ld.get("case_id"),
+                "reference": ld.get("case_reference"),
+                "title": ld.get("case_title"),
+                "site_name": ld.get("site_name"),
+            }
+        else:
+            e["live_status"] = "available" if e.get("active") is not False else "off_duty"
+            e["live_case"] = None
     return {"engineers": engineers, "count": len(engineers)}
