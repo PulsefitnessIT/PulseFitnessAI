@@ -23,11 +23,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Phone, MapPin, Wrench, Loader2, Play, Square, Camera, PenLine,
   CheckCircle, Image as ImageIcon, ChevronRight, Clock, AlertTriangle, WifiOff,
-  Sparkles,
+  Sparkles, Mic, MicOff, Navigation, Plus,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { queuedMutation } from '@/utils/queuedMutation';
 import SignatureCanvas from './SignatureCanvas';
+import useVoiceDictation from '@/hooks/useVoiceDictation';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -86,6 +87,17 @@ export default function EngineerJobDetail() {
   const [completeChargeable, setCompleteChargeable] = useState(false);
   const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [signatureName, setSignatureName] = useState('');
+  const [noteDraft, setNoteDraft] = useState('');
+
+  // Voice dictation — appends to whichever field the engineer is filling.
+  const wrapVoice = useVoiceDictation({
+    onResult: (text) => setCompleteSummary((s) => `${s} ${text}`.trim()),
+    onError: () => notify.error('Voice input unavailable', 'Falling back to keyboard.'),
+  });
+  const noteVoice = useVoiceDictation({
+    onResult: (text) => setNoteDraft((s) => `${s} ${text}`.trim()),
+    onError: () => notify.error('Voice input unavailable', 'Falling back to keyboard.'),
+  });
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -156,6 +168,31 @@ export default function EngineerJobDetail() {
       notify.success('Timer stopped');
     }
     await load();
+    setBusy('');
+  };
+
+  // ── Free-text note (offline-safe via queuedMutation) ─────────
+  const submitNote = async () => {
+    const body = (noteDraft || '').trim();
+    if (!body || !job) return;
+    if (noteVoice.listening) noteVoice.stop();
+    setBusy('note');
+    const idem = newIdemKey();
+    const result = await queuedMutation({
+      method: 'POST',
+      url: `${API}/svc/cases/${job.id}/notes`,
+      body: { body, visibility: 'internal' },
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idem, ...auth().headers },
+      label: `Note · ${job.reference}`,
+      kind: 'svc-note',
+    });
+    if (result.queued) {
+      notify.info('Note queued', 'It will sync once you’re back online.');
+    } else {
+      notify.success('Note saved');
+      await load();
+    }
+    setNoteDraft('');
     setBusy('');
   };
 
@@ -319,7 +356,25 @@ export default function EngineerJobDetail() {
             ) : null}
           </div>
           <div className="text-xs opacity-80 space-y-1">
-            {job.site_name ? <p className="inline-flex items-center gap-1.5"><MapPin size={12} /> {job.site_name}</p> : null}
+            {job.site_name ? (
+              <p className="inline-flex items-center gap-1.5 flex-wrap">
+                <MapPin size={12} /> {job.site_name}
+                {(job.site_postcode || job.site_address) ? (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                      `${job.site_name || ''} ${job.site_postcode || job.site_address || ''}`.trim(),
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: '#1d4ed822', color: '#1d4ed8' }}
+                    data-testid="job-directions"
+                  >
+                    <Navigation size={10} /> Directions
+                  </a>
+                ) : null}
+              </p>
+            ) : null}
             {job.asset_name ? <p className="inline-flex items-center gap-1.5"><Wrench size={12} /> {job.asset_name}</p> : null}
             {job.fault_code ? <p className="opacity-70">Fault: <strong>{job.fault_code}</strong></p> : null}
           </div>
@@ -388,6 +443,53 @@ export default function EngineerJobDetail() {
             </div>
           </section>
         ) : null}
+
+        {/* Free-text note with voice dictation */}
+        {!isClosed ? (
+          <section
+            className="rounded-2xl border p-3 space-y-2"
+            style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }}
+            data-testid="job-add-note-section"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Quick note</p>
+              {noteVoice.supported ? (
+                <button
+                  type="button"
+                  onClick={noteVoice.listening ? noteVoice.stop : noteVoice.start}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                  style={noteVoice.listening
+                    ? { background: '#ef4444', color: 'white' }
+                    : { background: '#1d4ed822', color: '#1d4ed8' }}
+                  data-testid="job-note-voice-toggle"
+                >
+                  {noteVoice.listening ? <MicOff size={11} /> : <Mic size={11} />}
+                  {noteVoice.listening ? 'Listening…' : 'Dictate'}
+                </button>
+              ) : null}
+            </div>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              rows={2}
+              placeholder="e.g. Customer reports treadmill stops at 8 km/h. Front roller bearing rough."
+              className="w-full px-3 py-2 rounded-lg border bg-transparent text-sm"
+              style={{ borderColor: 'var(--theme-border)' }}
+              data-testid="job-note-input"
+            />
+            <button
+              type="button"
+              onClick={submitNote}
+              disabled={busy === 'note' || !noteDraft.trim()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+              style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+              data-testid="job-note-submit"
+            >
+              <Plus size={12} /> {busy === 'note' ? 'Saving…' : 'Save note'}
+            </button>
+          </section>
+        ) : null}
+
 
         {/* Photos */}
         <section className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-photos-section">
@@ -481,6 +583,23 @@ export default function EngineerJobDetail() {
               </button>
             ) : (
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Work summary</span>
+                  {wrapVoice.supported ? (
+                    <button
+                      type="button"
+                      onClick={wrapVoice.listening ? wrapVoice.stop : wrapVoice.start}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                      style={wrapVoice.listening
+                        ? { background: '#ef4444', color: 'white' }
+                        : { background: '#1d4ed822', color: '#1d4ed8' }}
+                      data-testid="job-wrap-voice-toggle"
+                    >
+                      {wrapVoice.listening ? <MicOff size={11} /> : <Mic size={11} />}
+                      {wrapVoice.listening ? 'Listening…' : 'Dictate'}
+                    </button>
+                  ) : null}
+                </div>
                 <textarea
                   value={completeSummary}
                   onChange={(e) => setCompleteSummary(e.target.value)}
