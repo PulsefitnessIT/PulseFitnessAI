@@ -2,6 +2,7 @@
 from fastapi import APIRouter
 
 from routes.auth import router as auth_router
+from routes.account import router as account_router
 from routes.equipment import router as equipment_router
 from routes.issues import router as issues_router
 from routes.files import router as files_router
@@ -20,7 +21,7 @@ from routes.ui_errors import router as ui_errors_router
 
 def register_core(api_router: APIRouter) -> None:
     for r in (
-        auth_router, equipment_router, issues_router, files_router,
+        auth_router, account_router, equipment_router, issues_router, files_router,
         payments_router, sites_router, fault_codes_router, fault_templates_router,
         support_router, support_escalate_router, nudges_router, security_manifest_router,
         sso_router, gym_floor_router, ui_errors_router,

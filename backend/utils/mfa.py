@@ -163,7 +163,10 @@ async def user_mfa_state(user_id: str) -> dict:
 
 
 async def begin_enrollment(user_id: str, email: str) -> dict:
-    """Persist a draft secret and return the provisioning URI."""
+    """Persist a draft secret and return the provisioning URI plus an inline
+    base64 QR code (data URI) so the frontend can render it directly with no
+    second authenticated request.
+    """
     secret = generate_secret()
     await db.user_mfa.update_one(
         {"user_id": user_id},
@@ -176,7 +179,9 @@ async def begin_enrollment(user_id: str, email: str) -> dict:
         upsert=True,
     )
     uri = provisioning_uri(secret, email)
-    return {"provisioning_uri": uri, "secret": secret}
+    png = qrcode_png_bytes(uri)
+    qr_data_url = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+    return {"provisioning_uri": uri, "secret": secret, "qrcode_data_url": qr_data_url}
 
 
 async def confirm_enrollment(user_id: str, code: str) -> list[str]:

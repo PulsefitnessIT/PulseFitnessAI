@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AccountPanel from '../../pages/AccountPanel';
+import AccountSettingsModal from './AccountSettingsModal';
 import CaptchaWidget from './CaptchaWidget';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -846,7 +847,13 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  </Dialog>
 
  {/* Account Panel */}
- <AccountPanel open={showAccount} onClose={() => setShowAccount(false)} />
+ {/* Account settings — Owners/Managers/Staff get the redesigned modal;
+     Master admins keep the legacy panel (they have a dedicated console). */}
+ {user?.is_master_admin || user?.is_pulse_admin ? (
+   <AccountPanel open={showAccount} onClose={() => setShowAccount(false)} />
+ ) : (
+   <AccountSettingsModal open={showAccount} onClose={() => setShowAccount(false)} />
+ )}
  </>
  );
 };

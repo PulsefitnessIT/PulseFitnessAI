@@ -19,6 +19,7 @@ export default function MFASetupCard() {
   const [stage, setStage] = useState('idle'); // idle | enrolling | backup | disabling
   const [secret, setSecret] = useState('');
   const [qrUri, setQrUri] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState('');
   const [code, setCode] = useState('');
   const [backupCodes, setBackupCodes] = useState([]);
   const [copied, setCopied] = useState(false);
@@ -44,6 +45,7 @@ export default function MFASetupCard() {
     try {
       const res = await axios.post(`${API}/auth/mfa/setup`, {}, { headers: headers() });
       setQrUri(res.data.provisioning_uri);
+      setQrDataUrl(res.data.qrcode_data_url || '');
       setSecret(res.data.secret);
       setStage('enrolling');
     } catch (e) {
@@ -128,7 +130,7 @@ export default function MFASetupCard() {
             Can't scan? Enter the secret manually: <code className="text-sky-300">{secret}</code>
           </p>
           <img
-            src={`${API}/auth/mfa/qrcode?uri=${encodeURIComponent(qrUri)}`}
+            src={qrDataUrl || `${API}/auth/mfa/qrcode?uri=${encodeURIComponent(qrUri)}`}
             alt="MFA QR"
             className="w-48 h-48 bg-white dark:bg-zinc-900 rounded p-2"
             data-testid="mfa-qr-img"
