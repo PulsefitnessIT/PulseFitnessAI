@@ -201,6 +201,7 @@ _VALID_PATCH_FIELDS = {
     "contract_id", "cover_type", "case_type", "customer_name", "customer_email",
     "customer_phone", "estimated_minutes", "tags",
     "equipment_ids", "equipment_serials", "required_skills",
+    "comms_auto_notify",
 }
 
 

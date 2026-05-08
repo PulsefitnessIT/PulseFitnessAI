@@ -140,6 +140,16 @@ async def transition(
 
     case.update(update)
     case.pop("_id", None)
+
+    # Phase 4 — fire-and-forget customer auto-notify (en_route / on_site / closed).
+    # Lazy import to avoid circular dependency with routes.svc.comms.
+    try:
+        from routes.svc.comms import auto_notify_on_transition  # noqa: WPS433
+        await auto_notify_on_transition(case=case, target_state=target_state, actor=actor)
+    except Exception:
+        # Never block a state transition on a comms failure.
+        pass
+
     return case
 
 

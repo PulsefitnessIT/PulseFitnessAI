@@ -11010,3 +11010,37 @@ Phase 5 (Service Desk Dashboard Polish) finished end-to-end.
 - Phase 4 — Comms Hub & ETA notifications
 - Phase 6+ — Reports export polish, scheduled digest, saved views
 - Sicon/Sage live cutover (BLOCKED on user credentials)
+
+---
+
+## Iter 216x — ServiceOps Phase 4 Complete (2026-02-08)
+
+Phase 4 (Comms Hub & ETA Notifications) finished end-to-end.
+
+### Backend
+- **Auto-notify hook** in `utils/svc_state.transition()`: every successful state change now fires a fire-and-forget customer email via `routes.svc.comms.auto_notify_on_transition`.
+  - `* → en_route` → template `engineer_en_route`
+  - `* → on_site`  → template `engineer_arrived` (NEW)
+  - `* → closed`   → template `case_completed`
+- **Idempotent**: never sends the same `(case_id, template_key)` twice (checks `svc_comms_log` for prior `ok=True` send).
+- **Per-case opt-out**: new `comms_auto_notify` field on `svc_cases` (default True). Added to `_VALID_PATCH_FIELDS` in `cases.py`.
+- New default template `engineer_arrived` seeded into `svc_email_templates` for every org.
+- Logged sends use a new `kind="case_notify_auto"` to distinguish from manual sends in the comms log UI.
+- Each successful auto-send appends a `comm` event to the case timeline with `extra.trigger="transition_auto"`.
+
+### Frontend
+- **New "Comms" tab on the Service Case Drawer** with three sections:
+  1. **Auto-notify toggle** — explains the policy, shows the customer email it will use, immediately persists via `PUT /svc/cases/{id}`.
+  2. **Manual send card** — template picker (case_logged / engineer_en_route / engineer_arrived / case_completed), "Send now" button (disabled when no customer email), "Refresh log" button.
+  3. **Email history** — full per-case send log with `AUTO`/`manual` pills, success/failure indicators, error tooltips when sends fail.
+- Internal comms thread already supported by Timeline tab + "Add internal note" form (kept in place).
+
+### Verified end-to-end
+- Created test case SVC-00030 → transitioned through assigned → en_route → on_site → repaired → closed → invoiced.
+- All three auto-templates rendered correctly: subjects "Your engineer is on the way — SVC-00030", "Your engineer has arrived — SVC-00030", "Service complete — SVC-00030" (variables substituted from the case doc).
+- The Comms tab in the drawer correctly renders all 3 history rows with AUTO pills.
+- Cases with `comms_auto_notify=false` skip the auto-send pathway.
+- Cases with no `customer_email` skip the auto-send pathway with no error.
+
+### Still mocked / dependent on env
+- Send results are `ok=False` in preview because `RESEND_API_KEY` isn't configured. In production / staging with the key set, these sends will be `ok=True` and the customer will receive real emails.

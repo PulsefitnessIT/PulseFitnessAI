@@ -21,7 +21,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   X, Loader2, Clock, AlertTriangle, MapPin, Phone, Mail, User as UserIcon,
-  Wrench, Activity, Save, Send, ChevronRight, Sparkles, CheckCircle2,
+  Wrench, Activity, Save, Send, ChevronRight, Sparkles, CheckCircle2, History, Bell,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import './_serviceops.css';
@@ -129,6 +129,11 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
   const [transitionReason, setTransitionReason] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiSummary, setAiSummary] = useState(null);
+  const [commsLog, setCommsLog] = useState([]);
+  const [commsLoading, setCommsLoading] = useState(false);
+  const [commsTemplates, setCommsTemplates] = useState([]);
+  const [commsTemplateKey, setCommsTemplateKey] = useState('case_logged');
+  const [commsSending, setCommsSending] = useState(false);
 
   const runSummary = async () => {
     if (!caseId) return;
@@ -200,6 +205,65 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
     } finally { setSaving(false); }
   };
 
+  const loadComms = useCallback(async () => {
+    if (!caseId) return;
+    setCommsLoading(true);
+    try {
+      const [logResp, tplResp] = await Promise.all([
+        axios.get(`${API}/svc/comms/log`, { ...auth(), params: { case_id: caseId, limit: 50 } }),
+        commsTemplates.length === 0
+          ? axios.get(`${API}/svc/comms/templates`, auth()).catch(() => ({ data: { templates: [] } }))
+          : Promise.resolve({ data: { templates: commsTemplates } }),
+      ]);
+      setCommsLog(logResp.data?.events || []);
+      const tpl = tplResp.data?.templates || [];
+      if (tpl.length && commsTemplates.length === 0) {
+        setCommsTemplates(tpl.filter((t) => t.audience === 'customer'));
+      }
+    } catch (e) {
+      notify.error('Failed to load comms', e?.response?.data?.detail || e.message);
+    } finally { setCommsLoading(false); }
+  }, [caseId, commsTemplates]);
+
+  useEffect(() => {
+    if (tab === 'comms') loadComms();
+  }, [tab, loadComms]);
+
+  const sendCustomerEmail = async () => {
+    if (!caseId || !commsTemplateKey) return;
+    if (!doc?.customer_email) {
+      notify.error('No customer email', 'Set a customer email on the Customer tab first.');
+      return;
+    }
+    setCommsSending(true);
+    try {
+      const r = await axios.post(
+        `${API}/svc/comms/case/${caseId}/notify`,
+        { template_key: commsTemplateKey },
+        auth(),
+      );
+      if (r.data?.ok) {
+        notify.success('Email sent', `${doc.customer_email}`);
+      } else {
+        notify.error('Email send failed', r.data?.log?.error || 'Provider rejected the request');
+      }
+      await loadComms();
+      await load();
+    } catch (e) {
+      notify.error('Send failed', e?.response?.data?.detail || e.message);
+    } finally { setCommsSending(false); }
+  };
+
+  const toggleAutoNotify = async () => {
+    const next = !(doc?.comms_auto_notify !== false);
+    try {
+      await axios.put(`${API}/svc/cases/${caseId}`, { comms_auto_notify: next }, auth());
+      await load();
+    } catch (e) {
+      notify.error('Failed to update', e?.response?.data?.detail || e.message);
+    }
+  };
+
   const doTransition = async (target) => {
     setSaving(true);
     try {
@@ -258,6 +322,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           <TabButton id="timeline" label="Timeline" icon={Activity} active={tab === 'timeline'} onClick={() => setTab('timeline')} count={events.length} />
           <TabButton id="details" label="Details" icon={Wrench} active={tab === 'details'} onClick={() => setTab('details')} />
           <TabButton id="customer" label="Customer" icon={UserIcon} active={tab === 'customer'} onClick={() => setTab('customer')} />
+          <TabButton id="comms" label="Comms" icon={Bell} active={tab === 'comms'} onClick={() => setTab('comms')} />
         </div>
 
         {/* Body */}
@@ -420,7 +485,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 <p>SLA resolve by: {fmtDate(doc?.sla_resolve_at)}</p>
               </div>
             </div>
-          ) : (
+          ) : tab === 'customer' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Customer name">
                 <input value={merged.customer_name || ''} onChange={(e) => setEdit('customer_name', e.target.value)} className="svc-input" data-testid="drawer-edit-customer-name" />
@@ -440,6 +505,20 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 {merged.site_name ? <span className="inline-flex items-center gap-1 svc-muted"><MapPin size={11} /> {merged.site_name}</span> : null}
               </div>
             </div>
+          ) : (
+            <CommsTab
+              doc={doc}
+              commsLog={commsLog}
+              commsLoading={commsLoading}
+              templates={commsTemplates}
+              templateKey={commsTemplateKey}
+              setTemplateKey={setCommsTemplateKey}
+              onSend={sendCustomerEmail}
+              sending={commsSending}
+              autoNotify={doc?.comms_auto_notify !== false}
+              onToggleAutoNotify={toggleAutoNotify}
+              onRefresh={loadComms}
+            />
           )}
         </div>
 
@@ -505,5 +584,144 @@ function Field({ label, children }) {
       <span className="svc-label">{label}</span>
       {children}
     </label>
+  );
+}
+
+function CommsTab({
+  doc, commsLog, commsLoading, templates, templateKey, setTemplateKey,
+  onSend, sending, autoNotify, onToggleAutoNotify, onRefresh,
+}) {
+  const customerEmail = doc?.customer_email || '';
+  const customerName = doc?.customer_name || '';
+  return (
+    <div className="space-y-3" data-testid="drawer-comms-tab">
+      {/* Auto-notify toggle */}
+      <div className="svc-card-base p-3" data-testid="drawer-comms-auto-card">
+        <div className="flex items-start gap-3">
+          <Bell size={14} className="mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm">Auto-notify customer on key events</p>
+            <p className="text-[11.5px] svc-muted mt-0.5">
+              When enabled, GymAxis automatically emails {customerEmail || 'the customer'} as the engineer
+              moves to <em>en route</em>, arrives <em>on site</em>, and the case is <em>completed</em>.
+              Each event sends at most once per case.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
+            <input
+              type="checkbox"
+              checked={autoNotify}
+              onChange={onToggleAutoNotify}
+              data-testid="drawer-comms-auto-toggle"
+            />
+            <span className="font-bold">{autoNotify ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Manual send */}
+      <div className="svc-card-base p-3" data-testid="drawer-comms-send-card">
+        <p className="svc-label">Send customer email now</p>
+        {!customerEmail ? (
+          <p className="text-[11.5px] svc-muted mt-1">
+            No customer email on this case. Add one on the <strong>Customer</strong> tab to enable sends.
+          </p>
+        ) : (
+          <p className="text-[11.5px] svc-muted mt-1">
+            To: <strong>{customerName ? `${customerName} <${customerEmail}>` : customerEmail}</strong>
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2 mt-2 items-center">
+          <select
+            value={templateKey}
+            onChange={(e) => setTemplateKey(e.target.value)}
+            className="svc-select svc-select-sm"
+            style={{ maxWidth: 240 }}
+            disabled={!customerEmail || sending}
+            data-testid="drawer-comms-template-select"
+          >
+            {templates.length === 0 ? (
+              <>
+                <option value="case_logged">case_logged</option>
+                <option value="engineer_en_route">engineer_en_route</option>
+                <option value="engineer_arrived">engineer_arrived</option>
+                <option value="case_completed">case_completed</option>
+              </>
+            ) : templates.map((t) => (
+              <option key={t.key} value={t.key}>{t.key}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={!customerEmail || sending || !templateKey}
+            className="svc-btn svc-btn-primary svc-btn-sm"
+            data-testid="drawer-comms-send-btn"
+          >
+            {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+            {sending ? 'Sending…' : 'Send now'}
+          </button>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="svc-btn svc-btn-secondary svc-btn-sm"
+            data-testid="drawer-comms-refresh"
+          >
+            <History size={11} /> Refresh log
+          </button>
+        </div>
+      </div>
+
+      {/* Log */}
+      <div className="svc-section" data-testid="drawer-comms-log-section">
+        <div className="svc-section-head">
+          <div className="svc-section-title inline-flex items-center gap-1.5">
+            <History size={13} /> Email history
+            <span className="svc-muted text-xs">({commsLog.length})</span>
+          </div>
+        </div>
+        <div className="svc-section-body">
+          {commsLoading ? (
+            <div className="svc-empty"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+          ) : commsLog.length === 0 ? (
+            <p className="text-[11.5px] svc-muted italic">No emails have been sent for this case yet.</p>
+          ) : (
+            <ul className="space-y-2" data-testid="drawer-comms-log-list">
+              {commsLog.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-start gap-2 p-2 rounded border"
+                  style={{ borderColor: 'var(--theme-border)' }}
+                  data-testid={`drawer-comms-log-${row.id}`}
+                >
+                  {row.ok ? (
+                    <CheckCircle2 size={14} style={{ color: '#10b981', flexShrink: 0, marginTop: 2 }} />
+                  ) : (
+                    <AlertTriangle size={14} style={{ color: '#ef4444', flexShrink: 0, marginTop: 2 }} />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-bold text-sm truncate">{row.subject || '(no subject)'}</span>
+                      <span className="text-[10px] svc-muted tabular-nums">
+                        {new Date(row.at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className="svc-pill" data-testid={`drawer-comms-log-kind-${row.id}`}>
+                        {row.kind === 'case_notify_auto' ? 'auto' : 'manual'}
+                      </span>
+                      <span className="text-[11px] svc-muted">{row.template_key} · {row.to}</span>
+                      {!row.ok && row.error ? (
+                        <span className="text-[11px]" style={{ color: '#b91c1c' }}>· {row.error}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

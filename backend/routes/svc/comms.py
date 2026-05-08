@@ -124,6 +124,19 @@ _DEFAULTS: list[dict] = [
         ),
     },
     {
+        "key": "engineer_arrived",
+        "audience": "customer",
+        "subject": "Your engineer has arrived — {{reference}}",
+        "body_html": (
+            "<p>Hi {{customer_name}},</p>"
+            "<p><strong>{{engineer_name}}</strong> has just arrived on-site at "
+            "<strong>{{site_name}}</strong> and is starting work on case "
+            "<strong>{{reference}}</strong> ({{title}}).</p>"
+            "<p>We'll send another update the moment the work is complete.</p>"
+            "<p>— The GymAxis service desk</p>"
+        ),
+    },
+    {
         "key": "case_completed",
         "audience": "customer",
         "subject": "Service complete — {{reference}}",
@@ -430,4 +443,100 @@ async def comms_log(
     return {"events": rows, "count": len(rows)}
 
 
-__all__ = ["router"]
+__all__ = ["router", "auto_notify_on_transition"]
+
+
+# ─────────────────────────────────────────────────────────────────
+# Auto-notify on case state transitions (Phase 4 — Comms Hub)
+# ─────────────────────────────────────────────────────────────────
+
+# Map: case state → (template_key, friendly description for log/event body)
+_AUTO_TRANSITION_TEMPLATES = {
+    "en_route":  ("engineer_en_route", "Engineer en route"),
+    "on_site":   ("engineer_arrived",  "Engineer arrived"),
+    "closed":    ("case_completed",    "Case completed"),
+}
+
+
+async def auto_notify_on_transition(
+    *,
+    case: dict,
+    target_state: str,
+    actor: dict | None = None,
+) -> None:
+    """Fire-and-forget customer email for a transition.
+
+    Pre-conditions checked before send:
+      • Mapping exists for target_state
+      • case.comms_auto_notify is not explicitly False
+      • case has a customer_email
+      • We haven't already sent this exact (case_id, template_key) auto-comm
+    """
+    template_key, friendly = _AUTO_TRANSITION_TEMPLATES.get(target_state, (None, None))
+    if not template_key:
+        return
+    if case.get("comms_auto_notify") is False:
+        return
+    to = (case.get("customer_email") or "").strip()
+    if not to or "@" not in to:
+        return
+    org_id = case.get("organization_id")
+    case_id = case.get("id")
+    if not org_id or not case_id:
+        return
+    of = {"organization_id": org_id}
+
+    # Idempotency: never send the same auto-comm twice per case.
+    already = await db.svc_comms_log.find_one(
+        {**of, "case_id": case_id, "template_key": template_key, "kind": "case_notify_auto", "ok": True},
+        {"_id": 0, "id": 1},
+    )
+    if already:
+        return
+
+    # Render via stored template (seed defaults if needed).
+    await _ensure_defaults(of)
+    template = await db.svc_email_templates.find_one(
+        {**of, "key": template_key}, {"_id": 0},
+    )
+    if not template or template.get("active") is False:
+        return
+
+    ctx = {
+        **case,
+        "priority_label": _PRIORITY_LABEL.get(case.get("priority", "p3"), case.get("priority", "p3")),
+        "scheduled_label": case.get("scheduled_at") or "shortly",
+        "engineer_name": case.get("assigned_engineer_name") or "Our engineer",
+        "summary": case.get("repair_summary") or case.get("description") or "Service complete.",
+    }
+    subject = _render(template["subject"], ctx)
+    body = _render(template["body_html"], ctx)
+
+    try:
+        ok = await send_email(to=to, subject=subject, html=body)
+    except Exception as exc:  # pragma: no cover — network errors logged & swallowed
+        logger.warning("auto-notify send failed for %s/%s: %s", case_id, template_key, exc)
+        ok = False
+    log = await _log_send(
+        of=of, kind="case_notify_auto", to=to, subject=subject,
+        template_key=template_key, ok=ok,
+        error=None if ok else "send_email returned False",
+        case_id=case_id, actor=actor,
+    )
+    if ok:
+        try:
+            await append_event(
+                case_id=case_id, organization_id=org_id,
+                event_type="comm", actor=actor or {},
+                body=f"Auto-notify: {friendly} → {to}",
+                extra={
+                    "template_key": template_key,
+                    "to": to,
+                    "log_id": log["id"],
+                    "trigger": "transition_auto",
+                    "visibility": "internal",
+                },
+            )
+        except Exception as exc:  # pragma: no cover
+            logger.warning("auto-notify event log failed for %s: %s", case_id, exc)
+
