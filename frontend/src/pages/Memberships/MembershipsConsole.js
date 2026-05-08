@@ -17,7 +17,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, Receipt,
+  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, Receipt, Wand2,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -53,6 +53,7 @@ import { useUserPref } from '@/utils/userPrefs';
 import useStudioMode from '@/pages/Memberships/useStudioMode';
 import StudioModeToggle from '@/pages/Memberships/StudioModeToggle';
 import StudioQuickstart from '@/pages/Memberships/StudioQuickstart';
+import StudioBuilderTab from '@/pages/Memberships/StudioBuilderTab';
 
 export default function MembershipsConsole() {
   return (
@@ -76,11 +77,12 @@ function MembershipsConsoleInner() {
   const pillBarRef = React.useRef(null);
   const studio = useStudioMode();
   // Studio Mode: 5-tab simplified layout for small teams.
-  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'timetable', 'members', 'plans', 'checkin', 'invoicing']), []);
+  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'studio-builder', 'timetable', 'members', 'plans', 'checkin', 'invoicing']), []);
 
   const TABS = useMemo(() => [
     { id: 'start',     label: 'Start', icon: Sparkles },
     { id: 'dashboard', label: t('memberships_console.tab_dashboard'), icon: LayoutDashboard },
+    { id: 'studio-builder', label: 'Studio builder', icon: Wand2 },
     { id: 'members',   label: t('memberships_console.tab_members'),   icon: Users },
     { id: 'timetable', label: t('memberships_console.tab_timetable'), icon: Calendar },
     { id: 'classes',   label: t('memberships_console.tab_classes'),   icon: Dumbbell },
@@ -261,6 +263,7 @@ function MembershipsConsoleInner() {
         )}
         {tab === 'start' && !(studio.studioMode && !studio.quickstartCompleted) && <MembershipsStartTab setTab={setTab} />}
         {tab === 'dashboard' && <DashboardTab key={`dash-${reloadKey}`} API={API} headers={headers} />}
+        {tab === 'studio-builder' && <StudioBuilderTab key={`sb-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'members'   && <MembersTab   key={`mbr-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'timetable' && <TimetableTab key={`tt-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'classes'   && <ClassesTab   key={`cls-${reloadKey}`} API={API} headers={headers} />}

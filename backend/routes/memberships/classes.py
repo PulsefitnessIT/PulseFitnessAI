@@ -46,6 +46,12 @@ class ClassTemplateIn(BaseModel):
     max_waitlist: int = 10
     credits_to_book: int = 1
     access_plans: list[str] | None = None
+    # Iter 216z — Phase A studio enhancements
+    min_age: int | None = Field(default=None, ge=0, le=100)
+    max_age: int | None = Field(default=None, ge=0, le=100)
+    skill_level: str | None = None  # "beginner" | "intermediate" | "advanced" | free-text
+    discipline: str | None = None   # e.g. "Ballet", "Tap" — industry-aware tag
+    term_id: str | None = None      # restrict materialisation to a term
 
 
 @router.get("/memberships/classes/templates", dependencies=[Depends(require_module("memberships"))])
@@ -83,7 +89,8 @@ async def class_templates_update(tpl_id: str, body: dict = Body(...), user: dict
     allowed = {"name", "category", "description", "instructor_user_id", "instructor_id", "instructor_name", "room_name",
                "duration_min", "capacity", "colour", "recurs_days", "start_time",
                "booking_opens_hours_before", "cancellation_cutoff_hours_before",
-               "waitlist_enabled", "max_waitlist", "credits_to_book", "access_plans"}
+               "waitlist_enabled", "max_waitlist", "credits_to_book", "access_plans",
+               "min_age", "max_age", "skill_level", "discipline", "term_id", "site_id"}
     update = {k: v for k, v in body.items() if k in allowed}
     await db.class_templates.update_one({"id": tpl_id, "organization_id": org_id}, {"$set": {**update, "updated_at": _now_iso()}})
     return {"ok": True}
@@ -103,7 +110,13 @@ async def class_templates_archive(tpl_id: str, user: dict = Depends(get_current_
 
 
 async def _materialise_occurrences(template: dict, weeks: int = 8) -> int:
-    """Insert scheduled occurrences for `template` over the next `weeks`."""
+    """Insert scheduled occurrences for `template` over the next `weeks`.
+
+    Iter 216z (Phase A): respect the template's bound term and skip
+    dates inside any of its holiday blocks. If no term is bound, we
+    fall back to the org-default term when one exists, otherwise we
+    materialise the full window unconditionally.
+    """
     if not template.get("recurs_days"):
         return 0
     now = datetime.now(timezone.utc)
@@ -115,9 +128,38 @@ async def _materialise_occurrences(template: dict, weeks: int = 8) -> int:
     days_set = set(int(d) for d in template["recurs_days"])
     end_horizon = now + timedelta(weeks=weeks)
     made = 0
+
+    # ── Term + holiday lookup ─────────────────────────────────────
+    term = None
+    if template.get("term_id"):
+        term = await db.membership_terms.find_one(
+            {"id": template["term_id"], "organization_id": template["organization_id"]},
+            {"_id": 0},
+        )
+    if not term:
+        term = await db.membership_terms.find_one(
+            {"organization_id": template["organization_id"],
+             "is_default": True, "archived": {"$ne": True}},
+            {"_id": 0},
+        )
+    term_start_iso = term.get("starts_on") if term else None
+    term_end_iso = term.get("ends_on") if term else None
+    holidays = (term or {}).get("holiday_blocks") or []
+
+    def _in_holiday(d_iso: str) -> bool:
+        for h in holidays:
+            if h.get("starts_on", "") <= d_iso <= h.get("ends_on", ""):
+                return True
+        return False
+
     cursor = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
     while cursor < end_horizon:
-        if cursor.weekday() in days_set:
+        d_iso = cursor.strftime("%Y-%m-%d")
+        in_term = (
+            (term_start_iso is None or d_iso >= term_start_iso)
+            and (term_end_iso is None or d_iso <= term_end_iso)
+        )
+        if cursor.weekday() in days_set and in_term and not _in_holiday(d_iso):
             starts = cursor.replace(hour=hh, minute=mm, second=0, microsecond=0)
             if starts >= now - timedelta(hours=1):
                 existing = await db.class_occurrences.find_one({
@@ -144,6 +186,12 @@ async def _materialise_occurrences(template: dict, weeks: int = 8) -> int:
                         "no_show_count": 0,
                         "status": "scheduled",
                         "created_at": _now_iso(),
+                        # Iter 216z — restrictions surfaced for filtering
+                        "min_age": template.get("min_age"),
+                        "max_age": template.get("max_age"),
+                        "skill_level": template.get("skill_level"),
+                        "discipline": template.get("discipline"),
+                        "term_id": (term or {}).get("id"),
                     }
                     await db.class_occurrences.insert_one(occ)
                     made += 1

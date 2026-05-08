@@ -11078,3 +11078,35 @@ Phase 6+ (Reports export polish, Saved Views, Scheduled Email Digest) finished e
 
 ### Mocked / dependent on env
 - Digest `sent` count is `0` in preview because `RESEND_API_KEY` isn't set (same as Phase 4 auto-notify). Will deliver real emails in production once the key is configured.
+
+---
+
+## Iter 216z — Memberships Phase A: Studio Identity, Terms & Drag-drop Timetable (2026-02-08)
+
+Phase A of the 6-phase Studios Vision is shipped end-to-end.
+
+### Backend
+- `GET /api/memberships/studio/industries` — 9 industry presets (`dance`, `gymnastics`, `cheer`, `martial_arts`, `swim`, `yoga`, `boutique_fitness`, `performing_arts`, `multi`) with: label, default disciplines (e.g. dance: Ballet/Tap/Jazz/Contemporary/Hip-Hop/Acro/Lyrical/Commercial/Musical Theatre), skill_levels, default_palette (5–8 brand-aligned hex colours), noun (member/student/gymnast/athlete/swimmer), guardian_noun (parent/guardian).
+- Extended `StudioSettingsIn` model & both `studio/settings` endpoints to read/write `studio_industry`. GET response now includes the resolved `industry_preset`.
+- New `routes/memberships/terms.py` — Terms & Holiday Blocks CRUD:
+  - `GET / POST / PUT / DELETE /api/memberships/terms` (collection: `membership_terms`)
+  - `POST /api/memberships/terms/{id}/holidays` and `DELETE /…/holidays/{block_id}`
+  - `POST /api/memberships/terms/rematerialise` rebuilds all *empty* future occurrences from active templates inside the active term (preserves bookings).
+  - "Default term" guard: only one default per org (auto-clears the rest on PUT/POST).
+- `ClassTemplateIn` extended with `min_age`, `max_age`, `skill_level`, `discipline`, `term_id`. PATCH allow-list extended.
+- `_materialise_occurrences` now (a) consults the template's bound term or the org-default term and (b) skips dates inside any `holiday_blocks` row. New occurrences carry `min_age / max_age / skill_level / discipline / term_id` for downstream filtering.
+- New router wired in `routes/memberships/__init__.py` (`from routes.memberships import terms` + `terms` added to the include-router loop).
+
+### Frontend
+- New tab `Studio builder` (icon Wand2) on the Memberships console — visible to Studio-mode users.
+- New file `pages/Memberships/StudioBuilderTab.js` (~470 LOC) with three sections:
+  1. **Studio identity** — 9-tile industry chooser with palette swatches. Click to set the org's `studio_industry` instantly; current selection is ringed.
+  2. **Terms & holidays** — list with default/active pills, inline "Add term" form (name + start + end + default flag), holiday-block pills with remove `×`, "+ Holiday" prompt-driven add, archive button.
+  3. **Drag-and-drop weekly timetable builder** — 7-day × 32-slot (06:00–22:00 in 30-min cells) grid. Class templates are draggable chips in an "idle templates" rail; drop into a slot to update `recurs_days + start_time` via PATCH; drop back into the rail to remove; per-card `×` removes a single weekday. Includes "Rebuild term occurrences" CTA wired to `/terms/rematerialise`.
+
+### Verified end-to-end
+- Backend: `industries` returns 9 entries; `studio/settings POST` accepts industry & returns full preset; term creation with holiday block works; term GET returns `active_term_id` derived from today's date.
+- Frontend smoke-screenshot confirms rendering: 9 industry options, 2 term rows (Autumn Term 2026 with Half-term holiday pill), 224 grid cells, "Studio identity / Terms & holidays / Weekly timetable builder" all present.
+
+### Notes
+- The drag-drop builder uses the native HTML5 drag API (no extra deps). Mobile drag-drop is intentionally deferred until Phase C (mobile polish) — desktop is the authoring surface, mobile is the consumption surface.

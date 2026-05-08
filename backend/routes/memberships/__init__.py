@@ -49,6 +49,7 @@ from routes.memberships import (
     studio_billing,
     studio_extras,
     studio_polish,
+    terms,
     timetable,
     wallet,
 )
@@ -89,6 +90,7 @@ for sub in (
     studio_extras,
     studio_polish,
     studio_billing,
+    terms,
     instructors,
     family_autopay,
     wallet,

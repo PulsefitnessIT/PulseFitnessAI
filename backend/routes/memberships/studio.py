@@ -45,19 +45,126 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["memberships-studio"])
 
 
+# ═══════════════════════ Industry presets (Phase A) ═══════════════════════
+
+_INDUSTRY_PRESETS: dict[str, dict] = {
+    "dance": {
+        "label": "Dance studio",
+        "disciplines": ["Ballet", "Tap", "Jazz", "Contemporary", "Hip-Hop",
+                        "Acro", "Lyrical", "Commercial", "Musical Theatre"],
+        "skill_levels": ["Pre-school", "Beginner", "Intermediate", "Advanced", "Pre-Pro"],
+        "default_palette": ["#ec4899", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"],
+        "noun_singular": "student", "noun_plural": "students",
+        "guardian_noun": "parent",
+    },
+    "gymnastics": {
+        "label": "Gymnastics club",
+        "disciplines": ["Recreational", "Pre-school", "Tumbling", "Beam", "Vault",
+                        "Floor", "Bars", "Trampoline", "Competitive"],
+        "skill_levels": ["Tots", "Beginner", "Intermediate", "Advanced", "Squad"],
+        "default_palette": ["#0ea5e9", "#22c55e", "#a855f7", "#f97316", "#eab308"],
+        "noun_singular": "gymnast", "noun_plural": "gymnasts",
+        "guardian_noun": "parent",
+    },
+    "cheer": {
+        "label": "Cheerleading club",
+        "disciplines": ["Tumbling", "Stunt", "Recreational", "All-Star",
+                        "Pom", "Jumps & Motions"],
+        "skill_levels": ["Mini", "Youth", "Junior", "Senior", "Elite"],
+        "default_palette": ["#dc2626", "#0ea5e9", "#ffffff", "#1e293b", "#f59e0b"],
+        "noun_singular": "athlete", "noun_plural": "athletes",
+        "guardian_noun": "parent",
+    },
+    "martial_arts": {
+        "label": "Martial arts academy",
+        "disciplines": ["Karate", "Taekwondo", "Jiu-Jitsu", "Kickboxing",
+                        "Judo", "Krav Maga", "Sparring", "Forms"],
+        "skill_levels": ["White", "Yellow", "Orange", "Green", "Blue",
+                         "Purple", "Brown", "Black"],
+        "default_palette": ["#1e293b", "#facc15", "#f97316", "#10b981",
+                            "#3b82f6", "#a855f7", "#92400e", "#0f172a"],
+        "noun_singular": "student", "noun_plural": "students",
+        "guardian_noun": "parent",
+    },
+    "swim": {
+        "label": "Swim school",
+        "disciplines": ["Stage 1", "Stage 2", "Stage 3", "Stage 4",
+                        "Stage 5", "Stage 6", "Stage 7", "Stroke development",
+                        "Squad", "Adult learn-to-swim"],
+        "skill_levels": ["Pre-school", "Beginner", "Improver", "Advanced", "Squad"],
+        "default_palette": ["#0ea5e9", "#22d3ee", "#0284c7", "#0369a1", "#075985"],
+        "noun_singular": "swimmer", "noun_plural": "swimmers",
+        "guardian_noun": "parent",
+    },
+    "yoga": {
+        "label": "Yoga studio",
+        "disciplines": ["Vinyasa", "Hatha", "Yin", "Power", "Restorative",
+                        "Hot Yoga", "Pre-natal", "Meditation"],
+        "skill_levels": ["All levels", "Beginner", "Intermediate", "Advanced"],
+        "default_palette": ["#10b981", "#f97316", "#a78bfa", "#ec4899", "#fbbf24"],
+        "noun_singular": "member", "noun_plural": "members",
+        "guardian_noun": "guardian",
+    },
+    "boutique_fitness": {
+        "label": "Boutique fitness studio",
+        "disciplines": ["Spin", "Reformer Pilates", "Mat Pilates", "Barre",
+                        "HIIT", "Strength", "Mobility"],
+        "skill_levels": ["All levels", "Beginner", "Intermediate", "Advanced"],
+        "default_palette": ["#ef4444", "#f97316", "#84cc16", "#3b82f6", "#a855f7"],
+        "noun_singular": "member", "noun_plural": "members",
+        "guardian_noun": "guardian",
+    },
+    "performing_arts": {
+        "label": "Performing arts school",
+        "disciplines": ["Drama", "Musical Theatre", "Singing", "Dance",
+                        "Speech", "Acting for Camera", "LAMDA"],
+        "skill_levels": ["Mini", "Junior", "Senior", "Showcase", "Elite"],
+        "default_palette": ["#a855f7", "#ec4899", "#f59e0b", "#0ea5e9", "#10b981"],
+        "noun_singular": "student", "noun_plural": "students",
+        "guardian_noun": "parent",
+    },
+    "multi": {
+        "label": "Multi-discipline / Other",
+        "disciplines": [],
+        "skill_levels": ["Beginner", "Intermediate", "Advanced"],
+        "default_palette": ["#3b82f6", "#10b981", "#f97316", "#a855f7", "#ef4444"],
+        "noun_singular": "member", "noun_plural": "members",
+        "guardian_noun": "guardian",
+    },
+}
+
+
+@router.get("/memberships/studio/industries", dependencies=[Depends(require_module("memberships"))])
+async def list_industries(user: dict = Depends(get_current_user)):
+    """Return the catalogue of industries with copy/colour presets."""
+    rows = [{"id": iid, **preset} for iid, preset in _INDUSTRY_PRESETS.items()]
+    return {"industries": rows, "count": len(rows)}
+
+
 # ═══════════════════════ Settings ═══════════════════════
 
 class StudioSettingsIn(BaseModel):
     studio_mode: bool
+    studio_industry: str | None = None  # Iter 216z — Phase A
 
 
 @router.get("/memberships/studio/settings", dependencies=[Depends(require_module("memberships"))])
 async def get_studio_settings(user: dict = Depends(get_current_user)):
-    """Return the org's studio_mode flag + quickstart completion state."""
+    """Return the org's studio_mode flag + quickstart completion state + industry preset."""
     org_id = await _require_operator_org(user)
-    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "studio_mode": 1, "studio_quickstart_completed_at": 1}) or {}
+    org = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "studio_mode": 1, "studio_quickstart_completed_at": 1,
+         "studio_industry": 1},
+    ) or {}
+    industry_id = org.get("studio_industry") or None
+    preset = _INDUSTRY_PRESETS.get(industry_id) if industry_id else None
     return {
         "studio_mode": bool(org.get("studio_mode", False)),
+        "studio_industry": industry_id,
+        "industry_preset": (
+            {"id": industry_id, **preset} if preset else None
+        ),
         "quickstart_completed": bool(org.get("studio_quickstart_completed_at")),
         "quickstart_completed_at": org.get("studio_quickstart_completed_at"),
     }
@@ -68,15 +175,18 @@ async def set_studio_settings(
     payload: StudioSettingsIn = Body(...),
     user: dict = Depends(get_current_user),
 ):
-    """Enable / disable Studio Mode for the org. Owner / manager only."""
+    """Enable / disable Studio Mode for the org and optionally set the industry."""
     if (user.get("role") or "").lower() not in {"owner", "manager"} and not user.get("is_master_admin"):
         raise HTTPException(403, "Only owners or managers can toggle Studio Mode.")
     org_id = await _require_operator_org(user)
-    await db.organizations.update_one(
-        {"id": org_id},
-        {"$set": {"studio_mode": bool(payload.studio_mode), "studio_mode_updated_at": _now_iso()}},
-    )
-    return {"studio_mode": bool(payload.studio_mode)}
+    update: dict = {"studio_mode": bool(payload.studio_mode), "studio_mode_updated_at": _now_iso()}
+    if payload.studio_industry is not None:
+        if payload.studio_industry not in _INDUSTRY_PRESETS:
+            raise HTTPException(400, f"Unknown studio_industry — must be one of "
+                                f"{sorted(_INDUSTRY_PRESETS.keys())}")
+        update["studio_industry"] = payload.studio_industry
+    await db.organizations.update_one({"id": org_id}, {"$set": update})
+    return await get_studio_settings(user)
 
 
 # ═══════════════════════ Quickstart ═══════════════════════
