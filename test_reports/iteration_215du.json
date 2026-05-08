@@ -1,0 +1,76 @@
+{
+  "summary": "Phase 7 Reports & Audit dashboards testing complete. All 27 backend API tests passed. Frontend UI testing verified all required data-testids and full reports console functionality.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215du_reports.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215du.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_215du_reports.py"
+  ],
+  "success_rate": {
+    "backend": "100% (27/27 tests passed)",
+    "frontend": "100% (all data-testids verified, full reports console tested)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Used existing seed data from Phases 1-6 (87 open cases, 6 closed cases, 20 AI calls, invoiced quotes)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 7 Reports & Audit is fully functional. Backend endpoints tested: GET /api/svc/reports/summary (with date range, from>to validation, ISO without Z), GET /api/svc/reports/revenue-by-engineer (sorted by revenue desc), GET /api/svc/reports/ftfr (first-time-fix rate calculation), GET /api/svc/reports/sla (SLA compliance with by_priority breakdown), GET /api/svc/reports/ai (AI observability with p50/p95 latency), GET /api/svc/reports/audit (paginated with filters). All endpoints require auth and respect org-scoping. Frontend verified: reports-page, reports-range, reports-refresh, reports-kpis (6 KPI cards), reports-revenue with revenue-rows, reports-sla with sla-rate and sla-by-priority, reports-ftfr with ftfr-rate, reports-ai with ai-row-{kind} for triage/photo_classify/summary/tiebreak, reports-audit with audit-list. Service Desk header has desk-reports-link routing to /service-ops/reports.",
+  "mocked_apis": {
+    "sage_200_invoice_push": "Outbox only - svc_sage_invoice_outbox.status flips draft → ready; live POST in Phase 8",
+    "sicon_service_push": "Outbox only",
+    "sicon_parts_catalogue_pull": "Manual"
+  },
+  "features_verified": {
+    "backend": [
+      "GET /api/svc/reports/summary - returns {from, to, kpis: {open_cases, cases_closed, chargeable_invoiced, revenue_gross, revenue_net, ai_calls}}",
+      "GET /api/svc/reports/summary?from=ISO&to=ISO - supports date range filtering",
+      "GET /api/svc/reports/summary with from > to returns 400",
+      "GET /api/svc/reports/summary accepts ISO without timezone (fromisoformat)",
+      "GET /api/svc/reports/revenue-by-engineer - returns {rows: [{engineer_id, engineer_name, hours, revenue, cases}]} sorted by revenue desc",
+      "GET /api/svc/reports/revenue-by-engineer - missing engineer_id shows 'Unattributed'",
+      "GET /api/svc/reports/ftfr - returns {total_closed, ftf, rate} where ftf = closed cases without paused_parts state",
+      "GET /api/svc/reports/sla - returns {total, on_time, breached, rate, by_priority: {p1:{total,on_time,breached},...}}",
+      "GET /api/svc/reports/ai - returns {by_kind: [{kind, calls, ok, ok_rate, p50_latency_ms, p95_latency_ms, prompt_chars, response_chars}], totals}",
+      "GET /api/svc/reports/audit - returns paginated svc_case_events with limit, actor_id, types, case_id filters",
+      "All endpoints require authentication (401 without token)",
+      "All endpoints respect organization_id scoping"
+    ],
+    "frontend": [
+      "Service Desk header has 'Reports' link (desk-reports-link) routing to /service-ops/reports",
+      "Reports page (reports-page) renders with header, range selector (reports-range), refresh button (reports-refresh)",
+      "KPI strip (reports-kpis) shows 6 cards: kpi-open-cases (87), kpi-cases-closed (6), kpi-chargeable-invoiced (0), kpi-revenue (£1,447.2), kpi-ftfr (100% with 6/6 sub-text), kpi-ai-calls (20)",
+      "Revenue per engineer section (reports-revenue) renders revenue-rows with horizontal bars sized by % of max",
+      "SLA section (reports-sla) renders sla-rate (100%), sla-by-priority list with sla-priority-p2, sla-priority-p3 entries",
+      "FTFR section (reports-ftfr) renders ftfr-rate (100%)",
+      "AI section (reports-ai) renders ai-row-triage, ai-row-photo_classify, ai-row-summary, ai-row-tiebreak with calls, ok %, p50, p95 columns",
+      "Audit feed (reports-audit) renders audit-list with audit-row-{event_id} entries showing case ref, type, actor, timestamp"
+    ]
+  },
+  "live_data_verified": {
+    "open_cases": 87,
+    "cases_closed": 6,
+    "chargeable_invoiced": 0,
+    "revenue_gross": "£1,447.2",
+    "revenue_net": "£1,206",
+    "ftfr_rate": "100%",
+    "ftfr_count": "6/6",
+    "sla_rate": "100%",
+    "sla_on_time": 6,
+    "sla_breached": 0,
+    "ai_calls": 20,
+    "ai_kinds": ["triage (7 calls)", "tiebreak (6 calls)", "summary (4 calls)", "photo_classify (3 calls)"],
+    "revenue_by_engineer": "Unattributed: £650, 10h, 4 cases"
+  }
+}

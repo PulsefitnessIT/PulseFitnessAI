@@ -1,0 +1,116 @@
+{
+  "summary": "Iteration 61 - Mobile Bug Fixes Testing (4 issues). All 4 bug fixes verified on mobile viewport (390x844): 1) Light mode text visibility - KPI cards show dark text (rgb(24,24,27)) on white backgrounds, filter dropdowns readable, Log Fault button keeps white text on cyan; 2) Horizontal scroll fixed - Reports tab no longer causes page-wide horizontal scroll (bodyScrollWidth=bodyClientWidth=390), sub-tabs scroll independently with overflow-x-auto; 3) Gym Layout upload button present with data-testid='gym-layout-upload-btn'; 4) CAPEX 'Age (yrs)' label verified in score breakdown section.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "test_1_light_mode_text_visibility": {
+      "status": "PASSED",
+      "details": {
+        "kpi_cards": {
+          "lite-kpi-machines": {"text": "28", "color": "rgb(24, 24, 27)", "isDarkText": true},
+          "lite-kpi-operational": {"text": "13", "color": "rgb(24, 24, 27)", "isDarkText": true},
+          "lite-kpi-faults": {"text": "15", "color": "rgb(24, 24, 27)", "isDarkText": true},
+          "lite-kpi-open": {"text": "43", "color": "rgb(24, 24, 27)", "isDarkText": true}
+        },
+        "filter_dropdowns": {
+          "statusFilter": {"color": "rgb(24, 24, 27)", "isDarkText": true},
+          "severityFilter": {"color": "rgb(24, 24, 27)", "isDarkText": true}
+        },
+        "log_fault_button": {
+          "color": "rgb(255, 255, 255)",
+          "backgroundColor": "rgb(102, 204, 255)",
+          "isWhiteText": true
+        }
+      }
+    },
+    "test_2_horizontal_scroll_reports": {
+      "status": "PASSED",
+      "details": {
+        "bodyScrollWidth": 390,
+        "bodyClientWidth": 390,
+        "hasHorizontalScroll": false,
+        "dashboardOverflowX": "hidden",
+        "subTabsOverflowX": "auto"
+      }
+    },
+    "test_3_gym_layout_upload": {
+      "status": "PASSED",
+      "details": {
+        "upload_button_found": true,
+        "data_testid": "gym-layout-upload-btn",
+        "button_text": "Upload Floor Plan",
+        "upload_dialog_opens": true,
+        "file_input_accepts": ".png,.jpg,.jpeg,.webp,.pdf"
+      }
+    },
+    "test_4_capex_age_label": {
+      "status": "PASSED",
+      "details": {
+        "age_yrs_label_found": true,
+        "location": "Score breakdown section in expanded equipment row",
+        "label_text": "Age (yrs)",
+        "equipment_rows_found": 28
+      }
+    }
+  },
+  "bug_fixes_verified": {
+    "issue_1": {
+      "description": "Light mode text is lost/invisible (white text on white backgrounds)",
+      "fix_verified": true,
+      "css_changes": "/app/frontend/src/index.css lines 142-175 - universal text-white override + preserve rules for colored backgrounds"
+    },
+    "issue_2": {
+      "description": "Entire page scrolls horizontally on Reports tab (sub-tabs cause overflow)",
+      "fix_verified": true,
+      "code_changes": [
+        "/app/frontend/src/pages/LiteDashboardPage.js line 308 - overflow-x-hidden on main container",
+        "/app/frontend/src/pages/PulseReportsTab.js lines 51-67 - sub-tab overflow-x-auto + flex-shrink-0"
+      ]
+    },
+    "issue_3": {
+      "description": "No option to upload file on Gym Layout tab",
+      "fix_verified": true,
+      "code_changes": "/app/frontend/src/pages/PulseGymLayoutTab.js - NEW component with upload, view, zoom, delete"
+    },
+    "issue_4": {
+      "description": "CAPEX 'Age' label needs '(yrs)' clarification",
+      "fix_verified": true,
+      "code_changes": "/app/frontend/src/pages/CapexIntelligenceTab.js lines 209, 232 - Age (yrs) label"
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_61.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Light mode CSS uses [data-theme='light'] .text-white selector to convert white text to dark (var(--theme-text))",
+    "Colored background buttons (cyan, blue, green, red) correctly preserve white text via specific CSS rules",
+    "Main dashboard container has overflow-x-hidden to prevent horizontal scroll",
+    "Report sub-tabs use overflow-x-auto with flex-shrink-0 for independent horizontal scrolling",
+    "Gym Layout component properly implements file upload with category='floor-plans'",
+    "CAPEX score breakdown labels correctly show 'Age (yrs)' for clarity"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (4/4 bug fixes verified)"
+  },
+  "test_credentials": {
+    "pulse_pro_owner": "test@gymaxisai.com / Test123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 mobile bug fixes verified: 1) Light mode text visibility working - dark text on white cards, white text preserved on colored buttons; 2) No horizontal scroll on Reports tab - main container has overflow-x-hidden, sub-tabs scroll independently; 3) Gym Layout has Upload Floor Plan button (data-testid='gym-layout-upload-btn'); 4) CAPEX shows 'Age (yrs)' in score breakdown. Testing done on mobile viewport 390x844. Login via Pulse portal uses 'Customer Login' button, not hamburger menu.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe Connect onboarding", "Sicon Service ERP", "Resend email delivery (token logged to console)"]
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "summary": "Iteration 84: Testing 9 Bug Fixes. Backend: 9/9 tests passed. Frontend: All features verified in code and UI tests.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "bug_fixes_verified": {
+    "1_patch_issues_in_progress": {
+      "status": "PASSED",
+      "tests": [
+        "PATCH /api/issues/{id} with body {status: 'in_progress'} - 200 OK",
+        "Issue status updated to 'in_progress' verified via GET"
+      ],
+      "code_location": "/app/backend/routes/issues.py line 398: data: dict = Body(...)"
+    },
+    "2_patch_issues_open": {
+      "status": "PASSED",
+      "tests": [
+        "PATCH /api/issues/{id} with body {status: 'open'} - 200 OK",
+        "Issue status updated back to 'open' verified via GET"
+      ]
+    },
+    "3_fix_method_field": {
+      "status": "PASSED",
+      "tests": [
+        "POST /api/issues with fix_method='followed_ai_steps' - 200 OK",
+        "fix_method field stored in response"
+      ],
+      "code_location": "/app/backend/models/schemas.py line 76: fix_method: Optional[str] = None"
+    },
+    "4_ai_triage_pulse_parts_policy": {
+      "status": "PASSED",
+      "tests": [
+        "POST /api/issues/triage - 200 OK with diagnosis and repair_steps"
+      ],
+      "code_location": "/app/backend/routes/issues.py lines 51-52: Pulse Fitness parts policy in system prompt"
+    },
+    "5_get_equipment_list": {
+      "status": "PASSED",
+      "tests": [
+        "GET /api/equipment - 200 OK returns equipment list"
+      ]
+    },
+    "6_floor_plans_filter": {
+      "status": "PASSED",
+      "tests": [
+        "GET /api/files/list?category=floor-plans - 200 OK returns only floor-plans",
+        "Frontend filters out floor-plans from Documents tab"
+      ],
+      "code_location": "/app/frontend/src/pages/LiteDashboardPage.js line 462: files.filter(f => f.category !== 'floor-plans')"
+    },
+    "7_pulse_logo_navbar": {
+      "status": "PASSED",
+      "ui_test": "Pulse Fitness logo visible in navbar (data-testid='pulse-logo')",
+      "code_location": "/app/frontend/src/components/shared/Navbar.js line 137: img with Pulse Fitness logo"
+    },
+    "8_pulse_logo_landing": {
+      "status": "PASSED",
+      "ui_test": "Pulse Fitness logo visible in landing page header",
+      "code_location": "/app/frontend/src/pages/PulseLandingPage.js line 68: img with Pulse Fitness logo"
+    },
+    "9_documents_clickable_tabs": {
+      "status": "PASSED",
+      "ui_test": "Manuals/Invoices/Certificates tabs visible and clickable",
+      "code_location": "/app/frontend/src/pages/LiteDashboard/LiteDocumentsTab.js lines 26-47: clickable tab bar"
+    },
+    "10_steps_taken_field": {
+      "status": "PASSED",
+      "ui_test": "Steps Already Taken field visible in Log Fault dialog (data-testid='lite-fault-steps-taken')",
+      "code_location": "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js lines 399-401"
+    },
+    "11_fix_method_selection": {
+      "status": "VERIFIED IN CODE",
+      "code_location": "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js lines 471-481: FIX_METHODS array with 7 options",
+      "details": "After AI Triage, 'I Fixed It' button shows fix method selection list"
+    },
+    "12_equipment_qr_pulse_logo": {
+      "status": "VERIFIED IN CODE",
+      "code_location": "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js lines 163-202",
+      "details": "QR Code section with Pulse Fitness logo underneath, Download QR button"
+    },
+    "13_settings_qr_codes_section": {
+      "status": "PASSED",
+      "ui_test": "QR Codes section visible in Settings with Select All, Deselect All, Print buttons",
+      "code_location": "/app/frontend/src/pages/PulseSettingsTab.js lines 337-380"
+    }
+  },
+  "frontend_verification": {
+    "pulse_landing_page": {
+      "pulse_logo": "VISIBLE - Pulse Fitness logo in header",
+      "sign_in_button": "VISIBLE - Sign In to Your Portal button"
+    },
+    "pulse_dashboard": {
+      "navbar_logo": "VISIBLE - Pulse Fitness logo replaces text",
+      "documents_tabs": "VISIBLE - Manuals, Invoices, Certificates clickable tabs",
+      "log_fault_dialog": "VISIBLE - Steps Already Taken field present",
+      "settings_qr_section": "VISIBLE - QR Codes section with machine selection"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration84_fixes.py",
+    "/app/test_reports/pytest/pytest_results_iteration84.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All 9 bug fixes verified - PATCH /api/issues now accepts JSON body instead of query param",
+    "fix_method field added to IssueCreate schema and stored in DB",
+    "AI triage system prompt includes Pulse Fitness parts policy",
+    "Documents tab excludes floor-plans category",
+    "Pulse Fitness logo replaces text in navbar and landing page",
+    "Documents tab has clickable Manuals/Invoices/Certificates tabs",
+    "Steps Already Taken field restored in Log Fault dialog",
+    "Fix method selection appears after AI Triage when clicking 'I Fixed It'",
+    "Equipment detail QR code shows Pulse Fitness logo underneath",
+    "Settings has QR Codes section with machine selection and print"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration84_fixes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro_user": "lee.somers@pulsefitness.com / Test123!"
+  },
+  "seed_data_creation": "Test issues created during backend tests (TEST-PATCH-001, TEST-PATCH-002, TEST-FIXMETHOD-001, etc.)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 84 verified all 9 bug fixes. PATCH /api/issues/{id} now accepts JSON body with status field. fix_method field added to issues. AI triage includes Pulse parts policy. Documents tab excludes floor-plans. Pulse logo replaces text in navbar/landing. Documents has clickable tabs. Steps Taken field restored. Fix method selection after AI triage. QR codes in equipment detail and settings. Rate limiter active (5 attempts per 5 min per IP) - restart backend to reset.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Sage 200 API", "Sicon Service API", "Resend Email"],
+    "note": "These integrations are mocked scaffolds. Emergent LLM Key is REAL for AI features."
+  }
+}

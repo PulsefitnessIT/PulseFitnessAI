@@ -1,0 +1,77 @@
+{
+  "summary": "Backend testing for GymAxis/Pulse portal isolation with per-org feature toggles and branded QR label endpoint. All 14 tests passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/equipment/{id}/qr-card", "issue": "Returns 403 instead of 401 for unauthenticated requests - acceptable but inconsistent with REST conventions"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_feature_toggle_qr.py",
+    "/app/test_reports/pytest/pytest_results_iteration132.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Feature guard implementation is clean and well-structured in /app/backend/utils/feature_guard.py",
+    "GYMAXIS_ONLY_FEATURES correctly excludes ppm_engine (shared feature)",
+    "Master admin bypass works correctly via is_master_admin check",
+    "Per-org feature overrides work via organizations.features dict",
+    "QR card endpoint properly validates size presets and returns 400 for invalid sizes",
+    "Org scoping works correctly - users can only access equipment in their org"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_feature_toggle_qr.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "N/A (backend-only testing)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123!",
+    "pulse_pro_alt": "somerslee@hotmail.com / TempPass123!"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Feature toggle system fully tested. Key org IDs: Tottenham Green = 156c8dc4-8683-4cb4-8a74-facd811655ad. Rate limiting is aggressive (5 requests per 5 min per IP) - restart backend to clear in-memory rate limit store if needed.",
+  "tests_executed": {
+    "feature_toggle_enforcement": [
+      "KPI Dashboard returns 403 for Pulse Pro users - PASS",
+      "KPI Dashboard returns 200 for Master Admin - PASS",
+      "Sicon Config returns 403 for Pulse Pro users - PASS",
+      "Sicon Config returns 200 for Master Admin - PASS"
+    ],
+    "ppm_shared_feature": [
+      "PPM Schedules returns 200 for Pulse Pro (shared feature) - PASS"
+    ],
+    "feature_override": [
+      "Master Admin can enable kpi_engine for Pulse Pro org - PASS",
+      "Pulse Pro can access KPI after feature enabled - PASS",
+      "Master Admin can disable kpi_engine - PASS",
+      "Pulse Pro gets 403 after feature disabled - PASS",
+      "Features reset to empty after test - PASS"
+    ],
+    "login_features_exposure": [
+      "Login exposes features for Pulse Pro (all enterprise features False) - PASS",
+      "Login exposes features for Master Admin (all enterprise features True) - PASS",
+      "/auth/me exposes features dict - PASS"
+    ],
+    "qr_card": [
+      "QR card 62x35 returns PNG - PASS",
+      "QR card all sizes (62x35, 62x62, 50x50, card, a4) - PASS",
+      "QR card invalid size returns 400 - PASS",
+      "QR card requires auth (returns 403) - PASS",
+      "QR card respects org scoping (404 for non-owned equipment) - PASS"
+    ]
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "summary": "Completed testing of Memberships Phase 2 — Member-experience upgrades. Fixed critical bug where member endpoints (sub-profiles, calendar-feed) were blocked by require_module dependency using get_current_user which rejects member tokens. Fixed BottomNav grid-cols-5 to grid-cols-6 to show all 6 tabs including Family. All 13 backend tests pass. Frontend tests pass for Family tab, Calendar Feed Modal, and Add person flow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_phase2.py",
+    "/app/backend/tests/test_memberships_phase1.py",
+    "/app/backend/tests/test_churn_rescue.py",
+    "/app/test_reports/pytest/pytest_results_iteration191.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/routes/memberships_family.py - Removed require_module dependency from member endpoints",
+    "/app/backend/routes/memberships_calendar.py - Removed require_module dependency from member endpoints",
+    "/app/frontend/src/pages/Memberships/MemberPortal.js - Fixed BottomNav grid-cols-5 to grid-cols-6"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed - Phase 2 + Phase 1 + churn-rescue regression)",
+    "frontend": "100% (All Phase 2 UI components tested)"
+  },
+  "test_credentials": {
+    "admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "operator": "lee.somers@pulsefitness.com / TempPass123!",
+    "test_member": "test.phase2@demo.gymaxis / TestPhase2! (created during testing)"
+  },
+  "seed_data_creation": "Created test member (test.phase2@demo.gymaxis) and sub-profile (Junior Phase2, child) for Tottenham org. Set membership_app_slug='maintenance-hub-357' and slug='maintenance-hub-357' on Tottenham org.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 2 Member-experience upgrades fully tested. Key fixes applied: (1) Removed require_module dependency from member endpoints in memberships_family.py and memberships_calendar.py - the dependency was using get_current_user which rejects member tokens. (2) Fixed BottomNav grid-cols-5 to grid-cols-6 to show all 6 tabs. Test member created: test.phase2@demo.gymaxis / TestPhase2! with sub-profile Junior Phase2. Org slug set to 'maintenance-hub-357' for both slug and membership_app_slug fields.",
+  "tests_executed": {
+    "backend_pytest": {
+      "file": "/app/backend/tests/test_memberships_phase2.py + test_memberships_phase1.py + test_churn_rescue.py",
+      "result": "13/13 passed",
+      "tests": [
+        "test_public_class_unknown_slug_404 - PASSED",
+        "test_public_embed_timetable_unknown_slug_404 - PASSED",
+        "test_public_embed_timetable_no_auth_required - PASSED",
+        "test_calendar_feed_unknown_token_404 - PASSED",
+        "test_operator_embed_snippet_requires_auth - PASSED",
+        "test_operator_embed_snippet_returns_iframe_or_setup_hint - PASSED",
+        "test_subprofile_endpoints_require_member_auth - PASSED",
+        "test_subprofile_no_auth_blocked - PASSED",
+        "test_calendar_feed_url_requires_member_auth - PASSED",
+        "test_swap_endpoint_requires_member_auth - PASSED",
+        "test_promo_create_validate_archive_flow - PASSED (Phase 1 regression)",
+        "test_promo_unauthenticated_blocked - PASSED (Phase 1 regression)",
+        "test_churn_signal_detection_end_to_end - PASSED (churn-rescue regression)"
+      ]
+    },
+    "frontend_playwright": {
+      "result": "All passed",
+      "tests": [
+        "Public class page with invalid slug shows error (data-testid='public-class-error') - PASSED",
+        "Embed timetable with invalid slug shows error (data-testid='embed-error') - PASSED",
+        "Member portal login - PASSED",
+        "Family tab visible in BottomNav (data-testid='member-tab-family') - PASSED",
+        "Family tab content rendered (data-testid='member-family') - PASSED",
+        "Add person button found (data-testid='member-family-add') - PASSED",
+        "Sub-profile card displayed - PASSED",
+        "Bookings tab content rendered (data-testid='member-bookings') - PASSED",
+        "Subscribe to calendar button found (data-testid='member-bookings-calendar-feed') - PASSED",
+        "Calendar Feed Modal opened (data-testid='member-calendar-feed-modal') - PASSED",
+        "Webcal URL button found (data-testid='member-calendar-feed-webcal') - PASSED",
+        "HTTPS URL button found (data-testid='member-calendar-feed-https') - PASSED",
+        "Rotate URL button found (data-testid='member-calendar-feed-rotate') - PASSED",
+        "Family Editor modal opened (data-testid='member-family-editor') - PASSED",
+        "All form fields present (first_name, last_name, relationship, dob, allergies, medical_notes, emergency_contact) - PASSED",
+        "Validation toast 'First name is required' shown on empty submit - PASSED"
+      ]
+    },
+    "api_curl_tests": {
+      "result": "All passed",
+      "tests": [
+        "GET /api/m/no-such-studio/c/123 - 404 'Studio not found'",
+        "GET /api/m/no-such-studio/timetable/embed - 404 'Studio not found'",
+        "GET /api/m/anyslug/calendar/notarealtoken.ics - 404 'Feed not found'",
+        "GET /api/memberships/embed-snippet (no auth) - 401 'Not authenticated'",
+        "GET /api/member/sub-profiles (no auth) - 401 'Not authenticated'",
+        "GET /api/member/calendar-feed (no auth) - 401 'Not authenticated'",
+        "POST /api/member/bookings/abc/swap (no auth) - 401 'Missing member token'",
+        "GET /api/memberships/embed-snippet (operator auth) - 200 with iframe_snippet",
+        "GET /api/member/sub-profiles (operator auth) - 401 'Invalid member token'",
+        "GET /api/member/calendar-feed (operator auth) - 401 'Invalid member token'",
+        "POST /api/member/bookings/abc/swap (operator auth) - 401 'Invalid member token'",
+        "GET /api/member/sub-profiles (member auth) - 200 with sub_profiles array",
+        "POST /api/member/sub-profiles (member auth) - 200 created sub-profile",
+        "PATCH /api/member/sub-profiles/{id} (member auth) - 200 updated",
+        "GET /api/member/calendar-feed (member auth) - 200 with webcal_url and https_url"
+      ]
+    }
+  },
+  "bugs_fixed": [
+    {
+      "file": "/app/backend/routes/memberships_family.py",
+      "issue": "Member endpoints (GET/POST/PATCH/DELETE /member/sub-profiles) were blocked by require_module('memberships') dependency which uses get_current_user that rejects member tokens",
+      "fix": "Removed dependencies=[Depends(require_module('memberships'))] from member-facing endpoints. The _require_current_member dependency already validates member auth."
+    },
+    {
+      "file": "/app/backend/routes/memberships_calendar.py",
+      "issue": "Member endpoints (GET /member/bookings/{id}/calendar.ics, GET /member/calendar-feed, POST /member/calendar-feed/rotate) were blocked by require_module dependency",
+      "fix": "Removed dependencies=[Depends(require_module('memberships'))] from member-facing endpoints."
+    },
+    {
+      "file": "/app/frontend/src/pages/Memberships/MemberPortal.js",
+      "issue": "BottomNav had grid-cols-5 but TABS array has 6 items (Book, Bookings, Plan, Family, Pass, Profile), causing Family tab to be hidden",
+      "fix": "Changed grid-cols-5 to grid-cols-6 in BottomNav component"
+    }
+  ]
+}

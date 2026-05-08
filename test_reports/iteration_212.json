@@ -1,0 +1,69 @@
+{
+  "summary": "Iteration 212 — Send Invoice to Client feature testing complete. All backend tests pass (6/6). Frontend SendInvoiceDialog working correctly with all required data-testids. Fixed missing Send icon import. Smoke regression tests pass for existing Org Billing data-testids.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_invoice_share_iter212.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fixed: Missing 'Send' icon import from lucide-react in OrgBillingPanel.js - was causing runtime error"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/MasterAdmin/OrgBillingPanel.js"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (all data-testids found, SendInvoiceDialog works, validation works, success state shows share URL)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123!",
+    "tottenham_org_id": "156c8dc4-8683-4cb4-8a74-facd811655ad"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Send Invoice to Client feature is complete. Backend endpoint POST /api/master-admin/orgs/{org_id}/billing/invoice/{invoice_id}/send creates share link and sends email (Resend may be in test mode). Public download at GET /api/public/invoice-share/{token}. Frontend SendInvoiceDialog shows prefilled email (from org primary_contact_email), message textarea, TTL days (default 30). Success state shows copyable share URL. Send button hidden on VOID invoices, visible on PAID invoices.",
+  "verified_features": {
+    "backend": [
+      "POST /api/master-admin/orgs/{org_id}/billing/invoice/{invoice_id}/send - creates share link, sends email, returns share_url",
+      "GET /api/public/invoice-share/{token} - public no-auth PDF download",
+      "GET /api/master-admin/orgs/{org_id}/billing/invoice/{invoice_id}/sends - send history",
+      "Master admin gating (403 for non-master)",
+      "Recipient email validation (400 if missing)",
+      "TTL clamping (max 180 days)"
+    ],
+    "frontend": [
+      "Send button (paper-plane icon) appears on each invoice row",
+      "Send button hidden on VOID invoices, visible on PAID invoices",
+      "SendInvoiceDialog opens with data-testid='send-invoice-dialog'",
+      "Email input prefilled from org primary_contact_email (data-testid='send-invoice-email')",
+      "Message textarea (data-testid='send-invoice-message')",
+      "TTL days input with default 30 (data-testid='send-invoice-ttl')",
+      "Send invoice button (data-testid='send-invoice-confirm')",
+      "Empty email validation shows toast error",
+      "Success state shows share URL (data-testid='send-invoice-result')",
+      "Copyable share URL input (data-testid='send-invoice-share-url')",
+      "Copy button (data-testid='send-invoice-copy-link')",
+      "Done button closes dialog (data-testid='send-invoice-done')"
+    ],
+    "smoke_regression": [
+      "org-billing-tabs - renders correctly",
+      "org-billing-tab-ledger - renders correctly",
+      "org-billing-tab-documents - renders correctly",
+      "ledger-invoiced - renders correctly",
+      "invoice-pdf-{number} - 22 buttons found",
+      "invoice-pay-{number} - 12 buttons found (only for non-paid, non-void)",
+      "payment-confirm-btn - renders correctly in Record Payment dialog"
+    ]
+  },
+  "mocked_api_note": "Resend email service may be in test mode (RESEND_API_KEY). Email may not actually deliver - UI shows share URL regardless. This is intentional and not a bug."
+}

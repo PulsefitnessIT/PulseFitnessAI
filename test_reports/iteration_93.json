@@ -1,0 +1,68 @@
+{
+  "summary": "Iteration 93: Tested CRM data isolation, demo tour, and Master Admin Service Portal/CRM tabs. All features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration93_crm_data_isolation.py",
+    "/app/test_reports/pytest/pytest_results_iteration93.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration93_crm_data_isolation.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "crm_admin": "crm@gymaxisai.com / CRMAdmin123!"
+  },
+  "seed_data_creation": "Created multiple TEST_ prefixed CRM users during backend testing for data isolation verification",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRM data isolation fully tested - new users get their own organization_id and see 0 contacts/companies/deals. Demo tour appears on first login (10 steps). Master Admin has Service Portal/CRM top tabs with inner sub-tabs.",
+  "features_verified": {
+    "backend_api_tests": {
+      "POST /api/crm/auth/register": "PASSED - Creates user with organization_id, returns plan and monthly_cost",
+      "GET /api/crm/dashboard (new org)": "PASSED - Returns 0 contacts/companies/deals for new org user",
+      "GET /api/crm/contacts (new org)": "PASSED - Returns empty list for new org user",
+      "GET /api/crm/companies (new org)": "PASSED - Returns empty list for new org user",
+      "GET /api/crm/deals (new org)": "PASSED - Returns empty list for new org user",
+      "POST /api/crm/contacts": "PASSED - Creates contact with correct organization_id",
+      "Data isolation between orgs": "PASSED - Second org cannot see first org's data",
+      "Starter plan pricing": "PASSED - £14.98/mo (£9.99 base + £4.99 x 1 user)",
+      "Professional plan pricing": "PASSED - £39.97/mo (£19.99 base + £9.99 x 2 users)",
+      "GET /api/crm/auth/plans": "PASSED - Returns 3 plans with correct pricing",
+      "POST /api/crm/auth/login": "PASSED - Login works for existing users",
+      "GET /api/crm/auth/me": "PASSED - Returns user info"
+    },
+    "frontend_ui_tests": {
+      "master_admin_page_loads": "PASSED",
+      "service_portal_crm_top_tabs": "PASSED - Both Service Portal and CRM tabs visible",
+      "service_portal_inner_tabs": "PASSED - Overview, Organisations, Users, AI Usage, Activity Log",
+      "crm_inner_tabs": "PASSED - CRM Dashboard, Organisations, CRM Users",
+      "crm_signup_step1_plan_selection": "PASSED - Shows 3 pricing cards with team size selector",
+      "crm_signup_step2_details": "PASSED - Form for name, company, email, password",
+      "crm_signup_step3_confirmation": "PASSED - Shows plan summary and 14-day free trial message",
+      "crm_demo_tour_appears": "PASSED - Tour modal appears on first login",
+      "crm_demo_tour_navigation": "PASSED - 10 steps with Next/Back/Close buttons",
+      "crm_demo_tour_localStorage": "PASSED - Sets crm_tour_seen flag",
+      "crm_dashboard_empty_for_new_user": "PASSED - Shows 'No companies yet' for new org"
+    }
+  },
+  "data_isolation_verification": {
+    "test_scenario": "Created two separate CRM users with different organizations",
+    "org1_created_contact": "PASSED - Contact created with org1's organization_id",
+    "org1_created_company": "PASSED - Company created with org1's organization_id",
+    "org2_cannot_see_org1_data": "PASSED - org2 user sees 0 contacts/companies from org1"
+  }
+}

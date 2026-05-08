@@ -1,0 +1,79 @@
+{
+  "summary": "Phase 3 testing complete — Parts catalogue, Scheduler, Intake enhancements all working. 24/24 backend tests pass. Frontend UI verified: Service Desk page has Scheduler link, Intake form has Equipment/Parts/Postcode fields, Scheduler page has drag-drop diary with auto-assign buttons.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/svc/scheduler/assign", "issue": "Response returned old status before state transition (fixed during testing)", "priority": "LOW"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215dq_phase3.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215dq.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/routes/svc/scheduler.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Test cases created with TEST_ prefix during backend tests (auto-cleaned)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 3 complete. Parts catalogue CRUD, Sicon import, van stock, allocation (warehouse/van), intake enhancements (equipment_ids, equipment_serials, allocated_parts, required_skills, site_postcode), case PATCH, scheduler diary, assign, auto-assign all working. Scheduler UI has 36 unassigned cases with auto-assign buttons. Drag-drop not tested due to complexity of synthetic HTML5 drag events in headless browser - recommend manual testing or using POST /api/svc/scheduler/assign directly.",
+  "features_tested": {
+    "backend": [
+      "GET /api/svc/parts?search=... - returns parts list",
+      "POST /api/svc/parts - creates part with SKU auto-uppercased, returns existing on duplicate",
+      "POST /api/svc/parts/imports/sicon - upserts parts, returns {inserted, updated}",
+      "GET /api/svc/parts/van/{engineer_id} - returns van stock joined with catalogue",
+      "POST /api/svc/parts/allocate - creates allocation on case, writes timeline event",
+      "DELETE /api/svc/parts/allocate/{id} - removes allocation",
+      "POST /api/svc/intake/phone - accepts equipment_ids, equipment_serials, allocated_parts, required_skills, site_postcode",
+      "PUT /api/svc/cases/{id} - accepts equipment_ids, equipment_serials, required_skills, site_postcode patches",
+      "GET /api/svc/scheduler/diary - returns engineers, cases, unassigned",
+      "POST /api/svc/scheduler/assign - assigns engineer, sets scheduled_at, auto-transitions new→assigned",
+      "POST /api/svc/scheduler/auto-assign - returns rankings with breakdown (drive_minutes, skill_mismatch, van_match, sla_breach_risk, overtime_minutes)",
+      "POST /api/svc/scheduler/auto-assign?commit=true - commits top engineer assignment"
+    ],
+    "frontend": [
+      "Service Desk header has Scheduler link (data-testid='desk-scheduler-link')",
+      "Service Desk header has Engineer view link (data-testid='desk-engineer-view')",
+      "Intake modal has site postcode field (data-testid='intake-site-postcode')",
+      "Intake modal has Equipment fieldset (data-testid='intake-equipment-fieldset')",
+      "Intake modal has EquipmentMultiSelect (data-testid='equipment-multiselect')",
+      "Intake modal has Parts fieldset (data-testid='intake-parts-fieldset')",
+      "Intake modal has PartsAllocator (data-testid='parts-allocator')",
+      "Scheduler page renders (data-testid='scheduler-page')",
+      "Scheduler has day navigation (scheduler-prev/today/next)",
+      "Scheduler has days select (scheduler-days-select)",
+      "Scheduler has unassigned aside (scheduler-unassigned)",
+      "Scheduler has diary grid (scheduler-diary)",
+      "Scheduler has auto-assign buttons (scheduler-auto-{ref})"
+    ],
+    "documentation": [
+      "SVC_FIELD_MAPPING.md has §12 (svc_parts)",
+      "SVC_FIELD_MAPPING.md has §13 (svc_van_stock)",
+      "SVC_FIELD_MAPPING.md has §14 (svc_part_movements)",
+      "All sections include Sage StockCode and Sicon PartID columns"
+    ]
+  },
+  "mocked_apis_verified": [
+    "Sicon Service push - writes to svc_sicon_outbox only (MOCKED)",
+    "Sage 200 invoice push - writes to svc_sage_invoice_outbox only (MOCKED)",
+    "Sicon parts catalogue pull - manual paste-in via /api/svc/parts/imports/sicon (MOCKED)"
+  ],
+  "bug_fixed_during_testing": {
+    "file": "/app/backend/routes/svc/scheduler.py",
+    "issue": "POST /api/svc/scheduler/assign returned old status in response instead of updated status after state transition",
+    "fix": "Re-fetch case from DB after state_transition() call to get updated status"
+  }
+}

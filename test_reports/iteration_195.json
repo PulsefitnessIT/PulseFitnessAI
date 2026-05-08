@@ -1,0 +1,79 @@
+{
+  "summary": "Memberships Phase 6 (CRM Integration Loop) testing complete. All 16 backend pytest tests pass. Frontend CRM Loop tab renders correctly with all 4 sub-tabs (Dashboard, Rules, Signals, Sends), 4 KindStat tiles, 4 rule cards with toggles/cooldown pickers, and Scan now button working with toast notification.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_phase6.py",
+    "/app/test_reports/pytest/pytest_results_iteration195.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (16/16 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": "lee.somers@pulsefitness.com / TempPass123!",
+  "seed_data_creation": "None - used existing Tottenham Green tenant",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 6 CRM Loop fully tested. Backend endpoints verified: GET /api/memberships/crm-loop/rules (returns 4 default rules), PUT /api/memberships/crm-loop/rules/{kind} (updates enabled/cooldown_hours with validation), GET /api/memberships/crm-loop/dashboard?days= (returns by_kind stats + last_run), POST /api/memberships/crm-loop/scan (runs detector, returns members_scanned/signals_fired), GET /api/memberships/crm-loop/signals?days=&kind=&limit= (paged list with member_name hydrated), GET /api/memberships/crm-loop/sends?days=&limit= (paged list with ok/error fields). Frontend CRM Loop tab (mbr-tab-crm-loop / mbr-pill-crm-loop) renders between AI Insights and Booking rules. 4 sub-tabs (mbr-crmloop-tab-dashboard/rules/signals/sends) all working. Dashboard shows 4 KindStat tiles (mbr-crmloop-stat-{kind}) and Scan now button (mbr-crmloop-scan). Rules view shows 4 rule cards (mbr-crmloop-rule-{kind}) with toggles (mbr-crmloop-rule-toggle-{kind}) and cooldown picker (mbr-crmloop-cooldown-btn). Signals view shows filter pills. Sends view shows empty state. Scan now button triggers toast 'Scanned X members · fired Y signals'. Tottenham has 1 active member (Test Phase2) so members_scanned=1 expected. Background poller integration verified via import test.",
+  "tests_executed": {
+    "backend": [
+      "test_rules_unauthenticated_blocked - PASSED",
+      "test_dashboard_unauthenticated_blocked - PASSED",
+      "test_scan_unauthenticated_blocked - PASSED",
+      "test_rules_default_set - PASSED",
+      "test_rule_update_unknown_kind - PASSED",
+      "test_rule_update_empty_body_400 - PASSED",
+      "test_rule_update_validates_cooldown_bounds - PASSED",
+      "test_rule_update_persists - PASSED",
+      "test_dashboard_returns_kind_breakdown - PASSED",
+      "test_dashboard_window_bounds - PASSED",
+      "test_scan_returns_count - PASSED",
+      "test_signals_listing - PASSED",
+      "test_signals_filter_by_kind - PASSED",
+      "test_signals_filter_invalid_kind - PASSED",
+      "test_sends_listing - PASSED",
+      "test_sends_window_bounds - PASSED"
+    ],
+    "frontend": [
+      "Login as operator - PASSED",
+      "Navigate to Memberships console - PASSED",
+      "CRM Loop tab visible (mbr-tab-crm-loop) - PASSED",
+      "CRM Loop pill visible (mbr-pill-crm-loop) - PASSED",
+      "CRM Loop tab wrapper (mbr-crmloop-tab) - PASSED",
+      "Sub-tab dashboard (mbr-crmloop-tab-dashboard) - PASSED",
+      "Sub-tab rules (mbr-crmloop-tab-rules) - PASSED",
+      "Sub-tab signals (mbr-crmloop-tab-signals) - PASSED",
+      "Sub-tab sends (mbr-crmloop-tab-sends) - PASSED",
+      "KindStat tile missed_class (mbr-crmloop-stat-missed_class) - PASSED",
+      "KindStat tile inactive_30d (mbr-crmloop-stat-inactive_30d) - PASSED",
+      "KindStat tile low_attendance (mbr-crmloop-stat-low_attendance) - PASSED",
+      "KindStat tile high_engagement (mbr-crmloop-stat-high_engagement) - PASSED",
+      "Scan now button (mbr-crmloop-scan) - PASSED",
+      "Rule card missed_class (mbr-crmloop-rule-missed_class) - PASSED",
+      "Rule toggle missed_class (mbr-crmloop-rule-toggle-missed_class) - PASSED",
+      "Rule card inactive_30d (mbr-crmloop-rule-inactive_30d) - PASSED",
+      "Rule toggle inactive_30d (mbr-crmloop-rule-toggle-inactive_30d) - PASSED",
+      "Rule card low_attendance (mbr-crmloop-rule-low_attendance) - PASSED",
+      "Rule toggle low_attendance (mbr-crmloop-rule-toggle-low_attendance) - PASSED",
+      "Rule card high_engagement (mbr-crmloop-rule-high_engagement) - PASSED",
+      "Rule toggle high_engagement (mbr-crmloop-rule-toggle-high_engagement) - PASSED",
+      "Cooldown picker button (mbr-crmloop-cooldown-btn) - PASSED",
+      "Scan now button click shows toast - PASSED"
+    ],
+    "integration_tests": [
+      "sicon_poller imports run_crm_loop_cycle - PASSED",
+      "Scan endpoint returns members_scanned=1 for Tottenham - PASSED"
+    ]
+  },
+  "notes": "Phase 6 is the final phase requested. All 4 signal kinds (missed_class, inactive_30d, low_attendance, high_engagement) are configured with default rules. The CRM Loop tab is positioned between AI Insights and Booking rules as specified. The periodic loop (run_crm_loop_cycle) is wired into sicon_poller and runs every 5 min. Tottenham has only 1 active member (Test Phase2) so signal counts are 0 as expected (no no-shows, no attendance history to trigger signals)."
+}

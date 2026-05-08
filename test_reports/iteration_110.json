@@ -1,0 +1,76 @@
+{
+  "summary": "Tested Calendar Enhancement features (iteration 110). All 10 features working correctly. Backend APIs (POST /api/crm/v2/activities with due_date, GET /api/crm/users) pass all tests. Frontend calendar has Add Event button, type filters, staff filter with 'My Calendar' default and 'All Staff' option for managers.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "feature_1_post_activities_with_due_date": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/activities correctly accepts due_date field and returns activity with owner_id set to current user"
+    },
+    "feature_2_get_crm_users": {
+      "status": "PASS",
+      "details": "GET /api/crm/users returns team members with id, full_name, role. Craig has manager role."
+    },
+    "feature_3_add_event_button_header": {
+      "status": "PASS",
+      "details": "Add Event button (data-testid='calendar-add-event-btn') present in calendar header"
+    },
+    "feature_4_add_event_day_hover": {
+      "status": "PASS",
+      "details": "'+' button (data-testid='add-event-day-{dateStr}') appears on day cell hover"
+    },
+    "feature_5_add_event_dialog": {
+      "status": "PASS",
+      "details": "Add Event dialog (data-testid='add-calendar-event-dialog') opens with type selector, subject input, date input, details textarea. All event types available: meeting, call, email, task, note, visit"
+    },
+    "feature_6_type_filter_buttons": {
+      "status": "PASS",
+      "details": "All 7 type filter buttons found: call, email, meeting, task, note, visit, engineer. Toggle on/off works correctly."
+    },
+    "feature_7_staff_filter_dropdown": {
+      "status": "PASS",
+      "details": "Staff filter dropdown (data-testid='calendar-staff-filter') present with 'My Calendar' as default value"
+    },
+    "feature_8_all_staff_option_for_managers": {
+      "status": "PASS",
+      "details": "Craig (manager role) sees 'All Staff' option in staff filter dropdown"
+    },
+    "feature_9_individual_team_members": {
+      "status": "PASS",
+      "details": "Staff filter shows 3 individual team members: CRM Admin, Master Admin, Craig Henshall"
+    },
+    "feature_10_events_filtered_by_owner": {
+      "status": "PASS",
+      "details": "My Calendar shows 56 events, All Staff shows 132 events - filtering by owner_id works correctly"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration110_calendar_enhancements.py",
+    "/app/test_reports/pytest/pytest_results_iteration110.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration110_calendar_enhancements.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (10/10 features working)"
+  },
+  "test_credentials": "craig.henshall@pulsefitness.com / Test123!",
+  "seed_data_creation": "Created TEST_Playwright Calendar Event on 2026-04-20",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 110 tested calendar enhancements. All features working: Add Event button, type filters (7 types), staff filter with My Calendar default and All Staff for managers. Backend APIs for activities and users working correctly. Demo tour modal blocks navigation - need to close it first (click X button or press Escape).",
+  "mocked_apis": {
+    "Sage 200 API": "MOCKED",
+    "Sicon Service API": "MOCKED"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "summary": "Iteration 215r - Studio Extras: Waivers/PARQ + Per-class shareable OG preview cards. All backend tests passed (19/19). Frontend tests passed for waiver fields in Plans tab and Share dialog in Check-in tab.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_studio_extras_215r.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215r.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_studio_extras_215r.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "operator": "lee.somers@pulsefitness.com / TempPass123!",
+    "member": "rebook-1777578936@example.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 215r adds waiver/PARQ fields to membership plans and per-class shareable OG preview cards. Backend endpoints tested: POST/PATCH/GET plans with waiver_required and waiver_text, POST /api/member/waivers (idempotent, skip when not required, 400 on ack=false), GET /api/member/waivers/me, GET /api/m/{slug}/c/{occ}/og.png (returns 1200x630 PNG), GET /api/m/{slug}/c/{occ}/share (HTML with OG meta tags), GET /api/memberships/share/org-slug. Frontend verified: Plans tab shows waiver checkbox and textarea, Check-in tab shows Share button in roster drawer, ShareClassDialog shows OG preview image, share URL, and Copy button. Regression: Walk-in, Message class buttons still visible.",
+  "features_tested": {
+    "backend": [
+      "POST /api/memberships/plans with waiver_required=true and waiver_text - PASS",
+      "PATCH /api/memberships/plans/{id} updates waiver fields - PASS",
+      "GET /api/memberships/plans returns waiver fields - PASS",
+      "POST /api/member/waivers creates waiver record - PASS",
+      "POST /api/member/waivers idempotent (already_signed:true) - PASS",
+      "POST /api/member/waivers skips when waiver_required=false - PASS",
+      "POST /api/member/waivers returns 400 when acknowledged=false - PASS",
+      "GET /api/member/waivers/me returns signed waivers - PASS",
+      "GET /api/m/{slug}/c/{occ}/og.png returns PNG image - PASS",
+      "GET /api/m/{slug}/c/{occ}/og.png invalid slug returns 404 - PASS",
+      "GET /api/m/{slug}/c/{occ}/share returns HTML with OG tags - PASS",
+      "GET /api/memberships/share/org-slug returns slug - PASS",
+      "Regression: Walk-in endpoint accessible - PASS",
+      "Regression: Broadcast endpoint accessible - PASS",
+      "Regression: Rebook endpoint accessible - PASS"
+    ],
+    "frontend": [
+      "Plans tab: waiver checkbox (mbr-plan-waiver-required) visible - PASS",
+      "Plans tab: waiver textarea (mbr-plan-waiver-text) appears when checked - PASS",
+      "Check-in tab: Share button (mbr-checkin-share) visible in roster drawer - PASS",
+      "ShareClassDialog: OG preview image (share-og-preview) visible - PASS",
+      "ShareClassDialog: Share URL contains /api/m/ - PASS",
+      "ShareClassDialog: Copy button (share-copy) visible - PASS",
+      "Regression: Walk-in button visible - PASS",
+      "Regression: Message class button visible - PASS"
+    ]
+  }
+}

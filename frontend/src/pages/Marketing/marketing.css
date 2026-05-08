@@ -1,0 +1,239 @@
+/* GymAxis marketing site — design tokens (iter 215an–215aq).
+   Loaded only by the marketing pages so it doesn't pollute the rest
+   of the app. Mirrors /app/design_guidelines.json. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,500,900&display=swap');
+
+.gx-marketing {
+  --gx-bg: #F8FAFC;
+  --gx-bg-paper: #FFFFFF;
+  --gx-text: #0F172A;
+  --gx-text-muted: #475569;
+  --gx-text-dim: #94A3B8;
+  --gx-brand-from: #2563EB;
+  --gx-brand-to: #9D4CDD;
+  --gx-accent-service: #06B6D4;
+  --gx-accent-crm: #6366F1;
+  --gx-accent-memberships: #8B5CF6;
+  --gx-accent-marketing: #D946EF;
+  --gx-accent-staffing: #A855F7;
+  --gx-accent-reporting: #2563EB;
+
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--gx-bg);
+  color: var(--gx-text);
+}
+
+.gx-marketing h1, .gx-marketing h2, .gx-marketing h3, .gx-marketing h4 {
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  /* Iter 215bc — explicitly fix the heading color to slate-900 so the
+     global `@media (prefers-color-scheme: light) [data-theme="dark"] h1`
+     rule (defined in index.css for the dark master-admin shell) cannot
+     accidentally force marketing headings to white on mobile devices in
+     light mode. The shell is already wrapped in `data-theme="light"` from
+     iter 215bc but this is a defensive guarantee. */
+  color: var(--gx-text) !important;
+}
+
+.gx-gradient-text {
+  /* Fallback for browsers that don't support background-clip: text — use
+     the brand-from navy as a solid color so the wordmark is still readable.
+     Modern browsers will override with the gradient via -webkit-text-fill-color
+     transparent + background-clip: text. */
+  color: var(--gx-brand-from) !important;
+  background: linear-gradient(90deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Iter 215be — pricing-page site slider ──
+   Custom range input styled with the GymAxis brand gradient — used on
+   /pricing for the multi-site slider. WebKit + Firefox track + thumb. */
+.gx-pricing-range {
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
+  outline: none;
+  cursor: pointer;
+}
+.gx-pricing-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+          appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--gx-brand-from);
+  box-shadow: 0 4px 12px -3px rgba(37, 99, 235, .35);
+  cursor: grab;
+  transition: transform .12s ease;
+}
+.gx-pricing-range::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.08); }
+.gx-pricing-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--gx-brand-from);
+  box-shadow: 0 4px 12px -3px rgba(37, 99, 235, .35);
+  cursor: grab;
+}
+.gx-pricing-range:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .25);
+  outline-offset: 4px;
+}
+
+.gx-cta {
+  background: linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
+  color: #fff;
+  transition: box-shadow .25s ease, transform .25s ease;
+}
+.gx-cta:hover {
+  box-shadow: 0 10px 25px -5px rgba(157, 76, 221, .4);
+  transform: translateY(-1px);
+}
+
+.gx-glass {
+  background: rgba(255, 255, 255, .7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, .55);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .04);
+}
+
+.gx-glow {
+  box-shadow: 0 0 60px -15px rgba(37, 99, 235, .35),
+              0 0 80px -25px rgba(157, 76, 221, .35);
+}
+
+/* AXIS orbit motion */
+@keyframes gx-orbit-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.gx-orbit-ring {
+  animation: gx-orbit-spin 40s linear infinite;
+  transform-origin: 50% 50%;
+}
+.gx-orbit-ring:hover { animation-play-state: paused; }
+
+/* Counter-spin so text stays upright */
+@keyframes gx-orbit-counter {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+.gx-orbit-counter {
+  animation: gx-orbit-counter 40s linear infinite;
+}
+
+/* Orbit node hover — accent border + soft accent glow.
+   Uses --gx-node-accent inline var per node. */
+.gx-orbit-node {
+  border-color: rgb(226 232 240); /* slate-200 */
+}
+.gx-marketing .group:hover .gx-orbit-node {
+  border-color: var(--gx-node-accent, #2563EB);
+  box-shadow:
+    0 14px 32px -10px var(--gx-node-accent, #2563EB),
+    0 0 0 1px rgba(15, 23, 42, .04);
+  background-color: #ffffff;
+}
+
+/* Soft grid background pattern for hero */
+.gx-grid-bg {
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(37,99,235,.08), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(157,76,221,.08), transparent 50%),
+    linear-gradient(rgba(15,23,42,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15,23,42,.04) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+}
+
+/* Card hover lift */
+.gx-card {
+  transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+}
+.gx-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, .12);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Long-form prose styling for /blog/:slug and /compare/* content
+   ────────────────────────────────────────────────────────────── */
+.gx-prose {
+  color: rgb(30 41 59);
+  font-size: 17px;
+  line-height: 1.75;
+}
+.gx-prose > * + * { margin-top: 1.25em; }
+.gx-prose h2 {
+  margin-top: 2.2em;
+  margin-bottom: 0.5em;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: rgb(15 23 42);
+  line-height: 1.25;
+}
+.gx-prose h3 {
+  margin-top: 1.8em;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: rgb(15 23 42);
+}
+.gx-prose a {
+  color: rgb(79 70 229);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.35);
+  transition: border-color .2s ease, color .2s ease;
+}
+.gx-prose a:hover { color: rgb(55 48 163); border-bottom-color: rgb(55 48 163); }
+.gx-prose strong { color: rgb(15 23 42); font-weight: 700; }
+.gx-prose code {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', monospace;
+  background: rgb(241 245 249);
+  border: 1px solid rgb(226 232 240);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.9em;
+}
+.gx-prose blockquote {
+  margin: 1.5em 0;
+  padding: 1em 1.25em;
+  border-left: 3px solid rgb(79 70 229);
+  background: rgb(248 250 252);
+  border-radius: 0 10px 10px 0;
+  color: rgb(51 65 85);
+  font-style: italic;
+}
+.gx-prose blockquote cite {
+  display: block;
+  margin-top: 0.6em;
+  font-size: 0.85em;
+  font-style: normal;
+  font-weight: 700;
+  color: rgb(71 85 105);
+}
+.gx-prose table {
+  width: 100%;
+  margin: 1.5em 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.gx-prose table th,
+.gx-prose table td {
+  padding: 0.65em 0.85em;
+  border: 1px solid rgb(226 232 240);
+  text-align: left;
+}
+.gx-prose table th { background: rgb(248 250 252); font-weight: 700; color: rgb(15 23 42); }
+.gx-prose table tr:nth-child(even) td { background: rgb(253 253 254); }
+.gx-prose p { margin: 0; }
+

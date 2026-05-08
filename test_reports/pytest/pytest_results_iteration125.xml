@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="9" time="4.594" timestamp="2026-04-17T21:04:55.308742+00:00" hostname="agent-env-285ce9b6-7b4e-46db-852f-bad30b58fc15"><testcase classname="tests.test_send_email_feature.TestSendEmailFeature" name="test_send_email_success" time="0.983" /><testcase classname="tests.test_send_email_feature.TestSendEmailFeature" name="test_send_email_with_override" time="0.758" /><testcase classname="tests.test_send_email_feature.TestSendEmailFeature" name="test_send_email_no_recipient" time="0.608" /><testcase classname="tests.test_send_email_feature.TestSendEmailFeature" name="test_send_email_provisioned_packet" time="0.472" /><testcase classname="tests.test_send_email_feature.TestSendEmailFeature" name="test_send_email_missing_packet" time="0.424" /><testcase classname="tests.test_send_email_feature.TestSendEmailFeature" name="test_send_email_non_admin" time="0.816" /><testcase classname="tests.test_send_email_feature.TestSendEmailFeature" name="test_multiple_sends_append" time="0.115"><failure message="AssertionError: Master admin login failed: {&quot;detail&quot;:&quot;Too many requests. Please try again in 300 seconds.&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_send_email_feature.py:244: in test_multiple_sends_append
+    token = self.get_master_admin_token()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_send_email_feature.py:34: in get_master_admin_token
+    assert response.status_code == 200, f"Master admin login failed: {response.text}"
+E   AssertionError: Master admin login failed: {"detail":"Too many requests. Please try again in 300 seconds."}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="tests.test_send_email_feature.TestRegressionOnboardingPackets" name="test_create_packet_regression" time="0.182"><failure message="AssertionError: Master admin login failed: {&quot;detail&quot;:&quot;Too many requests. Please try again in 300 seconds.&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_send_email_feature.py:321: in test_create_packet_regression
+    token = self.get_master_admin_token()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_send_email_feature.py:315: in get_master_admin_token
+    assert response.status_code == 200, f"Master admin login failed: {response.text}"
+E   AssertionError: Master admin login failed: {"detail":"Too many requests. Please try again in 300 seconds."}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="tests.test_send_email_feature.TestRegressionOnboardingPackets" name="test_list_packets_regression" time="0.115"><failure message="AssertionError: Master admin login failed: {&quot;detail&quot;:&quot;Too many requests. Please try again in 300 seconds.&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">backend/tests/test_send_email_feature.py:347: in test_list_packets_regression
+    token = self.get_master_admin_token()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/tests/test_send_email_feature.py:315: in get_master_admin_token
+    assert response.status_code == 200, f"Master admin login failed: {response.text}"
+E   AssertionError: Master admin login failed: {"detail":"Too many requests. Please try again in 300 seconds."}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase></testsuite></testsuites>

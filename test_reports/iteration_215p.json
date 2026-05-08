@@ -1,0 +1,61 @@
+{
+  "summary": "Tested Studio Mode feature for iteration 215p. Backend APIs (GET/POST /api/memberships/studio/settings, POST /api/memberships/studio/quickstart) all working correctly. Frontend Studio Mode toggle correctly collapses tabs from 15 to 6 when enabled. Quickstart is idempotent (reuses existing plans/classes on re-run). All existing Memberships tabs work when Studio Mode is OFF.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "backend_api": {
+      "GET /api/memberships/studio/settings": "200 - Returns {studio_mode: bool, quickstart_completed: bool, quickstart_completed_at: iso|null}",
+      "POST /api/memberships/studio/settings (enable)": "200 - Returns {studio_mode: true}",
+      "POST /api/memberships/studio/settings (disable)": "200 - Returns {studio_mode: false}",
+      "POST /api/memberships/studio/quickstart (first run)": "200 - Creates 2 plans (payg dropin, recurring monthly), 1 class_template, 8 occurrences",
+      "POST /api/memberships/studio/quickstart (idempotent)": "200 - Returns reused_existing: true, skips duplicate creation",
+      "GET /api/help/guides/mbr-studio-mode": "200 - Returns guide with 4 steps, 2 tips, 1 mistake"
+    },
+    "frontend_studio_mode": {
+      "studio-mode-toggle": "PASS - Found in header with data-testid='studio-mode-toggle'",
+      "toggle_appearance_off": "PASS - Shows 'STUDIO MODE OFF' with muted border",
+      "toggle_appearance_on": "PASS - Shows 'STUDIO MODE' with cyan background",
+      "tabs_studio_on": "PASS - 6 tabs: Start, Dashboard, Members, Timetable, Plans, Check-in",
+      "tabs_studio_off": "PASS - 15 tabs: Start, Dashboard, Members, Timetable, Classes, Plans, Instructors, Promotions, Check-in, Ads, Analytics, AI Insights, CRM Loop, Booking rules, Mobile app",
+      "toast_notifications": "PASS - Shows 'Studio Mode on' and 'Full layout restored' toasts"
+    },
+    "regression_memberships_tabs": {
+      "dashboard_tab": "PASS - Loads correctly with data-testid='mbr-dashboard'",
+      "members_tab": "PASS - Loads correctly with data-testid='mbr-members'",
+      "timetable_tab": "PASS - Loads correctly with data-testid='mbr-timetable'",
+      "plans_tab": "PASS - Loads correctly with data-testid='mbr-plans'",
+      "classes_tab": "PASS - Loads correctly with data-testid='mbr-classes'"
+    },
+    "regression_helphints": {
+      "help-hint-today-classes": "PASS - Found on Dashboard tab"
+    },
+    "quickstart_data_created": {
+      "plans": [
+        {"name": "Drop-in class", "kind": "payg", "price_pence": 1500, "studio_quickstart_tag": "dropin"},
+        {"name": "Monthly unlimited", "kind": "recurring", "price_pence": 6500, "studio_quickstart_tag": "monthly"}
+      ],
+      "class_template": {"name": "Open Flow Yoga", "duration_minutes": 60, "capacity": 12, "studio_quickstart_tag": "first_class"},
+      "occurrences": 8
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "lee.somers@pulsefitness.com / TempPass123! (Operator)",
+  "seed_data_creation": "Quickstart created: 2 plans (Drop-in class, Monthly unlimited), 1 class template (Open Flow Yoga), 8 class occurrences",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Studio Mode feature is fully functional. Toggle correctly switches between 6-tab (studio) and 15-tab (full) layouts. Quickstart is idempotent - safe to re-run. The quickstart data (plans, class template, occurrences) has studio_quickstart_tag for identification. Note: StudioQuickstart wizard only appears when studio_mode=true AND quickstart_completed=false - since quickstart was already completed by main agent, the wizard won't show on Start tab."
+}

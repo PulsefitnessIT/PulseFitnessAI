@@ -1,0 +1,66 @@
+{
+  "summary": "Iter 216n - Logo upload, GET /organization/logo, public files serving, invoice parsing, and master admin user creation: All 9 backend tests PASSED after fixing a bug in GET /organization/logo endpoint.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216n.py",
+    "/app/test_reports/pytest/pytest_results_216n.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216n.py",
+    "/app/backend/routes/auth.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "N/A (backend only testing requested)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Test org and user created during pytest run with TEST_ prefix",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 216n features fully tested. Key findings: (1) POST /api/organization/logo correctly creates files collection entry with category='branding' and is_public=true, returns logo_url starting with /api/public/files/{id}, and updates both organizations.logo_url AND organizations.branding.logo_url. (2) Fixed bug in GET /organization/logo where it was returning None because the endpoint tried to look up by storage_path when the logo_url was already in /api/public/files/{id} format. Added check for /api/public/files/ prefix to return directly. (3) GET /api/public/files/{file_id} correctly serves binary image with Content-Type: image/png. (4) Invoice parsing endpoints (parse-invoice and parse-for-wizard) both work under 60s with Carshalton PDF, returning supplier_name='Pulse Fitness' and equipment items with valid make and equipment_category. (5) Master admin add user with role=master_admin correctly sets is_master_admin=true on the user doc.",
+  "tests_executed": {
+    "backend": [
+      "TestMasterAdminLogin::test_login_success - PASSED",
+      "TestLogoUpload::test_logo_upload_returns_public_files_url - PASSED",
+      "TestLogoUpload::test_get_organization_logo_returns_same_url - PASSED (after bug fix)",
+      "TestLogoUpload::test_public_files_serves_image - PASSED",
+      "TestFilesCollectionEntry::test_logo_upload_creates_files_entry - PASSED",
+      "TestOrganizationBrandingUpdate::test_org_doc_has_both_logo_urls - PASSED",
+      "TestInvoiceParsingParseInvoice::test_parse_invoice_carshalton - PASSED (~35s)",
+      "TestInvoiceParsingWizard::test_parse_for_wizard_carshalton - PASSED (~35s)",
+      "TestMasterAdminUserAdd::test_add_user_with_master_admin_role - PASSED"
+    ]
+  },
+  "bug_fixed": {
+    "file": "/app/backend/routes/auth.py",
+    "line": "915-917",
+    "issue": "GET /organization/logo was returning None when logo_url was in /api/public/files/{id} format because it tried to look up by storage_path instead of recognizing the canonical URL format",
+    "fix": "Added check: if logo_path.startswith('/api/public/files/'), return it directly without database lookup"
+  },
+  "logo_upload_verification": {
+    "endpoint": "POST /api/organization/logo",
+    "returns_logo_url": "Yes, /api/public/files/{file_id}",
+    "returns_file_id": "Yes",
+    "creates_files_entry": "Yes, with category='branding' and is_public=true",
+    "updates_org_logo_url": "Yes",
+    "updates_org_branding_logo_url": "Yes"
+  },
+  "invoice_parsing_verification": {
+    "test_pdf": "/tmp/inv/carshalton.pdf (6.9 MB, Pulse Fitness invoice)",
+    "parse_invoice_endpoint": "POST /api/equipment-import/parse-invoice - 200 OK in ~35s",
+    "parse_for_wizard_endpoint": "POST /api/master-admin/invoice/parse-for-wizard - 200 OK in ~35s",
+    "supplier_name": "Pulse Fitness (correctly extracted)",
+    "equipment_make": "All items have make='Pulse Fitness'",
+    "equipment_category": "All items have valid category (Cardiovascular, Strength, etc.)"
+  }
+}

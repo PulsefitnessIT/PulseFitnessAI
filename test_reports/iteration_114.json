@@ -1,0 +1,182 @@
+{
+  "summary": "Tested CRM Contracts Management System for iteration 114. All 24 backend API tests passed (100%). Frontend UI verified: Contracts list with stats row, search, filters, create modal, contract detail with 8 tabs (Overview, Sites, Assets, SLA & Coverage, Service Integration, Billing, Approvals, Timeline), Add Site/Asset dialogs, Edit SLA form, Sync to Sicon/Sage buttons (MOCKED), Edit/Renew buttons for active contracts.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "backend_01_get_contract_tiers": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts/tiers returns 6 tiers (warranty, bronze, silver, gold, platinum, bespoke)"
+    },
+    "backend_02_get_contract_statuses": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts/statuses returns 12 statuses"
+    },
+    "backend_03_get_contract_stats": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts/stats returns total, active, draft, pending_approval, expiring_soon, active_annual_value"
+    },
+    "backend_04_check_coverage_endpoint": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts/check-coverage returns has_coverage, contracts, best_tier, sla"
+    },
+    "backend_05_list_contracts": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts returns contracts array with total count"
+    },
+    "backend_06_create_contract": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts creates contract with id, contract_number, status=draft"
+    },
+    "backend_07_get_contract_detail": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts/{id} returns full detail with sites, covered_assets, activities"
+    },
+    "backend_08_update_contract": {
+      "status": "PASS",
+      "details": "PUT /api/crm/v2/contracts/{id} updates title, tier, annual_value"
+    },
+    "backend_09_delete_draft_contract": {
+      "status": "PASS",
+      "details": "DELETE /api/crm/v2/contracts/{id} deletes draft contract, returns 404 on re-fetch"
+    },
+    "backend_10_add_site_to_contract": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/sites adds site with site_name, address, city, postcode"
+    },
+    "backend_11_remove_site_from_contract": {
+      "status": "PASS",
+      "details": "DELETE /api/crm/v2/contracts/{id}/sites/{site_id} removes site"
+    },
+    "backend_12_add_asset_to_contract": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/assets adds asset with asset_name, model_code, serial_number, coverage_type"
+    },
+    "backend_13_remove_asset_from_contract": {
+      "status": "PASS",
+      "details": "DELETE /api/crm/v2/contracts/{id}/assets/{asset_id} removes asset"
+    },
+    "backend_14_update_contract_sla": {
+      "status": "PASS",
+      "details": "PUT /api/crm/v2/contracts/{id}/sla updates response_hours, resolution_hours, parts_included, labour_included"
+    },
+    "backend_15_submit_for_approval": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/submit-approval changes status to pending_approval"
+    },
+    "backend_16_approve_contract": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/approve with decision=approved changes status to approved"
+    },
+    "backend_17_reject_contract": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/approve with decision=rejected returns status to draft"
+    },
+    "backend_18_get_approval_history": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts/{id}/approvals returns approval records"
+    },
+    "backend_19_sign_approved_contract": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/sign sets signature, signed_by, status=active"
+    },
+    "backend_20_sync_to_sicon": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/sync-sicon returns MOCKED sicon_contract_id (SICON-xxx)"
+    },
+    "backend_21_sync_to_sage": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/sync-sage returns MOCKED sage_reference (SAGE-xxx)"
+    },
+    "backend_22_renew_contract": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/contracts/{id}/renew creates new draft contract and renewal opportunity"
+    },
+    "backend_23_filter_by_status": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts?status=draft filters correctly"
+    },
+    "backend_24_expiring_contracts": {
+      "status": "PASS",
+      "details": "GET /api/crm/v2/contracts/expiring?days=90 returns expiring contracts"
+    },
+    "frontend_01_contracts_list": {
+      "status": "PASS",
+      "details": "Contracts list page loads with header, stats row, search, filters, contract rows"
+    },
+    "frontend_02_stats_row": {
+      "status": "PASS",
+      "details": "Stats row shows Total, Active, Draft, Pending Approval, Expiring Soon, Active Value"
+    },
+    "frontend_03_search_input": {
+      "status": "PASS",
+      "details": "Search input with data-testid='contracts-search' works"
+    },
+    "frontend_04_status_filters": {
+      "status": "PASS",
+      "details": "Filter buttons: All, Active, Draft, Pending Approval, Approved, Expiring, Expired"
+    },
+    "frontend_05_create_contract_modal": {
+      "status": "PASS",
+      "details": "New Contract modal with title, company, contact, tier, type, value, billing, dates"
+    },
+    "frontend_06_contract_detail_8_tabs": {
+      "status": "PASS",
+      "details": "Contract detail page has 8 tabs: Overview, Sites, Assets, SLA & Coverage, Service Integration, Billing, Approvals, Timeline"
+    },
+    "frontend_07_add_site_dialog": {
+      "status": "PASS",
+      "details": "Add Site dialog with site_name, address, city, postcode, notes fields"
+    },
+    "frontend_08_add_asset_dialog": {
+      "status": "PASS",
+      "details": "Add Covered Asset dialog with asset_name, model_code, serial_number, coverage_type, warranty_end, exclusions"
+    },
+    "frontend_09_edit_sla_form": {
+      "status": "PASS",
+      "details": "Edit SLA inline form with response_hours, resolution_hours, parts_included, labour_included, visits_per_year, preventive_maintenance"
+    },
+    "frontend_10_service_integration_tab": {
+      "status": "PASS",
+      "details": "Service Integration tab shows Sicon and Sage 200 cards with Push/Re-sync buttons"
+    },
+    "frontend_11_action_buttons": {
+      "status": "PASS",
+      "details": "Edit button always visible, Renew for active contracts, Delete for non-active, Sign for approved"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crm_contracts.py",
+    "/app/test_reports/pytest/pytest_results_iteration114.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Code review passed - Contracts Management System implementation is complete and functional",
+    "All CRUD operations work correctly with proper status transitions",
+    "Approval workflow (submit -> approve/reject) works as expected",
+    "Signing flow activates contracts correctly",
+    "Sicon and Sage 200 syncs are MOCKED - return fake reference IDs"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_crm_contracts.py"
+  ],
+  "success_rate": {
+    "backend": "100% (24/24 tests passed)",
+    "frontend": "100% (11/11 features verified)"
+  },
+  "test_credentials": "CRM: craig.henshall@pulsefitness.com / Test123! (role: manager)",
+  "seed_data_creation": "Created TEST_ prefixed contracts during testing (cleaned up in teardown)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 114 tested CRM Contracts Management System. All features working: Contract CRUD, Sites, Assets, SLA, Approvals, Signing, Renewal, Sicon/Sage sync (MOCKED). Frontend has 8 tabs in contract detail. Stats endpoint returns total, active, draft, pending_approval, expiring_soon, active_annual_value. Note: Sicon and Sage 200 syncs are MOCKED - they generate fake reference IDs (SICON-xxx, SAGE-xxx).",
+  "mocked_apis": {
+    "Sicon Service Contracts": "MOCKED - POST /api/crm/v2/contracts/{id}/sync-sicon returns fake SICON-xxx ID",
+    "Sage 200": "MOCKED - POST /api/crm/v2/contracts/{id}/sync-sage returns fake SAGE-xxx reference"
+  }
+}

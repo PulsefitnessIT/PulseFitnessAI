@@ -1,0 +1,59 @@
+{
+  "summary": "Phase 6 Quoting & Billing UI testing complete. All 19 backend API tests passed. Frontend UI testing verified all required data-testids and full quote lifecycle (create draft → approve → finalise to Sage).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215dt_billing.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215dt.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_215dt_billing.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (all data-testids verified, full lifecycle tested)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Created test cases via /api/svc/intake/phone endpoint for lifecycle testing",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 6 Billing is fully functional. Backend endpoints tested: GET /api/svc/billing (with status filters), GET/PUT /api/svc/billing/{case_id}/quote, POST auto-fill/approve/void, GET invoice/preview, POST invoice/finalise. Frontend verified: billing-page, billing-filter, billing-refresh, billing-back, billing-row-{ref}, billing-open-{ref}, quote-editor drawer with all line management, totals, and lifecycle buttons. Sage invoice push is MOCKED (outbox only - status flips to 'ready').",
+  "mocked_apis": {
+    "sage_200_invoice_push": "Outbox only - svc_sage_invoice_outbox.status flips draft → ready; live POST in Phase 8",
+    "sicon_service_push": "Outbox only",
+    "sicon_parts_catalogue_pull": "Manual"
+  },
+  "features_verified": {
+    "backend": [
+      "GET /api/svc/billing?status=ready|quoted|invoiced|all - returns chargeable cases with billing_state",
+      "GET /api/svc/billing/{case_id}/quote - returns case and quote (null if none)",
+      "POST /api/svc/billing/{case_id}/quote/auto-fill - returns proposed_lines, proposed_totals, labour_rate=65",
+      "PUT /api/svc/billing/{case_id}/quote - creates/updates draft with Q-NNNNN reference, version++",
+      "POST /api/svc/billing/{case_id}/quote/approve - flips draft → approved",
+      "PUT on approved quote returns 409 (cannot edit)",
+      "POST /api/svc/billing/{case_id}/quote/void - works on draft/approved, 409 on invoiced",
+      "GET /api/svc/billing/{case_id}/invoice/preview - returns Sage payload with Lines, QuoteReference, QuoteTotal",
+      "POST /api/svc/billing/{case_id}/invoice/finalise - requires approved quote, flips to invoiced, upserts outbox"
+    ],
+    "frontend": [
+      "Service Desk header has 'Billing' link (desk-billing-link)",
+      "Billing page with filter, refresh, back link, and billing rows",
+      "Quote Editor drawer with title, status pill, auto-fill button",
+      "Line table with kind/desc/qty/unit/total columns and remove button",
+      "Add Labour/Part/Adjustment buttons",
+      "VAT and Discount inputs with live recalc of totals",
+      "Save draft creates Q-NNNNN, shows draft status",
+      "Approve quote flips to approved, inputs become read-only",
+      "Finalise → Sage shows invoiced badge and success toast"
+    ]
+  }
+}

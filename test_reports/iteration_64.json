@@ -1,0 +1,164 @@
+{
+  "summary": "Iteration 64 - Global Dashboard for Master Admin Testing. All 18 backend API tests passed (100%). All frontend UI tests passed. Master admin sees 'Global Dashboard' with global analytics tabs (Dashboard, Equipment, Faults, Check Sheets, AI Diagnosis, Documents). Regular user sees per-org dashboard ('Pulse Fitness Pro'). Global Documents tab has Mass Upload, AI Duplicate Scan, supplier filters, category filters, and documents table with all required columns.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "backend_api_tests": {
+      "total_tests": 18,
+      "passed": 18,
+      "failed": 0,
+      "test_classes": [
+        {
+          "class": "TestMasterAdminLogin",
+          "tests": [
+            "test_master_admin_login_success - PASSED (is_master_admin=True)",
+            "test_regular_user_login_not_master_admin - PASSED (is_master_admin=False)"
+          ]
+        },
+        {
+          "class": "TestGlobalDashboardAnalytics",
+          "tests": [
+            "test_global_dashboard_analytics - PASSED (returns global_kpis, leaderboard, fault_trend)",
+            "test_global_equipment_analytics - PASSED (returns total, by_manufacturer, by_type, warranty, per_gym, age_distribution)",
+            "test_global_faults_analytics - PASSED (returns total_faults, status_breakdown, problem_machines, by_severity, by_gym, repeat_offenders)",
+            "test_global_checksheets_analytics - PASSED (returns total_checks, leaderboard, by_category, top_users, ai_suggestions)",
+            "test_global_ai_diagnosis_analytics - PASSED (returns summary, top_diagnosed, top_fixed, usage_trend, check_improvements)"
+          ]
+        },
+        {
+          "class": "TestGlobalDocumentsAPI",
+          "tests": [
+            "test_list_global_documents - PASSED (returns files, suppliers, duplicate_count)",
+            "test_upload_document_with_supplier - PASSED (uploads with supplier_name and category)",
+            "test_upload_multiple_documents - PASSED (mass upload works)",
+            "test_assign_document_to_org - PASSED (PUT /assign-org works)",
+            "test_delete_document - PASSED (DELETE works)",
+            "test_ai_scan_duplicates - PASSED (POST /ai-scan-duplicates works)",
+            "test_update_document_supplier - PASSED (PUT /supplier works)"
+          ]
+        },
+        {
+          "class": "TestRegularUserAccessDenied",
+          "tests": [
+            "test_regular_user_cannot_access_global_documents - PASSED (403 Forbidden)",
+            "test_regular_user_cannot_upload_global_documents - PASSED (403 Forbidden)",
+            "test_regular_user_cannot_access_global_analytics - PASSED (403 Forbidden)"
+          ]
+        },
+        {
+          "class": "TestDuplicateDetection",
+          "tests": [
+            "test_duplicate_detection_on_upload - PASSED (detects duplicates by content hash)"
+          ]
+        }
+      ]
+    },
+    "frontend_ui_tests": {
+      "master_admin_dashboard": {
+        "status": "PASSED",
+        "dashboard_title": "Global Dashboard",
+        "subtitle": "Cross-gym analytics, documents & management",
+        "tabs_verified": ["Dashboard", "Equipment", "Faults", "Check Sheets", "AI Fault Diagnosis", "Documents"]
+      },
+      "overview_tab": {
+        "status": "PASSED",
+        "component": "AdminDashboardTab",
+        "kpi_cards": ["Total Gyms (19)", "Total Equipment (84)", "Open Faults (43)", "Resolved (21)", "Avg Resolution", "Avg Health (94.7%)"],
+        "fault_trend_chart": "6-month line chart rendered",
+        "gym_leaderboard": "Table with Rank, Gym, Health, Equipment, Faults, Open, Resolved, Checks, 30D Faults columns"
+      },
+      "equipment_tab": {
+        "status": "PASSED",
+        "component": "AdminEquipmentTab",
+        "data_testid": "admin-analytics-equipment"
+      },
+      "faults_tab": {
+        "status": "PASSED",
+        "component": "AdminFaultsTab",
+        "data_testid": "admin-analytics-faults"
+      },
+      "check_sheets_tab": {
+        "status": "PASSED",
+        "component": "AdminCheckSheetsTab",
+        "data_testid": "admin-analytics-checksheets"
+      },
+      "ai_diagnosis_tab": {
+        "status": "PASSED",
+        "component": "AdminAIDiagnosisTab",
+        "data_testid": "admin-analytics-ai"
+      },
+      "documents_tab": {
+        "status": "PASSED",
+        "component": "GlobalDocumentsTab",
+        "data_testid": "global-documents-tab",
+        "heading": "Global Document Library",
+        "elements_verified": [
+          "Mass Upload button (data-testid='mass-upload-btn')",
+          "AI Duplicate Scan button (data-testid='ai-scan-btn')",
+          "Supplier filter pills (data-testid='supplier-pills')",
+          "Search bar (data-testid='global-doc-search')",
+          "Category filters (Manuals, Certificates, Contracts)",
+          "Duplicates filter",
+          "Documents table with columns: Document, Supplier, Category, Gym, Size, Date, Status, Actions"
+        ]
+      },
+      "mass_upload_dialog": {
+        "status": "PASSED",
+        "data_testid": "mass-upload-dialog",
+        "elements_verified": [
+          "Supplier name input (data-testid='upload-supplier-input')",
+          "Category selection pills (Manuals, Certificates, Contracts)",
+          "Drag-and-drop zone (data-testid='upload-dropzone')"
+        ]
+      },
+      "regular_user_dashboard": {
+        "status": "PASSED",
+        "dashboard_title": "Pulse Fitness Pro",
+        "subtitle": "Welcome back, Test User",
+        "admin_components_hidden": true,
+        "notes": "Regular user sees per-org dashboard, NOT Global Dashboard. AdminDashboardTab, AdminEquipmentTab, AdminFaultsTab, GlobalDocumentsTab are NOT shown."
+      }
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration64_global_dashboard.py",
+    "/app/test_reports/pytest/pytest_results_iteration64.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DashboardPage.js correctly conditionally renders admin analytics components when user.is_master_admin is true",
+    "Dashboard title correctly shows 'Global Dashboard' for master admin, standard title for regular users",
+    "All 6 main tabs (Dashboard, Equipment, Faults, Check Sheets, AI Diagnosis, Documents) show global analytics for master admin",
+    "GlobalDocumentsTab has all required UI elements: supplier pills, search, category filters, duplicate filter, documents table",
+    "Mass Upload dialog has supplier input, category selection, and drag-and-drop zone",
+    "Backend admin_documents.py properly enforces admin access with require_admin() check",
+    "Duplicate detection works via content_hash (SHA256)",
+    "AI scan duplicates endpoint uses GPT-5.2 via Emergent LLM Key for semantic duplicate detection"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration64_global_dashboard.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "regular_user": "test@gymaxisai.com / Test123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Global Dashboard feature complete. Master admin (admin@gymaxisai.com) sees 'Global Dashboard' with global analytics on all main tabs. Regular users see per-org dashboard. Global Documents tab has Mass Upload, AI Duplicate Scan, supplier/category filters. Backend endpoints: GET/POST/PUT/DELETE /api/master-admin/documents, POST /api/master-admin/documents/ai-scan-duplicates. All data-testids verified: admin-analytics-dashboard, admin-analytics-equipment, admin-analytics-faults, admin-analytics-checksheets, admin-analytics-ai, global-documents-tab, mass-upload-dialog, mass-upload-btn, ai-scan-btn, upload-supplier-input, upload-dropzone.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

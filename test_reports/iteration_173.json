@@ -1,0 +1,90 @@
+{
+  "summary": "Iteration 173 testing complete. All 30 backend tests passed. Frontend testing verified: (1) GET /api/memberships/analytics/referrals returns correct KPIs {total:5, earned:3, pending:2, conversion_pct:60, credit_paid_gbp:15} and top_referrers list with Emma and Sophia; (2) Endpoint rejects member-token with 403; (3) Supports from=/to= date params (far future returns 0 referrals); (4) Scoped by organization; (5) Demo seed has Emma with 4+ referrals (2+ earned) and Sophia with 1 earned; (6) Frontend Analytics → Retention tab shows [data-testid=mbr-referrals-kpis] with 5 KPI cards (Referrals, Earned, Pending, Conversion, Credit paid); (7) Top referrers table shows Emma Wright and Sophia Khan rows with [data-testid=mbr-referrer-mbr-emma] and [data-testid=mbr-referrer-mbr-sophia]; (8) Member Portal shows 'Refer a friend, get £5' card with SEE MY CODE button; (9) ?ref=EMMA-FIT7 query param pre-populates REFERRAL CODE field in registration form; (10) All iteration-172 regression endpoints pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_iteration173.py",
+    "/app/test_reports/pytest/pytest_results_iteration173.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_memberships_iteration173.py"
+  ],
+  "success_rate": {
+    "backend": "100% (30/30 tests passed)",
+    "frontend": "100% (all new features verified)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "member": "emma.wright@demo.gymaxis / Member2026!",
+    "public_brag_slug": "pulse-leeds"
+  },
+  "seed_data_creation": "No new seed data created - using existing memberships seed data with referrals for Emma and Sophia",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 173 adds referrals analytics leaderboard to operator Analytics → Retention tab. Key features: (1) GET /api/memberships/analytics/referrals returns {kpis:{total, earned, pending, conversion_pct, credit_paid_gbp}, top_referrers:[{member_id, name, email, referral_code, total, earned, conversion_pct, credit_earned_gbp}], trend:[{bucket, new, earned}], range:{from, to}}; (2) Endpoint is operator-only (403 for member tokens); (3) Supports from=/to= query params for date filtering; (4) Frontend shows Referrals KPI row [data-testid=mbr-referrals-kpis] with 5 cards and Top referrers table with [data-testid=mbr-referrer-{member_id}] rows; (5) Member Portal has 'Refer a friend, get £5' card; (6) ?ref= query param pre-populates registration form's REFERRAL CODE field. Existing referral mechanics (code generation, pending→earned conversion on first paid checkout, £5 credit) were already tested in iteration 166.",
+  "features_verified": {
+    "backend_referrals_analytics": {
+      "returns_kpis": "PASS - total, earned, pending, conversion_pct, credit_paid_gbp",
+      "returns_top_referrers": "PASS - member_id, name, email, referral_code, total, earned, conversion_pct, credit_earned_gbp",
+      "returns_trend": "PASS - bucket, new, earned",
+      "returns_range": "PASS - from, to dates",
+      "supports_date_params": "PASS - far future returns 0 referrals",
+      "scoped_by_org": "PASS - Emma found in top referrers",
+      "rejects_member_token": "PASS - 403 Forbidden",
+      "requires_auth": "PASS - 401 Unauthorized"
+    },
+    "backend_seed_data": {
+      "emma_referrals": "PASS - 4+ total, 2+ earned",
+      "sophia_referrals": "PASS - 1 earned",
+      "kpis_match_seed": "PASS - total≥6, earned≥4, pending≥2"
+    },
+    "backend_member_referrals": {
+      "endpoint_works": "PASS - returns code, stats, referrals"
+    },
+    "backend_regression_172": {
+      "og_png": "PASS",
+      "share_page": "PASS",
+      "poster_formats": "PASS",
+      "poster_pdf": "PASS",
+      "analytics_overview_forecast_bands": "PASS",
+      "resend_launch_kit": "PASS",
+      "setup_complete_launch_kit": "PASS",
+      "analytics_retention": "PASS",
+      "analytics_classes": "PASS",
+      "analytics_operations": "PASS",
+      "members_by_kpi": "PASS",
+      "at_risk_members": "PASS",
+      "crm_push": "PASS",
+      "csv_export": "PASS",
+      "pdf_export": "PASS",
+      "weekly_digest": "PASS",
+      "dashboard": "PASS",
+      "brag_page": "PASS"
+    },
+    "frontend_referrals_kpis": {
+      "kpis_row_present": "PASS - [data-testid=mbr-referrals-kpis] found",
+      "kpi_values": "PASS - REFERRALS:5, EARNED:3, PENDING:2, CONVERSION:60%, CREDIT PAID:£15"
+    },
+    "frontend_top_referrers_table": {
+      "emma_row": "PASS - [data-testid=mbr-referrer-mbr-emma] found",
+      "sophia_row": "PASS - [data-testid=mbr-referrer-mbr-sophia] found",
+      "table_header": "PASS - 'Top referrers' text found"
+    },
+    "frontend_member_portal_referral": {
+      "referral_card": "PASS - 'Refer a friend, get £5' card visible",
+      "see_my_code_button": "PASS - SEE MY CODE button present"
+    },
+    "frontend_ref_query_param": {
+      "prepopulates_form": "PASS - ?ref=EMMA-FIT7 fills REFERRAL CODE field"
+    }
+  }
+}

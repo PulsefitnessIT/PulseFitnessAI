@@ -1,0 +1,128 @@
+{
+  "summary": "P3 Security Hardening tests complete. All 46 backend tests pass (15 P3 + 18 security + 7 nudges + 6 MFA). Bandit scan shows 0 HIGH/MEDIUM issues. Frontend SecurityPage renders all 8 sections + compliance posture block (public, no auth). NudgeBanner correctly synthesizes password_rotation nudge from /auth/me flag and dismiss works (client-side).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p3_hardening.py",
+    "/app/backend/tests/test_security_hardening.py",
+    "/app/backend/tests/test_security_p2_surface.py",
+    "/app/backend/tests/test_proactive_nudges.py",
+    "/app/backend/tests/test_mfa_and_audit.py",
+    "/app/test_reports/pytest/pytest_results_iteration146_p3.xml",
+    "/app/test_reports/pytest/pytest_results_iteration146_security.xml",
+    "/app/test_reports/pytest/pytest_results_iteration146_nudges.xml",
+    "/app/test_reports/pytest/pytest_results_iteration146_mfa.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "IP allowlist middleware correctly parses CIDR/IP from MASTER_ADMIN_IP_ALLOWLIST env var",
+    "Upload MIME validation uses magic-byte sniffing to detect file types, blocks .exe/.bat/.cmd etc extensions",
+    "Password rotation policy: password_needs_rotation() checks password_updated_at against PASSWORD_MAX_AGE_DAYS (default 180)",
+    "PII retention purge: purge_archived_orgs() deletes orgs archived > PII_RETENTION_DAYS (365) ago with all dependent rows",
+    "Security manifest endpoint is public (no auth) and returns structured hardening info",
+    "NudgeBanner synthesizes password_rotation nudge client-side from /auth/me flags",
+    "Bandit security scan passes with 0 HIGH/MEDIUM issues"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (46/46 tests passed)",
+    "frontend": "100% (SecurityPage + NudgeBanner verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "Temporarily set password_updated_at to 400 days ago for Pulse Pro user to test password rotation nudge, then restored to current time",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "P3 security hardening complete. 46 total security tests pass when run separately (Motor event loop binding requires separate pytest invocations). New features: IP allowlist middleware (MASTER_ADMIN_IP_ALLOWLIST env), upload MIME validation (magic-byte sniffing), password rotation policy (PASSWORD_MAX_AGE_DAYS), PII retention purge (PII_RETENTION_DAYS), public /security manifest page, password_rotation nudge in NudgeBanner.",
+  "tests_executed": {
+    "test_p3_hardening.py": [
+      "test_ip_allowlist_parses_and_filters - PASS",
+      "test_ip_allowlist_no_env_is_noop - PASS",
+      "test_ip_allowlist_invalid_cidr_ignored - PASS",
+      "test_upload_validation_accepts_pdf - PASS",
+      "test_upload_validation_rejects_exe_extension - PASS",
+      "test_upload_validation_rejects_png_in_pdf_category - PASS",
+      "test_upload_validation_rejects_empty_file - PASS",
+      "test_password_needs_rotation_old - PASS",
+      "test_password_needs_rotation_fresh - PASS",
+      "test_password_needs_rotation_missing_timestamp - PASS",
+      "test_pii_purge_deletes_long_archived_org - PASS",
+      "test_pii_purge_skips_fresh_archived_org - PASS",
+      "test_security_manifest_is_public - PASS",
+      "test_security_manifest_reports_password_policy - PASS",
+      "test_auth_me_exposes_password_rotation_flag - PASS"
+    ],
+    "test_security_hardening.py": [
+      "test_rate_limit_allows_under_cap - PASS",
+      "test_rate_limit_blocks_over_cap - PASS",
+      "test_jwt_revocation_roundtrip - PASS",
+      "test_jwt_revocation_missing_jti_is_noop - PASS",
+      "test_llm_budget_blocks_at_daily_cap - PASS",
+      "test_supplier_token_valid_then_expired - PASS",
+      "test_hmac_verifier_happy_path - PASS",
+      "test_hmac_verifier_rejects_bad_sig - PASS",
+      "test_audit_required_writes_row - PASS",
+      "test_audit_required_raises_when_mongo_down - PASS",
+      "test_cors_fails_fast_in_prod - PASS",
+      "test_cors_dev_default_permissive - PASS",
+      "test_cors_comma_list - PASS"
+    ],
+    "test_security_p2_surface.py": [
+      "test_captcha_config_public - PASS",
+      "test_login_works_when_captcha_disabled_in_dev - PASS",
+      "test_files_endpoint_denies_unknown_id_to_regular_user - PASS",
+      "test_auth_logout_revokes_jwt - PASS",
+      "test_rate_limit_headers_on_abuse - PASS"
+    ],
+    "test_proactive_nudges.py": [
+      "test_warranty_scanner_emits_event - PASS",
+      "test_warranty_scanner_auto_resolves_when_empty - PASS",
+      "test_ppm_overdue_scanner - PASS",
+      "test_supplier_drift_scanner - PASS",
+      "test_nudges_list_api - PASS",
+      "test_nudges_dismiss_requires_manager - PASS",
+      "test_nudges_run_requires_master_admin - PASS"
+    ],
+    "test_mfa_and_audit.py": [
+      "test_mfa_full_enrolment_and_login_flow - PASS",
+      "test_mfa_setup_requires_auth - PASS",
+      "test_mfa_qr_returns_png - PASS",
+      "test_branding_update_writes_audit_row - PASS",
+      "test_logout_writes_audit_row - PASS",
+      "test_supplier_case_ip_rate_limit_rejects_abuse - PASS"
+    ],
+    "bandit_scan": "0 HIGH/MEDIUM issues (exit code 0)",
+    "frontend_tests": [
+      "SecurityPage loads at /security (public, no auth) - PASS",
+      "SecurityPage renders 8 sections (authentication, authorization, encryption, audit, rate_limiting, network, data_protection, monitoring) - PASS",
+      "SecurityPage shows compliance posture block - PASS",
+      "SecurityPage shows password_policy.min_length (12) and max_age_days (180) - PASS",
+      "SecurityPage shows events_tracked list with 13 events including mfa.*, org.branding.updated, pii.retention.purged - PASS",
+      "NudgeBanner shows password_rotation nudge when password_needs_rotation=true - PASS",
+      "NudgeBanner dismiss button removes nudge (client-side) - PASS"
+    ]
+  },
+  "features_verified": {
+    "ip_allowlist_middleware": "PASS - _parse_allowlist() returns [] when env unset, parses CIDR/IP correctly",
+    "upload_mime_validation": "PASS - accepts PDF magic bytes, rejects .exe extension, rejects PNG in pdf category, rejects empty files",
+    "password_rotation_policy": "PASS - password_needs_rotation() returns true for old passwords, false for fresh",
+    "pii_retention_purge": "PASS - purge_archived_orgs() deletes orgs archived >365 days, skips fresh-archived",
+    "security_manifest_endpoint": "PASS - GET /api/security/manifest returns structured hardening info (public)",
+    "auth_me_password_flags": "PASS - /api/auth/me returns password_needs_rotation (bool) and password_max_age_days (int)",
+    "frontend_security_page": "PASS - /security renders 8 sections + compliance posture block",
+    "frontend_nudge_banner": "PASS - synthesizes password_rotation nudge from /auth/me, dismiss works"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

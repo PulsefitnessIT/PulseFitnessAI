@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration 178 - Win-back Email Feature Testing. Backend: 14/14 tests PASSED. Frontend: BLOCKED by login flow issue - cannot authenticate via Playwright to test WinbackCard UI component.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Login Modal",
+        "issue": "Login form submits but session not persisted - user redirected to /login page instead of dashboard",
+        "selector": "button:has-text('Sign In')",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "WinbackCard API call",
+        "issue": "Cannot verify WinbackCard rendering due to login issue. API endpoint works correctly (verified via curl).",
+        "affected_selectors": ["[data-testid='mbr-winback-card']", "[data-testid='mbr-winback-send-now']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_winback_iteration178.py",
+    "/app/test_reports/pytest/pytest_results_iteration178.xml"
+  ],
+  "action_items": [
+    "INVESTIGATE: Login flow not persisting session in Playwright tests - Sign In button click completes but user not authenticated",
+    "VERIFY MANUALLY: WinbackCard component in Analytics → AI Insights tab (API returns correct data)",
+    "VERIFY: data-testid='mbr-winback-card' is present in the DOM after scrolling past 'Export at-risk list' button"
+  ],
+  "critical_code_review_comments": [
+    "WinbackCard has silent catch block (line 872) - added console.error logging for debugging",
+    "Backend winback dispatcher logs show correct operation: candidates=1, sent=0, skipped=0/1"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_winback_iteration178.py",
+    "/app/backend/.env (added RATE_LIMIT_BYPASS_SECRET)",
+    "/app/frontend/src/pages/Memberships/AnalyticsTab.js (added error logging to WinbackCard)"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "Unable to test - login blocked"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "member": "emma.wright@demo.gymaxis / Member2026!"
+  },
+  "seed_data_creation": "Oliver Price seeded as lapsed member (last_attended_at ~8 days ago, 5+ day streak)",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend winback feature fully tested and working. Frontend WinbackCard component needs manual verification - Playwright login flow not working (session not persisted after Sign In click). API endpoint /api/memberships/analytics/winback-candidates returns correct data with Oliver Price in preview.",
+  "backend_verification": {
+    "winback_candidates_endpoint": "GET /api/memberships/analytics/winback-candidates - Returns {totals:{orgs:1,candidates:1,sent:0,skipped:0,errors:0}, preview:[Oliver Price]}",
+    "send_winback_now_endpoint": "POST /api/memberships/analytics/send-winback-now - Returns {ok:true, sent:0, skipped:1} (skipped due to 14-day cooldown)",
+    "sicon_poller_integration": "Verified via logs: [winback] dispatcher complete on each tick",
+    "auth_hardening": "Member tokens correctly rejected with 403"
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "summary": "MFA + Audit Trail security hardening tests completed. All 31 backend tests pass (18 security + 7 nudges + 6 MFA/audit). Full TOTP MFA lifecycle verified: setup, QR code, enable with backup codes, 2-step login flow, replay protection, backup code login, disable (non-master-admin only). Audit trail verified for org.branding.updated, auth.logout. Frontend MFA UI working: AccountPanel shows MFASetupCard with Enable/Disable buttons, QR code display, code input.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_security_hardening.py",
+    "/app/backend/tests/test_security_p2_surface.py",
+    "/app/backend/tests/test_proactive_nudges.py",
+    "/app/backend/tests/test_mfa_and_audit.py",
+    "/app/test_reports/pytest/pytest_results_iteration145_security.xml",
+    "/app/test_reports/pytest/pytest_results_iteration145_nudges.xml",
+    "/app/test_reports/pytest/pytest_results_iteration145_mfa.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TOTP MFA implementation uses pyotp with Fernet encryption for secrets at rest",
+    "Backup codes are bcrypt-hashed and single-use (marked used after consumption)",
+    "Replay protection via mfa_used_codes collection with TTL index (120s)",
+    "Master admin cannot disable MFA (403 enforced in /auth/mfa/disable)",
+    "MFA login returns temp_token (5-min TTL) requiring /auth/mfa/verify step 2",
+    "Audit trail writes to security_audit_log collection with fail-closed behavior",
+    "Public endpoint rate limiting: 60 requests/300s per IP on /supplier/case/{token} and /onboarding/public/{token}",
+    "Frontend MFASetupCard component properly handles all MFA states (idle, enrolling, backup, disabling)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (31/31 tests passed)",
+    "frontend": "100% (MFA UI verified working)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "Created and cleaned up test user mfa-test-1776808659@example.com for MFA flow testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "MFA security hardening complete. All 31 tests pass when run separately (Motor event loop binding requires separate pytest invocations). MFA endpoints: GET /auth/mfa/status, POST /auth/mfa/setup, POST /auth/mfa/enable (returns 10 backup codes), GET /auth/mfa/qrcode, POST /auth/mfa/verify (2-step login), POST /auth/mfa/disable. Audit trail writes to security_audit_log for: org.branding.updated, staff.role.changed, staff.removed, integration.config.updated, equipment.deleted, auth.logout, mfa.enabled, mfa.disabled, mfa.verify.success, mfa.verify.fail.",
+  "tests_executed": {
+    "test_security_hardening.py": [
+      "test_rate_limit_allows_under_cap - PASS",
+      "test_rate_limit_blocks_over_cap - PASS",
+      "test_jwt_revocation_roundtrip - PASS",
+      "test_jwt_revocation_missing_jti_is_noop - PASS",
+      "test_llm_budget_blocks_at_daily_cap - PASS",
+      "test_supplier_token_valid_then_expired - PASS",
+      "test_hmac_verifier_happy_path - PASS",
+      "test_hmac_verifier_rejects_bad_sig - PASS",
+      "test_audit_required_writes_row - PASS",
+      "test_audit_required_raises_when_mongo_down - PASS",
+      "test_cors_fails_fast_in_prod - PASS",
+      "test_cors_dev_default_permissive - PASS",
+      "test_cors_comma_list - PASS"
+    ],
+    "test_security_p2_surface.py": [
+      "test_captcha_config_public - PASS",
+      "test_login_works_when_captcha_disabled_in_dev - PASS",
+      "test_files_endpoint_denies_unknown_id_to_regular_user - PASS",
+      "test_auth_logout_revokes_jwt - PASS",
+      "test_rate_limit_headers_on_abuse - PASS"
+    ],
+    "test_proactive_nudges.py": [
+      "test_warranty_scanner_emits_event - PASS",
+      "test_warranty_scanner_auto_resolves_when_empty - PASS",
+      "test_ppm_overdue_scanner - PASS",
+      "test_supplier_drift_scanner - PASS",
+      "test_nudges_list_api - PASS",
+      "test_nudges_dismiss_requires_manager - PASS",
+      "test_nudges_run_requires_master_admin - PASS"
+    ],
+    "test_mfa_and_audit.py": [
+      "test_mfa_full_enrolment_and_login_flow - PASS",
+      "test_mfa_setup_requires_auth - PASS",
+      "test_mfa_qr_returns_png - PASS",
+      "test_branding_update_writes_audit_row - PASS",
+      "test_logout_writes_audit_row - PASS",
+      "test_supplier_case_ip_rate_limit_rejects_abuse - PASS"
+    ],
+    "live_api_tests": [
+      "GET /api/auth/mfa/status (unauthenticated) - returns 401 'Not authenticated' - PASS",
+      "GET /api/auth/mfa/status (authenticated) - returns {enabled, enrolled_at, backup_codes_remaining, required} - PASS",
+      "POST /api/auth/mfa/setup - returns {provisioning_uri, secret} - PASS",
+      "GET /api/auth/mfa/qrcode?uri= - returns image/png with PNG header - PASS",
+      "POST /api/auth/mfa/enable - returns {success: true, backup_codes: [10 codes]} - PASS",
+      "POST /api/auth/login (MFA-required user) - returns {requires_mfa: true, temp_token} - PASS",
+      "POST /api/auth/mfa/verify (wrong code) - returns 401 'Invalid code' - PASS",
+      "POST /api/auth/mfa/verify (correct TOTP) - returns full JWT + user payload - PASS",
+      "POST /api/auth/mfa/verify (replay same code) - returns 400 'Code already used' - PASS",
+      "POST /api/auth/mfa/verify (backup code) - returns full JWT (backup marked used) - PASS",
+      "POST /api/auth/mfa/disable (non-master-admin) - returns {success: true} - PASS",
+      "POST /api/auth/mfa/disable (master admin) - returns 403 'Master admins cannot disable MFA' - PASS",
+      "PATCH /api/organization/branding - writes security_audit_log row with event='org.branding.updated' - PASS",
+      "POST /api/auth/logout - writes security_audit_log row with event='auth.logout' - PASS"
+    ],
+    "frontend_tests": [
+      "AccountPanel shows MFASetupCard component - PASS",
+      "MFA disabled state shows 'Enable MFA' button - PASS",
+      "Clicking Enable MFA shows QR code + secret + code input - PASS",
+      "Verify & enable button present in enrollment flow - PASS"
+    ]
+  },
+  "features_verified": {
+    "mfa_status_endpoint": "PASS - Returns enabled, enrolled_at, backup_codes_remaining, required",
+    "mfa_setup_endpoint": "PASS - Returns provisioning_uri and secret for QR generation",
+    "mfa_qrcode_endpoint": "PASS - Returns PNG image for provisioning URI",
+    "mfa_enable_endpoint": "PASS - Verifies first code, returns 10 backup codes",
+    "mfa_2step_login": "PASS - Login returns temp_token, /verify accepts TOTP or backup code",
+    "mfa_replay_protection": "PASS - Same TOTP code rejected within 30s window",
+    "mfa_backup_codes": "PASS - Single-use, marked used after consumption",
+    "mfa_disable_non_admin": "PASS - Non-master-admin can disable with valid code",
+    "mfa_disable_master_admin": "PASS - Master admin gets 403 (cannot disable)",
+    "audit_org_branding_updated": "PASS - PATCH /organization/branding writes audit row",
+    "audit_auth_logout": "PASS - POST /auth/logout writes audit row",
+    "public_rate_limit_supplier": "PASS - /supplier/case/{token} rate limited 60/300s per IP",
+    "public_rate_limit_onboarding": "PASS - /onboarding/public/{token} rate limited 60/300s per IP",
+    "frontend_mfa_card": "PASS - MFASetupCard renders in AccountPanel",
+    "frontend_mfa_setup_flow": "PASS - QR code, secret, code input, verify button all present"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

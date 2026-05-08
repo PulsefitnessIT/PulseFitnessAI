@@ -1,0 +1,76 @@
+{
+  "summary": "Tested Craig's 5 feedback items. 6 of 7 features working correctly. 1 bug found: clicking quote card in Company Quotes tab navigates to CPQ list instead of quote detail.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CRMCompanies - Quotes Tab",
+        "issue": "Clicking quote card navigates to CPQ list page instead of quote detail. CRMCPQ component doesn't handle navTarget to show quote detail.",
+        "selector": "[data-testid^='company-quote-']",
+        "priority": "MEDIUM",
+        "fix_suggestion": "Add useEffect in CRMCPQ.js to check navTarget.type === 'quote' and set selectedQuote to navTarget.id"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "feature_1_company_quotes_tab": {
+      "status": "PARTIAL",
+      "details": "Quote cards display correctly with status badge, version, and data-testid. However, clicking navigates to CPQ list instead of quote detail."
+    },
+    "feature_2_pipeline_print_report": {
+      "status": "PASS",
+      "details": "Report button (data-testid='print-report-btn') is visible and enabled in Pipeline header."
+    },
+    "feature_3_contacts_company_badge": {
+      "status": "PASS",
+      "details": "Contacts show blue pill badge for assigned company (e.g., 'Fieldview Primary School') and red 'Unassigned' tag for unassigned contacts."
+    },
+    "feature_4_deal_contact_filtering": {
+      "status": "PASS",
+      "details": "New Deal dialog shows 'Select company first...' in contact dropdown. After selecting company, contacts are filtered to company contacts only."
+    },
+    "feature_5_quote_contact_filtering": {
+      "status": "PASS",
+      "details": "New Quote dialog shows 'Select company first...' in contact dropdown. After selecting company, contacts are filtered correctly."
+    },
+    "feature_6_calendar_tab": {
+      "status": "PASS",
+      "details": "Calendar nav item present in sidebar with CalendarDays icon. Calendar shows month grid with 7 columns (MON-SUN)."
+    },
+    "feature_7_calendar_features": {
+      "status": "PASS",
+      "details": "Today button, prev/next month navigation, activities plotted on dates with color-coded event types (green, blue, orange, cyan). Day detail panel shows events when clicking a date."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration109_craig_feedback.py",
+    "/app/test_reports/pytest/pytest_iteration109.xml"
+  ],
+  "action_items": [
+    "Fix CRMCPQ.js to handle navTarget for quote navigation from Company Quotes tab. Add useEffect to check navTarget.type === 'quote' and set selectedQuote = navTarget.id"
+  ],
+  "critical_code_review_comments": [
+    "CRMCPQ.js missing navTarget handling - other components like CRMCompanies.js handle navTarget correctly but CRMCPQ doesn't"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration109_craig_feedback.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "86% (6/7 features working)"
+  },
+  "test_credentials": "craig.henshall@pulsefitness.com / Test123!",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 109 tested Craig's 5 feedback items. All features working except quote navigation from Company Quotes tab. The fix is straightforward - add navTarget handling to CRMCPQ.js similar to how CRMCompanies.js handles it.",
+  "mocked_apis": {
+    "Sage 200 API": "MOCKED",
+    "Sicon Service API": "MOCKED"
+  }
+}

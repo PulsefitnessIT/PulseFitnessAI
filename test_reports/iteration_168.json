@@ -1,0 +1,61 @@
+{
+  "summary": "Regression testing of GymAxis marketing pages and cross-module navigation after iteration 167 edits. All 6 test areas passed: (1) Homepage loads cleanly with tech-stack marquee REMOVED; (2) Pricing page shows 4 tiers including new Bundle offer with cyan theming and 'Best value' badge; (3) Features and Security pages load with dark theme and cyan accents, no white-text-on-white-bg issues; (4) ModuleSwitcher navigates correctly between Pulse/Memberships/MOD; (5) Memberships console shows App URL card with phone-frame brand preview and working copy-to-clipboard button; (6) Footer links route correctly with no 404s.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Memberships dashboard initial load", "issue": "401 Unauthorized on first load after login redirect - known timing issue from iteration 167, resolves on navigation", "affected_selectors": ["[data-testid='mbr-dashboard']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_168.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (all 6 test areas passed)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!"
+  },
+  "seed_data_creation": "None - used existing seeded data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 168 regression testing complete. All marketing page edits verified: (1) Tech-stack marquee removed from homepage - no scrolling logo row present; (2) Pricing page has 4 tiers: Starter £29, Pro £79, Bundle £199 (with 'Best value' badge and cyan theming), Enterprise £249; (3) Features page has 5 feature groups with 17 feature cards, dark theme with cyan accents; (4) Security page loads with live manifest data, dark theme; (5) ModuleSwitcher (PULSE | MEMBERSHIPS | MOD) present on both Memberships sidebar and Pulse dashboard header, navigation works correctly; (6) Memberships console shows App URL card with /m/pulse-leeds URL, phone-frame brand preview, and copy-to-clipboard button; (7) Footer has 10 links all routing correctly (About, Pricing, Contact, Features x3, API Docs, Privacy, Terms, Security).",
+  "features_verified": {
+    "homepage": {
+      "status": "PASS",
+      "details": "Tech-stack marquee REMOVED - no scrolling logo row found. Hero section, top nav, Sign In/Start Trial buttons all present."
+    },
+    "pricing_page": {
+      "status": "PASS",
+      "details": "4 tiers present: Starter (£29), Pro (£79), Bundle (£199 with 'Best value' badge and cyan theming), Enterprise (£249). All CTAs present. Comparison strip and FAQ sections present."
+    },
+    "features_page": {
+      "status": "PASS",
+      "details": "5 feature groups, 17 feature cards. Dark theme (rgb(10,10,10) background). No white-text-on-white-bg contrast issues. CTA section present."
+    },
+    "security_page": {
+      "status": "PASS",
+      "details": "Dark theme with cyan accents (54 elements with #19CDFF styling). Live security manifest link present. No white-text-on-white-bg issues."
+    },
+    "module_switcher": {
+      "status": "PASS",
+      "details": "ModuleSwitcher (PULSE | MEMBERSHIPS | MOD) present on Memberships sidebar and Pulse dashboard. Navigation works: Memberships -> Pulse (/pulse) -> Memberships (/memberships)."
+    },
+    "memberships_console": {
+      "status": "PASS",
+      "details": "App URL card present showing /m/pulse-leeds. Phone-frame brand preview with 'PULSE STUDIO · LEEDS' branding. Copy-to-clipboard button present. 6 sidebar tabs (Dashboard/Members/Timetable/Classes/Plans/Ads)."
+    },
+    "footer_links": {
+      "status": "PASS",
+      "details": "10 footer links present and working: About, Pricing, Contact, AI Fault Diagnosis, QR Code Scanning, Warranty & Contract Tracking, API Docs, Privacy Policy, Terms of Service, Security & Trust. No 404s."
+    }
+  }
+}

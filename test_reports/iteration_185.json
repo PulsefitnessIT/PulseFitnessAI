@@ -1,0 +1,76 @@
+{
+  "summary": "Iteration 185 - Gym Floor Staff Email/Mobile + Fault Logging feature complete. All 15 backend tests PASS. Frontend flows verified: gym-floor login, fault logging with staff contact injection, manager setup panel with email/mobile inputs, handover diary.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login modal on /pulse", "issues": ["Modal overlay intercepts clicks - requires Enter key to submit. Known existing behavior from iteration 184."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gym_floor_iteration185.py",
+    "/app/test_reports/pytest/pytest_results_iteration185.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Staff email validation working correctly - POST /api/gym-floor/staff returns 400 'A valid email is required so suppliers can reach this staff member.' when email missing",
+    "Privacy protection working - GET /api/gym-floor/staff via X-Gym-Floor-Token strips email/mobile fields from response",
+    "Fault logging with contact injection working - POST /api/gym-floor/fault returns reporter {name, email, mobile} and creates issue with created_by_name/email/mobile fields",
+    "Staff without email cannot log faults - returns 400 'Your contact details are incomplete — ask the manager to add your email before logging faults.'",
+    "Manager Setup UI shows 3 inputs (Name, Email *, Mobile optional) with 'Email is required so the supplier can reach the right person' description",
+    "Existing staff without email show '⚠ no email' warning in roster with Edit button to add details",
+    "Contact preview text shows 'We'll attach <name>'s contact details to the supplier ticket' when staff selected",
+    "Fault success banner shows 'Fault logged · FLT-XXXXXXXX - Reported by <name> (<email>). The supplier will reach out on the contact details above.'"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gym_floor_iteration185.py"
+  ],
+  "success_rate": {"backend": "100% (15/15 tests)", "frontend": "100%"},
+  "seed_data_creation": "Test staff created during backend tests with TEST_ prefix (cleaned up). Sarah Johnson (sarah@gymtest.com, +447700900001) was already seeded by main agent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 185 Gym Floor Staff Email/Mobile feature complete. Key test credentials: Manager lee.somers@pulsefitness.com / TempPass123!, Gym-floor tottenham-floor / FloorTest123!. Sarah Johnson has email and can log faults. Alex and other legacy staff show '⚠ no email' and cannot log faults until manager adds their email. Backend tests in /app/backend/tests/test_gym_floor_iteration185.py cover all CRUD operations and fault logging scenarios.",
+  "tests_performed": [
+    "BACKEND: test_add_staff_without_email_returns_400 - PASS",
+    "BACKEND: test_add_staff_with_invalid_email_returns_400 - PASS",
+    "BACKEND: test_add_staff_with_valid_email_and_mobile - PASS",
+    "BACKEND: test_add_staff_with_email_only_no_mobile - PASS",
+    "BACKEND: test_update_staff_name_email_mobile - PASS",
+    "BACKEND: test_update_staff_invalid_email_returns_400 - PASS",
+    "BACKEND: test_delete_staff_soft_deletes - PASS",
+    "BACKEND: test_gym_floor_token_strips_email_mobile - PASS",
+    "BACKEND: test_manager_sees_email_mobile - PASS",
+    "BACKEND: test_equipment_list_with_gym_floor_token - PASS",
+    "BACKEND: test_fault_with_valid_staff_creates_issue - PASS",
+    "BACKEND: test_fault_with_staff_without_email_returns_400 - PASS",
+    "BACKEND: test_fault_without_staff_id_returns_422 - PASS",
+    "BACKEND: test_fault_with_invalid_staff_id_returns_400 - PASS",
+    "BACKEND: test_cleanup_test_staff - PASS",
+    "FRONTEND: Gym Floor login with tottenham-floor / FloorTest123! - PASS",
+    "FRONTEND: Two tabs visible (Handover Diary, Log a Fault) - PASS",
+    "FRONTEND: Staff dropdown shows names from roster - PASS",
+    "FRONTEND: Contact preview text shows when staff selected - PASS",
+    "FRONTEND: Fault with staff without email shows error 'Your contact details are incomplete' - PASS",
+    "FRONTEND: Fault with Sarah Johnson (has email) succeeds with FLT-XXXXXXXX reference - PASS",
+    "FRONTEND: Success banner shows reporter name and email - PASS",
+    "FRONTEND: Manager Setup panel shows Name/Email*/Mobile inputs - PASS",
+    "FRONTEND: Staff roster shows '⚠ no email' for legacy staff - PASS",
+    "FRONTEND: Handover Diary still works - entry posted successfully - PASS"
+  ],
+  "features_verified": {
+    "staff_email_required": "PASS - New staff must have email, returns 400 without it",
+    "staff_mobile_optional": "PASS - Mobile is optional, staff can be created with email only",
+    "staff_update": "PASS - PATCH endpoint updates name/email/mobile",
+    "staff_soft_delete": "PASS - DELETE sets active=false",
+    "privacy_protection": "PASS - Gym floor session cannot see email/mobile",
+    "equipment_list": "PASS - Gym floor session can list equipment",
+    "fault_logging": "PASS - Creates issue with reporter contact details",
+    "fault_validation": "PASS - Requires staff_id, rejects staff without email",
+    "manager_ui": "PASS - Setup panel has 3 inputs with proper labels",
+    "handover_diary": "PASS - Existing functionality still works"
+  }
+}

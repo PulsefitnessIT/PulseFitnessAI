@@ -1,0 +1,126 @@
+{
+  "summary": "Tested Help Centre brand separation, spacing fix, rota guide removal, and factual content fixes. Backend: 15/15 tests passed. Frontend: All critical tests passed via Playwright.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_help_brand_separation_iteration202.py",
+    "/app/test_reports/pytest/pytest_results_iteration202.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_help_brand_separation_iteration202.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)",
+    "frontend": "100% (all Playwright tests passed)"
+  },
+  "test_credentials": "Pulse Operator: lee.somers@pulsefitness.com / TempPass123!, Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None - uses existing seed data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Help Centre brand separation fully tested. All 6 test requirements verified.",
+  "features_verified": {
+    "1_spacing_fix": {
+      "status": "PASSED",
+      "details": "H1 'How can we help?' bounding box top = 120.5px (> 100px), clears the fixed navbar. Hero uses pt-24 spacing matching other modules."
+    },
+    "2_brand_separation_pulse_user": {
+      "status": "PASSED",
+      "details": {
+        "document_title": "Help Centre · Pulse Fitness (NOT GymAxis)",
+        "subtitle": "trained only on Pulse Fitness",
+        "ai_heading": "Ask Pulse Fitness",
+        "gymaxis_count": 0,
+        "pulse_fitness_count": 10
+      }
+    },
+    "3_gymaxis_brand_intact_admin": {
+      "status": "PASSED",
+      "details": {
+        "document_title": "Help Centre · GymAxis",
+        "subtitle": "trained only on GymAxis",
+        "ai_heading": "Ask GymAxis",
+        "gymaxis_count": 12
+      }
+    },
+    "4_rota_guide_removed": {
+      "status": "PASSED",
+      "details": {
+        "staff_rota_basics_404": true,
+        "staff_category_guide_count": 1,
+        "only_guide": "staff-gym-floor-login",
+        "search_rota_zero_matches": true
+      }
+    },
+    "5_category_relabeled": {
+      "status": "PASSED",
+      "details": {
+        "staff_category_label": "Staff Access",
+        "staff_category_blurb": "Gym Floor kiosk and staff roles."
+      }
+    },
+    "6_factual_content_fixes": {
+      "status": "PASSED",
+      "details": {
+        "crm_company_setup_no_ai_auto_recognition": true,
+        "mkt_brand_kit_describe_voice": true
+      }
+    },
+    "setup_checklist_no_brand": {
+      "status": "PASSED",
+      "details": "SetupChecklist heading is 'Get started in 7 steps' - no brand mention. Item labels are generic (e.g., 'Add your first piece of equipment')."
+    }
+  },
+  "backend_tests_summary": {
+    "TestBrandSeparationPulseUser": {
+      "test_categories_returns_pulse_brand": "PASSED",
+      "test_guides_list_returns_pulse_brand": "PASSED",
+      "test_guide_detail_whitelabeled_for_pulse": "PASSED",
+      "test_search_results_whitelabeled_for_pulse": "PASSED",
+      "test_ai_assistant_whitelabeled_for_pulse": "PASSED"
+    },
+    "TestBrandIntactForAdmin": {
+      "test_categories_returns_gymaxis_brand": "PASSED",
+      "test_guides_list_returns_gymaxis_brand": "PASSED",
+      "test_guide_detail_has_gymaxis_for_admin": "PASSED"
+    },
+    "TestRotaGuideRemoved": {
+      "test_rota_guide_returns_404": "PASSED",
+      "test_staff_category_has_only_one_guide": "PASSED",
+      "test_search_rota_returns_zero_matches": "PASSED"
+    },
+    "TestCategoryRelabeled": {
+      "test_staff_category_label": "PASSED"
+    },
+    "TestFactualContentFixes": {
+      "test_crm_company_setup_no_ai_auto_recognition": "PASSED",
+      "test_mkt_brand_kit_no_preset_list": "PASSED"
+    },
+    "TestSetupChecklistNoBranding": {
+      "test_setup_checklist_items_no_gymaxis_for_pulse": "PASSED"
+    }
+  },
+  "playwright_tests_summary": {
+    "pulse_user_help_page": {
+      "document_title": "Help Centre · Pulse Fitness - PASSED",
+      "h1_spacing": "120.5px > 100px - PASSED",
+      "subtitle_brand": "Pulse Fitness - PASSED",
+      "ai_heading": "Ask Pulse Fitness - PASSED",
+      "no_gymaxis_in_body": "PASSED (0 mentions on help page)"
+    },
+    "admin_user_help_page": {
+      "document_title": "Help Centre · GymAxis - PASSED",
+      "subtitle_brand": "GymAxis - PASSED",
+      "ai_heading": "Ask GymAxis - PASSED",
+      "gymaxis_count": "12 mentions - PASSED"
+    }
+  }
+}

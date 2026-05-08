@@ -1,0 +1,778 @@
+/* ============================================================
+   GymAxis · Service Operations — Premium Design Layer (215dw)
+   ------------------------------------------------------------
+   Pure theme-token CSS so the entire Service Desk module
+   inherits the same look as CRM / Memberships / Marketing,
+   in BOTH light and dark modes.
+
+   All components in this module are expected to use these
+   `.svc-*` classes instead of inline `style={{...}}` colours.
+   ============================================================ */
+
+/* Module-scoped variables — tuned per theme */
+.svc-shell,
+.svc-root,
+.svc-drawer-overlay,
+.svc-modal-overlay {
+  /* Brand gradient end-stops used in headers, KPIs, hover states */
+  --svc-gradient-from: var(--color-brand-blue, #0055ff);
+  --svc-gradient-to:   var(--color-accent-violet, #8b5cf6);
+  --svc-accent:        var(--color-brand-blue, #0055ff);
+  --svc-accent-soft:   rgba(0, 85, 255, 0.10);
+  --svc-success:       var(--color-success, #10b981);
+  --svc-warn:          var(--color-warning, #f59e0b);
+  --svc-danger:        var(--color-danger, #ef4444);
+  --svc-violet:        var(--color-accent-violet, #8b5cf6);
+
+  --svc-card:          var(--theme-surface, #ffffff);
+  --svc-card-elev:     var(--theme-surface-hover, #f4f4f5);
+  --svc-border:        var(--theme-border, #e4e4e7);
+  --svc-border-strong: rgba(0, 85, 255, 0.18);
+  --svc-text:          var(--theme-text, #18181b);
+  --svc-muted:         var(--theme-text-muted, #52525b);
+
+  --svc-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --svc-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --svc-shadow-lg: 0 24px 48px -12px rgba(15, 23, 42, 0.18), 0 8px 16px -8px rgba(15, 23, 42, 0.10);
+
+  font-family: 'Satoshi', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--svc-text);
+}
+
+/* Dark-mode tweaks — softer card shadows, brighter brand glow */
+[data-theme="dark"] .svc-shell,
+[data-theme="dark"] .svc-root,
+[data-theme="dark"] .svc-drawer-overlay,
+[data-theme="dark"] .svc-modal-overlay {
+  --svc-accent-soft:   rgba(102, 204, 255, 0.10);
+  --svc-border-strong: rgba(102, 204, 255, 0.30);
+  --svc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --svc-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --svc-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+/* ──────────────────────────────────────────────────────────
+   1. SHELL & PAGE STRUCTURE
+   ────────────────────────────────────────────────────────── */
+
+.svc-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 24px 56px;
+}
+
+@media (min-width: 768px) {
+  .svc-page { padding: 28px 32px 64px; }
+}
+
+.svc-page-narrow {
+  max-width: 1100px;
+}
+
+/* Premium gradient header card — used at the top of every page */
+.svc-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 22px 24px;
+  border: 1px solid var(--svc-border);
+  background:
+    linear-gradient(135deg, rgba(0, 85, 255, 0.08) 0%, rgba(139, 92, 246, 0.06) 60%, transparent 100%),
+    var(--svc-card);
+  box-shadow: var(--svc-shadow-sm);
+}
+.svc-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--svc-gradient-from), var(--svc-gradient-to));
+  opacity: 0.9;
+}
+[data-theme="dark"] .svc-hero {
+  background:
+    radial-gradient(80% 120% at 0% 0%, rgba(102, 204, 255, 0.10) 0%, transparent 50%),
+    radial-gradient(60% 100% at 100% 0%, rgba(153, 102, 255, 0.10) 0%, transparent 50%),
+    var(--svc-card);
+}
+
+.svc-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  background: linear-gradient(90deg, var(--svc-gradient-from), var(--svc-gradient-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.svc-h1 {
+  font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.15;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--svc-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.svc-subtitle {
+  margin-top: 6px;
+  max-width: 60ch;
+  color: var(--svc-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.svc-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--svc-muted);
+  margin-bottom: 6px;
+  transition: color 160ms ease;
+}
+.svc-back-link:hover { color: var(--svc-accent); }
+
+/* ──────────────────────────────────────────────────────────
+   2. NAV STRIP — same on every page (gives module identity)
+   ────────────────────────────────────────────────────────── */
+
+.svc-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--svc-card);
+  border: 1px solid var(--svc-border);
+  box-shadow: var(--svc-shadow-sm);
+}
+
+.svc-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--svc-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+  position: relative;
+  white-space: nowrap;
+}
+.svc-nav-pill:hover {
+  color: var(--svc-text);
+  background: var(--svc-card-elev);
+}
+.svc-nav-pill--active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--svc-gradient-from), var(--svc-gradient-to));
+  box-shadow: 0 6px 20px -8px rgba(0, 85, 255, 0.55);
+}
+.svc-nav-pill--active:hover { color: #fff; }
+.svc-nav-pill--cta {
+  color: #fff;
+  background: var(--svc-text);
+  margin-left: auto;
+}
+[data-theme="dark"] .svc-nav-pill--cta { background: #fff; color: var(--color-ink, #0a0c10); }
+.svc-nav-pill--cta:hover { transform: translateY(-1px); }
+
+.svc-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--svc-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--svc-card);
+}
+
+/* ──────────────────────────────────────────────────────────
+   3. KPI CARDS
+   ────────────────────────────────────────────────────────── */
+
+.svc-kpi-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 720px)  { .svc-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 980px)  { .svc-kpi-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+.svc-kpi {
+  position: relative;
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--svc-card);
+  border: 1px solid var(--svc-border);
+  box-shadow: var(--svc-shadow-sm);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  overflow: hidden;
+}
+.svc-kpi::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--_tone, var(--svc-accent)), transparent);
+  opacity: 0.6;
+}
+.svc-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--svc-shadow-md);
+  border-color: var(--svc-border-strong);
+}
+.svc-kpi--info    { --_tone: var(--svc-accent); }
+.svc-kpi--good    { --_tone: var(--svc-success); }
+.svc-kpi--warn    { --_tone: var(--svc-warn); }
+.svc-kpi--danger  { --_tone: var(--svc-danger); }
+.svc-kpi--neutral { --_tone: var(--svc-muted); }
+
+.svc-kpi-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--svc-muted);
+}
+.svc-kpi-value {
+  font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.1;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--_tone, var(--svc-text));
+  letter-spacing: -0.02em;
+}
+.svc-kpi-hint {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--svc-muted);
+}
+
+/* ──────────────────────────────────────────────────────────
+   4. CARDS / SECTIONS
+   ────────────────────────────────────────────────────────── */
+
+.svc-card-base {
+  background: var(--svc-card);
+  border: 1px solid var(--svc-border);
+  border-radius: 14px;
+  box-shadow: var(--svc-shadow-sm);
+}
+
+.svc-section {
+  background: var(--svc-card);
+  border: 1px solid var(--svc-border);
+  border-radius: 16px;
+  box-shadow: var(--svc-shadow-sm);
+  overflow: hidden;
+}
+.svc-section-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--svc-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.svc-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  color: var(--svc-text);
+}
+.svc-section-body { padding: 16px 18px; }
+
+/* ──────────────────────────────────────────────────────────
+   5. BUTTONS
+   ────────────────────────────────────────────────────────── */
+
+.svc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease,
+              transform 120ms ease, box-shadow 160ms ease;
+  white-space: nowrap;
+}
+.svc-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.svc-btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--svc-gradient-from), var(--svc-gradient-to));
+  box-shadow: 0 8px 22px -10px rgba(0, 85, 255, 0.55);
+}
+.svc-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -10px rgba(0, 85, 255, 0.7);
+}
+
+.svc-btn-secondary {
+  color: var(--svc-text);
+  background: var(--svc-card);
+  border-color: var(--svc-border);
+}
+.svc-btn-secondary:hover:not(:disabled) {
+  background: var(--svc-card-elev);
+  border-color: var(--svc-border-strong);
+}
+
+.svc-btn-ghost {
+  color: var(--svc-muted);
+  background: transparent;
+}
+.svc-btn-ghost:hover:not(:disabled) {
+  color: var(--svc-text);
+  background: var(--svc-card-elev);
+}
+
+.svc-btn-danger {
+  color: #fff;
+  background: var(--svc-danger);
+}
+.svc-btn-danger:hover:not(:disabled) { filter: brightness(1.06); }
+
+.svc-btn-sm { padding: 6px 10px; font-size: 11.5px; border-radius: 8px; }
+
+/* ──────────────────────────────────────────────────────────
+   6. INPUTS / SELECTS / TEXTAREAS
+   ────────────────────────────────────────────────────────── */
+
+.svc-input,
+.svc-select,
+.svc-textarea {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--svc-text);
+  background: var(--theme-input-bg, var(--svc-card));
+  border: 1px solid var(--theme-input-border, var(--svc-border));
+  border-radius: 10px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.svc-input:focus,
+.svc-select:focus,
+.svc-textarea:focus {
+  outline: none;
+  border-color: var(--svc-accent);
+  box-shadow: 0 0 0 3px var(--svc-accent-soft);
+}
+.svc-input::placeholder { color: var(--svc-muted); opacity: 0.7; }
+.svc-textarea { font-family: ui-monospace, 'SF Mono', monospace; font-size: 12px; line-height: 1.55; }
+
+.svc-input-sm, .svc-select-sm {
+  padding: 6px 10px; font-size: 12px; border-radius: 8px;
+}
+
+.svc-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--svc-muted);
+  margin-bottom: 4px;
+}
+
+/* Search input with icon */
+.svc-search {
+  position: relative;
+}
+.svc-search > svg {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--svc-muted);
+  pointer-events: none;
+}
+.svc-search > input { padding-left: 32px; }
+
+/* ──────────────────────────────────────────────────────────
+   7. PILLS / BADGES
+   ────────────────────────────────────────────────────────── */
+
+.svc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  background: var(--svc-card-elev);
+  color: var(--svc-muted);
+  border: 1px solid transparent;
+}
+.svc-pill--good   { background: rgba(16, 185, 129, 0.12); color: #047857; }
+.svc-pill--warn   { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+.svc-pill--danger { background: rgba(239, 68, 68, 0.13); color: #b91c1c; }
+.svc-pill--info   { background: rgba(0, 85, 255, 0.12);  color: #1d4ed8; }
+.svc-pill--violet { background: rgba(139, 92, 246, 0.13); color: #6d28d9; }
+
+[data-theme="dark"] .svc-pill--good   { color: #34d399; }
+[data-theme="dark"] .svc-pill--warn   { color: #fbbf24; }
+[data-theme="dark"] .svc-pill--danger { color: #f87171; }
+[data-theme="dark"] .svc-pill--info   { color: #60a5fa; }
+[data-theme="dark"] .svc-pill--violet { color: #a78bfa; }
+
+/* Priority chips */
+.svc-prio {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 22px; border-radius: 6px;
+  font-size: 11px; font-weight: 900;
+  background: var(--svc-card-elev); color: var(--svc-muted);
+}
+.svc-prio--p1 { background: rgba(239, 68, 68, 0.14); color: #b91c1c; }
+.svc-prio--p2 { background: rgba(245, 158, 11, 0.16); color: #b45309; }
+.svc-prio--p3 { background: rgba(0, 85, 255, 0.14);  color: #1d4ed8; }
+.svc-prio--p4 { background: rgba(82, 82, 91, 0.14);  color: #52525b; }
+[data-theme="dark"] .svc-prio--p1 { color: #fca5a5; }
+[data-theme="dark"] .svc-prio--p2 { color: #fcd34d; }
+[data-theme="dark"] .svc-prio--p3 { color: #93c5fd; }
+[data-theme="dark"] .svc-prio--p4 { color: #d4d4d8; }
+
+/* ──────────────────────────────────────────────────────────
+   8. TABLES
+   ────────────────────────────────────────────────────────── */
+
+.svc-table-wrap {
+  border: 1px solid var(--svc-border);
+  border-radius: 14px;
+  background: var(--svc-card);
+  box-shadow: var(--svc-shadow-sm);
+  overflow: hidden;
+}
+.svc-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.svc-table thead th {
+  position: sticky; top: 0;
+  background: var(--svc-card);
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--svc-muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--svc-border);
+}
+.svc-table tbody td {
+  padding: 11px 14px;
+  border-top: 1px solid var(--svc-border);
+  color: var(--svc-text);
+  vertical-align: middle;
+}
+.svc-table tbody tr:first-child td { border-top: none; }
+.svc-table tbody tr {
+  transition: background 140ms ease;
+}
+.svc-table tbody tr.svc-row--clickable { cursor: pointer; }
+.svc-table tbody tr.svc-row--clickable:hover { background: var(--svc-card-elev); }
+.svc-table .num { font-variant-numeric: tabular-nums; text-align: right; }
+
+.svc-empty {
+  padding: 56px 20px;
+  text-align: center;
+  color: var(--svc-muted);
+  font-size: 13px;
+}
+.svc-empty svg { opacity: 0.4; margin: 0 auto 10px; }
+
+/* ──────────────────────────────────────────────────────────
+   9. TABS (used in Comms hub etc.)
+   ────────────────────────────────────────────────────────── */
+
+.svc-tabs {
+  display: flex; gap: 4px;
+  border-bottom: 1px solid var(--svc-border);
+  margin-bottom: 16px;
+}
+.svc-tab {
+  position: relative;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--svc-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: color 160ms ease;
+}
+.svc-tab:hover { color: var(--svc-text); }
+.svc-tab--active { color: var(--svc-text); }
+.svc-tab--active::after {
+  content: '';
+  position: absolute;
+  inset: auto 12px -1px 12px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--svc-gradient-from), var(--svc-gradient-to));
+}
+
+/* ──────────────────────────────────────────────────────────
+   10. DRAWER / MODAL
+   ────────────────────────────────────────────────────────── */
+
+.svc-drawer-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 250; /* above PWA install prompt (z-[200]) so drawer actions stay clickable */
+  display: flex; justify-content: flex-end;
+  animation: svcFade 180ms ease;
+}
+.svc-drawer {
+  width: min(640px, 100vw);
+  height: 100%;
+  background: var(--svc-card);
+  border-left: 1px solid var(--svc-border);
+  box-shadow: var(--svc-shadow-lg);
+  display: flex; flex-direction: column;
+  animation: svcSlide 240ms cubic-bezier(.2,.8,.2,1);
+  overflow: hidden;
+}
+@keyframes svcFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes svcSlide { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Drawer header — gradient top border + airy padding */
+.svc-drawer-head {
+  position: relative;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--svc-border);
+  background:
+    linear-gradient(135deg, rgba(0, 85, 255, 0.06) 0%, rgba(139, 92, 246, 0.05) 60%, transparent 100%),
+    var(--svc-card);
+}
+.svc-drawer-head::before {
+  content: '';
+  position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, var(--svc-gradient-from), var(--svc-gradient-to));
+}
+[data-theme="dark"] .svc-drawer-head {
+  background:
+    radial-gradient(80% 120% at 0% 0%, rgba(102, 204, 255, 0.10) 0%, transparent 60%),
+    var(--svc-card);
+}
+
+.svc-drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+.svc-drawer-foot { padding: 12px 18px; border-top: 1px solid var(--svc-border); background: var(--svc-card); }
+
+/* Centred modal (used by intake form) */
+.svc-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 250; /* above PWA install prompt (z-[200]) so footer buttons stay clickable */
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: svcFade 180ms ease;
+}
+.svc-modal {
+  width: min(720px, 100%);
+  max-height: 92vh;
+  display: flex; flex-direction: column;
+  background: var(--svc-card);
+  border: 1px solid var(--svc-border);
+  border-radius: 18px;
+  box-shadow: var(--svc-shadow-lg);
+  overflow: hidden;
+  animation: svcPop 220ms cubic-bezier(.2,.8,.2,1);
+}
+@keyframes svcPop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Close button (icon-only) */
+.svc-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: var(--svc-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.svc-icon-btn:hover { background: var(--svc-card-elev); color: var(--svc-text); border-color: var(--svc-border); }
+
+/* Fieldset (bordered group) */
+.svc-fieldset {
+  border: 1px solid var(--svc-border);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  background: transparent;
+}
+.svc-fieldset > legend {
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--svc-muted);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.svc-fieldset-hint { font-size: 11px; color: var(--svc-muted); margin: 4px 0 10px; }
+
+/* Step number badge — used in cascading intake form (iter 215ec) */
+.svc-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-right: 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  background: linear-gradient(135deg, var(--svc-gradient-from), var(--svc-gradient-to));
+  color: #fff;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Soft surface + warn surface tokens used by intake coverage panel */
+.svc-warn-bg     { background: color-mix(in srgb, var(--svc-warn) 8%, var(--svc-card)); }
+:root {
+  --svc-warn-bg: color-mix(in srgb, var(--svc-warn) 8%, var(--svc-card));
+  --svc-warn-border: color-mix(in srgb, var(--svc-warn) 35%, var(--svc-border));
+  --svc-warn-text: var(--svc-warn);
+  --svc-surface-soft: color-mix(in srgb, var(--svc-accent) 4%, var(--svc-card));
+}
+[data-theme="dark"] {
+  --svc-warn-bg: color-mix(in srgb, var(--svc-warn) 14%, var(--svc-card));
+  --svc-warn-border: color-mix(in srgb, var(--svc-warn) 45%, var(--svc-border));
+  --svc-surface-soft: color-mix(in srgb, var(--svc-accent) 8%, var(--svc-card));
+}
+
+/* AI accent block */
+.svc-ai-block {
+  position: relative;
+  border: 1px solid var(--svc-border);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  background:
+    linear-gradient(135deg, rgba(0, 85, 255, 0.07) 0%, rgba(139, 92, 246, 0.06) 100%),
+    var(--svc-card);
+  overflow: hidden;
+}
+.svc-ai-block::before {
+  content: '';
+  position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: linear-gradient(90deg, var(--svc-gradient-from), var(--svc-gradient-to));
+}
+.svc-ai-eyebrow {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--svc-gradient-from), var(--svc-gradient-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* Timeline */
+.svc-timeline { position: relative; padding-left: 18px; }
+.svc-timeline::before {
+  content: ''; position: absolute; left: 4px; top: 4px; bottom: 4px;
+  width: 2px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--svc-border) 0%, transparent 100%);
+}
+.svc-timeline > li { position: relative; padding-bottom: 14px; }
+.svc-timeline > li::before {
+  content: ''; position: absolute; left: -18px; top: 4px;
+  width: 10px; height: 10px; border-radius: 999px;
+  background: var(--svc-muted);
+  box-shadow: 0 0 0 3px var(--svc-card);
+}
+.svc-timeline > li.svc-tl--state::before  { background: var(--svc-accent); }
+.svc-timeline > li.svc-tl--note::before   { background: var(--svc-success); }
+.svc-timeline > li.svc-tl--comm::before   { background: var(--svc-violet); }
+.svc-timeline > li.svc-tl--intake::before { background: var(--svc-warn); }
+
+.svc-tl-meta {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--svc-muted);
+}
+.svc-tl-meta-time { font-weight: 600; text-transform: none; letter-spacing: 0; opacity: 0.9; }
+.svc-tl-body { font-size: 13px; line-height: 1.55; margin-top: 2px; white-space: pre-wrap; }
+.svc-tl-reason { font-size: 11.5px; color: var(--svc-muted); margin-top: 2px; }
+
+/* Required asterisk */
+.svc-req { color: var(--svc-danger); margin-left: 2px; }
+
+/* ──────────────────────────────────────────────────────────
+   11. MISC — links, divider, scrollbars, helpers
+   ────────────────────────────────────────────────────────── */
+
+.svc-link { color: var(--svc-accent); font-weight: 700; transition: opacity 140ms ease; }
+.svc-link:hover { opacity: 0.8; text-decoration: underline; }
+
+.svc-divider { height: 1px; background: var(--svc-border); margin: 12px 0; }
+.svc-muted { color: var(--svc-muted); }
+
+.svc-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--svc-border);
+  border-top-color: var(--svc-accent);
+  border-radius: 50%;
+  animation: svcSpin 700ms linear infinite;
+  display: inline-block;
+}
+@keyframes svcSpin { to { transform: rotate(360deg); } }
+
+/* Scoped scrollbars for prettier look */
+.svc-shell ::-webkit-scrollbar { width: 10px; height: 10px; }
+.svc-shell ::-webkit-scrollbar-thumb {
+  background: var(--theme-scrollbar, #d4d4d8);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.svc-shell ::-webkit-scrollbar-thumb:hover {
+  background: var(--svc-accent);
+  background-clip: padding-box;
+}

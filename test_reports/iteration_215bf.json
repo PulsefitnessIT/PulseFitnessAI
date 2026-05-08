@@ -1,0 +1,86 @@
+{
+  "summary": "Iter 215bf - Marketing Contacts 'lite CRM' feature testing complete. Backend OR-module guard VERIFIED (require_module(('crm','marketing')) allows access with either license). Full CRUD + CSV import + duplicate email handling (409) all working. Frontend ContactsTab UI VERIFIED with all required testids. Pricing page Marketing footnote VERIFIED. Regression tests PASSED for Pulse preservation and CRM branding.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Marketing Suite", "issues": ["Session expired toasts appearing during navigation - cosmetic only, functionality works"]}
+    ]
+  },
+  "test_results": {
+    "backend_marketing_contacts_api": {
+      "GET_list_contacts": "PASS - returns {contacts:[], total:0}",
+      "POST_create_contact": "PASS - returns 200/201 with new contact",
+      "GET_contact_by_id": "PASS - returns contact",
+      "PUT_update_contact": "PASS - updates and returns contact",
+      "DELETE_contact": "PASS - returns {deleted:true}",
+      "POST_duplicate_email": "PASS - returns 409",
+      "POST_csv_import": "PASS - returns {created:2, updated:0, skipped:0, errors:[]}",
+      "search_filters": "PASS - filters by name/email",
+      "unauthorized_access": "PASS - returns 401 without auth"
+    },
+    "frontend_contacts_tab": {
+      "marketing_contacts_tab_container": "PASS",
+      "contacts_search_input": "PASS",
+      "contacts_import_btn": "PASS",
+      "contacts_create_btn_with_brand_gradient": "PASS",
+      "contact_dialog_form": "PASS",
+      "contact_first_name_field": "PASS",
+      "contact_last_name_field": "PASS",
+      "contact_email_field": "PASS",
+      "contact_phone_field": "PASS",
+      "contact_tags_field": "PASS",
+      "contact_email_consent_checkbox": "PASS",
+      "contact_sms_consent_checkbox": "PASS",
+      "contact_save_btn": "PASS",
+      "empty_state_no_contacts_yet": "PASS"
+    },
+    "pricing_page_footnote": {
+      "gx_module_marketing_footnote_visible": "PASS",
+      "footnote_text_correct": "PASS - 'Includes contact directory + lead capture · Add CRM (+£49) for pipelines & deals'",
+      "memberships_no_footnote": "PASS",
+      "crm_no_footnote": "PASS",
+      "operations_no_footnote": "PASS"
+    },
+    "pricing_page_regression": {
+      "all_4_module_cards": "PASS",
+      "site_slider": "PASS",
+      "faq_section": "PASS",
+      "final_cta": "PASS"
+    },
+    "pulse_preservation": {
+      "pulse_route_data_brand": "PASS - data-brand=pulse",
+      "lee_somers_lite_dashboard": "PASS - redirects to /pulse with Pulse branding",
+      "craig_henshall_crm_branding": "PASS - CRM shows 'Pulse Fitness' h1 (no GymAxis)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_marketing_contacts_215bf.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215bf.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend OR-module guard implementation is clean - require_module() correctly accepts tuple for OR semantics",
+    "ContactsTab.js has all required data-testid attributes for testing",
+    "CSV import correctly handles upsert (existing emails updated, new emails created)",
+    "Pricing page footnote correctly renders only for Marketing module"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials_used": [
+    "admin@gymaxisai.com / MasterAdmin123!",
+    "lee.somers@pulsefitness.com / TempPass123!",
+    "craig.henshall@pulsefitness.com / Test123!"
+  ],
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215bf complete. New /api/marketing/contacts endpoints working with OR-module guard (crm OR marketing license). ContactsTab UI in Marketing Suite has all required testids. Pricing page Marketing module has footnote about lite CRM. Pulse preservation intact. Session expired toasts appear during navigation but functionality works - cosmetic issue only."
+}

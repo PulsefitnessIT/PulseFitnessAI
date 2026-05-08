@@ -1,0 +1,84 @@
+{
+  "summary": "Iter 215eq - Postcode Lookup + CRM Structured Address Testing Complete. Backend: 14/14 tests passed. All postcode endpoints working correctly with auth gating, valid/invalid/malformed postcode handling. CRM company CRUD with structured 8-field address working. Frontend: All 7 structured address fields present in Create Company dialog with correct data-testid attributes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/crm/v2/companies",
+        "issue": "Duplicate 'country' key in create_company function (line 183 sets 'United Kingdom', line 187 overwrites with 'UK'). Default country is 'UK' instead of 'United Kingdom'.",
+        "priority": "LOW",
+        "file": "/app/backend/routes/crm_v2.py",
+        "lines": "183, 187"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215eq_postcodes.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215eq.xml"
+  ],
+  "action_items": [
+    "FIX: Remove duplicate 'country' key on line 187 of /app/backend/routes/crm_v2.py (keeps 'UK' default instead of 'United Kingdom')"
+  ],
+  "critical_code_review_comments": [
+    "crm_v2.py:187 - Duplicate dictionary key 'country' overwrites line 183. Remove line 187 to use 'United Kingdom' as default."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_215eq_postcodes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100% (7/7 structured address fields verified)"
+  },
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None - used live postcodes.io API with postcodes BR8 7RE, N15 4QT, EC2N 4AG",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter 215eq postcode integration fully tested. (1) GET /api/integrations/postcode/lookup returns {found: true/false, postcode, city, county, country, region, latitude, longitude, parliamentary_constituency, ccg, nhs_region} for valid UK postcodes. Auth-gated for any logged-in user. (2) GET /api/integrations/postcode/autocomplete returns {suggestions: [...]} for partial postcodes ≥2 chars. (3) CRM company create/update accepts address_line1/2/3, city, county, postcode, country fields. (4) Frontend CRMCompanies.js has all 7 structured address fields with data-testid attributes. (5) Minor bug: duplicate 'country' key in crm_v2.py causes default to be 'UK' instead of 'United Kingdom'.",
+  "backend_tests_summary": {
+    "postcode_lookup": {
+      "valid_br8_7re": "PASSED - Returns found:true with city, county, country, lat/long",
+      "valid_n15_4qt": "PASSED - Returns found:true with structured data",
+      "invalid_zz99_zzz": "PASSED - Returns found:false, no 500 error",
+      "malformed_abc": "PASSED - Returns found:false, no 500 error",
+      "auth_required": "PASSED - Returns 401 without token"
+    },
+    "postcode_autocomplete": {
+      "valid_prefix_n15": "PASSED - Returns suggestions array",
+      "limit_param": "PASSED - Respects limit parameter",
+      "short_query": "PASSED - Returns 422 for <2 char query",
+      "auth_required": "PASSED - Returns 401 without token"
+    },
+    "crm_company_structured_address": {
+      "create_with_fields": "PASSED - All structured fields persisted",
+      "default_country": "PASSED (documents bug) - Defaults to 'UK' instead of 'United Kingdom'",
+      "update_fields": "PASSED - PUT updates structured address fields",
+      "get_returns_fields": "PASSED - GET returns all structured fields"
+    },
+    "auto_recognize_regression": {
+      "returns_structured_fields": "PASSED - Returns address_line1, city, county, postcode, country"
+    }
+  },
+  "verified_postcodes": {
+    "BR8_7RE": {
+      "found": true,
+      "city": "Sevenoaks (admin_district)",
+      "county": "Kent (admin_county or region)",
+      "country": "England",
+      "region": "South East"
+    },
+    "N15_4QT": {
+      "found": true,
+      "city": "Haringey",
+      "country": "England"
+    },
+    "ZZ99_ZZZ": {
+      "found": false,
+      "note": "Invalid postcode handled gracefully"
+    }
+  }
+}

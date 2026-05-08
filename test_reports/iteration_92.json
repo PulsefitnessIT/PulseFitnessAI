@@ -1,0 +1,62 @@
+{
+  "summary": "Iteration 92: Tested CRM signup flow with pricing plans and Master Admin unified tabs. All features working correctly. Fixed bug: CRM user role dropdown was using PUT instead of PATCH.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration92_crm_signup.py",
+    "/app/test_reports/pytest/pytest_results_iteration92.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration92_crm_signup.py",
+    "/app/frontend/src/pages/MasterAdmin/AdminCRMUsers.js"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "crm_admin": "crm@gymaxisai.com / CRMAdmin123!"
+  },
+  "seed_data_creation": "Created multiple TEST_ prefixed CRM users during backend testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRM signup flow fully tested with 3-step wizard (plan selection, details, confirmation). Master Admin has unified tab bar with 8 tabs. CRM Users page has role dropdown on each user card.",
+  "features_verified": {
+    "backend_api_tests": {
+      "GET /api/crm/auth/plans": "PASSED - Returns 3 plans with correct pricing (Starter £9.99+£4.99/user, Professional £19.99+£9.99/user, Enterprise £29.99+£19.99/user)",
+      "POST /api/crm/auth/register (professional)": "PASSED - Creates user with org, returns token and monthly_cost",
+      "POST /api/crm/auth/register (starter)": "PASSED - Correct pricing calculation",
+      "POST /api/crm/auth/register (enterprise)": "PASSED - Correct pricing calculation",
+      "POST /api/crm/auth/register (duplicate)": "PASSED - Returns 409 for duplicate email",
+      "POST /api/crm/auth/register (invalid plan)": "PASSED - Returns 400 for invalid plan",
+      "PATCH /api/master-admin/crm-users/{id}": "PASSED - Updates user role",
+      "GET /api/master-admin/stats": "PASSED - MRR excludes test orgs, payments counts succeeded only"
+    },
+    "frontend_ui_tests": {
+      "master_admin_page_loads": "PASSED",
+      "unified_tab_bar": "PASSED - All 8 tabs present (Overview, Organisations, Users, AI Usage, Activity Log, CRM Dashboard, CRM Organisations, CRM Users)",
+      "service_portal_tab_removed": "PASSED - No longer visible",
+      "feature_control_tab_removed": "PASSED - No longer visible",
+      "refresh_button": "PASSED - Reloads data",
+      "crm_users_role_dropdown": "PASSED - Dropdown visible on each user card with Admin/Manager/User options",
+      "crm_signup_step1_plan_selection": "PASSED - Shows 3 pricing cards with correct prices",
+      "crm_signup_step2_details": "PASSED - Form for name, company, email, password",
+      "crm_signup_step3_confirmation": "PASSED - Shows plan summary and 14-day free trial message"
+    }
+  },
+  "bug_fixed": {
+    "file": "/app/frontend/src/pages/MasterAdmin/AdminCRMUsers.js",
+    "issue": "CRM user role inline dropdown was using axios.put instead of axios.patch",
+    "fix": "Changed line 95 from axios.put to axios.patch to match backend endpoint"
+  }
+}

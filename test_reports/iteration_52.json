@@ -1,0 +1,71 @@
+{
+  "summary": "Frontend UI testing for iteration 52 - Testing 10 features related to logo alignment, dark mode Reports, H&S card contrast, portal switcher with demo role tabs, and demo links card. All 10 features passed testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "1_navbar_brand_alignment": {
+      "status": "PASSED",
+      "details": "Navbar logo left edge x=336px, Dashboard header left edge x=336px. Alignment difference: 0px. Logo is perfectly aligned with content below."
+    },
+    "2_pulse_pro_reports_dark_mode_readability": {
+      "status": "PASSED",
+      "details": "Reports heading color is rgb(255, 255, 255) (white) on dark background. KPI cards found with 4 cards. Text is clearly readable in dark mode."
+    },
+    "3_pulse_pro_reports_sub_tabs": {
+      "status": "PASSED",
+      "details": "Both 'Operational Reports' and 'Risk Assessments' sub-tabs found with data-testid='pulse-report-sub-operational' and 'pulse-report-sub-risk'."
+    },
+    "4_master_admin_portal_switcher_sections": {
+      "status": "PASSED",
+      "details": "All 3 portal switch buttons found: GymAxis AI (portal-switch-gymaxis), Pulse Standard (portal-switch-pulse-lite), Pulse Pro (portal-switch-pulse-pro)."
+    },
+    "5_pulse_standard_staff_navigation": {
+      "status": "PASSED",
+      "details": "Clicking Pulse Standard > Staff navigates to /pulse?view=lite&role=staff. Staff view shows 5 tabs: Dashboard, Equipment, Faults, Documents, Upgrade to Pro."
+    },
+    "6_pulse_pro_manager_navigation": {
+      "status": "PASSED",
+      "details": "Pulse Pro Manager view shows 8 tabs: Dashboard, Equipment, Faults, Documents, Check Sheets, AI Diagnosis, Reports, Gym Layout. Weekly Digest and Suppliers NOT visible (correct for Manager role)."
+    },
+    "7_admin_banner_role_info": {
+      "status": "PASSED",
+      "details": "Admin banner shows 'Viewing Pulse Self-Service (Lite) as Admin — Staff View' for Staff and 'Viewing Pulse Self-Service Pro as Admin — Manager View' for Manager."
+    },
+    "8_master_admin_landing_pages_card": {
+      "status": "PASSED",
+      "details": "Demo Links Card found with data-testid='demo-links-card'. Links: GymAxis AI (href=https://www.gymaxisai.com), Pulse Standard (href=/pulse-landing), Pulse Pro (href=/pulse-landing?tier=pro)."
+    },
+    "9_risk_assessment_hs_card_light_mode": {
+      "status": "PASSED",
+      "details": "H&S disclaimer card in light mode has: Background rgb(254, 243, 199) (amber-100), Border rgb(252, 211, 77) (amber-300), Title color rgb(146, 64, 14) (amber-800), Body color rgb(180, 83, 9) (amber-700). Dark amber text on light amber background is readable."
+    },
+    "10_master_admin_in_pulse_dropdown": {
+      "status": "PASSED",
+      "details": "Master Admin button visible in user dropdown on Pulse Portal with data-testid='nav-master-admin-btn'."
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "100% (10/10 tests passed)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 10 UI features tested and passed. Portal switcher with demo role tabs (Owner/Manager/Staff) working correctly. Risk Assessment H&S card has proper contrast in light mode with dark amber text on light amber background. Reports tab in dark mode has white text which is readable. Navbar brand is perfectly aligned with dashboard content (0px difference).",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Sicon Service API", "Stripe"]
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "summary": "Iteration 215bh punch list testing complete. All features verified: (1) New GymAxis LoginPage at /login with all testids, (2) /legacy-home route removed (renders blank), (3) Master Admin sidebar cleaned - no Marketing Suite or HubSpot Parity entries, (4) Marketing tab added to Overview SubTabBar rendering AdminMarketingSuite, (5) Tasks page has CRM/Marketing sub-tab with 24 task rows, (6) Organizations has module filter with all options and no inline Feature Control/Sites buttons, (7) Design System has brand switcher with Pulse Fitness tab, (8) Backend reset-password returns temp_password and user_email, (9) Pulse routes maintain data-brand='pulse' branding, (10) No regressions on /pricing, /platform/crm, /learn/integrations.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "SetupTasksPanel",
+        "issues": ["Console warning: button cannot contain nested button - minor HTML nesting issue in SetupTasksPanel"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter215bh_punch_list.py",
+    "/app/test_reports/pytest/pytest_results_215bh.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SetupTasksPanel has nested button elements causing React hydration warning - minor issue, not blocking"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter215bh_punch_list.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% (all Playwright tests passed)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 215bh punch list items verified: (1) /login renders GymAxisLoginPage with testids gx-login-page, gx-login-form, gx-login-email, gx-login-password, gx-login-submit. (2) /legacy-home route exists but renders blank (no dark HomePage). (3) Master Admin sidebar: no Marketing Suite, no HubSpot Parity entries. (4) Overview SubTabBar has Marketing tab (Operations Portal, CRM, Memberships, Marketing, MoD) - clicking Marketing renders AdminMarketingSuite with Analytics/Plans/Subscriptions sub-tabs. (5) Tasks page has sub-tabs Setup Tasks and CRM/Marketing (testid sub-tab-crm-marketing) - CRM/Marketing panel has 24 task rows with module tabs All/CRM/Marketing. (6) Organizations has org-module-filter dropdown with options: All Modules, Full Bundle (all 4), Operations, CRM, Memberships, Marketing. Org rows have edit pencil but NO Feature Control or Sites inline buttons. (7) Design System has ds-brand-switcher with ds-brand-tab-gymaxis and ds-brand-tab-pulse - Pulse tab renders pulse-design-tab with cyan color palette. (8) Backend PUT /api/master-admin/users/{id}/reset-password returns temp_password and user_email. (9) /pulse and /pulse-pricing have data-brand='pulse', no theme-gymaxis bleed. (10) /pricing, /platform/crm, /learn/integrations all load correctly with Sage/Sicon scrubbed.",
+  "features_tested": {
+    "login_page": {
+      "status": "PASS",
+      "testids_verified": ["gx-login-page", "gx-login-form", "gx-login-email", "gx-login-password", "gx-login-submit"]
+    },
+    "legacy_home_removed": {
+      "status": "PASS",
+      "note": "/legacy-home route renders blank - no dark HomePage content"
+    },
+    "sidebar_cleanup": {
+      "status": "PASS",
+      "removed": ["Marketing Suite", "HubSpot Parity"]
+    },
+    "overview_marketing_tab": {
+      "status": "PASS",
+      "renders": "AdminMarketingSuite with Analytics/Plans/Subscriptions sub-tabs"
+    },
+    "tasks_crm_marketing_subtab": {
+      "status": "PASS",
+      "testid": "sub-tab-crm-marketing",
+      "task_rows": 24
+    },
+    "organizations_module_filter": {
+      "status": "PASS",
+      "testid": "org-module-filter",
+      "options": ["All Modules", "Full Bundle (all 4)", "Operations", "CRM", "Memberships", "Marketing"],
+      "inline_buttons_removed": ["Feature Control", "Sites"],
+      "edit_pencil_present": true
+    },
+    "design_system_brand_switcher": {
+      "status": "PASS",
+      "testids": ["ds-brand-switcher", "ds-brand-tab-gymaxis", "ds-brand-tab-pulse", "pulse-design-tab"]
+    },
+    "reset_password_api": {
+      "status": "PASS",
+      "returns": ["temp_password", "user_email", "success"]
+    },
+    "pulse_branding": {
+      "status": "PASS",
+      "routes": ["/pulse", "/pulse-pricing"],
+      "attribute": "data-brand='pulse'"
+    },
+    "regressions": {
+      "status": "PASS",
+      "pages_verified": ["/pricing", "/platform/crm", "/learn/integrations"]
+    }
+  }
+}

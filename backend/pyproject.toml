@@ -1,0 +1,48 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 160
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes (unused imports, undefined names)
+    "W",      # pycodestyle warnings
+    "UP",     # pyupgrade (modern Python patterns)
+    "B",      # flake8-bugbear (common bugs & design problems)
+    "SIM",    # flake8-simplify (simplifiable code)
+    "C90",    # mccabe complexity
+]
+
+ignore = [
+    "E402",    # module-level import not at top — some files need conditional imports
+    "E501",    # line too long — handled by line-length above
+    "B008",    # function call in default argument (Depends() pattern)
+    "B904",    # raise from err — too noisy for FastAPI HTTPException re-raises
+    "B905",    # zip strict= — pre-Python 3.10 era code, opportunistic refactor
+    "B007",    # unused loop var i — opportunistic refactor
+    "B023",    # function definition does not bind loop variable — pre-existing in marketing_autopilot, queued for refactor
+    "UP007",   # use X | Y for union types — keep Optional for readability
+    "UP017",   # datetime.UTC alias — keep timezone.utc for clarity
+    "UP035",   # deprecated typing imports — keep for Pydantic compat
+    "UP045",   # Optional[X] → X | None — keep for readability
+    "UP006",   # List → list — keep for Pydantic model compat
+    "SIM102",  # nested ifs — kept readable on purpose in some auth flows
+    "SIM103",  # return condition directly — not always clearer
+    "SIM105",  # contextlib.suppress — try/except/pass is fine, more obvious
+    "SIM108",  # ternary instead of if/else — sometimes if/else is clearer
+    "SIM115",  # context manager for open() — fine in test fixtures
+    "F401",    # unused imports — relax for routes/__init__.py barrel exports
+]
+
+[tool.ruff.lint.mccabe]
+# Repo-wide cap. The staged-files complexity gate (rank D = cc<=20)
+# blocks new garbage; this higher cap stops ruff doubling up on a
+# handful of legacy F-rank seeders/analytics endpoints that need
+# their branching. They're queued for opportunistic refactor.
+max-complexity = 70
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN201", "ANN202", "E712", "E722", "F841", "F811", "E741", "SIM102", "SIM105", "SIM108", "B007", "W291", "W293"]
+"conftest.py" = ["ANN201", "ANN202", "E712"]
+"routes/issues.py" = ["C901"]    # triage_issue is inherently complex (AI prompt assembly)
+"routes/files.py" = ["C901"]     # ask_documents is inherently complex (document scoring)

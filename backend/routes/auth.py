@@ -1,0 +1,951 @@
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any
+import uuid
+import asyncio
+import secrets
+import logging
+
+from utils.database import db
+from utils.auth import get_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie
+from utils.email import send_welcome_email, send_password_reset_email
+from utils.security import (
+    rate_limit_login, rate_limit_password_reset, validate_password_strength,
+    check_account_lockout, record_failed_login, clear_failed_logins,
+    sanitise_string,
+)
+from models.schemas import UserRegister, UserLogin, InviteStaff
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
+    """Resolve organization and role for a registering user. Returns (org_id, role)."""
+    if user.company_code:
+        org = await db.organizations.find_one({"company_code": user.company_code}, {"_id": 0})
+        if not org:
+            raise HTTPException(status_code=400, detail="Invalid company code")
+        org_id = org["id"]
+        invite = await db.invites.find_one({"email": user.email, "organization_id": org_id, "status": "pending"}, {"_id": 0})
+        if invite:
+            role = invite["role"]
+            await db.invites.update_one(
+                {"email": user.email, "organization_id": org_id},
+                {"$set": {"status": "accepted", "accepted_at": datetime.now(timezone.utc).isoformat()}},
+            )
+        else:
+            role = "staff"
+        return org_id, role
+
+    # New org
+    org_id = str(uuid.uuid4())
+    company_name = user.company_name or f"{user.full_name}'s Gym"
+    company_code = str(uuid.uuid4())[:8].upper()
+    org_doc = {
+        "id": org_id, "name": company_name, "company_code": company_code,
+        "owner_id": user_id, "created_at": datetime.now(timezone.utc).isoformat(),
+        "subscription_tier": "none",
+    }
+    # Trial stamping (landing-page funnel)
+    if getattr(user, "is_trial", False):
+        # Iter 215bc — default trial dropped from 14 → 3 days. The marketing
+        # page explicitly sends `trial_duration_days: 3` but legacy callers
+        # without that field still default to 3 here.
+        trial_days = max(1, min(90, int(getattr(user, "trial_duration_days", 3) or 3)))
+        now_dt = datetime.now(timezone.utc)
+        # Iter 215bc — trials now unlock all six modules so prospects can
+        # evaluate the entire platform during the (shorter) 3-day window.
+        # The flag is opt-in (defaults True in the marketing modal) but
+        # legacy bolt-on funnels can pass `trial_unlock_all_modules=False`
+        # to keep the old per-module trial behaviour.
+        unlock_all = bool(getattr(user, "trial_unlock_all_modules", True))
+        from utils.module_access import MODULE_KEYS
+        org_doc.update({
+            "is_trial": True,
+            "trial_started_at": now_dt.isoformat(),
+            "trial_ends_at": (now_dt + timedelta(days=trial_days)).isoformat(),
+            "trial_suspends_at": (now_dt + timedelta(days=trial_days + 30)).isoformat(),
+            "trial_duration_days": trial_days,
+            "trial_status": "active",
+            "subscription_tier": "pro",  # full feature access during trial
+            "trial_source": "landing_signup",
+            # All six modules enabled for the trial duration so prospects
+            # can evaluate the full platform.
+            "enabled_modules": list(MODULE_KEYS) if unlock_all else [],
+            "trial_all_modules_unlocked": unlock_all,
+        })
+    await db.organizations.insert_one(org_doc)
+    return org_id, "owner"
+
+
+@router.post("/auth/register")
+async def register(user: UserRegister, request: Request, response: Response) -> dict:
+    # Rate limit (default 5 / 15 min per IP). Override with
+    # REGISTER_RATE_LIMIT_MAX / REGISTER_RATE_LIMIT_WINDOW for test envs.
+    ip = request.client.host if request.client else "unknown"
+    from utils.security import rate_limit
+    import os
+    max_req = int(os.environ.get("REGISTER_RATE_LIMIT_MAX", "5"))
+    window = int(os.environ.get("REGISTER_RATE_LIMIT_WINDOW", "900"))
+    rate_limit(f"register:{ip}", max_requests=max_req, window_seconds=window)
+
+    # Turnstile captcha — required for landing-page trial signups only.
+    # Existing CRM / gym-employee registration flows are untouched.
+    if getattr(user, "is_trial", False):
+        from utils.captcha import verify_captcha
+        await verify_captcha(getattr(user, "cf_turnstile_response", None), action="trial_signup")
+
+    # Password strength
+    validate_password_strength(user.password)
+
+    existing = await db.users.find_one({"email": user.email}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user_id = str(uuid.uuid4())
+    organization_id, role = await _resolve_org_and_role(user, user_id)
+
+    user_doc = {
+        "id": user_id, "email": user.email, "password": hash_password(user.password),
+        "full_name": sanitise_string(user.full_name), "organization_id": organization_id,
+        "role": role, "created_at": datetime.now(timezone.utc).isoformat(),
+        "password_updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if getattr(user, "phone", None):
+        user_doc["phone"] = sanitise_string(user.phone)
+    await db.users.insert_one(user_doc)
+    asyncio.create_task(send_welcome_email(user.email, user.full_name))
+
+    # Iter 215c2 — fire branded lifecycle welcome email (idempotent: only
+    # sends once per organisation).
+    try:
+        from utils.lifecycle_emails import send_welcome_now
+        org = await db.organizations.find_one({"id": organization_id}, {"_id": 0}) or {}
+        asyncio.create_task(send_welcome_now(org, user_doc))
+    except Exception:
+        logger.exception("[lifecycle] welcome dispatch failed")
+
+    # Trial signup — notify the platform owner so they can reach out.
+    if getattr(user, "is_trial", False):
+        try:
+            from utils.email import send_trial_signup_notification
+            asyncio.create_task(send_trial_signup_notification({
+                "full_name": user.full_name,
+                "email": user.email,
+                "company_name": user.company_name or f"{user.full_name}'s Gym",
+                "phone": getattr(user, "phone", None) or "",
+                "trial_duration_days": int(getattr(user, "trial_duration_days", 14) or 14),
+                "organization_id": organization_id,
+            }))
+        except Exception as e:  # pragma: no cover — non-blocking
+            logger.warning(f"trial signup notification dispatch failed: {e}")
+
+    org = await db.organizations.find_one({"id": organization_id}, {"_id": 0})
+    token = create_token(user_id)
+    set_auth_cookie(response, token)
+
+    return {
+        "token": token,
+        "user": {
+            "id": user_id, "email": user.email, "full_name": user.full_name,
+            "company_name": org["name"], "subscription_tier": org.get("subscription_tier", "none"),
+            "role": role, "organization_id": organization_id,
+            "company_code": org.get("company_code") if role in ["owner", "manager"] else None,
+        },
+    }
+
+
+def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, features: list | dict) -> dict:
+    """Assemble the `user` payload returned on successful login."""
+    from utils.module_access import resolve_module_access
+    is_owner_or_mgr = user.get('role') in ['owner', 'manager']
+    return {
+        "id": user['id'],
+        "email": user['email'],
+        "full_name": user['full_name'],
+        "company_name": org['name'] if org else user.get('company_name'),
+        "subscription_tier": (org.get('subscription_tier', 'none') if org else user.get('subscription_tier', 'none')),
+        "role": user.get('role', 'owner'),
+        "organization_id": user.get('organization_id'),
+        "company_code": (org.get('company_code') if org and is_owner_or_mgr else None),
+        "is_master_admin": user.get('is_master_admin', False),
+        "is_service_desk": user.get('is_service_desk', False),
+        "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
+        "must_change_password": user.get('must_change_password', False),
+        "account_type": org.get('account_type', 'full') if org else 'full',
+        "trial": trial_state,
+        "features": features,
+        # Include module-access matrix so the React ModuleSwitcher can light
+        # up the correct module pills *immediately* after login — without
+        # this the CRM / Marketing / Memberships pills don't appear until
+        # the user reloads (which triggers `/auth/me`).
+        "module_access": resolve_module_access(user, org),
+        "modules": (org or {}).get("modules") or {},
+        "module_overrides": user.get("module_overrides") or {},
+        "timetable_view_only": bool(user.get("timetable_view_only", False)),
+    }
+
+
+async def _record_failed_login_with_trust(email: str, request: Request) -> None:
+    """Increment lockout counter and emit a trust event if the user is being
+    brute-forced. Best-effort: never raises — login already returned 401."""
+    record_failed_login(email)
+    try:
+        from utils.trust_events import record_trust_event
+        from utils.security import get_failed_login_count
+        attempts = get_failed_login_count(email)
+        if attempts >= 3:
+            ip = request.client.host if request.client else ""
+            sev = "high" if attempts >= 5 else "med"
+            await record_trust_event(
+                type="security.brute_force", severity=sev,
+                summary=f"{attempts} failed logins for {email}",
+                payload={"email": email, "attempts": attempts, "ip": ip},
+                dedupe_key=f"security.brute_force:{email.lower()}",
+            )
+    except Exception:
+        # Trust observability must never block the auth response.
+        pass
+
+
+async def _lookup_user_by_identifier(identifier: str) -> dict | None:
+    """Dual-mode lookup. ``identifier`` is already lowercased & stripped.
+
+    Classic email (contains ``@``) → ``users.email``.
+    MOD-style site / kiosk username (no ``@``) → ``users.username``.
+    """
+    if "@" in identifier:
+        return await db.users.find_one({"email": identifier}, {"_id": 0})
+    return await db.users.find_one({"username": identifier}, {"_id": 0})
+
+
+def _enforce_account_status(user: dict) -> None:
+    """Refuse logins for disabled accounts or expired temp passwords. Raises
+    ``HTTPException`` on failure; returns ``None`` when the account is good."""
+    if user.get("active") is False:
+        # Provisioned-but-revoked accounts (e.g. removed Pulse Master Admins)
+        # must not log in even if they still know their password.
+        raise HTTPException(status_code=403, detail="Account disabled")
+    expires = user.get("temp_password_expires_at")
+    if user.get("must_change_password") and expires:
+        if expires < datetime.now(timezone.utc).isoformat():
+            raise HTTPException(
+                status_code=401,
+                detail="Temporary password has expired — ask the platform admin to reissue.",
+            )
+
+
+async def _maybe_issue_mfa_step1(user: dict) -> dict | None:
+    """Return the MFA step-1 response when the user has MFA enabled.
+
+    The full JWT is withheld; the caller must hit ``/auth/mfa/verify`` with
+    the returned ``temp_token`` plus a TOTP code to complete login.
+    """
+    from utils.mfa import user_requires_mfa, user_mfa_state
+    if not user_requires_mfa(user):
+        return None
+    state = await user_mfa_state(user["id"])
+    if not state["enabled"]:
+        return None
+    import jwt as _jwt
+    from utils.database import JWT_SECRET, JWT_ALGORITHM
+    temp_payload = {
+        "user_id": user["id"],
+        "type": "mfa_temp",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        "iat": datetime.now(timezone.utc),
+    }
+    return {
+        "requires_mfa": True,
+        "temp_token": _jwt.encode(temp_payload, JWT_SECRET, algorithm=JWT_ALGORITHM),
+        "user": {"email": user["email"], "full_name": user.get("full_name", "")},
+    }
+
+
+async def _finalise_successful_login(user: dict, request: Request, response: Response) -> dict:
+    """Mint the JWT, set the cookie, write the audit row, refresh
+    ``last_login`` and return the public response payload.
+    """
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0})
+    token = create_token(user["id"])
+    set_auth_cookie(response, token)
+
+    ip = request.client.host if request.client else ""
+    from utils.audit import audit_log
+    await audit_log("login", user["id"], user["email"], "user", user["id"], "Successful login", ip)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"last_login": datetime.now(timezone.utc).isoformat()}},
+    )
+
+    # Activation event — first ever login per organisation. Best-effort.
+    if user.get("organization_id"):
+        try:
+            from routes.activation_events import record_activation_event
+            await record_activation_event(
+                user["organization_id"], "first_login",
+                trigger_user_id=user["id"],
+            )
+        except Exception:
+            pass
+
+    from utils.trial_lifecycle import compute_trial_state
+    from utils.feature_guard import get_enabled_features
+    trial_state = compute_trial_state(org) if org else {"is_trial": False}
+    features = await get_enabled_features(user)
+    return {"token": token, "user": _build_login_user_payload(user, org, trial_state, features)}
+
+
+@router.post("/auth/login")
+async def login(credentials: UserLogin, request: Request, response: Response) -> dict:
+    """Login orchestrator — see helpers above for each phase."""
+    # 1. Anti-abuse gates.
+    rate_limit_login(request)
+    check_account_lockout(credentials.email)
+    from utils.captcha import verify_captcha
+    await verify_captcha(request.headers.get("x-captcha-token"), action="login")
+
+    # 2. Identify + authenticate.
+    identifier = credentials.email.strip().lower()
+    user = await _lookup_user_by_identifier(identifier)
+    if not user or not verify_password(credentials.password, user["password"]):
+        if user:
+            await _record_failed_login_with_trust(credentials.email, request)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # 3. Account-state checks.
+    _enforce_account_status(user)
+
+    # 4. Successful login — clear lockout counter & honour MFA if configured.
+    clear_failed_logins(credentials.email)
+    mfa_response = await _maybe_issue_mfa_step1(user)
+    if mfa_response is not None:
+        return mfa_response
+
+    # 5. Mint full session.
+    return await _finalise_successful_login(user, request, response)
+
+
+# ── Master Admin Recovery (deploy lifeline) ─────────────────────────────
+# Single-purpose, env-gated endpoint to (re)create or repair the master
+# admin without needing access to the running container. The endpoint
+# accepts ONLY the recovery token configured at deploy-time via the
+# `ADMIN_RECOVERY_TOKEN` env var. If the env var is unset/empty, the
+# endpoint refuses every request — keeping it inert when not needed.
+#
+# Use case: prod deployed, `_seed_master_admin` failed silently or DB was
+# replaced and the admin no longer exists / has a stale password. Hit:
+#   curl -X POST $URL/api/auth/admin-recovery \
+#     -H "Content-Type: application/json" \
+#     -d '{"recovery_token":"…","email":"admin@gymaxisai.com","password":"NewPass123!"}'
+# Then unset / rotate ADMIN_RECOVERY_TOKEN once you're back in.
+
+@router.post("/auth/admin-recovery")
+async def admin_recovery(body: dict, request: Request) -> dict:
+    import os
+    expected = os.environ.get("ADMIN_RECOVERY_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=404, detail="Recovery is disabled on this deployment")
+    provided = (body.get("recovery_token") or "").strip()
+    # Constant-time compare so we don't leak token via timing.
+    if not secrets.compare_digest(expected, provided):
+        # Tiny sleep to slow down brute-force attempts.
+        await asyncio.sleep(1.5)
+        raise HTTPException(status_code=403, detail="Invalid recovery token")
+
+    email = (body.get("email") or "").strip().lower()
+    new_password = body.get("password") or ""
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 chars")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    set_doc = {
+        "email": email,
+        "password": hash_password(new_password),
+        "is_master_admin": True,
+        "active": True,
+        "must_change_password": False,
+        "temp_password_expires_at": None,
+        "password_changed_at": now_iso,
+        "role": "owner",
+    }
+
+    existing = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "organization_id": 1})
+    if existing:
+        await db.users.update_one(
+            {"email": email},
+            {"$set": set_doc, "$unset": {"lockout_until": ""}},
+        )
+        admin_id = existing["id"]
+        org_id = existing.get("organization_id")
+    else:
+        # Need an org for the master admin record.
+        org = await db.organizations.find_one({"name": "GymAxis AI Admin"}, {"_id": 0, "id": 1})
+        if org:
+            org_id = org["id"]
+        else:
+            org_id = str(uuid.uuid4())
+            await db.organizations.insert_one({
+                "id": org_id, "name": "GymAxis AI Admin",
+                "subscription_tier": "premium",
+                "created_at": now_iso,
+            })
+        admin_id = str(uuid.uuid4())
+        await db.users.insert_one({
+            "id": admin_id,
+            "full_name": "Master Admin",
+            "organization_id": org_id,
+            "created_at": now_iso,
+            **set_doc,
+        })
+
+    clear_failed_logins(email)
+    ip = request.client.host if request.client else ""
+    logger.warning("[admin-recovery] master admin %s recovered/reset from %s", email, ip)
+    try:
+        from utils.audit import audit_log
+        await audit_log("admin_recovery", admin_id, email, "user", admin_id,
+                        f"Master admin password recovered via recovery token from {ip}", ip)
+    except Exception:
+        pass
+    return {"success": True, "email": email, "message": "Master admin password reset. Please sign in."}
+
+
+# ── Forgot / Reset Password ──────────────────────────────────────
+
+@router.post("/auth/forgot-password")
+async def forgot_password(body: dict, request: Request) -> dict:
+    rate_limit_password_reset(request)
+    from utils.captcha import verify_captcha
+    await verify_captcha(request.headers.get("x-captcha-token"), action="forgot_password")
+    email = body.get("email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "email": 1, "full_name": 1})
+
+    # Always return success to prevent email enumeration
+    if not user:
+        return {"message": "If an account exists with that email, a reset link has been sent."}
+
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    await db.password_reset_tokens.insert_one({
+        "token": token,
+        "user_id": user["id"],
+        "email": email,
+        "expires_at": expires_at,
+        "used": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    import os
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    reset_url = f"{frontend_url}/reset-password?token={token}"
+    logger.info(f"[PASSWORD RESET] Reset link for {email}: {reset_url}")
+
+    email_sent = await send_password_reset_email(email, user.get("full_name", ""), reset_url)
+    if not email_sent:
+        logger.warning(f"[PASSWORD RESET] Email delivery failed for {email}. Token logged above for manual use.")
+
+    return {"message": "If an account exists with that email, a reset link has been sent."}
+
+
+@router.post("/auth/reset-password")
+async def reset_password(body: dict) -> dict:
+    token = body.get("token", "")
+    new_password = body.get("password", "")
+
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="Token and password are required")
+
+    # Enforce password strength on reset too
+    validate_password_strength(new_password)
+
+    reset_doc = await db.password_reset_tokens.find_one({"token": token, "used": False}, {"_id": 0})
+    if not reset_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    expires_at = datetime.fromisoformat(reset_doc["expires_at"]) if isinstance(reset_doc["expires_at"], str) else reset_doc["expires_at"].replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+
+    hashed = hash_password(new_password)
+    await db.users.update_one(
+        {"id": reset_doc["user_id"]},
+        {"$set": {
+            "password": hashed,
+            "password_updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    await db.password_reset_tokens.update_one({"token": token}, {"$set": {"used": True}})
+
+    # Iter 215ar — clear the org-level "initial password" reveal once the
+    # primary contact has rotated their password (so master-admin no longer
+    # sees a stale plaintext credential in the panel).
+    user_doc = await db.users.find_one({"id": reset_doc["user_id"]}, {"_id": 0, "organization_id": 1, "email": 1})
+    if user_doc and user_doc.get("organization_id"):
+        await db.organizations.update_one(
+            {
+                "id": user_doc["organization_id"],
+                "primary_contact_email": (user_doc.get("email") or "").strip().lower(),
+            },
+            {"$set": {"primary_contact_password_changed": True},
+             "$unset": {"primary_contact_initial_password": ""}},
+        )
+
+    logger.info(f"[PASSWORD RESET] Password reset successful for user {reset_doc['user_id']}")
+    return {"message": "Password has been reset successfully. You can now log in."}
+
+
+
+@router.get("/auth/me")
+async def get_me(user: dict = Depends(get_current_user)) -> dict:
+    org = await db.organizations.find_one({"id": user.get('organization_id')}, {"_id": 0})
+
+    from utils.trial_lifecycle import compute_trial_state
+    from utils.feature_guard import get_enabled_features
+    from utils.hardening import password_needs_rotation, PASSWORD_MAX_AGE_DAYS
+    from utils.module_access import resolve_module_access
+    trial_state = compute_trial_state(org) if org else {"is_trial": False}
+    features = await get_enabled_features(user)
+    module_access = resolve_module_access(user, org)
+
+    return {
+        "id": user['id'],
+        "email": user['email'],
+        "full_name": user['full_name'],
+        "company_name": org['name'] if org else user.get('company_name'),
+        "subscription_tier": org.get('subscription_tier', 'none') if org else user.get('subscription_tier', 'none'),
+        "role": user.get('role', 'owner'),
+        "organization_id": user.get('organization_id'),
+        "company_code": org.get('company_code') if org and user.get('role') in ['owner', 'manager'] else None,
+        "is_master_admin": user.get('is_master_admin', False),
+        "is_service_desk": user.get('is_service_desk', False),
+        "account_type": org.get('account_type', 'full') if org else 'full',
+        "trial": trial_state,
+        "features": features,
+        "module_access": module_access,
+        "modules": (org or {}).get("modules") or {},
+        "module_overrides": user.get("module_overrides") or {},
+        "timetable_view_only": bool(user.get("timetable_view_only", False)),
+        "password_needs_rotation": password_needs_rotation(user),
+        "password_max_age_days": PASSWORD_MAX_AGE_DAYS,
+    }
+
+
+@router.post("/auth/refresh")
+async def refresh_token(user: dict = Depends(get_current_user)) -> dict:
+    """Issue a fresh JWT token + revoke the old one (rotation)."""
+    from utils.security_plus import revoke_jwt
+    old_jti = user.get("_jwt_jti")
+    old_exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
+    new_token = create_token(user['id'])
+    if old_jti:
+        await revoke_jwt(old_jti, int(old_exp), reason="refresh")
+    return {"token": new_token}
+
+
+@router.post("/auth/logout")
+async def logout(response: Response, user: dict = Depends(get_current_user)) -> dict:
+    """P1+.11 — kill the current JWT so it can't be reused if stolen later.
+
+    Also clears the HttpOnly session cookie so the browser no longer
+    re-authenticates automatically.
+    """
+    from utils.security_plus import revoke_jwt, audit_required
+    jti = user.get("_jwt_jti")
+    exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
+    if jti:
+        await revoke_jwt(jti, int(exp), reason="logout")
+        await audit_required("security_audit_log", {
+            "event": "auth.logout", "actor_id": user["id"], "actor_email": user.get("email"),
+            "jti": jti,
+        })
+    clear_auth_cookie(response)
+    return {"success": True}
+
+
+@router.get("/captcha/config")
+async def captcha_config() -> dict:
+    """Public endpoint — frontend uses this to decide whether to render the
+    captcha widget and which provider/site-key to load."""
+    from utils.captcha import captcha_public_config
+    return captcha_public_config()
+
+
+# ── MFA (TOTP) endpoints ─────────────────────────────────────────
+
+from fastapi.responses import Response as _FastResponse
+
+
+@router.get("/auth/mfa/status")
+async def mfa_status(user: dict = Depends(get_current_user)) -> dict:
+    from utils.mfa import user_mfa_state, user_requires_mfa
+    state = await user_mfa_state(user["id"])
+    state["required"] = user_requires_mfa(user)
+    return state
+
+
+@router.post("/auth/mfa/setup")
+async def mfa_setup(user: dict = Depends(get_current_user)) -> dict:
+    """Begin enrolment: returns the provisioning URI + secret for QR rendering.
+    Does NOT enable MFA until /auth/mfa/enable confirms the first code."""
+    from utils.mfa import begin_enrollment
+    return await begin_enrollment(user["id"], user["email"])
+
+
+@router.get("/auth/mfa/qrcode")
+async def mfa_qrcode(uri: str, user: dict = Depends(get_current_user)):
+    from utils.mfa import qrcode_png_bytes
+    if not uri.startswith("otpauth://"):
+        raise HTTPException(status_code=400, detail="Invalid provisioning URI")
+    return _FastResponse(content=qrcode_png_bytes(uri), media_type="image/png")
+
+
+@router.post("/auth/mfa/enable")
+async def mfa_enable(body: dict, user: dict = Depends(get_current_user)) -> dict:
+    """Verify first code; on success, flip MFA on and return backup codes (once)."""
+    from utils.mfa import confirm_enrollment
+    from utils.security_plus import audit_required
+    code = (body or {}).get("code", "")
+    codes = await confirm_enrollment(user["id"], code)
+    await audit_required("security_audit_log", {
+        "event": "mfa.enabled", "actor_id": user["id"], "actor_email": user.get("email"),
+    })
+    return {"success": True, "backup_codes": codes}
+
+
+@router.post("/auth/mfa/verify")
+async def mfa_verify(body: dict, request: Request, response: Response) -> dict:
+    """Step 2 of login: accept temp_token + 6-digit code → issue full JWT."""
+    import jwt as _jwt
+    from utils.database import JWT_SECRET, JWT_ALGORITHM
+    from utils.mfa import verify_login_code
+    from utils.security_plus import audit_required
+    temp = (body or {}).get("temp_token", "")
+    code = (body or {}).get("code", "")
+    try:
+        payload = _jwt.decode(temp, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired temp token")
+    if payload.get("type") != "mfa_temp":
+        raise HTTPException(status_code=401, detail="Invalid temp token")
+    user_id = payload.get("user_id")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    # IP-scoped rate limit: 10 attempts / 5 min — harder than the login gate.
+    ip = request.client.host if request.client else "unknown"
+    from utils.security_plus import rate_limit_async
+    await rate_limit_async(f"mfa:{ip}:{user_id}", max_requests=10, window_seconds=300)
+
+    ok = await verify_login_code(user_id, code)
+    if not ok:
+        await audit_required("security_audit_log", {
+            "event": "mfa.verify.fail", "actor_id": user_id, "actor_email": user.get("email"),
+            "ip": ip,
+        })
+        raise HTTPException(status_code=401, detail="Invalid code")
+
+    await audit_required("security_audit_log", {
+        "event": "mfa.verify.success", "actor_id": user_id, "actor_email": user.get("email"),
+        "ip": ip,
+    })
+    # Issue the real JWT + build the full login payload (same shape as /auth/login)
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0})
+    from utils.trial_lifecycle import compute_trial_state
+    from utils.feature_guard import get_enabled_features
+    trial_state = compute_trial_state(org) if org else {"is_trial": False}
+    features = await get_enabled_features(user)
+    token = create_token(user["id"])
+    set_auth_cookie(response, token)
+    return {"token": token, "user": _build_login_user_payload(user, org, trial_state, features)}
+
+
+@router.post("/auth/mfa/disable")
+async def mfa_disable(body: dict, user: dict = Depends(get_current_user)) -> dict:
+    """Disable MFA. Requires the caller to supply a valid code (prevents
+    session-hijack disables). Master admins cannot self-disable."""
+    from utils.mfa import verify_login_code, disable_mfa
+    from utils.security_plus import audit_required
+    if user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Master admins cannot disable MFA")
+    code = (body or {}).get("code", "")
+    if not await verify_login_code(user["id"], code):
+        raise HTTPException(status_code=401, detail="Invalid code")
+    await disable_mfa(user["id"])
+    await audit_required("security_audit_log", {
+        "event": "mfa.disabled", "actor_id": user["id"], "actor_email": user.get("email"),
+    })
+    return {"success": True}
+
+
+@router.get("/organization")
+async def get_organization(user: dict = Depends(get_current_user)) -> dict:
+    if not user.get('organization_id'):
+        raise HTTPException(status_code=404, detail="No organization found")
+    org = await db.organizations.find_one({"id": user['organization_id']}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return org
+
+
+@router.patch("/organization/branding")
+async def update_branding(data: Dict[str, Any], user: dict = Depends(get_current_user)) -> dict:
+    if user.get('role') not in ['owner', 'manager']:
+        raise HTTPException(status_code=403, detail="Only owners and managers can update branding")
+    if not user.get('organization_id'):
+        raise HTTPException(status_code=404, detail="No organization found")
+    branding = {
+        "primary_color": data.get("primary_color", "#0055FF"),
+        "company_name": data.get("company_name", ""),
+        "logo_url": data.get("logo_url", ""),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.organizations.update_one(
+        {"id": user['organization_id']},
+        {"$set": {"branding": branding}}
+    )
+    from utils.security_plus import audit_required
+    await audit_required("security_audit_log", {
+        "event": "org.branding.updated", "actor_id": user["id"], "actor_email": user.get("email"),
+        "org_id": user["organization_id"], "changes": list(data.keys()),
+    })
+    return {"success": True, "branding": branding}
+
+
+@router.get("/organization/staff")
+async def list_staff(user: dict = Depends(get_current_user)) -> dict:
+    if user.get('role') not in ['owner', 'manager']:
+        raise HTTPException(status_code=403, detail="Access denied")
+    staff = await db.users.find(
+        {"organization_id": user['organization_id']},
+        {"_id": 0, "password": 0}
+    ).to_list(100)
+    return {"staff": staff, "count": len(staff)}
+
+
+@router.post("/organization/invite")
+async def invite_staff(invite: InviteStaff, user: dict = Depends(get_current_user)) -> dict:
+    if user.get('role') not in ['owner', 'manager']:
+        raise HTTPException(status_code=403, detail="Only owners and managers can invite staff")
+    if invite.role not in ['manager', 'staff']:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'manager' or 'staff'")
+
+    existing = await db.users.find_one({"email": invite.email, "organization_id": user['organization_id']}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="User already exists in organization")
+
+    existing_invite = await db.invites.find_one({"email": invite.email, "organization_id": user['organization_id'], "status": "pending"}, {"_id": 0})
+    if existing_invite:
+        raise HTTPException(status_code=400, detail="Invite already sent")
+
+    org = await db.organizations.find_one({"id": user['organization_id']}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    # Legacy orgs created before the company_code rollout may not have one.
+    # Lazily generate + persist so the invite flow keeps working everywhere.
+    company_code = org.get('company_code')
+    if not company_code:
+        company_code = str(uuid.uuid4())[:8].upper()
+        await db.organizations.update_one(
+            {"id": user['organization_id']},
+            {"$set": {"company_code": company_code}},
+        )
+
+    invite_doc = {
+        "id": str(uuid.uuid4()),
+        "email": invite.email,
+        "full_name": invite.full_name,
+        "role": invite.role,
+        "organization_id": user['organization_id'],
+        "organization_name": org.get('name', ''),
+        "invited_by": user['id'],
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.invites.insert_one(invite_doc)
+
+    # Iter 215d4 — activation funnel event (first staff invited). Best-effort.
+    try:
+        from routes.activation_events import record_activation_event
+        await record_activation_event(
+            user['organization_id'], "first_staff_invited",
+            trigger_user_id=user.get("id"),
+            payload={"invite_id": invite_doc["id"], "role": invite.role},
+        )
+    except Exception:
+        pass
+
+    return {
+        "invite_id": invite_doc['id'],
+        "company_code": company_code,
+        "message": f"Share this company code with {invite.email}: {company_code}"
+    }
+
+
+@router.get("/organization/invites")
+async def list_invites(user: dict = Depends(get_current_user)) -> dict:
+    if user.get('role') not in ['owner', 'manager']:
+        raise HTTPException(status_code=403, detail="Access denied")
+    invites = await db.invites.find(
+        {"organization_id": user['organization_id']},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return {"invites": invites, "count": len(invites)}
+
+
+@router.delete("/organization/invite/{invite_id}")
+async def cancel_invite(invite_id: str, user: dict = Depends(get_current_user)) -> dict:
+    if user.get('role') not in ['owner', 'manager']:
+        raise HTTPException(status_code=403, detail="Access denied")
+    result = await db.invites.delete_one({"id": invite_id, "organization_id": user['organization_id']})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    return {"success": True}
+
+
+@router.patch("/organization/staff/{staff_id}/role")
+async def update_staff_role(staff_id: str, role: str, user: dict = Depends(get_current_user)) -> dict:
+    if user.get('role') != 'owner':
+        raise HTTPException(status_code=403, detail="Only owners can change roles")
+    if role not in ['owner', 'manager', 'staff']:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    result = await db.users.update_one(
+        {"id": staff_id, "organization_id": user['organization_id']},
+        {"$set": {"role": role}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    from utils.security_plus import audit_required
+    await audit_required("security_audit_log", {
+        "event": "staff.role.changed", "actor_id": user["id"], "actor_email": user.get("email"),
+        "org_id": user["organization_id"], "target_id": staff_id, "new_role": role,
+    })
+    return {"success": True}
+
+
+@router.patch("/organization/staff/{staff_id}/permissions")
+async def update_staff_permissions(staff_id: str, body: dict, user: dict = Depends(get_current_user)) -> dict:
+    """Owner/Manager grants per-staff feature access.
+
+    Body shape (all optional):
+      {
+        "module_overrides": {"memberships": bool, "marketing": bool, "crm": bool},
+        "timetable_view_only": bool
+      }
+
+    `module_overrides` only restrict — they cannot grant access the org
+    itself doesn't have. Owners and master admins ignore overrides.
+    """
+    if user.get('role') not in ['owner', 'manager']:
+        raise HTTPException(status_code=403, detail="Only owners and managers can manage staff permissions")
+
+    target = await db.users.find_one(
+        {"id": staff_id, "organization_id": user['organization_id']},
+        {"_id": 0, "id": 1, "role": 1, "email": 1},
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    if target.get("role") == "owner":
+        raise HTTPException(status_code=400, detail="Cannot restrict an owner")
+
+    update: dict = {}
+
+    if "module_overrides" in body and isinstance(body["module_overrides"], dict):
+        cleaned: dict = {}
+        for key in ("memberships", "marketing", "crm"):
+            if key in body["module_overrides"]:
+                cleaned[key] = bool(body["module_overrides"][key])
+        update["module_overrides"] = cleaned
+
+    if "timetable_view_only" in body:
+        update["timetable_view_only"] = bool(body["timetable_view_only"])
+
+    if not update:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    await db.users.update_one(
+        {"id": staff_id, "organization_id": user['organization_id']},
+        {"$set": {**update, "permissions_updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+
+    from utils.security_plus import audit_required
+    await audit_required("security_audit_log", {
+        "event": "staff.permissions.changed", "actor_id": user["id"], "actor_email": user.get("email"),
+        "org_id": user["organization_id"], "target_id": staff_id, "changes": update,
+    })
+    return {"success": True, "permissions": update}
+
+
+@router.delete("/organization/staff/{staff_id}")
+async def remove_staff(staff_id: str, user: dict = Depends(get_current_user)) -> dict:
+    if user.get('role') != 'owner':
+        raise HTTPException(status_code=403, detail="Only owners can remove staff")
+    if staff_id == user['id']:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself")
+    result = await db.users.delete_one({"id": staff_id, "organization_id": user['organization_id']})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    from utils.security_plus import audit_required
+    await audit_required("security_audit_log", {
+        "event": "staff.removed", "actor_id": user["id"], "actor_email": user.get("email"),
+        "org_id": user["organization_id"], "target_id": staff_id,
+    })
+    return {"success": True}
+
+
+@router.get("/organization/logo")
+async def get_org_logo(user: dict = Depends(get_current_user)) -> dict:
+    if not user.get('organization_id'):
+        return {"logo_url": None}
+    org = await db.organizations.find_one({"id": user['organization_id']}, {"_id": 0, "logo_url": 1, "branding": 1})
+    if not org:
+        return {"logo_url": None}
+    # Try branding logo first, then org logo
+    logo_path = (org.get('branding') or {}).get('logo_url') or org.get('logo_url')
+    if not logo_path:
+        return {"logo_url": None}
+    # If it's already a full URL (starts with http), return as-is
+    if logo_path.startswith('http'):
+        return {"logo_url": logo_path}
+    # Iter 216n — if it's already a canonical /api/public/files/{id} URL, return as-is
+    # (the POST /organization/logo endpoint now stores this format directly)
+    if logo_path.startswith('/api/public/files/'):
+        return {"logo_url": logo_path}
+    # Otherwise, find the file by storage_path and return public URL
+    file_doc = await db.files.find_one({"storage_path": logo_path}, {"_id": 0, "id": 1})
+    if file_doc:
+        return {"logo_url": f"/api/public/files/{file_doc['id']}"}
+    return {"logo_url": None}
+
+
+@router.get("/account/billing")
+async def get_billing_info(user: dict = Depends(get_current_user)) -> dict:
+    org = await db.organizations.find_one({"id": user.get('organization_id')}, {"_id": 0}) if user.get('organization_id') else None
+
+    tier = (org or user).get('subscription_tier', 'none')
+    package_names = {"none": "Free Tier", "basic": "Basic", "pro": "Pro", "premium": "Premium"}
+    package_prices = {"none": 0, "basic": 49, "pro": 99, "premium": 149}
+
+    payments = await db.payment_transactions.find(
+        {"user_id": user['id']}, {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+
+    return {
+        "current_plan": tier,
+        "plan_name": package_names.get(tier, tier.capitalize()),
+        "plan_price": package_prices.get(tier, 0),
+        "organization": org.get('name') if org else None,
+        "organization_code": org.get('company_code') if org else None,
+        "member_since": user.get('created_at', ''),
+        "email": user.get('email', ''),
+        "full_name": user.get('full_name', ''),
+        "role": user.get('role', 'staff'),
+        "payment_history": payments,
+    }

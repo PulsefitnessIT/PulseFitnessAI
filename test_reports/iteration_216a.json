@@ -1,0 +1,65 @@
+{
+  "summary": "Iter 216a - QR Code Dynamic URL Resolution + Per-User Feature Editor: All 11 backend tests PASSED. Frontend UI verified - Edit User dialog with Module Permissions panel working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216a_qr_and_permissions.py",
+    "/app/test_reports/pytest/pytest_results_216a.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216a_qr_and_permissions.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (UI verified via Playwright)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Test equipment and test user created during pytest run (auto-cleaned)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 216a features fully tested: (1) QR Code endpoints return public-facing URLs (maintenance-hub-357.preview.emergentagent.com) - verified via pyzbar decoding. (2) PUT /api/master-admin/users/{id}/edit accepts module_overrides dict, validates type (400 for non-dict), strips invalid module keys. (3) Frontend Edit User dialog shows Module Permissions panel with checkboxes for org-enabled modules. Owner exemption note implemented in code at line 1625.",
+  "tests_executed": {
+    "backend": [
+      "TestMasterAdminLogin::test_login_success - PASSED",
+      "TestQRCodeDynamicURL::test_qr_code_endpoint_returns_png - PASSED",
+      "TestQRCodeDynamicURL::test_qr_code_contains_public_url - PASSED (decoded QR contains public host)",
+      "TestQRCodeDynamicURL::test_qr_card_endpoint_returns_png - PASSED",
+      "TestQRCodeDynamicURL::test_qr_card_contains_public_url - PASSED (decoded QR contains public host)",
+      "TestQRCodeDynamicURL::test_qr_label_endpoint_returns_json - PASSED (scan_url has public host)",
+      "TestPerUserFeatureEditor::test_edit_user_with_valid_module_overrides - PASSED",
+      "TestPerUserFeatureEditor::test_edit_user_invalid_module_overrides_type - PASSED (returns 400)",
+      "TestPerUserFeatureEditor::test_edit_user_invalid_module_keys_stripped - PASSED",
+      "TestPerUserFeatureEditor::test_edit_user_basic_fields_still_work - PASSED (regression)",
+      "TestGetAllUsersReturnsModuleOverrides::test_users_list_includes_module_overrides - PASSED"
+    ],
+    "frontend": [
+      "Master Admin login via localStorage token - PASSED",
+      "Navigate to Organisations tab - PASSED",
+      "Expand org Users panel - PASSED",
+      "Open Edit User dialog - PASSED",
+      "Module Permissions panel visible (data-testid=edit-user-permissions) - PASSED",
+      "Operations checkbox visible (data-testid=edit-user-perm-operations) - PASSED",
+      "Owner exemption note in code (data-testid=edit-user-permissions-owner-note) - VERIFIED"
+    ]
+  },
+  "qr_code_verification": {
+    "qr_code_endpoint": "Returns PNG with URL containing maintenance-hub-357.preview.emergentagent.com/scan/{eq_id}",
+    "qr_card_endpoint": "Returns PNG with URL containing public host",
+    "qr_label_endpoint": "Returns JSON with scan_url containing public host",
+    "internal_cluster_check": "No URLs contain 'emergentcf.cloud' or 'cluster-'"
+  },
+  "module_overrides_verification": {
+    "valid_dict": "PUT with {marketing: false, crm: false} returns 200, persists correctly",
+    "invalid_type": "PUT with 'not-a-dict' returns 400 with detail mentioning 'object'",
+    "invalid_keys": "PUT with {hacker_module: true, crm: true} succeeds, only 'crm' persisted"
+  }
+}

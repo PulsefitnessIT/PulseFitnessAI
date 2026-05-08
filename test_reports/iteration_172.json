@@ -1,0 +1,98 @@
+{
+  "summary": "Iteration 172 testing complete. All 45 backend tests passed. Frontend testing verified: (1) OG preview image at /api/m/pulse-leeds/og.png returns valid 1200×630 PNG (~37KB); (2) Share page at /api/m/pulse-leeds/share returns HTML with og:image, twitter:card meta tags and http-equiv refresh redirect; (3) Multi-format posters work - square (1080×1080), story (1080×1920), a4 (default) all return different PNG sizes; (4) PDF poster at /api/m/pulse-leeds/poster.pdf returns valid PDF (~90KB); (5) Revenue forecast in analytics/overview includes lower_gbp/upper_gbp confidence bands; (6) POST /api/memberships/setup/resend-launch-kit returns templates (whatsapp, instagram, email) and links (app, brag, share); (7) POST /api/memberships/setup/complete now returns launch_kit in response; (8) All public endpoints return 404 for invalid slugs; (9) Frontend AppUrlCard shows Launch kit button that triggers toast on click; (10) Analytics revenue chart shows confidence band (shaded amber area) around forecast line.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_iteration172.py",
+    "/app/test_reports/pytest/pytest_results_iteration172.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_memberships_iteration172.py"
+  ],
+  "success_rate": {
+    "backend": "100% (45/45 tests passed)",
+    "frontend": "100% (all new features verified)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "public_brag_slug": "pulse-leeds"
+  },
+  "seed_data_creation": "No new seed data created - using existing memberships seed data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 172 adds 4 major features: (1) OG preview image at GET /api/m/{slug}/og.png - 1200×630 PNG for social unfurls with studio name, active members hero number, 3 stat chips (classes, check-ins, top class); (2) Share page at GET /api/m/{slug}/share - HTML with og:image, og:title, og:description, twitter:card meta tags + http-equiv refresh redirect to /m/{slug}/brag; (3) Multi-format posters at GET /api/m/{slug}/poster.png?format=square|story|a4 - square (1080×1080 for IG feed), story (1080×1920 for IG/TikTok story), a4 (default, 1240×1754 for print); (4) PDF poster at GET /api/m/{slug}/poster.pdf - A4 PDF wrapper around the poster PNG; (5) Revenue forecast confidence bands in GET /api/memberships/analytics/overview - each forecast entry now has {bucket, revenue_gbp, lower_gbp, upper_gbp} with ±1σ band; (6) Launch kit at POST /api/memberships/setup/resend-launch-kit - returns {sent:[], sent_at, templates:{whatsapp,instagram,email}, links:{app,brag,share}}, persists launch_kit_sent_at on org; (7) Setup complete now returns launch_kit in response (best-effort, doesn't break wizard on email failures). Frontend: AppUrlCard has [data-testid=mbr-launch-kit-send] button, Analytics revenue chart shows amber shaded confidence band area.",
+  "features_verified": {
+    "backend_og_image": {
+      "returns_valid_png": "PASS - 200, image/png, valid PNG magic bytes, ~37KB",
+      "no_auth_required": "PASS - public endpoint",
+      "404_invalid_slug": "PASS"
+    },
+    "backend_share_page": {
+      "returns_html": "PASS - 200, text/html",
+      "has_og_image_meta": "PASS - og:image points to /api/m/{slug}/og.png",
+      "has_refresh_redirect": "PASS - http-equiv refresh to /m/{slug}/brag",
+      "has_twitter_card": "PASS - twitter:card and twitter:image meta tags",
+      "404_invalid_slug": "PASS"
+    },
+    "backend_multi_format_posters": {
+      "square_format": "PASS - 1080×1080 PNG",
+      "story_format": "PASS - 1080×1920 PNG",
+      "a4_format": "PASS - 1240×1754 PNG (default)",
+      "formats_different_sizes": "PASS - all 3 formats produce different byte sizes",
+      "404_invalid_slug": "PASS"
+    },
+    "backend_poster_pdf": {
+      "returns_valid_pdf": "PASS - 200, application/pdf, %PDF magic, ~90KB",
+      "no_auth_required": "PASS - public endpoint",
+      "404_invalid_slug": "PASS"
+    },
+    "backend_revenue_forecast_bands": {
+      "overview_has_forecast": "PASS - revenue_forecast array present",
+      "forecast_has_bands": "PASS - each entry has bucket, revenue_gbp, lower_gbp, upper_gbp"
+    },
+    "backend_resend_launch_kit": {
+      "returns_templates_and_links": "PASS - templates:{whatsapp,instagram,email}, links:{app,brag,share}",
+      "401_no_auth": "PASS",
+      "persists_sent_at": "PASS"
+    },
+    "backend_setup_complete_launch_kit": {
+      "returns_launch_kit": "PASS - {ok:true, launch_kit:{...}}",
+      "401_no_auth": "PASS"
+    },
+    "backend_regression": {
+      "poster_book_variant": "PASS",
+      "poster_brag_variant": "PASS",
+      "brag_page": "PASS",
+      "analytics_overview": "PASS",
+      "analytics_retention": "PASS",
+      "analytics_classes": "PASS",
+      "analytics_operations": "PASS",
+      "members_by_kpi": "PASS",
+      "weekly_digest": "PASS",
+      "csv_export": "PASS",
+      "pdf_export": "PASS",
+      "crm_push": "PASS",
+      "dashboard": "PASS",
+      "setup_status": "PASS"
+    },
+    "frontend_new_features": {
+      "launch_kit_button": "PASS - [data-testid=mbr-launch-kit-send] present in AppUrlCard",
+      "launch_kit_toast": "PASS - shows 'Launch kit built · no operator recipients configured' (expected without RESEND_API_KEY)",
+      "analytics_confidence_band": "PASS - revenue chart has 3 area elements (includes amber shaded forecast band)",
+      "analytics_sub_tabs": "PASS - all 5 tabs present (Overview, Retention, Classes, Operations, AI insights)"
+    },
+    "frontend_regression": {
+      "app_url_card_buttons": "PASS - Brag, Poster, Open, Copy buttons present",
+      "dashboard_kpis": "PASS - Active members, New this month, Cancellations, etc."
+    }
+  }
+}

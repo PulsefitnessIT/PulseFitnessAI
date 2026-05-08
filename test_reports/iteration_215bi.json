@@ -1,0 +1,43 @@
+{
+  "summary": "Iter 215bi regression testing completed. Fixed missing Dynamic Lists tab case in MarketingSuite.js. Most targeted fixes verified successfully. CRM companies filter untestable due to invalid CRM user credentials.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/crm/v2/companies?type=customer", "issue": "Cannot test - CRM user credentials invalid (craig.henshall@pulsefitness.com / Test123! returns 401). Backend code looks correct - accepts both ?type and ?status parameters."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "fixed_issues": [
+      {"component": "MarketingSuite.js", "issue": "Dynamic Lists tab case was missing from ActiveTab switch statement", "fix": "Added case 'dynamic-lists': return <DynamicListsTab API={API} headers={headers} />;"}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter215bi_regression.py"],
+  "action_items": [
+    "CRM user credentials need to be fixed or updated in test_credentials.md - craig.henshall@pulsefitness.com password is invalid"
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/frontend/src/pages/MarketingSuite.js"],
+  "success_rate": {"backend": "83% (5/6 passed, 1 skipped due to CRM auth)", "frontend": "100%"},
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123! (working). CRM User: craig.henshall@pulsefitness.com / Test123! (NOT working - 401 Invalid credentials)",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Dynamic Lists tab fix applied. CRM user credentials are invalid - the user exists but password doesn't work. Rate limiting is aggressive (429 after ~3 requests in quick succession). Use 30s delays between login attempts.",
+  "verified_features": {
+    "master_admin_settings_sidebar": "PASS - Settings entry visible in sidebar, clicking loads Settings page with title",
+    "settings_light_mode_cards": "PASS - Cards render with white/slate backgrounds, no dark surfaces",
+    "org_module_filter": "PASS - data-testid org-module-filter dropdown present",
+    "org_rows_no_inline_buttons": "PASS - No org-features-{id} or org-sites-{id} inline buttons on org rows",
+    "org_edit_pencil": "PASS - data-testid org-edit-{id} present",
+    "edit_user_reset_password": "PASS - data-testid edit-user-inline-reset-pw button found in Edit User dialog",
+    "dynamic_lists_explainer": "PASS - data-testid dynamic-lists-explainer visible with 'What is a Dynamic List' text (after fix)",
+    "legacy_home_redirect": "PASS - /legacy-home navigates to / (Marketing home)",
+    "pulse_pricing_brand": "PASS - /pulse-pricing has data-brand='pulse' on <html>",
+    "backend_patch_site_head_office": "PASS - PATCH /api/master-admin/organizations/{org_id}/sites/{site_id} with is_head_office works",
+    "backend_reset_password": "PASS - PUT /api/master-admin/users/{id}/reset-password returns temp_password",
+    "crm_companies_filter": "SKIPPED - CRM user credentials invalid"
+  }
+}

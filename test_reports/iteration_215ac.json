@@ -1,0 +1,98 @@
+{
+  "summary": "Iteration 215ac — Session persistence fix and Auto-Bill email receipts. All 23 unit tests passed (6 autopay emails + 4 family autopay + 5 wallet + 8 sibling discount). Session persistence fix VERIFIED: operator can now navigate from /pulse to /memberships via hard navigation without losing session. App.js retry logic and cache fallback working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_autopay_emails_215ac.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215ac.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "App.js (lines 164-257): Session persistence fix implemented correctly - bootAuthMe() with 1-retry (800ms delay), cache-fallback on transient failures, only wipes token on hard 401/403",
+    "App.js (lines 240-257): Cross-tab storage event listener correctly syncs login/logout across tabs",
+    "family_autopay.py: _send_autopay_success_email correctly includes 'Paid' in subject, period label, total amount, charged amount, card formatting 'VISA •••• 4242', and optional 'Wallet applied' row",
+    "family_autopay.py: _send_autopay_decline_email correctly includes 'Action needed' in subject, period label, Stripe error message, card tail, and CTA link to member portal",
+    "family_autopay.py: run_family_autopay_cycle calls success email on: (a) wallet-only payment (line 372), (b) successful card charge (line 414). Calls decline email on: (a) non-succeeded PI status (line 428), (b) stripe.CardError (line 442)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (23/23 unit tests passed)",
+    "frontend": "100% - Session persistence verified via Playwright"
+  },
+  "seed_data_creation": "None - used existing seeded operator account (lee.somers@pulsefitness.com)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Session persistence fix is working. Operator can login at /pulse and navigate to /memberships without losing session. Auto-Bill email helpers are implemented and unit tested. Stripe and send_email are MOCKED in tests - actual email delivery not tested end-to-end.",
+  "test_results": {
+    "session_persistence": {
+      "login_at_pulse": "PASS - Token stored in localStorage (248 chars)",
+      "navigate_to_memberships": "PASS - Token persisted, URL is /memberships",
+      "memberships_console_rendered": "PASS - 'Your Memberships Hub' visible"
+    },
+    "unit_tests_autopay_emails": {
+      "test_success_email_sent_with_paid_subject": "PASS",
+      "test_success_email_shows_wallet_row_when_applied": "PASS",
+      "test_success_email_without_email_noop": "PASS",
+      "test_decline_email_sent_with_action_subject": "PASS",
+      "test_decline_email_without_email_noop": "PASS",
+      "test_period_label_fallbacks": "PASS"
+    },
+    "unit_tests_family_autopay": {
+      "test_previous_period_jan_wraps_to_december": "PASS",
+      "test_previous_period_regular_month": "PASS",
+      "test_cycle_skipped_outside_window": "PASS",
+      "test_cycle_bail_when_stripe_not_configured": "PASS"
+    },
+    "unit_tests_wallet": {
+      "test_zero_balance_is_noop": "PASS",
+      "test_wallet_fully_covers_invoice": "PASS",
+      "test_wallet_partial_cover": "PASS",
+      "test_respects_already_applied_portion": "PASS",
+      "test_fully_paid_invoice_returns_noop": "PASS"
+    },
+    "unit_tests_sibling_discount": {
+      "test_no_discount_when_pct_zero": "PASS",
+      "test_no_discount_with_single_sibling": "PASS",
+      "test_no_discount_when_no_sub_profile": "PASS",
+      "test_two_siblings_apply_pct": "PASS",
+      "test_three_siblings_all_discounted": "PASS",
+      "test_ordering_uses_first_booking": "PASS",
+      "test_rounding_floors": "PASS",
+      "test_label_2nd_3rd_ordinals": "PASS"
+    },
+    "api_regression": {
+      "GET /api/memberships/billing/sibling-discount": "PASS - Returns {pct, enabled}",
+      "GET /api/memberships/billing/autopay/members": "PASS - Returns {count, members}",
+      "GET /api/memberships/billing/wallet/members": "PASS - Returns {count, total_balance_pence, members}"
+    }
+  },
+  "features_verified": [
+    "SESSION PERSISTENCE (P1): App.js retry logic with 800ms delay on transient /auth/me failure - VERIFIED (code review)",
+    "SESSION PERSISTENCE (P1): App.js only wipes token on hard 401/403, not on 5xx/network errors - VERIFIED (code review)",
+    "SESSION PERSISTENCE (P1): App.js cache-fallback hydrates user from user_cache on transient failures - VERIFIED (code review)",
+    "SESSION PERSISTENCE (P1): App.js cross-tab storage event listener syncs login/logout - VERIFIED (code review)",
+    "SESSION PERSISTENCE (P1): Operator login at /pulse, navigate to /memberships via hard nav - VERIFIED (Playwright test)",
+    "AUTOPAY EMAILS (P2): _send_autopay_success_email subject contains 'Paid' - VERIFIED (unit test)",
+    "AUTOPAY EMAILS (P2): _send_autopay_success_email body contains period label, total, charged, card formatting - VERIFIED (unit test)",
+    "AUTOPAY EMAILS (P2): _send_autopay_success_email shows 'Wallet applied' row when wallet_applied_pence > 0 - VERIFIED (unit test)",
+    "AUTOPAY EMAILS (P2): _send_autopay_decline_email subject contains 'Action needed' - VERIFIED (unit test)",
+    "AUTOPAY EMAILS (P2): _send_autopay_decline_email body contains period label, error message, card tail, CTA link - VERIFIED (unit test)",
+    "AUTOPAY EMAILS (P2): run_family_autopay_cycle calls success email on wallet-only payment - VERIFIED (code review line 372)",
+    "AUTOPAY EMAILS (P2): run_family_autopay_cycle calls success email on successful card charge - VERIFIED (code review line 414)",
+    "AUTOPAY EMAILS (P2): run_family_autopay_cycle calls decline email on non-succeeded PI status - VERIFIED (code review line 428)",
+    "AUTOPAY EMAILS (P2): run_family_autopay_cycle calls decline email on stripe.CardError - VERIFIED (code review line 442)",
+    "REGRESSION: All 23 unit tests pass (sibling discount 215z + family autopay 215aa + wallet 215ab + autopay emails 215ac) - VERIFIED",
+    "REGRESSION: API endpoints /api/memberships/billing/sibling-discount, /autopay/members, /wallet/members respond correctly - VERIFIED"
+  ],
+  "mocked_apis": {
+    "note": "send_email (utils/email.py) and Stripe PaymentIntent.create are MOCKED in unit tests. Actual email delivery and Stripe charges not tested end-to-end.",
+    "mocked_list": ["utils.email.send_email", "stripe.PaymentIntent.create"]
+  }
+}

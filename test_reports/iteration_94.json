@@ -1,0 +1,100 @@
+{
+  "summary": "Iteration 94: Critical bug testing before handoff to Craig Henshall. All 3 critical bugs verified as FIXED. Backend: 15/15 tests passed. Frontend: All critical flows working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration94_critical_bugs.py",
+    "/app/test_reports/pytest/pytest_results_iteration94.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration94_critical_bugs.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "crm_manager": "craig.henshall@pulsefitness.com / Test123!",
+    "crm_admin": "crm@gymaxisai.com / CRMAdmin123!",
+    "service_portal": "lee.somers@pulsefitness.com / Test123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "None - tested with existing production data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 3 critical bugs verified as fixed. Craig's email is correct (craig.henshall@pulsefitness.com). CRM data isolation working - Craig sees 0 contacts/companies/deals. Stale token bug fixed - crm_token cleared on login page mount. Service Portal working for Lee Somers (66 equipment, 6 open faults). Master Admin working.",
+  "critical_bugs_verified": {
+    "bug_1_orphan_data_visibility": {
+      "status": "FIXED",
+      "description": "CRM was showing test data for new logins - orphan data without organization_id was visible to everyone",
+      "fix": "_org_filter now returns {'organization_id': '__NO_ORG__'} for users without org_id instead of {} (which showed all data)",
+      "verification": "Craig sees 0 contacts, 0 companies, 0 deals on dashboard and in list views"
+    },
+    "bug_2_stale_token_login": {
+      "status": "FIXED",
+      "description": "Pressing back after 'invalid credentials' logged user in via stale localStorage token",
+      "fix": "CRMLogin.js clears crm_token on mount via useEffect(() => { localStorage.removeItem('crm_token'); }, [])",
+      "verification": "Set fake stale token, navigated to /crm, token was cleared, login page shown (not auto-logged in)"
+    },
+    "bug_3_craig_email_typo": {
+      "status": "FIXED",
+      "description": "Craig's email was misspelled in DB (crag vs craig)",
+      "fix": "Email corrected to craig.henshall@pulsefitness.com",
+      "verification": "Login with craig.henshall@pulsefitness.com / Test123! successful"
+    }
+  },
+  "features_verified": {
+    "crm_login": {
+      "craig_login_success": "PASSED - craig.henshall@pulsefitness.com / Test123!",
+      "invalid_credentials_error": "PASSED - Shows 'Invalid credentials' error",
+      "crm_admin_login": "PASSED - crm@gymaxisai.com / CRMAdmin123!"
+    },
+    "crm_clean_slate": {
+      "dashboard_stats": "PASSED - Total Contacts: 0, Companies: 0, Active Deals: 0, Pipeline Value: £0",
+      "contacts_list": "PASSED - 'No contacts found. Add your first contact to get started.'",
+      "companies_list": "PASSED - 'No companies yet.' with 0 total"
+    },
+    "crm_data_isolation": {
+      "org_filter": "PASSED - _org_filter returns impossible match for missing org_id",
+      "new_user_isolation": "PASSED - New registered users see 0 data"
+    },
+    "crm_contact_creation": {
+      "create_contact": "PASSED - Craig can create contact scoped to his org",
+      "contact_appears_in_list": "PASSED - Created contact visible in Craig's contacts"
+    },
+    "service_portal": {
+      "lee_somers_login": "PASSED",
+      "equipment_count": "PASSED - 66 TOTAL MACHINES",
+      "faults_count": "PASSED - 6 OPEN FAULTS"
+    },
+    "master_admin": {
+      "login": "PASSED - admin@gymaxisai.com / MasterAdmin123!",
+      "global_dashboard": "PASSED - Shows 5 gyms, 100 equipment, gym leaderboard"
+    },
+    "stale_token_fix": {
+      "token_cleared_on_mount": "PASSED - crm_token removed from localStorage when login page loads",
+      "no_auto_login_with_stale_token": "PASSED - Fake token did not cause auto-login",
+      "back_button_after_error": "PASSED - Still on login page after back button"
+    }
+  },
+  "ui_screenshots_taken": [
+    "crm_login_page.png - CRM login form",
+    "crm_login_error.png - Invalid credentials error message",
+    "crm_dashboard_craig.png - Craig's dashboard with 0 stats",
+    "crm_contacts_empty.png - Empty contacts list",
+    "crm_companies_empty.png - Empty companies list",
+    "service_portal_dashboard.png - Lee Somers dashboard with 66 machines",
+    "master_admin_dashboard_final.png - Master Admin global dashboard"
+  ],
+  "ready_for_handoff": true,
+  "handoff_notes": "App is ready for Craig Henshall to test. All critical bugs fixed. Craig will see a clean CRM with 0 data. Demo tour will appear on first login."
+}

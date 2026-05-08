@@ -1,0 +1,76 @@
+{
+  "summary": "ARCHIVE FEATURE (GDPR RIGHT-TO-ERASURE) FULLY TESTED - ALL TESTS PASSED. Backend: 14/14 tests passed including archive CRUD, 403 for non-admin, and regression tests for trials_summary, analytics_faults, kpi_export. Frontend: Archive page renders correctly with policy banner, sweep button, archived org list with restore/delete buttons, typed-confirmation delete dialog. GymAxis badge contrast fix verified (indigo-50 bg with indigo-700 text).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_archive_iteration141.py",
+    "/app/test_reports/pytest/pytest_results_iteration141.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Archive feature well-implemented with proper GDPR compliance (365-day retention, 7-day warning email)",
+    "Cascade delete covers 60+ org-scoped collections in ORG_SCOPED_COLLECTIONS",
+    "Proper audit trail via admin_activity_log for hard deletes and restores",
+    "GymAxis badge contrast fix applied correctly: bg-indigo-50 text-indigo-700 (was dark-on-dark)",
+    "Archive sidebar item correctly positioned between Trial Management and Global Analytics",
+    "Delete confirmation requires exact org name match - good UX for preventing accidental deletions"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_archive_iteration141.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100% (all UI flows verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "non_admin": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "Test organizations created and cleaned up during backend tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Archive feature fully implemented and tested. Key endpoints: GET /api/master-admin/archive, POST /api/master-admin/archive/{id}/restore, DELETE /api/master-admin/archive/{id}, POST /api/master-admin/archive/sweep. Frontend Archive page accessible via sidebar. GymAxis badge contrast fix verified.",
+  "tests_executed": {
+    "backend_api_tests": [
+      "GET /api/master-admin/archive - returns organizations, retention_days=365, warning_lead_days=7, count - PASS",
+      "PUT /api/master-admin/organizations/{id}/status with status='archived' - stamps archived_at, archived_by - PASS",
+      "POST /api/master-admin/archive/{id}/restore - restores to active, clears archived_at/by - PASS",
+      "POST /api/master-admin/archive/{id}/restore on non-archived org - returns 404 - PASS",
+      "POST /api/master-admin/archive/sweep - returns scanned, warnings_sent, deleted - PASS",
+      "DELETE /api/master-admin/archive/{id} - hard deletes org, returns purged counts - PASS",
+      "DELETE /api/master-admin/archive/{nonexistent} - returns 404 - PASS",
+      "GET /api/master-admin/archive - 403 for non-admin - PASS",
+      "POST /api/master-admin/archive/{id}/restore - 403 for non-admin - PASS",
+      "DELETE /api/master-admin/archive/{id} - 403 for non-admin - PASS",
+      "POST /api/master-admin/archive/sweep - 403 for non-admin - PASS",
+      "GET /api/master-admin/trials/summary - returns all 8 required keys (regression) - PASS",
+      "GET /api/master-admin/analytics/faults - by_fault_code has 8 keys per entry (regression) - PASS",
+      "GET /api/master-admin/kpi/{org_id}/export-csv - returns CSV with 10 KPI rows (regression) - PASS"
+    ],
+    "frontend_ui_tests": [
+      "Archive sidebar item visible between Trial Management and Global Analytics - PASS",
+      "Archive page title 'Archive (GDPR Retention)' with subtitle - PASS",
+      "GDPR policy banner (data-testid='archive-policy-banner') shows 365 days retention, 7 days warning - PASS",
+      "Run sweep button (data-testid='archive-sweep-btn') visible and functional - PASS",
+      "Sweep toast shows 'Sweep complete — scanned X, warned Y, deleted Z' - PASS",
+      "Archived org cards (data-testid='archived-org-{id}') display correctly - PASS",
+      "Days until deletion badge visible (364d left) - PASS",
+      "Restore button (data-testid='archive-restore-{id}') visible - PASS",
+      "Delete now button (data-testid='archive-delete-{id}') visible - PASS",
+      "Delete confirmation dialog (data-testid='archive-delete-dialog') opens on click - PASS",
+      "Delete confirm button disabled until org name typed exactly - PASS",
+      "GymAxis badge contrast fix: bg=rgb(238,242,255) text=rgb(67,56,202) - PASS"
+    ]
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

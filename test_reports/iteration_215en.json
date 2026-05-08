@@ -1,0 +1,97 @@
+{
+  "summary": "Iter 215en - Structured Address Breakout + Head Office Autocomplete Testing Complete. Backend: 18/18 tests passed covering search endpoint, create/update with structured address, head office onboarding, and pulse site onboarding. Frontend: All 7 structured address fields verified in HeadOfficeOnboardingWizard (billing + site), AdminOrganizations Create dialog, and Edit panel.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "HeadOfficeNameAutocomplete",
+        "issue": "Autocomplete suggestions dropdown may not appear immediately - requires 250ms debounce wait. Works correctly when given time.",
+        "selector": "[data-testid='ho-org-name-suggestions']",
+        "priority": "LOW"
+      },
+      {
+        "component": "NPSWidget",
+        "issue": "NPS widget popup may overlay buttons. Use force=True for clicks or dismiss first.",
+        "selector": "NPS widget",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215en_address_breakout.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215en.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_215en_address_breakout.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 tests passed)",
+    "frontend": "100% (all address fields verified)"
+  },
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Multiple test orgs created during backend tests (prefixed with 'TEST_'). Cleanup attempted via fixture.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215en address breakout feature fully tested. All 7 structured address fields (Address 1*, Address 2, Address 3, City, County, Post code, Country) are working across: (1) GET /api/master-admin/organizations/search - returns structured fields with fallback to legacy, (2) POST /api/master-admin/organizations - accepts structured fields and auto-composes legacy, (3) PUT /api/master-admin/organizations/{id}/details - updates structured fields and re-composes legacy, (4) GET /api/master-admin/organizations - returns all structured fields, (5) POST /api/master-admin/onboard-head-office - accepts billing_* prefixed structured fields and per-site structured fields, (6) POST /api/master-admin/onboard-pulse-site - accepts both legacy and structured address. Frontend: HeadOfficeOnboardingWizard has autocomplete for org name (debounced 250ms) and renders AddressFields component for billing and each site. AdminOrganizations Create dialog and Edit panel both render the 7 structured address fields.",
+  "backend_tests_summary": {
+    "organization_search": {
+      "empty_query": "✓ Returns most recent N orgs",
+      "structured_fields": "✓ Returns address_line1..3, city, county, postcode, country",
+      "query_filter": "✓ Filters by name/company_number/vat/postcode",
+      "limit": "✓ Respects limit parameter",
+      "auth_401": "✓ Returns 401 without token",
+      "auth_403": "✓ Returns 403 for non-master-admin",
+      "country_default": "✓ Defaults to 'United Kingdom'"
+    },
+    "create_organization": {
+      "structured_address": "✓ Persists all 7 structured fields",
+      "legacy_composed": "✓ Auto-composes legacy address from structured",
+      "country_default": "✓ Defaults country to 'United Kingdom'"
+    },
+    "update_organization": {
+      "structured_update": "✓ Updates structured fields",
+      "legacy_recomposed": "✓ Re-composes legacy address on update"
+    },
+    "list_organizations": {
+      "structured_fields": "✓ Returns all structured address fields",
+      "fallback": "✓ Falls back to legacy address for line1 on un-migrated rows"
+    },
+    "onboard_head_office": {
+      "billing_structured": "✓ Accepts billing_address_line1..3, billing_city, etc.",
+      "site_structured": "✓ Accepts per-site address_line1..3, city, etc.",
+      "persisted": "✓ All fields persisted on org and site rows"
+    },
+    "onboard_pulse_site": {
+      "structured": "✓ Accepts structured address fields",
+      "legacy_compat": "✓ Still accepts legacy single-line address"
+    },
+    "edge_cases": {
+      "mixed_legacy_structured": "✓ Both persisted when both provided",
+      "empty_fields": "✓ Handled gracefully, country defaults to UK"
+    }
+  },
+  "frontend_tests_summary": {
+    "head_office_wizard": {
+      "wizard_renders": "✓ data-testid='ho-onboard-wizard' present",
+      "step_header": "✓ 5-step header (TIER → HEAD OFFICE → SITES → ADMIN → REVIEW)",
+      "org_name_autocomplete": "✓ data-testid='ho-org-name' with search icon",
+      "billing_address_fields": "✓ 7/7 fields: ho-billing-line1, -line2, -line3, -city, -county, -postcode, -country",
+      "site_address_fields": "✓ 7/7 fields: ho-site-0-line1, -line2, -line3, -city, -county, -postcode, -country"
+    },
+    "admin_organizations_create": {
+      "dialog_opens": "✓ data-testid='create-org-dialog'",
+      "address_fields": "✓ 7/7 fields: org-form-address-line1, -line2, -line3, -city, -county, -postcode, -country"
+    },
+    "admin_organizations_edit": {
+      "drawer_opens": "✓ data-testid='org-manage-drawer-{id}'",
+      "address_fields": "✓ 7/7 fields: org-edit-address-line1, -line2, -line3, -city, -county, -postcode, -country"
+    }
+  }
+}

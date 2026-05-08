@@ -1,0 +1,89 @@
+{
+  "summary": "Memberships Phase 4 (Smart Waitlist/Fill System + Front-Desk Check-in + Kiosk Mode) testing complete. All 24 backend pytest tests pass. Frontend Check-in tab, Kiosk dialog, Find member dialog, and public Kiosk page all render and function correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_phase4.py",
+    "/app/test_reports/pytest/pytest_results_iteration194.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (24/24 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": "lee.somers@pulsefitness.com / TempPass123!",
+  "seed_data_creation": "None - used existing Tottenham Green tenant",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 4 Check-in/Kiosk layer fully tested. Backend endpoints verified: GET /api/memberships/checkin/today, GET /api/memberships/checkin/search-members, POST /api/memberships/checkin/{occ_id}/mark, POST /api/memberships/occurrences/{occ_id}/dropin-invite, GET+POST /api/memberships/checkin/kiosk-token, GET /api/memberships/phase4/analytics, GET /api/memberships/kiosk/today, POST /api/memberships/kiosk/lookup, POST /api/memberships/kiosk/checkin, POST /api/member/dropin-optin, GET /api/member/waitlist-position. Frontend Check-in tab (mbr-tab-checkin) with toolbar buttons (window 1/3/7 days, refresh, find member, kiosk mode) all working. Kiosk dialog shows token issuance (URL shown ONCE, then only metadata). Find member dialog searches and shows results. Public Kiosk page (/checkin/kiosk) shows error without token, shows search interface with valid token. Kiosk lookup correctly redacts PII (returns only id+display_name). Member-only endpoints correctly reject anonymous and operator JWTs.",
+  "tests_executed": {
+    "backend": [
+      "test_checkin_today_unauthenticated_blocked - PASSED",
+      "test_checkin_today_default - PASSED",
+      "test_checkin_today_window - PASSED",
+      "test_members_search_validates_q - PASSED",
+      "test_members_search_returns_shape - PASSED",
+      "test_mark_attendance_unknown_booking - PASSED",
+      "test_mark_attendance_invalid_status - PASSED",
+      "test_dropin_invite_unknown_occ - PASSED",
+      "test_kiosk_token_unauthenticated_blocked - PASSED",
+      "test_kiosk_token_issue_returns_secret_once - PASSED",
+      "test_kiosk_token_meta_redacts_secret - PASSED",
+      "test_kiosk_today_requires_token - PASSED",
+      "test_kiosk_today_bad_token - PASSED",
+      "test_kiosk_today_valid_token - PASSED",
+      "test_kiosk_lookup_validates_q - PASSED",
+      "test_kiosk_lookup_redacts_pii - PASSED",
+      "test_kiosk_lookup_bad_token - PASSED",
+      "test_kiosk_checkin_bad_member - PASSED",
+      "test_kiosk_checkin_validates_code_length - PASSED",
+      "test_phase4_analytics_unauthenticated_blocked - PASSED",
+      "test_phase4_analytics_default - PASSED",
+      "test_phase4_analytics_window_bounds - PASSED",
+      "test_dropin_optin_requires_member_jwt - PASSED",
+      "test_waitlist_position_requires_member_jwt - PASSED"
+    ],
+    "frontend": [
+      "Login as operator - PASSED",
+      "Navigate to Memberships console - PASSED",
+      "Check-in tab visible (mbr-tab-checkin) - PASSED",
+      "Check-in tab wrapper (mbr-checkin-tab) - PASSED",
+      "Window 1 day button (mbr-checkin-window-1) - PASSED",
+      "Window 3 days button (mbr-checkin-window-3) - PASSED",
+      "Window 7 days button (mbr-checkin-window-7) - PASSED",
+      "Refresh button (mbr-checkin-refresh) - PASSED",
+      "Find member button (mbr-checkin-find-member-btn) - PASSED",
+      "Kiosk mode button (mbr-checkin-kiosk-btn) - PASSED",
+      "Find member dialog opens (mbr-checkin-search) - PASSED",
+      "Search input (mbr-checkin-search-input) - PASSED",
+      "Search results show Test Phase2 member - PASSED",
+      "Kiosk dialog opens (mbr-checkin-kiosk-dlg) - PASSED",
+      "Issue kiosk token button (mbr-checkin-kiosk-issue) - PASSED",
+      "Kiosk page without token shows error - PASSED",
+      "Kiosk page with valid token shows search - PASSED",
+      "Kiosk shell (kiosk-shell) - PASSED",
+      "Kiosk start button (kiosk-start) - PASSED",
+      "Kiosk search input (kiosk-search-input) - PASSED"
+    ],
+    "api_curl_tests": [
+      "Kiosk token GET returns metadata (no secret) - PASSED",
+      "Kiosk token POST returns secret once - PASSED",
+      "Kiosk lookup redacts PII (only id+display_name) - PASSED",
+      "Kiosk lookup bad token returns 401 - PASSED",
+      "Kiosk today bad token returns 401 - PASSED",
+      "Member dropin-optin without auth returns 401 - PASSED",
+      "Member waitlist-position without auth returns 401 - PASSED",
+      "Member endpoints reject operator JWT - PASSED"
+    ]
+  },
+  "notes": "Tottenham Green tenant has no scheduled classes today, so Check-in tab shows empty state 'No scheduled classes in this window'. This is expected behavior. Kiosk token URL is shown ONCE at issuance - subsequent GET requests return only metadata (id, organization_id, issued_by, issued_at) without the secret token. This contract is correctly honored."
+}

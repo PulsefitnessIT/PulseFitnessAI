@@ -1,0 +1,116 @@
+name: CI — pre-commit gates + tests
+
+# Run the same gates that block local "Save to GitHub" (.pre-commit-config.yaml)
+# on every push and pull request. Catches lint / security / complexity / ESLint
+# regressions in CI rather than on the developer's laptop, so the GitHub UI
+# shows a green/red badge on every PR and you can require checks to pass
+# before merge.
+#
+# Why duplicate the pre-commit hooks here?
+#   - Pre-commit only runs on a developer's machine. CI is the one place where
+#     the check is truly mandatory — devs can use --no-verify to skip locally.
+#   - The same config (.pre-commit-config.yaml) is invoked here, so there is
+#     ONE source of truth for "what counts as broken".
+#   - Pull requests will show inline comments on offending lines via
+#     reviewdog-style annotations.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs when a new commit arrives on the same branch.
+# Saves CI minutes on rapid-fire pushes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  precommit:
+    name: pre-commit gates (ruff · bandit · eslint · complexity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for pre-commit's --from-ref/--to-ref
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install backend dev deps
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff bandit xenon radon pre-commit
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      # Each gate runs as a separate step so a CI failure tells you EXACTLY
+      # which check broke instead of one giant "pre-commit failed" log.
+
+      - name: Ruff (Python lint)
+        run: ruff check backend/
+
+      - name: Bandit (Python security — high severity only)
+        run: bandit -r backend/ -lll --exit-zero-on-skipped
+
+      - name: Xenon (complexity safety-net — repo-wide)
+        working-directory: backend
+        # Same thresholds as .pre-commit-config.yaml's
+        # complexity-gate-repo-safety-net hook.
+        run: xenon --max-absolute F --max-modules F --max-average C --exclude "tests/*,venv/*,migrations/*" .
+
+      - name: ESLint (frontend)
+        working-directory: frontend
+        # Run on the whole src/ tree — pre-commit only scans staged files,
+        # but CI is the place to enforce the global state.
+        run: yarn eslint --max-warnings 99999 src/
+
+      - name: Detect hardcoded secrets
+        run: |
+          # Cheap grep for the patterns most likely to leak. Bandit catches
+          # the rest. Adjust this if it ever produces a false positive.
+          ! grep -rE "(sk_live_|sk_test_[A-Za-z0-9]{20,}|whsec_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})" \
+              --include="*.py" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" \
+              backend/ frontend/src/ \
+              || (echo "::error::Potential secret detected. Move it to .env." && exit 1)
+
+  backend-tests:
+    name: Backend unit tests (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run lightweight tests (no DB, no LLM)
+        working-directory: backend
+        # Only the tests that don't require a live MongoDB / network. Heavier
+        # integration tests run on a separate workflow with services: mongo:7.
+        run: pytest tests/test_xss_and_brand_urls.py -v

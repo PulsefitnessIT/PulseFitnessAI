@@ -1,0 +1,71 @@
+{
+  "summary": "Iteration 170 testing complete. All 26 backend tests passed (1 skipped due to member login fixture). Frontend testing verified: (1) Public brag page at /m/pulse-leeds/brag shows branded stats card with 7 active members, 38 classes, 315 check-ins, top class HIIT Blast (143 attended), Book a class CTA; (2) Invalid slug /m/not-a-real-slug/brag shows clean 404; (3) Analytics tab shows Send weekly digest button in top-right; (4) Role switcher (Gym manager/Regional mgr/Director) works; (5) KPI card drill-down drawer opens with member list showing name/email/LTV; (6) All 5 analytics sub-tabs (Overview/Retention/Classes/Operations/AI insights) present.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/memberships/analytics/members-by-kpi", "issue": "Returns 500 instead of 403 when called with member token (member tokens lack organization_id in expected format) - carried over from iteration 169", "priority": "LOW"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Memberships console login", "issue": "401 Unauthorized on first load after login redirect - known timing issue from iteration 167/168, resolves when token is set in localStorage before navigation", "affected_selectors": ["[data-testid='mbr-dashboard']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_iteration170.py",
+    "/app/test_reports/pytest/pytest_results_iteration170.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_memberships_iteration170.py"
+  ],
+  "success_rate": {
+    "backend": "96% (26/27 tests passed, 1 skipped)",
+    "frontend": "100% (all new features verified)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "member_emma": "emma.wright@demo.gymaxis / Member2026!",
+    "public_brag_slug": "pulse-leeds"
+  },
+  "seed_data_creation": "No new seed data created - using existing analytics seed data from iteration 169",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 170 adds 3 new features: (1) POST /api/memberships/analytics/send-weekly-digest - operator-only, returns {sent:[], monday:'YYYY-MM-DD'} or {skipped:'reason'}, idempotent via force=True in manual trigger; (2) GET /api/memberships/analytics/members-by-kpi?kpi=X - supports 10 KPI values (active_members, new_members, cancellations, frozen, failed_payments, recovered_payments, highly_engaged, regular, at_risk_segment, inactive), returns {kpi, count, members[]}; (3) GET /api/m/{slug}/brag - PUBLIC endpoint (no auth), returns {organization:{name,slug,logo_url,primary_brand_colour}, stats:{active_members,classes_this_month,attendance_this_month,top_class,as_of}}. Frontend: DigestButton in AnalyticsTab top-right, DrillDrawer opens on KPI card click, BrandedBragPage at /m/:slug/brag route.",
+  "features_verified": {
+    "backend_new_endpoints": {
+      "send_weekly_digest": "PASS - returns {sent:[], monday:'2026-04-21'} (empty sent because RESEND_API_KEY logs only in dev)",
+      "members_by_kpi_all_10_values": "PASS - all KPI values return valid {kpi, count, members[]}",
+      "public_brag": "PASS - returns org info + stats with top_class HIIT Blast (143 attended)",
+      "public_brag_404": "PASS - returns 404 for invalid slug"
+    },
+    "backend_auth_checks": {
+      "digest_401_no_token": "PASS",
+      "members_by_kpi_401_no_token": "PASS",
+      "members_by_kpi_rejects_member_token": "SKIPPED (member login fixture issue)",
+      "brag_no_auth_required": "PASS"
+    },
+    "backend_regression": {
+      "overview": "PASS",
+      "retention": "PASS",
+      "classes": "PASS",
+      "operations": "PASS",
+      "ai_brief": "PASS",
+      "at_risk": "PASS",
+      "crm_push": "PASS",
+      "csv_export": "PASS",
+      "pdf_export": "PASS"
+    },
+    "frontend_new_features": {
+      "send_weekly_digest_button": "PASS - visible in Analytics tab top-right",
+      "role_switcher": "PASS - Gym manager/Regional mgr/Director buttons work",
+      "kpi_drill_down_drawer": "PASS - opens on Active members click, shows member list with name/email/LTV",
+      "analytics_sub_tabs": "PASS - all 5 tabs (Overview/Retention/Classes/Operations/AI insights) present",
+      "brag_page_valid_slug": "PASS - shows branded card with stats",
+      "brag_page_invalid_slug": "PASS - shows 404 state"
+    }
+  }
+}

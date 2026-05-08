@@ -1,0 +1,92 @@
+{
+  "summary": "Weekly Digest Email feature (P4) fully tested. All 15 digest tests pass + 70 prior security tests pass (85 total). Frontend DigestPreferencesCard renders correctly in AccountPanel with master enable toggle, frequency/day/hour selects, 3 channel checkboxes, and 'Send me a test' button. Toggle behavior verified: controls hide when disabled, restore when enabled. Toast notifications confirm saves.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_digest.py",
+    "/app/test_reports/pytest/pytest_results_iteration147_digest.xml",
+    "/app/test_reports/pytest/pytest_results_iteration147_all_security.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Digest preferences CRUD properly merges partial channel updates (e.g., disabling only ppm_overdue keeps warranty+supplier on)",
+    "Frequency validation correctly rejects invalid values and defaults to 'weekly'",
+    "day_of_week clamped to 0-6, hour_of_day clamped to 0-23",
+    "send-now endpoint soft-fails with {success:true, sent:false} when no open nudges exist",
+    "POST /digest/run correctly requires is_master_admin (403 for non-admins)",
+    "Staff role (non-owner/manager) correctly gets 403 on PUT /digest/preferences",
+    "GET /digest/preferences readable by all authenticated users including staff",
+    "Hourly poller _run_digest_dispatcher_hourly wired in sicon_poller.py at line 163",
+    "ensure_digest_indexes called on startup in server.py",
+    "Frontend DigestPreferencesCard uses data-testid attributes for all interactive elements"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (85/85 tests passed - 15 digest + 70 security)",
+    "frontend": "100% (DigestPreferencesCard verified working)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "Created and cleaned up digest_preferences for Pulse Pro user during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Weekly Digest Email feature complete. 15 new tests in test_digest.py cover scheduling math, preferences CRUD, API authorization, and HTML rendering. Frontend DigestPreferencesCard in AccountPanel verified with all controls working. Hourly poller dispatches due digests via _run_digest_dispatcher_hourly. Resend is wired for real email delivery.",
+  "tests_executed": {
+    "test_digest.py": [
+      "test_next_due_at_disabled_returns_none - PASS",
+      "test_next_due_at_daily_first_send - PASS",
+      "test_next_due_at_weekly_picks_right_day - PASS",
+      "test_next_due_at_weekly_already_sent - PASS",
+      "test_is_due_respects_last_sent - PASS",
+      "test_set_preferences_validates_frequency - PASS",
+      "test_set_preferences_clamps_day_of_week - PASS",
+      "test_set_preferences_merges_channels - PASS",
+      "test_get_preferences_returns_defaults - PASS",
+      "test_put_preferences_saves_and_returns_merged - PASS",
+      "test_send_now_with_no_open_nudges_returns_sent_false - PASS",
+      "test_digest_run_requires_master_admin - PASS",
+      "test_digest_run_as_master_admin - PASS",
+      "test_render_digest_html_includes_summary_and_items - PASS",
+      "test_put_preferences_rejects_staff_role - PASS"
+    ],
+    "security_regression_tests": "70 tests passed across 7 security test files (test_security_hardening.py, test_security_p2_surface.py, test_proactive_nudges.py, test_mfa_and_audit.py, test_p3_hardening.py, test_p1c_security.py, test_sso_and_malware_scaffold.py)",
+    "frontend_tests": [
+      "DigestPreferencesCard renders in AccountPanel - PASS",
+      "Master enable switch found with data-testid='digest-enabled-switch' - PASS",
+      "Switch state defaults to unchecked (disabled) - PASS",
+      "Enabling switch shows form controls - PASS",
+      "Frequency select found with data-testid='digest-frequency' - PASS",
+      "Day of week select found with data-testid='digest-day' - PASS",
+      "Hour select found with data-testid='digest-hour' - PASS",
+      "All 3 channel checkboxes found (warranty_expiring, ppm_overdue, supplier_sla_drift) - PASS",
+      "Send test button found with data-testid='digest-send-test-btn' - PASS",
+      "Disabling switch hides form controls - PASS",
+      "Toast notification 'Digest preferences saved' appears on save - PASS"
+    ]
+  },
+  "features_verified": {
+    "GET /api/digest/preferences": "PASS - Returns user defaults when never set (enabled: false, frequency: weekly, all 3 channels on, hour_of_day: 8)",
+    "PUT /api/digest/preferences": "PASS - Saves and returns merged prefs; validates frequency; clamps day_of_week to 0-6 and hour_of_day to 0-23",
+    "PUT partial channels": "PASS - Merges with existing (e.g. disabling only ppm_overdue keeps warranty+supplier on)",
+    "POST /api/digest/send-now (no nudges)": "PASS - Returns {success:true, sent:false} (soft-fail)",
+    "POST /api/digest/run authorization": "PASS - Requires is_master_admin (403 for non-admins)",
+    "Staff role restriction": "PASS - Gets 403 on PUT /api/digest/preferences",
+    "GET preferences for staff": "PASS - Readable by all authenticated users",
+    "Hourly poller": "VERIFIED - _run_digest_dispatcher_hourly wired in sicon_poller.py",
+    "Frontend DigestPreferencesCard": "PASS - All controls render and function correctly",
+    "Frontend toggle behavior": "PASS - Turning master switch off hides form controls; turning it back on restores them"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

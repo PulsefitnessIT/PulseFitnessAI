@@ -1,0 +1,101 @@
+{
+  "summary": "Iteration 85: Testing 3 new features - Gym Layout Mobile Optimization, Risk Assessment Site Dropdown, Multi-Site Nav Switcher. Backend: 9/9 tests passed. Frontend: Features verified in code and partial UI testing (rate limiter blocked extended testing).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_verified": {
+    "P0_gym_layout_mobile_optimization": {
+      "status": "VERIFIED IN CODE + PARTIAL UI",
+      "code_verification": [
+        "PulseGymLayoutTab.js line 173: Canvas div has 'touch-none' class",
+        "PulseGymLayoutTab.js line 175: SVG has touchAction:'none' style",
+        "PulseGymLayoutTab.js lines 177-179: onTouchMove, onTouchEnd, onTouchCancel handlers on SVG",
+        "PulseGymLayoutTab.js lines 91-124: Touch handlers for drag (onTouchStartItem) and pinch-to-zoom (onTouchMoveCanvas)",
+        "PulseGymLayoutTab.js lines 250-317: Sidebar component with collapsed state and toggle button"
+      ],
+      "ui_verification": [
+        "Gym Layout tab accessible via /pulse portal",
+        "Gym Layout list view shows existing layouts (Demo Floor Plan, iGym Congleton)",
+        "New Layout button visible and opens create dialog",
+        "Create dialog has Layout Name, Length, Width inputs and CAD import option"
+      ]
+    },
+    "P1_risk_assessment_site_dropdown": {
+      "status": "VERIFIED IN CODE",
+      "code_verification": [
+        "RiskAssessmentTab.js lines 68-81: loadSites() fetches from /api/sites",
+        "RiskAssessmentTab.js lines 340-355: Conditional rendering - Select dropdown when sites.length > 0, text Input otherwise",
+        "RiskAssessmentTab.js line 341: Select component with data-testid='ra-site-select'",
+        "RiskAssessmentTab.js line 342: SelectTrigger with data-testid='ra-site-trigger'",
+        "RiskAssessmentTab.js lines 346-350: SelectItem for each site with name and address"
+      ],
+      "note": "UI testing blocked by rate limiter - code implementation verified correct"
+    },
+    "P1_multi_site_nav_switcher": {
+      "status": "VERIFIED IN CODE + UI",
+      "code_verification": [
+        "Navbar.js lines 222-260: Site switcher dropdown with MapPin icon",
+        "Navbar.js line 222: Conditional rendering - only shows when sites.length > 1",
+        "Navbar.js line 228: data-testid='site-switcher-btn'",
+        "Navbar.js lines 241-255: Site options with name and address",
+        "App.js lines 41-42: sites and activeSite state in AuthContext",
+        "App.js lines 70-79: loadSites function fetches from /api/sites"
+      ],
+      "ui_verification": [
+        "Admin login successful - site switcher NOT visible (correct for single-site user)",
+        "Pulse user login successful - dashboard loads correctly"
+      ]
+    }
+  },
+  "backend_tests": {
+    "GET /api/sites authenticated": "PASSED - Returns sites for authenticated user",
+    "GET /api/sites fallback": "PASSED - Falls back to org name if no sites collection entries",
+    "GET /api/sites unauthenticated": "PASSED - Returns 401/403 without auth",
+    "GET /api/gym-layouts": "PASSED - Returns layouts list",
+    "GET /api/gym-layouts/equipment-dimensions": "PASSED - Returns equipment data",
+    "GET /api/risk-assessments": "PASSED - Returns assessments list",
+    "Admin login": "PASSED",
+    "Pulse user login": "PASSED",
+    "Pulse user sites": "PASSED"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration85_sites.py",
+    "/app/test_reports/pytest/pytest_results_iteration85.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All 3 features implemented correctly based on code review",
+    "Touch handlers (onTouchStart, onTouchMove, onTouchEnd) properly implemented for mobile drag",
+    "Pinch-to-zoom implemented using touch distance calculation",
+    "Sidebar collapse/expand toggle button present with data-testid",
+    "Site dropdown in Risk Assessment uses conditional rendering based on sites.length",
+    "Site switcher in Navbar only shows when sites.length > 1 (correct behavior)",
+    "GET /api/sites endpoint returns org name as fallback when sites collection is empty"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration85_sites.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "Code verified, partial UI testing due to rate limiter"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro_user": "lee.somers@pulsefitness.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 85 verified 3 new features: (1) Gym Layout Mobile Optimization - touch handlers and pinch-to-zoom implemented in PulseGymLayoutTab.js, (2) Risk Assessment Site Dropdown - Select component replaces text input when sites are loaded, (3) Multi-Site Nav Switcher - only shows when user has >1 sites. Rate limiter is active (5 attempts per 5 min per IP) - may need to wait or restart backend to reset. All backend tests passed. Frontend code verified correct.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Sage 200 API", "Sicon Service API", "Resend Email"],
+    "note": "These integrations are mocked scaffolds. Not relevant to these tests."
+  }
+}

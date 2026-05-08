@@ -1,0 +1,73 @@
+{
+  "summary": "Iteration 215t - P1 Studio Polish + P2 Refactor testing complete. All 18 backend tests pass. Complexity refactor verified (data_wipe.py and custom_properties.py both under 8). Monthly invoice preview collection fix (db.bookings) confirmed working. Waitlist position feature working in backend API and operator Check-in roster UI.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Member Portal - Bookings Tab",
+        "issues": ["Waitlist position (#N of M) not shown in BookingRow component - only shows 'WAITLIST' badge. The position is correctly shown in the Book tab (ClassCard) but not in the Bookings tab."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter215t_polish_refactor.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215t.xml"
+  ],
+  "action_items": [
+    "MINOR: Consider adding waitlist position to BookingRow component in MemberPortal.js (line 962) to match the ClassCard display format"
+  ],
+  "critical_code_review_comments": [
+    "Complexity refactor successful - both data_wipe.py and custom_properties.py pass ruff C901 check with max-complexity=8",
+    "Monthly invoice preview now correctly queries db.bookings (not db.class_bookings) - CRITICAL FIX verified",
+    "Waitlist position calculation in member/timetable endpoint is correct (counts bookings with earlier created_at)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter215t_polish_refactor.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 tests passed)",
+    "frontend": "95% (all features working, minor UI inconsistency in member bookings tab)"
+  },
+  "seed_data_creation": "Added booked booking (wl-b-booked-b43c48) to waitlist test occurrence for proper testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 215t verified: (1) data_wipe.py refactor - reset-to-tottenham and clear-org-data both return 400 for missing/wrong confirm_phrase, (2) custom_properties.py refactor - CRUD operations work with dispatch table, (3) member/timetable returns waitlist_position for waitlisted bookings, (4) course plan creation materialises occurrences (course_occurrence_ids returned), (5) monthly-invoice/preview uses db.bookings collection correctly, (6) Check-in roster shows waitlist rows with violet styling and 'auto-promote' text. Member token format: {member_id, organization_id, kind:'member'}",
+  "tests_verified": {
+    "data_wipe_refactor": {
+      "reset_to_tottenham_missing_phrase": "PASS - returns 400",
+      "reset_to_tottenham_wrong_phrase": "PASS - returns 400",
+      "clear_org_data_missing_phrase": "PASS - returns 400",
+      "clear_org_data_wrong_phrase": "PASS - returns 400"
+    },
+    "custom_properties_refactor": {
+      "create_success": "PASS",
+      "create_missing_label": "PASS - returns 400",
+      "create_invalid_key": "PASS - returns 400",
+      "update_label": "PASS",
+      "update_options": "PASS",
+      "update_required_sort_order": "PASS",
+      "delete_archives": "PASS"
+    },
+    "waitlist_position": {
+      "member_timetable_api": "PASS - returns waitlist_position field",
+      "checkin_roster_ui": "PASS - shows WAITLIST #N chip and auto-promote text"
+    },
+    "course_plan": {
+      "materialisation": "PASS - course_occurrence_ids returned with correct count"
+    },
+    "monthly_invoice_preview": {
+      "collection_fix": "PASS - queries db.bookings correctly",
+      "attended_only_filter": "PASS",
+      "empty_period": "PASS"
+    },
+    "complexity_check": {
+      "data_wipe_py": "PASS - under 8",
+      "custom_properties_py": "PASS - under 8"
+    }
+  }
+}

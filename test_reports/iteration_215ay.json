@@ -1,0 +1,117 @@
+{
+  "summary": "Iter 215ay — Phase 3 CRM rebrand Pulse-leakage critical bug fix VERIFIED. Backend /api/crm/auth/login and /api/crm/auth/me now correctly return crm_brand, is_pulse_internal, and is_master_admin fields. Pulse-branded users (craig.henshall@pulsefitness.com) now see Pulse cyan branding inside CRM, NOT GymAxis purple gradient. All critical tests PASSED.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "CRM Demo Tour Modal",
+        "issues": ["Demo tour modal shows 'Welcome to GymAxis CRM' for all users including Pulse-branded users. Consider making this brand-aware."],
+        "priority": "LOW"
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_215ay.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_crm_user": "craig.henshall@pulsefitness.com / Test123!",
+    "pulse_operator": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215ay verified the Phase 3 CRM rebrand Pulse-leakage bug fix. The backend now correctly returns crm_brand='pulse' for Pulse users and crm_brand='gymaxis' for GymAxis users. Frontend correctly renders Pulse branding (cyan, no gradient) for Pulse users and GymAxis branding (gradient) for GymAxis users.",
+  "tests_verified": {
+    "backend_crm_login_pulse_user": {
+      "status": "PASS",
+      "details": "POST /api/crm/auth/login for craig.henshall@pulsefitness.com returns crm_brand='pulse', is_pulse_internal=true, is_master_admin=false"
+    },
+    "backend_crm_login_gymaxis_admin": {
+      "status": "PASS",
+      "details": "POST /api/crm/auth/login for admin@gymaxisai.com returns crm_brand='gymaxis', is_pulse_internal=true, is_master_admin=true"
+    },
+    "backend_crm_me_pulse_user": {
+      "status": "PASS",
+      "details": "GET /api/crm/auth/me for Pulse user returns crm_brand='pulse'"
+    },
+    "pulse_crm_h1_wordmark": {
+      "status": "PASS",
+      "details": "H1 shows 'Pulse Fitness' (not 'GymAxis') for Pulse user"
+    },
+    "pulse_crm_no_gx_grad_text": {
+      "status": "PASS",
+      "details": "H1 does NOT have gx-grad-text class for Pulse user"
+    },
+    "pulse_crm_no_theme_gymaxis": {
+      "status": "PASS",
+      "details": "Outer div does NOT have theme-gymaxis class for Pulse user"
+    },
+    "pulse_crm_active_tab_cyan": {
+      "status": "PASS",
+      "details": "Active CRM nav tab has solid cyan background (rgb(25, 205, 255)) NOT gradient for Pulse user"
+    },
+    "gymaxis_crm_h1_wordmark": {
+      "status": "PASS",
+      "details": "H1 shows 'GymAxis Pro' for GymAxis admin"
+    },
+    "gymaxis_crm_gx_grad_text": {
+      "status": "PASS",
+      "details": "H1 HAS gx-grad-text class for GymAxis admin"
+    },
+    "gymaxis_crm_dark_mode_no_theme_gymaxis": {
+      "status": "PASS",
+      "details": "In dark mode, theme-gymaxis class is NOT present (correct behavior)"
+    },
+    "crm_tab_navigation_pulse": {
+      "status": "PASS",
+      "details": "CRM tab navigation (Dashboard, Contacts, Companies, Inbox) works correctly for Pulse user"
+    },
+    "crm_tab_navigation_gymaxis": {
+      "status": "PASS",
+      "details": "CRM tab navigation (Dashboard, Pipeline, Contacts, Companies, Inbox) works correctly for GymAxis admin"
+    },
+    "pulse_landing_no_theme_gymaxis": {
+      "status": "PASS",
+      "details": "NO theme-gymaxis class on Pulse landing page (/pulse)"
+    },
+    "pulse_landing_no_gx_grad_text": {
+      "status": "PASS",
+      "details": "NO gx-grad-text class on Pulse landing page"
+    },
+    "pulse_landing_no_brand_gradient": {
+      "status": "PASS",
+      "details": "NO brand-gradient class on Pulse landing page"
+    },
+    "pulse_landing_proxima_nova_font": {
+      "status": "PASS",
+      "details": "Pulse landing uses Proxima Nova font (correct Pulse branding)"
+    },
+    "master_admin_gradient_elements": {
+      "status": "PASS",
+      "details": "Master Admin portal has gradient elements (gx-cta, gx-gradient-text) - Phase 1+2 styling preserved"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "rca_of_the_issue": {
+    "bug": "Pulse-branded CRM users were seeing GymAxis branding (FIXED)",
+    "root_cause": "The /api/crm/auth/login endpoint was not returning crm_brand field in the response. The field was computed in _resolve_crm_brand_flags() but only used in the cross-login flow.",
+    "fix_applied": "Lines 167-204 in /app/backend/routes/crm_auth.py now call _resolve_crm_brand_flags() and include crm_brand, is_pulse_internal, is_master_admin in the login response. Lines 214-227 do the same for /me endpoint.",
+    "verification": "Curl tests confirm crm_brand='pulse' for Pulse users and crm_brand='gymaxis' for GymAxis users. Frontend correctly renders Pulse branding (cyan, no gradient) for Pulse users."
+  }
+}

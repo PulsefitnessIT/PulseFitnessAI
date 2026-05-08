@@ -1,0 +1,126 @@
+{
+  "summary": "Iteration 18 testing complete. All 8 features/fixes verified. Backend: 11/11 tests passed (100%). Frontend: All features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration18_features.py",
+    "/app/test_reports/pytest/pytest_results_iteration18.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Reports tab sub-tabs correctly ordered: Risk Assessments (1st, default) > Operational Reports (2nd) > Machine Audit (3rd)",
+    "Machine Audit sub-tab renamed from 'Audit Reports' - shows read-only audit history list",
+    "'Audits are now per-equipment' notice successfully removed from Reports tab",
+    "Gym Design tab renders without runtime error - FloorPlanImage crossOrigin fix working for blob URLs",
+    "Navbar shows custom company name 'iGym Congleton' from white label settings",
+    "Organization logo displayed in navbar (fetched via /api/organization/logo)",
+    "Settings > White Label section shows branding form with color picker (#2AD3E2), company name, logo upload, and preview",
+    "Settings > Onboarding is a step-by-step wizard with 5 steps: Organisation, Suppliers, Equipment, Team, Complete",
+    "Onboarding wizard has Back/Next/Skip buttons and progress indicator with step numbers",
+    "GET /api/organization/logo returns proper URL path: /api/public/files/{id}",
+    "GET /api/public/files/{id} returns logo image with status 200 and content-type: image/png"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration18_features.py - Created comprehensive test suite for iteration 18 features"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "regular_user": {
+      "email": "test@gymfixai.com",
+      "password": "Test123!"
+    },
+    "master_admin": {
+      "email": "admin@gymfixai.com",
+      "password": "MasterAdmin123!"
+    }
+  },
+  "seed_data_creation": "Test gym layout 'TEST_Layout_Iteration18' created and deleted during backend tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 18 features fully tested. Key data-testids: report-sub-risk (Risk Assessments), report-sub-operational (Operational Reports), report-sub-audits (Machine Audit), tab-gym-design (Gym Design), nav-settings-btn (Settings), settings-section-branding (White Label), settings-section-onboarding (Onboarding), onboarding-wizard, onboarding-progress, onboarding-step-0 through 4, onboarding-next-btn, onboarding-back-btn, onboarding-skip-btn. Branding color is #2AD3E2, company name is 'iGym Congleton'. Logo file ID: a3eb8b78-48c5-4ba1-ba01-02ea038b0224.",
+  "features_verified": {
+    "reports_tab_subtabs": {
+      "order": ["Risk Assessments (1st, default)", "Operational Reports (2nd)", "Machine Audit (3rd)"],
+      "data_testids": ["report-sub-risk", "report-sub-operational", "report-sub-audits"],
+      "default_subtab": "risk",
+      "audit_reports_renamed": "Machine Audit",
+      "notice_removed": "'Audits are now per-equipment' notice removed",
+      "status": "WORKING"
+    },
+    "machine_audit_subtab": {
+      "shows_audit_history": true,
+      "read_only": true,
+      "data_testid": "audit-history-card",
+      "status": "WORKING"
+    },
+    "gym_design_no_crash": {
+      "renders_correctly": true,
+      "canvas_visible": true,
+      "crossOrigin_fix": "FloorPlanImage doesn't set crossOrigin for blob URLs",
+      "data_testid": "gym-layout-editor",
+      "status": "WORKING"
+    },
+    "navbar_branding": {
+      "company_name": "iGym Congleton",
+      "brand_color": "#2AD3E2",
+      "logo_displayed": true,
+      "data_testid": "org-logo",
+      "status": "WORKING"
+    },
+    "white_label_settings": {
+      "section_visible": true,
+      "color_picker": true,
+      "company_name_input": true,
+      "logo_upload": true,
+      "preview": true,
+      "data_testids": ["branding-section", "branding-company-name", "branding-color-picker", "branding-logo-upload", "save-branding-btn"],
+      "status": "WORKING"
+    },
+    "onboarding_wizard": {
+      "steps": ["Organisation", "Suppliers", "Equipment", "Team", "Complete"],
+      "progress_indicator": true,
+      "back_button": true,
+      "next_button": true,
+      "skip_button": true,
+      "data_testids": ["onboarding-wizard", "onboarding-progress", "onboarding-step-0", "onboarding-step-1", "onboarding-step-2", "onboarding-step-3", "onboarding-step-4", "onboarding-next-btn", "onboarding-back-btn", "onboarding-skip-btn"],
+      "status": "WORKING"
+    },
+    "organization_logo_api": {
+      "endpoint": "GET /api/organization/logo",
+      "returns_proper_url": "/api/public/files/{id}",
+      "status": "WORKING"
+    },
+    "public_files_api": {
+      "endpoint": "GET /api/public/files/{id}",
+      "returns_image": true,
+      "content_type": "image/png",
+      "status_code": 200,
+      "status": "WORKING"
+    }
+  },
+  "endpoints_tested": [
+    "POST /api/auth/login (regular user) - PASSED",
+    "GET /api/organization/logo - PASSED (returns /api/public/files/{id})",
+    "GET /api/public/files/{id} - PASSED (returns image/png, status 200)",
+    "GET /api/organization - PASSED (has branding field)",
+    "PATCH /api/organization/branding - PASSED",
+    "GET /api/gym-layouts - PASSED",
+    "POST /api/gym-layouts - PASSED",
+    "DELETE /api/gym-layouts/{id} - PASSED",
+    "GET /api/risk-assessments - PASSED",
+    "GET /api/audit/history - PASSED",
+    "GET /api/reports/equipment-summary - PASSED",
+    "GET /api/suppliers - PASSED",
+    "GET /api/organization/staff - PASSED"
+  ]
+}

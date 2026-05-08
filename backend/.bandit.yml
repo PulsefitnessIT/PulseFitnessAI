@@ -1,0 +1,16 @@
+# Bandit static-analysis config.
+# Run locally with:   bandit -r /app/backend -c /app/backend/.bandit.yml
+
+exclude_dirs:
+  - tests
+  - __pycache__
+  - .venv
+
+# B101 = assert_used — we rely on assert in pytest, not production paths.
+# B104 = hardcoded_bind_all_interfaces — FastAPI binds to 0.0.0.0 intentionally.
+# B110 = try_except_pass — used in idempotent startup hooks where failure is logged.
+# B113 = request_without_timeout — curl-style calls; ignored when wrapped in httpx with explicit timeout.
+skips:
+  - B101
+  - B104
+  - B110

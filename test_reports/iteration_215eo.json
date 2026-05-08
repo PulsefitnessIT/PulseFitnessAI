@@ -1,0 +1,78 @@
+{
+  "summary": "Iter 215eo - Companies House (UK) Public-Data API Proxy Testing Complete. Backend: 14/14 tests passed covering /status, /search, /company/{number} endpoints with auth gating, caching, field normalisation, and 404 handling. Frontend: All features verified - autocomplete shows two grouped sections (Existing organisations + Companies House UK), clicking CH suggestion pre-fills org_name, company_number, and full structured billing address (address_line1..3, city, county, postcode, country). VAT number correctly NOT pre-filled from CH.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215eo_companies_house.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215eo.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_215eo_companies_house.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None - used live Companies House API",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215eo Companies House integration fully tested. All three endpoints working: (1) GET /api/master-admin/companies-house/status returns enabled:true with base_url when API key is set, (2) GET /api/master-admin/companies-house/search?q=... returns normalised items with GymAxis field names (address_line1 not address_line_1, postcode not postal_code, city not locality), caches for 60s, (3) GET /api/master-admin/companies-house/company/{number} returns full profile with normalised address, caches for 15min, returns 404 for non-existent companies. Frontend HeadOfficeOnboardingWizard autocomplete shows two grouped sections with data-testid='ho-suggest-section-internal' and data-testid='ho-suggest-section-companies-house'. Clicking CH suggestion fetches full profile and pre-fills org_name, company_number, billing_address_line1..3, billing_city, billing_county, billing_postcode, billing_country. VAT number and phone are NOT pre-filled from CH (correct behaviour).",
+  "backend_tests_summary": {
+    "status_endpoint": {
+      "auth_401": "PASSED - Returns 401 without token",
+      "enabled_true": "PASSED - Returns enabled:true with base_url when API key set"
+    },
+    "search_endpoint": {
+      "auth_401": "PASSED - Returns 401 without token",
+      "empty_query": "PASSED - Returns enabled:true, items:[] for empty query",
+      "short_query": "PASSED - Returns enabled:true, items:[] for <2 char query",
+      "pulse_fitness_search": "PASSED - Returns PULSE FITNESS LIMITED (04354059) with normalised fields",
+      "caching": "PASSED - Second identical call returns cached:true"
+    },
+    "profile_endpoint": {
+      "auth_401": "PASSED - Returns 401 without token",
+      "not_found_404": "PASSED - Returns 404 for non-existent company 99999999",
+      "normalised_address": "PASSED - Returns normalised address fields for 04354059",
+      "caching": "PASSED - Second call returns cached:true"
+    },
+    "field_normalisation": {
+      "no_native_fields": "PASSED - No Companies House native field names leak through",
+      "gymaxis_fields": "PASSED - All GymAxis normalised field names present"
+    },
+    "auth_gating": {
+      "all_endpoints_401": "PASSED - All endpoints return 401 without token",
+      "master_admin_access": "PASSED - Master admin can access all endpoints"
+    }
+  },
+  "frontend_tests_summary": {
+    "head_office_wizard": {
+      "wizard_renders": "PASSED - data-testid='ho-onboard-wizard' present",
+      "org_name_autocomplete": "PASSED - data-testid='ho-org-name' with search icon",
+      "suggestions_dropdown": "PASSED - data-testid='ho-org-name-suggestions' appears on typing",
+      "internal_section": "PASSED - data-testid='ho-suggest-section-internal' shows existing orgs",
+      "companies_house_section": "PASSED - data-testid='ho-suggest-section-companies-house' shows CH results",
+      "ch_suggestion_click": "PASSED - Clicking ho-ch-suggestion-04354059 fetches profile and pre-fills form"
+    },
+    "pre_fill_verification": {
+      "org_name": "PASSED - Pre-filled with 'PULSE FITNESS LIMITED'",
+      "company_number": "PASSED - Pre-filled with '04354059'",
+      "address_line1": "PASSED - Pre-filled with 'Radnor Park'",
+      "address_line2": "PASSED - Pre-filled with 'Greenfield Road'",
+      "city": "PASSED - Pre-filled with 'Congleton'",
+      "county": "PASSED - Pre-filled with 'Cheshire'",
+      "postcode": "PASSED - Pre-filled with 'CW12 4TW'",
+      "country": "PASSED - Pre-filled with 'United Kingdom'",
+      "vat_number": "PASSED - NOT pre-filled from CH (correct behaviour)"
+    }
+  }
+}

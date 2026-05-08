@@ -1,0 +1,72 @@
+{
+  "summary": "Iteration 211 — Documents Library testing complete. All backend tests pass (6/6). Frontend Documents panel and Org Billing Documents sub-tab working correctly. Legacy supplier-docs endpoint at /api/master-admin/documents still responds with correct schema. New document-library endpoint at /api/master-admin/document-library working correctly. Invoice auto-capture verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Pulse master admin user (craig.henshall+pulse@pulsefitness.com) does not exist in database - was likely purged in platform reset. Cannot test Pulse admin parity."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_documents_library_iter211.py",
+    "/app/test_reports/pytest/pytest_results_iteration211.xml"
+  ],
+  "action_items": [
+    "Re-seed Pulse master admin user (craig.henshall+pulse@pulsefitness.com / BrandNewPwd2026!) if Pulse admin parity testing is required"
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (all data-testids found, Documents panel renders, Org Billing tabs work)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123!",
+    "tottenham_org_id": "156c8dc4-8683-4cb4-8a74-facd811655ad"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Documents Library feature is complete. Backend endpoints at /api/master-admin/document-library (new) and /api/master-admin/documents (legacy supplier-docs) both work independently. Frontend DocumentsPanel renders in both Master Admin → Support → Documents and inside Org Billing → Documents sub-tab. Invoice auto-capture working - PDFs generated via /api/master-admin/orgs/{id}/billing/invoice/{id}/pdf are automatically captured in the documents library.",
+  "verified_features": {
+    "backend": [
+      "GET /api/master-admin/document-library - lists docs with master admin token (200), rejects non-master (403)",
+      "POST /api/master-admin/document-library - accepts multipart upload with file, title, category, scope, organization_id, tags",
+      "GET /api/master-admin/document-library/{id}/download - returns original bytes with Content-Disposition",
+      "DELETE /api/master-admin/document-library/{id} - removes doc, subsequent download returns 404",
+      "Per-org scoping - scope=org with organization_id filters correctly, excluded from scope=platform filter",
+      "Validation - scope=org without organization_id returns 400, empty file returns 400",
+      "Legacy endpoint GET /api/master-admin/documents - still responds with legacy schema (total, files, suppliers, duplicate_count)"
+    ],
+    "frontend": [
+      "Master Admin → Support → Documents tab opens DocumentsPanel",
+      "DocumentsPanel shows list of documents with download/delete buttons",
+      "Upload dialog opens with file selection, title, category, scope, tags fields",
+      "Scope and category filters work",
+      "Refresh button works",
+      "Org Billing → Ledger | Documents sub-tab strip renders",
+      "Switching to Documents shows DocumentsPanel scoped to that org",
+      "Switching back to Ledger restores invoices/payments view"
+    ],
+    "data_testids_verified": [
+      "org-billing-tabs",
+      "org-billing-tab-ledger",
+      "org-billing-tab-documents",
+      "documents-panel",
+      "documents-search",
+      "documents-scope-filter",
+      "documents-category-filter",
+      "documents-upload-btn",
+      "documents-upload-dialog",
+      "documents-upload-confirm"
+    ]
+  },
+  "not_tested": {
+    "pulse_admin_parity": "Pulse master admin user does not exist in database - cannot verify Documents sidebar entry visibility for Pulse admin"
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "summary": "Iteration 60 - Mobile Pill Bar Bug Fix Testing. Bug fix verified: ALL tabs now present in mobile pill bar (previously only overflow tabs were shown). Auto-scroll to center active pill on tab change via bottom nav working correctly. All 21 tests passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dialog components",
+        "issues": ["Console warning: Missing Description or aria-describedby for DialogContent - accessibility improvement needed (existing issue from previous iterations)"]
+      }
+    ]
+  },
+  "test_results": {
+    "gymaxis_mobile": {
+      "mobile_pill_bar_exists": {
+        "status": "PASSED",
+        "details": "Mobile pill bar found with data-testid='mobile-gymaxis-tab-pills'"
+      },
+      "all_tabs_present": {
+        "status": "PASSED",
+        "details": "All 10 tabs present: Dashboard, Equipment, Faults, Check Sheets, Reports, AI Fault Diagnosis, Gym Layout, Documents, Suppliers, Weekly Digest"
+      },
+      "pill_bar_scrollable": {
+        "status": "PASSED",
+        "details": "Pill bar has overflow-x-auto class for horizontal scrolling"
+      },
+      "pills_whitespace_nowrap": {
+        "status": "PASSED",
+        "details": "Pills have whitespace-nowrap class to prevent text wrapping"
+      },
+      "bottom_nav_sync": {
+        "status": "PASSED",
+        "details": "Clicking Equipment in bottom nav activates Equipment pill with blue background (#0055FF)"
+      },
+      "pill_click_switches_tab": {
+        "status": "PASSED",
+        "details": "Clicking Reports pill directly shows Reports content"
+      },
+      "auto_scroll_on_tab_change": {
+        "status": "PASSED",
+        "details": "Clicking AI in bottom nav auto-scrolls AI Diagnosis pill into view"
+      }
+    },
+    "pulse_mobile": {
+      "mobile_pill_bar_exists": {
+        "status": "PASSED",
+        "details": "Mobile pill bar found with data-testid='mobile-tab-pills'"
+      },
+      "all_tabs_present": {
+        "status": "PASSED",
+        "details": "All 10 tabs present for Pro owner: Dashboard, Equipment, Faults, Documents, Check Sheets, AI Diagnosis, Reports, Gym Layout, Suppliers, Weekly Digest"
+      },
+      "pill_bar_scrollable": {
+        "status": "PASSED",
+        "details": "Pill bar has overflow-x-auto class for horizontal scrolling"
+      },
+      "pills_whitespace_nowrap": {
+        "status": "PASSED",
+        "details": "Pills have whitespace-nowrap class to prevent text wrapping"
+      },
+      "bottom_nav_sync": {
+        "status": "PASSED",
+        "details": "Clicking Equipment in bottom nav activates Equipment pill with cyan background (#66ccff)"
+      },
+      "pill_click_switches_tab": {
+        "status": "PASSED",
+        "details": "Clicking Documents pill directly shows Documents content"
+      },
+      "auto_scroll_on_tab_change": {
+        "status": "PASSED",
+        "details": "Clicking Reports in bottom nav auto-scrolls Reports pill into view"
+      }
+    },
+    "desktop_view": {
+      "mobile_pill_bar_hidden": {
+        "status": "PASSED",
+        "details": "Mobile pill bar is hidden on desktop (md:hidden class)"
+      },
+      "desktop_tabs_visible": {
+        "status": "PASSED",
+        "details": "Desktop TabsList visible with all 10 tabs: Dashboard, Equipment, Faults, Check Sheets, Reports, AI Fault Diagnosis, Gym Layout, Documents, Suppliers, Weekly Digest"
+      },
+      "mobile_bottom_nav_hidden": {
+        "status": "PASSED",
+        "details": "Mobile bottom nav is hidden on desktop (md:hidden class)"
+      },
+      "desktop_tabs_clickable": {
+        "status": "PASSED",
+        "details": "Clicking Equipment tab on desktop shows Equipment content"
+      }
+    }
+  },
+  "bug_fix_verification": {
+    "original_bug": "On mobile, the options bar was not scrolling properly - user couldn't see options before Check Sheets",
+    "root_cause": "Mobile pill bar only showed overflow tabs (Check Sheets onwards), hiding tabs that were in the bottom nav",
+    "fix_applied": "Include ALL tabs in the mobile pill bar and add auto-scroll to center the active pill when tab changes via bottom nav",
+    "fix_verified": true,
+    "files_changed": [
+      "/app/frontend/src/pages/DashboardPage.js - Lines 40-48 (pillBarRef, auto-scroll effect), Lines 698-720 (mobile pill bar with all tabs)",
+      "/app/frontend/src/pages/LiteDashboardPage.js - Lines 88-89 (pulsePillBarRef), Lines 296-302 (auto-scroll effect), Lines 360-376 (mobile pill bar with all TABS)"
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_60.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Auto-scroll implementation uses scrollIntoView with behavior: 'smooth', inline: 'center', block: 'nearest' - correct approach",
+    "Pill bar uses overflow-x-auto with scrollbar-hide for clean horizontal scrolling",
+    "Pills use whitespace-nowrap to prevent text wrapping",
+    "WebkitOverflowScrolling: 'touch' added for smooth iOS scrolling",
+    "useEffect dependency on activeTab correctly triggers auto-scroll on tab change"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (21/21 tests passed)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro_owner": "test@gymaxisai.com / Test123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Mobile pill bar bug fix verified. ALL tabs now shown in mobile pill bar for both GymAxis and Pulse dashboards. Auto-scroll centers active pill when tab changes via bottom nav. Desktop view correctly hides mobile pill bar and shows desktop TabsList. Test data-testids: mobile-gymaxis-tab-pills (GymAxis), mobile-tab-pills (Pulse), mobile-pill-{tabId} for individual pills, mobile-nav-{tabId} for bottom nav items.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe Connect onboarding", "Sicon Service ERP", "Resend email delivery (token logged to console)"]
+  }
+}

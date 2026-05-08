@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="25" time="7.301" timestamp="2026-04-21T21:33:23.288565+00:00" hostname="agent-env-285ce9b6-7b4e-46db-852f-bad30b58fc15"><testcase classname="tests.test_security_hardening" name="test_rate_limit_allows_under_cap" time="0.301" /><testcase classname="tests.test_security_hardening" name="test_rate_limit_blocks_over_cap" time="0.003" /><testcase classname="tests.test_security_hardening" name="test_jwt_revocation_roundtrip" time="0.002" /><testcase classname="tests.test_security_hardening" name="test_jwt_revocation_missing_jti_is_noop" time="0.000" /><testcase classname="tests.test_security_hardening" name="test_llm_budget_blocks_at_daily_cap" time="0.043" /><testcase classname="tests.test_security_hardening" name="test_supplier_token_valid_then_expired" time="0.003" /><testcase classname="tests.test_security_hardening" name="test_hmac_verifier_happy_path" time="0.000" /><testcase classname="tests.test_security_hardening" name="test_hmac_verifier_rejects_bad_sig" time="0.000" /><testcase classname="tests.test_security_hardening" name="test_audit_required_writes_row" time="0.017" /><testcase classname="tests.test_security_hardening" name="test_audit_required_raises_when_mongo_down" time="0.151" /><testcase classname="tests.test_security_hardening" name="test_cors_fails_fast_in_prod" time="0.000" /><testcase classname="tests.test_security_hardening" name="test_cors_dev_default_permissive" time="0.000" /><testcase classname="tests.test_security_hardening" name="test_cors_comma_list" time="0.000" /><testcase classname="tests.test_security_p2_surface" name="test_captcha_config_public" time="0.129" /><testcase classname="tests.test_security_p2_surface" name="test_login_works_when_captcha_disabled_in_dev" time="0.332" /><testcase classname="tests.test_security_p2_surface" name="test_files_endpoint_denies_unknown_id_to_regular_user" time="0.468" /><testcase classname="tests.test_security_p2_surface" name="test_auth_logout_revokes_jwt" time="0.371" /><testcase classname="tests.test_security_p2_surface" name="test_rate_limit_headers_on_abuse" time="3.279" /><testcase classname="tests.test_proactive_nudges" name="test_warranty_scanner_emits_event" time="0.004"><failure message="RuntimeError: Event loop is closed">tests/test_proactive_nudges.py:69: in test_warranty_scanner_emits_event
+    run_async(_go())
+tests/test_proactive_nudges.py:41: in run_async
+    return loop.run_until_complete(coro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_proactive_nudges.py:54: in _go
+    await db.organizations.insert_one({"id": org_id, "name": "Warranty Test Gym"})
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_proactive_nudges" name="test_warranty_scanner_auto_resolves_when_empty" time="0.000"><failure message="RuntimeError: Event loop is closed">tests/test_proactive_nudges.py:97: in test_warranty_scanner_auto_resolves_when_empty
+    run_async(_go())
+tests/test_proactive_nudges.py:41: in run_async
+    return loop.run_until_complete(coro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_proactive_nudges.py:79: in _go
+    await db.organizations.insert_one({"id": org_id, "name": "Empty Gym"})
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_proactive_nudges" name="test_ppm_overdue_scanner" time="0.001"><failure message="RuntimeError: Event loop is closed">tests/test_proactive_nudges.py:122: in test_ppm_overdue_scanner
+    run_async(_go())
+tests/test_proactive_nudges.py:41: in run_async
+    return loop.run_until_complete(coro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_proactive_nudges.py:108: in _go
+    await db.organizations.insert_one({"id": org_id, "name": "PPM Test Gym"})
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_proactive_nudges" name="test_supplier_drift_scanner" time="0.001"><failure message="RuntimeError: Event loop is closed">tests/test_proactive_nudges.py:149: in test_supplier_drift_scanner
+    run_async(_go())
+tests/test_proactive_nudges.py:41: in run_async
+    return loop.run_until_complete(coro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_proactive_nudges.py:132: in _go
+    await db.organizations.insert_one({"id": org_id, "name": "Drift Test Gym"})
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_proactive_nudges" name="test_nudges_list_api" time="0.477" /><testcase classname="tests.test_proactive_nudges" name="test_nudges_dismiss_requires_manager" time="0.696"><failure message="RuntimeError: Event loop is closed">tests/test_proactive_nudges.py:196: in test_nudges_dismiss_requires_manager
+    run_async(_downgrade())
+tests/test_proactive_nudges.py:41: in run_async
+    return loop.run_until_complete(coro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_proactive_nudges.py:194: in _downgrade
+    await db.users.update_one({"email": email}, {"$set": {"role": "staff"}})
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</failure></testcase><testcase classname="tests.test_proactive_nudges" name="test_nudges_run_requires_master_admin" time="0.482" /></testsuite></testsuites>

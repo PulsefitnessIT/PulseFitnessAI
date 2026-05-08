@@ -1,0 +1,167 @@
+{
+  "summary": "Iter 215aq — GymAxis CTA Button Testing: 28/30 tests PASSED. All Start Free Trial CTAs correctly open the TrialSignupModal. All navigation CTAs work correctly. Two minor design spec deviations found: (1) Book Demo buttons missing ArrowRight icons, (2) Password validation shows uppercase requirement instead of 8-char minimum (browser HTML5 validation intercepts first).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Homepage Hero",
+        "issues": ["Book Demo button (gx-hero-demo) missing ArrowRight icon - spec says ALL CTAs should have ArrowRight"],
+        "priority": "LOW"
+      },
+      {
+        "screen": "Homepage Final CTA",
+        "issues": ["Book Demo button (gx-final-demo) missing ArrowRight icon - spec says ALL CTAs should have ArrowRight"],
+        "priority": "LOW"
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_215aq.json"
+  ],
+  "action_items": [
+    "OPTIONAL: Add ArrowRight icon to Book Demo buttons in MarketingHome.js (lines 58-60 and 191-193) to match spec that ALL CTAs have ArrowRight"
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "93% (28/30 tests passed, 2 minor design deviations)"
+  },
+  "test_credentials": "N/A (public marketing pages, no auth required)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All CTA buttons functional. Trial modal opens/closes correctly via X, Escape, and backdrop click. Form validation works (browser HTML5 validation for minLength, custom validation for Turnstile). Password validation shows uppercase requirement before 8-char check due to additional backend validation.",
+  "tests_verified": {
+    "homepage_hero_trial_cta": {
+      "status": "PASS",
+      "testid": "gx-hero-trial",
+      "details": "Opens trial modal, has gx-cta class and ArrowRight icon"
+    },
+    "homepage_hero_demo_cta": {
+      "status": "PASS",
+      "testid": "gx-hero-demo",
+      "details": "Navigates to /contact, contact-hero renders"
+    },
+    "homepage_nav_signin": {
+      "status": "PASS",
+      "testid": "gx-nav-signin",
+      "details": "Navigates to /login"
+    },
+    "homepage_nav_trial": {
+      "status": "PASS",
+      "testid": "gx-nav-trial",
+      "details": "Opens trial modal, has gx-cta class and ArrowRight icon"
+    },
+    "homepage_nav_links": {
+      "status": "PASS",
+      "details": "All 7 nav links navigate correctly",
+      "testids_verified": ["gx-nav-operations", "gx-nav-crm", "gx-nav-memberships", "gx-nav-marketing", "gx-nav-staffing", "gx-nav-reporting", "gx-nav-pricing"]
+    },
+    "homepage_orbit_nodes": {
+      "status": "PASS",
+      "details": "All 6 orbit nodes navigate to correct /platform/<id> pages",
+      "testids_verified": ["gx-orbit-service", "gx-orbit-crm", "gx-orbit-memberships", "gx-orbit-marketing", "gx-orbit-staffing", "gx-orbit-reporting"]
+    },
+    "homepage_module_grid": {
+      "status": "PASS",
+      "details": "All 6 module cards navigate to correct /platform/<id> pages",
+      "testids_verified": ["gx-module-service", "gx-module-crm", "gx-module-memberships", "gx-module-marketing", "gx-module-staffing", "gx-module-reporting"]
+    },
+    "homepage_final_trial_cta": {
+      "status": "PASS",
+      "testid": "gx-final-trial",
+      "details": "Opens trial modal, white bg on dark gradient, has ArrowRight icon"
+    },
+    "homepage_final_demo_cta": {
+      "status": "PASS",
+      "testid": "gx-final-demo",
+      "details": "Navigates to /contact"
+    },
+    "trial_modal_contents": {
+      "status": "PASS",
+      "details": "Modal contains: 14-DAY FREE TRIAL badge, 'Start your trial' heading, all 5 inputs (name/email/company/phone/password), submit button, close button"
+    },
+    "trial_modal_close_x": {
+      "status": "PASS",
+      "details": "X button (trial-modal-close) closes modal"
+    },
+    "trial_modal_close_escape": {
+      "status": "PASS",
+      "details": "Escape key closes modal"
+    },
+    "trial_modal_close_backdrop": {
+      "status": "PASS",
+      "details": "Clicking backdrop (trial-modal-overlay) closes modal"
+    },
+    "trial_modal_password_validation": {
+      "status": "INFO",
+      "details": "HTML5 minLength=8 browser validation prevents form submission before custom JS validation. When bypassed, shows 'Password must contain one uppercase letter' (additional backend validation)"
+    },
+    "trial_modal_turnstile": {
+      "status": "INFO",
+      "details": "Turnstile widget not present in this environment (environmental, not a bug per spec)"
+    },
+    "visual_spec_trial_ctas_gradient": {
+      "status": "PASS",
+      "details": "All trial CTAs on light backgrounds have gx-cta class (brand gradient)"
+    },
+    "visual_spec_final_trial_white": {
+      "status": "PASS",
+      "details": "Final CTA trial button has white bg (rgb(255,255,255)) on dark gradient section"
+    },
+    "visual_spec_hover_not_black": {
+      "status": "PASS",
+      "details": "Hover states do not go black - color remains white, bg transparent"
+    },
+    "visual_spec_demo_ctas_arrow": {
+      "status": "FAIL",
+      "details": "Book Demo buttons (gx-hero-demo, gx-final-demo) missing ArrowRight icons - spec says ALL CTAs should have ArrowRight",
+      "priority": "LOW"
+    },
+    "pricing_studio_cta": {
+      "status": "PASS",
+      "testid": "pricing-cta-studio",
+      "details": "Opens trial modal"
+    },
+    "pricing_growth_cta": {
+      "status": "PASS",
+      "testid": "pricing-cta-growth",
+      "details": "Opens trial modal"
+    },
+    "pricing_enterprise_cta": {
+      "status": "PASS",
+      "testid": "pricing-cta-enterprise",
+      "details": "Navigates to /contact"
+    },
+    "mobile_hamburger": {
+      "status": "PASS",
+      "testid": "gx-nav-mobile-btn",
+      "details": "Hamburger button visible at 390x844, opens drawer"
+    },
+    "mobile_drawer": {
+      "status": "PASS",
+      "testid": "gx-nav-mobile-drawer",
+      "details": "Drawer opens with all nav links"
+    },
+    "mobile_drawer_trial": {
+      "status": "PASS",
+      "testid": "gx-nav-mobile-trial",
+      "details": "Opens trial modal from mobile drawer"
+    },
+    "mobile_drawer_signin": {
+      "status": "PASS",
+      "testid": "gx-nav-mobile-signin",
+      "details": "Navigates to /login from mobile drawer"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

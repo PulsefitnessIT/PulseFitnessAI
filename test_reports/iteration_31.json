@@ -1,0 +1,115 @@
+{
+  "summary": "Iteration 31 - Bundled Email Feature Testing Complete. All backend tests passed (10/10 = 100%). All frontend features verified: Expiry alert banner on Overview tab shows 2 machines with expiring coverage, Lifecycle Alerts section with Send All Reminders (2) button, individual Send Reminder buttons, notification history with supplier info, and bundled email count in API response.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration31_bundled_emails.py",
+    "/app/test_reports/pytest/pytest_results_iteration31.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "POST /api/expiry-alerts/send-reminders now returns 'emails_sent' field showing bundled count (1 admin + N suppliers) - WORKING",
+    "Bundled emails verified: 2 machines covered with 2 emails (1 admin + 1 supplier for Pulse Fitness) - WORKING",
+    "Daily dedup still works - second call returns 'All reminders already sent today' - WORKING",
+    "GET /api/expiry-alerts returns alerts with correct urgency levels and UK date format parsing - WORKING",
+    "Overview tab expiry banner shows '2 machines with expiring coverage' with View Alerts button - WORKING",
+    "Lifecycle Alerts section shows Send All Reminders (2) button - WORKING",
+    "Individual Send Reminder buttons work on each alert card - WORKING",
+    "Notification history shows 'Last reminded' date and supplier info - WORKING"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration31_bundled_emails.py - Created comprehensive test suite for bundled email feature"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (all bundled email features verified)"
+  },
+  "test_credentials": {
+    "regular_user": {
+      "email": "test@gymfixai.com",
+      "password": "Test123!"
+    }
+  },
+  "seed_data_creation": "Cleared expiry_notifications collection before testing to verify fresh bundled email sending.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bundled email feature fully tested. Key changes: POST /api/expiry-alerts/send-reminders now returns 'emails_sent' field showing actual email count (1 admin + N suppliers) instead of per-machine count. The 'sent' field shows number of machines covered. Two machines with expiring warranties: Treadmill 1 (4 days, Pulse Fitness) and treadmill 1 (14 days). Supplier Pulse Fitness has email service.dept@pulsefitness.com. Emails are in test mode (routed to leersomers@gmail.com). The expiry_notifications collection tracks sent emails with 'bundled: true' flag.",
+  "features_verified": {
+    "bundled_email_response": {
+      "emails_sent_field_present": true,
+      "emails_sent_shows_bundled_count": true,
+      "sent_field_shows_machines_covered": true,
+      "message_shows_breakdown": true,
+      "status": "WORKING"
+    },
+    "bundled_email_logic": {
+      "one_admin_email_for_all_machines": true,
+      "one_email_per_supplier_with_their_machines": true,
+      "machines_grouped_by_supplier": true,
+      "status": "WORKING"
+    },
+    "daily_dedup": {
+      "first_call_sends_reminders": true,
+      "second_call_returns_already_sent": true,
+      "status": "WORKING"
+    },
+    "uk_date_format_parsing": {
+      "dd_mm_yyyy_format_supported": true,
+      "iso_format_supported": true,
+      "status": "WORKING"
+    },
+    "frontend_overview_expiry_banner": {
+      "banner_visible_when_urgent_alerts": true,
+      "shows_machine_count": true,
+      "shows_machine_names_and_days": true,
+      "view_alerts_button_present": true,
+      "status": "WORKING"
+    },
+    "frontend_lifecycle_alerts_section": {
+      "send_all_reminders_button_shows_count": true,
+      "individual_send_reminder_buttons": true,
+      "notification_history_with_supplier": true,
+      "status": "WORKING"
+    },
+    "regression_login": {
+      "login_works": true,
+      "dashboard_loads": true,
+      "status": "WORKING"
+    }
+  },
+  "endpoints_tested": [
+    "POST /api/auth/login - PASSED",
+    "GET /api/expiry-alerts - PASSED (returns alerts with urgency levels)",
+    "POST /api/expiry-alerts/send-reminders - PASSED (returns emails_sent=2 for bundled emails)",
+    "POST /api/expiry-alerts/{id}/send-reminder - PASSED (sends single reminder)"
+  ],
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": [],
+    "note": "Email dispatch recipients hardcoded to test email (leersomers@gmail.com) in test mode via SENDER_EMAIL containing resend.dev"
+  },
+  "ui_flows_tested": [
+    "Login flow - PASSED",
+    "Overview tab expiry banner visibility - PASSED (shows '2 machines with expiring coverage')",
+    "View Alerts button navigation - PASSED",
+    "Equipment tab Lifecycle Alerts section - PASSED",
+    "Send All Reminders (2) button - PASSED",
+    "Individual Send Reminder buttons - PASSED",
+    "Notification history with supplier info - PASSED"
+  ],
+  "bundled_email_verification": {
+    "test_scenario": "2 machines expiring (Treadmill 1 - 4d, treadmill 1 - 14d), 1 supplier (Pulse Fitness)",
+    "expected_emails_sent": 2,
+    "actual_emails_sent": 2,
+    "breakdown": "1 admin email + 1 supplier email (Pulse Fitness)",
+    "old_behavior_would_send": 4,
+    "bundling_verified": true
+  }
+}

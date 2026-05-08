@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en" data-brand="gymaxis">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#0A0A0A" />
+        <!-- Allow both schemes so form controls render natively on light/dark
+             routes. Marketing pages additionally lock the scheme via CSS on
+             their own wrapper (see index.css `[data-theme]` color-scheme). -->
+        <meta name="color-scheme" content="dark light" />
+        <meta name="description" content="GymAxis AI — All-in-one operations platform for gyms, leisure centres and fitness studios. CRM, memberships, marketing & gym ops in one place." />
+        <meta name="keywords" content="gym software, leisure centre software, gym CRM, gym membership management, fitness club software, gym maintenance, gym operations" />
+        <meta name="author" content="GymAxis AI" />
+
+        <!-- Open Graph (Facebook, LinkedIn, WhatsApp) -->
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="GymAxis AI" />
+        <meta property="og:title" content="GymAxis AI — All-in-one platform for fitness operators" />
+        <meta property="og:description" content="CRM, memberships, marketing and gym operations in one place. £150/mo for one site. 3-day free trial, all modules unlocked." />
+        <meta property="og:url" content="https://www.gymaxisai.com/" />
+        <meta property="og:image" content="https://www.gymaxisai.com/brand/og-cover.jpg" />
+        <meta property="og:locale" content="en_GB" />
+
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="GymAxis AI — All-in-one platform for fitness operators" />
+        <meta name="twitter:description" content="CRM, memberships, marketing and gym ops. 3-day free trial, no credit card." />
+        <meta name="twitter:image" content="https://www.gymaxisai.com/brand/og-cover.jpg" />
+
+        <link rel="canonical" href="https://www.gymaxisai.com/" id="canonical-url" />
+
+        <!-- Organization-level structured data for rich Google results. -->
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "GymAxis AI",
+          "url": "https://www.gymaxisai.com",
+          "logo": "https://www.gymaxisai.com/brand/gymaxis-logo.svg",
+          "description": "All-in-one platform for fitness operators: CRM, memberships, marketing, and gym operations.",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "email": "support@gymaxisai.com",
+            "areaServed": "GB",
+            "availableLanguage": ["English"]
+          }
+        }
+        </script>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "GymAxis AI",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "offers": {
+            "@type": "AggregateOffer",
+            "lowPrice": "29.00",
+            "highPrice": "150.00",
+            "priceCurrency": "GBP",
+            "offerCount": 5
+          }
+        }
+        </script>
+
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="GymAxis" id="apple-app-title" />
+        <link rel="apple-touch-icon" id="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23007AFF'/><text x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='100' fill='white'>G</text></svg>" />
+        <link rel="manifest" id="app-manifest" href="%PUBLIC_URL%/manifest.json" />
+        <script>
+          // Iter 215bx — swap the PWA manifest + apple-touch-icon to the
+          // Pulse Fitness brand when the user is on a /pulse route, so
+          // "Add to Home Screen" installs with the right icon, name, and
+          // theme. Runs synchronously before the SW registers.
+          (function () {
+            try {
+              if (location.pathname.toLowerCase().startsWith('/pulse')) {
+                var m = document.getElementById('app-manifest');
+                if (m) m.setAttribute('href', '/manifest-pulse.json');
+                var t = document.getElementById('apple-app-title');
+                if (t) t.setAttribute('content', 'Pulse Fitness');
+                var i = document.getElementById('apple-touch-icon');
+                if (i) i.setAttribute('href', "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%2366ccff'/><text x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='100' fill='%23212721'>P</text></svg>");
+                document.documentElement.setAttribute('data-brand', 'pulse');
+                document.body && document.body.setAttribute('data-brand', 'pulse');
+              }
+            } catch (_) { /* best-effort */ }
+          })();
+        </script>
+        <!-- Preload Proxima Nova (brand font). The hero uses Semibold +
+             Extrabold; preloading prevents the FOUT flash during first paint. -->
+        <link rel="preload" href="/fonts/ProximaNova-Semibold.otf" as="font" type="font/otf" crossorigin />
+        <link rel="preload" href="/fonts/ProximaNova-Extrabold.otf" as="font" type="font/otf" crossorigin />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <!-- Consolidated Google Fonts request (was 2 separate requests; dropped
+             unused Space Grotesk family). Saves ~1 RTT + ~40 KB on first paint. -->
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+        <style>
+          /* Pulse Fitness brand font — Proxima Nova (locally hosted, licensed) */
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Regular.otf') format('opentype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Semibold.otf') format('opentype');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Bold.otf') format('opentype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Extrabold.otf') format('opentype');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+          }
+          /* Pulse Fitness secondary brand font — Maax Rounded (locally hosted) */
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Regular.otf') format('opentype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Italic.otf') format('opentype');
+            font-weight: 400;
+            font-style: italic;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Medium.otf') format('opentype');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Bold.otf') format('opentype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-BoldItalic.otf') format('opentype');
+            font-weight: 700;
+            font-style: italic;
+            font-display: swap;
+          }
+        </style>
+        <!--
+        manifest.json provides metadata used when your web app is installed on a
+        user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+        -->
+        <!--
+        Notice the use of %PUBLIC_URL% in the tags above.
+        It will be replaced with the URL of the `public` folder during the build.
+        Only files inside the `public` folder can be referenced from the HTML.
+
+        Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+        work correctly both with client-side routing and a non-root public URL.
+        Learn how to configure a non-root public URL by running `npm run build`.
+        -->
+        <title>GymAxis AI | Gym Maintenance Platform</title>
+        <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
+        <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+    </head>
+    <body>
+        <noscript>You need to enable JavaScript to run this app.</noscript>
+        <div id="root"></div>
+        <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+        <a
+            id="emergent-badge"
+            target="_blank"
+            href="https://app.emergent.sh/?utm_source=emergent-badge"
+            style="display: none !important;"
+        >
+            <p style="display: none !important;">
+                Made with Emergent
+            </p>
+        </a>
+        <script>
+            !(function (t, e) {
+                var o, n, p, r;
+                e.__SV ||
+                    ((window.posthog = e),
+                    (e._i = []),
+                    (e.init = function (i, s, a) {
+                        function g(t, e) {
+                            var o = e.split(".");
+                            2 == o.length && ((t = t[o[0]]), (e = o[1])),
+                                (t[e] = function () {
+                                    t.push(
+                                        [e].concat(
+                                            Array.prototype.slice.call(
+                                                arguments,
+                                                0,
+                                            ),
+                                        ),
+                                    );
+                                });
+                        }
+                        ((p = t.createElement("script")).type =
+                            "text/javascript"),
+                            (p.crossOrigin = "anonymous"),
+                            (p.async = !0),
+                            (p.src =
+                                s.api_host.replace(
+                                    ".i.posthog.com",
+                                    "-assets.i.posthog.com",
+                                ) + "/static/array.js"),
+                            (r =
+                                t.getElementsByTagName(
+                                    "script",
+                                )[0]).parentNode.insertBefore(p, r);
+                        var u = e;
+                        for (
+                            void 0 !== a ? (u = e[a] = []) : (a = "posthog"),
+                                u.people = u.people || [],
+                                u.toString = function (t) {
+                                    var e = "posthog";
+                                    return (
+                                        "posthog" !== a && (e += "." + a),
+                                        t || (e += " (stub)"),
+                                        e
+                                    );
+                                },
+                                u.people.toString = function () {
+                                    return u.toString(1) + ".people (stub)";
+                                },
+                                o =
+                                    "init me ws ys ps bs capture je Di ks register register_once register_for_session unregister unregister_for_session Ps getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty Es $s createPersonProfile Is opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing Ss debug xs getPageViewId captureTraceFeedback captureTraceMetric".split(
+                                        " ",
+                                    ),
+                                n = 0;
+                            n < o.length;
+                            n++
+                        )
+                            g(u, o[n]);
+                        e._i.push([i, s, a]);
+                    }),
+                    (e.__SV = 1));
+            })(document, window.posthog || []);
+            posthog.init("phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs", {
+                api_host: "https://us.i.posthog.com",
+                person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well,
+                session_recording: {
+                    recordCrossOriginIframes: true,
+                    capturePerformance: false,
+                },
+            });
+        </script>
+    </body>
+</html>

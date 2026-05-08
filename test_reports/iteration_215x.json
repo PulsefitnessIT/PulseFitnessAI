@@ -1,0 +1,71 @@
+{
+  "summary": "Iteration 215x testing complete. Backend: 17/17 tests passed. All new course builder features working: course creation with excluded dates (school holidays), bulk enrolment, enrolment roster, un-enrol, and monthly invoice preview with multi-course grouping. Frontend: Plans tab has Plans/Courses subtabs, Courses view shows course list with detail panel, enrol dialog with multi-select, and plan editor has Skip dates picker with amber chips.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter215x_course_builder.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215x.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All 215x features implemented correctly and tested",
+    "Course excluded dates correctly skip specified dates and extend course duration",
+    "Enrolment is idempotent - re-enrolling returns bookings_created=0, bookings_skipped_already_enrolled=N*members",
+    "Invoice preview correctly groups multiple courses + ad-hoc classes into ONE invoice per member",
+    "Tz-aware datetime fix working - naive datetimes from earlier courses don't crash invoice preview"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter215x_course_builder.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "operator": "lee.somers@pulsefitness.com / TempPass123!",
+    "existing_course_id": "d54a6b11-6dd2-42a3-a65c-a7062fc8ac80",
+    "enrolled_members": ["billing-test-member-01f471", "3735fc93-ef98-4c21-a168-e05e8d42e162"]
+  },
+  "seed_data_creation": "Used existing Dance Term 2026 Spring course with 2 excluded dates (2026-05-26, 2026-06-16) and 2 enrolled pupils",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 215x features all working: (1) POST /api/memberships/plans with kind='course' + course_excluded_dates creates course with materialised sessions that SKIP excluded dates and still produce course_session_count sessions, (2) POST /api/memberships/plans/{plan_id}/enrol bulk-enrols members with idempotent behavior, (3) GET /api/memberships/plans/{plan_id}/enrolments returns {sessions, enrolled, pupil_count, smoothed}, returns 400 for non-course plans, (4) DELETE /api/memberships/plans/{plan_id}/enrolments/{member_id} cancels future bookings and membership row, (5) POST /api/memberships/billing/monthly-invoice/preview groups all courses + ad-hoc classes into ONE invoice per member with no duplicates, (6) Frontend: Plans tab has Plans/Courses subtabs (data-testid='mbr-plans-tab-plans', 'mbr-plans-tab-courses'), Courses view (data-testid='mbr-courses') shows course list and detail with enrol button (data-testid='mbr-course-enrol'), enrol dialog (data-testid='mbr-course-enrol-dialog') has search and confirm button (data-testid='mbr-course-enrol-confirm'), plan editor shows course block settings with Skip dates picker (data-testid='mbr-plan-course-excluded-input') and 'Skip this date' button that adds amber chips.",
+  "features_verified": {
+    "backend_course_excluded_dates_stored": "PASS - course_excluded_dates=['2026-05-26','2026-06-16'] persisted",
+    "backend_excluded_dates_skip_correctly": "PASS - Sessions skip May 26 and Jun 16, still have 10 sessions",
+    "backend_create_course_with_excluded": "PASS - New course with 5 sessions + 2 excluded dates works",
+    "backend_enrolments_returns_roster": "PASS - Returns sessions, enrolled pupils, pupil_count, smoothed flag",
+    "backend_enrolments_non_course_400": "PASS - Returns 400 'Not a course plan' for non-course",
+    "backend_enrol_idempotent": "PASS - Re-enrol returns bookings_created=0, bookings_skipped=20",
+    "backend_enrol_invalid_member_400": "PASS - Returns 400 'Unknown member ids'",
+    "backend_invoice_preview_groups_courses": "PASS - Brand New Walker has 4 class lines + 1 smoothed line",
+    "backend_invoice_preview_no_duplicates": "PASS - No duplicate booking_ids or smoothed lines",
+    "backend_invoice_preview_tz_aware": "PASS - No 500 error with naive datetimes",
+    "backend_regression_instructors": "PASS - Instructor list endpoint working",
+    "backend_regression_invoices": "PASS - Invoice list endpoint working",
+    "backend_regression_plans": "PASS - Plans list endpoint working",
+    "backend_regression_members": "PASS - Members list endpoint working",
+    "backend_regression_smoothing_preview": "PASS - Returns enabled=true, monthly_pence=2000, months=6",
+    "backend_regression_timetable": "PASS - Timetable endpoint working",
+    "backend_regression_dashboard": "PASS - Dashboard endpoint working",
+    "frontend_plans_courses_subtabs": "PASS - Both subtabs visible with correct data-testids",
+    "frontend_courses_view": "PASS - data-testid='mbr-courses' renders course list",
+    "frontend_course_detail": "PASS - Shows sessions grid, excluded dates, enrolled pupils",
+    "frontend_enrol_dialog": "PASS - Opens with search, multi-select, confirm button",
+    "frontend_plan_editor_course_kind": "PASS - Course block settings appear when kind=course",
+    "frontend_skip_dates_picker": "PASS - Date input + 'Skip this date' button adds amber chips"
+  },
+  "ux_audit": {
+    "courses_subtab_discoverable": "YES - Clearly visible as second subtab in Plans tab",
+    "excluded_dates_ui_clear": "YES - Shows 'Skipping N dates' indicator, amber chips for dates, helpful text explaining course extension",
+    "enrolment_dialog_intuitive": "YES - Search input, checkbox multi-select, clear 'N selected' counter, Cancel/Confirm buttons",
+    "invoice_grouping_obvious": "PARTIAL - Invoice preview shows all lines per member but could benefit from visual grouping by course vs ad-hoc"
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "summary": "Proactive Nudges engine fully tested. All 18 security tests pass (no regression). All 7 nudge tests pass when run separately. Live API testing confirms: GET /api/nudges returns org-scoped nudges, POST /api/nudges/{id}/dismiss works for owner/manager (403 for staff), POST /api/nudges/run requires master admin (403 for non-admin). Frontend NudgeBanner component renders correctly on /pulse dashboard with dismiss functionality working (optimistic UI). Event loop conflict when running all tests together is a test infrastructure issue, not a code bug.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "pytest test isolation",
+        "issue": "Event loop conflict when running test_security_hardening.py and test_proactive_nudges.py together - Motor client binds to first event loop which gets closed by security tests",
+        "priority": "LOW",
+        "workaround": "Run test files separately: pytest tests/test_security_hardening.py tests/test_security_p2_surface.py && pytest tests/test_proactive_nudges.py"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_proactive_nudges.py",
+    "/app/backend/tests/test_security_hardening.py",
+    "/app/backend/tests/test_security_p2_surface.py",
+    "/app/test_reports/pytest/pytest_results_iteration144.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Proactive nudges scanners correctly implemented with idempotent dedupe_key upserts",
+    "Warranty scanner (30-day horizon) correctly identifies equipment with expiring warranties",
+    "PPM overdue scanner correctly identifies scheduled tasks with past dates",
+    "Supplier SLA drift scanner correctly aggregates ratings and identifies suppliers below 3.0 threshold",
+    "Auto-resolve behavior works - clears open nudges when condition no longer applies",
+    "Idempotence verified - running scanners twice does not duplicate events",
+    "NudgeBanner component correctly renders on both /pulse (LiteDashboardPage) and /dashboard (DashboardPage)",
+    "Dismiss button correctly scoped to owner/manager roles only",
+    "Optimistic UI works - banner disappears immediately on dismiss click",
+    "API endpoints properly secured: GET /api/nudges requires auth, POST /api/nudges/run requires master admin"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_proactive_nudges.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 security tests + 7/7 nudge tests when run separately)",
+    "frontend": "100% (NudgeBanner renders and dismiss works)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123! (org_id: 156c8dc4-8683-4cb4-8a74-facd811655ad)"
+  },
+  "seed_data_creation": "Temporarily modified equipment 6f85c759-7327-4c8e-a5cd-6b9654f5d63b warranty_expiry to +10 days to trigger nudge, then restored to 2029-03-18T00:00:00 and cleaned up trust_events",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Proactive Nudges feature complete and working. Three scanners: warranty_expiring (30-day horizon), ppm_overdue (past scheduled_date), supplier_sla_drift (90-day CSAT < 3.0). NudgeBanner component mounted on both /pulse and /dashboard pages. Dismiss requires owner/manager role. Manual trigger via POST /api/nudges/run requires master admin. Test files should be run separately due to Motor event loop binding issue.",
+  "tests_executed": {
+    "test_security_hardening.py": [
+      "test_rate_limit_allows_under_cap - PASS",
+      "test_rate_limit_blocks_over_cap - PASS",
+      "test_jwt_revocation_roundtrip - PASS",
+      "test_jwt_revocation_missing_jti_is_noop - PASS",
+      "test_llm_budget_blocks_at_daily_cap - PASS",
+      "test_supplier_token_valid_then_expired - PASS",
+      "test_hmac_verifier_happy_path - PASS",
+      "test_hmac_verifier_rejects_bad_sig - PASS",
+      "test_audit_required_writes_row - PASS",
+      "test_audit_required_raises_when_mongo_down - PASS",
+      "test_cors_fails_fast_in_prod - PASS",
+      "test_cors_dev_default_permissive - PASS",
+      "test_cors_comma_list - PASS"
+    ],
+    "test_security_p2_surface.py": [
+      "test_captcha_config_public - PASS",
+      "test_login_works_when_captcha_disabled_in_dev - PASS",
+      "test_files_endpoint_denies_unknown_id_to_regular_user - PASS",
+      "test_auth_logout_revokes_jwt - PASS",
+      "test_rate_limit_headers_on_abuse - PASS"
+    ],
+    "test_proactive_nudges.py": [
+      "test_warranty_scanner_emits_event - PASS",
+      "test_warranty_scanner_auto_resolves_when_empty - PASS",
+      "test_ppm_overdue_scanner - PASS",
+      "test_supplier_drift_scanner - PASS",
+      "test_nudges_list_api - PASS",
+      "test_nudges_dismiss_requires_manager - PASS",
+      "test_nudges_run_requires_master_admin - PASS"
+    ],
+    "live_api_tests": [
+      "GET /api/nudges (Pulse Pro) - returns {nudges: [], count: 0} initially - PASS",
+      "POST /api/nudges/run (Pulse Pro) - returns 403 'Master admin only' - PASS",
+      "POST /api/nudges/run (Master Admin) - returns {success: true, orgs: 161, scanners: 483, errors: 0} - PASS",
+      "GET /api/nudges after seeding warranty expiry - returns nudge.warranty_expiring - PASS",
+      "POST /api/nudges/{id}/dismiss (owner) - returns {success: true} - PASS",
+      "GET /api/nudges after dismiss - returns empty list - PASS",
+      "POST /api/nudges/{id}/dismiss (staff) - returns 403 - PASS"
+    ],
+    "frontend_tests": [
+      "NudgeBanner renders on /pulse dashboard - PASS",
+      "Warranty expiring nudge displays with correct message - PASS",
+      "Dismiss button visible for owner role - PASS",
+      "Dismiss removes banner (optimistic UI) - PASS"
+    ]
+  },
+  "features_verified": {
+    "scanner_warranty_expiring": "PASS - Equipment with warranty_expiry within 30 days triggers nudge",
+    "scanner_ppm_overdue": "PASS - PPM tasks with status='scheduled' and past scheduled_date triggers nudge",
+    "scanner_supplier_sla_drift": "PASS - Suppliers with >=3 ratings averaging <3.0 in 90 days triggers nudge",
+    "idempotence": "PASS - Running scanners twice does not duplicate events (dedupe_key behavior)",
+    "auto_resolve": "PASS - Scanner clears existing open nudge when condition clears",
+    "api_get_nudges": "PASS - Returns org-scoped nudges with state='open' filter",
+    "api_dismiss": "PASS - Owner/manager can dismiss, staff gets 403",
+    "api_run": "PASS - Master admin only, non-admin gets 403",
+    "frontend_banner": "PASS - NudgeBanner renders on /pulse and /dashboard",
+    "frontend_dismiss": "PASS - Dismiss button removes nudge with optimistic UI"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

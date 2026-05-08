@@ -1,0 +1,117 @@
+{
+  "summary": "Iter 215ax — GymAxis Premium UI Phase 3 CRM Pipeline rebrand testing. CRITICAL BUG FOUND: Pulse-branded CRM user (craig.henshall@pulsefitness.com) is seeing GymAxis branding instead of Pulse branding. The user's crm_brand field is not being set/returned by the CRM login endpoint. Pulse safety net tests PASSED for landing page and lite-dashboard. CRM tab navigation working correctly.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/crm/auth/login",
+        "issue": "CRM login endpoint does NOT return crm_brand field in user object. The field is computed in _resolve_crm_brand_flags() but not included in the login response. This causes Pulse-branded users to see GymAxis branding.",
+        "priority": "CRITICAL",
+        "affected_user": "craig.henshall@pulsefitness.com",
+        "expected": "crm_brand: 'pulse' should be returned for users in Pulse Fitness org",
+        "actual": "crm_brand field is missing from login response"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "/api/crm/auth/me",
+        "issue": "The /me endpoint also doesn't return crm_brand because the field doesn't exist in the crm_users document for legacy users created before the crm_brand logic was added",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "CRM theme sync",
+        "issue": "CRM internal theme state (isDark) doesn't sync with navbar theme toggle. The CRM reads theme from localStorage on mount but doesn't listen for changes from other components. This is a minor UX issue - the CRM has its own theme toggle that works correctly.",
+        "affected_selectors": [],
+        "priority": "LOW"
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_215ax.json"
+  ],
+  "action_items": [
+    "CRITICAL: Fix /api/crm/auth/login to include crm_brand field in the user response object",
+    "CRITICAL: Update existing crm_users documents to include crm_brand field (can be done via the _provision_or_refresh_crm_user function which already has this logic)",
+    "Ensure the login endpoint calls _resolve_crm_brand_flags() and includes the result in the response",
+    "Consider adding a migration script to backfill crm_brand for existing CRM users"
+  ],
+  "critical_code_review_comments": [
+    "Line 184-194 in /app/backend/routes/crm_auth.py: The login response does NOT include crm_brand field. The field is computed in _resolve_crm_brand_flags() (line 248-269) but only used in the cross-login flow, not the direct CRM login.",
+    "The isPulseBrandedCRM check in CRMApp.js (line 451) relies on user.crm_brand === 'pulse' but this field is never returned by the login endpoint."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "70% (Pulse branding bug is critical)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_crm_user": "craig.henshall@pulsefitness.com / Test123!",
+    "pulse_operator": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215ax Phase 3 CRM rebrand has a CRITICAL bug: Pulse-branded users see GymAxis branding because crm_brand field is not returned by the CRM login endpoint. The fix requires updating /api/crm/auth/login to include crm_brand in the response. Pulse safety net (landing page + lite-dashboard) is working correctly - no theme-gymaxis leakage.",
+  "tests_verified": {
+    "gymaxis_brand_h1_gradient": {
+      "status": "PASS",
+      "details": "H1 wordmark has gx-grad-text class with gradient: linear-gradient(90deg, rgb(37, 99, 235) 0%, rgb(91, 91, 245) 50%, rgb(157, 76, 221) 100%)"
+    },
+    "gymaxis_theme_gymaxis_dark_mode": {
+      "status": "PASS",
+      "details": "theme-gymaxis class NOT present in dark mode (correct behavior per spec)"
+    },
+    "pulse_brand_preservation": {
+      "status": "FAIL",
+      "details": "CRITICAL: craig.henshall@pulsefitness.com sees 'GymAxis' with gx-grad-text instead of 'Pulse Fitness' without gradient. Root cause: crm_brand field not returned by login endpoint."
+    },
+    "pulse_landing_no_theme_gymaxis": {
+      "status": "PASS",
+      "details": "NO theme-gymaxis class on Pulse landing page"
+    },
+    "pulse_landing_no_satoshi": {
+      "status": "PASS",
+      "details": "Pulse landing uses Proxima Nova font (correct Pulse branding)"
+    },
+    "pulse_landing_no_brand_gradient": {
+      "status": "PASS",
+      "details": "NO gx-grad-text or brand-gradient on Pulse landing page"
+    },
+    "pulse_lite_dashboard_no_theme_gymaxis": {
+      "status": "PASS",
+      "details": "NO theme-gymaxis class on Pulse lite-dashboard"
+    },
+    "pulse_lite_dashboard_fonts": {
+      "status": "PASS",
+      "details": "Pulse lite-dashboard uses Nunito (headings) and Manrope (body) - correct Pulse fonts"
+    },
+    "crm_tab_navigation": {
+      "status": "PASS",
+      "details": "CRM tab navigation (Dashboard, Pipeline, Contacts, Companies, Inbox) working correctly"
+    },
+    "crm_active_tab_styling_dark_mode": {
+      "status": "PASS",
+      "details": "Active tabs have white text in dark mode (gradient only applies in light mode per spec)"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "rca_of_the_issue": {
+    "bug": "Pulse-branded CRM users see GymAxis branding",
+    "root_cause": "The /api/crm/auth/login endpoint (lines 150-194 in crm_auth.py) does not include crm_brand field in the response. The field is computed in _resolve_crm_brand_flags() but only used in the cross-login flow (/api/crm/auth/cross-login), not the direct CRM login.",
+    "reproduction_steps": [
+      "1. Login to CRM as craig.henshall@pulsefitness.com / Test123!",
+      "2. Observe the h1 wordmark shows 'GymAxis' with gradient instead of 'Pulse Fitness'",
+      "3. Check the login response - crm_brand field is missing"
+    ],
+    "mitigation": "Update the /api/crm/auth/login endpoint to compute and return crm_brand field based on the user's organization. The logic already exists in _resolve_crm_brand_flags() - it just needs to be called and included in the response."
+  }
+}

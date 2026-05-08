@@ -1,0 +1,75 @@
+{
+  "summary": "Iteration 164 testing complete. Backend: 17/17 tests passed for Stripe Subscriptions (checkout, status, webhook), member/plans endpoint, and booking reminders. Frontend: Member Portal Plan tab working with 5 bottom nav tabs (Book, Bookings, Plan, Pass, Profile), current status card, and Subscribe/Buy now CTAs. Fixed grid-cols-4 to grid-cols-5 for proper 5-tab layout.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "MemberPortal BottomNav",
+        "issue": "grid-cols-4 used for 5 tabs - FIXED to grid-cols-5",
+        "selector": "nav.grid",
+        "priority": "LOW",
+        "status": "FIXED"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_stripe_reminders_iteration164.py",
+    "/app/test_reports/pytest/pytest_results_iteration164.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_memberships_stripe_reminders_iteration164.py",
+    "/app/frontend/src/pages/Memberships/MemberPortal.js"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "member_emma": "emma.wright@demo.gymaxis / Member2026!"
+  },
+  "seed_data_creation": "Checkout sessions created during testing (pending_payment memberships + payment_transactions)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "GymAxis Memberships Phase 1b Stripe Subscriptions tested. Key findings: (1) GET /api/member/plans returns org plans for member token, rejects operator token with 401/403, (2) POST /api/memberships/checkout works for both member-initiated (no member_id) and operator-initiated (requires member_id), returns Stripe checkout URL (https://checkout.stripe.com/...) and session_id (cs_live_*), (3) Checkout creates pending member_membership doc with status='pending_payment' and stripe_checkout_session_id, (4) payment_transactions collection populated with mode='subscription' for recurring plans, mode='payment' for one-off, (5) GET /api/memberships/checkout/status/{session_id} returns status, payment_status='unpaid' for pending sessions, (6) POST /api/memberships/webhook/stripe returns 400 'Bad signature' for invalid Stripe-Signature header, (7) Booking reminders module exists in sicon_poller, (8) Frontend Member Portal has 5 bottom nav tabs (Book, Bookings, Plan, Pass, Profile), Plan tab shows current status card + plan list with Subscribe/Buy now CTAs, (9) Operator console MemberDetailDrawer has 'Sell via Stripe' (mbr-sell-<plan_id>) and 'Comp / assign' (mbr-assign-<plan_id>) buttons per plan - verified in code review",
+  "tests_verified": {
+    "backend_api": [
+      "GET /api/member/plans returns org plans for member token",
+      "GET /api/member/plans rejects operator token (401/403)",
+      "GET /api/member/plans rejects missing token (401)",
+      "POST /api/memberships/checkout (member) for recurring plan returns Stripe URL",
+      "POST /api/memberships/checkout (member) for one-off plan returns Stripe URL",
+      "POST /api/memberships/checkout without plan_id returns 400",
+      "POST /api/memberships/checkout (operator) with member_id succeeds",
+      "POST /api/memberships/checkout (operator) without member_id returns 400",
+      "GET /api/memberships/checkout/status/{invalid_session} returns 400",
+      "GET /api/memberships/checkout/status/{valid_session} returns status info",
+      "POST /api/memberships/webhook/stripe with bad signature returns 400",
+      "POST /api/memberships/webhook/stripe without signature returns 400",
+      "Checkout creates pending member_membership with stripe_checkout_session_id",
+      "Checkout creates payment_transactions with correct mode",
+      "All member portal endpoints accessible (timetable, bookings, plans, qr, me)"
+    ],
+    "frontend_ui": [
+      "Member Portal loads with data-testid='member-portal'",
+      "5 bottom nav tabs present: book, bookings, plan, pass, profile",
+      "Plan tab (member-plan) shows current status card",
+      "Plan tab shows plan list with Subscribe/Buy now CTAs",
+      "4 buy/subscribe buttons found (one per seeded plan)",
+      "Operator console MemberDetailDrawer has 'Sell via Stripe' buttons (code verified)",
+      "Operator console MemberDetailDrawer has 'Comp / assign' buttons (code verified)"
+    ]
+  },
+  "code_review_notes": {
+    "memberships_payments.py": "Well-structured Stripe integration with proper error handling, idempotency via stripe_event_id, and dual-token support (member vs operator)",
+    "booking_reminders.py": "Clean implementation with 24h/2h reminder waves, deduplication via reminders_sent array on booking docs",
+    "MemberPortal.js": "Fixed grid-cols-4 to grid-cols-5 for 5-tab bottom nav layout"
+  }
+}

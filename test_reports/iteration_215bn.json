@@ -1,0 +1,111 @@
+{
+  "summary": "Iter 215bn - ModalShell chrome consistency testing. All 4 modals (ClassEditor, PlanEditor, AddMember, AdEditor) have correct styling (rounded-2xl/16px, max-h-[90vh], shadow-xl) and all close mechanisms work (X button, ESC key, backdrop click). CRITICAL BUG: Sticky header not working - X close button scrolls out of viewport on modals with long content (ClassEditor, PlanEditor, AdEditor). AddMember modal works correctly as it has less content. Pulse safety verified (/pulse and /pulse-pricing preserve data-brand=pulse).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ModalShell",
+        "issue": "Sticky header not working - X close button scrolls out of viewport when modal content is long. Header should stay fixed at top but scrolls with content.",
+        "selector": "[data-testid='mbr-class-editor-close'], [data-testid='mbr-plan-editor-close'], [data-testid='mbr-ad-editor-close']",
+        "priority": "HIGH",
+        "affected_modals": ["ClassEditorModal", "PlanEditorModal", "AdEditorModal"],
+        "details": {
+          "ClassEditorModal_closeBtnTop": "-86.25px (outside viewport)",
+          "PlanEditorModal_closeBtnTop": "-141.5px (outside viewport)",
+          "AdEditorModal_closeBtnTop": "-38.75px (outside viewport)",
+          "AddMemberModal_closeBtnTop": "331.25px (visible - works correctly)"
+        }
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix sticky header in ModalShell - the header with X close button should stay fixed at top when modal content scrolls. Current implementation has 'sticky top-0' but it's not working for modals with long content.",
+    "Possible fix: Add 'overflow-hidden' to outer container and create a separate scrollable body container, OR investigate why sticky positioning fails when modal opens with auto-focus on form fields."
+  ],
+  "critical_code_review_comments": [
+    "ModalShell line 1953: 'overflow-y-auto' on the modal container should work with 'sticky top-0' on the header, but the sticky positioning is failing. The header scrolls out of view instead of staying fixed.",
+    "The issue may be related to browser auto-scrolling to focused form fields when modal opens, which could be pushing the sticky header out of view."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "85% - All close mechanisms work, styling correct, but sticky header bug affects UX"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215bn ModalShell rewrite tested. All modals open/close correctly via X, ESC, and backdrop click. Styling is correct (rounded-2xl, max-h-[90vh], shadow-xl). CRITICAL: Sticky header bug - X close button scrolls out of viewport on long modals. AddMember modal works because it has less content. Pulse safety verified.",
+  "features_verified": {
+    "ClassEditorModal": {
+      "opens": true,
+      "testId": "mbr-class-editor",
+      "closeTestId": "mbr-class-editor-close",
+      "xClose": "SUCCESS (via JS click)",
+      "escClose": "SUCCESS",
+      "backdropClose": "SUCCESS",
+      "closeBtnVisible": false,
+      "closeBtnTop": "-86.25px",
+      "styling": {
+        "borderRadius": "16px",
+        "maxHeight": "972px (90vh)",
+        "overflowY": "auto"
+      }
+    },
+    "PlanEditorModal": {
+      "opens": true,
+      "testId": "mbr-plan-editor",
+      "closeTestId": "mbr-plan-editor-close",
+      "xClose": "SUCCESS (via JS click)",
+      "escClose": "SUCCESS",
+      "backdropClose": "SUCCESS",
+      "closeBtnVisible": false,
+      "closeBtnTop": "-141.5px",
+      "styling": {
+        "borderRadius": "16px",
+        "maxHeight": "972px (90vh)",
+        "overflowY": "auto"
+      }
+    },
+    "AddMemberModal": {
+      "opens": true,
+      "testId": "mbr-add-modal",
+      "closeTestId": "mbr-add-modal-close",
+      "xClose": "SUCCESS",
+      "escClose": "SUCCESS",
+      "backdropClose": "SUCCESS",
+      "closeBtnVisible": true,
+      "closeBtnTop": "331.25px",
+      "styling": {
+        "borderRadius": "16px",
+        "maxHeight": "972px (90vh)",
+        "overflowY": "auto"
+      }
+    },
+    "AdEditorModal": {
+      "opens": true,
+      "testId": "mbr-ad-editor",
+      "closeTestId": "mbr-ad-editor-close",
+      "xClose": "SUCCESS (via JS click)",
+      "escClose": "SUCCESS",
+      "backdropClose": "SUCCESS",
+      "closeBtnVisible": false,
+      "closeBtnTop": "-38.75px",
+      "styling": {
+        "borderRadius": "16px",
+        "maxHeight": "972px (90vh)",
+        "overflowY": "auto"
+      }
+    },
+    "pulse_safety": {
+      "/pulse": "data-brand=pulse (VERIFIED)",
+      "/pulse-pricing": "data-brand=pulse (VERIFIED)"
+    }
+  }
+}

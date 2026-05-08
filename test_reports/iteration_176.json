@@ -1,0 +1,78 @@
+{
+  "summary": "Iteration 176 - Member Streak Card feature fully tested and verified. Backend: 8/8 tests passed. Frontend: All streak card features working correctly on mobile (390x844) and desktop (1440x900).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_member_streak_iteration176.py",
+    "/app/test_reports/pytest/pytest_results_iteration176.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_member_streak_iteration176.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "member": "emma.wright@demo.gymaxis / Member2026!",
+    "slug": "pulse-leeds"
+  },
+  "seed_data_creation": "None - used existing Emma with seeded check-ins",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Streak card feature complete. Emma has current_streak=12, longest=35, weekly=5/3, at_risk=false. Progress bar shows green (emerald) when goal met. Card hides when both current=0 AND weekly_count=0.",
+  "features_verified": {
+    "backend_streak_endpoint": {
+      "returns_all_fields": "PASS - current_streak_days, longest_streak_days, weekly_count, weekly_goal, weekly_remaining, last_attended_at, at_risk",
+      "emma_values": "PASS - current:12, longest:35, weekly:5, goal:3, weekly_remaining:0",
+      "last_attended_at_format": "PASS - YYYY-MM-DD format",
+      "weekly_goal_default_3": "PASS",
+      "weekly_remaining_calculation": "PASS - max(0, goal - count)",
+      "401_without_token": "PASS",
+      "401_with_operator_token": "PASS - member-auth only",
+      "zeroed_values_new_member": "PASS - all zeros for member with no check-ins",
+      "at_risk_logic": "PASS - True only when streak > 0 AND last check-in >= 24h ago"
+    },
+    "frontend_streak_card": {
+      "card_visible_emma": "PASS - [data-testid=member-streak-card]",
+      "eyebrow_text": "PASS - 'ATTENDANCE STREAK' with Activity icon",
+      "fire_emoji_headline": "PASS - '🔥 12-day streak · you're on fire.' (streak >= 3)",
+      "current_streak_display": "PASS - [data-testid=member-streak-current] shows '12d'",
+      "weekly_count_display": "PASS - [data-testid=member-streak-weekly] shows '5 / 3'",
+      "progress_bar_green": "PASS - emerald (#34D399) when goal met",
+      "goal_hit_message": "PASS - [data-testid=member-streak-goal-hit] 'Weekly goal smashed 🎉'",
+      "card_above_book_tab": "PASS - streak card renders before book tab content",
+      "card_hidden_zero_checkins": "PASS - card not rendered for new member with 0 check-ins"
+    },
+    "regression_iteration_174_175": {
+      "referral_campaign_banner": "PASS - visible for new members",
+      "dismiss_persistence": "PASS - banner stays hidden after dismiss",
+      "mobile_drawer_memberships_console": "PASS - hamburger visible, drawer opens/closes",
+      "bottom_navigation_tabs": "PASS - all 5 tabs (book, bookings, plan, pass, profile) present"
+    }
+  },
+  "code_review": {
+    "backend_memberships_py": {
+      "streak_endpoint_location": "Lines 170-250",
+      "logic_correct": "PASS - uses member_checkins and bookings with status='attended'",
+      "weekly_goal_priority": "PASS - member.weekly_goal > org.weekly_streak_goal > default 3",
+      "at_risk_calculation": "PASS - current > 0 AND hours_since >= 24"
+    },
+    "frontend_MemberPortal_js": {
+      "StreakCard_location": "Lines 137-189",
+      "testids_present": "PASS - member-streak-card, member-streak-current, member-streak-weekly, member-streak-goal-hit, member-streak-risk",
+      "hide_logic": "PASS - returns null when streak === 0 && weekly_count === 0",
+      "progress_bar_color": "PASS - emerald (#34D399) when goalHit, cyan (#19CDFF) otherwise"
+    }
+  }
+}

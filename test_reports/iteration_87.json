@@ -1,0 +1,58 @@
+{
+  "summary": "Iteration 87: Tested CRM User Management CRUD, Master Admin regression endpoints, Gym Layout View/Edit buttons, and QR sticker template. All backend tests pass (17/17). Frontend CRM Users section fully functional.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration87_crm_users.py",
+    "/app/test_reports/pytest/pytest_results_iteration87.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration87_crm_users.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "100% (all tested features working)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Test CRM users created and cleaned up during tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRM User Management fully tested via API and UI. Gym Layout View/Edit buttons visible on Pulse Fitness Portal. QR sticker template includes model code and serial number. All master-admin regression endpoints (stats, pulse-stats, crm-analytics) return 200.",
+  "features_tested": {
+    "backend_crm_users": {
+      "GET /api/master-admin/crm-users": "PASS - Returns list of CRM users",
+      "POST /api/master-admin/crm-users": "PASS - Creates new CRM user with email, name, password, role",
+      "PATCH /api/master-admin/crm-users/{id}": "PASS - Updates CRM user fields including password",
+      "DELETE /api/master-admin/crm-users/{id}": "PASS - Deletes CRM user and verifies removal",
+      "Authentication required": "PASS - All endpoints return 401/403 without auth"
+    },
+    "backend_regression": {
+      "GET /api/master-admin/stats": "PASS - Returns 200 with total_users, total_organizations, mrr, subscriptions, ai_usage",
+      "GET /api/master-admin/pulse-stats": "PASS - Returns 200 with total_sites, sites, mrr",
+      "GET /api/master-admin/crm-analytics": "PASS - Returns 200 with overview, pipeline, contacts"
+    },
+    "frontend_crm_users": {
+      "Master Admin page access": "PASS - Accessible via nav-master-admin-btn in user dropdown",
+      "CRM Users sidebar item": "PASS - sidebar-crm-users visible in CRM section",
+      "CRM Users list": "PASS - Shows users with role badges (manager, admin)",
+      "Add CRM User dialog": "PASS - Opens with email, name, password, role fields and Create User button"
+    },
+    "frontend_gym_layout": {
+      "View/Edit buttons": "PASS - Visible on layout cards in Pulse Fitness Portal Gym Layout tab",
+      "Layout card info": "PASS - Shows dimensions (20×15m), machine count, CAD badge"
+    },
+    "qr_sticker_template": {
+      "Serial number": "PASS - Included in template with 'S/N:' prefix (line 125 PulseSettingsTab.js)",
+      "Model code": "PASS - Included in template with bold styling (line 123 PulseSettingsTab.js)"
+    }
+  }
+}

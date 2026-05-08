@@ -1,0 +1,98 @@
+{
+  "summary": "Tested 215bw brand isolation fixes. CRITICAL: PulseLandingPage.js uses GymAxis cyan (#19CDFF) instead of Pulse blue (#66ccff) for 79 elements including LOG IN button. Cookie consent and PWA install prompt brand detection working correctly. Cross-module tips dismissal fix verified. Product tour user-scoped key working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "PulseLandingPage.js",
+        "issue": "CRITICAL BRAND LEAKAGE: Uses --color-brand-cyan (GymAxis #19CDFF) instead of --pulse-primary (#66ccff) for 79 elements including LOG IN button, Log new fault button, checkmarks, badges, and accent colors",
+        "selector": "button:has-text('LOG IN'), button:has-text('Log new fault')",
+        "priority": "CRITICAL",
+        "details": "The LOG IN button class uses '!bg-[var(--color-brand-cyan)]' which resolves to GymAxis cyan. Should use --pulse-primary for Pulse Fitness branding."
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_215bw.json"],
+  "action_items": [
+    "CRITICAL: Replace all 79 occurrences of --color-brand-cyan with --pulse-primary in /app/frontend/src/pages/PulseLandingPage.js",
+    "Replace --rgb-brand-cyan with --pulse-primary equivalent in PulseLandingPage.js",
+    "Replace --color-brand-cyan-hover with --pulse-primary-hover in PulseLandingPage.js",
+    "Replace --color-brand-cyan-deep with appropriate Pulse color in PulseLandingPage.js"
+  ],
+  "critical_code_review_comments": [
+    "PulseLandingPage.js line 323-324: LOG IN button uses !bg-[var(--color-brand-cyan)] - should be --pulse-primary",
+    "PulseLandingPage.js has 79 brand-cyan usages and 0 pulse-primary usages - entire file needs brand color audit"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "85%"},
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "PulseLandingPage.js brand leakage is the main issue. All other 215bw fixes (PWA branding, cookie consent, cross-module tips, product tour) are working correctly.",
+  "features_tested": {
+    "cookie_consent_brand_color": {
+      "status": "PASS",
+      "details": "GymAxis root (/) uses rgb(37, 99, 235) = #2563EB (brand-blue). Pulse (/pulse) uses rgb(102, 204, 255) = #66ccff (pulse-primary). CookieConsent.js detectIsPulse() working correctly."
+    },
+    "pwa_install_prompt_branding": {
+      "status": "PASS",
+      "details": "PWAInstallPrompt.js uses isPulse to show 'P' with --pulse-primary for Pulse users, 'G' with --color-info-ios for GymAxis users. Verified in code lines 15-19."
+    },
+    "cross_module_tips_dismissal": {
+      "status": "PASS",
+      "details": "cross_module_tips.py line 239 now loads dismissed_ids for ALL users including master admins. API test confirmed dismiss action persists."
+    },
+    "product_tour_user_scoped": {
+      "status": "PASS",
+      "details": "ProductTour.js userScopedKey() creates per-user tour keys. Tour fires on first login, completion saved to localStorage with user-specific key."
+    },
+    "gymaxis_master_admin_dashboard": {
+      "status": "PASS",
+      "details": "Master admin dashboard loads correctly with GymAxis branding. All modules accessible: Operations Portal, CRM, Memberships, Marketing, MoD."
+    },
+    "gymaxis_operator_dashboard": {
+      "status": "PASS",
+      "details": "Operator dashboard (/dashboard?as=operator) loads with all tabs: Dashboard, Equipment, Faults, Check Sheets, Reports, Gym Layout, Documents, Suppliers, Weekly Digest."
+    },
+    "pulse_landing_page_brand_leakage": {
+      "status": "FAIL",
+      "details": "CRITICAL: PulseLandingPage.js uses GymAxis cyan (#19CDFF) for LOG IN button and 78 other elements instead of Pulse blue (#66ccff). Button class: '!bg-[var(--color-brand-cyan)]'"
+    },
+    "pulse_landing_page_gymaxis_wordmark": {
+      "status": "PASS",
+      "details": "Only 'Powered by GymAxis AI' in footer - no other GymAxis wordmark visible on Pulse page."
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Sage 200", "Twilio SMS", "Sentry DSN unconfigured"]
+  },
+  "brand_leakage_audit": {
+    "pulse_landing_page": {
+      "brand_cyan_usages": 79,
+      "pulse_primary_usages": 0,
+      "affected_elements": [
+        "LOG IN button (line 323-324)",
+        "Section eyebrow text (line 76)",
+        "Language selector active state (line 156)",
+        "Hero italic text (line 259)",
+        "Background blur circles (line 284)",
+        "Eyebrow badges (line 290, 292)",
+        "Checkmark icons (lines 341-343)",
+        "Live indicator badges (lines 360-363)",
+        "Feature cards (lines 380-391)",
+        "AI diagnosis section (lines 435, 455, 459-460, 495)",
+        "Gradient icons (line 516)",
+        "Log fault CTA (line 544)",
+        "Category chips (line 553)",
+        "Feature cards hover (line 610)",
+        "Step numbers (line 621)"
+      ]
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "summary": "Tested Activity Feed Enhancement (iteration 111). All 10 features working correctly. Backend APIs (POST /api/crm/v2/activities with owner_id/owner_name, GET /api/crm/users org-filtered) pass all tests. Frontend shows 'Activity Feed' in sidebar with Activity icon, staff filter defaults to 'My Activities', manager sees 'All Staff' option, type filters work, create dialog has company-first contact filtering.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "feature_1_sidebar_renamed": {
+      "status": "PASS",
+      "details": "Sidebar nav item shows 'Activity Feed' label with Activity icon (data-testid='crm-nav-inbox')"
+    },
+    "feature_2_staff_filter_default": {
+      "status": "PASS",
+      "details": "Staff filter (data-testid='activity-staff-filter') defaults to 'My Activities' (value='mine')"
+    },
+    "feature_3_manager_all_staff_option": {
+      "status": "PASS",
+      "details": "Craig (manager role) sees 'All Staff' option in staff filter dropdown"
+    },
+    "feature_4_staff_filter_works": {
+      "status": "PASS",
+      "details": "'My Activities' shows 55 activities, 'All Staff' shows all org activities - filtering by owner_id works"
+    },
+    "feature_5_type_filter_buttons": {
+      "status": "PASS",
+      "details": "All 7 type filter buttons found: all, note, call, email, meeting, task, system. Clicking 'Tasks' shows 19 task activities."
+    },
+    "feature_6_detail_panel_linked_entities": {
+      "status": "PASS",
+      "details": "Detail panel shows activity info with Delete button. Linked entity buttons (data-testid='linked-company', 'linked-deal') render when activity has company_id/opportunity_id"
+    },
+    "feature_7_create_dialog_company_first": {
+      "status": "PASS",
+      "details": "Create Activity dialog (data-testid='create-activity-dialog') shows 'Select company first...' in Contact dropdown until company is selected"
+    },
+    "feature_8_search_filters": {
+      "status": "PASS",
+      "details": "Search input (data-testid='inbox-search') filters by subject/body/owner_name. Search for 'Stage changed' returned 17 results."
+    },
+    "feature_9_post_activities_owner": {
+      "status": "PASS",
+      "details": "POST /api/crm/v2/activities creates activity with owner_id and owner_name from logged-in user"
+    },
+    "feature_10_get_users_org_filtered": {
+      "status": "PASS",
+      "details": "GET /api/crm/users returns only users from the same organization (Craig's org)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration111_activity_feed.py",
+    "/app/test_reports/pytest/pytest_results_iteration111.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration111_activity_feed.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (10/10 features working)"
+  },
+  "test_credentials": "craig.henshall@pulsefitness.com / Test123!",
+  "seed_data_creation": "Created TEST_ prefixed activities during testing (cleaned up)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 111 tested Activity Feed enhancement. All features working: Sidebar shows 'Activity Feed' with Activity icon, staff filter defaults to 'My Activities' with 'All Staff' option for managers, type filters (7 types), company-first contact filtering in create dialog, search by subject/body/owner_name. Backend APIs for activities and users working correctly. Demo tour modal blocks navigation - need to close it first (click X button or use force=True on clicks).",
+  "mocked_apis": {
+    "Sage 200 API": "MOCKED",
+    "Sicon Service API": "MOCKED"
+  }
+}

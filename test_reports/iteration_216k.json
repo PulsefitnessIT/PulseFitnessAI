@@ -1,0 +1,60 @@
+{
+  "summary": "Iter 216k - Invoice parsing (supplier/make/equipment_category), Master Admin role management, and multi-site endpoints: All 10 backend tests PASSED after fixing a bug in add_user_to_organization.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216k.py",
+    "/app/test_reports/pytest/pytest_results_216k.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216k.py",
+    "/app/backend/routes/master_admin.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "N/A (backend only testing requested)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Test users and orgs created during pytest run with TEST_ prefix",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 216k features fully tested. Key findings: (1) Invoice parsing with Carshalton PDF returns supplier_name='Pulse Fitness', all equipment items have make='Pulse Fitness' and valid equipment_category (Cardiovascular, Strength, etc.). Extraction completes in ~35s (under 60s kubernetes limit). (2) Fixed bug in add_user_to_organization where is_master_admin wasn't being set because the code checked 'collection == users' but _create_org_user returns 'Service Portal' or 'CRM'. (3) All master admin user management endpoints working: add with role=master_admin, edit to role=master_admin, reset-password, invite-link. (4) onboard-head-office endpoint requires org_name, owner_email, owner_name, and at least one site. (5) Sites overview endpoint returns totals, sites list, and best_site.",
+  "tests_executed": {
+    "backend": [
+      "TestMasterAdminLogin::test_login_success - PASSED",
+      "TestInvoiceParsingWizard::test_parse_invoice_for_wizard - PASSED (supplier_name='Pulse Fitness', equipment_category validated)",
+      "TestEquipmentImportParseInvoice::test_parse_invoice - PASSED (same validations)",
+      "TestMasterAdminUserAdd::test_add_user_with_master_admin_role - PASSED (after bug fix)",
+      "TestMasterAdminUserEdit::test_edit_user_to_master_admin_role - PASSED",
+      "TestResetPassword::test_reset_password_returns_temp_password - PASSED",
+      "TestInviteLink::test_invite_link_returns_url - PASSED",
+      "TestOnboardHeadOffice::test_onboard_head_office_returns_invite_url - PASSED",
+      "TestSupplierCaseUpdateEmail::test_update_email_endpoint_exists - PASSED",
+      "TestSitesOverview::test_sites_overview_returns_totals - PASSED"
+    ]
+  },
+  "bug_fixed": {
+    "file": "/app/backend/routes/master_admin.py",
+    "line": "1279",
+    "issue": "add_user_to_organization with role='master_admin' was not setting is_master_admin=True because the code checked 'collection == users' but _create_org_user returns 'Service Portal' or 'CRM'",
+    "fix": "Changed condition from 'collection == users' to 'collection == Service Portal'"
+  },
+  "invoice_parsing_verification": {
+    "test_pdf": "/tmp/inv/carshalton.pdf (6.9 MB, 20 pages, Pulse Fitness invoice)",
+    "supplier_name": "Pulse Fitness (correctly extracted from logo/header)",
+    "equipment_count": 60,
+    "make_validation": "All items have make='Pulse Fitness'",
+    "equipment_category_validation": "All items have valid category (Cardiovascular, Strength, Free Weights, Functional, or Accessories)",
+    "extraction_time": "~35s (under 60s kubernetes ingress limit)",
+    "model_used": "claude-haiku-4-5"
+  }
+}

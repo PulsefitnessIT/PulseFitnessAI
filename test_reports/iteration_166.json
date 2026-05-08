@@ -1,0 +1,62 @@
+{
+  "summary": "Iteration 166 testing complete. All 23 backend tests passed (17 new feature tests + 6 Stripe webhook tests). Frontend testing verified instructor cover request flow, member referral section, and referral code pre-fill from URL. Commission CSV endpoint verified via backend tests.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration166_features.py",
+    "/app/backend/tests/test_memberships_webhook.py",
+    "/app/test_reports/pytest/pytest_results_166.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration166_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (23/23 tests passed)",
+    "frontend": "100% (all tested features working)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "instructor": "jake.ellis@demo.gymaxis / Instructor2026!",
+    "member_emma": "emma.wright@demo.gymaxis / Member2026!",
+    "member_oliver": "oliver.price@demo.gymaxis / Member2026!"
+  },
+  "seed_data_creation": "None - used existing seeded data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iteration 166 features verified: (1) Commission CSV export returns proper CSV with headers, Jake Ellis row, and TOTAL row; (2) Instructor cover request flow works - creates cover_requests row, returns already_open on duplicate, 400 on self-accept, cancel works; (3) Member referral programme works - Emma has EMMA-4CEB code, registration with referral_code creates pending referral, conversion hook marks referral as earned and credits referrer; (4) All 6 Stripe webhook tests pass. Frontend: Instructor portal shows COVER button in roster view, clicking triggers prompt and creates cover request with toast confirmation. Member portal shows referral section with code, Copy/Share buttons, and stats. URL ?ref=EMMA-XXXX pre-fills referral code in register form.",
+  "features_tested": {
+    "commission_csv": {
+      "status": "PASS",
+      "details": "GET /api/memberships/commission.csv returns text/csv with Content-Disposition attachment, header row, Jake Ellis row, TOTAL row. 401 without auth."
+    },
+    "cover_requests": {
+      "status": "PASS",
+      "details": "POST request-cover creates cover_requests row with status=open, requester_name=Jake Ellis. Second POST returns already_open=true. Non-Jake occ returns 404. Accept own request returns 400. Cancel flips status to cancelled. Ops endpoint lists all requests."
+    },
+    "referral_programme": {
+      "status": "PASS",
+      "details": "Emma has referral_code starting EMMA-. Register with referral_code creates member with referred_by set, generates new referral_code, creates pending referral row with credit_pence=500. Conversion hook on _mark_membership_paid flips referral to earned and increments referrer's promo_credit_pence."
+    },
+    "stripe_webhook": {
+      "status": "PASS",
+      "details": "All 6 tests pass: bad sig 400, missing sig 400, unknown event 200, invoice.paid updates billing, invoice.payment_failed flips past_due, subscription.deleted cancels membership."
+    },
+    "frontend_instructor_cover": {
+      "status": "PASS",
+      "details": "COVER button visible in roster view (data-testid=instructor-request-cover). Clicking opens prompt for reason, POSTs to request-cover, shows toast 'Cover requested — your crew has been pinged', navigates back to classes view."
+    },
+    "frontend_member_referral": {
+      "status": "PASS",
+      "details": "Profile tab shows referral section (data-testid=member-referral) with code EMMA-4CEB, COPY and SHARE buttons, stats (Friends joined, Pending, Credit earned). URL ?ref=EMMA-4CEB pre-fills referral code input in register form."
+    }
+  }
+}

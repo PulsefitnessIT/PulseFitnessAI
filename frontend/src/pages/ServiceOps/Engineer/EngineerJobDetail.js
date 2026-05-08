@@ -1,0 +1,582 @@
+/**
+ * EngineerJobDetail — iter 215dp (Phase 2).
+ *
+ * Mobile-first job detail with three primary actions an engineer needs
+ * on site: start/stop a timer, capture photos, and complete with a
+ * customer signature.
+ *
+ * Designed for offline-first use: every mutation routes through
+ * `queuedMutation` so writes survive lift / basement signal loss and
+ * replay automatically when the device comes back online.
+ *
+ * Backed by:
+ *   GET  /api/svc/engineer/jobs/{id}
+ *   POST /api/svc/engineer/time/start | /time/stop
+ *   POST /api/svc/engineer/photos
+ *   POST /api/svc/engineer/signature
+ *   POST /api/svc/engineer/jobs/{id}/complete
+ *   POST /api/files/upload     (multipart, photos)
+ */
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import axios from 'axios';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  ArrowLeft, Phone, MapPin, Wrench, Loader2, Play, Square, Camera, PenLine,
+  CheckCircle, Image as ImageIcon, ChevronRight, Clock, AlertTriangle, WifiOff,
+  Sparkles,
+} from 'lucide-react';
+import { notify } from '@/components/notifications';
+import { queuedMutation } from '@/utils/queuedMutation';
+import SignatureCanvas from './SignatureCanvas';
+
+const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
+const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+
+const PRIORITY_COLOUR = { p1: '#ef4444', p2: '#f59e0b', p3: '#1d4ed8', p4: '#6b7280' };
+const STATUS_LABEL = {
+  new: 'New', triaged: 'Triaged', assigned: 'Assigned', en_route: 'En route',
+  on_site: 'On site', paused_parts: 'Waiting parts', paused_customer: 'Waiting customer',
+  repaired: 'Repaired', awaiting_sign_off: 'Awaiting sign-off', closed: 'Closed', invoiced: 'Invoiced',
+};
+
+function newIdemKey() {
+  return (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `idem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function fmtRelative(iso) {
+  if (!iso) return '—';
+  const ms = new Date(iso).getTime() - Date.now();
+  const abs = Math.abs(ms);
+  const m = Math.floor(abs / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
+  const sign = ms < 0 ? '-' : '';
+  if (d >= 1) return `${sign}${d}d ${h % 24}h`;
+  if (h >= 1) return `${sign}${h}h ${m % 60}m`;
+  return `${sign}${m}m`;
+}
+
+function ActiveTimer({ entry }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (!entry) return null;
+  const elapsed = Math.max(0, Math.floor((now - new Date(entry.start_at).getTime()) / 1000));
+  const m = Math.floor(elapsed / 60), s = String(elapsed % 60).padStart(2, '0');
+  return (
+    <p className="text-sm font-extrabold tabular-nums" data-testid="job-active-timer">
+      {m}m {s}s · {entry.category}
+    </p>
+  );
+}
+
+export default function EngineerJobDetail() {
+  const navigate = useNavigate();
+  const { caseId } = useParams();
+  const fileInputRef = useRef(null);
+
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState('');
+  const [showSig, setShowSig] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completeSummary, setCompleteSummary] = useState('');
+  const [completeChargeable, setCompleteChargeable] = useState(false);
+  const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [signatureName, setSignatureName] = useState('');
+
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/svc/engineer/jobs/${caseId}`, auth());
+      setJob(r.data);
+    } catch (e) {
+      if (online) notify.error('Failed to load job', e?.response?.data?.detail || e.message);
+    } finally { setLoading(false); }
+  }, [caseId, online]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const activeTimer = useMemo(
+    () => (job?.time_entries || []).find((t) => !t.end_at),
+    [job],
+  );
+
+  const colour = PRIORITY_COLOUR[job?.priority] || '#6b7280';
+
+  // ── Time tracking ────────────────────────────────────────────
+  const startTimer = async (category) => {
+    if (busy || !job) return;
+    setBusy(`start-${category}`);
+    const idem = newIdemKey();
+    const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': idem, ...auth().headers };
+    const result = await queuedMutation({
+      method: 'POST',
+      url: `${API}/svc/engineer/time/start`,
+      body: { case_id: job.id, category },
+      headers,
+      label: `Start ${category} timer · ${job.reference}`,
+      kind: 'svc-time-start',
+    });
+    if (result?.queued) {
+      notify.info('Saved offline', 'Will sync when you reconnect.');
+    } else {
+      notify.success('Timer started');
+    }
+    await load();
+    setBusy('');
+  };
+
+  const stopTimer = async () => {
+    if (busy || !activeTimer) return;
+    setBusy('stop');
+    const idem = newIdemKey();
+    const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': idem, ...auth().headers };
+    const result = await queuedMutation({
+      method: 'POST',
+      url: `${API}/svc/engineer/time/stop`,
+      body: { entry_id: activeTimer.id },
+      headers,
+      label: `Stop timer · ${job.reference}`,
+      kind: 'svc-time-stop',
+    });
+    if (result?.queued) {
+      notify.info('Saved offline');
+    } else {
+      notify.success('Timer stopped');
+    }
+    await load();
+    setBusy('');
+  };
+
+  // ── Photo capture ────────────────────────────────────────────
+  const onPhotoFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !job) return;
+    setBusy('photo');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const up = await axios.post(`${API}/files/upload?category=service-photos`, fd, {
+        headers: { ...auth().headers },
+      });
+      const fileUrl = up.data?.url || up.data?.file_url || up.data?.path || `/api/files/${up.data?.id}/view`;
+      const idem = newIdemKey();
+      await queuedMutation({
+        method: 'POST',
+        url: `${API}/svc/engineer/photos`,
+        body: {
+          case_id: job.id,
+          file_url: fileUrl,
+          mime_type: file.type || 'image/jpeg',
+          taken_at: new Date().toISOString(),
+        },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idem, ...auth().headers },
+        label: `Photo · ${job.reference}`,
+        kind: 'svc-photo',
+      });
+      notify.success('Photo attached');
+      await load();
+    } catch (err) {
+      notify.error('Photo upload failed', err?.response?.data?.detail || err.message);
+    } finally { setBusy(''); }
+  };
+
+  // ── Photo classification (AI) ────────────────────────────────
+  const classifyPhoto = async (photoId) => {
+    if (!photoId || busy) return;
+    setBusy(`classify-${photoId}`);
+    try {
+      const r = await axios.post(`${API}/svc/ai/photo/classify`, { photo_id: photoId }, auth());
+      if (r.data?.ok) {
+        notify.success(`AI: ${r.data.severity}`, (r.data.tags || []).slice(0, 3).join(' · ') || r.data.summary);
+        await load();
+      } else {
+        notify.error('AI analysis unavailable', r.data?.error || 'Try again');
+      }
+    } catch (e) {
+      notify.error('AI failed', e?.response?.data?.detail || e.message);
+    } finally { setBusy(''); }
+  };
+
+  // ── Signature ────────────────────────────────────────────────
+  const submitSignature = async (dataUrl) => {
+    if (!job) return;
+    setBusy('signature');
+    setShowSig(false);
+    const idem = newIdemKey();
+    const result = await queuedMutation({
+      method: 'POST',
+      url: `${API}/svc/engineer/signature`,
+      body: {
+        case_id: job.id,
+        signed_by_name: (signatureName || 'Customer').trim(),
+        image_data: dataUrl,
+        summary: completeSummary || '',
+      },
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idem, ...auth().headers },
+      label: `Signature · ${job.reference}`,
+      kind: 'svc-signature',
+    });
+    if (result?.queued) {
+      notify.info('Signature queued — will sync online');
+    } else {
+      notify.success('Signature captured');
+    }
+    setSignatureName('');
+    await load();
+    setBusy('');
+  };
+
+  // ── Complete ─────────────────────────────────────────────────
+  const submitComplete = async (target) => {
+    if (!job) return;
+    if (!completeSummary.trim()) {
+      notify.error('Please add a fix summary before completing');
+      return;
+    }
+    setBusy(`complete-${target}`);
+    try {
+      await axios.post(
+        `${API}/svc/engineer/jobs/${job.id}/complete`,
+        { summary: completeSummary.trim(), chargeable: completeChargeable, target },
+        auth(),
+      );
+      notify.success(`Job marked ${target.replace('_', ' ')}`);
+      setCompleteOpen(false);
+      setCompleteSummary('');
+      setCompleteChargeable(false);
+      navigate('/svc/engineer');
+    } catch (e) {
+      notify.error('Failed to complete job', e?.response?.data?.detail || e.message);
+    } finally { setBusy(''); }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" data-testid="job-detail-loading">
+        <Loader2 size={20} className="animate-spin opacity-60" />
+      </div>
+    );
+  }
+  if (!job) {
+    return <div className="min-h-screen p-6 text-center opacity-70" data-testid="job-detail-missing">Job not found.</div>;
+  }
+
+  const isClosed = job.status === 'closed' || job.status === 'invoiced';
+  const slaMs = job.sla_resolve_at ? new Date(job.sla_resolve_at).getTime() - Date.now() : 0;
+  const slaBreached = job.sla_resolve_at && slaMs < 0;
+  const slaAtRisk = job.sla_resolve_at && !slaBreached && slaMs < 2 * 3600 * 1000;
+  const slaColour = slaBreached ? '#ef4444' : slaAtRisk ? '#f59e0b' : '#10b981';
+
+  return (
+    <div className="min-h-screen pb-24" style={{ background: 'var(--theme-bg, #f8fafc)' }} data-testid="job-detail-page">
+      <header className="px-4 pt-4 pb-3 sticky top-0 z-10 flex items-center gap-2" style={{ background: 'var(--theme-surface, #fff)', borderBottom: '1px solid var(--theme-border, #e5e7eb)' }}>
+        <button type="button" onClick={() => navigate('/svc/engineer')} aria-label="Back" className="p-1.5 rounded-full hover:bg-black/5" data-testid="job-back">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold opacity-60 tracking-wider uppercase tabular-nums">{job.reference}</p>
+          <h1 className="text-base font-extrabold truncate" data-testid="job-title">{job.title}</h1>
+        </div>
+        {!online ? <WifiOff size={14} className="opacity-70" data-testid="offline-icon" /> : null}
+      </header>
+
+      <main className="px-4 mt-3 space-y-3">
+        {/* Meta strip */}
+        <section className="rounded-2xl border p-3 space-y-2" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }}>
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider"
+              style={{ background: `${colour}22`, color: colour }}
+              data-testid="job-priority-pill"
+            >
+              {(job.priority || 'p3').toUpperCase()}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-70" data-testid="job-status-pill">
+              {STATUS_LABEL[job.status] || job.status}
+            </span>
+            {job.sla_resolve_at ? (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                style={{ background: `${slaColour}22`, color: slaColour }}
+                data-testid="job-sla-pill"
+              >
+                {slaBreached ? <AlertTriangle size={10} /> : <Clock size={10} />}
+                {slaBreached ? 'SLA breached' : slaAtRisk ? 'SLA at risk' : `SLA ${fmtRelative(job.sla_resolve_at)}`}
+              </span>
+            ) : null}
+          </div>
+          <div className="text-xs opacity-80 space-y-1">
+            {job.site_name ? <p className="inline-flex items-center gap-1.5"><MapPin size={12} /> {job.site_name}</p> : null}
+            {job.asset_name ? <p className="inline-flex items-center gap-1.5"><Wrench size={12} /> {job.asset_name}</p> : null}
+            {job.fault_code ? <p className="opacity-70">Fault: <strong>{job.fault_code}</strong></p> : null}
+          </div>
+          {job.description ? <p className="text-sm border-t pt-2" style={{ borderColor: 'var(--theme-border)' }}>{job.description}</p> : null}
+        </section>
+
+        {/* Customer */}
+        {(job.customer_name || job.customer_phone || job.customer_email) ? (
+          <section className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-customer">
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1.5">Site contact</p>
+            <p className="font-bold">{job.customer_name || '—'}</p>
+            <div className="flex gap-2 mt-2">
+              {job.customer_phone ? (
+                <a href={`tel:${job.customer_phone}`} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-white" style={{ background: '#10b981' }} data-testid="customer-call">
+                  <Phone size={14} /> Call
+                </a>
+              ) : null}
+              {job.customer_email ? (
+                <a href={`mailto:${job.customer_email}`} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: 'var(--theme-border)' }} data-testid="customer-email">
+                  Email
+                </a>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {/* Active timer */}
+        {activeTimer ? (
+          <section className="rounded-2xl p-3 text-white shadow-lg" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }} data-testid="job-timer-banner">
+            <p className="text-[10px] uppercase tracking-wider opacity-90 font-bold">Currently working</p>
+            <ActiveTimer entry={activeTimer} />
+            <button
+              type="button"
+              onClick={stopTimer}
+              disabled={busy === 'stop'}
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm text-white font-bold text-sm hover:bg-white/30 disabled:opacity-60"
+              data-testid="job-stop-timer"
+            >
+              <Square size={14} /> Stop timer
+            </button>
+          </section>
+        ) : !isClosed ? (
+          <section className="rounded-2xl border p-3 space-y-2" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-timer-actions">
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Time tracking</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => startTimer('travel')}
+                disabled={busy.startsWith('start')}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold border disabled:opacity-60"
+                style={{ borderColor: 'var(--theme-border)' }}
+                data-testid="job-start-travel"
+              >
+                <Play size={13} /> Travel
+              </button>
+              <button
+                type="button"
+                onClick={() => startTimer('on_site')}
+                disabled={busy.startsWith('start')}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+                style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+                data-testid="job-start-onsite"
+              >
+                <Play size={13} /> On site
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Photos */}
+        <section className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-photos-section">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Photos ({job.photos?.length || 0})</p>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={busy === 'photo'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-60"
+              style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+              data-testid="job-add-photo"
+            >
+              <Camera size={12} /> {busy === 'photo' ? 'Uploading…' : 'Add photo'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={onPhotoFile}
+              data-testid="job-photo-input"
+            />
+          </div>
+          {(job.photos || []).length === 0 ? (
+            <p className="text-xs opacity-60 italic">No photos yet — add before/after shots so customers + auditors can see the work.</p>
+          ) : (
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                {(job.photos || []).slice(0, 9).map((p) => (
+                  <div key={p.id} className="space-y-0.5">
+                    <a
+                      href={p.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block aspect-square rounded-lg border overflow-hidden flex items-center justify-center bg-slate-100"
+                      style={{ borderColor: 'var(--theme-border)' }}
+                      data-testid={`job-photo-${p.id}`}
+                    >
+                      {p.file_url ? (
+                        <img src={p.file_url} alt={p.caption || 'service'} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <ImageIcon size={20} className="opacity-40" />
+                      )}
+                    </a>
+                    {p.ai?.severity ? (
+                      <span
+                        className="block text-center text-[9px] font-bold uppercase tracking-wider rounded-sm"
+                        style={{
+                          background: p.ai.severity === 'high' ? '#fee2e2' : p.ai.severity === 'med' ? '#fef3c7' : '#dcfce7',
+                          color: p.ai.severity === 'high' ? '#991b1b' : p.ai.severity === 'med' ? '#92400e' : '#166534',
+                        }}
+                        title={p.ai.summary}
+                        data-testid={`job-photo-ai-${p.id}`}
+                      >
+                        {p.ai.severity} · {(p.ai.tags || [])[0] || ''}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => classifyPhoto(p.id)}
+                        disabled={busy === `classify-${p.id}`}
+                        className="block w-full text-[9px] font-bold uppercase tracking-wider rounded-sm py-0.5 border disabled:opacity-50"
+                        style={{ borderColor: 'var(--theme-border)' }}
+                        data-testid={`job-photo-classify-${p.id}`}
+                      >
+                        {busy === `classify-${p.id}` ? '…' : 'Analyse'}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Complete & sign-off */}
+        {!isClosed ? (
+          <section className="rounded-2xl border p-3 space-y-2" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-complete-section">
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Wrap up</p>
+            {!completeOpen ? (
+              <button
+                type="button"
+                onClick={() => setCompleteOpen(true)}
+                className="w-full inline-flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-extrabold text-white"
+                style={{ background: '#0f172a' }}
+                data-testid="job-open-complete"
+              >
+                <CheckCircle size={16} /> Complete this job
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <textarea
+                  value={completeSummary}
+                  onChange={(e) => setCompleteSummary(e.target.value)}
+                  rows={3}
+                  placeholder="Replaced running belt + reset deck. Tested at 12 km/h for 5 min — no slap."
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent text-sm"
+                  style={{ borderColor: 'var(--theme-border)' }}
+                  data-testid="job-complete-summary"
+                />
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={completeChargeable}
+                    onChange={(e) => setCompleteChargeable(e.target.checked)}
+                    data-testid="job-complete-chargeable"
+                  />
+                  This visit is chargeable (raises Sage invoice draft)
+                </label>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Signed by (name)"
+                    value={signatureName}
+                    onChange={(e) => setSignatureName(e.target.value)}
+                    className="px-3 py-2 rounded-lg border bg-transparent text-sm"
+                    style={{ borderColor: 'var(--theme-border)' }}
+                    data-testid="job-signed-by"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSig(true)}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold border"
+                    style={{ borderColor: 'var(--theme-border)' }}
+                    data-testid="job-open-signature"
+                  >
+                    <PenLine size={13} /> Capture signature
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => submitComplete('awaiting_sign_off')}
+                    disabled={busy.startsWith('complete')}
+                    className="px-3 py-2.5 rounded-lg text-sm font-bold border disabled:opacity-60"
+                    style={{ borderColor: 'var(--theme-border)' }}
+                    data-testid="job-mark-awaiting"
+                  >
+                    Mark for sign-off
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => submitComplete('closed')}
+                    disabled={busy.startsWith('complete')}
+                    className="px-3 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+                    style={{ background: '#10b981' }}
+                    data-testid="job-mark-closed"
+                  >
+                    {busy === 'complete-closed' ? 'Closing…' : 'Close job'}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setCompleteOpen(false); setCompleteSummary(''); }}
+                  className="w-full text-center text-xs opacity-60 underline pt-1"
+                  data-testid="job-cancel-complete"
+                >
+                  cancel
+                </button>
+              </div>
+            )}
+          </section>
+        ) : (
+          <p className="text-center text-sm opacity-60 italic" data-testid="job-closed-msg">This job is {STATUS_LABEL[job.status] || job.status}. Read-only.</p>
+        )}
+
+        {/* Recent timeline (read-only on mobile) */}
+        <section className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-timeline-section">
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1.5">Recent timeline</p>
+          <ol className="space-y-1.5">
+            {(job.events || []).slice(0, 8).map((ev) => (
+              <li key={ev.id} className="text-xs">
+                <span className="font-bold opacity-80">{ev.type}</span>
+                {ev.body ? <span className="opacity-70">: {ev.body}</span> : null}
+                <span className="opacity-50 ml-1 tabular-nums">· {new Date(ev.at).toLocaleTimeString()}</span>
+              </li>
+            ))}
+            {(job.events || []).length === 0 ? <li className="text-xs opacity-60">No events yet.</li> : null}
+          </ol>
+        </section>
+      </main>
+
+      {showSig ? (
+        <SignatureCanvas onSubmit={submitSignature} onCancel={() => setShowSig(false)} />
+      ) : null}
+    </div>
+  );
+}

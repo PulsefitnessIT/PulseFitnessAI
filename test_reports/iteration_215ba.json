@@ -1,0 +1,107 @@
+{
+  "summary": "Phase 4 GymAxis Premium UI rollout testing (iter 215ba). Fixed critical bug: DashboardPage.js was missing 'theme' destructuring from useAuth(), causing theme-gymaxis class to never be applied. Verified Memberships Console and Pulse preservation. All critical tests PASS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "DashboardPage.js",
+        "issue": "FIXED: Missing 'theme' destructuring from useAuth() - line 48 was 'const { user, API } = useAuth()' but 'theme' was used on line 131. Fixed to 'const { user, API, theme } = useAuth()'",
+        "selector": "N/A",
+        "priority": "CRITICAL - FIXED"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "gymaxis_memberships_admin": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "h1_text": "GymAxis Pro · GymAxis Master Admin",
+      "gx_grad_text_on_gymaxis": true,
+      "pro_label_color": "var(--gx-brand-to) (purple)",
+      "active_tab_gradient": "linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%)",
+      "active_tab_shadow": "rgba(37, 99, 235, 0.35) 0px 6px 16px -6px",
+      "theme_gymaxis_class": "NOT present (expected - dark mode active, theme-gymaxis only applies in light mode)",
+      "notes": "All GymAxis branding correctly applied. theme-gymaxis class is conditional on light mode."
+    },
+    "pulse_memberships_user": {
+      "status": "PASS",
+      "data_brand": "pulse",
+      "h1_text": "Pulse Fitness Pro · Tottenham Green Leisure Centre",
+      "gx_grad_text_absent": true,
+      "theme_gymaxis_absent": true,
+      "active_tab_style": "background: var(--color-brand-cyan); color: var(--color-ink);",
+      "notes": "Pulse branding correctly preserved. No GymAxis styling leaked."
+    },
+    "pulse_landing_page": {
+      "status": "PASS",
+      "data_brand": "pulse",
+      "pulse_landing_page_testid": true,
+      "theme_gymaxis_absent": true,
+      "gx_grad_text_absent": true,
+      "pulse_logo_present": true,
+      "notes": "Pulse landing page intact with original cyan/black branding."
+    },
+    "pulse_crm_user": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "h1_text": "Pulse Fitness",
+      "gx_grad_text_absent": true,
+      "theme_gymaxis_absent": true,
+      "notes": "CRM correctly shows 'Pulse Fitness' heading for Pulse-branded user."
+    },
+    "master_admin": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "gymaxis_logo_present": true,
+      "kpi_cards_count": 12,
+      "subtab_pill_active": true,
+      "notes": "Phase 1+2 styling preserved. Brand gradient on active tabs."
+    },
+    "kpi_cards_styling": {
+      "status": "VERIFIED_IN_CODE",
+      "rounded_2xl": true,
+      "slate_200_border": true,
+      "soft_shadow": "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+      "hover_lift_shadow": "hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)]",
+      "notes": "KPI component at line 1440-1458 has correct styling classes."
+    }
+  },
+  "bug_fixed": {
+    "file": "/app/frontend/src/pages/DashboardPage.js",
+    "line": 48,
+    "issue": "Missing 'theme' destructuring from useAuth()",
+    "fix": "Changed 'const { user, API } = useAuth()' to 'const { user, API, theme } = useAuth()'",
+    "impact": "theme-gymaxis class was never applied to Operations Dashboard because 'theme' was undefined"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "VERIFY: Test Operations Dashboard (/dashboard) in LIGHT MODE to confirm theme-gymaxis class is now applied after the fix",
+    "VERIFY: Test subscription-badge gradient styling on /dashboard for non-master-admin GymAxis user (no test account available - studio.leeds@gymaxisai.com was purged)"
+  ],
+  "critical_code_review_comments": [
+    "DashboardPage.js line 48: Was missing 'theme' from useAuth() destructuring - FIXED",
+    "MembershipsConsole.js: Correctly implements isPulseBrandedMbr check and conditional styling",
+    "index.css: theme-gymaxis CSS rules correctly scoped and include shadcn TabsList override"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/DashboardPage.js"
+  ],
+  "success_rate": {
+    "backend": "N/A - frontend only testing",
+    "frontend": "100% (after fix)"
+  },
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Fixed critical bug in DashboardPage.js where 'theme' was not destructured from useAuth(). This caused theme-gymaxis class to never be applied. All Pulse preservation tests PASS. GymAxis branding tests PASS. Need to verify Operations Dashboard in light mode to confirm fix works. studio.leeds@gymaxisai.com test account was purged in platform reset - no non-admin GymAxis user available for /dashboard testing.",
+  "test_credentials_used": [
+    "admin@gymaxisai.com / MasterAdmin123! (Master Admin)",
+    "lee.somers@pulsefitness.com / TempPass123! (Pulse Lite user)",
+    "craig.henshall@pulsefitness.com / Test123! (Pulse CRM user)"
+  ]
+}

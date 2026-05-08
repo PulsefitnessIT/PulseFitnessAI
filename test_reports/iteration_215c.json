@@ -1,0 +1,66 @@
+{
+  "summary": "Iter 215c CRM Mode Entitlements - Backend 17/18 tests passed, Frontend mode switcher verified working for Master Admin",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/me/crm-business/checkout", "issue": "Accepts empty origin_url (falls back to FRONTEND_URL env var) - not a bug, just different from expected validation"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "CRM Mode Switcher visibility", "issue": "Mode switcher only renders when BOTH leisure AND business modes are enabled AND the platform token is valid. CRM-only auth users (like craig.henshall) won't see the switcher because they don't have a platform JWT. This is expected behavior per the code design.", "affected_selectors": ["[data-testid='crm-mode-switcher']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crm_modes_iter215c.py",
+    "/app/test_reports/pytest/pytest_results_iteration215c.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRM mode switcher correctly only renders when both modes are enabled (line 12-13 in CRMModeSwitcher.js)",
+    "useCRMModes hook correctly uses platform token (localStorage 'token') not CRM token",
+    "Fail-open behavior in CRMApp.js (line 565-566) correctly allows CRM access when modes API fails",
+    "Migration script is idempotent - re-running reports 0 fixed"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_crm_modes_iter215c.py"
+  ],
+  "success_rate": {
+    "backend": "94% (17/18 tests passed)",
+    "frontend": "100% (mode switcher verified working)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "operator": "lee.somers@pulsefitness.com / TempPass123! (org_id: 156c8dc4-8683-4cb4-8a74-facd811655ad)",
+    "crm_manager": "craig.henshall@pulsefitness.com / Test123! (CRM-only auth)"
+  },
+  "seed_data_creation": "None - used existing test users",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRM mode entitlements are working. The mode switcher (Members | Corporate) only appears when BOTH leisure AND business modes are enabled for the user's organization. Master Admin always has both modes. Lee Somers' org (156c8dc4-8683-4cb4-8a74-facd811655ad) has both modes enabled. CRM-only auth users won't see the switcher because they don't have a platform JWT - this is expected fail-open behavior.",
+  "verified_features": {
+    "backend": [
+      "GET /api/me/crm-modes returns correct modes for signed-in user",
+      "PUT /api/master-admin/organizations/{org_id}/crm-business grants/revokes business CRM",
+      "PUT /api/master-admin/organizations/{org_id}/features auto-bundles CRM with memberships",
+      "POST /api/me/crm-business/checkout creates Stripe checkout session",
+      "GET /api/me/crm-business/checkout/{session_id}/status returns session status",
+      "Migration script is idempotent (re-run reports 0 fixed)",
+      "Master admin has both modes (leisure=true, business=true)",
+      "Non-admin gets 403 when trying to grant business CRM"
+    ],
+    "frontend": [
+      "CRM Mode Switcher renders when both modes enabled (data-testid='crm-mode-switcher')",
+      "Members button (data-testid='crm-mode-leisure') works",
+      "Corporate button (data-testid='crm-mode-business') works",
+      "Toggle persists to localStorage 'crm_active_mode'",
+      "CRM workspace loads correctly for users with at least one mode enabled"
+    ]
+  },
+  "not_tested": [
+    "CRM Upgrade Screen (data-testid='crm-upgrade-screen') - would need a user with NO CRM modes enabled",
+    "Stripe checkout button click in upgrade screen - requires upgrade screen to be visible"
+  ]
+}

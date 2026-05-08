@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 215v testing complete. Backend: 24/24 tests passed. All instructor profile CRUD operations, photo uploads, archive, public endpoints, OG image generation, and share HTML working correctly. Frontend: Instructor roster view, add/edit drawer, and public profile page all functional with correct data-testids. Regression: 215u billing features (17/17 tests) still working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_instructor_profiles_215v.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215v.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "instructors.py line 434: Photo render exception is caught and logged but falls back to initials - acceptable graceful degradation",
+    "InstructorRosterView.js line 49: loadOrg catch block is empty - consider logging for debugging",
+    "PublicInstructorPage.js: No email/phone fields displayed - correctly implements privacy requirements"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_instructor_profiles_215v.py"
+  ],
+  "success_rate": {
+    "backend": "100% (24/24 passed)",
+    "frontend": "100% (visual verification complete)",
+    "regression_215u": "100% (17/17 passed)"
+  },
+  "test_credentials": {
+    "operator": "lee.somers@pulsefitness.com / TempPass123!",
+    "pre_seeded_instructor": "id=0cce241e-c932-49e5-9074-9b125dfd30b9, slug=aiden-rowe"
+  },
+  "seed_data_creation": "None - used pre-seeded instructor 'Aiden Rowe' created by main agent",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 215v instructor profile features all working: (1) POST /api/memberships/instructors creates instructor with auto-generated slug, (2) GET /api/memberships/instructors lists non-archived, (3) GET /api/memberships/instructors/{id} returns detail, (4) PATCH updates and regenerates slug on name change, (5) POST .../photo and .../hero set photos, (6) DELETE soft-archives (archived=true, is_published=false), (7) GET /api/public/studios/{slug}/instructors returns published only with NO email/phone leak, (8) GET /api/public/studios/{slug}/instructors/{slug} returns profile + upcoming classes, (9) GET /api/m/{slug}/i/{slug}/og.png returns 1200x630 PNG with X-GymAxis-OG-Cache header, (10) GET /api/m/{slug}/i/{slug}/share returns HTML with complete OG meta tags. Frontend: Instructors tab shows Roster subtab by default, Add instructor drawer has all fields (photo, hero, name, headline, bio, specialties, qualifications, years, social links, publish toggle), public profile page at /m/{slug}/i/{instructorSlug} renders correctly.",
+  "features_verified": {
+    "backend_crud_create": "PASS - Creates instructor with auto-slug, 422 on missing name, 401 without auth",
+    "backend_crud_list": "PASS - Returns non-archived instructors for org",
+    "backend_crud_get": "PASS - Returns single instructor, 404 for wrong org/missing",
+    "backend_crud_patch": "PASS - Partial updates work, name change updates slug with uniqueness",
+    "backend_crud_photo": "PASS - Sets photo_url, invalidates cached_og",
+    "backend_crud_hero": "PASS - Sets hero_photo_url, invalidates cached_og",
+    "backend_crud_delete": "PASS - Soft archives (archived=true, is_published=false)",
+    "backend_public_list": "PASS - No auth required, returns published only, NO email/phone leaked",
+    "backend_public_profile": "PASS - Returns studio, instructor (public view), upcoming classes",
+    "backend_og_image": "PASS - Returns 1200x630 PNG, X-GymAxis-OG-Cache header (fresh/cache)",
+    "backend_share_html": "PASS - Complete OG meta tags (og:title, og:image, og:description, twitter:card=summary_large_image)",
+    "frontend_roster_view": "PASS - data-testid='mbr-instructor-roster' visible, shows instructor cards",
+    "frontend_add_button": "PASS - data-testid='mbr-instructor-add' visible and clickable",
+    "frontend_drawer": "PASS - All fields present (photo, hero, name, headline, bio, specialties, qualifications, years, social, publish toggle)",
+    "frontend_public_page": "PASS - data-testid='public-instructor-page' visible, shows name, headline, specialties, bio, qualifications, share button",
+    "regression_215u": "PASS - All 17 billing feature tests still passing"
+  }
+}

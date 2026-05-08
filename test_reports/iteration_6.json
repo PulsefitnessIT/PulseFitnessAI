@@ -1,0 +1,106 @@
+{
+  "summary": "Comprehensive testing of GymFix AI Iteration 6 features. All features tested and working correctly. Fixed critical bug in PricingPage.js (missing Link import). Backend: 16/16 tests passed. Frontend: All UI tests passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "bugs_fixed_by_testing_agent": [
+    {
+      "file": "/app/frontend/src/pages/PricingPage.js",
+      "issue": "Missing 'Link' import from react-router-dom causing 'Link is not defined' runtime error",
+      "fix": "Added Link to the import statement from react-router-dom"
+    }
+  ],
+  "passed_tests": [
+    "Landing page hero: 'Reduce Downtime. Fix Faults Faster. Automate Everything.' title displayed",
+    "Landing page hero: 'AI-Powered Gym Maintenance Platform' badge visible",
+    "Landing page stats bar: 40%, 3x, 100%, 24/7 stats displayed correctly",
+    "Landing page: How It Works section with 3 steps (Report a Fault, Track & Manage, Prevent & Report)",
+    "Landing page: Platform Features section with 9 feature cards (AI Fault Diagnosis, AI Risk Assessments, AI Audit Reports, Fault Logging & Tracking, Purchase Orders, Maintenance Check Sheets, Gym Layout Designer, Operational Reports, Multi-User Organisations)",
+    "Landing page: ROI section with 4 benefit items",
+    "Pricing page: 3 tiers displayed (Starter £49, Professional £99, Enterprise £149)",
+    "Pricing page: Starter has 7 included features and 5 excluded (X marks for AI Audits, POs, Risk Assessments, Operational Reports, Gym Layout Designer)",
+    "Pricing page: Professional has 'Most Popular' badge and all 12 features included",
+    "Pricing page: Enterprise has all features plus multi-site, API access, white-label, etc.",
+    "Pricing page: Pay Per Audit section shows £49 per report",
+    "Navbar (not logged in): Shows public links (Home, Features, Pricing, About, Contact) and Login button",
+    "Navbar (logged in): Public links hidden, user menu button visible in top-right",
+    "Dashboard: Settings tab REMOVED from tab bar (only 8 tabs: Overview, Equipment, Faults, Maintenance, Reports, AI Diagnosis, Gym Design, Weekly Digest)",
+    "User dropdown menu: Shows user name, email, Account & Billing, Settings, Logout options",
+    "Account & Billing dialog: Shows plan name (Pro), price (£99/month), organization (Test Gym), invite code, member since date, payment history",
+    "Settings dialog: Opens from navbar dropdown, shows Team & Org, Suppliers, Onboarding tabs",
+    "Backend API: GET /api/account/billing returns plan_name, plan_price, organization, payment_history",
+    "Backend API: All existing APIs (auth, issues, equipment, suppliers, organization) still working"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration6_features.py",
+    "/app/test_reports/pytest/pytest_results_iteration6.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/frontend/src/pages/PricingPage.js",
+    "/app/backend/tests/test_iteration6_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "email": "test@gymfixai.com",
+    "password": "Test123!",
+    "role": "Owner",
+    "company": "Test Gym"
+  },
+  "seed_data_creation": "None - used existing test account",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All Iteration 6 features verified working: Landing page with updated hero, stats bar (40%, 3x, 100%, 24/7), 9 feature cards, How It Works (3 steps), ROI section (4 benefits). Pricing page with 3 tiers (Starter £49, Professional £99, Enterprise £149) and Pay Per Audit £49. Settings moved from dashboard tabs to navbar user dropdown. Account & Billing dialog shows plan, org, payment history. Fixed missing Link import in PricingPage.js.",
+  "features_verified": {
+    "landing_page_hero": {
+      "status": "WORKING",
+      "details": "Hero shows 'Reduce Downtime. Fix Faults Faster. Automate Everything.' with AI-Powered badge"
+    },
+    "landing_page_stats": {
+      "status": "WORKING",
+      "details": "Stats bar shows 40%, 3x, 100%, 24/7"
+    },
+    "landing_page_features": {
+      "status": "WORKING",
+      "details": "9 feature cards: AI Fault Diagnosis, AI Risk Assessments, AI Audit Reports, Fault Logging, Purchase Orders, Maintenance Check Sheets, Gym Layout Designer, Operational Reports, Multi-User Organisations"
+    },
+    "landing_page_how_it_works": {
+      "status": "WORKING",
+      "details": "3 steps: Report a Fault, Track & Manage, Prevent & Report"
+    },
+    "landing_page_roi": {
+      "status": "WORKING",
+      "details": "4 benefit items in ROI section"
+    },
+    "pricing_tiers": {
+      "status": "WORKING",
+      "details": "Starter £49 (7 included, 5 excluded), Professional £99 (Most Popular, all features), Enterprise £149 (all features + extras)"
+    },
+    "pricing_pay_per_audit": {
+      "status": "WORKING",
+      "details": "£49 per report section present"
+    },
+    "navbar_settings_moved": {
+      "status": "WORKING",
+      "details": "Settings removed from dashboard tabs, now in navbar user dropdown"
+    },
+    "account_billing_dialog": {
+      "status": "WORKING",
+      "details": "Shows plan name, price, organization, invite code, member since, payment history"
+    },
+    "account_billing_api": {
+      "status": "WORKING",
+      "details": "GET /api/account/billing returns all required fields"
+    }
+  }
+}

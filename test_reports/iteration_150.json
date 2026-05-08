@@ -1,0 +1,108 @@
+{
+  "summary": "Frontend-only testing of GymAxis homepage visual rebuild. All 10 sections render correctly with preserved data-testids. Hero features cinematic gym image, pure white Proxima Nova Extrabold headline, cyan italic Maax Rounded 'Gym Performance', LIVE dashboard preview with glow. Platform Overview has bento grid with image-led card + 6 module tiles. AI Differentiation shows 'The Orb' banner with animated pulsing rings + 5 capability cards. KPI Engine counters animate to -34%, 98.2%, 6.4× in cyan. Social Proof has 6 logo cards with site counts + 2 testimonial cards with cyan quote marks. Security terminal shows LIVE indicators. Mobile viewport (390x844) renders cleanly with no horizontal overflow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_150.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only test)",
+    "frontend": "100%"
+  },
+  "test_credentials": "N/A (no auth required for landing page)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "GymAxis homepage visual rebuild complete. All 10 sections working: hero, platform-overview, ai-differentiation, service-ops, contracts-revenue, integrations, kpi-engine, social-proof, security, final-cta. Fonts: Proxima Nova (800 weight) for headlines, Maax Rounded italic for 'Gym Performance'. All headings are pure white rgb(255,255,255). Mobile responsive with no overflow.",
+  "test_results": {
+    "gymaxis_homepage": {
+      "sections_tested": {
+        "hero": "PASS",
+        "platform-overview": "PASS",
+        "ai-differentiation": "PASS",
+        "service-ops": "PASS",
+        "contracts-revenue": "PASS",
+        "integrations": "PASS",
+        "kpi-engine": "PASS",
+        "social-proof": "PASS",
+        "security": "PASS",
+        "final-cta": "PASS"
+      },
+      "hero_section": {
+        "headline_font": "PASS - Proxima Nova, weight 800, color rgb(255, 255, 255)",
+        "gym_performance_text": "PASS - Maax Rounded, italic, cyan rgb(25, 205, 255)",
+        "cinematic_gym_image": "PASS - Right-side image with black gradient feather",
+        "hero_ui_preview": "PASS - LIVE indicator, mini KPIs, job cards, AI recommendation",
+        "hero_book_demo": "PASS - Core Blue glow, navigates to /contact",
+        "hero_explore_platform": "PASS - Scrolls to #platform"
+      },
+      "platform_overview": {
+        "image_led_card": "PASS - Gym interior photo with 'ONE DATA MODEL' cyan badge",
+        "headline": "PASS - 'Built for the operators who run the estate.' in WHITE",
+        "module_tiles": {
+          "module-crm": "PASS",
+          "module-service": "PASS",
+          "module-contracts": "PASS",
+          "module-ai-tender-engine": "PASS",
+          "module-kpi-engine": "PASS",
+          "module-integrations": "PASS"
+        }
+      },
+      "ai_differentiation": {
+        "orb_banner": "PASS - 'THE ORB' text present",
+        "headline": "PASS - 'AI trained on your equipment, your SLAs, your language.'",
+        "animated_rings": "PASS - 3 pulsing ring elements around brain icon",
+        "capability_cards": {
+          "ai-ai-fault-diagnosis": "PASS",
+          "ai-ai-tender-writing": "PASS",
+          "ai-ai-customer-support": "PASS",
+          "ai-predictive-maintenance": "PASS",
+          "ai-commercial-intelligence": "PASS"
+        }
+      },
+      "kpi_engine": {
+        "animated_counters": "PASS - Values animate from 0 to target",
+        "stat_values": ["-34%", "98.2%", "6.4×"],
+        "counter_color": "PASS - rgb(25, 205, 255) cyan",
+        "counter_font_weight": "PASS - 800 (extrabold)"
+      },
+      "social_proof": {
+        "logo_cards": "PASS - 6 cards (Everyone Active 14 sites, 1Life 7 sites, Mercia 5 sites, Places Leisure 9 sites, Pulse Fitness OEM, MOD Defence)",
+        "testimonial_cards": "PASS - 2 cards with cyan quote marks and avatar circles"
+      },
+      "security_section": {
+        "security_terminal": "PASS - Terminal-style display with LIVE indicators",
+        "compliance_badges": "PASS - GDPR, SOC 2, ISO 27001"
+      },
+      "final_cta": {
+        "headline": "PASS - 'Ready to retire the spreadsheet?'",
+        "italic_spreadsheet": "PASS - 'the spreadsheet?' in italic",
+        "final_book_demo": "PASS",
+        "final_see_it": "PASS"
+      },
+      "font_verification": {
+        "hero_h1": "PASS - Proxima Nova",
+        "platform_h2": "PASS - Proxima Nova",
+        "platform_h3": "PASS - Proxima Nova",
+        "all_headings_white": "PASS - All h1/h2/h3 are rgb(255, 255, 255)"
+      },
+      "mobile_viewport_390x844": {
+        "hero_headline_fits": "PASS - width 342px within 390px viewport",
+        "ctas_stack": "PASS - Book Demo Y:475, Explore Y:543",
+        "no_horizontal_overflow": "PASS - body width 390px",
+        "all_sections_fit": "PASS - All 9 sections fit mobile viewport"
+      },
+      "console_errors": "NONE"
+    }
+  }
+}

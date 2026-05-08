@@ -1,0 +1,125 @@
+{
+  "summary": "P2 Security hardening tests completed. All 34 tests pass (13 from test_security_hardening.py + 5 from test_security_p2_surface.py + 16 from test_security_p2_full.py). All security features verified working: JWT revocation, token refresh/rotation, captcha bypass in dev mode, org-scoped file access, supplier token expiry, rate limiter, LLM budget, body-size guard, HMAC verifier, fail-closed audit writer, CORS resolver.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "Rate limiter",
+        "issue": "LOGIN_RATE_LIMIT_MAX=500 in .env is very high for production - consider lowering to 10-20 for actual rate limiting",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_security_hardening.py",
+    "/app/backend/tests/test_security_p2_surface.py",
+    "/app/backend/tests/test_security_p2_full.py",
+    "/app/test_reports/pytest/pytest_results_iteration143.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "JWT revocation properly implemented with jti claim and MongoDB deny list",
+    "Token refresh correctly revokes old token before issuing new one",
+    "Captcha verification fails-open in dev (CAPTCHA_SECRET unset), fails-closed in prod",
+    "File access properly org-scoped - both GET /api/files/{id} and GET /api/files/{id}/view?token=",
+    "Master admin bypass correctly implemented for cross-org file access",
+    "Forgot-password returns generic message to prevent email enumeration",
+    "Supplier token expiry returns 410 Gone for expired tokens",
+    "Supplier comment endpoint accepts empty X-Captcha-Token in dev mode",
+    "Rate limiter uses MongoDB-backed sliding window (multi-replica safe)",
+    "LLM budget enforces daily user limit (default 150) and monthly org limit (default 5000)",
+    "Body-size guard middleware checks Content-Length header (2MB default, 25MB for uploads)",
+    "HMAC verifier supports both raw and prefixed signatures (sha256=...)",
+    "Fail-closed audit writer retries 2x then raises 503 if MongoDB unreachable",
+    "CORS resolver fails fast in production if CORS_ORIGINS not set"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_security_p2_full.py"
+  ],
+  "success_rate": {
+    "backend": "100% (34/34 tests passed)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro": "lee.somers@pulsefitness.com / TempPass123!",
+    "regular_user": "test@gymaxisai.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing seeded users",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All P2 security hardening features verified working. 34 tests cover: rate limiter (unit), JWT revocation (unit + API), LLM budget (unit), supplier token rotation/expiry (unit + API), HMAC verifier (unit), fail-closed audit (unit), CORS resolver (unit), captcha config (API), login with captcha bypass (API), logout JWT revocation (API), token refresh/rotation (API), forgot-password no-enumeration (API), files org-scope (API), files/view org-scope (API), supplier comment captcha (API). LOGIN_RATE_LIMIT_MAX is set to 500 in .env for testing - should be lowered for production.",
+  "tests_executed": {
+    "test_security_hardening.py": [
+      "test_rate_limit_allows_under_cap - PASS",
+      "test_rate_limit_blocks_over_cap - PASS",
+      "test_jwt_revocation_roundtrip - PASS",
+      "test_jwt_revocation_missing_jti_is_noop - PASS",
+      "test_llm_budget_blocks_at_daily_cap - PASS",
+      "test_supplier_token_valid_then_expired - PASS",
+      "test_hmac_verifier_happy_path - PASS",
+      "test_hmac_verifier_rejects_bad_sig - PASS",
+      "test_audit_required_writes_row - PASS",
+      "test_audit_required_raises_when_mongo_down - PASS",
+      "test_cors_fails_fast_in_prod - PASS",
+      "test_cors_dev_default_permissive - PASS",
+      "test_cors_comma_list - PASS"
+    ],
+    "test_security_p2_surface.py": [
+      "test_captcha_config_public - PASS",
+      "test_login_works_when_captcha_disabled_in_dev - PASS",
+      "test_files_endpoint_denies_unknown_id_to_regular_user - PASS",
+      "test_auth_logout_revokes_jwt - PASS",
+      "test_rate_limit_headers_on_abuse - PASS"
+    ],
+    "test_security_p2_full.py": [
+      "TestCaptchaConfig::test_captcha_config_public_no_auth - PASS",
+      "TestCaptchaConfig::test_captcha_config_returns_turnstile_or_hcaptcha - PASS",
+      "TestAuthLogin::test_login_works_without_captcha_in_dev - PASS",
+      "TestAuthLogin::test_login_returns_jwt_with_user_info - PASS",
+      "TestAuthLogout::test_logout_revokes_jwt - PASS",
+      "TestAuthRefresh::test_refresh_issues_new_token_and_revokes_old - PASS",
+      "TestForgotPassword::test_forgot_password_generic_response_for_nonexistent - PASS",
+      "TestForgotPassword::test_forgot_password_generic_response_for_existing - PASS",
+      "TestFilesOrgScope::test_regular_user_cannot_access_other_org_file - PASS",
+      "TestFilesOrgScope::test_master_admin_can_access_any_org_file - PASS",
+      "TestSupplierTokenExpiry::test_nonexistent_supplier_token_returns_404 - PASS",
+      "TestSupplierCommentCaptcha::test_supplier_comment_accepts_empty_captcha_in_dev - PASS",
+      "TestRateLimiter::test_rate_limiter_unit_test_passes - PASS",
+      "TestLLMBudget::test_support_ask_endpoint_exists - PASS",
+      "TestLLMBudget::test_support_ask_works_with_auth - PASS",
+      "TestBodySizeGuard::test_body_size_guard_unit_test_passes - PASS"
+    ],
+    "live_curl_tests": [
+      "GET /api/captcha/config - returns {provider: turnstile, site_key: '', enabled: false} - PASS",
+      "POST /api/auth/login - returns JWT without captcha in dev mode - PASS",
+      "POST /api/auth/logout - revokes JWT, subsequent /auth/me returns 401 - PASS",
+      "POST /api/auth/refresh - issues new JWT, revokes old one - PASS",
+      "POST /api/auth/forgot-password - returns generic message for both existing and non-existing emails - PASS",
+      "GET /api/files/{id} - returns 404 for cross-org access, 200 for same-org and master admin - PASS",
+      "GET /api/files/{id}/view?token= - returns 404 for cross-org access, 200 for same-org and master admin - PASS",
+      "GET /api/supplier/case/{fake-token} - returns 404 for non-existent token - PASS",
+      "POST /api/supplier/case/{fake-token}/comments - returns 404 (not captcha error) with empty X-Captcha-Token - PASS"
+    ]
+  },
+  "security_features_verified": {
+    "P1.6_rate_limiter": "PASS - MongoDB-backed sliding window, returns 429 with Retry-After header",
+    "P1.7_org_scope": "PASS - Files endpoint properly scoped, master admin can access cross-org",
+    "P1.8_body_size_guard": "PASS - Middleware checks Content-Length, 2MB default / 25MB uploads",
+    "P1.9_hmac_verifier": "PASS - Supports raw and prefixed signatures",
+    "P1+.11_jwt_revocation": "PASS - jti claim, MongoDB deny list, TTL index cleanup",
+    "P1+.12_llm_budget": "PASS - Daily user limit (150), monthly org limit (5000), returns 429",
+    "P1+.13_supplier_token": "PASS - 30-day TTL, returns 410 for expired, rotation supported",
+    "P2.15_audit_required": "PASS - Fail-closed, retries 2x, raises 503 if MongoDB down",
+    "P2_captcha": "PASS - Turnstile/hCaptcha pluggable, fails-open in dev, fails-closed in prod",
+    "P2_cors": "PASS - Fails fast in prod if CORS_ORIGINS not set"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

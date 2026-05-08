@@ -1,0 +1,156 @@
+:root {
+  --brand-color: #0055FF;
+}
+
+.App {
+  min-height: 100vh;
+  background: var(--theme-bg);
+  transition: background-color 0.3s ease;
+}
+
+.markdown-content h2 {
+  @apply text-2xl font-semibold mt-6 mb-3;
+  color: var(--theme-text);
+}
+
+.markdown-content h3 {
+  @apply text-xl font-semibold mt-4 mb-2;
+  color: var(--theme-text);
+}
+
+.markdown-content p {
+  @apply text-base mb-3;
+  color: var(--theme-text-muted);
+}
+
+.markdown-content ul, .markdown-content ol {
+  @apply ml-6 mb-3 space-y-1;
+}
+
+.markdown-content li {
+  color: var(--theme-text-muted);
+}
+
+.markdown-content strong {
+  @apply font-semibold;
+  color: var(--theme-text);
+}
+
+/* Hide Emergent badge */
+#emergent-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+
+/* WCAG Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible ring for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid #0055FF;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #0055FF;
+  outline-offset: 2px;
+}
+
+/* PWA Install Prompt Animation */
+@keyframes slideInFromBottom {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-in.slide-in-from-bottom-4 {
+  animation: slideInFromBottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ═══════════════ Module cross-fade transition ═══════════════
+ * Applied to the <main> of Operations / Memberships / Marketing so
+ * toggling between modules via the ModuleSwitcher pill bar feels
+ * seamless — the static chrome (Navbar + h1 + welcome line + switcher)
+ * stays in place visually while the content area fades in.
+ *
+ * `prefers-reduced-motion` users get an instant render — accessibility
+ * first.
+ */
+/*
+ * Iter 215d6.2 — animate opacity ONLY (no transform). A lingering
+ * `transform` on the parent (even identity matrix after animation
+ * completes via `fill-mode: both`) creates a containing block for
+ * `position: fixed` descendants, which broke every custom modal on
+ * mobile (backdrops sized to the scroll height of <main>, not the
+ * viewport). Opacity-only avoids that trap entirely.
+ */
+@keyframes moduleFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Iter 215d9 — OfflineBanner slide-in. Kept here (not index.css) so the
+   banner animation lives alongside other cross-module animations. */
+@keyframes slideDown {
+  from { opacity: 0; transform: translate(-50%, -16px); }
+  to   { opacity: 1; transform: translate(-50%, 0);     }
+}
+.module-fade-in {
+  animation: moduleFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .module-fade-in { animation: none; }
+}
+
+/* ═══════════════ Global rounded / uniform corners ═══════════════
+ * Ship-wide consistency: no sharp edges anywhere. Buttons, form
+ * controls, switches and selects all get pill/rounded-lg by default.
+ * Individual components can override with `!rounded-*` utilities
+ * when a specific visual (e.g. segmented controls) requires it.
+ */
+
+button:not([class*="rounded-none"]):not([class*="rounded-full"]):not([class*="rounded-xl"]):not([class*="rounded-2xl"]):not([class*="rounded-3xl"]) {
+  border-radius: 0.5rem; /* rounded-lg baseline */
+}
+
+/* Shadcn Switch root — pill shape end-to-end (already pill in shadcn,
+ * but some legacy switches ship rectangular; enforce). */
+[data-slot="switch"],
+[role="switch"] {
+  border-radius: 9999px !important;
+}
+
+/* Inputs & selects */
+input:not([class*="rounded-none"]):not([class*="rounded-full"]):not([type="checkbox"]):not([type="radio"]),
+select:not([class*="rounded-none"]):not([class*="rounded-full"]),
+textarea:not([class*="rounded-none"]):not([class*="rounded-full"]) {
+  border-radius: 0.5rem;
+}
+
+/* Checkbox — square but softened corners */
+input[type="checkbox"]:not([class*="rounded-none"]):not([class*="rounded-full"]) {
+  border-radius: 0.25rem;
+}
+
+/* Cards: round any card/panel that hasn't opted out */
+[data-slot="card"],
+.card {
+  border-radius: 0.75rem;
+}

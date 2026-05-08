@@ -1,0 +1,130 @@
+{
+  "summary": "Iteration 47 - Pulse Pro Team Management Feature Testing Complete. All 15 test scenarios passed. Owner (test@gymfixai.com) sees all 10 tabs including Team tab. Team tab shows invite form, company code (7D25055F), team members with 'You' badge, and pending invites. Backend APIs for /api/organization/staff, /api/organization/invites, and /api/organization/invite all working correctly. Master Admin can access /pulse with admin banner.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration47_team_management.py",
+    "/app/test_reports/pytest/pytest_results_iteration47.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration47_team_management.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "test_credentials": {
+    "pulse_pro_owner": {
+      "email": "test@gymfixai.com",
+      "password": "Test123!",
+      "role": "owner",
+      "account_type": "pulse_pro",
+      "company_code": "7D25055F"
+    },
+    "master_admin": {
+      "email": "admin@gymfixai.com",
+      "password": "MasterAdmin123!",
+      "is_master_admin": true,
+      "account_type": "full"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Team Management feature fully working. Owner sees 10 tabs: dashboard, equipment, log-fault, documents, check-sheets, ai-diagnosis, reports, gym-layout, weekly-digest, team. Team tab has: invite form (data-testid: team-invite-name, team-invite-email, team-invite-role, team-invite-btn), company code section (team-company-code, team-copy-code), team members list (team-member-{id}), pending invites (team-invite-{id}). Backend endpoints: GET /api/organization/staff, GET /api/organization/invites, POST /api/organization/invite, DELETE /api/organization/invite/{id}.",
+  "features_verified": {
+    "1_owner_login": {
+      "status": "WORKING",
+      "notes": "test@gymfixai.com logs in successfully with role=owner, account_type=pulse_pro, company_code=7D25055F"
+    },
+    "2_all_10_tabs_visible": {
+      "status": "WORKING",
+      "notes": "Owner sees all 10 tabs: Dashboard, Equipment, Log a Fault, Documents, Check Sheets, AI Diagnosis, Reports, Gym Layout, Weekly Digest, Team"
+    },
+    "3_team_tab_loads": {
+      "status": "WORKING",
+      "notes": "Team tab renders with all sections: Invite form, Company Code, Team Members, Pending Invites"
+    },
+    "4_current_user_in_team_list": {
+      "status": "WORKING",
+      "notes": "Test User appears in Team Members list with 'You' badge"
+    },
+    "5_invite_form_fields": {
+      "status": "WORKING",
+      "notes": "Invite form has name, email, and role (Staff/Manager) fields"
+    },
+    "6_company_code_section": {
+      "status": "WORKING",
+      "notes": "Company Join Code section shows '7D25055F' with Copy button"
+    },
+    "7_send_invite_works": {
+      "status": "WORKING",
+      "notes": "Filling form and clicking Send Invite creates invite, shows success toast, clears form, and adds to Pending Invites"
+    },
+    "8_weekly_digest_tab": {
+      "status": "WORKING",
+      "notes": "Weekly Digest tab renders with placeholder content (data-testid: pulse-weekly-digest)"
+    },
+    "9_gym_layout_tab": {
+      "status": "WORKING",
+      "notes": "Gym Layout tab renders with placeholder content (data-testid: pulse-gym-layout)"
+    },
+    "10_reports_tab": {
+      "status": "WORKING",
+      "notes": "Reports tab renders with operational reports, charts, and data"
+    },
+    "11_check_sheets_tab": {
+      "status": "WORKING",
+      "notes": "Check Sheets tab renders correctly"
+    },
+    "12_ai_diagnosis_tab": {
+      "status": "WORKING",
+      "notes": "AI Diagnosis tab renders correctly"
+    },
+    "13_dashboard_kpi_cards": {
+      "status": "WORKING",
+      "notes": "Dashboard shows 4 KPI cards: Total Machines, Operational, With Faults, Open Faults + Recent Faults section"
+    },
+    "14_backend_staff_api": {
+      "status": "WORKING",
+      "notes": "GET /api/organization/staff returns staff array with test user"
+    },
+    "15_backend_invites_api": {
+      "status": "WORKING",
+      "notes": "GET /api/organization/invites returns invites array, POST /api/organization/invite creates invite"
+    },
+    "16_admin_pulse_access": {
+      "status": "WORKING",
+      "notes": "Master Admin can access /pulse with admin banner showing 'Viewing Pulse Fitness Portal as Admin' and 'Back to GymFix AI' link"
+    }
+  },
+  "test_data_testids_verified": [
+    "lite-tab-{id} - All 10 tab buttons (dashboard, equipment, log-fault, documents, check-sheets, ai-diagnosis, reports, gym-layout, weekly-digest, team)",
+    "pulse-team-tab - Team tab container",
+    "team-invite-name - Invite form name input",
+    "team-invite-email - Invite form email input",
+    "team-invite-role - Invite form role select",
+    "team-invite-btn - Send Invite button",
+    "team-company-code - Company code display",
+    "team-copy-code - Copy code button",
+    "team-member-{id} - Team member row",
+    "pulse-weekly-digest - Weekly Digest tab content",
+    "pulse-gym-layout - Gym Layout tab content",
+    "lite-kpi-machines, lite-kpi-operational, lite-kpi-faults, lite-kpi-open - Dashboard KPI cards",
+    "admin-pulse-banner - Admin banner on Pulse portal",
+    "admin-back-to-gymfix - Back to GymFix AI link"
+  ],
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

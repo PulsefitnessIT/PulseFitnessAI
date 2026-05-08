@@ -1,0 +1,126 @@
+{
+  "summary": "Iteration 11 testing complete. All 9 new features/fixes verified. Backend: 19/19 tests passed (100%). Frontend: All features working correctly. Fixed 2 backend issues during testing (equipment GET/PATCH endpoints using wrong filter).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration11_features.py",
+    "/app/test_reports/pytest/pytest_results_iteration11.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Supplier Case Page works correctly - no auth required, token-based access",
+    "Equipment PATCH endpoint now accepts partial updates (fixed from requiring full EquipmentCreate model)",
+    "Equipment GET endpoint now uses organization_filter instead of user_id filter (fixed)",
+    "Fault Form correctly implements Machine Type → Serial Number flow with counts",
+    "Upload Picture/Video section visible in fault form with drag area",
+    "Equipment list shows Location field correctly",
+    "Equipment edit dialog has all SLA fields (response time, contract ref, expiry)",
+    "Onboarding wizard has SLA fields in the grid",
+    "AI Diagnosis machine type dropdown has no duplicates (uses Set)",
+    "Gym Design 'Your Machines' directly places equipment on layout (no dialog)"
+  ],
+  "updated_files": [
+    "/app/backend/routes/equipment.py - Fixed GET /equipment/{id} to use organization_filter, Fixed PATCH to accept partial updates",
+    "/app/backend/tests/test_iteration11_features.py - Created comprehensive test suite for iteration 11 features"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "email": "test@gymfixai.com",
+    "password": "Test123!",
+    "supplier_case_token": "8fdb06b5-2e47-4cf9-a6ac-c86f23af5445"
+  },
+  "seed_data_creation": "None - used existing test data and pre-created supplier case",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 11 features fully tested. Supplier Case Page at /supplier/case/{token} works without login. Equipment PATCH now accepts partial updates. Fault form uses Machine Type → Serial Number flow. All SLA fields (response time, contract ref, expiry) available in equipment edit and onboarding. Gym Design 'Your Machines' directly places on layout.",
+  "features_verified": {
+    "supplier_case_page": {
+      "get_case_endpoint": "GET /api/supplier/case/{token} returns case details with fault, equipment (including location), media, status history",
+      "update_case_endpoint": "POST /api/supplier/case/{token}/update changes status and updates linked issue",
+      "frontend_renders": "Page renders at /supplier/case/{token} without login",
+      "update_form": "Status dropdown, engineer name, ETA, notes all work",
+      "equipment_info": "Shows location and SLA fields when available"
+    },
+    "fault_form": {
+      "machine_type_dropdown": "Shows types with count (e.g., 'Treadmill (10)')",
+      "serial_number_dropdown": "Filters by selected machine type",
+      "media_upload": "Upload Picture/Video section visible with drag area"
+    },
+    "equipment": {
+      "location_field": "Visible in equipment list and detail panel",
+      "sla_fields": "Response time, contract ref, expiry visible in detail panel",
+      "edit_dialog": "Opens with all fields including location and SLA",
+      "patch_endpoint": "PATCH /api/equipment/{id} accepts partial updates"
+    },
+    "onboarding": {
+      "sla_fields": "SLA Response Time, SLA Contract Ref, SLA Expiry Date available in grid"
+    },
+    "ai_diagnosis": {
+      "machine_type_dropdown": "No duplicates (deduped via Set)",
+      "options_count": "10 unique options"
+    },
+    "ai_guardrails": {
+      "diagnosis": "System message includes gym-only restriction",
+      "triage": "System message includes gym-only restriction",
+      "audit": "System message includes gym-only restriction",
+      "risk_assessment": "System message includes gym-only restriction"
+    },
+    "gym_design": {
+      "your_machines": "Clicking items directly places them on layout (no dialog)",
+      "toast_message": "Shows 'Equipment added to layout' confirmation"
+    },
+    "issue_creation": {
+      "engineer_resolution": "POST /api/issues with resolution_type='engineer' creates supplier_case entry"
+    }
+  },
+  "endpoints_tested": {
+    "supplier_portal": [
+      "GET /api/supplier/case/{token} - Returns case details (no auth)",
+      "POST /api/supplier/case/{token}/update - Updates case status (no auth)"
+    ],
+    "equipment": [
+      "GET /api/equipment - Equipment list with location field",
+      "GET /api/equipment/{id} - Equipment detail with SLA fields",
+      "PATCH /api/equipment/{id} - Partial update with location and SLA"
+    ],
+    "issues": [
+      "POST /api/issues/triage - AI triage with gym-only guardrails",
+      "POST /api/issues - Creates supplier case on engineer resolution"
+    ],
+    "onboarding": [
+      "POST /api/onboarding/equipment - Accepts SLA fields"
+    ],
+    "existing_endpoints": [
+      "POST /api/auth/login - Authentication",
+      "GET /api/suppliers - Suppliers list",
+      "GET /api/audit/history - Audit history",
+      "GET /api/maintenance/tasks - Maintenance tasks",
+      "GET /api/gym-layouts - Gym layouts",
+      "GET /api/check-sheets/history - Check sheets history",
+      "GET /api/risk-assessments - Risk assessments",
+      "POST /api/chat/diagnose - AI diagnosis with guardrails"
+    ]
+  },
+  "bugs_fixed_during_testing": [
+    {
+      "file": "/app/backend/routes/equipment.py",
+      "issue": "GET /api/equipment/{id} used user_id filter instead of organization_filter",
+      "fix": "Changed to use get_organization_filter(user) for proper multi-tenant support"
+    },
+    {
+      "file": "/app/backend/routes/equipment.py",
+      "issue": "PATCH /api/equipment/{id} required full EquipmentCreate model, rejecting partial updates",
+      "fix": "Changed to accept Dict[str, Any] and filter allowed fields for partial updates"
+    }
+  ]
+}

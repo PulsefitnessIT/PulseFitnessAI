@@ -1,0 +1,147 @@
+{
+  "summary": "Iter 215bc testing - Mobile washout fix VERIFIED, mobile button fix VERIFIED, backend trial duration (3-day) VERIFIED. CRITICAL ISSUES FOUND: (1) Trial modal submit button still says '14-day' instead of '3-day', (2) Pricing page has 3 places still showing '14 days', (3) Member-facing routes (/members, /m/:slug) show data-brand='gymaxis' instead of 'pulse' due to missing check in App.js initial useEffect, (4) Pulse landing page shows '14-day free trial'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TrialSignupModal.js",
+        "issue": "Submit button text says 'Start 14-day Trial' instead of 'Start 3-day Trial'",
+        "selector": "[data-testid='trial-submit']",
+        "priority": "HIGH",
+        "line": 186,
+        "fix": "Change 'Start 14-day Trial' to 'Start 3-day Trial'"
+      },
+      {
+        "component": "PricingMarketingPage.js",
+        "issue": "Hero subtitle says 'Start free for 14 days' instead of '3 days'",
+        "selector": "[data-testid='pricing-hero'] p",
+        "priority": "HIGH",
+        "line": 116,
+        "fix": "Change '14 days' to '3 days'"
+      },
+      {
+        "component": "PricingMarketingPage.js",
+        "issue": "FAQ answer says '14 days free' instead of '3 days'",
+        "selector": "FAQ section",
+        "priority": "MEDIUM",
+        "line": 84,
+        "fix": "Change '14 days' to '3 days'"
+      },
+      {
+        "component": "PricingMarketingPage.js",
+        "issue": "CTA section says '14 days free' instead of '3 days'",
+        "selector": "CTA section h2",
+        "priority": "HIGH",
+        "line": 282,
+        "fix": "Change '14 days free' to '3 days free'"
+      },
+      {
+        "component": "PulseLandingPage.js",
+        "issue": "Shows '14-day free trial' instead of '3-day'",
+        "selector": "trial text",
+        "priority": "MEDIUM",
+        "fix": "Update trial duration text to 3-day"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Member-facing white-label",
+        "issue": "/members and /m/:slug routes show data-brand='gymaxis' instead of 'pulse' when logged out",
+        "affected_selectors": ["document.documentElement[data-brand]"],
+        "root_cause": "App.js initial useEffect (lines 141-147) doesn't include isMemberFacingRoute check - only BrandAttrSync has it but runs after initial useEffect",
+        "fix": "Add isMemberFacingRoute check to the initial useEffect in App.js (lines 141-147)"
+      }
+    ],
+    "design_issues": []
+  },
+  "test_results": {
+    "mobile_washout_fix": {
+      "status": "PASS",
+      "h1_color": "rgb(15, 23, 42)",
+      "is_slate_900": true,
+      "gradient_span_working": true,
+      "section_h2_color": "rgb(15, 23, 42)",
+      "data_theme_light": true
+    },
+    "mobile_button_fix": {
+      "status": "PASS",
+      "desktop_trial_btn_hidden_at_390px": true,
+      "hamburger_visible": true,
+      "mobile_trial_btn_in_drawer": true
+    },
+    "trial_duration_hero": {
+      "status": "PASS",
+      "shows_3_day": true,
+      "shows_all_modules_unlocked": true,
+      "shows_no_credit_card": true
+    },
+    "trial_modal": {
+      "status": "PARTIAL",
+      "eyebrow_correct": true,
+      "subtitle_correct": true,
+      "submit_button_incorrect": true,
+      "submit_button_text": "Start 14-day Trial"
+    },
+    "backend_trial_registration": {
+      "status": "PASS",
+      "trial_duration_days": 3,
+      "enabled_modules": ["operations", "memberships", "marketing", "crm"],
+      "trial_all_modules_unlocked": true
+    },
+    "marketing_suite_gymaxis_brand": {
+      "status": "PASS",
+      "shows_gymaxis": true,
+      "has_gx_grad_text": true,
+      "pro_label_purple": true
+    },
+    "marketing_suite_pulse_brand": {
+      "status": "PASS",
+      "shows_pulse_fitness": true,
+      "no_gx_grad_text": true,
+      "no_theme_gymaxis": true,
+      "active_tab_solid_cyan": true,
+      "pro_label_cyan": true
+    },
+    "member_facing_white_label": {
+      "status": "FAIL",
+      "members_route_data_brand": "gymaxis",
+      "m_slug_route_data_brand": "gymaxis",
+      "expected": "pulse"
+    },
+    "pulse_landing": {
+      "status": "PASS",
+      "data_brand": "pulse"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX: TrialSignupModal.js line 186 - Change 'Start 14-day Trial' to 'Start 3-day Trial'",
+    "FIX: PricingMarketingPage.js line 116 - Change 'Start free for 14 days' to 'Start free for 3 days'",
+    "FIX: PricingMarketingPage.js line 84 - Change '14 days free' to '3 days free' in FAQ",
+    "FIX: PricingMarketingPage.js line 282 - Change '14 days free' to '3 days free' in CTA",
+    "FIX: App.js lines 141-147 - Add isMemberFacingRoute check to initial useEffect for /members and /m/:slug routes",
+    "FIX: PulseLandingPage.js - Update '14-day free trial' to '3-day free trial'"
+  ],
+  "critical_code_review_comments": [
+    "TrialSignupModal.js: Eyebrow and subtitle correctly show 3-day, but submit button text on line 186 still says '14-day'",
+    "PricingMarketingPage.js: Multiple hardcoded '14 days' strings need updating to '3 days'",
+    "App.js: BrandAttrSync (lines 466-484) correctly handles member-facing routes, but initial useEffect (lines 141-147) doesn't - causes race condition where initial value is wrong"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "70%"
+  },
+  "test_credentials_used": [
+    "admin@gymaxisai.com / MasterAdmin123! (Master Admin)",
+    "lee.somers@pulsefitness.com / TempPass123! (Pulse user)",
+    "phase5-test-1777658705@example.com / TestPass123! (Trial registration test)"
+  ],
+  "seed_data_creation": "Created trial test user: phase5-test-1777658705@example.com",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter 215bc mobile washout and button fixes VERIFIED working. Backend trial duration (3-day) VERIFIED. Main issues are frontend text strings still showing '14-day' in multiple places: TrialSignupModal submit button, PricingMarketingPage (3 places), PulseLandingPage. Also member-facing routes (/members, /m/:slug) have data-brand issue due to missing check in App.js initial useEffect."
+}

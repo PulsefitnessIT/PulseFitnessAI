@@ -1,0 +1,68 @@
+{
+  "summary": "Comprehensive testing of GymAxis Memberships pivot iteration 167. All 34 backend tests passed (28 new + 6 regression). Frontend testing verified: white-label member portal at /m/pulse-leeds with branded auth gate, ad banner on Book tab, referral section on Profile tab; operator console with 6 sidebar tabs, App URL card on dashboard, Ads tab with New ad button, Members drawer with 6 Record Payment buttons replacing old Sell via Stripe; non-branded /members portal backward compatibility.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Memberships Console", "issues": ["401 errors on initial load after login redirect - likely token timing issue, resolves on navigation"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_iteration167.py",
+    "/app/test_reports/pytest/pytest_results_iteration167.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "React warning: borderRadius prop on DOM element should be lowercase borderradius - minor React prop warning in login modal"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_memberships_iteration167.py"
+  ],
+  "success_rate": {
+    "backend": "100% (34/34 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "member_emma": "emma.wright@demo.gymaxis / Member2026!",
+    "member_oliver": "oliver.price@demo.gymaxis / Member2026!"
+  },
+  "seed_data_creation": "Used existing seeded data from memberships_seed.py - org 'mbr-demo-org' with slug 'pulse-leeds', 4 plans, 1 demo ad 'Refer a friend, get £5'",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All new features working: (1) Setup wizard endpoints at /api/memberships/setup/* - all 6 steps tested; (2) Record payment at /api/memberships/members/{id}/record-payment creates active membership; (3) White-label branding at /api/m/{slug}/branding, /plans, /ads - all public endpoints working; (4) Ads CRUD at /api/memberships/ads - create/list/update/delete working; (5) Member registration with organization_slug resolves org correctly; (6) Old checkout endpoint still exists (deprecated but not removed). Frontend: Memberships console has 6 tabs (Dashboard/Members/Timetable/Classes/Plans/Ads), App URL card shows /m/pulse-leeds, Members drawer has Record Payment buttons, Member portal at /m/pulse-leeds shows branded auth gate and ad banner.",
+  "features_verified": {
+    "backend": [
+      "GET /api/m/pulse-leeds/branding - returns org branding with all required fields",
+      "GET /api/m/pulse-leeds/plans - returns 4+ seeded plans",
+      "GET /api/m/pulse-leeds/ads?placement=book_top - returns seeded ad",
+      "GET /api/memberships/setup/status - returns org and counts",
+      "POST /api/memberships/setup/basics - updates org fields",
+      "POST /api/memberships/setup/payment-method - accepts manual/direct_debit/stripe_connect",
+      "POST /api/memberships/setup/plans - bulk creates plans",
+      "POST /api/memberships/setup/complete - flips setup_completed=true",
+      "POST /api/memberships/members/mbr-oliver/record-payment - creates active membership",
+      "POST /api/memberships/ads - creates ad",
+      "GET /api/memberships/ads - lists ads",
+      "PATCH /api/memberships/ads/{id} - updates ad",
+      "DELETE /api/memberships/ads/{id} - removes ad",
+      "POST /api/m/pulse-leeds/ads/{id}/click - increments clicks",
+      "POST /api/member-auth/register with organization_slug - resolves org",
+      "POST /api/memberships/checkout - still exists (deprecated)"
+    ],
+    "frontend": [
+      "/memberships - 6 sidebar tabs (Dashboard/Members/Timetable/Classes/Plans/Ads)",
+      "/memberships Dashboard - App URL card with /m/pulse-leeds",
+      "/memberships Ads tab - New ad button present",
+      "/memberships Members tab - Emma's drawer has 6 Record Payment buttons",
+      "/m/pulse-leeds - branded auth gate with 'PULSE STUDIO · LEEDS'",
+      "/m/pulse-leeds Book tab - ad banner 'Refer a friend, get £5'",
+      "/m/pulse-leeds Profile tab - referral section with code EMMA-4CEB",
+      "/members - non-branded 'GYMAXIS MEMBER' auth gate (backward compat)"
+    ]
+  }
+}

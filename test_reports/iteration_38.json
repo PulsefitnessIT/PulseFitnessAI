@@ -1,0 +1,112 @@
+{
+  "summary": "Iteration 38 - Frontend testing for 7 user feedback items. All severity status changes verified working. H&S disclaimer on Risk Assessments verified. Gym Layout tab rename verified. Duplicate machine bug was found and FIXED during testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Log Fault Dialog - Serial Number Dropdown",
+        "issues": ["React key warning: 'Encountered two children with the same key' for TEST-ONB-001, TEST-SN-001, TEST-SN-002 - indicates duplicate equipment entries in database or missing unique keys"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_38.json"
+  ],
+  "action_items": [
+    "Add translation key 'faults.duplicate_machine_error' to i18n files (en.json, fr.json, de.json) - currently shows raw key"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: Duplicate machine bug in addMachineToFault() - was missing duplicate check that existed in handleIssueSubmit()",
+    "FIXED: Reset form severity was using 'medium' instead of 'operational_minor' in two places",
+    "React key warnings indicate potential duplicate equipment entries in database - should investigate"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/DashboardPage.js"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "regular_user": {
+      "email": "test@gymfixai.com",
+      "password": "Test123!"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 7 user feedback items have been implemented and verified. Severity statuses now use: operational_minor (green), operational_fault (yellow), out_of_order (red). Legacy values (low, medium, critical) are mapped to new labels for display. H&S disclaimer banner is visible on Risk Assessment tab with data-testid='risk-assessment-disclaimer'. Gym Layout tab renamed from 'Gym Design'. Duplicate machine bug was found and fixed during this iteration.",
+  "features_verified": {
+    "severity_statuses": {
+      "new_values": ["operational_minor", "operational_fault", "out_of_order"],
+      "legacy_mapping": {
+        "low": "Operational - Minor Issue",
+        "medium": "Operational - Fault Present",
+        "critical": "Out of Order"
+      },
+      "colors": {
+        "operational_minor": "green",
+        "operational_fault": "yellow",
+        "out_of_order": "red"
+      },
+      "guidance_text": {
+        "operational_minor": "Machine is fully usable — minor fault or annoyance. Examples: Cosmetic damage, slight noise, loose trim, worn decals",
+        "operational_fault": "Machine works but not as intended — could worsen if ignored. Examples: Resistance not accurate, console intermittent, belt slipping slightly, unusual noise under load",
+        "out_of_order": "Cannot be used — must be taken out of service. Examples: Will not power on, unsafe to use, major mechanical failure"
+      },
+      "status": "WORKING"
+    },
+    "severity_distribution_chart": {
+      "location": "Overview tab",
+      "labels": ["Out of Order", "Operational - Fault Present", "Operational - Minor Issue"],
+      "status": "WORKING"
+    },
+    "severity_filter_dropdown": {
+      "location": "Faults tab",
+      "options": ["All Severities", "Operational - Minor Issue", "Operational - Fault Present", "Out of Order"],
+      "status": "WORKING"
+    },
+    "fault_card_severity_badges": {
+      "displays_new_labels": true,
+      "maps_legacy_values": true,
+      "status": "WORKING"
+    },
+    "gym_layout_tab_rename": {
+      "old_name": "Gym Design",
+      "new_name": "Gym Layout",
+      "data_testid": "tab-gym-design",
+      "status": "WORKING"
+    },
+    "hs_disclaimer_banner": {
+      "location": "Reports > Risk Assessments tab",
+      "data_testid": "risk-assessment-disclaimer",
+      "text_contains": ["Health & Safety Responsibility", "example and guidance purposes only"],
+      "status": "WORKING"
+    },
+    "duplicate_machine_bug_fix": {
+      "issue": "Selecting serial number was creating 2 machines instead of 1",
+      "root_cause": "addMachineToFault() was missing duplicate check that existed in handleIssueSubmit()",
+      "fix_applied": "Added duplicate check to addMachineToFault() function",
+      "status": "FIXED AND VERIFIED"
+    }
+  },
+  "bugs_fixed_during_testing": [
+    {
+      "bug": "Duplicate machine bug - selecting serial number creates 2 machines",
+      "file": "/app/frontend/src/pages/DashboardPage.js",
+      "function": "addMachineToFault()",
+      "fix": "Added duplicate check: const isDuplicate = faultMachines.some(m => m.serial_number === issueForm.serial_number && m.issue_description === issueForm.issue_description)",
+      "additional_fix": "Changed default severity from 'medium' to 'operational_minor' in reset functions"
+    }
+  ],
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

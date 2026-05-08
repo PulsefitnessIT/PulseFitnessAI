@@ -1,0 +1,87 @@
+{
+  "summary": "Iteration 163 testing complete. Backend: 21/21 tests passed for Plan CRUD, Class Template CRUD, occurrence materialisation, email hooks, and waitlist promotion. Frontend: All 5 sidebar tabs present (Dashboard, Members, Timetable, Classes, Plans), Plan Editor Modal has all fields, Class Editor Modal has all 7 day chips and fields, Edit/Archive buttons visible on plan cards.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "Email dispatch (Resend)",
+        "issue": "Resend domain GymAxisAI.com not verified - emails fail at Resend API level. This is expected in preview env.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Dashboard API on Plans tab",
+        "issue": "'Failed to load dashboard' toast appears when navigating to Plans tab - dashboard API being called unnecessarily",
+        "affected_selectors": [],
+        "priority": "LOW"
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_memberships_phase1a_iteration163.py",
+    "/app/test_reports/pytest/pytest_results_iteration163.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_memberships_phase1a_iteration163.py"
+  ],
+  "success_rate": {
+    "backend": "100% (21/21 passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "operator": "studio.leeds@gymaxisai.com / Studio2026!",
+    "member_emma": "emma.wright@demo.gymaxis / Member2026!",
+    "member_oliver": "oliver.price@demo.gymaxis / Member2026!",
+    "member_sophia": "sophia.khan@demo.gymaxis / Member2026!"
+  },
+  "seed_data_creation": "Test plans and class templates created during backend testing (prefixed with TEST_)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "GymAxis Memberships Phase 1a fully tested. Key findings: (1) Plan CRUD works - POST creates plan with all fields, PATCH updates allowed fields, DELETE soft-archives and removes from GET /plans list, (2) Class Template CRUD works - POST creates template and materialises 8 weeks of occurrences, PATCH updates, DELETE archives and cancels future occurrences, (3) Email hooks wired correctly - booking confirmation, waitlist promotion, class cancellation all dispatch via BackgroundTasks. Emails fail at Resend API level (domain not verified) but code is correct, (4) Waitlist promotion flow verified - when booked member cancels, waitlisted member is promoted with promoted_from_waitlist_at timestamp set, (5) Frontend has all 5 tabs (Dashboard, Members, Timetable, Classes, Plans), (6) Plan Editor Modal has all fields: name, kind, billing_cycle, price, upfront_fee, included_classes, credits, duration, freeze_allowed, freeze_max_days, cancel_notice_days, description, colour, (7) Class Editor Modal has all 7 day chips (Mon-Sun) and fields: name, category, colour, instructor, room, start_time, duration, capacity, booking_opens, cancel_cutoff, credits_to_book, waitlist_enabled, max_waitlist, (8) Edit/Archive buttons visible on plan cards (4 each for 4 seeded plans)",
+  "tests_verified": {
+    "backend_api": [
+      "POST /api/memberships/plans creates plan with full payload",
+      "GET /api/memberships/plans returns created plan",
+      "PATCH /api/memberships/plans/{id} updates allowed fields",
+      "PATCH with no allowed fields returns 400",
+      "DELETE /api/memberships/plans/{id} soft-archives plan",
+      "POST /api/memberships/classes/templates creates template + 8 weeks occurrences",
+      "GET /api/memberships/timetable shows generated occurrences",
+      "PATCH /api/memberships/classes/templates/{id} updates template",
+      "DELETE /api/memberships/classes/templates/{id} archives + cancels future occurrences",
+      "POST /api/member/bookings returns 200 with booking payload (email dispatched)",
+      "Waitlist booking when class full",
+      "Waitlist promotion on cancel - promoted_from_waitlist_at set",
+      "POST /api/memberships/classes/{occ_id}/cancel returns {ok:true, notified:N}",
+      "GET /api/memberships/dashboard returns KPIs",
+      "GET /api/memberships/members returns member list",
+      "GET /api/memberships/plans returns plans list",
+      "GET /api/memberships/classes/templates returns templates list",
+      "GET /api/member-auth/me returns member profile",
+      "GET /api/member/timetable returns occurrences",
+      "GET /api/member/bookings returns upcoming/past",
+      "GET /api/member/qr returns rotating TOTP code"
+    ],
+    "frontend_ui": [
+      "Memberships console loads with data-testid='memberships-console'",
+      "5 sidebar tabs present: dashboard, members, timetable, classes, plans",
+      "Plans tab shows seeded plans (Monthly Unlimited, Annual Unlimited, 10-Class Pack, Day Pass)",
+      "'New plan' button (mbr-plan-add) visible",
+      "Plan Editor Modal (mbr-plan-editor) opens with all fields",
+      "Edit buttons (mbr-plan-edit-<id>) visible on plan cards",
+      "Archive buttons (mbr-plan-archive-<id>) visible on plan cards",
+      "Classes tab shows class templates list",
+      "'New class' button (mbr-class-add) visible",
+      "Class Editor Modal (mbr-class-editor) opens with all fields",
+      "7/7 day chips (mbr-class-day-0 to mbr-class-day-6) present",
+      "Timetable tab loads with weekly grid"
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "summary": "Iter 215bm - Route ordering fix verification. GET /api/memberships/instructors/performance now returns 200 (was 404 before fix). All backend tests pass, frontend Performance tab loads correctly without 'Failed to load' error.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter215bm_route_ordering.py",
+    "/app/backend/tests/test_memberships_phase3.py",
+    "/app/backend/tests/test_instructor_drawer_215bl.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215bm.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter215bm_route_ordering.py"
+  ],
+  "success_rate": {
+    "backend": "100% (30/30 passed, 2 skipped)",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215bm route ordering fix verified: (1) GET /api/memberships/instructors/performance?days=30 returns 200 with correct structure (rows, count, window_days, since), (2) GET /api/memberships/instructors/performance?days=7 also returns 200, (3) GET /api/memberships/instructors/{id} still works (regression check passed), (4) Instructor CRUD (POST/PATCH/DELETE) still works, (5) Frontend Performance tab loads without 'Failed to load' error, shows empty state or data rows correctly.",
+  "features_verified": {
+    "route_ordering_fix": {
+      "issue": "GET /api/memberships/instructors/performance was returning 404 'Instructor not found' because FastAPI registered /memberships/instructors/{instructor_id} BEFORE /memberships/instructors/performance",
+      "fix": "Re-ordered registration in /app/backend/route_registry/features.py so memberships_phase3_router (owns /performance) is registered BEFORE memberships_router (owns /{instructor_id})",
+      "verification": {
+        "performance_30_days": "200 OK with rows, count, window_days=30, since",
+        "performance_7_days": "200 OK with window_days=7",
+        "instructor_by_id": "200 OK - regression check passed",
+        "instructor_crud": "POST/PATCH/DELETE all working"
+      }
+    },
+    "frontend_verification": {
+      "memberships_page": "Loads correctly",
+      "instructors_tab": "Clickable and navigates correctly",
+      "performance_sub_pill": "Clickable and loads Performance view",
+      "window_pills": "7d, 30d, 90d all visible and clickable",
+      "no_failed_to_load_error": "Confirmed - shows empty state instead of error"
+    },
+    "existing_tests_pass": {
+      "test_memberships_phase3.py": "13/13 passed",
+      "test_instructor_drawer_215bl.py": "9/9 passed, 2 skipped"
+    }
+  }
+}

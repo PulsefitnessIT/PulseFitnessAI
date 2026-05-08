@@ -1,0 +1,156 @@
+{
+  "summary": "Iteration 97: FULL REGRESSION TEST - GymAxis AI CRM v2. Backend: 49/49 tests passed (100%). Frontend: All 10 modules, header features, theme toggle, and mobile responsive working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration97_full_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration97.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration97_full_regression.py"
+  ],
+  "success_rate": {
+    "backend": "100% (49/49 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "crm_manager": "craig.henshall@pulsefitness.com / Test123!",
+    "crm_admin": "crm@gymaxisai.com / CRMAdmin123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Test data created during backend tests (prefixed with TEST_) - auto-cleaned",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Full regression test complete. All CRM v2 features verified working: Auth, Dashboard (6 KPIs + 6 widgets), Companies (CRUD + enriched counts), Contacts (CRUD + linked data), Pipeline (9 stages + stage history), Activities/Inbox (CRUD + type filters), Quotes/CPQ (line items + totals calculation), Cases, Assets, Global Search, Workflows (CRUD + templates + execution + conditions), Notifications, Quick Create, Contracts. Sage 200 and Sicon integrations remain MOCKED.",
+  "features_verified": {
+    "auth": {
+      "crm_login": "PASSED - POST /api/crm/auth/login returns token",
+      "crm_me": "PASSED - GET /api/crm/auth/me returns user with organization_id",
+      "invalid_credentials": "PASSED - Returns 401"
+    },
+    "dashboard": {
+      "all_kpi_fields": "PASSED - pipeline_value, weighted_forecast, won_revenue, win_rate, total_contacts, total_companies, active_opportunities, open_cases, total_assets, tasks_due",
+      "stage_breakdown": "PASSED - 7 active stages with counts and values",
+      "recent_activities": "PASSED - Activity feed with type icons",
+      "tasks_due_widget": "PASSED - Shows incomplete tasks with due dates",
+      "quick_stats": "PASSED - Win rate, Companies, Assets",
+      "stagnating_deals": "PASSED - Deals in same stage >14 days",
+      "workflow_activity": "PASSED - Recent workflow runs"
+    },
+    "companies": {
+      "list_with_enriched_counts": "PASSED - contact_count, opportunity_count, open_cases, asset_count",
+      "search_filter": "PASSED",
+      "type_filter": "PASSED - All, Prospect, Customer, Partner, Former",
+      "create_company": "PASSED - Auto-creates activity + triggers workflows",
+      "company_detail": "PASSED - 7 linked data arrays (contacts, opportunities, quotes, cases, assets, contracts, activities) + revenue summary",
+      "update_company": "PASSED"
+    },
+    "contacts": {
+      "list_with_search": "PASSED",
+      "create_contact": "PASSED - Triggers workflows",
+      "contact_detail": "PASSED - activities, opportunities, cases, company"
+    },
+    "pipeline": {
+      "get_stages": "PASSED - 9 stages with probabilities",
+      "list_opportunities": "PASSED",
+      "create_opportunity": "PASSED - stage_history initialized, triggers workflows",
+      "stage_change": "PASSED - Updates probability, logs history, creates activity, triggers workflows",
+      "opportunity_detail": "PASSED - activities, quotes, stage_history, company, contact"
+    },
+    "activities_inbox": {
+      "list_with_type_filter": "PASSED - All, Notes, Calls, Emails, Meetings, Tasks, System",
+      "create_activity": "PASSED",
+      "update_activity": "PASSED - Mark task complete",
+      "delete_activity": "PASSED"
+    },
+    "quotes_cpq": {
+      "list_quotes": "PASSED",
+      "create_quote": "PASSED - Line items, subtotal/VAT/total calculation verified (16000 + 3200 = 19200)"
+    },
+    "cases": {
+      "list_cases": "PASSED",
+      "create_case": "PASSED - case_number generated, triggers workflows"
+    },
+    "assets": {
+      "list_assets": "PASSED",
+      "create_asset": "PASSED"
+    },
+    "global_search": {
+      "search_endpoint": "PASSED - Searches companies, contacts, opportunities, cases",
+      "frontend_search_bar": "PASSED - Real-time dropdown results"
+    },
+    "workflows": {
+      "get_meta": "PASSED - 7 triggers, 6 actions, 4 templates",
+      "list_workflows": "PASSED",
+      "create_workflow": "PASSED",
+      "create_from_template": "PASSED - service_escalation, lead_nurture, deal_won, quote_followup",
+      "workflow_detail_with_runs": "PASSED",
+      "toggle_workflow": "PASSED - Active/Paused",
+      "delete_workflow": "PASSED",
+      "execution_service_escalation": "PASSED - High-severity case triggers workflow, creates task + notification",
+      "execution_deal_won": "PASSED - Stage change to closed_won triggers workflow",
+      "conditions_respected": "PASSED - Low-severity case does NOT trigger Service Escalation"
+    },
+    "notifications": {
+      "list_notifications": "PASSED - Returns notifications with unread count",
+      "mark_all_read": "PASSED"
+    },
+    "quick_create": {
+      "create_contact": "PASSED - Triggers workflows",
+      "create_deal": "PASSED - Triggers workflows",
+      "create_case": "PASSED - Triggers workflows",
+      "create_task": "PASSED"
+    },
+    "contracts": {
+      "list_contracts": "PASSED"
+    },
+    "frontend_navigation": {
+      "all_10_sidebar_items": "PASSED - Dashboard, Contacts, Companies, Pipeline, Inbox, Workflows, Quotes, Documents, AI Tools, Settings"
+    },
+    "frontend_header": {
+      "global_search_bar": "PASSED - Real-time search with dropdown",
+      "quick_create_button": "PASSED - Menu with Contact, Deal, Case, Task options",
+      "notifications_bell": "PASSED - Panel with notifications"
+    },
+    "theme_toggle": "PASSED - Dark/Light mode",
+    "mobile_responsive": "PASSED - Hamburger menu, sidebar collapse"
+  },
+  "mocked_apis": {
+    "sage_200": "Integration is MOCKED",
+    "sicon_service": "Integration is MOCKED"
+  },
+  "backend_tests_summary": {
+    "TestCRMAuth": "3/3 passed - Login, invalid credentials, /me",
+    "TestDashboard": "2/2 passed - All fields, stage breakdown",
+    "TestCompanies": "6/6 passed - List, search, filter, create, detail, update",
+    "TestContacts": "4/4 passed - List, search, create, detail",
+    "TestPipeline": "5/5 passed - Stages, list, create, stage change, detail",
+    "TestActivities": "5/5 passed - List, filter, create, update, delete",
+    "TestQuotes": "2/2 passed - List, create with line items",
+    "TestCases": "2/2 passed - List, create",
+    "TestAssets": "2/2 passed - List, create",
+    "TestGlobalSearch": "1/1 passed",
+    "TestWorkflows": "7/7 passed - Meta, list, create, template, detail, toggle, delete",
+    "TestWorkflowExecution": "3/3 passed - Service escalation fires, conditions respected, deal won fires",
+    "TestNotifications": "2/2 passed - List, mark read",
+    "TestQuickCreate": "4/4 passed - Contact, deal, case, task",
+    "TestContracts": "1/1 passed"
+  },
+  "frontend_tests_summary": {
+    "login": "PASSED",
+    "dashboard_content": "PASSED - Welcome message, 6 KPIs, Pipeline by Stage, Tasks Due, Quick Stats, Stagnating Deals, Workflow Activity, Recent Activity",
+    "navigation": "PASSED - All 10 sidebar items",
+    "header_features": "PASSED - Search, Quick Create, Notifications",
+    "theme_toggle": "PASSED",
+    "mobile_responsive": "PASSED"
+  }
+}

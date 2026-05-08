@@ -1,0 +1,55 @@
+{
+  "summary": "Iter 215es - CompanyAutocomplete Fix Verification PASSED. The Create Organisation dialog now correctly uses the CompanyAutocomplete component (data-testid='org-form-name-autocomplete-input'). Typing 'Pulse' shows both 'Existing organisations' (3 results) and 'Companies House (UK)' (6 results) sections. Clicking a CH suggestion (PULSE LTD) pre-fills name + structured address (8 Ogmore Drive, Nottage, CF36 3HR, Porthcawl, Mid Glamorgan). Head Office Onboarding wizard also uses CompanyAutocomplete with testIdPrefix='ho-org-name-autocomplete'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Create Organisation Dialog",
+        "issues": ["Minor: React warning about controlled/uncontrolled input when picking from Companies House - 'A component is changing a controlled input to be uncontrolled'"]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% - All features working as expected"
+  },
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215es verified the CompanyAutocomplete fix. The Create Organisation dialog now uses <CompanyAutocomplete> with testIdPrefix='org-form-name-autocomplete'. Companies House API is enabled (COMPANIES_HOUSE_API_KEY restored in backend/.env). Both 'Existing organisations' and 'Companies House (UK)' sections appear when typing. Clicking a CH suggestion pre-fills: name, address_line1, address_line2, postcode, city, county. Phone is NOT overwritten (as designed). Head Office Onboarding wizard also works with testIdPrefix='ho-org-name-autocomplete'.",
+  "verified_features": {
+    "create_org_dialog_autocomplete": {
+      "status": "WORKING",
+      "data_testid": "org-form-name-autocomplete-input",
+      "shows_existing_orgs": true,
+      "shows_companies_house": true,
+      "prefills_on_pick": true,
+      "prefilled_fields": ["name", "address_line1", "address_line2", "postcode", "city", "county"]
+    },
+    "head_office_wizard_autocomplete": {
+      "status": "WORKING",
+      "data_testid": "ho-org-name-autocomplete-input",
+      "component_present": true
+    },
+    "companies_house_api": {
+      "status": "ENABLED",
+      "endpoint_response": {"enabled": true, "base_url": "https://api.company-information.service.gov.uk"}
+    }
+  },
+  "test_evidence": {
+    "screenshots": [
+      ".screenshots/create_org_autocomplete.png - Shows dual-source dropdown with 3 existing orgs + 6 CH results",
+      ".screenshots/create_org_after_pick.png - Shows form pre-filled after clicking PULSE LTD from CH"
+    ]
+  }
+}

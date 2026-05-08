@@ -1,0 +1,68 @@
+{
+  "timestamp": "2026-04-03T19:49:02.043404",
+  "total_tests": 12,
+  "passed_tests": 12,
+  "success_rate": 100.0,
+  "results": [
+    {
+      "test": "Backend Health Check",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "User Registration",
+      "success": true,
+      "details": "User ID: d112664a-d4d8-440b-a53e-2f95edd2d694"
+    },
+    {
+      "test": "Get User Profile",
+      "success": true,
+      "details": "Status: 200, User: test_194812@gymfixai.com"
+    },
+    {
+      "test": "AI Chat Diagnosis",
+      "success": true,
+      "details": "Response length: 3786"
+    },
+    {
+      "test": "AI Audit Generation",
+      "success": true,
+      "details": "Report length: 7845"
+    },
+    {
+      "test": "Get Audit History",
+      "success": true,
+      "details": "Status: 200, Audits count: 1"
+    },
+    {
+      "test": "Create Issue",
+      "success": true,
+      "details": "Issue ID: 0f10ad97-b8a5-44f9-9cd8-91abaa662fce"
+    },
+    {
+      "test": "Get Issues",
+      "success": true,
+      "details": "Status: 200, Issues count: 1"
+    },
+    {
+      "test": "Update Issue Status",
+      "success": true,
+      "details": "Status: 200, Status updated to in_progress"
+    },
+    {
+      "test": "Get Maintenance Tasks",
+      "success": true,
+      "details": "Status: 200, Tasks count: 5"
+    },
+    {
+      "test": "Create Service Request",
+      "success": true,
+      "details": "Request ID: 29f78c08-377d-4723-86c2-a521e97d206a"
+    },
+    {
+      "test": "Payment Checkout",
+      "success": "cs_test_a14AyQ6o9csMbkFDIF7vcygguZgYyGdRvjpDdKKVRtNVkEAC0X5XrELBu2",
+      "details": "Session ID: cs_test_a14AyQ6o9csMbkFDIF7vcygguZgYyGdRvjpDdKKVRtNVkEAC0X5XrELBu2"
+    }
+  ]
+}

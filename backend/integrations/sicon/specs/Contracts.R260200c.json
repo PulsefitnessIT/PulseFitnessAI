@@ -1,0 +1,1053 @@
+﻿{
+  "x-generator": "NSwag v13.0.5.0 (NJsonSchema v10.0.22.0 (Newtonsoft.Json v11.0.0.0))",
+  "swagger": "2.0",
+  "info": {
+    "title": "Contracts",
+    "version": "1.0.0"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/Contract/CreateUpdateContract": {
+      "post": {
+        "tags": [
+          "Contract"
+        ],
+        "summary": "Create or Update Contract",
+        "description": "Used to create or update a contract",
+        "operationId": "Contract_CreateUpdateContract",
+        "parameters": [
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateUpdateContractRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/CreateUpdateContractResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/Contract/UpdateContractCustomerOrderNumber": {
+      "post": {
+        "tags": [
+          "Contract"
+        ],
+        "summary": "Update Customer Order Number",
+        "description": "Used to update a contract customer order number",
+        "operationId": "Contract_UpdateContractCustomerOrderNumber",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "SiconContractID",
+            "in": "query",
+            "required": true,
+            "format": "int32",
+            "x-nullable": false
+          },
+          {
+            "type": "string",
+            "name": "CustomerOrderNumber",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/api/ContractLine/PostContractLine": {
+      "post": {
+        "tags": [
+          "ContractLine"
+        ],
+        "summary": "Post Contract Line",
+        "description": "Used to update or create a contract line",
+        "operationId": "ContractLine_PostContractLine",
+        "parameters": [
+          {
+            "name": "oContractLine",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ContractLine"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/api/ContractSOP/SetSOPDeliveryAddressStatus": {
+      "post": {
+        "tags": [
+          "ContractSOP"
+        ],
+        "summary": "Set Delivery Address Status",
+        "description": "Method to set the inactive flag on customer delivery addresses. With Sicon Contract management Installed.",
+        "operationId": "ContractSOP_SetSOPDeliveryAddressStatus",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "CustomerReference",
+            "in": "query",
+            "required": true,
+            "description": "The Customer reference field",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "Description",
+            "in": "query",
+            "required": true,
+            "description": "The description of the customers delivery address",
+            "x-nullable": true
+          },
+          {
+            "type": "boolean",
+            "name": "Inactive",
+            "in": "query",
+            "required": true,
+            "description": "Flag to set on the customer delivery address",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "CreateUpdateContractResponse": {
+      "type": "object",
+      "required": [
+        "ContractID"
+      ],
+      "properties": {
+        "ContractID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ContractNumber": {
+          "type": "string"
+        }
+      }
+    },
+    "CreateUpdateContractRequest": {
+      "type": "object",
+      "properties": {
+        "ContractID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ContractNumber": {
+          "type": "string"
+        },
+        "CustomerNumber": {
+          "type": "string"
+        },
+        "Description": {
+          "type": "string"
+        },
+        "SOPBillingDescription": {
+          "type": "string"
+        },
+        "CustomerOrderNumber": {
+          "type": "string"
+        },
+        "SpareText1": {
+          "type": "string"
+        },
+        "SpareText2": {
+          "type": "string"
+        },
+        "SpareText3": {
+          "type": "string"
+        },
+        "SpareText4": {
+          "type": "string"
+        },
+        "SpareText5": {
+          "type": "string"
+        },
+        "SpareText6": {
+          "type": "string"
+        },
+        "SpareText7": {
+          "type": "string"
+        },
+        "SpareNumber1": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber2": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber3": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber4": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber5": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber6": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber7": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareDateTime1": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "SpareDateTime2": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "SpareDateTime3": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "SpareDateTime4": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "SpareDateTime5": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "SpareDateTime6": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "SpareDateTime7": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "ContractLine": {
+      "type": "object",
+      "description": "The contract object containing values to update or create the contract line",
+      "required": [
+        "SiconContractID",
+        "SiconContractLineID",
+        "ContractEndDate",
+        "ContractStartDate",
+        "Quantity",
+        "UnitPrice",
+        "InvoiceFrequencyValue",
+        "RenewalQuantity",
+        "RenewalUnitPrice",
+        "AmendedQuantity",
+        "AmendedUnitPrice",
+        "BillCoverFrom",
+        "SOPUnitPrice",
+        "RenewalFrequency",
+        "RenewalDuration",
+        "ContractExtended",
+        "Discount1Percent",
+        "Discount1Value",
+        "Discount2Percent",
+        "Discount2Value",
+        "Discount3Percent",
+        "Discount3Value",
+        "ProRata",
+        "IsRolling",
+        "ContractDuration",
+        "BillCoverDuration",
+        "BillMonthInAdvanceArrearsQty",
+        "BillInArrears",
+        "isRenewalUpdate",
+        "InitialContractDuration",
+        "ExtendedContractDuration",
+        "OrderDate",
+        "OriginalStartDate",
+        "AnnualUnitCost"
+      ],
+      "properties": {
+        "SiconContractID": {
+          "type": "string",
+          "description": "The sicon contract id - primary key of the contract",
+          "minLength": 1
+        },
+        "ItemCode": {
+          "type": "string",
+          "description": "The stock item code"
+        },
+        "SiconContractLineID": {
+          "type": "integer",
+          "description": "Optional - if updating an existing contract line",
+          "format": "int32"
+        },
+        "SalesOrderDescription": {
+          "type": "string",
+          "description": "Description that appears on the generated sales order line from the contract line"
+        },
+        "InternalDescription": {
+          "type": "string",
+          "description": "An internal description of the contract line"
+        },
+        "ContractEndDate": {
+          "type": "string",
+          "description": "The contract line end date (optional if IsRolling is set to true)",
+          "format": "date-time"
+        },
+        "ContractStartDate": {
+          "type": "string",
+          "description": "The contract line start date",
+          "format": "date-time"
+        },
+        "SOPCustDeliveryAddressID": {
+          "type": "string",
+          "description": "The ID of the customer delivery address"
+        },
+        "WarehouseID": {
+          "type": "string",
+          "description": "The ID of the warehouse"
+        },
+        "WarehouseName": {
+          "type": "string",
+          "description": "The name of the warehouse"
+        },
+        "Quantity": {
+          "type": "number",
+          "description": "Quantity of the contract line",
+          "format": "decimal"
+        },
+        "UnitPrice": {
+          "type": "number",
+          "description": "The unit price of the contract line",
+          "format": "decimal"
+        },
+        "PriceInterval": {
+          "type": "string",
+          "description": "The price interval. This can be 'days', 'weeks', 'months' or 'years'"
+        },
+        "InvoiceFrequencyValue": {
+          "type": "integer",
+          "description": "The frequency at which to generate sales orders"
+        },
+        "InvoiceFrequencyInterval": {
+          "type": "string",
+          "description": "The invoice frequency interval. This can be 'days', 'weeks', 'months' or 'years'"
+        },
+        "RenewalQuantity": {
+          "type": "number",
+          "description": "The renewal quantity",
+          "format": "decimal"
+        },
+        "RenewalUnitPrice": {
+          "type": "number",
+          "description": "The renewal unit price",
+          "format": "decimal"
+        },
+        "AmendedQuantity": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "AmendedUnitPrice": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "BillCoverFrom": {
+          "type": "string",
+          "description": "The bill cover from date. This will automatically be set to the contract start date, unless Prorata is set to true, then this will be used",
+          "format": "date-time"
+        },
+        "SOPUnitPrice": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "RenewalFrequency": {
+          "type": "integer",
+          "description": "The renewal invoice frequency"
+        },
+        "RenewalPriceFreqInterval": {
+          "type": "string",
+          "description": "The renewal invoice frequency interval. This can be 'days', 'weeks', 'months' or 'years'"
+        },
+        "RenewalDuration": {
+          "type": "integer",
+          "description": "Will be auto set, so this is optional"
+        },
+        "ContractExtended": {
+          "type": "boolean"
+        },
+        "AnalysisCode1": {
+          "type": "string"
+        },
+        "AnalysisCode2": {
+          "type": "string"
+        },
+        "AnalysisCode3": {
+          "type": "string"
+        },
+        "AnalysisCode4": {
+          "type": "string"
+        },
+        "AnalysisCode5": {
+          "type": "string"
+        },
+        "AnalysisCode6": {
+          "type": "string"
+        },
+        "AnalysisCode7": {
+          "type": "string"
+        },
+        "AnalysisCode8": {
+          "type": "string"
+        },
+        "AnalysisCode9": {
+          "type": "string"
+        },
+        "AnalysisCode10": {
+          "type": "string"
+        },
+        "AnalysisCode11": {
+          "type": "string"
+        },
+        "AnalysisCode12": {
+          "type": "string"
+        },
+        "AnalysisCode13": {
+          "type": "string"
+        },
+        "AnalysisCode14": {
+          "type": "string"
+        },
+        "AnalysisCode15": {
+          "type": "string"
+        },
+        "AnalysisCode16": {
+          "type": "string"
+        },
+        "AnalysisCode17": {
+          "type": "string"
+        },
+        "AnalysisCode18": {
+          "type": "string"
+        },
+        "AnalysisCode19": {
+          "type": "string"
+        },
+        "AnalysisCode20": {
+          "type": "string"
+        },
+        "Discount1Percent": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "Discount1Value": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "Discount2Percent": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "Discount2Value": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "Discount3Percent": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "Discount3Value": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "ProRata": {
+          "type": "boolean",
+          "description": "If the billing runs from a date other than the contract start date, then this should be set to true"
+        },
+        "IsRolling": {
+          "type": "boolean",
+          "description": "If the contract is rolling"
+        },
+        "ContractDuration": {
+          "type": "integer",
+          "description": "This will be auto set, so is optional"
+        },
+        "BillCoverDuration": {
+          "type": "integer",
+          "description": "This will be auto set, so is optional"
+        },
+        "BillMonthInAdvanceArrearsQty": {
+          "type": "integer",
+          "description": "The quantity in months to bill in advance or arrears",
+          "format": "int32"
+        },
+        "BillInArrears": {
+          "type": "boolean",
+          "description": "Set to true is bill in arrears and BillMonthInAdvanceArrearsQty is set. Otherwise if there is a BillMonthInAdvanceArrearsQty, then it will bill in advance."
+        },
+        "isRenewalUpdate": {
+          "type": "boolean"
+        },
+        "ReasonCode": {
+          "type": "string"
+        },
+        "InitialContractDuration": {
+          "type": "integer"
+        },
+        "ExtendedContractDuration": {
+          "type": "integer"
+        },
+        "CLAnalysisCode1": {
+          "type": "string"
+        },
+        "CLAnalysisCode2": {
+          "type": "string"
+        },
+        "CLAnalysisCode3": {
+          "type": "string"
+        },
+        "CLAnalysisCode4": {
+          "type": "string"
+        },
+        "CLAnalysisCode5": {
+          "type": "string"
+        },
+        "CLAnalysisCode6": {
+          "type": "string"
+        },
+        "CLAnalysisCode7": {
+          "type": "string"
+        },
+        "CLAnalysisCode8": {
+          "type": "string"
+        },
+        "CLAnalysisCode9": {
+          "type": "string"
+        },
+        "CLAnalysisCode10": {
+          "type": "string"
+        },
+        "CLAnalysisCode11": {
+          "type": "string"
+        },
+        "CLAnalysisCode12": {
+          "type": "string"
+        },
+        "CLAnalysisCode13": {
+          "type": "string"
+        },
+        "CLAnalysisCode14": {
+          "type": "string"
+        },
+        "CLAnalysisCode15": {
+          "type": "string"
+        },
+        "CLAnalysisCode16": {
+          "type": "string"
+        },
+        "CLAnalysisCode17": {
+          "type": "string"
+        },
+        "CLAnalysisCode18": {
+          "type": "string"
+        },
+        "CLAnalysisCode19": {
+          "type": "string"
+        },
+        "CLAnalysisCode20": {
+          "type": "string"
+        },
+        "CLAnalysisCode21": {
+          "type": "string"
+        },
+        "CLAnalysisCode22": {
+          "type": "string"
+        },
+        "CLAnalysisCode23": {
+          "type": "string"
+        },
+        "CLAnalysisCode24": {
+          "type": "string"
+        },
+        "CLAnalysisCode25": {
+          "type": "string"
+        },
+        "CLAnalysisCode26": {
+          "type": "string"
+        },
+        "CLAnalysisCode27": {
+          "type": "string"
+        },
+        "CLAnalysisCode28": {
+          "type": "string"
+        },
+        "CLAnalysisCode29": {
+          "type": "string"
+        },
+        "CLAnalysisCode30": {
+          "type": "string"
+        },
+        "CLAnalysisCode31": {
+          "type": "string"
+        },
+        "CLAnalysisCode32": {
+          "type": "string"
+        },
+        "CLAnalysisCode33": {
+          "type": "string"
+        },
+        "CLAnalysisCode34": {
+          "type": "string"
+        },
+        "CLAnalysisCode35": {
+          "type": "string"
+        },
+        "CLAnalysisCode36": {
+          "type": "string"
+        },
+        "CLAnalysisCode37": {
+          "type": "string"
+        },
+        "CLAnalysisCode38": {
+          "type": "string"
+        },
+        "CLAnalysisCode39": {
+          "type": "string"
+        },
+        "CLAnalysisCode40": {
+          "type": "string"
+        },
+        "CLAnalysisCode41": {
+          "type": "string"
+        },
+        "CLAnalysisCode42": {
+          "type": "string"
+        },
+        "CLAnalysisCode43": {
+          "type": "string"
+        },
+        "CLAnalysisCode44": {
+          "type": "string"
+        },
+        "CLAnalysisCode45": {
+          "type": "string"
+        },
+        "CLAnalysisCode46": {
+          "type": "string"
+        },
+        "CLAnalysisCode47": {
+          "type": "string"
+        },
+        "CLAnalysisCode48": {
+          "type": "string"
+        },
+        "CLAnalysisCode49": {
+          "type": "string"
+        },
+        "CLAnalysisCode50": {
+          "type": "string"
+        },
+        "CLAnalysisCode51": {
+          "type": "string"
+        },
+        "CLAnalysisCode52": {
+          "type": "string"
+        },
+        "CLAnalysisCode53": {
+          "type": "string"
+        },
+        "CLAnalysisCode54": {
+          "type": "string"
+        },
+        "CLAnalysisCode55": {
+          "type": "string"
+        },
+        "CLAnalysisCode56": {
+          "type": "string"
+        },
+        "CLAnalysisCode57": {
+          "type": "string"
+        },
+        "CLAnalysisCode58": {
+          "type": "string"
+        },
+        "CLAnalysisCode59": {
+          "type": "string"
+        },
+        "CLAnalysisCode60": {
+          "type": "string"
+        },
+        "CLAnalysisCode61": {
+          "type": "string"
+        },
+        "CLAnalysisCode62": {
+          "type": "string"
+        },
+        "CLAnalysisCode63": {
+          "type": "string"
+        },
+        "CLAnalysisCode64": {
+          "type": "string"
+        },
+        "CLAnalysisCode65": {
+          "type": "string"
+        },
+        "CLAnalysisCode66": {
+          "type": "string"
+        },
+        "CLAnalysisCode67": {
+          "type": "string"
+        },
+        "CLAnalysisCode68": {
+          "type": "string"
+        },
+        "CLAnalysisCode69": {
+          "type": "string"
+        },
+        "CLAnalysisCode70": {
+          "type": "string"
+        },
+        "CLAnalysisCode71": {
+          "type": "string"
+        },
+        "CLAnalysisCode72": {
+          "type": "string"
+        },
+        "CLAnalysisCode73": {
+          "type": "string"
+        },
+        "CLAnalysisCode74": {
+          "type": "string"
+        },
+        "CLAnalysisCode75": {
+          "type": "string"
+        },
+        "CLAnalysisCode76": {
+          "type": "string"
+        },
+        "CLAnalysisCode77": {
+          "type": "string"
+        },
+        "CLAnalysisCode78": {
+          "type": "string"
+        },
+        "CLAnalysisCode79": {
+          "type": "string"
+        },
+        "CLAnalysisCode80": {
+          "type": "string"
+        },
+        "CLAnalysisCode81": {
+          "type": "string"
+        },
+        "CLAnalysisCode82": {
+          "type": "string"
+        },
+        "CLAnalysisCode83": {
+          "type": "string"
+        },
+        "CLAnalysisCode84": {
+          "type": "string"
+        },
+        "CLAnalysisCode85": {
+          "type": "string"
+        },
+        "CLAnalysisCode86": {
+          "type": "string"
+        },
+        "CLAnalysisCode87": {
+          "type": "string"
+        },
+        "CLAnalysisCode88": {
+          "type": "string"
+        },
+        "CLAnalysisCode89": {
+          "type": "string"
+        },
+        "CLAnalysisCode90": {
+          "type": "string"
+        },
+        "CLAnalysisCode91": {
+          "type": "string"
+        },
+        "CLAnalysisCode92": {
+          "type": "string"
+        },
+        "CLAnalysisCode93": {
+          "type": "string"
+        },
+        "CLAnalysisCode94": {
+          "type": "string"
+        },
+        "CLAnalysisCode95": {
+          "type": "string"
+        },
+        "CLAnalysisCode96": {
+          "type": "string"
+        },
+        "CLAnalysisCode97": {
+          "type": "string"
+        },
+        "CLAnalysisCode98": {
+          "type": "string"
+        },
+        "CLAnalysisCode99": {
+          "type": "string"
+        },
+        "CLAnalysisCode100": {
+          "type": "string"
+        },
+        "CLAnalysisCode101": {
+          "type": "string"
+        },
+        "CLAnalysisCode102": {
+          "type": "string"
+        },
+        "CLAnalysisCode103": {
+          "type": "string"
+        },
+        "CLAnalysisCode104": {
+          "type": "string"
+        },
+        "CLAnalysisCode105": {
+          "type": "string"
+        },
+        "CLAnalysisCode106": {
+          "type": "string"
+        },
+        "CLAnalysisCode107": {
+          "type": "string"
+        },
+        "CLAnalysisCode108": {
+          "type": "string"
+        },
+        "CLAnalysisCode109": {
+          "type": "string"
+        },
+        "CLAnalysisCode110": {
+          "type": "string"
+        },
+        "CLAnalysisCode111": {
+          "type": "string"
+        },
+        "CLAnalysisCode112": {
+          "type": "string"
+        },
+        "CLAnalysisCode113": {
+          "type": "string"
+        },
+        "CLAnalysisCode114": {
+          "type": "string"
+        },
+        "CLAnalysisCode115": {
+          "type": "string"
+        },
+        "CLAnalysisCode116": {
+          "type": "string"
+        },
+        "CLAnalysisCode117": {
+          "type": "string"
+        },
+        "CLAnalysisCode118": {
+          "type": "string"
+        },
+        "CLAnalysisCode119": {
+          "type": "string"
+        },
+        "CLAnalysisCode120": {
+          "type": "string"
+        },
+        "CLAnalysisCode121": {
+          "type": "string"
+        },
+        "CLAnalysisCode122": {
+          "type": "string"
+        },
+        "CLAnalysisCode123": {
+          "type": "string"
+        },
+        "CLAnalysisCode124": {
+          "type": "string"
+        },
+        "CLAnalysisCode125": {
+          "type": "string"
+        },
+        "CLAnalysisCode126": {
+          "type": "string"
+        },
+        "CLAnalysisCode127": {
+          "type": "string"
+        },
+        "CLAnalysisCode128": {
+          "type": "string"
+        },
+        "CLAnalysisCode129": {
+          "type": "string"
+        },
+        "CLAnalysisCode130": {
+          "type": "string"
+        },
+        "CLAnalysisCode131": {
+          "type": "string"
+        },
+        "CLAnalysisCode132": {
+          "type": "string"
+        },
+        "CLAnalysisCode133": {
+          "type": "string"
+        },
+        "CLAnalysisCode134": {
+          "type": "string"
+        },
+        "CLAnalysisCode135": {
+          "type": "string"
+        },
+        "CLAnalysisCode136": {
+          "type": "string"
+        },
+        "CLAnalysisCode137": {
+          "type": "string"
+        },
+        "CLAnalysisCode138": {
+          "type": "string"
+        },
+        "CLAnalysisCode139": {
+          "type": "string"
+        },
+        "CLAnalysisCode140": {
+          "type": "string"
+        },
+        "CLAnalysisCode141": {
+          "type": "string"
+        },
+        "CLAnalysisCode142": {
+          "type": "string"
+        },
+        "CLAnalysisCode143": {
+          "type": "string"
+        },
+        "CLAnalysisCode144": {
+          "type": "string"
+        },
+        "CLAnalysisCode145": {
+          "type": "string"
+        },
+        "CLAnalysisCode146": {
+          "type": "string"
+        },
+        "CLAnalysisCode147": {
+          "type": "string"
+        },
+        "CLAnalysisCode148": {
+          "type": "string"
+        },
+        "CLAnalysisCode149": {
+          "type": "string"
+        },
+        "CLAnalysisCode150": {
+          "type": "string"
+        },
+        "VisitFrequency": {
+          "type": "string"
+        },
+        "OrderDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "OriginalStartDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "AnnualUnitCost": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "WhoSold": {
+          "type": "string"
+        },
+        "PLSupplierID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SupplierCode": {
+          "type": "string"
+        },
+        "SupplierUnitPrice": {
+          "type": "number",
+          "format": "decimal"
+        }
+      }
+    }
+  }
+}

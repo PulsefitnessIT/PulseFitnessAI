@@ -1,0 +1,2698 @@
+﻿{
+  "x-generator": "NSwag v13.0.5.0 (NJsonSchema v10.0.22.0 (Newtonsoft.Json v11.0.0.0))",
+  "swagger": "2.0",
+  "info": {
+    "title": "Service",
+    "version": "1.0.0"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/service/case-tracking-statuses/{SiSMCaseTrackingStatusID}": {
+      "get": {
+        "tags": [
+          "ServiceCaseTrackingStatus"
+        ],
+        "summary": "Get case tracking status by ID",
+        "operationId": "ServiceCaseTrackingStatus_GetByID",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "SiSMCaseTrackingStatusID",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the case tracking status",
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "description": "Optional company id",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "Case tracking status object",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCaseTrackingStatus"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/case-tracking-statuses/{name}": {
+      "get": {
+        "tags": [
+          "ServiceCaseTrackingStatus"
+        ],
+        "summary": "Get case tracking status by name",
+        "operationId": "ServiceCaseTrackingStatus_GetByName",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "Case tracking status name",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "description": "Optional company id",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "Case tracking status object",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCaseTrackingStatus"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/case-tracking-statuses": {
+      "get": {
+        "tags": [
+          "ServiceCaseTrackingStatus"
+        ],
+        "summary": "Get case tracking status by name (parameter FilterText is used to search by name)",
+        "operationId": "ServiceCaseTrackingStatus_Get",
+        "parameters": [
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "description": "Paged entity request object",
+            "schema": {
+              "$ref": "#/definitions/WebApiPagedEntityRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "description": "Optional company id",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "Paged collection of Case tracking status objects",
+            "schema": {
+              "$ref": "#/definitions/WebApiPagedEntityResponseOfCaseTrackingStatus"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/case-types/{SiSMCaseTypeID}": {
+      "get": {
+        "tags": [
+          "ServiceCaseType"
+        ],
+        "summary": "Get case type by ID",
+        "operationId": "ServiceCaseType_GetByID",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "SiSMCaseTypeID",
+            "in": "path",
+            "required": true,
+            "description": "Case type id",
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "description": "Optional company id",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCaseType"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/case-types": {
+      "get": {
+        "tags": [
+          "ServiceCaseType"
+        ],
+        "summary": "Get case types by name (parameter FilterText is used to search by name)",
+        "operationId": "ServiceCaseType_Get",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "pageNumber",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "pageSize",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "filterText",
+            "in": "query",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "sortColumn",
+            "in": "query",
+            "x-nullable": true
+          },
+          {
+            "type": "boolean",
+            "name": "sortAscending",
+            "in": "query",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCaseType"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/case-types/{name}": {
+      "get": {
+        "tags": [
+          "ServiceCaseType"
+        ],
+        "summary": "Get case type by name",
+        "operationId": "ServiceCaseType_GetByName",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "Case type name",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "description": "Optional company id",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCaseType"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/appointments/resources": {
+      "get": {
+        "tags": [
+          "SiconAppointmentResources"
+        ],
+        "summary": "Gets a paged collection of service cases",
+        "operationId": "SiconAppointmentResources_Get",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "pageNumber",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "pageSize",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "filterText",
+            "in": "query",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "sortColumn",
+            "in": "query",
+            "x-nullable": true
+          },
+          {
+            "type": "boolean",
+            "name": "sortAscending",
+            "in": "query",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "description": "Optional company ID",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiPagedEntityResponseOfSiconAppointmentResource"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/appointments/{SiconAppointmentID}/resources": {
+      "get": {
+        "tags": [
+          "SiconAppointmentResources"
+        ],
+        "summary": "Gets a paged collection of service cases",
+        "operationId": "SiconAppointmentResources_Get2",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "SiconAppointmentID",
+            "in": "path",
+            "required": true,
+            "description": "filter on SiconAppointmentID",
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "description": "Optional company ID",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiPagedEntityResponseOfSiconAppointmentResource"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/cases/{SiSMCaseID}": {
+      "get": {
+        "tags": [
+          "ServiceCase"
+        ],
+        "summary": "Get service case with ID",
+        "operationId": "ServiceCase_GetByID",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "SiSMCaseID",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the service case",
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "description": "Optional parameter company ID",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "A service case",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCase"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/cases": {
+      "get": {
+        "tags": [
+          "ServiceCase"
+        ],
+        "summary": "Gets a paged collection of service cases",
+        "operationId": "ServiceCase_GetByReference",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "casereference",
+            "in": "query",
+            "required": true,
+            "description": "CaseNumber for the service case",
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "description": "Optional company ID",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCase"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ServiceCase"
+        ],
+        "operationId": "ServiceCase_Post",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Case"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfCase"
+            }
+          }
+        }
+      }
+    },
+    "/api/ServiceCase/GetServiceCase": {
+      "get": {
+        "tags": [
+          "ServiceCase"
+        ],
+        "summary": "Retrieve a case with ID",
+        "operationId": "ServiceCase_GetServiceCase",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "SiSMCaseID",
+            "in": "query",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/Case"
+            }
+          }
+        }
+      }
+    },
+    "/api/ServiceCase/CreateNewCase": {
+      "post": {
+        "tags": [
+          "ServiceCase"
+        ],
+        "summary": "Post a new case",
+        "operationId": "ServiceCase_CreateNewCase",
+        "parameters": [
+          {
+            "name": "oRequest",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Case"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/api/ServiceCase/AmendCase": {
+      "post": {
+        "tags": [
+          "ServiceCase"
+        ],
+        "summary": "Amend an existing case",
+        "operationId": "ServiceCase_AmendCase",
+        "parameters": [
+          {
+            "name": "oRequest",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateCaseRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/api/SMConnectivity/Ping": {
+      "get": {
+        "tags": [
+          "SMConnectivity"
+        ],
+        "summary": "Ping the API to check if it is up and running",
+        "operationId": "SMConnectivity_Ping",
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "200 OK - \"Pong\"",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/~/api/v2/TEntity/api/service/appointments/{id}": {
+      "get": {
+        "tags": [
+          "Appointments"
+        ],
+        "summary": "Get a service appointment by ID",
+        "operationId": "Appointments_Get",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The appointment ID",
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "description": "Optional company id",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "Sicon appointment",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfSiconAppointment"
+            }
+          }
+        }
+      }
+    },
+    "/~/api/v2/TEntity/{id}": {
+      "get": {
+        "tags": [
+          "Appointments"
+        ],
+        "summary": "Get a service appointment by ID",
+        "operationId": "Appointments_Get2",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The appointment ID",
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "description": "Optional company id",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "Sicon appointment",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfSiconAppointment"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Appointments"
+        ],
+        "operationId": "Appointments_Put",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "name": "entity",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SiconAppointment"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Appointments"
+        ],
+        "operationId": "Appointments_Delete",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/~/api/v2/TEntity/api/Service/Appointments": {
+      "post": {
+        "tags": [
+          "Appointments"
+        ],
+        "summary": "Create an Appointment",
+        "operationId": "Appointments_Create",
+        "parameters": [
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateAppointmentRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/EntityCreatedResponse"
+            }
+          }
+        }
+      }
+    },
+    "/~/api/v2/TEntity/api/Service/Appointments/{appointmentID}": {
+      "put": {
+        "tags": [
+          "Appointments"
+        ],
+        "summary": "Update an Appointment",
+        "operationId": "Appointments_Update",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "appointmentID",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AppointmentRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/EntityCreatedResponse"
+            }
+          }
+        }
+      }
+    },
+    "/~/api/v2/TEntity": {
+      "get": {
+        "tags": [
+          "Appointments"
+        ],
+        "operationId": "Appointments_Get3",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "pageNumber",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "pageSize",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "filterText",
+            "in": "query",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "sortColumn",
+            "in": "query",
+            "x-nullable": true
+          },
+          {
+            "type": "boolean",
+            "name": "sortAscending",
+            "in": "query",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Appointments"
+        ],
+        "operationId": "Appointments_Post",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SiconAppointment"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/api/ServiceManagement/CreateServiceCaseJSON": {
+      "post": {
+        "tags": [
+          "ServiceManagement"
+        ],
+        "summary": "API method to create case in service manager",
+        "operationId": "ServiceManagement_CreateServiceCaseJSON",
+        "parameters": [
+          {
+            "name": "json",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/api/ServiceManagement/CreateServiceCase": {
+      "post": {
+        "tags": [
+          "ServiceManagement"
+        ],
+        "summary": "API method to create case in service manager",
+        "operationId": "ServiceManagement_CreateServiceCase",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "AccountReference",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "CaseReference",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "CustDelieveryAddressID",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "Items",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "Details",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "AnalysisCode1",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "AnalysisCode2",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "AnalysisCode3",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "AnalysisCode4",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "AnalysisCode5",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "CRMUser",
+            "in": "query",
+            "required": true,
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "SiSMSkillID",
+            "in": "query",
+            "format": "int64",
+            "default": 0,
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "SiSMFaultCodeID",
+            "in": "query",
+            "format": "int64",
+            "default": 0,
+            "x-nullable": false
+          },
+          {
+            "type": "string",
+            "name": "caseseverity",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "CaseType",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "PersSalutation",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "PersFirstName",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "PersLastName",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "Email",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "PhoneNumber",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          },
+          {
+            "type": "string",
+            "name": "CallDate",
+            "in": "query",
+            "default": "",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": true,
+            "description": "",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    },
+    "/api/Service/Appointments/{appointmentID}/TimeBookings": {
+      "post": {
+        "tags": [
+          "TimeBookings"
+        ],
+        "summary": "Create an Appointment Time Booking",
+        "operationId": "TimeBookings_Create",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "appointmentID",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TimeBookingRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/EntityCreatedResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/Service/Appointments/{appointmentID}/TimeBookings/{timeBookingID}": {
+      "put": {
+        "tags": [
+          "TimeBookings"
+        ],
+        "summary": "Updates an Appointment Time Booking",
+        "operationId": "TimeBookings_Update",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "appointmentID",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "timeBookingID",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TimeBookingRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/EntityCreatedResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/service/trackingnotes/{SiSMCaseTrackingNoteID}": {
+      "get": {
+        "tags": [
+          "TrackingNote"
+        ],
+        "summary": "Get tracking note by ID",
+        "operationId": "TrackingNote_Get",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "SiSMCaseTrackingNoteID",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "type": "integer",
+            "name": "companyId",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/WebApiEntityResponseOfTrackingNote"
+            }
+          }
+        }
+      }
+    },
+    "/api/Service/Cases/{caseID}/TrackingNotes": {
+      "post": {
+        "tags": [
+          "TrackingNote"
+        ],
+        "summary": "Create a Case Tracking Note",
+        "operationId": "TrackingNote_Create",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "caseID",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AddTrackingNoteRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/EntityCreatedResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/Service/Cases/TrackingNotes/{trackingNoteID}": {
+      "put": {
+        "tags": [
+          "TrackingNote"
+        ],
+        "summary": "Update a Case Tracking Note",
+        "operationId": "TrackingNote_Update",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "trackingNoteID",
+            "in": "path",
+            "required": true,
+            "format": "int64",
+            "x-nullable": false
+          },
+          {
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateTrackingNoteRequest"
+            },
+            "x-nullable": true
+          },
+          {
+            "type": "integer",
+            "name": "companyID",
+            "in": "query",
+            "format": "int32",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "x-nullable": false,
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/EntityCreatedResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "WebApiEntityResponseOfCaseTrackingStatus": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiResponse"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "$ref": "#/definitions/CaseTrackingStatus"
+            }
+          }
+        }
+      ]
+    },
+    "CaseTrackingStatus": {
+      "type": "object",
+      "description": "Represents the case tracking status.",
+      "required": [
+        "SiSMCaseTrackingStatusID"
+      ],
+      "properties": {
+        "SiSMCaseTrackingStatusID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the case tracking status.",
+          "format": "int64"
+        },
+        "Name": {
+          "type": "string",
+          "description": "Gets or sets the name of the case tracking status."
+        },
+        "AvailableToEngineers": {
+          "type": "boolean",
+          "description": "Gets or sets a value indicating whether the case tracking status is available to engineers."
+        },
+        "AvailableToCustomers": {
+          "type": "boolean",
+          "description": "Gets or sets a value indicating whether the case tracking status is available to customers."
+        },
+        "Inactive": {
+          "type": "boolean",
+          "description": "Gets or sets a value indicating whether the case tracking status is inactive."
+        },
+        "Colour": {
+          "type": "string",
+          "description": "Gets or sets the color of the case tracking status."
+        }
+      }
+    },
+    "WebApiResponse": {
+      "type": "object",
+      "x-abstract": true,
+      "properties": {
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WebApiLink"
+          }
+        }
+      }
+    },
+    "WebApiLink": {
+      "type": "object",
+      "properties": {
+        "rel": {
+          "type": "string"
+        },
+        "href": {
+          "type": "string",
+          "format": "uri"
+        },
+        "action": {
+          "$ref": "#/definitions/HttpMethod"
+        }
+      }
+    },
+    "HttpMethod": {
+      "type": "object",
+      "properties": {
+        "Method": {
+          "type": "string"
+        }
+      }
+    },
+    "WebApiPagedEntityResponseOfCaseTrackingStatus": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiResponse"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "pagination": {
+              "$ref": "#/definitions/WebApiPagination"
+            },
+            "entities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CaseTrackingStatus"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "WebApiPagination": {
+      "type": "object",
+      "required": [
+        "currentPage",
+        "pageSize",
+        "totalPages",
+        "totalRecords"
+      ],
+      "properties": {
+        "currentPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nextPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "previousPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalRecords": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "WebApiPagedEntityRequest": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiRequest"
+        },
+        {
+          "type": "object",
+          "required": [
+            "sortAscending"
+          ],
+          "properties": {
+            "pageNumber": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "pageSize": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "filterText": {
+              "type": "string"
+            },
+            "sortColumn": {
+              "type": "string"
+            },
+            "sortAscending": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "WebApiRequest": {
+      "type": "object"
+    },
+    "WebApiEntityResponseOfCaseType": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiResponse"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "$ref": "#/definitions/CaseType"
+            }
+          }
+        }
+      ]
+    },
+    "CaseType": {
+      "type": "object",
+      "description": "Represents a service case type.",
+      "required": [
+        "SiSMCaseTypeID"
+      ],
+      "properties": {
+        "SiSMCaseTypeID": {
+          "type": "integer",
+          "description": "Gets or sets the SiSMCaseTypeID.",
+          "format": "int64"
+        },
+        "Name": {
+          "type": "string",
+          "description": "Gets or sets the name of the servicecase type."
+        },
+        "IsPreventativeMaintenance": {
+          "type": "boolean",
+          "description": "Gets or sets a value indicating whether the case type is for preventative maintenance."
+        },
+        "IsEnabled": {
+          "type": "boolean",
+          "description": "Gets or sets a value indicating whether the case type is enabled."
+        }
+      }
+    },
+    "WebApiPagedEntityResponseOfSiconAppointmentResource": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiResponse"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "pagination": {
+              "$ref": "#/definitions/WebApiPagination"
+            },
+            "entities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/SiconAppointmentResource"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SiconAppointmentResource": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/SiconEmployee"
+        },
+        {
+          "type": "object",
+          "description": "The resource linked on an appointment",
+          "required": [
+            "SiconAppointmentID",
+            "SiconAppointmentResourceID"
+          ],
+          "properties": {
+            "SiconAppointmentID": {
+              "type": "integer",
+              "description": "The linked sicon appointment id",
+              "format": "int64"
+            },
+            "SiconAppointmentResourceID": {
+              "type": "integer",
+              "description": "The linked sicon appointment resource id",
+              "format": "int64"
+            }
+          }
+        }
+      ]
+    },
+    "SiconEmployee": {
+      "type": "object",
+      "required": [
+        "SIJCEMPID",
+        "EmployeeNumber",
+        "CostHeaderID",
+        "SiconTeamID",
+        "SubContractorAccountID",
+        "SpareNumber1",
+        "SpareNumber2",
+        "SpareNumber3",
+        "SpareNumber4",
+        "SpareNumber5",
+        "WarehouseID",
+        "IsTeamLeader",
+        "IsLeaver",
+        "IsProjectManager",
+        "IsShopFloorUser"
+      ],
+      "properties": {
+        "SIJCEMPID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "FullName": {
+          "type": "string"
+        },
+        "DiaryColour": {
+          "type": "string"
+        },
+        "FirstName": {
+          "type": "string"
+        },
+        "Surname": {
+          "type": "string"
+        },
+        "EmployeeNumber": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "PayrollReference": {
+          "type": "string"
+        },
+        "CostHeaderID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "PostCodeArea": {
+          "type": "string"
+        },
+        "Team": {
+          "type": "string"
+        },
+        "SiconTeamID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SubContractorAccountID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ContractExpiryDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "SpareText1": {
+          "type": "string"
+        },
+        "SpareText2": {
+          "type": "string"
+        },
+        "SpareText3": {
+          "type": "string"
+        },
+        "SpareText4": {
+          "type": "string"
+        },
+        "SpareText5": {
+          "type": "string"
+        },
+        "SpareNumber1": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber2": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber3": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber4": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "SpareNumber5": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "WarehouseName": {
+          "type": "string"
+        },
+        "WarehouseID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "NationalInsuranceNo": {
+          "type": "string"
+        },
+        "IsTeamLeader": {
+          "type": "boolean"
+        },
+        "IsLeaver": {
+          "type": "boolean"
+        },
+        "IsProjectManager": {
+          "type": "boolean"
+        },
+        "IsShopFloorUser": {
+          "type": "boolean"
+        },
+        "StartDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "AddressLine1": {
+          "type": "string"
+        },
+        "AddressLine2": {
+          "type": "string"
+        },
+        "AddressLine3": {
+          "type": "string"
+        },
+        "AddressLine4": {
+          "type": "string"
+        },
+        "City": {
+          "type": "string"
+        },
+        "PostCode": {
+          "type": "string"
+        },
+        "MobileNo": {
+          "type": "string"
+        },
+        "TelephoneNo": {
+          "type": "string"
+        },
+        "Email": {
+          "type": "string"
+        }
+      }
+    },
+    "WebApiEntityResponseOfCase": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiResponse"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "$ref": "#/definitions/Case"
+            }
+          }
+        }
+      ]
+    },
+    "Case": {
+      "type": "object",
+      "required": [
+        "SiSMCaseId",
+        "CaseTypeID",
+        "AssignedToSageUserID",
+        "InternalTeamID",
+        "ExternalTeamID",
+        "PriorityID",
+        "SiconContractID",
+        "SiconContractLineID",
+        "SiconContractLineNumber",
+        "SiJcJobID",
+        "SiconCRMPersonID",
+        "SiconCRMCompanyID"
+      ],
+      "properties": {
+        "SiSMCaseId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "CaseNumber": {
+          "type": "string"
+        },
+        "SiSMDocumentStatusID": {
+          "type": "integer",
+          "description": "The Document Status ID of the case",
+          "format": "int64"
+        },
+        "SiSMDocumentStatusName": {
+          "type": "string",
+          "description": "The Document Status Name of the case (can be used if the Document Status ID is not available)"
+        },
+        "SiSMDocumentSubStatusID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "CallDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "Description": {
+          "type": "string"
+        },
+        "LocationPostalName": {
+          "type": "string"
+        },
+        "LocationAddressLine1": {
+          "type": "string"
+        },
+        "LocationAddressLine2": {
+          "type": "string"
+        },
+        "LocationAddressLine3": {
+          "type": "string"
+        },
+        "LocationAddressLine4": {
+          "type": "string"
+        },
+        "LocationCity": {
+          "type": "string"
+        },
+        "LocationCounty": {
+          "type": "string"
+        },
+        "LocationPostCode": {
+          "type": "string"
+        },
+        "Summary": {
+          "type": "string"
+        },
+        "ContactName": {
+          "type": "string"
+        },
+        "ContactPhoneNumber": {
+          "type": "string"
+        },
+        "ContactEmail": {
+          "type": "string"
+        },
+        "CaseTypeID": {
+          "type": "integer",
+          "description": "Case type ID",
+          "format": "int64"
+        },
+        "CaseTypeName": {
+          "type": "string",
+          "description": "Case type name (can be used if case type ID is not available)"
+        },
+        "SLCustomerAccountID": {
+          "type": "integer",
+          "description": "Customer account ID",
+          "format": "int64"
+        },
+        "CustomerReference": {
+          "type": "string",
+          "description": "Customer reference (Can be used instead of the SLCustomerAccountID)"
+        },
+        "Equipments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Equipment"
+          }
+        },
+        "EquipmentIDs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "SubLocation": {
+          "$ref": "#/definitions/SiconSubLocation"
+        },
+        "AssignedToSageUserID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "AssignedToSageUser": {
+          "type": "string"
+        },
+        "InternalTeam": {
+          "type": "string",
+          "description": "The internal team name for the case (can be used if the internal team ID is not available)"
+        },
+        "ExternalTeam": {
+          "type": "string",
+          "description": "The external team name for the case (can be used if the external team ID is not available)"
+        },
+        "InternalTeamID": {
+          "type": "integer",
+          "description": "The internal team id for the case",
+          "format": "int64"
+        },
+        "ExternalTeamID": {
+          "type": "integer",
+          "description": "The external team id for the case",
+          "format": "int64"
+        },
+        "PriorityID": {
+          "type": "integer",
+          "description": "The priority ID of the case",
+          "format": "int64"
+        },
+        "PriorityName": {
+          "type": "string",
+          "description": "The priority name of the case (can be used if the priority ID is not available)"
+        },
+        "SiconContractID": {
+          "type": "integer",
+          "description": "The Sicon Contract ID",
+          "format": "int64"
+        },
+        "SiconContractNumber": {
+          "type": "string",
+          "description": "Sicon Contract Number. Can be used instead of the SiconContractID"
+        },
+        "SiconContractLineID": {
+          "type": "integer",
+          "description": "The Sicon Contract Line ID",
+          "format": "int64"
+        },
+        "SiconContractLineNumber": {
+          "type": "integer",
+          "description": "The Sicon Contract Line Number. Can be used instead of the SiconContractLineID provided that the SiconContractID or SiconContractNumber is also provided",
+          "format": "int32"
+        },
+        "SiJcJobID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "AnalysisField1": {
+          "type": "string"
+        },
+        "AnalysisField2": {
+          "type": "string"
+        },
+        "AnalysisField3": {
+          "type": "string"
+        },
+        "AnalysisField4": {
+          "type": "string"
+        },
+        "AnalysisField5": {
+          "type": "string"
+        },
+        "AnalysisField6": {
+          "type": "string"
+        },
+        "AnalysisField7": {
+          "type": "string"
+        },
+        "AnalysisField8": {
+          "type": "string"
+        },
+        "AnalysisField9": {
+          "type": "string"
+        },
+        "AnalysisField10": {
+          "type": "string"
+        },
+        "AnalysisField11": {
+          "type": "string"
+        },
+        "AnalysisField12": {
+          "type": "string"
+        },
+        "AnalysisField13": {
+          "type": "string"
+        },
+        "AnalysisField14": {
+          "type": "string"
+        },
+        "AnalysisField15": {
+          "type": "string"
+        },
+        "AnalysisField16": {
+          "type": "string"
+        },
+        "AnalysisField17": {
+          "type": "string"
+        },
+        "AnalysisField18": {
+          "type": "string"
+        },
+        "AnalysisField19": {
+          "type": "string"
+        },
+        "AnalysisField20": {
+          "type": "string"
+        },
+        "SiconCRMPersonID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SiconCRMCompanyID": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "Equipment": {
+      "type": "object",
+      "required": [
+        "SiconEquipmentID",
+        "CaseID",
+        "ItemID"
+      ],
+      "properties": {
+        "SiconEquipmentID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "CaseID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ItemID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Name": {
+          "type": "string"
+        }
+      }
+    },
+    "SiconSubLocation": {
+      "type": "object",
+      "description": "Sub location linked to a customer delivery address",
+      "required": [
+        "SiconSubLocationID",
+        "CustDeliveryAddressID"
+      ],
+      "properties": {
+        "SiconSubLocationID": {
+          "type": "integer",
+          "description": "The sub location ID",
+          "format": "int64"
+        },
+        "CustDeliveryAddressID": {
+          "type": "integer",
+          "description": "The customer delivery address ID",
+          "format": "int64"
+        },
+        "Description": {
+          "type": "string",
+          "description": "Description of the sub location"
+        },
+        "Comment": {
+          "type": "string",
+          "description": "Comment about the sub location"
+        }
+      }
+    },
+    "UpdateCaseRequest": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/CreateCaseRequest"
+        },
+        {
+          "type": "object",
+          "required": [
+            "SiSMCaseId"
+          ],
+          "properties": {
+            "SiSMCaseId": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      ]
+    },
+    "CreateCaseRequest": {
+      "type": "object",
+      "required": [
+        "CaseTypeID",
+        "AssignedToSageUserID",
+        "InternalTeamID",
+        "ExternalTeamID",
+        "PriorityID",
+        "SiconContractID",
+        "SiconContractLineID",
+        "SiJcJobID",
+        "SiconCRMPersonID",
+        "SiconCRMCompanyID"
+      ],
+      "properties": {
+        "SiSMDocumentStatusID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SiSMDocumentSubStatusID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "CallDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "FaultCode": {
+          "type": "string"
+        },
+        "Description": {
+          "type": "string"
+        },
+        "LocationPostalName": {
+          "type": "string"
+        },
+        "LocationAddressLine1": {
+          "type": "string"
+        },
+        "LocationAddressLine2": {
+          "type": "string"
+        },
+        "LocationAddressLine3": {
+          "type": "string"
+        },
+        "LocationAddressLine4": {
+          "type": "string"
+        },
+        "LocationCity": {
+          "type": "string"
+        },
+        "LocationCounty": {
+          "type": "string"
+        },
+        "LocationPostCode": {
+          "type": "string"
+        },
+        "Summary": {
+          "type": "string"
+        },
+        "ContactName": {
+          "type": "string"
+        },
+        "ContactPhoneNumber": {
+          "type": "string"
+        },
+        "ContactEmail": {
+          "type": "string"
+        },
+        "CaseTypeID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SLCustomerAccountID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Equipments": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "AssignedToSageUserID": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "InternalTeamID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ExternalTeamID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "PriorityID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SiconContractID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SiconContractLineID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SiJcJobID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "AnalysisField1": {
+          "type": "string"
+        },
+        "AnalysisField2": {
+          "type": "string"
+        },
+        "AnalysisField3": {
+          "type": "string"
+        },
+        "AnalysisField4": {
+          "type": "string"
+        },
+        "AnalysisField5": {
+          "type": "string"
+        },
+        "AnalysisField6": {
+          "type": "string"
+        },
+        "AnalysisField7": {
+          "type": "string"
+        },
+        "AnalysisField8": {
+          "type": "string"
+        },
+        "AnalysisField9": {
+          "type": "string"
+        },
+        "AnalysisField10": {
+          "type": "string"
+        },
+        "AnalysisField11": {
+          "type": "string"
+        },
+        "AnalysisField12": {
+          "type": "string"
+        },
+        "AnalysisField13": {
+          "type": "string"
+        },
+        "AnalysisField14": {
+          "type": "string"
+        },
+        "AnalysisField15": {
+          "type": "string"
+        },
+        "AnalysisField16": {
+          "type": "string"
+        },
+        "AnalysisField17": {
+          "type": "string"
+        },
+        "AnalysisField18": {
+          "type": "string"
+        },
+        "AnalysisField19": {
+          "type": "string"
+        },
+        "AnalysisField20": {
+          "type": "string"
+        },
+        "SiconCRMPersonID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "SiconCRMCompanyID": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "WebApiEntityResponseOfSiconAppointment": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiResponse"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "$ref": "#/definitions/SiconAppointment"
+            }
+          }
+        }
+      ]
+    },
+    "SiconAppointment": {
+      "type": "object",
+      "required": [
+        "SiconAppointmentID"
+      ],
+      "properties": {
+        "SiconAppointmentID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "StartDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "EndDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "Subject": {
+          "type": "string"
+        },
+        "Description": {
+          "type": "string"
+        },
+        "ResourceIDs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "Colour": {
+          "type": "string"
+        },
+        "SubTypeID": {
+          "type": "string"
+        }
+      }
+    },
+    "EntityCreatedResponse": {
+      "type": "object",
+      "required": [
+        "ID"
+      ],
+      "properties": {
+        "ID": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "CreateAppointmentRequest": {
+      "type": "object",
+      "required": [
+        "SiSMCaseID",
+        "AppointmentType",
+        "Subject",
+        "EmployeeIDs",
+        "ScheduledStartDate",
+        "ScheduledEndDate"
+      ],
+      "properties": {
+        "SiSMCaseID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "AppointmentType": {
+          "minLength": 1,
+          "allOf": [
+            {
+              "$ref": "#/definitions/SMAppointmentTypeEnum"
+            }
+          ]
+        },
+        "ParentWorkAppointmentID": {
+          "type": "integer",
+          "description": "Applicable only to Travel Appointments",
+          "format": "int64"
+        },
+        "Subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "EmployeeIDs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "ScheduledStartDate": {
+          "type": "string",
+          "format": "date-time",
+          "minLength": 1
+        },
+        "ScheduledEndDate": {
+          "type": "string",
+          "format": "date-time",
+          "minLength": 1
+        },
+        "ChargeRateID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "LabelID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Confirmed": {
+          "type": "boolean"
+        },
+        "AppointmentComplete": {
+          "type": "boolean"
+        },
+        "WorkDoneDescription": {
+          "type": "string"
+        },
+        "WorkDoneAcknowledged": {
+          "type": "boolean"
+        },
+        "FurtherAction": {
+          "type": "string"
+        },
+        "FurtherActionAcknowledged": {
+          "type": "boolean"
+        },
+        "ArrivalSignee": {
+          "type": "string"
+        },
+        "DepartureSignee": {
+          "type": "string"
+        },
+        "WorkBriefing": {
+          "type": "string"
+        },
+        "ArrivalLongitude": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "ArrivalLatitude": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "DepartureLongitude": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "DepartureLatitude": {
+          "type": "number",
+          "format": "decimal"
+        }
+      }
+    },
+    "SMAppointmentTypeEnum": {
+      "type": "string",
+      "description": "",
+      "x-enumNames": [
+        "Other",
+        "Work",
+        "Travel"
+      ],
+      "enum": [
+        "Other",
+        "Work",
+        "Travel"
+      ]
+    },
+    "AppointmentRequest": {
+      "type": "object",
+      "properties": {
+        "Subject": {
+          "type": "string"
+        },
+        "EmployeeIDs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "ScheduledStartDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ScheduledEndDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ChargeRateID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "LabelID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Confirmed": {
+          "type": "boolean"
+        },
+        "AppointmentComplete": {
+          "type": "boolean"
+        },
+        "WorkDoneDescription": {
+          "type": "string"
+        },
+        "WorkDoneAcknowledged": {
+          "type": "boolean"
+        },
+        "FurtherAction": {
+          "type": "string"
+        },
+        "FurtherActionAcknowledged": {
+          "type": "boolean"
+        },
+        "ArrivalSignee": {
+          "type": "string"
+        },
+        "DepartureSignee": {
+          "type": "string"
+        },
+        "WorkBriefing": {
+          "type": "string"
+        },
+        "ArrivalLongitude": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "ArrivalLatitude": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "DepartureLongitude": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "DepartureLatitude": {
+          "type": "number",
+          "format": "decimal"
+        }
+      }
+    },
+    "TimeBookingRequest": {
+      "type": "object",
+      "properties": {
+        "EmployeeIDs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "StartDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "EndDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ChargeRate": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ActualHours": {
+          "type": "number",
+          "format": "decimal"
+        }
+      }
+    },
+    "WebApiEntityResponseOfTrackingNote": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WebApiResponse"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "$ref": "#/definitions/TrackingNote"
+            }
+          }
+        }
+      ]
+    },
+    "TrackingNote": {
+      "type": "object",
+      "description": "Represents a tracking note for a case in the service management system.",
+      "required": [
+        "SiSMCaseTrackingNoteID",
+        "SiSMCaseID",
+        "InternalStatus",
+        "CaseOwnerID",
+        "ExternalStatus"
+      ],
+      "properties": {
+        "SiSMCaseTrackingNoteID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the tracking note.",
+          "format": "int64"
+        },
+        "SiSMCaseID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the case associated with the tracking note.",
+          "format": "int64"
+        },
+        "CreatedDateFormatted": {
+          "type": "string",
+          "description": "Gets or sets the formatted created date of the tracking note."
+        },
+        "Note": {
+          "type": "string",
+          "description": "Gets or sets the note content of the tracking note."
+        },
+        "User": {
+          "type": "string",
+          "description": "Gets or sets the user who created the tracking note."
+        },
+        "Time": {
+          "type": "string",
+          "description": "Gets or sets the time of the tracking note.",
+          "format": "date-time"
+        },
+        "Status": {
+          "type": "string",
+          "description": "Gets or sets the status of the tracking note."
+        },
+        "StatusID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the status of the tracking note.",
+          "format": "int64"
+        },
+        "SiconAppointmentID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the Sicon appointment associated with the tracking note.",
+          "format": "int64"
+        },
+        "VisibleToEngineer": {
+          "type": "boolean",
+          "description": "Gets or sets a value indicating whether the tracking note is visible to the engineer."
+        },
+        "VisibleToCustomer": {
+          "type": "boolean",
+          "description": "Gets or sets a value indicating whether the tracking note is visible to the customer."
+        },
+        "InternalStatus": {
+          "type": "integer",
+          "description": "Gets or sets the internal status of the tracking note.",
+          "format": "int32"
+        },
+        "InternalTeam": {
+          "type": "string",
+          "description": "Gets or sets the internal team of the tracking note."
+        },
+        "InternalTeamID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the internal team of the tracking note.",
+          "format": "int64"
+        },
+        "CaseOwner": {
+          "type": "string",
+          "description": "Gets or sets the case owner of the tracking note."
+        },
+        "CaseOwnerID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the case owner of the tracking note.",
+          "format": "int64"
+        },
+        "ExternalStatus": {
+          "type": "integer",
+          "description": "Gets or sets the external status of the tracking note.",
+          "format": "int32"
+        },
+        "ExternalTeam": {
+          "type": "string",
+          "description": "Gets or sets the external team of the tracking note."
+        },
+        "ExternalTeamID": {
+          "type": "integer",
+          "description": "Gets or sets the ID of the external team of the tracking note.",
+          "format": "int64"
+        }
+      }
+    },
+    "AddTrackingNoteRequest": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/UpdateTrackingNoteRequest"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "SiconAppointmentID": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "CreatedBy": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "UpdateTrackingNoteRequest": {
+      "type": "object",
+      "properties": {
+        "TrackingNote": {
+          "type": "string"
+        },
+        "CaseTrackingStatusID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "VisibleToEngineers": {
+          "type": "boolean"
+        },
+        "ReassignToSageUserNumber": {
+          "type": "integer",
+          "description": "Takes priority over the ReassignToSageUserName field",
+          "format": "int64"
+        },
+        "ReassignToSageUserName": {
+          "type": "string"
+        },
+        "Longitude": {
+          "type": "number",
+          "format": "decimal"
+        },
+        "Latitude": {
+          "type": "number",
+          "format": "decimal"
+        }
+      }
+    }
+  }
+}

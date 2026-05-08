@@ -1,0 +1,83 @@
+{
+  "summary": "Iter 215g Wave 2 Codemod Testing - All visual regression tests PASS. CSS variables resolve correctly. Alpha-variant rgb(var(--rgb-*)/alpha) syntax works as expected. ESLint no-inline-hex rule fires 84 warnings across CRM/MasterAdmin/Memberships/Marketing/shared (expected ~82). Master Admin light-mode lock verified. CRM 8-tab bar visible with cyan accents. No runtime console errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_215g.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CSS variables in index.css :root block correctly define --color-* and --rgb-* tokens",
+    "Alpha-variant codemod successfully rewrote bg-[#xxx]/NN to bg-[rgb(var(--rgb-xxx)/0.NN)] syntax",
+    "Spacing codemod normalized Card p-3/p-4 to p-5 (20px default)",
+    "ESLint no-inline-hex rule widened to CRM/MasterAdmin/Memberships/Marketing/shared - 84 warnings surface",
+    "Remaining hex literals (~251) are one-off values in gradients, SVG fills, or rarely used accents"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "crm_manager": "craig.henshall@pulsefitness.com / Test123!",
+    "operator": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215g codemod is complete. All CSS variables resolve correctly. Alpha-variant rgb(var(--rgb-*)/alpha) syntax works. No visual regression detected.",
+  "verified_features": {
+    "css_variable_resolution": {
+      "brandCyan": "#19CDFF - PASS",
+      "rgbBrandCyan": "25 205 255 - PASS",
+      "brandBlue": "#0055FF - PASS",
+      "success": "#10B981 - PASS",
+      "danger": "#EF4444 - PASS"
+    },
+    "alpha_variant_resolution": {
+      "rgb_var_0.1_alpha": "rgba(25, 205, 255, 0.1) - PASS",
+      "rgb_var_0.25_alpha": "rgba(25, 205, 255, 0.25) - PASS"
+    },
+    "lint_results": {
+      "src_theme_src_components_shared": "0 errors, 132 warnings (unused vars) - PASS",
+      "no_inline_hex_warnings": "84 warnings across CRM/MasterAdmin/Memberships/Marketing/shared - PASS"
+    },
+    "master_admin": {
+      "light_mode_lock": "data-theme='light' verified - PASS",
+      "overview_section": "PASS",
+      "onboarding_section": "PASS",
+      "image_catalogue_section": "PASS",
+      "design_system_tokens_tab": "PASS - Shows brand colours, semantic colours, spacing scale (lg=1.25rem=20px)"
+    },
+    "crm": {
+      "tab_bar_visible_tabs": ["Dashboard", "Contacts", "Companies", "Pipeline", "Activity Feed", "Calendar", "Workflows", "Quotes"],
+      "tab_count": 8,
+      "cyan_accents": "PASS - 72 elements with cyan styling found",
+      "ai_tools_button": "PASS",
+      "mode_switcher": "PASS"
+    },
+    "landing_page": {
+      "cyan_gym_performance_text": "PASS - renders correctly",
+      "css_variables": "PASS"
+    },
+    "console_errors": {
+      "crm": "0 runtime errors - PASS",
+      "master_admin": "0 runtime errors - PASS (401s expected due to token timing)",
+      "marketing": "0 runtime errors - PASS"
+    }
+  },
+  "codemod_stats": {
+    "spacing_normalisations": "104 across 47 files (p-3/p-4 → p-5)",
+    "alpha_variant_rewrites": "481 across 110 files",
+    "no_inline_hex_warnings": "84 (remaining ~251 hex holdouts)",
+    "hex_reduction": "5,580 → 251 (95.5%)"
+  }
+}

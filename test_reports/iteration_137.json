@@ -1,0 +1,92 @@
+{
+  "summary": "Top Failing Parts UI feature testing complete. Both variants (overview and detail) render correctly with proper data, theming, and responsive behavior. All 7 fault codes display with correct counts, category badges, and coverage metrics.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All pages", "issues": ["PWA install prompt overlay appears frequently - consider adding dismiss persistence"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_137.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TopFailingPartsCard.js correctly implements two variants: 'overview' (light theme, top-5) and 'detail' (dark theme, top-10)",
+    "Empty state handling implemented with data-testid='top-failing-parts-empty' and friendly message",
+    "Coverage text correctly shows '22 of 38 faults tagged (58% coverage)'",
+    "Category badges render correctly: mechanical, electrical, weight_stack, safety",
+    "Insight row in overview variant references top fault code BEL-01 with actionable suggestion",
+    "AI-Tagged KPI in Fault Hotspots shows '22 / 38' in sky-blue color",
+    "Category totals section in detail variant shows: mechanical 13, electrical 5, weight stack 3, safety 1",
+    "Responsive layout works at 768px - badges wrap correctly",
+    "No JS console errors on page load or tab switching",
+    "Other analytics tabs (Dashboard, Equipment Trends, Check Sheets, AI Diagnosis) render normally - no regressions"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% - All UI components render correctly"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "N/A - Used existing seeded fault data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Top Failing Parts feature fully implemented and tested. Two UI locations: (1) Master Admin Overview - compact top-5 card with light theme, insight row, category badges. (2) Global Analytics → Fault Hotspots - detail top-10 card with dark theme, category totals section, AI-Tagged KPI. Backend endpoint /api/master-admin/analytics/faults returns by_fault_code, by_fault_category, coded_fault_count. Sage 200 integration still MOCKED.",
+  "tests_executed": {
+    "master_admin_overview": [
+      "Login as admin@gymaxisai.com - PASS",
+      "Top Failing Parts card visible (data-testid='top-failing-parts-card') - PASS",
+      "Coverage text '22 of 38 faults tagged (58% coverage)' - PASS",
+      "Top 5 fault codes displayed: BEL-01 (10), MOT-01 (4), WGT-01 (3), CHN-01 (2), CAB-01 (1) - PASS",
+      "Category badges visible: mechanical, electrical, weight stack - PASS",
+      "Insight row visible with BEL-01 reference - PASS",
+      "Light theme applied (white card, zinc text, red accents) - PASS"
+    ],
+    "fault_hotspots_detail": [
+      "Navigate to Global Analytics → Fault Hotspots - PASS",
+      "AI-Tagged KPI shows '22 / 38' in sky-blue - PASS",
+      "Top Failing Parts detail card visible - PASS",
+      "All 7 fault codes displayed (BEL-01, MOT-01, WGT-01, CHN-01, CAB-01, ELC-02, SAF-01) - PASS",
+      "Category totals section visible (mechanical 13, electrical 5, weight stack 3, safety 1) - PASS",
+      "Dark theme applied (var(--theme-surface), var(--theme-text)) - PASS",
+      "Red progress bars for each fault code - PASS",
+      "Numbered ranking pills (1-7) - PASS"
+    ],
+    "responsive_testing": [
+      "Overview card visible at 768px - PASS",
+      "Fault Hotspots visible at 768px - PASS",
+      "Category badges wrap correctly at narrow widths - PASS"
+    ],
+    "no_regressions": [
+      "Dashboard tab loads - PASS",
+      "Equipment Trends tab loads - PASS",
+      "Check Sheets tab loads - PASS",
+      "AI Diagnosis tab loads - PASS",
+      "No JS console errors - PASS"
+    ],
+    "empty_state_code_review": [
+      "Empty state handling exists with data-testid='top-failing-parts-empty' - VERIFIED",
+      "Friendly message: 'No fault codes captured yet...' - VERIFIED"
+    ]
+  },
+  "data_consistency_verified": {
+    "backend_api_response": {
+      "total_faults": 38,
+      "coded_fault_count": 22,
+      "by_fault_code": "7 codes (BEL-01:10, MOT-01:4, WGT-01:3, CHN-01:2, CAB-01:1, ELC-02:1, SAF-01:1)",
+      "by_fault_category": "4 categories (mechanical:13, electrical:5, weight_stack:3, safety:1)"
+    },
+    "ui_matches_backend": true
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Sage 200 API"]
+  }
+}

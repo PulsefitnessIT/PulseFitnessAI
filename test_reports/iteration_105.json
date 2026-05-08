@@ -1,0 +1,83 @@
+{
+  "summary": "Iteration 105 - Bug Fix Verification Complete. All 6 backend tests passed. All 8 frontend tests passed. The three bug fixes are working correctly: 1) Auto-recognize no longer triggers automatically - manual 'Lookup' button added, 2) Company names and directors are properly cased (not ALL CAPS), 3) Name field is NOT overwritten by API response.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration105_case_conversion.py",
+    "/app/test_reports/pytest/pytest_results_iteration105.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration105_case_conversion.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (8/8 tests passed)"
+  },
+  "test_credentials": {
+    "crm_user": {
+      "email": "craig.henshall@pulsefitness.com",
+      "password": "Test123!",
+      "organization": "Pulse Fitness"
+    }
+  },
+  "seed_data_creation": "None - used existing Companies House data for Pulse Fitness",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 105 verified three bug fixes for the auto-recognize feature: 1) Manual Lookup button (data-testid='company-lookup-btn') replaces auto-trigger - button is disabled when name < 3 chars, 2) _smart_case function converts ALL CAPS to proper case - company names, directors, address, city are properly cased while postcode remains UPPERCASE, 3) Name input (data-testid='company-name-input') is NOT overwritten by API response - user keeps their typed name. All tests passed.",
+  "features_tested": {
+    "bug_fix_1_manual_lookup_button": {
+      "status": "PASSED",
+      "details": [
+        "Lookup button exists with data-testid='company-lookup-btn'",
+        "Button is disabled when name field is empty",
+        "Button is disabled when name < 3 characters",
+        "Button is enabled when name >= 3 characters",
+        "Button shows 'Searching...' during lookup",
+        "AI loading indicator shows 'AI looking up company details...' during lookup"
+      ]
+    },
+    "bug_fix_2_proper_case_conversion": {
+      "status": "PASSED",
+      "details": [
+        "Company name: 'Pulse Fitness Limited' (not 'PULSE FITNESS LIMITED')",
+        "Directors: 'Mohammed Ishaq Chaudry' (not 'CHAUDRY, Mohammed Ishaq')",
+        "Directors: 'Christopher Paul Johnson' (not 'JOHNSON, Christopher Paul')",
+        "Directors: 'David Mark Johnson' (not 'JOHNSON, David Mark')",
+        "Address: 'Radnor Park, Greenfield Road, Congleton' (not ALL CAPS)",
+        "City: 'Cheshire' (not 'CHESHIRE')",
+        "Postcode: 'CW12 4TW' (correctly UPPERCASE)"
+      ]
+    },
+    "bug_fix_3_name_not_overwritten": {
+      "status": "PASSED",
+      "details": [
+        "Name input value before lookup: 'Pulse Fitness'",
+        "Name input value after lookup: 'Pulse Fitness'",
+        "Name field was NOT overwritten by API response"
+      ]
+    },
+    "backend_api_tests": {
+      "status": "PASSED",
+      "tests": [
+        "test_company_name_proper_case - PASSED",
+        "test_directors_forename_surname_format - PASSED",
+        "test_address_proper_case_postcode_uppercase - PASSED",
+        "test_smart_case_abbreviations - PASSED",
+        "test_query_too_short_rejected - PASSED",
+        "test_response_contains_required_fields - PASSED"
+      ]
+    }
+  },
+  "mocked_apis": {
+    "note": "Sage 200 and Sicon Service APIs are MOCKED. Companies House lookup is LIVE (real HTTP requests to find-and-update.company-information.service.gov.uk)."
+  }
+}

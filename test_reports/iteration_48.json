@@ -1,0 +1,156 @@
+{
+  "summary": "Iteration 48 - Pulse Portal Major Rework Testing Complete. All features verified working: GymFix-style Tabs (not slider), Faults tab with filters and Log New Fault button, Settings dialog with Team Management accessible from Navbar, Portal Switcher in Master Admin sidebar. Backend APIs (10/10 tests passed) and Frontend UI (all flows verified via Playwright).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Pulse Dashboard",
+        "issues": ["Console warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent} - minor accessibility issue in dialogs"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration48_pulse_rework.py",
+    "/app/test_reports/pytest/pytest_results_iteration48.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration48_pulse_rework.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "test_credentials": {
+    "pulse_pro_owner": {
+      "email": "test@gymfixai.com",
+      "password": "Test123!",
+      "role": "owner",
+      "account_type": "pulse_pro",
+      "company_code": "7D25055F"
+    },
+    "master_admin": {
+      "email": "admin@gymfixai.com",
+      "password": "MasterAdmin123!",
+      "is_master_admin": true,
+      "account_type": "full"
+    }
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pulse Portal rework complete. Key changes: 1) Horizontal slider nav replaced with GymFix-style Tabs component. 2) 'Log a Fault' tab renamed to 'Faults' showing all logged faults with status/severity filters. 3) Team Management moved to Settings dialog (accessible from Navbar user menu via data-testid='nav-settings-btn'). 4) Portal Switcher in Master Admin sidebar (data-testid='portal-switch-gymfix' and 'portal-switch-pulse-pro'). Tab IDs: lite-tab-{overview|equipment|faults|documents|check-sheets|ai-diagnosis|reports|gym-layout|weekly-digest}. Pulse login uses separate form: pulse-login-email, pulse-login-password, pulse-login-submit.",
+  "features_verified": {
+    "1_pulse_login_and_branding": {
+      "status": "WORKING",
+      "notes": "Pulse landing page shows 'Pulse Fitness' branding with blue wrench icon. Customer Login button (data-testid='pulse-login-btn') opens login modal. Login as test@gymfixai.com works correctly."
+    },
+    "2_gymfix_style_tabs": {
+      "status": "WORKING",
+      "notes": "GymFix-style Tabs component (data-testid='pulse-dashboard-tabs') replaces old slider navigation. All 9 tabs visible for Pro owner: Overview, Equipment, Faults, Documents, Check Sheets, AI Diagnosis, Reports, Gym Layout, Weekly Digest."
+    },
+    "3_faults_tab_list_view": {
+      "status": "WORKING",
+      "notes": "Faults tab (data-testid='lite-tab-faults') shows list of all logged faults with severity badges (Minor Issue, Fault Present, etc.) and status badges (Open, In Progress, Resolved)."
+    },
+    "4_faults_tab_log_new_fault_button": {
+      "status": "WORKING",
+      "notes": "'Log New Fault' button (data-testid='log-fault-btn') opens fault logging dialog."
+    },
+    "5_faults_tab_filters": {
+      "status": "WORKING",
+      "notes": "Status filter dropdown (data-testid='fault-filter-status') with All Statuses, Open, In Progress, Resolved. Severity filter dropdown (data-testid='fault-filter-severity') with all severity levels."
+    },
+    "6_fault_logging_dialog": {
+      "status": "WORKING",
+      "notes": "Log Fault dialog (data-testid='log-fault-dialog') has machine select, description textarea, severity options, photo upload, and submit button."
+    },
+    "7_overview_tab_kpi_cards": {
+      "status": "WORKING",
+      "notes": "Overview tab shows 4 KPI cards: Total Machines, Operational, With Faults, Open Faults. Also has 'Log a Fault' CTA button (data-testid='overview-log-fault-btn')."
+    },
+    "8_equipment_tab": {
+      "status": "WORKING",
+      "notes": "Equipment tab shows equipment list with search input (data-testid='lite-equip-search'). Click equipment to expand details."
+    },
+    "9_documents_tab": {
+      "status": "WORKING",
+      "notes": "Documents tab (data-testid='documents-content') shows document list with view/download/delete buttons."
+    },
+    "10_settings_from_navbar": {
+      "status": "WORKING",
+      "notes": "Settings accessible from Navbar user menu (data-testid='nav-user-menu-btn' -> 'nav-settings-btn'). Opens Settings dialog (data-testid='pulse-settings-dialog')."
+    },
+    "11_settings_team_organisation": {
+      "status": "WORKING",
+      "notes": "Settings dialog has 'Team & Organisation' section (data-testid='pulse-settings-section-team') showing Organisation name (Test Gym), Company Code (7D25055F), Team Members with current user."
+    },
+    "12_settings_invite_button": {
+      "status": "WORKING",
+      "notes": "Invite button (data-testid='pulse-settings-invite-btn') available for owners to invite new team members."
+    },
+    "13_backend_staff_api": {
+      "status": "WORKING",
+      "notes": "GET /api/organization/staff returns staff array with current user."
+    },
+    "14_backend_invites_api": {
+      "status": "WORKING",
+      "notes": "GET /api/organization/invites returns invites array."
+    },
+    "15_master_admin_login": {
+      "status": "WORKING",
+      "notes": "admin@gymfixai.com / MasterAdmin123! logs in successfully with is_master_admin=true."
+    },
+    "16_master_admin_portal_switcher": {
+      "status": "WORKING",
+      "notes": "Master Admin sidebar has 'SWITCH PORTAL' section with 'GymFix AI' (data-testid='portal-switch-gymfix') and 'Pulse Fitness Pro' (data-testid='portal-switch-pulse-pro') buttons."
+    },
+    "17_portal_switch_to_pulse": {
+      "status": "WORKING",
+      "notes": "Clicking 'Pulse Fitness Pro' navigates to /pulse with admin banner showing 'Viewing Pulse Fitness Portal as Admin' and 'Back to GymFix AI' link."
+    },
+    "18_admin_banner_on_pulse": {
+      "status": "WORKING",
+      "notes": "Admin banner (data-testid='admin-pulse-banner') visible at top of Pulse portal when logged in as admin. Contains 'Back to GymFix AI' link (data-testid='admin-back-to-gymfix')."
+    }
+  },
+  "test_data_testids_verified": [
+    "pulse-login-btn - Customer Login button on Pulse landing page",
+    "pulse-login-email, pulse-login-password, pulse-login-submit - Pulse login form fields",
+    "lite-dashboard - Main Pulse dashboard container",
+    "nav-logo - Navbar logo showing 'Pulse Fitness' branding",
+    "pulse-dashboard-tabs - GymFix-style Tabs container",
+    "lite-tab-{id} - Tab buttons (overview, equipment, faults, documents, check-sheets, ai-diagnosis, reports, gym-layout, weekly-digest)",
+    "log-fault-btn - 'Log New Fault' button in Faults tab",
+    "fault-filter-status - Status filter dropdown",
+    "fault-filter-severity - Severity filter dropdown",
+    "log-fault-dialog - Fault logging dialog",
+    "lite-fault-machine-select, lite-fault-description, lite-sev-*, lite-fault-submit - Fault dialog fields",
+    "overview-log-fault-btn - 'Log a Fault' CTA in Overview",
+    "lite-kpi-machines, lite-kpi-operational, lite-kpi-faults, lite-kpi-open - KPI cards",
+    "lite-equip-search - Equipment search input",
+    "documents-content - Documents tab content",
+    "nav-user-menu-btn - User menu button in Navbar",
+    "nav-settings-btn - Settings button in user dropdown",
+    "pulse-settings-dialog - Settings dialog",
+    "pulse-settings-section-team, pulse-settings-section-org-details - Settings section buttons",
+    "pulse-org-info - Organisation info card",
+    "pulse-settings-company-code - Company code display",
+    "pulse-team-members-card - Team members card",
+    "pulse-settings-invite-btn - Invite button",
+    "master-admin-page - Master Admin page container",
+    "portal-switch-gymfix, portal-switch-pulse-pro - Portal switcher buttons",
+    "admin-pulse-banner - Admin banner on Pulse portal",
+    "admin-back-to-gymfix - Back to GymFix AI link"
+  ],
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

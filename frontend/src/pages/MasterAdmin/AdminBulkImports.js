@@ -1,0 +1,243 @@
+/**
+ * Master Admin — Bulk Imports
+ *
+ * One-stop surface for downloading CSV templates and bulk-loading equipment
+ * + customer rosters into a target Pulse customer's tenant.
+ */
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import axios from 'axios';
+import {
+ Download, Upload, Wrench, Users, FileSpreadsheet, ChevronRight,
+ CheckCircle2, AlertCircle, Building2, Loader2,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useInlineBanner } from '@/components/notifications';
+
+const API_BASE = process.env.REACT_APP_BACKEND_URL + '/api';
+
+const downloadTemplate = async (kind, token) => {
+ // Use a fetch+blob round-trip so the browser triggers a real download
+ // dialog regardless of the host browser's CORS-blob handling.
+ const r = await fetch(`${API_BASE}/master-admin/bulk-import/templates/${kind}`, {
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ if (!r.ok) throw new Error(`Template fetch failed: ${r.status}`);
+ const blob = await r.blob();
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = `${kind}-template.csv`;
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ URL.revokeObjectURL(url);
+};
+
+const AdminBulkImports = ({ API }) => {
+ const token = localStorage.getItem('token');
+ const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
+ const [orgs, setOrgs] = useState([]);
+ const [orgId, setOrgId] = useState('');
+ const [busy, setBusy] = useState({ equipment: false, customers: false });
+ const [results, setResults] = useState({ equipment: null, customers: null });
+ const equipmentInput = useRef(null);
+ const customersInput = useRef(null);
+ const { banner, show, clear } = useInlineBanner();
+
+ useEffect(() => {
+ // Pull the list of Pulse-visible orgs so the admin can target the import.
+ (async () => {
+ try {
+ const { data } = await axios.get(`${API}/master-admin/pulse-organizations`, { headers });
+ setOrgs(data?.organizations || []);
+ } catch {
+ // Surface nothing — the user can paste an org id manually if needed.
+ }
+ })();
+ }, [API, headers]);
+
+ const runImport = async (kind, file) => {
+ if (!file) return;
+ clear();
+ setBusy((b) => ({ ...b, [kind]: true }));
+ setResults((r) => ({ ...r, [kind]: null }));
+ try {
+ const fd = new FormData();
+ fd.append('file', file);
+ // When orgId is blank, the backend resolves the target tenant per row
+ // by reading the customer_account_number column.
+ const qs = orgId ? `?organization_id=${encodeURIComponent(orgId)}` : '';
+ const { data } = await axios.post(
+ `${API}/master-admin/bulk-import/${kind}${qs}`,
+ fd,
+ { headers: { ...headers, 'Content-Type': 'multipart/form-data' } },
+ );
+ setResults((r) => ({ ...r, [kind]: data }));
+ const tenants = Object.keys(data?.org_breakdown || {}).length;
+ const detail = [
+ data.skipped ? `${data.skipped} skipped` : null,
+ tenants > 1 ? `routed across ${tenants} tenants` : null,
+ ].filter(Boolean).join(' · ');
+ show({
+ tone: data.imported > 0 ? 'success' : 'warning',
+ title: `Imported ${data.imported} ${kind}`,
+ detail: detail || undefined,
+ });
+ } catch (err) {
+ show({ tone: 'error', title: `Couldn't import ${kind}`, detail: err.response?.data?.detail });
+ }
+ setBusy((b) => ({ ...b, [kind]: false }));
+ };
+
+ const ImportCard = ({ kind, icon: Icon, title, description, headers: csvHeaders, inputRef }) => {
+ const isBusy = busy[kind];
+ const result = results[kind];
+ return (
+ <Card className="p-5 rounded-xl border-zinc-200" data-testid={`bulk-import-${kind}`}>
+ <div className="flex items-start gap-3 mb-3">
+ <div className="w-10 h-10 rounded-lg bg-[rgb(var(--rgb-brand-blue)/0.1)] text-[var(--color-brand-blue)] grid place-items-center shrink-0">
+ <Icon size={18} />
+ </div>
+ <div className="flex-1">
+ <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+ <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{description}</p>
+ </div>
+ </div>
+
+ <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-3 mb-3">
+ <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mb-1.5">Required CSV columns</p>
+ <p className="text-[11px] text-zinc-700 font-mono leading-relaxed">{csvHeaders.join(', ')}</p>
+ </div>
+
+ <div className="flex flex-wrap gap-2">
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={async () => {
+ try { await downloadTemplate(kind, token); show({ tone: 'success', title: 'Template downloaded' }); }
+ catch (err) { show({ tone: 'error', title: 'Download failed', detail: err.message }); }
+ }}
+ data-testid={`bulk-template-${kind}`}
+ >
+ <Download size={13} className="mr-1.5" /> Download template
+ </Button>
+ <input
+ ref={inputRef}
+ type="file"
+ accept=".csv,text/csv,application/vnd.ms-excel"
+ className="hidden"
+ data-testid={`bulk-file-${kind}`}
+ onChange={(e) => {
+ const f = e.target.files?.[0];
+ if (f) runImport(kind, f);
+ e.target.value = '';
+ }}
+ />
+ <Button
+ size="sm"
+ disabled={isBusy}
+ onClick={() => inputRef.current?.click()}
+ className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white"
+ data-testid={`bulk-upload-${kind}`}
+ >
+ {isBusy ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Upload size={13} className="mr-1.5" />}
+ {isBusy ? 'Importing…' : `Upload ${kind}`}
+ </Button>
+ </div>
+
+ {result && (
+ <div className={`mt-3 rounded-lg p-3 text-xs ${result.imported > 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`} data-testid={`bulk-result-${kind}`}>
+ <p className={`font-semibold flex items-center gap-1.5 ${result.imported > 0 ? 'text-emerald-800' : 'text-amber-800'}`}>
+ {result.imported > 0 ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+ {result.imported} imported · {result.skipped || 0} skipped
+ </p>
+ {result.errors?.length > 0 && (
+ <details className="mt-2">
+ <summary className="cursor-pointer text-zinc-600 hover:text-zinc-800">{result.errors.length} parse warning(s)</summary>
+ <ul className="mt-1.5 space-y-0.5 font-mono text-[10px] text-zinc-600">
+ {result.errors.map((e, i) => <li key={i}>· {e}</li>)}
+ </ul>
+ </details>
+ )}
+ </div>
+ )}
+ </Card>
+ );
+ };
+
+ return (
+ <div className="space-y-5" data-testid="admin-bulk-imports">
+ {banner}
+
+ {/* Target picker */}
+ <Card className="p-5 rounded-xl border-zinc-200" data-testid="bulk-import-target-card">
+ <div className="flex items-center gap-2 mb-3">
+ <Building2 size={18} className="text-[var(--color-brand-blue)]" />
+ <h2 className="text-base font-semibold">Target customer</h2>
+ </div>
+ <p className="text-xs text-zinc-500 mb-3">
+ Leave on <strong>All customers (auto-route)</strong> when your CSV has a
+ <span className="font-mono mx-1">customer_account_number</span> column — every row will be routed to the matching
+ tenant automatically. Pick a single customer below if your file is for one tenant only and has no account-number column.
+ </p>
+ <div className="max-w-md">
+ <Label className="text-xs">Organisation</Label>
+ <Select value={orgId || 'ALL'} onValueChange={(v) => setOrgId(v === 'ALL' ? '' : v)}>
+ <SelectTrigger className="mt-1" data-testid="bulk-import-org-select">
+ <SelectValue placeholder="All customers (auto-route)" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="ALL" data-testid="bulk-import-org-opt-all">
+ All customers (auto-route by account number)
+ </SelectItem>
+ {orgs.map((o) => (
+ <SelectItem key={o.id} value={o.id} data-testid={`bulk-import-org-opt-${o.id}`}>
+ {o.name} <span className="text-zinc-400 ml-2 text-[10px] uppercase">{o.account_type}</span>
+ </SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+ </div>
+ </Card>
+
+ <div className="grid md:grid-cols-2 gap-4">
+ <ImportCard
+ kind="equipment"
+ icon={Wrench}
+ title="Bulk import equipment"
+ description="Upload a CSV of every machine across one or many customer floors. Duplicates by serial_number are skipped automatically."
+ headers={['customer_account_number', 'name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'purchase_date', 'warranty_expiry', 'service_provider', 'length', 'width', 'height', 'location', 'notes']}
+ inputRef={equipmentInput}
+ />
+ <ImportCard
+ kind="customers"
+ icon={Users}
+ title="Bulk import customers"
+ description="Upload a CSV roster of CRM contacts (members, key accounts). When auto-routing, the customer_account_number column decides which tenant each contact lands in."
+ headers={['customer_account_number', 'first_name', 'last_name', 'email', 'phone', 'company', 'title', 'tags', 'linkedin', 'address']}
+ inputRef={customersInput}
+ />
+ </div>
+
+ <Card className="p-5 rounded-xl border-zinc-200 bg-zinc-50">
+ <p className="text-xs text-zinc-600 leading-relaxed flex items-start gap-2">
+ <FileSpreadsheet size={14} className="text-zinc-400 mt-0.5 shrink-0" />
+ <span>
+ <strong>Account-number aliases accepted:</strong> <span className="font-mono">customer_account_number</span>,
+ <span className="font-mono mx-1">CustomerNumber</span>,
+ <span className="font-mono mx-1">Account Number</span>,
+ <span className="font-mono mx-1">Sage Customer Number</span>.
+ Saved CSV exports from Sicon, Orbit 4, Sage 200, and Excel all work — column-name aliases handle the most common variants.
+ Rows with an unknown account number are reported in the per-import error log so you can fix and re-upload.
+ </span>
+ <ChevronRight size={12} className="text-zinc-400" />
+ </p>
+ </Card>
+ </div>
+ );
+};
+
+export default AdminBulkImports;

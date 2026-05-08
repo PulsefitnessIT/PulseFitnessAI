@@ -1,0 +1,69 @@
+{
+  "summary": "Completed frontend testing of Pulse Plans section (Lite/Pro) and Upgrade CTA bug fix. All features working correctly: (1) PlansLitePro section renders between Support and FinalCTA with correct data-testid='pulse-plans-section' and id='pulse-plans', (2) Lite card (white, left) has 'PULSE FITNESS CUSTOMERS' eyebrow, 'FREE' pill, £0 price, 7 feature bullets with green checks, CTA 'Sign in to your portal' with data-testid='pulse-plan-lite-cta', (3) Pro card (cyan-highlighted, right) has 'MOST POPULAR' pill, 'AI-POWERED' eyebrow, 'Talk to us' price with subtitle, cyan 'REQUEST UPGRADE' CTA with data-testid='pulse-plan-pro-cta' that opens mailto:service.dept@pulsefitness.com, 11 feature bullets starting with 'Everything in Lite' in green, (4) Nav Plans link (data-testid='nav-plans') scrolls to #pulse-plans, (5) FinalCTA 'Upgrade to Pro' button (data-testid='pulse-final-upgrade-btn') now scrolls to #pulse-plans instead of navigating to /pricing (BUG FIXED), (6) Footnote with 'Sign in here' link (data-testid='pulse-plans-signin-link') opens login modal.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_154.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "100%"
+  },
+  "test_credentials": "lee.somers@pulsefitness.com / TempPass123! (Pulse Pro)",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pulse Plans section fully tested. Key testids: pulse-plans-section (section wrapper), pulse-plan-lite (Lite card), pulse-plan-pro (Pro card), pulse-plan-lite-cta (Lite CTA button), pulse-plan-pro-cta (Pro CTA button with mailto), nav-plans (nav link to #pulse-plans), pulse-final-upgrade-btn (FinalCTA upgrade button that scrolls to plans), pulse-plans-signin-link (footnote signin link). All existing sections still render (Hero, WhatYouCanDo, AIFeatures, HowItWorks, GamifiedExperience, MobileExperience, CustomerBenefits, Support, FinalCTA, PulseFooter). Login modal works. Theme toggle works. Homepage (/) still has Start Free Trial buttons (nav-start-trial-btn, hero-start-trial, final-start-trial) from iteration 153.",
+  "tests_executed": {
+    "pulse_plans_section": {
+      "section_renders": "PASS - data-testid='pulse-plans-section' with id='pulse-plans'",
+      "lite_card": "PASS - white card with 'PULSE FITNESS CUSTOMERS' eyebrow, 'FREE' pill, £0 price, 7 features",
+      "lite_cta": "PASS - 'Sign in to your portal' with data-testid='pulse-plan-lite-cta'",
+      "pro_card": "PASS - cyan-highlighted with 'MOST POPULAR' pill, 'AI-POWERED' eyebrow, 'Talk to us' price, 11 features",
+      "pro_cta": "PASS - 'REQUEST UPGRADE' with data-testid='pulse-plan-pro-cta', mailto handler confirmed",
+      "footnote": "PASS - correct text with 'Sign in here' link (data-testid='pulse-plans-signin-link')"
+    },
+    "nav_plans_link": {
+      "link_exists": "PASS - data-testid='nav-plans' with text 'Plans'",
+      "scroll_behavior": "PASS - clicking scrolls to #pulse-plans section"
+    },
+    "upgrade_cta_bug_fix": {
+      "button_exists": "PASS - data-testid='pulse-final-upgrade-btn' with text 'Upgrade to Pro'",
+      "no_navigation_to_pricing": "PASS - does NOT navigate to /pricing",
+      "scroll_to_plans": "PASS - scrolls smoothly to #pulse-plans section"
+    },
+    "login_modal": {
+      "header_signin_opens_modal": "PASS",
+      "footnote_signin_opens_modal": "PASS",
+      "modal_has_email_password_submit": "PASS"
+    },
+    "regression_existing_sections": {
+      "pulse-hero": "PASS",
+      "pulse-capabilities": "PASS",
+      "pulse-ai": "PASS",
+      "pulse-how": "PASS",
+      "pulse-gamified": "PASS",
+      "pulse-mobile": "PASS",
+      "pulse-benefits": "PASS",
+      "pulse-support": "PASS",
+      "pulse-final-cta": "PASS",
+      "pulse-footer": "PASS"
+    },
+    "regression_homepage_trial_buttons": {
+      "nav-start-trial-btn": "PASS",
+      "hero-start-trial": "PASS",
+      "final-start-trial": "PASS"
+    },
+    "theme_toggle": "PASS"
+  }
+}

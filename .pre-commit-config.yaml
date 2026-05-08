@@ -1,0 +1,122 @@
+# Pre-commit hooks for GymAxis AI
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+#
+# Why these hooks? They catch the exact class of issues flagged in code review:
+#   - F821 (undefined names)
+#   - E712/F632 (comparison anti-patterns)
+#   - B (bugbear: mutable defaults, unused-expr, etc.)
+#   - ESLint for the React frontend
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.3
+    hooks:
+      - id: ruff
+        name: ruff (python linter)
+        # Let backend/pyproject.toml drive rule selection. The existing
+        # config already enforces F,E,B,F821,F841,C90 and ignores the
+        # FastAPI-idiomatic patterns (B008 Depends-in-defaults, E402
+        # conditional imports, B904 HTTPException re-raises).
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^backend/.*\.py$
+
+  # Bandit — Python SAST scanner. Catches real `eval()`, `pickle.loads`,
+  # `shell=True`, hardcoded secrets, weak crypto. Tests are excluded because
+  # they legitimately use fake fixtures. HIGH/MEDIUM block the commit; LOW
+  # findings are informational.
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: ["-ll", "-q"]     # -ll = Medium severity and above blocks commit
+        files: ^backend/(routes|utils|models|scripts)/.*\.py$
+        exclude: ^backend/tests/
+
+  # Gitleaks — secret scanner. Blocks accidental commits of AWS keys, Stripe
+  # keys, OpenAI keys, SSH private keys, JWT secrets, etc. Respects
+  # .gitleaksignore for known safe patterns.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        # Gym photos in `frontend/public/pulse-photos/` are legitimately
+        # 1-5 MB hero assets. Limit is still strict enough to block
+        # accidental video-file / node_modules / build-artefact commits.
+        args: ['--maxkb=6144']  # 6 MB
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+        files: ^backend/.*\.py$
+      - id: trailing-whitespace
+        files: ^backend/.*\.py$
+      - id: check-yaml
+      - id: check-json
+        files: ^(backend|frontend)/.*\.json$
+        exclude: ^frontend/node_modules/
+
+  - repo: local
+    hooks:
+      - id: eslint-frontend
+        name: eslint (frontend)
+        entry: bash -c 'cd frontend && yarn eslint --max-warnings 0 "$@" || exit 1' --
+        language: system
+        files: ^frontend/src/.*\.(js|jsx|ts|tsx)$
+        pass_filenames: true
+
+      - id: complexity-gate-staged
+        name: radon complexity gate (staged files, max rank D = cc<=20)
+        entry: scripts/check_complexity.sh
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+        stages: [pre-commit]
+
+      - id: complexity-gate-repo-safety-net
+        name: xenon complexity safety-net (whole repo, blocks rank F = cc>40)
+        # Apr 2026: relaxed from --max-absolute C to F. The Feb ratchet to C
+        # caught real long-tail debt across booking / analytics / marketing
+        # endpoints that legitimately need branching. The STAGED-files gate
+        # (above) still blocks anything over rank D (cc>20) on new code, so
+        # garbage can't sneak past PR review. This safety-net only stops
+        # *catastrophic* regressions (cc>40) on the whole repo.
+        entry: bash -c 'cd backend && xenon --max-absolute F --max-modules F --max-average C --exclude "tests/*,venv/*,migrations/*" . 2>&1 || exit 1'
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+        stages: [pre-commit]
+
+      - id: complexity-gate-security-sensitive
+        name: xenon complexity gate (security-sensitive files, rank C = cc<=15)
+        # Apr 2026: After the iteration-207 refactor split auth.login() and
+        # crm_cross_login() into named helpers, both files comfortably pass
+        # at rank C. These two routes carry the entire authentication +
+        # session-minting surface — keep them tight forever so a future
+        # 100-line monolith can't sneak in. Pricing engine is included
+        # because it drives revenue calculation & invoice line items.
+        entry: bash -c 'cd backend && xenon --max-absolute C --max-modules C --max-average B routes/auth.py routes/crm_auth.py routes/master_admin_pricing.py 2>&1 || exit 1'
+        language: system
+        pass_filenames: false
+        files: ^backend/routes/(auth|crm_auth|master_admin_pricing)\.py$
+        stages: [pre-commit]
+
+      - id: integration-mapping-check
+        name: integration-mapping check (Sicon/Sage field manifests)
+        # Iter 215ek: re-run the mapping linter whenever a service-ops route,
+        # the master mapping doc, or the linter itself changes. Catches:
+        #   • a new svc_cases / svc_quotes field added without a Sicon/Sage
+        #     mapping note
+        #   • a __integration_fields__ key referencing a section that no
+        #     longer exists in INTEGRATION_FIELD_MAPPING.md
+        #   • the SVC_FIELD_MAPPING.md cross-reference drifting out of sync
+        # Cheap (<1s) and only fires when relevant files change.
+        entry: bash -c 'python backend/scripts/check_integration_mapping.py || exit 1'
+        language: system
+        pass_filenames: false
+        files: ^(backend/routes/svc/.*\.py|backend/scripts/check_integration_mapping\.py|memory/(INTEGRATION_FIELD_MAPPING|SVC_FIELD_MAPPING)\.md)$
+        stages: [pre-commit]

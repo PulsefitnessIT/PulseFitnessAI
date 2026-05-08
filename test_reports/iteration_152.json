@@ -1,0 +1,56 @@
+{
+  "summary": "Completed comprehensive testing of Learn More pages and mirror read receipts (supplier→gym direction). All 6 Learn More pages render correctly with dark Swiss-aesthetic theme, high-contrast white text, metrics strip, feature cards, CTA buttons, and related-modules navigation. Invalid slug redirects to home. Aliases (/learn/ai, /learn/tender, /learn/kpi) resolve correctly. Mirror read receipts working: when gym user opens issue detail, supplier-authored comments get read_at_gym stamped, and supplier case page shows 'Seen ✓✓' indicator.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_supplier_read_receipts.py",
+    "/app/backend/tests/test_supplier_attribution_fix.py",
+    "/app/test_reports/pytest/pytest_results_152.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "lee.somers@pulsefitness.com / TempPass123!",
+  "seed_data_creation": "Created test supplier comment (id: fdbdf095-dae5-4691-9734-f5d28185135f) on case 2d001f04-5628-4353-b94f-0c1b5062105c to verify read_at_gym stamping",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Learn More pages (/learn/crm, /learn/service, /learn/contracts, /learn/ai-tender-engine, /learn/kpi-engine, /learn/integrations) are working with proper testids. Mirror read receipts (supplier→gym) verified: GET /api/issues/{id} stamps read_at_gym on supplier comments, and SupplierCasePage shows 'Seen ✓✓' for read comments. Landing page dark theme enforced via data-theme='dark'. All 6 backend tests pass.",
+  "tests_executed": {
+    "learn_more_pages": {
+      "crm": "PASS - testid learn-more-page-crm, 3 metrics, 6 features, CTAs, 5 related links",
+      "service": "PASS - testid learn-more-page-service, 3 metrics, 6 features, CTAs, 5 related links",
+      "contracts": "PASS - testid learn-more-page-contracts, 3 metrics, 6 features, CTAs, 5 related links",
+      "ai-tender-engine": "PASS - testid learn-more-page-ai-tender-engine, 3 metrics, 6 features, CTAs, 5 related links",
+      "kpi-engine": "PASS - testid learn-more-page-kpi-engine, 3 metrics, 6 features, CTAs, 5 related links",
+      "integrations": "PASS - testid learn-more-page-integrations, 3 metrics, 6 features, CTAs, 5 related links"
+    },
+    "aliases": {
+      "/learn/ai": "PASS - resolves to AI Tender Engine",
+      "/learn/tender": "PASS - resolves to AI Tender Engine",
+      "/learn/kpi": "PASS - resolves to KPI Engine"
+    },
+    "invalid_slug_redirect": "PASS - /learn/nonsense redirects to /",
+    "landing_page_regression": {
+      "hero_section": "PASS",
+      "sign_in_button": "PASS",
+      "dark_theme": "PASS - data-theme='dark'",
+      "module_links": "PASS - all 6 module-link-* testids found"
+    },
+    "mirror_read_receipts": {
+      "read_at_gym_stamping": "PASS - verified via API and DB",
+      "seen_indicator_on_supplier_page": "PASS - 'Seen ✓✓' shows for read comments"
+    },
+    "backend_pytest": "6/6 PASS"
+  }
+}

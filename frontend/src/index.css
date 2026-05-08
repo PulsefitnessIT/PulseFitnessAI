@@ -1,0 +1,1589 @@
+/* De-duplicated font import — Outfit + IBM Plex Sans are already loaded via
+   public/index.html (single consolidated request). This file only adds the
+   secondary families (Manrope, Nunito, Montserrat) used inside the app, plus
+   Inter (premium body) and Satoshi (premium headings) for the new
+   `theme-gymaxis` scope rolled out from iter 215av onward. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap');
+
+/* Proxima Nova @font-face is declared in public/index.html so webpack does
+   not try to resolve the /fonts/*.otf paths at build time. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   THEME SYSTEM - CSS Custom Properties
+   ============================================================ */
+:root {
+  --theme-bg: #0A0A0A;
+  --theme-surface: #121212;
+  --theme-surface-hover: #1A1A1A;
+  /* Iter 216h — secondary/tertiary surfaces that previously hardcoded
+     `--color-ink-alt` (#0A0A0A). Now theme-aware: dark in dark mode,
+     subtle off-white in light mode so chat panels and attachment rows
+     don't bleed through. */
+  --theme-surface-2: #0A0A0A;
+  --theme-surface-3: #18181B;
+  --theme-input-bg: #1A1A1A;
+  --theme-text: #FFFFFF;
+  --theme-text-muted: #A1A1AA;
+  --theme-border: rgba(255,255,255,0.1);
+  --theme-border-soft: rgba(255,255,255,0.05);
+  --theme-glass-bg: rgba(0,0,0,0.6);
+  --theme-glass-border: rgba(255,255,255,0.1);
+  --theme-input-bg: #0A0A0A;
+  --theme-input-border: rgba(255,255,255,0.1);
+  --theme-card-shadow: none;
+  --theme-overlay: rgba(0,0,0,0.6);
+  --theme-badge-muted-bg: rgba(255,255,255,0.05);
+  --theme-badge-muted-text: #A1A1AA;
+  --theme-hover-bg: rgba(255,255,255,0.05);
+  --theme-scrollbar: #333;
+  --theme-gradient-text-from: #FFFFFF;
+  --theme-gradient-text-to: #A1A1AA;
+  /* Pulse Fitness Brand Colors */
+  --pulse-primary: #66ccff;
+  --pulse-primary-hover: #4dbfff;
+  --pulse-primary-deep: #33b8ff;     /* iter 215bw — darker shade for hover shadow / depth */
+  --rgb-pulse-primary: 102, 204, 255; /* iter 215bw — for rgba(var(...) / alpha) usage */
+  --pulse-black: #212721;
+  --pulse-grey-dark: #505759;
+  --pulse-grey-light: #A2ACAB;
+  --pulse-bg: #F8F9FA;
+  --pulse-surface: #FFFFFF;
+  --pulse-text: #212721;
+  --pulse-text-muted: #505759;
+  --pulse-text-xs: #A2ACAB;
+  --pulse-border: #E4E4E7;
+  --pulse-input-bg: #FFFFFF;
+  --pulse-hover: #F4F4F5;
+
+  /* ── DESIGN TOKENS (Iter 215f — codemod-ready CSS variables) ──
+     Mirror of /app/frontend/src/theme/tokens.js. Reference these in
+     Tailwind arbitrary variants: `bg-[var(--color-brand-cyan)]`. */
+  --color-brand-cyan:        #19CDFF;
+  --color-brand-cyan-hover:  #66CCFF;
+  --color-brand-blue:        #0055FF;
+  --color-brand-blue-hover:  #0044CC;
+  --color-brand-blue-dark:   #003DA5;
+
+  --color-ink:               #0A0C10;
+  --color-ink-alt:           #0A0A0A;
+  --color-ink-muted:         #52525B;
+  --color-text-muted:        #A1A1AA;
+  --color-text-faint:        #71717A;
+  --color-text-faint-alt:    #6B7280;
+
+  --color-paper:             #FFFFFF;
+  --color-paper-alt:         #F4F4F5;
+  --color-border:            #E4E4E7;
+  --color-border-alt:        #E5E7EB;
+  --color-border-strong:     #D4D4D8;
+
+  --color-surface-dark:      #0A0A0A;
+  --color-surface-dark-alt:  #121212;
+  --color-surface-darker:    #05070A;
+  --color-surface-dark-panel:    #1F1F1F;
+  --color-surface-dark-panel-alt:#1B1D1D;
+
+  --color-success:           #10B981;
+  --color-success-alt:       #34C759;
+  --color-warning:           #F59E0B;
+  --color-warning-alt:       #FBBF24;
+  --color-danger:            #EF4444;
+  --color-danger-alt:        #FF3B30;
+  --color-info:              #3B82F6;
+  --color-info-ios:          #007AFF;
+
+  --color-accent-purple:     #9966FF;
+  --color-accent-indigo:     #5856D6;
+  --color-accent-violet:     #8B5CF6;
+  --color-accent-magenta:    #AF52DE;
+  --color-accent-amber:      #FF9500;
+
+  /* Additional neutrals surfaced during codemod */
+  --color-white:             #FFFFFF;
+  --color-neutral-50:        #FAFAFA;
+  --color-neutral-100:       #F3F4F6;
+  --color-neutral-900:       #171717;
+  --color-neutral-950:       #0F0F0F;
+  --color-surface-dark-1:    #141414;
+  --color-surface-dark-2:    #1A1A1A;
+  --color-surface-dark-3:    #262626;
+  --color-text-slate:        #6E7476;
+  --color-brand-cyan-light:  #4dbfff;
+  --color-brand-cyan-deep:   #0DB8E8;
+  --color-brand-blue-deep:   #005BB5;
+  --color-blue-600:          #2563EB;
+
+  --color-success-alt-2:     #22C55E;
+  --color-success-light:     #34D399;
+  --color-warning-alt:       #FBBF24;
+  --color-orange:            #F97316;
+  --color-yellow:            #EAB308;
+  --color-neutral-25:        #F8F9FA;
+  --color-neutral-950-alt:   #18181B;
+  --color-ink-deep:          #0F1419;
+  --color-info-bg:           #EFF6FF;
+  --color-border-light:      #E0E0E0;
+
+  /* Iter 215h — long-tail one-off colours promoted to tokens */
+  --color-brand-blue-alt:    #3377FF;
+  --color-brand-blue-alt2:   #0044DD;
+  --color-rose:              #F43F5E;
+  --color-rose-50:           #FEF2F2;
+  --color-neutral-400:       #A3A3A3;
+  --color-neutral-400-alt:   #9CA3AF;
+  --color-neutral-600:       #525252;
+  --color-neutral-700:       #393E41;
+  --color-neutral-75:        #F5F5F5;
+  --color-neutral-25-alt:    #F9FAFB;
+  --color-slate-400:         #94A3B8;
+  --color-cyan-500:          #06B6D4;
+  --color-gold:              #FFD700;
+  --color-bronze:            #CD7F32;
+  --color-silver:            #C0C0C0;
+  --color-teal-500:          #14B8A6;
+  --color-teal-deep:         #0A6F8C;
+  --color-navy-800:          #1E3A5F;
+  --color-navy-900:          #1A2332;
+  --color-ink-2:             #0A0B10;
+  --color-ink-navy:          #1A1A2E;
+  --color-ink-coal:          #0D1117;
+  --color-ink-coal-alt:      #1A1D23;
+  --color-blue-50:           #F0F7FF;
+  --color-blue-100:          #DBEAFE;
+  --color-blue-200:          #BFDBFE;
+  --color-violet-400:        #A78BFA;
+  --color-violet-600:        #7C3AED;
+  --color-pulse-black:       #212721;
+  --color-dark-panel-3:      #2B2E30;
+  --color-surface-dark-4:    #2A2A2A;
+  --color-pink:              #FF66CC;
+  --color-orange-warm:       #FF6633;
+  --color-neutral-10:        #F9F9F9;
+  --color-success-ios:       #30D158;
+  --color-ink-midnight:      #0B0F14;
+  --color-navy-950:          #0A1628;
+  --color-emerald-dark:      #062B21;
+  --color-blue-500:          #0088FF;
+
+  /* ── CHANNEL tokens for alpha-variant usage (Iter 215g) ──
+     Space-separated RGB channels. Use with Tailwind's arbitrary
+     variant + slash syntax:
+         bg-[rgb(var(--rgb-brand-cyan)/0.1)]
+         border-[rgb(var(--rgb-brand-blue)/0.3)]
+     These replace the legacy `bg-[#19CDFF]/10` pattern that can't be
+     centralised through CSS variables (Tailwind's slash-opacity syntax
+     only operates on real colour values, not `var(--foo)`). */
+  --rgb-brand-cyan:          25 205 255;
+  --rgb-brand-cyan-hover:    102 204 255;
+  --rgb-brand-blue:          0 85 255;
+  --rgb-brand-blue-hover:    0 68 204;
+  --rgb-ink:                 10 12 16;
+  --rgb-ink-alt:             10 10 10;
+  --rgb-text-muted:          161 161 170;
+  --rgb-success:             16 185 129;
+  --rgb-success-alt:         52 199 89;
+  --rgb-warning:             245 158 11;
+  --rgb-danger:              239 68 68;
+  --rgb-danger-alt:          255 59 48;
+  --rgb-info-ios:            0 122 255;
+  --rgb-accent-purple:       153 102 255;
+}
+
+[data-theme="light"] {
+  --theme-bg: #F5F5F7;
+  --theme-surface: #FFFFFF;
+  --theme-surface-hover: #F4F4F5;
+  /* Iter 216h — light overrides for the new secondary surface vars. */
+  --theme-surface-2: #F4F4F5;
+  --theme-surface-3: #FAFAFA;
+  --theme-text: #18181B;
+  --theme-text-muted: #52525B;
+  --theme-border: #C4C4CC;
+  --theme-border-soft: #E4E4E7;
+  --theme-glass-bg: rgba(255,255,255,0.85);
+  --theme-glass-border: #C4C4CC;
+  --theme-input-bg: #FFFFFF;
+  --theme-input-border: #A1A1AA;
+  --theme-card-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --theme-overlay: rgba(0,0,0,0.3);
+  --theme-badge-muted-bg: #F4F4F5;
+  --theme-badge-muted-text: #52525B;
+  --theme-hover-bg: #F4F4F5;
+  --theme-scrollbar: #D4D4D8;
+  --theme-gradient-text-from: #18181B;
+  --theme-gradient-text-to: #52525B;
+  /* Pulse in light mode */
+  --pulse-bg: #F8F9FA;
+  --pulse-surface: #FFFFFF;
+  --pulse-text: #212721;
+  --pulse-text-muted: #505759;
+  --pulse-text-xs: #A2ACAB;
+  --pulse-border: #B4B4BC;
+  --pulse-input-bg: #FFFFFF;
+  --pulse-hover: #F4F4F5;
+
+  /* Iter 216i — make legacy ink tokens theme-aware in light mode.
+     `--color-ink-alt` was hardcoded to #0A0A0A and littered across
+     dialogs (input chrome, badges, hazard rows) which caused massive
+     dark-mode bleed in light theme (Risk Assessment dialog inputs went
+     black). Override here so any historical reference to the token
+     resolves to a sensible light surface without rewriting every page. */
+  --color-ink-alt: #F4F4F5;
+  --color-ink: #18181B;
+}
+
+/* Iter 216j — Dark-mode bleed sweep.
+   Many components were authored for dark mode only and use Tailwind
+   utilities like `bg-zinc-900`, `bg-white/10`, `border-white/10` and
+   `divide-white/5` directly. In light mode these render as black panels
+   with invisible 10%-white borders, causing the "dark blocks on a white
+   page" bleed reported across the Risk Assessment, Site Modules and
+   Operations dialogs.
+
+   Rather than rewriting ~85 files (high regression risk), we override
+   these utility classes in light mode to map onto the theme tokens.
+   Components that genuinely want a dark island in light mode opt out by
+   wrapping themselves in `[data-theme="dark"]` (already done for the
+   marketing pages). */
+[data-theme="light"] .bg-zinc-900,
+[data-theme="light"] .bg-zinc-950,
+[data-theme="light"] .bg-\[\#0A0A0A\],
+[data-theme="light"] .bg-\[\#0a0a0a\],
+[data-theme="light"] .bg-\[\#121212\],
+[data-theme="light"] .bg-\[\#18181B\],
+[data-theme="light"] .bg-\[\#18181b\] {
+  background-color: var(--theme-surface) !important;
+}
+
+[data-theme="light"] .bg-zinc-800 {
+  background-color: var(--theme-surface-2) !important;
+}
+
+[data-theme="light"] .bg-white\/5,
+[data-theme="light"] .bg-white\/10,
+[data-theme="light"] .bg-white\/\[0\.02\],
+[data-theme="light"] .bg-white\/\[0\.04\],
+[data-theme="light"] .bg-white\/\[0\.05\],
+[data-theme="light"] .hover\:bg-white\/5:hover,
+[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: var(--theme-hover-bg) !important;
+}
+
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/20,
+[data-theme="light"] .hover\:border-white\/20:hover {
+  border-color: var(--theme-border) !important;
+}
+
+[data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+[data-theme="light"] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--theme-border-soft) !important;
+}
+
+/* `text-white` is intentionally NOT overridden globally — many CTAs sit
+   on hard-coloured backgrounds (blue, brand, success) where white text
+   is correct in both themes. We do override `text-white` ONLY when it
+   sits inside a container that was previously dark (now neutralised
+   above) — that catches the "card title becomes invisible white-on-
+   white" bleed without breaking buttons whose own className supplies
+   the background. */
+[data-theme="light"] .bg-zinc-900 .text-white,
+[data-theme="light"] .bg-zinc-800 .text-white,
+[data-theme="light"] .bg-zinc-950 .text-white,
+[data-theme="light"] .bg-\[\#0A0A0A\] .text-white,
+[data-theme="light"] .bg-\[\#0a0a0a\] .text-white,
+[data-theme="light"] .bg-\[\#121212\] .text-white,
+[data-theme="light"] .bg-\[\#18181B\] .text-white,
+[data-theme="light"] .bg-\[\#18181b\] .text-white,
+[data-theme="light"] .bg-\[var\(--theme-surface\)\] .text-white {
+  color: var(--theme-text) !important;
+}
+
+[data-theme="light"] .bg-zinc-900 .text-\[\#A1A1AA\],
+[data-theme="light"] .bg-zinc-800 .text-\[\#A1A1AA\],
+[data-theme="light"] .bg-\[\#121212\] .text-\[\#A1A1AA\],
+[data-theme="light"] .text-\[\#A1A1AA\] {
+  color: var(--theme-text-muted) !important;
+}
+
+[data-theme="dark"] {
+  /* Reset theme vars to the dark defaults so inner dark islands keep their
+     intended palette even when the outer `<html>` carries data-theme="light"
+     (e.g. user toggled CRM to light mode, then opened the marketing page). */
+  --theme-bg: #0A0A0A;
+  --theme-surface: #121212;
+  --theme-surface-hover: #1A1A1A;
+  --theme-surface-2: #0A0A0A;
+  --theme-surface-3: #18181B;
+  --theme-text: #FFFFFF;
+  --theme-text-muted: #A1A1AA;
+  --theme-border: rgba(255,255,255,0.1);
+  --theme-border-soft: rgba(255,255,255,0.05);
+  --theme-glass-bg: rgba(0,0,0,0.6);
+  --theme-glass-border: rgba(255,255,255,0.1);
+  --theme-input-bg: #0A0A0A;
+  --theme-input-border: rgba(255,255,255,0.1);
+  --theme-hover-bg: rgba(255,255,255,0.05);
+  --theme-gradient-text-from: #FFFFFF;
+  --theme-gradient-text-to: #A1A1AA;
+  /* Pulse in dark mode */
+  --pulse-primary: #66ccff;
+  --pulse-primary-hover: #4dbfff;
+  --pulse-black: #212721;
+  --pulse-bg: #0A0A0A;
+  --pulse-surface: #121212;
+  --pulse-text: #FAFAFA;
+  --pulse-text-muted: #A2ACAB;
+  --pulse-text-xs: #71717A;
+  --pulse-border: rgba(255,255,255,0.1);
+  --pulse-input-bg: #0A0A0A;
+  --pulse-hover: rgba(255,255,255,0.05);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    background: var(--theme-bg);
+    color: var(--theme-text-muted);
+    -webkit-font-smoothing: antialiased;
+    font-family: 'Manrope', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    /* Iter 215ak — prevent accidental horizontal scroll on mobile when a
+       deep child overflows slightly (e.g. fixed-width inputs). Inner
+       scroll containers can still use overflow-x: auto to show their
+       own horizontal scrollbar. */
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+/* ============================================================
+   TYPOGRAPHY HIERARCHY — subtle volume control
+   Gives h1/h2/body/muted a clear read order without breaking
+   existing text-white / text-zinc-* classes.
+   ============================================================ */
+/* Dark mode (default): pure white h1, 90% h2, 70% body, 50% muted */
+.type-h1 { color: #FFFFFF; letter-spacing: -0.015em; }
+.type-h2 { color: rgba(255, 255, 255, 0.92); }
+.type-body { color: rgba(255, 255, 255, 0.72); }
+.type-muted { color: rgba(255, 255, 255, 0.48); }
+/* Light mode overrides (triggered by data-theme="light" OR Pulse light context) */
+[data-theme="light"] .type-h1,
+[data-portal="pulse"]:not([data-theme="dark"]) .type-h1 {
+  color: #18181B; letter-spacing: -0.015em;
+}
+[data-theme="light"] .type-h2,
+[data-portal="pulse"]:not([data-theme="dark"]) .type-h2 {
+  color: #3F3F46;
+}
+[data-theme="light"] .type-body,
+[data-portal="pulse"]:not([data-theme="dark"]) .type-body {
+  color: #52525B;
+}
+[data-theme="light"] .type-muted,
+[data-portal="pulse"]:not([data-theme="dark"]) .type-muted {
+  color: #A1A1AA;
+}
+
+/* Pulse Fitness brand font classes */
+.pulse-font-heading {
+  font-family: 'Nunito', 'MaaxRounded', 'Varela Round', sans-serif;
+}
+.pulse-font-body {
+  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+}
+
+/* ============================================================
+   GymAxis · Button Design System
+   Single source of truth for every action button in the app.
+   - Sizes:  default = h-9  ·  sm = h-8
+   - Shape:  pill (rounded-full) — matches module switcher / tab bars
+   - Variants: primary (filled cyan), secondary (outline), ghost (text-only)
+   - Icon-only: btn-icon — square 36x36 with same chrome as secondary
+   Use cases: dashboard toolbars, drawer footers, list-row actions, modals.
+   Buttons inside data-tables / popovers may use btn-sm to stay compact.
+   ============================================================ */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem; /* 36px */
+  padding: 0 0.875rem; /* 14px horizontal */
+  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease, opacity 120ms ease;
+  user-select: none;
+}
+.btn-sm {
+  height: 2rem; /* 32px */
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+}
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary — solid cyan, dark text. Use for the "main" CTA on a screen. */
+.btn-primary {
+  background: #19CDFF;
+  color: #0A0C10;
+  border-color: #19CDFF;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #4DDBFF;
+  border-color: #4DDBFF;
+}
+
+/* Secondary — outlined, themeable. Use for "second" actions on a screen. */
+.btn-secondary {
+  background: transparent;
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--theme-surface);
+}
+
+/* Ghost — text only, no border. Use sparingly for tertiary actions. */
+.btn-ghost {
+  background: transparent;
+  color: var(--theme-text-muted);
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--theme-text);
+  background: var(--theme-surface);
+}
+
+/* Icon-only square — for settings / bell / kebab buttons in toolbars. */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--theme-border);
+  background: transparent;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.btn-icon:hover:not(:disabled) {
+  color: var(--theme-text);
+  background: var(--theme-surface);
+}
+
+/* Sub-tab pill row — same visual chrome as the main module/tab bars,
+   smaller scale. Used for views like Reactive ↔ PPM, Diary ↔ Setup. */
+.subtab-bar {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+}
+.subtab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2rem;
+  padding: 0 1rem;
+  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  color: var(--theme-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.subtab-pill[data-active="true"],
+.subtab-pill.is-active {
+  background: #19CDFF;
+  color: #0A0C10;
+}
+.subtab-pill:hover:not([data-active="true"]):not(.is-active) {
+  color: var(--theme-text);
+}
+
+/* Pill tab bar — canonical outer wrapper for the main module/tab rows
+   (Memberships, CRM, Marketing, Operations). Uses a CSS mask to fade
+   the left/right edges so users see there's more content when the row
+   scrolls horizontally. The inner flex track uses .pill-tab-bar__track
+   for the actual scrolling. */
+.pill-tab-bar {
+  position: relative;
+  border-radius: 9999px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+}
+.pill-tab-bar__track {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  /* Fade the outer 24px at each edge so clipped pills gain a visual cue.
+     The mask is only active when the track is actually scrollable — we
+     toggle `data-scrollable` via JS. */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+.pill-tab-bar__track::-webkit-scrollbar { display: none; }
+.pill-tab-bar__track:not([data-scrollable="true"]) {
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+
+/* Chevron affordances — rendered only when track is scrollable. */
+.pill-tab-bar__chev {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.pill-tab-bar__chev[data-show="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.pill-tab-bar__chev:hover { color: var(--theme-text); background: var(--theme-bg); }
+.pill-tab-bar__chev--left  { left: -0.5rem; }
+.pill-tab-bar__chev--right { right: -0.5rem; }
+
+
+
+/* Apply Pulse fonts when on Pulse portal */
+[data-portal="pulse"] {
+  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+}
+[data-portal="pulse"] h1,
+[data-portal="pulse"] h2,
+[data-portal="pulse"] h3,
+[data-portal="pulse"] h4 {
+  font-family: 'Nunito', 'MaaxRounded', 'Varela Round', sans-serif;
+}
+
+/* ============================================================
+   LIGHT MODE OVERRIDES for Main App (dark → light)
+   ============================================================ */
+
+/* --- Backgrounds --- */
+[data-theme="light"] .bg-\[\#0A0A0A\] {
+  background-color: var(--theme-bg) !important;
+}
+[data-theme="light"] .bg-\[\#121212\] {
+  background-color: var(--theme-surface) !important;
+  box-shadow: var(--theme-card-shadow) !important;
+}
+[data-theme="light"] .bg-\[\#1A1A1A\] {
+  background-color: var(--theme-surface-hover) !important;
+}
+
+/* --- Text --- */
+[data-theme="light"] .text-white {
+  color: var(--theme-text) !important;
+}
+/* Preserve white text on colored / action backgrounds */
+[data-theme="light"] .bg-\[\#66ccff\].text-white,
+[data-theme="light"] .bg-\[\#66ccff\] .text-white,
+[data-theme="light"] .bg-\[\#4dbfff\].text-white,
+[data-theme="light"] .bg-\[\#4dbfff\] .text-white,
+[data-theme="light"] .bg-\[\#0055FF\].text-white,
+[data-theme="light"] .bg-\[\#0055FF\] .text-white,
+[data-theme="light"] .bg-blue-600.text-white,
+[data-theme="light"] .bg-blue-600 .text-white,
+[data-theme="light"] .bg-green-600.text-white,
+[data-theme="light"] .bg-green-600 .text-white,
+[data-theme="light"] .bg-red-600.text-white,
+[data-theme="light"] .bg-red-600 .text-white,
+[data-theme="light"] .bg-amber-600.text-white,
+[data-theme="light"] .bg-amber-600 .text-white,
+[data-theme="light"] .bg-zinc-900.text-white,
+[data-theme="light"] .bg-zinc-900 .text-white,
+[data-theme="light"] .bg-zinc-800.text-white,
+[data-theme="light"] .bg-zinc-800 .text-white,
+[data-theme="light"] [style*="background: #66ccff"] .text-white,
+[data-theme="light"] [style*="background: #0055FF"] .text-white,
+[data-theme="light"] [style*="background: rgb(102, 204, 255)"] .text-white,
+[data-theme="light"] [style*="background: rgb(0, 85, 255)"] .text-white {
+  color: #FFFFFF !important;
+}
+/* Keep white on inline-styled colored pill tabs */
+[data-theme="light"] [style*="background: #0055FF"].text-white,
+[data-theme="light"] [style*="background: #66ccff"].text-white {
+  color: #FFFFFF !important;
+}
+[data-theme="light"] .text-\[\#A1A1AA\] {
+  color: var(--theme-text-muted) !important;
+}
+[data-theme="light"] .text-gradient {
+  background: linear-gradient(to right, var(--theme-gradient-text-from), var(--theme-gradient-text-to)) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Navbar text */
+[data-theme="light"] nav.glass a.text-\[\#A1A1AA\] {
+  color: var(--theme-text-muted) !important;
+}
+[data-theme="light"] nav.glass a.text-\[\#A1A1AA\]:hover {
+  color: var(--theme-text) !important;
+}
+[data-theme="light"] nav.glass .text-white {
+  color: var(--theme-text) !important;
+}
+/* Keep white text on blue buttons in the nav */
+[data-theme="light"] nav.glass button[class*="bg-\[#0055FF"] {
+  color: #FFFFFF !important;
+}
+[data-theme="light"] nav.glass [style*="background"] .text-white,
+[data-theme="light"] nav.glass button[style*="background"] {
+  color: #FFFFFF !important;
+}
+
+/* --- Borders --- */
+[data-theme="light"] .border-white\/10 {
+  border-color: var(--theme-border) !important;
+}
+[data-theme="light"] .border-white\/20 {
+  border-color: #D4D4D8 !important;
+}
+
+/* --- Glass effect --- */
+[data-theme="light"] .glass {
+  background: var(--theme-glass-bg) !important;
+  backdrop-filter: blur(24px) !important;
+  border-color: var(--theme-glass-border) !important;
+}
+
+/* --- Inputs --- */
+[data-theme="light"] .bg-\[\#0A0A0A\].border-white\/10 {
+  background-color: var(--theme-input-bg) !important;
+  border-color: var(--theme-input-border) !important;
+  color: var(--theme-text) !important;
+}
+[data-theme="light"] input.bg-\[\#0A0A0A\],
+[data-theme="light"] textarea.bg-\[\#0A0A0A\],
+[data-theme="light"] select.bg-\[\#0A0A0A\] {
+  background-color: var(--theme-input-bg) !important;
+  border-color: var(--theme-input-border) !important;
+  color: var(--theme-text) !important;
+}
+/* Darken all input/select/textarea borders in light mode */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select,
+[data-theme="light"] [role="combobox"] {
+  border-color: var(--theme-input-border) !important;
+}
+[data-theme="light"] .border-zinc-200 {
+  border-color: #B4B4BC !important;
+}
+[data-theme="light"] .border-zinc-100 {
+  border-color: #D4D4D8 !important;
+}
+
+/* --- Hover states --- */
+[data-theme="light"] .hover\:bg-white\/5:hover {
+  background-color: var(--theme-hover-bg) !important;
+}
+
+/* --- Dialogs & Dropdowns --- */
+[data-theme="light"] [role="dialog"] .bg-\[\#121212\],
+[data-theme="light"] [data-testid="auth-dialog"].bg-\[\#121212\] {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+}
+[data-theme="light"] [data-testid="user-dropdown-menu"],
+[data-theme="light"] [data-testid="lang-dropdown"] {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+}
+[data-theme="light"] [data-testid="user-dropdown-menu"] .text-\[\#A1A1AA\],
+[data-theme="light"] [data-testid="lang-dropdown"] .text-\[\#A1A1AA\] {
+  color: var(--theme-text-muted) !important;
+}
+
+/* --- Dashboard Tabs --- */
+[data-theme="light"] [data-testid="dashboard-tabs"] {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+}
+
+/* --- Cards/Sections general --- */
+[data-theme="light"] .bg-white\/5 {
+  background-color: var(--theme-hover-bg) !important;
+}
+[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(0,0,0,0.04) !important;
+}
+
+/* --- Markdown content --- */
+[data-theme="light"] .markdown-content h2,
+[data-theme="light"] .markdown-content h3,
+[data-theme="light"] .markdown-content strong {
+  color: var(--theme-text) !important;
+}
+[data-theme="light"] .markdown-content p,
+[data-theme="light"] .markdown-content li {
+  color: var(--theme-text-muted) !important;
+}
+
+/* --- Footer --- */
+[data-theme="light"] footer.bg-\[\#121212\] {
+  background-color: var(--theme-surface) !important;
+}
+[data-theme="light"] footer .text-white {
+  color: var(--theme-text) !important;
+}
+[data-theme="light"] footer .text-\[\#A1A1AA\] {
+  color: var(--theme-text-muted) !important;
+}
+
+/* --- Select/Popover content (shadcn) --- */
+[data-theme="light"] [data-radix-popper-content-wrapper] > div {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+}
+[data-theme="light"] [role="option"]:hover {
+  background-color: var(--theme-hover-bg) !important;
+}
+
+/* --- App root --- */
+[data-theme="light"] .App {
+  background: var(--theme-bg) !important;
+}
+
+/* --- Mobile menu --- */
+[data-theme="light"] [data-testid="mobile-menu"] {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+}
+
+/* --- Master Admin --- */
+[data-theme="light"] .bg-\[\#0D0D0D\] {
+  background-color: var(--theme-bg) !important;
+}
+[data-theme="light"] .bg-\[\#111\],
+[data-theme="light"] .bg-\[\#111111\] {
+  background-color: var(--theme-surface) !important;
+}
+
+/* ============================================================
+   CRM MODULE — LIGHT MODE OVERRIDES
+   Remap hardcoded CRM dark-mode Tailwind classes for light theme
+   ============================================================ */
+[data-theme="light"] .bg-\[\#171717\] {
+  background-color: var(--theme-surface) !important;
+  box-shadow: var(--theme-card-shadow) !important;
+}
+[data-theme="light"] .border-\[\#262626\] {
+  border-color: var(--theme-border) !important;
+}
+[data-theme="light"] .border-dashed.border-\[\#262626\] {
+  border-color: var(--theme-border) !important;
+}
+[data-theme="light"] .text-\[\#A3A3A3\] {
+  color: var(--theme-text-muted) !important;
+}
+[data-theme="light"] .text-\[\#525252\] {
+  color: #71717A !important;
+}
+[data-theme="light"] .text-\[\#FAFAFA\] {
+  color: var(--theme-text) !important;
+}
+[data-theme="light"] .placeholder-\[\#525252\]::placeholder {
+  color: #A1A1AA !important;
+}
+[data-theme="light"] .hover\:bg-\[\#262626\]\/50:hover {
+  background-color: var(--theme-hover-bg) !important;
+}
+[data-theme="light"] .hover\:border-\[\#525252\]:hover {
+  border-color: var(--theme-text-muted) !important;
+}
+[data-theme="light"] .hover\:text-white:hover {
+  color: var(--theme-text) !important;
+}
+[data-theme="light"] .hover\:bg-\[\#171717\]:hover {
+  background-color: var(--theme-hover-bg) !important;
+}
+/* Preserve white text on CRM coloured action buttons */
+[data-theme="light"] .bg-\[\#007AFF\].text-white,
+[data-theme="light"] .bg-\[\#007AFF\] .text-white,
+[data-theme="light"] .bg-\[\#005BB5\].text-white,
+[data-theme="light"] .bg-\[\#34C759\].text-white,
+[data-theme="light"] .bg-\[\#34C759\] .text-white,
+[data-theme="light"] .bg-\[\#2CA048\].text-white,
+[data-theme="light"] .bg-\[\#AF52DE\].text-white,
+[data-theme="light"] .bg-\[\#AF52DE\] .text-white,
+[data-theme="light"] .bg-\[\#9B3DC8\].text-white,
+[data-theme="light"] .bg-\[\#FF9500\].text-white,
+[data-theme="light"] .bg-\[\#FF9500\] .text-white,
+[data-theme="light"] .bg-\[\#E08600\].text-white,
+[data-theme="light"] .bg-\[\#FF3B30\].text-white,
+[data-theme="light"] .bg-\[\#FF3B30\] .text-white {
+  color: #FFFFFF !important;
+}
+/* Keep red hover on CRM logout */
+[data-theme="light"] .hover\:text-\[\#FF3B30\]:hover {
+  color: #FF3B30 !important;
+}
+/* CRM inputs with #171717 bg */
+[data-theme="light"] input.bg-\[\#171717\],
+[data-theme="light"] textarea.bg-\[\#171717\],
+[data-theme="light"] select.bg-\[\#171717\] {
+  background-color: var(--theme-input-bg) !important;
+  color: var(--theme-text) !important;
+}
+
+/* ============================================================
+   DARK MODE OVERRIDES for Pulse Portal (light → dark)
+   ============================================================ */
+
+/* Scoped to the Pulse dashboard */
+[data-theme="dark"] [data-testid="lite-dashboard"] {
+  background-color: var(--pulse-bg) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] header {
+  background-color: var(--pulse-surface) !important;
+  border-color: var(--pulse-border) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] nav {
+  background-color: var(--pulse-surface) !important;
+  border-color: var(--pulse-border) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] footer {
+  border-color: var(--pulse-border) !important;
+  color: var(--pulse-text-xs) !important;
+}
+
+/* Pulse Cards */
+[data-theme="dark"] [data-testid="lite-dashboard"] .bg-white {
+  background-color: var(--pulse-surface) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .bg-\[\#F8F9FA\] {
+  background-color: var(--pulse-bg) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .border-zinc-200 {
+  border-color: var(--pulse-border) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .border-zinc-100 {
+  border-color: var(--pulse-border) !important;
+}
+
+/* Pulse Text */
+[data-theme="dark"] [data-testid="lite-dashboard"] .text-zinc-900 {
+  color: var(--pulse-text) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .text-zinc-700 {
+  color: #D4D4D8 !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .text-zinc-600 {
+  color: #A1A1AA !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .text-zinc-500 {
+  color: var(--pulse-text-muted) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .text-zinc-400 {
+  color: var(--pulse-text-xs) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .text-zinc-300 {
+  color: #52525B !important;
+}
+
+/* Pulse Inputs */
+[data-theme="dark"] [data-testid="lite-dashboard"] input,
+[data-theme="dark"] [data-testid="lite-dashboard"] textarea,
+[data-theme="dark"] [data-testid="lite-dashboard"] select {
+  background-color: var(--pulse-input-bg) !important;
+  border-color: var(--pulse-border) !important;
+  color: var(--pulse-text) !important;
+}
+
+/* Pulse hover states */
+[data-theme="dark"] [data-testid="lite-dashboard"] .hover\:bg-zinc-50:hover {
+  background-color: var(--pulse-hover) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .bg-zinc-50 {
+  background-color: rgba(255,255,255,0.05) !important;
+}
+[data-theme="dark"] [data-testid="lite-dashboard"] .bg-zinc-100 {
+  background-color: rgba(255,255,255,0.08) !important;
+}
+
+/* Pulse dividers */
+[data-theme="dark"] [data-testid="lite-dashboard"] .divide-zinc-50 > :not([hidden]) ~ :not([hidden]),
+[data-theme="dark"] [data-testid="lite-dashboard"] .divide-zinc-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--pulse-border) !important;
+}
+
+/* Pulse Dialogs */
+[data-theme="dark"] [data-testid="lite-dashboard"] [role="dialog"] > div {
+  background-color: var(--pulse-surface) !important;
+  border-color: var(--pulse-border) !important;
+  color: var(--pulse-text) !important;
+}
+
+/* Pulse select dropdowns */
+[data-theme="dark"] [data-testid="lite-dashboard"] [data-radix-popper-content-wrapper] > div {
+  background-color: var(--pulse-surface) !important;
+  border-color: var(--pulse-border) !important;
+}
+
+/* Pulse landing page dark mode */
+[data-theme="dark"] [data-testid="pulse-landing-page"] {
+  background-color: var(--pulse-bg) !important;
+}
+[data-theme="dark"] [data-testid="pulse-landing-page"] .bg-white {
+  background-color: var(--pulse-surface) !important;
+}
+[data-theme="dark"] [data-testid="pulse-landing-page"] .text-zinc-900,
+[data-theme="dark"] [data-testid="pulse-landing-page"] h2,
+[data-theme="dark"] [data-testid="pulse-landing-page"] h3 {
+  color: var(--pulse-text) !important;
+}
+[data-theme="dark"] [data-testid="pulse-landing-page"] .text-zinc-500,
+[data-theme="dark"] [data-testid="pulse-landing-page"] .text-zinc-600 {
+  color: var(--pulse-text-muted) !important;
+}
+[data-theme="dark"] [data-testid="pulse-landing-page"] .border-zinc-200 {
+  border-color: var(--pulse-border) !important;
+}
+[data-theme="dark"] [data-testid="pulse-landing-page"] [data-testid="pulse-login-modal"] {
+  background-color: var(--pulse-surface) !important;
+}
+
+/* Pulse upgrade page dark mode */
+[data-theme="dark"] [data-testid="pulse-upgrade-page"] .bg-white {
+  background-color: var(--pulse-surface) !important;
+}
+[data-theme="dark"] [data-testid="pulse-upgrade-page"] .text-zinc-900 {
+  color: var(--pulse-text) !important;
+}
+[data-theme="dark"] [data-testid="pulse-upgrade-page"] .text-zinc-700 {
+  color: #D4D4D8 !important;
+}
+[data-theme="dark"] [data-testid="pulse-upgrade-page"] .text-zinc-500 {
+  color: var(--pulse-text-muted) !important;
+}
+[data-theme="dark"] [data-testid="pulse-upgrade-page"] .border-zinc-200 {
+  border-color: var(--pulse-border) !important;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, var(--theme-gradient-text-from), var(--theme-gradient-text-to));
+  }
+  
+  .ai-glow {
+    box-shadow: 0 0 15px rgba(0, 85, 255, 0.3);
+  }
+  
+  .glass {
+    background: var(--theme-glass-bg);
+    backdrop-filter: blur(24px);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================
+   THEME-PROOF SECTIONS (hero, CTA - always dark bg + white text)
+   ============================================================ */
+[data-theme="light"] [data-hero-section] h1,
+[data-theme="light"] [data-hero-section] p.text-white,
+[data-theme="light"] [data-hero-section] span.text-white,
+[data-theme="light"] [data-hero-section] h1.text-white,
+[data-theme="light"] [data-hero-section] button.text-white,
+[data-theme="light"] [data-hero-section] .text-white {
+  color: #FFFFFF !important;
+}
+[data-theme="light"] [data-hero-section] .text-\[\#A1A1AA\] {
+  color: #A1A1AA !important;
+}
+[data-theme="light"] [data-hero-section] .border-white\/30 {
+  border-color: rgba(255,255,255,0.3) !important;
+}
+[data-theme="light"] [data-hero-section] .border-white\/20 {
+  border-color: rgba(255,255,255,0.2) !important;
+}
+[data-theme="light"] [data-hero-section] .border-white\/10 {
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+/* Pulse hero section — preserve white text in light mode */
+[data-theme="light"] [data-testid="pulse-hero-section"] .text-white,
+[data-theme="light"] [data-testid="pulse-hero-section"] .text-white\/90 {
+  color: #FFFFFF !important;
+}
+[data-theme="light"] [data-testid="pulse-hero-section"] .border-white\/25 {
+  border-color: rgba(255,255,255,0.25) !important;
+}
+[data-theme="light"] [data-testid="pulse-hero-section"] .bg-white\/15 {
+  background-color: rgba(255,255,255,0.15) !important;
+}
+
+/* ============================================================
+   THEME TOGGLE ANIMATION
+   ============================================================ */
+.theme-toggle-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.theme-toggle-btn:hover {
+  background: var(--theme-hover-bg);
+  border-color: var(--theme-text-muted);
+}
+.theme-toggle-btn svg {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Smooth transition for themed elements */
+.App,
+header,
+nav,
+footer,
+main,
+[role="dialog"] > div {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+
+/* ============================================================
+   DARK-THEME CASCADE GUARDS (marketing + any dark-theme island)
+   ============================================================
+   Problem: `[data-theme="light"] .text-white { ... !important }` above
+   matches ANY `.text-white` that has an ancestor with data-theme="light".
+   The landing pages wrap themselves in `<div data-theme="dark">` but the
+   OUTER `<html>` may still carry `data-theme="light"` (user visited CRM
+   or Master Admin earlier → localStorage persisted → HTML node inherits).
+   Both selectors match; source order decides. These rules are PLACED LAST
+   ON PURPOSE so the dark wrapper ALWAYS wins, regardless of the ancestral
+   html[data-theme].
+
+   Scope: anything nested inside a `[data-theme="dark"]` element. The
+   selectors use the same specificity as the light-theme block so the
+   `!important` source-order tiebreaker applies.
+   ============================================================ */
+
+[data-theme="dark"] .text-white { color: #FFFFFF !important; }
+[data-theme="dark"] .text-white\/95 { color: rgba(255,255,255,0.95) !important; }
+[data-theme="dark"] .text-white\/90 { color: rgba(255,255,255,0.9) !important; }
+[data-theme="dark"] .text-white\/85 { color: rgba(255,255,255,0.85) !important; }
+[data-theme="dark"] .text-white\/80 { color: rgba(255,255,255,0.8) !important; }
+[data-theme="dark"] .text-white\/75 { color: rgba(255,255,255,0.75) !important; }
+[data-theme="dark"] .text-white\/70 { color: rgba(255,255,255,0.7) !important; }
+[data-theme="dark"] .text-white\/65 { color: rgba(255,255,255,0.65) !important; }
+[data-theme="dark"] .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
+[data-theme="dark"] .text-white\/55 { color: rgba(255,255,255,0.55) !important; }
+[data-theme="dark"] .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+[data-theme="dark"] .text-white\/45 { color: rgba(255,255,255,0.45) !important; }
+[data-theme="dark"] .text-white\/40 { color: rgba(255,255,255,0.4) !important; }
+[data-theme="dark"] .text-white\/35 { color: rgba(255,255,255,0.35) !important; }
+[data-theme="dark"] .text-white\/30 { color: rgba(255,255,255,0.3) !important; }
+[data-theme="dark"] .text-white\/25 { color: rgba(255,255,255,0.25) !important; }
+[data-theme="dark"] .text-white\/20 { color: rgba(255,255,255,0.2) !important; }
+[data-theme="dark"] .text-white\/15 { color: rgba(255,255,255,0.15) !important; }
+[data-theme="dark"] .text-white\/10 { color: rgba(255,255,255,0.1) !important; }
+
+[data-theme="dark"] .border-white\/5  { border-color: rgba(255,255,255,0.05) !important; }
+[data-theme="dark"] .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
+[data-theme="dark"] .border-white\/15 { border-color: rgba(255,255,255,0.15) !important; }
+[data-theme="dark"] .border-white\/20 { border-color: rgba(255,255,255,0.2) !important; }
+[data-theme="dark"] .border-white\/30 { border-color: rgba(255,255,255,0.3) !important; }
+[data-theme="dark"] .border-white\/40 { border-color: rgba(255,255,255,0.4) !important; }
+
+[data-theme="dark"] .bg-white\/\[0\.02\] { background-color: rgba(255,255,255,0.02) !important; }
+[data-theme="dark"] .bg-white\/\[0\.03\] { background-color: rgba(255,255,255,0.03) !important; }
+[data-theme="dark"] .bg-white\/\[0\.04\] { background-color: rgba(255,255,255,0.04) !important; }
+[data-theme="dark"] .bg-white\/5   { background-color: rgba(255,255,255,0.05) !important; }
+[data-theme="dark"] .bg-white\/8   { background-color: rgba(255,255,255,0.08) !important; }
+[data-theme="dark"] .bg-white\/10  { background-color: rgba(255,255,255,0.1) !important; }
+[data-theme="dark"] .bg-white\/15  { background-color: rgba(255,255,255,0.15) !important; }
+[data-theme="dark"] .bg-white\/20  { background-color: rgba(255,255,255,0.2) !important; }
+
+/* Hover variants — keep the translucent-white hover visible on dark grounds */
+[data-theme="dark"] .hover\:bg-white\/5:hover   { background-color: rgba(255,255,255,0.05) !important; }
+[data-theme="dark"] .hover\:bg-white\/10:hover  { background-color: rgba(255,255,255,0.1) !important; }
+[data-theme="dark"] .hover\:border-white\/20:hover { border-color: rgba(255,255,255,0.2) !important; }
+[data-theme="dark"] .hover\:border-white\/40:hover { border-color: rgba(255,255,255,0.4) !important; }
+
+/* Headings inside dark-theme islands always stay white — but only when the
+   *nearest* themed ancestor is dark. A nested `data-theme="light"` subtree
+   (e.g. Master Admin) cancels this so its `text-zinc-900` headings render
+   normally. */
+[data-theme="dark"] h1:not([data-theme="light"] *),
+[data-theme="dark"] h2:not([data-theme="light"] *),
+[data-theme="dark"] h3:not([data-theme="light"] *),
+[data-theme="dark"] h4:not([data-theme="light"] *),
+[data-theme="dark"] h5:not([data-theme="light"] *) { color: #FFFFFF; }
+
+/* Dark-theme islands rarely use Tailwind black grounds; if they do, keep the
+   original dark hue rather than let the light-theme override bleach them. */
+[data-theme="dark"] .bg-\[\#0A0A0A\]:not([data-theme="light"] *) { background-color: #0A0A0A !important; }
+[data-theme="dark"] .bg-\[\#121212\]:not([data-theme="light"] *) { background-color: #121212 !important; }
+[data-theme="dark"] .bg-\[\#1A1A1A\]:not([data-theme="light"] *) { background-color: #1A1A1A !important; }
+[data-theme="dark"] .bg-black:not([data-theme="light"] *) { background-color: #000000 !important; }
+
+/* ============================================================
+   MARKETING THEME LOCK
+   ============================================================
+   Belt + braces against three classes of "my text changed colour" bugs:
+     1. Browser dark-reader / auto-dark extensions that invert pages.
+     2. prefers-color-scheme: light flipping the palette during demos
+        when the presenter's laptop switches automatically at dusk.
+     3. Native form controls (inputs, buttons) adopting the wrong scheme.
+
+   Scope is intentionally narrow: only elements inside a `data-theme`
+   island. App-internal pages (CRM / Master Admin / Service Desk) keep
+   their existing behaviour because they don't wrap themselves in
+   data-theme on purpose — the `<html>` attribute drives them.
+   ============================================================ */
+
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
+
+/* Neutralise the most common dark-reader injection points on dark-theme
+   marketing islands. The extension writes `data-darkreader-inline-*`
+   attributes and a `--darkreader-*` variable layer; we simply refuse any
+   background/color it tries to override on our dark sections. */
+[data-theme="dark"] [data-darkreader-inline-bgcolor],
+[data-theme="dark"] [data-darkreader-inline-bgimage],
+[data-theme="dark"] [data-darkreader-inline-color] {
+  background-color: revert !important;
+  background-image: revert !important;
+  color: revert !important;
+}
+
+/* OS-level `prefers-color-scheme: light` must not alter the marketing
+   palette once we've explicitly chosen a theme. */
+@media (prefers-color-scheme: light) {
+  [data-theme="dark"] { color-scheme: dark; }
+  [data-theme="dark"] .text-white:not([data-theme="light"] *),
+  [data-theme="dark"] h1:not([data-theme="light"] *),
+  [data-theme="dark"] h2:not([data-theme="light"] *),
+  [data-theme="dark"] h3:not([data-theme="light"] *),
+  [data-theme="dark"] h4:not([data-theme="light"] *),
+  [data-theme="dark"] h5:not([data-theme="light"] *) { color: #FFFFFF !important; }
+  [data-theme="dark"] .bg-black:not([data-theme="light"] *) { background-color: #000000 !important; }
+  [data-theme="dark"] .bg-\[\#0A0A0A\]:not([data-theme="light"] *) { background-color: #0A0A0A !important; }
+  [data-theme="dark"] .bg-\[\#121212\]:not([data-theme="light"] *) { background-color: #121212 !important; }
+}
+
+/* ── Phase 4 (iter 215az) — global brand-token swap by `data-brand` ──
+   When the HTML root has `data-brand="gymaxis"` (set by App.js for any
+   non-Pulse session), the brand color tokens are remapped from the
+   legacy saturated blue + cyan to the new GymAxis navy → purple palette.
+   Every component that uses `var(--color-brand-blue)` /
+   `var(--color-brand-cyan)` (CTAs, links, badges, Operations Portal
+   primary buttons, Memberships chips, etc.) automatically picks up the
+   new brand WITHOUT per-component code changes. Pulse routes
+   (`data-brand="pulse"`) keep the legacy values verbatim. */
+html[data-brand="gymaxis"] {
+  --color-brand-blue:        #2563EB;
+  --color-brand-blue-hover:  #1D4ED8;
+  --color-brand-blue-dark:   #1E40AF;
+  --color-brand-blue-deep:   #1E3A8A;
+  --color-brand-blue-alt:    #3B82F6;
+  /* Iter 215d7 — cyan tokens remap to the GymAxis BLUE family (not
+     purple) so every legacy CTA (Log Fault, etc.) renders in the
+     correct brand colour without per-component edits. */
+  --color-brand-cyan:        #2563EB;
+  --color-brand-cyan-hover:  #1D4ED8;
+  --color-brand-cyan-light:  #3B82F6;
+  --color-brand-cyan-deep:   #1E40AF;
+  /* Iter 215d8 — also remap pulse-primary family + rgb tokens so
+     PulseReportsTab's active-pill pattern + any `rgb(var(--rgb-brand-cyan-*)
+     / alpha)` usage resolves to blue on GymAxis. Previously the active
+     "Operational Reports" pill rendered white text on a light-cyan
+     background (#4dbfff) — totally illegible on a white page. */
+  --pulse-primary:           #2563EB;
+  --pulse-primary-hover:     #1D4ED8;
+  --pulse-primary-deep:      #1E40AF;
+  --rgb-pulse-primary:       37, 99, 235;
+  --rgb-brand-cyan:          37 99 235;
+  --rgb-brand-cyan-hover:    29 78 216;
+  --brand-color:             #2563EB;
+}
+
+/* ── Iter 215bb — shadcn HSL tokens (CRITICAL fix) ─────────────────
+   Tailwind's `bg-background`, `bg-card`, `border-border`, `bg-popover`
+   etc. resolve to `hsl(var(--background))` and friends. These tokens
+   were never defined in the project — meaning every shadcn primitive
+   that uses them (Sheet content, Card, Popover, Dialog, Command list,
+   etc.) was rendering with a TRANSPARENT background. Master Admin's
+   side-drawer (Sheet) became visibly transparent below the explicit
+   `bg-white` header once the surrounding theme moved from dark → light.
+   We now define light defaults at `:root`, and dark overrides under
+   `[data-theme="dark"]` so any consumer that respects the html theme
+   attribute gets the right palette automatically. */
+:root {
+  --background:           0 0% 100%;          /* #FFFFFF */
+  --foreground:           222 47% 11%;        /* slate-900 */
+  --card:                 0 0% 100%;
+  --card-foreground:      222 47% 11%;
+  --popover:              0 0% 100%;
+  --popover-foreground:   222 47% 11%;
+  --primary:              221 83% 53%;        /* GymAxis navy */
+  --primary-foreground:   0 0% 100%;
+  --secondary:            210 40% 96%;        /* slate-100 */
+  --secondary-foreground: 222 47% 11%;
+  --muted:                210 40% 96%;
+  --muted-foreground:     215 16% 47%;        /* slate-500 */
+  --accent:               210 40% 96%;
+  --accent-foreground:    222 47% 11%;
+  --destructive:          0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border:               214 32% 91%;        /* slate-200 */
+  --input:                214 32% 91%;
+  --ring:                 221 83% 53%;
+  --chart-1: 221 83% 53%;
+  --chart-2: 271 56% 58%;
+  --chart-3: 142 71% 45%;
+  --chart-4: 38 92% 50%;
+  --chart-5: 0 84% 60%;
+  --radius: 0.75rem;
+}
+[data-theme="dark"] {
+  --background:           222 47% 6%;         /* near-black */
+  --foreground:           210 40% 98%;
+  --card:                 222 47% 9%;         /* zinc-900-ish */
+  --card-foreground:      210 40% 98%;
+  --popover:              222 47% 9%;
+  --popover-foreground:   210 40% 98%;
+  --primary:              221 83% 60%;
+  --primary-foreground:   0 0% 100%;
+  --secondary:            217 19% 18%;
+  --secondary-foreground: 210 40% 98%;
+  --muted:                217 19% 18%;
+  --muted-foreground:     215 20% 65%;
+  --accent:               217 19% 18%;
+  --accent-foreground:    210 40% 98%;
+  --border:               217 19% 18%;
+  --input:                217 19% 18%;
+  --ring:                 221 83% 60%;
+}
+
+/* ============================================================
+   GYMAXIS PREMIUM THEME — Iter 215av (May 1, 2026)
+   ============================================================
+   Phase 1 (Foundation): a scoped design layer that propagates the
+   marketing-site brand identity (Satoshi headers, Inter body, navy →
+   purple gradient, light SaaS surfaces) into the authenticated app.
+
+   Scope: ONLY elements inside an ancestor with className `theme-gymaxis`.
+   The Pulse Fitness portal is NEVER wrapped in `theme-gymaxis` (it lives
+   under `[data-portal="pulse"]` and `[data-testid="lite-dashboard"]`),
+   so none of these rules can leak. Any inverse-protection guards below
+   double-check this with `:not([data-portal="pulse"] *)` for safety.
+
+   Everything in this layer is purely additive — uses utility class names
+   that don't collide with Tailwind's, and only takes effect when a parent
+   opts in. Removing this layer removes all GymAxis brand styling without
+   touching anything else.
+   ============================================================ */
+
+/* Satoshi for headlines — imported at the top of the file (alongside Manrope/
+   Nunito/Montserrat) so it's available the moment .theme-gymaxis mounts.
+   Tokens + selectors below opt elements into Satoshi inside the scope. */
+
+.theme-gymaxis {
+  /* ── GymAxis design tokens (mirror /app/frontend/src/pages/Marketing/marketing.css) ── */
+  --gx-brand-from: #2563EB;     /* navy-blue */
+  --gx-brand-to:   #9D4CDD;     /* premium purple */
+  --gx-brand-mid:  #5B5BF5;     /* gradient midpoint */
+  --gx-bg:         #F8FAFC;     /* slate-50 — page bg in light mode */
+  --gx-bg-paper:   #FFFFFF;     /* card / panel surfaces */
+  --gx-bg-soft:    #F1F5F9;     /* hover / input backdrops */
+  --gx-text:       #0F172A;     /* slate-900 — headings */
+  --gx-text-body:  #334155;     /* slate-700 — body */
+  --gx-text-muted: #64748B;     /* slate-500 — labels */
+  --gx-text-dim:   #94A3B8;     /* slate-400 — eyebrow / placeholder */
+  --gx-border:     #E2E8F0;     /* slate-200 — hairline */
+  --gx-border-strong: #CBD5E1;  /* slate-300 — focused */
+  --gx-shadow-sm: 0 1px 2px rgba(15, 23, 42, .04);
+  --gx-shadow-md: 0 8px 24px -8px rgba(15, 23, 42, .08), 0 2px 6px -2px rgba(15, 23, 42, .05);
+  --gx-shadow-lg: 0 20px 40px -15px rgba(15, 23, 42, .12);
+  --gx-shadow-glow:
+    0 0 60px -15px rgba(37, 99, 235, .25),
+    0 0 80px -25px rgba(157, 76, 221, .20);
+}
+
+/* Typography — Inter for body, Satoshi for h1–h4. Scoped tightly so this
+   does not change typography on Pulse, marketing pages, or any third-party
+   embedded surface. */
+.theme-gymaxis,
+.theme-gymaxis input,
+.theme-gymaxis textarea,
+.theme-gymaxis select,
+.theme-gymaxis button {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.theme-gymaxis h1,
+.theme-gymaxis h2,
+.theme-gymaxis h3,
+.theme-gymaxis h4 {
+  font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+/* Headings — slightly bumped weight + tighter tracking to feel premium. */
+.theme-gymaxis h1 { font-weight: 700; }
+.theme-gymaxis h2, .theme-gymaxis h3 { font-weight: 600; }
+
+/* ── Brand gradient text — drop-in helper for hero + section titles ──
+   Available globally (not scoped to .theme-gymaxis) so any module that
+   wants the brand wordmark treatment can apply it. The brand-from/brand-to
+   tokens are inherited from the nearest .theme-gymaxis ancestor or fall
+   back to the explicit hex values below. */
+.gx-grad-text {
+  background-image: linear-gradient(90deg, var(--gx-brand-from, #2563EB) 0%, var(--gx-brand-mid, #5B5BF5) 50%, var(--gx-brand-to, #9D4CDD) 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.theme-gymaxis .gx-grad-text {
+  background-image: linear-gradient(90deg, var(--gx-brand-from) 0%, var(--gx-brand-mid) 50%, var(--gx-brand-to) 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ── Premium CTA button — solid brand gradient, white text ── */
+.theme-gymaxis .gx-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background-image: linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  border: 0;
+  box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .35);
+  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+  cursor: pointer;
+}
+.theme-gymaxis .gx-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px -6px rgba(157, 76, 221, .45);
+}
+.theme-gymaxis .gx-btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Outlined secondary — clean slate-200 hairline, hovers to brand tint */
+.theme-gymaxis .gx-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 9999px;
+  background: var(--gx-bg-paper);
+  color: var(--gx-text-body);
+  border: 1px solid var(--gx-border);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  transition: border-color .18s ease, background-color .18s ease, color .18s ease;
+  cursor: pointer;
+}
+.theme-gymaxis .gx-btn-secondary:hover:not(:disabled) {
+  border-color: var(--gx-brand-mid);
+  color: var(--gx-text);
+  background: var(--gx-bg-soft);
+}
+
+/* ── Premium panel / card — soft shadow, slate-200 hairline ── */
+.theme-gymaxis .gx-panel {
+  background: var(--gx-bg-paper);
+  border: 1px solid var(--gx-border);
+  border-radius: 16px;
+  box-shadow: var(--gx-shadow-sm);
+}
+.theme-gymaxis .gx-panel-elev {
+  background: var(--gx-bg-paper);
+  border: 1px solid var(--gx-border);
+  border-radius: 16px;
+  box-shadow: var(--gx-shadow-md);
+}
+
+/* Subtle gradient ring — used on logo containers + brand badges */
+.theme-gymaxis .gx-grad-ring {
+  position: relative;
+}
+.theme-gymaxis .gx-grad-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Soft brand glow halo — for hero sections + pinned cards */
+.theme-gymaxis .gx-brand-glow {
+  box-shadow: var(--gx-shadow-glow);
+}
+
+/* Tighter, premium scrollbar inside theme-gymaxis containers */
+.theme-gymaxis ::-webkit-scrollbar { width: 10px; height: 10px; }
+.theme-gymaxis ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, .25);
+  border-radius: 9999px;
+}
+.theme-gymaxis ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, .40);
+}
+
+/* Inverse-protection: even if a future component accidentally puts
+   theme-gymaxis on a Pulse subtree, neutralise typography + brand
+   accents there so Pulse stays untouched. */
+[data-portal="pulse"] .theme-gymaxis,
+[data-testid="lite-dashboard"] .theme-gymaxis,
+[data-testid="pulse-landing-page"] .theme-gymaxis {
+  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+}
+[data-portal="pulse"] .theme-gymaxis h1,
+[data-portal="pulse"] .theme-gymaxis h2,
+[data-portal="pulse"] .theme-gymaxis h3,
+[data-portal="pulse"] .theme-gymaxis h4,
+[data-testid="lite-dashboard"] .theme-gymaxis h1,
+[data-testid="lite-dashboard"] .theme-gymaxis h2,
+[data-testid="lite-dashboard"] .theme-gymaxis h3,
+[data-testid="lite-dashboard"] .theme-gymaxis h4 {
+  font-family: 'Nunito', 'MaaxRounded', 'Varela Round', sans-serif;
+  background-image: none !important;
+  -webkit-text-fill-color: initial !important;
+  color: var(--pulse-text) !important;
+}
+
+/* ── Phase 4 — premium upgrades for legacy tab bar primitives ──
+   Within `.theme-gymaxis`, the global `subtab-pill` / `pill-tab-bar`
+   primitives (used by inner tab strips like Operations Portal /
+   CRM / Memberships / MoD) get the new brand-gradient active state
+   so they match the marketing site without rewriting every consumer. */
+.theme-gymaxis .subtab-bar {
+  background: var(--gx-bg-paper);
+  border-color: var(--gx-border);
+}
+.theme-gymaxis .subtab-pill {
+  color: var(--gx-text-muted);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.theme-gymaxis .subtab-pill:hover:not([data-active="true"]):not(.is-active) {
+  color: var(--gx-text);
+}
+.theme-gymaxis .subtab-pill[data-active="true"],
+.theme-gymaxis .subtab-pill.is-active {
+  background-image: linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
+  color: #fff;
+}
+.theme-gymaxis .pill-tab-bar {
+  background: var(--gx-bg-paper);
+  border-color: var(--gx-border);
+}
+
+/* ── Phase 2 — light-mode shadcn surface defaults inside theme-gymaxis ──
+   shadcn `Card` uses Tailwind `bg-card` / `text-card-foreground` which map
+   to HSL CSS vars. Inside theme-gymaxis we don't redefine these (they're
+   used by the wider app). Instead we surface a `gx-card` class that
+   consumers can drop on plain `<div>` panels for the new aesthetic. */
+.theme-gymaxis .gx-card,
+.theme-gymaxis .gx-panel-base {
+  background: var(--gx-bg-paper);
+  border: 1px solid var(--gx-border);
+  border-radius: 16px;
+  box-shadow: var(--gx-shadow-sm);
+}
+
+/* ── Phase 4 — shadcn TabsList active-state upgrade inside theme-gymaxis ──
+   Operations Portal (/dashboard) and any module using shadcn Tabs gets
+   the brand-gradient active pill treatment automatically. The existing
+   `data-[state=active]:bg-[var(--color-brand-blue)]` would otherwise
+   render a flat brand-navy — this rule overlays the gradient + brand
+   shadow so it matches Memberships / CRM / Master Admin. */
+.theme-gymaxis [data-state="active"][role="tab"],
+.theme-gymaxis [role="tablist"] [data-state="active"] {
+  background-image: linear-gradient(135deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%) !important;
+  background-color: transparent !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 6px 16px -6px rgba(37, 99, 235, 0.35) !important;
+}
+.theme-gymaxis [role="tablist"] {
+  background: var(--gx-bg-paper);
+  border-color: var(--gx-border);
+}
+
+

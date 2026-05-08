@@ -1,0 +1,105 @@
+{
+  "summary": "Tested dark/light mode theming fix for KPI and PPM in Pulse Pro. All features verified working: KPI cards have DARK backgrounds (#141414) with bright white text, PPM summary cards have dark backgrounds with colored values, Documents tab shows Upload button and General/Manuals/Invoices/Certificates category tabs with View/Download/Delete buttons per file.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "backend_login_pulse_pro": {
+      "status": "PASS",
+      "details": "POST /api/auth/login with lee.somers@pulsefitness.com / TempPass123! returns 200 with token"
+    },
+    "backend_kpi_dashboard": {
+      "status": "PASS",
+      "details": "GET /api/reports/kpi-dashboard returns: 16 faults, 66 equipment, 20.04h avg downtime, 0% PPM compliance"
+    },
+    "backend_files_list": {
+      "status": "PASS",
+      "details": "GET /api/files/list returns files for Lee Somers org (floor-plans, general categories)"
+    },
+    "backend_ppm_schedules": {
+      "status": "PASS",
+      "details": "GET /api/ppm/schedules returns 0 schedules (expected - test schedules were created under admin)"
+    },
+    "backend_ppm_summary": {
+      "status": "PASS",
+      "details": "GET /api/ppm/summary returns: 0 active, 0 upcoming, 0 completed, 0 overdue, 0% compliance"
+    },
+    "backend_ppm_checklists": {
+      "status": "PASS",
+      "details": "GET /api/ppm/checklists returns equipment categories: Treadmill, X-Trainer, Stepper, U-Cycle/R-Cycle, L-Train"
+    },
+    "frontend_kpi_dark_theming": {
+      "status": "PASS",
+      "details": "KPI summary cards have DARK backgrounds (#141414 = rgb(20,20,20)) with bright white text. NOT white cards."
+    },
+    "frontend_kpi_detail_panels": {
+      "status": "PASS",
+      "details": "PPM Compliance, Reactive Response Times, Safety & Inspection Compliance, Worst Performing Machines panels all have dark backgrounds"
+    },
+    "frontend_ppm_dark_theming": {
+      "status": "PASS",
+      "details": "PPM summary cards have dark backgrounds (#141414) with colored values: blue (upcoming), green (completed), red (overdue)"
+    },
+    "frontend_ppm_schedule_cards": {
+      "status": "PASS",
+      "details": "PPM schedule cards have dark backgrounds with white titles. Empty state shows 'No PPM schedules yet' message."
+    },
+    "frontend_documents_upload_button": {
+      "status": "PASS",
+      "details": "Upload Document button visible in Documents tab (blue button with upload icon)"
+    },
+    "frontend_documents_category_tabs": {
+      "status": "PASS",
+      "details": "General/Manuals/Invoices/Certificates category tabs visible. General is default active tab with 13 files."
+    },
+    "frontend_documents_file_actions": {
+      "status": "PASS",
+      "details": "View/Download/Delete buttons visible per file (13 view, 13 download, 13 delete buttons found)"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Dark theming fix correctly implemented - removed [data-portal='pulse'] CSS overrides that were turning cards white",
+    "KPI_THEME CSS uses .kpi-themed .kpi-card { background: #141414 !important } for consistent dark cards",
+    "PPM THEME_CSS uses .ppm-themed .ppm-card { background: #141414 !important } for consistent dark cards",
+    "Documents tab correctly defaults to General category (was previously defaulting to empty Manuals tab)",
+    "All file action buttons (View/Download/Delete) properly implemented with data-testid attributes"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (6/6 API tests passed)",
+    "frontend": "100% (all theming and Documents features verified)"
+  },
+  "test_credentials": "Pulse Pro: lee.somers@pulsefitness.com / TempPass123!",
+  "seed_data_creation": "None - used existing data",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Dark theming fix verified working. Both GymAxis and Pulse Pro now have dark backgrounds (#141414) with bright white text for KPI and PPM cards. Documents tab has Upload button, General/Manuals/Invoices/Certificates tabs, and View/Download/Delete buttons per file. PPM shows 0 schedules for Lee's org (expected - test schedules were created under admin session).",
+  "theming_verification": {
+    "kpi_card_background": "rgb(20, 20, 20) = #141414",
+    "kpi_text_color": "rgb(161, 161, 170) = #A1A1AA (muted) with #FFFFFF for values",
+    "ppm_card_background": "rgb(20, 20, 20) = #141414",
+    "ppm_text_color": "rgb(161, 161, 170) = #A1A1AA (muted) with colored values"
+  },
+  "kpi_data_verified": {
+    "total_faults": 16,
+    "total_equipment": 66,
+    "avg_downtime_hours": 20.04,
+    "ppm_compliance": "0%",
+    "machine_availability": "87.9%"
+  },
+  "documents_tab_verified": {
+    "upload_button": true,
+    "category_tabs": ["General", "Manuals", "Invoices", "Certificates"],
+    "default_tab": "General",
+    "files_in_general": 13,
+    "action_buttons_per_file": ["View", "Download", "Delete"]
+  }
+}

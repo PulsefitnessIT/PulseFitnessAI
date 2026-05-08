@@ -1,0 +1,683 @@
+import { notify } from '@/components/notifications';
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertTriangle, CheckCircle, Shield, Download, FileText, Camera, Loader2, X, Wrench, Sparkles, Check, QrCode } from 'lucide-react';
+import axios from 'axios';
+import FaultTemplatePicker from '../Dashboard/FaultTemplatePicker';
+import FaultCodeSelect from '../Dashboard/FaultCodeSelect';
+import SaveAsTemplateButton from '../Dashboard/SaveAsTemplateButton';
+import EquipmentPhotoUpload from '../../components/equipment/EquipmentPhotoUpload';
+import AuthImage from '../../components/shared/AuthImage';
+import EquipmentSpecGrid from '@/components/shared/EquipmentSpecGrid';
+
+const API_BASE = process.env.REACT_APP_BACKEND_URL + '/api';
+
+/* ─── Hook to fetch a PDF/image as blob URL ─── */
+const useBlobUrl = (url) => {
+  const [blobUrl, setBlobUrl] = useState(null);
+  useEffect(() => {
+    if (!url) { setBlobUrl(null); return; }
+    let revoke;
+    axios.get(url, { responseType: 'blob' })
+      .then(res => { const u = URL.createObjectURL(res.data); revoke = u; setBlobUrl(u); })
+      .catch(() => setBlobUrl(null));
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [url]);
+  return blobUrl;
+};
+
+/* ─── Equipment Detail with Tabs (Details | Spec Sheet) ─── */
+const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)' }) => {
+  const specId = selectedEquipment.spec_sheet_id;
+  const hasSpec = !!specId;
+  const [activeTab, setActiveTab] = useState('details');
+  const [photoUrl, setPhotoUrl] = useState(selectedEquipment.photo_url || null);
+  const pdfBlobUrl = useBlobUrl(hasSpec && activeTab === 'spec-sheet' ? `${API_BASE}/spec-sheets/pdf/${specId}` : null);
+  const authToken = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+
+  const eqFaults = getEquipmentFaults(selectedEquipment);
+  const eqFiles = getEquipmentFiles(selectedEquipment);
+  const warrantyActive = selectedEquipment.warranty_expiry && new Date(selectedEquipment.warranty_expiry) > new Date();
+  const contractActive = selectedEquipment.sla_expiry && new Date(selectedEquipment.sla_expiry) > new Date();
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : null;
+
+  return (
+    <div className="pt-2">
+      {/* Tabs */}
+      {hasSpec && (
+        <div className="flex gap-1 border-b border-[var(--theme-border)] mb-4" data-testid="equip-detail-tabs">
+          <button onClick={() => setActiveTab('details')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details' ? '' : 'border-transparent text-[var(--color-text-muted)] hover:text-white'}`}
+            style={activeTab === 'details' ? { borderColor: brandAccent, color: brandAccent } : undefined}
+            data-testid="equip-tab-details">
+            <Wrench size={13} className="inline mr-1.5 -mt-0.5" /> Details
+          </button>
+          <button onClick={() => setActiveTab('spec-sheet')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'spec-sheet' ? '' : 'border-transparent text-[var(--color-text-muted)] hover:text-white'}`}
+            style={activeTab === 'spec-sheet' ? { borderColor: brandAccent, color: brandAccent } : undefined}
+            data-testid="equip-tab-spec-sheet">
+            <FileText size={13} className="inline mr-1.5 -mt-0.5" /> Spec Sheet
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'spec-sheet' && hasSpec ? (
+        /* ── Spec Sheet Tab ── */
+        <div data-testid="equip-spec-viewer">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-20 h-20 rounded-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] flex items-center justify-center shrink-0 overflow-hidden" data-testid="equip-spec-image">
+              <img src={`${API_BASE}/spec-sheets/image/${specId}`} alt={selectedEquipment.name}
+                className="w-full h-full object-contain p-1"
+                onError={(e) => { e.target.style.display = 'none'; }} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-[var(--theme-text)]">{selectedEquipment.name}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">{selectedEquipment.manufacturer} · {selectedEquipment.equipment_type}</p>
+            </div>
+          </div>
+          {/* PDF viewer must stay white in both themes — PDFs are white documents. */}
+          <div className="rounded-lg border border-[var(--theme-border)] overflow-hidden bg-white dark:bg-white relative" style={{ height: 'calc(85vh - 220px)', minHeight: '400px' }}>
+            {pdfBlobUrl ? (
+              <>
+                <div className="absolute top-2 right-2 z-10 flex gap-1">
+                  <a
+                    href={pdfBlobUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1 text-[11px] rounded bg-zinc-900/80 text-white hover:bg-zinc-900 inline-flex items-center gap-1"
+                    data-testid="spec-sheet-open-new-tab"
+                  >
+                    Open in new tab
+                  </a>
+                  <a
+                    href={pdfBlobUrl}
+                    download={`${selectedEquipment.name || 'spec-sheet'}.pdf`}
+                    className="px-2 py-1 text-[11px] rounded bg-[var(--color-brand-blue)] text-white hover:bg-[var(--color-brand-blue-hover)] inline-flex items-center gap-1"
+                    data-testid="spec-sheet-download"
+                  >
+                    Download
+                  </a>
+                </div>
+                <iframe src={pdfBlobUrl} title="Spec Sheet" className="w-full h-full" style={{ border: 'none' }} />
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="animate-spin text-gray-400" size={24} />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ── Details Tab ── */
+        <div className="space-y-4">
+          {/* Product photo + info grid */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Primary equipment photo — shows uploaded photo if present,
+                otherwise an upload CTA (mobile camera + file picker).
+                Always visible so owners can add a photo even when no
+                spec-sheet exists. */}
+            <div className="w-full sm:w-48 shrink-0" data-testid="equip-photo-slot">
+              <EquipmentPhotoUpload
+                equipmentId={selectedEquipment.id}
+                photoUrl={photoUrl}
+                manufacturer={selectedEquipment.manufacturer || selectedEquipment.supplier}
+                equipmentType={selectedEquipment.equipment_type}
+                equipmentModel={selectedEquipment.model}
+                fallbackImageUrl={
+                  !photoUrl
+                    ? (selectedEquipment.auto_image_url
+                        || (specId ? `${API_BASE}/spec-sheets/image/${specId}` : null))
+                    : null
+                }
+                fallbackSource={selectedEquipment.auto_image_url ? 'manufacturer' : (specId ? 'spec-sheet' : null)}
+                autoImageSourceUrl={selectedEquipment.auto_image_source_url || null}
+                canAutoLookup={!photoUrl && !selectedEquipment.auto_image_url && !specId}
+                onAutoLookup={async () => {
+                  try {
+                    const r = await (await import('axios')).default.post(
+                      `${API_BASE}/equipment/${selectedEquipment.id}/lookup-image`,
+                      {},
+                      { headers: { Authorization: `Bearer ${authToken}` } },
+                    );
+                    if (r.data && r.data.image_url) {
+                      (await import('sonner')).notify.success(
+                        r.data.verified ? 'Product image found & AI-verified' : 'Candidate image found — please review',
+                      );
+                      selectedEquipment.auto_image_url = r.data.image_url;
+                      selectedEquipment.auto_image_source_url = r.data.source_url;
+                      selectedEquipment.auto_image_verified = !!r.data.verified;
+                      setPhotoUrl(null); // force re-render
+                    } else {
+                      (await import('sonner')).notify.error(r.data?.message || 'No matching image found');
+                    }
+                  } catch {
+                    (await import('sonner')).notify.error('Auto-lookup failed');
+                  }
+                }}
+                onUploaded={(newUrl) => {
+                  setPhotoUrl(newUrl);
+                  if (selectedEquipment) selectedEquipment.photo_url = newUrl;
+                }}
+                apiBase={API_BASE}
+                authToken={authToken}
+              />
+            </div>
+            <div className="flex-1">
+              {/* Iter 216o — shared atomic component (cross-portal parity).
+                  Same grid renders in GymAxis/Pulse with brand-correct
+                  accent colour and zero drift between portals. */}
+              <EquipmentSpecGrid
+                columns={2}
+                accent={brandAccent}
+                tiles={[
+                  { label: 'Type', value: selectedEquipment.equipment_type, testId: 'lite-equip-type' },
+                  { label: 'Serial', value: selectedEquipment.serial_number, mono: true, testId: 'lite-equip-serial' },
+                  { label: 'Manufacturer', value: selectedEquipment.manufacturer, testId: 'lite-equip-manufacturer' },
+                  { label: 'Location', value: selectedEquipment.location, testId: 'lite-equip-location' },
+                  { label: 'Supplier', value: selectedEquipment.supplier, accent: !!selectedEquipment.supplier, testId: 'lite-equip-supplier' },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2" data-testid="lite-equip-coverage-section">
+            <h4 className="font-medium text-[var(--theme-text)] text-sm">Warranty & Contract</h4>
+            <div className="grid grid-cols-1 gap-2">
+              <div className={`p-3 rounded-lg border text-sm ${warrantyActive ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2"><Shield size={14} className={warrantyActive ? 'text-emerald-400' : 'text-[var(--color-text-muted)]'} /><span className={warrantyActive ? 'text-emerald-400 font-medium' : 'text-[var(--color-text-muted)]'}>Warranty</span></div>
+                  {selectedEquipment.warranty_expiry ? <span className={`text-xs ${warrantyActive ? 'text-emerald-400' : 'text-[var(--color-text-muted)]'}`}>{warrantyActive ? (() => { const d = Math.ceil((new Date(selectedEquipment.warranty_expiry) - new Date()) / 86400000); const y = Math.floor(d/365); const r = d%365; return y > 0 ? (r > 0 ? `${y}y ${r}d remaining` : `${y}y remaining`) : `${d}d remaining`; })() : 'Expired'}</span> : <span className="text-xs text-[var(--color-text-muted)]">Not set</span>}
+                </div>
+                {(selectedEquipment.purchase_date || selectedEquipment.warranty_expiry) && (
+                  <div className="flex items-center gap-4 mt-2 text-xs text-[var(--color-text-muted)]">
+                    {selectedEquipment.purchase_date && <span>Start: <span className="text-[var(--theme-text)]">{formatDate(selectedEquipment.purchase_date)}</span></span>}
+                    {selectedEquipment.warranty_expiry && <span>End: <span className="text-[var(--theme-text)]">{formatDate(selectedEquipment.warranty_expiry)}</span></span>}
+                    {selectedEquipment.sla_level && <span>SLA: <span className="text-[var(--theme-text)]">{selectedEquipment.sla_level}</span></span>}
+                  </div>
+                )}
+              </div>
+              <div className={`p-3 rounded-lg border text-sm ${contractActive ? 'bg-blue-500/10 border-blue-500/20' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2"><FileText size={14} className={contractActive ? 'text-blue-400' : 'text-[var(--color-text-muted)]'} /><span className={contractActive ? 'text-blue-400 font-medium' : 'text-[var(--color-text-muted)]'}>Service Contract</span></div>
+                  {selectedEquipment.sla_expiry ? <span className={`text-xs ${contractActive ? 'text-blue-400' : 'text-[var(--color-text-muted)]'}`}>{contractActive ? (() => { const d = Math.ceil((new Date(selectedEquipment.sla_expiry) - new Date()) / 86400000); const y = Math.floor(d/365); const r = d%365; return y > 0 ? (r > 0 ? `${y}y ${r}d remaining` : `${y}y remaining`) : `${d}d remaining`; })() : 'Expired'}</span> : <span className="text-xs text-[var(--color-text-muted)]">Not set</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-[var(--theme-text)] text-sm mb-2">Fault History ({eqFaults.length})</h4>
+            {eqFaults.length > 0 ? (
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {eqFaults.map(f => (
+                  <div key={f.id} className="p-2 bg-[var(--theme-surface)] rounded border border-[var(--theme-border)] text-xs">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge className={`${getSeverityStyle(f.severity)} text-[10px]`}>{getSeverityLabel(f.severity)}</Badge>
+                      <Badge className={`${getStatusColor(f.status)} text-[10px]`}>{f.status}</Badge>
+                      <span className="text-[var(--color-text-muted)] ml-auto">{f.created_at ? new Date(f.created_at).toLocaleDateString() : ''}</span>
+                    </div>
+                    <p className="text-[var(--color-text-muted)]">{f.issue_description?.slice(0, 120)}{f.issue_description?.length > 120 ? '...' : ''}</p>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-xs text-[var(--color-text-muted)]">No faults recorded</p>}
+          </div>
+
+          <div>
+            <h4 className="font-medium text-[var(--theme-text)] text-sm mb-2">Documents ({eqFiles.length})</h4>
+            {eqFiles.length > 0 ? (
+              <div className="space-y-1">
+                {eqFiles.map(f => (
+                  <div key={f.id} className="flex items-center gap-2 p-2 bg-[var(--theme-surface)] rounded text-xs border border-[var(--theme-border)]">
+                    <FileText size={12} className="text-[var(--color-text-muted)]" />
+                    <span className="flex-1 text-[var(--theme-text)] truncate">{f.original_filename}</span>
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-[var(--color-text-muted)] hover:text-white" onClick={() => onDownloadFile(f)}><Download size={12} /></Button>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-xs text-[var(--color-text-muted)]">No documents attached</p>}
+          </div>
+
+          <Button className="w-full bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white" onClick={() => onLogFaultForEquipment(selectedEquipment)} data-testid="lite-equip-log-fault">
+            <AlertTriangle size={14} className="mr-2" /> Log Fault for this Machine
+          </Button>
+
+          {/* QR Code */}
+          <div data-testid="equip-qr-section">
+            <h4 className="font-medium text-[var(--theme-text)] text-sm mb-2">QR Code</h4>
+            <div className="p-4 bg-[var(--theme-surface)] rounded-lg border border-[var(--theme-border)] flex items-center gap-4">
+              <div className="shrink-0 flex flex-col items-center" data-testid="equip-qr-image">
+                <div className="bg-white p-2 rounded-lg dark:bg-zinc-900">
+                  {/* Self-hosted QR — served by /api/equipment/{id}/qr-code.
+                      Requires auth, so we use <AuthImage> to fetch with the
+                      JWT header and swap in a blob URL. Plain <img src> would
+                      get a 401 because browsers cannot attach Bearer tokens
+                      to image requests. */}
+                  <AuthImage
+                    src={`${API_BASE}/equipment/${selectedEquipment.id}/qr-code?size=120`}
+                    alt="Equipment QR Code"
+                    className="w-[120px] h-[120px]"
+                    data-testid="equip-qr-img"
+                  />
+                </div>
+                <img src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg" alt="Pulse Fitness" className="mt-1.5 h-5 rounded" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-[var(--theme-text)] font-medium mb-1">Scan to view — and add a photo</p>
+                <p className="text-xs text-[var(--color-text-muted)] mb-2">Stick this on the machine. Staff can scan it to report a fault or snap a live photo so engineers know exactly what they're looking at on arrival.</p>
+                <div className="bg-[var(--theme-surface)] rounded p-2 mb-3 border border-white/5">
+                  <p className="text-[10px] text-[var(--color-text-muted)]"><span className="text-[var(--color-brand-cyan-hover)] font-semibold">Recommended printers:</span> Brother QL-820NWB or DYMO LabelWriter 450. Use 62mm x 62mm die-cut labels for best results. Laminated labels recommended for gym environments.</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-[var(--theme-border)] text-[var(--color-text-muted)] hover:text-white"
+                  onClick={async () => {
+                    const token = localStorage.getItem('token');
+                    try {
+                      const resp = await fetch(
+                        `${API_BASE}/equipment/${selectedEquipment.id}/qr-code?size=600`,
+                        { headers: { Authorization: `Bearer ${token}` } },
+                      );
+                      const blob = await resp.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `QR-${selectedEquipment.serial_number || selectedEquipment.name}.png`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch { /* swallow — download failures only */ }
+                  }}
+                  data-testid="equip-qr-download"
+                >
+                  <QrCode size={14} className="mr-1.5" /> Download QR
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── Fault Machine Selector: Group by type, then pick serial ─── */
+const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault }) => {
+  // Group equipment by short name (up to first comma)
+  const groups = {};
+  equipment.forEach(eq => {
+    const shortName = eq.name?.includes(',') ? eq.name.split(',')[0].trim() : (eq.name || '');
+    if (!groups[shortName]) groups[shortName] = [];
+    groups[shortName].push(eq);
+  });
+  const groupKeys = Object.keys(groups).sort();
+
+  // Find selected group from current equipment_id
+  const selectedEq = equipment.find(e => e.id === faultForm.equipment_id);
+  const selectedGroup = selectedEq ? (selectedEq.name?.includes(',') ? selectedEq.name.split(',')[0].trim() : selectedEq.name) : '';
+  const groupItems = groups[selectedGroup] || [];
+  const needsSerialPick = groupItems.length > 1;
+
+  const handleGroupChange = (groupName) => {
+    const items = groups[groupName] || [];
+    if (items.length === 1) {
+      selectEquipmentForFault(items[0]);
+    } else {
+      // Multi — clear selection, user must pick serial
+      selectEquipmentForFault(items[0]);
+    }
+  };
+
+  const handleSerialChange = (eqId) => {
+    const eq = equipment.find(e => e.id === eqId);
+    if (eq) selectEquipmentForFault(eq);
+  };
+
+  return (
+    <>
+      <div>
+        <Label className="text-[var(--color-text-muted)] font-medium">Machine Type</Label>
+        <Select value={selectedGroup} onValueChange={handleGroupChange}>
+          <SelectTrigger className="bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[44px] h-auto py-2 items-start text-left [&>span]:whitespace-normal [&>span]:break-words [&>span]:line-clamp-none" data-testid="lite-fault-machine-select">
+            <SelectValue placeholder="Choose machine type..." />
+          </SelectTrigger>
+          <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60 max-w-[calc(100vw-80px)]" style={{ scrollBehavior: 'smooth' }}>
+            {groupKeys.map(name => (
+              <SelectItem key={name} value={name} className="text-[var(--theme-text)] py-3 whitespace-normal">
+                <span className="whitespace-normal break-words block">{name} {groups[name].length > 1 ? `(${groups[name].length})` : ''}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {selectedGroup && needsSerialPick && (
+        <div>
+          <Label className="text-[var(--color-text-muted)] font-medium">Select Serial Number</Label>
+          <Select value={faultForm.equipment_id} onValueChange={handleSerialChange}>
+            <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 h-11" data-testid="lite-fault-serial-select">
+              <SelectValue placeholder="Choose serial number..." />
+            </SelectTrigger>
+            <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60">
+              {groupItems.map(eq => (
+                <SelectItem key={eq.id} value={eq.id} className="text-[var(--theme-text)]">
+                  {eq.serial_number || 'No serial'} {eq.location ? `· ${eq.location}` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {selectedGroup && !needsSerialPick && faultForm.serial_number && (
+        <div>
+          <Label className="text-[var(--color-text-muted)] font-medium">Serial Number</Label>
+          <div className="mt-1.5 p-3 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg text-sm text-[var(--theme-text)]" data-testid="lite-fault-serial">
+            {faultForm.serial_number}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+const LiteDialogs = ({
+  // Equipment Detail
+  selectedEquipment, onCloseEquipment,
+  getEquipmentFaults, getEquipmentFiles,
+  onDownloadFile, onLogFaultForEquipment,
+  getSeverityStyle, getSeverityLabel, getStatusColor,
+  // Log Fault Dialog
+  showFaultDialog, onCloseFaultDialog,
+  equipment, faultForm, setFaultForm,
+  selectEquipmentForFault, coverage,
+  faultMedia, onMediaUpload, onRemoveMedia,
+  onFaultSubmit, submitting, faultBanner,
+  SEVERITY_OPTIONS,
+  // Duplicate Modal
+  duplicateModal, onDuplicateCancel, onDuplicateContinue,
+  // Success Modal
+  successModal, onSuccessDismiss,
+  // Pro features
+  isPro, headers
+}) => {
+  const [triageResult, setTriageResult] = useState(null);
+  const [triaging, setTriaging] = useState(false);
+  const [showFixMethod, setShowFixMethod] = useState(false);
+
+  const FIX_METHODS = [
+    { value: 'followed_ai_steps', label: 'Followed AI repair steps' },
+    { value: 'own_knowledge', label: 'Used own knowledge / experience' },
+    { value: 'replaced_part', label: 'Replaced a part' },
+    { value: 'reset_recalibrated', label: 'Reset / recalibrated the machine' },
+    { value: 'cleaned_lubricated', label: 'Cleaned / lubricated' },
+    { value: 'tightened_adjusted', label: 'Tightened / adjusted components' },
+    { value: 'other', label: 'Other fix' },
+  ];
+
+  const API = process.env.REACT_APP_BACKEND_URL + '/api';
+
+  const handleTriage = async () => {
+    setTriaging(true);
+    try {
+      const payload = {
+        serial_number: faultForm.serial_number,
+        machine_type: faultForm.machine_type,
+        issue_description: faultForm.issue_description,
+        severity: faultForm.severity,
+        supplier: faultForm.supplier,
+        steps_taken: faultForm.steps_taken || '',
+      };
+      const res = await axios.post(`${API}/issues/triage`, payload, { headers });
+      setTriageResult(res.data);
+      // Back-fill AI-suggested fault_code (only if user didn't manually pick one)
+      if (res.data?.fault_code && !faultForm.fault_code) {
+        setFaultForm(prev => ({ ...prev, fault_code: res.data.fault_code }));
+      }
+    } catch {
+      onFaultSubmit();
+    }
+    setTriaging(false);
+  };
+
+  const handleConfirmAfterTriage = () => {
+    setTriageResult(null);
+    onFaultSubmit();
+  };
+
+  const handleCloseDialog = (open) => {
+    if (!open) { setTriageResult(null); }
+    onCloseFaultDialog(open);
+  };
+  return (
+    <>
+      {/* Equipment Detail Dialog */}
+      <Dialog open={!!selectedEquipment} onOpenChange={() => onCloseEquipment()}>
+        <DialogContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="equipment-detail-dialog">
+          <DialogHeader>
+            <DialogTitle className="text-[var(--theme-text)]">{selectedEquipment?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedEquipment && <EquipmentDetailContent
+            selectedEquipment={selectedEquipment}
+            getEquipmentFaults={getEquipmentFaults}
+            getEquipmentFiles={getEquipmentFiles}
+            getSeverityStyle={getSeverityStyle}
+            getSeverityLabel={getSeverityLabel}
+            getStatusColor={getStatusColor}
+            onLogFaultForEquipment={onLogFaultForEquipment}
+            onDownloadFile={onDownloadFile}
+          />}
+        </DialogContent>
+      </Dialog>
+
+      {/* Log Fault Dialog */}
+      <Dialog open={showFaultDialog} onOpenChange={handleCloseDialog}>
+        <DialogContent
+          className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[85vh] overflow-y-auto"
+          data-testid="log-fault-dialog"
+          onPointerDownOutside={(e) => { if (duplicateModal || successModal) e.preventDefault(); }}
+          onInteractOutside={(e) => { if (duplicateModal || successModal) e.preventDefault(); }}
+          onEscapeKeyDown={(e) => { if (duplicateModal || successModal) e.preventDefault(); }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-[var(--theme-text)] text-xl">Log a Fault</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 pt-2">
+            {faultBanner}
+            <FaultTemplatePicker
+              API={API}
+              onApply={(vals) => setFaultForm(prev => ({ ...prev, ...vals }))}
+            />
+            <FaultMachineSelector
+              equipment={equipment}
+              faultForm={faultForm}
+              selectEquipmentForFault={selectEquipmentForFault}
+            />
+            {coverage && (
+              <div className={`p-3 rounded-lg text-sm border ${coverage.warranty_active ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : coverage.contract_active ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--color-text-muted)]'}`} data-testid="lite-coverage-info">
+                <Shield size={14} className="inline mr-1" />
+                {coverage.label || 'No warranty or contract on file'}
+              </div>
+            )}
+            <div>
+              <Label className="text-[var(--color-text-muted)] font-medium">Issue Description</Label>
+              <Textarea value={faultForm.issue_description} onChange={e => setFaultForm({ ...faultForm, issue_description: e.target.value })} placeholder="Describe the fault..." className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[100px]" data-testid="lite-fault-description" />
+            </div>
+            <div>
+              <Label className="text-[var(--color-text-muted)] font-medium">Any Steps Already Taken?</Label>
+              <Textarea value={faultForm.steps_taken || ''} onChange={e => setFaultForm({ ...faultForm, steps_taken: e.target.value })} placeholder="Have you tried anything to fix this? (helps AI diagnose faster)" className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[60px]" data-testid="lite-fault-steps-taken" />
+            </div>
+            <div>
+              <Label className="text-[var(--color-text-muted)] font-medium">Severity</Label>
+              <div className="grid gap-2 mt-2">
+                {SEVERITY_OPTIONS.map(sev => (
+                  <button key={sev.value} type="button" onClick={() => setFaultForm({ ...faultForm, severity: sev.value })} className={`w-full text-left p-3 rounded-lg border-2 transition-all ${faultForm.severity === sev.value ? 'border-[var(--color-brand-cyan-hover)] bg-[rgb(var(--rgb-brand-cyan-hover)/0.1)]' : 'border-[var(--theme-border)] hover:border-[var(--theme-border)] bg-[var(--theme-surface)]'}`} data-testid={`lite-sev-${sev.value}`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-medium ${faultForm.severity === sev.value ? 'text-[var(--color-brand-cyan-hover)]' : 'text-[var(--theme-text)]'}`}>{sev.label}</span>
+                      {faultForm.severity === sev.value && <CheckCircle size={16} className="text-[var(--color-brand-cyan-hover)]" />}
+                    </div>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{sev.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <FaultCodeSelect
+                API={API}
+                value={faultForm.fault_code}
+                onChange={(code) => setFaultForm({ ...faultForm, fault_code: code })}
+              />
+              <SaveAsTemplateButton
+                API={API}
+                issueForm={faultForm}
+                privileged={isPro}
+              />
+            </div>
+            <div>
+              <Label className="text-[var(--color-text-muted)] font-medium">Upload Photos / Videos</Label>
+              <label className="mt-1.5 flex items-center justify-center gap-2 p-4 border-2 border-dashed border-[var(--theme-border)] rounded-lg cursor-pointer hover:border-[var(--color-brand-cyan-hover)] hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] transition-colors" data-testid="lite-fault-upload">
+                <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={(e) => { Array.from(e.target.files).forEach(f => onMediaUpload({ target: { files: [f] } })); e.target.value = ''; }} />
+                <Camera size={20} className="text-[var(--color-text-muted)]" />
+                <span className="text-sm text-[var(--color-text-muted)]">{faultMedia.length > 0 ? 'Add more photos/videos' : 'Tap to upload photos or videos'}</span>
+              </label>
+              {faultMedia.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {faultMedia.map((m, i) => (
+                    <div key={i} className="flex items-center gap-1.5 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-muted)]">
+                      {m.type?.startsWith('video') ? <FileText size={12} /> : <Camera size={12} />}
+                      <span className="max-w-[120px] truncate">{m.name}</span>
+                      <X size={12} className="cursor-pointer hover:text-red-400 shrink-0" onClick={() => onRemoveMedia(i)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* AI Triage Results (Pro only) */}
+            {triageResult && isPro && (
+              <div className="space-y-3 p-4 bg-[rgb(var(--rgb-brand-blue)/0.1)] border border-[rgb(var(--rgb-brand-blue)/0.2)] rounded-lg" data-testid="ai-triage-result">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-[var(--color-brand-cyan-hover)]" />
+                  <h4 className="text-sm font-semibold text-[var(--color-brand-cyan-hover)]">AI Triage Assessment</h4>
+                </div>
+                {triageResult.priority && (
+                  <div className="text-xs"><span className="text-[var(--color-text-muted)]">Priority:</span> <span className="text-[var(--theme-text)] font-medium ml-1">{triageResult.priority}</span></div>
+                )}
+                {triageResult.diagnosis && (
+                  <div><p className="text-xs text-[var(--color-text-muted)] mb-1">Diagnosis:</p><p className="text-sm text-[var(--theme-text)]">{triageResult.diagnosis}</p></div>
+                )}
+                {triageResult.fault_code && (
+                  <div className="text-xs flex items-center gap-2" data-testid="lite-triage-fault-code">
+                    <span className="text-[var(--color-text-muted)]">AI-suggested fault code:</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">
+                      {triageResult.fault_code}
+                    </span>
+                  </div>
+                )}
+                {triageResult.repair_steps?.length > 0 && (
+                  <div>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Suggested Steps:</p>
+                    <div className="space-y-1.5">
+                      {triageResult.repair_steps.map((step, idx) => (
+                        <div key={idx} className="flex gap-2 text-sm">
+                          <span className="text-[var(--color-brand-cyan-hover)] font-bold text-xs mt-0.5">{idx + 1}.</span>
+                          <span className="text-[var(--theme-text)]">{step.instruction || step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {triageResult.parts_likely && (
+                  <div className="text-xs"><span className="text-[var(--color-text-muted)]">Parts likely needed:</span> <span className="text-[var(--theme-text)] ml-1">{triageResult.parts_likely}</span></div>
+                )}
+                {triageResult.estimated_downtime && (
+                  <div className="text-xs"><span className="text-[var(--color-text-muted)]">Est. downtime:</span> <span className="text-[var(--theme-text)] ml-1">{triageResult.estimated_downtime}</span></div>
+                )}
+              </div>
+            )}
+
+            {triageResult && isPro ? (
+              showFixMethod ? (
+                <div className="space-y-2" data-testid="fix-method-selection">
+                  <p className="text-sm text-[var(--color-brand-cyan-hover)] font-medium">How did you fix it?</p>
+                  {FIX_METHODS.map(m => (
+                    <button key={m.value} onClick={() => { setShowFixMethod(false); setTriageResult(null); onFaultSubmit({ resolution_type: 'self_fix', resolved_by: 'gymaxis_ai', fix_method: m.value, status: 'resolved' }); }}
+                      className="w-full text-left p-3 rounded-lg border border-[var(--theme-border)] hover:border-[var(--color-brand-cyan-hover)] hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] transition-all text-sm text-[var(--theme-text)]" data-testid={`fix-method-${m.value}`}>
+                      {m.label}
+                    </button>
+                  ))}
+                  <Button variant="ghost" onClick={() => setShowFixMethod(false)} className="w-full text-[var(--color-text-muted)] text-xs">Back</Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button onClick={() => setShowFixMethod(true)} disabled={submitting} variant="outline" className="flex-1 h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium" data-testid="lite-fault-self-fix">
+                    <Check size={18} className="mr-2" /> I Fixed It
+                  </Button>
+                  <Button onClick={handleConfirmAfterTriage} disabled={submitting} className="flex-1 h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium" data-testid="lite-fault-confirm-submit">
+                    {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <CheckCircle size={18} className="mr-2" />}
+                    Log Fault Report
+                  </Button>
+                </div>
+              )
+            ) : isPro ? (
+              <Button onClick={handleTriage} disabled={triaging || submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
+                {triaging ? <><Loader2 className="animate-spin mr-2" size={18} /> AI Analysing...</> : <><Sparkles size={18} className="mr-2" /> Get AI Triage & Submit</>}
+              </Button>
+            ) : (
+              <Button onClick={onFaultSubmit} disabled={submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
+                {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <AlertTriangle size={18} className="mr-2" />}
+                Submit Fault Report
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Fault Modal — Portal to escape Radix Dialog focus trap */}
+      {duplicateModal && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" data-testid="duplicate-fault-modal">
+          <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-center" style={{ pointerEvents: 'auto' }}>
+            <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle size={24} className="text-amber-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-[var(--theme-text)] mb-2">Existing Fault Detected</h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-6">
+              There {duplicateModal.count === 1 ? 'is' : 'are'} already <strong className="text-[var(--theme-text)]">{duplicateModal.count} open fault{duplicateModal.count > 1 ? 's' : ''}</strong> logged for <strong className="text-[var(--theme-text)]">{duplicateModal.machineName}</strong>. Do you want to continue?
+            </p>
+            <div className="flex gap-3">
+              <button className="flex-1 h-11 rounded-md border border-[var(--theme-border)] text-[var(--theme-text)] bg-transparent hover:bg-[var(--theme-surface-hover)] text-sm font-medium" onClick={onDuplicateCancel} data-testid="duplicate-cancel-btn">Cancel</button>
+              <button className="flex-1 h-11 rounded-md bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white text-sm font-medium" onClick={onDuplicateContinue} data-testid="duplicate-continue-btn">Continue Logging</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Fault Success Modal — Portal to escape Radix Dialog focus trap */}
+      {successModal && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" data-testid="fault-success-modal">
+          <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-center" style={{ pointerEvents: 'auto' }}>
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle size={24} className="text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-[var(--theme-text)] mb-2">Fault Logged Successfully</h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-2">Your fault report has been submitted and assigned reference:</p>
+            <p className="text-xl font-bold text-[var(--color-brand-cyan-hover)] mb-6" data-testid="fault-ref-number">{successModal.ref}</p>
+            <button className="w-full h-11 rounded-md bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white text-sm font-medium" onClick={onSuccessDismiss} data-testid="fault-success-ok-btn">OK</button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
+export default LiteDialogs;
+// Iter 216n — expose `EquipmentDetailContent` so the GymAxis dashboard
+// can reuse the exact same all-in-one card layout (Pulse uses cyan,
+// GymAxis passes brandAccent="var(--color-brand-blue)" to switch the
+// tab highlight to the GymAxis blue without any visual fork).
+export { EquipmentDetailContent };

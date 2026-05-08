@@ -1,0 +1,83 @@
+{
+  "summary": "Completed comprehensive testing of MOD Service Portal (site dashboard, 6-step fault wizard, staff CRUD, Master Admin MOD console). All backend APIs working (14/14 tests passed). Frontend components fully functional with proper routing by account_type. Fixed ObjectId serialization bug in staff creation endpoint.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/mod/site/staff (POST)",
+        "issue": "ObjectId serialization error - FIXED by adding doc.pop('_id', None) before return",
+        "priority": "FIXED"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mod_portal.py",
+    "/app/test_reports/pytest/pytest_results_iteration156.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AI triage uses gpt-4o-mini via Emergent LLM key - working correctly with graceful fallback when rate-limited",
+    "All MOD-specific data-testid attributes are properly implemented for automated testing",
+    "Routing logic in App.js correctly routes mod_site users to MODSiteDashboard"
+  ],
+  "updated_files": [
+    "/app/backend/routes/mod_portal.py",
+    "/app/backend/tests/test_mod_portal.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100% (all flows tested via Playwright)"
+  },
+  "test_credentials": {
+    "mod_site_user": "raf.brizenorton@mod.pulse.gym / BrizeNorton2026!",
+    "mod_site_user_2": "army.catterick@mod.pulse.gym / Catterick2026!",
+    "mod_site_user_3": "navy.raleigh@mod.pulse.gym / Raleigh2026!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "rate_limit_bypass": "X-RateLimit-Bypass: 1438ab298eab4e7ef2cb89e61309123e85fb05ae6fc583c6",
+    "captcha_bypass": "X-Captcha-Token: bypass:1438ab298eab4e7ef2cb89e61309123e85fb05ae6fc583c6"
+  },
+  "seed_data_creation": "3 MOD sites seeded (RAF Brize Norton, Catterick Garrison, HMS Raleigh) with 12 equipment and 5 staff each. Test faults created during testing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MOD Service Portal fully tested. Key testids: mod-site-dashboard, mod-site-name, mod-log-fault-btn, mod-nav-staff, mod-nav-logout, mod-stat-*, mod-fault-wizard, mod-wizard-back/next/submit, mod-step-equipment/fault-type/guided/attachments/reporter/review, mod-fault-type-{id}, mod-field-description, mod-field-onset-*, mod-field-usable-*, mod-field-safe-*, mod-reporter-*, mod-ai-triage-card, mod-confirmation-ref, mod-confirmation-done, mod-staff-modal, mod-staff-add, mod-staff-row-*, mod-staff-edit-*, mod-staff-delete-*, admin-mod-console, admin-mod-site-*, admin-mod-audit-*. Backend endpoints all under /api/mod/*. MOD PRO dashboard exists but no mod_branch/mod_org users seeded yet - SKIP that test.",
+  "tests_executed": {
+    "backend_api_tests": {
+      "GET /api/mod/site/dashboard": "PASS - Returns site stats (12/12 machines, 100% availability, open faults)",
+      "GET /api/mod/site/equipment": "PASS - Returns 12 equipment items",
+      "GET /api/mod/site/staff": "PASS - Returns 5+ staff members",
+      "POST /api/mod/site/staff": "PASS - Creates new staff (after ObjectId fix)",
+      "DELETE /api/mod/site/staff/{id}": "PASS - Soft-deletes staff",
+      "POST /api/mod/site/faults/triage-preview": "PASS - Returns AI triage with priority",
+      "POST /api/mod/site/faults": "PASS - Creates fault ticket with MOD-YYYY-NNNNN ref",
+      "GET /api/mod/site/proactive-nudges": "PASS - Returns nudges array",
+      "GET /api/master-admin/mod/sites": "PASS - Returns 3 MOD sites with counts",
+      "GET /api/master-admin/mod/audit-log/{site_id}": "PASS - Returns audit entries",
+      "GET /api/mod/me": "PASS - Returns user/org context"
+    },
+    "frontend_tests": {
+      "login_routing": "PASS - MOD site user routed to MODSiteDashboard",
+      "dashboard_display": "PASS - Site name, stats, open faults all render correctly",
+      "fault_wizard_step1": "PASS - Equipment picker with 12 items, search works",
+      "fault_wizard_step2": "PASS - 6 fault type tiles (not_working, noise, electrical, damage, safety, other)",
+      "fault_wizard_step3": "PASS - Description (40 char min), onset, usable, safe_in_service radios",
+      "fault_wizard_step4": "PASS - Attachments (optional, skip works)",
+      "fault_wizard_step5": "PASS - Reporter picker with 5 seeded staff",
+      "fault_wizard_step6": "PASS - AI triage card shows priority/cause/quick_fix, submit works",
+      "fault_confirmation": "PASS - Shows MOD-YYYY-NNNNN ticket ref, back-to-dashboard works",
+      "staff_modal": "PASS - Lists 5 staff, add/edit/delete buttons present",
+      "staff_add": "PASS - Form opens, save creates new staff",
+      "master_admin_mod_console": "PASS - KPI tiles (3 sites, RAF/Army/Navy counts), site table, audit log drawer"
+    }
+  },
+  "bug_fix_applied": {
+    "file": "/app/backend/routes/mod_portal.py",
+    "line": "331",
+    "issue": "ObjectId serialization error when creating staff",
+    "fix": "Added doc.pop('_id', None) before returning the created staff document"
+  }
+}

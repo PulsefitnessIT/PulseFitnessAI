@@ -1,0 +1,118 @@
+{
+  "summary": "Comprehensive GymAxis brand verification across all major surfaces. Tested /login, /, /pulse, /master-admin, /memberships, /marketing, /crm, /service-desk. GymAxis branding (navy #2563EB, brand gradient navy→purple) is correctly applied on most surfaces. Pulse branding preserved on /pulse route. No cyan (#19CDFF) or saturated blue (#0055FF) buttons found on GymAxis routes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "CRM Login Page",
+        "issues": ["Sign In button appears to be solid blue (#0088FF-ish) rather than brand gradient - may be intentional for CRM standalone login"]
+      },
+      {
+        "screen": "Service Desk",
+        "issues": ["Shows orange-themed Pulse Fitness Operations branding in sidebar - may need verification if this should be GymAxis branded for admin user"]
+      }
+    ]
+  },
+  "test_results": {
+    "login_page": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "gx_login_page_testid": true,
+      "brand_gradient_button": true,
+      "gymaxis_logo": true
+    },
+    "marketing_home": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "gymaxis_logo": true,
+      "cyan_buttons": 0,
+      "brand_gradient_buttons": true
+    },
+    "pulse_landing": {
+      "status": "PASS",
+      "data_brand": "pulse",
+      "pulse_landing_page_testid": true,
+      "pulse_logo": true,
+      "gymaxis_logo_absent": true,
+      "theme_gymaxis_absent": true,
+      "cyan_branding_preserved": true
+    },
+    "master_admin": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "admin_sidebar_logo": true,
+      "gymaxis_logo_image": true,
+      "brand_gradient_tabs": true,
+      "cyan_buttons": 0
+    },
+    "memberships": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "gymaxis_logo_testid": true,
+      "cyan_buttons": 0
+    },
+    "marketing": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "gymaxis_logo_testid": true,
+      "cyan_buttons": 0
+    },
+    "crm_pulse_user": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "h1_text": "Pulse Fitness",
+      "gx_grad_text_absent": true,
+      "theme_gymaxis_absent": true,
+      "solid_tab_background": true
+    },
+    "crm_gymaxis_admin": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "h1_text": "GymAxis Pro",
+      "gx_grad_text_present": true,
+      "gymaxis_logo": true,
+      "brand_gradient_buttons": true
+    },
+    "service_desk": {
+      "status": "INFO",
+      "data_brand": "gymaxis",
+      "notes": "Shows Pulse Fitness Operations branding - may need verification"
+    }
+  },
+  "color_scan_results": {
+    "cyan_19CDFF_buttons": 0,
+    "saturated_blue_0055FF_buttons": 0,
+    "brand_navy_2563EB_buttons": 1,
+    "gradient_buttons": 3
+  },
+  "pulse_safety_net": {
+    "pulse_landing_preserved": true,
+    "pulse_user_dashboard_no_gymaxis": true,
+    "pulse_crm_user_no_gradient": true,
+    "data_brand_pulse_on_pulse_routes": true
+  },
+  "test_report_links": [],
+  "action_items": [
+    "VERIFY: Service Desk (/service-desk) shows orange Pulse Fitness Operations branding - confirm if this is expected for admin user or should show GymAxis branding",
+    "MINOR: CRM standalone login page Sign In button uses solid blue instead of brand gradient - may be intentional design choice"
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - frontend only testing",
+    "frontend": "95%"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "GymAxis branding verification complete. All major surfaces tested. No cyan (#19CDFF) or saturated blue (#0055FF) buttons found on GymAxis routes. Pulse branding correctly preserved on /pulse routes and for Pulse-branded users. Service Desk shows Pulse Fitness Operations branding which may need verification.",
+  "test_credentials_used": [
+    "admin@gymaxisai.com / MasterAdmin123! (Master Admin)",
+    "craig.henshall@pulsefitness.com / Test123! (Pulse CRM user)"
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "summary": "Integrations Admin Console (iter 215dy) testing completed. All backend endpoints and frontend UI verified. Lint script passes with expected 5 ok + 5 warnings.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_integrations_admin_215dy.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215dy.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_integrations_admin_215dy.py"
+  ],
+  "success_rate": {
+    "backend": "100% (21/21 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Integrations Admin Console fully tested. Backend endpoints at /api/integrations/admin/* all working. Frontend at /admin/integrations renders correctly with 4 tabs (Overview, Sicon Outbox, Sage Outbox, Field Mapping). Sicon outbox has 73 pending rows, Sage has 2 pending. Both systems show 'DRY-RUN · AWAITING CREDENTIALS' status as expected.",
+  "test_results": {
+    "lint_script": {
+      "command": "python /app/backend/scripts/check_integration_mapping.py",
+      "exit_code": 0,
+      "output": "PASS · 5 ok · 5 warn · 0 err",
+      "warnings_expected": [
+        "Sage entity 'SLContract' not yet implemented",
+        "Sage entity 'SLQuote' not yet implemented",
+        "Sage entity 'SLQuoteLine' not yet implemented",
+        "Sage entity 'SLInvoiceLine' not yet implemented",
+        "no Pydantic Field annotations adopted yet"
+      ]
+    },
+    "makefile_lint": {
+      "command": "cd /app && make lint-integrations",
+      "exit_code": 0,
+      "output": "PASS · 5 ok · 5 warn · 0 err"
+    },
+    "backend_api_tests": {
+      "GET /api/integrations/admin/health": {
+        "status": "PASS",
+        "auth_required": true,
+        "response_shape": {
+          "generated_at": "ISO timestamp",
+          "sicon": {
+            "config": "object with configured, env_fallback_present, tenant_count, base_url",
+            "outbox": "object with pending, in_flight, succeeded_24h, failed_24h, dead_letter",
+            "inbox": "object with exists, pending_merge, last_poll_at",
+            "live": "boolean"
+          },
+          "sage": {
+            "config": "object with configured, env_fallback_present, tenant_count, tier",
+            "outbox": "object with pending, in_flight, succeeded_24h, failed_24h, dead_letter",
+            "live": "boolean"
+          }
+        },
+        "sicon_pending_count": 73,
+        "sage_pending_count": 2
+      },
+      "GET /api/integrations/admin/sicon/outbox": {
+        "status": "PASS",
+        "auth_required": true,
+        "filters_work": ["status=pending", "kind=case"],
+        "response_shape": {"rows": "array", "count": "number", "exists": "boolean"}
+      },
+      "GET /api/integrations/admin/sage/outbox": {
+        "status": "PASS",
+        "auth_required": true,
+        "response_shape": {"rows": "array", "count": "number", "exists": "boolean"}
+      },
+      "GET /api/integrations/admin/mapping/sections": {
+        "status": "PASS",
+        "auth_required": true,
+        "response_shape": {
+          "master": "11 sections",
+          "legacy": "18 sections",
+          "modules": "9 module rows"
+        }
+      }
+    },
+    "service_ops_regression": {
+      "GET /api/svc/comms/templates": "PASS - returns templates array",
+      "GET /api/svc/desk/summary": "PASS - returns 200",
+      "GET /api/svc/billing?status=ready": "PASS - returns 200"
+    },
+    "frontend_tests": {
+      "page_url": "/admin/integrations",
+      "access_control": "Master admin only (user?.is_master_admin guard)",
+      "elements_verified": {
+        "integrations-console": true,
+        "integrations-hero": true,
+        "integrations-tabs": true,
+        "integrations-tab-overview": true,
+        "integrations-tab-sicon": true,
+        "integrations-tab-sage": true,
+        "integrations-tab-mapping": true,
+        "sicon-card": true,
+        "sage-card": true,
+        "sicon-kpi-pending": true,
+        "sicon-kpi-inflight": true,
+        "sicon-kpi-success": true,
+        "sicon-kpi-failed": true,
+        "sicon-kpi-dlq": true,
+        "sage-kpi-pending": true,
+        "sage-kpi-inflight": true,
+        "sage-kpi-success": true,
+        "sage-kpi-failed": true,
+        "sage-kpi-dlq": true,
+        "sicon-filter-kind": true,
+        "sicon-filter-status": true,
+        "sicon-refresh": true,
+        "sicon-outbox-row-0": true,
+        "sage-filter-kind": true,
+        "sage-filter-status": true,
+        "sage-refresh": true,
+        "mapping-tab": true,
+        "mapping-module-row-0": true,
+        "mapping-module-row-8": true
+      },
+      "status_pip_display": {
+        "sicon": "DRY-RUN · AWAITING CREDENTIALS",
+        "sage": "DRY-RUN · AWAITING CREDENTIALS"
+      },
+      "kpi_values": {
+        "sicon_pending": 73,
+        "sage_pending": 2
+      }
+    }
+  },
+  "notes": [
+    "Direct URL navigation to /admin/integrations returns 404 from server (SPA routing issue) - must use client-side navigation via React Router",
+    "Rate limiting on login endpoint required module-scoped token fixture to avoid 429 errors during testing"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 196: Master Admin & Manager Granular Permissions - Backend tests pass (8/8), frontend testing limited by rate limiting",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_permissions_iteration196.py",
+    "/app/test_reports/pytest/pytest_results_iteration196.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Code implementation looks correct - SettingsTab.js has per-staff module override switches (lines 369-410) with correct data-testids",
+    "FeatureControlPanel.js has CRM module added to the 4-up module matrix",
+    "Backend module_access.py correctly includes 'crm' in MODULE_KEYS and handles per-staff overrides"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "Unable to fully test due to rate limiting - code review shows correct implementation"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "operator": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "Test staff created by backend tests with prefix 'Perm Staff'",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend tests for staff permissions are comprehensive and passing. Frontend has rate limiting (429) that kicks in after ~5 login attempts. Wait 2+ minutes between login attempts. The Settings page Team Members section shows per-staff module override switches for non-owner staff when logged in as owner/manager. FeatureControlPanel shows 4-up module matrix including CRM.",
+  "backend_tests_summary": {
+    "test_auth_me_includes_crm_key": "PASSED - /api/auth/me returns module_access with 'crm' key",
+    "test_master_admin_can_toggle_crm": "PASSED - PUT /api/master-admin/organizations/{org_id}/features accepts modules.crm",
+    "test_manager_can_set_module_overrides": "PASSED - PATCH /api/organization/staff/{staff_id}/permissions with module_overrides works",
+    "test_module_overrides_cannot_grant_disabled_org_module": "PASSED - Overrides can only RESTRICT, not grant",
+    "test_timetable_view_only_blocks_template_create": "PASSED - Staff with timetable_view_only=true gets 403 on POST templates",
+    "test_timetable_view_only_does_not_block_read": "PASSED - GET /memberships/timetable works with view_only",
+    "test_lifting_view_only_restores_write": "PASSED - Setting timetable_view_only=false restores write access",
+    "test_owner_cannot_be_restricted": "PASSED - PATCH permissions for owner returns 400"
+  }
+}

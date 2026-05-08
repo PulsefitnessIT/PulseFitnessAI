@@ -1,0 +1,95 @@
+{
+  "summary": "Iteration 215d6.1 mobile modal testing. CRITICAL BUG: All modals (Add Member, etc.) have Save/Cancel buttons hidden off-screen on mobile due to CSS transform on <MAIN> element breaking position:fixed. Module Switcher routing and CRM SSO work correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ModalShell (_shared.js)",
+        "issue": "Save/Cancel buttons hidden off-screen on mobile (390x844). Modal height is 1984px but viewport is 844px. Save button at y=1833px is unreachable.",
+        "selector": "[data-testid='mbr-add-modal']",
+        "priority": "CRITICAL",
+        "root_cause": "The <MAIN> element has transform: matrix(1, 0, 0, 1, 0, 0) which creates a new containing block for position:fixed elements. The modal's fixed positioning becomes relative to <MAIN> (1984px tall) instead of the viewport (844px). The safe-zone container (top-16 bottom-16) is 1856px instead of 716px.",
+        "affected_modals": ["AddMemberModal", "ClassEditorModal", "PlanEditorModal", "PromoEditorModal", "InstructorDrawer", "MemberEditDrawer"]
+      },
+      {
+        "component": "ModalShell (_shared.js)",
+        "issue": "Same issue affects desktop (1440x900). Modal height 1362px, viewport 900px, Save button at y=1008px.",
+        "selector": "[data-testid='mbr-add-modal']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_215d6_1.json"
+  ],
+  "action_items": [
+    "CRITICAL: Fix modal positioning - either (1) remove transform from <MAIN> element, (2) render modals in a React Portal at document.body level, or (3) use a different positioning strategy that doesn't rely on position:fixed",
+    "The transform on <MAIN> is likely from a CSS animation or transition - investigate why it has transform: matrix(1,0,0,1,0,0) even when no animation is active",
+    "Alternative fix: Use position:absolute with explicit height calculations instead of relying on position:fixed with inset"
+  ],
+  "critical_code_review_comments": [
+    "ModalShell uses position:fixed with inset:0 but this breaks when any ancestor has transform property",
+    "The safe-zone pattern (top-16 bottom-16) is correct but ineffective due to the transform issue",
+    "Consider using React Portal (ReactDOM.createPortal) to render modals outside the <MAIN> element"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "60% - Module Switcher and CRM SSO work, but all modals have critical positioning bug"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRITICAL: All modals in /memberships have Save/Cancel buttons hidden off-screen. Root cause is transform property on <MAIN> element breaking position:fixed. The modal's fixed positioning becomes relative to <MAIN> instead of viewport. Fix requires either removing transform from <MAIN>, using React Portal, or different positioning strategy.",
+  "features_tested": {
+    "mobile_add_member_modal": {
+      "x_close_visible": "PASS - y=93px, visible above navbar",
+      "save_cancel_visible": "FAIL - y=1833px, completely off-screen (viewport=844px)",
+      "form_scrollable": "FAIL - scrollHeight === clientHeight, not scrollable",
+      "floating_assistant_hidden": "PASS - hidden when modal open"
+    },
+    "module_switcher_operations": {
+      "routes_to_dashboard": "PASS - /dashboard?as=operator",
+      "shows_gymaxis_not_pulse": "PASS - page title is 'GymAxis AI'"
+    },
+    "crm_sso": {
+      "lands_without_login": "PASS - CRM Command Center loads directly",
+      "content_visible": "PASS - Dashboard/Contacts/Pipeline visible"
+    },
+    "desktop_regression": {
+      "modal_centered": "PARTIAL - modal visible but Save button at y=1008px below viewport (900px)"
+    }
+  },
+  "rca_of_the_issue": {
+    "problem": "Modal Save/Cancel buttons hidden off-screen on mobile and desktop",
+    "root_cause": "The <MAIN> element has CSS transform: matrix(1, 0, 0, 1, 0, 0) which creates a new containing block for position:fixed descendants. This is a known CSS behavior - when any ancestor has a transform property (even identity matrix), fixed positioning becomes relative to that ancestor instead of the viewport.",
+    "evidence": {
+      "backdrop_height": "1984px (should be 844px viewport height)",
+      "safe_zone_height": "1856px (should be 716px = 844 - 64 - 64)",
+      "card_height": "1832px (should be constrained to safe zone)",
+      "save_button_y": "1833px (completely off-screen)"
+    },
+    "reproduction_steps": [
+      "1. Login as admin@gymaxisai.com on mobile viewport (390x844)",
+      "2. Navigate to /memberships",
+      "3. Click Members tab",
+      "4. Click '+ Add member' button",
+      "5. Observe modal - Save/Cancel buttons are not visible",
+      "6. Scrolling does not help - the scroll container is not scrollable"
+    ],
+    "suggested_fixes": [
+      "Option 1: Remove transform from <MAIN> element (may break animations)",
+      "Option 2: Use ReactDOM.createPortal to render modals at document.body level",
+      "Option 3: Use position:absolute with explicit height calculations",
+      "Option 4: Add overflow:hidden to body when modal is open and use viewport units"
+    ]
+  }
+}

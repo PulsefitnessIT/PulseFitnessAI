@@ -1,0 +1,107 @@
+{
+  "summary": "Iteration 83: Testing 6 Bug Fixes from Deployment Presentation. Backend: 7/10 tests passed (3 skipped due to rate limiting). All critical bug fixes verified in code and API tests.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Rate limiter", "issue": "429 Too Many Requests after multiple login attempts - expected security behavior, 5 attempts per 5 min"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "bug_fixes_verified": {
+    "1_login_case_sensitivity": {
+      "status": "PASSED",
+      "tests": [
+        "POST /api/auth/login with Test@gymaxisai.com - 200 OK",
+        "POST /api/auth/login with Lee.Somers@PulseFitness.com - 200 OK",
+        "POST /api/auth/login with ADMIN@GYMAXISAI.COM - 200 OK",
+        "POST /api/auth/login with admin@gymaxisai.com - 200 OK"
+      ],
+      "code_location": "/app/backend/routes/auth.py line 98: credentials.email.strip().lower()"
+    },
+    "2_ai_triage_i_fixed_it": {
+      "status": "VERIFIED IN CODE",
+      "code_location": "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js lines 429-439",
+      "details": "Button with data-testid='lite-fault-self-fix' appears after AI triage for Pro users, calls onFaultSubmit with resolution_type='self_fix'"
+    },
+    "3_qr_codes_equipment_detail": {
+      "status": "VERIFIED IN CODE",
+      "code_location": "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js lines 142-175",
+      "details": "QR Code section with data-testid='equip-qr-section', image from api.qrserver.com, Download QR button with data-testid='equip-qr-download'"
+    },
+    "4_gym_layout_pdf_preview": {
+      "status": "PASSED",
+      "tests": [
+        "GET /api/files/{id}/view?token={jwt} - 200 OK with valid token",
+        "GET /api/files/{id}/view without token - 422 (requires token)",
+        "GET /api/files/{id}/view?token=invalid - 401 (invalid token rejected)"
+      ],
+      "code_location": "/app/backend/routes/files.py lines 198-213, /app/frontend/src/pages/PulseGymLayoutTab.js lines 74-94"
+    },
+    "5_document_section_theme_colors": {
+      "status": "VERIFIED IN CODE",
+      "code_location": "/app/frontend/src/pages/LiteDashboard/LiteDocumentsTab.js",
+      "details": "Uses CSS variables: var(--theme-text), var(--theme-text-muted), var(--theme-surface), var(--theme-border) instead of hardcoded dark colors"
+    },
+    "6_tier_toggle_subscription_sync": {
+      "status": "PASSED",
+      "tests": [
+        "PUT /api/master-admin/organizations/{id}/account-type with pulse_pro -> subscription_tier=pro",
+        "PUT /api/master-admin/organizations/{id}/account-type with lite -> subscription_tier=lite",
+        "PUT /api/master-admin/organizations/{id}/account-type with full -> subscription_tier=premium"
+      ],
+      "code_location": "/app/backend/routes/master_admin.py lines 203-221"
+    }
+  },
+  "frontend_verification": {
+    "pulse_landing_page": {
+      "theme_toggle": "VISIBLE - sun icon in top right",
+      "language_selector": "VISIBLE - EN dropdown in top right",
+      "sign_in_button": "VISIBLE - 'Sign In to Your Portal' button"
+    },
+    "pulse_dashboard": {
+      "admin_banner": "VISIBLE - 'Viewing Pulse Self-Service Pro as Admin' with Switch to Lite/Back to GymAxis links",
+      "pro_plan_badge": "VISIBLE",
+      "tabs": "VISIBLE - Dashboard, Equipment, Faults, Documents, Gym Layout, Suppliers, Weekly Digest"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration83_bug_fixes.py",
+    "/app/test_reports/pytest/pytest_results_iteration83.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All 6 bug fixes verified in code and/or API tests",
+    "Login case-sensitivity fix working - email lowercased before DB lookup",
+    "New /files/{id}/view endpoint correctly requires token query param for PDF iframe viewing",
+    "Tier toggle correctly syncs subscription_tier: pulse_pro->pro, lite->lite, full->premium",
+    "QR code section added to equipment detail with download functionality",
+    "Document section uses CSS variables for theme-aware styling",
+    "AI Triage 'I Fixed It' button appears after triage for Pro users"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration83_bug_fixes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 executed tests passed, 3 skipped due to rate limiting)",
+    "frontend": "Code verified - all bug fixes present"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro_user": "lee.somers@pulsefitness.com / Test123!",
+    "test_lite_user": "test@gymaxisai.com / Test123!",
+    "note": "Login now works with ANY case: Test@gymaxisai.com, TEST@GYMAXISAI.COM, etc."
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 83 verified all 6 bug fixes from deployment presentation. Rate limiter is active (5 attempts per 5 min per IP). All login case variations work. New /files/{id}/view endpoint requires ?token= query param. Tier toggle syncs subscription_tier. Frontend code verified for QR codes, I Fixed It button, theme-aware documents, and PDF preview.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Sage 200 API", "Sicon Service API", "Resend Email"],
+    "note": "These integrations are mocked scaffolds. Emergent LLM Key is REAL for AI features."
+  }
+}

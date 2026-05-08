@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /about
+Allow: /contact
+Allow: /privacy
+Allow: /terms
+Allow: /security
+Allow: /legal/dpa
+Allow: /legal/dpia
+Allow: /whats-new
+Allow: /status
+Allow: /platform/
+
+Disallow: /help
+Disallow: /help/
+Disallow: /dashboard
+Disallow: /master-admin
+Disallow: /admin/
+Disallow: /marketing-suite
+Disallow: /memberships
+Disallow: /crm
+Disallow: /pulse
+Disallow: /service-desk
+Disallow: /members
+Disallow: /m/
+Disallow: /embed/
+Disallow: /instructor
+Disallow: /checkin/
+Disallow: /gym-floor
+Disallow: /api/
+
+Sitemap: https://www.gymaxisai.com/sitemap.xml

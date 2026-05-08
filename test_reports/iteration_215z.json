@@ -1,0 +1,77 @@
+{
+  "summary": "Iteration 215z — Sibling discount feature testing. Backend API tests all passed (18/20, 2 skipped). Unit tests for _apply_sibling_discount helper all passed (8/8). Backend is running without syntax errors after E702 fix. Frontend UI has correct data-testid attributes but session management issues prevented full UI testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/member-auth/login", "issue": "Member login skipped in tests - member JWT uses different auth flow"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Session persistence", "issue": "Session is lost when navigating from /pulse to /memberships - requires re-authentication", "affected_selectors": ["[data-testid='module-switcher-memberships']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sibling_discount_215z.py",
+    "/app/backend/tests/test_sibling_discount_api_215z.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215z.xml"
+  ],
+  "action_items": [
+    "Frontend session management: Session is lost when navigating between /pulse and /memberships modules - may need to investigate JWT token persistence across module navigation"
+  ],
+  "critical_code_review_comments": [
+    "studio_billing.py: E702 syntax errors fixed (lines 604/616) - semicolons replaced with proper newlines",
+    "InvoicingTab.js: Sibling discount UI correctly implemented with data-testid attributes (mbr-invoicing-sibling-discount, mbr-invoicing-sibling-input, mbr-invoicing-sibling-save)",
+    "Pydantic validation for pct field (0-50 range) working correctly - returns 422 for out-of-range values"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sibling_discount_api_215z.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 passed, 2 skipped)",
+    "frontend": "Unable to fully test due to session management issues"
+  },
+  "seed_data_creation": "None - used existing seeded operator account (lee.somers@pulsefitness.com)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend sibling discount feature is fully working. API endpoints GET/POST /api/memberships/billing/sibling-discount work correctly. Unit tests for _apply_sibling_discount helper pass. Frontend InvoicingTab.js has correct data-testid attributes. Session management between /pulse and /memberships modules may need investigation - the JWT token doesn't persist when switching modules.",
+  "test_results": {
+    "sibling_discount_api": {
+      "GET /api/memberships/billing/sibling-discount": "PASS - Returns pct and enabled fields",
+      "POST /api/memberships/billing/sibling-discount (valid pct)": "PASS - Sets and persists value",
+      "POST /api/memberships/billing/sibling-discount (pct=0)": "PASS - Disables discount",
+      "POST /api/memberships/billing/sibling-discount (pct>50)": "PASS - Returns 422",
+      "POST /api/memberships/billing/sibling-discount (pct<0)": "PASS - Returns 422",
+      "POST /api/memberships/billing/monthly-invoice/preview": "PASS - Works correctly"
+    },
+    "unit_tests": {
+      "test_no_discount_when_pct_zero": "PASS",
+      "test_no_discount_with_single_sibling": "PASS",
+      "test_no_discount_when_no_sub_profile": "PASS",
+      "test_two_siblings_apply_pct": "PASS",
+      "test_three_siblings_all_discounted": "PASS",
+      "test_ordering_uses_first_booking": "PASS",
+      "test_rounding_floors": "PASS",
+      "test_label_2nd_3rd_ordinals": "PASS"
+    },
+    "backend_health": {
+      "GET /api/health": "PASS",
+      "POST /api/auth/login": "PASS"
+    }
+  },
+  "features_verified": [
+    "P0 BLOCKER FIX: Backend running after E702 syntax fix - VERIFIED",
+    "GET /api/memberships/billing/sibling-discount returns {pct, enabled} - VERIFIED",
+    "POST /api/memberships/billing/sibling-discount persists to organizations.sibling_discount_pct - VERIFIED",
+    "POST /api/memberships/billing/sibling-discount rejects pct out of [0,50] with 422 - VERIFIED",
+    "POST /api/memberships/billing/monthly-invoice/preview works - VERIFIED",
+    "Unit tests for _apply_sibling_discount helper - VERIFIED (8/8 passed)"
+  ],
+  "features_not_fully_tested": [
+    "Frontend UI smoke test - Session management issues prevented full testing",
+    "POST /api/memberships/billing/sibling-discount requires owner/manager role - Skipped (member auth flow different)",
+    "PDF generation endpoint - No direct GET endpoint exists (PDF is generated and attached to emails)"
+  ]
+}

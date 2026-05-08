@@ -1,0 +1,51 @@
+{
+  "summary": "Phase 5 AI Assistant Layer testing completed. All 4 backend AI endpoints (triage, photo/classify, summarise, scheduler-tiebreak) working correctly. Auto-assign tie-break integration verified. Frontend code review confirms all required data-testids present.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215ds_ai_assistant.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215ds.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All AI endpoints properly log to svc_ai_calls with kind/ok/latency_ms",
+    "Triage uses svc_parts catalogue to suggest real SKUs",
+    "Photo classify caches results to svc_engineer_photos.ai for cost avoidance",
+    "Scheduler auto-assign correctly invokes tie-break when top-2 within 10 points",
+    "Org-scoping verified - user from org B gets 404 for org A's case"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_215ds_ai_assistant.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "Code review only - login flow blocked UI testing"
+  },
+  "seed_data_creation": "Created Test Engineer 2 (7c1d3509-1f2e-4f29-ab5d-538780d90fbf) for tie-break testing, Test Org B user (test.orgb@tottenham.com / TestUser123!) for org-scoping test",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 5 AI endpoints fully tested via pytest. Frontend UI testing blocked by login flow issue in Playwright (credentials filled but Sign In doesn't navigate). Code review confirms all required data-testids present: svc-intake-form, intake-ai-block, intake-ai-run, intake-ai-result, intake-ai-accept, intake-ai-dismiss, drawer-ai-summary-block, drawer-ai-summary-run, drawer-ai-customer-summary, drawer-ai-engineer-summary, job-photo-classify-{id}, job-photo-ai-{id}. Backend tests cover: triage validation (400 for missing/empty description), photo classify validation (400 for missing inputs, 404 for non-existent photo), summarise (404 for non-existent case), tie-break (400 for <2 candidates, 404 for non-existent case), org-scoping, AI call logging.",
+  "backend_test_results": {
+    "test_triage_with_valid_description": "PASSED - Returns ok:true, priority, fault_code, likely_parts, rationale, confidence, latency_ms",
+    "test_triage_missing_description_returns_400": "PASSED",
+    "test_triage_empty_description_returns_400": "PASSED",
+    "test_photo_classify_with_base64_image": "PASSED - Returns ok:true, tags, severity, summary, latency_ms",
+    "test_photo_classify_missing_inputs_returns_400": "PASSED",
+    "test_photo_classify_nonexistent_photo_returns_404": "PASSED",
+    "test_summarise_existing_case": "PASSED - Returns ok:true, customer_summary, engineer_summary, latency_ms",
+    "test_summarise_nonexistent_case_returns_404": "PASSED",
+    "test_tiebreak_with_valid_candidates": "PASSED - Returns ok:true, chosen_engineer_id, reasoning, latency_ms",
+    "test_tiebreak_less_than_2_candidates_returns_400": "PASSED",
+    "test_tiebreak_nonexistent_case_returns_404": "PASSED",
+    "test_triage_logs_to_svc_ai_calls": "PASSED",
+    "test_org_b_cannot_summarise_org_a_case": "PASSED - Returns 404",
+    "test_auto_assign_includes_ai_tiebreak_when_scores_close": "PASSED - ai_tiebreak field present with chosen_engineer_id and reasoning"
+  }
+}

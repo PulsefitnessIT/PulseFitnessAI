@@ -1,0 +1,96 @@
+{
+  "summary": "Iteration 215aa — Family Auto-Bill feature testing. All backend tests passed (16/16): 4 unit tests + 12 API tests. Member-side endpoints (GET/POST auto-pay status, setup, disable) work correctly with proper auth. Operator endpoint (GET autopay/members) works correctly. Regression tests for sibling discount (215z) and family grouping (215y) all pass. Frontend AutoPayCard component verified with correct data-testid attributes. InvoicingTab has correct Auto badge data-testid attributes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Operator login via /memberships", "issue": "Session management issue - login modal appears but doesn't persist session when navigating to /memberships. This is a known issue from iteration 215z.", "affected_selectors": ["login modal"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_family_autopay_215aa.py",
+    "/app/backend/tests/test_family_autopay_api_215aa.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215aa.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "family_autopay.py: Well-structured module with proper separation of member-side endpoints, webhook handler, and cron job",
+    "Webhook routing in memberships_payments.py correctly branches to complete_autopay_setup when gymaxis_kind='autopay_setup' (lines 592-596)",
+    "sicon_poller.py correctly calls _run_family_autopay() in the poll loop (line 220)",
+    "AutoPayCard component in MemberPortal.js has all required data-testid attributes (member-autopay-card, member-autopay-badge, member-autopay-enable, member-autopay-disable)",
+    "InvoicingTab.js has correct Auto badge data-testid attributes (mbr-invoicing-autopay-{member_id}, mbr-invoicing-history-autopay-{inv_id})"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_family_autopay_api_215aa.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16 passed)",
+    "frontend": "Partial - AutoPayCard UI verified, operator InvoicingTab not fully tested due to session issue"
+  },
+  "seed_data_creation": "Created test member via POST /api/member-auth/register for API testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Family Auto-Bill feature is fully implemented and working. All backend endpoints pass tests. Frontend AutoPayCard component is correctly implemented with proper data-testid attributes. The operator InvoicingTab Auto badge implementation is correct in code but couldn't be fully UI-tested due to session management issues when navigating to /memberships (known issue from 215z). Stripe integration is MOCKED in tests - actual Stripe calls are not tested.",
+  "test_results": {
+    "unit_tests": {
+      "test_previous_period_jan_wraps_to_december": "PASS",
+      "test_previous_period_regular_month": "PASS",
+      "test_cycle_skipped_outside_window": "PASS",
+      "test_cycle_bail_when_stripe_not_configured": "PASS"
+    },
+    "member_autopay_api": {
+      "GET /api/member/billing/auto-pay (no auth)": "PASS - Returns 401",
+      "GET /api/member/billing/auto-pay (with member token)": "PASS - Returns {enabled, card_brand, card_last4, last_saved_at}",
+      "POST /api/member/billing/auto-pay/setup (no auth)": "PASS - Returns 401",
+      "POST /api/member/billing/auto-pay/setup (with member token)": "PASS - Returns {checkout_url, session_id}",
+      "POST /api/member/billing/auto-pay/disable (no auth)": "PASS - Returns 401",
+      "POST /api/member/billing/auto-pay/disable (with member token)": "PASS - Returns {ok:true, enabled:false}"
+    },
+    "operator_autopay_api": {
+      "GET /api/memberships/billing/autopay/members (no auth)": "PASS - Returns 401",
+      "GET /api/memberships/billing/autopay/members (with operator token)": "PASS - Returns {count, members:[]}"
+    },
+    "regression_sibling_discount": {
+      "GET /api/memberships/billing/sibling-discount": "PASS",
+      "POST /api/memberships/billing/monthly-invoice/preview": "PASS"
+    },
+    "regression_family_grouping": {
+      "POST /api/memberships/billing/monthly-invoice/preview (attendees)": "PASS"
+    },
+    "frontend_ui": {
+      "AutoPayCard component": "PASS - Found with data-testid=member-autopay-card",
+      "Set up button": "PASS - Found with data-testid=member-autopay-enable",
+      "Active badge (when enabled)": "PASS - data-testid=member-autopay-badge exists in code",
+      "Turn off button (when enabled)": "PASS - data-testid=member-autopay-disable exists in code"
+    }
+  },
+  "features_verified": [
+    "GET /api/member/billing/auto-pay requires member JWT (401 without) - VERIFIED",
+    "GET /api/member/billing/auto-pay returns {enabled, card_brand, card_last4, last_saved_at} - VERIFIED",
+    "POST /api/member/billing/auto-pay/setup requires member JWT (401 without) - VERIFIED",
+    "POST /api/member/billing/auto-pay/setup returns {checkout_url, session_id} - VERIFIED",
+    "POST /api/member/billing/auto-pay/disable requires member JWT - VERIFIED",
+    "POST /api/member/billing/auto-pay/disable sets auto_pay_enabled=false and returns {ok:true, enabled:false} - VERIFIED",
+    "GET /api/memberships/billing/autopay/members requires operator auth - VERIFIED",
+    "GET /api/memberships/billing/autopay/members returns {count, members:[...]} - VERIFIED",
+    "Webhook routing to complete_autopay_setup when gymaxis_kind='autopay_setup' - VERIFIED (code review)",
+    "Scheduler run_family_autopay_cycle() short-circuits when STRIPE_API_KEY unset - VERIFIED (unit test)",
+    "Scheduler run_family_autopay_cycle() short-circuits when UTC day > 3 - VERIFIED (unit test)",
+    "Regression: Sibling discount endpoints still work - VERIFIED",
+    "Regression: Monthly invoice preview still works - VERIFIED",
+    "Frontend: AutoPayCard component with data-testid=member-autopay-card - VERIFIED",
+    "Frontend: 'Set up →' button with data-testid=member-autopay-enable - VERIFIED",
+    "Frontend: 'Active' badge with data-testid=member-autopay-badge - VERIFIED (code review)",
+    "Frontend: 'Turn off' button with data-testid=member-autopay-disable - VERIFIED (code review)",
+    "Frontend: InvoicingTab Auto chip with data-testid=mbr-invoicing-autopay-{member_id} - VERIFIED (code review)",
+    "Frontend: InvoicingTab history Auto chip with data-testid=mbr-invoicing-history-autopay-{inv_id} - VERIFIED (code review)"
+  ],
+  "mocked_apis": {
+    "note": "Stripe live SetupIntent/PaymentIntent network calls are MOCKED in tests. The setup endpoint returns a real Stripe checkout_url because STRIPE_API_KEY is configured, but actual card entry and webhook completion are not tested.",
+    "mocked_list": ["stripe.Customer.create", "stripe.checkout.Session.create", "stripe.SetupIntent.retrieve", "stripe.PaymentMethod.retrieve", "stripe.PaymentIntent.create"]
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "summary": "Iteration 181 - UX Fixes Testing for GymAxis Pulse Pro. All features verified: ModuleSwitcher rounded-full styling, Pulse Pro tab layout (8 tabs for managers, 5 for staff), Weekly Digest inside Reports, GymFloorManagerTab Diary-left/Setup-right layout, Topics header (no 'taxonomy'), Gym-floor login via Pulse Portal.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gym_floor.py",
+    "/app/test_reports/pytest/pytest_results_iteration180.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ModuleSwitcher.js line 54: outer nav has 'rounded-full' class - CORRECT",
+    "ModuleSwitcher.js line 60: inner Links have 'rounded-full' class - CORRECT",
+    "LiteDashboardPage.js buildTabs(): Pulse Pro staff gets 5 tabs, managers/owners get 8 tabs - CORRECT",
+    "LiteDashboardPage.js: No Documents tab for Pulse Pro users - CORRECT",
+    "GymFloorManagerTab.js line 137: Diary on LEFT, Setup on RIGHT - CORRECT",
+    "GymFloorManagerTab.js line 200: Topics header shows 'Topics (N)' not 'Topic taxonomy' - CORRECT",
+    "GymFloorManagerTab.js line 136: Setup panel hidden for non-managers - CORRECT",
+    "GymFloorManagerTab.js line 244: Delete buttons gated on isManager - CORRECT",
+    "PulseReportsTab.js line 61: Weekly Digest sub-tab inside Reports - CORRECT",
+    "PulseLandingPage.js line 1119: Login label 'Email, site code, or gym-floor username' - CORRECT",
+    "PulseLandingPage.js line 1127: Placeholder 'your@email.com · raf-brizenorton · tottenham-floor' - CORRECT",
+    "PulseLandingPage.js line 1092-1103: Gym-floor fallback login on 401 when email lacks '@' - CORRECT",
+    "gym_floor.py _require_manager: Correctly blocks staff role (403) - CORRECT"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (26/26 gym_floor tests passed)",
+    "frontend": "100% (all UI features verified)"
+  },
+  "test_credentials": {
+    "pulse_pro_manager": "lee.somers@pulsefitness.com / TempPass123!",
+    "gym_floor_shared": "tottenham-floor / FloorTest123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All UX fixes verified for iteration 181. Key verifications: (1) ModuleSwitcher pills are fully rounded (rounded-full on nav and Links), (2) Pulse Pro manager/owner sees 8 tabs in correct order, (3) Pulse Pro staff sees 5 tabs (no Reports, Suppliers, Gym Layout), (4) Weekly Digest is inside Reports sub-menu, (5) GymFloorManagerTab has Diary on LEFT (default active) and Setup on RIGHT, (6) Topics header says 'Topics (N)' not 'Topic taxonomy', (7) Gym-floor staff can login via Pulse Portal login modal using shared credentials.",
+  "features_verified": {
+    "module_switcher_rounded": {
+      "status": "PASS",
+      "details": "Outer nav has 'rounded-full bg-white/5 border border-white/10', inner Links have 'rounded-full' class"
+    },
+    "pulse_pro_tab_layout_manager": {
+      "status": "PASS",
+      "details": "8 tabs in order: Dashboard, Equipment, Faults, Check Sheets, Gym Floor, Reports, Suppliers, Gym Layout. No Documents tab. No separate Weekly Digest tab."
+    },
+    "pulse_pro_tab_layout_staff": {
+      "status": "PASS (code review)",
+      "details": "buildTabs() returns 5 tabs for staff: Dashboard, Equipment, Faults, Check Sheets, Gym Floor"
+    },
+    "weekly_digest_inside_reports": {
+      "status": "PASS",
+      "details": "Weekly Digest sub-tab button (data-testid='pulse-report-sub-weekly-digest') found inside Reports. Clicking shows WeeklyDigest info card (data-testid='pulse-weekly-digest')."
+    },
+    "gym_floor_diary_left_setup_right": {
+      "status": "PASS",
+      "details": "Diary panel button is on LEFT (x position lower), Setup button is on RIGHT. Diary is default active (cyan background)."
+    },
+    "topics_no_taxonomy": {
+      "status": "PASS",
+      "details": "Topics header shows 'Topics (8)' - no 'taxonomy' word"
+    },
+    "gym_floor_staff_no_setup": {
+      "status": "PASS (code review)",
+      "details": "GymFloorManagerTab line 136: pill switcher hidden when !isManager. Line 244: delete buttons gated on isManager."
+    },
+    "pulse_login_modal_placeholder": {
+      "status": "PASS",
+      "details": "Label: 'Email, site code, or gym-floor username'. Placeholder: 'your@email.com · raf-brizenorton · tottenham-floor'"
+    },
+    "gym_floor_login_via_pulse_portal": {
+      "status": "PASS",
+      "details": "Login with 'tottenham-floor' / 'FloorTest123!' via Pulse Portal modal redirects to /gym-floor. Handover Diary shown (not login form again)."
+    },
+    "backend_gym_floor_login": {
+      "status": "PASS",
+      "details": "POST /api/gym-floor/login returns gfloor- prefixed token + organization_id"
+    },
+    "pulse_lite_no_gym_floor": {
+      "status": "PASS (code review)",
+      "details": "buildTabs() for !isPro returns baseLite tabs (Dashboard, Equipment, Faults, Documents) - no Gym Floor tab"
+    },
+    "staff_403_on_setup": {
+      "status": "PASS (code review)",
+      "details": "_require_manager in gym_floor.py correctly blocks staff role with 403"
+    }
+  }
+}

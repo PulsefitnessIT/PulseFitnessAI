@@ -1,0 +1,159 @@
+{
+  "summary": "Iteration 65 - AI Knowledge Integration Testing. All 13 backend API tests passed (100%). All frontend UI tests passed. AI triage, chat diagnosis, and audit generation now use document knowledge from equipment_knowledge collection (global + org-specific). Auto-detect supplier feature works on document upload. Master admin sees Global Document Library with supplier pills (Life Fitness, Technogym, Uncategorised). Regular user AI Diagnosis chat returns diagnosis with severity, fixability, and next steps.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "backend_api_tests": {
+      "total_tests": 13,
+      "passed": 13,
+      "failed": 0,
+      "test_classes": [
+        {
+          "class": "TestAITriageWithKnowledge",
+          "tests": [
+            "test_triage_treadmill_technogym - PASSED (returns diagnosis, can_fix_onsite, repair_steps, severity_assessment)",
+            "test_triage_bike_life_fitness - PASSED (returns diagnosis, repair_steps, severity_assessment)"
+          ]
+        },
+        {
+          "class": "TestAIChatDiagnosis",
+          "tests": [
+            "test_diagnose_treadmill_fault - PASSED (returns response with diagnosis guidance, session_id)",
+            "test_diagnose_cross_trainer - PASSED (returns response)"
+          ]
+        },
+        {
+          "class": "TestAuditGeneration",
+          "tests": [
+            "test_generate_audit_treadmill - PASSED (returns id, equipment_type, report, created_at)",
+            "test_generate_audit_strength_equipment - PASSED (returns report)"
+          ]
+        },
+        {
+          "class": "TestDocumentUploadAutoDetect",
+          "tests": [
+            "test_upload_with_auto_detect_enabled - PASSED (returns uploaded count, auto_detected=True, detected_suppliers dict)",
+            "test_upload_without_auto_detect - PASSED (returns uploaded count, auto_detected=False, supplier_name set manually)"
+          ]
+        },
+        {
+          "class": "TestGlobalDocumentsList",
+          "tests": [
+            "test_list_documents_returns_suppliers - PASSED (returns files, suppliers list, duplicate_count)",
+            "test_list_documents_with_supplier_filter - PASSED (filters by supplier correctly)",
+            "test_list_documents_duplicates_only - PASSED (returns only duplicate files)"
+          ]
+        },
+        {
+          "class": "TestRegularUserAccess",
+          "tests": [
+            "test_regular_user_cannot_list_global_documents - PASSED (403 Forbidden)",
+            "test_regular_user_cannot_upload_global_documents - PASSED (403 Forbidden)"
+          ]
+        }
+      ]
+    },
+    "frontend_ui_tests": {
+      "master_admin_login": {
+        "status": "PASSED",
+        "dashboard_title": "Global Dashboard",
+        "subtitle": "Cross-gym analytics, documents & management"
+      },
+      "documents_tab": {
+        "status": "PASSED",
+        "heading": "Global Document Library",
+        "document_count": "105 documents across 3 suppliers",
+        "supplier_pills_verified": ["All (105)", "Life Fitness (2)", "Technogym (4)", "Uncategorised (99)"],
+        "elements_verified": [
+          "Mass Upload button (data-testid='mass-upload-btn')",
+          "AI Duplicate Scan button",
+          "Supplier filter pills (data-testid='supplier-pills')",
+          "Search bar",
+          "Category filters (Manuals, Certificates, Contracts)",
+          "Duplicates filter (2 Duplicates)",
+          "Documents table with columns: Document, Supplier, Category, Gym, Size, Date, Status, Actions"
+        ]
+      },
+      "mass_upload_dialog": {
+        "status": "PASSED",
+        "data_testid": "mass-upload-dialog",
+        "auto_detect_toggle": {
+          "data_testid": "auto-detect-toggle",
+          "label": "AI Auto-detect Supplier",
+          "description": "AI reads each document and identifies the manufacturer",
+          "behavior": "When ON, supplier input is hidden"
+        },
+        "supplier_input_hidden_when_auto_detect_on": true,
+        "category_selection": ["Manuals", "Certificates", "Contracts"],
+        "dropzone": "Drop files here or click to browse"
+      },
+      "regular_user_dashboard": {
+        "status": "PASSED",
+        "dashboard_title": "Pulse Fitness Pro",
+        "subtitle": "Welcome back, Test User",
+        "kpi_cards": ["28 Total Machines", "13 Operational", "15 With Faults", "43 Open Faults"],
+        "admin_components_hidden": true
+      },
+      "ai_diagnosis_tab": {
+        "status": "PASSED",
+        "sub_tabs": ["Fault Diagnosis", "Audit Reports"],
+        "equipment_type_dropdown": "Select equipment type...",
+        "chat_input": "Describe the fault...",
+        "ai_response_verified": {
+          "severity": "Critical - slipping/hesitation at high speed is a fall risk",
+          "fixable_onsite": "YES usually (belt tension, lubrication, drive belt tension), NO if parts replacement needed",
+          "quick_next_step": "Asks clarifying questions about when it slips and make/model"
+        }
+      },
+      "log_fault_dialog": {
+        "status": "PASSED",
+        "elements_verified": [
+          "Select Machine dropdown",
+          "Issue Description textarea",
+          "Severity options (Operational - Minor Issue, Operational - Fault Present, Limited Use, Out of Order, Safety Critical)",
+          "Upload Photo / Video",
+          "Submit Fault Report button"
+        ]
+      }
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration65_ai_knowledge.py",
+    "/app/test_reports/pytest/pytest_results_iteration65.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_fetch_relevant_knowledge in issues.py correctly searches global (organization_id=None) + org-specific docs with relevance scoring",
+    "_fetch_diagnosis_knowledge in ai_diagnosis.py uses same pattern for chat diagnosis and audit generation",
+    "Relevance scoring considers: equipment_type match (+10), supplier/manufacturer match (+8), model match (+6), has common_faults (+2), has troubleshooting_tips (+1)",
+    "Auto-detect supplier uses AI to read PDF text and identify manufacturer from KNOWN_SUPPLIERS list",
+    "GlobalDocumentsTab.js correctly hides supplier input when auto-detect toggle is ON",
+    "AI responses include severity assessment, fixability, and actionable next steps"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration65_ai_knowledge.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "regular_user": "test@gymaxisai.com / Test123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "AI knowledge integration complete. Triage, chat diagnosis, and audit generation now search equipment_knowledge collection for relevant documents (global + org-specific) with relevance scoring. Auto-detect supplier feature uses AI to identify manufacturer from uploaded PDFs. Master admin Global Document Library shows supplier pills (Life Fitness, Technogym, Uncategorised). Regular user AI Diagnosis chat works with equipment type selection. All backend endpoints tested: POST /api/issues/triage, POST /api/chat/diagnose, POST /api/audit/generate, POST /api/master-admin/documents/upload (with auto_detect=true), GET /api/master-admin/documents.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

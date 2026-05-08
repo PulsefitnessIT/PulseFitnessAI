@@ -1,0 +1,57 @@
+{
+  "theme": "LIGHT",
+  "archetype": "4 (Swiss & High-Contrast - Clean SaaS)",
+  "audit_summary": {
+    "pulse_cyan_leaks": "Instances found in GymAxis authenticated pages (e.g., MasterAdmin/AdminMODConsole.js, MasterAdmin/PricingPanel.js, ActivationFunnelPanel.js) using `var(--color-brand-cyan)` or `#19CDFF`. This violates the isolation rule, leaking Pulse's cyan into GymAxis.",
+    "dark_tokens_on_light_mode": "Hardcoded dark backgrounds (`bg-[var(--color-surface-dark-alt)]`, `bg-[#121212]`, `bg-[#171717]`) applied directly on cards in light mode (e.g., MasterAdmin/AdminCRMUsers.js, SiconIntegrationTab.js, AboutPage.js). This creates the 'Black cards all throughout the site on light mode' bug.",
+    "modal_violations": "Modals pop up in inconsistent positions (some centered, some right drawers), lack a uniform top-right close 'X', and have nested `overflow-y-auto` causing double internal vertical sliders (e.g., AdminOrganizations.js, PricingPanel.js, AdminOnboardingPackets.js)."
+  },
+  "refresh_blueprint": {
+    "pulse_isolation_rule": "CRITICAL: DO NOT redesign Pulse Fitness branded pages. Any component or route under `data-brand=\"pulse\"` or `/pulse` MUST REMAIN UNTOUCHED (keep Proxima Nova / Cyan). GymAxis surfaces MUST NEVER use Pulse Cyan (`var(--color-brand-cyan)` or `#19CDFF`); use the GymAxis navy/purple gradient.",
+    "typography": "GymAxis: Headings (Satoshi), Body (Inter). Ensure text classes use `text-slate-900` for headings and `text-slate-600` or `text-muted-foreground` for body in light mode.",
+    "palette_tweaks": "Migrate black card backgrounds to `bg-card` or `var(--gx-bg-paper)` and remove hardcoded dark shades. Change all GymAxis CTA and active pills to use `gx-btn-primary`, `gx-btn-secondary`, or explicit brand gradients (`var(--gx-brand-from)` to `var(--gx-brand-to)`).",
+    "motion_patterns": "Fast native feel (`transition-all duration-200 ease-out`). Hover interactions should subtly lift elements (`hover:-translate-y-0.5`, `hover:shadow-md`)."
+  },
+  "modal_chrome_spec": {
+    "default_position": "Centered on screen. Do not use right-side drawers manually unless it is an explicitly global Sheet pattern. Use `Dialog` from shadcn/ui.",
+    "backdrop": "bg-black/40 backdrop-blur-sm fixed inset-0 z-50.",
+    "x_close_button": "MUST exist on every modal. Position: absolute top-4 right-4. Icon: `<X className=\"w-4 h-4\" />` (lucide-react). Structure: A button with `h-8 w-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-blue-500`.",
+    "max_height_overflow": "Outer DialogContent MUST have `max-h-[90vh]` or `max-h-[calc(100vh-4rem)]` with `overflow-y-auto`. Internal form/body sections MUST NOT have `overflow-y-auto`. Scroll the whole dialog body as one single piece.",
+    "border_radius": "rounded-2xl (16px).",
+    "shadow": "shadow-xl.",
+    "focus_trap": "Use native shadcn/ui Dialog primitives which handle focus trapping out of the box."
+  },
+  "card_pattern_spec": {
+    "background": "bg-card or bg-white (var(--gx-bg-paper)). NEVER use hardcoded dark hex codes for cards.",
+    "border": "border border-border (or border-slate-200).",
+    "border_radius": "rounded-2xl (16px).",
+    "shadow": "shadow-sm. On hover (if interactive): shadow-md -translate-y-0.5.",
+    "padding_scale": "p-6 (24px).",
+    "header_rhythm": "flex items-center justify-between mb-6. Title is text-lg font-semibold tracking-tight text-slate-900.",
+    "body_rhythm": "flex flex-col gap-4.",
+    "footer_rhythm": "mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3.",
+    "consistency": "Apply this rhythm universally to 'Create Class' in Memberships, 'Edit Org' in Master Admin, and all dashboard metric cards."
+  },
+  "rollout_classes_and_variables": {
+    "remove_classes": [
+      "bg-[#121212]",
+      "bg-[#171717]",
+      "bg-[var(--color-surface-dark-alt)]",
+      "text-[var(--color-brand-cyan)]",
+      "bg-[var(--color-brand-cyan)]",
+      "border-[var(--color-brand-cyan)]"
+    ],
+    "apply_classes": [
+      "bg-card",
+      "text-card-foreground",
+      "gx-card",
+      "gx-btn-primary",
+      "gx-btn-secondary",
+      "gx-grad-text"
+    ],
+    "css_variables_migration": "Use `--background`, `--foreground`, `--card`, `--card-foreground` for surfaces. Use `--gx-brand-from` to `--gx-brand-to` for accents instead of legacy cyan."
+  },
+  "image_urls": {},
+  "instructions_to_main_agent": "1. Search and replace `bg-[var(--color-surface-dark-alt)]`, `bg-[#121212]`, and `bg-[#171717]` with `bg-card` or `gx-card` across all GymAxis pages. 2. Purge `var(--color-brand-cyan)` from GymAxis files, replacing with `var(--gx-brand-from)` or the `gx-grad-text` utility. 3. Refactor all Modals/Dialogs to use the unified modal_chrome_spec layout (centered `DialogContent`, max-h-[90vh], overflow-y-auto, NO nested scrollbars, absolute top-4 right-4 X close button). 4. Ensure Pulse routes (`/pulse` or `data-brand=\"pulse\"`) are 100% UNTOUCHED. 5. Add `data-testid` to all interactive components.",
+  "component_path": "/app/frontend/src/components/ui/"
+}

@@ -1,0 +1,56 @@
+# GitHub Dependabot — automated dependency updates + CVE alerts.
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+#
+# The allow-list is intentionally scoped so Dependabot does NOT bump major
+# versions automatically (those must be reviewed). Patch + minor ship weekly
+# on the ``main`` branch.
+
+version: 2
+updates:
+  # Python backend
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - security
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+    reviewers:
+      - "@gymaxis/backend-maintainers"
+
+  # React frontend
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - security
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+    reviewers:
+      - "@gymaxis/frontend-maintainers"
+
+  # GitHub Actions (keeps CI runners current)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 3
+    labels:
+      - ci
+      - dependencies

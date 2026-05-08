@@ -1,0 +1,114 @@
+{
+  "summary": "Send-to-customer email feature fully tested. All 9 backend API tests pass (100%). Frontend UI tests pass: Send to customer button visible on non-provisioned packets, send-email-panel appears with prefilled recipient, email sends successfully with toast notification, last-sent-status displays correctly, 'Invite sent' badge appears on packet card, button hidden on provisioned packets.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "backend_send_email_success": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/send-email",
+      "details": "Returns {success: true, sent_to: email, send_count: N}, updates packet with last_sent_at, last_sent_to, email_sends array"
+    },
+    "backend_send_email_with_override": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/send-email with body.email",
+      "details": "Uses override email address instead of primary_contact_email"
+    },
+    "backend_send_email_no_recipient": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/send-email without email",
+      "details": "Returns 400 with 'No recipient email' when packet has no primary_contact_email and no override"
+    },
+    "backend_send_email_provisioned_packet": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/send-email on provisioned packet",
+      "details": "Returns 400 with 'Packet already provisioned'"
+    },
+    "backend_send_email_missing_packet": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/send-email with invalid id",
+      "details": "Returns 404 'Packet not found'"
+    },
+    "backend_send_email_non_admin": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/send-email as non-master-admin",
+      "details": "Returns 403 'Master admin access required'"
+    },
+    "backend_multiple_sends_append": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/send-email multiple times",
+      "details": "email_sends array grows with each send, send_count reflects total (tested 3 sends)"
+    },
+    "backend_regression_create_packet": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets",
+      "details": "Still creates packets with id, token, share_url, status=draft"
+    },
+    "backend_regression_list_packets": {
+      "status": "PASS",
+      "endpoint": "GET /api/onboarding-packets",
+      "details": "Still returns {packets, count} with share_url and counts fields"
+    },
+    "frontend_send_to_customer_button_visible": {
+      "status": "PASS",
+      "details": "data-testid='btn-send-to-customer' visible in packet detail dialog for non-provisioned packets"
+    },
+    "frontend_send_email_panel_appears": {
+      "status": "PASS",
+      "details": "data-testid='send-email-panel' appears when clicking Send to customer button, shows recipient email input prefilled from packet"
+    },
+    "frontend_send_email_confirm": {
+      "status": "PASS",
+      "details": "data-testid='btn-send-email-confirm' sends email, shows success toast 'Sent to {email}', panel closes"
+    },
+    "frontend_last_sent_status": {
+      "status": "PASS",
+      "details": "data-testid='last-sent-status' shows 'Last sent to {email} on {timestamp}' after send"
+    },
+    "frontend_invite_sent_badge": {
+      "status": "PASS",
+      "details": "'Invite sent' badge (sky blue with mail icon) appears on packet card in list view after email sent"
+    },
+    "frontend_send_button_hidden_provisioned": {
+      "status": "PASS",
+      "details": "Send to customer button NOT present in packet detail dialog for provisioned packets"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_send_email_feature.py",
+    "/app/test_reports/pytest/pytest_results_iteration125.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "send_onboarding_invite_email helper in utils/email.py correctly builds branded HTML email with onboarding link",
+    "Backend correctly validates recipient email format and returns 400 if invalid",
+    "email_sends array correctly tracks all sends with sent_at, sent_to, sent_by, sent_by_name",
+    "Frontend correctly prefills recipient email from packet.organisation.primary_contact_email",
+    "Resend integration is live and working - emails actually send to valid addresses"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_send_email_feature.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "non_admin": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "Created and cleaned up TEST_SendEmail_UI packet for testing",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Send-to-customer email feature fully implemented and tested. Backend POST /api/onboarding-packets/{id}/send-email endpoint works correctly with all edge cases. Frontend shows Send to customer button, send-email-panel, last-sent-status, and Invite sent badge. Resend integration is live.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

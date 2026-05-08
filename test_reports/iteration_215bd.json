@@ -1,0 +1,91 @@
+{
+  "summary": "Iter 215bd retest - ALL 5 FIXES VERIFIED. (1) TrialSignupModal submit button now says 'Start 3-day Trial'. (2) PricingMarketingPage shows '3 days' in all 3 places (hero, FAQ, CTA) with zero '14 days' remaining. (3) PulseLandingPage hero pill shows '3-day free trial'. (4) /members route has data-brand='pulse'. (5) /m/test-slug route has data-brand='pulse'. All regression tests also PASSED: mobile washout fix, mobile button fix, hero copy, Marketing Suite GymAxis brand, Marketing Suite Pulse brand.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "retest_1_trial_modal_submit_button": {
+      "status": "PASS",
+      "button_text": "Start 3-day Trial",
+      "expected": "Start 3-day Trial"
+    },
+    "retest_2_pricing_page_3day_text": {
+      "status": "PASS",
+      "hero_subtitle": "Start free for 3 days with every module unlocked",
+      "faq_answer": "Yes — 3 days free with all modules unlocked",
+      "cta_h2": "3 days free. All modules unlocked. No credit card.",
+      "no_14_days_found": true
+    },
+    "retest_3_pulse_landing_hero_pill": {
+      "status": "PASS",
+      "hero_pill_text": "3-day free trial",
+      "expected": "3-day free trial"
+    },
+    "retest_4_members_route_data_brand": {
+      "status": "PASS",
+      "data_brand": "pulse",
+      "expected": "pulse"
+    },
+    "retest_5_m_slug_route_data_brand": {
+      "status": "PASS",
+      "data_brand": "pulse",
+      "expected": "pulse"
+    },
+    "regression_mobile_washout_fix": {
+      "status": "PASS",
+      "h1_color": "rgb(15, 23, 42)",
+      "is_slate_900": true
+    },
+    "regression_mobile_button_fix": {
+      "status": "PASS",
+      "hamburger_visible_at_mobile": true,
+      "desktop_cta_hidden_at_mobile": true
+    },
+    "regression_hero_copy": {
+      "status": "PASS",
+      "has_3_day_free_trial": true,
+      "has_all_modules_unlocked": true,
+      "has_no_credit_card": true
+    },
+    "regression_marketing_suite_gymaxis_brand": {
+      "status": "PASS",
+      "data_brand": "gymaxis",
+      "shows_gymaxis_text": true,
+      "user": "admin@gymaxisai.com"
+    },
+    "regression_marketing_suite_pulse_brand": {
+      "status": "PASS",
+      "data_brand": "pulse",
+      "shows_pulse_text": true,
+      "user": "lee.somers@pulsefitness.com"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All 5 fixes from iteration 215bc have been correctly implemented",
+    "TrialSignupModal.js line 186: Submit button text correctly shows 'Start 3-day Trial'",
+    "PricingMarketingPage.js: All 3 places (lines 84, 116, 282) correctly show '3 days' variants",
+    "PulseLandingPage.js line 328: Hero check-mark pill correctly shows '3-day free trial'",
+    "App.js initial useEffect (lines 141-151): Now includes isMemberFacingRoute check matching BrandAttrSync logic"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only test)",
+    "frontend": "100%"
+  },
+  "test_credentials_used": [
+    "admin@gymaxisai.com / MasterAdmin123! (Master Admin - verified via API)",
+    "lee.somers@pulsefitness.com / TempPass123! (Pulse user - verified via API)"
+  ],
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 5 HIGH priority issues from iteration 215bc have been fixed and verified. The 3-day trial duration is now consistently shown across TrialSignupModal, PricingMarketingPage, and PulseLandingPage. Member-facing routes (/members, /m/:slug) now correctly show data-brand='pulse' from the initial render. All regression tests passed including mobile washout fix, mobile button fix, hero copy, and Marketing Suite brand awareness for both GymAxis and Pulse users."
+}

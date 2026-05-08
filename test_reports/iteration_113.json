@@ -1,0 +1,137 @@
+{
+  "summary": "Tested CRM Team Management features for iteration 113. All 20 backend tests passed (100%). Frontend UI verified: Team section loads correctly, role badges displayed with colors (manager=blue), 'You' badge shown for current user, invite dialog has role dropdown without owner option, edit/delete buttons correctly hidden for self.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "backend_1_invite_sales_rep": {
+      "status": "PASS",
+      "details": "POST /api/crm/users/invite with role=sales_rep works for manager"
+    },
+    "backend_2_invite_manager_forbidden": {
+      "status": "PASS",
+      "details": "POST /api/crm/users/invite with role=manager returns 403 for manager user"
+    },
+    "backend_3_invite_admin_forbidden": {
+      "status": "PASS",
+      "details": "POST /api/crm/users/invite with role=admin returns 403 for manager user"
+    },
+    "backend_4_invite_owner_not_allowed": {
+      "status": "PASS",
+      "details": "POST /api/crm/users/invite with role=owner converts to sales_rep (owner not allowed)"
+    },
+    "backend_5_invite_duplicate_email": {
+      "status": "PASS",
+      "details": "POST /api/crm/users/invite with existing email returns 409"
+    },
+    "backend_6_edit_sales_rep": {
+      "status": "PASS",
+      "details": "PUT /api/crm/users/{id} updates name, email, role, status for sales_rep"
+    },
+    "backend_7_status_toggle": {
+      "status": "PASS",
+      "details": "Status field supports 'active' and 'inactive' values"
+    },
+    "backend_8_delete_sales_rep": {
+      "status": "PASS",
+      "details": "DELETE /api/crm/users/{id} removes sales_rep user"
+    },
+    "backend_9_cannot_delete_self": {
+      "status": "PASS",
+      "details": "DELETE /api/crm/users/{self_id} returns 400"
+    },
+    "backend_10_cannot_delete_owner": {
+      "status": "PASS",
+      "details": "DELETE /api/crm/users/{owner_id} returns 403"
+    },
+    "backend_11_manager_cannot_edit_non_sales_rep": {
+      "status": "PASS",
+      "details": "PUT /api/crm/users/{admin_id} returns 403 for manager"
+    },
+    "backend_12_cannot_change_owner_role": {
+      "status": "PASS",
+      "details": "PUT /api/crm/users/{owner_id} with role change returns 403"
+    },
+    "backend_13_cannot_promote_to_owner": {
+      "status": "PASS",
+      "details": "PUT /api/crm/users/{id} with role=owner returns 403"
+    },
+    "backend_14_edit_email": {
+      "status": "PASS",
+      "details": "PUT /api/crm/users/{id} with new email updates correctly"
+    },
+    "backend_15_missing_fields_fails": {
+      "status": "PASS",
+      "details": "POST /api/crm/users/invite without email/name returns 400"
+    },
+    "backend_16_delete_nonexistent_404": {
+      "status": "PASS",
+      "details": "DELETE /api/crm/users/{fake_id} returns 404"
+    },
+    "backend_17_edit_nonexistent_404": {
+      "status": "PASS",
+      "details": "PUT /api/crm/users/{fake_id} returns 404"
+    },
+    "frontend_1_team_section": {
+      "status": "PASS",
+      "details": "Team section loads with 'Team Members (N)' header and member list"
+    },
+    "frontend_2_role_badges": {
+      "status": "PASS",
+      "details": "Role badges displayed with colors (manager=blue #007AFF)"
+    },
+    "frontend_3_you_badge": {
+      "status": "PASS",
+      "details": "'You' badge shown next to current user (Craig Henshall)"
+    },
+    "frontend_4_invite_button": {
+      "status": "PASS",
+      "details": "Invite button (data-testid='team-invite-btn') visible for manager"
+    },
+    "frontend_5_invite_dialog": {
+      "status": "PASS",
+      "details": "Invite dialog has Full Name, Email, Role dropdown with Cancel/Invite buttons"
+    },
+    "frontend_6_owner_not_in_invite": {
+      "status": "PASS",
+      "details": "Owner role NOT in invite dropdown (only sales_rep, manager, admin)"
+    },
+    "frontend_7_no_edit_delete_self": {
+      "status": "PASS",
+      "details": "Edit/Delete buttons not shown for current user (correct behavior)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crm_team_management.py",
+    "/app/test_reports/pytest/pytest_results_iteration113.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Code review passed - Team management implementation follows role-based access control correctly",
+    "Owner role protection implemented at API level (cannot invite/promote to owner)",
+    "Manager role restrictions enforced (can only manage sales_rep)",
+    "Self-deletion and owner deletion properly prevented"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_crm_team_management.py"
+  ],
+  "success_rate": {
+    "backend": "100% (20/20 tests passed)",
+    "frontend": "100% (7/7 features verified)"
+  },
+  "test_credentials": "CRM: craig.henshall@pulsefitness.com / Test123! (role: manager)",
+  "seed_data_creation": "Created TEST_ prefixed users during testing (cleaned up in teardown)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 113 tested CRM Team Management. All features working: invite (POST /api/crm/users/invite), edit (PUT /api/crm/users/{id}), delete (DELETE /api/crm/users/{id}). Role-based permissions enforced: manager can only manage sales_rep, admin/owner can manage all non-owner roles, owner role is protected. Frontend Team section in Settings shows members with role badges, invite dialog, edit dialog with status toggle. Note: Craig is the only user in the org currently, so edit/delete buttons only appear when other users exist.",
+  "mocked_apis": {
+    "Sage 200 API": "MOCKED - scaffolded, awaiting live API keys",
+    "Sicon Service API": "MOCKED - scaffolded, awaiting live API keys"
+  }
+}

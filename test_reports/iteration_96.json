@@ -1,0 +1,111 @@
+{
+  "summary": "Iteration 96: CRM v2 Workflow Automation Engine - Complete testing of backend workflow engine, notifications, quick create, and enhanced dashboard. Backend: 26/26 tests passed. Frontend: All new features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration96_workflow_engine.py",
+    "/app/test_reports/pytest/pytest_results_iteration96.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration96_workflow_engine.py"
+  ],
+  "success_rate": {
+    "backend": "100% (26/26 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "crm_manager": "craig.henshall@pulsefitness.com / Test123!"
+  },
+  "seed_data_creation": "Test workflows and entities created during backend tests (prefixed with TEST_) - auto-cleaned",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 96 adds real backend workflow automation engine replacing localStorage. Workflows now stored in MongoDB (crm2_workflows collection). Workflow execution creates tasks/activities/notifications in real collections. Quick Create endpoint works for contact/deal/case/task. Notifications system stores in crm2_notifications. Dashboard enhanced with Tasks Due, Stagnating Deals, Workflow Activity widgets. Sage 200 and Sicon integrations remain MOCKED.",
+  "features_verified": {
+    "workflow_crud": {
+      "list_workflows": "PASSED - GET /api/crm/v2/workflows returns workflows with total count",
+      "create_workflow": "PASSED - POST /api/crm/v2/workflows creates workflow with trigger/conditions/actions",
+      "get_workflow_detail": "PASSED - GET /api/crm/v2/workflows/{id} returns workflow with execution runs",
+      "update_workflow": "PASSED - PUT /api/crm/v2/workflows/{id} updates workflow fields",
+      "toggle_workflow": "PASSED - POST /api/crm/v2/workflows/{id}/toggle toggles active/paused",
+      "delete_workflow": "PASSED - DELETE /api/crm/v2/workflows/{id} removes workflow"
+    },
+    "workflow_meta": {
+      "get_meta": "PASSED - GET /api/crm/v2/workflows/meta returns triggers, actions, templates",
+      "triggers": "PASSED - 7 triggers: deal_stage_changed, deal_created, deal_value_above, contact_created, case_created, quote_created, company_created",
+      "actions": "PASSED - 6 actions: create_task, send_notification, create_activity, move_deal_stage, add_tag, update_field",
+      "templates": "PASSED - 4 templates: lead_nurture, quote_followup, service_escalation, deal_won"
+    },
+    "workflow_templates": {
+      "create_from_lead_nurture": "PASSED - Creates workflow with deal_created trigger and 2 actions",
+      "create_from_service_escalation": "PASSED - Creates workflow with case_created trigger and severity=high condition",
+      "invalid_template": "PASSED - Returns 404 for nonexistent template"
+    },
+    "workflow_execution": {
+      "lead_nurture_fires": "PASSED - Creating deal at 'lead' stage triggers Lead Nurture workflow, creates tasks",
+      "service_escalation_fires": "PASSED - Creating high-severity case triggers Service Escalation, creates notification",
+      "conditions_respected": "PASSED - Low-severity case does NOT trigger Service Escalation workflow",
+      "execution_logged": "PASSED - Workflow runs stored in crm2_workflow_runs with actions_executed details"
+    },
+    "notifications": {
+      "list_notifications": "PASSED - GET /api/crm/v2/notifications returns notifications with unread count",
+      "unread_filter": "PASSED - ?unread_only=true filters to unread only",
+      "mark_all_read": "PASSED - POST /api/crm/v2/notifications/mark-read marks all as read"
+    },
+    "quick_create": {
+      "create_contact": "PASSED - entity_type=contact creates contact and triggers workflows",
+      "create_deal": "PASSED - entity_type=deal creates opportunity and triggers workflows",
+      "create_case": "PASSED - entity_type=case creates case and triggers workflows",
+      "create_task": "PASSED - entity_type=task creates activity",
+      "invalid_type": "PASSED - Returns 400 for unknown entity type"
+    },
+    "enhanced_dashboard": {
+      "kpi_cards": "PASSED - 6 KPIs: Pipeline Value, Weighted Forecast, Won Revenue, Open Cases, Contacts, Tasks Due",
+      "pipeline_by_stage": "PASSED - Shows stage breakdown with counts and values",
+      "tasks_due": "PASSED - Shows incomplete tasks with due dates",
+      "quick_stats": "PASSED - Win rate, Companies, Assets",
+      "stagnating_deals": "PASSED - Shows deals in same stage >14 days",
+      "workflow_activity": "PASSED - Shows recent workflow runs",
+      "recent_activity": "PASSED - Shows activity feed"
+    },
+    "frontend_workflows_page": {
+      "list_view": "PASSED - Shows workflows from backend with execution counts",
+      "templates_dialog": "PASSED - Shows 4 templates with Use Template buttons",
+      "create_dialog": "PASSED - Workflow builder with trigger/conditions/actions",
+      "detail_view": "PASSED - Shows trigger, actions, stats, execution history",
+      "toggle_button": "PASSED - Active/Paused toggle works",
+      "delete_button": "PASSED - Delete button visible"
+    },
+    "frontend_header": {
+      "quick_create_button": "PASSED - + button opens menu with Contact/Deal/Case/Task options",
+      "notifications_bell": "PASSED - Bell icon shows unread count, opens panel with notifications"
+    },
+    "crm_login": {
+      "craig_login": "PASSED - craig.henshall@pulsefitness.com / Test123!"
+    }
+  },
+  "mocked_apis": {
+    "sage_200": "Integration is MOCKED",
+    "sicon_service": "Integration is MOCKED",
+    "workflow_engine": "NOW REAL - Uses MongoDB collections crm2_workflows, crm2_workflow_runs, crm2_notifications"
+  },
+  "backend_tests_summary": {
+    "TestCRMAuth": "1/1 passed - Login success",
+    "TestWorkflowCRUD": "6/6 passed - List, create, detail, update, toggle, delete",
+    "TestWorkflowMeta": "1/1 passed - Triggers, actions, templates",
+    "TestWorkflowTemplates": "3/3 passed - Lead nurture, service escalation, invalid template",
+    "TestWorkflowExecution": "3/3 passed - Lead nurture fires, service escalation fires, conditions respected",
+    "TestNotifications": "3/3 passed - List, unread filter, mark all read",
+    "TestQuickCreate": "5/5 passed - Contact, deal, case, task, invalid type",
+    "TestEnhancedDashboard": "3/3 passed - All fields, stage breakdown, recent activities",
+    "TestWorkflowRuns": "1/1 passed - List workflow runs"
+  }
+}

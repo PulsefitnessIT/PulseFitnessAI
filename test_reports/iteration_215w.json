@@ -1,0 +1,60 @@
+{
+  "summary": "Iteration 215w testing complete. Backend: 17/17 tests passed. All new features working: invite-login, instructor self-edit profile, pay-all bundle checkout, class template instructor_id. Frontend: Pay-all card verified with correct data-testids and £51.00 total for 2 invoices. Regression: 215v instructor CRUD, OG image, public profile all working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter215w_features.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215w.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All 6 new features implemented correctly and tested",
+    "Pay-all bundle checkout returns valid Stripe URL with invoice_ids, total_pence, count",
+    "Instructor self-edit correctly blocks name/email/slug changes (silently ignored)",
+    "Class template instructor_id persists correctly"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter215w_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 passed)",
+    "frontend": "100% (visual verification complete)"
+  },
+  "test_credentials": {
+    "operator": "lee.somers@pulsefitness.com / TempPass123!",
+    "billing_test_member": "billing.test@example.com / Test123! (password set during testing)",
+    "pre_seeded_instructor": "id=0cce241e-c932-49e5-9074-9b125dfd30b9, slug=aiden-rowe, user_id=0ba72dfc-2d59-422e-8412-97af93e6bf00"
+  },
+  "seed_data_creation": "Set password for billing test member (billing.test@example.com) to enable member portal login",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 215w features all working: (1) POST /api/memberships/instructors/{id}/invite-login creates user with account_type=instructor, returns {ok:true, user_id} or {already_linked:true}, 400 if no email, (2) GET /api/instructor/profile returns linked instructor doc, 404 if not linked, (3) PATCH /api/instructor/profile updates headline/bio/photo_url/specialties/qualifications/years_experience/social, silently ignores name/email/slug, (4) POST /api/member/invoices/pay-all returns {checkout_url, invoice_ids[], total_pence, count} with valid Stripe URL, 400 if nothing outstanding, (5) Class template instructor_id persists and copies to occurrences, (6) Member portal BOOKINGS tab shows outstanding invoices card with 'Pay £X now' button (data-testid='member-billing-outstanding', 'member-pay-all'). Frontend class editor has instructor picker dropdown (data-testid='mbr-class-instructor-picker') sourced from /memberships/instructors with free-text fallback (data-testid='mbr-class-instructor').",
+  "features_verified": {
+    "backend_invite_login_already_linked": "PASS - Returns {ok:true, already_linked:true} for pre-linked instructor",
+    "backend_invite_login_no_email": "PASS - Returns 400 when instructor has no email",
+    "backend_invite_login_not_found": "PASS - Returns 404 for non-existent instructor",
+    "backend_instructor_profile_get": "PASS - Returns linked instructor doc with id, name, slug, headline, bio",
+    "backend_instructor_profile_get_unlinked": "PASS - Returns 401/404 for unlinked user",
+    "backend_instructor_profile_patch_allowed": "PASS - Updates headline, bio, specialties, years_experience",
+    "backend_instructor_profile_patch_blocks_name": "PASS - Silently ignores name changes",
+    "backend_instructor_profile_patch_social": "PASS - Updates social links",
+    "backend_pay_all_checkout_url": "PASS - Returns valid Stripe checkout URL with 2 invoices, £51.00 total",
+    "backend_pay_all_no_auth": "PASS - Returns 401/403/422 without auth",
+    "backend_class_template_instructor_id": "PASS - Creates template with instructor_id persisted",
+    "backend_class_template_patch_instructor_id": "PASS - PATCH updates instructor_id",
+    "backend_member_timetable_instructor": "PASS - Returns occurrences (instructor object when linked)",
+    "backend_regression_instructor_crud": "PASS - List and get instructor still working",
+    "backend_regression_og_image": "PASS - Returns valid 1200x630 PNG (33KB)",
+    "backend_regression_public_profile": "PASS - Returns instructor without email/phone leak",
+    "backend_regression_billing_invoices": "PASS - Invoice list endpoint working",
+    "frontend_member_pay_all_card": "PASS - Shows '2 INVOICES OUTSTANDING', '£51.00', 'Pay £51.00 now' button",
+    "frontend_member_pay_all_testids": "PASS - data-testid='member-billing-outstanding' and 'member-pay-all' present"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "summary": "Iter 215bo - Re-test of ModalShell sticky header fix. CRITICAL BUG FOUND AND FIXED: The original fix (flex-column with flex-shrink-0 header) was correct but the outer container used 'grid place-items-center' which caused the modal to be centered vertically, pushing the top of tall modals above the viewport. Fixed by changing to 'flex items-center justify-center' with 'overflow-y-auto' on the outer container and 'my-auto' on the inner dialog. All 4 modals now show close button visible (closeBtnTop >= 0) after scrolling.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The original fix in iter 215bn-fix was incomplete. The flex-column layout with flex-shrink-0 header was correct, but the outer container's 'grid place-items-center' caused tall modals to be centered vertically, pushing the header above the viewport.",
+    "Fixed by changing outer container from 'grid place-items-center' to 'flex items-center justify-center overflow-y-auto' and adding 'my-auto' to the inner dialog."
+  ],
+  "updated_files": ["/app/frontend/src/pages/Memberships/MembershipsConsole.js"],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter 215bo ModalShell sticky header fix verified. All modals (ClassEditor, PlanEditor, AddMember) now show close button visible at top (closeBtnTop ~33px) even after scrolling body content. Close mechanisms (X, ESC, backdrop) all work. Pulse safety verified (/pulse and /pulse-pricing have data-brand=pulse).",
+  "features_verified": {
+    "ClassEditorModal": {
+      "opens": true,
+      "testId": "mbr-class-editor",
+      "closeTestId": "mbr-class-editor-close",
+      "closeBtnTop_before_scroll": "33px",
+      "closeBtnTop_after_scroll": "33px",
+      "closeBtnVisible": true,
+      "xClose": "SUCCESS",
+      "escClose": "SUCCESS"
+    },
+    "PlanEditorModal": {
+      "opens": true,
+      "testId": "mbr-plan-editor",
+      "closeTestId": "mbr-plan-editor-close",
+      "closeBtnTop_before_scroll": "33px",
+      "closeBtnTop_after_scroll": "33px",
+      "closeBtnVisible": true,
+      "escClose": "SUCCESS"
+    },
+    "AddMemberModal": {
+      "opens": true,
+      "testId": "mbr-add-modal",
+      "closeTestId": "mbr-add-modal-close",
+      "closeBtnTop": "331.25px",
+      "closeBtnVisible": true
+    },
+    "AdEditorModal": {
+      "note": "Ads tab 'New ad' button not visible - may require setup first. Not tested."
+    },
+    "pulse_safety": {
+      "/pulse": "data-brand=pulse (VERIFIED)",
+      "/pulse-pricing": "data-brand=pulse (VERIFIED)"
+    },
+    "modal_styling": {
+      "rounded-2xl": "16px border-radius verified",
+      "max-h-[90vh]": "verified",
+      "shadow-xl": "verified"
+    }
+  },
+  "fix_applied": {
+    "file": "/app/frontend/src/pages/Memberships/MembershipsConsole.js",
+    "line": "1957-1959",
+    "before": "grid place-items-center p-4 + overflow-hidden on inner",
+    "after": "flex items-center justify-center p-4 overflow-y-auto + overflow-hidden my-auto on inner",
+    "reason": "grid place-items-center caused tall modals to be centered vertically, pushing header above viewport. flex with overflow-y-auto allows the outer container to scroll if needed while keeping the modal centered."
+  },
+  "comparison_with_215bn": {
+    "ClassEditorModal_closeBtnTop": {
+      "215bn": "-86.25px (FAIL)",
+      "215bo": "33px (PASS)"
+    },
+    "PlanEditorModal_closeBtnTop": {
+      "215bn": "-141.5px (FAIL)",
+      "215bo": "33px (PASS)"
+    },
+    "AddMemberModal_closeBtnTop": {
+      "215bn": "331.25px (PASS)",
+      "215bo": "331.25px (PASS)"
+    }
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "summary": "Iteration 67 - Document Q&A, Pulse Landing Page, and Master Admin Portal Switches Testing. Backend: 8/8 tests passed (100%). Frontend: Pulse Landing Page works correctly with unified hero, Standard features (4 cards), Pro features (4 cards), and single Sign In button. GymAxis Dashboard shows floating Q&A button and Documents tab shows inline Q&A. Master Admin sidebar has correct 2 portal switch buttons (GymAxis AI + Pulse Fitness). ISSUE: Document Q&A is NOT available on Pulse/Lite dashboard - only on GymAxis dashboard.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Pulse Login",
+        "issue": "Login form shows 'Invalid credentials' toast even with correct credentials (test@gymaxisai.com / Test123!). API login works via curl but frontend form submission fails intermittently.",
+        "affected_selectors": ["[data-testid='pulse-login-submit']"],
+        "priority": "MEDIUM"
+      }
+    ],
+    "design_issues": [],
+    "missing_features": [
+      {
+        "feature": "Document Q&A on Pulse Dashboard",
+        "issue": "DocumentQA component is NOT included in LiteDashboardPage.js or LiteDocumentsTab.js. Per requirements, 'Smart Document Q&A chat — available to all users (Pulse Pro + GymAxis)' but it's only on GymAxis dashboard.",
+        "files_to_update": ["/app/frontend/src/pages/LiteDashboardPage.js", "/app/frontend/src/pages/LiteDashboard/LiteDocumentsTab.js"],
+        "priority": "HIGH"
+      }
+    ]
+  },
+  "test_results": {
+    "backend_api_tests": {
+      "total_tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "test_classes": [
+        {
+          "class": "TestDocumentQAEndpoint",
+          "tests": [
+            "test_document_ask_requires_auth - PASSED (returns 403 without token)",
+            "test_document_ask_with_auth - PASSED (returns answer, sources, documents_searched)",
+            "test_document_ask_with_equipment_type_filter - PASSED",
+            "test_document_ask_with_supplier_filter - PASSED"
+          ]
+        },
+        {
+          "class": "TestAuthEndpoints",
+          "tests": [
+            "test_master_admin_login - PASSED",
+            "test_regular_user_login - PASSED",
+            "test_invalid_credentials - PASSED (returns 401)"
+          ]
+        },
+        {
+          "class": "TestPulseEndpoints",
+          "tests": [
+            "test_auth_me_endpoint - PASSED"
+          ]
+        }
+      ]
+    },
+    "frontend_ui_tests": {
+      "pulse_landing_page": {
+        "status": "PASSED",
+        "url": "/pulse",
+        "elements_verified": [
+          "data-testid='pulse-landing-page' - FOUND",
+          "data-testid='pulse-hero-section' - FOUND",
+          "data-testid='pulse-hero-headline' - FOUND ('Equipment Management, Simplified.')",
+          "data-testid='pulse-hero-login-btn' - FOUND ('Sign In to Your Portal')",
+          "data-testid='lite-features-grid' - FOUND (4 cards)",
+          "data-testid='pro-features-grid' - FOUND (4 cards)"
+        ]
+      },
+      "pulse_login_card": {
+        "status": "PASSED",
+        "elements_verified": [
+          "data-testid='pulse-login-card' - FOUND (appears on click)",
+          "data-testid='pulse-login-email' - FOUND",
+          "data-testid='pulse-login-password' - FOUND",
+          "data-testid='pulse-login-submit' - FOUND"
+        ]
+      },
+      "pulse_landing_route_removed": {
+        "status": "PASSED",
+        "url": "/pulse-landing",
+        "result": "Shows blank page (route removed from App.js)"
+      },
+      "gymaxis_floating_qa": {
+        "status": "PASSED",
+        "elements_verified": [
+          "data-testid='doc-qa-fab' - FOUND (purple floating button)",
+          "data-testid='doc-qa-floating-panel' - FOUND (opens on click)",
+          "data-testid='doc-qa-input-float' - FOUND",
+          "data-testid='doc-qa-send-float' - FOUND",
+          "data-testid='doc-qa-close' - FOUND"
+        ]
+      },
+      "gymaxis_documents_inline_qa": {
+        "status": "PASSED",
+        "elements_verified": [
+          "data-testid='doc-qa-panel' - FOUND on Documents tab",
+          "Floating Q&A button NOT present on Documents tab - CORRECT"
+        ]
+      },
+      "master_admin_portal_switches": {
+        "status": "VERIFIED_VIA_CODE_REVIEW",
+        "code_location": "/app/frontend/src/pages/MasterAdminPage.js lines 369-392",
+        "elements": [
+          "data-testid='portal-switch-gymaxis' - 'GymAxis AI Dashboard'",
+          "data-testid='portal-switch-pulse' - 'Pulse Fitness Portal'"
+        ],
+        "no_separate_lite_pro_buttons": true
+      },
+      "master_admin_demo_links": {
+        "status": "VERIFIED_VIA_CODE_REVIEW",
+        "code_location": "/app/frontend/src/pages/MasterAdmin/AdminOverview.js lines 127-159",
+        "links": [
+          "GymAxis AI (www.gymaxisai.com)",
+          "Pulse Fitness Portal (/pulse)"
+        ],
+        "no_separate_lite_pro_links": true
+      }
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration67_document_qa.py",
+    "/app/test_reports/pytest/pytest_results_iteration67.xml"
+  ],
+  "action_items": [
+    "HIGH: Add DocumentQA component to LiteDashboardPage.js (floating button when not on documents tab)",
+    "HIGH: Add DocumentQA compact component to LiteDocumentsTab.js (inline Q&A panel)",
+    "MEDIUM: Investigate Pulse login form intermittent 'Invalid credentials' error - API works but frontend form fails"
+  ],
+  "critical_code_review_comments": [
+    "DocumentQA component is missing from Pulse/Lite dashboard - needs to be added to LiteDashboardPage.js and LiteDocumentsTab.js",
+    "MasterAdminPage.js correctly has only 2 portal switch buttons (GymAxis AI + Pulse Fitness)",
+    "AdminOverview.js correctly has only 2 demo links (no separate Lite/Pro)",
+    "PulseLandingPage.js correctly shows unified page with Standard and Pro features"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration67_document_qa.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "85% (most features work, Document Q&A missing on Pulse dashboard)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "regular_user": "test@gymaxisai.com / Test123!"
+  },
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Document Q&A backend endpoint works (POST /api/documents/ask). Frontend DocumentQA component exists and works on GymAxis dashboard. MISSING: DocumentQA needs to be added to LiteDashboardPage.js (floating) and LiteDocumentsTab.js (inline compact) for Pulse Pro users. Pulse login form has intermittent issues - API works but form submission sometimes fails.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

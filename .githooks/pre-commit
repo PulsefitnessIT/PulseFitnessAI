@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# ============================================================================
+# GymAxis AI — Pre-commit Hook
+# Runs quick lint checks before every commit. Use --no-verify to skip.
+# ============================================================================
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+BOLD='\033[1m'
+
+echo -e "${CYAN}${BOLD}[pre-commit] Running quality checks...${NC}"
+
+ERRORS=0
+
+# ── Backend: ruff ────────────────────────────────────────────
+echo -n "  Backend lint (ruff)... "
+if cd /app/backend && ruff check . --config pyproject.toml --quiet 2>/dev/null; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}FAILED${NC}"
+    cd /app/backend && ruff check . --config pyproject.toml 2>&1 | head -15
+    ERRORS=$((ERRORS + 1))
+fi
+
+# ── Backend: unused imports ──────────────────────────────────
+echo -n "  Unused imports... "
+UNUSED=$(cd /app/backend && ruff check . --config pyproject.toml --select F401 --quiet 2>&1 || true)
+if [ -z "$UNUSED" ]; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}FOUND${NC}"
+    echo "$UNUSED" | head -10
+    ERRORS=$((ERRORS + 1))
+fi
+
+# ── Backend: hardcoded secrets ───────────────────────────────
+echo -n "  Secrets scan... "
+SECRET_HIT=0
+for f in /app/backend/routes/*.py /app/backend/utils/*.py /app/backend/server.py; do
+    [ -f "$f" ] || continue
+    matches=$(grep -inE 'password\s*=\s*["\x27][^"\x27]{4,}|api_key\s*=\s*["\x27]sk-' "$f" | grep -v 'environ\|os\.\|getenv\|\.get(' | grep -vc '^\s*#' || true)
+    SECRET_HIT=$((SECRET_HIT + matches))
+done
+if [ "$SECRET_HIT" -eq 0 ]; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}$SECRET_HIT potential hardcoded secrets${NC}"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# ── Frontend: ESLint (errors only) ───────────────────────────
+echo -n "  Frontend lint (ESLint)... "
+cd /app/frontend
+if npx eslint src/ --quiet 2>/dev/null; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${RED}FAILED${NC}"
+    npx eslint src/ 2>&1 | tail -5
+    ERRORS=$((ERRORS + 1))
+fi
+cd /app
+
+# ── Result ───────────────────────────────────────────────────
+if [ "$ERRORS" -gt 0 ]; then
+    echo -e "\n${RED}${BOLD}[pre-commit] BLOCKED — $ERRORS check(s) failed. Fix issues or use 'git commit --no-verify' to skip.${NC}"
+    exit 1
+else
+    echo -e "${GREEN}${BOLD}[pre-commit] All checks passed.${NC}"
+    exit 0
+fi

@@ -1,0 +1,117 @@
+{
+  "summary": "Frontend-only testing of redesigned landing pages (Pulse /pulse and GymAxis /). All features from the brand rebuild working correctly: kinetic rotating word, animated KPI counters, white text on dark image cards, Proxima Nova fonts, login modal flow, mobile responsiveness.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Pulse Landing Page",
+        "issues": ["Minor: React warning about unrecognized prop on DOM element (non-blocking, cosmetic)"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_149.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only test)",
+    "frontend": "100%"
+  },
+  "test_credentials": "lee.somers@pulsefitness.com / TempPass123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both landing pages fully rebuilt with Pulse Fitness brand assets. All features working: kinetic word rotation, animated counters, white text on dark overlays, Proxima Nova/Maax Rounded fonts, login modal, mobile responsive.",
+  "test_results": {
+    "pulse_landing_page": {
+      "sections_tested": {
+        "pulse-hero": "PASS",
+        "pulse-capabilities": "PASS",
+        "pulse-ai": "PASS",
+        "pulse-how": "PASS",
+        "pulse-gamified": "PASS",
+        "pulse-mobile": "PASS",
+        "pulse-benefits": "PASS",
+        "pulse-support": "PASS",
+        "pulse-final-cta": "PASS"
+      },
+      "kinetic_word_test": {
+        "headline_testid": "pulse-hero-headline - PASS",
+        "rotation_working": "PASS - Word cycles every ~2.4s (Manage/Maintain/Maximise)",
+        "cyan_italic_style": "PASS - text-[#19CDFF] italic with Maax Rounded font"
+      },
+      "hero_preview_card": {
+        "testid": "pulse-hero-preview - PASS",
+        "content": "PASS - Shows fault #F-4821, Treadmill #7, timeline steps, downtime counter"
+      },
+      "hero_cta_buttons": {
+        "pulse-hero-login-btn": "PASS - Core Blue #19CDFF bg (rgb(25, 205, 255))",
+        "pulse-hero-getstarted-btn": "PASS - Outlined Soft Black border"
+      },
+      "capabilities_white_text": {
+        "h3_color": "PASS - rgb(255, 255, 255) - CSS fix working correctly",
+        "text_content": "30 seconds. Photo. Fault. Done.",
+        "note": "Global [data-theme='light'] h3 override fixed with .on-dark class"
+      },
+      "font_loading": {
+        "proxima_nova": "PASS - font-family: 'Proxima Nova', sans-serif",
+        "font_weight": "PASS - 800 (extrabold) on headlines"
+      },
+      "login_modal": {
+        "pulse-login-dialog": "PASS - Opens correctly",
+        "pulse-login-email": "PASS",
+        "pulse-login-password": "PASS",
+        "pulse-login-submit": "PASS",
+        "login_flow": "PASS - Successfully logs in lee.somers@pulsefitness.com and redirects to Pulse Pro dashboard"
+      },
+      "mobile_viewport_390px": {
+        "hero_readable": "PASS",
+        "kinetic_word_cycles": "PASS",
+        "gym_image_visible": "PASS",
+        "ctas_stack": "PASS - Buttons stack vertically (y=488, y=556)",
+        "login_modal_works": "PASS"
+      },
+      "console_errors": "1 minor React warning (non-blocking)"
+    },
+    "gymaxis_homepage": {
+      "sections_tested": {
+        "hero": "PASS",
+        "platform-overview": "PASS",
+        "ai-differentiation": "PASS",
+        "service-ops": "PASS",
+        "contracts-revenue": "PASS",
+        "integrations": "PASS",
+        "kpi-engine": "PASS",
+        "social-proof": "PASS",
+        "security": "PASS",
+        "final-cta": "PASS"
+      },
+      "kpi_animated_counters": {
+        "animation_working": "PASS - Values animate from 0 to target",
+        "final_values": ["-34%", "98.2%", "6.4×"],
+        "color": "PASS - rgb(25, 205, 255) cyan #19CDFF",
+        "font_weight": "PASS - 800 (extrabold)"
+      },
+      "font_loading": {
+        "proxima_nova": "PASS - font-family: 'Proxima Nova', sans-serif",
+        "font_weight": "PASS - 800 on h1"
+      },
+      "security_section": {
+        "security-terminal": "PASS - Found with LIVE status indicators",
+        "security-manifest-link": "PASS - Links to /security"
+      },
+      "hero_cta_buttons": {
+        "hero-book-demo": "PASS",
+        "hero-explore-platform": "PASS"
+      },
+      "console_errors": "NONE"
+    }
+  }
+}

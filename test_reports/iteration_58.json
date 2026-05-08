@@ -1,0 +1,163 @@
+{
+  "summary": "Iteration 58 - Pulse Site Onboarding Wizard Testing. Backend: 10/10 tests passed (100%). Frontend: Full 4-step wizard flow verified and working. Site creation with equipment kits, users, and validation all functional.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dialog components",
+        "issues": ["Console warning: Missing Description or aria-describedby for DialogContent - accessibility improvement needed (existing issue from previous iterations)"]
+      }
+    ]
+  },
+  "test_results": {
+    "backend": {
+      "GET /api/master-admin/pulse-equipment-kits": {
+        "status": "PASSED",
+        "details": "Returns 5 equipment kits: cardio_starter (12), cardio_full (30), strength_starter (9), strength_full (24), complete_gym (54)"
+      },
+      "GET /api/master-admin/pulse-equipment-kits (non-admin)": {
+        "status": "PASSED",
+        "details": "Returns 403 for non-master-admin users"
+      },
+      "POST /api/master-admin/onboard-pulse-site (Lite)": {
+        "status": "PASSED",
+        "details": "Creates Pulse Lite site with owner, returns company_code, account_type=pulse_lite"
+      },
+      "POST /api/master-admin/onboard-pulse-site (Pro with kit)": {
+        "status": "PASSED",
+        "details": "Creates Pulse Pro site with equipment kit, multiple users, returns equipment_count >= 10"
+      },
+      "POST /api/master-admin/onboard-pulse-site (manual equipment)": {
+        "status": "PASSED",
+        "details": "Creates site with manually specified equipment items"
+      },
+      "Validation - missing site_name": {
+        "status": "PASSED",
+        "details": "Returns 400 with 'site name is required' message"
+      },
+      "Validation - missing owner fields": {
+        "status": "PASSED",
+        "details": "Returns 400 with 'owner' validation message"
+      },
+      "Validation - invalid tier": {
+        "status": "PASSED",
+        "details": "Returns 400 for tier values other than 'lite' or 'pro'"
+      },
+      "Validation - duplicate email": {
+        "status": "PASSED",
+        "details": "Returns 400 when owner email already exists"
+      },
+      "POST /api/master-admin/onboard-pulse-site (non-admin)": {
+        "status": "PASSED",
+        "details": "Returns 403 for non-master-admin users"
+      }
+    },
+    "frontend": {
+      "Master Admin login": {
+        "status": "PASSED",
+        "details": "Login with admin@gymaxisai.com / MasterAdmin123! works correctly"
+      },
+      "Navigate to Master Admin panel": {
+        "status": "PASSED",
+        "details": "Click nav-user-menu-btn > nav-master-admin-btn navigates to admin panel"
+      },
+      "Onboard Pulse Site sidebar item": {
+        "status": "PASSED",
+        "details": "Visible in sidebar, clicking opens the wizard"
+      },
+      "Step 1 - Site Details": {
+        "status": "PASSED",
+        "details": "Tier selection (Lite/Pro), site name, address, postcode, phone, default location fields all work"
+      },
+      "Step 1 - Validation": {
+        "status": "PASSED",
+        "details": "Clicking Next without site name shows toast error 'Site name is required'"
+      },
+      "Step 2 - Users": {
+        "status": "PASSED",
+        "details": "Owner fields (name, email, password) with Required badge, Add User button works, role selector available"
+      },
+      "Step 3 - Equipment": {
+        "status": "PASSED",
+        "details": "Equipment kits loaded from API (5 kits displayed), No Kit option, Add Machine button for manual equipment"
+      },
+      "Step 4 - Review": {
+        "status": "PASSED",
+        "details": "All entered data displayed correctly in review cards (Site, Users, Equipment)"
+      },
+      "Create Pulse Site": {
+        "status": "PASSED",
+        "details": "Clicking Create Pulse Site button creates site atomically"
+      },
+      "Success screen": {
+        "status": "PASSED",
+        "details": "Shows company code, tier, users created, equipment created, user credentials, 'Onboard Another Site' and 'Done' buttons"
+      }
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration58_pulse_onboarding.py",
+    "/app/test_reports/pytest/pytest_results_iteration58.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PulseOnboardingWizard.js has comprehensive data-testid attributes for all interactive elements",
+    "Backend onboard-pulse-site endpoint correctly validates required fields and returns appropriate error messages",
+    "Equipment kits are properly defined in PULSE_EQUIPMENT_KITS constant with accurate item counts",
+    "Atomic creation: organization, site, users, and equipment all created in single transaction",
+    "Company code generation uses UUID[:8].upper() for unique 8-character codes",
+    "Password hashing uses bcrypt via _hash_password utility function"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration58_pulse_onboarding.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (all wizard steps verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "owner": "test@gymaxisai.com / Test123!"
+  },
+  "seed_data_creation": "Backend tests created multiple test Pulse sites (Lite and Pro) with unique emails. Frontend test created 'Final Test Site' with company code 8A9229B0",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pulse Site Onboarding Wizard fully functional. All 4 steps work correctly: Site Details (tier selection, validation), Users (owner + additional users), Equipment (5 kits from API + manual), Review & Create. Success screen displays company code, user credentials, and action buttons. Backend API creates org, site, users, and equipment atomically.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe Connect onboarding", "Sicon Service ERP", "Resend email delivery (token logged to console)"]
+  },
+  "features_verified": {
+    "pulse_onboarding_wizard": {
+      "step_1_site_details": {
+        "fields": ["tier (lite/pro)", "site_name", "phone", "address", "postcode", "default_location"],
+        "validation": "Site name required - shows toast error"
+      },
+      "step_2_users": {
+        "owner_fields": ["name", "email", "password"],
+        "additional_users": "Add User button, role selector (manager/staff), remove button",
+        "validation": "Owner name, email, password required"
+      },
+      "step_3_equipment": {
+        "kits_from_api": ["cardio_starter (12)", "cardio_full (30)", "strength_starter (9)", "strength_full (24)", "complete_gym (54)"],
+        "manual_equipment": "Add Machine button for custom equipment"
+      },
+      "step_4_review": {
+        "displays": ["Site info", "Users list with roles", "Equipment summary with kit breakdown"]
+      },
+      "success_screen": {
+        "displays": ["Company code", "Tier", "Users created count", "Equipment created count", "User credentials"],
+        "buttons": ["Onboard Another Site", "Done"]
+      }
+    },
+    "backend_api": {
+      "GET /api/master-admin/pulse-equipment-kits": "Returns 5 pre-defined equipment kits",
+      "POST /api/master-admin/onboard-pulse-site": "Creates org, site, users, equipment atomically"
+    }
+  }
+}

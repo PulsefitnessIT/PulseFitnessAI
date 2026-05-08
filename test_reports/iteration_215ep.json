@@ -1,0 +1,82 @@
+{
+  "summary": "Iter 215ep - Companies House API Refactor Testing Complete. Backend: 17/17 tests passed. NEW /officers endpoint working correctly with auth gating, Title Case name parsing, and resigned officer filtering. REGRESSION tests for /status, /search, /company/{number} all passing. REFACTORED auto-recognize endpoint now uses REST API instead of HTML scraping, returns all expected structured fields.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/master-admin/companies-house/company/{number}/officers",
+        "issue": "Returns 200 with empty items for non-existent company instead of 404. This is expected behavior from Companies House API (officers endpoint returns 200 with empty list, unlike profile endpoint which returns 404).",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_215ep_ch_refactor.py",
+    "/app/test_reports/pytest/pytest_results_iteration_215ep.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_215ep_ch_refactor.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "N/A (backend only testing requested)"
+  },
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None - used live Companies House API with company 04354059 (Pulse Fitness Ltd)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 215ep Companies House API refactor fully tested. All endpoints working: (1) NEW GET /api/master-admin/companies-house/company/{number}/officers returns officers with Title Case names, excludes resigned by default, ?include_resigned=true includes them. (2) REGRESSION /status, /search, /company/{number} all working. (3) REFACTORED POST /api/crm/v2/companies/auto-recognize now uses REST API via shared utils/companies_house_client.py, returns structured address fields (address_line1, address_line2, city, county, postcode, country), company_type, date_of_creation, directors in Title Case, key_contacts with title='Director'. Shared cache between master-admin proxy and CRM auto-recognize verified.",
+  "backend_tests_summary": {
+    "officers_endpoint_new": {
+      "auth_401": "PASSED - Returns 401 without token",
+      "master_admin_access": "PASSED - Returns officers list for master admin",
+      "at_least_3_directors": "PASSED - Pulse Fitness Ltd has 3 active directors",
+      "officer_structure": "PASSED - Each officer has name, role, appointed_on, occupation, nationality",
+      "title_case_names": "PASSED - Names are Title Case (Mohammed Ishaq Chaudry, Christopher Paul Johnson, David Mark Johnson)",
+      "excludes_resigned_default": "PASSED - Resigned officers excluded by default",
+      "include_resigned_param": "PASSED - ?include_resigned=true returns resigned officers",
+      "nonexistent_company": "PASSED - Returns 200 with empty items (CH API behavior)"
+    },
+    "status_endpoint_regression": {
+      "enabled_true": "PASSED - Returns enabled:true with base_url"
+    },
+    "search_endpoint_regression": {
+      "pulse_search": "PASSED - Returns results with 'Pulse' in name",
+      "pulse_fitness_exact": "PASSED - 'Pulse Fitness' search returns PULSE FITNESS LIMITED (04354059)"
+    },
+    "company_profile_regression": {
+      "normalised_address": "PASSED - Returns normalised address fields (address_line1='Radnor Park', city='Congleton', postcode='CW12 4TW')"
+    },
+    "auto_recognize_refactored": {
+      "pulse_fitness": "PASSED - Returns success:true, source:'companies_house', all structured fields present",
+      "unknown_company": "PASSED - Returns success:false, source:'ai_only' for non-existent company",
+      "short_query_400": "PASSED - Returns 400 for <3 char query",
+      "auth_required": "PASSED - Returns 401 without CRM token"
+    },
+    "shared_cache": {
+      "cache_consistency": "PASSED - Both endpoints return consistent data"
+    }
+  },
+  "verified_data": {
+    "company_04354059": {
+      "name": "PULSE FITNESS LIMITED",
+      "company_number": "04354059",
+      "address": "Radnor Park, Greenfield Road",
+      "city": "Congleton",
+      "postcode": "CW12 4TW",
+      "county": "Cheshire",
+      "country": "United Kingdom",
+      "company_type": "ltd",
+      "date_of_creation": "2002-01-16",
+      "status": "active",
+      "directors": ["Mohammed Ishaq Chaudry", "Christopher Paul Johnson", "David Mark Johnson"]
+    }
+  }
+}

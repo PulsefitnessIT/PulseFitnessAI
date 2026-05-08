@@ -1,0 +1,97 @@
+{
+  "summary": "Pricing Engine + Per-Org Billing feature testing complete. Backend: 11/11 tests pass. Frontend: All core flows verified - Pricing Panel (brand toggle, plan editing, price save), Org Billing Panel (org picker, ledger cards, invoice list, payment recording), Public Pricing Page (currency toggle, sites input, volume discount badges).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pricing_and_billing.py",
+    "/app/test_reports/pytest/pytest_results_iteration206.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_pricing_and_billing.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123!, Pulse Pro Owner: lee.somers@pulsefitness.com / TempPass123!, Tottenham Green org id: 156c8dc4-8683-4cb4-8a74-facd811655ad",
+  "seed_data_creation": "Pricing plans seeded via /api/master-admin/pricing/seed-defaults (idempotent)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pricing Engine + Per-Org Billing feature fully tested. Backend tests in /app/backend/tests/test_pricing_and_billing.py cover: seed-defaults idempotency, list plans for both brands (5 plans each: operations, memberships, crm, marketing, bundle_all), public pricing with volume discount calculation, currency switch (GBP/EUR/USD), partial price update preservation (updating GBP doesn't wipe EUR/USD), subscription activation, invoice generation with INV-YYYY-MM-#### format, payment recording with auto-mark-paid, PDF download (%PDF bytes), 403 for non-master-admin. Frontend tested via Playwright: Master Admin Pricing Panel (brand toggle gymaxis/pulse, expand plan, edit GBP monthly price, save with toast), Org Billing Panel (org picker, ledger cards invoiced/paid/balance, invoice list with ISSUED/PAID status, Record Payment buttons, Update subscription and Generate invoice buttons), Public /pricing page (dynamic-pricing-section, currency toggle, sites input, module cards with volume discount badges).",
+  "tests_executed": {
+    "backend": [
+      "test_seed_defaults_idempotent - PASS",
+      "test_list_plans_returns_both_brands - PASS",
+      "test_public_pricing_returns_calculated_quotes_with_volume_discount - PASS",
+      "test_public_pricing_currency_switch - PASS",
+      "test_update_plan_writes_audit_log - PASS",
+      "test_unauthenticated_can_read_public_endpoint - PASS",
+      "test_activate_subscription_for_org - PASS",
+      "test_invoice_lifecycle_with_manual_payment - PASS",
+      "test_invoice_pdf_returns_bytes - PASS",
+      "test_partial_price_update_preserves_other_currencies - PASS",
+      "test_non_master_admin_cannot_access - PASS"
+    ],
+    "frontend": [
+      "Public /pricing page loads - PASS",
+      "Dynamic pricing section visible with data-testid='dynamic-pricing-section' - PASS",
+      "Currency toggle (GBP/EUR/USD) works - PASS",
+      "Sites input changes volume discount - PASS",
+      "Module cards show 10% volume off badge for 4 sites - PASS",
+      "Master Admin Pricing sidebar entry visible - PASS",
+      "Master Admin Org Billing sidebar entry visible - PASS",
+      "Pricing Panel brand toggle (gymaxis/pulse) works - PASS",
+      "Pricing Panel shows 5 plan rows per brand - PASS",
+      "Pricing Panel expand shows GBP/EUR/USD inputs - PASS",
+      "Pricing Panel save triggers success toast - PASS",
+      "Org Billing picker shows org list - PASS",
+      "Org Billing panel shows ledger cards (invoiced/paid/balance) - PASS",
+      "Org Billing panel shows invoice list with status - PASS",
+      "Org Billing panel shows Update subscription and Generate invoice buttons - PASS"
+    ]
+  },
+  "skipped_tests": [],
+  "data_testids_verified": [
+    "pricing-page",
+    "dynamic-pricing-section",
+    "pricing-ccy-GBP",
+    "pricing-ccy-EUR",
+    "pricing-ccy-USD",
+    "pricing-sites-input",
+    "module-card-operations",
+    "module-card-memberships",
+    "module-card-crm",
+    "module-card-marketing",
+    "module-card-bundle_all",
+    "pricing-panel",
+    "pricing-brand-gymaxis",
+    "pricing-brand-pulse",
+    "pricing-plan-operations",
+    "pricing-plan-memberships",
+    "pricing-plan-crm",
+    "pricing-plan-marketing",
+    "pricing-plan-bundle_all",
+    "pricing-expand-operations",
+    "pricing-operations-GBP-monthly",
+    "pricing-operations-EUR-monthly",
+    "pricing-operations-USD-monthly",
+    "pricing-save-operations",
+    "org-billing-picker",
+    "org-billing-search",
+    "org-billing-panel",
+    "ledger-invoiced",
+    "ledger-paid",
+    "ledger-balance",
+    "org-billing-activate-btn",
+    "org-billing-generate-invoice-btn"
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "summary": "Customer Onboarding Packets feature fully tested. All 23 backend API tests pass (100%). Frontend public form and master admin panel both work correctly. All 7 wizard steps render, autosave works, CSV equipment import works, submit flow shows confirmation. Admin panel has all required elements: New Packet button, status filters, create dialog with tier/CRM dropdowns, packet cards with counts, detail dialog with share URL and provision/reject/delete buttons.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "CustomerOnboardingForm header",
+        "issues": ["Minor HTML nesting warning: Badge (div) inside p tag causes hydration warning in dev mode. Not a functional issue but should be fixed for cleaner console."]
+      }
+    ]
+  },
+  "features_tested": {
+    "backend_master_admin_create_packet": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets",
+      "details": "Creates packet with token, share_url; validates tier (starter/pro/enterprise)"
+    },
+    "backend_master_admin_create_invalid_tier": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets with invalid tier",
+      "details": "Returns 400 with valid tier options"
+    },
+    "backend_master_admin_list_packets": {
+      "status": "PASS",
+      "endpoint": "GET /api/onboarding-packets",
+      "details": "Returns {packets:[], count:N}; supports ?status=draft filter"
+    },
+    "backend_master_admin_get_packet": {
+      "status": "PASS",
+      "endpoint": "GET /api/onboarding-packets/{id}",
+      "details": "Returns full packet with share_url"
+    },
+    "backend_master_admin_update_packet": {
+      "status": "PASS",
+      "endpoint": "PUT /api/onboarding-packets/{id}",
+      "details": "Updates allowed fields (customer_display_name, target_tier, review_notes, etc.)"
+    },
+    "backend_master_admin_delete_packet": {
+      "status": "PASS",
+      "endpoint": "DELETE /api/onboarding-packets/{id}",
+      "details": "Deletes non-provisioned packets; returns 400 for provisioned"
+    },
+    "backend_master_admin_reject_packet": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/reject",
+      "details": "Sets status=rejected + review_notes"
+    },
+    "backend_master_admin_provision_packet": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/provision",
+      "details": "Validates packet, creates org+sites+users+equipment+suppliers+contracts atomically, returns summary counts"
+    },
+    "backend_master_admin_provision_validation": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding-packets/{id}/provision without required fields",
+      "details": "Returns 400 with validation errors (legal_name, postcode, email, site, owner required)"
+    },
+    "backend_master_admin_crm_companies": {
+      "status": "PASS",
+      "endpoint": "GET /api/onboarding-packets/crm/companies",
+      "details": "Returns CRM company list for prefill dropdown"
+    },
+    "backend_rbac_403_for_non_admin": {
+      "status": "PASS",
+      "details": "All master admin endpoints return 403 for non-master-admin user (lee.somers@pulsefitness.com)"
+    },
+    "backend_public_get_packet": {
+      "status": "PASS",
+      "endpoint": "GET /api/onboarding/public/{token}",
+      "details": "Returns packet without auth; hides created_by, provisioned_organization_id"
+    },
+    "backend_public_get_invalid_token": {
+      "status": "PASS",
+      "endpoint": "GET /api/onboarding/public/{invalid_token}",
+      "details": "Returns 404"
+    },
+    "backend_public_save_draft": {
+      "status": "PASS",
+      "endpoint": "PUT /api/onboarding/public/{token}",
+      "details": "Saves draft content (organisation, sites, staff, equipment, suppliers, contracts)"
+    },
+    "backend_public_submit": {
+      "status": "PASS",
+      "endpoint": "POST /api/onboarding/public/{token}/submit",
+      "details": "Validates and marks submitted; returns 400 with errors when missing required fields"
+    },
+    "frontend_public_form_loads": {
+      "status": "PASS",
+      "details": "Customer onboarding form renders at /onboarding/{token} with data-testid='customer-onboarding-form'"
+    },
+    "frontend_all_7_steps": {
+      "status": "PASS",
+      "details": "All 7 steps navigable: organisation, sites, staff, equipment, suppliers, contracts, review"
+    },
+    "frontend_autosave_indicator": {
+      "status": "PASS",
+      "details": "Autosave indicator visible (data-testid='autosave-status')"
+    },
+    "frontend_equipment_csv_paste": {
+      "status": "PASS",
+      "details": "CSV paste field (data-testid='equipment-csv-paste') accepts text, btn-csv-import adds rows"
+    },
+    "frontend_add_remove_buttons": {
+      "status": "PASS",
+      "details": "Add/remove buttons work for sites, staff, equipment, suppliers, contracts"
+    },
+    "frontend_submit_confirmation": {
+      "status": "PASS",
+      "details": "Submit shows confirmation card (data-testid='onboarding-submitted')"
+    },
+    "frontend_invalid_token_error": {
+      "status": "PASS",
+      "details": "Invalid token shows error card (data-testid='onboarding-error')"
+    },
+    "frontend_admin_panel_renders": {
+      "status": "PASS",
+      "details": "Admin panel renders at /master-admin with data-testid='admin-onboarding-packets'"
+    },
+    "frontend_admin_new_packet_button": {
+      "status": "PASS",
+      "details": "New Packet button (data-testid='btn-new-packet') opens create dialog"
+    },
+    "frontend_admin_create_dialog": {
+      "status": "PASS",
+      "details": "Create dialog (data-testid='create-packet-dialog') has name, tier dropdown, CRM prefill dropdown"
+    },
+    "frontend_admin_packet_cards": {
+      "status": "PASS",
+      "details": "Packet cards show with counts (sites/staff/equipment/suppliers/contracts)"
+    },
+    "frontend_admin_detail_dialog": {
+      "status": "PASS",
+      "details": "Detail dialog (data-testid='packet-detail-dialog') shows share URL, provision/reject/delete buttons"
+    },
+    "frontend_admin_status_filters": {
+      "status": "PASS",
+      "details": "All 6 filter pills work: all, draft, submitted, approved, provisioned, rejected"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_onboarding_packets.py",
+    "/app/test_reports/pytest/pytest_results_iteration123.xml"
+  ],
+  "action_items": [
+    "Minor: Fix HTML nesting in CustomerOnboardingForm.js line 136-137 - Badge (div) should not be inside p tag"
+  ],
+  "critical_code_review_comments": [
+    "Provision endpoint sends password-reset emails via Resend - may not deliver in test env but does not cause failures",
+    "Magic-link tokens stored in password_reset_tokens collection with purpose='onboarding_setup'",
+    "Atomic rollback implemented in provision endpoint - if any step fails, all created records are deleted",
+    "Public endpoints correctly hide internal fields (created_by, provisioned_organization_id, _id)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_onboarding_packets.py"
+  ],
+  "success_rate": {
+    "backend": "100% (23/23 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "non_admin": "lee.somers@pulsefitness.com / TempPass123!"
+  },
+  "seed_data_creation": "Test packets created and cleaned up during testing. One provisioned packet (TEST_Provision_Complete) remains as it cannot be deleted.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Customer Onboarding Packets feature fully implemented and tested. All backend endpoints work correctly with proper RBAC (403 for non-admin). Public form has 7-step wizard with autosave. Admin panel has full CRUD + provision/reject functionality. One minor HTML nesting warning in dev mode (Badge inside p tag) - cosmetic only.",
+  "mocked_apis": {
+    "resend_email": "Password reset emails sent via Resend API - may not deliver in test environment but endpoint does not fail"
+  }
+}
