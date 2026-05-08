@@ -12,10 +12,11 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Megaphone, ListChecks, X, Send, CheckCircle2, XCircle, Loader2,
-  AlertTriangle, Mail, Inbox, Users, Clock, MapPin,
+  AlertTriangle, Mail, Inbox, Users, Clock, MapPin, Edit3, UserPlus, Search,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { ClassTemplateEditor } from '@/pages/Memberships/StudioBuilderTab';
 
 
 export default function ClassActionDrawer({ API, headers, occurrence, onClose, onChange }) {
@@ -67,15 +68,77 @@ export default function ClassActionDrawer({ API, headers, occurrence, onClose, o
             data-testid="mbr-cad-tab-attendance">
             <ListChecks size={11} /> Attendance
           </button>
+          <button onClick={() => setView('edit')}
+            className={`flex-1 px-3 py-2.5 text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 ${
+              view === 'edit'
+                ? 'text-[var(--color-brand-cyan)] border-b-2 border-[var(--color-brand-cyan)] bg-[color:var(--theme-surface)] dark:bg-zinc-900'
+                : 'text-[color:var(--theme-text-muted)]'
+            }`}
+            data-testid="mbr-cad-tab-edit">
+            <Edit3 size={11} /> Edit class
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-          {view === 'announce'
-            ? <AnnounceView API={API} headers={headers} occurrence={occurrence} />
-            : <AttendanceView API={API} headers={headers} occurrence={occurrence}
-                onSaved={() => { onChange?.(); }} />}
+          {view === 'announce' && <AnnounceView API={API} headers={headers} occurrence={occurrence} />}
+          {view === 'attendance' && (
+            <AttendanceView API={API} headers={headers} occurrence={occurrence}
+              onSaved={() => { onChange?.(); }} />
+          )}
+          {view === 'edit' && (
+            <EditClassInline API={API} headers={headers} occurrence={occurrence}
+              onSaved={() => { onChange?.(); onClose?.(); }} />
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+
+/* ────────────── Edit class template (iter 216ah · G3) ────────────── */
+
+function EditClassInline({ API, headers, occurrence, onSaved }) {
+  // Fetch the current template so we seed the editor with live data.
+  const [template, setTemplate] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    axios.get(`${API}/memberships/classes/templates`, { headers })
+      .then((r) => {
+        if (!live) return;
+        const tpl = (r.data?.templates || []).find((t) => t.id === occurrence.template_id);
+        setTemplate(tpl || { id: occurrence.template_id, name: occurrence.name });
+      })
+      .catch(() => setTemplate({ id: occurrence.template_id, name: occurrence.name }))
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [API, headers, occurrence.template_id, occurrence.name]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-[color:var(--theme-text-muted)] text-xs py-6">
+        <Loader2 size={12} className="animate-spin" /> Loading class template…
+      </div>
+    );
+  }
+  if (!template) return <p className="text-xs text-[color:var(--theme-text-muted)]">Template not found.</p>;
+
+  // Reuse the Studio Builder editor — same shape, same backend. Renders
+  // its own modal overlay, so here we just mount it.
+  return (
+    <div className="text-xs text-[color:var(--theme-text-muted)] pb-2" data-testid="mbr-cad-edit-wrap">
+      <p className="mb-2">
+        Editing the template will update every future occurrence. Past occurrences are preserved.
+      </p>
+      <ClassTemplateEditor
+        API={API} auth={{ headers }}
+        initial={template}
+        onSaved={onSaved}
+        onClose={onSaved}
+      />
     </div>
   );
 }
@@ -217,6 +280,7 @@ function AttendanceView({ API, headers, occurrence, onSaved }) {
   const [marks, setMarks] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -268,9 +332,22 @@ function AttendanceView({ API, headers, occurrence, onSaved }) {
 
   if (bookings.length === 0) {
     return (
-      <div className="text-center py-10">
-        <Users size={32} className="mx-auto text-[color:var(--theme-text-muted)] mb-3" />
-        <p className="text-sm font-bold">No bookings yet</p>
+      <div>
+        <div className="text-center py-10">
+          <Users size={32} className="mx-auto text-[color:var(--theme-text-muted)] mb-3" />
+          <p className="text-sm font-bold">No bookings yet</p>
+          <button onClick={() => setShowAdd(true)}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-extrabold"
+            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+            data-testid="mbr-cad-add-member-empty">
+            <UserPlus size={11} /> Add member
+          </button>
+        </div>
+        {showAdd && (
+          <AddMemberPicker API={API} headers={headers} occurrence={occurrence}
+            onDone={() => { setShowAdd(false); load(); onSaved?.(); }}
+            onClose={() => setShowAdd(false)} />
+        )}
       </div>
     );
   }
@@ -278,6 +355,12 @@ function AttendanceView({ API, headers, occurrence, onSaved }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
+        <button onClick={() => setShowAdd(true)}
+          className="px-2.5 py-1 rounded-md text-[11px] font-extrabold inline-flex items-center gap-1"
+          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+          data-testid="mbr-cad-add-member">
+          <UserPlus size={10} /> Add member
+        </button>
         <button onClick={markAllPresent}
           className="px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-400/40 text-emerald-500 hover:bg-emerald-500/10 flex items-center gap-1"
           data-testid="mbr-cad-att-all-present">
@@ -347,6 +430,138 @@ function AttendanceView({ API, headers, occurrence, onSaved }) {
         {busy ? <Loader2 size={12} className="animate-spin" /> : <ListChecks size={12} />}
         Save attendance
       </button>
+
+      {showAdd && (
+        <AddMemberPicker API={API} headers={headers} occurrence={occurrence}
+          onDone={() => { setShowAdd(false); load(); onSaved?.(); }}
+          onClose={() => setShowAdd(false)} />
+      )}
+    </div>
+  );
+}
+
+
+/* ────────────── Operator booking picker (iter 216ah · G4) ────────────── */
+
+function AddMemberPicker({ API, headers, occurrence, onDone, onClose }) {
+  const [query, setQuery] = useState('');
+  const [rows, setRows] = useState([]);
+  const [selected, setSelected] = useState(new Set());
+  const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    axios.get(`${API}/memberships/members`, { headers })
+      .then((r) => { if (live) setRows(r.data?.members || []); })
+      .catch(() => {})
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [API, headers]);
+
+  const filtered = rows.filter((m) => {
+    if (m.archived) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const full = `${m.first_name || ''} ${m.last_name || ''} ${m.email || ''}`.toLowerCase();
+    return full.includes(q);
+  }).slice(0, 60);
+
+  const toggle = (id) => setSelected((s) => {
+    const next = new Set(s);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const bookAll = async () => {
+    if (selected.size === 0) return;
+    setBooking(true);
+    try {
+      const r = await axios.post(
+        `${API}/memberships/occurrences/${occurrence.id}/bookings`,
+        { member_ids: Array.from(selected), allow_waitlist: true, bypass_credits: true },
+        { headers },
+      );
+      const { booked = 0, waitlisted = 0, skipped = 0 } = r.data || {};
+      notify.success(
+        booked && waitlisted
+          ? `${booked} booked, ${waitlisted} waitlisted`
+          : waitlisted
+          ? `${waitlisted} added to the waitlist`
+          : `${booked} booked${skipped ? ` · ${skipped} skipped (already in class)` : ''}`,
+      );
+      onDone?.();
+    } catch (e) {
+      notifyApiError(notify, e, 'Failed to book');
+    }
+    setBooking(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/60 grid items-end sm:place-items-center p-0 sm:p-3" onClick={onClose} data-testid="mbr-cad-add-picker">
+      <div className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[80vh] bg-[color:var(--theme-surface)] dark:bg-zinc-900 border border-[color:var(--theme-border)]"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="px-4 py-3 flex items-start justify-between border-b border-[color:var(--theme-border)]">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-[var(--color-brand-cyan)]">Add to class</p>
+            <h3 className="text-base font-extrabold">Book members into {occurrence.name}</h3>
+            <p className="text-[10px] text-[color:var(--theme-text-muted)] mt-0.5">
+              Credits aren't deducted for operator bookings.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-white/5"><X size={14} /></button>
+        </div>
+        <div className="px-4 py-2 border-b border-[color:var(--theme-border)]">
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--theme-text-muted)]" />
+            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search members by name or email…"
+              autoFocus
+              className="w-full pl-7 pr-2 py-2 rounded-md text-xs border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
+              data-testid="mbr-cad-add-search" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2">
+          {loading ? (
+            <div className="flex items-center gap-2 text-xs p-4 text-[color:var(--theme-text-muted)]">
+              <Loader2 size={12} className="animate-spin" /> Loading…
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-xs p-4 text-[color:var(--theme-text-muted)]">No matching members.</p>
+          ) : filtered.map((m) => {
+            const label = `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.email || m.id;
+            const isSel = selected.has(m.id);
+            return (
+              <button key={m.id} type="button" onClick={() => toggle(m.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs rounded-md ${isSel ? 'bg-[var(--color-brand-cyan)]/10' : 'hover:bg-white/5'}`}
+                data-testid={`mbr-cad-add-row-${m.id}`}>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSel ? 'bg-[var(--color-brand-cyan)] border-transparent' : 'border-[color:var(--theme-border)]'}`}>
+                  {isSel && <CheckCircle2 size={10} className="text-[color:var(--color-surface-darker)]" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold truncate">{label}</p>
+                  {m.email && <p className="text-[10px] text-[color:var(--theme-text-muted)] truncate">{m.email}</p>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div className="px-4 py-3 flex items-center justify-between gap-2 border-t border-[color:var(--theme-border)]">
+          <span className="text-[11px] font-bold text-[color:var(--theme-text-muted)]">
+            {selected.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[color:var(--theme-border)]">Cancel</button>
+            <button onClick={bookAll} disabled={booking || selected.size === 0}
+              className="px-4 py-1.5 text-xs font-extrabold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"
+              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+              data-testid="mbr-cad-add-confirm">
+              {booking ? <Loader2 size={11} className="animate-spin" /> : <UserPlus size={11} />}
+              Book {selected.size || ''}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

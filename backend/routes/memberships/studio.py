@@ -143,6 +143,112 @@ async def list_industries(user: dict = Depends(get_current_user)):
 
 # ═══════════════════════ Settings ═══════════════════════
 
+@router.get("/memberships/studio/onboarding", dependencies=[Depends(require_module("memberships"))])
+async def get_studio_onboarding(user: dict = Depends(get_current_user)):
+    """Iter 216ah — Sprint A G1. Progressive onboarding checklist.
+
+    Returns the 5 must-do setup steps + whether each is complete, derived
+    live from DB counts (so ticks reflect reality even if the operator
+    backdoors a setting). Ordered by intended completion path. When every
+    item is done → `all_complete: true` and the frontend hides the Start
+    tab automatically (see MembershipsConsole + MembershipsStartTab).
+    """
+    org_id = await _require_operator_org(user)
+
+    # Counts — all bounded, cheap (collection-scans with org_id index).
+    members = await db.members.count_documents(
+        {"organization_id": org_id, "status": {"$ne": "archived"}},
+    )
+    class_templates = await db.class_templates.count_documents(
+        {"organization_id": org_id, "archived": {"$ne": True}},
+    )
+    plans = await db.membership_plans.count_documents(
+        {"organization_id": org_id, "archived": {"$ne": True}, "active": {"$ne": False}},
+    )
+    invited = await db.members.count_documents(
+        {"organization_id": org_id, "$or": [
+            {"portal_invited_at": {"$ne": None, "$exists": True}},
+            {"portal_access_enabled": True},
+        ]},
+    )
+    # First booking taken counts as "in motion" — tells us the studio is
+    # actually being used, not just configured.
+    bookings = await db.bookings.count_documents(
+        {"organization_id": org_id, "status": {"$in": ["booked", "attended", "waitlist"]}},
+    )
+
+    # Optional dismissal override — operator clicked "Hide this" manually.
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "studio_onboarding_dismissed_at": 1},
+    ) or {}
+    dismissed = bool(org.get("studio_onboarding_dismissed_at"))
+
+    steps = [
+        {
+            "id": "add_members",
+            "title": "Add or import your members",
+            "note": "Bulk-paste CSV or add one-by-one",
+            "cta_tab": "members", "cta_label": "Go to Members",
+            "done": members > 0, "count": members,
+        },
+        {
+            "id": "create_class",
+            "title": "Build your first class",
+            "note": "Name, duration, capacity, instructor",
+            "cta_tab": "studio-builder", "cta_label": "Open Studio Builder",
+            "done": class_templates > 0, "count": class_templates,
+        },
+        {
+            "id": "publish_plan",
+            "title": "Set up a membership plan",
+            "note": "Tier or pack members can subscribe to",
+            "cta_tab": "plans", "cta_label": "Open Plans",
+            "done": plans > 0, "count": plans,
+        },
+        {
+            "id": "invite_portal",
+            "title": "Invite a member to the portal",
+            "note": "They can book, pay, and view classes on their phone",
+            "cta_tab": "members", "cta_label": "Invite from Members",
+            "done": invited > 0, "count": invited,
+        },
+        {
+            "id": "first_booking",
+            "title": "Take your first booking",
+            "note": "Either a member self-books or you book them in",
+            "cta_tab": "timetable", "cta_label": "Open Timetable",
+            "done": bookings > 0, "count": bookings,
+        },
+    ]
+    completed = sum(1 for s in steps if s["done"])
+    return {
+        "steps": steps,
+        "completed": completed,
+        "total": len(steps),
+        "percent": int(round(completed * 100 / len(steps))),
+        "all_complete": completed == len(steps),
+        "dismissed": dismissed,
+    }
+
+
+@router.post(
+    "/memberships/studio/onboarding/dismiss",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def dismiss_studio_onboarding(user: dict = Depends(get_current_user)):
+    """Operator clicked 'Hide this' — remember forever (per-org flag)."""
+    org_id = await _require_operator_org(user)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {
+            "studio_onboarding_dismissed_at": now_iso,
+            "studio_onboarding_dismissed_by": user.get("id"),
+        }},
+    )
+    return {"ok": True, "dismissed_at": now_iso}
+
+
 class StudioSettingsIn(BaseModel):
     studio_mode: bool
     studio_industry: str | None = None  # Iter 216z — Phase A

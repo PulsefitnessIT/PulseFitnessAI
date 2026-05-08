@@ -1,139 +1,166 @@
 /**
- * Memberships Start tab — guided entry into the Memberships module.
- * Same architecture as Marketing/StartTab.js: overview, outcomes, quick
- * starts, step-by-step preview, templates, fast-path jumps. No new
- * backend work — every CTA links to an existing tab / action.
+ * Memberships Start tab — progressive onboarding checklist (iter 216ah, G1).
+ *
+ * Data-driven: fetches /memberships/studio/onboarding which computes step
+ * completeness from live DB counts, then renders a 5-step checklist.
+ *
+ * Auto-dismissal: when every step is done (or the operator clicks "Hide
+ * this"), the parent (MembershipsConsole) hides the Start tab entirely
+ * via the `onAllComplete` callback — see useOnboardingChecklist below.
  */
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import axios from 'axios';
 import {
-  Zap, UserPlus, CalendarPlus, Ticket, ArrowRight, Users2, Clock,
-  Sparkles, TrendingUp, Heart, FileSpreadsheet, CheckCircle2, EyeOff,
+  CheckCircle2, Circle, ArrowRight, EyeOff, Sparkles, Loader2, Zap,
 } from 'lucide-react';
-import { useUserPref } from '@/utils/userPrefs';
+import { notify } from '@/components/notifications';
+import { notifyApiError } from '@/lib/formatApiError';
 
-const OUTCOMES = [
-  { icon: UserPlus,    title: 'Onboard new members',        note: 'Bulk import from CSV in under a minute' },
-  { icon: CalendarPlus, title: 'Fill your timetable',        note: 'Publish classes members can book themselves' },
-  { icon: Ticket,      title: 'Sell plans and passes',      note: 'Stripe-powered recurring + pay-as-you-go' },
-  { icon: Heart,       title: 'Retain & engage',            note: 'Automated win-back, birthday and check-in flows' },
-];
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
-const STEPS = [
-  { n: 1, title: 'Import members',     note: 'CSV template or add one-by-one' },
-  { n: 2, title: 'Set up your plans',  note: 'Membership tiers + class packs' },
-  { n: 3, title: 'Build the timetable', note: 'Classes, instructors, capacity' },
-  { n: 4, title: 'Invite members',     note: 'Email / SMS welcome flow' },
-  { n: 5, title: 'Track & iterate',    note: 'Live insights in Analytics' },
-];
+/** Shared hook — also used by MembershipsConsole to decide whether to
+ * render the Start tab button at all. Single source of truth so the tab
+ * vanishes the moment the checklist is complete. */
+export function useOnboardingChecklist() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-const OutcomeCard = ({ icon: Icon, title, note }) => (
-  <div className="rounded-2xl p-4 border transition-colors" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid={`mbr-outcome-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-    <div className="w-9 h-9 rounded-full flex items-center justify-center mb-3" style={{ background: 'var(--color-brand-cyan)22', color: 'var(--color-brand-cyan)' }}><Icon size={16} /></div>
-    <div className="text-sm font-semibold mb-1 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{title}</div>
-    <div className="text-xs pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>{note}</div>
-  </div>
-);
+  const load = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/memberships/studio/onboarding`, { headers: authHeaders() });
+      setData(r.data);
+    } catch {
+      setData(null);
+    }
+    setLoading(false);
+  }, []);
 
-export default function MembershipsStartTab({ setTab, onBulkImport }) {
-  // eslint-disable-next-line no-unused-vars
-  const [, setHideStart] = useUserPref('hideStartTabs', false);
-  const quickStart = [
-    { id: 'qs-import',   title: 'Bulk import members',          desc: 'Drop in a CSV — done in 60s', icon: FileSpreadsheet, cta: () => { setTab('members'); onBulkImport?.(); } },
-    { id: 'qs-timetable', title: 'Add your first class',         desc: 'Open the timetable and publish', icon: CalendarPlus,    cta: () => setTab('timetable') },
-    { id: 'qs-plan',      title: 'Create a membership plan',     desc: 'Tier + price + Stripe-ready',    icon: Ticket,          cta: () => setTab('plans') },
-  ];
-  const jumps = [
-    { label: 'Members',      tab: 'members',     icon: Users2,       desc: 'Directory + profiles' },
-    { label: 'Timetable',    tab: 'timetable',   icon: Clock,        desc: 'Classes and schedules' },
-    { label: 'Analytics',    tab: 'analytics',   icon: TrendingUp,   desc: 'Performance intelligence' },
-  ];
+  useEffect(() => { load(); }, [load]);
+
+  return { data, loading, reload: load };
+}
+
+export default function MembershipsStartTab({ setTab }) {
+  const { data, loading, reload } = useOnboardingChecklist();
+  const [dismissing, setDismissing] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 p-10 text-sm text-[color:var(--theme-text-muted)]" data-testid="mbr-start-loading">
+        <Loader2 size={14} className="animate-spin" /> Checking your setup…
+      </div>
+    );
+  }
+  if (!data) {
+    return (
+      <div className="p-10 text-sm text-[color:var(--theme-text-muted)]" data-testid="mbr-start-empty">
+        Couldn't load your onboarding checklist. <button onClick={reload} className="underline">Retry</button>
+      </div>
+    );
+  }
+
+  const dismiss = async () => {
+    if (!window.confirm('Hide this checklist? You can still complete the remaining steps from each tab.')) return;
+    setDismissing(true);
+    try {
+      await axios.post(`${API}/memberships/studio/onboarding/dismiss`, {}, { headers: authHeaders() });
+      notify.success('Checklist hidden. Welcome aboard.');
+      await reload();
+      window.dispatchEvent(new CustomEvent('memberships-start-dismissed'));
+    } catch (e) {
+      notifyApiError(notify, e, 'Failed to dismiss');
+    }
+    setDismissing(false);
+  };
+
+  const { steps, completed, total, percent, all_complete: allComplete } = data;
 
   return (
-    <div className="space-y-8 pulse-font-body" data-testid="mbr-start-tab">
-      <div>
-        <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mb-1" style={{ color: 'var(--theme-text)' }}>
-          Your Memberships Hub
-        </h2>
-        <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>
-          Manage members, classes, plans, and the app your members book through — all in one place.
-        </p>
-        <button
-          type="button"
-          onClick={() => { setHideStart(true); setTab('dashboard'); }}
-          className="mt-2 inline-flex items-center gap-1 text-xs opacity-70 hover:opacity-100"
-          style={{ color: 'var(--theme-text-muted)' }}
-          data-testid="mbr-hide-start-btn"
-        >
-          <EyeOff size={11} /> Hide this tab
+    <div className="max-w-4xl" data-testid="mbr-start-tab">
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)] flex items-center gap-1">
+            <Sparkles size={11} /> Studio quickstart
+          </p>
+          <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mt-1" style={{ color: 'var(--theme-text)' }}>
+            {allComplete ? "You're fully set up" : "Let's get your studio live"}
+          </h2>
+          <p className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+            {allComplete
+              ? 'Every setup step is complete. This panel will disappear on your next visit.'
+              : `${completed} of ${total} complete — tackle them in any order, each takes under 2 minutes.`}
+          </p>
+        </div>
+        <button onClick={dismiss} disabled={dismissing}
+          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-[color:var(--theme-border)] hover:bg-white/5"
+          data-testid="mbr-start-dismiss">
+          {dismissing ? <Loader2 size={12} className="animate-spin" /> : <EyeOff size={12} />}
+          Hide this
         </button>
       </div>
 
-      <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>What you can achieve</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {OUTCOMES.map((o) => <OutcomeCard key={o.title} {...o} />)}
-        </div>
-      </section>
+      <div className="h-2 rounded-full overflow-hidden mb-6" style={{ background: 'var(--theme-surface-hover)' }} data-testid="mbr-start-progress">
+        <div className="h-full transition-all"
+          style={{ width: `${percent}%`, background: 'var(--color-brand-cyan)' }} />
+      </div>
 
-      <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Quick start</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {quickStart.map((q) => {
-            const Icon = q.icon;
-            return (
-              <button key={q.id} type="button" onClick={q.cta}
-                className="group rounded-2xl p-5 text-left border transition-all hover:-translate-y-0.5 hover:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
-                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
-                data-testid={q.id}>
-                <div className="flex items-start justify-between mb-6">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Icon size={18} /></div>
-                  <ArrowRight size={16} className="opacity-40 group-hover:opacity-100 group-hover:text-[var(--color-brand-cyan)] transition-all" />
-                </div>
-                <div className="text-base font-semibold mb-1 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{q.title}</div>
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{q.desc}</div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Launch in 5 steps</div>
-        <ol className="grid grid-cols-1 md:grid-cols-5 gap-2 rounded-2xl p-3 border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-          {STEPS.map((s, i) => (
-            <li key={s.n} className="flex items-start gap-3 p-2">
-              <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold pulse-font-heading" style={{ background: 'var(--color-brand-cyan)22', color: 'var(--color-brand-cyan)' }}>{s.n}</div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold truncate pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{s.title}</div>
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.note}</div>
+      <ul className="space-y-2">
+        {steps.map((s, idx) => (
+          <li key={s.id}
+            className="rounded-xl p-4 border transition-colors flex items-start gap-3"
+            style={{
+              background: s.done ? 'var(--theme-surface-hover)' : 'var(--theme-surface)',
+              borderColor: s.done ? 'rgba(16,185,129,0.3)' : 'var(--theme-border)',
+              opacity: s.done ? 0.75 : 1,
+            }}
+            data-testid={`mbr-start-step-${s.id}`}>
+            <div className="pt-0.5">
+              {s.done
+                ? <CheckCircle2 size={18} className="text-emerald-400" />
+                : <Circle size={18} className="text-[color:var(--theme-text-muted)]" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">
+                  Step {idx + 1}
+                </span>
+                {s.done && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+                    Done{s.count ? ` · ${s.count}` : ''}
+                  </span>
+                )}
               </div>
-              {i < STEPS.length - 1 && <div className="hidden md:block flex-1 h-px self-center" style={{ background: 'var(--theme-border)' }} />}
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section>
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>Or jump straight in</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {jumps.map((j) => {
-            const Icon = j.icon;
-            return (
-              <button key={j.tab} type="button" onClick={() => setTab(j.tab)}
-                className="group rounded-xl p-4 border text-left transition-colors hover:border-[rgb(var(--rgb-brand-cyan)/0.6)] flex items-center gap-3"
-                style={{ background: 'transparent', borderColor: 'var(--theme-border)' }}
-                data-testid={`mbr-jump-${j.tab}`}>
-                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--theme-surface)', color: 'var(--color-brand-cyan)' }}><Icon size={14} /></div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{j.label}</div>
-                  <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{j.desc}</div>
-                </div>
-                <ArrowRight size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-brand-cyan)' }} />
+              <p className="text-sm font-extrabold mt-0.5" style={{ color: 'var(--theme-text)' }}>
+                {s.title}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
+                {s.note}
+              </p>
+            </div>
+            {!s.done && (
+              <button onClick={() => setTab(s.cta_tab)}
+                className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-2 rounded-lg flex-shrink-0"
+                style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+                data-testid={`mbr-start-cta-${s.id}`}>
+                {s.cta_label} <ArrowRight size={11} />
               </button>
-            );
-          })}
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {allComplete && (
+        <div className="mt-6 rounded-xl p-5 border text-center"
+          style={{ background: 'var(--theme-surface)', borderColor: 'rgba(16,185,129,0.3)' }}
+          data-testid="mbr-start-all-done">
+          <Zap size={20} className="mx-auto text-emerald-400 mb-2" />
+          <p className="font-extrabold">All set. The Start tab auto-hides on next load.</p>
+          <p className="text-xs text-[color:var(--theme-text-muted)] mt-1">
+            Head to the Dashboard for your KPI strip, or Studio Brain for AI retention insights.
+          </p>
         </div>
-      </section>
+      )}
     </div>
   );
 }

@@ -46,6 +46,9 @@ export default function StudioBuilderTab({ API, headers }) {
   const [savingId, setSavingId] = useState(null);
   const [rematerialising, setRematerialising] = useState(false);
   const [showTermForm, setShowTermForm] = useState(false);
+  // Iter 216ah G2 — full "+ New class" editor so operators don't have to
+  // go via the quickstart wizard (or worse, the API) to create a template.
+  const [showNewClass, setShowNewClass] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,43 +83,59 @@ export default function StudioBuilderTab({ API, headers }) {
   };
 
   const onDropToSlot = async (template, dayIdx, timeStr) => {
-    setSavingId(template.id);
+    // Iter 216ah G8 — optimistic update first: mutate local state so the
+    // chip appears on the target cell instantly. Dropping `await load()`
+    // (which re-rendered the whole grid and scrolled the page to the top).
     const recurs = Array.from(new Set([...(template.recurs_days || []), dayIdx])).sort();
+    const prevTemplates = templates;
+    setTemplates((cur) => cur.map((t) =>
+      t.id === template.id ? { ...t, recurs_days: recurs, start_time: timeStr } : t,
+    ));
+    setSavingId(template.id);
     try {
       await axios.patch(`${API}/memberships/classes/templates/${template.id}`, {
         recurs_days: recurs,
         start_time: timeStr,
       }, auth);
       notify.success('Class scheduled', `${template.name} · ${DAYS[dayIdx]} ${timeStr}`);
-      await load();
     } catch (e) {
+      // Roll back on failure — never leave the UI in an inconsistent state.
+      setTemplates(prevTemplates);
       notify.error('Update failed', e?.response?.data?.detail || e.message);
     } finally { setSavingId(null); }
   };
 
   const onDropToIdle = async (template) => {
     if (!template.recurs_days?.length) return;
+    const prevTemplates = templates;
+    setTemplates((cur) => cur.map((t) =>
+      t.id === template.id ? { ...t, recurs_days: [] } : t,
+    ));
     setSavingId(template.id);
     try {
       await axios.patch(`${API}/memberships/classes/templates/${template.id}`, {
         recurs_days: [],
       }, auth);
       notify.success('Removed from timetable', template.name);
-      await load();
     } catch (e) {
+      setTemplates(prevTemplates);
       notify.error('Update failed', e?.response?.data?.detail || e.message);
     } finally { setSavingId(null); }
   };
 
   const removeFromDay = async (template, dayIdx) => {
-    setSavingId(template.id);
+    const prevTemplates = templates;
     const next = (template.recurs_days || []).filter((d) => d !== dayIdx);
+    setTemplates((cur) => cur.map((t) =>
+      t.id === template.id ? { ...t, recurs_days: next } : t,
+    ));
+    setSavingId(template.id);
     try {
       await axios.patch(`${API}/memberships/classes/templates/${template.id}`, {
         recurs_days: next,
       }, auth);
-      await load();
     } catch (e) {
+      setTemplates(prevTemplates);
       notify.error('Update failed', e?.response?.data?.detail || e.message);
     } finally { setSavingId(null); }
   };
@@ -218,8 +237,22 @@ export default function StudioBuilderTab({ API, headers }) {
         onRemoveFromDay={removeFromDay}
         onRebuildTerm={rebuildTerm}
         onRefresh={load}
+        onNewClass={() => setShowNewClass(true)}
         industry={industry}
       />
+
+      {showNewClass && (
+        <ClassTemplateEditor
+          API={API} auth={auth}
+          onClose={() => setShowNewClass(false)}
+          onSaved={async (created) => {
+            setShowNewClass(false);
+            // Optimistic: prepend the new template; background reload for safety.
+            if (created) setTemplates((cur) => [created, ...cur]);
+            await load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -402,7 +435,8 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
 // ─────────────────────────────────────────────────────────────────
 function BuilderGrid({
   templates, idleTemplates, scheduledTemplates, savingId, rematerialising,
-  onDropToSlot, onDropToIdle, onRemoveFromDay, onRebuildTerm, onRefresh, industry,
+  onDropToSlot, onDropToIdle, onRemoveFromDay, onRebuildTerm, onRefresh,
+  onNewClass, industry,
 }) {
   const [dragId, setDragId] = useState(null);
   const handleDragStart = (e, id) => {
@@ -441,6 +475,9 @@ function BuilderGrid({
           <h3 className="text-base font-bold">Drag a class onto a slot to schedule it</h3>
         </div>
         <div className="flex items-center gap-2">
+          <button type="button" onClick={onNewClass} className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="studio-builder-new-class">
+            <Plus size={11} /> New class
+          </button>
           <button type="button" onClick={onRefresh} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="studio-builder-refresh">
             <RefreshCw size={11} /> Refresh
           </button>
@@ -463,7 +500,15 @@ function BuilderGrid({
           <Tag size={11} /> Class library — drag onto the grid below
         </p>
         {idleTemplates.length === 0 ? (
-          <p className="text-xs opacity-60 italic">All your templates are scheduled. Drop one here to remove it from the timetable.</p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs opacity-60 italic m-0">All your templates are scheduled. Drop one here to remove it from the timetable — or create another.</p>
+            <button type="button" onClick={onNewClass}
+              className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1.5"
+              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+              data-testid="studio-builder-new-class-inline">
+              <Plus size={11} /> New class
+            </button>
+          </div>
         ) : (
           <div className="flex flex-wrap gap-2">
             {idleTemplates.map((t) => (
@@ -605,3 +650,169 @@ function ScheduledCard({ t, dayIdx, saving, onRemove, onDragStart, onDragEnd, in
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Class Template Editor (iter 216ah — Sprint A · G2)
+// ─────────────────────────────────────────────────────────────────
+/**
+ * Full-featured "new class" modal. Creates a class template via
+ * POST /memberships/classes/templates and also serves as the edit
+ * drawer (see ClassActionDrawer for the timetable-side entry point).
+ */
+export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
+  const isEdit = !!initial?.id;
+  const [form, setForm] = useState(() => ({
+    name: initial?.name || '',
+    category: initial?.category || 'Group',
+    description: initial?.description || '',
+    duration_min: initial?.duration_min ?? 45,
+    capacity: initial?.capacity ?? 20,
+    colour: initial?.colour || '#19CDFF',
+    start_time: initial?.start_time || '09:00',
+    recurs_days: initial?.recurs_days || [],
+    room_name: initial?.room_name || '',
+    instructor_name: initial?.instructor_name || '',
+    credits_to_book: initial?.credits_to_book ?? 1,
+    waitlist_enabled: initial?.waitlist_enabled !== false,
+    max_waitlist: initial?.max_waitlist ?? 10,
+    skill_level: initial?.skill_level || '',
+    discipline: initial?.discipline || '',
+    min_age: initial?.min_age ?? '',
+    max_age: initial?.max_age ?? '',
+  }));
+  const [saving, setSaving] = useState(false);
+  const up = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const toggleDay = (i) => setForm((f) => ({
+    ...f,
+    recurs_days: f.recurs_days.includes(i)
+      ? f.recurs_days.filter((d) => d !== i)
+      : [...f.recurs_days, i].sort(),
+  }));
+
+  const save = async () => {
+    if (!form.name.trim()) { notify.error('Class name is required'); return; }
+    if (!Number.isFinite(Number(form.duration_min)) || Number(form.duration_min) < 5) {
+      notify.error('Duration must be at least 5 minutes'); return;
+    }
+    if (!Number.isFinite(Number(form.capacity)) || Number(form.capacity) < 1) {
+      notify.error('Capacity must be at least 1'); return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        duration_min: Number(form.duration_min),
+        capacity: Number(form.capacity),
+        credits_to_book: Number(form.credits_to_book) || 1,
+        max_waitlist: Number(form.max_waitlist) || 0,
+        min_age: form.min_age === '' ? null : Number(form.min_age),
+        max_age: form.max_age === '' ? null : Number(form.max_age),
+      };
+      if (isEdit) {
+        await axios.patch(`${API}/memberships/classes/templates/${initial.id}`, payload, auth);
+        notify.success('Class updated');
+        onSaved?.({ ...initial, ...payload });
+      } else {
+        const r = await axios.post(`${API}/memberships/classes/templates`, payload, auth);
+        notify.success('Class created', form.name);
+        onSaved?.(r.data?.template);
+      }
+    } catch (e) {
+      notify.error(isEdit ? 'Update failed' : 'Create failed', e?.response?.data?.detail || e.message);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-black/70 grid items-end sm:place-items-center p-0 sm:p-3" onClick={onClose} data-testid="class-template-editor">
+      <div className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]"
+        style={{ background: 'var(--theme-surface, #fff)', border: '1px solid var(--theme-border, #e2e8f0)' }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 flex items-start justify-between border-b" style={{ borderColor: 'var(--theme-border)' }}>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-[var(--color-brand-cyan)]">Class template</p>
+            <h3 className="text-lg font-extrabold">{isEdit ? 'Edit class' : 'New class'}</h3>
+          </div>
+          <button onClick={onClose} className="p-2 rounded hover:bg-black/5 dark:hover:bg-white/5"><X size={14} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 text-sm">
+          <Field label="Class name"><input type="text" value={form.name} onChange={(e) => up('name')(e.target.value)} className={InputCls} placeholder="e.g. Open Flow Yoga" data-testid="cte-name" /></Field>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Field label="Duration (min)"><input type="number" min="5" max="240" value={form.duration_min} onChange={(e) => up('duration_min')(e.target.value)} className={InputCls} data-testid="cte-duration" /></Field>
+            <Field label="Capacity"><input type="number" min="1" value={form.capacity} onChange={(e) => up('capacity')(e.target.value)} className={InputCls} data-testid="cte-capacity" /></Field>
+            <Field label="Start time"><input type="time" value={form.start_time} onChange={(e) => up('start_time')(e.target.value)} className={InputCls} data-testid="cte-start" /></Field>
+            <Field label="Credits to book"><input type="number" min="0" value={form.credits_to_book} onChange={(e) => up('credits_to_book')(e.target.value)} className={InputCls} data-testid="cte-credits" /></Field>
+          </div>
+
+          <Field label="Recurring days">
+            <div className="flex gap-1 flex-wrap">
+              {DAYS.map((d, i) => (
+                <button key={d} type="button" onClick={() => toggleDay(i)}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded-md border"
+                  style={{
+                    background: form.recurs_days.includes(i) ? 'var(--color-brand-cyan)' : 'transparent',
+                    color: form.recurs_days.includes(i) ? 'var(--color-surface-darker)' : 'inherit',
+                    borderColor: 'var(--theme-border)',
+                  }}
+                  data-testid={`cte-day-${i}`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Room"><input type="text" value={form.room_name} onChange={(e) => up('room_name')(e.target.value)} className={InputCls} placeholder="Studio 1" data-testid="cte-room" /></Field>
+            <Field label="Instructor name (label)"><input type="text" value={form.instructor_name} onChange={(e) => up('instructor_name')(e.target.value)} className={InputCls} placeholder="Sarah" data-testid="cte-instructor" /></Field>
+            <Field label="Colour"><input type="color" value={form.colour} onChange={(e) => up('colour')(e.target.value)} className="h-9 w-16 rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="cte-colour" /></Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <Field label="Discipline"><input type="text" value={form.discipline} onChange={(e) => up('discipline')(e.target.value)} className={InputCls} placeholder="Ballet, Tap, …" data-testid="cte-discipline" /></Field>
+            <Field label="Skill level"><input type="text" value={form.skill_level} onChange={(e) => up('skill_level')(e.target.value)} className={InputCls} placeholder="beginner" data-testid="cte-skill" /></Field>
+            <Field label="Min age"><input type="number" min="0" max="100" value={form.min_age} onChange={(e) => up('min_age')(e.target.value)} className={InputCls} data-testid="cte-min-age" /></Field>
+            <Field label="Max age"><input type="number" min="0" max="100" value={form.max_age} onChange={(e) => up('max_age')(e.target.value)} className={InputCls} data-testid="cte-max-age" /></Field>
+          </div>
+
+          <Field label="Description (optional)">
+            <textarea rows={3} value={form.description} onChange={(e) => up('description')(e.target.value)}
+              className={InputCls} placeholder="What should members expect?" data-testid="cte-description" />
+          </Field>
+
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={form.waitlist_enabled} onChange={(e) => up('waitlist_enabled')(e.target.checked)} data-testid="cte-waitlist" />
+            Allow a waitlist when the class is full
+          </label>
+          {form.waitlist_enabled && (
+            <Field label="Max waitlist"><input type="number" min="0" value={form.max_waitlist} onChange={(e) => up('max_waitlist')(e.target.value)} className={InputCls} data-testid="cte-max-waitlist" /></Field>
+          )}
+        </div>
+
+        <div className="px-5 py-3 flex justify-end gap-2 border-t" style={{ borderColor: 'var(--theme-border)' }}>
+          <button onClick={onClose} className="px-3 py-2 text-xs font-bold rounded-lg border" style={{ borderColor: 'var(--theme-border)' }}>Cancel</button>
+          <button onClick={save} disabled={saving}
+            className="px-4 py-2 text-xs font-extrabold rounded-lg inline-flex items-center gap-1.5"
+            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)', opacity: saving ? 0.7 : 1 }}
+            data-testid="cte-save">
+            {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+            {isEdit ? 'Save changes' : 'Create class'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const InputCls = 'w-full px-3 py-2 rounded-md text-sm border bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)] border-[color:var(--theme-border)]';
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="text-[10px] uppercase tracking-wider font-bold opacity-60 mb-1 block">{label}</span>
+      {children}
+    </label>
+  );
+}
+

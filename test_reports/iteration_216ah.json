@@ -1,0 +1,115 @@
+{
+  "summary": "Iteration 216ah — Sprint A (G1, G2, G3, G4, G8) testing complete. CRITICAL BUG FIXED: 'Cannot access headers before initialization' in MembershipsConsole.js (variable hoisting issue). Backend: 15/15 tests passed. All Sprint A features verified: G1 onboarding checklist (5 steps, dismiss, progress), G2 Studio Builder '+ New class' button with ClassTemplateEditor, G3 Edit class tab in ClassActionDrawer, G4 operator booking endpoint with validation, G8 optimistic drag/drop (no page jump).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "bugs_fixed": [
+      {
+        "component": "MembershipsConsole.js",
+        "issue": "ReferenceError: Cannot access 'headers' before initialization - variable hoisting issue where 'headers' was used in useEffect before being defined",
+        "fix": "Moved token and headers declarations before the useEffect that uses them (lines 78-79)",
+        "priority": "CRITICAL"
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216ah_sprint_a.py",
+    "/app/test_reports/pytest/pytest_results_216ah.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MembershipsConsole.js: Fixed variable hoisting bug - headers must be defined before useEffect that uses it",
+    "MembershipsStartTab.js: Correctly implements 5-step checklist with data-testids (mbr-start-tab, mbr-start-step-{id}, mbr-start-cta-{id}, mbr-start-dismiss, mbr-start-progress)",
+    "StudioBuilderTab.js: ClassTemplateEditor exported as named export for reuse in ClassActionDrawer - no circular dependency issues",
+    "StudioBuilderTab.js: Optimistic drag/drop implemented (G8) - onDropToSlot updates local state immediately, then patches backend",
+    "ClassActionDrawer.js: 3 tabs (Announce, Attendance, Edit class) with correct data-testids (mbr-cad-tab-announce, mbr-cad-tab-attendance, mbr-cad-tab-edit)",
+    "ClassActionDrawer.js: AddMemberPicker component with search, member rows, and confirm button (mbr-cad-add-picker, mbr-cad-add-search, mbr-cad-add-row-{id}, mbr-cad-add-confirm)",
+    "Backend studio.py: get_studio_onboarding returns 5 steps with correct shape (id, title, note, cta_tab, cta_label, done, count) plus completed, total, percent, all_complete, dismissed",
+    "Backend bookings.py: operator_book_member endpoint validates empty list (400), >10 members (400), unknown member (404), unknown occurrence (404), silent dedupe on retry"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/Memberships/MembershipsConsole.js",
+    "/app/backend/tests/test_iter_216ah_sprint_a.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)",
+    "frontend": "100% (after bug fix)"
+  },
+  "test_credentials": {
+    "operator": "Bob@knockers.com / Test123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Test class templates created during pytest run (cleaned up by fixtures). Bob's org has 42 members, 1 class template, 2 plans.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 216ah Sprint A verified: (1) G1 onboarding checklist - GET /api/memberships/studio/onboarding returns 5 steps with done flags reflecting live DB counts, POST /dismiss is idempotent. (2) G2 Studio Builder - '+ New class' button opens ClassTemplateEditor modal with all required inputs (cte-name, cte-duration, cte-capacity, etc). (3) G3 Edit class tab - ClassActionDrawer has 3 tabs (Announce, Attendance, Edit class), Edit tab loads ClassTemplateEditor pre-filled. (4) G4 Operator booking - POST /api/memberships/occurrences/{id}/bookings validates inputs, books members, silent dedupes on retry, returns {ok, booked, waitlisted, skipped, bookings}. (5) G8 Optimistic drag/drop - StudioBuilderTab.onDropToSlot updates local state immediately without full reload. FIXED: MembershipsConsole.js had variable hoisting bug where 'headers' was used before definition - moved token/headers declarations before the useEffect. Start tab is currently dismissed for Bob's org (dismissed=true in onboarding response).",
+  "features_verified": {
+    "g1_onboarding_checklist_endpoint": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/studio/onboarding returns 5 steps with correct shape"
+    },
+    "g1_onboarding_done_flags": {
+      "status": "PASS",
+      "evidence": "done flags reflect live DB reality (4/5 complete for Bob's org)"
+    },
+    "g1_dismiss_idempotent": {
+      "status": "PASS",
+      "evidence": "POST /dismiss returns {ok:true, dismissed_at}, subsequent GET shows dismissed=true"
+    },
+    "g2_studio_builder_new_class_button": {
+      "status": "PASS",
+      "evidence": "data-testid='studio-builder-new-class' visible, opens ClassTemplateEditor"
+    },
+    "g2_class_template_editor_inputs": {
+      "status": "PASS",
+      "evidence": "All required inputs present: cte-name, cte-duration, cte-capacity, cte-save"
+    },
+    "g3_class_action_drawer_tabs": {
+      "status": "PASS",
+      "evidence": "3 tabs with data-testids: mbr-cad-tab-announce, mbr-cad-tab-attendance, mbr-cad-tab-edit"
+    },
+    "g4_operator_booking_validation": {
+      "status": "PASS",
+      "evidence": "Empty list=400, >10 members=400, unknown member=404, unknown occurrence=404"
+    },
+    "g4_operator_booking_happy_path": {
+      "status": "PASS",
+      "evidence": "Returns {ok:true, booked, waitlisted, skipped, bookings} with channel='operator'"
+    },
+    "g4_operator_booking_silent_dedupe": {
+      "status": "PASS",
+      "evidence": "Re-running with same member returns 200 with skipped count"
+    },
+    "g8_optimistic_drag_drop": {
+      "status": "PASS",
+      "evidence": "StudioBuilderTab.onDropToSlot updates local state immediately, no full reload"
+    },
+    "regression_timetable": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/timetable returns occurrences"
+    },
+    "regression_class_templates": {
+      "status": "PASS",
+      "evidence": "GET/POST/PATCH /api/memberships/classes/templates work correctly"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "rca_of_the_issue": {
+    "bug": "MembershipsConsole.js crashed with 'Cannot access headers before initialization'",
+    "root_cause": "JavaScript const/let hoisting - the 'headers' variable was used in a useEffect on line 86 but defined on line 98. Unlike 'var', const/let are not hoisted to the top of the function scope.",
+    "reproduction_steps": [
+      "1. Navigate to /memberships as logged-in operator",
+      "2. Page crashes with ReferenceError in MembershipsConsoleInner"
+    ],
+    "fix_applied": "Moved 'const token = localStorage.getItem(\"token\")' and 'const headers = useMemo(...)' declarations to lines 78-79, before the useEffect that uses them",
+    "verification": "After fix, Memberships console loads successfully and all features work"
+  }
+}

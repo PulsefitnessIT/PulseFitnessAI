@@ -602,3 +602,148 @@ async def member_list_bookings(member: dict = Depends(_require_current_member)):
         })
         b["waitlist_position"] = ahead + 1
     return {"upcoming": upcoming, "past": past}
+
+
+
+# ═════════════ Operator-side booking (Sprint A · G4 · iter 216ah) ═════════════
+
+from utils.auth import get_current_user as _get_current_user_obk  # noqa: E402
+
+
+def _assert_operator_org(user: dict) -> str:
+    """Helper — ensure caller is an operator in an org. Raises 403 otherwise."""
+    if not user or not user.get("organization_id"):
+        raise HTTPException(status_code=403, detail="Not an operator")
+    role = (user.get("role") or "").lower()
+    if role not in ("owner", "manager", "staff") and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Operator role required")
+    return user["organization_id"]
+
+
+@router.post("/memberships/occurrences/{occurrence_id}/bookings")
+async def operator_book_member(
+    occurrence_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(_get_current_user_obk),
+):
+    """Operator-facing: book one or more members into a class occurrence.
+
+    Body:
+      {
+        "member_ids": ["..."],               # required, 1..10
+        "allow_waitlist": true,              # default true
+        "bypass_credits": true,              # default true — operator override
+        "note": "Booked at the desk by Sarah"
+      }
+
+    Unlike POST /member/bookings:
+      * Operators can bypass credit / plan / access checks by default
+        (they've already confirmed payment at the desk, or are fixing
+        a system issue).
+      * Capacity is still enforced. Overflow flows to the waitlist when
+        `allow_waitlist` AND the template has waitlist_enabled.
+      * Double-bookings are silently skipped (returned in
+        `skipped_already_booked`) so operators can re-run without 409s.
+      * Every booking carries `channel="operator"` + `booked_by_user_id`
+        for a clean audit trail.
+    """
+    org_id = _assert_operator_org(user)
+    occ = await db.class_occurrences.find_one(
+        {"id": occurrence_id, "organization_id": org_id}, {"_id": 0},
+    )
+    if not occ:
+        raise HTTPException(404, "Class occurrence not found")
+    if occ.get("status") != "scheduled":
+        raise HTTPException(400, "Class is cancelled")
+    tpl = await db.class_templates.find_one({"id": occ["template_id"]}, {"_id": 0}) or {}
+
+    member_ids = body.get("member_ids") or []
+    if isinstance(member_ids, str):
+        member_ids = [member_ids]
+    if not member_ids:
+        raise HTTPException(400, "member_ids is required (list of 1-10 ids)")
+    if len(member_ids) > 10:
+        raise HTTPException(400, "Maximum 10 members per operator booking")
+
+    allow_waitlist = bool(body.get("allow_waitlist", True))
+    bypass_credits = bool(body.get("bypass_credits", True))
+    note = (body.get("note") or "").strip() or None
+
+    member_docs: list[dict] = []
+    async for m in db.members.find(
+        {"organization_id": org_id, "id": {"$in": member_ids}},
+        {"_id": 0},
+    ):
+        member_docs.append(m)
+    found_ids = {m["id"] for m in member_docs}
+    missing = [mid for mid in member_ids if mid not in found_ids]
+    if missing:
+        raise HTTPException(404, f"{len(missing)} member(s) not found in this org")
+
+    # Silent-dedupe anyone already booked/waitlisted so retries don't 409.
+    already: set[str] = set()
+    async for b in db.bookings.find(
+        {"occurrence_id": occurrence_id,
+         "member_id": {"$in": [m["id"] for m in member_docs]},
+         "status": {"$in": ["booked", "waitlist", "attended"]}},
+        {"_id": 0, "member_id": 1},
+    ):
+        already.add(b["member_id"])
+    eligible = [m for m in member_docs if m["id"] not in already]
+
+    capacity = int(occ.get("capacity") or 0)
+    booked_now = int(occ.get("bookings_count") or 0)
+    free_spots = max(capacity - booked_now, 0)
+
+    inserted: list[dict] = []
+    booked_inserted = 0
+    waitlist_inserted = 0
+    for m in eligible:
+        on_waitlist = booked_inserted >= free_spots
+        if on_waitlist and (not allow_waitlist or not tpl.get("waitlist_enabled", True)):
+            break
+        doc = {
+            "id": _uuid(),
+            "occurrence_id": occurrence_id,
+            "member_id": m["id"],
+            "organization_id": org_id,
+            "site_id": occ.get("site_id"),
+            "status": "waitlist" if on_waitlist else "booked",
+            "credits_charged": 0,  # operator override — never deduct credits
+            "booked_at": _now_iso(),
+            "created_at": _now_iso(),
+            "channel": "operator",
+            "booked_by_user_id": user.get("id"),
+            "attendee_kind": "self",
+            "attendee_name": (
+                ((m.get("first_name") or "") + " " + (m.get("last_name") or "")).strip()
+                or m.get("email") or "Member"
+            ),
+            "attendee_email": m.get("email") or "",
+            "operator_note": note,
+            "bypass_credits": bypass_credits,
+        }
+        await db.bookings.insert_one(doc)
+        if on_waitlist:
+            waitlist_inserted += 1
+        else:
+            booked_inserted += 1
+        inserted.append({k: v for k, v in doc.items() if k != "_id"})
+
+    inc: dict = {}
+    if booked_inserted:
+        inc["bookings_count"] = booked_inserted
+    if waitlist_inserted:
+        inc["waitlist_count"] = waitlist_inserted
+    if inc:
+        await db.class_occurrences.update_one({"id": occurrence_id}, {"$inc": inc})
+
+    skipped = len(member_docs) - len(inserted)
+    return {
+        "ok": True,
+        "booked": booked_inserted,
+        "waitlisted": waitlist_inserted,
+        "skipped": skipped,
+        "skipped_already_booked": sorted(already),
+        "bookings": inserted,
+    }

@@ -75,9 +75,27 @@ function MembershipsConsoleInner() {
   // Iter 215d8 — bumped by PullToRefresh to force child tabs to remount/refetch.
   const [reloadKey, setReloadKey] = useState(0);
   const [hideStart] = useUserPref('hideStartTabs', false);
-  useEffect(() => { if (hideStart && tab === 'start') setTab('dashboard'); }, [hideStart, tab]);
   const token = localStorage.getItem('token');
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
+  // Iter 216ah G1 — auto-hide Start once the operator has ticked every step
+  // (or explicitly dismissed the checklist). Single source of truth lives
+  // in /api/memberships/studio/onboarding so this stays in sync across
+  // tabs/sessions. Re-fetched on mount + whenever the user dismisses.
+  const [onboardingHidden, setOnboardingHidden] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const fetchIt = () => {
+      axios.get(`${API}/memberships/studio/onboarding`, { headers })
+        .then((r) => { if (live) setOnboardingHidden(!!(r.data?.all_complete || r.data?.dismissed)); })
+        .catch(() => {});
+    };
+    fetchIt();
+    const onDismiss = () => fetchIt();
+    window.addEventListener('memberships-start-dismissed', onDismiss);
+    return () => { live = false; window.removeEventListener('memberships-start-dismissed', onDismiss); };
+  }, [API, headers]);
+  const hideStartFinal = hideStart || onboardingHidden;
+  useEffect(() => { if (hideStartFinal && tab === 'start') setTab('dashboard'); }, [hideStartFinal, tab]);
   const pillBarRef = React.useRef(null);
   const studio = useStudioMode();
   // Studio Mode: 5-tab simplified layout for small teams.
@@ -211,7 +229,7 @@ function MembershipsConsoleInner() {
           testId="mbr-tabs-desktop"
           ariaLabel="Memberships sections"
         >
-          {TABS.filter((x) => !(hideStart && x.id === 'start')).filter((x) => visibleTabs.some((v) => v.id === x.id)).map(({ id, label, icon: Icon }) => {
+          {TABS.filter((x) => !(hideStartFinal && x.id === 'start')).filter((x) => visibleTabs.some((v) => v.id === x.id)).map(({ id, label, icon: Icon }) => {
             const isActive = tab === id;
             const activeStyle = isPulseBrandedMbr
               ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
@@ -235,7 +253,7 @@ function MembershipsConsoleInner() {
 
         {/* Mobile scrollable pill tabs */}
         <div ref={pillBarRef} className="md:hidden mb-5 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {TABS.filter((x) => !(hideStart && x.id === 'start')).filter((x) => visibleTabs.some((v) => v.id === x.id)).map(({ id, label }) => {
+          {TABS.filter((x) => !(hideStartFinal && x.id === 'start')).filter((x) => visibleTabs.some((v) => v.id === x.id)).map(({ id, label }) => {
             const isActive = tab === id;
             const activeStyle = isPulseBrandedMbr
               ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
