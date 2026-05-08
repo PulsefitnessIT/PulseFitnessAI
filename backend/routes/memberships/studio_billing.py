@@ -389,6 +389,88 @@ async def _build_invoice_lines_for_member(
     return lines, subtotal
 
 
+async def _append_costume_lines(
+    *, org_id: str, member: dict, period: str,
+) -> tuple[list[dict], int]:
+    """Iter 216ae+ — costume → billing hook.
+
+    For any costume flagged ordered / arrived / fitted (i.e. the studio has
+    committed cash on behalf of the member) that hasn't already been rolled
+    into an invoice, emit a `kind="costume"` line so studios stop chasing
+    costume payments separately. Idempotent via the costume's `invoiced_on`
+    period stamp (written by the generate path on finalise).
+
+    Matches costumes by member_id OR via any sub_profile belonging to the
+    account holder so parent accounts pick up their kids' costumes too.
+    """
+    sub_ids: list[str] = []
+    async for sp in db.member_sub_profiles.find(
+        {"organization_id": org_id, "member_id": member["id"]},
+        {"_id": 0, "id": 1},
+    ):
+        sub_ids.append(sp["id"])
+
+    or_clauses: list[dict] = [{"member_id": member["id"]}]
+    if sub_ids:
+        or_clauses.append({"sub_profile_id": {"$in": sub_ids}})
+
+    rows = await db.event_costumes.find(
+        {
+            "organization_id": org_id,
+            "$or": or_clauses,
+            "status": {"$in": ["ordered", "arrived", "fitted"]},
+            "total_pence": {"$gt": 0},
+            "$and": [
+                {"$or": [
+                    {"invoiced_on": {"$exists": False}},
+                    {"invoiced_on": None},
+                    {"invoiced_on": ""},
+                    {"invoiced_on": period},  # allow re-run of the same period
+                ]},
+            ],
+        },
+        {"_id": 0},
+    ).to_list(500)
+
+    lines: list[dict] = []
+    subtotal = 0
+    # Enrich with event name so the description reads naturally on the invoice.
+    event_ids = list({r.get("event_id") for r in rows if r.get("event_id")})
+    event_by_id: dict[str, str] = {}
+    if event_ids:
+        async for e in db.studio_events.find(
+            {"id": {"$in": event_ids}}, {"_id": 0, "id": 1, "name": 1},
+        ):
+            event_by_id[e["id"]] = e.get("name") or ""
+
+    for r in rows:
+        unpaid = max(int(r.get("total_pence") or 0) - int(r.get("paid_pence") or 0), 0)
+        if unpaid <= 0:
+            continue
+        event_label = event_by_id.get(r.get("event_id") or "", "")
+        desc = f"Costume · {r.get('costume_name') or 'Outfit'}"
+        if r.get("size"):
+            desc += f" (size {r['size']})"
+        if event_label:
+            desc += f" · {event_label}"
+        attendee_name = r.get("attendee_name") or "You"
+        attendee_kind = "sub_profile" if r.get("sub_profile_id") else "self"
+        lines.append({
+            "kind": "costume",
+            "description": desc,
+            "quantity": 1,
+            "unit_pence": unpaid,
+            "amount_pence": unpaid,
+            "costume_id": r.get("id"),
+            "event_id": r.get("event_id"),
+            "attendee_name": attendee_name,
+            "attendee_kind": attendee_kind,
+            "attendee_sub_profile_id": r.get("sub_profile_id"),
+        })
+        subtotal += unpaid
+    return lines, subtotal
+
+
 async def _append_smoothed_line(
     *, org_id: str, member: dict, period: str,
 ) -> tuple[Optional[dict], int]:
@@ -578,7 +660,14 @@ async def preview_monthly_invoices(body: PreviewIn, user: dict = Depends(get_cur
             )
         if sm_line:
             lines.append(sm_line)
-        total = subtotal + sm_total
+        # Iter 216ae+ — pull unbilled costumes (ordered/arrived/fitted) so
+        # operations and billing stay in sync.
+        costume_lines, costume_total = await _append_costume_lines(
+            org_id=org_id, member=m, period=body.period,
+        )
+        if costume_lines:
+            lines.extend(costume_lines)
+        total = subtotal + sm_total + costume_total
         if total <= 0:
             continue  # skip — nothing to bill this period
         name = (f"{m.get('first_name') or ''} {m.get('last_name') or ''}").strip() or (m.get("email") or m["id"])
@@ -589,6 +678,7 @@ async def preview_monthly_invoices(body: PreviewIn, user: dict = Depends(get_cur
             "line_count": len(lines),
             "subtotal_pence": subtotal,
             "smoothed_pence": sm_total,
+            "costume_pence": costume_total,
             "total_pence": total,
             "lines": lines,
             "attendees": _compute_attendee_breakdown(lines),
@@ -727,7 +817,13 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
             )
         if sm_line:
             lines.append(sm_line)
-        total = subtotal + sm_total
+        # Iter 216ae+ — costume → invoice line (idempotent, see stamp below).
+        costume_lines, costume_total = await _append_costume_lines(
+            org_id=org_id, member=m, period=body.period,
+        )
+        if costume_lines:
+            lines.extend(costume_lines)
+        total = subtotal + sm_total + costume_total
         if total <= 0:
             continue
 
@@ -750,6 +846,7 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
             "attendees": _compute_attendee_breakdown(lines),
             "subtotal_pence": subtotal,
             "smoothed_pence": sm_total,
+            "costume_pence": costume_total,
             "total_pence": total,
             "status": "draft",
             "created_by": user.get("id"),
@@ -774,6 +871,20 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
                 )
             except Exception:
                 pass
+
+        # Iter 216ae+ — mark costume rows as billed so they don't repeat on
+        # next month's invoice. Idempotent: uses `$set invoiced_on=period`.
+        if costume_lines:
+            costume_ids = [ln["costume_id"] for ln in costume_lines if ln.get("costume_id")]
+            if costume_ids:
+                await db.event_costumes.update_many(
+                    {"id": {"$in": costume_ids}, "organization_id": org_id},
+                    {"$set": {
+                        "invoiced_on": body.period,
+                        "invoice_id": doc["id"],
+                        "updated_at": _now_iso(),
+                    }},
+                )
 
         # Optional send
         if body.send_email:

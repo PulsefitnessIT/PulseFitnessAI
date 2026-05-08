@@ -1,0 +1,139 @@
+{
+  "summary": "Iteration 216ae — Costume → Invoice Line + Vocabulary Swap testing complete. All 17 backend tests pass. Frontend vocabulary swap verified: More sheet shows 'Your athletes', FamilyTab title shows 'Your athletes', Add button shows 'Add athlete', empty state uses vocabulary, editor modal header shows 'YOUR ATHLETES'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SubProfileEditor",
+        "issue": "Grammar: 'Add a athlete' should be 'Add an athlete' when noun starts with vowel",
+        "selector": "[data-testid='member-family-editor']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216ae_costume_billing_vocab.py",
+    "/app/test_reports/pytest/pytest_results_216ae.xml"
+  ],
+  "action_items": [
+    "Minor: Fix grammar in SubProfileEditor - 'Add a athlete' should be 'Add an athlete' (use capNoun helper with article logic)"
+  ],
+  "critical_code_review_comments": [
+    "studio_billing.py: _append_costume_lines correctly filters by status in {ordered, arrived, fitted} and total_pence > 0",
+    "studio_billing.py: Costume idempotency via invoiced_on stamp works correctly - re-running generate for same period doesn't double-bill",
+    "studio_billing.py: Different period correctly excludes already-invoiced costumes",
+    "useStudioVocab.js: StudioVocabProvider correctly provides vocab context with safe defaults",
+    "FamilyTab.js: All 6 strings correctly use useStudioVocab() for vocabulary swap",
+    "MemberPortal.js: MoreSheet correctly threads vocab.member_plural into Family entry label"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216ae_costume_billing_vocab.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "100% (all vocabulary swap elements verified)"
+  },
+  "test_credentials": {
+    "operator": "bob@knockers.com / Test123!",
+    "test_member": "test_vocab_ui_1778264061@example.com / TestVocab123!"
+  },
+  "seed_data_creation": "Created test members and costumes during backend tests (cleaned up by test fixtures). Set studio_industry to 'cheer' for vocabulary testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 216ae features verified: (1) Backend costume billing: preview includes costume_pence when costumes exist with status ordered/arrived/fitted, generate stamps costumes with invoiced_on + invoice_id (idempotent), re-running for same period doesn't double-bill, different period excludes already-invoiced costumes, status 'needed' and total_pence=0 don't produce lines. (2) Backend vocabulary: GET /api/memberships/studio/vocabulary and GET /api/member/studio/vocabulary return correct nouns based on studio_industry (cheer→athlete/athletes, dance→student/students, swim→swimmer/swimmers, multi→member/members). (3) Frontend vocabulary swap: More sheet 'Your athletes', FamilyTab title 'Your athletes', Add button 'Add athlete', empty state 'No athletes on your plan yet', editor modal 'YOUR ATHLETES'. (4) Regression: InstructorsTab endpoint still works, preview/generate structure intact.",
+  "features_verified": {
+    "backend_costume_preview_ordered": {
+      "status": "PASS",
+      "evidence": "Preview includes costume_pence > 0 and lines[] entry with kind='costume' for status='ordered'"
+    },
+    "backend_costume_preview_arrived": {
+      "status": "PASS",
+      "evidence": "Preview includes costume line for status='arrived'"
+    },
+    "backend_costume_preview_fitted": {
+      "status": "PASS",
+      "evidence": "Preview includes costume line for status='fitted'"
+    },
+    "backend_costume_status_needed_excluded": {
+      "status": "PASS",
+      "evidence": "Costume with status='needed' does NOT produce a line"
+    },
+    "backend_costume_zero_pence_excluded": {
+      "status": "PASS",
+      "evidence": "Costume with total_pence=0 does NOT produce a line"
+    },
+    "backend_costume_generate_stamps": {
+      "status": "PASS",
+      "evidence": "Generate stamps costume with invoiced_on=period and invoice_id"
+    },
+    "backend_costume_idempotent": {
+      "status": "PASS",
+      "evidence": "Re-running generate for same period does NOT double-bill"
+    },
+    "backend_costume_different_period_excluded": {
+      "status": "PASS",
+      "evidence": "Different period excludes already-invoiced costume"
+    },
+    "backend_regression_preview_structure": {
+      "status": "PASS",
+      "evidence": "Preview structure intact, class lines still compute"
+    },
+    "backend_vocabulary_operator": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/studio/vocabulary returns correct nouns"
+    },
+    "backend_vocabulary_cheer": {
+      "status": "PASS",
+      "evidence": "Cheer industry returns athlete/athletes"
+    },
+    "backend_vocabulary_dance": {
+      "status": "PASS",
+      "evidence": "Dance industry returns student/students"
+    },
+    "backend_vocabulary_swim": {
+      "status": "PASS",
+      "evidence": "Swim industry returns swimmer/swimmers"
+    },
+    "backend_vocabulary_default": {
+      "status": "PASS",
+      "evidence": "Multi/default industry returns member/members"
+    },
+    "backend_vocabulary_member": {
+      "status": "PASS",
+      "evidence": "GET /api/member/studio/vocabulary returns vocabulary for member"
+    },
+    "backend_vocabulary_unauthorized": {
+      "status": "PASS",
+      "evidence": "Member vocabulary endpoint requires authentication"
+    },
+    "frontend_more_sheet_vocab": {
+      "status": "PASS",
+      "evidence": "More sheet shows 'Your athletes' for cheer industry"
+    },
+    "frontend_family_title_vocab": {
+      "status": "PASS",
+      "evidence": "FamilyTab title shows 'Your athletes'"
+    },
+    "frontend_add_button_vocab": {
+      "status": "PASS",
+      "evidence": "Add button shows 'Add athlete'"
+    },
+    "frontend_empty_state_vocab": {
+      "status": "PASS",
+      "evidence": "Empty state shows 'No athletes on your plan yet'"
+    },
+    "frontend_editor_modal_vocab": {
+      "status": "PASS",
+      "evidence": "Editor modal header shows 'YOUR ATHLETES'"
+    },
+    "frontend_member_portal_loads": {
+      "status": "PASS",
+      "evidence": "MemberPortal mounts correctly with StudioVocabProvider wrapper"
+    }
+  }
+}

@@ -29,6 +29,7 @@ import {
 
 import FamilyTab from './FamilyTab';
 import HomeTab from './MemberHomeTab';
+import { StudioVocabProvider, useStudioVocab, capNoun } from '@/hooks/useStudioVocab';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -54,6 +55,7 @@ export default function MemberPortal({ slug }) {
   const [token, setToken] = useState(() => localStorage.getItem(MEMBER_TOKEN_KEY));
   const [member, setMember] = useState(null);
   const [branding, setBranding] = useState(null);
+  const [vocab, setVocab] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('home');
   // The "More" bottom-sheet is not a real tab — clicking the More pill
@@ -98,6 +100,15 @@ export default function MemberPortal({ slug }) {
       .finally(() => setLoading(false));
   }, [token]);
 
+  // Pull the studio vocabulary once per session so every tab/toast can
+  // swap "member" → the industry noun (athlete, dancer, swimmer, etc).
+  useEffect(() => {
+    if (!token) { setVocab(null); return; }
+    axios.get(`${API}/member/studio/vocabulary`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setVocab(r.data))
+      .catch(() => setVocab(null));
+  }, [token]);
+
   // Handle Stripe checkout redirect (?checkout=success&session_id=... or ?checkout=cancel)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -136,6 +147,7 @@ export default function MemberPortal({ slug }) {
   if (!member) return <AuthGate onAuthed={handleAuthed} branding={branding} slug={slug} />;
 
   return (
+    <StudioVocabProvider vocab={vocab}>
     <div className="min-h-screen bg-[var(--color-surface-darker)] text-white pb-24" data-testid="member-portal">
       <TopBar member={member} branding={branding} onSignOut={signOut} />
       <main className="max-w-2xl mx-auto px-4 py-6">
@@ -163,6 +175,7 @@ export default function MemberPortal({ slug }) {
         onClose={() => setMoreOpen(false)}
       />
     </div>
+    </StudioVocabProvider>
   );
 }
 
@@ -734,7 +747,15 @@ function BottomNav({ tab, setTab }) {
  * portal frame so brand colour theming carries through.
  */
 function MoreSheet({ open, currentTab, onSelect, onClose }) {
+  const vocab = useStudioVocab();
   if (!open) return null;
+  // Thread vocab.member_plural into the Family entry so a parent at a
+  // cheer club sees "Your athletes", a swim school sees "Your swimmers".
+  const items = MORE_ITEMS.map((item) => (
+    item.id === 'family'
+      ? { ...item, label: `Your ${vocab.member_plural}` }
+      : item
+  ));
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col justify-end"
@@ -749,7 +770,7 @@ function MoreSheet({ open, currentTab, onSelect, onClose }) {
       >
         <div className="mx-auto w-10 h-1.5 rounded-full bg-white/20 mb-3" aria-hidden />
         <div className="space-y-1 pb-4">
-          {MORE_ITEMS.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const active = currentTab === item.id;
             return (
@@ -774,6 +795,7 @@ function MoreSheet({ open, currentTab, onSelect, onClose }) {
 /* ─────────────────── Book ─────────────────── */
 
 function BookTab({ headers, slug }) {
+  const vocab = useStudioVocab();
   const [occs, setOccs] = useState([]);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [loading, setLoading] = useState(true);
@@ -824,11 +846,14 @@ function BookTab({ headers, slug }) {
         { headers });
       const booked = r.data.booked ?? (r.data.booking ? 1 : 0);
       const wl = r.data.waitlisted || 0;
+      // Iter 216ae+ — vocab-aware booking toast so a cheer club says
+      // "2 athletes booked" and a swim school says "2 swimmers booked".
+      const peopleNoun = booked === 1 ? vocab.member_singular : vocab.member_plural;
       notify.success(
         booked && wl
-          ? `${booked} booked, ${wl} on waitlist for ${occ.name}`
+          ? `${booked} ${peopleNoun} booked, ${wl} on waitlist for ${occ.name}`
           : booked > 1
-          ? `${booked} bookings made for ${occ.name}`
+          ? `${booked} ${peopleNoun} booked for ${occ.name}`
           : `Booked · ${occ.name}`,
       );
       load();

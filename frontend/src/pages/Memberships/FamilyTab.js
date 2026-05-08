@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { useStudioVocab, capNoun } from '@/hooks/useStudioVocab';
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'child',     label: 'Child' },
@@ -23,6 +24,7 @@ const RELATIONSHIP_OPTIONS = [
 
 
 export default function FamilyTab({ API, headers }) {
+  const vocab = useStudioVocab();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
@@ -40,7 +42,7 @@ export default function FamilyTab({ API, headers }) {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
   const remove = async (sp) => {
-    if (!window.confirm(`Remove ${sp.first_name} from your family plan? Their booking history stays on record.`)) return;
+    if (!window.confirm(`Remove ${sp.first_name} from your ${vocab.member_plural}? Their booking history stays on record.`)) return;
     try {
       await axios.delete(`${API}/member/sub-profiles/${sp.id}`, { headers });
       notify.success('Removed');
@@ -54,18 +56,19 @@ export default function FamilyTab({ API, headers }) {
     <div data-testid="member-family">
       <div className="flex items-end justify-between gap-3 mb-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-            Family
+          <h2 className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.02em' }}
+            data-testid="member-family-title">
+            Your {vocab.member_plural}
           </h2>
           <p className="text-xs text-white/50 mt-1">
-            Add kids, partners, or dependents to your plan. They'll share your credits and you can book classes for everyone in one go.
+            Add your {vocab.member_plural} or partners to your plan. They'll share your credits and you can book classes for everyone in one go.
           </p>
         </div>
         <button onClick={() => setShowEditor(true)}
           className="rounded-lg px-3 py-2 text-xs font-extrabold uppercase tracking-wider"
           style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
           data-testid="member-family-add">
-          <Plus size={11} className="inline mr-1" /> Add person
+          <Plus size={11} className="inline mr-1" /> Add {vocab.member_singular}
         </button>
       </div>
 
@@ -76,8 +79,8 @@ export default function FamilyTab({ API, headers }) {
       ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 p-10 text-center" data-testid="member-family-empty">
           <Users size={32} className="mx-auto text-white/30 mb-3" />
-          <p className="text-sm font-bold text-white/80">No-one on your family plan yet</p>
-          <p className="text-xs text-white/50 mt-1">Add kids, your partner, or anyone you regularly book classes for.</p>
+          <p className="text-sm font-bold text-white/80">No {vocab.member_plural} on your plan yet</p>
+          <p className="text-xs text-white/50 mt-1">Add the {vocab.member_plural} you regularly book classes for.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -125,6 +128,7 @@ export default function FamilyTab({ API, headers }) {
 
 
 function SubProfileEditor({ API, headers, onClose }) {
+  const vocab = useStudioVocab();
   const [f, setF] = useState({
     first_name: '', last_name: '', dob: '', gender: '',
     relationship: 'child',
@@ -158,8 +162,8 @@ function SubProfileEditor({ API, headers, onClose }) {
         data-testid="member-family-editor">
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[color:var(--theme-surface)] dark:bg-zinc-900 z-10">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-brand-cyan)]">Family</p>
-            <h2 className="text-lg font-extrabold text-white">Add a person</h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-brand-cyan)]">Your {vocab.member_plural}</p>
+            <h2 className="text-lg font-extrabold text-white">Add {capNoun(vocab.member_singular).toLowerCase() === 'member' ? 'a person' : `a ${vocab.member_singular}`}</h2>
           </div>
           <button onClick={() => onClose(false)} className="p-1.5 rounded hover:bg-white/10 text-white/60">
             <X size={14} />
