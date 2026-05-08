@@ -1,3 +1,34 @@
+## Iteration 216ah — Sprint A: Memberships daily-workflow fixes (Feb 2026)
+
+**Goal**: Close the 5 most painful day-to-day workflow gaps the user flagged in a review (see ASK_HUMAN 216af/216ag trail): Start tab not a checklist, no "+ New class" path, timetable classes not editable in place, no operator-booking, drag-drop scroll jump.
+
+### What shipped
+
+**Backend**
+- `/app/backend/routes/memberships/studio.py` — NEW **GET `/memberships/studio/onboarding`** returning 5 live-derived checklist steps (members, class templates, plans, portal invites, first booking) with `done/count/cta_tab/cta_label` + summary (`completed/total/percent/all_complete/dismissed`). **POST `/memberships/studio/onboarding/dismiss`** writes `studio_onboarding_dismissed_at` on the org (idempotent).
+- `/app/backend/routes/memberships/bookings.py` — NEW **POST `/memberships/occurrences/{id}/bookings`** operator-facing endpoint. Books 1–10 members, silently skips already-booked (returns `skipped_already_booked`), routes overflow to waitlist when `allow_waitlist && template.waitlist_enabled`, bypasses credit/plan checks by default (`channel:"operator"`, `booked_by_user_id`, `credits_charged:0`). Multi-tenant isolation + capacity integrity verified.
+
+**Frontend**
+- `MembershipsStartTab.js` — rewritten as data-driven progressive checklist. Renders 5 steps with done badges, progress bar, CTA buttons that navigate to the right tab, and "Hide this" dismiss. Exports `useOnboardingChecklist` hook for reuse.
+- `MembershipsConsole.js` — polls `/onboarding` on mount, listens for `'memberships-start-dismissed'` CustomEvent, hides the Start tab pill when `all_complete || dismissed`. (Testing agent auto-fixed the variable-hoist crash by moving `token`/`headers` declarations above the new useEffect — merged and lint-clean.)
+- `StudioBuilderTab.js` — (a) **optimistic drag-drop** (local mutate instead of `await load()`, rolls back on error) → no more scroll-to-top. (b) NEW **"+ New class"** button in the grid header AND an inline CTA in the empty-state idle rail. (c) New exported component **`ClassTemplateEditor`** — 18-field modal for create/edit via POST/PATCH `/memberships/classes/templates`.
+- `ClassActionDrawer.js` — third tab **"Edit class"** that reuses `ClassTemplateEditor` prefilled with the occurrence's template (shows "updating affects every future occurrence" hint). Attendance view gains **"Add member"** button + `AddMemberPicker` popover with live search, multi-select, and a one-tap "Book N" calling the new operator endpoint. Toast reports booked/waitlisted/skipped split.
+
+### Verification
+- `/app/test_reports/iteration_216ah.json` — **15/15 backend PASS**, **100% frontend after auto-fix**, 0 critical/minor issues (`retest_needed: false`).
+- Self-verified the onboarding endpoint (Bob's org shows 3/5 done), operator booking happy-path + re-run (silent dedupe) + 404 on unknown member.
+
+### Files of reference
+- `/app/backend/routes/memberships/studio.py`
+- `/app/backend/routes/memberships/bookings.py`
+- `/app/frontend/src/pages/Memberships/MembershipsStartTab.js`
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js`
+- `/app/frontend/src/pages/Memberships/StudioBuilderTab.js`
+- `/app/frontend/src/pages/Memberships/ClassActionDrawer.js`
+
+---
+
+
 ## Iteration 216ag — Brand inheritance in outbound channels + live preview (Feb 2026)
 
 **Goal**: Extend the site-level branding override (iter 216af) from a data field into visible customer-facing differentiation. Every invoice PDF, invoice email, and service-case auto-notify email now honours the per-site override; the editor now shows a live preview.
