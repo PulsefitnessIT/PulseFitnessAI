@@ -11110,3 +11110,35 @@ Phase A of the 6-phase Studios Vision is shipped end-to-end.
 
 ### Notes
 - The drag-drop builder uses the native HTML5 drag API (no extra deps). Mobile drag-drop is intentionally deferred until Phase C (mobile polish) — desktop is the authoring surface, mobile is the consumption surface.
+
+---
+
+## Iter 216aa — Memberships Phase B: Family billing & AI risk (2026-02-08)
+
+Phase B of the Studios Vision shipped end-to-end.
+
+### Backend
+- **Tiered sibling discount** — extended `SiblingDiscountIn` model with optional `tiers: [{rank, pct}]`. New helper `_sibling_pct_for()` resolves the per-rank pct (highest matching tier ≤ rank). Legacy flat `pct` retained for back-compat. Persisted at `organizations.sibling_discount_tiers`.
+- **Multi-class discount** — new `GET / POST /api/memberships/billing/multi-class-discount` with tier ladder `[{min_classes, pct}]`. New helper `_apply_multi_class_discount()` groups class lines by attendee, applies the highest matching tier as a negative discount line. Wired into `_build_invoice_lines_for_member` *before* sibling discounting so per-attendee subtotals reflect the multi-class deduction.
+- **Payment plans (instalment offerings)** — new `routes/memberships/payment_plans.py`:
+  - `GET / POST / PUT / DELETE /api/memberships/payment-plans` (collection: `payment_plans`)
+  - `POST /api/memberships/payment-plans/{id}/assign` and `GET /…/assignments` (collection: `payment_plan_assignments`)
+  - Auto-derives `instalment_pence` and `last_instalment_pence` from total/instalments.
+- **AI failed-payment risk** — new `routes/memberships/payment_risk.py` with `GET /api/memberships/billing/payment-risk?band=&limit=`:
+  - Heuristic per-member score (0-100) from open balance, days past due, failed autopay attempts (90d), autopay-disabled+active-plan flag, and a "recent success" credit.
+  - Bands: high ≥60, medium ≥30, low <30. Returns reasons array per row + summary counts.
+
+### Frontend
+- New tab `Family billing` (icon HeartHandshake) on the Memberships console, visible to Studio-mode users.
+- New file `pages/Memberships/FamilyBillingTab.js` (~290 LOC) with four sections:
+  1. **AI failed-payment risk** card — high/medium/low summary pills, table with per-member score, outstanding balance, days past due, and reason bullets.
+  2. **Sibling discount ladder** editor — rank → pct rows with add/remove tier buttons.
+  3. **Multi-class discount ladder** editor — min_classes → pct rows with add/remove tier buttons.
+  4. **Payment plans** card — list with name, total, instalment count, instalment amount, and archive button. Add via `Plus` button (prompt-driven for now).
+
+### Verified end-to-end
+- Backend: sibling tiers POST round-trips with [10/15/20]; multi-class tiers POST round-trips; payment plan creation derives £200 instalments from £600 / 3; payment-risk endpoint returns empty `rows` (no flagged members in test data) with full summary skeleton.
+- Frontend: tab pill renders, all 4 sections present, sibling ladder shows 3 default tiers, multi-class ladder shows 2 default tiers, payment plan rows render including the seed plan.
+
+### Notes
+- Payment-plan assignment cron integration (auto-issue an invoice per period) is intentionally deferred — current scope shipped the offering CRUD + assignment record, which is enough for operators to start tracking & manually billing today. Wire-up to `family_autopay.run_family_autopay_cycle` is a 1-hour follow-up if the team wants fully-automated termly billing.

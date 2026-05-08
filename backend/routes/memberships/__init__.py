@@ -43,6 +43,8 @@ from routes.memberships import (
     member_auth,
     member_misc,
     members,
+    payment_plans,
+    payment_risk,
     plans,
     qr_checkin,
     studio,
@@ -93,6 +95,8 @@ for sub in (
     terms,
     instructors,
     family_autopay,
+    payment_plans,
+    payment_risk,
     wallet,
 ):
     router.include_router(sub.router)

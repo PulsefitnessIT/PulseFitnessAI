@@ -109,10 +109,38 @@ async def smoothing_preview(plan_id: str, user: dict = Depends(get_current_user)
     }
 
 
-# ═════════════════════ Sibling discount settings (iter 215z) ═════════════════════
+# ═════════════════════ Sibling discount settings (iter 215z + iter 216aa) ═════════════════════
 
 class SiblingDiscountIn(BaseModel):
     pct: int = Field(default=0, ge=0, le=50)
+    # Iter 216aa Phase B — optional tiered ladder. When non-empty,
+    # overrides the flat `pct`. Each tier is {rank, pct}; rank=2 means
+    # "the 2nd child", rank=4 means "the 4th and beyond".
+    tiers: list[dict] | None = None
+
+
+def _validate_tiers(tiers: list[dict] | None, *, key: str) -> list[dict]:
+    """Normalise + sanity-check a tier ladder. Returns sorted list."""
+    if not tiers:
+        return []
+    cleaned: list[dict] = []
+    for t in tiers:
+        try:
+            rank = int(t.get(key))
+            pct = int(t.get("pct"))
+        except (TypeError, ValueError):
+            raise HTTPException(400, f"Each tier needs {key} (int) and pct (int)")
+        if rank < 2 or rank > 20:
+            raise HTTPException(400, f"{key} must be between 2 and 20")
+        if pct < 0 or pct > 75:
+            raise HTTPException(400, "pct must be between 0 and 75")
+        cleaned.append({key: rank, "pct": pct})
+    cleaned.sort(key=lambda t: t[key])
+    # De-dupe by rank/min_classes (keep highest pct for any duplicate).
+    by_rank: dict[int, int] = {}
+    for t in cleaned:
+        by_rank[t[key]] = max(by_rank.get(t[key], 0), t["pct"])
+    return [{key: r, "pct": p} for r, p in sorted(by_rank.items())]
 
 
 @router.get(
@@ -120,10 +148,11 @@ class SiblingDiscountIn(BaseModel):
     dependencies=[Depends(require_module("memberships"))],
 )
 async def get_sibling_discount(user: dict = Depends(get_current_user)):
-    """Return the org's sibling-discount percent (0 = disabled, max 50)."""
+    """Return the org's sibling-discount config — flat pct + tiered ladder."""
     org_id = await _require_operator_org(user)
     pct = await _sibling_discount_pct(org_id)
-    return {"pct": pct, "enabled": pct > 0}
+    tiers = await _sibling_discount_tiers(org_id)
+    return {"pct": pct, "enabled": pct > 0 or bool(tiers), "tiers": tiers}
 
 
 @router.post(
@@ -133,19 +162,130 @@ async def get_sibling_discount(user: dict = Depends(get_current_user)):
 async def set_sibling_discount(
     body: SiblingDiscountIn, user: dict = Depends(get_current_user),
 ):
-    """Owner / manager toggle. 0 disables; 1-50 applies that flat pct
-    off each sibling beyond the eldest in the SAME monthly invoice."""
+    """Owner / manager toggle. ``tiers`` (when supplied) overrides ``pct``;
+    leave both empty to disable discounting entirely."""
     if (user.get("role") or "").lower() not in {"owner", "manager"} and not user.get("is_master_admin"):
         raise HTTPException(403, "Only owners or managers can change billing settings.")
     org_id = await _require_operator_org(user)
+    tiers = _validate_tiers(body.tiers, key="rank")
     await db.organizations.update_one(
         {"id": org_id},
         {"$set": {
             "sibling_discount_pct": int(body.pct),
+            "sibling_discount_tiers": tiers,
             "sibling_discount_updated_at": _now_iso(),
         }},
     )
-    return {"pct": int(body.pct), "enabled": body.pct > 0}
+    return {"pct": int(body.pct), "tiers": tiers, "enabled": body.pct > 0 or bool(tiers)}
+
+
+# ═════════════════════ Multi-class discount settings (iter 216aa Phase B) ═════════════════════
+
+class MultiClassDiscountIn(BaseModel):
+    tiers: list[dict] | None = None  # [{min_classes:2, pct:10}, …]
+
+
+@router.get(
+    "/memberships/billing/multi-class-discount",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def get_multi_class_discount(user: dict = Depends(get_current_user)):
+    org_id = await _require_operator_org(user)
+    tiers = await _multi_class_discount_tiers(org_id)
+    return {"tiers": tiers, "enabled": bool(tiers)}
+
+
+@router.post(
+    "/memberships/billing/multi-class-discount",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def set_multi_class_discount(
+    body: MultiClassDiscountIn, user: dict = Depends(get_current_user),
+):
+    if (user.get("role") or "").lower() not in {"owner", "manager"} and not user.get("is_master_admin"):
+        raise HTTPException(403, "Only owners or managers can change billing settings.")
+    org_id = await _require_operator_org(user)
+    tiers = _validate_tiers(body.tiers, key="min_classes")
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {
+            "multi_class_discount_tiers": tiers,
+            "multi_class_discount_updated_at": _now_iso(),
+        }},
+    )
+    return {"tiers": tiers, "enabled": bool(tiers)}
+
+
+async def _multi_class_discount_tiers(org_id: str) -> list[dict]:
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "multi_class_discount_tiers": 1},
+    ) or {}
+    return list(org.get("multi_class_discount_tiers") or [])
+
+
+async def _sibling_discount_tiers(org_id: str) -> list[dict]:
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "sibling_discount_tiers": 1},
+    ) or {}
+    return list(org.get("sibling_discount_tiers") or [])
+
+
+def _multi_class_pct_for(count: int, tiers: list[dict]) -> int:
+    """Largest tier whose ``min_classes`` <= count."""
+    pct = 0
+    for t in tiers:
+        if int(t.get("min_classes") or 0) <= count:
+            pct = max(pct, int(t.get("pct") or 0))
+    return pct
+
+
+def _apply_multi_class_discount(lines: list[dict], tiers: list[dict]) -> tuple[list[dict], int]:
+    """Group class lines by attendee; for any attendee with N >= min_classes
+    apply the highest matching tier as a negative discount line.
+
+    Returns (lines + extras, delta_pence_negative_or_zero).
+    """
+    if not tiers:
+        return lines, 0
+
+    # Group only "class" lines (smoothed/adhoc/sibling_discount excluded).
+    by_att: dict[str, list[dict]] = {}
+    for ln in lines:
+        if ln.get("kind") != "class":
+            continue
+        key = ln.get("attendee_sub_profile_id") or (
+            f"name:{ln.get('attendee_name','Account')}:{ln.get('attendee_kind','self')}"
+        )
+        by_att.setdefault(key, []).append(ln)
+
+    delta = 0
+    extras: list[dict] = []
+    for key, rows in by_att.items():
+        count = len(rows)
+        pct = _multi_class_pct_for(count, tiers)
+        if pct <= 0:
+            continue
+        sub = sum(int(r.get("amount_pence") or 0) for r in rows)
+        if sub <= 0:
+            continue
+        disc = -((sub * pct) // 100)
+        if disc == 0:
+            continue
+        att_name = rows[0].get("attendee_name") or "Member"
+        extras.append({
+            "kind": "multi_class_discount",
+            "description": f"Multi-class discount ({count} classes · {att_name}) — {pct}% off",
+            "quantity": 1,
+            "unit_pence": disc,
+            "amount_pence": disc,
+            "attendee_name": att_name,
+            "attendee_kind": rows[0].get("attendee_kind") or "self",
+            "attendee_sub_profile_id": rows[0].get("attendee_sub_profile_id"),
+            "multi_class_count": count,
+            "multi_class_pct": pct,
+        })
+        delta += disc
+    return lines + extras, delta
 
 
 # ═════════════════════ Monthly class invoicing ═════════════════════
@@ -234,9 +374,17 @@ async def _build_invoice_lines_for_member(
             "attendee_sub_profile_id": b.get("attendee_sub_profile_id"),
         })
         subtotal += rate
-    # Iter 215z — apply sibling discount (org-level). No-op if pct=0.
+    # Iter 216aa Phase B — apply multi-class discount FIRST so per-attendee
+    # subtotals reflect the headline rate before we reduce it again for
+    # later siblings.
+    mc_tiers = await _multi_class_discount_tiers(org_id)
+    lines, mc_delta = _apply_multi_class_discount(lines, mc_tiers)
+    subtotal += mc_delta
+    # Iter 215z + 216aa — apply sibling discount (org-level). Tiered ladder
+    # takes precedence over the legacy flat pct.
+    sib_tiers = await _sibling_discount_tiers(org_id)
     pct = await _sibling_discount_pct(org_id)
-    lines, delta = _apply_sibling_discount(lines, bookings, pct)
+    lines, delta = _apply_sibling_discount(lines, bookings, pct, sib_tiers)
     subtotal += delta
     return lines, subtotal
 
@@ -287,16 +435,37 @@ async def _sibling_discount_pct(org_id: str) -> int:
     return max(0, min(50, v))
 
 
+def _sibling_pct_for(rank: int, flat_pct: int, tiers: list[dict]) -> int:
+    """Resolve the discount percent for the *rank*-th sibling.
+
+    Iter 216aa — when a tiered ladder is present, find the highest tier
+    whose ``rank`` <= the sibling's rank. Otherwise fall back to the
+    legacy flat pct (applied to every sibling beyond the eldest)."""
+    if tiers:
+        pct = 0
+        for t in tiers:
+            if int(t.get("rank") or 0) <= rank:
+                pct = max(pct, int(t.get("pct") or 0))
+        return pct
+    return flat_pct
+
+
 def _apply_sibling_discount(
-    lines: list[dict], bookings: list[dict], pct: int,
+    lines: list[dict],
+    bookings: list[dict],
+    pct: int,
+    tiers: list[dict] | None = None,
 ) -> tuple[list[dict], int]:
-    """Iter 215z — group class lines by sub-profile (kids) and add a
-    negative discount line for the 2nd, 3rd, ... sibling at ``pct`` off.
+    """Iter 215z + 216aa — group class lines by sub-profile (kids) and add
+    a negative discount line for the 2nd, 3rd, ... sibling. When ``tiers``
+    is supplied (non-empty list), the per-rank pct is read from the
+    ladder; otherwise the flat ``pct`` applies to every extra sibling.
 
     Ordering is by the earliest booking created_at / occurrence time so
     "first sibling" is deterministic across runs. Returns updated
     (lines, delta_pence) where delta_pence is negative (or 0)."""
-    if pct <= 0:
+    tiers = tiers or []
+    if pct <= 0 and not tiers:
         return lines, 0
 
     # Only count distinct KIDS/sub-profiles — ignore self / no sub-profile.
@@ -323,17 +492,20 @@ def _apply_sibling_discount(
     for rank, (sid, rows) in enumerate(ordered, start=1):
         if rank == 1:
             continue  # full-price eldest sibling
+        rank_pct = _sibling_pct_for(rank, pct, tiers)
+        if rank_pct <= 0:
+            continue
         sub = sum(int(r.get("amount_pence") or 0) for r in rows)
         if sub <= 0:
             continue
-        disc = -((sub * pct) // 100)
+        disc = -((sub * rank_pct) // 100)
         if disc == 0:
             continue
         att_name = rows[0].get("attendee_name") or "Sibling"
         label = {2: "2nd", 3: "3rd"}.get(rank, f"{rank}th")
         new_extra.append({
             "kind": "sibling_discount",
-            "description": f"Sibling discount ({label} child · {att_name}) — {pct}% off",
+            "description": f"Sibling discount ({label} child · {att_name}) — {rank_pct}% off",
             "quantity": 1,
             "unit_pence": disc,
             "amount_pence": disc,
@@ -341,6 +513,7 @@ def _apply_sibling_discount(
             "attendee_kind": rows[0].get("attendee_kind") or "sub_profile",
             "attendee_sub_profile_id": sid,
             "sibling_rank": rank,
+            "sibling_pct": rank_pct,
         })
         delta += disc
     return lines + new_extra, delta
