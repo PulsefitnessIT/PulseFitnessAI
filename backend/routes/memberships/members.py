@@ -607,6 +607,21 @@ async def invite_member_portal(
         }},
     )
 
+    # Sprint C — log to memberships_member_events so the activity
+    # timeline can surface every invite (single + bulk) uniformly.
+    try:
+        await db.memberships_member_events.insert_one({
+            "id": _uuid(),
+            "organization_id": org_id,
+            "member_id": member_id,
+            "kind": "portal_invited",
+            "actor_id": user.get("id"),
+            "actor_email": user.get("email"),
+            "at": _now_iso(),
+        })
+    except Exception:
+        pass
+
     org = await db.organizations.find_one(
         {"id": org_id}, {"_id": 0, "name": 1, "primary_color": 1, "slug": 1,
                          "membership_app_slug": 1, "logo_url": 1},

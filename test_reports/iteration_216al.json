@@ -1,0 +1,75 @@
+{
+  "summary": "Sprint C — Operator Multipliers Testing Complete. Backend 100% pass (23/23 tests). Frontend 100% pass - all Sprint C features verified: SavedViewsDropdown with 4 presets + custom views, BulkBar with 3 actions (invite_portal, send_reminder, add_tag), Activity Timeline tab with 7 event types.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Members Tab - Mobile View",
+        "issues": ["React warning: nested <button> inside <button> in InvitePortalButton component within member row. This is an HTML validation issue but does not affect functionality."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216al_sprint_c.py",
+    "/app/test_reports/pytest/pytest_results_216al.xml"
+  ],
+  "action_items": [
+    "MINOR: Fix nested button issue in MembershipsConsole.js line 714-741 - InvitePortalButton renders a <button> inside the row <button>. Consider changing the row wrapper to a <div> with onClick handler instead."
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216al_sprint_c.py"
+  ],
+  "success_rate": {
+    "backend": "100% (23/23 tests passed)",
+    "frontend": "100% (all Sprint C features verified)"
+  },
+  "test_credentials": {
+    "operator": "bob@knockers.com / Test123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Created TEST_216al_* prefixed tags and custom views for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Sprint C features fully functional. Backend endpoints: /api/memberships/saved-views (GET/POST/DELETE), /api/memberships/members-filtered (with presets), /api/memberships/members/bulk-action (3 actions), /api/memberships/members/{id}/activity. Frontend: SavedViewsDropdown shows 4 presets (trialists_7d, no_shows_14d, uninvited, new_this_week) + custom views + 'Save current filter as view'. BulkBar appears when members selected with Invite/Reminder/Tag/Clear buttons. MemberEditDrawer has 5 tabs (Profile, Classes, Payments, Activity, Family). Activity tab shows timeline with icons for portal_invite, reminder, tag, joined events.",
+  "features_verified": {
+    "saved_views": {
+      "GET /api/memberships/saved-views": "PASS - returns 4 presets + custom views",
+      "POST /api/memberships/saved-views": "PASS - creates custom view with name + filter",
+      "DELETE /api/memberships/saved-views/{id}": "PASS - removes custom, rejects presets with 400",
+      "frontend_dropdown": "PASS - shows SMART VIEWS (4 presets) + YOUR SAVED VIEWS + Save option"
+    },
+    "members_filtered_presets": {
+      "preset=uninvited": "PASS - returns members with email but no portal_invited_at",
+      "preset=new_this_week": "PASS - returns members created in last 7 days",
+      "preset=trialists_7d": "PASS - returns active memberships ending in 7 days",
+      "preset=no_shows_14d": "PASS - returns members with ≥2 no-shows in 14 days"
+    },
+    "bulk_actions": {
+      "empty_member_ids": "PASS - returns 400",
+      "unknown_action": "PASS - returns 400",
+      "max_200_cap": "PASS - enforces 200 member limit",
+      "add_tag": "PASS - idempotent via $addToSet, requires tag in payload",
+      "invite_portal": "PASS - fans out to each member, returns per-member results",
+      "send_reminder": "PASS - requires subject+message, sends email, logs event",
+      "frontend_bulk_bar": "PASS - appears when selection > 0, shows N selected + 3 action buttons + Clear"
+    },
+    "activity_timeline": {
+      "GET /api/memberships/members/{id}/activity": "PASS - returns reverse-chrono feed",
+      "joined_event": "PASS - includes 'Joined the studio' from created_at",
+      "multiple_sources": "PASS - merges portal_invite, reminder, tag, joined events",
+      "frontend_tab": "PASS - Activity tab in drawer shows timeline with icons"
+    },
+    "member_drawer_tabs": {
+      "5_tabs": "PASS - Profile, Classes, Payments, Activity, Family"
+    }
+  },
+  "mocked_apis": {
+    "resend_email": "Email transport uses Resend - invite-portal and send_reminder return email_sent boolean"
+  }
+}

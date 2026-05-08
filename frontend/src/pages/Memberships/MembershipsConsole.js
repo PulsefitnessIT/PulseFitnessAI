@@ -29,6 +29,8 @@ import {
 import AddMemberModal from '@/pages/Memberships/modals/AddMemberModal';
 import PlanEditorModal, { PLAN_KINDS, BILLING_CYCLES, INCLUDED_OPTIONS } from '@/pages/Memberships/modals/PlanEditorModal';
 import ClassEditorModal from '@/pages/Memberships/modals/ClassEditorModal';
+import SavedViewsDropdown from '@/components/memberships/SavedViewsDropdown';
+import MembersBulkBar from '@/components/memberships/MembersBulkBar';
 import PullToRefresh from '@/components/shared/PullToRefresh';
 import Navbar from '@/components/shared/Navbar';
 import MobileBottomNav from '@/components/shared/MobileBottomNav';
@@ -463,17 +465,42 @@ function MembersTab({ API, headers }) {
   const [detail, setDetail] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  // Sprint C — saved views + multi-select.
+  const [savedView, setSavedView] = useState(null); // {id, name, filter} or null
+  const [selectedIds, setSelectedIds] = useState([]);
   const importFileRef = React.useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/memberships/members`, { headers, params: q ? { q } : {} });
-      setMembers(res.data.members || []);
+      // Sprint C — if a saved view (preset or custom) is active, route
+      // through the dedicated endpoint so the server applies the preset
+      // logic. Otherwise use the simpler list endpoint (no regression).
+      if (savedView && savedView.filter && Object.keys(savedView.filter).length > 0) {
+        const params = { ...savedView.filter };
+        if (q) params.q = q;
+        const res = await axios.get(`${API}/memberships/members-filtered`, { headers, params });
+        setMembers(res.data.members || []);
+      } else {
+        const res = await axios.get(`${API}/memberships/members`, { headers, params: q ? { q } : {} });
+        setMembers(res.data.members || []);
+      }
     } finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, savedView?.id]);
   useEffect(() => { load(); }, [load]);
+
+  // Clear selection whenever the member list changes identity (filter/view).
+  useEffect(() => { setSelectedIds([]); }, [savedView?.id, q]);
+
+  const toggleOne = (id, checked) => {
+    setSelectedIds((prev) => (checked ? [...new Set([...prev, id])] : prev.filter((x) => x !== id)));
+  };
+  const toggleAll = (checked) => {
+    setSelectedIds(checked ? members.map((m) => m.id) : []);
+  };
+  const allSelected = members.length > 0 && selectedIds.length === members.length;
+  const someSelected = selectedIds.length > 0 && !allSelected;
 
   // Listen for "open this member" requests from the Unified AI Assistant.
   useEffect(() => {
@@ -540,6 +567,13 @@ function MembersTab({ API, headers }) {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name / email / phone"
             className="h-9 rounded-full bg-transparent border border-[color:var(--theme-border)] px-3 text-sm text-[color:var(--theme-text)] placeholder-[color:var(--theme-text-muted)] w-64 focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
             data-testid="mbr-search" />
+          <SavedViewsDropdown
+            API={API}
+            headers={headers}
+            value={savedView?.id || null}
+            onChange={setSavedView}
+            currentFilter={{ ...(savedView?.filter || {}), ...(q ? { q } : {}) }}
+          />
           <button type="button" onClick={downloadTemplate} className="btn-secondary" data-testid="mbr-csv-template">
             CSV template
           </button>
@@ -593,12 +627,31 @@ function MembersTab({ API, headers }) {
       )}
 
       {!(!loading && members.length === 0 && !importResult) && (
+      <>
+      <MembersBulkBar
+        API={API}
+        headers={headers}
+        selectedIds={selectedIds}
+        onClearSelection={() => setSelectedIds([])}
+        onRefresh={load}
+      />
       <div className="mt-6 rounded-xl border border-[color:var(--theme-border)] overflow-hidden">
         {/* Desktop table */}
         <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-white dark:bg-zinc-900/[0.03] text-xs uppercase tracking-wider text-[color:var(--theme-text-muted)]">
               <tr>
+                <th className="px-3 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    onChange={(e) => toggleAll(e.target.checked)}
+                    className="h-4 w-4 accent-[color:var(--color-brand-cyan)] cursor-pointer"
+                    aria-label="Select all"
+                    data-testid="mbr-select-all"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left font-bold">Member</th>
                 <th className="px-4 py-3 text-left font-bold">Plan</th>
                 <th className="px-4 py-3 text-left font-bold">Status</th>
@@ -608,9 +661,21 @@ function MembersTab({ API, headers }) {
               </tr>
             </thead>
           <tbody>
-            {loading && <tr><td colSpan={6} className="text-center text-[color:var(--theme-text-muted)] py-6">Loading…</td></tr>}
-            {members.map((m) => (
-              <tr key={m.id} onClick={() => setDetail(m.id)} className="border-t border-[color:var(--theme-border)] hover:bg-white dark:bg-zinc-900/[0.03] cursor-pointer" data-testid={`mbr-row-${m.id}`}>
+            {loading && <tr><td colSpan={7} className="text-center text-[color:var(--theme-text-muted)] py-6">Loading…</td></tr>}
+            {members.map((m) => {
+              const checked = selectedIds.includes(m.id);
+              return (
+              <tr key={m.id} onClick={() => setDetail(m.id)} className={`border-t border-[color:var(--theme-border)] hover:bg-white dark:bg-zinc-900/[0.03] cursor-pointer ${checked ? 'bg-[color:var(--color-brand-cyan)]/5' : ''}`} data-testid={`mbr-row-${m.id}`}>
+                <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => toggleOne(m.id, e.target.checked)}
+                    className="h-4 w-4 accent-[color:var(--color-brand-cyan)] cursor-pointer"
+                    aria-label={`Select ${m.first_name} ${m.last_name}`}
+                    data-testid={`mbr-select-${m.id}`}
+                  />
+                </td>
                 <td className="px-4 py-3">
                   <div className="font-bold text-white">{m.first_name} {m.last_name}</div>
                   <div className="text-xs text-[color:var(--theme-text-muted)]">{m.email}</div>
@@ -627,17 +692,27 @@ function MembersTab({ API, headers }) {
                 <td className={`px-4 py-3 text-right text-xs font-bold ${(m.no_show_count || 0) > 2 ? 'text-red-300' : 'text-[color:var(--theme-text-muted)]'}`}>{m.no_show_count || 0}</td>
                 <td className="px-2 py-3 text-right"><InvitePortalButton API={API} headers={headers} member={m} onDone={load} /></td>
               </tr>
-            ))}
+            ); })}
           </tbody>
         </table>
         </div>
         {/* Mobile card list (iter 215ak) */}
         <div className="md:hidden divide-y divide-[color:var(--theme-border)]" data-testid="mbr-members-mobile-list">
           {loading && <div className="p-6 text-center text-[color:var(--theme-text-muted)] text-sm">Loading…</div>}
-          {members.map((m) => (
-            <button key={m.id} onClick={() => setDetail(m.id)}
-              className="w-full text-left px-4 py-3 active:bg-white/5 hover:bg-white/5 transition-colors"
-              data-testid={`mbr-row-mobile-${m.id}`}>
+          {members.map((m) => {
+            const checked = selectedIds.includes(m.id);
+            return (
+            <div key={m.id} className={`flex items-start px-4 py-3 ${checked ? 'bg-[color:var(--color-brand-cyan)]/5' : ''}`} data-testid={`mbr-row-mobile-${m.id}`}>
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => toggleOne(m.id, e.target.checked)}
+                className="h-4 w-4 accent-[color:var(--color-brand-cyan)] mr-3 mt-1 shrink-0"
+                aria-label={`Select ${m.first_name} ${m.last_name}`}
+                data-testid={`mbr-select-mobile-${m.id}`}
+              />
+              <button onClick={() => setDetail(m.id)}
+                className="flex-1 text-left active:bg-white/5 hover:bg-white/5 transition-colors">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-white truncate">{m.first_name} {m.last_name}</div>
@@ -663,10 +738,12 @@ function MembersTab({ API, headers }) {
                   <InvitePortalButton API={API} headers={headers} member={m} onDone={load} />
                 </div>
               </div>
-            </button>
-          ))}
+              </button>
+            </div>
+          ); })}
         </div>
       </div>
+      </>
       )}
       {adding && <AddMemberModal API={API} headers={headers} onClose={(refresh) => { setAdding(false); if (refresh) load(); }} />}
       {detail && <MemberDetailDrawer API={API} headers={headers} memberId={detail} onClose={(refresh) => {

@@ -21,17 +21,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
-  X, Loader2, User, CalendarDays, CreditCard, Users,
+  X, Loader2, User, CalendarDays, CreditCard, Users, Activity as ActivityIcon,
   Save, Pause, XOctagon, Search, Link as LinkIcon, Plus, Mail, Phone,
   MapPin, Cake, ShieldAlert, Tag as TagIcon, FileText, AlertCircle,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import ActivityTimelineTab from '@/pages/Memberships/ActivityTimelineTab';
 
 const TABS = [
   { id: 'profile',  label: 'Profile',  icon: User },
   { id: 'classes',  label: 'Classes',  icon: CalendarDays },
   { id: 'payments', label: 'Payments', icon: CreditCard },
+  { id: 'activity', label: 'Activity', icon: ActivityIcon },
   { id: 'family',   label: 'Family',   icon: Users },
 ];
 
@@ -627,6 +629,9 @@ export default function MemberEditDrawer({ API, headers, memberId, onClose, onAs
               onCancel={onCancel}
               onRecord={onRecord}
             />
+          )}
+          {tab === 'activity' && (
+            <ActivityTimelineTab memberId={memberId} API={API} headers={headers} />
           )}
           {tab === 'family'   && (
             <FamilyTab
