@@ -4,25 +4,31 @@ AccountSettingsModal (Owner / Manager / Staff). Master Admins use
 the dedicated Master Admin console.
 
 Surface:
-    POST   /account/avatar              upload + compress avatar
-    DELETE /account/avatar              clear avatar
-    PATCH  /account/profile             update full_name, phone
-    POST   /account/change-password     in-app password change
-    GET    /account/team                list teammates in same org
-    POST   /account/team/invite         invite teammate
-    PATCH  /account/team/{user_id}      update teammate role/status
-    DELETE /account/team/{user_id}      remove teammate
+    POST   /account/avatar                       upload + compress avatar
+    DELETE /account/avatar                       clear avatar
+    PATCH  /account/profile                      update full_name, phone
+    POST   /account/change-password              in-app password change
+    GET    /account/team                         list teammates in same org
+    POST   /account/team/invite                  invite teammate
+    PATCH  /account/team/{user_id}               update teammate role/status
+    DELETE /account/team/{user_id}               remove teammate
+    GET    /account/organisation                 org address + contact details
+    PATCH  /account/organisation                 update org address (owner)
+    GET    /account/onboarding                   live setup checklist
+    GET    /account/billing/{payment_id}/invoice.pdf  download PDF (hybrid)
 """
 from __future__ import annotations
 
 import base64
 import io
 import logging
+import os
 import secrets
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi.responses import RedirectResponse, StreamingResponse
 from PIL import Image
 
 from utils.auth import get_current_user, hash_password, verify_password
@@ -251,3 +257,245 @@ async def remove_team_member(user_id: str, user: dict = Depends(get_current_user
         raise HTTPException(status_code=403, detail="Cannot remove the Owner")
     await db.users.delete_one({"id": user_id})
     return {"success": True}
+
+
+
+# ── Organisation address & contact details ────────────────────────
+
+ORG_ALLOWED_FIELDS = {
+    "address_line1", "address_line2", "address_line3", "city",
+    "postcode", "country", "phone", "primary_contact_email",
+    "primary_contact_phone", "website",
+}
+
+
+@router.get("/account/organisation")
+async def get_organisation(user: dict = Depends(get_current_user)) -> dict:
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=404, detail="No organisation linked to this account")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "password": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+    payload = {k: org.get(k, "") for k in ORG_ALLOWED_FIELDS}
+    payload["name"] = org.get("name", "")
+    payload["company_code"] = org.get("company_code", "")
+    payload["logo_url"] = org.get("logo_url", "")
+    return payload
+
+
+@router.patch("/account/organisation")
+async def update_organisation(body: dict, user: dict = Depends(get_current_user)) -> dict:
+    if (user.get("role") or "").lower() != "owner" and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Only the owner can update organisation details")
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=404, detail="No organisation linked to this account")
+    updates = {k: (v.strip() if isinstance(v, str) else v)
+               for k, v in (body or {}).items() if k in ORG_ALLOWED_FIELDS}
+    if updates:
+        updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.organizations.update_one({"id": org_id}, {"$set": updates})
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    payload = {k: (org or {}).get(k, "") for k in ORG_ALLOWED_FIELDS}
+    payload["name"] = (org or {}).get("name", "")
+    payload["company_code"] = (org or {}).get("company_code", "")
+    payload["logo_url"] = (org or {}).get("logo_url", "")
+    return payload
+
+
+# ── Onboarding checklist (live derivation) ────────────────────────
+
+ONBOARDING_STEPS = [
+    {"id": "site_details", "label": "Enter site details",
+     "description": "Add your primary site name, address, and operating hours.",
+     "cta_label": "Open sites", "cta_route": "/sites"},
+    {"id": "extra_sites", "label": "Add extra site(s)",
+     "description": "Multi-site operators add each branch so reporting and rotas split correctly.",
+     "cta_label": "Manage sites", "cta_route": "/sites"},
+    {"id": "invite_staff", "label": "Invite staff to sites",
+     "description": "Invite teammates via the Team & Roles tab so they can sign in and contribute.",
+     "cta_label": "Invite teammates", "cta_section": "team"},
+    {"id": "set_roles", "label": "Set roles",
+     "description": "Promote site leads to Manager and keep day-to-day staff on Staff.",
+     "cta_label": "Open Team & Roles", "cta_section": "team"},
+    {"id": "upload_logo", "label": "Upload logo",
+     "description": "Your logo brands every invoice, member-facing email, and case page.",
+     "cta_label": "Upload logo", "cta_route": "/dashboard?settings=brand"},
+    {"id": "import_machines", "label": "Import machines to site(s)",
+     "description": "Pull equipment from a supplier invoice (PDF) or upload a CSV.",
+     "cta_label": "Import equipment", "cta_route": "/dashboard?tab=equipment"},
+    {"id": "connect_stripe", "label": "Connect Stripe",
+     "description": "Take memberships, classes, and product payments online.",
+     "cta_label": "Connect Stripe", "cta_route": "/pricing"},
+    {"id": "complete_profile", "label": "Complete profile",
+     "description": "Add your photo and phone so teammates and members recognise you.",
+     "cta_label": "Open Profile", "cta_section": "profile"},
+]
+
+
+@router.get("/account/onboarding")
+async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
+    org_id = user.get("organization_id")
+    if not org_id:
+        return {"steps": [{**s, "completed": False} for s in ONBOARDING_STEPS], "percent": 0}
+
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
+    sites_count = await db.sites.count_documents({"organization_id": org_id})
+    primary_site = await db.sites.find_one({"organization_id": org_id}, {"_id": 0, "address": 1, "address_line1": 1, "name": 1})
+    teammate_count = await db.users.count_documents({
+        "organization_id": org_id, "id": {"$ne": user["id"]},
+    })
+    role_assigned = await db.users.count_documents({
+        "organization_id": org_id, "id": {"$ne": user["id"]},
+        "role": {"$in": ["manager", "staff"]},
+    })
+    equipment_count = await db.equipment.count_documents({"organization_id": org_id})
+    paid_payment = await db.payment_transactions.find_one(
+        {"user_email": user.get("email"), "payment_status": "paid"}, {"_id": 0, "id": 1},
+    )
+    has_stripe = bool(paid_payment) or (org.get("subscription_tier") and org.get("subscription_tier") != "none")
+
+    has_avatar_or_phone = bool(user.get("avatar_url") or user.get("phone"))
+
+    # Derived completion flags.
+    flags = {
+        "site_details": bool(primary_site and (primary_site.get("name") or primary_site.get("address") or primary_site.get("address_line1"))),
+        "extra_sites": sites_count >= 2,
+        "invite_staff": teammate_count >= 1,
+        "set_roles": role_assigned >= 1,
+        "upload_logo": bool(org.get("logo_url")),
+        "import_machines": equipment_count >= 1,
+        "connect_stripe": bool(has_stripe),
+        "complete_profile": has_avatar_or_phone,
+    }
+    steps = [{**s, "completed": flags.get(s["id"], False)} for s in ONBOARDING_STEPS]
+    completed_count = sum(1 for s in steps if s["completed"])
+    return {
+        "steps": steps,
+        "completed_count": completed_count,
+        "total": len(steps),
+        "percent": int(round((completed_count / len(steps)) * 100)) if steps else 0,
+    }
+
+
+# ── Invoice PDF (hybrid: Stripe-hosted → fallback reportlab) ──────
+
+def _generate_invoice_pdf(payment: dict, org: dict) -> bytes:
+    """Generate a simple branded GymAxis invoice PDF in-memory."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=20 * mm, rightMargin=20 * mm,
+                            topMargin=20 * mm, bottomMargin=20 * mm)
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=22, leading=26, textColor=colors.HexColor("#0055FF"))
+    body = styles["BodyText"]
+    muted = ParagraphStyle("muted", parent=body, textColor=colors.HexColor("#52525B"), fontSize=9)
+
+    story = [
+        Paragraph("GymAxis", h1),
+        Paragraph("Invoice", styles["Heading2"]),
+        Spacer(1, 6 * mm),
+    ]
+
+    org_lines = [
+        org.get("name", ""),
+        " ".join(filter(None, [org.get("address_line1", ""), org.get("address_line2", ""), org.get("address_line3", "")])),
+        " ".join(filter(None, [org.get("city", ""), org.get("postcode", "")])),
+        org.get("country", ""),
+    ]
+    story.append(Paragraph("<b>Billed to</b><br/>" + "<br/>".join(filter(None, org_lines)), body))
+    story.append(Spacer(1, 6 * mm))
+
+    created = payment.get("created_at", "")
+    if created and "T" in created:
+        created = created.split("T")[0]
+    meta_table = Table([
+        ["Invoice #", payment.get("session_id", payment.get("id", ""))[:24]],
+        ["Date", created],
+        ["Plan", (payment.get("package_name") or payment.get("package_id") or "Charge")],
+        ["Status", (payment.get("payment_status") or "pending").upper()],
+    ], colWidths=[40 * mm, 110 * mm])
+    meta_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#52525B")),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story += [meta_table, Spacer(1, 8 * mm)]
+
+    amount = float(payment.get("amount") or 0)
+    currency = (payment.get("currency") or "gbp").upper()
+    sym = "£" if currency == "GBP" else "$" if currency == "USD" else (currency + " ")
+    items_table = Table([
+        ["Description", "Amount"],
+        [payment.get("package_name") or payment.get("package_id") or "Subscription charge",
+         f"{sym}{amount:.2f}"],
+        ["", ""],
+        ["Total", f"{sym}{amount:.2f}"],
+    ], colWidths=[120 * mm, 30 * mm])
+    items_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F5F5F7")),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#C4C4CC")),
+        ("LINEBELOW", (0, -2), (-1, -2), 0.5, colors.HexColor("#C4C4CC")),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("ALIGN", (-1, 0), (-1, -1), "RIGHT"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(items_table)
+    story.append(Spacer(1, 12 * mm))
+    story.append(Paragraph(
+        "Thank you for choosing GymAxis. If you have any questions about this invoice, "
+        "reply to this email or contact billing@gymaxisai.com.", muted,
+    ))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+@router.get("/account/billing/{payment_id}/invoice.pdf")
+async def download_invoice_pdf(payment_id: str, user: dict = Depends(get_current_user)):
+    """Hybrid: redirect to Stripe-hosted PDF when available, else generate one locally."""
+    payment = await db.payment_transactions.find_one(
+        {"$or": [{"id": payment_id}, {"session_id": payment_id}]}, {"_id": 0},
+    )
+    if not payment:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    # Authorise: the payer themselves OR a teammate of the same org.
+    paying_email = (payment.get("user_email") or "").lower()
+    own = paying_email == (user.get("email") or "").lower()
+    if not own and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="You cannot view this invoice")
+
+    # Try to surface a Stripe-hosted PDF first.
+    session_id = payment.get("stripe_session_id") or payment.get("session_id")
+    stripe_key = os.environ.get("STRIPE_SECRET_KEY")
+    if session_id and stripe_key:
+        try:
+            import stripe
+            stripe.api_key = stripe_key
+            sess = stripe.checkout.Session.retrieve(session_id, expand=["invoice"])
+            invoice = getattr(sess, "invoice", None)
+            invoice_pdf = getattr(invoice, "invoice_pdf", None) if invoice else None
+            if invoice_pdf:
+                return RedirectResponse(invoice_pdf, status_code=302)
+        except Exception as exc:
+            logger.info(f"[account/invoice] Stripe lookup failed for {session_id}: {exc}")
+
+    # Fallback: generate locally.
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0}) or {}
+    pdf_bytes = _generate_invoice_pdf(payment, org)
+    filename = f"invoice-{(payment.get('id') or session_id or payment_id)[:12]}.pdf"
+    return Response(
+        content=pdf_bytes, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

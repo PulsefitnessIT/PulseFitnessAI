@@ -10,10 +10,10 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  X, User, ShieldCheck, Sliders, CreditCard, Building2, Users,
-  Camera, Trash2, Loader2, Check, Copy, Plus, ArrowUpRight,
+  X, User, ShieldCheck, Sliders, CreditCard, Building2, Users, ListChecks,
+  Camera, Trash2, Loader2, Check, Copy, Plus, ArrowUpRight, FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/App';
@@ -23,6 +23,7 @@ import DigestPreferencesCard from './DigestPreferencesCard';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const SECTIONS = [
   { id: 'profile', label: 'Profile', icon: User },
+  { id: 'onboarding', label: 'Onboarding', icon: ListChecks },
   { id: 'security', label: 'Security', icon: ShieldCheck },
   { id: 'preferences', label: 'Preferences', icon: Sliders },
   { id: 'billing', label: 'Plan & Billing', icon: CreditCard },
@@ -196,6 +197,103 @@ function ProfileSection({ profile, onProfileUpdate }) {
   );
 }
 
+// ─── Onboarding ───────────────────────────────────────────────────
+function OnboardingSection({ onJumpSection, onClose }) {
+  const headers = useAuthHeaders();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data } = await axios.get(`${API}/account/onboarding`, { headers: headers() });
+        if (!cancelled) setData(data);
+      } catch {
+        if (!cancelled) setData({ steps: [], percent: 0 });
+      }
+      if (!cancelled) setLoading(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [headers]);
+
+  const handleStep = (step) => {
+    if (step.cta_section) {
+      onJumpSection(step.cta_section);
+    } else if (step.cta_route) {
+      navigate(step.cta_route);
+      onClose();
+    }
+  };
+
+  if (loading) {
+    return <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>Loading checklist…</div>;
+  }
+  const pct = data?.percent ?? 0;
+  return (
+    <div className="space-y-5" data-testid="account-section-onboarding">
+      <div>
+        <h3 className="account-section-title">Setup checklist</h3>
+        <p className="account-section-sub">
+          {data?.completed_count ?? 0} of {data?.total ?? 0} steps complete — finish them in any order.
+        </p>
+      </div>
+      <div className="rounded-full overflow-hidden h-2 w-full" style={{ background: 'var(--theme-border-soft)' }}>
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, background: 'var(--brand-color, var(--color-brand-blue))' }}
+          data-testid="account-onboarding-progress"
+        />
+      </div>
+      <div className="space-y-2">
+        {(data?.steps || []).map((s) => (
+          <div
+            key={s.id}
+            className="account-card rounded-xl p-4 flex items-start gap-3"
+            data-testid={`account-onboarding-step-${s.id}`}
+            data-completed={s.completed ? 'true' : 'false'}
+          >
+            <div
+              className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{
+                background: s.completed
+                  ? 'var(--brand-color, var(--color-brand-blue))'
+                  : 'transparent',
+                border: s.completed
+                  ? 'none'
+                  : '1.5px solid var(--theme-border)',
+              }}
+            >
+              {s.completed && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div
+                className={`text-sm font-semibold ${s.completed ? 'line-through opacity-60' : ''}`}
+                style={{ color: 'var(--theme-text)' }}
+              >
+                {s.label}
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
+                {s.description}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleStep(s)}
+              className="account-btn-secondary flex-shrink-0"
+              data-testid={`account-onboarding-cta-${s.id}`}
+            >
+              {s.completed ? 'Review' : (s.cta_label || 'Open')}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Security ─────────────────────────────────────────────────────
 function SecuritySection() {
   const headers = useAuthHeaders();
@@ -346,20 +444,63 @@ function BillingSection({ billing, onClose }) {
           {(billing.payment_history || []).length === 0 && (
             <div className="px-4 py-6 text-sm text-center" style={{ color: 'var(--theme-text-muted)' }}>No payments yet.</div>
           )}
-          {(billing.payment_history || []).map((p, idx) => (
-            <div key={idx} className="px-4 py-3 flex items-center justify-between text-sm" data-testid={`account-payment-${idx}`}>
-              <div>
-                <div className="font-medium" style={{ color: 'var(--theme-text)' }}>{p.package_id ? p.package_id.charAt(0).toUpperCase() + p.package_id.slice(1) : 'Charge'}</div>
-                <div className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : ''}</div>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold" style={{ color: 'var(--theme-text)' }}>£{Number(p.amount || 0).toFixed(2)}</div>
-                <div className={`text-[11px] uppercase tracking-wider font-bold ${p.payment_status === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                  {p.payment_status || 'pending'}
+          {(billing.payment_history || []).map((p, idx) => {
+            const invoiceId = p.id || p.session_id;
+            const downloadPdf = async () => {
+              if (!invoiceId) return;
+              const token = localStorage.getItem('token');
+              try {
+                const resp = await fetch(
+                  `${API}/account/billing/${encodeURIComponent(invoiceId)}/invoice.pdf`,
+                  { headers: { Authorization: `Bearer ${token}` } },
+                );
+                if (resp.redirected) {
+                  window.open(resp.url, '_blank', 'noopener');
+                  return;
+                }
+                if (!resp.ok) throw new Error('Download failed');
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `invoice-${String(invoiceId).slice(0, 12)}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                toast.error('Could not download invoice');
+              }
+            };
+            return (
+              <div key={idx} className="px-4 py-3 flex items-center justify-between gap-3 text-sm" data-testid={`account-payment-${idx}`}>
+                <div className="min-w-0">
+                  <div className="font-medium truncate" style={{ color: 'var(--theme-text)' }}>{p.package_id ? p.package_id.charAt(0).toUpperCase() + p.package_id.slice(1) : 'Charge'}</div>
+                  <div className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : ''}</div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="text-right">
+                    <div className="font-semibold" style={{ color: 'var(--theme-text)' }}>£{Number(p.amount || 0).toFixed(2)}</div>
+                    <div className={`text-[11px] uppercase tracking-wider font-bold ${p.payment_status === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                      {p.payment_status || 'pending'}
+                    </div>
+                  </div>
+                  {invoiceId && (
+                    <button
+                      type="button"
+                      onClick={downloadPdf}
+                      className="inline-flex items-center gap-1 text-xs px-2 py-1.5 rounded border transition"
+                      style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+                      title="Download invoice PDF"
+                      data-testid={`account-payment-pdf-${idx}`}
+                    >
+                      <FileText size={12} /> PDF
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -367,55 +508,185 @@ function BillingSection({ billing, onClose }) {
 }
 
 // ─── Organisation ────────────────────────────────────────────────
+// ─── Organisation ────────────────────────────────────────────────
 function OrganisationSection({ billing, profile }) {
-  const [copied, setCopied] = useState(false);
-  if (!billing?.organization) {
+  const headers = useAuthHeaders();
+  const [org, setOrg] = useState(null);
+  const [form, setForm] = useState({
+    address_line1: '', address_line2: '', address_line3: '', city: '',
+    postcode: '', country: '', phone: '', primary_contact_email: '',
+    primary_contact_phone: '', website: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const isOwner = (profile?.role || '').toLowerCase() === 'owner';
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/account/organisation`, { headers: headers() });
+        if (cancelled) return;
+        setOrg(data);
+        setForm({
+          address_line1: data.address_line1 || '',
+          address_line2: data.address_line2 || '',
+          address_line3: data.address_line3 || '',
+          city: data.city || '',
+          postcode: data.postcode || '',
+          country: data.country || '',
+          phone: data.phone || '',
+          primary_contact_email: data.primary_contact_email || '',
+          primary_contact_phone: data.primary_contact_phone || '',
+          website: data.website || '',
+        });
+      } catch {
+        if (!cancelled) setOrg(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [headers]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { data } = await axios.patch(`${API}/account/organisation`, form, { headers: headers() });
+      setOrg(data);
+      toast.success('Organisation details updated');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Update failed');
+    }
+    setSaving(false);
+  };
+
+  if (!org && !billing?.organization) {
     return <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>No organisation linked to this account.</div>;
   }
-  const code = billing.organization_code;
-  const copy = () => {
-    navigator.clipboard.writeText(code || '');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
   return (
     <div className="space-y-5" data-testid="account-section-organisation">
       <div className="account-card rounded-xl p-5">
         <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>Organisation</div>
-        <div className="text-xl font-extrabold" style={{ color: 'var(--theme-text)' }} data-testid="account-org-name">{billing.organization}</div>
-        <div className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>Joined {billing.member_since ? new Date(billing.member_since).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</div>
+        <div className="text-xl font-extrabold" style={{ color: 'var(--theme-text)' }} data-testid="account-org-name">
+          {org?.name || billing?.organization}
+        </div>
+        <div className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+          Joined {billing?.member_since ? new Date(billing.member_since).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+        </div>
       </div>
 
-      {code && (
-        <div className="account-card rounded-xl p-5">
-          <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>Invite code</div>
-          <div className="flex items-center gap-2">
-            <code className="text-lg font-mono" style={{ color: 'var(--brand-color, var(--color-brand-blue))' }} data-testid="account-org-code">{code}</code>
-            <button
-              type="button"
-              onClick={copy}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border"
-              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
-              data-testid="account-org-code-copy"
-            >
-              {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-          <p className="text-[11px] mt-2" style={{ color: 'var(--theme-text-muted)' }}>Share this code with new teammates so they join the right org.</p>
+      <div>
+        <h3 className="account-section-title">Registered address</h3>
+        <p className="account-section-sub">Used on invoices, official emails, and admin records.</p>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FieldRow label="Address line 1">
+            <input
+              type="text" value={form.address_line1}
+              onChange={(e) => update('address_line1', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-address1"
+            />
+          </FieldRow>
+          <FieldRow label="Address line 2">
+            <input
+              type="text" value={form.address_line2}
+              onChange={(e) => update('address_line2', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-address2"
+            />
+          </FieldRow>
+          <FieldRow label="City">
+            <input
+              type="text" value={form.city}
+              onChange={(e) => update('city', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-city"
+            />
+          </FieldRow>
+          <FieldRow label="Postcode">
+            <input
+              type="text" value={form.postcode}
+              onChange={(e) => update('postcode', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-postcode"
+            />
+          </FieldRow>
+          <FieldRow label="Country">
+            <input
+              type="text" value={form.country}
+              onChange={(e) => update('country', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-country"
+            />
+          </FieldRow>
+          <FieldRow label="Website">
+            <input
+              type="url" placeholder="https://" value={form.website}
+              onChange={(e) => update('website', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-website"
+            />
+          </FieldRow>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="account-section-title">Primary contact</h3>
+        <p className="account-section-sub">The point person we email about billing, downtime, and account issues.</p>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FieldRow label="Contact email">
+            <input
+              type="email" value={form.primary_contact_email}
+              onChange={(e) => update('primary_contact_email', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-contact-email"
+            />
+          </FieldRow>
+          <FieldRow label="Contact phone">
+            <input
+              type="tel" value={form.primary_contact_phone}
+              onChange={(e) => update('primary_contact_phone', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-contact-phone"
+            />
+          </FieldRow>
+          <FieldRow label="Main switchboard">
+            <input
+              type="tel" value={form.phone}
+              onChange={(e) => update('phone', e.target.value)}
+              disabled={!isOwner}
+              className="account-input" data-testid="account-org-phone"
+            />
+          </FieldRow>
+        </div>
+      </div>
+
+      {isOwner && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="account-btn-primary"
+            data-testid="account-org-save-btn"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+            Save organisation
+          </button>
         </div>
       )}
-
-      <div className="account-card rounded-xl p-5">
-        <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>Your role</div>
-        <div className="text-base capitalize" style={{ color: 'var(--theme-text)' }} data-testid="account-org-role">{profile?.role || 'staff'}</div>
-        <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>Roles control which workspaces and actions you can access.</p>
-      </div>
+      {!isOwner && (
+        <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+          Only the organisation Owner can edit these details.
+        </p>
+      )}
     </div>
   );
 }
 
 // ─── Team & Roles ─────────────────────────────────────────────────
-function TeamSection({ profile }) {
+function TeamSection({ profile, inviteCode }) {
   const headers = useAuthHeaders();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -423,6 +694,7 @@ function TeamSection({ profile }) {
   const [showInvite, setShowInvite] = useState(false);
   const [form, setForm] = useState({ email: '', full_name: '', role: 'staff' });
   const [tempPwd, setTempPwd] = useState('');
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const isOwner = (profile?.role || '').toLowerCase() === 'owner';
   const isManager = (profile?.role || '').toLowerCase() === 'manager';
@@ -503,6 +775,30 @@ function TeamSection({ profile }) {
           }}
           data-testid="account-team-invite-form"
         >
+          {inviteCode && (
+            <div className="rounded-md p-3" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }}>
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Self-join invite code</div>
+              <div className="flex items-center gap-2">
+                <code className="text-base font-mono" style={{ color: 'var(--brand-color, var(--color-brand-blue))' }} data-testid="account-team-invite-code">{inviteCode}</code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteCode);
+                    setCodeCopied(true);
+                    setTimeout(() => setCodeCopied(false), 1500);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border"
+                  style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+                  data-testid="account-team-invite-code-copy"
+                >
+                  {codeCopied ? <Check size={12} /> : <Copy size={12} />} {codeCopied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+                Share this code so a new teammate can self-join your organisation, or fill in the form below to send a direct invite.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FieldRow label="Full name">
               <input
@@ -735,7 +1031,7 @@ export default function AccountSettingsModal({ open, onClose }) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b account-modal-divider">
           <div>
-            <h2 className="text-base font-bold" style={{ color: 'var(--theme-text)' }}>Account settings</h2>
+            <h2 className="text-base font-bold" style={{ color: 'var(--theme-text)' }}>Account Settings</h2>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>Manage your profile, security, plan and team.</p>
           </div>
           <button
@@ -771,11 +1067,17 @@ export default function AccountSettingsModal({ open, onClose }) {
             {section === 'profile' && (
               <ProfileSection profile={profile} onProfileUpdate={(p) => setProfile((prev) => ({ ...(prev || {}), ...p }))} />
             )}
+            {section === 'onboarding' && (
+              <OnboardingSection
+                onJumpSection={(id) => setSection(id)}
+                onClose={onClose}
+              />
+            )}
             {section === 'security' && <SecuritySection />}
             {section === 'preferences' && <PreferencesSection />}
             {section === 'billing' && <BillingSection billing={billing} onClose={onClose} />}
             {section === 'organisation' && <OrganisationSection billing={billing} profile={profile} />}
-            {section === 'team' && <TeamSection profile={profile} />}
+            {section === 'team' && <TeamSection profile={profile} inviteCode={billing?.organization_code} />}
           </div>
         </div>
       </div>
