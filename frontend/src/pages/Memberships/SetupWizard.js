@@ -36,7 +36,12 @@ const STEPS = [
 ];
 
 export default function SetupWizard() {
-  const { token } = useAuth();
+  // Iter 216aj — AuthContext does NOT expose `token` (only user/login/logout/…);
+  // the previous `const { token } = useAuth()` was always undefined, which is
+  // why the "OPEN WIZARD" button produced an Invalid-Token screen. Pull the
+  // real token from localStorage like every other authenticated page.
+  useAuth(); // still touch the context so the gate stays mounted
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const navigate = useNavigate();
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
