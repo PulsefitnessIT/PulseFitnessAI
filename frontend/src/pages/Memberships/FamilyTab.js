@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
-import { useStudioVocab, capNoun } from '@/hooks/useStudioVocab';
+import { useStudioVocab } from '@/hooks/useStudioVocab';
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'child',     label: 'Child' },
@@ -163,7 +163,11 @@ function SubProfileEditor({ API, headers, onClose }) {
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[color:var(--theme-surface)] dark:bg-zinc-900 z-10">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-brand-cyan)]">Your {vocab.member_plural}</p>
-            <h2 className="text-lg font-extrabold text-white">Add {capNoun(vocab.member_singular).toLowerCase() === 'member' ? 'a person' : `a ${vocab.member_singular}`}</h2>
+            <h2 className="text-lg font-extrabold text-white">
+              {vocab.member_singular === 'member'
+                ? 'Add a person'
+                : `Add ${/^[aeiou]/i.test(vocab.member_singular) ? 'an' : 'a'} ${vocab.member_singular}`}
+            </h2>
           </div>
           <button onClick={() => onClose(false)} className="p-1.5 rounded hover:bg-white/10 text-white/60">
             <X size={14} />

@@ -1,3 +1,40 @@
+## Iteration 216ae — Costume→invoice hook + Vocabulary swap through parent portal (Feb 2026)
+
+**Goal**: Two near-zero-cost compounding wins on top of the Memberships module.
+
+### What shipped
+
+**Compounding win 1 — Costume → invoice line (operations ↔ billing loop closes)**
+- `/app/backend/routes/memberships/studio_billing.py` — new `_append_costume_lines` helper + wired into both `preview_monthly_invoices` and `generate_monthly_invoices`. Costumes with `status ∈ {ordered, arrived, fitted}` and `total_pence > 0` automatically appear as a `kind="costume"` line on the member's monthly invoice (description: `Costume · <name> (size <s>) · <event>`).
+- Idempotency: on finalise, the `event_costumes` row is stamped with `invoiced_on` (period) + `invoice_id`, so re-runs don't double-bill and future months naturally skip already-invoiced costumes. Matches member directly + any of their `member_sub_profiles` (kids).
+
+**Compounding win 2 — Vocabulary swap through 8+ parent-portal strings**
+- `/app/frontend/src/hooks/useStudioVocab.js` — NEW. Module exports `StudioVocabProvider`, `useStudioVocab()`, and a `capNoun()` helper. Safe defaults (`member`/`members`/`guardian`) so a missing vocab API doesn't break copy.
+- `MemberPortal.js` — lifts vocab state (was only inside RequiredFormsBanner), wraps render in `<StudioVocabProvider>`, and swaps:
+  - More sheet "Family accounts" → "Your {member_plural}" (e.g. "Your athletes")
+  - Multi-attendee booking toast: "N bookings made" → "N {member_plural} booked" (single bookings stay as "Booked · <class>")
+- `FamilyTab.js` — swaps 6 strings via `useStudioVocab()`:
+  - `<h2>` title "Family" → "Your {member_plural}"
+  - Description line ("Add kids, partners…")
+  - "Add person" button → "Add {singular}" with vowel-aware article ("Add an athlete" vs "Add a swimmer")
+  - Empty-state headline + body
+  - Sub-profile editor modal header
+  - Remove-confirmation dialog
+
+### Verification
+- `/app/test_reports/iteration_216ae.json` — **17/17 backend tests pass** (preview+generate with/without costumes, idempotency on re-run, next-period exclusion, status='needed'/zero-amount guards, sub-profile roll-up, regression on class/smoothed/sibling lines). **Frontend vocab swap verified**: More sheet shows "Your athletes", FamilyTab title "Your athletes", Add button "Add athlete", empty state + modal header all honour the vocab.
+- Self-verified with curl round-trip: costume created → preview shows no line → status=ordered → preview adds £45 costume line → generate stamps `invoiced_on=2026-05, invoice_id=...` → next-period preview returns 0 invoices. Costume flow is clean.
+- Grammar polish: vowel-aware article added after testing agent caught "Add a athlete".
+
+### Files of reference
+- `/app/backend/routes/memberships/studio_billing.py`
+- `/app/frontend/src/hooks/useStudioVocab.js` (new)
+- `/app/frontend/src/pages/Memberships/MemberPortal.js`
+- `/app/frontend/src/pages/Memberships/FamilyTab.js`
+
+---
+
+
 ## Iteration 216w — Memberships Phase F complete: Staff safeguarding + payroll (Feb 2026)
 
 **Goal**: Close out Phase F of the Memberships → Dance Studio evolution. Capture DBS / safeguarding / first-aid expiry per instructor, expose a substitute pool, and ship a payroll CSV export keyed off completed class occurrences.
