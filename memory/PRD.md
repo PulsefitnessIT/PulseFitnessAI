@@ -11551,3 +11551,67 @@ Frontend:
   bulk bar actions fire, Activity tab renders timeline). Nested-button HTML
   validation warning fixed post-test by restructuring mobile row layout.
 
+
+---
+
+## Iter 216am — Staffing Phase S1: Rota engine + Workforce Dashboard (May 8, 2026)
+
+**Goal (from user):** Evolve the existing Operations → Staffing module into a Connecteam / Deputy / RotaCloud-class workforce platform. Phase 1 of a 6-phase roadmap.
+
+### Delivered
+
+1. **Workforce Dashboard** — new first tab (managers only).
+   - 6 live KPIs: active staff · on-shift now · running late · absent · open shifts today · coverage %.
+   - Week totals: hours · labour cost · overtime hours · avg £/hour.
+   - 7×24 coverage heatmap (Mon→Sun × hour-of-day, fractional staff-hours).
+   - Live on-now roster + upcoming-today panel.
+   - Open-shift backlog (next 14 days, up to 20).
+   - Compliance hot-spots (top 10 conflicts this week).
+   - Auto-refreshes every 60s while tab visible.
+
+2. **Shift Templates** — new tab.
+   - Reusable shift defs (name, role, start/end, break, weekdays, colour, default staff, notes).
+   - CRUD grid + modal editor + "Apply to date range" dialog.
+   - `apply` endpoint materialises one shift per matching weekday, skips existing by default, 90-day max window.
+
+3. **Rota upgrade**.
+   - Drag-and-drop shift reassignment (HTML5 native; no new library). Tiles show grab/grabbing cursors; drop target highlighted with cyan dashed border; optimistic UI with rollback on error.
+   - Bulk conflict detection (`GET /staffing/conflicts?start_date=&end_date=`): overlap (error), rest-gap < min (warning), weekly-hours > max (warning).
+   - Per-shift conflict overlay — tiles with errors get rose tint + border, warnings get amber.
+   - Day totals row with hours (+ £ for managers) below the grid.
+   - Conflict badge in header when any exist.
+
+### New endpoints (all under `/api/staffing/`)
+- `GET    shift-templates`
+- `POST   shift-templates`
+- `PATCH  shift-templates/{id}`
+- `DELETE shift-templates/{id}`  (soft delete)
+- `POST   shift-templates/{id}/apply`
+- `POST   shifts/{id}/move`
+- `GET    conflicts?start_date=&end_date=`
+- `GET    workforce-dashboard`
+
+### New collection
+- `staff_shift_templates` — `{id, organization_id, name, role, start_time, end_time, break_minutes, weekdays, default_staff_id, colour, notes, archived, created_at, ...}`
+
+### Files
+Backend:
+- `/app/backend/routes/staffing.py` (Phase S1 block appended at line 880, total file now 1429 lines; includes `_conflicts_for_range` helper)
+
+Frontend:
+- `/app/frontend/src/pages/LiteDashboard/staffing/WorkforceDashboardTab.js` (new)
+- `/app/frontend/src/pages/LiteDashboard/staffing/ShiftTemplatesTab.js` (new — includes TemplateEditor + ApplyDialog)
+- `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js` (added Dashboard + Templates to TABS_ALL, wired tab switch, rewrote RotaTab with drag-drop + conflicts + day totals)
+
+### Testing
+- Backend: 31/31 pytest cases passed.
+- Frontend: full browser automation pass. All 12 Staffing tabs render; Workforce Dashboard shows KPIs + heatmap + panels; Templates grid + editor + apply verified; Rota drag/drop wiring verified.
+- Report: `/app/test_reports/iteration_216am.json`.
+
+### Phases remaining (S2–S6)
+- S2: Time clock + attendance (mobile/kiosk clock-in, GPS, geofence, timesheets)
+- S3: Internal comms hub (DMs, channels, announcements, push)
+- S4: Tasks + forms + compliance (shift-linked checklists, custom form builder, cert expiry)
+- S5: HR 2.0 + mobile PWA polish (docs, disciplinary, training, offline)
+- S6: AI auto-rota + multi-site hierarchy + Sage payroll
+
