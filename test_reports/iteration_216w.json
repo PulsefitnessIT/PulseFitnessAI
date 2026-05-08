@@ -1,0 +1,102 @@
+{
+  "summary": "Phase F — Staff & Safeguarding testing complete. All 19 backend tests pass. Frontend verified: Instructor Roster view renders with Export payroll button, Payroll modal with date inputs and Download CSV button, Add instructor button opens editor drawer with 'Compliance & pay' tab containing all 9 safeguarding/payroll inputs (DBS reference/issued/expires, Safeguarding completed/expires, First aid completed/expires, Hourly rate, Substitute toggle).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Login via UI",
+        "issue": "Login form submission doesn't redirect after successful API call - had to use localStorage token injection for testing. This may be a pre-existing issue unrelated to Phase F.",
+        "affected_selectors": ["button:has-text('Sign In')"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216w_phase_f_safeguarding.py",
+    "/app/test_reports/pytest/pytest_results_216w.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "instructors.py: Static routes (/substitutes, /compliance, /payroll.csv) correctly declared BEFORE dynamic /{instructor_id} route to avoid shadowing",
+    "_compliance_status helper correctly computes traffic-light status (green/amber/red/missing) based on expiry dates with 60-day amber threshold",
+    "InstructorPatch model now includes all Phase F fields (dbs_reference, dbs_issued_on, dbs_expires_on, safeguarding_*, first_aid_*, hourly_rate_pence, substitute_available)",
+    "Payroll CSV endpoint validates date format and returns 400 for malformed dates",
+    "InstructorRosterView.js: All Phase F UI elements have proper data-testid attributes for testing"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216w_phase_f_safeguarding.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (all Phase F UI elements verified)"
+  },
+  "test_credentials": {
+    "operator": "bob@knockers.com / Test123!"
+  },
+  "seed_data_creation": "Created TEST_PhaseF_Instructor and TEST_RouteShadow_Instructor during backend tests (cleaned up after tests)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase F features verified: (1) GET /api/memberships/instructors/substitutes returns 200 with compliance object per row, respects ?specialty= and ?discipline= filters, (2) GET /api/memberships/instructors/compliance returns 200 with summary counts (green/amber/red/missing/total), (3) GET /api/memberships/instructors/payroll.csv returns text/csv with correct headers and TOTAL row, 400 for malformed dates, (4) POST/PATCH instructor accepts and persists all Phase F fields (dbs_*, safeguarding_*, first_aid_*, hourly_rate_pence, substitute_available), (5) Setting substitute_available=false hides instructor from /substitutes, (6) Regression: /performance and /{instructor_id} routes still work, (7) Frontend: Export payroll button opens modal with date inputs and Download CSV button, (8) Frontend: Add instructor drawer has 'Compliance & pay' tab with all 9 safeguarding/payroll inputs.",
+  "features_verified": {
+    "backend_substitutes_endpoint": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/instructors/substitutes returns 200 with {substitutes: [...], count: N}, each row has compliance object with status in (green, amber, red, missing)"
+    },
+    "backend_substitutes_filters": {
+      "status": "PASS",
+      "evidence": "?specialty= and ?discipline= query params filter results correctly"
+    },
+    "backend_compliance_endpoint": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/instructors/compliance returns 200 with {compliance: [...], summary: {green, amber, red, missing, total}}"
+    },
+    "backend_payroll_csv": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/instructors/payroll.csv returns text/csv with headers 'Instructor,Email,Classes completed,Minutes taught,Hourly rate (GBP),Pay (GBP)' and TOTAL row"
+    },
+    "backend_payroll_csv_validation": {
+      "status": "PASS",
+      "evidence": "Returns 400 for malformed date_from/date_to parameters"
+    },
+    "backend_create_instructor_phase_f_fields": {
+      "status": "PASS",
+      "evidence": "POST /api/memberships/instructors accepts dbs_reference, dbs_issued_on, dbs_expires_on, safeguarding_*, first_aid_*, hourly_rate_pence, substitute_available"
+    },
+    "backend_patch_instructor_phase_f_fields": {
+      "status": "PASS",
+      "evidence": "PATCH /api/memberships/instructors/{id} updates and persists all Phase F fields"
+    },
+    "backend_substitute_available_toggle": {
+      "status": "PASS",
+      "evidence": "Setting substitute_available=false removes instructor from /substitutes endpoint"
+    },
+    "backend_regression_performance": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/instructors/performance still returns {rows: [...]} with expected shape"
+    },
+    "backend_regression_dynamic_route": {
+      "status": "PASS",
+      "evidence": "GET /api/memberships/instructors/{id} returns 200 with full instructor doc - static routes don't shadow dynamic route"
+    },
+    "frontend_roster_view": {
+      "status": "PASS",
+      "evidence": "Instructor Roster view renders with 'Export payroll' and 'Add instructor' buttons"
+    },
+    "frontend_payroll_modal": {
+      "status": "PASS",
+      "evidence": "Export payroll button opens modal (data-testid='mbr-payroll-modal') with FROM/TO date inputs and Download CSV button"
+    },
+    "frontend_compliance_pay_tab": {
+      "status": "PASS",
+      "evidence": "Editor drawer has 'Compliance & pay' tab (data-testid='mbr-instructor-tab-safeguarding')"
+    },
+    "frontend_safeguarding_inputs": {
+      "status": "PASS",
+      "evidence": "Found 9/9 inputs: DBS reference/issued/expires, Safeguarding completed/expires, First aid completed/expires, Hourly rate, Substitute toggle"
+    }
+  }
+}

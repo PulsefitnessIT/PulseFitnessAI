@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Plus, Edit3, Image as ImageIcon, ExternalLink, Copy, X, Eye, EyeOff, Trash2, Upload, Link as LinkIcon, Mail, AlertTriangle, MapPin } from 'lucide-react';
+import { Plus, Edit3, Image as ImageIcon, ExternalLink, Copy, X, Eye, EyeOff, Trash2, Upload, Link as LinkIcon, Mail, AlertTriangle, MapPin, ShieldCheck, PoundSterling, Download, CalendarDays } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
@@ -20,6 +20,11 @@ const empty = () => ({
   dob: '', address_line1: '', address_line2: '', city: '', postcode: '', country: '',
   emergency_contact_name: '', emergency_contact_phone: '',
   notes: '', tags: [],
+  // Iter 216ae — Phase F: safeguarding & payroll.
+  dbs_reference: '', dbs_issued_on: '', dbs_expires_on: '',
+  safeguarding_completed_on: '', safeguarding_expires_on: '',
+  first_aid_completed_on: '', first_aid_expires_on: '',
+  hourly_rate_pence: '', substitute_available: true,
 });
 
 function calcAge(dob) {
@@ -40,15 +45,27 @@ async function fileToDataUrl(file) {
 
 export default function InstructorRosterView({ API, headers }) {
   const [rows, setRows] = useState([]);
+  const [compMap, setCompMap] = useState({}); // id -> compliance
+  const [compSummary, setCompSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | 'new' | <instructorDoc>
   const [orgSlug, setOrgSlug] = useState(null);
+  const [showPayroll, setShowPayroll] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/memberships/instructors`, { headers });
-      setRows(data.instructors || []);
+      const [{ data: r1 }, compR] = await Promise.all([
+        axios.get(`${API}/memberships/instructors`, { headers }),
+        axios.get(`${API}/memberships/instructors/compliance`, { headers }).catch(() => null),
+      ]);
+      setRows(r1.instructors || []);
+      if (compR?.data) {
+        const map = {};
+        (compR.data.compliance || []).forEach((c) => { map[c.id] = c.compliance; });
+        setCompMap(map);
+        setCompSummary(compR.data.summary || null);
+      }
     } catch (e) {
       notifyApiError(notify, e, 'Failed to load instructors');
     } finally { setLoading(false); }
@@ -74,13 +91,29 @@ export default function InstructorRosterView({ API, headers }) {
             Give each instructor their own bio page. Photos, specialties, social links — a shareable mini-site that sells their classes.
           </p>
         </div>
-        <button onClick={() => setEditing('new')}
-          className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-extrabold"
-          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
-          data-testid="mbr-instructor-add">
-          <Plus size={13} /> Add instructor
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setShowPayroll(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-extrabold border border-[color:var(--theme-border)] hover:bg-white/5"
+            data-testid="mbr-instructor-payroll-btn">
+            <PoundSterling size={13} /> Export payroll
+          </button>
+          <button onClick={() => setEditing('new')}
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-extrabold"
+            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+            data-testid="mbr-instructor-add">
+            <Plus size={13} /> Add instructor
+          </button>
+        </div>
       </div>
+
+      {compSummary && compSummary.total > 0 && (
+        <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="mbr-instructor-compliance-strip">
+          <ComplianceKpi label="Compliant" value={compSummary.green} tone="green" />
+          <ComplianceKpi label="Expiring soon" value={compSummary.amber} tone="amber" />
+          <ComplianceKpi label="Expired" value={compSummary.red} tone="red" />
+          <ComplianceKpi label="Missing" value={compSummary.missing} tone="missing" />
+        </div>
+      )}
 
       {loading ? (
         <div className="p-8 text-center text-sm text-[color:var(--theme-text-muted)]">Loading…</div>
@@ -129,6 +162,10 @@ export default function InstructorRosterView({ API, headers }) {
                   </div>
                 )}
 
+                {compMap[inst.id] && (
+                  <ComplianceBadge comp={compMap[inst.id]} testid={`mbr-instructor-comp-${inst.id}`} />
+                )}
+
                 <div className="flex items-center gap-1.5 pt-2 border-t border-[color:var(--theme-border)] mt-auto">
                   <button onClick={() => setEditing(inst)}
                     className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-bold rounded-lg border border-[color:var(--theme-border)] hover:bg-white/5"
@@ -163,8 +200,139 @@ export default function InstructorRosterView({ API, headers }) {
         <EditorDrawer API={API} headers={headers} initial={editing === 'new' ? empty() : editing}
           onClose={(changed) => { setEditing(null); if (changed) load(); }} />
       )}
+
+      {showPayroll && (
+        <PayrollExportModal API={API} headers={headers}
+          onClose={() => setShowPayroll(false)} />
+      )}
     </div>
   );
+}
+
+/* ───────────── Compliance helpers (Phase F) ───────────── */
+
+const TONE_STYLES = {
+  green: { bg: 'rgba(16,185,129,0.12)', fg: '#10b981', label: 'Compliant' },
+  amber: { bg: 'rgba(245,158,11,0.14)', fg: '#f59e0b', label: 'Expiring' },
+  red: { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444', label: 'Expired' },
+  missing: { bg: 'rgba(148,163,184,0.12)', fg: '#94a3b8', label: 'Missing' },
+};
+
+function ComplianceKpi({ label, value, tone }) {
+  const s = TONE_STYLES[tone] || TONE_STYLES.missing;
+  return (
+    <div className="rounded-lg p-2.5" style={{ background: s.bg, border: `1px solid ${s.fg}30` }}
+      data-testid={`mbr-instructor-kpi-${tone}`}>
+      <p className="text-[9px] uppercase tracking-wider font-bold" style={{ color: s.fg }}>{label}</p>
+      <p className="text-lg font-extrabold mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+function ComplianceBadge({ comp, testid }) {
+  const s = TONE_STYLES[comp.status] || TONE_STYLES.missing;
+  const tip = (comp.items || [])
+    .map((i) => `${i.label}: ${i.expires_on || 'not recorded'}${i.status === 'red' ? ' (expired)' : i.status === 'amber' ? ' (soon)' : ''}`)
+    .join(' · ');
+  return (
+    <div
+      className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md"
+      style={{ background: s.bg, color: s.fg, border: `1px solid ${s.fg}30` }}
+      title={tip}
+      data-testid={testid}>
+      <ShieldCheck size={11} /> {s.label}
+      {comp.earliest_expiry && (
+        <span className="opacity-70 font-normal ml-1">· earliest {comp.earliest_expiry}</span>
+      )}
+    </div>
+  );
+}
+
+/* ───────────── Payroll Export Modal (Phase F) ───────────── */
+
+function PayrollExportModal({ API, headers, onClose }) {
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const firstOfMonth = (() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); })();
+  const [from, setFrom] = useState(firstOfMonth);
+  const [to, setTo] = useState(todayISO);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    if (!from || !to) { notify.error('Pick both dates'); return; }
+    setBusy(true);
+    try {
+      const res = await axios.get(
+        `${API}/memberships/instructors/payroll.csv`,
+        { headers, params: { date_from: from, date_to: to }, responseType: 'blob' },
+      );
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payroll-${from}-to-${to}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      notify.success('Payroll CSV downloaded');
+      onClose();
+    } catch (e) {
+      notifyApiError(notify, e, 'Payroll export failed');
+    } finally { setBusy(false); }
+  };
+
+  return createPortal((
+    <div className="fixed inset-0 z-[110] bg-black/50 grid place-items-center p-4" onClick={onClose} data-testid="mbr-payroll-modal">
+      <div className="w-full max-w-md rounded-2xl border border-[color:var(--theme-border)] bg-[color:var(--theme-surface)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--color-brand-cyan)]">Payroll export</p>
+            <h3 className="text-lg font-extrabold">Download CSV</h3>
+            <p className="text-xs text-[color:var(--theme-text-muted)] mt-1">
+              Aggregates completed classes by instructor. Pay is computed from class rate → instructor hourly × duration.
+            </p>
+          </div>
+          <button onClick={onClose} className="h-9 w-9 rounded-full grid place-items-center border border-[color:var(--theme-border)] hover:bg-white/5">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <label className="block">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">From</span>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg bg-transparent border border-[color:var(--theme-border)] text-sm"
+              data-testid="mbr-payroll-from" />
+          </label>
+          <label className="block">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">To</span>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg bg-transparent border border-[color:var(--theme-border)] text-sm"
+              data-testid="mbr-payroll-to" />
+          </label>
+        </div>
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+          {[
+            { label: 'This month', f: firstOfMonth, t: todayISO },
+            { label: 'Last 30d', f: new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10), t: todayISO },
+            { label: 'YTD', f: `${new Date().getFullYear()}-01-01`, t: todayISO },
+          ].map((p) => (
+            <button key={p.label} type="button" onClick={() => { setFrom(p.f); setTo(p.t); }}
+              className="text-[10px] font-bold px-2 py-1 rounded border border-[color:var(--theme-border)] hover:bg-white/5 inline-flex items-center gap-1">
+              <CalendarDays size={10} /> {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} className="px-3 py-2 text-xs font-bold rounded-lg border border-[color:var(--theme-border)] hover:bg-white/5">Cancel</button>
+          <button onClick={run} disabled={busy}
+            className="px-4 py-2 text-xs font-extrabold rounded-lg inline-flex items-center gap-1 disabled:opacity-50"
+            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+            data-testid="mbr-payroll-run">
+            <Download size={12} /> {busy ? 'Generating…' : 'Download CSV'}
+          </button>
+        </div>
+      </div>
+    </div>
+  ), document.body);
 }
 
 function ListInput({ value, onChange, placeholder, testid }) {
@@ -263,6 +431,9 @@ function EditorDrawer({ API, headers, initial, onClose }) {
       const payload = {
         ...f,
         years_experience: f.years_experience === '' ? null : Number(f.years_experience),
+        hourly_rate_pence: f.hourly_rate_pence === '' || f.hourly_rate_pence === null || f.hourly_rate_pence === undefined
+          ? null
+          : Number(f.hourly_rate_pence),
       };
       if (isNew) {
         await axios.post(`${API}/memberships/instructors`, payload, { headers });
@@ -308,6 +479,7 @@ function EditorDrawer({ API, headers, initial, onClose }) {
     { id: 'profile',  label: 'Profile' },
     { id: 'public',   label: 'Public bio' },
     { id: 'social',   label: 'Social' },
+    { id: 'safeguarding', label: 'Compliance & pay' },
   ];
 
   const Field = ({ label, hint, children, span = 1 }) => (
@@ -457,6 +629,79 @@ function EditorDrawer({ API, headers, initial, onClose }) {
                 </div>
               ))}
             </fieldset>
+          )}
+
+          {tab === 'safeguarding' && (
+            <>
+              <div className="rounded-lg border border-[color:var(--theme-border)] p-4 space-y-3" data-testid="mbr-instructor-safeguarding">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] flex items-center gap-1.5">
+                  <ShieldCheck size={11} /> DBS check
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="DBS reference">
+                    <input type="text" value={f.dbs_reference || ''} onChange={(e) => up('dbs_reference')(e.target.value)} className={inputClass} placeholder="e.g. 001234567890" data-testid="mbr-instructor-dbs-ref" />
+                  </Field>
+                  <Field label="Issued on">
+                    <input type="date" value={(f.dbs_issued_on || '').slice(0, 10)} onChange={(e) => up('dbs_issued_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-dbs-issued" />
+                  </Field>
+                  <Field label="Expires on" span={2}>
+                    <input type="date" value={(f.dbs_expires_on || '').slice(0, 10)} onChange={(e) => up('dbs_expires_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-dbs-expires" />
+                  </Field>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[color:var(--theme-border)] p-4 space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] flex items-center gap-1.5">
+                  <ShieldCheck size={11} /> Safeguarding training
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Completed on">
+                    <input type="date" value={(f.safeguarding_completed_on || '').slice(0, 10)} onChange={(e) => up('safeguarding_completed_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-sg-completed" />
+                  </Field>
+                  <Field label="Expires on">
+                    <input type="date" value={(f.safeguarding_expires_on || '').slice(0, 10)} onChange={(e) => up('safeguarding_expires_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-sg-expires" />
+                  </Field>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[color:var(--theme-border)] p-4 space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] flex items-center gap-1.5">
+                  <AlertTriangle size={11} /> First aid certificate
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Completed on">
+                    <input type="date" value={(f.first_aid_completed_on || '').slice(0, 10)} onChange={(e) => up('first_aid_completed_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-fa-completed" />
+                  </Field>
+                  <Field label="Expires on">
+                    <input type="date" value={(f.first_aid_expires_on || '').slice(0, 10)} onChange={(e) => up('first_aid_expires_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-fa-expires" />
+                  </Field>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[color:var(--theme-border)] p-4 space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] flex items-center gap-1.5">
+                  <PoundSterling size={11} /> Payroll
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Hourly rate (GBP)" hint="Used when a class has no flat rate set on the template.">
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={f.hourly_rate_pence === '' || f.hourly_rate_pence == null ? '' : (Number(f.hourly_rate_pence) / 100).toFixed(2)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        up('hourly_rate_pence')(v === '' ? '' : Math.round(Number(v) * 100));
+                      }}
+                      className={inputClass} placeholder="e.g. 35.00" data-testid="mbr-instructor-hourly-rate" />
+                  </Field>
+                </div>
+                <label className="flex items-center gap-2 text-sm mt-2">
+                  <input type="checkbox" checked={f.substitute_available !== false}
+                    onChange={(e) => up('substitute_available')(e.target.checked)}
+                    data-testid="mbr-instructor-substitute-toggle" />
+                  <span className="text-[color:var(--theme-text)]">Available as a substitute / for cover</span>
+                </label>
+              </div>
+            </>
           )}
         </div>
 

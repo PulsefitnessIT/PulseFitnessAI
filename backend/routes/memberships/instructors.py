@@ -139,6 +139,16 @@ class InstructorPatch(BaseModel):
     emergency_contact_phone: Optional[str] = None
     notes: Optional[str] = None
     tags: Optional[list[str]] = None
+    # Iter 216ae — Phase F safeguarding & payroll fields (patch variant).
+    dbs_reference: Optional[str] = None
+    dbs_issued_on: Optional[str] = None
+    dbs_expires_on: Optional[str] = None
+    safeguarding_completed_on: Optional[str] = None
+    safeguarding_expires_on: Optional[str] = None
+    first_aid_completed_on: Optional[str] = None
+    first_aid_expires_on: Optional[str] = None
+    hourly_rate_pence: Optional[int] = None
+    substitute_available: Optional[bool] = None
 
 
 # ═══════════════════════════════ Helpers ═══════════════════════════════
@@ -200,6 +210,247 @@ async def list_instructors(user: dict = Depends(get_current_user)):
         {"organization_id": org_id, "archived": {"$ne": True}}, {"_id": 0},
     ).sort("name", 1).to_list(500)
     return {"instructors": rows}
+
+
+# ═════════════════════ Phase F: compliance / payroll / substitutes ═════════════════════
+# IMPORTANT: declared before the `/{instructor_id}` dynamic routes so FastAPI
+# matches the static paths first.
+
+
+def _compliance_status(inst: dict) -> dict:
+    """Traffic-light status for DBS / safeguarding / first-aid.
+    Returns: { status: 'green'|'amber'|'red'|'missing', earliest_expiry, items: [...] }.
+    Amber = expires within 60 days. Red = already expired."""
+    today = datetime.now(timezone.utc).date()
+    soon_days = 60
+    items: list[dict] = []
+    statuses: list[str] = []
+    earliest: str | None = None
+    for label, key in [
+        ("DBS", "dbs_expires_on"),
+        ("Safeguarding", "safeguarding_expires_on"),
+        ("First aid", "first_aid_expires_on"),
+    ]:
+        val = inst.get(key)
+        if not val:
+            items.append({"label": label, "expires_on": None, "status": "missing"})
+            statuses.append("missing")
+            continue
+        try:
+            d = datetime.fromisoformat(str(val)[:10]).date()
+        except (ValueError, TypeError):
+            items.append({"label": label, "expires_on": val, "status": "missing"})
+            statuses.append("missing")
+            continue
+        delta = (d - today).days
+        s = "red" if delta < 0 else ("amber" if delta <= soon_days else "green")
+        items.append({"label": label, "expires_on": val, "status": s, "days": delta})
+        statuses.append(s)
+        if earliest is None or str(val) < earliest:
+            earliest = str(val)
+    order = {"red": 3, "missing": 2, "amber": 1, "green": 0}
+    overall = max(statuses, key=lambda x: order[x]) if statuses else "missing"
+    return {"status": overall, "earliest_expiry": earliest, "items": items}
+
+
+@router.get(
+    "/memberships/instructors/substitutes",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def list_substitutes(
+    discipline: Optional[str] = None,
+    specialty: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Substitute pool — instructors flagged as available for cover,
+    filtered by optional discipline/specialty. Annotates each row with
+    compliance traffic-light so dispatchers can skip red/expired subs."""
+    org_id = await _require_operator_org(user)
+    rows = await db.membership_instructors.find(
+        {"organization_id": org_id,
+         "archived": {"$ne": True},
+         "substitute_available": {"$ne": False}},
+        {"_id": 0},
+    ).sort("name", 1).to_list(500)
+    needle = (discipline or specialty or "").strip().lower()
+    out: list[dict] = []
+    for r in rows:
+        if needle:
+            specs = [s.lower() for s in (r.get("specialties") or [])]
+            quals = [s.lower() for s in (r.get("qualifications") or [])]
+            if needle not in specs and needle not in quals:
+                continue
+        r["compliance"] = _compliance_status(r)
+        out.append(r)
+    order = {"green": 0, "amber": 1, "missing": 2, "red": 3}
+    out.sort(key=lambda x: (order.get(x["compliance"]["status"], 4), x.get("name") or ""))
+    return {"substitutes": out, "count": len(out)}
+
+
+@router.get(
+    "/memberships/instructors/compliance",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def list_instructor_compliance(user: dict = Depends(get_current_user)):
+    """Compliance overview for all instructors — used by the roster badges
+    and by an operator KPI strip."""
+    org_id = await _require_operator_org(user)
+    rows = await db.membership_instructors.find(
+        {"organization_id": org_id, "archived": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1, "dbs_expires_on": 1,
+         "safeguarding_expires_on": 1, "first_aid_expires_on": 1,
+         "substitute_available": 1},
+    ).to_list(500)
+    summary = {"green": 0, "amber": 0, "red": 0, "missing": 0, "total": len(rows)}
+    out: list[dict] = []
+    for r in rows:
+        c = _compliance_status(r)
+        summary[c["status"]] = summary.get(c["status"], 0) + 1
+        out.append({
+            "id": r["id"], "name": r.get("name"),
+            "substitute_available": r.get("substitute_available", True),
+            "compliance": c,
+        })
+    return {"compliance": out, "summary": summary}
+
+
+@router.get(
+    "/memberships/instructors/payroll.csv",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def payroll_csv(
+    date_from: str,
+    date_to: str,
+    user: dict = Depends(get_current_user),
+):
+    """Payroll CSV: aggregates completed class occurrences in the window
+    and computes pay per instructor. Resolution order for rate:
+      1. class_templates.instructor_rate_pence (flat per class)
+      2. membership_instructors.hourly_rate_pence × (duration_min / 60)
+      3. users.instructor_rate_pence (flat per class, legacy)
+    Headers: Instructor, Email, Classes completed, Minutes taught, Hourly rate (GBP), Pay (GBP)."""
+    import csv
+    from io import StringIO
+
+    org_id = await _require_operator_org(user)
+    try:
+        df = datetime.fromisoformat(f"{date_from[:10]}T00:00:00+00:00")
+        dt = datetime.fromisoformat(f"{date_to[:10]}T23:59:59+00:00")
+    except ValueError:
+        raise HTTPException(400, "date_from and date_to must be YYYY-MM-DD")
+
+    occs = await db.class_occurrences.find(
+        {"organization_id": org_id,
+         "starts_at": {"$gte": df.isoformat(), "$lte": dt.isoformat()},
+         "status": "completed",
+         "instructor_user_id": {"$exists": True, "$ne": None}},
+        {"_id": 0, "id": 1, "instructor_user_id": 1, "instructor_name": 1,
+         "template_id": 1, "starts_at": 1, "ends_at": 1, "duration_min": 1},
+    ).to_list(5000)
+
+    tpl_ids = list({o.get("template_id") for o in occs if o.get("template_id")})
+    tpl_rates: dict[str, int] = {}
+    tpl_durations: dict[str, int] = {}
+    if tpl_ids:
+        async for t in db.class_templates.find(
+            {"id": {"$in": tpl_ids}},
+            {"_id": 0, "id": 1, "instructor_rate_pence": 1, "duration_min": 1},
+        ):
+            if t.get("instructor_rate_pence"):
+                tpl_rates[t["id"]] = int(t["instructor_rate_pence"])
+            if t.get("duration_min"):
+                tpl_durations[t["id"]] = int(t["duration_min"])
+
+    user_ids = list({o["instructor_user_id"] for o in occs if o.get("instructor_user_id")})
+    insts: dict[str, dict] = {}
+    user_rates: dict[str, int] = {}
+    user_emails: dict[str, str] = {}
+    user_names: dict[str, str] = {}
+    if user_ids:
+        async for inst in db.membership_instructors.find(
+            {"organization_id": org_id, "user_id": {"$in": user_ids}, "archived": {"$ne": True}},
+            {"_id": 0, "user_id": 1, "name": 1, "email": 1, "hourly_rate_pence": 1},
+        ):
+            insts[inst["user_id"]] = inst
+        async for u in db.users.find(
+            {"id": {"$in": user_ids}},
+            {"_id": 0, "id": 1, "first_name": 1, "last_name": 1,
+             "email": 1, "instructor_rate_pence": 1},
+        ):
+            user_rates[u["id"]] = int(u.get("instructor_rate_pence") or 0)
+            user_emails[u["id"]] = u.get("email") or ""
+            user_names[u["id"]] = (
+                (u.get("first_name") or "") + " " + (u.get("last_name") or "")
+            ).strip()
+
+    def _duration_min(o: dict) -> int:
+        if o.get("duration_min"):
+            return int(o["duration_min"])
+        if o.get("template_id") and tpl_durations.get(o["template_id"]):
+            return tpl_durations[o["template_id"]]
+        try:
+            start = datetime.fromisoformat(o["starts_at"])
+            end = datetime.fromisoformat(o["ends_at"])
+            return max(int((end - start).total_seconds() // 60), 0)
+        except (KeyError, ValueError, TypeError):
+            return 60
+
+    agg: dict[str, dict] = {}
+    for o in occs:
+        uid = o["instructor_user_id"]
+        a = agg.setdefault(uid, {
+            "name": (insts.get(uid, {}).get("name")
+                     or user_names.get(uid)
+                     or o.get("instructor_name") or "Instructor"),
+            "email": (insts.get(uid, {}).get("email")
+                      or user_emails.get(uid) or ""),
+            "hourly_rate_pence": insts.get(uid, {}).get("hourly_rate_pence"),
+            "classes": 0,
+            "minutes": 0,
+            "pay_pence": 0,
+        })
+        a["classes"] += 1
+        mins = _duration_min(o)
+        a["minutes"] += mins
+        flat = tpl_rates.get(o.get("template_id") or "")
+        if flat:
+            a["pay_pence"] += int(flat)
+        elif a.get("hourly_rate_pence"):
+            a["pay_pence"] += int(round(a["hourly_rate_pence"] * mins / 60.0))
+        elif user_rates.get(uid):
+            a["pay_pence"] += int(user_rates[uid])
+
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow([
+        "Instructor", "Email", "Classes completed", "Minutes taught",
+        "Hourly rate (GBP)", "Pay (GBP)",
+    ])
+    rows_sorted = sorted(agg.values(), key=lambda r: -r["pay_pence"])
+    total_pay = 0
+    total_classes = 0
+    total_minutes = 0
+    for r in rows_sorted:
+        hr = f"{(r['hourly_rate_pence'] or 0) / 100:.2f}" if r.get("hourly_rate_pence") else ""
+        w.writerow([
+            r["name"], r["email"], r["classes"], r["minutes"],
+            hr, f"{r['pay_pence'] / 100:.2f}",
+        ])
+        total_pay += r["pay_pence"]
+        total_classes += r["classes"]
+        total_minutes += r["minutes"]
+    w.writerow(["TOTAL", "", total_classes, total_minutes, "", f"{total_pay / 100:.2f}"])
+
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1}) or {}
+    filename = (
+        f"payroll-{(org.get('name') or 'studio').lower().replace(' ', '-')}-"
+        f"{date_from[:10]}-to-{date_to[:10]}.csv"
+    )
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post(
