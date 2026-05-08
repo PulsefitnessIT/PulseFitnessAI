@@ -148,6 +148,16 @@ async def health_root() -> dict:
     return {"status": "ok"}
 
 
+# Unprefixed root-level liveness probe for Kubernetes / Emergent native
+# deployment. The platform's internal probe hits `GET /health` (no `/api`
+# prefix) on every pod; without this route it returns 404 and the deploy
+# is marked unhealthy. Mirroring the body of /api/health keeps both paths
+# trivially in sync.
+@app.get("/health")
+async def health_root_unprefixed() -> dict:
+    return {"status": "ok"}
+
+
 @api_router.get("/health/deep")
 async def health_deep() -> dict:
     """Iter 215bt — Deep health check for production monitoring.
