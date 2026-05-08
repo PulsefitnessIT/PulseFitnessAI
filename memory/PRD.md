@@ -1,3 +1,29 @@
+## Iteration 216ai — Sprint A #6: Merged Classes & Timetable tab (Feb 2026)
+
+**Goal**: Kill the three-tab overlap (Studio Builder / Classes / Timetable) that confused the user in their review. Collapse everything scheduling-related into one top-level pill with internal sub-pills.
+
+### What shipped
+
+**Frontend — `MembershipsConsole.js`**
+- Removed the `studio-builder`, `timetable`, `classes` entries from the top `TABS` list.
+- Added a single `schedule` entry labelled **"Classes & Timetable"** (icon: Calendar).
+- New `<SchedulingHubTab>` component with 3 sub-pills: **Timetable** (default) · **Weekly builder** · **All classes**. Each pill swaps in the original `TimetableTab` / `StudioBuilderTab` / `ClassesTab` component unchanged — zero regression on Iter 216ah features (drag-drop optimistic update, '+ New class', edit-in-place, operator booking picker).
+- Deep-link safety: old tab values (`studio-builder` / `timetable` / `classes`) still route to the hub. The hub reads `activeTabHint` and preselects the correct sub-pill so Start-checklist CTAs and bookmarked URLs still land where they expect.
+- `STUDIO_TAB_IDS` extended to keep Studio Mode (5-tab layout) aware of both the new `schedule` ID and the legacy IDs.
+
+**Backend — `studio.py`**
+- Onboarding checklist: `create_class` step `cta_label` updated from "Open Studio Builder" → **"Open Weekly builder"** to match the new sub-pill name.
+
+### Verification
+- `/app/test_reports/iteration_216ai.json` — **100% backend + 100% frontend PASS**, zero issues. Merged tab renders, sub-pills swap content correctly, every deep-link route tested.
+
+### Files of reference
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js`
+- `/app/backend/routes/memberships/studio.py`
+
+---
+
+
 ## Iteration 216ah — Sprint A: Memberships daily-workflow fixes (Feb 2026)
 
 **Goal**: Close the 5 most painful day-to-day workflow gaps the user flagged in a review (see ASK_HUMAN 216af/216ag trail): Start tab not a checklist, no "+ New class" path, timetable classes not editable in place, no operator-booking, drag-drop scroll jump.
