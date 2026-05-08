@@ -260,19 +260,41 @@ async def record_payment(
 # ═════════════════════ White-label member-app branding ═════════════════════
 
 @router.get("/m/{slug}/branding")
-async def public_branding(slug: str):
+async def public_branding(slug: str, site: str | None = None):
     """Public endpoint used by the member-facing app shell to render with
-    the right gym's logo and colour BEFORE the member logs in."""
+    the right gym's logo and colour BEFORE the member logs in.
+
+    Iter 216af — an optional ``?site=<site_id|site_code>`` lets a multi-site
+    operator return branding scoped to a specific venue (e.g. iGym vs
+    Pulse under the same parent org). Falls back to org-level when the
+    site has no override or the param isn't supplied.
+    """
     org = await db.organizations.find_one({"slug": slug}, {"_id": 0})
     if not org:
         raise HTTPException(404, "Studio not found")
+
+    site_doc: dict | None = None
+    if site:
+        site_doc = await db.sites.find_one(
+            {"organization_id": org["id"],
+             "$or": [{"id": site}, {"site_code": site}, {"slug": site}]},
+            {"_id": 0},
+        )
+    # Resolve via the parent-child inheritance helper so there's ONE source
+    # of truth for how branding cascades between org and site docs.
+    from routes.sites import _effective_site_branding
+    eff = _effective_site_branding(org, site_doc)
     return {
         "organization_id": org["id"],
-        "name": org.get("name"),
+        "name": eff["name"] or org.get("name"),
         "slug": org.get("slug"),
-        "logo_url": org.get("logo_url"),
-        "primary_brand_colour": org.get("primary_brand_colour") or "#19CDFF",
+        "logo_url": eff["logo_url"] or org.get("logo_url"),
+        "primary_brand_colour": eff["primary_color"] or "#19CDFF",
+        "secondary_color": eff["secondary_color"] or "",
         "currency": org.get("currency") or "GBP",
+        "site_id": (site_doc or {}).get("id"),
+        "site_name": (site_doc or {}).get("name"),
+        "branding_source": "site" if site_doc and site_doc.get("branding") else "organization",
     }
 
 

@@ -11,12 +11,13 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   Users, UserPlus, Copy, Crown, Shield, User, Trash2, Building,
-  Mail, Phone, Save, Clock, X, Loader2, MapPin, Contact, QrCode, Printer, Plus, Edit, Settings2, ChevronDown, ChevronUp
+  Mail, Phone, Save, Clock, X, Loader2, MapPin, Contact, QrCode, Printer, Plus, Edit, Settings2, Palette, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import FaultTemplatesManager from './Dashboard/FaultTemplatesManager';
 import SiteModulesOverride from '@/components/sites/SiteModulesOverride';
+import SiteBrandingOverride from '@/components/sites/SiteBrandingOverride';
 
 const PulseSettingsTab = () => {
   const { user, API, sites: globalSites, setActiveSite, refreshSites } = useAuth();
@@ -40,6 +41,7 @@ const PulseSettingsTab = () => {
   const [savingSite, setSavingSite] = useState(false);
   const [editingSiteId, setEditingSiteId] = useState(null);
   const [moduleOverridesOpen, setModuleOverridesOpen] = useState({});
+  const [brandingOverridesOpen, setBrandingOverridesOpen] = useState({});
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -422,6 +424,7 @@ const PulseSettingsTab = () => {
               <div className="space-y-2">
                 {sitesList.map(site => {
                   const showModules = !!moduleOverridesOpen[site.id];
+                  const showBranding = !!brandingOverridesOpen[site.id];
                   return (
                   <div key={site.id} className="rounded-lg bg-[var(--color-ink-alt)] border border-white/10" data-testid={`site-row-${site.id}`}>
                   <div className="flex items-center justify-between p-3">
@@ -447,6 +450,14 @@ const PulseSettingsTab = () => {
                         </Button>
                       )}
                       {!site.is_default && (
+                        <Button size="sm" variant="ghost" className="text-[var(--color-text-muted)] hover:text-white h-7 px-2 text-[11px]"
+                          onClick={() => setBrandingOverridesOpen(s => ({ ...s, [site.id]: !s[site.id] }))}
+                          data-testid={`toggle-site-branding-${site.id}`}>
+                          <Palette size={12} className="mr-1" /> Branding
+                          {showBranding ? <ChevronUp size={12} className="ml-1"/> : <ChevronDown size={12} className="ml-1"/>}
+                        </Button>
+                      )}
+                      {!site.is_default && (
                         <Button size="sm" variant="ghost" className="text-[var(--color-text-muted)] h-7 w-7 p-0"
                           onClick={() => { setEditingSiteId(site.id); setSiteForm({ name: site.name, address: site.address || '', postcode: site.postcode || '' }); setShowAddSite(true); }}
                           data-testid={`edit-site-${site.id}`}><Edit size={13}/></Button>
@@ -464,6 +475,11 @@ const PulseSettingsTab = () => {
                   {!site.is_default && showModules && (
                     <div className="px-3 pb-3">
                       <SiteModulesOverride siteId={site.id} siteName={site.name} theme="dark" />
+                    </div>
+                  )}
+                  {!site.is_default && showBranding && (
+                    <div className="px-3 pb-3 pt-1 border-t border-white/5">
+                      <SiteBrandingOverride siteId={site.id} theme="dark" />
                     </div>
                   )}
                   </div>

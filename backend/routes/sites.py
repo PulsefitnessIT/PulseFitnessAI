@@ -524,6 +524,131 @@ async def admin_move_site_org(
 
 
 
+# ────────────────── Per-site branding overrides (iter 216af) ──────────────────
+# Parent → child inheritance: a site's branding (logo / primary colour /
+# name override) overrides its parent organisation's. Resolution order:
+#   site.branding.<field> → org.branding.<field> → org.<direct field> → default
+# Used by: public /m/{slug}/branding?site=... and any internal email/PDF
+# renderer that needs the right look-and-feel for a specific venue.
+
+
+_BRANDING_ALLOWED = {"name", "logo_url", "primary_color", "secondary_color"}
+_DEFAULT_PRIMARY = "#19CDFF"
+
+
+def _effective_site_branding(org: dict, site: dict | None) -> dict:
+    """Merge parent-org branding + site-level override. Site wins where it
+    carries a non-empty value. Always returns a fully-populated dict so
+    consumers never have to reach into None."""
+    org = org or {}
+    org_b = (org.get("branding") or {}) if isinstance(org.get("branding"), dict) else {}
+    # Parent org fallback chain — the `branding` sub-doc is authoritative
+    # when set (that's what auth.py writes), then direct fields we store
+    # at the top level for legacy reasons.
+    parent = {
+        "name":             org_b.get("company_name") or org_b.get("name") or org.get("name") or "",
+        "logo_url":         org_b.get("logo_url") or org.get("logo_url") or "",
+        "primary_color":    org_b.get("primary_color") or org.get("primary_brand_colour") or org.get("primary_color") or _DEFAULT_PRIMARY,
+        "secondary_color":  org_b.get("secondary_color") or org.get("secondary_color") or "",
+    }
+    site_b = ((site or {}).get("branding") or {})
+    out: dict = {}
+    for k, default in parent.items():
+        v = site_b.get(k)
+        out[k] = v if (v is not None and v != "") else default
+    # Source metadata so the UI can show "inherited" vs "overridden" badges.
+    out["_inherits"] = {k: (site_b.get(k) in (None, "")) for k in parent}
+    out["_parent"] = parent
+    return out
+
+
+@router.get("/sites/{site_id}/branding")
+async def get_site_branding(site_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Return the effective branding for a site (parent org + site override)."""
+    if user.get("is_master_admin"):
+        site = await db.sites.find_one({"id": site_id}, {"_id": 0})
+    else:
+        org_id = user.get("organization_id")
+        site = await db.sites.find_one(
+            {"id": site_id, "organization_id": org_id}, {"_id": 0},
+        )
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    org = await db.organizations.find_one({"id": site.get("organization_id")}, {"_id": 0}) or {}
+    effective = _effective_site_branding(org, site)
+    return {
+        "site_id": site["id"],
+        "site_name": site.get("name"),
+        "effective": effective,
+        "override": site.get("branding") or {},
+        "parent": effective["_parent"],
+    }
+
+
+@router.patch("/sites/{site_id}/branding")
+async def update_site_branding(
+    site_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Owner/manager — write a site-level branding override. Pass any
+    subset of `{name, logo_url, primary_color, secondary_color}`. Passing
+    an empty string clears that field so it falls back to the parent org's
+    value again."""
+    if user.get("role") not in ("owner", "manager") and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Only owners/managers can update site branding")
+    org_id = user.get("organization_id")
+    q = {"id": site_id}
+    if not user.get("is_master_admin"):
+        q["organization_id"] = org_id
+    site = await db.sites.find_one(q, {"_id": 0})
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    current = (site.get("branding") or {}).copy()
+    for k in _BRANDING_ALLOWED:
+        if k in body:
+            v = body.get(k)
+            if v in (None, ""):
+                current.pop(k, None)
+            else:
+                current[k] = str(v).strip()
+    await db.sites.update_one(
+        {"id": site_id},
+        {"$set": {
+            "branding": current,
+            "branding_updated_at": datetime.now(timezone.utc).isoformat(),
+            "branding_updated_by": user.get("id"),
+        }},
+    )
+
+    # Audit — brand changes are material to member-facing look-and-feel.
+    try:
+        from utils.security_plus import audit_required
+        await audit_required("security_audit_log", {
+            "event": "site.branding.updated",
+            "actor_id": user.get("id"),
+            "actor_email": user.get("email"),
+            "org_id": site.get("organization_id"),
+            "site_id": site_id,
+            "changes": list(body.keys()),
+        })
+    except Exception:
+        pass
+
+    org = await db.organizations.find_one(
+        {"id": site.get("organization_id")}, {"_id": 0},
+    ) or {}
+    fresh = await db.sites.find_one({"id": site_id}, {"_id": 0})
+    effective = _effective_site_branding(org, fresh)
+    return {
+        "site_id": site_id,
+        "override": fresh.get("branding") or {},
+        "effective": effective,
+        "parent": effective["_parent"],
+    }
+
+
 @router.get("/master-admin/module-status")
 async def admin_module_status(user: dict = Depends(get_current_user)) -> dict:
     """Roll-up of module entitlements for the Organisations dashboard.
