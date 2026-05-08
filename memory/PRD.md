@@ -1,3 +1,30 @@
+## Iteration 216aj — Three user-reported Memberships bugs (Feb 2026)
+
+**User feedback**: During a live review of the merged Classes & Timetable tab (iter 216ai), the operator flagged three bugs:
+1. The "Welcome to GymAxis AI" tour reappears on every login.
+2. Clicking the amber "OPEN WIZARD" CTA on the Dashboard lands on an **Invalid Token** screen.
+3. A class created via the Studio Quickstart wizard doesn't appear on the Timetable OR the Studio Builder weekly grid.
+
+### Root causes + fixes
+
+**Bug 1 — ProductTour persistence leak** → `handleEvent` in `/app/frontend/src/components/shared/ProductTour.js` only persisted the "seen" flag for `STATUS.FINISHED` and `STATUS.SKIPPED`. Closing via the X, Esc, or `action:'close'` slipped through so the next page-load re-armed the tour. Fixed: every termination path (finish / skip / close / reset / paused) now writes both the user-scoped key AND the legacy non-scoped key. Can still be reset via Options (or `resetGymAxisTour()`).
+
+**Bug 2 — Invalid Token screen on "OPEN WIZARD"** → `/app/frontend/src/pages/Memberships/SetupWizard.js` read `const { token } = useAuth()` at line 39, but `AuthContext` in `/app/frontend/src/App.js` only exposes `{ user, login, logout, API, branding, … }` — NO `token`. So every API call on the wizard sent `Bearer undefined` → backend 401 "Invalid token". Fixed by pulling `localStorage.getItem('token')` directly (same pattern as every other authenticated page).
+
+**Bug 3 — Quickstart class invisible on grid/timetable** → `/app/backend/routes/memberships/studio.py complete_quickstart` wrote templates with `duration_minutes` (legacy spelling) and omitted `recurs_days` + `start_time`. The Studio Builder grid filters templates by non-empty `recurs_days` → quickstart classes were treated as "idle" and never drawn. Fixed: insert now writes `recurs_days=[weekday]`, `start_time="HH:MM"`, `duration_min=<int>` AND keeps the legacy `duration_minutes` alias. One-shot backfill ran against existing tagged templates (1 template — "Acro" — recovered with `recurs_days=[1]`, `start_time="16:30"` inferred from its first occurrence).
+
+### Verification
+- `/app/test_reports/iteration_216aj.json` — **Backend 11/11 PASS**, 0 issues. Frontend code-fix review confirmed; browser automation partially blocked by session issues, manual verification confirms the wizard now loads without 401.
+- Self-verified: `/memberships/setup/status` returns 200 under a valid token (pre-fix was 401 with Bearer undefined); 14-day timetable now shows 2 occurrences for the backfilled template.
+
+### Files of reference
+- `/app/backend/routes/memberships/studio.py`
+- `/app/frontend/src/pages/Memberships/SetupWizard.js`
+- `/app/frontend/src/components/shared/ProductTour.js`
+
+---
+
+
 ## Iteration 216ai — Sprint A #6: Merged Classes & Timetable tab (Feb 2026)
 
 **Goal**: Kill the three-tab overlap (Studio Builder / Classes / Timetable) that confused the user in their review. Collapse everything scheduling-related into one top-level pill with internal sub-pills.
