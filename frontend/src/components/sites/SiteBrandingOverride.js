@@ -145,6 +145,8 @@ const SiteBrandingOverride = ({ siteId, theme = 'dark' }) => {
         })}
       </div>
 
+      <BrandPreview draft={draft} parent={parent} siteId={siteId} />
+
       <div className="flex items-center justify-end gap-2 pt-1">
         <Button size="sm" variant="ghost" onClick={load} disabled={saving}
           className={`${dark ? 'text-white/50 hover:text-white' : ''} h-7 px-2 text-[10px]`}>
@@ -163,3 +165,44 @@ const SiteBrandingOverride = ({ siteId, theme = 'dark' }) => {
 };
 
 export default SiteBrandingOverride;
+
+
+/** Tiny live-preview strip showing how the member-portal top bar + pay-now
+ * button will look with the current draft (falls back to parent values
+ * for any empty field — same precedence as the server-side resolver). */
+function BrandPreview({ draft, parent, siteId }) {
+  const effective = {
+    name: (draft.name || parent.name || 'Your studio'),
+    primary: (draft.primary_color || parent.primary_color || '#19CDFF'),
+    logo: (draft.logo_url || parent.logo_url || ''),
+  };
+  const initials = effective.name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  return (
+    <div className="rounded-lg border border-white/10 bg-[rgba(255,255,255,0.02)] p-3" data-testid={`site-branding-preview-${siteId}`}>
+      <p className="text-[9px] uppercase tracking-wider font-bold text-white/40 mb-2">Live preview — member portal header</p>
+      <div className="rounded-md overflow-hidden border border-white/10">
+        <div className="flex items-center gap-3 px-3 py-2.5" style={{ background: effective.primary }}>
+          {effective.logo ? (
+            <img src={effective.logo} alt="" className="w-8 h-8 rounded-full object-cover bg-white/20" />
+          ) : (
+            <div className="w-8 h-8 rounded-full grid place-items-center font-extrabold text-sm"
+                 style={{ background: 'rgba(10,12,16,0.85)', color: effective.primary }}>
+              {initials || '?'}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-80 text-white">Member portal</p>
+            <p className="text-sm font-extrabold truncate text-white">{effective.name}</p>
+          </div>
+          <span className="text-[10px] rounded-full px-2 py-0.5 font-bold text-white/90" style={{ background: 'rgba(10,12,16,0.35)' }}>QR pass</span>
+        </div>
+        <div className="px-3 py-3 bg-[#0A0C10]">
+          <button type="button" className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold"
+                  style={{ background: effective.primary, color: '#0A0C10' }}>
+            Pay £45.00 now →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

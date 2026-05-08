@@ -509,6 +509,23 @@ async def auto_notify_on_transition(
         "engineer_name": case.get("assigned_engineer_name") or "Our engineer",
         "summary": case.get("repair_summary") or case.get("description") or "Service complete.",
     }
+    # Iter 216ag — honour per-site branding so the customer sees the venue's
+    # name (e.g. "iGym Leeds") rather than the parent org (e.g. "Pulse").
+    try:
+        from routes.sites import _effective_site_branding
+        org_doc = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
+        site_doc = None
+        if case.get("site_id"):
+            site_doc = await db.sites.find_one(
+                {"id": case["site_id"], "organization_id": org_id}, {"_id": 0},
+            )
+        eff = _effective_site_branding(org_doc, site_doc)
+        ctx["org_name"] = eff.get("name") or org_doc.get("name") or "GymAxis"
+        ctx["brand_primary_color"] = eff.get("primary_color") or "#19CDFF"
+        ctx["brand_logo_url"] = eff.get("logo_url") or ""
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("auto-notify branding resolve failed for %s: %s", case_id, exc)
+        ctx.setdefault("org_name", "GymAxis")
     subject = _render(template["subject"], ctx)
     body = _render(template["body_html"], ctx)
 

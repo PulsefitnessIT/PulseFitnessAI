@@ -695,6 +695,28 @@ async def preview_monthly_invoices(body: PreviewIn, user: dict = Depends(get_cur
     }
 
 
+async def _branding_for_member(org: dict, member: dict) -> dict:
+    """Iter 216ag — resolve site-scoped branding for a single member. Returns
+    a dict with `name`, `primary_color`, `logo_url` (and `source` for audit)
+    honouring the parent→child inheritance established in iter 216af.
+    If the member has no site (or site has no override) the parent-org
+    branding wins, preserving backwards compatibility."""
+    from routes.sites import _effective_site_branding
+    site_doc = None
+    site_id = (member or {}).get("site_id")
+    if site_id:
+        site_doc = await db.sites.find_one(
+            {"id": site_id, "organization_id": org.get("id")}, {"_id": 0},
+        )
+    eff = _effective_site_branding(org, site_doc)
+    return {
+        "name": eff.get("name") or org.get("name") or "Your studio",
+        "primary_color": eff.get("primary_color") or "#00B2C7",
+        "logo_url": eff.get("logo_url") or "",
+        "source": "site" if site_doc and (site_doc.get("branding") or {}) else "organization",
+    }
+
+
 def _render_invoice_email_html(
     *, org_name: str, period_label: str, invoice: dict, member_name: str,
     primary_color: str = "#00B2C7", pay_url: Optional[str] = None,
@@ -894,19 +916,21 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
                 period_label = _period_label(body.period)
                 # Build a fresh checkout URL so the email's Pay-now CTA works.
                 pay_url = await _build_invoice_checkout_url(doc, org)
-                primary = org.get("primary_color") or "#00B2C7"
+                # Iter 216ag — resolve site-scoped branding so iGym Leeds
+                # members get iGym comms even when the parent org is Pulse.
+                brand = await _branding_for_member(org, m)
                 html = _render_invoice_email_html(
-                    org_name=org.get("name") or "Your studio",
+                    org_name=brand["name"],
                     period_label=period_label,
                     invoice=doc, member_name=name,
-                    primary_color=primary,
+                    primary_color=brand["primary_color"],
                     pay_url=pay_url,
                 )
                 pdf_bytes = _render_invoice_pdf(
-                    org_name=org.get("name") or "Your studio",
+                    org_name=brand["name"],
                     period_label=period_label,
                     invoice=doc, member_name=name,
-                    primary_color_hex=primary,
+                    primary_color_hex=brand["primary_color"],
                 )
                 attachments = [{
                     "filename": f"invoice-{period_label.replace(' ', '-')}.pdf",
@@ -915,7 +939,7 @@ async def generate_monthly_invoices(body: GenerateIn, user: dict = Depends(get_c
                 }]
                 ok = await send_email(
                     doc["member_email"],
-                    f"Your {period_label} invoice · {org.get('name') or 'Your studio'}",
+                    f"Your {period_label} invoice · {brand['name']}",
                     html,
                     attachments=attachments,
                 )
@@ -1254,19 +1278,25 @@ async def send_single_invoice(invoice_id: str, user: dict = Depends(get_current_
     if not inv.get("member_email"):
         raise HTTPException(400, "Member has no email on file")
     org = await db.organizations.find_one(
-        {"id": org_id}, {"_id": 0, "name": 1, "primary_color": 1},
+        {"id": org_id}, {"_id": 0},
     ) or {}
+    # Lookup the member record so we can pick the right site-branded look.
+    member_doc = await db.members.find_one(
+        {"id": inv.get("member_id"), "organization_id": org_id},
+        {"_id": 0, "site_id": 1},
+    ) or {}
+    brand = await _branding_for_member(org, member_doc)
     period_label = _period_label(inv["period"])
-    primary = org.get("primary_color") or "#00B2C7"
+    primary = brand["primary_color"]
     pay_url = await _build_invoice_checkout_url(inv, org)
     html = _render_invoice_email_html(
-        org_name=org.get("name") or "Your studio",
+        org_name=brand["name"],
         period_label=period_label,
         invoice=inv, member_name=inv.get("member_name") or "there",
         primary_color=primary, pay_url=pay_url,
     )
     pdf_bytes = _render_invoice_pdf(
-        org_name=org.get("name") or "Your studio",
+        org_name=brand["name"],
         period_label=period_label,
         invoice=inv, member_name=inv.get("member_name") or "there",
         primary_color_hex=primary,
@@ -1278,7 +1308,7 @@ async def send_single_invoice(invoice_id: str, user: dict = Depends(get_current_
     }]
     ok = await send_email(
         inv["member_email"],
-        f"Your {period_label} invoice · {org.get('name') or 'Your studio'}",
+        f"Your {period_label} invoice · {brand['name']}",
         html, attachments=attachments,
     )
     if not ok:
