@@ -11181,3 +11181,44 @@ Phase C of the Studios Vision shipped end-to-end.
 ### Notes
 - Trial-class booking *attendee record* and *class-template "trial-eligible" toggle UI* on the operator side are deferred — current scope shipped the public endpoints + storage. Adding the toggle takes one line in the existing class template editor; deferred to keep this phase scoped.
 - Push notification *delivery* (sending a real push) reuses the existing `omnichannel.py` infrastructure with VAPID keys; this phase shipped the storage + opt-in surface so operators have an audience to broadcast to.
+
+---
+
+## Iter 216ac — Memberships Phase D: Events / Recitals / Costumes (2026-02-08)
+
+Phase D of the Studios Vision shipped end-to-end.
+
+### Backend (`routes/memberships/events.py` — new)
+- **Events CRUD** (collection: `studio_events`):
+  - `GET / POST /api/memberships/events` (with `upcoming_only=true` filter)
+  - `GET / PUT / DELETE /api/memberships/events/{id}` (DELETE archives)
+  - 6 event kinds: `recital | showcase | competition | workshop | camp | other`
+  - Fields: name, kind, starts_at/ends_at, venue, description, ticket_price_pence, ticket_capacity, tickets_sold, cover_image_url
+- **Rehearsals** (collection: `event_rehearsals`):
+  - `GET / POST /api/memberships/events/{id}/rehearsals` and `DELETE /…/{rid}`
+- **Costumes** (collection: `event_costumes`):
+  - `GET / POST /api/memberships/events/{id}/costumes`
+  - `PATCH /…/costumes/{cid}` with auto-stamping of `ordered_at / arrived_at / fitted_at` on first transition
+  - `DELETE /…/costumes/{cid}`
+  - 6-state lifecycle: `needed → ordered → arrived → fitted → paid (or refunded)`
+  - List response includes `summary` with totals + by-status counts + paid totals
+- **AI-drafted parent comms**:
+  - `POST /api/memberships/events/{id}/ai-comms` — uses Emergent LLM key (Claude Haiku) via `emergentintegrations` to generate a warm parent email referencing the event window, venue, description and rehearsal schedule. Falls back to a templated email if no key/SDK is available.
+  - `POST /api/memberships/events/{id}/announce` — sends the (operator-edited) draft to all members or only costumed attendees via Resend; updates `last_announce_at / last_announce_count` on the event doc.
+
+### Frontend (`pages/Memberships/EventsTab.js` — new)
+- New `Events` tab on the Memberships console (icon Theater) with two-pane layout:
+  - **Master list** (left): kind-coloured pill per event, click to select.
+  - **Detail pane** (right):
+    - Header with kind badge, date, venue, ticket counter, **AI draft comms** + archive buttons.
+    - **Rehearsals** sub-card: list with Add / Remove.
+    - **Costumes** sub-card: list with status pill, "advance to next stage" button, total fee, by-status summary chips.
+    - **AI comms drawer**: opens on AI-draft, shows subject + HTML body editor + audience selector ("All members" or "Costumed attendees only") + Re-draft + **Send announcement** action.
+
+### Verified end-to-end
+- Backend curl: created Spring Showcase 2026 (SHOWCASE, ticket £15 × 300 cap), Tech Rehearsal at Studio A, two costume rows (Sophie tutu £45 NEEDED, Lily leotard £38 ORDERED). List returns 1 event, 1 rehearsal, 2 costumes with summary `{total: £83.00, paid: £0, by_status: {needed: 1, ordered: 1}}`.
+- Frontend smoke screenshot confirms full UI render with both panes, kind pill, AI draft button, rehearsal + costume rows, status pills, advance buttons, and summary chips.
+
+### Notes
+- Stripe ticket-checkout integration for public ticket sales is intentionally deferred to a follow-up. Current scope captures `ticket_price_pence + capacity + tickets_sold` so the data model is ready; the public checkout page is a 1-day add-on.
+- The AI comms endpoint requires `EMERGENT_LLM_KEY` in env; without it, a templated fallback returns instead of failing the request.
