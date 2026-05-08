@@ -140,6 +140,7 @@ export default function MemberPortal({ slug }) {
       <TopBar member={member} branding={branding} onSignOut={signOut} />
       <main className="max-w-2xl mx-auto px-4 py-6">
         {paymentBanner && <div className="mb-4">{paymentBanner}</div>}
+        <RequiredFormsBanner headers={headers} />
         <ReferralCampaignBanner headers={headers} slug={slug} onCta={() => setTab('profile')} />
         <StreakCard headers={headers} />
         <InstallPrompt brandColor={branding?.primary_color} />
@@ -218,6 +219,132 @@ function StreakCard({ headers }) {
         </div>
       )}
     </section>
+  );
+}
+
+/* ─────────────────── Required consent forms banner (Phase C) ─────────────────── */
+
+function RequiredFormsBanner({ headers }) {
+  const [pending, setPending] = useState(null); // null=loading, []=none, [forms]=show
+  const [vocab, setVocab] = useState(null);
+  const [signing, setSigning] = useState(null);
+  const [signature, setSignature] = useState('');
+
+  const reload = useCallback(async () => {
+    try {
+      const [forms, voc] = await Promise.all([
+        axios.get(`${API}/member/consent-forms`, { headers }),
+        axios.get(`${API}/member/studio/vocabulary`, { headers }).catch(() => ({ data: null })),
+      ]);
+      const need = (forms.data?.forms || []).filter((f) => f.required && !f.signed);
+      setPending(need);
+      setVocab(voc.data);
+    } catch {
+      setPending([]);
+    }
+  }, [headers]);
+  useEffect(() => { reload(); }, [reload]);
+
+  const sign = async () => {
+    if (!signing || !signature.trim()) return;
+    try {
+      await axios.post(`${API}/member/consent-forms/${signing.id}/sign`,
+        { signature_text: signature.trim() }, { headers });
+      setSigning(null);
+      setSignature('');
+      reload();
+    } catch (e) {
+      alert(e?.response?.data?.detail || 'Could not sign — please try again.');
+    }
+  };
+
+  if (!pending || pending.length === 0) return null;
+  const guardian = vocab?.guardian_noun || 'guardian';
+  const memberWord = vocab?.member_singular || 'member';
+  return (
+    <div
+      className="mb-4 rounded-2xl border p-4"
+      style={{ borderColor: '#fbbf24', background: 'rgba(251,191,36,0.12)', color: 'inherit' }}
+      data-testid="member-required-forms-banner"
+    >
+      <div className="flex items-start gap-3">
+        <span className="rounded-full p-1.5" style={{ background: 'rgba(245,158,11,0.25)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold">
+            {pending.length} form{pending.length > 1 ? 's' : ''} to sign before your next booking
+          </p>
+          <p className="text-[12px] opacity-80 mt-0.5">
+            As the {guardian} of your {memberWord}, please confirm the following so we can keep everyone safe.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {pending.map((f) => (
+              <li
+                key={f.id}
+                className="flex items-center gap-2"
+                data-testid={`member-required-form-${f.id}`}
+              >
+                <span className="text-[11px] flex-1 truncate font-bold">{f.title} · v{f.version}</span>
+                <button
+                  type="button"
+                  onClick={() => { setSigning(f); setSignature(''); }}
+                  className="px-2 py-1 rounded text-[11px] font-bold"
+                  style={{ background: '#b45309', color: '#fff' }}
+                  data-testid={`member-required-form-sign-${f.id}`}
+                >
+                  Read & sign
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {signing ? (
+        <div
+          className="mt-3 rounded-xl bg-white text-slate-900 p-3"
+          data-testid="member-required-form-signing"
+        >
+          <p className="text-sm font-bold">{signing.title}</p>
+          <div className="text-[12px] mt-1 max-h-48 overflow-y-auto pr-2"
+               dangerouslySetInnerHTML={{ __html: signing.body_html }} />
+          <label className="block mt-2">
+            <span className="text-[10px] uppercase tracking-wider font-bold opacity-60">
+              Type your full name to confirm
+            </span>
+            <input
+              value={signature}
+              onChange={(e) => setSignature(e.target.value)}
+              className="w-full px-2 py-1 text-sm rounded border"
+              style={{ borderColor: '#cbd5e1' }}
+              data-testid="member-required-form-signature"
+            />
+          </label>
+          <div className="flex items-center gap-2 justify-end mt-2">
+            <button
+              type="button"
+              onClick={() => setSigning(null)}
+              className="px-2 py-1 rounded text-[11px] border"
+              style={{ borderColor: '#cbd5e1' }}
+              data-testid="member-required-form-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={sign}
+              disabled={!signature.trim()}
+              className="px-3 py-1.5 rounded text-[11px] font-bold"
+              style={{ background: '#1d4ed8', color: '#fff', opacity: signature.trim() ? 1 : 0.5 }}
+              data-testid="member-required-form-submit"
+            >
+              I agree & sign
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -43,6 +43,7 @@ from routes.memberships import (
     member_auth,
     member_misc,
     members,
+    parent_portal,
     payment_plans,
     payment_risk,
     plans,
@@ -97,6 +98,7 @@ for sub in (
     family_autopay,
     payment_plans,
     payment_risk,
+    parent_portal,
     wallet,
 ):
     router.include_router(sub.router)

@@ -17,7 +17,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, Receipt, Wand2, HeartHandshake,
+  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, Receipt, Wand2, HeartHandshake, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -55,6 +55,7 @@ import StudioModeToggle from '@/pages/Memberships/StudioModeToggle';
 import StudioQuickstart from '@/pages/Memberships/StudioQuickstart';
 import StudioBuilderTab from '@/pages/Memberships/StudioBuilderTab';
 import FamilyBillingTab from '@/pages/Memberships/FamilyBillingTab';
+import ParentPortalTab from '@/pages/Memberships/ParentPortalTab';
 
 export default function MembershipsConsole() {
   return (
@@ -78,7 +79,7 @@ function MembershipsConsoleInner() {
   const pillBarRef = React.useRef(null);
   const studio = useStudioMode();
   // Studio Mode: 5-tab simplified layout for small teams.
-  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'studio-builder', 'timetable', 'members', 'plans', 'family-billing', 'checkin', 'invoicing']), []);
+  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'studio-builder', 'timetable', 'members', 'plans', 'family-billing', 'parent-portal', 'checkin', 'invoicing']), []);
 
   const TABS = useMemo(() => [
     { id: 'start',     label: 'Start', icon: Sparkles },
@@ -89,6 +90,7 @@ function MembershipsConsoleInner() {
     { id: 'classes',   label: t('memberships_console.tab_classes'),   icon: Dumbbell },
     { id: 'plans',     label: t('memberships_console.tab_plans'),     icon: PackageOpen },
     { id: 'family-billing', label: 'Family billing', icon: HeartHandshake },
+    { id: 'parent-portal', label: 'Parent portal', icon: ShieldCheck },
     { id: 'instructors', label: 'Instructors', icon: Activity },
     { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'checkin', label: 'Check-in', icon: ClipboardCheck },
@@ -271,6 +273,7 @@ function MembershipsConsoleInner() {
         {tab === 'classes'   && <ClassesTab   key={`cls-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'plans'     && <PlansTab     key={`pln-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'family-billing' && <FamilyBillingTab key={`fb-${reloadKey}`} API={API} headers={headers} />}
+        {tab === 'parent-portal' && <ParentPortalTab key={`pp-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'instructors' && <InstructorsTab key={`ins-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'promotions' && <PromotionsTab key={`pro-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'checkin'    && <CheckinTab    key={`chk-${reloadKey}`} API={API} headers={headers} />}

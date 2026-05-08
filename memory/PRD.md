@@ -11142,3 +11142,42 @@ Phase B of the Studios Vision shipped end-to-end.
 
 ### Notes
 - Payment-plan assignment cron integration (auto-issue an invoice per period) is intentionally deferred — current scope shipped the offering CRUD + assignment record, which is enough for operators to start tracking & manually billing today. Wire-up to `family_autopay.run_family_autopay_cycle` is a 1-hour follow-up if the team wants fully-automated termly billing.
+
+---
+
+## Iter 216ab — Memberships Phase C: Parent Portal & Mobile Polish (2026-02-08)
+
+Phase C of the Studios Vision shipped end-to-end.
+
+### Backend (`routes/memberships/parent_portal.py` — new)
+- **Industry vocabulary lookup**:
+  - `GET /api/memberships/studio/vocabulary` (operator) → resolved noun map.
+  - `GET /api/member/studio/vocabulary` (member-side) → same data, no operator role.
+  - Falls back to `{member, members, guardian, Studio}` when no industry preset is set.
+- **Consent forms** (operator CRUD + member sign):
+  - `GET / POST / PUT / DELETE /api/memberships/consent-forms` — auto-bumps `version` whenever the body changes (so members must re-sign).
+  - `GET /api/member/consent-forms` returns active forms with `signed: bool` per form (computed against `consent_signatures.version`).
+  - `POST /api/member/consent-forms/{id}/sign` records signature with hashed IP + the typed full-name string.
+- **Web Push subscriptions**:
+  - `POST /api/member/push/subscribe` (dedupes by member+endpoint, refreshes keys/last_seen_at).
+  - `DELETE /api/member/push/subscribe/{id}`
+  - `GET /api/operator/push-subscriptions/count` for the operator stat.
+- **Public trial-class flow**:
+  - New `trial_eligible: bool` field on `class_templates` (PATCH allow-list extended).
+  - `GET /api/public/trial-classes?org_slug=` — anonymous discovery of upcoming trial-eligible occurrences.
+  - `POST /api/public/trial-bookings` — creates a `trial_signups` row, increments capacity, and (best-effort) emails both the studio owner and the lead. 409 when full.
+
+### Frontend
+- **Operator side** — new `Parent portal` tab on the Memberships console (icon ShieldCheck, between Family billing and Check-in). New file `pages/Memberships/ParentPortalTab.js` with three sections:
+  1. **Studio vocabulary** card showing the active industry's noun set (member singular/plural/guardian/label) so operators see exactly how the parent portal will refer to people.
+  2. **Push notifications** stat card with the live subscriber count, captioned with the industry-aware plural noun.
+  3. **Consent & waivers** card — full CRUD with inline editor (title, HTML body, required toggle), version pill, archive button. Bumps version on body changes.
+- **Member side** — new `RequiredFormsBanner` injected into `MemberPortal.js` (above the referral banner). Renders only if any required form is unsigned; lists each form with a "Read & sign" action that opens an inline panel showing the form HTML + a typed-name signature input. Fires `POST /member/consent-forms/{id}/sign` and refreshes the list. Banner copy uses the resolved studio vocabulary ("As the parent of your student…" for dance studios).
+
+### Verified end-to-end
+- Backend curl: vocabulary returns full preset for industry=dance; consent form created & versioned; member-side list returns `pending_required` count; push-subscriptions count returns 0; trial endpoints exist (no eligible classes in test data, returns empty `occurrences`).
+- Frontend smoke screenshot confirms the operator tab with all three sections rendered and 2 seeded consent forms (Medical Waiver, Photography Consent) listed with v1 / REQUIRED pills.
+
+### Notes
+- Trial-class booking *attendee record* and *class-template "trial-eligible" toggle UI* on the operator side are deferred — current scope shipped the public endpoints + storage. Adding the toggle takes one line in the existing class template editor; deferred to keep this phase scoped.
+- Push notification *delivery* (sending a real push) reuses the existing `omnichannel.py` infrastructure with VAPID keys; this phase shipped the storage + opt-in surface so operators have an audience to broadcast to.
