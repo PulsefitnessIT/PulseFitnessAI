@@ -177,6 +177,15 @@ function App() {
  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
  const [sites, setSites] = useState([]);
  const [activeSite, setActiveSite] = useState(null);
+ // Iter 215bz — elevate token to AuthContext so consumers can do
+ // `const { token } = useAuth()` instead of reaching into localStorage
+ // independently (source-of-truth divergence caused the Product Tour
+ // bug where some pages read a stale token). Reads from localStorage
+ // as initial value so existing `localStorage.getItem('token')` calls
+ // continue to work unchanged (fully backwards-compatible).
+ const [token, setToken] = useState(() => {
+   try { return localStorage.getItem('token'); } catch { return null; }
+ });
 
  useEffect(() => {
  document.documentElement.setAttribute('data-theme', theme);
@@ -278,6 +287,7 @@ function App() {
  if (imp) {
  localStorage.setItem('token', imp);
  localStorage.setItem('impersonation_active', '1');
+ setToken(imp);
  params.delete('impersonation_token');
  const clean = window.location.pathname + (params.toString() ? `?${params}` : '');
  window.history.replaceState({}, '', clean);
@@ -306,7 +316,10 @@ function App() {
  axios.post(`${API}/auth/refresh`, {}, {
  headers: { Authorization: `Bearer ${currentToken}` }
  }).then(r => {
- if (r.data?.token) localStorage.setItem('token', r.data.token);
+ if (r.data?.token) {
+   localStorage.setItem('token', r.data.token);
+   setToken(r.data.token);
+ }
  }).catch(() => {});
  };
  refreshToken(); // Refresh on load
@@ -321,6 +334,7 @@ function App() {
  if (hardFail) {
  localStorage.removeItem('token');
  localStorage.removeItem('user_cache');
+ setToken(null);
  setLoading(false);
  return;
  }
@@ -355,9 +369,11 @@ function App() {
  setBranding(null);
  setSites([]);
  setActiveSite(null);
+ setToken(null);
  return;
  }
  // Login (or token refresh) elsewhere → fetch the new user doc.
+ setToken(e.newValue);
  axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${e.newValue}` } })
  .then(res => { setUser(res.data); loadBranding(e.newValue); loadSites(e.newValue); })
  .catch(() => { /* ignore — next refresh will heal */ });
@@ -368,6 +384,7 @@ function App() {
 
  const login = (token, userData) => {
  localStorage.setItem('token', token);
+ setToken(token);
  try { localStorage.setItem('user_cache', JSON.stringify({ id: userData?.id, is_master_admin: !!userData?.is_master_admin, account_type: userData?.account_type })); } catch { /* quota */ }
  setUser(userData);
  loadBranding(token);
@@ -378,6 +395,7 @@ function App() {
  const logout = () => {
  localStorage.removeItem('token');
  localStorage.removeItem('user_cache');
+ setToken(null);
  setUser(null);
  setBranding(null);
  setSites([]);
@@ -400,7 +418,7 @@ function App() {
  }
 
  return (
- <AuthContext.Provider value={{ user, login, logout, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite, refreshSites }}>
+ <AuthContext.Provider value={{ user, token, login, logout, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite, refreshSites }}>
  <div className="App">
  {/* WCAG: Skip to main content link */}
  <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[999] focus:bg-[var(--color-brand-blue)] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm">
