@@ -1,0 +1,97 @@
+{
+  "summary": "Phase S1 — Staffing Module Upgrade Testing Complete. Backend 100% pass (31/31 tests). Frontend verified: 12 staffing tabs, Workforce Dashboard with 6 KPIs + heatmap + week totals, Templates tab with editor modal, Rota tab with grid and week navigation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard",
+        "issues": ["React warning: borderRadius prop on DOM element should be lowercase borderradius - cosmetic only"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216am_staffing_s1.py",
+    "/app/test_reports/pytest/pytest_results_216am.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216am_staffing_s1.py"
+  ],
+  "success_rate": {
+    "backend": "100% (31/31 tests passed)",
+    "frontend": "100% (all Phase S1 features verified)"
+  },
+  "test_credentials": {
+    "operator": "bob@knockers.com / Test123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "rate_limit_bypass": "X-RateLimit-Bypass: 7d889c8f7c814c8fdfeeb49fd2ea8bca2b17df490c8df1fea50bd7d279f44105"
+  },
+  "seed_data_creation": "Created TEST_S1_* prefixed templates and staff for testing, cleaned up after tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase S1 Staffing Module fully functional. Backend endpoints: /api/staffing/shift-templates (CRUD + apply), /api/staffing/shifts/{id}/move, /api/staffing/conflicts, /api/staffing/workforce-dashboard. Frontend: StaffingConsole has 12 tabs (Dashboard, Rota, Templates, Staff, Time Off, Shift Market, Performance, Payroll, Live Floor, Rules, Announcements, AI Insights). Dashboard tab shows 6 KPIs (Active Staff, On Shift Now, Running Late, Absent, Open Today, Coverage), week totals row (Scheduled Hours, Labour Cost, Overtime, Avg/Hour), and 7x24 coverage heatmap. Templates tab shows empty state with 'New template' button that opens editor modal with all fields (Name, Role, Break, Start/End time, Weekdays checkboxes, Default Staff, Colour). Rota tab has grid with week navigation and 'Copy to next week' button.",
+  "features_verified": {
+    "backend_shift_templates": {
+      "GET /api/staffing/shift-templates": "PASS - lists templates, managers see all",
+      "POST /api/staffing/shift-templates": "PASS - validates role + weekdays, creates template",
+      "PATCH /api/staffing/shift-templates/{id}": "PASS - updates template",
+      "DELETE /api/staffing/shift-templates/{id}": "PASS - soft delete (archived=true)"
+    },
+    "backend_template_apply": {
+      "POST /api/staffing/shift-templates/{id}/apply": "PASS - materialises shifts across date range",
+      "90_day_max_window": "PASS - enforces 90-day max",
+      "end_before_start_rejection": "PASS - rejects end_date < start_date",
+      "bad_date_format_rejection": "PASS - rejects invalid date formats",
+      "skip_existing": "PASS - skips days where shift already exists"
+    },
+    "backend_shift_move": {
+      "POST /api/staffing/shifts/{id}/move": "PASS - re-parents shift to new staff_id/date",
+      "no_staff_id_sets_open": "PASS - sets status='open' when staff_id=null",
+      "with_staff_id_restores_scheduled": "PASS - restores to 'scheduled' when staff_id provided",
+      "returns_warnings": "PASS - returns warnings array"
+    },
+    "backend_conflicts": {
+      "GET /api/staffing/conflicts": "PASS - returns conflicts list with severity",
+      "overlap_detection": "PASS - detects overlapping shifts as error"
+    },
+    "backend_workforce_dashboard": {
+      "GET /api/staffing/workforce-dashboard": "PASS - returns full payload",
+      "kpis_structure": "PASS - active_staff, on_now, late, absent, open_today, coverage_pct",
+      "week_totals": "PASS - hours, labour_cost, overtime_hours, avg_hourly",
+      "heatmap_7x24": "PASS - 7 rows x 24 columns grid with floats",
+      "compliance_structure": "PASS - count + top conflicts array"
+    },
+    "backend_role_gating": {
+      "manager_role_required": "PASS - owner/manager/master_admin can access all endpoints"
+    },
+    "frontend_staffing_console": {
+      "12_tabs": "PASS - Dashboard, Rota, Templates, Staff, Time Off, Shift Market, Performance, Payroll, Live Floor, Rules, Announcements, AI Insights"
+    },
+    "frontend_workforce_dashboard": {
+      "6_kpi_tiles": "PASS - Active Staff, On Shift Now, Running Late, Absent, Open Today, Coverage",
+      "week_totals_row": "PASS - Scheduled Hours, Labour Cost, Overtime, Avg/Hour",
+      "7x24_heatmap": "PASS - Coverage heatmap with Mon-Sun x 24 hours",
+      "refresh_button": "PASS - Refresh button present"
+    },
+    "frontend_templates_tab": {
+      "empty_state": "PASS - Shows 'No templates yet' message",
+      "new_template_button": "PASS - 'New template' button present",
+      "template_editor_modal": "PASS - Opens with Name, Role, Break, Start/End time, Weekdays, Default Staff, Colour fields"
+    },
+    "frontend_rota_tab": {
+      "rota_grid": "PASS - Grid loaded",
+      "week_navigation": "PASS - Prev/Next week buttons present",
+      "copy_week_button": "PASS - 'Copy to next week' button present"
+    }
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "note": "All endpoints are DB-only, no external APIs"
+  }
+}

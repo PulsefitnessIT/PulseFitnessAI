@@ -877,3 +877,553 @@ async def ai_insights(user: dict = Depends(get_current_user)):
     if not narrative:
         narrative = f"Flagged {len(flags)} staffing imbalances over the last 30 days — review understaffed peaks first to protect member experience, then rebalance overstaffed slots for cost savings."
     return {"flags": flags, "narrative": narrative}
+
+
+# ═════════════════════════════════════════════════════════════════
+# PHASE S1 — Rota engine upgrade + Workforce Dashboard
+# ═════════════════════════════════════════════════════════════════
+#
+# Extends the existing staffing surface with four operator multipliers
+# requested in the Dec 2026 workforce overhaul:
+#
+#   1. Shift templates — reusable slot definitions that managers can
+#      "stamp" across a date range to build a week/month rota in one
+#      click (instead of adding 40 shifts by hand).
+#   2. Drag/drop reassign — a focused `/move` endpoint that re-parents
+#      a shift to a new staff + date in one write so the optimistic UI
+#      stays snappy.
+#   3. Conflict detection — a bulk `/conflicts` endpoint that returns
+#      every warning across a date range in one round-trip, so the
+#      frontend can render red borders without firing one request per
+#      shift.
+#   4. Workforce Dashboard — a single, pre-aggregated endpoint feeding
+#      the Control Centre tab: live on-now / late / absent counters,
+#      today's coverage, week labour cost, open-shift backlog, a 7×24
+#      coverage heatmap, and compliance hot-spots.
+#
+# All endpoints respect the same org_id scoping + role gating already
+# baked into the legacy routes. Nothing above this line was modified
+# — the Phase S1 layer is purely additive.
+
+
+# ── Shift templates ────────────────────────────────────────────────
+
+class ShiftTemplateCreate(BaseModel):
+    name: str
+    role: str = "reception"
+    default_staff_id: str | None = None
+    site_id: str | None = None
+    start_time: str                        # HH:MM
+    end_time: str                          # HH:MM
+    break_minutes: int = 0
+    colour: str | None = None              # #hex — rota tile tint
+    weekdays: list[int] = Field(default_factory=list)  # 0=Mon … 6=Sun
+    notes: str | None = None
+
+
+class ShiftTemplateUpdate(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    default_staff_id: str | None = None
+    site_id: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    break_minutes: int | None = None
+    colour: str | None = None
+    weekdays: list[int] | None = None
+    notes: str | None = None
+    archived: bool | None = None
+
+
+@router.get("/staffing/shift-templates")
+async def list_shift_templates(user: dict = Depends(get_current_user)):
+    """Managers see every template in the org; staff see the ones they
+    personally appear on as `default_staff_id` (read-only)."""
+    org_id = _org(user)
+    q: dict = {"organization_id": org_id, "archived": {"$ne": True}}
+    if not _is_manager(user):
+        sid = await _my_staff_id_async(user, org_id)
+        q["default_staff_id"] = sid or "__none__"
+    rows = await db.staff_shift_templates.find(q, {"_id": 0}).sort("name", 1).to_list(500)
+    return {"templates": rows, "role": _role(user)}
+
+
+@router.post("/staffing/shift-templates")
+async def create_shift_template(
+    body: ShiftTemplateCreate, user: dict = Depends(get_current_user),
+):
+    _require_manager(user)
+    org_id = _org(user)
+    if body.role not in VALID_ROLES:
+        raise HTTPException(400, f"role must be one of {sorted(VALID_ROLES)}")
+    if not body.weekdays or not all(0 <= d <= 6 for d in body.weekdays):
+        raise HTTPException(400, "weekdays must be a non-empty list of 0..6")
+    doc = {
+        "id": str(uuid4()),
+        "organization_id": org_id,
+        "created_at": _now().isoformat(),
+        "created_by": user.get("email"),
+        "archived": False,
+        **body.dict(),
+    }
+    await db.staff_shift_templates.insert_one(doc.copy())
+    return _clean(doc)
+
+
+@router.patch("/staffing/shift-templates/{tpl_id}")
+async def update_shift_template(
+    tpl_id: str,
+    body: ShiftTemplateUpdate,
+    user: dict = Depends(get_current_user),
+):
+    _require_manager(user)
+    org_id = _org(user)
+    patch = {k: v for k, v in body.dict().items() if v is not None}
+    if "role" in patch and patch["role"] not in VALID_ROLES:
+        raise HTTPException(400, "invalid role")
+    if "weekdays" in patch:
+        wd = patch["weekdays"] or []
+        if not all(0 <= d <= 6 for d in wd):
+            raise HTTPException(400, "weekdays must be 0..6")
+    patch["updated_at"] = _now().isoformat()
+    res = await db.staff_shift_templates.update_one(
+        {"id": tpl_id, "organization_id": org_id},
+        {"$set": patch},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "template not found")
+    doc = await db.staff_shift_templates.find_one({"id": tpl_id}, {"_id": 0})
+    return doc
+
+
+@router.delete("/staffing/shift-templates/{tpl_id}")
+async def delete_shift_template(tpl_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    res = await db.staff_shift_templates.update_one(
+        {"id": tpl_id, "organization_id": org_id},
+        {"$set": {"archived": True, "archived_at": _now().isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "template not found")
+    return {"ok": True}
+
+
+@router.post("/staffing/shift-templates/{tpl_id}/apply")
+async def apply_shift_template(
+    tpl_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user),
+):
+    """Materialise a template across a date range. Body:
+      {start_date: "YYYY-MM-DD", end_date: "YYYY-MM-DD",
+       staff_id?: "<override>", skip_existing?: true}
+
+    Creates one shift per weekday-matching date in the range. Returns
+    {created, skipped, created_ids} so the UI can show a concise toast.
+    Respects the template's `default_staff_id` unless an override is
+    supplied; when neither is set, the generated shifts are created
+    open (unassigned) so managers can claim or publish them later.
+    """
+    _require_manager(user)
+    org_id = _org(user)
+    tpl = await db.staff_shift_templates.find_one(
+        {"id": tpl_id, "organization_id": org_id}, {"_id": 0},
+    )
+    if not tpl:
+        raise HTTPException(404, "template not found")
+    start_raw = body.get("start_date")
+    end_raw = body.get("end_date")
+    if not start_raw or not end_raw:
+        raise HTTPException(400, "start_date and end_date are required")
+    try:
+        start_d = datetime.fromisoformat(start_raw).date()
+        end_d = datetime.fromisoformat(end_raw).date()
+    except ValueError as err:
+        raise HTTPException(400, "dates must be YYYY-MM-DD") from err
+    if end_d < start_d:
+        raise HTTPException(400, "end_date must be ≥ start_date")
+    if (end_d - start_d).days > 90:
+        raise HTTPException(400, "Max 90-day apply window")
+
+    staff_id = body.get("staff_id") or tpl.get("default_staff_id")
+    skip_existing = bool(body.get("skip_existing", True))
+    weekdays = set(int(d) for d in (tpl.get("weekdays") or []))
+
+    created = 0
+    skipped = 0
+    created_ids: list[str] = []
+    cur = start_d
+    one = timedelta(days=1)
+    while cur <= end_d:
+        if cur.weekday() in weekdays:
+            date_iso = cur.isoformat()
+            if skip_existing and staff_id:
+                exists = await db.staff_shifts.find_one(
+                    {
+                        "organization_id": org_id,
+                        "staff_id": staff_id,
+                        "date": date_iso,
+                        "start_time": tpl["start_time"],
+                        "status": {"$ne": "cancelled"},
+                    },
+                    {"_id": 0, "id": 1},
+                )
+                if exists:
+                    skipped += 1
+                    cur += one
+                    continue
+            sid = str(uuid4())
+            doc = {
+                "id": sid,
+                "organization_id": org_id,
+                "created_at": _now().isoformat(),
+                "created_by": user.get("email"),
+                "staff_id": staff_id,
+                "site_id": tpl.get("site_id"),
+                "date": date_iso,
+                "start_time": tpl["start_time"],
+                "end_time": tpl["end_time"],
+                "role": tpl.get("role") or "reception",
+                "break_minutes": int(tpl.get("break_minutes") or 0),
+                "status": "scheduled" if staff_id else "open",
+                "notes": tpl.get("notes"),
+                "template_id": tpl_id,
+            }
+            await db.staff_shifts.insert_one(doc.copy())
+            created += 1
+            created_ids.append(sid)
+        cur += one
+    return {
+        "created": created,
+        "skipped": skipped,
+        "created_ids": created_ids,
+        "template_id": tpl_id,
+    }
+
+
+# ── Drag/drop move ────────────────────────────────────────────────
+
+@router.post("/staffing/shifts/{shift_id}/move")
+async def move_shift(
+    shift_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user),
+):
+    """Re-parent a shift to a new staff + date in one write. Used by
+    the drag-drop rota grid so an optimistic UI only needs one round-
+    trip instead of a full PATCH with every field."""
+    _require_manager(user)
+    org_id = _org(user)
+    patch: dict = {"updated_at": _now().isoformat()}
+    if "staff_id" in body:
+        new_sid = body.get("staff_id") or None
+        patch["staff_id"] = new_sid
+        # Flip to open/scheduled consistent with the new assignment.
+        patch["status"] = "open" if not new_sid else "scheduled"
+    if "date" in body:
+        if not body.get("date"):
+            raise HTTPException(400, "date cannot be blank")
+        patch["date"] = body["date"]
+    if not patch or set(patch.keys()) == {"updated_at"}:
+        raise HTTPException(400, "nothing to move — send staff_id and/or date")
+    res = await db.staff_shifts.update_one(
+        {"id": shift_id, "organization_id": org_id},
+        {"$set": patch},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "shift not found")
+    doc = await db.staff_shifts.find_one({"id": shift_id}, {"_id": 0})
+    warnings = await _check_compliance(org_id, doc) if doc else []
+    return {"shift": doc, "warnings": warnings}
+
+
+# ── Conflict detection (bulk) ─────────────────────────────────────
+
+async def _conflicts_for_range(org_id: str, start: str, end: str) -> list[dict]:
+    """Scan all shifts in [start, end] and return overlap/rest-gap/
+    weekly-max warnings as a flat list of {shift_id, staff_id, reason,
+    severity} records. Used by the rota grid AND the dashboard."""
+    shifts = await db.staff_shifts.find(
+        {
+            "organization_id": org_id,
+            "date": {"$gte": start, "$lte": end},
+            "status": {"$ne": "cancelled"},
+        },
+        {"_id": 0},
+    ).sort([("staff_id", 1), ("date", 1), ("start_time", 1)]).to_list(5000)
+    rules_doc = await db.staff_rules.find_one({"organization_id": org_id}, {"_id": 0}) or {}
+    rules = {**DEFAULT_RULES, **rules_doc}
+    findings: list[dict] = []
+    by_staff: dict[str, list[dict]] = {}
+    for sh in shifts:
+        sid = sh.get("staff_id")
+        if not sid:
+            continue
+        by_staff.setdefault(sid, []).append(sh)
+    for sid, rows in by_staff.items():
+        rows.sort(key=lambda x: (x.get("date", ""), x.get("start_time", "")))
+        # Overlap + rest-gap
+        for i, cur in enumerate(rows):
+            for j in range(i + 1, len(rows)):
+                nxt = rows[j]
+                if cur["date"] != nxt["date"]:
+                    # Rest-gap check across midnight
+                    try:
+                        cur_end = datetime.fromisoformat(f"{cur['date']}T{cur['end_time']}:00+00:00")
+                        nxt_start = datetime.fromisoformat(f"{nxt['date']}T{nxt['start_time']}:00+00:00")
+                        gap_h = (nxt_start - cur_end).total_seconds() / 3600.0
+                        min_rest = float(rules.get("min_rest_hours_between_shifts") or 0)
+                        if 0 < gap_h < min_rest:
+                            findings.append({
+                                "shift_id": nxt["id"],
+                                "staff_id": sid,
+                                "severity": "warning",
+                                "reason": f"Only {gap_h:.1f}h rest since previous shift (min {min_rest:.0f}h).",
+                            })
+                    except Exception:
+                        pass
+                    break  # next shift is on a different day — stop overlap scan
+                # Same-date overlap
+                if cur["end_time"] > nxt["start_time"]:
+                    findings.append({
+                        "shift_id": nxt["id"],
+                        "staff_id": sid,
+                        "severity": "error",
+                        "reason": f"Overlaps shift {cur['start_time']}–{cur['end_time']}.",
+                    })
+        # Weekly max
+        by_week: dict[str, float] = {}
+        for sh in rows:
+            try:
+                d = datetime.fromisoformat(sh["date"]).date()
+                wk = (d - timedelta(days=d.weekday())).isoformat()
+                by_week[wk] = by_week.get(wk, 0.0) + _shift_hours(sh)
+            except Exception:
+                pass
+        max_h = float(rules.get("max_hours_per_week") or 0)
+        if max_h:
+            for wk, total in by_week.items():
+                if total > max_h:
+                    # Attach to the last shift in that week
+                    last = next(
+                        (sh for sh in reversed(rows)
+                         if sh.get("date", "").startswith(wk[:7]) and wk <= sh["date"] < (
+                             datetime.fromisoformat(wk).date() + timedelta(days=7)
+                         ).isoformat()),
+                        None,
+                    )
+                    if last:
+                        findings.append({
+                            "shift_id": last["id"],
+                            "staff_id": sid,
+                            "severity": "warning",
+                            "reason": f"Week of {wk}: {total:.1f}h exceeds {max_h:.0f}h cap.",
+                        })
+    return findings
+
+
+@router.get("/staffing/conflicts")
+async def conflicts(
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    _require_manager(user)
+    org_id = _org(user)
+    findings = await _conflicts_for_range(org_id, start_date, end_date)
+    return {"conflicts": findings, "count": len(findings)}
+
+
+# ── Workforce Dashboard ───────────────────────────────────────────
+
+@router.get("/staffing/workforce-dashboard")
+async def workforce_dashboard(user: dict = Depends(get_current_user)):
+    """One pre-aggregated payload for the Control Centre tab.
+
+    Returns:
+      kpis             — on_now, late, absent, open_today, coverage_pct
+      week             — labour_cost, hours, overtime_hours, avg_hourly
+      heatmap          — 7×24 grid of staff-on-duty counts (Mon→Sun)
+      open_shifts      — up to 20 unassigned shifts, next 14 days
+      compliance       — top 10 active conflicts
+      on_now           — live on-shift roster
+      upcoming         — next-to-start today (sorted)
+    Everything scoped to the operator's org.
+    """
+    _require_manager(user)
+    org_id = _org(user)
+    now = _now()
+    today = now.date().isoformat()
+    now_hm = now.strftime("%H:%M")
+
+    # Week window (Monday → Sunday, inclusive)
+    wk_start = (now.date() - timedelta(days=now.weekday())).isoformat()
+    wk_end = (now.date() - timedelta(days=now.weekday()) + timedelta(days=6)).isoformat()
+
+    active_staff = await db.staff_members.count_documents(
+        {"organization_id": org_id, "active": True},
+    )
+
+    # Load all shifts for this week in one go; we'll slice for each KPI.
+    week_shifts = await db.staff_shifts.find(
+        {
+            "organization_id": org_id,
+            "date": {"$gte": wk_start, "$lte": wk_end},
+            "status": {"$ne": "cancelled"},
+        },
+        {"_id": 0},
+    ).to_list(5000)
+
+    staff_docs = {s["id"]: s async for s in db.staff_members.find(
+        {"organization_id": org_id}, {"_id": 0, "id": 1, "full_name": 1, "hourly_cost": 1, "primary_role": 1},
+    )}
+
+    # Live state
+    on_now: list[dict] = []
+    upcoming: list[dict] = []
+    late_count = 0
+    absent_count = 0
+    today_shifts_total = 0
+    open_today = 0
+    for sh in week_shifts:
+        if sh.get("date") != today:
+            continue
+        today_shifts_total += 1
+        if sh.get("status") == "open":
+            open_today += 1
+            continue
+        sid = sh.get("staff_id")
+        s = staff_docs.get(sid or "", {})
+        nm = s.get("full_name") or "—"
+        row = {
+            **sh,
+            "staff_name": nm,
+            "primary_role": s.get("primary_role"),
+            "hours": _shift_hours(sh),
+        }
+        if sh["start_time"] <= now_hm <= sh["end_time"]:
+            on_now.append(row)
+            # "Late" heuristic — scheduled start was >10 min ago and
+            # no clock-in recorded. (Time-clock lands in Phase S2;
+            # until then, this is a soft count based on the schedule.)
+            try:
+                sh_start = datetime.fromisoformat(f"{sh['date']}T{sh['start_time']}:00+00:00")
+                if (now - sh_start).total_seconds() / 60.0 > 10 and not sh.get("clocked_in_at"):
+                    late_count += 1
+            except Exception:
+                pass
+        elif sh["start_time"] > now_hm:
+            upcoming.append(row)
+        else:
+            # Shift ended without any attendance capture → soft absent.
+            if not sh.get("clocked_in_at") and sh.get("status") == "scheduled":
+                absent_count += 1
+
+    on_now.sort(key=lambda x: x.get("start_time", ""))
+    upcoming.sort(key=lambda x: x.get("start_time", ""))
+
+    # Week labour totals (manager view — never NULL)
+    week_hours = 0.0
+    week_cost = 0.0
+    overtime_hours = 0.0
+    rules_doc = await db.staff_rules.find_one({"organization_id": org_id}, {"_id": 0}) or {}
+    max_weekly = float({**DEFAULT_RULES, **rules_doc}.get("max_hours_per_week") or 0)
+    by_staff_hours: dict[str, float] = {}
+    for sh in week_shifts:
+        h = _shift_hours(sh)
+        week_hours += h
+        rate = float(staff_docs.get(sh.get("staff_id") or "", {}).get("hourly_cost") or 0)
+        week_cost += h * rate
+        if sh.get("staff_id"):
+            by_staff_hours[sh["staff_id"]] = by_staff_hours.get(sh["staff_id"], 0.0) + h
+    if max_weekly:
+        for _sid, total in by_staff_hours.items():
+            if total > max_weekly:
+                overtime_hours += total - max_weekly
+
+    avg_hourly = round(week_cost / week_hours, 2) if week_hours else 0.0
+
+    # Heatmap — 7 rows (Mon→Sun) × 24 cols (0..23h) of staff-on-duty counts.
+    # Each covered hour adds 1 per staff member. Partial hours count 0.5
+    # where the shift only touches the bucket for part of an hour.
+    heatmap = [[0.0] * 24 for _ in range(7)]
+    for sh in week_shifts:
+        if sh.get("status") == "open":
+            continue
+        try:
+            d = datetime.fromisoformat(sh["date"]).date()
+            row = d.weekday()
+            sh_h, sm = [int(x) for x in sh["start_time"].split(":")]
+            eh_h, em = [int(x) for x in sh["end_time"].split(":")]
+            start_m = sh_h * 60 + sm
+            end_m = eh_h * 60 + em
+            for h in range(24):
+                h_start = h * 60
+                h_end = h_start + 60
+                overlap = max(0, min(end_m, h_end) - max(start_m, h_start))
+                if overlap > 0:
+                    heatmap[row][h] += round(overlap / 60.0, 2)
+        except Exception:
+            pass
+    # Round for JSON cleanliness
+    heatmap = [[round(v, 1) for v in row] for row in heatmap]
+    peak = max((max(row) for row in heatmap), default=0)
+
+    # Open shifts (next 14 days)
+    horizon = (now.date() + timedelta(days=14)).isoformat()
+    open_shifts = await db.staff_shifts.find(
+        {
+            "organization_id": org_id,
+            "status": "open",
+            "date": {"$gte": today, "$lte": horizon},
+        },
+        {"_id": 0},
+    ).sort([("date", 1), ("start_time", 1)]).limit(20).to_list(20)
+
+    # Compliance: this week's conflicts, top 10
+    conflicts_list = await _conflicts_for_range(org_id, wk_start, wk_end)
+    # Decorate with staff name + shift info for the UI
+    shift_by_id = {sh["id"]: sh for sh in week_shifts}
+    top_conflicts: list[dict] = []
+    for c in conflicts_list[:10]:
+        sh = shift_by_id.get(c.get("shift_id")) or {}
+        top_conflicts.append({
+            **c,
+            "staff_name": staff_docs.get(c.get("staff_id") or "", {}).get("full_name"),
+            "date": sh.get("date"),
+            "start_time": sh.get("start_time"),
+            "end_time": sh.get("end_time"),
+        })
+
+    coverage_pct = 0
+    if today_shifts_total > 0:
+        filled = today_shifts_total - open_today
+        coverage_pct = int(round((filled / today_shifts_total) * 100))
+    else:
+        coverage_pct = 100  # nothing scheduled → no gap
+
+    return {
+        "as_of": now.isoformat(),
+        "week_start": wk_start,
+        "week_end": wk_end,
+        "kpis": {
+            "active_staff": active_staff,
+            "on_now": len(on_now),
+            "late": late_count,
+            "absent": absent_count,
+            "open_today": open_today,
+            "coverage_pct": coverage_pct,
+        },
+        "week": {
+            "hours": round(week_hours, 1),
+            "labour_cost": round(week_cost, 2),
+            "overtime_hours": round(overtime_hours, 1),
+            "avg_hourly": avg_hourly,
+        },
+        "heatmap": {"grid": heatmap, "peak": peak},
+        "on_now": on_now,
+        "upcoming": upcoming[:12],
+        "open_shifts": open_shifts,
+        "compliance": {"count": len(conflicts_list), "top": top_conflicts},
+    }

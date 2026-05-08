@@ -19,16 +19,21 @@ import {
   Users, Calendar, UserPlus, Plane, ShoppingBag, BarChart3, PoundSterling,
   Eye, Shield, Megaphone, Sparkles, Plus, Trash2, CheckCircle2, X,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
+  LayoutDashboard, Layers,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import PillTabBar from '@/components/shared/PillTabBar';
 import PageHeader from '@/components/shared/PageHeader';
+import WorkforceDashboardTab from '@/pages/LiteDashboard/staffing/WorkforceDashboardTab';
+import ShiftTemplatesTab from '@/pages/LiteDashboard/staffing/ShiftTemplatesTab';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Canonical tab registry. Each tab knows which roles can see it.
 const TABS_ALL = [
+  { id: 'dashboard',    label: 'Dashboard',     icon: LayoutDashboard, roles: ['owner','manager','master_admin'] },
   { id: 'rota',         label: 'Rota',          icon: Calendar,    roles: ['owner','manager','master_admin'] },
+  { id: 'templates',    label: 'Templates',     icon: Layers,      roles: ['owner','manager','master_admin'] },
   { id: 'staff',        label: 'Staff',         icon: Users,       roles: ['owner','manager','master_admin'] },
   { id: 'leave',        label: 'Time Off',      icon: Plane,       roles: ['owner','manager','master_admin','staff'] },
   { id: 'market',       label: 'Shift Market',  icon: ShoppingBag, roles: ['owner','manager','master_admin','staff'] },
@@ -98,7 +103,9 @@ export default function StaffingConsole() {
       </PillTabBar>
 
       <div>
+        {tab === 'dashboard'   && <WorkforceDashboardTab headers={headers} />}
         {tab === 'rota'        && <RotaTab        headers={headers} isManager={isManager} />}
+        {tab === 'templates'   && <ShiftTemplatesTab  headers={headers} isManager={isManager} />}
         {tab === 'staff'       && <StaffTab       headers={headers} />}
         {tab === 'leave'       && <LeaveTab       headers={headers} isManager={isManager} />}
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
@@ -144,8 +151,12 @@ function RotaTab({ headers, isManager }) {
   });
   const [shifts, setShifts] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [conflicts, setConflicts] = useState([]); // [{shift_id, reason, severity}]
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(null); // { staff_id, date }
+  // Phase S1 — drag/drop state
+  const [dragging, setDragging] = useState(null);   // shift_id
+  const [dropTarget, setDropTarget] = useState(null); // `${staff_id}|${date}`
 
   const days = useMemo(() => {
     const start = new Date(weekStart);
@@ -158,20 +169,46 @@ function RotaTab({ headers, isManager }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sh, st] = await Promise.all([
+      const [sh, st, cf] = await Promise.all([
         axios.get(`${API}/staffing/shifts`, { headers, params: { date_from: days[0], date_to: days[6] } }),
         axios.get(`${API}/staffing/staff`, { headers }),
+        isManager
+          ? axios.get(`${API}/staffing/conflicts`, { headers, params: { start_date: days[0], end_date: days[6] } })
+          : Promise.resolve({ data: { conflicts: [] } }),
       ]);
       setShifts(sh.data.shifts || []);
       setStaff(st.data.staff || []);
+      setConflicts(cf.data?.conflicts || []);
     } catch { /* noop */ }
     setLoading(false);
-  }, [headers, days]);
+  }, [headers, days, isManager]);
 
   useEffect(() => { load(); }, [load]);
 
+  // Build a quick lookup for conflict lines per shift
+  const conflictsByShift = useMemo(() => {
+    const m = {};
+    conflicts.forEach((c) => {
+      if (!m[c.shift_id]) m[c.shift_id] = [];
+      m[c.shift_id].push(c);
+    });
+    return m;
+  }, [conflicts]);
+
   const weekCost = shifts.reduce((s, x) => s + (x.labour_cost || 0), 0);
   const weekHours = shifts.reduce((s, x) => s + (x.hours || 0), 0);
+
+  // Per-day totals for the bottom row
+  const dayTotals = useMemo(() => {
+    const out = {};
+    days.forEach((d) => { out[d] = { hours: 0, cost: 0 }; });
+    shifts.forEach((s) => {
+      if (!out[s.date]) return;
+      out[s.date].hours += (s.hours || 0);
+      out[s.date].cost += (s.labour_cost || 0);
+    });
+    return out;
+  }, [shifts, days]);
 
   const addShift = async ({ staff_id, date, start_time, end_time, role }) => {
     try {
@@ -196,6 +233,41 @@ function RotaTab({ headers, isManager }) {
     } catch (err) { alert(err.response?.data?.detail || 'Failed'); }
   };
 
+  // Phase S1 — drag/drop handlers (HTML5 native; no extra lib)
+  const onDragStart = (e, shiftId) => {
+    if (!isManager) return;
+    setDragging(shiftId);
+    try { e.dataTransfer.setData('text/plain', shiftId); } catch { /* firefox quirk */ }
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const onDragEnd = () => { setDragging(null); setDropTarget(null); };
+  const onDragOver = (e, staff_id, date) => {
+    if (!dragging) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const key = `${staff_id}|${date}`;
+    if (dropTarget !== key) setDropTarget(key);
+  };
+  const onDrop = async (e, staff_id, date) => {
+    e.preventDefault();
+    const id = dragging || e.dataTransfer.getData('text/plain');
+    setDropTarget(null);
+    setDragging(null);
+    if (!id) return;
+    // No-op if dropped in original cell
+    const cur = shifts.find((s) => s.id === id);
+    if (cur && cur.staff_id === staff_id && cur.date === date) return;
+    // Optimistic update
+    setShifts((prev) => prev.map((s) => s.id === id ? { ...s, staff_id, date } : s));
+    try {
+      await axios.post(`${API}/staffing/shifts/${id}/move`, { staff_id, date }, { headers });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to move shift');
+      load(); // revert optimistic
+    }
+  };
+
   const shiftsFor = (staffId, date) => shifts.filter((s) => s.staff_id === staffId && s.date === date);
 
   return (
@@ -206,10 +278,15 @@ function RotaTab({ headers, isManager }) {
           <div className="text-xs font-semibold px-2" data-testid="rota-week-label">Week of {weekStart}</div>
           <button type="button" onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d.toISOString().slice(0,10)); }} className="w-8 h-8 inline-flex items-center justify-center" data-testid="rota-next-week"><ChevronRight size={14} /></button>
         </div>
-        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+        <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
           <span data-testid="rota-week-hours">{weekHours.toFixed(1)}h</span>
           <span>·</span>
           <span data-testid="rota-week-cost">£{weekCost.toFixed(2)} labour</span>
+          {isManager && conflicts.length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }} data-testid="rota-conflicts-badge">
+              <AlertTriangle size={10} /> {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
+            </span>
+          )}
         </div>
         {isManager && (
           <button type="button" onClick={copyWeek} className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="rota-copy-week">
@@ -238,28 +315,76 @@ function RotaTab({ headers, isManager }) {
                     <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{s.full_name}</div>
                     <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</div>
                   </td>
-                  {days.map((d) => (
-                    <td key={d} className="py-2 px-1 align-top">
+                  {days.map((d) => {
+                    const cellKey = `${s.id}|${d}`;
+                    const isDropTarget = dropTarget === cellKey && dragging;
+                    return (
+                    <td
+                      key={d}
+                      className="py-2 px-1 align-top"
+                      onDragOver={(e) => isManager && onDragOver(e, s.id, d)}
+                      onDrop={(e) => isManager && onDrop(e, s.id, d)}
+                      style={isDropTarget ? { background: 'rgba(25,205,255,0.12)', outline: '1px dashed var(--color-brand-cyan)' } : {}}
+                      data-testid={`rota-cell-${s.id}-${d}`}
+                    >
                       <div className="space-y-1">
-                        {shiftsFor(s.id, d).map((sh) => (
-                          <div key={sh.id} className="rounded-lg px-2 py-1 text-[11px] flex items-center gap-1 group" style={{ background: 'rgba(25,205,255,0.12)', color: 'var(--theme-text)' }} data-testid={`rota-shift-${sh.id}`}>
-                            <Clock size={10} />
+                        {shiftsFor(s.id, d).map((sh) => {
+                          const myConflicts = conflictsByShift[sh.id] || [];
+                          const hasError = myConflicts.some((c) => c.severity === 'error');
+                          const hasWarn = myConflicts.length > 0 && !hasError;
+                          return (
+                          <div
+                            key={sh.id}
+                            draggable={isManager}
+                            onDragStart={(e) => onDragStart(e, sh.id)}
+                            onDragEnd={onDragEnd}
+                            className="rounded-lg px-2 py-1 text-[11px] flex items-center gap-1 group cursor-grab active:cursor-grabbing"
+                            style={{
+                              background: hasError ? 'rgba(239,68,68,0.15)'
+                                : hasWarn ? 'rgba(245,158,11,0.15)'
+                                : 'rgba(25,205,255,0.12)',
+                              color: 'var(--theme-text)',
+                              outline: hasError ? '1px solid rgba(239,68,68,0.4)'
+                                : hasWarn ? '1px solid rgba(245,158,11,0.4)'
+                                : 'none',
+                              opacity: dragging === sh.id ? 0.4 : 1,
+                            }}
+                            title={myConflicts.map((c) => c.reason).join('\n') || `${sh.start_time}–${sh.end_time}`}
+                            data-testid={`rota-shift-${sh.id}`}>
+                            {(hasError || hasWarn) && <AlertTriangle size={10} style={{ color: hasError ? '#EF4444' : '#F59E0B' }} />}
+                            {!hasError && !hasWarn && <Clock size={10} />}
                             <span className="flex-1">{sh.start_time}–{sh.end_time}</span>
-                            {isManager && <button type="button" onClick={() => deleteShift(sh.id)} className="opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={10} /></button>}
+                            {isManager && <button type="button" onClick={() => deleteShift(sh.id)} className="opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`rota-delete-${sh.id}`}><Trash2 size={10} /></button>}
                           </div>
-                        ))}
+                        ); })}
                         {isManager && (
                           <button type="button" onClick={() => setAdding({ staff_id: s.id, date: d })} className="w-full rounded-lg px-2 py-1 text-[11px] opacity-40 hover:opacity-100 border border-dashed" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`rota-add-${s.id}-${d}`}>+</button>
                         )}
                       </div>
                     </td>
-                  ))}
+                  ); })}
                 </tr>
               ))}
+              {/* Day totals */}
+              {staff.length > 0 && (
+                <tr className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
+                  <td className="py-2 px-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Day totals</td>
+                  {days.map((d) => {
+                    const t = dayTotals[d];
+                    return (
+                      <td key={d} className="py-2 px-2" data-testid={`rota-day-total-${d}`}>
+                        <div className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{t.hours.toFixed(1)}h</div>
+                        {isManager && <div className="text-[10px] tabular-nums" style={{ color: 'var(--theme-text-muted)' }}>£{t.cost.toFixed(2)}</div>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
         {loading && <div className="text-xs mt-2" style={{ color: 'var(--theme-text-muted)' }}>Loading…</div>}
+        {isManager && <p className="text-[10px] mt-2" style={{ color: 'var(--theme-text-muted)' }}>Tip: drag any shift tile onto another cell to reassign it.</p>}
       </Card>
 
       {adding && (
