@@ -599,8 +599,14 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  // Iter 216o-7 — compact row layout matching Pulse Lite. Same data
  // density, ~70% smaller vertical footprint so a 50-machine site is
  // a 2-screen scroll instead of a 10-screen scroll.
+ // Iter 216e — `spec_sheet_image` is populated by the master-admin
+ // catalogue rematch (manufacturer-catalogue fallback). Sits between
+ // the operator-triggered auto-lookup and the PDF spec hero so list
+ // thumbnails show real product photos for any equipment whose
+ // manufacturer is in the catalogue.
  const thumbUrl = equip.photo_url
    || equip.auto_image_url
+   || equip.spec_sheet_image
    || (equip.spec_sheet_id ? `${API}/spec-sheets/image/${equip.spec_sheet_id}` : null);
  const installDate = equip.install_date || equip.installed_at || equip.created_at || null;
  const formattedInstallDate = installDate

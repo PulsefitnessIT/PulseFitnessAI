@@ -133,12 +133,27 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                 fallbackImageUrl={
                   !photoUrl
                     ? (selectedEquipment.auto_image_url
+                        // Iter 216e — catalogue-fallback image populated
+                        // by the master-admin rematch endpoint. Sits
+                        // between the operator-triggered auto-lookup
+                        // and the PDF spec-sheet hero so equipment with
+                        // a Pulse / Technogym / etc match always shows
+                        // a real product photo, not a placeholder.
+                        || selectedEquipment.spec_sheet_image
                         || (specId ? `${API_BASE}/spec-sheets/image/${specId}` : null))
                     : null
                 }
-                fallbackSource={selectedEquipment.auto_image_url ? 'manufacturer' : (specId ? 'spec-sheet' : null)}
-                autoImageSourceUrl={selectedEquipment.auto_image_source_url || null}
-                canAutoLookup={!photoUrl && !selectedEquipment.auto_image_url && !specId}
+                fallbackSource={
+                  selectedEquipment.auto_image_url ? 'manufacturer'
+                  : selectedEquipment.spec_sheet_image ? 'manufacturer-catalogue'
+                  : (specId ? 'spec-sheet' : null)
+                }
+                autoImageSourceUrl={
+                  selectedEquipment.auto_image_source_url
+                  || selectedEquipment.manufacturer_page_url
+                  || null
+                }
+                canAutoLookup={!photoUrl && !selectedEquipment.auto_image_url && !selectedEquipment.spec_sheet_image && !specId}
                 onAutoLookup={async () => {
                   try {
                     const r = await (await import('axios')).default.post(
@@ -179,7 +194,28 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                 tiles={[
                   { label: 'Type', value: selectedEquipment.equipment_type, testId: 'lite-equip-type' },
                   { label: 'Serial', value: selectedEquipment.serial_number, mono: true, testId: 'lite-equip-serial' },
-                  { label: 'Manufacturer', value: selectedEquipment.manufacturer, testId: 'lite-equip-manufacturer' },
+                  {
+                    label: 'Manufacturer',
+                    /* Iter 216e — when the manufacturer-catalogue
+                       backfill matched this equipment, render the
+                       manufacturer name as a clickable link to the
+                       brand's product page. Falls back to plain text
+                       when no match. */
+                    value: selectedEquipment.manufacturer_page_url ? (
+                      <a
+                        href={selectedEquipment.manufacturer_page_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline decoration-dotted underline-offset-2 hover:opacity-80"
+                        style={{ color: brandAccent }}
+                        data-testid="lite-equip-manufacturer-link"
+                        title={`View ${selectedEquipment.manufacturer || 'manufacturer'} page`}
+                      >
+                        {selectedEquipment.manufacturer} ↗
+                      </a>
+                    ) : selectedEquipment.manufacturer,
+                    testId: 'lite-equip-manufacturer',
+                  },
                   { label: 'Location', value: selectedEquipment.location, testId: 'lite-equip-location' },
                   { label: 'Supplier', value: selectedEquipment.supplier, accent: !!selectedEquipment.supplier, testId: 'lite-equip-supplier' },
                 ]}

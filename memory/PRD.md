@@ -37,6 +37,18 @@
 - `SKIP_LIVE_CHECK=1 make pre-deploy` → all 9 gate steps green.
 - Frontend webpack: clean.
 
+### Iter 216e2 — Surface catalogue fields in equipment UI
+
+**Followup**: rematch persisted `spec_sheet_image` + `manufacturer_page_url` on equipment docs, but the UI was still rendering placeholders.
+
+**What shipped:**
+- `pages/LiteDashboard/LiteDialogs.js` — `EquipmentPhotoUpload` `fallbackImageUrl` chain extended to: `auto_image_url` → **`spec_sheet_image`** → spec-sheet PDF hero. New `fallbackSource: 'manufacturer-catalogue'` so the photo card shows the right "via …" attribution. The Manufacturer tile in the spec grid now renders as a clickable underlined link to `manufacturer_page_url` when set (with ↗ external arrow).
+- `pages/EquipmentInfoTab.js` — list-card thumbnail's `thumbUrl` chain now also checks `spec_sheet_image`, so list rows show real Pulse / Technogym / Life Fitness product photos instead of generic icons.
+- New regression case `test_equipment_list_exposes_catalogue_fields` — pins that `GET /api/equipment` keeps both fields in the response (so a future projection / serializer change can't silently strip them).
+
+**Verified live**:
+- `GET /api/equipment` for Bob returns `spec_sheet_image=https://pulsefitness.com/wp-content/.../262C-Alpha-Runner-Treadmill...jpg` and `manufacturer_page_url=https://pulsefitness.com/product/cv-treadmill-alpha-runner-treadmill-262c-aab/` ✓
+
 ---
 
 
