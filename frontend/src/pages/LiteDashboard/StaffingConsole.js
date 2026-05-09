@@ -20,6 +20,7 @@ import {
   Eye, Shield, Megaphone, Sparkles, Plus, Trash2, CheckCircle2, X,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
   LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
+  IdCard,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import PillTabBar from '@/components/shared/PillTabBar';
@@ -30,6 +31,7 @@ import TimeClockTab from '@/pages/LiteDashboard/staffing/TimeClockTab';
 import MyClockTab from '@/pages/LiteDashboard/staffing/MyClockTab';
 import CommsTab from '@/pages/LiteDashboard/staffing/CommsTab';
 import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
+import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -50,6 +52,7 @@ const TABS_ALL = [
   { id: 'announce',     label: 'Announcements', icon: Megaphone,   roles: ['owner','manager','master_admin','staff'] },
   { id: 'comms',        label: 'Comms Hub',     icon: MessageSquare, roles: ['owner','manager','master_admin','staff'] },
   { id: 'operations',   label: 'Ops · Forms',   icon: ClipboardList, roles: ['owner','manager','master_admin','staff'] },
+  { id: 'hr',           label: 'HR',            icon: IdCard,      roles: ['owner','manager','master_admin'] },
   { id: 'ai',           label: 'AI Insights',   icon: Sparkles,    roles: ['owner','manager','master_admin'] },
 ];
 
@@ -126,6 +129,7 @@ export default function StaffingConsole() {
         {tab === 'announce'    && <AnnouncementsTab headers={headers} isManager={isManager} />}
         {tab === 'comms'       && <CommsTab        headers={headers} isManager={isManager} />}
         {tab === 'operations'  && <OperationsTab   headers={headers} isManager={isManager} />}
+        {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
         {tab === 'ai'          && <AIInsightsTab  headers={headers} />}
       </div>
     </div>
