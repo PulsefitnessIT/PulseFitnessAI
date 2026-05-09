@@ -1,3 +1,39 @@
+## Iteration 216aq — Phase S5 (HR 2.0) wired & shipped (Feb 2026)
+
+**Goal**: Finish Phase S5 of the workforce platform — HR 2.0 (employee profiles 2.0, documents, disciplinary, training history) was scaffolded by the previous agent but not wired into the UI.
+
+### What shipped
+- Backend `/app/backend/routes/staffing_hr.py` (already registered in `route_registry/features.py`) provides 13 endpoints under `/api/staffing/hr/*`:
+  - `GET/PATCH /profile/{staff_id}` — manager-only update of whitelisted PROFILE_FIELDS (address, DOB, NI, contract, hire/term, emergency contact, bank, RTW, notes). Stamps `hr_updated_at` + `hr_updated_by`.
+  - Documents: `GET / POST / PATCH / DELETE /documents` — kind ∈ {contract,id,onboarding,training,policy,other}; soft-delete (`archived=true`).
+  - Disciplinary: `GET / POST / PATCH / DELETE /disciplinary` — severity ∈ {informal,verbal,written,final,suspension,dismissal}; non-managers can only see their own non-confidential records and never see `manager_note`.
+  - Training: `GET / POST / PATCH / DELETE /training`.
+- Frontend `/app/frontend/src/pages/LiteDashboard/staffing/HRTab.js` — master/detail view with staff list (search) + 4 sub-pills (Profile · Documents · Disciplinary · Training). Reusable `<CrudList>` + `<MiniDialog>` for the three CRUD panels. Mobile-friendly bottom-sheet dialogs.
+- Wired into `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js`: imported `HRTab`, added `{ id: 'hr', label: 'HR', icon: IdCard, roles: ['owner','manager','master_admin'] }` to `TABS_ALL`, added render branch.
+
+### Verification
+- `/app/test_reports/iteration_216aq.json` — **29/29 backend PASS · frontend HR tab PASS**, 0 issues. Multi-tenant isolation, role-based redaction (manager_note hidden from staff), kind/severity validation, soft-delete all green.
+- New pytest file: `/app/backend/tests/test_iter_216aq_staffing_s5_hr.py`.
+- Self-verified curl: profile GET/PATCH, document POST/LIST, disciplinary POST, training POST against Bob's org all returned valid documents.
+- Lint clean on all touched files.
+
+### Files of reference
+- `/app/backend/routes/staffing_hr.py`
+- `/app/backend/route_registry/features.py` (line 56, 147 — staffing_hr_router registered)
+- `/app/frontend/src/pages/LiteDashboard/staffing/HRTab.js`
+- `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js`
+- `/app/backend/tests/test_iter_216aq_staffing_s5_hr.py`
+
+### Next up
+- **P0 — Phase S6**: AI Workforce Automation & Payroll Integration (AI rota builder, absence prediction, Sage payroll exports).
+- P1: Configure Sentry DSN.
+- P2 backlog: Resend AI insights digest hook, Calendly demo embed, Referral program, Twilio SMS real integration.
+- BLOCKED: Sicon / Sage 200 live cutover (needs user credentials).
+
+---
+
+
+
 ## Iteration 216aj — Three user-reported Memberships bugs (Feb 2026)
 
 **User feedback**: During a live review of the merged Classes & Timetable tab (iter 216ai), the operator flagged three bugs:
