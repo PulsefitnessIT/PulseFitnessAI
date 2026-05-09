@@ -13,6 +13,7 @@ import { AlertCircle, CheckCircle, Plus, Upload, Wrench, X, Image as ImageIcon, 
 import FaultTemplatePicker from './FaultTemplatePicker';
 import FaultCodeSelect from './FaultCodeSelect';
 import SaveAsTemplateButton from './SaveAsTemplateButton';
+import { buildMachineTypeGroups, filterSerialsByGroup } from './faultMachineGrouping';
 
 const FaultDialogs = ({
  // Issue dialog state
@@ -85,28 +86,36 @@ const FaultDialogs = ({
  </div>
  )}
 
- {/* Machine Type dropdown */}
+ {/* Machine Type dropdown — iter 216d2.
+     Groups by the machine's display name (Lee's Feb-2026 fix:
+     `equipment_type` was showing low-cardinality categories like
+     "cardio (1)" instead of the actual "Treadmill (3)" label users
+     expect). Falls back to `equipment_type` only when `name` is
+     empty. The grouping key uses everything before the first comma
+     so "Treadmill, Bay 3" and "Treadmill, Bay 4" collapse into
+     one "Treadmill (2)" group — matching the Lite dialog behaviour. */}
  <div>
  <Label className="text-[var(--theme-text)]">{t('faults.machine_type')}</Label>
  <Select value={selectedMachineType} onValueChange={(val) => { setSelectedMachineType(val); setIssueForm({...issueForm, serial_number: '', machine_type: val, supplier: ''}); }}>
  <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-2 truncate" data-testid="issue-type-select"><SelectValue placeholder="Select machine type" /></SelectTrigger>
  <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] max-w-[90vw]">
- {[...new Set(allEquipment.map(e => e.equipment_type).filter(Boolean))].map(type => {
- const count = allEquipment.filter(e => e.equipment_type === type).length;
- return <SelectItem key={type} value={type}>{type} ({count})</SelectItem>;
- })}
+ {buildMachineTypeGroups(allEquipment).map(g => (
+   <SelectItem key={g.type} value={g.type}>{g.label}</SelectItem>
+ ))}
  {allEquipment.length === 0 && <SelectItem value="_none" disabled>{t('faults.no_equipment')}</SelectItem>}
  </SelectContent>
  </Select>
  </div>
 
- {/* Serial Number dropdown */}
+ {/* Serial Number dropdown — iter 216d2: filters by the same derived
+     name-key as the Machine Type dropdown, so picking "Treadmill"
+     surfaces only treadmill serials. */}
  <div>
  <Label className="text-[var(--theme-text)]">{t('faults.serial_number')}</Label>
  <Select value={issueForm.serial_number} onValueChange={(val) => {
  const equip = allEquipment.find(e => (e.serial_number || e.id) === val);
  if (equip) {
- setIssueForm({ ...issueForm, serial_number: equip.serial_number || equip.name, machine_type: equip.equipment_type || selectedMachineType, supplier: equip.manufacturer || '' });
+ setIssueForm({ ...issueForm, serial_number: equip.serial_number || equip.name, machine_type: selectedMachineType || equip.equipment_type || equip.name, supplier: equip.manufacturer || '' });
  fetchCoverage(equip.id);
  const serialKey = equip.serial_number || equip.name;
  const openFaults = issues.filter(i => i.status === 'open' && (i.serial_number === serialKey || i.serial_number === equip.name));
@@ -118,10 +127,10 @@ const FaultDialogs = ({
  <SelectValue placeholder={selectedMachineType ? t('faults.select_serial') : t('faults.select_type_first')} />
  </SelectTrigger>
  <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)]">
- {allEquipment.filter(e => !selectedMachineType || e.equipment_type === selectedMachineType).map(e => (
- <SelectItem key={e.id} value={e.serial_number || e.id}>
- {e.serial_number || t('faults.no_serial')} - {e.name} {e.manufacturer ? `(${e.manufacturer})` : ''}
- </SelectItem>
+ {filterSerialsByGroup(allEquipment, selectedMachineType).map(e => (
+   <SelectItem key={e.id} value={e.serial_number || e.id}>
+     {e.serial_number || t('faults.no_serial')} - {e.name} {e.manufacturer ? `(${e.manufacturer})` : ''}
+   </SelectItem>
  ))}
  </SelectContent>
  </Select>

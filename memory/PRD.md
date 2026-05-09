@@ -1,3 +1,30 @@
+## Iter 216d2 — Fault dialog Machine Type grouping fix (Feb 9, 2026)
+
+**Problem (Lee, prod screenshot):**
+> "Machine type — should be the **name** of the machine with the total number of machines next to the name. Serial numbers are then populated from the machines the user has chosen and the user then picks the serial number. This process has been changed from earlier iterations."
+
+**Root cause** — `pages/Dashboard/FaultDialogs.js` was grouping the Machine Type dropdown by `equipment_type`, so Bob's Treadmill (with `equipment_type="cardio"`, `name="Treadmill"`) showed up as **"cardio (1)"** instead of **"Treadmill (1)"**. The Lite/Pulse dialog already grouped by `name` correctly — only the GymAxis dashboard regressed.
+
+### What shipped
+
+- New shared helper `pages/Dashboard/faultMachineGrouping.js` exports:
+  - `deriveGroupKey(eq)` — falls back `name → equipment_type`, collapses `"Treadmill, Bay 3"` to `"Treadmill"`.
+  - `buildMachineTypeGroups(list)` — returns `[{type, count, label: "Treadmill (3)"}]` sorted alphabetically.
+  - `filterSerialsByGroup(list, key)` — Serial dropdown filter using the same key.
+- `pages/Dashboard/FaultDialogs.js` rewired to use the helper for both dropdowns. The selected `machine_type` saved on the issue document now reflects the user-facing label they picked (not the stale category).
+- New jest suite `faultMachineGrouping.test.js` — 6 cases covering Bob's exact prod data, comma-suffixed names, empty-name fallback, and the serial filter contract.
+
+### Verified
+- `yarn test faultMachineGrouping.test.js` → 6/6 passing.
+- Backend regression unaffected: 32 passed, 1 skipped.
+- Frontend webpack: clean.
+
+### Why a shared helper instead of inline JSX?
+The grouping logic is the kind of thing that quietly drifts (a dev "fixes" the dropdown by changing the inline IIFE without realising the Serial dropdown reads the same key elsewhere — exactly how iter-216d2 happened in the first place). Centralising it + jest pinning means the next regression fails a 0.5-second unit test instead of being filed by a customer 3 weeks later.
+
+---
+
+
 ## Iteration 216d — Multi-machine fault job (job_id grouping) (Feb 9, 2026)
 
 **Problem (Lee, prod feedback):**
