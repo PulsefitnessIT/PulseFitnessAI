@@ -3,7 +3,7 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
-.PHONY: help lint-integrations lint-backend lint-frontend lint smoke
+.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression security-scan pre-deploy
 
 help:
 	@echo "GymAxis make targets:"
@@ -11,7 +11,10 @@ help:
 	@echo "  make lint-backend        # ruff over backend/"
 	@echo "  make lint-frontend       # eslint over frontend/src/"
 	@echo "  make lint                # all of the above"
-	@echo "  make smoke               # quick health curl against $$REACT_APP_BACKEND_URL"
+	@echo "  make smoke               # quick health curl against \$$REACT_APP_BACKEND_URL"
+	@echo "  make security-scan       # ruff + bandit baseline (fail on Medium+)"
+	@echo "  make regression          # iter-216 regression suite (branding, site-lock, brand inheritance)"
+	@echo "  make pre-deploy          # full deploy gate — regressions + security + Stripe + lint"
 
 lint-integrations:
 	@python3 /app/backend/scripts/check_integration_mapping.py
@@ -27,3 +30,24 @@ lint: lint-integrations lint-backend lint-frontend
 smoke:
 	@URL=$$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d'=' -f2); \
 	  curl -fsS "$$URL/api/health" >/dev/null && echo "OK: backend reachable at $$URL/api/health" || echo "FAIL: backend not reachable"
+
+# Iter 216c — focused regression suite that pins the most-recent
+# production bug fixes. Cheap (~3s), no env deps. Run this before every
+# deploy to make sure no fixed bug has silently come back.
+regression:
+	@cd /app/backend && python3 -m pytest \
+	  tests/test_iter_216c_branding_org_sync.py \
+	  tests/test_iter_216bl_site_lock.py \
+	  tests/test_iter_216af_brand_inheritance.py \
+	  -q --tb=line --no-header
+
+# Iter 216c — ruff + bandit baseline. Medium+ findings fail.
+security-scan:
+	@bash /app/backend/scripts/security-scan.sh
+
+# Iter 216c — full deploy gate. Runs:
+#   regression suite → ruff/bandit → Stripe live keys → Mongo ping → frontend lint.
+# In preview / staging where Stripe is in test mode, prefix with
+#   SKIP_LIVE_CHECK=1 make pre-deploy
+pre-deploy:
+	@bash /app/scripts/pre-deploy.sh

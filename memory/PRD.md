@@ -48,6 +48,30 @@ If any of these fail, the dashboard header / Master Admin / billing / audit logs
 
 The only "two fields, one truth" pattern in the org schema was `name` ↔ `branding.company_name`, and that is now both fixed AND regression-protected.
 
+### Pre-deploy gate (`make pre-deploy`)
+
+The iter-216c regressions are now wired into a single repeatable deploy-gate command alongside the existing Stripe / Mongo / lint checks:
+
+```
+$ make pre-deploy
+  → 0)  Iter-216 regression suite        (branding sync, site-lock, brand inheritance)
+  → 0b) ruff + bandit baseline            (Medium+ findings fail)
+  → 1)  Stripe key presence
+  → 2)  Stripe LIVE mode                  (skip with SKIP_LIVE_CHECK=1 for preview)
+  → 3)  All 12 Stripe Price IDs valid
+  → 4)  Webhook handler tests             (offline)
+  → 5)  MongoDB reachable
+  → 6)  Frontend lint                     (focused on files in HEAD diff)
+```
+
+Failing regression suite → deploy is blocked. Each step prints a single `✓` / `✗` line; the first failure exits non-zero. End-to-end runtime: ~10s.
+
+Also exposed individually:
+- `make regression` — just the iter-216 regression suite (~3s).
+- `make security-scan` — just ruff + bandit (~6s).
+
+Files: `scripts/pre-deploy.sh`, `Makefile`.
+
 ---
 
 
