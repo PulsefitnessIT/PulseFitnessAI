@@ -42,6 +42,52 @@ export function useOnboardingChecklist() {
   return { data, loading, reload: load };
 }
 
+/** Single checklist row. Pulled out so the parent stays focused on
+ * orchestration (load + dismiss + render the panel). */
+function ChecklistStep({ step, index, onAdvance }) {
+  return (
+    <li
+      className="rounded-xl p-4 border transition-colors flex items-start gap-3"
+      style={{
+        background: step.done ? 'var(--theme-surface-hover)' : 'var(--theme-surface)',
+        borderColor: step.done ? 'rgba(16,185,129,0.3)' : 'var(--theme-border)',
+        opacity: step.done ? 0.75 : 1,
+      }}
+      data-testid={`mbr-start-step-${step.id}`}
+    >
+      <div className="pt-0.5">
+        {step.done
+          ? <CheckCircle2 size={18} className="text-emerald-400" />
+          : <Circle size={18} className="text-[color:var(--theme-text-muted)]" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">
+            Step {index + 1}
+          </span>
+          {step.done && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+              Done{step.count ? ` · ${step.count}` : ''}
+            </span>
+          )}
+        </div>
+        <p className="text-sm font-extrabold mt-0.5" style={{ color: 'var(--theme-text)' }}>{step.title}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{step.note}</p>
+      </div>
+      {!step.done && (
+        <button
+          onClick={() => onAdvance(step.cta_tab)}
+          className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-2 rounded-lg flex-shrink-0"
+          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+          data-testid={`mbr-start-cta-${step.id}`}
+        >
+          {step.cta_label} <ArrowRight size={11} />
+        </button>
+      )}
+    </li>
+  );
+}
+
 export default function MembershipsStartTab({ setTab }) {
   const { data, loading, reload } = useOnboardingChecklist();
   const [dismissing, setDismissing] = useState(false);
@@ -102,52 +148,12 @@ export default function MembershipsStartTab({ setTab }) {
       </div>
 
       <div className="h-2 rounded-full overflow-hidden mb-6" style={{ background: 'var(--theme-surface-hover)' }} data-testid="mbr-start-progress">
-        <div className="h-full transition-all"
-          style={{ width: `${percent}%`, background: 'var(--color-brand-cyan)' }} />
+        <div className="h-full transition-all" style={{ width: `${percent}%`, background: 'var(--color-brand-cyan)' }} />
       </div>
 
       <ul className="space-y-2">
         {steps.map((s, idx) => (
-          <li key={s.id}
-            className="rounded-xl p-4 border transition-colors flex items-start gap-3"
-            style={{
-              background: s.done ? 'var(--theme-surface-hover)' : 'var(--theme-surface)',
-              borderColor: s.done ? 'rgba(16,185,129,0.3)' : 'var(--theme-border)',
-              opacity: s.done ? 0.75 : 1,
-            }}
-            data-testid={`mbr-start-step-${s.id}`}>
-            <div className="pt-0.5">
-              {s.done
-                ? <CheckCircle2 size={18} className="text-emerald-400" />
-                : <Circle size={18} className="text-[color:var(--theme-text-muted)]" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">
-                  Step {idx + 1}
-                </span>
-                {s.done && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
-                    Done{s.count ? ` · ${s.count}` : ''}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm font-extrabold mt-0.5" style={{ color: 'var(--theme-text)' }}>
-                {s.title}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-                {s.note}
-              </p>
-            </div>
-            {!s.done && (
-              <button onClick={() => setTab(s.cta_tab)}
-                className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-2 rounded-lg flex-shrink-0"
-                style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
-                data-testid={`mbr-start-cta-${s.id}`}>
-                {s.cta_label} <ArrowRight size={11} />
-              </button>
-            )}
-          </li>
+          <ChecklistStep key={s.id} step={s} index={idx} onAdvance={setTab} />
         ))}
       </ul>
 

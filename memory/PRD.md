@@ -1,3 +1,42 @@
+## Iteration 216bf — Refactor: split App.js routes & trim MembershipsStartTab (Feb 2026)
+
+**Goal**: tame the bloated `App.js` (638 lines mixing auth lifecycle, route table, and shell wiring) and tidy `MembershipsStartTab.js` ahead of further onboarding work.
+
+### What shipped
+- New `/app/frontend/src/routes/AppRoutes.js` (**252 lines**) — single source of truth for the app's route table. All lazy-imported pages, the `DashboardRoute` resolver, and the `CrmRouteElement` toggle-aware CRM gate live here. Routes grouped with comment dividers (Marketing site · Legal · Auth · Public utility · Master / admin · Modules · Service Ops · Member-facing · Pulse · Help · Dashboard · 404).
+- `App.js` slimmed from **638 → 415 lines (–35%)**:
+  - Removed ~67 lines of `lazy(() => import(...))` declarations
+  - Removed ~120 lines of inline `<Routes>` JSX
+  - Removed `DashboardRoute` and the inline CRM gate (now in AppRoutes)
+  - Now imports `<AppRoutes user={user} login={login} />` and renders it inside the existing `<Suspense>` boundary
+  - Kept untouched: AuthContext, login/logout, theme + brand sync, service-worker lifecycle, impersonation banner, all global widgets
+- `MembershipsStartTab.js` — extracted `<ChecklistStep>` sub-component. Parent function dropped from a ~45-line inline `<li>` block to a single `<ChecklistStep>` call inside `.map()`. Net file size +5 lines but the orchestration body is now ~30 lines simpler/clearer.
+
+### Verification
+- Lint clean across all 3 touched files.
+- Frontend webpack compiled with only pre-existing react-hooks/exhaustive-deps warnings (none introduced).
+- Smoke-tested **15 routes** via curl — all return HTTP 200 (SPA serves index.html, React Router handles internally): `/`, `/pricing`, `/features`, `/security`, `/trust`, `/privacy`, `/terms`, `/refunds`, `/login`, `/pulse`, `/help`, `/master-admin`, `/memberships`, plus `/this-does-not-exist` (404 fallback). `/api-docs` returns 404 from ingress (pre-existing — `/api*` prefix is grabbed by the backend), unrelated to this refactor.
+- Live-checked deep routes via Playwright: `/refunds` and `/terms` render their data-testid'd content correctly.
+
+### Files of reference
+- `/app/frontend/src/routes/AppRoutes.js` (new)
+- `/app/frontend/src/App.js` (slimmed)
+- `/app/frontend/src/pages/Memberships/MembershipsStartTab.js` (extracted ChecklistStep)
+
+### Why no behaviour change
+Pure structural refactor. Same lazy-loading boundaries, same auth gates, same redirects. The existing `<BrowserRouter>`, `<Suspense>`, AuthContext provider, and global widgets all stayed exactly where they were in `App.js`. Only the route table and one helper function moved.
+
+### Next (P1 → next iteration)
+- Configure Sentry DSN for production observability
+
+### Future / Backlog
+- AI insights → owner email digest (Resend)
+- Twilio SMS real integration
+- BLOCKED: Sicon + Sage 200 LIVE cutover (awaiting user credentials)
+
+---
+
+
 ## Iteration 216be — Refund & cancellation policy (Feb 2026)
 
 **Goal**: ship a plain-English Refund & cancellation policy page and link it from every place a prospect would look for it before they commit — public footer, in-product footer, and the trial signup modal.
