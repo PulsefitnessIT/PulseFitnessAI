@@ -19,7 +19,7 @@ import {
   Users, Calendar, UserPlus, Plane, ShoppingBag, BarChart3, PoundSterling,
   Eye, Shield, Megaphone, Sparkles, Plus, Trash2, CheckCircle2, X,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
-  LayoutDashboard, Layers, Activity, Timer,
+  LayoutDashboard, Layers, Activity, Timer, MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import PillTabBar from '@/components/shared/PillTabBar';
@@ -28,6 +28,7 @@ import WorkforceDashboardTab from '@/pages/LiteDashboard/staffing/WorkforceDashb
 import ShiftTemplatesTab from '@/pages/LiteDashboard/staffing/ShiftTemplatesTab';
 import TimeClockTab from '@/pages/LiteDashboard/staffing/TimeClockTab';
 import MyClockTab from '@/pages/LiteDashboard/staffing/MyClockTab';
+import CommsTab from '@/pages/LiteDashboard/staffing/CommsTab';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -46,6 +47,7 @@ const TABS_ALL = [
   { id: 'live',         label: 'Live Floor',    icon: Eye,         roles: ['owner','manager','master_admin','staff'] },
   { id: 'rules',        label: 'Rules',         icon: Shield,      roles: ['owner','manager','master_admin'] },
   { id: 'announce',     label: 'Announcements', icon: Megaphone,   roles: ['owner','manager','master_admin','staff'] },
+  { id: 'comms',        label: 'Comms Hub',     icon: MessageSquare, roles: ['owner','manager','master_admin','staff'] },
   { id: 'ai',           label: 'AI Insights',   icon: Sparkles,    roles: ['owner','manager','master_admin'] },
 ];
 
@@ -120,6 +122,7 @@ export default function StaffingConsole() {
         {tab === 'live'        && <LiveFloorTab   headers={headers} />}
         {tab === 'rules'       && <RulesTab       headers={headers} />}
         {tab === 'announce'    && <AnnouncementsTab headers={headers} isManager={isManager} />}
+        {tab === 'comms'       && <CommsTab        headers={headers} isManager={isManager} />}
         {tab === 'ai'          && <AIInsightsTab  headers={headers} />}
       </div>
     </div>
