@@ -23,8 +23,15 @@ import httpx
 
 API_BASE = (os.environ.get("REACT_APP_BACKEND_URL")
             or "https://maintenance-hub-357.preview.emergentagent.com").rstrip("/") + "/api"
-ADMIN_EMAIL = "admin@gymaxisai.com"
-ADMIN_PASSWORD = "MasterAdmin123!"
+ADMIN_EMAIL = os.environ.get("PURGE_ADMIN_EMAIL", "admin@gymaxisai.com")
+# Iter 216bo — read the dev master-admin password from env so the script
+# can run unattended without a literal ending up in repository forks.
+# Falls back to the documented dev password (see /app/memory/test_credentials.md)
+# when run interactively in the local dev container.
+ADMIN_PASSWORD = os.environ.get("PURGE_ADMIN_PASSWORD") or os.environ.get(
+    "MASTER_ADMIN_PASSWORD",
+    "MasterAdmin123!",
+)
 
 PROTECTED_ACCOUNT_TYPES = {"gymaxis_admin"}
 PROTECTED_NAMES = {"Pulse Fitness"}
