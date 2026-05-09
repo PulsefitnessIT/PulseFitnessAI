@@ -25,9 +25,28 @@
 
 ### Verified
 - `pytest test_iter_216bl_site_lock.py + test_iter_216af_brand_inheritance.py` → 25/26 passing (1 pre-existing skip).
+- `pytest test_iter_216c_branding_org_sync.py` → 3/3 passing (new regression — see below).
 - Frontend webpack: compiled clean, no new warnings.
 - Live curl: Bob's org returns `name="Strong Fitness"`, `branding.company_name="Strong Fitness"` (was "Test Org Name").
 - DOM inspection: drawer renders under `<body>` after the portal change.
+
+### Regression coverage shipped — `test_iter_216c_branding_org_sync.py`
+
+Three pytest cases pin the iter-216c contract so the "two fields, one truth" pattern can't silently come back:
+
+1. **`test_patch_branding_keeps_org_name_in_sync`** — PATCH branding with a new `company_name` → both `organizations.name` and `branding.company_name` updated atomically. Restores the original name in `finally` so test runs are idempotent.
+2. **`test_get_organization_self_heals_drifted_company_name`** — GET /api/organization always returns `name == branding.company_name`. Catches future regressions of the read-time self-heal in `auth.py:get_organization`.
+3. **`test_patch_branding_without_company_name_does_not_blank_org_name`** — PATCH'ing only colour/logo (no `company_name` field) must NOT clear `organizations.name`. Guards the "only-write-when-non-empty" branch.
+
+If any of these fail, the dashboard header / Master Admin / billing / audit logs will start disagreeing about the gym's name again.
+
+### Audit findings — other branding fields
+
+- **`logo_url`** (`/organization/logo` endpoint, `routes/onboarding.py`): already writes both `organizations.logo_url` AND `branding.logo_url` atomically. ✅ No drift class.
+- **`platform_name` / `platform_footer` / `via_label` / `is_pulse`**: derived at read-time in `_resolve_platform_branding` based on `organizations.account_type`. Not stored in `branding`, so no drift possible. ✅
+- **`primary_color` / `secondary_color`**: stored only in `branding`, no canonical org-level mirror. No drift class.
+
+The only "two fields, one truth" pattern in the org schema was `name` ↔ `branding.company_name`, and that is now both fixed AND regression-protected.
 
 ---
 
