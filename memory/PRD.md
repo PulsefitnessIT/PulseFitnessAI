@@ -11615,3 +11615,77 @@ Frontend:
 - S5: HR 2.0 + mobile PWA polish (docs, disciplinary, training, offline)
 - S6: AI auto-rota + multi-site hierarchy + Sage payroll
 
+
+---
+
+## Iter 216an — Staffing Phase S2: Time Clock + Attendance (May 8, 2026)
+
+**Goal:** Modern punch-clock + timesheet approvals + shared front-desk kiosks, integrated with the existing rota.
+
+### Delivered
+
+1. **Punch FSM** — `staff_clock_events` collection captures every clock_in / clock_out / break_start / break_end with GPS coords, accuracy, distance from site, source (mobile/kiosk/manual). FSM enforced server-side: cannot clock-in twice, cannot break without being on shift, cannot clock-out while on break.
+
+2. **Geofence** — Sites now accept `latitude`, `longitude`, `geofence_radius_m`. Mobile punch validates against the configured site:
+   - Inside radius → silent OK
+   - Outside radius but <5km → soft `geo_warning` (operator can still approve)
+   - >5km → hard reject (likely wrong site)
+
+3. **Live Punch Board** (manager) — `GET /staffing/clock/board` aggregates every active staff member's current state + today's shift + late flag + summary counters. UI auto-refreshes every 30s.
+
+4. **Weekly Timesheets** — auto-built per staff per week from punches paired to scheduled shifts within ±2h windows. Reports scheduled vs actual hours, late minutes, break minutes, overtime, payable amount = actual_hours × hourly_cost. Manager approve / dispute / staff-self-dispute supported.
+
+5. **Manual punch correction** — `POST /staffing/clock/manual-edit` records an event with `source: manual` + audit pointer to the operator who corrected it.
+
+6. **Shared kiosks** — `staff_kiosks` collection (PIN-gated, soft delete). Public endpoints (no JWT) at `/staffing/kiosk/{id}/staff?pin=` and `/staffing/kiosk/punch` so a tablet at the front desk can run the full flow without an operator login.
+
+7. **Frontend:**
+   - `/staffing/kiosk?id=<kiosk_id>` — public full-screen PIN pad → staff grid → punch screen
+   - **Time Clock tab** (manager) inside Staffing console — ClockBoard + Timesheets + Kiosks admin
+   - **My Clock tab** (staff) — self-service punch widget with GPS + recent history
+
+### New endpoints
+- `POST /api/staffing/clock/punch`
+- `GET  /api/staffing/clock/status`
+- `GET  /api/staffing/clock/history`
+- `GET  /api/staffing/clock/board`
+- `GET  /api/staffing/clock/events`
+- `POST /api/staffing/clock/manual-edit`
+- `GET  /api/staffing/clock/my-timesheet`
+- `GET  /api/staffing/timesheets`
+- `POST /api/staffing/timesheets/{id}/approve`
+- `POST /api/staffing/timesheets/{id}/dispute`
+- `GET/POST/PATCH/DELETE /api/staffing/kiosks` (manager)
+- `GET  /api/staffing/kiosk/{id}/staff` (public, PIN-gated)
+- `POST /api/staffing/kiosk/punch` (public, PIN-gated)
+- `PATCH /api/sites/{id}` extended with `latitude`/`longitude`/`geofence_radius_m`
+
+### New collections
+- `staff_clock_events` — immutable punch log
+- `staff_kiosks`        — shared front-desk devices
+- `staff_timesheets`    — weekly timesheet with approval state
+
+### Files
+Backend:
+- `/app/backend/routes/staffing_clock.py` (new — ~520 lines, all S2 endpoints)
+- `/app/backend/route_registry/features.py` (registered `staffing_clock_router`)
+- `/app/backend/routes/sites.py` (geofence fields accepted)
+
+Frontend:
+- `/app/frontend/src/pages/LiteDashboard/staffing/TimeClockTab.js` (new — ClockBoard + Timesheets + Kiosks)
+- `/app/frontend/src/pages/LiteDashboard/staffing/MyClockTab.js` (new — staff punch widget)
+- `/app/frontend/src/pages/Staffing/KioskPage.js` (new — public kiosk route)
+- `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js` (added 2 tabs to TABS_ALL)
+- `/app/frontend/src/App.js` (lazy-imported StaffingKioskPage + route)
+
+### Testing
+- Backend: 27/27 passed
+- Frontend: full automation pass — Time Clock tab visible, board working, timesheets panel working, kiosk page (PIN pad + staff grid) working
+- Report: `/app/test_reports/iteration_216an.json`
+
+### Remaining staffing roadmap
+- S3: Internal comms hub (DMs, channels, announcements, push notifications)
+- S4: Tasks + forms + compliance (shift-linked checklists, custom form builder, cert expiry)
+- S5: HR 2.0 + mobile PWA polish
+- S6: AI auto-rota + multi-site hierarchy + Sage payroll
+
