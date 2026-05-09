@@ -50,6 +50,7 @@ from routes.memberships_phase4 import router as memberships_phase4_router
 from routes.memberships_phase6 import router as memberships_phase6_router
 from routes.help import router as help_router
 from routes.staffing import router as staffing_router
+from routes.staffing_clock import router as staffing_clock_router
 from routes.member_app_builder import router as member_app_builder_router
 from routes.portal_gdpr import router as portal_gdpr_router
 from routes.usage_meter import router as usage_meter_router
@@ -137,6 +138,7 @@ _UNGATED_ROUTERS = (
     admin_refunds_router,
     help_router,
     staffing_router,
+    staffing_clock_router,
     member_app_builder_router,
     # Iter 215dn — Service Ops native routers
     svc_cases_router, svc_intake_router, svc_desk_router,

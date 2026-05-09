@@ -19,13 +19,15 @@ import {
   Users, Calendar, UserPlus, Plane, ShoppingBag, BarChart3, PoundSterling,
   Eye, Shield, Megaphone, Sparkles, Plus, Trash2, CheckCircle2, X,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
-  LayoutDashboard, Layers,
+  LayoutDashboard, Layers, Activity, Timer,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import PillTabBar from '@/components/shared/PillTabBar';
 import PageHeader from '@/components/shared/PageHeader';
 import WorkforceDashboardTab from '@/pages/LiteDashboard/staffing/WorkforceDashboardTab';
 import ShiftTemplatesTab from '@/pages/LiteDashboard/staffing/ShiftTemplatesTab';
+import TimeClockTab from '@/pages/LiteDashboard/staffing/TimeClockTab';
+import MyClockTab from '@/pages/LiteDashboard/staffing/MyClockTab';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -34,6 +36,8 @@ const TABS_ALL = [
   { id: 'dashboard',    label: 'Dashboard',     icon: LayoutDashboard, roles: ['owner','manager','master_admin'] },
   { id: 'rota',         label: 'Rota',          icon: Calendar,    roles: ['owner','manager','master_admin'] },
   { id: 'templates',    label: 'Templates',     icon: Layers,      roles: ['owner','manager','master_admin'] },
+  { id: 'timeclock',    label: 'Time Clock',    icon: Activity,    roles: ['owner','manager','master_admin'] },
+  { id: 'myclock',      label: 'My Clock',      icon: Timer,       roles: ['staff'] },
   { id: 'staff',        label: 'Staff',         icon: Users,       roles: ['owner','manager','master_admin'] },
   { id: 'leave',        label: 'Time Off',      icon: Plane,       roles: ['owner','manager','master_admin','staff'] },
   { id: 'market',       label: 'Shift Market',  icon: ShoppingBag, roles: ['owner','manager','master_admin','staff'] },
@@ -106,6 +110,8 @@ export default function StaffingConsole() {
         {tab === 'dashboard'   && <WorkforceDashboardTab headers={headers} />}
         {tab === 'rota'        && <RotaTab        headers={headers} isManager={isManager} />}
         {tab === 'templates'   && <ShiftTemplatesTab  headers={headers} isManager={isManager} />}
+        {tab === 'timeclock'   && <TimeClockTab   headers={headers} />}
+        {tab === 'myclock'     && <MyClockTab     headers={headers} />}
         {tab === 'staff'       && <StaffTab       headers={headers} />}
         {tab === 'leave'       && <LeaveTab       headers={headers} isManager={isManager} />}
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}

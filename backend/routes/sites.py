@@ -220,6 +220,18 @@ async def update_site(
     for field in ("name", "address", "postcode"):
         if field in body:
             updates[field] = (body[field] or "").strip()
+    # Phase S2 — optional geofence config for staff time-clock.
+    # latitude/longitude are floats in decimal degrees; radius is metres.
+    for field in ("latitude", "longitude", "geofence_radius_m"):
+        if field in body:
+            val = body[field]
+            if val in (None, ""):
+                updates[field] = None
+            else:
+                try:
+                    updates[field] = float(val) if field != "geofence_radius_m" else int(val)
+                except (TypeError, ValueError) as err:
+                    raise HTTPException(400, f"Invalid {field}") from err
     # Iter 215bi — head-office flag (boolean). If set true, demote any
     # other site in the same org so only one HQ exists.
     if "is_head_office" in body:

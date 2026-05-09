@@ -129,6 +129,7 @@ const PublicClassPage = lazy(() => import('./pages/Memberships/PublicClassPage')
 const PublicInstructorPage = lazy(() => import('./pages/Memberships/PublicInstructorPage'));
 const EmbedTimetable = lazy(() => import('./pages/Memberships/EmbedTimetable'));
 const KioskCheckin = lazy(() => import('./pages/Memberships/KioskCheckin'));
+const StaffingKioskPage = lazy(() => import('./pages/Staffing/KioskPage'));
 const BrandedBragPage = lazy(() => import('./pages/Memberships/BrandedBragPage'));
 const ForceChangePasswordPage = lazy(() => import('./pages/ForceChangePasswordPage'));
 const HelpCentrePage = lazy(() => import('./pages/HelpCentrePage'));
@@ -537,6 +538,7 @@ function App() {
 <Route path="/m/:slug/i/:instructorSlug" element={<PublicInstructorPage />} />
  <Route path="/embed/:slug/timetable" element={<EmbedTimetable />} />
  <Route path="/checkin/kiosk" element={<KioskCheckin />} />
+ <Route path="/staffing/kiosk" element={<StaffingKioskPage />} />
  <Route path="/m/:slug/brag" element={<BrandedBragPage />} />
  <Route path="/instructor" element={<InstructorPortal />} />
  <Route path="/privacy" element={<PrivacyPolicyPage />} />
