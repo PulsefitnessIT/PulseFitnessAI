@@ -191,7 +191,7 @@ function Cta() {
             <p className="mt-4 text-base md:text-lg text-white/90 max-w-xl mx-auto">14-day free trial. Pentest-evidence pack available on request for enterprise customers.</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow">Start Free Trial <ArrowRight size={15} /></button>
-              <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Book Demo <ArrowRight size={15} /></Link>
+              <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Talk to sales <ArrowRight size={15} /></Link>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 /**
  * Contact marketing page — refreshed in MarketingShell visual language.
- * Three quick paths: book a demo, sales chat, support email.
+ * Three quick paths: see the product preview, talk to sales, contact security.
  */
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -13,11 +13,12 @@ import axios from 'axios';
 import './marketing.css';
 import MarketingShell from './MarketingShell';
 import { openTrial } from './TrialSignupModal';
+import { openPreview } from './ProductPreviewModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const PATHS = [
-  { icon: Calendar,      title: 'Book a demo',     body: '20-minute live walkthrough with a real human. No slide deck.', cta: 'Pick a time', action: 'trial', accent: 'var(--gx-accent-memberships)' },
+  { icon: Calendar,      title: 'See it in action', body: 'Self-running 6-scene product walkthrough. No calendar, no waiting — watch it now.', cta: 'Watch the preview', action: 'preview', accent: 'var(--gx-accent-memberships)' },
   { icon: MessageSquare, title: 'Talk to sales',   body: 'Quick questions about pricing, integrations, multi-site rollouts.', cta: 'Email sales', href: 'mailto:sales@gymaxisai.com', accent: 'var(--gx-accent-crm)' },
   { icon: ShieldCheck,   title: 'Security & DPA',  body: 'Procurement, DPA, pentest evidence, security questionnaires.', cta: 'Email security', href: 'mailto:security@gymaxisai.com', accent: 'var(--gx-accent-service)' },
 ];
@@ -72,6 +73,9 @@ function Paths() {
           );
           if (p.action === 'trial') {
             return <button key={i} type="button" onClick={openTrial} className={cardClass}>{inner}</button>;
+          }
+          if (p.action === 'preview') {
+            return <button key={i} type="button" onClick={openPreview} className={cardClass}>{inner}</button>;
           }
           if (p.href.startsWith('mailto:') || p.href.startsWith('tel:')) {
             return <a key={i} href={p.href} className={cardClass}>{inner}</a>;

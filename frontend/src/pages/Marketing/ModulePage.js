@@ -20,6 +20,7 @@ import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import './marketing.css';
 import MarketingShell from './MarketingShell';
 import { openTrial } from './TrialSignupModal';
+import { openPreview } from './ProductPreviewModal';
 import SiteCalculatorUpsell from './SiteCalculatorUpsell';
 
 export default function ModulePage({ module: m }) {
@@ -56,8 +57,11 @@ function Hero({ m }) {
               Start Free Trial <ArrowRight size={15} />
             </button>
             <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
-              Book Demo <ArrowRight size={15} />
+              Talk to sales <ArrowRight size={15} />
             </Link>
+            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+              See it in action <ArrowRight size={15} />
+            </button>
           </div>
         </div>
         <div className="lg:col-span-5">
@@ -267,7 +271,7 @@ function Cta({ m }) {
             <p className="mt-4 text-base md:text-lg text-white/90 max-w-xl mx-auto">{m.ctaSubtitle}</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow">Start Free Trial <ArrowRight size={15} /></button>
-              <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Book Demo <ArrowRight size={15} /></Link>
+              <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Talk to sales <ArrowRight size={15} /></Link>
             </div>
           </div>
         </div>

@@ -1,3 +1,68 @@
+## Iteration 216ba — Self-selling marketing site overhaul (Feb 2026)
+
+**Goal**: turn the marketing site into a self-selling machine — the founder doesn't have time for demos, so the site must convert without human-in-the-loop.
+
+### What shipped
+
+**Core conversion infrastructure (6 new artefacts)**
+- `/app/frontend/src/pages/Marketing/ProductPreviewModal.js` — replaces "Book Demo" with a self-running 6-scene interactive walkthrough (Operations AI triage → AI Rota → Marketing AI Director → Family Auto-Bill → CRM lead scoring → Weekly Digest). Auto-plays every 5.5s, pauseable, keyboard-navigable, in-modal CTA to start free trial. Triggered via `openPreview()` from any page.
+- `/app/frontend/src/pages/Marketing/ROICalculator.js` — embedded on `/pricing`. 4 sliders (sites · current spend · hours wasted · members) → live "Year-one projection" with tool savings, time reclaimed, retention lift, payback period. Pure client-side, no API.
+- `/app/frontend/src/pages/Marketing/MigrationGuarantee.js` — embedded on `/pricing` AND every `/compare/*` page. "Switch in 14 days — or your money back" with explicit free-data-import promise. Removes the #1 switching objection.
+- `/app/frontend/src/pages/Marketing/StickyCtaBar.js` — slim trial CTA pinned to bottom of every marketing page, appears after 600px scroll, dismiss persists for 24h. Recovers users who scroll past the hero.
+- `/app/frontend/src/pages/Marketing/MarketingChat.js` + `/app/backend/routes/marketing_chat.py` — public, anonymous, rate-limited (10/5min/IP) chat widget powered by Claude Sonnet 4.5 grounded on the live help corpus. Verified live: "How does pricing work for 3 sites?" returned an accurate £250/mo answer with trial CTA in 3.4s. Logs anonymised hits to `marketing_chat_logs` for funnel analysis.
+
+**SEO + AI-discoverability**
+- `/app/frontend/public/index.html` — fixed legacy `<title>` ("Gym Maintenance Platform" → "GymAxis AI | All-in-one platform for fitness operators"), added `<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">`.
+- `/app/frontend/public/llms.txt` — full LLM-discoverability spec covering modules, pricing, differentiators vs MindBody/Glofox/ClubReady, principles, URLs. Live at `/llms.txt`. Verified 200 OK.
+
+**CTA pivot away from demo-gating**
+- `MarketingHome.js` — both hero and final-CTA bands swapped "Book Demo" → "See it in action" → opens product preview.
+- `ContactMarketingPage.js` — "Book a demo · Pick a time" → "See it in action · Watch the preview". Sales/Security email paths preserved.
+- `ModulePage.js` — every module page hero + final band: "Book Demo" → "Talk to sales" + "See it in action".
+- `SecurityMarketingPage.js` — final CTA "Book Demo" → "Talk to sales".
+- `PricingMarketingPage.js` — final CTA paired with `Start Free Trial` + `See it in action` (replaces "Talk to sales" link).
+
+### Verification
+- Lint clean across all 8 touched JS files + 1 Python file.
+- Smoke screenshot: opens cleanly with Hero "See it in action" CTA. Modal renders correctly (Scene 1 of 6, Operations · AI fault triage, photo + AI triage panel, Try it free CTA, scene nav). Chat launcher floats bottom-right.
+- Live curl: `POST /api/marketing/chat` (no auth) → Claude Sonnet 4.5 returns accurate, grounded sales answer.
+- `GET /llms.txt` → 200 OK.
+
+### Files of reference
+- `/app/frontend/src/pages/Marketing/ProductPreviewModal.js`
+- `/app/frontend/src/pages/Marketing/ROICalculator.js`
+- `/app/frontend/src/pages/Marketing/MigrationGuarantee.js`
+- `/app/frontend/src/pages/Marketing/StickyCtaBar.js`
+- `/app/frontend/src/pages/Marketing/MarketingChat.js`
+- `/app/backend/routes/marketing_chat.py`
+- `/app/frontend/src/pages/Marketing/MarketingShell.js` (mounts the 4 floating components)
+- `/app/frontend/src/pages/Marketing/MarketingHome.js` · `ContactMarketingPage.js` · `ModulePage.js` · `SecurityMarketingPage.js` · `PricingMarketingPage.js` · `Compare/CompareLayout.js` (CTA + content swaps)
+- `/app/frontend/public/index.html` · `/app/frontend/public/llms.txt`
+
+### Sales-evaluation items addressed
+1. ✅ Self-selling pivot (no Calendly needed) — Product Preview Modal + chat
+2. ✅ ROI calculator on /pricing
+3. ✅ Marketing-side AI chat widget
+5. ✅ Self-running product preview (no video production needed)
+8. ✅ Sticky CTA bar
+10. ✅ `<title>` fix + `<meta robots>` + `llms.txt`
+11. ✅ Migration guarantee on /pricing AND /compare/*
+
+### Items parked per user instruction
+4. Named case study (no real customers yet — won't fabricate)
+6. Compare-pages hard CTA (parked)
+7. Exit-intent (parked)
+9. Industry-specific landing pages (parked)
+12. Referral / partner program (parked)
+
+### Next
+- P1: Sentry DSN observability.
+- BLOCKED: Sicon / Sage 200 LIVE cutover — needs your credentials.
+
+---
+
+
+
 ## Iteration 216az — Click-ergonomics polish pass (Feb 2026)
 
 **Goal**: extend the iter 216ax `.gx-cta:active` fix to every clickable element across the app that lifts on hover, so no other surface can hit the same "click misses because button shifted" failure.

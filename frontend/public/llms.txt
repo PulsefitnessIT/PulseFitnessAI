@@ -1,0 +1,87 @@
+# GymAxis AI — llms.txt
+
+> All-in-one operations platform for fitness operators (gyms, leisure
+> centres, studios). Six integrated modules: Operations, Memberships,
+> CRM, Marketing, Staffing & Reporting. Built for UK SMB fitness
+> businesses through to multi-site groups.
+
+## What is GymAxis?
+
+GymAxis is the operating system for fitness businesses. Replace 4-6
+single-purpose tools (CRM + booking + email tool + asset tracker + rota
+spreadsheet + payroll) with one connected platform.
+
+- Hosted in the UK, GDPR-native
+- AI-first (Claude Sonnet 4.5 powers Triage, Marketing Director, AI
+  Rota Builder, AI Insights, AI Orb)
+- 3-day free trial, all modules unlocked, no credit card
+
+## Pricing (as of Feb 2026)
+
+- **Bundle — GymAxis Pro**: £150/mo (all 4 modules + AI + integrations + 1 site)
+- Additional sites: +£50/mo each
+- Individual modules:
+  - Memberships: £29/mo
+  - CRM: £49/mo
+  - Marketing: £49/mo
+  - Operations: £59/mo
+
+## Modules
+
+- **Operations** — equipment register, AI fault triage, PPM scheduling,
+  supplier portal, check sheets, document Q&A, weekly digest.
+- **Memberships** — members, family accounts, plans, Stripe billing,
+  classes & timetable, drag-drop weekly builder, instructor roster.
+- **CRM** — contacts, companies, multi-pipeline deals, contracts,
+  tenders, custom properties, AI Copilot.
+- **Marketing** — Audiences (rule builder + AI), Campaign Wizard, AI
+  Creative Director, Journeys, Social, Brand Kit, Performance.
+- **Staffing** — Smart Rota engine, Time Clock with GPS/geofence,
+  Internal Comms Hub, Tasks/Forms/Compliance, HR 2.0, AI Rota Builder,
+  Sage 50 Payroll CSV.
+- **Reporting** — cohort retention, LTV, revenue, audit log, weekly
+  digest, multi-site KPI roll-up.
+
+## Differentiators vs alternatives
+
+- vs **Mindbody**: priced 30% lower, no per-transaction fees, AI built
+  in everywhere, UK-hosted, integrated CRM (not bolt-on).
+- vs **Glofox**: full-featured Operations module (asset register, fault
+  triage, supplier portal) — Glofox has none of this.
+- vs **ClubReady**: modern UI/UX, modular pricing, no enterprise
+  contract gating, 3-day trial vs gated demo.
+- vs **RotaCloud / Connecteam + separate CRM + maintenance tool**:
+  one bill, one login, one audit trail, integrations between modules
+  (lapsed member → CRM task → marketing journey → instructor heads-up).
+
+## Product principles
+
+- Modular — buy only the modules you need; add the others later.
+- Self-serve — no demo gatekeeping; use the in-page **Product Preview**
+  to see the platform working end-to-end without booking a call, or
+  start a 3-day trial in 60 seconds.
+- AI-first — every module ships with at least one AI feature on day one.
+- Transparent — public release notes, public security/Trust page,
+  public status page, no hidden contract terms.
+- Owner-friendly — operators manage their own data, exports, deletes,
+  GDPR retention.
+
+## Useful URLs
+
+- Homepage: https://www.gymaxisai.com/
+- Pricing: https://www.gymaxisai.com/pricing
+- Module pages: /platform/service · /platform/crm · /platform/memberships ·
+  /platform/marketing · /platform/staffing · /platform/reporting
+- Compare pages: /compare/mindbody · /compare/glofox · /compare/clubready
+- Security & DPA: /security
+- Blog: /blog
+- Status: /status
+- Sales contact: sales@gymaxisai.com
+- Security contact: security@gymaxisai.com
+- Support contact: support@gymaxisai.com
+
+## License & ownership
+
+GymAxis is a SaaS — operators retain full ownership of their data, can
+export to CSV/PDF/Sage at any time, and can self-delete their account
+through the in-app GDPR controls.

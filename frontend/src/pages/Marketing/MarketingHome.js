@@ -13,6 +13,7 @@ import './marketing.css';
 import MarketingShell from './MarketingShell';
 import AxisOrbit from './AxisOrbit';
 import { openTrial } from './TrialSignupModal';
+import { openPreview } from './ProductPreviewModal';
 import { useSeo } from '@/utils/seo';
 
 const MODULES = [
@@ -61,9 +62,9 @@ function Hero() {
             <button type="button" onClick={openTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-hero-trial">
               Start Free Trial <ArrowRight size={15} />
             </button>
-            <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-testid="gx-hero-demo">
-              Book Demo <ArrowRight size={15} />
-            </Link>
+            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-testid="gx-hero-preview">
+              See it in action <ArrowRight size={15} />
+            </button>
           </div>
           <ul className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-semibold text-slate-500">
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />3-day free trial</li>
@@ -189,14 +190,14 @@ function FinalCta() {
           <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,.6), transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,.4), transparent 50%)' }} />
           <div className="relative">
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-[1.04]">Run your entire fitness business<br />from one platform</h2>
-            <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">3-day free trial — all six modules unlocked. No credit card. Talk to a real human within 24 hours of signup.</p>
+            <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">3-day free trial — all six modules unlocked. No credit card. We're always reachable, but you don't need to wait for us.</p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow" data-testid="gx-final-trial">
                 Start Free Trial <ArrowRight size={15} />
               </button>
-              <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors" data-testid="gx-final-demo">
-                Book Demo <ArrowRight size={15} />
-              </Link>
+              <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors" data-testid="gx-final-preview">
+                See it in action <ArrowRight size={15} />
+              </button>
             </div>
           </div>
         </div>

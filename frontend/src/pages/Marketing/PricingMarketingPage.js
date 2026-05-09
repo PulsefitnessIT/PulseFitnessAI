@@ -18,11 +18,14 @@
  */
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, Sparkles, Users, Megaphone, Wrench, Star, Plus, Minus } from 'lucide-react';
+import { ArrowRight, Check, Sparkles, Users, Megaphone, Wrench, Star, Plus, Minus, PlayCircle } from 'lucide-react';
 
 import './marketing.css';
 import MarketingShell from './MarketingShell';
 import { openTrial } from './TrialSignupModal';
+import { openPreview } from './ProductPreviewModal';
+import ROICalculator from './ROICalculator';
+import MigrationGuarantee from './MigrationGuarantee';
 import { useSeo } from '@/utils/seo';
 
 const BUNDLE = {
@@ -391,6 +394,12 @@ export default function GymAxisPricingPage() {
           </div>
         </section>
 
+        {/* ROI Calculator */}
+        <ROICalculator />
+
+        {/* Migration guarantee */}
+        <MigrationGuarantee />
+
         {/* FAQ */}
         <section className="py-12 sm:py-16 bg-slate-50/40 border-t border-slate-200/60">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -419,9 +428,9 @@ export default function GymAxisPricingPage() {
                 <button type="button" onClick={openTrial} className="rounded-full bg-white text-slate-900 font-bold text-sm px-6 py-3 inline-flex items-center gap-1.5 hover:bg-slate-50" data-testid="gx-pricing-final-cta">
                   Start Free Trial <ArrowRight size={14} />
                 </button>
-                <Link to="/contact" className="rounded-full border border-white/30 px-6 py-3 text-sm font-bold text-white hover:bg-white/10" data-testid="gx-pricing-talk-sales">
-                  Talk to sales
-                </Link>
+                <button type="button" onClick={openPreview} className="rounded-full border border-white/30 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 inline-flex items-center gap-1.5" data-testid="gx-pricing-preview">
+                  <PlayCircle size={14} /> See it in action
+                </button>
               </div>
             </div>
           </div>

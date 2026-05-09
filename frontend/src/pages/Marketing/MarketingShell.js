@@ -12,6 +12,9 @@ import { Menu, X, ArrowRight } from 'lucide-react';
 
 import { GymAxisLockup } from './GymAxisMark';
 import TrialSignupModal, { openTrial } from './TrialSignupModal';
+import ProductPreviewModal from './ProductPreviewModal';
+import StickyCtaBar from './StickyCtaBar';
+import MarketingChat from './MarketingChat';
 
 const NAV = [
   { to: '/platform/service',     label: 'Operations' },
@@ -181,6 +184,9 @@ export default function MarketingShell({ children }) {
       <main className="flex-1 pt-16">{children}</main>
       <MarketingFooter />
       <TrialSignupModal />
+      <ProductPreviewModal />
+      <StickyCtaBar />
+      <MarketingChat />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
 import '../marketing.css';
 import MarketingShell from '../MarketingShell';
 import { openTrial } from '../TrialSignupModal';
+import MigrationGuarantee from '../MigrationGuarantee';
 
 export default function CompareLayout({
   competitor, hero, matrix, winsForGymAxis, whenCompetitorWins, faqs,
@@ -196,6 +197,9 @@ export default function CompareLayout({
           </div>
         </section>
       ) : null}
+
+      {/* Migration guarantee — high-conversion anchor for /compare visitors */}
+      <MigrationGuarantee />
 
       {/* FAQ */}
       <section className="bg-slate-50 py-16 lg:py-20">
