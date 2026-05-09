@@ -98,6 +98,7 @@ const CompareClubReady = lazy(() => import('./pages/Marketing/Compare/CompareClu
 const BlogIndex = lazy(() => import('./pages/Marketing/Blog/BlogIndex'));
 const BlogPost = lazy(() => import('./pages/Marketing/Blog/BlogPost'));
 const CRMApp = lazy(() => import('./pages/CRM/CRMApp'));
+const CRMSetupWizard = lazy(() => import('./pages/CRM/CRMSetupWizard'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
 const DirectorsHandout = lazy(() => import('./pages/DirectorsHandout'));
@@ -497,7 +498,7 @@ function App() {
  <Route path="/change-password" element={user ? <ForceChangePasswordPage /> : <Navigate to="/login" replace />} />
  <Route path="/master-admin" element={(user?.is_master_admin || user?.is_pulse_admin) ? <MasterAdminPage /> : <Navigate to="/login" replace />} />
  <Route path="/admin/design-system" element={user?.is_master_admin ? <DesignSystemPage /> : <Navigate to="/login" replace />} />
- <Route path="/marketing" element={user ? <MarketingSuite /> : <Navigate to="/login" replace />} />
+ <Route path="/marketing" element={user ? <ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate> : <Navigate to="/login" replace />} />
  <Route path="/service-desk" element={(user?.is_master_admin || user?.is_service_desk) ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
  <Route path="/service-ops" element={user ? <ServiceOpsDeskPage /> : <Navigate to="/login" replace />} />
  <Route path="/service-ops/scheduler" element={user ? <ServiceOpsScheduler /> : <Navigate to="/login" replace />} />
@@ -522,15 +523,19 @@ function App() {
    const isMasterOrFull = user.is_master_admin || user.role === 'master_admin' || user.role === 'master' || at === 'full';
    if (isMasterOrFull) return <CRMApp />;
    const ma = user.module_access || user.moduleAccess || {};
-   if (ma.crm === true) return <CRMApp />;  // explicit master-admin grant wins
+   if (ma.crm === true) return <ModuleAccessGate module="crm"><CRMApp /></ModuleAccessGate>;
    if (at === 'pulse_pro' || at === 'lite' || at === 'mod_site' || at === 'mod_branch' || at === 'mod_org') {
-     return <Navigate to="/marketing?tab=contacts&from=crm" replace />;
+     // Iter 216at — render the upgrade screen instead of silently bouncing
+     // Pulse customers to Marketing → Contacts. They now see the same
+     // "Start trial / Upgrade" CTA as Memberships and Marketing.
+     return <ModuleAccessGate module="crm"><CRMApp /></ModuleAccessGate>;
    }
    return <CRMApp />;
  })()} />
- <Route path="/memberships" element={user ? <MembershipsConsole /> : <Navigate to="/login" replace />} />
+ <Route path="/memberships" element={user ? <ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate> : <Navigate to="/login" replace />} />
  <Route path="/gym-floor" element={<GymFloorPage />} />
  <Route path="/memberships/setup" element={user ? <ModuleAccessGate module="memberships"><MembershipsSetupWizard /></ModuleAccessGate> : <Navigate to="/login" replace />} />
+ <Route path="/crm/setup" element={user ? <ModuleAccessGate module="crm"><CRMSetupWizard /></ModuleAccessGate> : <Navigate to="/login" replace />} />
  <Route path="/members" element={<MemberPortal />} />
  <Route path="/m/:slug" element={<BrandedMemberApp />} />
  <Route path="/m/:slug/c/:occId" element={<PublicClassPage />} />

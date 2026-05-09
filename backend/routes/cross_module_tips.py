@@ -203,6 +203,72 @@ TIPS: list[dict] = [
         ],
         "icon": "Rocket",
     },
+    {
+        # Iter 216au · Phase 2 #4 — Memberships customers don't realise the
+        # AI Rota / HR / Sage payroll inside the Operations module spans
+        # their instructor & reception teams too. This tip surfaces it.
+        "id": "memberships_to_workforce",
+        "source": "memberships",
+        "target": "operations",
+        "title": "Let AI build your instructor rota",
+        "headline": "Your timetable is set — let AI staff it.",
+        "body": (
+            "Operations now ships with an AI Rota Builder, absence-risk "
+            "scoring, HR profiles and a Sage 50 Payroll CSV export. Pair "
+            "it with your class schedule so cover gaps, certifications "
+            "and labour cost are managed in one place."
+        ),
+        "cta": "Explore Workforce Ops",
+        "value_props": [
+            "Claude AI builds a fair weekly rota in seconds",
+            "Absence risk leaderboard for the next 14 days",
+            "Sage 50 Payroll CSV — Hours, Rate, NI Number",
+            "HR 2.0 — contracts, training, disciplinary",
+        ],
+        "icon": "Activity",
+    },
+    {
+        # Iter 216au · Phase 2 #4 — Marketing customers running campaigns
+        # eventually need staff to deliver — surface workforce upsell.
+        "id": "marketing_to_workforce",
+        "source": "marketing",
+        "target": "operations",
+        "title": "Staff the demand your campaigns create",
+        "headline": "More leads = more shifts to cover.",
+        "body": (
+            "Operations bundles Workforce Ops — AI rota, time clock, "
+            "comms hub, tasks and Sage payroll — so growth from your "
+            "campaigns doesn't melt your service."
+        ),
+        "cta": "Explore Workforce Ops",
+        "value_props": [
+            "AI Rota Builder + absence prediction",
+            "Mobile / kiosk time clock with geofence",
+            "Sage 50 Payroll CSV export",
+        ],
+        "icon": "Activity",
+    },
+    {
+        # Iter 216au · Phase 2 #4 — CRM customers running B2B contracts
+        # need ops + workforce visibility to deliver against SLAs.
+        "id": "crm_to_workforce",
+        "source": "crm",
+        "target": "operations",
+        "title": "Deliver every contract on time",
+        "headline": "Your sales pipeline becomes service obligations.",
+        "body": (
+            "Add Operations to fulfil every contract — equipment "
+            "register, PPM schedules, AI Rota, time clock, HR records "
+            "and Sage 50 Payroll. One platform from sale to service."
+        ),
+        "cta": "Explore Workforce Ops",
+        "value_props": [
+            "PPM schedules + supplier portal",
+            "AI Rota + absence-risk scoring",
+            "HR 2.0 + Sage payroll",
+        ],
+        "icon": "Activity",
+    },
 ]
 
 

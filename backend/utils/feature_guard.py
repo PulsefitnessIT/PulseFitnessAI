@@ -50,6 +50,21 @@ KNOWN_FEATURES = GYMAXIS_ONLY_FEATURES | PRO_DEFAULT_FEATURES | {
 }
 
 
+# Iter 216au · Phase 2 #5 — feature → parent module mapping. When a
+# feature requires a parent module (e.g. CRM features need module_access.crm),
+# `_feature_enabled_for_user` short-circuits to false if the parent module
+# isn't enabled for the org. Keeps `feature_guard` and `module_access` from
+# disagreeing in production.
+FEATURE_PARENT_MODULE: dict[str, str] = {
+    "crm_pipeline":   "crm",
+    "crm_quotes":     "crm",
+    "crm_tenders":    "crm",
+    "crm_ai_tools":   "crm",
+    "crm_workflows":  "crm",
+    "crm_documents":  "crm",
+}
+
+
 def _feature_default_for_account(feature_key: str, account_type: str) -> bool:
     """Default on/off state for a feature given an account type (before per-org overrides)."""
     if feature_key in GYMAXIS_ONLY_FEATURES:
@@ -69,9 +84,20 @@ async def _feature_enabled_for_user(user: dict, feature_key: str) -> bool:
     if not org_id:
         return False
 
-    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "features": 1, "account_type": 1})
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "features": 1, "account_type": 1, "modules": 1, "module_trials": 1})
     if not org:
         return False
+
+    # Iter 216au · Phase 2 #5 — short-circuit when the parent module is
+    # disabled. Without this, an org could have `crm_pipeline=true` while
+    # `module_access.crm=false`, leading to drive-by 200s on CRM endpoints
+    # for orgs that haven't actually paid for the CRM module.
+    parent = FEATURE_PARENT_MODULE.get(feature_key)
+    if parent:
+        from utils.module_access import resolve_module_access  # local import — avoid cycles
+        access = resolve_module_access(user, org)
+        if not access.get(parent):
+            return False
 
     features = org.get("features") or {}
     account_type = org.get("account_type", "full")

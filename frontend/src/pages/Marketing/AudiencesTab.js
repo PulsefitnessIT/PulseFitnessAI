@@ -1,7 +1,8 @@
 /* Audiences tab — rule builder, save, list */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Users, Plus, Sparkles, Loader2, Trash2, Save } from 'lucide-react'; // eslint-disable-line no-unused-vars
+import { Users, Plus, Sparkles, Loader2, Trash2, Save, Upload, AlertCircle } from 'lucide-react'; // eslint-disable-line no-unused-vars
+import { Link } from 'react-router-dom';
 import HelpHint from '@/components/HelpHint';
 
 const BASE_FIELDS = [
@@ -32,10 +33,12 @@ const AudiencesTab = ({ API, headers }) => {
   const [preview, setPreview] = useState({ size: 0, sample: [] });
   const [busy, setBusy] = useState(false);
   const [customFields, setCustomFields] = useState([]);
+  const [dataSrc, setDataSrc] = useState(null);
 
   const FIELDS = React.useMemo(() => [...BASE_FIELDS, ...customFields], [customFields]);
 
   const load = () => axios.get(`${API}/api/marketing/audiences`, { headers }).then((r) => setAudiences(r.data.audiences)).catch(() => {});
+  const loadDataSrc = () => axios.get(`${API}/api/marketing/audiences/data-sources`, { headers }).then((r) => setDataSrc(r.data)).catch(() => {});
   const loadCustomProps = () => axios.get(`${API}/api/custom-properties?entity_type=contact`, { headers })
     .then((r) => {
       const cf = (r.data.properties || []).map((p) => ({
@@ -47,7 +50,7 @@ const AudiencesTab = ({ API, headers }) => {
       setCustomFields(cf);
     })
     .catch(() => {});
-  useEffect(() => { load(); loadCustomProps(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); loadCustomProps(); loadDataSrc(); /* eslint-disable-next-line */ }, []);
 
   const refreshPreview = async (rules) => {
     try {
@@ -87,6 +90,47 @@ const AudiencesTab = ({ API, headers }) => {
 
   return (
     <div className="space-y-5" data-testid="marketing-audiences-tab">
+      {dataSrc?.needs_data_import && (
+        <div
+          className="rounded-xl border border-amber-300 dark:border-amber-700/60 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 p-4 flex items-start gap-3"
+          data-testid="audiences-empty-state-import"
+        >
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white shrink-0">
+            <Upload size={16} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+              No contacts to segment yet
+            </p>
+            <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-1">
+              Audiences pull from your members or CRM contacts — but you have neither bolted on. Import a contact CSV to get started, or add Memberships / CRM to sync a live contact source.
+            </p>
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <Link
+                to="/marketing?tab=contacts&import=1"
+                className="px-3 py-2 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                data-testid="audiences-import-csv-btn"
+              >
+                <Upload size={12} /> Import contact CSV
+              </Link>
+              <Link
+                to="/memberships"
+                className="px-3 py-2 rounded-md border border-amber-300 dark:border-amber-700 text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1.5"
+                data-testid="audiences-add-memberships-btn"
+              >
+                Try Memberships
+              </Link>
+              <Link
+                to="/crm"
+                className="px-3 py-2 rounded-md border border-amber-300 dark:border-amber-700 text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1.5"
+                data-testid="audiences-add-crm-btn"
+              >
+                Try CRM
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
         <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-1">
           <Sparkles size={12} className="text-amber-500" /> Describe your audience in plain English

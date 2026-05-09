@@ -1,3 +1,91 @@
+## Iteration 216av — Cross-module audit Phase 3: UX parity & governance (Feb 2026)
+
+**Goal**: Phase 3 of the cross-module audit — bring CRM up to parity with Memberships' onboarding wizard, and give HQ-tier finance operators an estate-wide license audit screen.
+
+### What shipped
+
+**#6 — CRM Setup Wizard (parity with Memberships)**
+- Backend `/app/backend/routes/crm_setup.py` — 5 endpoints: `GET /crm/setup/status`, `POST /crm/setup/pipeline`, `POST /crm/setup/contact`, `POST /crm/setup/deal`, `POST /crm/setup/complete`, `POST /crm/setup/skip`. Each step persists a `crm_setup_step` cursor on the org doc so the wizard is resumable. Idempotent first-pipeline create.
+- Frontend `/app/frontend/src/pages/CRM/CRMSetupWizard.js` — 4-step wizard at `/crm/setup` (Pipeline → Contact → Deal → Done). Skip-anywhere, sensible defaults (5 stages: Lead/Qualified/Proposal/Negotiation/Closed Won). Wrapped in `<ModuleAccessGate module="crm">` so Pulse Lite users see the upgrade screen instead.
+
+**#8 — Estate-wide module roll-up at HQ tier**
+- Backend `/app/backend/routes/master_admin_estate_rollup.py` — `GET /api/master-admin/estate/modules-rollup` returns: per-module enabled/paid/trial-active/trial-expiring-7d counts, by-tier breakdown, trials expiring in 7 days, orphan orgs (no modules enabled). Master-admin gated. Verified live: 13 orgs, by_module + by_tier + 1 orphan + 0 expiring trials.
+- Frontend `/app/frontend/src/pages/MasterAdmin/EstateRollupPanel.js` — read-only finance panel with: 4 module cards (paid/trial/expiring), tier × module matrix, amber-banded trials-expiring list, rose-banded orphan-orgs list. New sidebar entry under Finance → Estate Rollup.
+
+### Verification
+- `GET /api/master-admin/estate/modules-rollup` (master admin) returns `{total_orgs:13, by_module:{operations:{enabled:12,paid:0,trial_active:0,trial_expiring_7d:0}, …}, by_tier:{gymaxis_admin, full, lite}, orphans_count:1, trials_expiring:0}`.
+- `GET /api/crm/setup/status` (Bob) returns `{organization:{id,name,crm_setup_step:'pipeline',crm_setup_completed:false}, counts:{pipelines:0, contacts:0, deals:0}}`.
+- Lint clean across all 5 touched files.
+
+### Files of reference
+- `/app/backend/routes/crm_setup.py`
+- `/app/backend/routes/master_admin_estate_rollup.py`
+- `/app/frontend/src/pages/CRM/CRMSetupWizard.js`
+- `/app/frontend/src/pages/MasterAdmin/EstateRollupPanel.js`
+- `/app/frontend/src/pages/MasterAdminPage.js`
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js`
+- `/app/frontend/src/App.js` (route `/crm/setup`)
+
+### Phase plan ahead
+- **Phase 4 — Delight & tech debt**: Equipment back-in-service member journey (#7), unify CRM token onto main JWT (#9). Phase 4 is the biggest technical lift — plan to test thoroughly with `testing_agent_v3_fork` once shipped.
+
+---
+
+
+
+## Iteration 216au — Cross-module audit Phase 2: discovery & consistency (Feb 2026)
+
+**Goal**: Phase 2 of the cross-module audit — promote discovery of the workforce automation across modules and stop `feature_guard` and `module_access` from disagreeing.
+
+### What shipped
+- **#4 — 3 new cross-module tips for workforce ops** (`memberships_to_workforce`, `marketing_to_workforce`, `crm_to_workforce`) in `/app/backend/routes/cross_module_tips.py`. Each promotes Phase S5/S6 (AI Rota, absence-risk, HR 2.0, Sage Payroll) to customers running Memberships / Marketing / CRM but not Operations. Tips total: 9 → **12**, verified live via `GET /api/notifications/cross-module-tips` as master admin.
+- **#5 — `feature_guard` ↔ `module_access` cross-link** in `/app/backend/utils/feature_guard.py`. New `FEATURE_PARENT_MODULE` map + short-circuit in `_feature_enabled_for_user`: if a feature key has a parent module (e.g. `crm_pipeline → crm`) and the parent module is disabled for the org, the feature returns false regardless of any explicit `features.crm_pipeline=true` override. Closes the silent-bypass risk where a feature could be on while its parent module was off.
+
+### Verification
+- Lint clean across both touched files.
+- Master admin sees all 12 tips including the 3 new workforce upsells.
+- Bob (has all 4 modules) sees 0 tips — correct behaviour.
+
+### Files of reference
+- `/app/backend/routes/cross_module_tips.py`
+- `/app/backend/utils/feature_guard.py`
+
+### Phase plan ahead
+- **Phase 3 — UX parity & governance**: CRM Setup Wizard parity with Memberships (#6), Estate-wide module roll-up at HQ tier (#8).
+- **Phase 4 — Delight & tech debt**: Equipment back-in-service member journey (#7), unify CRM token onto main JWT (#9).
+
+---
+
+
+
+## Iteration 216at — Cross-module audit Phase 1: defects fixed (Feb 2026)
+
+**Goal**: Close the three defects surfaced by the cross-module audit so the platform's actual UX matches its modular architecture.
+
+### What shipped
+- **#1 — Front-door route gating**: wrapped `/marketing` and `/memberships` in `<ModuleAccessGate module="…">`. The `/crm` route now also routes Pulse-tier customers through the gate (showing the CRM upgrade screen) instead of silently redirecting to `/marketing?tab=contacts&from=crm`. A Pulse Lite customer typing any module URL now sees the proper "Upgrade to Pulse Pro" / "Start trial" CTA.
+- **#2 — `CrossModuleTipsBanner` mounted on CRM**: imported in `CRMApp.js` and rendered inside the platform shell when `showShell` is true. Activates the 3 `crm_to_*` tips (Marketing, Memberships, Operations) that were previously dormant.
+- **#3 — Marketing Audiences empty-state CTA**: new `GET /api/marketing/audiences/data-sources` returns `{members_count, contacts_count, imported_count, total_addressable, module_access, needs_data_import}`. When `needs_data_import == true` (zero contacts AND no Memberships/CRM bolted on), `AudiencesTab` shows an amber import-CSV banner with "Import contact CSV", "Try Memberships", "Try CRM" CTAs. A Marketing-only org no longer sees an empty audience builder with no path forward.
+
+### Verification
+- New endpoint live: `GET /api/marketing/audiences/data-sources` → `{"members_count":43,"contacts_count":0,"imported_count":0,"total_addressable":43,"module_access":{"memberships":true,"crm":true},"needs_data_import":false}` for Bob's fully-subscribed org.
+- Lint clean across all 4 touched files (App.js, CRMApp.js, AudiencesTab.js, audiences.py).
+
+### Files of reference
+- `/app/frontend/src/App.js` (lines 500, 519-534)
+- `/app/frontend/src/pages/CRM/CRMApp.js`
+- `/app/frontend/src/pages/Marketing/AudiencesTab.js`
+- `/app/backend/routes/marketing/audiences.py`
+
+### Phase plan ahead (audit recommendations)
+- **Phase 2 — Cross-module discovery & consistency**: tip set Memberships → AI Rota / HR (#4), cross-link `feature_guard` ↔ `module_access` (#5).
+- **Phase 3 — UX parity & governance**: CRM Setup Wizard parity with Memberships (#6), Estate-wide module roll-up at HQ tier (#8).
+- **Phase 4 — Delight & tech debt**: Equipment back-in-service member journey (#7), unify CRM token onto main JWT (#9).
+
+---
+
+
+
 ## Iteration 216as — Per-module tours + refreshed welcome + Phase S2-S6 help guides (Feb 2026)
 
 **User feedback** (screenshot): Pulse welcome step still said "self-service maintenance portal" — outdated now that the platform spans memberships, classes, staffing, payroll, comms and AI. Also flagged: Help & Guides was missing the new Phase S2-S6 features.

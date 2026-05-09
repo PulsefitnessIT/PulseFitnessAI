@@ -29,6 +29,7 @@ import CRMUpgradeScreen from './CRMUpgradeScreen';
 import { useCRMModes, getStoredCrmMode, setStoredCrmMode } from './useCRMModes';
 import PillTabBar from '@/components/shared/PillTabBar';
 import ProductTour from '@/components/shared/ProductTour';
+import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, LogOut, Search, ChevronLeft, ChevronRight, Inbox, Zap, FileText, FolderOpen, Menu, X, Sun, Moon, Globe, Target, AlertTriangle, Command, Plus, Bell, User, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -545,11 +546,37 @@ export default function CRMApp() {
           setLoading(false);
         });
     } else {
-      // No active session — clear any stale token and show login
+      // No active CRM session. Iter 216aw · Phase 4 #9 — auto-bridge:
+      // if we have a main platform JWT, exchange it for a CRM-scoped
+      // token via /crm/auth/cross-login so direct URL navigation works
+      // without bouncing the user to CRMLogin.
       if (token && !hasSession && !isPWA) {
         localStorage.removeItem('crm_token');
       }
-      setLoading(false);
+      const mainToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (mainToken) {
+        axios.post(
+          `${API}/crm/auth/cross-login`, {},
+          { headers: { Authorization: `Bearer ${mainToken}` } },
+        )
+          .then((res) => {
+            if (res.data?.token) {
+              localStorage.setItem('crm_token', res.data.token);
+              sessionStorage.setItem('crm_active_session', '1');
+              return axios.get(`${API}/crm/auth/me`, {
+                headers: { Authorization: `Bearer ${res.data.token}` },
+              });
+            }
+            return null;
+          })
+          .then((meRes) => {
+            if (meRes && meRes.data?.email) setUser(meRes.data);
+            setLoading(false);
+          })
+          .catch(() => { setLoading(false); });
+      } else {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -669,6 +696,7 @@ export default function CRMApp() {
           />
         )}
         {showShell && <ProductTour variant="crm" />}
+        {showShell && <div className="px-4 sm:px-6 max-w-7xl mx-auto"><CrossModuleTipsBanner mode="crm" /></div>}
 
         {/* Pulse / GymAxis branded module header — byte-for-byte parity
             with Marketing / Memberships so the user gets the same

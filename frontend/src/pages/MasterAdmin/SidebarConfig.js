@@ -40,6 +40,7 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'pricing',       label: 'Pricing',       icon: Tag },
       { id: 'org-billing',   label: 'Org Billing',   icon: Receipt },
+      { id: 'estate-rollup', label: 'Estate Rollup', icon: BarChart3 },
       { id: 'collections',   label: 'Collections',   icon: AlertCircle },
       { id: 'payments',      label: 'Payments',      icon: CreditCard },
       { id: 'stripe-connect',label: 'Stripe',        icon: Banknote },
@@ -108,6 +109,7 @@ export const sectionTitles = {
   tasks: 'Tasks',
   pricing: 'Pricing',
   'org-billing': 'Org Billing',
+  'estate-rollup': 'Estate Module Rollup',
   collections: 'Collections',
   'login-events': 'Login Events',
   'audit-log': 'Audit Log',
@@ -145,6 +147,7 @@ export const sectionDescriptions = {
   tasks: 'Setup checklist — auto-ticks itself as integrations + bulk imports complete',
   pricing: 'Module + bundle prices for both brands. Edits flow live to public homepages.',
   'org-billing': 'Per-org subscriptions, manual invoices, BACS payments, bill-to-date balance.',
+  'estate-rollup': 'Module entitlements across every org — license audit, trial expiry, orphan accounts.',
   collections: 'Aging buckets, top overdue accounts and dunning telemetry — your AR control room.',
   'login-events': 'Security timeline — every login, MFA challenge, failed attempt and brute-force signal.',
   'audit-log': 'Unified timeline of every platform-wide security event — logins, wallet activity, Auto-Bill charges, retry-ladder escalations. CSV export for SOC 2 / pentest evidence packets.',

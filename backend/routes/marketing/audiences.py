@@ -146,3 +146,43 @@ async def ai_suggest_audience(body: dict = Body(...), user: dict = Depends(get_c
     org_id = await _org_id(user)
     count, _ = await _evaluate_audience(org_id, rules)
     return {"rules": rules, "estimated_size": count, "rationale": f"Built from your description: '{body.get('description', '')}'"}
+
+
+
+@router.get("/marketing/audiences/data-sources", dependencies=[Depends(require_module("marketing"))])
+async def audience_data_sources(user: dict = Depends(get_current_user)):
+    """Iter 216at — Phase 1 #3.
+
+    Reports how many candidate contacts exist for audience-building from
+    each of the available sources (members, CRM contacts, manually-imported
+    contacts). Used by the Marketing front-end to surface a "Import a
+    contact CSV" CTA when a Marketing-only org has no other data source.
+    """
+    from utils.module_access import resolve_module_access
+
+    org_id = await _org_id(user)
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "modules": 1, "account_type": 1, "module_trials": 1, "features": 1},
+    ) or {}
+    access = resolve_module_access(user, org)
+
+    members_count = await db.members.count_documents({"organization_id": org_id})
+    contacts_count = await db.crm_contacts.count_documents({"organization_id": org_id})
+    imported_count = await db.marketing_contacts.count_documents({"organization_id": org_id}) if "marketing_contacts" in await db.list_collection_names() else 0
+    total_addressable = members_count + contacts_count + imported_count
+
+    return {
+        "members_count": members_count,
+        "contacts_count": contacts_count,
+        "imported_count": imported_count,
+        "total_addressable": total_addressable,
+        "module_access": {
+            "memberships": bool(access.get("memberships")),
+            "crm": bool(access.get("crm")),
+        },
+        # When zero addressable contacts AND neither sister-module is
+        # enabled, the front-end shows the import-CSV CTA.
+        "needs_data_import": total_addressable == 0
+                             and not access.get("memberships")
+                             and not access.get("crm"),
+    }
