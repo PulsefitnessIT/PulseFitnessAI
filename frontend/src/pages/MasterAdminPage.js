@@ -29,6 +29,7 @@ import DesignSystemPage from './MasterAdmin/DesignSystemPage';
 import PricingPanel from './MasterAdmin/PricingPanel';
 import OrgBillingPanel from './MasterAdmin/OrgBillingPanel';
 import EstateRollupPanel from './MasterAdmin/EstateRollupPanel';
+import SalesInsightsPanel from './MasterAdmin/SalesInsightsPanel';
 import LoginEventsPanel from './MasterAdmin/LoginEventsPanel';
 import AuditLogPanel from './MasterAdmin/AuditLogPanel';
 import ActivationFunnelPanel from './MasterAdmin/ActivationFunnelPanel';
@@ -348,6 +349,10 @@ const MasterAdminPage = ({ onBack }) => {
         return <AdminStripeConnect API={API} isMasterAdmin={!isPulseAdmin} />;
       case 'pricing':
         return <PricingPanel />;
+      case 'estate-rollup':
+        return <EstateRollupPanel />;
+      case 'sales-insights':
+        return <SalesInsightsPanel />;
       case 'org-billing': {
         const selected = billingOrgId ? organizations.find((o) => o.id === billingOrgId) : null;
         if (selected) {

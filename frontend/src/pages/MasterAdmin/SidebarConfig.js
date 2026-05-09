@@ -62,6 +62,7 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'trials',             label: 'Trial Management',   icon: Timer },
       { id: 'activation-funnel',  label: 'Activation funnel',  icon: TrendingUp },
+      { id: 'sales-insights',     label: 'Sales Insights',     icon: Sparkles },
     ],
   },
   {
@@ -119,6 +120,7 @@ export const sectionTitles = {
   onboarding: 'Onboarding',
   trials: 'Trial Management',
   'activation-funnel': 'Activation Funnel',
+  'sales-insights': 'Sales Insights — prospect chat themes',
   analytics: 'Global Analytics',
   'marketing-suite': 'Marketing Suite',
   orbit4: 'Orbit 4 Integration',
@@ -159,6 +161,7 @@ export const sectionDescriptions = {
   onboarding: 'Onboard a new site, send shareable packets, or bulk-load CSV rosters',
   trials: 'Track active trials, extend deadlines, convert to paid',
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',
+  'sales-insights': 'Top sales objections + AI-spotted themes from the public marketing chat — turn prospect questions into homepage / pricing-page improvements.',
   roles: 'Service Desk Members + Pulse Master Admins — provision delegated platform staff',
   'stripe-connect': 'Connect Pulse Fitness to Stripe via OAuth, tune the platform fee, preview profit per customer',
   support: 'Tools for customer support',

@@ -1,3 +1,46 @@
+## Iteration 216bb — Sales Insights panel (Feb 2026)
+
+**Goal**: turn the marketing-chat data stream from iter 216ba into actionable sales intelligence — every prospect question becomes a homepage / pricing-page improvement signal.
+
+### What shipped
+- Backend `/app/backend/routes/master_admin_sales_insights.py` — `GET /api/master-admin/marketing/sales-insights?days=30` returns:
+  - `message_count`, `session_count` for the window
+  - `top_keywords` — keyword frequency (stop-word filtered, ≥2 occurrences)
+  - `top_questions` — deduped most-recent prospect questions with `context_path` and timestamp
+  - `by_path` — which marketing pages drive the most chats
+  - `daily_volume` — bar-chart data for trend
+  - `trial_conversion` — sessions with chat × trial signups in the window (heuristic; under-counts)
+  - `ai_topics.themes[]` — Claude Sonnet 4.5 clusters questions into 3-6 themes, each with `title`, `summary`, recommended `action` (homepage/pricing-page change), and `example_count`
+- Frontend `/app/frontend/src/pages/MasterAdmin/SalesInsightsPanel.js` — Master Admin → Growth → Sales Insights:
+  - Day-range toggle (7 / 30 / 90)
+  - AI themes card (violet→fuchsia gradient with action lightbulbs)
+  - Top questions list (most recent up to 20)
+  - Two-column: keyword cloud + chats-by-path
+  - Daily-volume mini bar chart
+- New sidebar entry: Growth → Sales Insights (Sparkles icon)
+
+### Verification
+- Triggered 3 real marketing-chat queries, then called the insights endpoint as master admin.
+- Output: 4 messages · 4 sessions · keywords ["pricing", "sites"] · 3 dedup'd top questions · **3 AI-spotted themes from Claude**. End-to-end live and accurate.
+- Lint clean across all 4 touched files.
+
+### Files of reference
+- `/app/backend/routes/master_admin_sales_insights.py`
+- `/app/frontend/src/pages/MasterAdmin/SalesInsightsPanel.js`
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js` (sidebar entry + section title/desc)
+- `/app/frontend/src/pages/MasterAdminPage.js` (case statement — also re-added missing `estate-rollup` case)
+
+### Bug squashed mid-flight
+- During iter 216av the `case 'estate-rollup'` branch was added but the file later regenerated without it. Re-added it alongside the new `sales-insights` branch.
+
+### Next
+- P1: Configure Sentry DSN observability.
+- BLOCKED: Sicon / Sage 200 LIVE cutover — needs your credentials.
+
+---
+
+
+
 ## Iteration 216ba — Self-selling marketing site overhaul (Feb 2026)
 
 **Goal**: turn the marketing site into a self-selling machine — the founder doesn't have time for demos, so the site must convert without human-in-the-loop.
