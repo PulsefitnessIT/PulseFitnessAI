@@ -445,7 +445,7 @@ class TestFrontendLivePreviewComponent:
         if not os.path.exists(component_path):
             pytest.skip("SiteBrandingOverride.js not found")
         
-        with open(component_path, "r") as f:
+        with open(component_path) as f:
             content = f.read()
         
         # Check for live preview data-testid
@@ -466,7 +466,7 @@ class TestFrontendLivePreviewComponent:
         if not os.path.exists(component_path):
             pytest.skip("SiteBrandingOverride.js not found")
         
-        with open(component_path, "r") as f:
+        with open(component_path) as f:
             content = f.read()
         
         # Check for pay button in preview

@@ -295,7 +295,7 @@ class TestBulkActions:
         )
         assert member_resp.status_code == 200
         member = member_resp.json().get("member", {})
-        assert tag_name in member.get("tags", []), f"Tag not found on member"
+        assert tag_name in member.get("tags", []), "Tag not found on member"
         
         print(f"✓ bulk add_tag is idempotent, tag '{tag_name}' added to {len(test_member_ids)} members")
 
@@ -540,4 +540,4 @@ class TestRegression:
         data = resp.json()
         assert data["ok"] == True
         assert "claim_url" in data
-        print(f"✓ Single invite-portal still works, claim_url returned")
+        print("✓ Single invite-portal still works, claim_url returned")

@@ -1,3 +1,43 @@
+## Iteration 216c — Bandit/Ruff baseline + PulseCheckSheetsTab refactor (Feb 9, 2026)
+
+**Context**: After the iter-216bo code-review false-positive triage, install a real ground-truth security linter so future code-review reports are gradeable against a known-clean baseline. Also pay down the maintainability debt called out in the iter-216bn handoff (`PulseCheckSheetsTab.js` had grown to 498 lines).
+
+### What shipped
+
+**Static-analysis baseline**
+- `backend/pyproject.toml` — added `[tool.bandit]` block with documented `skips` (B101 asserts, B311 jitter, B404/B603/B607 fixed-argv subprocess, B105/B106/B107 password-field naming). Each skip is justified inline so reviewers don't have to re-investigate.
+- `backend/scripts/security-scan.sh` — repeatable `ruff check . && bandit -c pyproject.toml -r . -ll` runner. Exits non-zero on any new High/Medium bandit issue or any ruff error.
+- `backend/utils/manufacturer_catalogue.py` — switched untrusted sitemap XML parsing from stdlib `xml.etree.ElementTree.fromstring` to `defusedxml.ElementTree.fromstring` (closes the only Medium-severity bandit finding — XML bomb / external-entity exposure).
+- Cleaned up 41 ruff style errors (F541 empty f-strings, E702 semicolon-statement, SIM110 `any()` rewrite, UP015 redundant open modes) — all autofixable, no behaviour change.
+- `memory/SECURITY_OPS.md` § 8 — documents the baseline, justified skips, and the rule for adding new `# nosec BXXX` comments.
+
+**Baseline (locked in)**
+- ruff: All checks passed.
+- bandit: 0 High, 0 Medium, 94 Low (all 94 are intentional `try/except/pass` patterns in best-effort storage paths, reviewed).
+
+**PulseCheckSheetsTab.js refactor (498 → 323 lines orchestrator)**
+- Extracted `pages/pulseCheckSheets/`:
+  - `constants.js` — `EQUIPMENT_TYPE_TASKS`, `DEFAULT_TASKS`, `classifyByName`, `getTasksForType` (the iter-216bn name-heuristic classifier).
+  - `EquipmentGroupCard.jsx` — single equipment-group row with machine chips + "Start Check" button.
+  - `CompleteSheetDialog.jsx` — completion modal with multi-machine selection (iter-216bn fan-out logic).
+  - `CreateTemplateDialog.jsx` — custom-template builder modal.
+  - `HistoryList.jsx` — collapsible history sub-tab.
+  - `Report.jsx` — KPI tiles + per-staff breakdown sub-tab.
+- All `data-testid`s preserved (no test-suite breakage).
+- Backend regression: `tests/test_iter_216bl_site_lock.py` 11/11 passing.
+- Frontend webpack: compiled cleanly, no new warnings.
+
+### Verified
+- `bash backend/scripts/security-scan.sh` → all checks pass.
+- `pytest tests/test_iter_216bl_site_lock.py` → 11/11 passing.
+- Master Admin dashboard renders post-login (smoke screenshot confirms bundle health).
+
+### Known-but-not-shipped
+- `pages/CheckSheetsTab.js` (Operations standalone variant) duplicates the same constants. Could DRY into `pulseCheckSheets/constants.js` but kept out of scope to avoid regressions in the older Operations flow.
+
+---
+
+
 ## Iteration 216bo — Code review report validation (Feb 2026)
 
 **Goal**: triage Lee's static-analyzer code review against ground-truth before doing risky refactoring. Most flags turned out to be false positives.

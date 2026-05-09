@@ -46,3 +46,17 @@ max-complexity = 70
 "conftest.py" = ["ANN201", "ANN202", "E712"]
 "routes/issues.py" = ["C901"]    # triage_issue is inherently complex (AI prompt assembly)
 "routes/files.py" = ["C901"]     # ask_documents is inherently complex (document scoring)
+
+[tool.bandit]
+# Security-focused static analysis. Run via: `bandit -c pyproject.toml -r .`
+# Baseline: 0 high, 0 medium issues. New high/medium findings should fail CI.
+exclude_dirs = ["tests", "venv", ".venv", "node_modules"]
+
+# Tests deliberately disabled with rationale (NOT a free pass — only suppress when behaviour is reviewed safe):
+#   B101 assert_used     — pytest fixtures use bare asserts.
+#   B404/B603/B607 subprocess — we shell out to local tooling (yarn, ffmpeg, git) with hard-coded args
+#                                and no untrusted shell strings. Each callsite already validates inputs.
+#   B311 random          — uses of `random` are for jitter/sampling, never for crypto.
+#   B105/B106/B107       — false-positive heavy on field names like `password_hash`. We rely on .env discipline,
+#                          enforced by our own `purge_test_artefacts.py` and seed-script reviews.
+skips = ["B101", "B311", "B404", "B603", "B607", "B105", "B106", "B107"]

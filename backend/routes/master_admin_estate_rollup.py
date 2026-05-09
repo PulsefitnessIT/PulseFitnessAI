@@ -81,11 +81,7 @@ async def estate_modules_rollup(user: dict = Depends(get_current_user)):
                     pass
             # Account-type baseline (full = everything; lite = ops only; pro/mod = ops only by default)
             baseline = False
-            if at == "full":
-                baseline = True
-            elif at == "lite" and k == "operations":
-                baseline = True
-            elif at in ("pulse_pro",) and k == "operations":
+            if at == "full" or at == "lite" and k == "operations" or at in ("pulse_pro",) and k == "operations":
                 baseline = True
 
             enabled = paid or trial_active or (baseline and k not in BOLT_ON_MODULES)

@@ -224,7 +224,7 @@ class TestDocumentsEndpoints:
         data = resp.json()
         assert data["name"] == "Updated Contract Name"
         assert "updated_at" in data
-        print(f"✓ PATCH document updates record")
+        print("✓ PATCH document updates record")
 
     def test_delete_document_soft_deletes(self, bob_headers):
         """DELETE /api/staffing/hr/documents/{id} soft-deletes (archived=true)."""

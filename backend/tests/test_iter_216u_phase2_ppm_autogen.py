@@ -151,7 +151,7 @@ class TestPhase2AutoAssignOnIntake:
             assert fetched.get("recommended_engineer_name") == create_resp.json()["recommended_engineer_name"]
             assert fetched.get("recommended_engineer_score") == create_resp.json()["recommended_engineer_score"]
             assert fetched.get("recommended_engineer_reason") == create_resp.json()["recommended_engineer_reason"]
-            print(f"✓ Recommended fields persisted correctly in DB")
+            print("✓ Recommended fields persisted correctly in DB")
 
 
 class TestGetCasesRecommendedFields:

@@ -36,14 +36,7 @@ def _require_master(user: dict):
 
 
 # Stop-words we don't want polluting the keyword frequency table.
-_STOP = set((
-    "the a an of to in is it i you we are be do does did how what when where "
-    "who why with for from on at by or and not no yes can will would should "
-    "have has had this that these those gymaxis your my our about please thanks "
-    "thank also just also if so but more some any one two three new really get "
-    "got tell me see want need use using used able works work hi hello hey ok "
-    "okay sure cool great nice fine good"
-).split())
+_STOP = set(["the", "a", "an", "of", "to", "in", "is", "it", "i", "you", "we", "are", "be", "do", "does", "did", "how", "what", "when", "where", "who", "why", "with", "for", "from", "on", "at", "by", "or", "and", "not", "no", "yes", "can", "will", "would", "should", "have", "has", "had", "this", "that", "these", "those", "gymaxis", "your", "my", "our", "about", "please", "thanks", "thank", "also", "just", "also", "if", "so", "but", "more", "some", "any", "one", "two", "three", "new", "really", "get", "got", "tell", "me", "see", "want", "need", "use", "using", "used", "able", "works", "work", "hi", "hello", "hey", "ok", "okay", "sure", "cool", "great", "nice", "fine", "good"])
 
 
 def _keywords(text: str) -> list[str]:

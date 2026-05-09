@@ -438,7 +438,7 @@ class TestManualEdit:
         assert data.get("ok") is True
         assert data["event"]["source"] == "manual"
         assert "edited_by" in data["event"]
-        print(f"PASS: Manual edit created event with source=manual")
+        print("PASS: Manual edit created event with source=manual")
 
 
 class TestMyTimesheet:

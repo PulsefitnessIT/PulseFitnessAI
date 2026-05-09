@@ -64,9 +64,11 @@ async def main():
             name = (o.get("name") or "").strip()
             acct = o.get("account_type") or ""
             if acct in PROTECTED_ACCOUNT_TYPES or name in PROTECTED_NAMES:
-                keep.append(o); continue
+                keep.append(o)
+                continue
             if any(p.search(name) for p in TEST_PATTERNS) or name == "GymAxis AI":
-                to_delete.append(o); continue
+                to_delete.append(o)
+                continue
             keep.append(o)
 
         print(f"Keeping {len(keep)} orgs:")

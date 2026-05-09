@@ -31,7 +31,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urljoin, urlparse
-from xml.etree import ElementTree as ET
+from xml.etree.ElementTree import ParseError as XMLParseError
+
+import defusedxml.ElementTree as DET  # parses untrusted sitemap XML safely
 
 from utils.database import db
 from utils.equipment_image_lookup import (
@@ -127,8 +129,8 @@ async def _parse_sitemap(sitemap_url: str, max_urls: int, depth: int = 0) -> lis
     if r is None or r.status_code != 200:
         return []
     try:
-        root = ET.fromstring(r.text)
-    except ET.ParseError:
+        root = DET.fromstring(r.text)
+    except XMLParseError:
         return []
 
     # Strip namespace for easier traversal.

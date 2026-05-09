@@ -118,7 +118,7 @@ class TestSiteBrandingGet:
         # Primary color should default to #19CDFF if org has none
         assert effective["primary_color"], "primary_color should have a value"
         
-        print(f"✓ GET site branding returns correct structure with all fields inherited")
+        print("✓ GET site branding returns correct structure with all fields inherited")
     
     def test_get_site_branding_404_not_found(self, api_client, operator_headers):
         """Non-existent site should return 404"""
@@ -129,7 +129,7 @@ class TestSiteBrandingGet:
         )
         
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
-        print(f"✓ GET site branding returns 404 for non-existent site")
+        print("✓ GET site branding returns 404 for non-existent site")
 
 
 class TestSiteBrandingPatch:
@@ -158,7 +158,7 @@ class TestSiteBrandingPatch:
         assert data["effective"]["_inherits"]["name"] is True, "name should still be inherited"
         assert data["effective"]["_inherits"]["logo_url"] is True, "logo_url should still be inherited"
         
-        print(f"✓ PATCH single field overrides correctly, others remain inherited")
+        print("✓ PATCH single field overrides correctly, others remain inherited")
     
     def test_patch_site_branding_override_multiple_fields(self, api_client, operator_headers, test_site):
         """Patching multiple fields should override all of them"""
@@ -182,7 +182,7 @@ class TestSiteBrandingPatch:
             assert data["effective"][key] == value, f"Effective {key} should be {value}"
             assert data["effective"]["_inherits"][key] is False, f"{key} should NOT be inherited"
         
-        print(f"✓ PATCH multiple fields overrides all correctly")
+        print("✓ PATCH multiple fields overrides all correctly")
     
     def test_patch_site_branding_clear_with_empty_string(self, api_client, operator_headers, test_site):
         """Passing empty string should clear override and revert to inherit"""
@@ -214,7 +214,7 @@ class TestSiteBrandingPatch:
         assert data["effective"]["name"] == data["effective"]["_parent"]["name"], \
             "effective name should equal parent after clear"
         
-        print(f"✓ PATCH with empty string clears override and reverts to inherit")
+        print("✓ PATCH with empty string clears override and reverts to inherit")
     
     def test_patch_site_branding_403_staff_role(self, api_client, operator_headers, test_site):
         """Staff role should get 403 Forbidden"""
@@ -234,7 +234,7 @@ class TestSiteBrandingPatch:
         )
         
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
-        print(f"✓ PATCH returns 404 for site not in caller's org")
+        print("✓ PATCH returns 404 for site not in caller's org")
 
 
 class TestPublicBrandingEndpoint:
@@ -269,7 +269,7 @@ class TestPublicBrandingEndpoint:
         assert data["branding_source"] == "organization", \
             f"branding_source should be 'organization', got {data['branding_source']}"
         
-        print(f"✓ Public branding without ?site= returns org-level branding")
+        print("✓ Public branding without ?site= returns org-level branding")
     
     def test_public_branding_with_site_override(self, api_client, operator_headers, test_site):
         """Public branding with ?site= and override should return site branding"""
@@ -312,7 +312,7 @@ class TestPublicBrandingEndpoint:
         # site_id and site_name should be present
         assert data.get("site_id") == test_site['id'], "site_id should match"
         
-        print(f"✓ Public branding with ?site= and override returns site branding")
+        print("✓ Public branding with ?site= and override returns site branding")
     
     def test_public_branding_with_site_no_override(self, api_client, operator_headers, test_site):
         """Public branding with ?site= but NO override should return org branding"""
@@ -344,14 +344,14 @@ class TestPublicBrandingEndpoint:
         assert data["branding_source"] == "organization", \
             f"branding_source should be 'organization' when no override, got {data['branding_source']}"
         
-        print(f"✓ Public branding with ?site= but no override returns org branding")
+        print("✓ Public branding with ?site= but no override returns org branding")
     
     def test_public_branding_404_invalid_slug(self, api_client):
         """Invalid slug should return 404"""
         response = api_client.get(f"{BASE_URL}/api/m/nonexistent-slug-12345/branding")
         
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
-        print(f"✓ Public branding returns 404 for invalid slug")
+        print("✓ Public branding returns 404 for invalid slug")
 
 
 class TestOrgBrandingRegression:
@@ -390,7 +390,7 @@ class TestOrgBrandingRegression:
                 headers=operator_headers
             )
         
-        print(f"✓ PATCH /api/organization/branding still works (regression)")
+        print("✓ PATCH /api/organization/branding still works (regression)")
 
 
 class TestAuditLog:
@@ -410,7 +410,7 @@ class TestAuditLog:
         # The audit is best-effort (doesn't fail the response if audit fails)
         # We can only verify the response succeeded - actual audit verification
         # would require DB access or an audit log endpoint
-        print(f"✓ Site branding update succeeded (audit is best-effort, not verified)")
+        print("✓ Site branding update succeeded (audit is best-effort, not verified)")
 
 
 class TestInheritanceLogic:
@@ -444,7 +444,7 @@ class TestInheritanceLogic:
                 assert effective[field] == parent[field], \
                     f"Inherited {field}: effective ({effective[field]}) should equal parent ({parent[field]})"
         
-        print(f"✓ Inherited fields have effective values matching parent")
+        print("✓ Inherited fields have effective values matching parent")
     
     def test_default_primary_color(self, api_client, operator_headers, test_site):
         """Primary color should default to #19CDFF if org has none"""

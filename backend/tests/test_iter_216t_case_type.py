@@ -115,7 +115,7 @@ class TestCaseTypeIntake:
         
         # Should default to 'repair' for invalid values
         assert data.get("case_type") == "repair", f"Expected case_type='repair' for invalid input, got {data.get('case_type')}"
-        print(f"PASS: Invalid case_type 'xyz' correctly defaulted to 'repair'")
+        print("PASS: Invalid case_type 'xyz' correctly defaulted to 'repair'")
 
 
 class TestCaseTypeFilter:
@@ -202,7 +202,7 @@ class TestCaseTypePatch:
         assert get_resp.status_code == 200
         fetched = get_resp.json()
         assert fetched.get("case_type") == "install", f"GET after patch shows case_type={fetched.get('case_type')}"
-        print(f"PASS: GET confirms case_type='install' persisted")
+        print("PASS: GET confirms case_type='install' persisted")
 
     def test_patch_case_type_to_ppm(self, auth_headers):
         """PATCH /api/svc/cases/{id} with case_type='ppm' — updates successfully."""
@@ -298,8 +298,8 @@ class TestCoverTypeNoLongerHasPPM:
         # This test documents the current behavior
         if resp.status_code == 200:
             data = resp.json()
-            print(f"NOTE: Backend accepts cover_type='ppm' (no strict validation)")
-            print(f"  - Frontend should NOT offer 'ppm' in cover_type dropdown")
+            print("NOTE: Backend accepts cover_type='ppm' (no strict validation)")
+            print("  - Frontend should NOT offer 'ppm' in cover_type dropdown")
             print(f"  - Case {data.get('reference')} created with cover_type='ppm'")
         else:
             print(f"PASS: Backend rejected cover_type='ppm' with status {resp.status_code}")

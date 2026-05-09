@@ -129,7 +129,7 @@ class TestEmailSenderBranding:
         assert resp2.status_code == 200
         data = resp2.json()
         assert data["friendly_name"] == test_name, "Change not persisted"
-        print(f"✓ Email sender changes persisted correctly")
+        print("✓ Email sender changes persisted correctly")
     
     def test_post_email_sender_unauthenticated_fails(self):
         """POST without auth should fail"""
@@ -193,7 +193,7 @@ class TestSampleData:
         created = data.get("created", {})
         total_created = created.get("members", 0) + created.get("plans", 0) + created.get("class_templates", 0)
         assert total_created == 0, f"Second load should create 0 items, got {total_created}"
-        print(f"✓ Sample data load is idempotent (second run created 0)")
+        print("✓ Sample data load is idempotent (second run created 0)")
     
     def test_clear_sample_data_removes_tagged_items(self):
         """POST /api/launch/sample-data/clear removes only sample_data_v1 tagged items"""
@@ -234,7 +234,7 @@ class TestSampleData:
         
         assert resp_load.status_code in [401, 403], f"Load should require auth, got {resp_load.status_code}"
         assert resp_clear.status_code in [401, 403], f"Clear should require auth, got {resp_clear.status_code}"
-        print(f"✓ Sample data endpoints correctly require authentication")
+        print("✓ Sample data endpoints correctly require authentication")
 
 
 class TestInProductFeedback:
@@ -258,7 +258,7 @@ class TestInProductFeedback:
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
         data = resp.json()
         assert data.get("ok") is True, "Response should have ok: true"
-        print(f"✓ Feedback submitted successfully")
+        print("✓ Feedback submitted successfully")
     
     def test_submit_feedback_down_sentiment(self):
         """Feedback with 'down' sentiment works"""
@@ -276,7 +276,7 @@ class TestInProductFeedback:
         )
         
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
-        print(f"✓ Down sentiment feedback accepted")
+        print("✓ Down sentiment feedback accepted")
     
     def test_submit_feedback_neutral_sentiment(self):
         """Feedback with 'neutral' sentiment works"""
@@ -293,7 +293,7 @@ class TestInProductFeedback:
         )
         
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
-        print(f"✓ Neutral sentiment feedback accepted")
+        print("✓ Neutral sentiment feedback accepted")
     
     def test_submit_feedback_invalid_sentiment_rejected(self):
         """Invalid sentiment value should be rejected"""
@@ -310,7 +310,7 @@ class TestInProductFeedback:
         )
         
         assert resp.status_code == 422, f"Expected 422 for invalid sentiment, got {resp.status_code}"
-        print(f"✓ Invalid sentiment correctly rejected with 422")
+        print("✓ Invalid sentiment correctly rejected with 422")
     
     def test_submit_feedback_requires_auth(self):
         """Feedback endpoint requires authentication"""
@@ -320,7 +320,7 @@ class TestInProductFeedback:
         )
         
         assert resp.status_code in [401, 403], f"Expected 401/403, got {resp.status_code}"
-        print(f"✓ Feedback endpoint correctly requires auth")
+        print("✓ Feedback endpoint correctly requires auth")
 
 
 class TestMasterAdminFeedback:
@@ -364,7 +364,7 @@ class TestMasterAdminFeedback:
         )
         
         assert resp.status_code == 403, f"Expected 403 for non-master admin, got {resp.status_code}"
-        print(f"✓ Non-master admin correctly forbidden from feedback view")
+        print("✓ Non-master admin correctly forbidden from feedback view")
 
 
 class TestEmailUtilityRegression:
@@ -384,7 +384,7 @@ class TestEmailUtilityRegression:
         )
         
         assert resp.status_code == 200, "Email sender endpoint should work"
-        print(f"✓ Email infrastructure accessible")
+        print("✓ Email infrastructure accessible")
     
     def test_memberships_booking_endpoint_smoke(self):
         """Smoke test that memberships endpoints still work after email refactor"""
@@ -399,7 +399,7 @@ class TestEmailUtilityRegression:
         
         # 200 or 404 (if no onboarding data) are both acceptable
         assert resp.status_code in [200, 404], f"Memberships API should be accessible, got {resp.status_code}"
-        print(f"✓ Memberships API accessible after email refactor")
+        print("✓ Memberships API accessible after email refactor")
 
 
 class TestRoleBasedAccess:
@@ -437,7 +437,7 @@ class TestRoleBasedAccess:
                              json={"sentiment": "up", "page_path": "/test"})
         assert resp5.status_code == 200, "Owner should access feedback"
         
-        print(f"✓ Owner has access to all launch readiness endpoints")
+        print("✓ Owner has access to all launch readiness endpoints")
 
 
 if __name__ == "__main__":

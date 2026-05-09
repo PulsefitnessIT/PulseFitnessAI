@@ -277,7 +277,7 @@ class TestThreadUpdate:
         )
         assert update_resp.status_code == 200
         assert update_resp.json()["name"] == "TEST_S3_Renamed"
-        print(f"✓ Thread renamed successfully")
+        print("✓ Thread renamed successfully")
     
     def test_archive_thread(self, api_client, owner_headers, test_staff_member):
         """PATCH /api/staffing/comms/threads/{id} can archive thread"""
@@ -295,7 +295,7 @@ class TestThreadUpdate:
         )
         assert update_resp.status_code == 200
         assert update_resp.json()["archived"] == True
-        print(f"✓ Thread archived successfully")
+        print("✓ Thread archived successfully")
 
 
 class TestMessages:

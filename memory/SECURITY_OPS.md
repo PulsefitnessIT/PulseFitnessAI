@@ -146,3 +146,32 @@ Not yet implemented. Ship when a customer (likely Pulse Fitness) names their IdP
 - Mint JWT after successful IdP assertion; bypass password + MFA checks (trust the IdP).
 - Audit-log every SSO login with provider name.
 - Estimated: 2–3 engineering days per provider.
+
+
+---
+
+## 8. Static analysis baseline (ruff + bandit)
+
+Run locally or in CI:
+```bash
+bash /app/backend/scripts/security-scan.sh
+```
+
+What runs:
+- **ruff** — pycodestyle (E/W), pyflakes (F), pyupgrade (UP), bugbear (B), simplify (SIM), mccabe complexity. Config: `backend/pyproject.toml`.
+- **bandit** — Python security linter. Severity threshold: **Medium+** (Low is intentionally noisy on `try/except/pass` storage paths). Config: `backend/pyproject.toml` (`[tool.bandit]`).
+
+**Baseline (2026-02):**
+- ruff: 0 errors.
+- bandit: 0 High, 0 Medium, 94 Low (all reviewed).
+
+**Why the bandit skips?**
+Each entry in `[tool.bandit].skips` is justified inline in `pyproject.toml`:
+- `B101` asserts → pytest fixtures.
+- `B311` `random` → jitter / sampling, never crypto.
+- `B404/B603/B607` subprocess → fixed argv, no shell strings.
+- `B105/B106/B107` hardcoded password → false-positive on field names like `password_hash`. We rely on `.env` discipline + `purge_test_artefacts.py` review.
+
+**XML parsing**: All untrusted XML (manufacturer sitemaps) goes through `defusedxml.ElementTree` — see `utils/manufacturer_catalogue.py`.
+
+**Adding a new dependency that pulls in `subprocess.shell=True`, `eval`, `pickle.loads`, or untrusted XML?** Add a `# nosec BXXX -- <reason>` comment **and** mention it in this section so the next reviewer doesn't have to re-investigate.

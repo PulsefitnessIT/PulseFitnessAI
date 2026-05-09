@@ -149,10 +149,10 @@ async def _materialise_occurrences(template: dict, weeks: int = 8) -> int:
     holidays = (term or {}).get("holiday_blocks") or []
 
     def _in_holiday(d_iso: str) -> bool:
-        for h in holidays:
-            if h.get("starts_on", "") <= d_iso <= h.get("ends_on", ""):
-                return True
-        return False
+        return any(
+            h.get("starts_on", "") <= d_iso <= h.get("ends_on", "")
+            for h in holidays
+        )
 
     cursor = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
     while cursor < end_horizon:
