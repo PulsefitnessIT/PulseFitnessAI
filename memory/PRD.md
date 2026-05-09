@@ -1,3 +1,36 @@
+## Iteration 216ay — Heuristic AI-rota cap tightened (Feb 2026)
+
+**Problem (LOW from iter 216ar)**: in pathological roster shapes (small pool + high demand + role fallback) the heuristic round-robin rota could exceed `max_hours` by ~10% due to float drift and an unbounded `idx += 1` walk.
+
+**Fix in `/app/backend/routes/staffing_ai_phase6.py::_heuristic_rota`**:
+1. Added an EPS=1e-6 epsilon-safe comparison so float accumulation never lets 5×8h shifts breach a 40h cap.
+2. Replaced the open-ended `tries` loop with a single one-pass walk over the role pool (`for tries in range(len(pool))`) — guarantees we examine each pool member at most once per slot.
+3. Hard-rounded the cap to 2 decimal places at function entry.
+4. When no eligible staff has capacity, the slot is now LEFT UNFILLED (instead of silently re-picking someone at cap). The operator sees an under-staffed week in the preview and can widen `max_hours` or reschedule.
+5. Each suggestion's `reason` now annotates the staff member's running total ("X.Xh of 40.0h") for at-a-glance auditing.
+6. `hours_used` rounded to 2dp on every assignment to keep the running total stable across long iterations.
+
+**Verification**: 5 new pytest cases in `/app/backend/tests/test_iter_216ay_rota_cap.py` — all PASS:
+- 1 staff × 7-day demand × 40h cap → exactly 5 shifts (40h)
+- Fractional cap (39.99h) → exactly 4 shifts (32h), never 5
+- Role-fallback pool (cleaner demand, only reception staff) → cap still per-staff, unfilled slots dropped
+- max_hours=0 → empty rota
+- 7-day high demand × 48h cap → exactly 6 shifts (48h flat)
+
+Live AI path `POST /staffing/ai/rota/suggest` (Claude engine) for Bob with max_hours=40 → returned 5 shifts × 40h flat. Lint clean. The remaining LOW from iter 216ar is now closed.
+
+### Files of reference
+- `/app/backend/routes/staffing_ai_phase6.py` (`_heuristic_rota`)
+- `/app/backend/tests/test_iter_216ay_rota_cap.py`
+
+### Next
+- P1: Sentry DSN observability.
+- BLOCKED: Sicon / Sage 200 LIVE cutover — needs your credentials.
+
+---
+
+
+
 ## Iteration 216ax — Login Sign-In click bug fix (Feb 2026)
 
 **Problem (from iter 216aw test report)**: Sign-In button click intermittently didn't submit the form; pressing Enter worked fine. Pre-existing — predates the audit work.

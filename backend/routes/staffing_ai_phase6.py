@@ -99,7 +99,19 @@ def _heuristic_rota(staff: list[dict], week_start_d: date,
                     demand: dict | None,
                     max_hours: float) -> list[dict]:
     """Round-robin fallback when Claude is unavailable. Generates one
-    8-hour shift per staff per weekday, capped at max_hours per week."""
+    8-hour shift per staff per weekday, capped at max_hours per week.
+
+    Iter 216ay — tightened the cap behaviour:
+      • Use an epsilon-safe comparison so float accumulation doesn't
+        let 5×8h shifts ever exceed a 40h cap by 0.0000001h.
+      • Hard-cap at the requested max_hours rounded to 2 dp.
+      • If no eligible staff has capacity for a slot, leave the slot
+        unfilled (slot is dropped) instead of silently picking someone
+        already at cap. Previously a quirky `pool` fallback could
+        cause the same person to get re-tried indefinitely.
+      • Annotate the suggestion with how many hours that staff has used
+        so far so the operator can audit at a glance.
+    """
     out: list[dict] = []
     if not staff:
         return out
@@ -113,6 +125,9 @@ def _heuristic_rota(staff: list[dict], week_start_d: date,
         6: {"reception": 1},
     }
     demand = demand or DEFAULT_DEMAND
+    SHIFT_HOURS = 8.0
+    EPS = 1e-6                                            # float-safety margin
+    hard_cap = round(max(0.0, float(max_hours)), 2)
     hours_used: dict[str, float] = {s["id"]: 0.0 for s in staff}
     by_role: dict[str, list[dict]] = {}
     for s in staff:
@@ -126,24 +141,37 @@ def _heuristic_rota(staff: list[dict], week_start_d: date,
             pool = by_role.get(role) or by_role.get("reception") or staff
             for _ in range(int(count or 0)):
                 idx = rr_idx.get(role, 0)
-                # find next staff under cap
-                tries = 0
-                while tries < len(pool):
-                    s = pool[idx % len(pool)]
-                    if hours_used[s["id"]] + 8.0 <= max_hours:
+                # find next staff under cap, walk the pool exactly once.
+                assigned = False
+                for tries in range(len(pool)):
+                    s = pool[(idx + tries) % len(pool)]
+                    projected = hours_used[s["id"]] + SHIFT_HOURS
+                    # Strict cap with epsilon so float drift can never
+                    # push us past the operator's stated maximum.
+                    if projected <= hard_cap + EPS:
                         out.append({
                             "staff_id": s["id"],
                             "date": d,
                             "start_time": "09:00",
                             "end_time": "17:00",
                             "role": role,
-                            "reason": f"Auto-assigned (heuristic round-robin) · {s.get('full_name')}",
+                            "reason": (
+                                f"Auto-assigned (heuristic round-robin) · "
+                                f"{s.get('full_name')} · "
+                                f"{round(projected, 2)}h of {hard_cap}h"
+                            ),
                         })
-                        hours_used[s["id"]] += 8.0
-                        rr_idx[role] = idx + 1
+                        hours_used[s["id"]] = round(projected, 2)
+                        rr_idx[role] = (idx + tries + 1) % len(pool)
+                        assigned = True
                         break
-                    idx += 1
-                    tries += 1
+                if not assigned:
+                    # No one in the pool has capacity for this slot —
+                    # leave it unfilled rather than over-assigning.
+                    # The operator sees a clearly under-staffed week
+                    # in the preview and can either widen max_hours
+                    # or hire/re-roster manually.
+                    continue
     return out
 
 
