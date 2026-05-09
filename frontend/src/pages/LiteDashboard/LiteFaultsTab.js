@@ -8,6 +8,7 @@ import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import { useAuth } from '@/App';
 import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 
 const STATUS_BORDER_COLOR = {
   open: 'var(--color-danger)',           // Red
@@ -169,12 +170,25 @@ const LiteFaultsTab = ({
             )}
           </Card>
         ))}
-        {filteredIssues.length === 0 && (
-          <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-8 text-center">
-            <AlertTriangle size={32} className="text-[var(--color-text-muted)] mx-auto mb-3" />
-            <p className="text-[var(--color-text-muted)] text-sm">No faults match your filters</p>
-          </Card>
-        )}
+        {filteredIssues.length === 0 && (() => {
+          const filtersActive = (faultFilterStatus && faultFilterStatus !== 'all') || (faultFilterSeverity && faultFilterSeverity !== 'all');
+          return filtersActive ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="No faults match these filters"
+              hint="Try clearing one filter — or switch to Planned Maintenance to see PPM jobs."
+              testId="lite-faults-filter-empty"
+            />
+          ) : (
+            <EmptyState
+              icon={AlertCircle}
+              title="No faults logged — nice"
+              hint="When equipment goes down, log a fault here so the right engineer is auto-paged and the timeline is captured for compliance."
+              primaryAction={{ label: 'Log first fault', onClick: onLogFault, testId: 'lite-faults-empty-log' }}
+              testId="lite-faults-empty-state"
+            />
+          );
+        })()}
       </div>
       </>
       )}

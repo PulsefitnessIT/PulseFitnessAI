@@ -1124,6 +1124,17 @@ function TimetableTab({ API, headers }) {
           </div>
         ))}
       </div>
+      {/* Iter 216bd — friendly empty state when the whole week has zero classes. */}
+      {occs.length === 0 && (
+        <div className="mt-6">
+          <EmptyState
+            icon={Calendar}
+            title="No classes scheduled this week"
+            hint="Drag classes onto the weekly grid in Studio Builder, or use the Classes list to create your first class. Member bookings will surface here once your timetable is live."
+            testId="mbr-timetable-empty"
+          />
+        </div>
+      )}
       {activeOcc && (
         <ClassActionDrawer
           API={API} headers={headers}

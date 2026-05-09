@@ -7,6 +7,7 @@ import { AlertCircle, Calendar, ExternalLink } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import PageHeader from '@/components/shared/PageHeader';
+import EmptyState from '@/components/shared/EmptyState';
 
 const STATUS_BORDER_COLOR = {
  open: 'var(--color-danger)',
@@ -165,10 +166,21 @@ const FaultsTab = ({
  </Card>
  ))}
  {issues.length === 0 && (
- <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-12 text-center">
- <AlertCircle size={48} className="mx-auto mb-4 text-[var(--color-text-muted)]" />
- <p className="text-[var(--color-text-muted)]">{t('faults.no_faults')}</p>
- </Card>
+ <EmptyState
+   icon={AlertCircle}
+   title="No faults logged — nice"
+   hint="When equipment goes down, log a fault here so the right engineer is auto-paged and the timeline is captured for compliance."
+   primaryAction={{ label: 'Log first fault', onClick: onLogIssue, testId: 'faults-empty-log' }}
+   testId="faults-empty-state"
+ />
+ )}
+ {issues.length > 0 && filteredIssues.length === 0 && (
+ <EmptyState
+   icon={AlertCircle}
+   title="No faults match these filters"
+   hint="Try clearing one filter — or switch to Planned Maintenance to see PPM jobs."
+   testId="faults-filter-empty"
+ />
  )}
  </div>
  </>

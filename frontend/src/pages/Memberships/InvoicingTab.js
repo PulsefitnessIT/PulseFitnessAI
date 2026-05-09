@@ -13,6 +13,7 @@ import axios from 'axios';
 import { FileText, Mail, Eye, CheckCircle2, Clock, XCircle, Send, RefreshCcw, Users, Calendar, Receipt, Link as LinkIcon, Zap } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import EmptyState from '@/components/shared/EmptyState';
 
 const STATUS_STYLES = {
   draft: 'bg-zinc-500/15 text-zinc-300',
@@ -355,8 +356,13 @@ export default function InvoicingTab({ API, headers }) {
         {invoicesLoading ? (
           <div className="p-8 text-center text-sm text-[color:var(--theme-text-muted)]">Loading…</div>
         ) : invoices.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[color:var(--theme-text-muted)]">
-            No invoices generated yet. Preview a period above and hit "Generate invoices".
+          <div className="p-2">
+            <EmptyState
+              icon={Receipt}
+              title="No invoices generated yet"
+              hint="Pick a period above and click Preview to see what each member owes for the classes they booked or attended. Generate in one click — emails optional."
+              testId="mbr-invoicing-empty"
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">

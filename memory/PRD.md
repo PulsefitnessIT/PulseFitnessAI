@@ -1,3 +1,35 @@
+## Iteration 216bd — Empty-state polish on top list pages (Feb 2026)
+
+**Goal**: replace flat "No data yet" cards on the most-used list pages with the shared `EmptyState` component so a brand-new tenant gets a friendly hint + clear CTA instead of a wall of dashes.
+
+### What shipped
+- **TimetableTab** (Memberships console) — when `occs.length === 0` for the visible week, surface a single EmptyState below the 7-col grid pointing to Studio Builder & the Classes list. Replaces the old per-day "—" rendering only.
+- **FaultsTab** (Pulse dashboard) — split the empty case in two: zero faults logged (with Log first fault CTA) vs. filters returning nothing (Try clearing one filter hint).
+- **LiteFaultsTab** — same dual empty-state, with a heuristic on the active filter values since the parent only passes `filteredIssues`.
+- **AudiencesTab** (Marketing) — added "No saved audiences yet" EmptyState below the rule-builder when the saved-list is empty (and the tenant *does* have contacts to segment).
+- **InvoicingTab** (Memberships) — replaced flat "No invoices generated yet" line with the shared EmptyState component.
+- Members + CRM Pipeline already used the shared `EmptyState` from iter 215bt — no changes needed.
+
+### Files of reference
+- `/app/frontend/src/components/shared/EmptyState.js` (existing shared component)
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js` (TimetableTab)
+- `/app/frontend/src/pages/Memberships/InvoicingTab.js`
+- `/app/frontend/src/pages/Dashboard/FaultsTab.js`
+- `/app/frontend/src/pages/LiteDashboard/LiteFaultsTab.js`
+- `/app/frontend/src/pages/Marketing/AudiencesTab.js`
+
+### Verification
+- Lint clean across all 5 touched files.
+- Frontend compiled with only pre-existing react-hooks/exhaustive-deps warnings (unchanged).
+- No behaviour change for populated states — the new empty states only render when the underlying collection is empty.
+
+### Next (P1 → next iteration)
+- Configure Sentry DSN for production observability
+- Refund / cancellation policy linked in footer + trial signup modal
+
+---
+
+
 ## Iteration 216bc — Pre-launch readiness sprint (Feb 2026)
 
 **Goal**: ship the L1 pre-launch wrap-up — per-org email branding, sample-data toggle, in-product feedback widget — and make the Launch readiness panel reachable from a permanent settings home (not just the onboarding-only Start tab).

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Users, Plus, Sparkles, Loader2, Trash2, Save, Upload, AlertCircle } from 'lucide-react'; // eslint-disable-line no-unused-vars
 import { Link } from 'react-router-dom';
 import HelpHint from '@/components/HelpHint';
+import EmptyState from '@/components/shared/EmptyState';
 
 const BASE_FIELDS = [
   { id: 'lifetime_value_gbp', label: 'Lifetime value (£)', type: 'number' },
@@ -208,6 +209,15 @@ const AudiencesTab = ({ API, headers }) => {
             ))}
           </div>
         </div>
+      )}
+
+      {audiences.length === 0 && !dataSrc?.needs_data_import && (
+        <EmptyState
+          icon={Users}
+          title="No saved audiences yet"
+          hint="Build your first one above — describe it in plain English, or stack a few rules. Saved audiences power campaigns, automations and the AI churn radar."
+          testId="audiences-empty-saved"
+        />
       )}
     </div>
   );
