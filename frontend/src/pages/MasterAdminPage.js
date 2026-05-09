@@ -33,6 +33,7 @@ import SalesInsightsPanel from './MasterAdmin/SalesInsightsPanel';
 import LoginEventsPanel from './MasterAdmin/LoginEventsPanel';
 import AuditLogPanel from './MasterAdmin/AuditLogPanel';
 import LockedStaffPanel from './MasterAdmin/LockedStaffPanel';
+import BackfillsPanel from './MasterAdmin/BackfillsPanel';
 import ActivationFunnelPanel from './MasterAdmin/ActivationFunnelPanel';
 import DocumentsPanel from './MasterAdmin/DocumentsPanel';
 import CollectionsDashboard from './MasterAdmin/CollectionsDashboard';
@@ -367,6 +368,8 @@ const MasterAdminPage = ({ onBack }) => {
         return <AuditLogPanel />;
       case 'locked-staff':
         return <LockedStaffPanel />;
+      case 'backfills':
+        return <BackfillsPanel />;
       case 'activation-funnel':
         return <ActivationFunnelPanel />;
       case 'documents':

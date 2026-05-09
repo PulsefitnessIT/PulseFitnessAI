@@ -287,11 +287,6 @@ const DocumentsTab = () => {
  <p className="text-white font-medium truncate">{doc.original_filename}</p>
  <p className="text-[var(--color-text-muted)] text-xs">
  {formatSize(doc.size)} | {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'Unknown date'}
- {doc.ai_extracted && (
- <Badge className="bg-purple-500/20 text-purple-400 text-xs ml-2 inline-flex items-center gap-1">
- <Brain size={10} /> AI Indexed
- </Badge>
- )}
  </p>
  </div>
  </div>

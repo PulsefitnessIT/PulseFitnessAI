@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Building2, CreditCard, Headphones, Mail, TrendingUp,
   PoundSterling, ArrowLeftRight, BarChart3, Timer, ShieldCheck, Sparkles,
   Banknote, Rocket, ListChecks, Users, Palette, Tag, Receipt, ShieldAlert,
-  Wallet, Megaphone, LifeBuoy, Lock, FolderArchive, AlertCircle, AlertOctagon, Database, Image as ImageIcon, Activity, ScrollText, RotateCcw,
+  Wallet, Megaphone, LifeBuoy, Lock, FolderArchive, AlertCircle, AlertOctagon, Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
 } from 'lucide-react';
 
 /**
@@ -84,6 +84,7 @@ export const SIDEBAR_ITEMS = [
   { id: 'db-viewer',     label: 'Database',      icon: Database, group: 'tools' },
   { id: 'catalogue',     label: 'Image Catalogue', icon: ImageIcon, group: 'tools' },
   { id: 'custom-properties', label: 'Custom Properties', icon: ListChecks, group: 'tools' },
+  { id: 'backfills',         label: 'Data Backfills',    icon: RefreshCcw, group: 'tools' },
 ];
 
 /** Reverse lookup: section id → parent group id. Used to highlight the right sidebar entry when an in-page sub-tab is active. */

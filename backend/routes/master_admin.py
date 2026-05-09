@@ -3470,3 +3470,95 @@ async def locked_staff_audit(
 
     rows.sort(key=lambda r: r.get("permissions_updated_at") or "", reverse=True)
     return {"locked_staff": rows, "total": len(rows)}
+
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Iter 216bn — Pulse Fitness supplier backfill
+# ──────────────────────────────────────────────────────────────────────
+@router.post("/master-admin/equipment/backfill-pulse-supplier")
+async def backfill_pulse_supplier(
+    user: dict = Depends(get_current_user),
+    dry_run: bool = False,
+):
+    """Set every piece of equipment in every Pulse Fitness Lite / Pro
+    organisation's default supplier to "Pulse Fitness" with the
+    service.dept@pulsefitness.com email. Master-admin only.
+
+    `?dry_run=true` returns counts without writing.
+    """
+    require_master_admin(user)
+    org_cursor = db.organizations.find(
+        {"account_type": {"$in": ["lite", "pulse_pro"]}},
+        {"_id": 0, "id": 1, "name": 1, "account_type": 1},
+    )
+    pulse_orgs = [o async for o in org_cursor]
+    if not pulse_orgs:
+        return {"orgs": 0, "equipment_updated": 0, "dry_run": dry_run}
+
+    org_ids = [o["id"] for o in pulse_orgs]
+    if dry_run:
+        cnt = await db.equipment.count_documents({"organization_id": {"$in": org_ids}})
+        return {"orgs": len(pulse_orgs), "equipment_to_update": cnt, "dry_run": True}
+
+    result = await db.equipment.update_many(
+        {"organization_id": {"$in": org_ids}},
+        {"$set": {
+            "supplier": "Pulse Fitness",
+            "supplier_email": "service.dept@pulsefitness.com",
+            "supplier_backfilled_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    return {
+        "orgs": len(pulse_orgs),
+        "equipment_updated": int(result.modified_count or 0),
+        "dry_run": False,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Iter 216bn — Spec-sheet attach backfill
+# ──────────────────────────────────────────────────────────────────────
+@router.post("/master-admin/equipment/backfill-spec-sheets")
+async def backfill_spec_sheets(
+    user: dict = Depends(get_current_user),
+    org_id: Optional[str] = None,
+    dry_run: bool = False,
+):
+    """Re-run the spec-sheet auto-match across existing equipment so
+    rows uploaded before iter 216bn pick up matching catalogue entries.
+    Master-admin only. `?org_id=` narrows to one organisation.
+    """
+    require_master_admin(user)
+    from routes.spec_sheets import auto_match_equipment_to_specs
+
+    eq_filter: dict = {
+        "$or": [
+            {"spec_sheet_id": {"$exists": False}},
+            {"spec_sheet_id": ""},
+            {"spec_sheet_id": None},
+        ],
+    }
+    if org_id:
+        eq_filter["organization_id"] = org_id
+
+    cursor = db.equipment.find(eq_filter, {"_id": 0})
+    eq_docs = await cursor.to_list(2000)
+
+    matched = 0
+    if dry_run:
+        for eq in eq_docs:
+            m = await auto_match_equipment_to_specs(eq)
+            if m:
+                matched += 1
+        return {"considered": len(eq_docs), "matched": matched, "dry_run": True}
+
+    for eq in eq_docs:
+        m = await auto_match_equipment_to_specs(eq)
+        if m:
+            await db.equipment.update_one(
+                {"id": eq["id"]},
+                {"$set": {**m, "spec_sheet_attached_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            matched += 1
+    return {"considered": len(eq_docs), "matched": matched, "dry_run": False}

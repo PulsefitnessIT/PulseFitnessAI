@@ -11,7 +11,7 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   Users, UserPlus, Copy, Crown, Shield, User, Trash2, Building,
-  Mail, Phone, Save, Clock, X, Loader2, MapPin, Contact, QrCode, Printer, Plus, Edit, Settings2, Palette, ChevronDown, ChevronUp
+  Mail, Phone, Save, Clock, X, Loader2, MapPin, Contact, QrCode, Printer, Plus, Edit, Settings2, Palette, ChevronDown, ChevronUp, Star
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
@@ -458,6 +458,31 @@ const PulseSettingsTab = () => {
       {/* Sites Section */}
       {settingsSection === 'sites' && user.role !== 'staff' && (
         <div className="space-y-4" data-testid="sites-settings">
+          {/* Iter 216bn — Head Office discoverability prompt. Lee's
+              feedback: he expected HO in the site selector but it's
+              opt-in (operators tick the checkbox when adding a site).
+              Surface this once at the top of the Sites page so the
+              Head Office concept is obvious to new orgs. */}
+          {sitesList.length > 0 && !sitesList.some(s => s.is_head_office) && (
+            <Card className="border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3" data-testid="head-office-prompt">
+              <Star size={16} className="text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white font-semibold">No Head Office set</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                  Sales, admin, marketing &amp; service-management staff who don&apos;t belong to a single gym site should be assigned to a Head Office. Tick the <em>Head Office</em> box when you add a site, or edit any existing site to flag it.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => { setShowAddSite(true); setEditingSiteId(null); setSiteForm({ name: 'Head Office', address: '', postcode: '', is_head_office: true }); }}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs whitespace-nowrap"
+                data-testid="head-office-create-btn"
+              >
+                <Plus size={12} className="mr-1" /> Create Head Office
+              </Button>
+            </Card>
+          )}
+
           <Card className="bg-[var(--color-surface-dark-alt)] border-white/10 p-5">
             <div className="flex items-center justify-between mb-4">
               <div>

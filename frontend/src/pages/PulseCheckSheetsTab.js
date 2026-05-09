@@ -37,6 +37,34 @@ const EQUIPMENT_TYPE_TASKS = {
 };
 const DEFAULT_TASKS = ['All Areas Cleaned','Visual Inspection for Damage','Check for Loose Bolts/Fixings','Lubricate Moving Parts','Check Safety Features','Console/Display Check','Power Cable Check','Test Equipment Operation'];
 
+/** Iter 216bn — classify equipment by its name when `equipment_type`
+ * is missing/empty. Lee's feedback (Feb 2026 production): everything
+ * was bucketing into "Other" because operators often don't fill the
+ * type field on import. Heuristic: lowercase substring match in
+ * priority order — first hit wins. Kept lightweight on purpose. */
+const NAME_HEURISTICS = [
+  ['Treadmill',          ['treadmill', 'running machine', 'tread']],
+  ['Stepper',            ['stepmill', 'stair', 'stepper', 'step machine']],
+  ['Cross Trainer',      ['cross trainer', 'elliptical', 'crosstrainer']],
+  ['Rower',              ['rower', 'rowing']],
+  ['Spin Bike',          ['spin bike', 'group cycle', 'spinner']],
+  ['Upright Bike',       ['upright', 'air bike', 'assault bike']],
+  ['Recumbent Bike',     ['recumbent']],
+  ['Exercise Bike',      ['cycle', 'bike', 'cardio bike']],
+  ['Strength Equipment', ['lat pulldown', 'leg press', 'chest press', 'shoulder press', 'cable cross', 'pec deck', 'smith', 'rack', 'multi-station', 'selectorised']],
+  ['Free Weights',       ['dumbbell', 'kettlebell', 'barbell', 'plate']],
+  ['Bench',              ['bench']],
+];
+
+function classifyByName(name) {
+  if (!name) return null;
+  const n = String(name).toLowerCase();
+  for (const [type, needles] of NAME_HEURISTICS) {
+    if (needles.some(needle => n.includes(needle))) return type;
+  }
+  return null;
+}
+
 function getTasksForType(type) {
   if (!type) return DEFAULT_TASKS;
   const lower = type.toLowerCase();
@@ -59,6 +87,11 @@ const PulseCheckSheetsTab = ({ equipment }) => {
   const [completionNotes, setCompletionNotes] = useState('');
   const [checkedItems, setCheckedItems] = useState({});
   const [selectedSerial, setSelectedSerial] = useState('');
+  // Iter 216bn — multi-machine selection. When operators tick multiple
+  // machines on a group's start-button, we fan out one completion
+  // record per machine on submit. Legacy `selectedSerial` still works
+  // for single-machine groups + back-compat.
+  const [selectedSerials, setSelectedSerials] = useState([]);
   const [expandedHistory, setExpandedHistory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [newTemplate, setNewTemplate] = useState({ name: '', items: [''] });
@@ -91,7 +124,11 @@ const PulseCheckSheetsTab = ({ equipment }) => {
   const handleStartSheet = (group) => {
     const tasks = getTasksForType(group.equipment_type);
     setActiveSheet({ name: group.equipment_type, equipment_type: group.equipment_type, machines: group.machines, items: tasks });
+    // Pre-select if there's only one machine; otherwise default to all
+    // machines selected (operator can untick to narrow). Lee's
+    // requested workflow: "select a whole group to tick off".
     setSelectedSerial(group.machines.length === 1 ? (group.machines[0].serial_number || group.machines[0].name) : '');
+    setSelectedSerials(group.machines.map(m => m.serial_number || m.name));
     setCheckedItems({});
     setCompletionDate(new Date().toISOString().split('T')[0]);
     setCompletionNotes('');
@@ -100,6 +137,7 @@ const PulseCheckSheetsTab = ({ equipment }) => {
 
   const handleStartCustomSheet = (template) => {
     setActiveSheet({ name: template.name, equipment_type: 'Custom', items: template.items || [], template_id: template.id, machines: [] });
+    setSelectedSerials([]);
     setCheckedItems({});
     setCompletionDate(new Date().toISOString().split('T')[0]);
     setCompletionNotes('');
@@ -107,17 +145,39 @@ const PulseCheckSheetsTab = ({ equipment }) => {
   };
 
   const handleCompleteSheet = async () => {
-    if (activeSheet?.machines?.length > 1 && !selectedSerial) { notify.error('Please select a machine'); return; }
     const items = activeSheet.items.map(item => ({ name: item, checked: !!checkedItems[item] }));
-    const sel = (activeSheet.machines || []).find(m => (m.serial_number || m.name) === selectedSerial);
-    const templateName = sel ? `${activeSheet.equipment_type} - ${selectedSerial}` : activeSheet.name;
+    // Iter 216bn — multi-machine fan-out. If operator ticked a list of
+    // machines, post one completion per machine. Custom templates +
+    // single-machine groups continue to fall through the legacy
+    // single-record path.
+    const machines = activeSheet?.machines || [];
+    const targets = (machines.length > 1 && selectedSerials.length > 0)
+      ? selectedSerials
+      : (selectedSerial ? [selectedSerial] : ['']);
+    if (machines.length > 1 && targets.length === 0) {
+      notify.error('Please select at least one machine');
+      return;
+    }
     try {
-      await axios.post(`${API}/check-sheets/complete`, {
-        template_id: sel?.id || activeSheet.template_id || activeSheet.name,
-        template_name: templateName, serial_number: selectedSerial || '',
-        equipment_type: activeSheet.equipment_type, date: completionDate, items, notes: completionNotes
-      }, { headers });
-      notify.success(`Check sheet completed for ${templateName}`);
+      const payloads = targets.map(serial => {
+        const sel = machines.find(m => (m.serial_number || m.name) === serial);
+        const templateName = sel
+          ? `${activeSheet.equipment_type} - ${serial}`
+          : activeSheet.name;
+        return {
+          template_id: sel?.id || activeSheet.template_id || activeSheet.name,
+          template_name: templateName,
+          serial_number: serial || '',
+          equipment_type: activeSheet.equipment_type,
+          date: completionDate,
+          items,
+          notes: completionNotes,
+        };
+      });
+      await Promise.all(payloads.map(p =>
+        axios.post(`${API}/check-sheets/complete`, p, { headers })
+      ));
+      notify.success(`Check sheet completed for ${payloads.length} ${payloads.length === 1 ? 'machine' : 'machines'}`);
       setShowCompleteDialog(false);
       loadHistory(); loadReport();
     } catch { notify.error('Failed to save'); }
@@ -144,12 +204,17 @@ const PulseCheckSheetsTab = ({ equipment }) => {
     } catch { notify.error('Failed to delete'); }
   };
 
-  // Group equipment by type
+  // Group equipment by type — use the explicit `equipment_type` if set,
+  // otherwise fall back to the name-based classifier (Iter 216bn).
+  // Anything still unmatched goes to "Uncategorised" so it's still
+  // actionable — never the silent "Other" dump.
   const filtered = equipment.filter(e => !searchQuery || e.name?.toLowerCase().includes(searchQuery.toLowerCase()) || (e.serial_number || '').toLowerCase().includes(searchQuery.toLowerCase()));
   const grouped = [];
   const typeMap = {};
   for (const eq of filtered) {
-    const type = eq.equipment_type || 'Other';
+    const type = (eq.equipment_type && eq.equipment_type.trim())
+      || classifyByName(eq.name)
+      || 'Uncategorised';
     if (!typeMap[type]) { typeMap[type] = { equipment_type: type, machines: [] }; grouped.push(typeMap[type]); }
     typeMap[type].machines.push(eq);
   }
@@ -319,14 +384,54 @@ const PulseCheckSheetsTab = ({ equipment }) => {
           <DialogHeader><DialogTitle>{activeSheet?.equipment_type}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {activeSheet?.machines?.length > 1 && (
-              <div>
-                <Label className="text-zinc-700 text-sm">Select Machine</Label>
-                <Select value={selectedSerial} onValueChange={setSelectedSerial}>
-                  <SelectTrigger className="bg-white border-zinc-200 text-zinc-900 mt-1 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800" data-testid="pulse-sheet-serial"><SelectValue placeholder="Select machine..." /></SelectTrigger>
-                  <SelectContent className="bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
-                    {(activeSheet.machines || []).map((m, i) => <SelectItem key={i} value={m.serial_number || m.name}>{m.name} {m.serial_number ? `(${m.serial_number})` : ''}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2" data-testid="pulse-sheet-multi">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <Label className="text-zinc-700 text-sm dark:text-zinc-300">
+                    Machines ({selectedSerials.length}/{activeSheet.machines.length})
+                  </Label>
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSerials(activeSheet.machines.map(m => m.serial_number || m.name))}
+                      className="text-blue-600 hover:underline dark:text-blue-400"
+                      data-testid="pulse-sheet-select-all"
+                    >Select all</button>
+                    <span className="text-zinc-300 dark:text-zinc-700">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSerials([])}
+                      className="text-zinc-500 hover:underline dark:text-zinc-400"
+                      data-testid="pulse-sheet-clear-all"
+                    >Clear</button>
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {activeSheet.machines.map((m, i) => {
+                    const key = m.serial_number || m.name;
+                    const ticked = selectedSerials.includes(key);
+                    return (
+                      <label key={i} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 select-none" data-testid={`pulse-sheet-machine-${i}`}>
+                        <input
+                          type="checkbox"
+                          checked={ticked}
+                          onChange={(e) => {
+                            setSelectedSerials(prev => e.target.checked ? [...prev, key] : prev.filter(k => k !== key));
+                          }}
+                          className="w-4 h-4 accent-blue-600 cursor-pointer shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-zinc-900 truncate dark:text-zinc-100">{m.name}</p>
+                          {m.serial_number && (
+                            <p className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 truncate">S/N {m.serial_number}</p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  Tick the machines you've checked. One completion record will be saved per ticked machine.
+                </p>
               </div>
             )}
             {activeSheet?.machines?.length === 1 && (

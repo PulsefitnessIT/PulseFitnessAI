@@ -95,32 +95,12 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
 
       {/* AI Q&A panel — operators ask "what does our Matrix Treadmill
           T7xe service procedure say about belt tension?" and the LLM
-          answers from the indexed manuals. */}
+          answers from the indexed manuals. Iter 216bn — the headline
+          AI-indexing status card was removed per Lee's feedback; the
+          indexing still happens (per-file Index button + auto-trigger
+          on upload), users just don't need a percentage gauge cluttering
+          the page. */}
       <DocumentQA compact />
-
-      {/* AI indexing status strip */}
-      <Card
-        className="p-3 flex items-center gap-3 flex-wrap"
-        style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
-      >
-        <Sparkles size={16} className="text-[var(--color-brand-cyan-hover)] shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>AI Indexing</p>
-          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            {totalIndexed} of {totalIndexable} indexable files are searchable. Upload PDFs, Word docs or text files and click <em>Index</em> to make their content available to Document Q&A.
-          </p>
-        </div>
-        <Badge
-          className="text-[10px] font-bold px-2 py-1"
-          style={{
-            background: 'rgb(var(--rgb-brand-blue) / 0.12)',
-            color: 'var(--color-brand-blue)',
-            border: '1px solid rgb(var(--rgb-brand-blue) / 0.3)',
-          }}
-        >
-          {totalIndexable === 0 ? '—' : `${Math.round((totalIndexed / totalIndexable) * 100)}%`}
-        </Badge>
-      </Card>
 
       {/* Category tab bar */}
       <div
@@ -163,7 +143,6 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
           <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{activeSection.label}</p>
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
             {activeSection.items.length} file{activeSection.items.length !== 1 ? 's' : ''}
-            {activeSection.items.length > 0 ? ` · ${activeSection.items.filter((f) => f.ai_extracted).length} AI-indexed` : ''}
           </p>
         </div>
         {onUpload && activeSection.id !== 'other' ? (

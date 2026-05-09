@@ -56,17 +56,51 @@ def _compute_display_name(equip: dict) -> str:
 
 @router.post("/equipment")
 async def create_equipment(equipment: EquipmentCreate, user: dict = Depends(get_current_user)) -> dict:
+    payload = equipment.model_dump()
+    # Iter 216bn — Pulse Fitness Lite / Pro orgs default supplier to
+    # "Pulse Fitness" with the official service email when the operator
+    # didn't pick one. Lee's request: customers on these plans almost
+    # always service through Pulse Fitness's depot, so manual entry is
+    # noise. They can still override per-equipment.
+    org_id = user.get("organization_id")
+    if org_id and not (payload.get("supplier") or "").strip():
+        try:
+            org = await db.organizations.find_one(
+                {"id": org_id}, {"_id": 0, "account_type": 1},
+            )
+            if (org or {}).get("account_type") in ("lite", "pulse_pro"):
+                payload["supplier"] = "Pulse Fitness"
+                if not (payload.get("supplier_email") or "").strip():
+                    payload["supplier_email"] = "service.dept@pulsefitness.com"
+        except Exception as exc:
+            logger.warning("[equipment] supplier default lookup failed: %s", exc)
     equipment_doc = {
         "id": str(uuid.uuid4()),
         "user_id": user['id'],
-        "organization_id": user.get('organization_id'),
-        **equipment.model_dump(),
+        "organization_id": org_id,
+        **payload,
         "manuals": [],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     await db.equipment.insert_one(equipment_doc)
     equipment_doc.pop('_id', None)
+
+    # Iter 216bn — auto-attach any pre-existing spec sheet (and its hero
+    # image) for this model/name. Best-effort, fail silent. Lee's
+    # request: when a customer adds a Pulse Fitness machine, the spec
+    # sheet + photo from Master's catalogue should appear automatically.
+    try:
+        from routes.spec_sheets import auto_match_equipment_to_specs
+        match = await auto_match_equipment_to_specs(equipment_doc)
+        if match:
+            await db.equipment.update_one(
+                {"id": equipment_doc["id"]},
+                {"$set": {**match, "spec_sheet_attached_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            equipment_doc.update(match)
+    except Exception as exc:
+        logger.warning("[equipment] spec-sheet auto-match failed: %s", exc)
     # Activation event — best-effort, idempotent per org.
     if user.get('organization_id'):
         try:

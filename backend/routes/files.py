@@ -82,6 +82,35 @@ async def upload_file(file: UploadFile = File(...), category: str = Query("gener
     }
     await db.files.insert_one(file_doc)
     file_doc.pop('_id', None)
+
+    # Iter 216bn — auto-trigger AI extraction in the background for
+    # indexable document types. Lee removed the user-facing "Index"
+    # button + status card per Feb 2026 production feedback; the
+    # ingestion still has to happen so DocumentQA + fault-AI-triage
+    # have content to draw from. Fire-and-forget — failures are
+    # logged inside _run_ai_extraction and don't fail the upload.
+    if (ext.lower() in ("pdf", "doc", "docx", "txt") and
+            category not in ("floor-plans", "photos")):
+        import asyncio as _asyncio
+        async def _bg_index(doc):
+            try:
+                extraction = await _run_ai_extraction(doc)
+                await db.files.update_one(
+                    {"id": doc["id"]},
+                    {"$set": {
+                        "ai_extracted": True,
+                        "ai_extraction": extraction,
+                        "ai_indexed_at": datetime.now(timezone.utc).isoformat(),
+                    }},
+                )
+            except Exception as exc:
+                logger.warning("[files] silent auto-index failed for %s: %s", doc.get("id"), exc)
+                await db.files.update_one(
+                    {"id": doc["id"]},
+                    {"$set": {"ai_extracted": False, "ai_extraction_error": str(exc)}},
+                )
+        _asyncio.create_task(_bg_index(file_doc))
+
     return file_doc
 
 

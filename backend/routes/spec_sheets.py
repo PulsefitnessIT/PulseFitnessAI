@@ -452,3 +452,45 @@ async def _auto_match_spec_sheet(spec: dict) -> int:
     if matched_ids:
         await _persist_spec_matches(spec, matched_ids)
     return len(matched_ids)
+
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Iter 216bn — auto-match a single equipment item against existing
+# uploaded spec sheets when it's created or imported. The legacy
+# direction (spec sheet → match all equipment) already exists at
+# `_auto_match_spec_sheet`. This is the inverse.
+# ──────────────────────────────────────────────────────────────────────
+async def auto_match_equipment_to_specs(equipment: dict) -> dict:
+    """Return {spec_sheet_id, hero_image_url, pdf_url} when a matching
+    spec sheet exists; empty dict otherwise. Caller is responsible for
+    persisting these onto the equipment row.
+    """
+    eq_name = (equipment.get("name") or "").lower()
+    eq_model = (equipment.get("model") or "").lower()
+    if not eq_name and not eq_model:
+        return {}
+    eq_combined = f"{eq_name} {eq_model}".strip()
+
+    # All spec sheets are global (master-admin uploads) — match across
+    # the whole collection, not org-scoped.
+    cursor = db.spec_sheets.find(
+        {}, {"_id": 0, "id": 1, "equipment_model": 1, "product_level": 1,
+             "original_filename": 1, "hero_image_url": 1, "pdf_url": 1},
+    )
+    candidates = await cursor.to_list(500)
+    for spec in candidates:
+        model_name = (spec.get("equipment_model") or "").strip()
+        if not model_name:
+            continue
+        filename = (spec.get("original_filename") or "").lower()
+        codes = _extract_model_codes(model_name)
+        keywords = _extract_product_keywords(model_name.lower(), filename)
+        level = _derive_spec_level((spec.get("product_level") or "").lower(), filename)
+        if _equipment_matches(eq_combined, codes, keywords, level):
+            return {
+                "spec_sheet_id": spec["id"],
+                "spec_sheet_image": spec.get("hero_image_url", ""),
+                "spec_sheet_url": spec.get("pdf_url", ""),
+            }
+    return {}

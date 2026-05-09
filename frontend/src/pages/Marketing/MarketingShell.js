@@ -47,7 +47,12 @@ export function MarketingNav() {
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all ${scrolled ? 'gx-glass' : 'bg-transparent'}`}
+      /* Iter 216bn — at the top of the page on mobile we always render
+         the glass background. The pure-transparent header-on-scroll-top
+         was unreadable when the hamburger landed over a busy hero photo
+         (Lee, Feb 2026 production feedback). On xl+ desktop we keep the
+         original transparent → glass scroll behaviour. */
+      className={`fixed top-0 inset-x-0 z-50 transition-all ${scrolled ? 'gx-glass' : 'gx-glass xl:bg-transparent xl:backdrop-blur-0'}`}
       data-testid="gx-nav"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">

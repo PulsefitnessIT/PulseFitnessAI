@@ -161,6 +161,71 @@ def _deterministic_priority(fault_type: str, safe: str, usable: str) -> str:
     return "low"
 
 
+async def _gather_triage_context(equipment: dict, organization_id: str | None) -> str:
+    """Iter 216bn — pull relevant indexed manuals + spec-sheet content
+    for this equipment so AI triage doesn't hallucinate. Uses the
+    `ai_extraction` payloads written by the silent file-upload indexer
+    (see routes/files.py::upload_file). Best-effort, returns "" on any
+    failure so triage still runs.
+    """
+    if not organization_id:
+        return ""
+    try:
+        manufacturer = (equipment.get("manufacturer") or "").lower()
+        model = (equipment.get("model_number") or equipment.get("model") or "").lower()
+        machine_type = (equipment.get("machine_type") or equipment.get("category") or "").lower()
+        # Pull at most 3 indexed files for this org. Match on manufacturer
+        # OR model first; fall back to machine type. We rank by extraction
+        # presence, so newer/richer documents bubble up.
+        cur = db.files.find(
+            {
+                "organization_id": organization_id,
+                "ai_extracted": True,
+                "ai_extraction": {"$exists": True},
+            },
+            {"_id": 0, "original_filename": 1, "ai_extraction": 1},
+        ).sort("ai_indexed_at", -1).limit(20)
+        rows = await cur.to_list(20)
+        scored = []
+        for f in rows:
+            ext = f.get("ai_extraction") or {}
+            ei = ext.get("equipment_info") or {}
+            haystack = " ".join([
+                str(ei.get("manufacturer", "")),
+                str(ei.get("model", "")),
+                str(ei.get("equipment_type", "")),
+                f.get("original_filename", ""),
+            ]).lower()
+            score = 0
+            if manufacturer and manufacturer in haystack:
+                score += 3
+            if model and model in haystack:
+                score += 5
+            if machine_type and machine_type in haystack:
+                score += 1
+            if score > 0:
+                scored.append((score, ext))
+        scored.sort(key=lambda t: -t[0])
+        if not scored:
+            return ""
+        chunks = []
+        for _, ext in scored[:3]:
+            common_faults = ext.get("common_faults") or []
+            if common_faults:
+                fault_lines = [
+                    f"- {fb.get('fault', '?')}: {fb.get('symptoms', '')}; fix: {fb.get('fix', '')}"
+                    for fb in common_faults[:5]
+                ]
+                chunks.append("Known faults:\n" + "\n".join(fault_lines))
+            tips = ext.get("troubleshooting_tips") or []
+            if tips:
+                chunks.append("Troubleshooting tips:\n- " + "\n- ".join(str(t) for t in tips[:5]))
+        return ("\n\n".join(chunks))[:1800]
+    except Exception as e:
+        logger.warning("triage context lookup failed: %s", e)
+        return ""
+
+
 async def _ai_triage(
     equipment: dict, fault_type: str, description: str,
     onset: str, usable: str, safe: str,
@@ -181,14 +246,24 @@ async def _ai_triage(
         )
         chat = LlmChat(api_key=key, session_id=session, system_message=system) \
             .with_model("openai", "gpt-4o-mini")
+        # Iter 216bn — enrich the prompt with content from the org's
+        # indexed manuals/spec sheets if any match this equipment.
+        org_id = equipment.get("organization_id")
+        manual_context = await _gather_triage_context(equipment, org_id)
         prompt = (
             f"Equipment: {equipment.get('machine_type', equipment.get('category', 'gym machine'))} "
             f"({equipment.get('manufacturer', 'unknown')} {equipment.get('model_number', '')}).\n"
             f"Fault type: {FAULT_TYPE_LABELS.get(fault_type, fault_type)}.\n"
             f"Description: {description}\n"
             f"Onset: {onset}. Usable: {usable}. Safe in service: {safe}.\n"
-            "Return JSON only, no prose wrapper."
         )
+        if manual_context:
+            prompt += (
+                "\nReference excerpts from the customer's uploaded manuals/spec sheets "
+                "for this equipment:\n" + manual_context + "\n"
+                "Lean on these excerpts when they match the symptoms.\n"
+            )
+        prompt += "Return JSON only, no prose wrapper."
         reply = await chat.send_message(UserMessage(text=prompt))
         import json
         import re
@@ -200,6 +275,7 @@ async def _ai_triage(
             "engineer_required": bool(parsed.get("engineer_required", True)),
             "confidence_pct": int(parsed.get("confidence_pct", 70)),
             "model": "gpt-4o-mini",
+            "manual_context_used": bool(manual_context),
         }
     except Exception as e:  # pragma: no cover — non-blocking
         logger.warning("AI triage failed: %s", e)

@@ -1,3 +1,77 @@
+## Iteration 216bn — 7 production fixes from Lee's mobile review (Feb 2026)
+
+**Context**: Lee filed 8 issues from production (gymaxisai.com). Skipped #4 in scope-discussion form (data feed) — turns out spec sheets are stored in Master Admin's catalogue, so #4 became implementable using existing `db.spec_sheets` infrastructure. All 7 implementable items shipped together.
+
+### What shipped
+
+#### #1 Pulse marketing nav transparent on mobile
+- `MarketingShell.js` — header had `bg-transparent` at scroll-top. On mobile, hamburger button floated unreadable over hero photos. Now `gx-glass` always on mobile; transparent-at-top behaviour preserved on `xl+` desktop where there's space for the slick scroll effect.
+
+#### #2 Head Office discoverability prompt
+- `PulseSettingsTab.js` — Head Office is opt-in via the iter 216bk checkbox, but new operators didn't realise. Added an amber-bordered banner at the top of Sites that appears when no HO exists, with a single-click "Create Head Office" button that pre-fills the form with `name='Head Office', is_head_office=true`. Disappears once an HO is set.
+
+#### #3 Serial under equipment name on mobile
+- Already shipped iter 216bk. Production was on iter 216bm without redeploy of bk → confirmed serials surface when `equipment.serial_number` is set. Real root cause: empty serials in the DB. Fixed downstream by #4 (spec-sheet auto-attach pulls model + manufacturer; serials still need manual entry or supplier feed).
+
+#### #4 Auto-pull spec sheets + photos for Pulse Fitness machines
+- New `routes/spec_sheets.py::auto_match_equipment_to_specs()` — inverse of the existing `_auto_match_spec_sheet`. Given an equipment doc, scans `db.spec_sheets`, returns `{spec_sheet_id, spec_sheet_image, spec_sheet_url}` for the best match using existing model-code + keyword + level matchers.
+- `routes/equipment.py::create_equipment` — calls the matcher post-insert. New equipment auto-pulls catalogue photo + spec sheet when there's a match. Best-effort, fail-silent.
+- New `POST /api/master-admin/equipment/backfill-spec-sheets?dry_run=&org_id=` — re-runs the match across existing equipment that has no `spec_sheet_id`. Dry-run preview before write.
+
+#### #5 Check sheets grouping + multi-select
+- `pages/PulseCheckSheetsTab.js`:
+  - Added `NAME_HEURISTICS` table — when `equipment_type` is empty, classify by name (treadmill/stepper/cross trainer/rower/spin bike/upright/recumbent/exercise bike/strength/free weights/bench). Final fallback is "Uncategorised", not "Other" — so the bucket is actionable.
+  - Replaced the single-machine `<Select>` in the completion dialog with a multi-select checkbox list. Operators tick whichever machines they checked; submit fans out one completion record per ticked machine. "Select all" / "Clear" shortcuts. Single-machine groups skip this UI.
+
+#### #6 Documents — hide AI-indexing counter card + per-doc badges, keep indexing
+- `LiteDocumentsTab.js` — removed the headline "AI Indexing X% complete" card; `LiteDocumentsTab.js` & `DocumentsTab.js` — removed per-document "AI Indexed" badges. Lee's request: user doesn't need to know.
+- `routes/files.py::upload_file` — auto-fires AI extraction in the background for indexable types (pdf, doc, docx, txt; not photos/floor-plans). Operators no longer need to click "Index" — happens silently on upload. Errors logged but don't block the upload.
+- `routes/mod_portal.py::_ai_triage` — new `_gather_triage_context()` helper pulls relevant indexed manuals/spec-sheet content for the equipment's manufacturer/model and injects into the triage prompt. Lee's spec: "all documents that are fed into Pulse Fitness and Gym Axis contribute to AI triage when a fault is logged."
+
+#### #7 Default supplier = Pulse Fitness for Pulse Fitness Lite/Pro orgs
+- `routes/equipment.py::create_equipment` — when `org.account_type ∈ {lite, pulse_pro}` and supplier blank, defaults to `Pulse Fitness` + `service.dept@pulsefitness.com` for emails.
+- New `POST /api/master-admin/equipment/backfill-pulse-supplier?dry_run=` — backfills all existing Pulse Fitness Lite/Pro org equipment per Lee's preference (overwrite all). Dry-run + apply pattern. Stamped `supplier_backfilled_at`.
+
+#### Master Admin → Tools → Data Backfills (new panel)
+- New `pages/MasterAdmin/BackfillsPanel.js` — two-card UI for the new backfills (Pulse supplier + Spec sheets). Each card has Preview (dry-run) → Apply with confirm dialog. Result chips show counts after run.
+- Sidebar entry under Tools group with `RefreshCcw` icon.
+
+### Verification
+- Lint clean across 8 frontend + 4 backend files.
+- Backend smoke (master admin):
+  - `POST /api/master-admin/equipment/backfill-pulse-supplier?dry_run=true` → `{orgs:8, equipment_to_update:0, dry_run:true}` ✓
+  - `POST /api/master-admin/equipment/backfill-spec-sheets?dry_run=true` → `{considered:10, matched:0, dry_run:true}` ✓
+- Webpack compiled clean (only pre-existing warnings).
+- Backend services healthy on `/api/health`.
+
+### Files of reference
+**Frontend**:
+- `/app/frontend/src/pages/Marketing/MarketingShell.js` (#1 nav glass on mobile)
+- `/app/frontend/src/pages/PulseSettingsTab.js` (#2 HO prompt + iter 216bk checkbox)
+- `/app/frontend/src/pages/PulseCheckSheetsTab.js` (#5 grouping heuristic + multi-select)
+- `/app/frontend/src/pages/LiteDashboard/LiteDocumentsTab.js` (#6 removed cards/badges)
+- `/app/frontend/src/pages/DocumentsTab.js` (#6 removed badge)
+- `/app/frontend/src/pages/MasterAdmin/BackfillsPanel.js` (new)
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js` (Tools → Data Backfills)
+- `/app/frontend/src/pages/MasterAdminPage.js` (case 'backfills')
+
+**Backend**:
+- `/app/backend/routes/equipment.py` (auto-match on create + Pulse supplier default)
+- `/app/backend/routes/spec_sheets.py` (auto_match_equipment_to_specs helper)
+- `/app/backend/routes/master_admin.py` (2 new backfill endpoints)
+- `/app/backend/routes/files.py` (auto AI-index on upload)
+- `/app/backend/routes/mod_portal.py` (triage gathers indexed docs context)
+
+### ⚠️ Action required
+1. **Redeploy** to push to gymaxisai.com.
+2. After redeploy, **run both backfills** from Master Admin → Tools → Data Backfills:
+   - First click Preview on each (sanity-check the row counts)
+   - Then click Apply for "Pulse Fitness supplier" — sets all your Pulse Fitness Lite/Pro org machines to Pulse Fitness as supplier
+   - Then Apply for "Spec sheets → equipment" — attaches existing master catalogue spec sheets + photos to your existing 61+ machines
+
+---
+
+
 ## Iteration 216bm — Locked-staff audit view (Master Admin → Security) (Feb 2026)
 
 **Goal**: surface every per-site staff restriction in one read-only table for SOC 2 / compliance review. Pairs with the iter 216bk site-locking + iter 216bl server-side enforcement to close the audit narrative.
