@@ -1,3 +1,45 @@
+## Iteration 216ar — Phase S6: AI Workforce Automation & Payroll (Feb 2026)
+
+**Goal**: Ship the P0 Phase S6 of the workforce platform — three new manager-only capabilities behind a single "AI Rota" tab.
+
+### What shipped
+
+**Backend** — `/app/backend/routes/staffing_ai_phase6.py` (registered in `route_registry/features.py`):
+- `POST /api/staffing/ai/rota/suggest` — Generates a 7-day rota using **Claude Sonnet 4.5** via the Emergent LLM key. Pulls staff roster + compliance rules + approved/pending leave + a demand template, returns `{engine, suggestions:[{staff_id,date,start_time,end_time,role,reason}], hours_per_staff, cost_per_staff[], cost_total}`. Heuristic round-robin fallback if Claude fails or `EMERGENT_LLM_KEY` is missing. Snaps `week_start` to Monday, validates staff_id ∈ org, role ∈ VALID_ROLES, drops suggestions that overlap leave. Logs each call to `staffing_ai_calls`.
+- `POST /api/staffing/ai/rota/apply` — Bulk-inserts the operator-approved suggestions into `staff_shifts` with `source="ai_rota_builder"`. Optional `overwrite_existing` purges that week's shifts first.
+- `GET /api/staffing/ai/absence-risk?horizon_days=14` — Deterministic 0-100 risk score per staff with `band ∈ {low,medium,high}`. Components: +25/sick (cap 50), +15/late clock-in (cap 30), +20/missed shift (cap 40), +10 for overlapping pending leave, +20 if hire <60 days. Sorted desc.
+- `GET /api/staffing/ai/payroll/sage.csv` — Sage 50 Payroll *Hours and Rates* import CSV: `Reference, Surname, Forenames, NI Number, Payment Number, Hours, Rate, Amount` + `TOTAL` checksum row. Splits `full_name` (forenames = everything but last word, surname = last word). NI number pulled from Phase S5 HR profile. Aggregates non-cancelled shifts only.
+
+**Frontend** — `/app/frontend/src/pages/LiteDashboard/staffing/AIWorkforceTab.js`:
+- New 3-sub-pill tab: **Rota Builder** (week picker + max-hours + AI notes → Generate → preview table with engine badge, shift count, cost summary → Apply with overwrite toggle) · **Absence Risk** (horizon selector + 3-stat summary + per-staff leaderboard with score & reasons) · **Sage Payroll** (date-range picker + CSV download).
+- Wired into `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js` as `{ id: 'ai-rota', label: 'AI Rota', icon: Wand2 }` between HR and the existing AI Insights narrative tab.
+
+### Verification
+- `/app/test_reports/iteration_216ar.json` — **Backend 20/21 PASS · Frontend 100% PASS**, 0 critical issues. The single minor flag is a LOW-priority OPTIONAL edge in the heuristic fallback (max_hours cap can exceed by ~10% in unusual roster shapes). Claude path is exercised in production via Emergent LLM key.
+- New pytest file: `/app/backend/tests/test_iter_216ar_staffing_s6_ai.py`.
+- Self-verified curl: rota/suggest returned 7 valid Claude shifts in ~10s; rota/apply created 1 shift verified via `/staffing/shifts`; absence-risk and sage.csv return correct shapes.
+- Lint clean.
+
+### Files of reference
+- `/app/backend/routes/staffing_ai_phase6.py`
+- `/app/backend/route_registry/features.py` (router registered)
+- `/app/frontend/src/pages/LiteDashboard/staffing/AIWorkforceTab.js`
+- `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js`
+- `/app/backend/tests/test_iter_216ar_staffing_s6_ai.py`
+
+### Status of the 12-subsystem rollout
+S1 Rota Engine ✅ · S2 Time Clock ✅ · S3 Comms ✅ · S4 Tasks/Forms/Compliance ✅ · S5 HR ✅ · S6 AI + Payroll ✅. Workforce platform Phase S1-S6 = COMPLETE.
+
+### Next up
+- P1: Configure Sentry DSN.
+- P1: Optional — tighten heuristic rota cap (LOW from the test report).
+- P2 backlog: Resend AI insights digest hook · Calendly demo embed · Referral program · Twilio SMS real integration.
+- BLOCKED: Sicon / Sage 200 LIVE cutover (needs user credentials).
+
+---
+
+
+
 ## Iteration 216aq — Phase S5 (HR 2.0) wired & shipped (Feb 2026)
 
 **Goal**: Finish Phase S5 of the workforce platform — HR 2.0 (employee profiles 2.0, documents, disciplinary, training history) was scaffolded by the previous agent but not wired into the UI.
