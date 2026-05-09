@@ -60,6 +60,7 @@ from routes.master_admin_estate_rollup import router as master_admin_estate_roll
 from routes.back_in_service import router as back_in_service_router
 from routes.marketing_chat import router as marketing_chat_router
 from routes.master_admin_sales_insights import router as master_admin_sales_insights_router
+from routes.launch_readiness import router as launch_readiness_router
 from routes.member_app_builder import router as member_app_builder_router
 from routes.portal_gdpr import router as portal_gdpr_router
 from routes.usage_meter import router as usage_meter_router
@@ -157,6 +158,7 @@ _UNGATED_ROUTERS = (
     back_in_service_router,
     marketing_chat_router,
     master_admin_sales_insights_router,
+    launch_readiness_router,
     member_app_builder_router,
     # Iter 215dn — Service Ops native routers
     svc_cases_router, svc_intake_router, svc_desk_router,

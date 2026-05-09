@@ -38,6 +38,7 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import AskGymAxis from './components/AskGymAxis';
 import NPSWidget from './components/shared/NPSWidget';
 import ModuleAccessGate from './components/shared/ModuleAccessGate';
+import FeedbackWidget from './components/shared/FeedbackWidget';
 import UnifiedAssistant from './components/UnifiedAssistant';
 import CommandPalette, { useCommandPalette } from './components/CommandPalette';
 import TrustPage from './pages/TrustPage';
@@ -575,6 +576,7 @@ function App() {
  </>
  )}
  {user && <UnifiedAssistant />}
+ {user && <FeedbackWidget />}
  {user && <GuidedTour />}
  {user && <SetupChecklist />}
  {user && <GlobalCommandPalette />}

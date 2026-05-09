@@ -64,7 +64,10 @@ async def send_booking_confirmation(member: dict, occurrence: dict) -> bool:
     {_class_card(occurrence)}
     <p style="color:#9ca3af;font-size:13px;">Show your rotating QR pass on the <strong style="color:#fff;">Pass</strong> tab at reception. Need to cancel? Tap the class in your app — earlier is kinder to the waitlist.</p>"""
     html = _shell("Booking confirmed", f"See you at {occurrence.get('name') or 'class'}", body)
-    return await send_email(member["email"], f"Booked · {occurrence.get('name') or 'class'}", html)
+    return await send_email(
+        member["email"], f"Booked · {occurrence.get('name') or 'class'}", html,
+        organization_id=member.get("organization_id"),
+    )
 
 
 async def send_waitlist_promotion(member: dict, occurrence: dict) -> bool:
@@ -75,7 +78,10 @@ async def send_waitlist_promotion(member: dict, occurrence: dict) -> bool:
     {_class_card(occurrence)}
     <p style="color:#9ca3af;font-size:13px;">Can't make it any more? Please cancel in-app so the next member on the waitlist gets a chance.</p>"""
     html = _shell("You're in", f"Waitlist cleared · {occurrence.get('name') or 'class'}", body)
-    return await send_email(member["email"], f"You're in · {occurrence.get('name') or 'class'}", html)
+    return await send_email(
+        member["email"], f"You're in · {occurrence.get('name') or 'class'}", html,
+        organization_id=member.get("organization_id"),
+    )
 
 
 async def send_class_cancelled(member: dict, occurrence: dict, reason: str | None = None) -> bool:
@@ -116,7 +122,10 @@ async def send_missed_class_followup(member: dict, occurrence: dict) -> bool:
     {_class_card(occurrence)}
     <p style="color:#9ca3af;font-size:13px;">Tap any class in the timetable to book it. Tip: turn on <strong style="color:#fff;">drop-in invites</strong> in your profile so we can grab you a last-minute spot when one opens up.</p>"""
     html = _shell("We missed you", f"Rebook {occurrence.get('name') or 'a class'} this week", body)
-    return await send_email(member["email"], f"Missed you · {occurrence.get('name') or 'class'}", html)
+    return await send_email(
+        member["email"], f"Missed you · {occurrence.get('name') or 'class'}", html,
+        organization_id=member.get("organization_id"),
+    )
 
 
 async def send_low_attendance_checkin(member: dict, attended_count: int, days: int = 30) -> bool:
@@ -126,7 +135,10 @@ async def send_low_attendance_checkin(member: dict, attended_count: int, days: i
     <p>Quick check-in — you've made it to <strong style="color:#fff;">{attended_count}</strong> session{'s' if attended_count != 1 else ''} in the last {days} days. We want to make sure the timetable is working for you.</p>
     <p style="color:#9ca3af;font-size:13px;">Reply to this email and let us know what would help — different class times, a fresh class type, or a 1-2-1 chat with a coach. We're here to make it stick.</p>"""
     html = _shell("How's it going?", "A quick check-in from the team", body)
-    return await send_email(member["email"], f"How's training going, {first}?", html)
+    return await send_email(
+        member["email"], f"How's training going, {first}?", html,
+        organization_id=member.get("organization_id"),
+    )
 
 
 async def send_high_engagement_celebration(member: dict, attended_count: int, days: int = 30) -> bool:
@@ -137,4 +149,7 @@ async def send_high_engagement_celebration(member: dict, attended_count: int, da
     <p>Know someone who'd love training with you? Share your referral code from the <strong style="color:#fff;">Profile</strong> tab — you both get £5 credit when they join.</p>
     <p style="color:#9ca3af;font-size:13px;">Keep showing up. We see you.</p>"""
     html = _shell("You're flying", f"{attended_count} sessions · {days} days", body)
-    return await send_email(member["email"], f"Top of the leaderboard, {first} 💪", html)
+    return await send_email(
+        member["email"], f"Top of the leaderboard, {first} 💪", html,
+        organization_id=member.get("organization_id"),
+    )

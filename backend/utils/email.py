@@ -35,7 +35,23 @@ async def _record_email_event(*, to: str, subject: str, status: str, error: str 
         pass
 
 
-async def send_email(to: str, subject: str, html: str, attachments: list[dict] | None = None):
+async def send_email(
+    to: str,
+    subject: str,
+    html: str,
+    attachments: list[dict] | None = None,
+    *,
+    organization_id: str | None = None,
+):
+    """Send an email via Resend.
+
+    Iter 216bc — when ``organization_id`` is provided, look up that
+    org's ``email_sender_friendly_name`` / ``email_sender_reply_to``
+    and use them. This keeps the actual From-address on the verified
+    GymAxis sender domain (so SPF/DKIM/DMARC keep passing) while
+    showing the operator's brand to their customers and routing replies
+    back to the operator.
+    """
     if not RESEND_API_KEY:
         logger.warning(f"Email NOT sent (RESEND_API_KEY missing in env): to={to}, subject={subject!r}")
         await _record_email_event(to=to, subject=subject, status="no_api_key", error="RESEND_API_KEY missing")
@@ -44,13 +60,36 @@ async def send_email(to: str, subject: str, html: str, attachments: list[dict] |
         logger.warning(f"Email NOT sent (SENDER_EMAIL invalid in env: {SENDER_EMAIL!r}): to={to}")
         await _record_email_event(to=to, subject=subject, status="bad_sender", error=f"SENDER_EMAIL={SENDER_EMAIL!r}")
         return False
+
+    # Resolve per-org branding
+    from_addr = SENDER_EMAIL
+    reply_to: str | None = None
+    if organization_id:
+        try:
+            org = await db.organizations.find_one(
+                {"id": organization_id},
+                {"_id": 0, "email_sender_friendly_name": 1, "email_sender_reply_to": 1, "name": 1},
+            )
+            if org:
+                friendly = (org.get("email_sender_friendly_name") or org.get("name") or "").strip()
+                reply_to = (org.get("email_sender_reply_to") or "").strip() or None
+                if friendly:
+                    # Resend accepts "Display Name <addr@dom.com>"
+                    safe = friendly.replace('"', '').replace('<', '').replace('>', '')
+                    from_addr = f"{safe} <{SENDER_EMAIL}>"
+        except Exception:
+            # Branding lookup failure must never block real email sends.
+            pass
+
     try:
         params = {
-            "from": SENDER_EMAIL,
+            "from": from_addr,
             "to": [to],
             "subject": subject,
-            "html": html
+            "html": html,
         }
+        if reply_to:
+            params["reply_to"] = reply_to
         if attachments:
             params["attachments"] = attachments
         result = await asyncio.to_thread(resend.Emails.send, params)
@@ -58,7 +97,7 @@ async def send_email(to: str, subject: str, html: str, attachments: list[dict] |
         await _record_email_event(to=to, subject=subject, status="sent", error=None)
         return True
     except Exception as e:
-        logger.error(f"Email send FAILED via Resend: to={to}, subject={subject!r}, sender={SENDER_EMAIL!r}, error={e!r}")
+        logger.error(f"Email send FAILED via Resend: to={to}, subject={subject!r}, sender={from_addr!r}, error={e!r}")
         await _record_email_event(to=to, subject=subject, status="failed", error=repr(e))
         return False
 

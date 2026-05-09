@@ -1310,6 +1310,7 @@ async def send_single_invoice(invoice_id: str, user: dict = Depends(get_current_
         inv["member_email"],
         f"Your {period_label} invoice · {brand['name']}",
         html, attachments=attachments,
+        organization_id=org_id,
     )
     if not ok:
         raise HTTPException(502, "Email failed to send")
