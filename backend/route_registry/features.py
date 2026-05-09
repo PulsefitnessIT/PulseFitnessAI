@@ -54,6 +54,7 @@ from routes.staffing_clock import router as staffing_clock_router
 from routes.staffing_comms import router as staffing_comms_router
 from routes.staffing_tasks import router as staffing_tasks_router
 from routes.staffing_hr import router as staffing_hr_router
+from routes.staffing_ai_phase6 import router as staffing_ai_phase6_router
 from routes.member_app_builder import router as member_app_builder_router
 from routes.portal_gdpr import router as portal_gdpr_router
 from routes.usage_meter import router as usage_meter_router
@@ -145,6 +146,7 @@ _UNGATED_ROUTERS = (
     staffing_comms_router,
     staffing_tasks_router,
     staffing_hr_router,
+    staffing_ai_phase6_router,
     member_app_builder_router,
     # Iter 215dn — Service Ops native routers
     svc_cases_router, svc_intake_router, svc_desk_router,
