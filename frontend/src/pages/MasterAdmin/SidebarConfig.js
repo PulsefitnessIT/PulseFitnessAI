@@ -52,9 +52,10 @@ export const SIDEBAR_ITEMS = [
   {
     id: 'security', label: 'Security', icon: Lock, group: 'main',
     subTabs: [
-      { id: 'trust',        label: 'Trust & Reliability', icon: ShieldCheck },
-      { id: 'audit-log',    label: 'Audit log',        icon: ScrollText },
-      { id: 'login-events', label: 'Login events',     icon: ShieldAlert },
+      { id: 'trust',         label: 'Trust & Reliability', icon: ShieldCheck },
+      { id: 'audit-log',     label: 'Audit log',           icon: ScrollText },
+      { id: 'login-events',  label: 'Login events',        icon: ShieldAlert },
+      { id: 'locked-staff',  label: 'Locked staff',        icon: Lock },
     ],
   },
   {
@@ -114,6 +115,7 @@ export const sectionTitles = {
   collections: 'Collections',
   'login-events': 'Login Events',
   'audit-log': 'Audit Log',
+  'locked-staff': 'Locked Staff',
   trust: 'Trust & Reliability Engine',
   'ask-support': 'Ask Support Desk (Pulse Fitness + GymAxis)',
   payments: 'Payments & Subscriptions',
@@ -153,6 +155,7 @@ export const sectionDescriptions = {
   collections: 'Aging buckets, top overdue accounts and dunning telemetry — your AR control room.',
   'login-events': 'Security timeline — every login, MFA challenge, failed attempt and brute-force signal.',
   'audit-log': 'Unified timeline of every platform-wide security event — logins, wallet activity, Auto-Bill charges, retry-ladder escalations. CSV export for SOC 2 / pentest evidence packets.',
+  'locked-staff': 'Read-only audit view of every user with a per-site restriction (allowed_site_ids set). Joins org name + site names + last-changed timestamp. Use this for SOC 2 / compliance review.',
   trust: 'Platform health, security events, and integration status — detect before customers do',
   'ask-support': 'Human-escalated AI support cases, CSAT trends, and deflection analytics',
   payments: 'Revenue tracking and subscription management',

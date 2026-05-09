@@ -1396,6 +1396,10 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
         if not isinstance(raw, list):
             raise HTTPException(400, "allowed_site_ids must be an array")
         updates["allowed_site_ids"] = [str(x) for x in raw if x]
+        # Iter 216bm — stamp a "permissions changed" timestamp so the
+        # locked-staff audit panel can show when each restriction last
+        # moved. Mirrors what update_staff_permissions does.
+        updates["permissions_updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # Iter 216a — per-user feature editor.
     # `module_overrides` is a {module: bool} dict that REVOKES org-level
@@ -3378,3 +3382,91 @@ async def purge_test_data(
         "",
     )
     return {"success": True, "flagged_total": flagged_total, "results": results}
+
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Iter 216bm — Locked-staff audit view
+# ──────────────────────────────────────────────────────────────────────
+@router.get("/master-admin/users/locked-sites")
+async def locked_staff_audit(
+    user: dict = Depends(get_current_user),
+    org_id: Optional[str] = None,
+    limit: int = 200,
+):
+    """List users with non-empty `allowed_site_ids` for compliance audit.
+
+    Returned for every locked staff member: org name, full name, email,
+    role, the names of the sites they're locked to, and the timestamp
+    of the last permission change. Master-admin only.
+
+    Query params:
+      • `org_id` — narrow to a single organisation (optional)
+      • `limit`  — max rows (default 200, hard-capped to 1000)
+    """
+    if not (user.get("is_master_admin") or user.get("is_pulse_admin")):
+        raise HTTPException(status_code=403, detail="Master admin only")
+
+    capped_limit = max(1, min(int(limit or 200), 1000))
+
+    user_filter: dict = {
+        "allowed_site_ids": {"$exists": True, "$ne": []},
+    }
+    if org_id:
+        user_filter["organization_id"] = org_id
+
+    user_docs = await db.users.find(
+        user_filter,
+        {
+            "_id": 0, "id": 1, "full_name": 1, "email": 1, "role": 1,
+            "organization_id": 1, "allowed_site_ids": 1,
+            "permissions_updated_at": 1, "is_master_admin": 1,
+        },
+    ).limit(capped_limit).to_list(capped_limit)
+
+    if not user_docs:
+        return {"locked_staff": [], "total": 0}
+
+    # Resolve org names + site names in one round-trip each. The lock
+    # field is small enough that an explicit join is fine.
+    org_ids = list({u["organization_id"] for u in user_docs if u.get("organization_id")})
+    org_lookup = {
+        o["id"]: o["name"]
+        for o in await db.organizations.find(
+            {"id": {"$in": org_ids}}, {"_id": 0, "id": 1, "name": 1}
+        ).to_list(len(org_ids))
+    }
+
+    all_site_ids: set = set()
+    for u in user_docs:
+        for sid in (u.get("allowed_site_ids") or []):
+            all_site_ids.add(sid)
+    site_lookup = {
+        s["id"]: {"name": s.get("name", "(unnamed)"), "is_head_office": bool(s.get("is_head_office"))}
+        for s in await db.sites.find(
+            {"id": {"$in": list(all_site_ids)}}, {"_id": 0, "id": 1, "name": 1, "is_head_office": 1}
+        ).to_list(len(all_site_ids) or 1)
+    }
+
+    rows = []
+    for u in user_docs:
+        site_ids = u.get("allowed_site_ids") or []
+        sites = [
+            {"id": sid, "name": site_lookup.get(sid, {}).get("name", "(deleted site)"), "is_head_office": site_lookup.get(sid, {}).get("is_head_office", False)}
+            for sid in site_ids
+        ]
+        rows.append({
+            "user_id": u.get("id"),
+            "full_name": u.get("full_name") or "(no name)",
+            "email": u.get("email") or "",
+            "role": u.get("role") or "staff",
+            "is_master_admin": bool(u.get("is_master_admin")),
+            "organization_id": u.get("organization_id"),
+            "organization_name": org_lookup.get(u.get("organization_id", ""), "(unknown org)"),
+            "site_count": len(sites),
+            "sites": sites,
+            "permissions_updated_at": u.get("permissions_updated_at"),
+        })
+
+    rows.sort(key=lambda r: r.get("permissions_updated_at") or "", reverse=True)
+    return {"locked_staff": rows, "total": len(rows)}

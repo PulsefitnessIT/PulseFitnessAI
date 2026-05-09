@@ -1,3 +1,53 @@
+## Iteration 216bm — Locked-staff audit view (Master Admin → Security) (Feb 2026)
+
+**Goal**: surface every per-site staff restriction in one read-only table for SOC 2 / compliance review. Pairs with the iter 216bk site-locking + iter 216bl server-side enforcement to close the audit narrative.
+
+### What shipped
+
+#### Backend
+- New endpoint `GET /api/master-admin/users/locked-sites?org_id=&limit=` (`/app/backend/routes/master_admin.py`).
+  - Master-admin only (uses `is_master_admin` + `is_pulse_admin` flags).
+  - Lists every user with non-empty `allowed_site_ids`, joined with org name + site names + `is_head_office` flag + last-changed timestamp.
+  - Sorted by `permissions_updated_at` desc so most-recent changes float up.
+  - Hard-cap of 1000 rows; default 200.
+  - Optional `org_id` filter to narrow to one organisation.
+  - Gracefully handles deleted sites (renders "(deleted site)") and missing org names (renders "(unknown org)").
+- Stamped `permissions_updated_at` in `routes/master_admin.py::admin_edit_user` whenever `allowed_site_ids` is in the body. Mirrors the existing stamp in `routes/auth.py::update_staff_permissions` so the audit timeline is complete regardless of which path made the change.
+
+#### Frontend
+- New panel `/app/frontend/src/pages/MasterAdmin/LockedStaffPanel.js` — read-only table with columns: User · Role · Organisation · Locked to · Last changed.
+  - Empty state when nothing is locked.
+  - Refresh button.
+  - Site pills coloured by HQ status (gold star for Head Office, map-pin for regular).
+  - Role badges colour-coded (master = amber, owner = amber, manager = blue, staff = zinc).
+  - Test-ids on every row + every site pill (`locked-staff-row-{userId}`, `locked-staff-site-{userId}-{siteId}`).
+- Wired into Master Admin → Security sub-section: `id: 'locked-staff'` added to `SidebarConfig.js`, label + tooltip description added, render case added to `MasterAdminPage.js`.
+
+### Verification
+- Lint clean across all 4 touched files.
+- Backend smoke (curl):
+  - Empty state: `GET /locked-sites` → 200 `{total:0, locked_staff:[]}`
+  - With test data: PUT `/master-admin/users/{id}/edit` with `allowed_site_ids:[fake1, fake2]` → 200; subsequent GET → `total=1` with deleted-site fallback strings working.
+  - Cleanup: PUT with empty array → 200; user no longer in list.
+- Frontend webpack compiled cleanly.
+
+### Files of reference
+- `/app/backend/routes/master_admin.py` (new endpoint at the bottom + stamp on edit)
+- `/app/frontend/src/pages/MasterAdmin/LockedStaffPanel.js` (new)
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js` (sub-tab + label + description)
+- `/app/frontend/src/pages/MasterAdminPage.js` (import + render case)
+
+### What this enables
+- Audit trail: SOC 2 / pen-test reviewers can pull a single screen showing every site-locked user, when their lock was last touched, and which sites they're confined to. CSV export can be added in a follow-up if required.
+- Compliance review at scale: spot stale restrictions (e.g. ex-employees still locked but never archived) at a glance, sorted by last-change descending.
+- Org-by-org filtering already supported via `?org_id=` query string for future per-org compliance views.
+
+### ⚠️ Action required
+All changes live in **preview** only. **Redeploy** to push to gymaxisai.com.
+
+---
+
+
 ## Iteration 216bl — Server-side site-lock enforcement on equipment + faults (Feb 2026)
 
 **Goal**: extend iter 216bk's site-locking from "hidden in the UI switcher" to "actually enforced at the API layer". A locked staff member used to be able to fetch equipment / faults from an unauthorised site by manually crafting `?site_id=` in the URL. Now they get a 403.
