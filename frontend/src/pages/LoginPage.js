@@ -143,6 +143,7 @@ export default function LoginPage() {
             </div>
             <button
               type="submit"
+              onClick={handleSubmit}
               disabled={loading}
               className="gx-cta w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
               data-testid="gx-login-submit"

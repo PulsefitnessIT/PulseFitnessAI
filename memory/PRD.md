@@ -1,3 +1,28 @@
+## Iteration 216ax — Login Sign-In click bug fix (Feb 2026)
+
+**Problem (from iter 216aw test report)**: Sign-In button click intermittently didn't submit the form; pressing Enter worked fine. Pre-existing — predates the audit work.
+
+**Root cause**: `.gx-cta:hover` declares `transform: translateY(-1px)`. On hover, the button lifts 1px. At the precise moment the user clicks, the cursor has just triggered hover and the button has just shifted up — leaving the click landing in empty space below the button. This is a documented click-flakiness pattern and showed up reliably in headless browser test runs.
+
+**Fix** (two-line, defensive):
+1. `/app/frontend/src/pages/Marketing/marketing.css` — added `.gx-cta:active { transform: translateY(0); transition-duration: 0s; }`. While the user is pressing the button, the lift resets so the click target stays put.
+2. `/app/frontend/src/pages/LoginPage.js` — added `onClick={handleSubmit}` on the submit button as a belt-and-braces defence. `handleSubmit` calls `e.preventDefault()` so the path doesn't double-fire (click handler suppresses the form's submit event).
+
+**Verification**: Headless click flow with hover → 400ms wait → click → login succeeded → redirect to `/dashboard`. Confirmed visually that Bob's GymAxis tour fires on landing as expected. Lint clean.
+
+### Files of reference
+- `/app/frontend/src/pages/Marketing/marketing.css`
+- `/app/frontend/src/pages/LoginPage.js`
+
+### Next
+- P1: Sentry DSN.
+- P1 (optional): Tighten heuristic rota max_hours cap.
+- BLOCKED: Sicon / Sage 200 LIVE cutover.
+
+---
+
+
+
 ## Iteration 216aw — Cross-module audit Phase 4: delight & tech debt + full Phase 1-4 testing pass (Feb 2026)
 
 **Goal**: Phase 4 of the audit + comprehensive testing of all 9 fixes.

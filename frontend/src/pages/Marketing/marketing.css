@@ -97,6 +97,14 @@
   box-shadow: 0 10px 25px -5px rgba(157, 76, 221, .4);
   transform: translateY(-1px);
 }
+/* Iter 216ax — reset the hover lift while the button is being clicked
+ * so the click target doesn't shift out from under the user's cursor.
+ * This was the root cause of the "Sign In button doesn't submit on
+ * click but Enter works" bug surfaced in iter 216aw testing. */
+.gx-cta:active {
+  transform: translateY(0);
+  transition-duration: 0s;
+}
 
 .gx-glass {
   background: rgba(255, 255, 255, .7);
