@@ -160,3 +160,82 @@ async def list_jobs(user: dict = Depends(get_current_user)) -> dict:
     cursor = db.catalogue_jobs.find({}, {"_id": 0}).sort("started_at", -1).limit(20)
     jobs = await cursor.to_list(20)
     return {"jobs": jobs}
+
+
+
+@router.post("/master-admin/catalogue/cleanup")
+async def cleanup_catalogue_noise(
+    domain: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216e — remove non-product noise from the catalogue.
+
+    Pulse Fitness publishes Instagram/LinkedIn archive pages under
+    their own URL slugs (e.g. /instagram-arm-only-workout/), which
+    polluted the catalogue with 100+ social entries that look like
+    products to the matcher. The fresh `SKIP_PATTERNS` regex (see
+    `utils/manufacturer_catalogue.py`) drops these on future ingests;
+    this endpoint removes the already-ingested ones in one shot.
+
+    Pass `domain` to scope the cleanup; omit to clean every domain.
+    Idempotent — safe to call repeatedly.
+    """
+    require_master_admin(user)
+    noise_re = (
+        r"/(?:instagram|linkedin|twitter|facebook|tiktok|youtube)-"
+        r"|/social-|/event/|/events/|/exhibition/|/exhibitions/"
+        r"|/article/|/articles/|/press-release/|/after-sales/|/aftersales/"
+        r"|/maintenance-plan"
+    )
+    f: dict = {"page_url": {"$regex": noise_re, "$options": "i"}}
+    if domain:
+        f["domain"] = domain
+    n = await db.manufacturer_catalogue.delete_many(f)
+    return {"deleted": n.deleted_count, "scope": domain or "all"}
+
+
+@router.post("/master-admin/catalogue/rematch-equipment")
+async def rematch_equipment_to_catalogue(
+    organization_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216e — re-run `auto_match_equipment_to_specs` for every
+    piece of equipment in the (optionally scoped) org and persist the
+    resulting `spec_sheet_image` / `manufacturer_page_url` onto the
+    equipment row. Used after a fresh catalogue ingest to backfill
+    images on equipment that was logged before the catalogue had
+    coverage for that manufacturer.
+
+    Returns counts of matched / unchanged / skipped rows.
+    """
+    require_master_admin(user)
+    from routes.spec_sheets import auto_match_equipment_to_specs
+
+    f: dict = {}
+    if organization_id:
+        f["organization_id"] = organization_id
+
+    cursor = db.equipment.find(f, {"_id": 0})
+    matched = unchanged = skipped = 0
+    async for eq in cursor:
+        result = await auto_match_equipment_to_specs(eq)
+        if not result:
+            skipped += 1
+            continue
+        # Don't overwrite explicit master-admin uploads with catalogue
+        # fallbacks. Spec sheet IDs always win over catalogue IDs.
+        update: dict = {}
+        if result.get("spec_sheet_id") and eq.get("spec_sheet_id") != result["spec_sheet_id"]:
+            update["spec_sheet_id"] = result["spec_sheet_id"]
+            update["spec_sheet_url"] = result.get("spec_sheet_url", "")
+        if result.get("spec_sheet_image") and eq.get("spec_sheet_image") != result["spec_sheet_image"]:
+            update["spec_sheet_image"] = result["spec_sheet_image"]
+        if result.get("manufacturer_catalogue_id") and not eq.get("spec_sheet_id"):
+            update["manufacturer_catalogue_id"] = result["manufacturer_catalogue_id"]
+            update["manufacturer_page_url"] = result.get("manufacturer_page_url", "")
+        if update:
+            await db.equipment.update_one({"id": eq["id"]}, {"$set": update})
+            matched += 1
+        else:
+            unchanged += 1
+    return {"matched": matched, "unchanged": unchanged, "skipped": skipped}

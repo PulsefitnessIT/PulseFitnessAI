@@ -1,3 +1,45 @@
+## Iter 216e — Pulse spec auto-pull + CheckSheets dedupe (Feb 9, 2026)
+
+### Part 1 — Pulse spec auto-pull (P3 → shipped)
+
+**Problem (carried over from iter-216bn handoff):**
+> "Auto-pull Pulse Fitness spec sheets + photos — requires data feed / Master admin catalogue population."
+
+**What I found:**
+- The infrastructure was already there (`utils/manufacturer_catalogue.py` sitemap crawler, `routes/master_admin_catalogue.py` ingest endpoint, `auto_match_equipment_to_specs` matcher).
+- The catalogue had 149 Pulse entries — but they were **100% Instagram archive pages** (Pulse publishes social posts under their own URL slugs).
+- The matcher ignored the catalogue entirely — only checked `db.spec_sheets` (master-admin-uploaded PDFs), which was empty for Pulse.
+
+**What shipped:**
+- `utils/manufacturer_catalogue.py` — tightened `SKIP_PATTERNS` regex to drop `/instagram-`, `/linkedin-`, `/twitter-`, `/facebook-`, `/tiktok-`, `/youtube-`, `/social-`, `/event/`, `/exhibition/`, `/article/`, `/articles/`, `/press-release/`, `/after-sales/`, `/aftersales/`, `/maintenance-plan/` URL slugs. Future ingests skip these on the way in.
+- `routes/master_admin_catalogue.py` — added two new endpoints:
+  - `POST /api/master-admin/catalogue/cleanup?domain=...` — bulk-deletes already-ingested noise matching the same regex. Idempotent. Used to clear the 148 Instagram entries that were already in Bob's preview.
+  - `POST /api/master-admin/catalogue/rematch-equipment` — re-runs `auto_match_equipment_to_specs` for every equipment row in the org and persists `spec_sheet_image` + `manufacturer_page_url` onto matched rows. Returns `{matched, unchanged, skipped}` for the Master Admin UI.
+- `routes/spec_sheets.py` `auto_match_equipment_to_specs` — added the manufacturer-catalogue fallback chain. After PDF spec_sheets are checked, falls through to `db.manufacturer_catalogue`, restricts the search to the equipment's `manufacturer` domain when set, and uses a relaxed keyword-overlap threshold (1 with manufacturer scope, 2 without). Returns `{manufacturer_catalogue_id, spec_sheet_image, manufacturer_page_url}` so the equipment row gets a real product photo and a clickable manufacturer link.
+
+**Verified live:**
+- Cleanup deleted 148 noise entries, fresh ingest brought in 64 actual Pulse Fitness products (dumbbells, treadmills, cross trainers).
+- Bob's "Treadmill 260G by Pulse Fitness" now has `spec_sheet_image=https://pulsefitness.com/wp-content/uploads/.../262C-Alpha-Runner-Treadmill...jpg` and `manufacturer_page_url=https://pulsefitness.com/product/cv-treadmill-alpha-runner-treadmill-262c-aab/` attached. (Pulse don't publish a 260G page, so the matcher correctly fell through to the closest Pulse treadmill — operators see a real Pulse product photo instead of a generic placeholder.)
+- New regression suite `tests/test_iter_216e_pulse_spec_auto_pull.py` — 3 cases (SKIP_PATTERNS coverage, cleanup endpoint contract, rematch endpoint contract).
+
+### Part 2 — CheckSheets dedupe
+
+**Problem (iter-216c follow-up):**
+> "🧹 Dedupe `pages/CheckSheetsTab.js` constants into `pulseCheckSheets/constants.js`."
+
+**What shipped:**
+- Merged the more comprehensive Operations-tab task list (`Bike`, `Elliptical`, `Leg Press`, `Cable Machine`, `Dumbbell`, `StepMill`, `Stepper` aliases that were missing from the Pulse copy) into `pages/pulseCheckSheets/constants.js` — now the single source of truth.
+- `pages/CheckSheetsTab.js` (the Operations standalone variant) now imports `getTasksForType` from `./pulseCheckSheets/constants` and dropped its 142-line inline definitions.
+- `CheckSheetsTab.js` shrunk **795 → 653 lines** (-18%). Both portals now share one task taxonomy — fixing one fixes both.
+
+### Verified
+- `make regression` → **35 passed, 1 skipped** (3 new from iter-216e).
+- `SKIP_LIVE_CHECK=1 make pre-deploy` → all 9 gate steps green.
+- Frontend webpack: clean.
+
+---
+
+
 ## Iter 216d2 — Fault dialog Machine Type grouping fix (Feb 9, 2026)
 
 **Problem (Lee, prod screenshot):**

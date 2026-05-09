@@ -56,6 +56,7 @@ note 'Iter-216 regression suite — branding sync + site-lock + brand inheritanc
 REGRESSION_SUITE=(
   tests/test_iter_216c_branding_org_sync.py     # iter-216c — name ↔ branding.company_name
   tests/test_iter_216d_multi_machine_fault_job.py  # iter-216d — multi-machine fault job + job_id
+  tests/test_iter_216e_pulse_spec_auto_pull.py  # iter-216e — Pulse spec auto-pull + cleanup
   tests/test_iter_216bl_site_lock.py            # iter-216bl — server-side site-lock
   tests/test_iter_216af_brand_inheritance.py    # iter-216af — brand inheritance
 )

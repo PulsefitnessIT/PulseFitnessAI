@@ -8,19 +8,34 @@
 // unmatched falls into "Uncategorised" (never the silent "Other" dump).
 
 export const EQUIPMENT_TYPE_TASKS = {
-  'Treadmill': ['All Areas Cleaned','Hoover Underneath','E-Stop Check','Console + & - Keys Check','Heart Rate Check','Speed Test','Incline Check','Belt Aligned','Power/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  // ─── Cardio: Treadmills ───
+  'Treadmill':       ['All Areas Cleaned','Hoover Underneath','E-Stop Check','Console + & - Keys Check','Heart Rate Check','Speed Test','Incline Check','Belt Aligned','Power/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
   'Running Machine': ['All Areas Cleaned','Hoover Underneath','E-Stop Check','Console + & - Keys Check','Heart Rate Check','Speed Test','Incline Check','Belt Aligned','Power/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
-  'Upright Bike': ['All Areas Cleaned','Hoover Underneath','Seat Adjustment Working','Foot Straps & Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
-  'Recumbent Bike': ['All Areas Cleaned','Hoover Underneath','Seat Adjustment Working','Foot Straps & Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
-  'Exercise Bike': ['All Areas Cleaned','Hoover Underneath','Seat Adjustment Working','Foot Straps & Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
-  'Cross Trainer': ['All Areas Cleaned','Hoover Underneath','Handles Move Smoothly','Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
-  'Rower': ['All Areas Cleaned','Hoover Underneath','Foot Straps & Heel Lock Check','Console Check/Batteries OK','Console Keys Check','Smooth Chain/Seat Rail - Lubricate If Required','Heart Rate Check','Resistance Check/Fan','Hoover Fan','Inspect Bungees and Drive Cords'],
-  'Rowing Machine': ['All Areas Cleaned','Hoover Underneath','Foot Straps & Heel Lock Check','Console Check/Batteries OK','Console Keys Check','Smooth Chain/Seat Rail - Lubricate If Required','Heart Rate Check','Resistance Check/Fan','Hoover Fan','Inspect Bungees and Drive Cords'],
-  'Spin Bike': ['All Areas Cleaned','All Locking Levers/Knobs Checked','Pedals Screwed In Tightly','Toe Straps Secure','Crank Feels Smooth','Handlebars Check','Console Batteries OK','Speed Test','Resistance Check'],
-  'Group Cycle': ['All Areas Cleaned','All Locking Levers/Knobs Checked','Pedals Screwed In Tightly','Toe Straps Secure','Crank Feels Smooth','Handlebars Check','Console Batteries OK','Speed Test','Resistance Check'],
+  // ─── Cardio: Bikes (upright, recumbent, generic exercise) ───
+  'Upright Bike':    ['All Areas Cleaned','Hoover Underneath','Seat Adjustment Working','Foot Straps & Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  'Recumbent Bike':  ['All Areas Cleaned','Hoover Underneath','Seat Adjustment Working','Foot Straps & Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  'Exercise Bike':   ['All Areas Cleaned','Hoover Underneath','Seat Adjustment Working','Foot Straps & Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  'Bike':            ['All Areas Cleaned','Hoover Underneath','Seat Adjustment Working','Foot Straps & Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  // ─── Cardio: Cross trainers ───
+  'Cross Trainer':   ['All Areas Cleaned','Hoover Underneath','Handles Move Smoothly','Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  'Elliptical':      ['All Areas Cleaned','Hoover Underneath','Handles Move Smoothly','Pedals Check','+ & - Keys Check','Resistance Check','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  // ─── Cardio: Rowers ───
+  'Rower':           ['All Areas Cleaned','Hoover Underneath','Foot Straps & Heel Lock Check','Console Check/Batteries OK','Console Keys Check','Smooth Chain/Seat Rail - Lubricate If Required','Heart Rate Check','Resistance Check/Fan','Hoover Fan','Inspect Bungees and Drive Cords'],
+  'Rowing Machine':  ['All Areas Cleaned','Hoover Underneath','Foot Straps & Heel Lock Check','Console Check/Batteries OK','Console Keys Check','Smooth Chain/Seat Rail - Lubricate If Required','Heart Rate Check','Resistance Check/Fan','Hoover Fan','Inspect Bungees and Drive Cords'],
+  // ─── Cardio: Spin / group cycle ───
+  'Spin Bike':       ['All Areas Cleaned','All Locking Levers/Knobs Checked','Pedals Screwed In Tightly','Toe Straps Secure','Crank Feels Smooth','Handlebars Check','Console Batteries OK','Speed Test','Resistance Check'],
+  'Group Cycle':     ['All Areas Cleaned','All Locking Levers/Knobs Checked','Pedals Screwed In Tightly','Toe Straps Secure','Crank Feels Smooth','Handlebars Check','Console Batteries OK','Speed Test','Resistance Check'],
+  // ─── Cardio: Steppers / StepMills ───
+  'StepMill':        ['All Areas Cleaned','Hoover Underneath','Steps Move Smoothly','E-Stop Check','+ & - Keys Check','Speed Test','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  'Stepper':         ['All Areas Cleaned','Hoover Underneath','Steps Move Smoothly','E-Stop Check','+ & - Keys Check','Speed Test','Heart Rate Check','Console Check','Power Cable/Ethernet Cable Fitted OK','TV Tuned/Internet Connected'],
+  // ─── Strength: selectorised / cable / press ───
   'Strength Equipment': ['All Areas Cleaned','Hoover Around','Check Upholstery for Splits','Tighten Upholstery Bolts','Lubricate Guiding Rods','Lubricate Moving Parts When Needed','Check all Cables & Pulleys','Smooth Seat Movement','Weight Pin Available & Can Select Each Weight','Handles Move Smoothly'],
-  'Free Weights': ['Framework Dusted','Upholstery Clean','Clean Mirrors','Wipe down Weight Plates','Check Weight Bars for Defects','Check Rubber Weight Covers','Check & Clean Dumbbell Stack','Lubricate Moving Parts','Check Upholstery for Splits','Tighten Weight Bolts'],
-  'Bench': ['Framework Dusted','Upholstery Clean','Check Upholstery for Splits','Tighten Upholstery Bolts','Check Adjustment Pins','Lubricate Moving Parts','Check All Bolts & Fixings','Clean Frame'],
+  'Leg Press':       ['All Areas Cleaned','Hoover Around','Check Upholstery for Splits','Tighten Upholstery Bolts','Lubricate Guiding Rods','Lubricate Moving Parts When Needed','Check all Cables & Pulleys','Smooth Seat Movement','Weight Pin Available & Can Select Each Weight','Handles Move Smoothly'],
+  'Cable Machine':   ['All Areas Cleaned','Hoover Around','Check Upholstery for Splits','Tighten Upholstery Bolts','Lubricate Guiding Rods','Lubricate Moving Parts When Needed','Check all Cables & Pulleys','Smooth Seat Movement','Weight Pin Available & Can Select Each Weight','Handles Move Smoothly'],
+  // ─── Free weights / dumbbells / benches ───
+  'Free Weights':    ['Framework Dusted','Upholstery Clean','Clean Mirrors','Wipe down Weight Plates','Check Weight Bars for Defects','Check Rubber Weight Covers','Check & Clean Dumbbell Stack','Lubricate Moving Parts','Check Upholstery for Splits','Tighten Weight Bolts'],
+  'Dumbbell':        ['Framework Dusted','Upholstery Clean','Clean Mirrors','Wipe down Weight Plates','Check Weight Bars for Defects','Check Rubber Weight Covers','Check & Clean Dumbbell Stack','Lubricate Moving Parts','Check Upholstery for Splits','Tighten Weight Bolts'],
+  'Bench':           ['Framework Dusted','Upholstery Clean','Check Upholstery for Splits','Tighten Upholstery Bolts','Check Adjustment Pins','Lubricate Moving Parts','Check All Bolts & Fixings','Clean Frame'],
 };
 
 export const DEFAULT_TASKS = ['All Areas Cleaned','Visual Inspection for Damage','Check for Loose Bolts/Fixings','Lubricate Moving Parts','Check Safety Features','Console/Display Check','Power Cable Check','Test Equipment Operation'];

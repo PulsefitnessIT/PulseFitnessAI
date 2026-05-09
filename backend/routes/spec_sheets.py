@@ -465,6 +465,15 @@ async def auto_match_equipment_to_specs(equipment: dict) -> dict:
     """Return {spec_sheet_id, hero_image_url, pdf_url} when a matching
     spec sheet exists; empty dict otherwise. Caller is responsible for
     persisting these onto the equipment row.
+
+    Iter 216e — fallback chain:
+      1. Look in `db.spec_sheets` (master-admin uploaded PDFs).
+      2. If no PDF match, fall back to `db.manufacturer_catalogue`
+         (sitemap-indexed product pages) and return the hero image +
+         manufacturer page URL. This unblocks the "Pulse spec auto-pull"
+         feature: even without a PDF in our store, the equipment row
+         gets a real product photo + a clickable manufacturer-page link
+         so operators stop seeing generic placeholders.
     """
     eq_name = (equipment.get("name") or "").lower()
     eq_model = (equipment.get("model") or "").lower()
@@ -472,8 +481,7 @@ async def auto_match_equipment_to_specs(equipment: dict) -> dict:
         return {}
     eq_combined = f"{eq_name} {eq_model}".strip()
 
-    # All spec sheets are global (master-admin uploads) — match across
-    # the whole collection, not org-scoped.
+    # 1) PDF spec-sheets (preferred — more authoritative).
     cursor = db.spec_sheets.find(
         {}, {"_id": 0, "id": 1, "equipment_model": 1, "product_level": 1,
              "original_filename": 1, "hero_image_url": 1, "pdf_url": 1},
@@ -493,4 +501,42 @@ async def auto_match_equipment_to_specs(equipment: dict) -> dict:
                 "spec_sheet_image": spec.get("hero_image_url", ""),
                 "spec_sheet_url": spec.get("pdf_url", ""),
             }
+
+    # 2) Manufacturer-catalogue fallback. Filter by the equipment's
+    # manufacturer when present so we don't grab a Technogym page for a
+    # Pulse Fitness treadmill.
+    manufacturer = (equipment.get("manufacturer") or equipment.get("supplier") or "").strip().lower()
+    cat_filter: dict = {}
+    if manufacturer:
+        from utils.equipment_image_lookup import MANUFACTURER_DOMAINS
+        domain = MANUFACTURER_DOMAINS.get(manufacturer)
+        if domain:
+            cat_filter["domain"] = domain
+    cat_cursor = db.manufacturer_catalogue.find(
+        cat_filter,
+        {"_id": 0, "id": 1, "page_url": 1, "page_title": 1, "image_url": 1, "name_keywords": 1},
+    )
+    cat_candidates = await cat_cursor.to_list(500)
+    eq_words = {w for w in re.split(r"\W+", eq_combined) if w and len(w) >= 3}
+    # When we've already filtered by manufacturer domain we can match
+    # on a single keyword overlap (high-confidence channel — the
+    # manufacturer is right, just need a category hint like
+    # "treadmill"). Without a manufacturer scope we require ≥2 to
+    # avoid cross-brand false-positives.
+    min_overlap = 1 if cat_filter.get("domain") else 2
+    best: tuple[int, dict] | None = None
+    for entry in cat_candidates:
+        entry_kw = set(entry.get("name_keywords") or [])
+        if not entry_kw:
+            continue
+        overlap = len(eq_words & entry_kw)
+        if overlap >= min_overlap and (best is None or overlap > best[0]):
+            best = (overlap, entry)
+    if best is not None:
+        _, entry = best
+        return {
+            "manufacturer_catalogue_id": entry["id"],
+            "spec_sheet_image": entry.get("image_url", ""),
+            "manufacturer_page_url": entry.get("page_url", ""),
+        }
     return {}

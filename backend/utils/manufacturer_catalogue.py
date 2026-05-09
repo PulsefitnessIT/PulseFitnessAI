@@ -68,7 +68,16 @@ PRIORITY_DOMAINS = (
 SKIP_PATTERNS = re.compile(
     r"(/blog/|/support/|/news/|/case-studi|/about/|/careers/|/jobs/"
     r"|/legal/|/privacy/|/terms/|/contact/|/login|/account|/cart"
-    r"|/help/|/faq/|/press/|/investor|/team/|/sitemap|sitemap.xml$"
+    r"|/help/|/faq/|/press/|/press-release/|/investor|/team/|/sitemap|sitemap.xml$"
+    # Iter 216e — Pulse Fitness publishes social-media archive pages
+    # under their own URL slugs (e.g. /instagram-arm-only-workout/).
+    # These polluted the catalogue with 100+ non-product entries.
+    # Skip social/promo URL prefixes outright. Also block press
+    # releases and after-sales tier pages — these are marketing /
+    # service content, not equipment specs.
+    r"|/(instagram|linkedin|twitter|facebook|tiktok|youtube)-|/social-"
+    r"|/event/|/events/|/exhibition/|/exhibitions/|/show-/|/article/|/articles/"
+    r"|/after-sales/|/aftersales/|/maintenance-plan"
     r"|\.pdf$|\.jpg$|\.png$|\.webp$|\.gif$)",
     re.IGNORECASE,
 )
