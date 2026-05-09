@@ -10,7 +10,7 @@ import {
  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -430,6 +430,45 @@ const AdminOrganizations = ({
      }
    } catch { /* noop */ }
  }, []);
+
+ /* Iter 216f — back-gesture handler.
+    The org-detail panel is a Sheet (not a route), so a browser back
+    gesture would pop the user all the way out of the Master Admin
+    page — Lee's Feb-2026 prod report ("when I use back gestures it
+    returns me back to the landing page"). Fix: when the sheet
+    opens, push a phantom history entry; on `popstate` while the
+    sheet is open, intercept and just close the sheet (consuming
+    the back gesture). When the sheet closes through any other
+    path (X button, Escape, overlay click), pop the phantom entry
+    we pushed so we don't accumulate stale history. */
+ useEffect(() => {
+   if (!expandedOrg) return undefined;
+   const PHANTOM_KEY = 'gymaxis-org-panel';
+   try {
+     window.history.pushState({ [PHANTOM_KEY]: expandedOrg }, '', window.location.href);
+   } catch { /* noop */ }
+   let closedByPopstate = false;
+   const onPopState = () => {
+     closedByPopstate = true;
+     setExpandedOrg(null);
+     setEditingOrg(null);
+   };
+   window.addEventListener('popstate', onPopState);
+   return () => {
+     window.removeEventListener('popstate', onPopState);
+     // If the sheet was closed by other means (X, Escape, overlay),
+     // pop the phantom history entry so the next back gesture
+     // navigates as the user expects.
+     if (!closedByPopstate) {
+       try {
+         const st = window.history.state;
+         if (st && st[PHANTOM_KEY]) {
+           window.history.back();
+         }
+       } catch { /* noop */ }
+     }
+   };
+ }, [expandedOrg]);
  useEffect(() => {
    if (selectedOrg && selectedOrg.id) {
      // Initialise the editing form from the selected org so the Details
@@ -900,10 +939,25 @@ const AdminOrganizations = ({
                 className="w-full sm:max-w-2xl overflow-y-auto p-0 bg-white text-slate-900 theme-gymaxis"
                 data-testid={`org-manage-drawer-${org.id}`}
               >
-                <SheetHeader className="px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+                <SheetHeader className="px-5 py-4 pr-14 border-b border-slate-100 sticky top-0 bg-white z-10">
                   <SheetTitle className="text-base font-bold tracking-tight flex items-center gap-2 text-slate-900">
                     <Building2 size={16} className="text-slate-500" /> {org.name}
                   </SheetTitle>
+                  {/* Iter 216f — explicit close button. shadcn's <SheetContent>
+                      already renders an X at top-right but the sticky
+                      `SheetHeader` with `bg-white z-10` was painting over it on
+                      mobile (Lee's Feb-2026 screenshot). Adding an explicit
+                      close in the header guarantees a visible affordance. */}
+                  <SheetClose asChild>
+                    <button
+                      type="button"
+                      aria-label="Close panel"
+                      className="absolute right-3 top-3 inline-flex items-center justify-center w-9 h-9 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      data-testid={`org-manage-close-${org.id}`}
+                    >
+                      <X size={18} />
+                    </button>
+                  </SheetClose>
                 </SheetHeader>
 
                 <Tabs

@@ -1,3 +1,29 @@
+## Iter 216f — Master Admin org panel close + back-gesture (Feb 9, 2026)
+
+**Problem (Lee, prod screenshot):**
+> "Master admin - org users missing cross close down — when I use back gestures it returns me back to the landing page."
+
+**Root causes**
+1. `pages/MasterAdmin/AdminOrganizations.js` org-detail panel uses shadcn's `<Sheet>`. The built-in X close lives at `right-4 top-4` of `SheetContent` — but the panel's own `<SheetHeader>` had `sticky top-0 bg-white z-10`, painting a white bar over the X on mobile. Result: no visible affordance to close the panel.
+2. The Sheet open/close didn't push a history entry, so a browser back gesture popped the Master Admin route entirely, dumping the user on the landing page.
+
+### What shipped
+- `pages/MasterAdmin/AdminOrganizations.js`:
+  - Added explicit `<SheetClose>`-wrapped `<button>` in the SheetHeader (top-right, `data-testid="org-manage-close-${id}"`). Always visible, mobile-friendly, with `aria-label` + focus ring. Padded `pr-14` so the title doesn't crash into it.
+  - New `useEffect` on `expandedOrg`: pushes a phantom history entry on open; on `popstate` while the sheet is open, intercepts and just closes the sheet instead of letting the back gesture navigate. On clean close (X / Escape / overlay), pops the phantom entry so future back gestures behave normally. Idempotent + side-effect-safe.
+  - Imported `SheetClose` from `@/components/ui/sheet`.
+
+### Verified
+- Lint clean, webpack compiled clean.
+- `SKIP_LIVE_CHECK=1 make pre-deploy` → all 9 gate steps green.
+- Visual smoke test on the live preview confirms the panel layout.
+
+### Why no jest test?
+The bug is browser-history-API-bound (popstate, pushState) — pinning it in jsdom is high effort for low return because the real-world failure mode is the mobile-browser navigation stack, which jsdom doesn't model. The two-line check is: panel has `data-testid="org-manage-close-..."`, and `window.history.state` includes `gymaxis-org-panel` while the sheet is open.
+
+---
+
+
 ## Iter 216e — Pulse spec auto-pull + CheckSheets dedupe (Feb 9, 2026)
 
 ### Part 1 — Pulse spec auto-pull (P3 → shipped)
