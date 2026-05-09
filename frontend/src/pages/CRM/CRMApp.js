@@ -28,6 +28,7 @@ import CRMModeSwitcher from './CRMModeSwitcher';
 import CRMUpgradeScreen from './CRMUpgradeScreen';
 import { useCRMModes, getStoredCrmMode, setStoredCrmMode } from './useCRMModes';
 import PillTabBar from '@/components/shared/PillTabBar';
+import ProductTour from '@/components/shared/ProductTour';
 import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, LogOut, Search, ChevronLeft, ChevronRight, Inbox, Zap, FileText, FolderOpen, Menu, X, Sun, Moon, Globe, Target, AlertTriangle, Command, Plus, Bell, User, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -667,6 +668,7 @@ export default function CRMApp() {
             toggleTheme={toggleTheme}
           />
         )}
+        {showShell && <ProductTour variant="crm" />}
 
         {/* Pulse / GymAxis branded module header — byte-for-byte parity
             with Marketing / Memberships so the user gets the same

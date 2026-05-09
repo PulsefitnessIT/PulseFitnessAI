@@ -38,6 +38,7 @@ import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import HelpHint from '@/components/HelpHint';
+import ProductTour from '@/components/shared/ProductTour';
 import AnalyticsTab from '@/pages/Memberships/AnalyticsTab';
 import BookingRulesTab from '@/pages/Memberships/BookingRulesTab';
 import PromotionsTab from '@/pages/Memberships/PromotionsTab';
@@ -193,6 +194,7 @@ function MembershipsConsoleInner() {
       data-testid="memberships-console"
     >
       <Navbar user={user} logout={logout} theme={theme} toggleTheme={toggleTheme} />
+      <ProductTour variant="memberships" />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-24 md:pb-8 module-fade-in">
         {/* Unified app header — matches Pulse / Operations header so the module

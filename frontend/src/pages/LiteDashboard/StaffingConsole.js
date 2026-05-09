@@ -33,6 +33,7 @@ import CommsTab from '@/pages/LiteDashboard/staffing/CommsTab';
 import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
+import ProductTour from '@/components/shared/ProductTour';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -79,6 +80,7 @@ export default function StaffingConsole() {
 
   return (
     <div className="space-y-5 pulse-font-body" data-testid="staffing-console">
+      <ProductTour variant="staffing" />
       <PageHeader
         title={isManager ? 'Staffing' : 'My shifts'}
         subtitle={isManager

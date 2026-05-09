@@ -1,3 +1,51 @@
+## Iteration 216as — Per-module tours + refreshed welcome + Phase S2-S6 help guides (Feb 2026)
+
+**User feedback** (screenshot): Pulse welcome step still said "self-service maintenance portal" — outdated now that the platform spans memberships, classes, staffing, payroll, comms and AI. Also flagged: Help & Guides was missing the new Phase S2-S6 features.
+
+### What shipped
+
+**Tours**
+- `/app/frontend/src/components/shared/ProductTour.js` rewritten:
+  - Updated Pulse welcome to **"Your end-to-end gym operating system. Maintenance, memberships, classes, staff rotas, payroll, comms, and AI insights — all in one place."**
+  - Pulse tour expanded from 8 → 9 steps (added 'Staffing & Rotas' step targeting `lite-tab-staffing`).
+  - Added 4 new module variants: `memberships`, `staffing`, `crm`, `marketing`. Each has 4-8 well-targeted steps with module-specific copy.
+  - New per-module localStorage keys + `VARIANT_KEY_MAP`. Replay helpers exported: `resetMembershipsTour()`, `resetStaffingTour()`, `resetCrmTour()`, `resetMarketingTour()`, `resetAllModuleTours()`.
+- Mounted the matching variant in:
+  - `MembershipsConsole.js` → `<ProductTour variant="memberships" />`
+  - `MarketingSuite.js` → `<ProductTour variant="marketing" />`
+  - `CRMApp.js` → `<ProductTour variant="crm" />` (only when `showShell` is true so the upgrade-screen path doesn't fire it)
+  - `StaffingConsole.js` → `<ProductTour variant="staffing" />`
+
+**Help & Guides** (`/app/backend/routes/help_data.py`)
+- 5 new manager-popular guides under the `staffing` category:
+  - `staffing-time-clock` — Phase S2 Time Clock & Attendance (clock-in, geofence, timesheets)
+  - `staffing-comms-hub` — Phase S3 Internal Comms Hub (DMs / channels / announcements)
+  - `staffing-tasks-forms` — Phase S4 Tasks · Forms · Compliance (shift-linked checklists, custom forms, cert expiry tracker)
+  - `staffing-hr-2` — Phase S5 HR 2.0 (profile, documents, disciplinary, training history)
+  - `staffing-ai-rota` — Phase S6 AI Rota / Absence Risk / Sage Payroll
+- Total guide count 67 → **72**. Live verified via `GET /api/help/guides`.
+
+### Verification
+- Smoke screenshot post-edit: Pulse tour renders the updated copy "Your end-to-end gym operating system…" with `Next (1 of 9)`.
+- `GET /api/help/guides/staffing-ai-rota` returns the new 5-step guide with correct relations + `popular: true`.
+- Lint clean across all 6 touched files (ProductTour, MembershipsConsole, MarketingSuite, CRMApp, StaffingConsole, help_data).
+- Tour respects existing per-user localStorage scoping (Iter 215bw) — different operators on a shared kiosk each see each tour exactly once.
+
+### Files of reference
+- `/app/frontend/src/components/shared/ProductTour.js`
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js`
+- `/app/frontend/src/pages/MarketingSuite.js`
+- `/app/frontend/src/pages/CRM/CRMApp.js`
+- `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js`
+- `/app/backend/routes/help_data.py`
+
+### Bug squashed mid-flight
+- First edit lost the `VARIANT_KEY_MAP` constant block on a mis-merged search/replace → ReferenceError on `/pulse`. Re-applied as a separate replace; verified live without errors.
+
+---
+
+
+
 ## Iteration 216ar — Phase S6: AI Workforce Automation & Payroll (Feb 2026)
 
 **Goal**: Ship the P0 Phase S6 of the workforce platform — three new manager-only capabilities behind a single "AI Rota" tab.

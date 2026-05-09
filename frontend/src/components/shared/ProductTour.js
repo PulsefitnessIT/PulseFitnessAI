@@ -3,6 +3,19 @@ import { Joyride, STATUS } from 'react-joyride';
 
 const TOUR_KEY_GYMAXIS = 'gymaxis_tour_completed';
 const TOUR_KEY_PULSE = 'pulse_tour_completed';
+const TOUR_KEY_MEMBERSHIPS = 'memberships_tour_completed';
+const TOUR_KEY_STAFFING = 'staffing_tour_completed';
+const TOUR_KEY_CRM = 'crm_tour_completed';
+const TOUR_KEY_MARKETING = 'marketing_tour_completed';
+
+const VARIANT_KEY_MAP = {
+  gymaxis:     TOUR_KEY_GYMAXIS,
+  pulse:       TOUR_KEY_PULSE,
+  memberships: TOUR_KEY_MEMBERSHIPS,
+  staffing:    TOUR_KEY_STAFFING,
+  crm:         TOUR_KEY_CRM,
+  marketing:   TOUR_KEY_MARKETING,
+};
 
 /**
  * Iter 215bw — derive a per-user tour key so different operators on the
@@ -148,7 +161,7 @@ const pulseProSteps = [
   {
     target: '[data-testid="pulse-dashboard-header"]',
     title: 'Welcome to Pulse Fitness Pro',
-    content: 'Your self-service maintenance portal. Everything you need to keep your gym equipment running \u2014 with AI-powered diagnostics at your fingertips.',
+    content: 'Your end-to-end gym operating system. Maintenance, memberships, classes, staff rotas, payroll, comms, and AI insights — all in one place. We\'ll show you the highlights in 60 seconds.',
     disableBeacon: true,
     skipBeacon: true,
     placement: 'bottom',
@@ -186,17 +199,25 @@ const pulseProSteps = [
     placement: 'bottom',
   },
   {
+    target: '[data-testid="lite-tab-staffing"]',
+    title: 'Staffing & Rotas',
+    content: 'Smart Rota, Time Clock, Shift Marketplace, HR profiles, AI rota builder, and Sage payroll exports — your full workforce ops in one tab.',
+    disableBeacon: true,
+    skipBeacon: true,
+    placement: 'bottom',
+  },
+  {
     target: '[data-testid="lite-tab-documents"]',
-    title: 'Documents',
-    content: 'Upload and access equipment manuals, certificates, and guides. Ask AI questions about any document \u2014 it finds the answer for you.',
+    title: 'Documents & Knowledge',
+    content: 'Upload manuals, policies, and SOPs. Ask AI questions about any document \u2014 it finds the answer for you instantly.',
     disableBeacon: true,
     skipBeacon: true,
     placement: 'bottom',
   },
   {
     target: '[data-testid="lite-tab-reports"]',
-    title: 'Reports',
-    content: 'Generate comprehensive audit reports and track your maintenance performance over time.',
+    title: 'Reports & Insights',
+    content: 'Comprehensive operational reports, weekly digest, and performance trends. Export to CSV, Excel, or PDF for finance and audits.',
     disableBeacon: true,
     skipBeacon: true,
     placement: 'bottom',
@@ -211,17 +232,156 @@ const pulseProSteps = [
   },
 ];
 
+// ============ Memberships Module Tour ============
+const membershipsSteps = [
+  {
+    target: '[data-testid="memberships-app-header"]',
+    title: 'Memberships & Bookings',
+    content: 'Run your member base, plans, classes, timetable, family accounts, and instructor roster. Stripe-ready out of the box.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="mbr-tab-start"]',
+    title: 'Start here',
+    content: 'A guided checklist that walks you to your first member, plan, and class — in under 15 minutes.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="mbr-tab-members"]',
+    title: 'Members directory',
+    content: 'Add members one-by-one or import a CSV. De-dupes on email and links to Stripe automatically.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="mbr-tab-schedule"]',
+    title: 'Classes & Timetable',
+    content: 'Build your weekly class grid, edit any occurrence in place, take operator-initiated bookings, and run waitlists.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="mbr-tab-analytics"]',
+    title: 'Analytics',
+    content: 'Three role-shaped lenses — Manager (30d), Regional (60d), Director (90d). Revenue, churn, attendance, and instructor performance.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+];
+
+// ============ Staffing Module Tour ============
+const staffingSteps = [
+  {
+    target: '[data-testid="staffing-header"]',
+    title: 'Staffing & Workforce Ops',
+    content: 'Replace RotaCloud + Connecteam + a separate payroll tool. Rota, time clock, comms, tasks, HR, AI rota builder, and Sage payroll — all here.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="staffing-tab-dashboard"]',
+    title: 'Workforce Dashboard',
+    content: 'On-shift right now, weekly cost, compliance flags, and AI-spotted patterns at a glance.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="staffing-tab-rota"]',
+    title: 'Drag-drop Rota',
+    content: 'Build the week visually. Copy week-to-week, see live labour cost, and let AI flag overtime and 11-hour-rest breaches before you publish.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="staffing-tab-timeclock"]',
+    title: 'Time Clock & Attendance',
+    content: 'Mobile or kiosk clock-in with GPS / geofence. Late minutes, overtime, and timesheets approved in two clicks.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="staffing-tab-comms"]',
+    title: 'Internal Comms Hub',
+    content: 'Direct messages, channels, threaded announcements. Broadcast to a single shift or the whole team.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="staffing-tab-operations"]',
+    title: 'Tasks · Forms · Compliance',
+    content: 'Shift-linked checklists, custom forms, and a certification expiry tracker that nags before lifeguard renewals lapse.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="staffing-tab-hr"]',
+    title: 'HR 2.0',
+    content: 'Employee profiles, contracts & ID documents, disciplinary records (manager-only), and training history — one screen per staff member.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="staffing-tab-ai-rota"]',
+    title: 'AI Rota & Sage Payroll',
+    content: 'Claude Sonnet 4.5 builds a fair, compliant rota from your demand template. Plus absence-risk scoring and Sage 50 Payroll CSV exports.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+];
+
+// ============ CRM Module Tour ============
+const crmSteps = [
+  {
+    target: '[data-testid="crm-toolbar-staff-filter"]',
+    title: 'CRM workspace',
+    content: 'Contacts, companies, pipeline, deals, contracts and tenders. Switch between Leisure and Business modes from the toolbar.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="crm-global-search"]',
+    title: 'Global search',
+    content: 'Find any contact, company, or deal across the whole CRM in one place. Hit ⌘/Ctrl + K to focus from anywhere.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="quick-create-btn"]',
+    title: 'Quick Create',
+    content: 'Create contacts, companies, deals, or activities from anywhere — no need to navigate first.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="notifications-btn"]',
+    title: 'Notifications',
+    content: '@mentions, deal updates, and AI alerts land here. Mark read, jump to source, or snooze.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+];
+
+// ============ Marketing Module Tour ============
+const marketingSteps = [
+  {
+    target: '[data-testid="mkt-tabs-desktop"]',
+    title: 'Marketing Suite',
+    content: 'Audiences, campaigns, journeys, social, brand kit, and AI Creative Director. Everything that sends a member a message.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+  {
+    target: '[data-testid="marketing-tab-start"]',
+    title: 'Start here',
+    content: 'A guided 5-step Campaign Wizard writes your first campaign — copy, audience, send time — in under 5 minutes.',
+    disableBeacon: true, skipBeacon: true, placement: 'bottom',
+  },
+];
+
 // ============ Tour Component ============
 const ProductTour = forwardRef(({ variant = 'gymaxis' }, ref) => {
   const [run, setRun] = useState(false);
-  const tourKey = userScopedKey(variant === 'pulse' ? TOUR_KEY_PULSE : TOUR_KEY_GYMAXIS);
-  const steps = variant === 'pulse' ? pulseProSteps : gymAxisSteps;
+  const baseKey = VARIANT_KEY_MAP[variant] || TOUR_KEY_GYMAXIS;
+  const tourKey = userScopedKey(baseKey);
+  const steps = (() => {
+    switch (variant) {
+      case 'pulse':       return pulseProSteps;
+      case 'memberships': return membershipsSteps;
+      case 'staffing':    return staffingSteps;
+      case 'crm':         return crmSteps;
+      case 'marketing':   return marketingSteps;
+      default:            return gymAxisSteps;
+    }
+  })();
 
   useEffect(() => {
     // Iter 215bw — also honour the legacy non-scoped key, so an operator
     // who completed the tour before this change won't be re-prompted.
-    const legacyKey = variant === 'pulse' ? TOUR_KEY_PULSE : TOUR_KEY_GYMAXIS;
-    const completed = localStorage.getItem(tourKey) || localStorage.getItem(legacyKey);
+    const completed = localStorage.getItem(tourKey) || localStorage.getItem(baseKey);
     if (completed) return;
 
     // Iter 216o-6 — Wait for the WelcomeHero onboarding card to be
@@ -280,12 +440,11 @@ const ProductTour = forwardRef(({ variant = 'gymaxis' }, ref) => {
         localStorage.setItem(tourKey, 'true');
         // Also set the non-scoped legacy key so we hit the early-return
         // guard reliably on reload.
-        const legacyKey = tourKey.split(':')[0];
-        if (legacyKey && legacyKey !== tourKey) localStorage.setItem(legacyKey, 'true');
+        if (baseKey && baseKey !== tourKey) localStorage.setItem(baseKey, 'true');
       } catch { /* quota exceeded / private mode — ignore */ }
       setRun(false);
     }
-  }, [tourKey]);
+  }, [tourKey, baseKey]);
 
   const resetTour = useCallback(() => {
     localStorage.removeItem(tourKey);
@@ -339,6 +498,30 @@ export const resetGymAxisTour = () => {
 
 export const resetPulseTour = () => {
   localStorage.removeItem(TOUR_KEY_PULSE);
+};
+
+export const resetMembershipsTour = () => {
+  localStorage.removeItem(TOUR_KEY_MEMBERSHIPS);
+};
+
+export const resetStaffingTour = () => {
+  localStorage.removeItem(TOUR_KEY_STAFFING);
+};
+
+export const resetCrmTour = () => {
+  localStorage.removeItem(TOUR_KEY_CRM);
+};
+
+export const resetMarketingTour = () => {
+  localStorage.removeItem(TOUR_KEY_MARKETING);
+};
+
+/**
+ * Reset every per-module tour for the current user. Useful as a single
+ * "Replay all tours" button under Settings → Help.
+ */
+export const resetAllModuleTours = () => {
+  Object.values(VARIANT_KEY_MAP).forEach((k) => localStorage.removeItem(k));
 };
 
 export default ProductTour;
