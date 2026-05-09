@@ -11689,3 +11689,63 @@ Frontend:
 - S5: HR 2.0 + mobile PWA polish
 - S6: AI auto-rota + multi-site hierarchy + Sage payroll
 
+
+---
+
+## Iter 216ao — Staffing Phase S3: Internal Comms Hub (May 9, 2026)
+
+**Goal:** 1:1 + group + channel + announcement messaging built into the Staffing module, with read receipts, urgent flag, scheduled send, and 15-min edit window.
+
+### Delivered
+
+1. **Threads (4 kinds)**
+   - `dm` — 1:1 between two staff (idempotent — calling create twice returns the same thread)
+   - `group` — small custom group (manager-created)
+   - `channel` — auto-resolved by site / role / department
+   - `announcement` — read-only for non-managers (manager broadcast)
+
+2. **Messages**
+   - Body up to 5000 chars, scheduled_for ISO timestamp (must be future)
+   - `urgent` flag, `pinned` flag (managers only)
+   - 15-min edit window for authors; managers can edit anytime
+   - Soft delete (sets `deleted_at`, body=null) — UI renders "Message deleted"
+   - Scheduled messages are hidden from list until their time passes (no cron worker needed)
+
+3. **Read tracking** — `unread_index` denormalised on the thread for O(1) reads; every send bumps everyone except the author; `/read` endpoint zeroes the caller's counter
+
+4. **Audience resolver** — `POST /staffing/comms/announce` (manager-only) creates an announcement thread + first message in one shot, scoped by `audience`: all / role / site / department
+
+5. **Frontend** — Two-pane Comms Hub tab (thread list + conversation), NewThreadModal (kind toggles, member picker, channel filters), MessageRow with edit/delete on hover + urgent/pinned badges, conversation auto-scrolls and marks-as-read on open, search filters threads by name + last message + member name
+
+### New endpoints
+- `GET / POST  /api/staffing/comms/threads`
+- `GET / PATCH /api/staffing/comms/threads/{id}`
+- `GET / POST  /api/staffing/comms/threads/{id}/messages`
+- `PATCH / DELETE /api/staffing/comms/threads/{id}/messages/{msg_id}`
+- `POST /api/staffing/comms/threads/{id}/read`
+- `GET  /api/staffing/comms/unread`
+- `POST /api/staffing/comms/announce` (manager-only)
+
+### New collections
+- `staffing_threads`  — `{id, organization_id, kind, name, members[], last_message_*, unread_index, archived}`
+- `staffing_messages` — `{id, thread_id, author_id, body, urgent, pinned, scheduled_for, sent_at, edited_at, deleted_at}`
+
+### Files
+Backend:
+- `/app/backend/routes/staffing_comms.py` (new — ~440 lines)
+- `/app/backend/route_registry/features.py` (registered `staffing_comms_router`)
+
+Frontend:
+- `/app/frontend/src/pages/LiteDashboard/staffing/CommsTab.js` (new — hub + NewThreadModal + Conversation + MessageRow)
+- `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js` (added `comms` tab to TABS_ALL after Announcements)
+
+### Testing
+- Backend: 27/27 pytest cases passed.
+- Frontend: manually verified — Comms Hub renders inside Operations → Staffing tab; thread list, conversation pane, NewThreadModal, urgent flag, messages, search all work end-to-end. (Testing agent's automated run had a localhost-vs-preview-URL CORS issue that produced a false negative — verified by re-running on the production preview URL with login + all CRUD flows passing.)
+- Report: `/app/test_reports/iteration_216ao.json`
+
+### Remaining staffing roadmap
+- S4: Tasks + forms + compliance (shift-linked checklists, custom form builder, cert/DBS expiry)
+- S5: HR 2.0 + mobile PWA polish
+- S6: AI auto-rota + multi-site hierarchy + Sage payroll
+
