@@ -8,7 +8,7 @@
 #
 # What it checks (in order — fails fast):
 #
-#   0.  Iter-216 regression suite          → tests/test_iter_216c_*, 216bl, 216af
+#   0.  Iter-216 regression suite          → tests/test_iter_216c_*, 216bl, 216af, 216d
 #   0b. ruff + bandit baseline             → backend/scripts/security-scan.sh
 #   1.  STRIPE keys are present and not the pod-stub placeholders.
 #   2.  STRIPE_API_KEY is sk_live_* (test keys must NEVER go to prod).
@@ -17,7 +17,8 @@
 #   4.  Webhook handler tests pass (signature validation, idempotency,
 #       dunning state)                     → tests/test_stripe_integration_216o.py
 #   5.  MONGO_URL is reachable.
-#   6.  Frontend lint clean.
+#   6.  Frontend lint (changed files in HEAD).
+#   7.  Frontend jest unit tests.
 #
 # Exit code:
 #   0 = safe to deploy
@@ -177,6 +178,27 @@ else
     fi
   fi
   cd /app/backend
+fi
+
+# ---------------------------------------------------------------------------
+# 7) Frontend jest unit tests (iter 216c+)
+# ---------------------------------------------------------------------------
+# Pure-JS pinned tests — fault-machine grouping (iter 216d2),
+# formatApiError (iter 216bh). These cover the most-frequently
+# regressed UI helpers and run in <2 seconds combined.
+if [[ "${SKIP_FRONTEND_TESTS:-0}" == 1 ]]; then
+  warn 'SKIP_FRONTEND_TESTS=1 — bypassing frontend unit tests'
+else
+  note 'Running frontend jest unit tests (formatApiError + fault-machine grouping)'
+  if (cd /app/frontend && yarn test --watchAll=false \
+        src/lib/formatApiError.test.js \
+        src/pages/Dashboard/faultMachineGrouping.test.js \
+        > /tmp/predeploy-jest.log 2>&1); then
+    ok 'Frontend unit tests passed'
+  else
+    cat /tmp/predeploy-jest.log
+    fail 'Frontend unit tests failed. Set SKIP_FRONTEND_TESTS=1 to bypass.'
+  fi
 fi
 
 # ---------------------------------------------------------------------------

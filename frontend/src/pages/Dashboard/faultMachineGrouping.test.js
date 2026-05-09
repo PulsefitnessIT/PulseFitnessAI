@@ -65,4 +65,29 @@ describe('iter 216d2 — fault machine grouping', () => {
   test('empty group key returns the full list (filter unset)', () => {
     expect(filterSerialsByGroup(bobsEstate, '')).toEqual(bobsEstate);
   });
+
+  // Iter 216d2 — DRY guard. Both portals (Lite + GymAxis) read this
+  // helper. If anyone special-cases the grouping in only one of them
+  // again, this test catches the asymmetry.
+  test('handles equipment with empty name by falling back to equipment_type', () => {
+    const estate = [
+      { id: 'a', name: '',          equipment_type: 'Treadmill', serial_number: 'T1' },
+      { id: 'b', name: 'Treadmill', equipment_type: 'cardio',    serial_number: 'T2' },
+    ];
+    // Both should land in the "Treadmill" bucket — `b` directly via
+    // name, `a` via the equipment_type fallback.
+    const groups = buildMachineTypeGroups(estate);
+    expect(groups).toEqual([{ type: 'Treadmill', count: 2, label: 'Treadmill (2)' }]);
+    const treadmills = filterSerialsByGroup(estate, 'Treadmill');
+    expect(treadmills.map(e => e.serial_number).sort()).toEqual(['T1', 'T2']);
+  });
+
+  test('skips equipment with no usable group key (neither name nor type)', () => {
+    const estate = [
+      { id: 'a', name: '', equipment_type: '' }, // unusable
+      { id: 'b', name: 'Bike', equipment_type: 'cardio' },
+    ];
+    const groups = buildMachineTypeGroups(estate);
+    expect(groups).toEqual([{ type: 'Bike', count: 1, label: 'Bike (1)' }]);
+  });
 });

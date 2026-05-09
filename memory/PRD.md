@@ -22,6 +22,17 @@
 ### Why a shared helper instead of inline JSX?
 The grouping logic is the kind of thing that quietly drifts (a dev "fixes" the dropdown by changing the inline IIFE without realising the Serial dropdown reads the same key elsewhere — exactly how iter-216d2 happened in the first place). Centralising it + jest pinning means the next regression fails a 0.5-second unit test instead of being filed by a customer 3 weeks later.
 
+### Iter 216d3 — Lite dialog rewired onto the same helper
+- `pages/LiteDashboard/LiteDialogs.js` `FaultMachineSelector` now imports `buildMachineTypeGroups` / `filterSerialsByGroup` / `deriveGroupKey` from the shared helper instead of carrying its own copy of the grouping logic. Both portals are now one source of truth.
+- Extended `faultMachineGrouping.test.js` with two more cases:
+  - Equipment with empty `name` falls back to `equipment_type` correctly.
+  - Equipment with no usable group key (neither name nor type) is skipped.
+- Wired frontend jest into `scripts/pre-deploy.sh` as step 7 — `formatApiError.test.js` + `faultMachineGrouping.test.js` now run as part of every `make pre-deploy`. Combined runtime: ~2s.
+
+### Verified
+- `yarn test faultMachineGrouping.test.js` → **8/8 passing**.
+- `make pre-deploy` (with `SKIP_LIVE_CHECK=1`) → **all 9 gate steps green** (regression suite, security scan, Stripe key checks, Stripe price IDs, webhook handlers, Mongo, frontend lint, frontend jest, summary).
+
 ---
 
 

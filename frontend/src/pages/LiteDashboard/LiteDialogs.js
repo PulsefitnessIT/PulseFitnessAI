@@ -12,6 +12,7 @@ import axios from 'axios';
 import FaultTemplatePicker from '../Dashboard/FaultTemplatePicker';
 import FaultCodeSelect from '../Dashboard/FaultCodeSelect';
 import SaveAsTemplateButton from '../Dashboard/SaveAsTemplateButton';
+import { buildMachineTypeGroups, filterSerialsByGroup, deriveGroupKey } from '../Dashboard/faultMachineGrouping';
 import EquipmentPhotoUpload from '../../components/equipment/EquipmentPhotoUpload';
 import AuthImage from '../../components/shared/AuthImage';
 import EquipmentSpecGrid from '@/components/shared/EquipmentSpecGrid';
@@ -307,31 +308,23 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
   );
 };
 
-/* ─── Fault Machine Selector: Group by type, then pick serial ─── */
+/* ─── Fault Machine Selector: Group by type, then pick serial ───
+   Iter 216d2 — uses the shared helper (see Dashboard/faultMachineGrouping.js)
+   so Lite + GymAxis dashboards both group by the same "name → equipment_type"
+   fallback chain, with comma-suffixed names ("Treadmill, Bay 3") collapsed
+   into one group. Pinned by `faultMachineGrouping.test.js`. */
 const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault }) => {
-  // Group equipment by short name (up to first comma)
-  const groups = {};
-  equipment.forEach(eq => {
-    const shortName = eq.name?.includes(',') ? eq.name.split(',')[0].trim() : (eq.name || '');
-    if (!groups[shortName]) groups[shortName] = [];
-    groups[shortName].push(eq);
-  });
-  const groupKeys = Object.keys(groups).sort();
+  const groupRows = buildMachineTypeGroups(equipment);
 
-  // Find selected group from current equipment_id
+  // Find selected group from the current equipment selection.
   const selectedEq = equipment.find(e => e.id === faultForm.equipment_id);
-  const selectedGroup = selectedEq ? (selectedEq.name?.includes(',') ? selectedEq.name.split(',')[0].trim() : selectedEq.name) : '';
-  const groupItems = groups[selectedGroup] || [];
+  const selectedGroup = selectedEq ? deriveGroupKey(selectedEq) : '';
+  const groupItems = filterSerialsByGroup(equipment, selectedGroup);
   const needsSerialPick = groupItems.length > 1;
 
   const handleGroupChange = (groupName) => {
-    const items = groups[groupName] || [];
-    if (items.length === 1) {
-      selectEquipmentForFault(items[0]);
-    } else {
-      // Multi — clear selection, user must pick serial
-      selectEquipmentForFault(items[0]);
-    }
+    const items = filterSerialsByGroup(equipment, groupName);
+    if (items.length >= 1) selectEquipmentForFault(items[0]);
   };
 
   const handleSerialChange = (eqId) => {
@@ -348,9 +341,9 @@ const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault })
             <SelectValue placeholder="Choose machine type..." />
           </SelectTrigger>
           <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60 max-w-[calc(100vw-80px)]" style={{ scrollBehavior: 'smooth' }}>
-            {groupKeys.map(name => (
-              <SelectItem key={name} value={name} className="text-[var(--theme-text)] py-3 whitespace-normal">
-                <span className="whitespace-normal break-words block">{name} {groups[name].length > 1 ? `(${groups[name].length})` : ''}</span>
+            {groupRows.map(g => (
+              <SelectItem key={g.type} value={g.type} className="text-[var(--theme-text)] py-3 whitespace-normal">
+                <span className="whitespace-normal break-words block">{g.label}</span>
               </SelectItem>
             ))}
           </SelectContent>
