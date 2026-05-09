@@ -1,3 +1,40 @@
+## Iteration 216be — Refund & cancellation policy (Feb 2026)
+
+**Goal**: ship a plain-English Refund & cancellation policy page and link it from every place a prospect would look for it before they commit — public footer, in-product footer, and the trial signup modal.
+
+### What shipped
+- New page `/app/frontend/src/pages/RefundPolicyPage.js` mounted at `/refunds`. Plain-English structure: 3-day trial · paid plans · refunds (monthly/annual/SLA/duplicate) · add-ons · data after cancellation · how to ask · changes-to-policy.
+- Lazy-loaded route in `App.js` line 552: `<Route path="/refunds" element={<RefundPolicyPage />} />`.
+- Marketing footer (`MarketingShell.js → MarketingFooter`): added a legal-link strip in the bottom row — Privacy · Terms · **Refunds & cancellation** · Security — with stable test ids.
+- In-product footer (`components/shared/Footer.js`): added "Refund & cancellation" between Terms and Security; passed extra props through `FooterLink` so test ids work.
+- Trial signup modal (`pages/Marketing/TrialSignupModal.js`): added a fine-print line below the existing "Instant access · No credit card · Cancel anytime" row — *"You won't be charged during the 3-day trial. Read our [refund & cancellation policy]."*
+- `TermsOfServicePage.js` §8: replaced the vague "Refunds are handled on a case-by-case basis" with a hyperlink to `/refunds`.
+
+### Verification
+- Lint clean across all 6 touched files.
+- `/refunds` renders 200 OK, full-page screenshot confirmed.
+- Trial signup modal screenshot confirms the refund link surfaces under the password field.
+- Marketing footer link found by `data-testid=gx-footer-refunds` (count=1).
+
+### Files of reference
+- `/app/frontend/src/pages/RefundPolicyPage.js` (new)
+- `/app/frontend/src/App.js` (route)
+- `/app/frontend/src/pages/Marketing/MarketingShell.js` (marketing footer)
+- `/app/frontend/src/components/shared/Footer.js` (in-product footer)
+- `/app/frontend/src/pages/Marketing/TrialSignupModal.js` (modal fine-print)
+- `/app/frontend/src/pages/TermsOfServicePage.js` (§8 cross-link)
+
+### Next (P1 → next iteration)
+- Configure Sentry DSN for production observability
+
+### Future / Backlog
+- AI insights → owner email digest (Resend)
+- Twilio SMS real integration
+- BLOCKED: Sicon + Sage 200 LIVE cutover (awaiting user credentials)
+
+---
+
+
 ## Iteration 216bd — Empty-state polish on top list pages (Feb 2026)
 
 **Goal**: replace flat "No data yet" cards on the most-used list pages with the shared `EmptyState` component so a brand-new tenant gets a friendly hint + clear CTA instead of a wall of dashes.

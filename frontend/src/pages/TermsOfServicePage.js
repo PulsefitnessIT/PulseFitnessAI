@@ -83,7 +83,7 @@ const TermsOfServicePage = () => (
             <li>Pulse Fitness Lite: Included as part of equipment purchase</li>
             <li>Pulse Fitness Pro: Monthly subscription, billed via Stripe</li>
             <li>GymAxis AI Full: Enterprise pricing, contact sales</li>
-            <li>Refunds are handled on a case-by-case basis</li>
+            <li>Refunds are handled per our published <a href="/refunds" className="text-blue-600 underline">Refund &amp; cancellation policy</a></li>
           </ul>
         </section>
 

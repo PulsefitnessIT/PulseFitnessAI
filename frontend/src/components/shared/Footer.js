@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/App';
 
-const FooterLink = ({ to, children, style }) => {
+const FooterLink = ({ to, children, style, ...rest }) => {
   const navigate = useNavigate();
   return (
     <a
@@ -11,6 +11,7 @@ const FooterLink = ({ to, children, style }) => {
       onClick={(e) => { e.preventDefault(); navigate(to); window.scrollTo(0, 0); }}
       className="block text-sm text-[var(--color-text-muted)] hover:text-white transition-colors"
       style={style}
+      {...rest}
     >
       {children}
     </a>
@@ -54,6 +55,10 @@ const Footer = () => {
             <FooterLink to="/privacy" style={{ color: 'var(--theme-text-muted)' }}>Privacy Policy</FooterLink>
             <span className="text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>|</span>
             <FooterLink to="/terms" style={{ color: 'var(--theme-text-muted)' }}>Terms of Service</FooterLink>
+            <span className="text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>|</span>
+            <FooterLink to="/refunds" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-refund-link">
+              Refund &amp; cancellation
+            </FooterLink>
             <span className="text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>|</span>
             <FooterLink to="/security" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-security-link">
               Security &amp; Trust

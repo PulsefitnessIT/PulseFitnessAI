@@ -102,6 +102,7 @@ const CRMApp = lazy(() => import('./pages/CRM/CRMApp'));
 const CRMSetupWizard = lazy(() => import('./pages/CRM/CRMSetupWizard'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
+const RefundPolicyPage = lazy(() => import('./pages/RefundPolicyPage'));
 const DirectorsHandout = lazy(() => import('./pages/DirectorsHandout'));
 const PaymentSuccessPage = lazy(() => import('./pages/PaymentSuccessPage'));
 const MasterAdminPage = lazy(() => import('./pages/MasterAdminPage'));
@@ -549,6 +550,7 @@ function App() {
  <Route path="/instructor" element={<InstructorPortal />} />
  <Route path="/privacy" element={<PrivacyPolicyPage />} />
  <Route path="/terms" element={<TermsOfServicePage />} />
+ <Route path="/refunds" element={<RefundPolicyPage />} />
  <Route path="/directors" element={<DirectorsHandout />} />
  <Route path="/payment-success" element={<PaymentSuccessPage />} />
  <Route path="/pulse" element={

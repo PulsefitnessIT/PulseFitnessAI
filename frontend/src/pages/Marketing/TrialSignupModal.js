@@ -193,6 +193,10 @@ export default function TrialSignupModal() {
                 <span>·</span>
                 <span>Cancel anytime</span>
               </div>
+              <p className="text-center text-[11px] text-slate-400 pt-1" data-testid="trial-modal-refund-note">
+                You won&apos;t be charged during the 3-day trial. Read our{' '}
+                <a href="/refunds" target="_blank" rel="noreferrer" className="underline hover:text-slate-700" data-testid="trial-modal-refund-link">refund &amp; cancellation policy</a>.
+              </p>
             </form>
           )}
         </div>

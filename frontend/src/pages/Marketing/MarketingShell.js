@@ -168,8 +168,14 @@ export function MarketingFooter() {
         </div>
       </div>
       <div className="border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5 text-xs text-slate-400 flex flex-wrap justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5 text-xs text-slate-400 flex flex-wrap justify-between gap-4 items-center">
           <span>© {new Date().getFullYear()} GymAxis AI. All rights reserved.</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1" data-testid="gx-footer-legal">
+            <Link to="/privacy" className="hover:text-slate-700" data-testid="gx-footer-privacy">Privacy</Link>
+            <Link to="/terms" className="hover:text-slate-700" data-testid="gx-footer-terms">Terms</Link>
+            <Link to="/refunds" className="hover:text-slate-700" data-testid="gx-footer-refunds">Refunds &amp; cancellation</Link>
+            <Link to="/security" className="hover:text-slate-700" data-testid="gx-footer-security">Security</Link>
+          </div>
           <span>Made for fitness operators.</span>
         </div>
       </div>
