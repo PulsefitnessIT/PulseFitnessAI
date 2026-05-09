@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Wrench, AlertTriangle, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import ActivationMilestonesCard from '../../components/shared/ActivationMilestonesCard';
 import KpiTile from '../../components/shared/KpiTile';
 
 const LiteOverviewTab = ({
@@ -13,9 +12,9 @@ const LiteOverviewTab = ({
 }) => {
   return (
     <div className="space-y-6">
-      {/* Iter 215d4 — Value-realised milestones, identical card to GymAxis
-          OverviewTab so both brands surface the same activation nudges. */}
-      <ActivationMilestonesCard />
+      {/* Iter 216c — `<ActivationMilestonesCard />` moved to OperationsStartTab.
+          Once every milestone fires, the Start tab auto-hides and Dashboard
+          becomes the first option (Lee, Feb 2026). */}
 
       {/* Log Fault CTA */}
       <Button onClick={onLogFault} className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white px-6 py-3 text-base" data-testid="overview-log-fault-btn">

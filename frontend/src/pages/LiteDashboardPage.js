@@ -450,6 +450,13 @@ const LiteDashboardPage = () => {
   // so toggling "Hide Start" in one module hides it everywhere.
   const [hideStart] = useUserPref('hideStartTabs', false);
 
+  // Iter 216c — if Start auto-hides (all activation milestones fired) while
+  // the user is sitting on it, snap them to the Dashboard tab so the
+  // content area never shows a blank.
+  useEffect(() => {
+    if (hideStart && activeTab === 'start') setActiveTab('overview');
+  }, [hideStart, activeTab]);
+
   // Build tabs based on role (mirrors Memberships structure — icon + label).
   const buildTabs = () => {
     const start = hideStart ? [] : [{ id: 'start', label: 'Start', icon: Sparkles }];

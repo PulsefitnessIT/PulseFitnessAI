@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/App';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Sparkles } from 'lucide-react';
+
+import { useUserPref } from '@/utils/userPrefs';
 
 import Navbar from '../components/shared/Navbar';
 import ModuleSwitcher from '../components/shared/ModuleSwitcher';
@@ -60,7 +62,24 @@ const DashboardPage = () => {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState('overview');
+  // Iter 216c — match LiteDashboardPage: first-time users land on the
+  // guided "Start" tab (which now hosts the "Your first wins" card);
+  // returning users who completed onboarding (or dismissed Start) land
+  // on Dashboard / Overview directly.
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const prefs = JSON.parse(localStorage.getItem('gymaxis_prefs') || '{}');
+      return prefs.hideStartTabs ? 'overview' : 'start';
+    } catch { return 'overview'; }
+  });
+  // Iter 216c — when ActivationMilestonesCard auto-completes (all 8 wins
+  // hit) it flips `hideStartTabs=true`. If the user happened to be on the
+  // Start tab at that moment, snap them to Overview so they don't see a
+  // blank tab content.
+  const [hideStartTabs] = useUserPref('hideStartTabs', false);
+  useEffect(() => {
+    if (hideStartTabs && activeTab === 'start') setActiveTab('overview');
+  }, [hideStartTabs, activeTab]);
   const [reportSubTab, setReportSubTab] = useState('performance');
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showMasterAdmin, setShowMasterAdmin] = useState(false);

@@ -1,4 +1,39 @@
-## Iteration 216c — Bandit/Ruff baseline + PulseCheckSheetsTab refactor (Feb 9, 2026)
+## Iteration 216c — Production fixes from Lee's mobile review (Feb 9, 2026)
+
+**Context**: Three issues filed from production with screenshots — mobile hamburger drawer transparent, gym name showing wrong value in dashboard header, "Your first wins" panel placement.
+
+### What shipped
+
+**1. Marketing hamburger drawer transparent on mobile** (Image 1)
+- **Root cause**: `<header>` has `.gx-glass` class which sets `backdrop-filter: blur(20px)`. Per CSS spec, `backdrop-filter` makes that element a *containing block* for `position: fixed` descendants — so the drawer's `inset-0` collapsed to the 64px-tall header bar instead of the viewport, leaving the drawer's body and backdrop transparent over the page underneath.
+- **Fix**: render the drawer via `createPortal(drawer, document.body)` so it escapes the header's containing block. Verified: `parent_is_body: True` after open in DOM inspection.
+- File: `frontend/src/pages/Marketing/MarketingShell.js`.
+
+**2. Dashboard header showed "Test Org Name" while Master Admin showed "Strong Fitness"** (Image 2)
+- **Root cause**: two independent fields stored the gym name — `organizations.name` (canonical, read by Master Admin / billing / audit) and `organizations.branding.company_name` (display label, read by the dashboard header). `update_branding` only wrote to `branding.company_name`. Test seeds + early users drifted (Bob's org was a stale "Test Org Name").
+- **Fix**: 
+  1. `update_branding` now writes both `branding.company_name` AND `organizations.name` atomically when a non-empty `company_name` is provided.
+  2. `get_organization` self-heals on read — when `branding.company_name != organizations.name`, it returns the canonical `organizations.name` so existing drifted orgs (like Bob's) immediately render correctly without requiring a save.
+- Files: `backend/routes/auth.py`.
+- Verified end-to-end via curl: PATCH branding → GET org returns both fields synced.
+
+**3. "Your first wins" panel placement & Start-tab cleanup** (Images 2 & 3)
+- Moved `<ActivationMilestonesCard />` out of `OverviewTab.js` + `LiteOverviewTab.js` and into `OperationsStartTab.js` (top of the Start tab — the natural onboarding surface).
+- `ActivationMilestonesCard` now auto-flips `hideStartTabs=true` user pref when all milestones fire, hiding the Start tab across modules. Dashboard becomes the first tab automatically.
+- `DashboardPage` now mirrors `LiteDashboardPage`'s landing-tab logic: first-time users → Start; users who completed onboarding (or dismissed Start) → Dashboard. Both pages snap users away from a hidden Start tab via `useEffect`.
+- Files: `frontend/src/components/shared/ActivationMilestonesCard.js`, `frontend/src/pages/Dashboard/OverviewTab.js`, `frontend/src/pages/LiteDashboard/LiteOverviewTab.js`, `frontend/src/pages/LiteDashboard/OperationsStartTab.js`, `frontend/src/pages/DashboardPage.js`, `frontend/src/pages/LiteDashboardPage.js`.
+
+### Verified
+- `pytest test_iter_216bl_site_lock.py + test_iter_216af_brand_inheritance.py` → 25/26 passing (1 pre-existing skip).
+- Frontend webpack: compiled clean, no new warnings.
+- Live curl: Bob's org returns `name="Strong Fitness"`, `branding.company_name="Strong Fitness"` (was "Test Org Name").
+- DOM inspection: drawer renders under `<body>` after the portal change.
+
+---
+
+
+
+## Iteration 216c (earlier wave) — Bandit/Ruff baseline + PulseCheckSheetsTab refactor (Feb 9, 2026)
 
 **Context**: After the iter-216bo code-review false-positive triage, install a real ground-truth security linter so future code-review reports are gradeable against a known-clean baseline. Also pay down the maintainability debt called out in the iter-216bn handoff (`PulseCheckSheetsTab.js` had grown to 498 lines).
 

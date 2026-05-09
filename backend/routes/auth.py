@@ -691,6 +691,20 @@ async def get_organization(user: dict = Depends(get_current_user)) -> dict:
     org = await db.organizations.find_one({"id": user['organization_id']}, {"_id": 0})
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
+    # Iter 216c — `organizations.name` is the canonical org identity (Master
+    # Admin, billing, audit logs all read it). `branding.company_name` is a
+    # separate display label that operators edit in Settings → Branding.
+    # Pre-216c versions of `update_branding` only wrote to `branding.company_name`,
+    # so test seeds + early users (e.g. Bob @ Strong Fitness) ended up with
+    # drift — the dashboard header showed a stale "Test Org Name" while
+    # Master Admin showed the real "Strong Fitness". Self-heal on read so
+    # the dashboard never lies about the gym's identity. Going forward,
+    # `update_branding` writes both fields atomically.
+    canonical = (org.get("name") or "").strip()
+    branding = org.get("branding") or {}
+    if canonical and branding.get("company_name") != canonical:
+        branding = {**branding, "company_name": canonical}
+        org["branding"] = branding
     return org
 
 
@@ -706,9 +720,17 @@ async def update_branding(data: Dict[str, Any], user: dict = Depends(get_current
         "logo_url": data.get("logo_url", ""),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    # Iter 216c — keep `organizations.name` in sync with the user-facing
+    # branding name. Operators edit ONE "Gym name" field in Settings; we
+    # write it to both fields so Master Admin / billing / dashboard header
+    # never disagree (see iter-216c PRD entry).
+    update_doc: Dict[str, Any] = {"branding": branding}
+    new_company_name = (data.get("company_name") or "").strip()
+    if new_company_name:
+        update_doc["name"] = new_company_name
     await db.organizations.update_one(
         {"id": user['organization_id']},
-        {"$set": {"branding": branding}}
+        {"$set": update_doc}
     )
     from utils.security_plus import audit_required
     await audit_required("security_audit_log", {

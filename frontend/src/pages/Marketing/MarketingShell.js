@@ -7,6 +7,7 @@
  * the same shell so navigation is consistent.
  */
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, ArrowRight } from 'lucide-react';
 
@@ -95,7 +96,14 @@ export function MarketingNav() {
         </div>
       </div>
 
-      {open && (
+      {open && createPortal((
+        /* Iter 216c — render via portal so the drawer escapes the
+           <header>'s containing block. The header has
+           `backdrop-filter: blur(20px)` which (per CSS spec) makes
+           it the containing block for fixed descendants — so without
+           a portal, `inset-0` collapsed to the 64px-tall header bar,
+           leaving the drawer's backdrop and panel transparent over
+           the page content. (Lee's Feb-2026 production screenshot.) */
         <div className="fixed inset-0 z-[60] xl:hidden" role="dialog" aria-modal="true" data-testid="gx-nav-mobile-drawer" onClick={() => setOpen(false)}>
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
           <div className="absolute right-0 top-0 bottom-0 w-[80%] max-w-sm bg-white shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -128,7 +136,7 @@ export function MarketingNav() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </header>
   );
 }

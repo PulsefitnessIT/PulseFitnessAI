@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, MessageSquare, Upload, Shield } from 'lucide-react';
-import ActivationMilestonesCard from '../../components/shared/ActivationMilestonesCard';
 
 const OverviewTab = ({
  healthScore, issues, auditHistory, maintenanceTasks,
@@ -12,10 +11,9 @@ const OverviewTab = ({
 }) => {
  return (
  <>
- {/* Iter 215d4 — Value-realised milestones. Hidden once every
-     activation event has fired so it never clutters the dashboard
-     for long-tenured operators. */}
- <ActivationMilestonesCard />
+ {/* Iter 216c — `<ActivationMilestonesCard />` moved to the Start tab
+     (`OperationsStartTab`). Once every milestone fires, Start auto-hides
+     and Dashboard becomes the default first tab. */}
 
  {/* Log Issue CTA at top */}
  <div className="mb-6">

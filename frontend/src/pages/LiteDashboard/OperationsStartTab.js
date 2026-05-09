@@ -12,6 +12,7 @@ import {
   LayoutDashboard, BarChart3, EyeOff, ShieldCheck, Zap, Wrench, ClipboardList,
 } from 'lucide-react';
 import { useUserPref } from '@/utils/userPrefs';
+import ActivationMilestonesCard from '../../components/shared/ActivationMilestonesCard';
 
 const OUTCOMES = [
   { icon: AlertTriangle, title: 'Log faults in seconds',     note: 'Photo + severity + auto-routed to the right supplier' },
@@ -81,6 +82,12 @@ export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipment
 
   return (
     <div className="space-y-8 pulse-font-body" data-testid="ops-start-tab">
+      {/* Iter 216c — "Your first wins" moved here from Dashboard so the
+          Start tab is the single onboarding surface. The card auto-hides
+          the entire Start tab once every milestone fires (handled inside
+          ActivationMilestonesCard via the `hideStartTabs` user pref). */}
+      <ActivationMilestonesCard />
+
       {/* Welcome */}
       <div>
         <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mb-1" style={{ color: 'var(--theme-text)' }}>

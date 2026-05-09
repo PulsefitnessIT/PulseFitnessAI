@@ -19,6 +19,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { CheckCircle2, Circle, Sparkles, ArrowRight, X } from 'lucide-react';
 import { useAuth } from '@/App';
+import { useUserPref } from '@/utils/userPrefs';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const DISMISS_KEY = 'gymaxis:activation_milestones_dismissed';
@@ -44,6 +45,13 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch { return false; }
   });
+  // Iter 216c — once every milestone has fired, auto-hide the "Start"
+  // tab across modules. The Start tab is a guided onboarding surface;
+  // operators who have onboarded shouldn't keep seeing it. Per Lee's
+  // Feb-2026 request: "remove the start option from the users options
+  // and Dashboard be the first option."
+  // eslint-disable-next-line no-unused-vars
+  const [, setHideStart] = useUserPref('hideStartTabs', false);
 
   const load = useCallback(async () => {
     try {
@@ -66,15 +74,24 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
     setDismissed(true);
   };
 
+  // Iter 216c — once every milestone has fired, auto-hide the "Start"
+  // tab across modules so Dashboard becomes the first option (Lee, Feb
+  // 2026). Computed BEFORE any early returns to obey Rules of Hooks.
+  const fired = data?.fired_count ?? 0;
+  const total = data?.total ?? 0;
+  const allDone = fired === total && total > 0;
+  useEffect(() => {
+    if (allDone) setHideStart(true);
+  }, [allDone, setHideStart]);
+
   // Master admin has no single org — endpoint returns empty timeline.
   if (loading) return null;
   if (dismissed) return null;
   if (!data || !Array.isArray(data.timeline) || data.timeline.length === 0) return null;
   if (user?.is_master_admin) return null;
 
-  const { timeline, fired_count: fired, total } = data;
+  const { timeline } = data;
   const pct = total > 0 ? Math.round((fired / total) * 100) : 0;
-  const allDone = fired === total && total > 0;
   if (allDone && hideWhenComplete) return null;
 
   return (
