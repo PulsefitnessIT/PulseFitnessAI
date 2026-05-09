@@ -17,7 +17,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MapPin, Star, Globe2, Check } from 'lucide-react';
 import { useAuth } from '@/App';
 
-const SiteSwitcher = ({ onAllSites, allSitesActive = false }) => {
+const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
   const { sites, activeSite, setActiveSite } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -36,6 +36,20 @@ const SiteSwitcher = ({ onAllSites, allSitesActive = false }) => {
   const label = allSitesActive
     ? 'All sites'
     : (activeSite?.name || 'Pick a site');
+
+  /**
+   * Iter 216bk — picking a specific site after the org was in "All sites"
+   * mode used to leave `allSitesActive=true` on the parent, so the
+   * dashboard stayed on the estate-wide overview and the click looked
+   * dead. The new `onPickSite` callback lets the parent flip it back
+   * to false. We still call `setActiveSite` (which the auth context
+   * persists to localStorage) so the choice survives a reload.
+   */
+  const handlePickSite = (site) => {
+    setActiveSite(site);
+    if (onPickSite) onPickSite(site);
+    setOpen(false);
+  };
 
   return (
     <div ref={ref} className="relative" data-testid="site-switcher">
@@ -56,10 +70,16 @@ const SiteSwitcher = ({ onAllSites, allSitesActive = false }) => {
       </button>
       {open && (
         <div
-          className="absolute right-0 mt-2 w-72 rounded-lg shadow-xl z-30 overflow-hidden"
+          /* Iter 216bk — dropdown is now viewport-safe. On mobile (<640px)
+             we anchor to the left edge of the trigger so the menu opens
+             rightward and never clips off the left. On sm+ we keep the
+             original right-aligned behaviour. Width caps at the viewport
+             minus a 16px gutter so portrait phones never overflow. */
+          className="absolute left-0 sm:left-auto sm:right-0 mt-2 rounded-lg shadow-xl z-30 overflow-hidden"
           style={{
             background: 'var(--theme-surface)',
             border: '1px solid var(--theme-border)',
+            width: 'min(18rem, calc(100vw - 2rem))',
           }}
           data-testid="site-switcher-menu"
         >
@@ -89,7 +109,7 @@ const SiteSwitcher = ({ onAllSites, allSitesActive = false }) => {
                 <li key={s.id}>
                   <button
                     type="button"
-                    onClick={() => { setActiveSite(s); setOpen(false); }}
+                    onClick={() => handlePickSite(s)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--theme-hover-bg)]"
                     style={{ color: 'var(--theme-text)' }}
                     data-testid={`site-switcher-item-${s.id}`}

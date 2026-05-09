@@ -38,7 +38,7 @@ const PulseSettingsTab = () => {
   const [selectedQRIds, setSelectedQRIds] = useState(new Set());
   const [sitesList, setSitesList] = useState([]);
   const [showAddSite, setShowAddSite] = useState(false);
-  const [siteForm, setSiteForm] = useState({ name: '', address: '', postcode: '' });
+  const [siteForm, setSiteForm] = useState({ name: '', address: '', postcode: '', is_head_office: false });
   const [savingSite, setSavingSite] = useState(false);
   const [editingSiteId, setEditingSiteId] = useState(null);
   const [moduleOverridesOpen, setModuleOverridesOpen] = useState({});
@@ -371,6 +371,52 @@ const PulseSettingsTab = () => {
                           data-testid={`pulse-staff-${member.id}-view-only`}
                         />
                       </div>
+
+                      {/* Iter 216bk — site-locking. Owners and master admins always see every site,
+                          so we only render this control for staff/manager rows. Empty selection = unrestricted (legacy default). */}
+                      {sitesList.length > 1 && (
+                        <div className="p-2 bg-[var(--color-surface-dark-alt)] rounded-md border border-white/5">
+                          <p className="text-xs text-white font-medium">Sites this staff can see</p>
+                          <p className="text-[10px] text-[var(--color-text-muted)] mb-2">
+                            Tick one or more sites to lock this user to those sites only. Leave all unticked for unrestricted access (default).
+                          </p>
+                          <div className="flex flex-wrap gap-1.5" data-testid={`pulse-staff-${member.id}-sites`}>
+                            {sitesList.map(s => {
+                              const allowed = member.allowed_site_ids || [];
+                              const ticked = allowed.includes(s.id);
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = ticked
+                                      ? allowed.filter(x => x !== s.id)
+                                      : [...allowed, s.id];
+                                    handleUpdatePermissions(member.id, { allowed_site_ids: next });
+                                  }}
+                                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${ticked
+                                    ? 'bg-[var(--pulse-primary-hover)] text-white border-transparent'
+                                    : 'bg-transparent text-[var(--color-text-muted)] border-white/10 hover:border-white/30'}`}
+                                  data-testid={`pulse-staff-${member.id}-site-${s.id}`}
+                                >
+                                  {s.is_head_office ? '★ ' : ''}{s.name}
+                                </button>
+                              );
+                            })}
+                            {(member.allowed_site_ids || []).length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdatePermissions(member.id, { allowed_site_ids: [] })}
+                                className="text-[10px] px-2 py-1 rounded-full border border-white/10 text-[var(--color-text-muted)] hover:text-white"
+                                data-testid={`pulse-staff-${member.id}-site-clear`}
+                              >
+                                Clear · all sites
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <p className="text-[10px] text-[var(--color-text-faint)]">
                         Per-staff toggles can only restrict — they cannot grant access the organisation doesn't already have.
                       </p>
@@ -419,7 +465,7 @@ const PulseSettingsTab = () => {
                 <p className="text-xs text-[var(--color-text-muted)] mt-1">Manage locations within your organisation. Equipment and faults can be filtered per site.</p>
               </div>
               <Button size="sm" className="bg-[var(--pulse-primary-hover)] hover:bg-[var(--pulse-primary-light)] text-white"
-                onClick={() => { setShowAddSite(true); setEditingSiteId(null); setSiteForm({ name: '', address: '', postcode: '' }); }}
+                onClick={() => { setShowAddSite(true); setEditingSiteId(null); setSiteForm({ name: '', address: '', postcode: '', is_head_office: false }); }}
                 data-testid="add-site-btn">
                 <Plus size={14} className="mr-1" /> Add Site
               </Button>
@@ -444,6 +490,7 @@ const PulseSettingsTab = () => {
                           <span>{site.equipment_count ?? 0} machines</span>
                           <span>{site.issue_count ?? 0} faults</span>
                           {site.is_default && <Badge className="bg-amber-500/15 text-amber-400 border-0 text-[8px]">Default</Badge>}
+                          {site.is_head_office && <Badge className="bg-amber-500/15 text-amber-400 border-0 text-[8px]" data-testid={`site-hq-badge-${site.id}`}>HQ</Badge>}
                         </div>
                       </div>
                     </div>
@@ -466,7 +513,7 @@ const PulseSettingsTab = () => {
                       )}
                       {!site.is_default && (
                         <Button size="sm" variant="ghost" className="text-[var(--color-text-muted)] h-7 w-7 p-0"
-                          onClick={() => { setEditingSiteId(site.id); setSiteForm({ name: site.name, address: site.address || '', postcode: site.postcode || '' }); setShowAddSite(true); }}
+                          onClick={() => { setEditingSiteId(site.id); setSiteForm({ name: site.name, address: site.address || '', postcode: site.postcode || '', is_head_office: !!site.is_head_office }); setShowAddSite(true); }}
                           data-testid={`edit-site-${site.id}`}><Edit size={13}/></Button>
                       )}
                       {!site.is_default && (
@@ -512,6 +559,18 @@ const PulseSettingsTab = () => {
                     <Input value={siteForm.postcode} onChange={e => setSiteForm({...siteForm, postcode: e.target.value})} placeholder="M1 1AA" className="bg-[var(--color-surface-dark-alt)] border-white/10 text-white mt-1 h-8 text-sm" data-testid="site-postcode-input" />
                   </div>
                 </div>
+                <label className="flex items-center gap-2 mb-3 text-xs text-[var(--color-text-muted)] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!siteForm.is_head_office}
+                    onChange={(e) => setSiteForm({ ...siteForm, is_head_office: e.target.checked })}
+                    data-testid="site-head-office-checkbox"
+                    className="w-4 h-4 accent-[var(--pulse-primary-hover)]"
+                  />
+                  <span>
+                    <strong className="text-white">Head Office</strong> — for sales, admin, marketing &amp; service-management staff who don&apos;t belong to a single gym site. Only one site per organisation can be flagged as Head Office; saving this will clear the flag from any other site.
+                  </span>
+                </label>
                 <div className="flex items-center gap-2">
                   <Button size="sm" className="bg-[var(--pulse-primary-hover)] hover:bg-[var(--pulse-primary-light)] text-white" disabled={savingSite || !siteForm.name.trim()}
                     onClick={async () => {
@@ -524,7 +583,7 @@ const PulseSettingsTab = () => {
                           await axios.post(`${API}/sites`, siteForm, { headers });
                           notify.success('Site created');
                         }
-                        setShowAddSite(false); setSiteForm({ name: '', address: '', postcode: '' }); setEditingSiteId(null); loadSites();
+                        setShowAddSite(false); setSiteForm({ name: '', address: '', postcode: '', is_head_office: false }); setEditingSiteId(null); loadSites();
                       } catch (err) { notifyApiError(notify, err, 'Failed to save site'); }
                       setSavingSite(false);
                     }}

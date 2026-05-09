@@ -557,6 +557,7 @@ const LiteDashboardPage = () => {
                 {isPro && (userRole === 'owner' || userRole === 'manager') ? (
                   <SiteSwitcher
                     onAllSites={() => setAllSitesActive(true)}
+                    onPickSite={() => setAllSitesActive(false)}
                     allSitesActive={allSitesActive}
                   />
                 ) : null}

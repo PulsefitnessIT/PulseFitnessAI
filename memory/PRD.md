@@ -1,3 +1,64 @@
+## Iteration 216bk — 5 production fixes from Lee's mobile review (Feb 2026)
+
+**Context**: Lee filed 5 issues from production (gymaxisai.com/pulse) viewed on a mobile portrait browser. All 5 shipped together.
+
+### What shipped
+
+#### #1 Site-switcher dropdown was clipping off the left edge in portrait mobile
+- **File**: `/app/frontend/src/components/shared/SiteSwitcher.js`
+- Anchored the dropdown `left-0 sm:left-auto sm:right-0` so on phones it opens rightward from the trigger, on tablet+ keeps the original right-aligned look.
+- Width capped at `min(18rem, calc(100vw - 2rem))` so the menu can never overflow either edge of the viewport.
+
+#### #2 Two site-selectors visible on the same page (header + welcome banner)
+- **File**: `/app/frontend/src/components/shared/Navbar.js` line 383
+- The Navbar's site-switcher rendered on `(isOnDashboard || isOnPulse)`, but `LiteDashboardPage` also rendered its own (better) inline switcher. Tightened to `isOnDashboard && !isOnPulse`. Pulse now shows exactly one switcher.
+
+#### #3 Picking a specific site after "All sites" did nothing — button felt dead
+- **Files**: `/app/frontend/src/components/shared/SiteSwitcher.js` + `/app/frontend/src/pages/LiteDashboardPage.js`
+- Root cause: `setActiveSite(s)` fired but the parent's `allSitesActive=true` was never flipped back, so the dashboard stayed on the estate-wide overview and the click looked dead.
+- Fix: added `onPickSite` callback prop to SiteSwitcher; LiteDashboardPage wires it to `setAllSitesActive(false)`.
+
+#### #4 Operators can now create a "Head Office" site themselves
+- **Files**: `/app/frontend/src/pages/PulseSettingsTab.js` (Sites section) — the backend (`POST /api/sites` + `PATCH /api/sites/{id}`) already supported `is_head_office`. Surfaced the checkbox in the operator-facing Add/Edit Site form with explanatory copy ("for sales, admin, marketing & service-management staff who don't belong to a single gym site"). Added an HQ badge to existing sites + uses the existing star icon in `SiteSwitcher` (line 97).
+- Backend constraint preserved: only one HQ per org; saving a new HQ demotes the previous one (already implemented at `routes/sites.py:192-198` and `:241-244`).
+
+#### #5 Lock staff to specific sites
+- **Backend**:
+  - `routes/sites.py::get_my_sites` — non-privileged roles (everyone except owner / manager / master-admin) are now filtered by `users.allowed_site_ids` if set + non-empty. Empty/absent = unrestricted (legacy default — zero migration needed).
+  - `routes/auth.py::update_staff_permissions` — extended to accept `allowed_site_ids: list[str]`. Owner/manager only.
+  - `routes/master_admin.py::admin_edit_user` — extended the `allowed` field set the same way for master-admin overrides.
+- **Frontend**: `PulseSettingsTab` Team panel — between "module overrides" and "view-only" toggles, added a per-staff "Sites this staff can see" pill picker. Tick to lock; "Clear · all sites" button reverts to unrestricted. Owners and master admins always bypass — confirmed at the read path.
+- Default per Lee's instruction: assigned sites only (no implicit "All my sites" option), owners + master-admins always see all sites regardless.
+
+#### #6 Equipment row on mobile — serial number under name
+- **File**: `/app/frontend/src/pages/LiteDashboard/LiteEquipmentTab.js`
+- Restructured the row's identity block. Old layout: name on top, then `manufacturer · serial` truncated together (serial often clipped). New layout: name → S/N (mono, `text-[10px]`) → manufacturer → supplier. Each on its own line, only renders when present. Added `lite-equip-name-{id}` and `lite-equip-serial-{id}` test-ids.
+
+### Verification
+- Lint clean across all 5 frontend files.
+- Backend smoke (curl): `POST /api/sites is_head_office=true` → 200 + `hq=True`; `GET /api/sites` lists the new HQ alongside existing sites; `DELETE` cleanup works.
+- No horizontal overflow at 414px (already verified by the mobile-smoke harness from iter 216bj).
+
+### Files of reference
+- `/app/backend/routes/sites.py` (allowed_site_ids filter + existing is_head_office paths)
+- `/app/backend/routes/auth.py::update_staff_permissions` (line 833)
+- `/app/backend/routes/master_admin.py::admin_edit_user` (line 1379)
+- `/app/frontend/src/components/shared/SiteSwitcher.js` (mobile-safe dropdown + onPickSite)
+- `/app/frontend/src/components/shared/Navbar.js` (dedup for /pulse)
+- `/app/frontend/src/pages/LiteDashboardPage.js` (wires onPickSite)
+- `/app/frontend/src/pages/LiteDashboard/LiteEquipmentTab.js` (serial line)
+- `/app/frontend/src/pages/PulseSettingsTab.js` (HQ checkbox in Sites + site-pill picker in Team panel)
+
+### ⚠️ Action required
+All 5 fixes live in **preview** only. **Redeploy** to push to gymaxisai.com.
+
+### Default chosen for #5 sub-question (no user reply)
+- ✅ (i) `allowed_site_ids` filtered at read; empty = unrestricted (legacy preserved); owners + master admins bypass
+- One-line change if you want stricter (no auto-bypass for owners): drop the `is_privileged` check in `routes/sites.py:32-37`.
+
+---
+
+
 ## Iteration 216bj — Mobile smoke-test harness + AdminCRMUsers responsive fix (Feb 2026)
 
 **Goal**: stop the iter 216bi class of "broken on mobile, fine on desktop" regressions from reaching production by adding a self-contained CLI harness that walks the most-used master-admin pages at a 414×900 viewport.

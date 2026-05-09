@@ -837,11 +837,15 @@ async def update_staff_permissions(staff_id: str, body: dict, user: dict = Depen
     Body shape (all optional):
       {
         "module_overrides": {"memberships": bool, "marketing": bool, "crm": bool},
-        "timetable_view_only": bool
+        "timetable_view_only": bool,
+        "allowed_site_ids": ["site-uuid-1", "site-uuid-2"]   // empty/absent = unrestricted
       }
 
     `module_overrides` only restrict — they cannot grant access the org
     itself doesn't have. Owners and master admins ignore overrides.
+    `allowed_site_ids` (Iter 216bk) locks the staff member to a subset
+    of the org's sites — they will only see those in the site switcher
+    and the legacy fallback (empty list) preserves existing behaviour.
     """
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Only owners and managers can manage staff permissions")
@@ -866,6 +870,12 @@ async def update_staff_permissions(staff_id: str, body: dict, user: dict = Depen
 
     if "timetable_view_only" in body:
         update["timetable_view_only"] = bool(body["timetable_view_only"])
+
+    if "allowed_site_ids" in body:
+        raw = body["allowed_site_ids"] or []
+        if not isinstance(raw, list):
+            raise HTTPException(400, "allowed_site_ids must be an array")
+        update["allowed_site_ids"] = [str(x) for x in raw if x]
 
     if not update:
         raise HTTPException(status_code=400, detail="Nothing to update")

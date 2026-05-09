@@ -1381,10 +1381,21 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
     """Master admin edits user details: name, email, role, job_title, module_overrides."""
     require_master_admin(user)
     await assert_user_in_pulse_scope(user, user_id)
-    allowed = {"full_name", "email", "role", "job_title", "phone", "module_overrides"}
+    allowed = {"full_name", "email", "role", "job_title", "phone", "module_overrides", "allowed_site_ids"}
     updates = {k: v for k, v in body.items() if k in allowed and v is not None}
     if "email" in updates:
         updates["email"] = updates["email"].lower().strip()
+
+    # Iter 216bk — site-locking. allowed_site_ids is a list of site UUIDs
+    # the user may see; empty list = unrestricted (the legacy default).
+    # Owners/master admins always bypass this in the read path
+    # (see routes/sites.py::get_my_sites), but we still persist it so a
+    # later role downgrade keeps the assignment intact.
+    if "allowed_site_ids" in updates:
+        raw = updates["allowed_site_ids"] or []
+        if not isinstance(raw, list):
+            raise HTTPException(400, "allowed_site_ids must be an array")
+        updates["allowed_site_ids"] = [str(x) for x in raw if x]
 
     # Iter 216a — per-user feature editor.
     # `module_overrides` is a {module: bool} dict that REVOKES org-level

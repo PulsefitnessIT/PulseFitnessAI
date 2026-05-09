@@ -11,7 +11,15 @@ router = APIRouter()
 
 @router.get("/sites")
 async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
-    """Return all sites belonging to the current user's organization."""
+    """Return all sites belonging to the current user's organization.
+
+    Iter 216bk — site-locking for non-privileged staff.
+    Owner / manager / master-admin always see every site in the org.
+    Other roles (`staff`, `crm`, `service_desk`, etc.) are filtered by
+    the user document's `allowed_site_ids` list when it's present and
+    non-empty. Empty/absent list = unrestricted (the legacy default,
+    so existing accounts continue to work without migration).
+    """
     org_id = user.get("organization_id")
     if not org_id:
         return {"sites": []}
@@ -19,6 +27,16 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
     sites = await db.sites.find(
         {"organization_id": org_id}, {"_id": 0}
     ).sort("created_at", 1).to_list(100)
+
+    role = (user.get("role") or "").lower()
+    is_privileged = (
+        role in ("owner", "manager", "master_admin", "master")
+        or bool(user.get("is_master_admin"))
+    )
+    allowed = user.get("allowed_site_ids") or []
+    if not is_privileged and allowed:
+        allowed_set = set(allowed)
+        sites = [s for s in sites if s.get("id") in allowed_set]
 
     # Enrich with counts
     enriched = []

@@ -379,8 +379,12 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  </Link>
  )}
 
- {/* Site Switcher — owners only, when >1 site */}
- {sites.length > 1 && (isOnDashboard || isOnPulse) && user?.role === 'owner' && !user?.is_master_admin && (
+ {/* Site Switcher — owners only, when >1 site.
+     Iter 216bk — hidden on /pulse because the operations
+     dashboard renders its own viewport-safe SiteSwitcher in
+     the welcome banner. Showing both crowded the mobile
+     header and confused operators (Lee, Feb 2026 prod feedback). */}
+ {sites.length > 1 && isOnDashboard && !isOnPulse && user?.role === 'owner' && !user?.is_master_admin && (
  <div className="relative">
  <button
  onClick={() => setShowSiteMenu(!showSiteMenu)}
