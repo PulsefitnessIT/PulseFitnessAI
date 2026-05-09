@@ -944,17 +944,17 @@ const AdminOrganizations = ({
  {orgUsers.length > 0 ? (
  <div className="space-y-2">
  {orgUsers.map(u => (
- <div key={u.id} className="flex items-center justify-between p-2.5 bg-white rounded-md border border-zinc-200" data-testid={`org-user-${u.id}`}>
+ <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-white rounded-md border border-zinc-200" data-testid={`org-user-${u.id}`}>
  <div className="flex items-center gap-3 min-w-0">
- <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+ <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
  {(u.full_name || u.email || '?')[0].toUpperCase()}
  </div>
- <div className="min-w-0">
- <p className="text-sm text-zinc-900 font-medium truncate">{u.full_name || 'Unnamed'}</p>
- <p className="text-[11px] text-zinc-400 truncate">{u.email}</p>
+ <div className="min-w-0 flex-1">
+ <p className="text-sm text-zinc-900 font-medium truncate" data-testid={`org-user-name-${u.id}`}>{u.full_name || 'Unnamed'}</p>
+ <p className="text-[11px] text-zinc-500 truncate" data-testid={`org-user-email-${u.id}`}>{u.email}</p>
  </div>
  </div>
- <div className="flex items-center gap-2 flex-shrink-0">
+ <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
  <Select value={u.role || 'staff'} onValueChange={(v) => onEditUser && onEditUser(u.id, { role: v })}>
  <SelectTrigger className={`h-7 text-xs border w-24 ${u.role === 'owner' ? 'bg-amber-50 text-amber-700 border-amber-200' : u.role === 'manager' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`} data-testid={`user-role-${u.id}`}><SelectValue /></SelectTrigger>
  <SelectContent className="bg-white border-zinc-200">
@@ -966,26 +966,26 @@ const AdminOrganizations = ({
  {u.user_type === 'crm' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">CRM</Badge>}
  {u.disabled && <Badge className="bg-red-50 text-red-600">Disabled</Badge>}
  {u.archived && <Badge className="bg-zinc-200 text-zinc-500">Archived</Badge>}
- <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-zinc-400 hover:text-blue-600" onClick={() => setEditingUser({ ...u })} title="Edit details" data-testid={`edit-user-${u.id}`}>
- <Edit2 size={12} />
+ <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-zinc-400 hover:text-blue-600" onClick={() => setEditingUser({ ...u })} title="Edit details" data-testid={`edit-user-${u.id}`}>
+ <Edit2 size={13} />
  </Button>
  {onResetPassword && (
- <Button size="sm" variant="ghost" className="h-6 text-[11px] text-zinc-500 hover:text-zinc-800" onClick={() => onResetPassword(u.id)} data-testid={`reset-pw-${u.id}`}>Reset PW</Button>
+ <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] text-zinc-500 hover:text-zinc-800" onClick={() => onResetPassword(u.id)} data-testid={`reset-pw-${u.id}`}>Reset PW</Button>
  )}
  {onDisableUser && (
- <Button size="sm" variant="ghost" className={`h-6 text-[11px] ${u.disabled ? 'text-emerald-600' : 'text-red-500'}`} onClick={() => onDisableUser(u.id, !u.disabled)}>
+ <Button size="sm" variant="ghost" className={`h-7 px-2 text-[11px] ${u.disabled ? 'text-emerald-600' : 'text-red-500'}`} onClick={() => onDisableUser(u.id, !u.disabled)}>
  {u.disabled ? 'Enable' : 'Disable'}
  </Button>
  )}
  {onArchiveUser && (
- <Button size="sm" variant="ghost" className={`h-6 text-[11px] ${u.archived ? 'text-blue-500' : 'text-amber-600'}`} onClick={() => onArchiveUser(u.id, !u.archived)} title={u.archived ? 'Unarchive' : 'Archive'}>
+ <Button size="sm" variant="ghost" className={`h-7 px-2 text-[11px] ${u.archived ? 'text-blue-500' : 'text-amber-600'}`} onClick={() => onArchiveUser(u.id, !u.archived)} title={u.archived ? 'Unarchive' : 'Archive'}>
  <Archive size={11} className="mr-0.5" /> {u.archived ? 'Unarchive' : 'Archive'}
  </Button>
  )}
  {onHardDeleteUser && u.archived && !u.is_master_admin && (u.email || '').toLowerCase() !== 'admin@gymaxisai.com' && (
  <Button
  size="sm" variant="ghost"
- className="h-6 text-[11px] text-red-600 hover:bg-red-50"
+ className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50"
  onClick={() => setHardDeleteTarget(u)}
  title="Delete permanently"
  data-testid={`hard-delete-user-${u.id}`}

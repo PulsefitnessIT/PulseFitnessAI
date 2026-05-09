@@ -1,3 +1,36 @@
+## Iteration 216bi — Mobile fix: Master Admin org-users panel now shows names + emails (Feb 2026)
+
+**Reported by**: Lee on production (gymaxisai.com/master-admin) — viewing **Pulse Fitness Limited → Users** on a mobile browser, the user rows showed only the role pill + actions ("Reset PW · Disable · Archive") with the name and email completely hidden off-screen.
+
+### Root cause
+`/app/frontend/src/pages/MasterAdmin/AdminOrganizations.js` line 947 used a single-line `flex items-center justify-between` row. On a 414px viewport, the right-side actions block (24-px-wide role select + edit icon + Reset PW + Disable + Archive + optional Delete + badges) is wider than the available space, so the actions cluster claims all the width and the avatar+name+email wrapper at `min-w-0` collapses to zero width — making the user identity invisible.
+
+### Fix
+Switched the row to a responsive layout:
+- `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3`
+- Actions cluster gets `flex-wrap sm:flex-nowrap` so on mobile it wraps onto multiple lines below the user info instead of crushing it.
+- Bumped padding (`p-2.5 → p-3`) and slightly larger button heights (`h-6 → h-7`) for fat-finger ergonomics on touch.
+- Avatar bumped from `w-7 h-7 → w-8 h-8` for legibility.
+- Email colour from `text-zinc-400 → text-zinc-500` (better mobile contrast under bright sunlight).
+- Added `data-testid="org-user-name-${id}"` and `org-user-email-${id}` for future automated mobile-breakpoint testing.
+
+### Behaviour
+| Viewport | Layout |
+|---|---|
+| `<640px` (mobile) | Avatar + name + email on top row (full width), action buttons wrap on second row |
+| `≥640px` (sm+) | Single row, identity left + actions right — identical to pre-fix appearance |
+
+### Verification
+- Lint clean.
+- Webpack compiled cleanly (only pre-existing react-hooks/exhaustive-deps warnings).
+- No data flow changes; pure CSS class refactor.
+
+### ⚠️ Action required
+This fix lives in **preview** only. **Redeploy** to push to gymaxisai.com so the Master Admin user list is mobile-usable.
+
+---
+
+
 ## Iteration 216bh — formatApiError hardening: stop masking JS bugs as network errors (Feb 2026)
 
 **Goal**: kill the entire class of bugs where a client-side `ReferenceError` or `TypeError` (e.g. an undefined variable in a template literal — exactly the iter 216bg bug) is reported to operators as *"Network unreachable — check your connection and retry"*, sending them on a wifi-troubleshooting wild-goose chase.
