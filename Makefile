@@ -37,6 +37,7 @@ smoke:
 regression:
 	@cd /app/backend && python3 -m pytest \
 	  tests/test_iter_216c_branding_org_sync.py \
+	  tests/test_iter_216d_multi_machine_fault_job.py \
 	  tests/test_iter_216bl_site_lock.py \
 	  tests/test_iter_216af_brand_inheritance.py \
 	  -q --tb=line --no-header

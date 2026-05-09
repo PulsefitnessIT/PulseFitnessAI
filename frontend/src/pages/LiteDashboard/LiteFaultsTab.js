@@ -3,12 +3,13 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, AlertTriangle, Calendar, ExternalLink } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import { useAuth } from '@/App';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
+import { groupIssuesByJob } from './groupIssuesByJob';
 
 const STATUS_BORDER_COLOR = {
   open: 'var(--color-danger)',           // Red
@@ -24,8 +25,85 @@ const LiteFaultsTab = ({
   getSeverityStyle, getSeverityLabel, getStatusColor
 }) => {
   const [faultView, setFaultView] = useState('reactive');
+  // Iter 216d — multi-machine fault jobs collapse into a single
+  // expandable parent row by default; the user clicks to fan out.
+  const [expandedJobs, setExpandedJobs] = useState({});
+  const toggleJob = (jobId) =>
+    setExpandedJobs(prev => ({ ...prev, [jobId]: !prev[jobId] }));
   const { user } = useAuth();
   const ppmEnabled = user?.features?.ppm_engine !== false;
+
+  // Reusable single-issue card body (also rendered as children of an
+  // expanded job group). Extracted as a thunk so the JSX below stays
+  // readable without yet another component file.
+  const renderIssueCard = (issue, opts = {}) => (
+    <Card key={issue.id} className="overflow-hidden" style={{ background: 'var(--theme-surface, var(--color-surface-dark-alt))', borderLeft: `4px solid ${STATUS_BORDER_COLOR[issue.status] || 'var(--color-text-faint-alt)'}`, borderColor: STATUS_BORDER_COLOR[issue.status] || 'var(--theme-border, rgba(255,255,255,0.1))' }} data-testid={`issue-card-${issue.id}`}>
+      <div className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => onSelectIssue(selectedIssue?.id === issue.id ? null : issue)}>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center flex-wrap gap-2 mb-2">
+              <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`}>{issue.serial_number}</h3>
+              <Badge className={getSeverityStyle(issue.severity)} data-testid={`issue-severity-${issue.id}`}>{getSeverityLabel(issue.severity)}</Badge>
+              <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{issue.status === 'in_progress' ? 'In Progress' : issue.status?.charAt(0).toUpperCase() + issue.status?.slice(1)}</Badge>
+            </div>
+            <p className="text-[var(--color-text-muted)] text-sm">{issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''} | {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : ''}</p>
+            <p className="text-white text-sm mt-1">{issue.issue_description?.substring(0, 100)}{issue.issue_description?.length > 100 ? '...' : ''}</p>
+            {issue.sicon_case_id && (
+              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]" data-testid={`job-card-summary-${issue.id}`}>
+                <span className="inline-flex items-center gap-1 text-[var(--color-brand-blue)]">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                  <span className="font-semibold">Job Card</span>
+                  <span className="font-mono text-[var(--color-text-muted)]">{issue.sicon_case_number || `#${issue.sicon_case_id}`}</span>
+                </span>
+                {issue.sicon_assigned_to && <span className="text-[var(--color-text-muted)]">· <span className="text-white">{issue.sicon_assigned_to}</span></span>}
+                {(() => {
+                  const next = (issue.sicon_appointments || []).find(a => !a.appointment_complete) || (issue.sicon_appointments || []).slice(-1)[0];
+                  return next?.scheduled_start ? (
+                    <span className="text-[var(--color-text-muted)]">· <span className="text-white">{new Date(next.scheduled_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} {new Date(next.scheduled_start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></span>
+                  ) : null;
+                })()}
+                {issue.sicon_status && <Badge className="bg-[rgb(var(--rgb-brand-blue)/0.15)] text-[var(--color-brand-blue)] text-[9px] border border-[rgb(var(--rgb-brand-blue)/0.3)] px-1.5 py-0">{issue.sicon_status}</Badge>}
+              </div>
+            )}
+            {issue.supplier_case?.scheduled_date && !issue.sicon_case_id && (
+              <div className="flex items-center gap-2 mt-2">
+                <Badge className="bg-purple-500/20 text-purple-400 text-[10px]">
+                  Engineer: {new Date(issue.supplier_case.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                </Badge>
+              </div>
+            )}
+            {issue.supplier_case?.token && (
+              <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}`, '_blank', 'noopener')}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-brand-cyan-hover)] hover:text-white hover:underline transition-colors"
+                  data-testid={`supplier-card-link-${issue.id}`}
+                  title="See exactly what the supplier sees for this job"
+                >
+                  <ExternalLink size={11} /> View supplier card
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+            {issue.status === 'open' && (
+              <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'in_progress')} className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs" data-testid={`issue-progress-btn-${issue.id}`}>In Progress</Button>
+            )}
+            {issue.status === 'in_progress' && (
+              <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'resolved')} className="bg-green-500 hover:bg-green-600 text-white text-xs" data-testid={`issue-resolve-btn-${issue.id}`}>Resolved</Button>
+            )}
+            {issue.status === 'resolved' && (
+              <Badge className="bg-green-500/20 text-green-400 text-xs">Closed</Badge>
+            )}
+          </div>
+        </div>
+      </div>
+      {selectedIssue?.id === issue.id && (
+        <IssueDetailPanel issue={issue} onUpdate={onUpdateIssueStatus} suppliers={suppliers} />
+      )}
+    </Card>
+  );
 
   return (
     <div className="space-y-4">
@@ -88,88 +166,77 @@ const LiteFaultsTab = ({
         </Select>
       </div>
 
-      {/* Fault List */}
+      {/* Fault List — iter 216d: grouped by job_id with expandable parent rows. */}
       <div className="grid grid-cols-1 gap-4">
-        {filteredIssues.map(issue => (
-          <Card key={issue.id} className="overflow-hidden" style={{ background: 'var(--theme-surface, var(--color-surface-dark-alt))', borderLeft: `4px solid ${STATUS_BORDER_COLOR[issue.status] || 'var(--color-text-faint-alt)'}`, borderColor: STATUS_BORDER_COLOR[issue.status] || 'var(--theme-border, rgba(255,255,255,0.1))' }} data-testid={`issue-card-${issue.id}`}>
-            <div className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => onSelectIssue(selectedIssue?.id === issue.id ? null : issue)}>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center flex-wrap gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-white">{issue.serial_number}</h3>
-                    <Badge className={getSeverityStyle(issue.severity)} data-testid={`issue-severity-${issue.id}`}>{getSeverityLabel(issue.severity)}</Badge>
-                    <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{issue.status === 'in_progress' ? 'In Progress' : issue.status?.charAt(0).toUpperCase() + issue.status?.slice(1)}</Badge>
-                  </div>
-                  <p className="text-[var(--color-text-muted)] text-sm">{issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''} | {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : ''}</p>
-                  <p className="text-white text-sm mt-1">{issue.issue_description?.substring(0, 100)}{issue.issue_description?.length > 100 ? '...' : ''}</p>
-                  {/* Job Card summary — shown when Sicon-backed */}
-                  {issue.sicon_case_id && (
-                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]"
-                         data-testid={`job-card-summary-${issue.id}`}>
-                      <span className="inline-flex items-center gap-1 text-[var(--color-brand-blue)]">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-                        <span className="font-semibold">Job Card</span>
-                        <span className="font-mono text-[var(--color-text-muted)]">{issue.sicon_case_number || `#${issue.sicon_case_id}`}</span>
-                      </span>
-                      {issue.sicon_assigned_to && (
-                        <span className="text-[var(--color-text-muted)]">· <span className="text-white">{issue.sicon_assigned_to}</span></span>
-                      )}
-                      {(() => {
-                        const next = (issue.sicon_appointments || []).find(a => !a.appointment_complete) || (issue.sicon_appointments || []).slice(-1)[0];
-                        return next?.scheduled_start ? (
-                          <span className="text-[var(--color-text-muted)]">· <span className="text-white">{new Date(next.scheduled_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} {new Date(next.scheduled_start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></span>
-                        ) : null;
-                      })()}
-                      {issue.sicon_status && (
-                        <Badge className="bg-[rgb(var(--rgb-brand-blue)/0.15)] text-[var(--color-brand-blue)] text-[9px] border border-[rgb(var(--rgb-brand-blue)/0.3)] px-1.5 py-0">{issue.sicon_status}</Badge>
-                      )}
-                    </div>
-                  )}
-                  {/* Supplier case quick info (hidden when Job Card present) */}
-                  {issue.supplier_case?.scheduled_date && !issue.sicon_case_id && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge className="bg-purple-500/20 text-purple-400 text-[10px]">
-                        Engineer: {new Date(issue.supplier_case.scheduled_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+        {groupIssuesByJob(filteredIssues).map(row => {
+          if (row.type === 'single') return renderIssueCard(row.issue);
+          // Job parent row — collapsible. Shows aggregate progress; the
+          // user expands to operate on individual machines (each child
+          // keeps its own SLA + Resolve button).
+          const jobId = row.job_id;
+          const open = !!expandedJobs[jobId];
+          const parent = row.primary;
+          return (
+            <Card
+              key={`job-${jobId}`}
+              className="overflow-hidden"
+              style={{
+                background: 'var(--theme-surface, var(--color-surface-dark-alt))',
+                borderLeft: `4px solid ${row.all_resolved ? 'var(--color-success-alt-2)' : 'var(--color-brand-blue)'}`,
+                borderColor: 'var(--theme-border, rgba(255,255,255,0.1))',
+              }}
+              data-testid={`job-card-${jobId}`}
+            >
+              <button
+                type="button"
+                onClick={() => toggleJob(jobId)}
+                className="w-full text-left p-5 hover:bg-white/[0.02] transition-colors"
+                data-testid={`job-toggle-${jobId}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center flex-wrap gap-2 mb-1">
+                      {open
+                        ? <ChevronDown size={16} className="text-[var(--color-brand-cyan-hover)] shrink-0" />
+                        : <ChevronRight size={16} className="text-[var(--color-brand-cyan-hover)] shrink-0" />}
+                      <Layers size={14} className="text-[var(--color-brand-cyan-hover)] shrink-0" />
+                      <h3 className="text-base font-semibold text-white">
+                        Multi-machine fault job
+                      </h3>
+                      <Badge
+                        className={
+                          row.all_resolved
+                            ? 'bg-green-500/20 text-green-400 text-xs'
+                            : 'bg-[rgb(var(--rgb-brand-blue)/0.15)] text-[var(--color-brand-blue)] text-xs border border-[rgb(var(--rgb-brand-blue)/0.3)]'
+                        }
+                        data-testid={`job-progress-${jobId}`}
+                      >
+                        {row.all_resolved
+                          ? <><CheckCircle size={11} className="inline mr-1" /> All {row.issues.length} fixed</>
+                          : `${row.resolved_count} of ${row.issues.length} fixed`}
                       </Badge>
                     </div>
-                  )}
-                  {issue.supplier_case?.token && (
-                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}`, '_blank', 'noopener')}
-                        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-brand-cyan-hover)] hover:text-white hover:underline transition-colors"
-                        data-testid={`supplier-card-link-${issue.id}`}
-                        title="See exactly what the supplier sees for this job"
-                      >
-                        <ExternalLink size={11} /> View supplier card
-                      </button>
-                    </div>
-                  )}
+                    <p className="text-[var(--color-text-muted)] text-xs">
+                      {parent.machine_type}{parent.supplier ? ` · ${parent.supplier}` : ''}
+                      {parent.created_at ? ` · Logged ${new Date(parent.created_at).toLocaleDateString()}` : ''}
+                    </p>
+                    <p className="text-white text-sm mt-1 truncate">
+                      {parent.issue_description?.substring(0, 100)}{parent.issue_description?.length > 100 ? '…' : ''}
+                    </p>
+                    <p className="text-[var(--color-text-muted)] text-xs mt-1">
+                      Job ID <span className="font-mono">{jobId.slice(0, 8)}</span> · click to {open ? 'collapse' : 'expand'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
-                  {issue.status === 'open' && (
-                    <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'in_progress')} className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs" data-testid={`issue-progress-btn-${issue.id}`}>
-                      In Progress
-                    </Button>
-                  )}
-                  {issue.status === 'in_progress' && (
-                    <Button size="sm" onClick={() => onUpdateIssueStatus(issue.id, 'resolved')} className="bg-green-500 hover:bg-green-600 text-white text-xs" data-testid={`issue-resolve-btn-${issue.id}`}>
-                      Resolved
-                    </Button>
-                  )}
-                  {issue.status === 'resolved' && (
-                    <Badge className="bg-green-500/20 text-green-400 text-xs">Closed</Badge>
-                  )}
+              </button>
+              {open && (
+                <div className="border-t border-[var(--theme-border,rgba(255,255,255,0.1))] bg-black/20 p-3 space-y-3" data-testid={`job-children-${jobId}`}>
+                  {row.issues.map(child => renderIssueCard(child, { nested: true }))}
                 </div>
-              </div>
-            </div>
-            {/* Full Detail Panel — same as GymAxis dashboard */}
-            {selectedIssue?.id === issue.id && (
-              <IssueDetailPanel issue={issue} onUpdate={onUpdateIssueStatus} suppliers={suppliers} />
-            )}
-          </Card>
-        ))}
+              )}
+            </Card>
+          );
+        })}
         {filteredIssues.length === 0 && (() => {
           const filtersActive = (faultFilterStatus && faultFilterStatus !== 'all') || (faultFilterSeverity && faultFilterSeverity !== 'all');
           return filtersActive ? (

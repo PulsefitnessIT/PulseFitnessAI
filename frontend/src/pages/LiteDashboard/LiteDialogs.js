@@ -402,6 +402,10 @@ const LiteDialogs = ({
   duplicateModal, onDuplicateCancel, onDuplicateContinue,
   // Success Modal
   successModal, onSuccessDismiss,
+  // Iter 216d — multi-machine staging
+  stagedMachines = [],
+  onAddMachineToJob,
+  onRemoveStagedMachine,
   // Pro features
   isPro, headers
 }) => {
@@ -488,6 +492,40 @@ const LiteDialogs = ({
           </DialogHeader>
           <div className="space-y-5 pt-2">
             {faultBanner}
+            {/* Iter 216d — staged-machines bar (multi-machine job).
+                Each chip = one machine already added to this job. The
+                user can drop a chip if they staged it by mistake. */}
+            {stagedMachines.length > 0 && (
+              <div className="rounded-lg border border-blue-500/30 bg-[rgb(var(--rgb-brand-blue)/0.08)] p-3" data-testid="lite-staged-machines">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-[var(--color-brand-cyan-hover)] uppercase tracking-wide">
+                    Job: {stagedMachines.length} machine{stagedMachines.length === 1 ? '' : 's'} staged
+                  </p>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
+                    Add this one to submit them all together
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {stagedMachines.map((m, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-[var(--theme-surface)] px-2 py-1 text-xs text-[var(--theme-text)]"
+                      data-testid={`lite-staged-chip-${i}`}
+                    >
+                      <span className="font-medium">{m.machine_type || 'Machine'}</span>
+                      <span className="text-[var(--color-text-muted)]">· {m.serial_number}</span>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveStagedMachine && onRemoveStagedMachine(i)}
+                        className="ml-1 text-[var(--color-text-muted)] hover:text-red-400"
+                        aria-label="Remove from job"
+                        data-testid={`lite-staged-remove-${i}`}
+                      ><X size={11} /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <FaultTemplatePicker
               API={API}
               onApply={(vals) => setFaultForm(prev => ({ ...prev, ...vals }))}
@@ -612,25 +650,71 @@ const LiteDialogs = ({
                   <Button variant="ghost" onClick={() => setShowFixMethod(false)} className="w-full text-[var(--color-text-muted)] text-xs">Back</Button>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <Button onClick={() => setShowFixMethod(true)} disabled={submitting} variant="outline" className="flex-1 h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium" data-testid="lite-fault-self-fix">
-                    <Check size={18} className="mr-2" /> I Fixed It
-                  </Button>
-                  <Button onClick={handleConfirmAfterTriage} disabled={submitting} className="flex-1 h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium" data-testid="lite-fault-confirm-submit">
-                    {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <CheckCircle size={18} className="mr-2" />}
-                    Log Fault Report
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button onClick={() => setShowFixMethod(true)} disabled={submitting} variant="outline" className="flex-1 h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium" data-testid="lite-fault-self-fix">
+                      <Check size={18} className="mr-2" /> I Fixed It
+                    </Button>
+                    <Button onClick={handleConfirmAfterTriage} disabled={submitting} className="flex-1 h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium" data-testid="lite-fault-confirm-submit">
+                      {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <CheckCircle size={18} className="mr-2" />}
+                      {stagedMachines.length > 0
+                        ? `Submit job (${stagedMachines.length + 1} machines)`
+                        : 'Log Fault Report'}
+                    </Button>
+                  </div>
+                  {/* Iter 216d — Add another machine to the same job (multi-machine flow). */}
+                  {onAddMachineToJob && (
+                    <Button
+                      variant="outline"
+                      onClick={() => { setTriageResult(null); onAddMachineToJob(); }}
+                      disabled={submitting}
+                      className="w-full h-10 border-[var(--theme-border)] text-[var(--color-brand-cyan-hover)] bg-transparent hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] text-sm font-medium"
+                      data-testid="lite-fault-add-another-machine"
+                    >
+                      + Add another machine to this job
+                    </Button>
+                  )}
                 </div>
               )
             ) : isPro ? (
-              <Button onClick={handleTriage} disabled={triaging || submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
-                {triaging ? <><Loader2 className="animate-spin mr-2" size={18} /> AI Analysing...</> : <><Sparkles size={18} className="mr-2" /> Get AI Triage & Submit</>}
-              </Button>
+              <div className="space-y-2">
+                <Button onClick={handleTriage} disabled={triaging || submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
+                  {triaging ? <><Loader2 className="animate-spin mr-2" size={18} /> AI Analysing...</> : <><Sparkles size={18} className="mr-2" /> Get AI Triage & Submit</>}
+                </Button>
+                {/* Iter 216d — non-Pro users without triage can still queue
+                    multiple machines: add this one and pick the next. */}
+                {onAddMachineToJob && faultForm.serial_number && faultForm.issue_description && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onAddMachineToJob()}
+                    disabled={submitting}
+                    className="w-full h-10 border-[var(--theme-border)] text-[var(--color-brand-cyan-hover)] bg-transparent hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] text-sm font-medium"
+                    data-testid="lite-fault-add-another-machine-pretriage"
+                  >
+                    + Add another machine to this job
+                  </Button>
+                )}
+              </div>
             ) : (
-              <Button onClick={onFaultSubmit} disabled={submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
-                {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <AlertTriangle size={18} className="mr-2" />}
-                Submit Fault Report
-              </Button>
+              <div className="space-y-2">
+                <Button onClick={onFaultSubmit} disabled={submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
+                  {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <AlertTriangle size={18} className="mr-2" />}
+                  {stagedMachines.length > 0
+                    ? `Submit job (${stagedMachines.length + 1} machines)`
+                    : 'Submit Fault Report'}
+                </Button>
+                {onAddMachineToJob && faultForm.serial_number && faultForm.issue_description && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onAddMachineToJob()}
+                    disabled={submitting}
+                    className="w-full h-10 border-[var(--theme-border)] text-[var(--color-brand-cyan-hover)] bg-transparent hover:bg-[rgb(var(--rgb-brand-cyan-hover)/0.05)] text-sm font-medium"
+                    data-testid="lite-fault-add-another-machine-basic"
+                  >
+                    + Add another machine to this job
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </DialogContent>
@@ -663,8 +747,12 @@ const LiteDialogs = ({
             <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
               <CheckCircle size={24} className="text-emerald-400" />
             </div>
-            <h3 className="text-lg font-semibold text-[var(--theme-text)] mb-2">Fault Logged Successfully</h3>
-            <p className="text-sm text-[var(--color-text-muted)] mb-2">Your fault report has been submitted and assigned reference:</p>
+            <h3 className="text-lg font-semibold text-[var(--theme-text)] mb-2">{successModal.count > 1 ? 'Job Logged Successfully' : 'Fault Logged Successfully'}</h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-2">
+              {successModal.count > 1
+                ? `Your fault job covering ${successModal.count} machines has been submitted and assigned reference:`
+                : 'Your fault report has been submitted and assigned reference:'}
+            </p>
             <p className="text-xl font-bold text-[var(--color-brand-cyan-hover)] mb-6" data-testid="fault-ref-number">{successModal.ref}</p>
             <button className="w-full h-11 rounded-md bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white text-sm font-medium" onClick={onSuccessDismiss} data-testid="fault-success-ok-btn">OK</button>
           </div>

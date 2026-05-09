@@ -89,6 +89,26 @@ class IssueCreate(BaseModel):
     selected_fix_title: Optional[str] = None
     fix_method: Optional[str] = None
     fault_code: Optional[str] = None
+    # Iter 216d — optional `job_id` lets the operator log multiple
+    # machines in one workflow; each machine becomes its own issue
+    # (so SLA + reports stay per-machine) but they share a `job_id`
+    # for grouped display in the fault list and a single bundled
+    # supplier email. Defaults to None for legacy single-machine logs.
+    job_id: Optional[str] = None
+
+
+class IssueBatchCreate(BaseModel):
+    """Iter 216d — log a single fault job covering multiple machines.
+
+    The `job_id` (server-generated if omitted) is stamped on every issue
+    document in `machines`, letting the fault list group them under one
+    expandable parent row and the supplier-email flow bundle all
+    machines into a single message. Each machine still becomes its own
+    `db.issues` row so per-machine SLA, status, and reporting all stay
+    untouched — just the *intake* fans out to N rows in one call.
+    """
+    machines: List[IssueCreate]
+    job_id: Optional[str] = None
 
 
 class IssueResponse(BaseModel):

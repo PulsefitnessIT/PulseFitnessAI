@@ -1,3 +1,49 @@
+## Iteration 216d — Multi-machine fault job (job_id grouping) (Feb 9, 2026)
+
+**Problem (Lee, prod feedback):**
+> "Pulse Fitness and GymAxis — Log a fault, we need to be able to log multiple machines on 1 job. We need to design this carefully so that each machine if 1 machine is fixed but another is still broken then the SLA needs to be associated with the machine and not the job. We need to ensure that the reports are also associated with the machine if multiple machines are fixed and others are not. We did have log multiple machines in an early iteration but it's got lost somehow."
+
+**Architectural call**: keep one issue document per machine (so per-machine SLA, status, reports, and supplier dispatch all stay correct without changes) and add an optional `job_id` field that groups siblings. Logging is a single workflow → many issue docs. Reports & SLA = unchanged. Display & supplier-email bundling = grouped by `job_id`.
+
+### What shipped
+
+**Backend (`/app/backend`)**
+- `models/schemas.py` — added optional `job_id` to `IssueCreate`; introduced `IssueBatchCreate`.
+- `routes/issues.py`:
+  - `_build_issue_doc` now stamps `job_id` on every issue (defaults to `None`).
+  - `POST /api/issues/batch` — atomic multi-machine intake. Server generates a `job_id` if the client didn't supply one; every machine in `payload.machines` becomes its own `db.issues` document with the same `job_id`.
+  - `GET /api/issues/jobs/{job_id}` — returns sibling issues with aggregate progress (`total`, `resolved`, `all_resolved`). Honours org isolation + `apply_site_lock`.
+  - New helper `_mirror_job_to_svc_case` — when at least one sibling is escalated to engineer, creates ONE svc_case for the whole job (with all `equipment_ids` + `equipment_serials` rolled up + a description listing each machine's issue) instead of N near-identical cases. Idempotent on `job_id`. **Result: suppliers receive one email covering every machine on the job, not a flood of N messages.**
+- Single-issue path (`POST /api/issues`) unchanged → returns `job_id=null` for legacy back-compat.
+
+**Frontend (`/app/frontend/src`)**
+- **Lite/Pulse dashboard (`pages/LiteDashboard/`)**: ported the multi-machine workflow from the GymAxis side (was missing — root cause of "we lost it"). Operator can stage machines via "+ Add another machine to this job", each gets per-machine AI triage + resolution choice (per Lee's request: "Force user to triage each machine individually"), final submit POSTs to `/api/issues/batch`.
+- **GymAxis dashboard (`pages/Dashboard/hooks/useIssueWorkflow.js`)**: now lazy-generates a `job_id` when `faultMachines.length > 1` and stamps every per-machine `POST /api/issues` with it. Resets on dialog close.
+- **Fault list grouping (both portals)**:
+  - New helper `pages/LiteDashboard/groupIssuesByJob.js`.
+  - `LiteDashboard/LiteFaultsTab.js` and `Dashboard/FaultsTab.js` now render a collapsible parent row for any `job_id` group. Header shows `Multi-machine fault job · 3 of 5 fixed · Job ID abc12345`. Children are the existing per-machine cards (identical visual, just nested) — each keeps its own SLA badge, Resolve button, and supplier-card link.
+  - Singleton issues + back-compat issues with `job_id=null` render exactly as before.
+
+**Regression test (`tests/test_iter_216d_multi_machine_fault_job.py`)** — 4 cases:
+1. `test_batch_creates_n_issues_with_shared_job_id` — POST batch + GET jobs round-trip.
+2. `test_single_issue_post_still_works_with_null_job_id` — legacy back-compat.
+3. `test_partial_resolution_preserves_other_siblings` — resolving one sibling does NOT auto-close the others. **Pins the SLA-per-machine contract Lee specifically called out.**
+4. `test_batch_rejects_empty_machines_list` — input validation.
+
+Wired into `make regression` + `make pre-deploy`. Total iter-216 regression suite is now **32 passed, 1 skipped** in ~6s.
+
+### Verified
+- All 4 new multi-machine tests pass.
+- `make pre-deploy` (with `SKIP_LIVE_CHECK=1`) → ✅ all 8 gate steps pass.
+- Bob's dashboard header now correctly displays "Strong Fitness" (iter-216c sync confirmed in production-equivalent preview).
+- Frontend webpack: compiled clean, no new warnings, all touched files lint clean.
+
+### Why this design (not "one job document with embedded machines")?
+A single "job" parent document would have meant rewriting SLA computation, reports, the engineer-dispatch flow, the timeline, the audit log, and three dashboards. Lee was explicit that **SLA + reports must stay per-machine** — that's already true if every machine is its own issue doc. The minimum design that delivers the user-visible feature is: keep the per-machine doc, add a grouping pointer (`job_id`), bundle the supplier email at intake time. No SLA/reports code path changed.
+
+---
+
+
 ## Iteration 216c — Production fixes from Lee's mobile review (Feb 9, 2026)
 
 **Context**: Three issues filed from production with screenshots — mobile hamburger drawer transparent, gym name showing wrong value in dashboard header, "Your first wins" panel placement.

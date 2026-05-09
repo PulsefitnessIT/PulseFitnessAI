@@ -7,7 +7,7 @@ import logging
 
 from utils.database import db, EMERGENT_LLM_KEY, RESEND_API_KEY, SENDER_EMAIL, APP_NAME, put_object
 from utils.auth import get_current_user, get_organization_filter, apply_site_lock
-from models.schemas import IssueCreate, ServiceRequest
+from models.schemas import IssueCreate, IssueBatchCreate, ServiceRequest
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 from routes.issue_helpers import (
@@ -86,6 +86,10 @@ def _build_issue_doc(issue: IssueCreate, user: dict) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     return {
         "id": str(uuid.uuid4()),
+        # Iter 216d — job_id groups sibling issues logged together. Falls
+        # back to None for legacy single-machine flows so old clients keep
+        # working unchanged.
+        "job_id": getattr(issue, "job_id", None),
         "user_id": user['id'],
         "organization_id": user.get('organization_id'),
         "created_by_name": user.get('full_name'),
@@ -230,6 +234,123 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
         logger.warning(f"_mirror_issue_to_svc_case failed: {e}")
 
 
+async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dict) -> None:
+    """Iter 216d — bundle a multi-machine fault job into ONE svc_case.
+
+    Used by the batch-issues endpoint. If at least one sibling is
+    escalated to engineer, we create a SINGLE svc_case row stamped with
+    the job_id and listing every machine's id + serial — so the
+    supplier receives one email covering all machines, not N near-
+    identical messages.
+
+    Idempotent: if a case already exists for this job_id, do nothing
+    (replay-safe).
+    """
+    try:
+        engineer_docs = [d for d in issue_docs if (d.get("resolution_type") or "") == "engineer"]
+        if not engineer_docs:
+            return
+
+        existing = await db.svc_cases.find_one(
+            {"organization_id": user.get("organization_id"), "source_meta.job_id": job_id},
+            {"_id": 0, "id": 1},
+        )
+        if existing:
+            return
+
+        # Resolve site context from the FIRST engineer-escalated machine.
+        # All siblings are typically at the same site for a single fault
+        # job, but if not, the svc_case still ships and the case detail
+        # page lists every equipment_id so the engineer can route.
+        first = engineer_docs[0]
+        site_id = ""
+        site_name = ""
+        site_postcode = ""
+        try:
+            equip = await db.equipment.find_one(
+                {"organization_id": first.get("organization_id"),
+                 "$or": [{"serial_number": first.get("serial_number")},
+                         {"name": first.get("serial_number")}]},
+                {"_id": 0, "site_id": 1},
+            )
+            if equip and equip.get("site_id"):
+                site_id = equip["site_id"]
+                site = await db.sites.find_one(
+                    {"id": site_id}, {"_id": 0, "name": 1, "postcode": 1},
+                )
+                if site:
+                    site_name = site.get("name") or ""
+                    site_postcode = site.get("postcode") or ""
+        except Exception:
+            pass
+
+        # Collect every equipment id + serial that's part of the job.
+        equipment_ids: list[str] = []
+        equipment_serials: list[str] = []
+        for doc in engineer_docs:
+            sn = (doc.get("serial_number") or "").strip()
+            if sn and sn not in equipment_serials:
+                equipment_serials.append(sn)
+            try:
+                eq = await db.equipment.find_one(
+                    {"organization_id": doc.get("organization_id"),
+                     "$or": [{"serial_number": sn}, {"name": sn}]},
+                    {"_id": 0, "id": 1},
+                )
+                if eq and eq.get("id") and eq["id"] not in equipment_ids:
+                    equipment_ids.append(eq["id"])
+            except Exception:
+                pass
+
+        # Description rolls up every machine's individual issue note so
+        # the supplier sees a clear "what's wrong with each one" list.
+        lines = [f"Fault job covering {len(engineer_docs)} machine(s):", ""]
+        for d in engineer_docs:
+            lines.append(
+                f"  • {d.get('machine_type', '?')} — SN {d.get('serial_number', '?')}: "
+                f"{d.get('issue_description', '(no description)')}"
+            )
+        rolled_up = "\n".join(lines)
+
+        # Take the most-severe priority across siblings — engineers
+        # need to triage to the worst machine on the job.
+        priorities = [_severity_to_priority(d.get("severity")) for d in engineer_docs]
+        # p1 < p2 < p3 < p4 alphabetically — `min` works.
+        priority = min(priorities) if priorities else "p4"
+
+        from routes.svc.intake import _create_case as _svc_create_case
+        payload = {
+            "title": (
+                f"{first.get('machine_type') or 'Operations Portal fault'}"
+                f"{' + ' + str(len(engineer_docs) - 1) + ' more' if len(engineer_docs) > 1 else ''}"
+            ),
+            "description": rolled_up,
+            "priority": priority,
+            "cover_type": "contract",
+            "site_id": site_id,
+            "site_name": site_name,
+            "site_postcode": site_postcode,
+            "asset_id": equipment_ids[0] if equipment_ids else "",
+            "asset_name": first.get("machine_type") or "",
+            "equipment_ids": equipment_ids,
+            "equipment_serials": equipment_serials,
+            "fault_code": first.get("fault_code") or "",
+            "customer_name": user.get("full_name") or "",
+            "customer_email": user.get("email") or "",
+            "customer_phone": user.get("phone") or "",
+            "source_meta": {
+                "job_id": job_id,
+                "issue_ids": [d["id"] for d in engineer_docs],
+                "channel": "operations_portal",
+                "severity": first.get("severity"),
+                "machine_count": len(engineer_docs),
+            },
+        }
+        await _svc_create_case(payload=payload, source="portal", user=user)
+    except Exception as e:
+        logger.warning(f"_mirror_job_to_svc_case failed: {e}")
+
+
 @router.post("/issues")
 async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
     issue_doc = _build_issue_doc(issue, user)
@@ -243,6 +364,80 @@ async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user
     await _mirror_issue_to_svc_case(issue_doc, user)
 
     return issue_doc
+
+
+@router.post("/issues/batch")
+async def create_issues_batch(
+    payload: IssueBatchCreate,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216d — log multiple machines under one fault job.
+
+    Each entry in `payload.machines` becomes its own `db.issues` row so
+    SLA, status transitions, and reports stay per-machine. The shared
+    `job_id` (server-generated if omitted) glues them together for the
+    grouped fault-list view and the bundled supplier-email path.
+
+    The svc_case mirror is invoked ONCE for the whole job (with all
+    sibling machines attached) instead of N times — so Pulse Pro
+    suppliers receive a single message listing every machine on the
+    job rather than a flood of N near-identical emails.
+    """
+    if not payload.machines:
+        raise HTTPException(status_code=400, detail="machines must be a non-empty list")
+    if len(payload.machines) > 50:
+        raise HTTPException(status_code=400, detail="cannot log more than 50 machines per job")
+
+    job_id = (payload.job_id or "").strip() or str(uuid.uuid4())
+
+    created: list[dict] = []
+    for machine in payload.machines:
+        # Stamp every sibling with the shared job_id, regardless of what
+        # the client sent on the per-machine entry. This stops the
+        # frontend from accidentally splitting siblings across jobs.
+        machine.job_id = job_id
+        doc = _build_issue_doc(machine, user)
+        await db.issues.insert_one(doc)
+        doc.pop("_id", None)
+        await store_fix_history(machine, doc["id"], user)
+        await handle_engineer_escalation(machine, doc, user)
+        await _publish_issue_event(doc, user)
+        created.append(doc)
+
+    # Bundle the svc_case mirror — one case per job_id covering every
+    # machine. The svc_cases schema already supports `equipment_ids` /
+    # `equipment_serials` arrays so this is a natural fit.
+    await _mirror_job_to_svc_case(created, job_id, user)
+
+    return {"job_id": job_id, "issues": created, "count": len(created)}
+
+
+@router.get("/issues/jobs/{job_id}")
+async def get_issues_for_job(
+    job_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216d — return every sibling issue stamped with this job_id.
+
+    Used by the fault-list expandable parent row to show "3 of 5
+    machines fixed". Honours org isolation + site-lock so staff only
+    see siblings they're allowed to see.
+    """
+    org_filter = get_organization_filter(user)
+    org_filter = apply_site_lock(user, None, org_filter)
+    cursor = db.issues.find(
+        {**org_filter, "job_id": job_id},
+        {"_id": 0},
+    ).sort("created_at", 1)
+    siblings = await cursor.to_list(length=200)
+    fired = sum(1 for i in siblings if i.get("status") == "resolved")
+    return {
+        "job_id": job_id,
+        "issues": siblings,
+        "total": len(siblings),
+        "resolved": fired,
+        "all_resolved": len(siblings) > 0 and fired == len(siblings),
+    }
 
 
 def _parse_ai_triage(issue: dict):

@@ -119,6 +119,13 @@ const LiteDashboardPage = () => {
   const [showFaultDialog, setShowFaultDialog] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [faultForm, setFaultForm] = useState({ equipment_id: '', serial_number: '', machine_type: '', issue_description: '', severity: 'operational_minor', supplier: '', fault_code: null });
+  // Iter 216d — multi-machine fault logging. After the user runs AI
+  // triage + picks a resolution for one machine they can "Add to job +
+  // log another machine" — that pushes the current machine (with its
+  // resolution overrides) onto `stagedMachines`. Final submit batches
+  // every staged machine + the current one into POST /api/issues/batch
+  // so they all share one job_id but each gets its own SLA + report row.
+  const [stagedMachines, setStagedMachines] = useState([]);
   const [faultMedia, setFaultMedia] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [coverage, setCoverage] = useState(null);
@@ -222,6 +229,59 @@ const LiteDashboardPage = () => {
   const { banner: faultBanner, show: showFaultBanner, clear: clearFaultBanner } = useInlineBanner();
   const { banner: faultsTabBanner, show: showFaultsTabBanner } = useInlineBanner();
 
+  const _buildMachinePayload = (form, media, overrides = {}) => {
+    const base = {
+      serial_number: form.serial_number,
+      machine_type: form.machine_type,
+      issue_description: form.issue_description,
+      severity: form.severity,
+      supplier: form.supplier,
+      steps_taken: form.steps_taken || '',
+      fault_code: form.fault_code || null,
+      media,
+      ...overrides,
+    };
+    if (overrides.resolution_type === 'self_fix') base.status = 'resolved';
+    return base;
+  };
+
+  // Iter 216d — stage the current machine onto the multi-machine job
+  // and reset the form so the user can pick another machine. Triage
+  // happens per-machine in LiteDialogs (matching the GymAxis side).
+  const handleAddMachineToJob = (overrides = {}) => {
+    clearFaultBanner();
+    if (!faultForm.serial_number || !faultForm.issue_description) {
+      showFaultBanner({
+        tone: 'error',
+        title: 'Missing required details',
+        detail: !faultForm.serial_number
+          ? 'Pick the affected machine before adding it to the job.'
+          : 'Please describe what\'s wrong with this machine before adding it to the job.',
+      });
+      return;
+    }
+    setStagedMachines(prev => [
+      ...prev,
+      { ...faultForm, _media: faultMedia, _overrides: overrides },
+    ]);
+    setFaultForm({
+      equipment_id: '',
+      serial_number: '',
+      machine_type: '',
+      issue_description: '',
+      severity: faultForm.severity, // keep severity (likely the same job)
+      supplier: faultForm.supplier,
+      steps_taken: '',
+      fault_code: null,
+    });
+    setFaultMedia([]);
+    setCoverage(null);
+  };
+
+  const handleRemoveStagedMachine = (idx) => {
+    setStagedMachines(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleFaultSubmit = async (overrides = {}) => {
     clearFaultBanner();
     if (!faultForm.serial_number || !faultForm.issue_description) {
@@ -236,31 +296,36 @@ const LiteDashboardPage = () => {
     }
     setSubmitting(true);
     try {
-      const payload = {
-        serial_number: faultForm.serial_number,
-        machine_type: faultForm.machine_type,
-        issue_description: faultForm.issue_description,
-        severity: faultForm.severity,
-        supplier: faultForm.supplier,
-        steps_taken: faultForm.steps_taken || '',
-        fault_code: faultForm.fault_code || null,
-        media: faultMedia,
-        ...overrides,
-      };
-      if (overrides.resolution_type === 'self_fix') {
-        payload.status = 'resolved';
+      const isMultiMachine = stagedMachines.length > 0;
+
+      if (isMultiMachine) {
+        // Batch path — every staged machine + the current one becomes
+        // its own issue under one shared job_id. Server returns the
+        // job_id so we can show the user the grouped reference.
+        const machines = [
+          ...stagedMachines.map(s => _buildMachinePayload(s, s._media || [], s._overrides || {})),
+          _buildMachinePayload(faultForm, faultMedia, overrides),
+        ];
+        const res = await axios.post(`${API}/issues/batch`, { machines }, { headers });
+        const jobId = res.data?.job_id || '';
+        const refNumber = `JOB-${jobId.slice(0, 8).toUpperCase()}`;
+        setSuccessModal({ ref: refNumber, count: res.data?.count || machines.length });
+      } else {
+        // Single-machine fast path (unchanged from iter-216c).
+        const payload = _buildMachinePayload(faultForm, faultMedia, overrides);
+        const res = await axios.post(`${API}/issues`, payload, { headers });
+        const faultId = res.data?.id || res.data?.issue_id || 'N/A';
+        const refNumber = `FLT-${faultId.slice(0, 8).toUpperCase()}`;
+        setSuccessModal({ ref: refNumber });
       }
-      const res = await axios.post(`${API}/issues`, payload, { headers });
-      const faultId = res.data?.id || res.data?.issue_id || 'N/A';
-      const refNumber = `FLT-${faultId.slice(0, 8).toUpperCase()}`;
-      setSuccessModal({ ref: refNumber });
+
       setShowFaultDialog(false);
       setFaultForm({ equipment_id: '', serial_number: '', machine_type: '', issue_description: '', severity: 'operational_minor', supplier: '', steps_taken: '', fault_code: null });
       setFaultMedia([]);
+      setStagedMachines([]);
       setCoverage(null);
       loadData();
-      // Notify Setup Checklist + analytics listeners that a fault landed.
-      try { window.dispatchEvent(new CustomEvent('gymaxis:fault-logged', { detail: { id: faultId } })); } catch (_) {}
+      try { window.dispatchEvent(new CustomEvent('gymaxis:fault-logged', { detail: {} })); } catch (_) { /* no-op */ }
     } catch (err) {
       showFaultBanner({
         tone: 'error',
@@ -795,6 +860,9 @@ const LiteDashboardPage = () => {
         onMediaUpload={handleMediaUpload}
         onRemoveMedia={(i) => setFaultMedia(faultMedia.filter((_, j) => j !== i))}
         onFaultSubmit={handleFaultSubmit}
+        onAddMachineToJob={handleAddMachineToJob}
+        stagedMachines={stagedMachines}
+        onRemoveStagedMachine={handleRemoveStagedMachine}
         submitting={submitting}
         faultBanner={faultBanner}
         SEVERITY_OPTIONS={SEVERITY_OPTIONS}

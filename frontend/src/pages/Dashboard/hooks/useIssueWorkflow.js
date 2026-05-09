@@ -45,6 +45,13 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
   const [faultMachines, setFaultMachines] = useState([]);
   const [activeMachineIdx, setActiveMachineIdx] = useState(0);
   const [machineTriageResults, setMachineTriageResults] = useState([]);
+  // Iter 216d — when the user is logging multiple machines, generate
+  // ONE job_id at the start of the workflow and stamp every per-machine
+  // POST with it so the fault list groups them under one expandable
+  // parent and the supplier-email path bundles them into one message.
+  // Lazy-initialised the first time we submit a machine on a multi-
+  // machine workflow.
+  const [currentJobId, setCurrentJobId] = useState(null);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [issueMedia, setIssueMedia] = useState([]);
   const [showFaultSuccess, setShowFaultSuccess] = useState(false);
@@ -84,6 +91,7 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
     setFaultMachines([]);
     setActiveMachineIdx(0);
     setMachineTriageResults([]);
+    setCurrentJobId(null);
     setExistingFaultWarning(null);
   };
 
@@ -281,6 +289,18 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
         ai_triage: currentTriage?.raw_triage || '',
         can_fix_onsite: currentTriage?.can_fix_onsite,
       };
+      // Iter 216d — multi-machine flow gets one shared job_id so the
+      // PO-backed engineer dispatch ties siblings together too.
+      if (faultMachines.length > 1) {
+        let jid = currentJobId;
+        if (!jid) {
+          jid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+          setCurrentJobId(jid);
+        }
+        payload.job_id = jid;
+      }
       const issueRes = await axios.post(`${API}/issues`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -336,6 +356,20 @@ const useIssueWorkflow = ({ API, i18n, t, setIssues, loadData, allEquipment, use
         selected_fix_step: fixStepText,
         selected_fix_title: fixStepTitle,
       };
+
+      // Iter 216d — multi-machine flow: stamp every sibling with one
+      // shared job_id so the fault list groups them. Lazy-init on the
+      // first machine; subsequent machines reuse the same id.
+      if (faultMachines.length > 1) {
+        let jid = currentJobId;
+        if (!jid) {
+          jid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+          setCurrentJobId(jid);
+        }
+        payload.job_id = jid;
+      }
 
       // Iter 215da — if offline OR the network drops, queue the fault
       // locally and auto-replay on reconnect. The operator sees an
