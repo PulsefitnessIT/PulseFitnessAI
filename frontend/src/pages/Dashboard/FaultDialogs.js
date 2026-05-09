@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import FaultTemplatePicker from './FaultTemplatePicker';
 import FaultCodeSelect from './FaultCodeSelect';
 import SaveAsTemplateButton from './SaveAsTemplateButton';
 import { buildMachineTypeGroups, filterSerialsByGroup } from './faultMachineGrouping';
+import { useBackGestureClose } from '@/lib/useBackGestureClose';
 
 const FaultDialogs = ({
  // Issue dialog state
@@ -36,6 +37,12 @@ const FaultDialogs = ({
  // Fault templates + codes
  API, canManageOrgTemplates,
 }) => {
+ // Iter 216f — back-gesture close on the main "Log a Fault" dialog so
+ // mobile operators can swipe back to dismiss the modal instead of
+ // accidentally exiting the dashboard. See `lib/useBackGestureClose.js`.
+ const closeIssueDialog = useCallback(() => { onResetDialog && onResetDialog(); }, [onResetDialog]);
+ useBackGestureClose(showIssueDialog, closeIssueDialog, 'gymaxis-issue-dialog');
+
  return (
  <>
  {/* Log Issue Dialog - Multi-step: Form → Triage → Resolution */}

@@ -193,6 +193,7 @@ else
   note 'Running frontend jest unit tests (formatApiError + fault-machine grouping)'
   if (cd /app/frontend && yarn test --watchAll=false \
         src/lib/formatApiError.test.js \
+        src/lib/useBackGestureClose.test.js \
         src/pages/Dashboard/faultMachineGrouping.test.js \
         > /tmp/predeploy-jest.log 2>&1); then
     ok 'Frontend unit tests passed'

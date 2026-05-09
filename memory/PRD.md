@@ -1,3 +1,33 @@
+## Iter 216f2 — Reusable back-gesture-close hook + applied to high-impact dialogs (Feb 9, 2026)
+
+**Followup**: extract the iter-216f back-gesture pattern into a hook and apply it to the next obvious offenders so we don't manually reimplement the same useEffect everywhere.
+
+### Shipped
+- New hook `lib/useBackGestureClose.js` — wraps the push-phantom-history + popstate-intercept + cleanup-pop pattern. Optional `key` arg lets stacked modals stay isolated. Comprehensively documented inline.
+- New jest suite `lib/useBackGestureClose.test.js` — **6/6 passing**, covers:
+  - phantom history push only when `open=true`
+  - popstate triggers `onClose`
+  - clean unmount pops phantom (back gesture works as expected next time)
+  - popstate-driven close does NOT call `history.back()` again (no double-back)
+  - stacked modals with different keys don't stomp each other
+- Wired into 4 high-traffic modals:
+  - `pages/MasterAdmin/AdminOrganizations.js` — org-detail Sheet (refactored from inline useEffect to the hook).
+  - `pages/Dashboard/FaultDialogs.js` — main GymAxis "Log a Fault" dialog.
+  - `pages/LiteDashboard/LiteDialogs.js` — Pulse "Log a Fault" dialog AND the Equipment Detail dialog.
+- `pre-deploy.sh` step-7 jest list extended to include the new suite (~3s total).
+- Pre-existing lint debt cleared as a side-effect: scoped `eslint-disable gymaxis/no-inline-hex` on the `MODULE_OPTIONS` config block in `AdminOrganizations.js` (the hex values are passed as lucide-react `color` props which don't accept CSS variables).
+
+### Verified
+- `yarn test useBackGestureClose.test.js` → 6/6 passing.
+- `SKIP_LIVE_CHECK=1 make pre-deploy` → all 9 gate steps green ✓ (regression suite, security scan, Stripe checks, webhook handlers, Mongo ping, frontend lint, frontend jest, summary).
+- 4 dialogs / sheets now back-gesture-safe across both portals.
+
+### Why this matters
+Every full-screen modal in a SPA is a latent overshoot bug waiting to happen. Centralising the fix into `useBackGestureClose` means future Sheets/Dialogs only need ONE line of code to be back-gesture-safe — and the jest tests guarantee the behaviour can't silently break in a future React/jsdom upgrade.
+
+---
+
+
 ## Iter 216f — Master Admin org panel close + back-gesture (Feb 9, 2026)
 
 **Problem (Lee, prod screenshot):**

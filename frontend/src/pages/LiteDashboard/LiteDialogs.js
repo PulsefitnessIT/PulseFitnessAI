@@ -1,5 +1,5 @@
 import { notify } from '@/components/notifications';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import FaultTemplatePicker from '../Dashboard/FaultTemplatePicker';
 import FaultCodeSelect from '../Dashboard/FaultCodeSelect';
 import SaveAsTemplateButton from '../Dashboard/SaveAsTemplateButton';
 import { buildMachineTypeGroups, filterSerialsByGroup, deriveGroupKey } from '../Dashboard/faultMachineGrouping';
+import { useBackGestureClose } from '@/lib/useBackGestureClose';
 import EquipmentPhotoUpload from '../../components/equipment/EquipmentPhotoUpload';
 import AuthImage from '../../components/shared/AuthImage';
 import EquipmentSpecGrid from '@/components/shared/EquipmentSpecGrid';
@@ -486,6 +487,22 @@ const LiteDialogs = ({
     if (!open) { setTriageResult(null); }
     onCloseFaultDialog(open);
   };
+
+  // Iter 216f — back-gesture close on the Lite/Pulse fault dialog and
+  // the Equipment Detail dialog. Mobile operators expect swipe-back
+  // to dismiss a modal, not exit the dashboard.
+  // See `lib/useBackGestureClose.js`.
+  const closeFaultDialog = useCallback(() => {
+    setTriageResult(null);
+    onCloseFaultDialog && onCloseFaultDialog(false);
+  }, [onCloseFaultDialog, setTriageResult]);
+  useBackGestureClose(showFaultDialog, closeFaultDialog, 'gymaxis-lite-fault-dialog');
+
+  const closeEquipmentDialog = useCallback(() => {
+    onCloseEquipment && onCloseEquipment();
+  }, [onCloseEquipment]);
+  useBackGestureClose(!!selectedEquipment, closeEquipmentDialog, 'gymaxis-lite-equipment-dialog');
+
   return (
     <>
       {/* Equipment Detail Dialog */}

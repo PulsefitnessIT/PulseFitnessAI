@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { useBackGestureClose } from '@/lib/useBackGestureClose';
 import AddressFields from '@/components/shared/AddressFields';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 
@@ -36,6 +37,11 @@ import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // ── Iter 215ar — module checkbox grid + reveal-password helpers ─────
+// Iter 216f — colour values are intentionally hex literals here because
+// they're consumed as inline `style={{color}}` props on `<Icon>` components
+// (lucide-react doesn't accept CSS vars in its `color` prop). The
+// gymaxis/no-inline-hex rule is suppressed for this single config block.
+/* eslint-disable gymaxis/no-inline-hex */
 const MODULE_OPTIONS = [
   { id: 'operations',  label: 'Operations',  icon: Wrench,    color: '#06B6D4' },
   { id: 'crm',         label: 'CRM',         icon: Users,     color: '#6366F1' },
@@ -44,6 +50,7 @@ const MODULE_OPTIONS = [
   { id: 'staffing',    label: 'Staffing',    icon: UserCog,   color: '#A855F7' },
   { id: 'reporting',   label: 'Reporting',   icon: BarChart3, color: '#2563EB' },
 ];
+/* eslint-enable gymaxis/no-inline-hex */
 
 const modulesFromPortalType = (pt) => {
   if (pt === 'crm') return ['crm'];
@@ -434,41 +441,14 @@ const AdminOrganizations = ({
  /* Iter 216f — back-gesture handler.
     The org-detail panel is a Sheet (not a route), so a browser back
     gesture would pop the user all the way out of the Master Admin
-    page — Lee's Feb-2026 prod report ("when I use back gestures it
-    returns me back to the landing page"). Fix: when the sheet
-    opens, push a phantom history entry; on `popstate` while the
-    sheet is open, intercept and just close the sheet (consuming
-    the back gesture). When the sheet closes through any other
-    path (X button, Escape, overlay click), pop the phantom entry
-    we pushed so we don't accumulate stale history. */
- useEffect(() => {
-   if (!expandedOrg) return undefined;
-   const PHANTOM_KEY = 'gymaxis-org-panel';
-   try {
-     window.history.pushState({ [PHANTOM_KEY]: expandedOrg }, '', window.location.href);
-   } catch { /* noop */ }
-   let closedByPopstate = false;
-   const onPopState = () => {
-     closedByPopstate = true;
-     setExpandedOrg(null);
-     setEditingOrg(null);
-   };
-   window.addEventListener('popstate', onPopState);
-   return () => {
-     window.removeEventListener('popstate', onPopState);
-     // If the sheet was closed by other means (X, Escape, overlay),
-     // pop the phantom history entry so the next back gesture
-     // navigates as the user expects.
-     if (!closedByPopstate) {
-       try {
-         const st = window.history.state;
-         if (st && st[PHANTOM_KEY]) {
-           window.history.back();
-         }
-       } catch { /* noop */ }
-     }
-   };
- }, [expandedOrg]);
+    page (Lee's prod report). Use the shared `useBackGestureClose`
+    hook so this pattern stays consistent across every modal in the
+    app — see `lib/useBackGestureClose.js`. */
+ const closeOrgPanel = useCallback(() => {
+   setExpandedOrg(null);
+   setEditingOrg(null);
+ }, [setExpandedOrg, setEditingOrg]);
+ useBackGestureClose(!!expandedOrg, closeOrgPanel, 'gymaxis-org-panel');
  useEffect(() => {
    if (selectedOrg && selectedOrg.id) {
      // Initialise the editing form from the selected org so the Details
