@@ -81,17 +81,17 @@ const AdminCRMUsers = () => {
 
  <div className="space-y-2">
  {users.map(u => (
- <Card key={u.id} className="bg-[var(--theme-surface)] border-white/10 p-5 flex items-center justify-between" data-testid={`crm-user-${u.id}`}>
+ <Card key={u.id} className="bg-[var(--theme-surface)] border-white/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" data-testid={`crm-user-${u.id}`}>
  <div className="flex items-center gap-3 min-w-0">
  <div className="w-9 h-9 rounded-full bg-[rgb(var(--rgb-brand-blue)/0.15)] flex items-center justify-center text-[var(--color-brand-blue)] font-bold text-sm shrink-0">
  {(u.full_name || u.email || '?')[0].toUpperCase()}
  </div>
- <div className="min-w-0">
- <p className="text-white text-sm font-medium truncate">{u.full_name || 'No Name'}</p>
- <p className="text-[var(--color-text-muted)] text-xs truncate flex items-center gap-1"><Mail size={10} /> {u.email}</p>
+ <div className="min-w-0 flex-1">
+ <p className="text-white text-sm font-medium truncate" data-testid={`crm-user-name-${u.id}`}>{u.full_name || 'No Name'}</p>
+ <p className="text-[var(--color-text-muted)] text-xs truncate flex items-center gap-1" data-testid={`crm-user-email-${u.id}`}><Mail size={10} /> {u.email}</p>
  </div>
  </div>
- <div className="flex items-center gap-2 shrink-0">
+ <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:shrink-0">
  <Select value={u.role || 'user'} onValueChange={async (v) => {
  try {
  await axios.patch(`${API}/master-admin/crm-users/${u.id}`, { full_name: u.full_name, role: v }, { headers });

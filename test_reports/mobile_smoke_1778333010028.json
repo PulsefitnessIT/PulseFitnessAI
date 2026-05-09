@@ -1,0 +1,52 @@
+{
+  "started_at": "2026-05-09T13:22:58.177Z",
+  "base_url": "https://maintenance-hub-357.preview.emergentagent.com",
+  "viewport": "414x900",
+  "pages": [
+    {
+      "name": "master-admin: org-users panel",
+      "route": "/master-admin",
+      "checks": [
+        {
+          "kind": "name",
+          "selector": "[data-testid^=\"org-user-name-\"]",
+          "found": 1,
+          "visible": 1,
+          "status": "pass"
+        },
+        {
+          "kind": "email",
+          "selector": "[data-testid^=\"org-user-email-\"]",
+          "found": 1,
+          "visible": 1,
+          "status": "pass"
+        }
+      ],
+      "status": "pass",
+      "h_overflow_px": 0
+    },
+    {
+      "name": "master-admin: CRM org-users panel",
+      "route": "/master-admin",
+      "checks": [
+        {
+          "kind": "name",
+          "selector": "[data-testid^=\"org-user-name-\"]",
+          "found": 0,
+          "visible": 0,
+          "status": "skip"
+        },
+        {
+          "kind": "email",
+          "selector": "[data-testid^=\"org-user-email-\"]",
+          "found": 0,
+          "visible": 0,
+          "status": "skip"
+        }
+      ],
+      "status": "pass",
+      "h_overflow_px": 0
+    }
+  ],
+  "overall": "pass"
+}

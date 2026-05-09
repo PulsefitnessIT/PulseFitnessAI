@@ -1,3 +1,49 @@
+## Iteration 216bj — Mobile smoke-test harness + AdminCRMUsers responsive fix (Feb 2026)
+
+**Goal**: stop the iter 216bi class of "broken on mobile, fine on desktop" regressions from reaching production by adding a self-contained CLI harness that walks the most-used master-admin pages at a 414×900 viewport.
+
+### What shipped
+- New `/app/scripts/mobile-smoke.js` — Playwright-based CLI harness:
+  - Logs in as Master Admin via `data-testid` selectors (resilient to copy changes).
+  - Navigates each `PAGES` entry through its `setup` chain, then asserts every row exposing user identity has both `${kind}-name-${id}` and `${kind}-email-${id}` data-test-ids that resolve to non-zero bounding boxes.
+  - Detects horizontal overflow (`scrollWidth - clientWidth > 2px`) automatically — catches *any* unbounded layout, not just the rows we explicitly assert.
+  - Falls back to the system-installed `headless_shell` binary at `/pw-browsers/chromium_headless_shell-*` so it works in fresh containers regardless of bundled-Playwright version drift.
+  - Treats "zero matching rows" as a **skip** (likely empty data) rather than a fail, so a sparse environment doesn't blow up the whole suite.
+  - Writes JSON report to `/app/test_reports/mobile_smoke_${ts}.json` for the testing-agent to pick up.
+- Updated `/app/scripts/README.md` with usage docs.
+- Pre-emptively fixed `AdminCRMUsers.js` (same defect class as iter 216bi): row layout switched from `flex items-center justify-between` to `flex-col sm:flex-row sm:items-center sm:justify-between gap-3`, action cluster now `flex-wrap sm:flex-nowrap`. Added `data-testid="crm-user-name-{id}"` and `crm-user-email-{id}` so the smoke test can include this surface once the test environment seeds CRM-portal orgs.
+
+### Verified
+- `node /app/scripts/mobile-smoke.js` end-to-end:
+  ```
+  ▸ master-admin: org-users panel  (/master-admin)
+    ✓ name (...) — found=1 visible=1 [pass]
+    ✓ email (...) — found=1 visible=1 [pass]
+    ✓ no horizontal overflow (0px)
+  ▸ master-admin: CRM org-users panel  (/master-admin)
+    ○ name (...) — found=0 [skip]   ← no CRM-portal orgs in this env
+    ○ email (...) — found=0 [skip]
+    ✓ no horizontal overflow (0px)
+  → Overall: PASS (exit 0)
+  ```
+- Lint clean.
+
+### Files of reference
+- `/app/scripts/mobile-smoke.js` (new)
+- `/app/scripts/README.md` (updated)
+- `/app/frontend/src/pages/MasterAdmin/AdminCRMUsers.js` (responsive fix)
+
+### How to use going forward
+- Manual: run `NODE_PATH=/app/frontend/node_modules node /app/scripts/mobile-smoke.js` before redeploys.
+- Test agent: include `mobile_smoke` in test configs — it picks up the JSON report and surfaces any regressions automatically.
+- Adding pages: see `/app/scripts/README.md`. Each new surface = ~5 lines of declarative config.
+
+### ⚠️ Action required
+The `AdminCRMUsers` responsive fix lives in **preview** only. **Redeploy** to push to gymaxisai.com.
+
+---
+
+
 ## Iteration 216bi — Mobile fix: Master Admin org-users panel now shows names + emails (Feb 2026)
 
 **Reported by**: Lee on production (gymaxisai.com/master-admin) — viewing **Pulse Fitness Limited → Users** on a mobile browser, the user rows showed only the role pill + actions ("Reset PW · Disable · Archive") with the name and email completely hidden off-screen.

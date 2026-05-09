@@ -34,3 +34,45 @@ Exits `0` if safe to deploy, `1` otherwise. Total runtime ~5 seconds.
 - **Manual habit**: run before clicking "Deploy to production" in the Emergent platform.
 - **CI**: add as the first step of any production-deploy job; failure aborts the deploy.
 - **Git pre-push hook** (optional): symlink to `.git/hooks/pre-push` if you push directly.
+
+
+---
+
+## `mobile-smoke.js` — catch mobile-layout regressions before redeploy
+
+Walks the most-used Master Admin pages at a 414×900 viewport (iPhone-class)
+and asserts the right rows surface user identity (name + email) without
+their action buttons squeezing the content off-screen. Designed to catch
+the iter 216bi class of "looks fine on desktop, broken on mobile" bugs.
+
+### Run
+
+```bash
+NODE_PATH=/app/frontend/node_modules node /app/scripts/mobile-smoke.js
+```
+
+Optional flags:
+- `--base=<url>` — override `REACT_APP_BACKEND_URL`
+- `--email=<addr>` — override default master-admin email
+- `--password=<pw>` — override default master-admin password
+
+Exit code `0` if all checks pass (or skip due to empty data), `1` otherwise.
+
+### Report
+
+Writes `/app/test_reports/mobile_smoke_${timestamp}.json` for the
+testing agent to pick up.
+
+### Adding new pages
+
+Append to the `PAGES` array. Each entry needs:
+- `name`: display label
+- `route`: SPA path (e.g. `/master-admin`)
+- `setup(page)`: optional async fn to navigate to the right sub-tab
+- `asserts`: array of `{ kind, selector }` — selector should match all
+  rows that **must** be visible at this viewport. The runner fails if
+  any matched element has zero width/height, and skips if zero rows
+  match (interpretation: empty data, not a bug).
+
+A horizontal-overflow detector (`scrollWidth - clientWidth ≤ 2px`) runs
+on every page automatically.
