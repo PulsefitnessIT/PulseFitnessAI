@@ -1,3 +1,45 @@
+## Iteration 216aw — Cross-module audit Phase 4: delight & tech debt + full Phase 1-4 testing pass (Feb 2026)
+
+**Goal**: Phase 4 of the audit + comprehensive testing of all 9 fixes.
+
+### What shipped (Phase 4)
+
+**#7 — Equipment back-in-service member notifier**
+- `/app/backend/routes/back_in_service.py`. Two endpoints: `GET /api/memberships/back-in-service-notices?days=7` (list resolved-fault candidates with downtime + broadcast status) and `POST /api/memberships/back-in-service-notices/{issue_id}/broadcast` (post a Comms Hub announcement, idempotent). Requires BOTH operations + memberships modules — 404 otherwise (cross-module-only feature).
+
+**#9 — CRM auto-bridge JWT**
+- Soft fix in `/app/frontend/src/pages/CRM/CRMApp.js`. When the user has a main platform JWT but no `crm_token`, auto-call `/crm/auth/cross-login` then `/crm/auth/me` to populate the CRM session. Direct URL navigation to `/crm` no longer bounces to CRMLogin. Confirmed via screenshot: typing `/crm` lands on the CRM Command Center with the new CRM tour ("1 of 4") firing.
+
+### Verification — full Phase 1-4 testing pass
+- `/app/test_reports/iteration_216aw.json` — **Backend 19/19 PASS · Frontend 100% accessible**, 0 critical issues. New pytest file `/app/backend/tests/test_iter_216aw_cross_module_audit.py`.
+- All 9 audit fixes verified:
+  - Phase 1 #1 — module access gate · #2 — CRM cross-module tips · #3 — audiences data-sources empty-state
+  - Phase 2 #4 — 3 workforce tips · #5 — feature_guard parent-module short-circuit
+  - Phase 3 #6 — CRM Setup Wizard (5 endpoints + 4-step UI) · #8 — Estate Rollup (master-admin gated)
+  - Phase 4 #7 — Back-in-service notifier · #9 — CRM auto-bridge
+- Lint clean across all 13 touched files.
+
+### One pre-existing issue flagged (not from this batch)
+- Login Sign-In button click handler intermittently doesn't submit (Enter key works). LOW priority — pre-existing, predates the audit work. Logged for a future fix.
+
+### Files of reference (Phase 4)
+- `/app/backend/routes/back_in_service.py`
+- `/app/frontend/src/pages/CRM/CRMApp.js` (auto-bridge in else branch)
+- `/app/backend/tests/test_iter_216aw_cross_module_audit.py`
+
+### Cross-module audit — all 9 recommendations COMPLETE
+1. ✅ Module-route gating · 2. ✅ CRM cross-module banner · 3. ✅ Marketing empty-state · 4. ✅ Workforce upsell tips · 5. ✅ feature_guard ↔ module_access · 6. ✅ CRM Setup Wizard · 7. ✅ Equipment back-in-service · 8. ✅ Estate-wide module roll-up · 9. ✅ CRM auto-bridge.
+
+### Next up
+- P0: Address the pre-existing login Sign-In button click handler issue.
+- P1: Configure Sentry DSN.
+- P1 (optional): Tighten heuristic rota max_hours cap (still LOW from iter 216ar).
+- BLOCKED: Sicon / Sage 200 LIVE cutover — awaiting your credentials.
+
+---
+
+
+
 ## Iteration 216av — Cross-module audit Phase 3: UX parity & governance (Feb 2026)
 
 **Goal**: Phase 3 of the cross-module audit — bring CRM up to parity with Memberships' onboarding wizard, and give HQ-tier finance operators an estate-wide license audit screen.
