@@ -170,6 +170,13 @@
   transform: translateY(-4px);
   box-shadow: 0 20px 40px -15px rgba(15, 23, 42, .12);
 }
+/* Iter 216az — when the card itself is clickable (used as <Link> in
+ * MarketingHome, ContactMarketingPage, ModulePage), reset the lift on
+ * press so the click target stays under the cursor. */
+.gx-card:active {
+  transform: translateY(0);
+  transition-duration: 0s;
+}
 
 /* ──────────────────────────────────────────────────────────────
    Long-form prose styling for /blog/:slug and /compare/* content

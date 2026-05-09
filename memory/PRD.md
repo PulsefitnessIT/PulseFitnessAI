@@ -1,3 +1,42 @@
+## Iteration 216az — Click-ergonomics polish pass (Feb 2026)
+
+**Goal**: extend the iter 216ax `.gx-cta:active` fix to every clickable element across the app that lifts on hover, so no other surface can hit the same "click misses because button shifted" failure.
+
+### Audit
+Found 6 `:hover { transform: translateY(-Xpx) }` rules platform-wide. Categorised by whether the element is a click target:
+
+| Selector | File | Click target? | Action |
+|---|---|---|---|
+| `.gx-cta` | marketing.css | YES | Already fixed iter 216ax |
+| `.gx-btn-primary` | index.css | YES | **Fixed** |
+| `.svc-nav-pill--cta` | _serviceops.css | YES | **Fixed** |
+| `.svc-btn-primary` | _serviceops.css | YES | **Fixed** |
+| `.gx-card` | marketing.css | YES (used as `<Link>` in MarketingHome / ContactMarketingPage / ModulePage) | **Fixed** |
+| `.svc-kpi` | _serviceops.css | NO (decorative `<div>` only — confirmed via JSX search) | Skipped |
+
+### Fix applied to all 4 click targets
+```css
+.<selector>:active { transform: translateY(0); transition-duration: 0s; }
+```
+…with `:not(:disabled)` qualifier where the hover rule used it.
+
+### Verification
+- Audit script (`for css → check every :hover translateY block has matching :active`) reports only `.svc-kpi` remaining without an `:active` reset, which is intentional (non-clickable).
+- App responds 200 OK after edits, lint clean.
+
+### Files of reference
+- `/app/frontend/src/index.css` (`.gx-btn-primary`)
+- `/app/frontend/src/pages/Marketing/marketing.css` (`.gx-card`)
+- `/app/frontend/src/pages/ServiceOps/_serviceops.css` (`.svc-nav-pill--cta`, `.svc-btn-primary`)
+
+### Next
+- P1: Sentry DSN observability.
+- BLOCKED: Sicon / Sage 200 LIVE cutover — needs your credentials.
+
+---
+
+
+
 ## Iteration 216ay — Heuristic AI-rota cap tightened (Feb 2026)
 
 **Problem (LOW from iter 216ar)**: in pathological roster shapes (small pool + high demand + role fallback) the heuristic round-robin rota could exceed `max_hours` by ~10% due to float drift and an unbounded `idx += 1` walk.

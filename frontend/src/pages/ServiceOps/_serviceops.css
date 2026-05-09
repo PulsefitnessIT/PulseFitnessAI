@@ -190,6 +190,9 @@
 }
 [data-theme="dark"] .svc-nav-pill--cta { background: #fff; color: var(--color-ink, #0a0c10); }
 .svc-nav-pill--cta:hover { transform: translateY(-1px); }
+/* Iter 216az — reset the hover lift while pressed so the click target
+ * doesn't shift out from under the cursor mid-click. */
+.svc-nav-pill--cta:active { transform: translateY(0); transition-duration: 0s; }
 
 .svc-nav-badge {
   position: absolute;
@@ -337,6 +340,12 @@
 .svc-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 12px 28px -10px rgba(0, 85, 255, 0.7);
+}
+/* Iter 216az — reset the hover lift while pressed so the click target
+ * doesn't shift out from under the cursor mid-click. */
+.svc-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  transition-duration: 0s;
 }
 
 .svc-btn-secondary {

@@ -1436,6 +1436,12 @@ html[data-brand="gymaxis"] {
   transform: translateY(-1px);
   box-shadow: 0 10px 22px -6px rgba(157, 76, 221, .45);
 }
+/* Iter 216az — reset the hover lift while pressed so the click target
+ * doesn't shift out from under the cursor mid-click. */
+.theme-gymaxis .gx-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  transition-duration: 0s;
+}
 .theme-gymaxis .gx-btn-primary:disabled { opacity: .55; cursor: not-allowed; }
 
 /* Outlined secondary — clean slate-200 hairline, hovers to brand tint */
