@@ -23,6 +23,7 @@ from typing import Literal, TypedDict
 # Canonical category IDs — frontend renders these in this order.
 CATEGORIES: list[dict] = [
     {"id": "getting-started", "label": "Getting Started",      "blurb": "Your first 15 minutes on GymAxis."},
+    {"id": "release-notes",    "label": "Release Notes",         "blurb": "What changed, what shipped, what's next."},
     {"id": "crm",              "label": "CRM",                   "blurb": "Contacts, companies, pipeline, deals."},
     {"id": "service",          "label": "Service & Faults",      "blurb": "Log, triage and resolve equipment issues."},
     {"id": "memberships",      "label": "Memberships & Bookings","blurb": "Members, plans, classes, timetable."},
@@ -1796,6 +1797,75 @@ GUIDES: list[Guide] = [
             "Don't forget to set hourly_cost on each staff_member — without it the cost roll-up is £0 and the Sage Amount column is wrong.",
         ],
         "related": ["staffing-overview", "staffing-time-clock", "staffing-hr-2", "staffing-payroll-export"],
+    },
+
+    # ── Release Notes ───────────────────────────────────────────────
+    # The release-notes category starts at V1.0. Future releases append
+    # one new guide each (rn-v1-1, rn-v1-2 …) — never edit a published
+    # release-note retrospectively.
+    {
+        "id": "rn-v1-0",
+        "category": "release-notes", "module": "operations",
+        "title": "GymAxis V1.0 — The end-to-end gym OS",
+        "description": "First public release. Eight modules, six staffing phases, AI rota builder, Sage payroll, and brand-aware Pulse Fitness Pro shell.",
+        "read_minutes": 5,
+        "roles": [],
+        "popular": True,
+        "updated_at": "2026-05-09",
+        "steps": [
+            {
+                "title": "Headline",
+                "body": "GymAxis V1.0 is a single platform that replaces RotaCloud + Connecteam + a CRM + a CMMS + a maintenance portal + a marketing tool. Built for UK gym operators, multi-site groups and franchise HQs.",
+            },
+            {
+                "title": "Operations module",
+                "body": "Equipment register, fault management with AI triage, daily/weekly check-sheets, supplier portal, AI invoice import, QR scan-to-fault, document library with AI Q&A, and weekly digest.",
+            },
+            {
+                "title": "Memberships module",
+                "body": "Members, family accounts, plans, Stripe-ready billing, classes & timetable, drag-drop weekly builder, operator-initiated bookings, instructor roster with compliance tracking, and three role-shaped analytics lenses (Manager / Regional / Director).",
+            },
+            {
+                "title": "CRM module",
+                "body": "Contacts, companies, multi-pipeline deals, contracts, tenders, custom properties, activity timeline, AI Copilot. Two modes: Leisure (auto-bundled with Memberships) and Business (B2B sales pipelines).",
+            },
+            {
+                "title": "Marketing Suite",
+                "body": "Audiences (plain-English or rule builder), Campaign Wizard, AI Creative Director (copy + brand-locked posters), Journeys, Social, Brand Kit, and Performance dashboards. Powered by Claude Sonnet 4.5 via the Emergent LLM key.",
+            },
+            {
+                "title": "Staffing — six phases, all live in V1.0",
+                "body": "S1 Rota engine + Workforce Dashboard · S2 Time Clock & Attendance (GPS / geofence kiosk) · S3 Internal Comms Hub (DMs, channels, threaded announcements) · S4 Tasks + Forms + Compliance (shift-linked checklists, custom forms, cert expiry tracker) · S5 HR 2.0 (profiles, documents, disciplinary, training) · S6 AI Rota builder + Absence Risk + Sage 50 Payroll CSV.",
+            },
+            {
+                "title": "Multi-site & branding",
+                "body": "Per-site branding overrides (iGym vs Pulse), site-scoped member portal URLs, multi-site KPI dashboard with best/worst-performing site, shared Master Admin console.",
+            },
+            {
+                "title": "AI capabilities",
+                "body": "Fault triage from a photo · Document Q&A · Marketing Copilot inside Campaign Wizard · AI Creative Director · AI Workforce rota builder · Absence-risk scoring · Service Ops triage / scheduling tie-break / case summarisation.",
+            },
+            {
+                "title": "Trust & Reliability",
+                "body": "Master Admin → Trust & Reliability surfaces 22+ live security checks, real audit-event feed, and a downloadable PDF for RFPs / pen-tests / customer security questionnaires. SOC-2 evidence trail built-in.",
+            },
+            {
+                "title": "Tour & Help",
+                "body": "Per-module product tours (Operations, Memberships, CRM, Marketing, Staffing). 70+ guided help articles. AI Orb for any question. Walkthroughs that auto-drive you through the live UI.",
+            },
+            {
+                "title": "What's NOT in V1.0 (transparent backlog)",
+                "body": "Live Sage 200 sync (manual CSV export shipped) · Live Sicon Service Manager cutover (mocked + dry-run) · Twilio SMS real integration (mocked) · Calendly demo embed · Affiliate / referral logic · Sentry DSN observability.",
+            },
+        ],
+        "tips": [
+            "Treat V1.0 as the baseline — every future release will land as a separate guide (V1.1, V1.2, …) so the version history is permanent.",
+            "Bookmark the Release Notes category as your team's 'what's new' page — better than chasing email announcements.",
+        ],
+        "mistakes": [
+            "Don't expect the live Sicon / Sage 200 sync in V1.0 — it's intentionally on the next release. Use the manual CSV exports until then.",
+        ],
+        "related": ["gs-modules-overview", "staffing-overview", "staffing-ai-rota", "admin-security-checks"],
     },
 ]
 

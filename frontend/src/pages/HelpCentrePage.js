@@ -16,7 +16,7 @@ import {
   Search, Sparkles, BookOpen, ChevronRight, ArrowLeft, Clock, Star,
   CheckCircle2, AlertTriangle, LifeBuoy, Send, Lightbulb, X,
   GraduationCap, Zap, Users, Wrench, Settings, Megaphone, BarChart3,
-  Plug, Bot, Rocket,
+  Plug, Bot, Rocket, Newspaper,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
@@ -26,11 +26,13 @@ import { startWalkthrough, getCompletedWalkthroughs } from '@/components/shared/
 // visually distinctive without depending on fragile per-guide iconography.
 const CATEGORY_ICON = {
   'getting-started': Rocket,
+  'release-notes':   Newspaper,
   'crm':             Users,
   'service':         Wrench,
   'memberships':     GraduationCap,
   'marketing':       Megaphone,
   'staff':           Users,
+  'staffing':        Users,
   'reporting':       BarChart3,
   'admin':           Settings,
   'integrations':    Plug,
