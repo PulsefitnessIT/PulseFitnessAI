@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Globe, Plus, Trash2, Loader2, RefreshCw, ExternalLink, Pencil, X, Check, Zap,
-  Sparkles, CheckCircle2,
+  Sparkles, CheckCircle2, Eraser, Wand2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { SkeletonLine } from '@/components/shared/Skeleton';
@@ -45,6 +45,43 @@ const ManufacturerDomainsPanel = () => {
   const [editDraft, setEditDraft] = useState({ domain: '', label: '' });
   const [filter, setFilter] = useState('');
   const [ingestStatus, setIngestStatus] = useState({});
+  const [cleanupBusy, setCleanupBusy] = useState(false);
+  const [rematchBusy, setRematchBusy] = useState(false);
+
+  /* Iter 216e — one-click cleanup of social/press noise from the
+     manufacturer catalogue (across all domains) so future matchers
+     don't get fooled by Instagram archive pages. Idempotent — safe
+     to spam. */
+  const handleCleanup = async () => {
+    setCleanupBusy(true);
+    try {
+      const r = await axios.post(`${API}/master-admin/catalogue/cleanup`, {}, { headers: headers() });
+      const n = r.data?.deleted ?? 0;
+      notify.success(n > 0 ? `Removed ${n} non-product entries` : 'Catalogue is clean');
+      loadAll();
+    } catch (e) {
+      notify.error(`Cleanup failed: ${e.response?.data?.detail || e.message}`);
+    }
+    setCleanupBusy(false);
+  };
+
+  /* Iter 216e — re-run auto_match_equipment_to_specs for every
+     equipment row in every org. Persists `spec_sheet_image` and
+     `manufacturer_page_url` onto matched rows so the operations UI
+     shows real product photos + brand-correct manufacturer links. */
+  const handleRematch = async () => {
+    setRematchBusy(true);
+    try {
+      const r = await axios.post(`${API}/master-admin/catalogue/rematch-equipment`, {}, { headers: headers() });
+      const m = r.data?.matched ?? 0;
+      const u = r.data?.unchanged ?? 0;
+      const s = r.data?.skipped ?? 0;
+      notify.success(`Re-match done · ${m} updated · ${u} unchanged · ${s} no match`);
+    } catch (e) {
+      notify.error(`Rematch failed: ${e.response?.data?.detail || e.message}`);
+    }
+    setRematchBusy(false);
+  };
   const [job, setJob] = useState(null);
 
   const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -242,6 +279,39 @@ const ManufacturerDomainsPanel = () => {
               {isRunning
                 ? <><Loader2 size={14} className="mr-2 animate-spin" /> Ingesting…</>
                 : <><Sparkles size={14} className="mr-2" /> Ingest all</>}
+            </Button>
+            {/* Iter 216e — strip Instagram / press / after-sales noise that
+                some manufacturers (e.g. Pulse Fitness) publish under their
+                own product URL slugs. Future ingests skip these via the
+                tightened `SKIP_PATTERNS` regex; this button cleans
+                already-ingested entries. Idempotent. */}
+            <Button
+              onClick={handleCleanup}
+              disabled={cleanupBusy}
+              variant="outline"
+              size="sm"
+              title="Remove social/press/after-sales URLs that pollute the catalogue"
+              data-testid="catalogue-cleanup-btn"
+            >
+              {cleanupBusy
+                ? <><Loader2 size={13} className="mr-1 animate-spin" /> Cleaning…</>
+                : <><Eraser size={13} className="mr-1" /> Clean noise</>}
+            </Button>
+            {/* Iter 216e — push the latest catalogue images + manufacturer
+                page URLs onto every equipment row in every org. Run after
+                a fresh ingest to backfill photos for equipment that was
+                logged before the catalogue had coverage. */}
+            <Button
+              onClick={handleRematch}
+              disabled={rematchBusy}
+              variant="outline"
+              size="sm"
+              title="Re-run auto-match across all equipment so cards show real product photos"
+              data-testid="catalogue-rematch-btn"
+            >
+              {rematchBusy
+                ? <><Loader2 size={13} className="mr-1 animate-spin" /> Matching…</>
+                : <><Wand2 size={13} className="mr-1" /> Re-match equipment</>}
             </Button>
             <Button variant="outline" size="sm" onClick={loadAll} data-testid="domains-refresh">
               <RefreshCw size={13} className="mr-1" /> Refresh

@@ -49,6 +49,14 @@
 **Verified live**:
 - `GET /api/equipment` for Bob returns `spec_sheet_image=https://pulsefitness.com/wp-content/.../262C-Alpha-Runner-Treadmill...jpg` and `manufacturer_page_url=https://pulsefitness.com/product/cv-treadmill-alpha-runner-treadmill-262c-aab/` ✓
 
+### Iter 216e3 — Master Admin one-click catalogue health buttons
+
+`pages/MasterAdmin/ManufacturerDomainsPanel.js` toolbar now exposes the iter-216e endpoints as buttons next to the existing "Ingest all":
+- **Clean noise** (`Eraser` icon, `data-testid="catalogue-cleanup-btn"`) — calls `POST /api/master-admin/catalogue/cleanup`. Idempotent. Toast shows the deleted count.
+- **Re-match equipment** (`Wand2` icon, `data-testid="catalogue-rematch-btn"`) — calls `POST /api/master-admin/catalogue/rematch-equipment`. Toast shows `{matched, unchanged, skipped}` counts.
+
+Means you (or anyone you grant Master Admin to) can refresh the catalogue + push new images out to every gym **without a deploy** — useful when a manufacturer ships a new product range or rotates their hero photos. Verified visually on the live preview: all three buttons render correctly in the Catalogue tab.
+
 ---
 
 
