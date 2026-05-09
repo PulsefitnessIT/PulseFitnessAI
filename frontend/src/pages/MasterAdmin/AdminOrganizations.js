@@ -27,6 +27,14 @@ import { notifyApiError } from '@/lib/formatApiError';
 import AddressFields from '@/components/shared/AddressFields';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 
+// Iter 216bg — module-scope API base for the user-credentials side-drawer
+// handlers (Reset Link, Temp Password). Several inner onClick handlers
+// elsewhere in this file declare their own `const API = ...` shadow,
+// but the credentials drawer was missing one — silently throwing a
+// ReferenceError that the catch surfaced as the misleading
+// "Network unreachable" toast.
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
 // ── Iter 215ar — module checkbox grid + reveal-password helpers ─────
 const MODULE_OPTIONS = [
   { id: 'operations',  label: 'Operations',  icon: Wrench,    color: '#06B6D4' },

@@ -1,3 +1,34 @@
+## Iteration 216bg — Bug fix: master-admin "Reset Link" misleading network error (Feb 2026)
+
+**Reported by**: Lee on production (gymaxisai.com/master-admin) — clicked "Reset Link" on a user, got toast "Failed to generate reset link · Network unreachable — check your connection and retry" despite a healthy 5G connection.
+
+### Root cause
+Latent bug in `/app/frontend/src/pages/MasterAdmin/AdminOrganizations.js`. Three onClick handlers in the user-credentials side-drawer reference `${API}` in their axios URLs but **no `API` variable is in scope** at those lines:
+- Line 1780: `axios.post(\`${API}/master-admin/users/${editingUser.id}/invite-link\`, ...)` (Reset Link button)
+- Line 1805: `axios.put(\`${API}/master-admin/users/${editingUser.id}/reset-password\`, ...)` (Temp Password button)
+- Line 1820: `axios.post(\`${API}/master-admin/users/${editingUser.id}/invite-link\`, ...)` (sibling handler)
+
+JavaScript throws `ReferenceError: API is not defined`, which the catch block routes through `formatApiError`'s default fallback. That fallback's detail is the literal string `NETWORK_FALLBACK = 'Network unreachable — check your connection and retry.'` — the message displayed to Lee.
+
+So the toast was misleading: the real error was a missing variable in the bundled JS, not a network problem. Network would have been an `ERR_NETWORK` axios code; this was a synchronous ReferenceError.
+
+### Why never caught
+Other onClick handlers in the file declare their own local `const API = process.env.REACT_APP_BACKEND_URL` (lines 1102, 1213) or include `/api` in the const (line 486). The credentials drawer was the only block missing one. The buttons aren't part of any automated test path — only the Master Admin manually clicks them.
+
+### Fix
+Added a module-scope `const API = \`${process.env.REACT_APP_BACKEND_URL}/api\`;` near the top of `AdminOrganizations.js`. Inner-scope `const API` declarations elsewhere in the file shadow this without behaviour change (they were already correct for their respective URL patterns).
+
+### Verification
+- Lint clean.
+- Backend endpoint smoke-tested as master admin: `POST /api/master-admin/users/{id}/invite-link` → 200 + valid `invite_url`.
+- Webpack compiled with no new warnings.
+
+### Action for user
+The fix lives in **preview** only. **Redeploy to push to production** so Lee can use Reset Link on gymaxisai.com.
+
+---
+
+
 ## Iteration 216bf — Refactor: split App.js routes & trim MembershipsStartTab (Feb 2026)
 
 **Goal**: tame the bloated `App.js` (638 lines mixing auth lifecycle, route table, and shell wiring) and tidy `MembershipsStartTab.js` ahead of further onboarding work.
