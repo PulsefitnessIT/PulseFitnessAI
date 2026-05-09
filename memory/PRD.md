@@ -11749,3 +11749,66 @@ Frontend:
 - S5: HR 2.0 + mobile PWA polish
 - S6: AI auto-rota + multi-site hierarchy + Sage payroll
 
+
+---
+
+## Iter 216ap — Staffing Phase S4: Tasks · Forms · Compliance (May 9, 2026)
+
+**Goal:** Operator-side workforce ops — checklists, custom forms, and cert/DBS expiry tracking.
+
+### Delivered
+
+1. **Tasks & Checklists** (`/api/staffing/tasks`, `staff_tasks` collection)
+   - Kinds: `one_off`, `shift_linked`, `opening`, `closing`, `recurring`
+   - Recurring has `daily` or `weekly` (with weekday picker)
+   - Per-task `requires_photo` flag enforces photo URL on completion
+   - Manager-only `/materialise` endpoint stamps recurring instances per date (idempotent — skips dupes)
+   - Staff can complete only their own / unassigned / role-matched tasks
+
+2. **Custom forms** (`/api/staffing/forms/*`, `staff_form_templates` + `staff_form_submissions`)
+   - Field kinds: text, long_text, number, select, multiselect, checkbox, date, signature, photo
+   - Manager-only template CRUD with audience scoping by primary_role
+   - Required-field validation enforced server-side at submit time
+   - Submissions immutable, snapshot template name to survive template edits
+
+3. **Compliance & cert expiry** (`/api/staffing/compliance/*`, `staff_certs` collection)
+   - Generic cert tracker (DBS, First Aid, Safeguarding, Pool Plant, NPLQ, freeform)
+   - Severity bands: `expired`, `expiring_30`, `expiring_90`, `ok`, `unknown` (computed at read time, not stored)
+   - Manager-only org-wide tracker endpoint with bucket counts + missing_staff list
+   - Staff see only their own certs
+
+### Frontend
+- Single `Ops · Forms` tab in StaffingConsole with 3 pill-toggle sub-panels (persisted in localStorage)
+- TasksPanel: date picker, composer with kind/recurrence/photo/staff assignment, completed-tasks accordion
+- FormsPanel: FormBuilder modal with add/edit/remove fields, FormSubmitDialog for filling, submissions toggle
+- CompliancePanel: severity chips + tinted bucket lists + CertEditor + missing-staff alert
+
+### New endpoints
+Tasks: `GET/POST/PATCH/DELETE /staffing/tasks` + `complete`, `uncomplete`, `materialise`
+Forms: `GET/POST/PATCH/DELETE /staffing/forms/templates` + `submit` + `submissions`
+Compliance: `GET/POST/PATCH/DELETE /staffing/compliance/certs` + `tracker`
+
+### New collections
+- `staff_tasks` — `{id, organization_id, title, kind, recurrence, weekdays, assigned_staff_id, due_at, requires_photo, status, completed_at, completed_by, parent_template_id?, archived}`
+- `staff_form_templates` — `{id, organization_id, name, fields[], audience_role?, archived}`
+- `staff_form_submissions` — `{id, template_id, organization_id, submitted_by_staff_id, values, submitted_at}`
+- `staff_certs` — `{id, organization_id, staff_id, cert_type, cert_number, expires_at, notes, archived}`
+
+### Files
+Backend:
+- `/app/backend/routes/staffing_tasks.py` (new — ~570 lines)
+- `/app/backend/route_registry/features.py` (registered `staffing_tasks_router`)
+
+Frontend:
+- `/app/frontend/src/pages/LiteDashboard/staffing/OperationsTab.js` (new — TasksPanel + FormsPanel + CompliancePanel + composers/builders/editors)
+- `/app/frontend/src/pages/LiteDashboard/StaffingConsole.js` (added `operations` tab)
+
+### Testing
+- Backend: 38/38 pytest cases passed
+- Frontend: full automation pass on preview URL (login form discovered correctly, all 3 sub-panels verified)
+- Report: `/app/test_reports/iteration_216ap.json`
+
+### Remaining staffing roadmap
+- S5: HR 2.0 + mobile PWA polish (employee profiles 2.0, docs/contracts, disciplinary, training records, offline support)
+- S6: AI auto-rota + multi-site hierarchy + Sage payroll
+
