@@ -1,3 +1,45 @@
+## Iteration 216bc — Pre-launch readiness sprint (Feb 2026)
+
+**Goal**: ship the L1 pre-launch wrap-up — per-org email branding, sample-data toggle, in-product feedback widget — and make the Launch readiness panel reachable from a permanent settings home (not just the onboarding-only Start tab).
+
+### What shipped
+- Backend `/app/backend/routes/launch_readiness.py`:
+  - `GET/POST /api/launch/email-sender` — owner/manager-only per-org Friendly From + Reply-To
+  - `POST /api/launch/sample-data/load` & `/clear` — idempotent demo dataset (5 members · 3 plans · 3 class templates) tagged `sample_data_v1`
+  - `POST /api/feedback/in-product` — global widget intake (rate-limited 5/5min/IP)
+  - `GET /api/master-admin/feedback/recent` — master-admin aggregate
+- Email refactor (`utils/email.py`, `utils/memberships_emails.py`) — `send_email()` now accepts `organization_id` and reads `email_sender_friendly_name` + `email_sender_reply_to` from the orgs collection
+- Frontend `LaunchReadinessPanel` mounted in:
+  1. `MembershipsStartTab.js` line 168 (onboarding context)
+  2. `PulseSettingsTab.js` → new "Launch readiness" section (always-on for Pulse users, owner/manager only)
+  3. `SettingsTab.js` → new "Launch readiness" section (always-on for legacy users)
+- Global `FeedbackWidget` mounted at `App.js` line 579 inside the authed shell (bottom-left launcher, dismisses for 24h after submit)
+
+### Verification
+- `testing_agent_v3_fork` iter 216bc — Backend 18/18 PASS, FeedbackWidget UI fully verified, LaunchReadinessPanel UI partial (only because Bob's onboarding-complete state was hiding the Start tab — fixed by adding the always-on Settings home).
+- Curl smoke: `email-sender` GET/POST round-trip, `sample-data/load` returns `{members:5, plans:3, class_templates:3}`, `clear` returns matching counts, `feedback/in-product` returns `{ok:true}`.
+- Lint clean on `SettingsTab.js` and `PulseSettingsTab.js` after Settings-section integration.
+
+### Files of reference
+- `/app/backend/routes/launch_readiness.py`
+- `/app/backend/utils/email.py` (org-aware send_email)
+- `/app/frontend/src/components/shared/LaunchReadinessPanel.js`
+- `/app/frontend/src/components/shared/FeedbackWidget.js`
+- `/app/frontend/src/pages/PulseSettingsTab.js` (new launch section)
+- `/app/frontend/src/pages/SettingsTab.js` (new launch section)
+- `/app/test_reports/iteration_216bc.json`
+
+### Next (P1 → next iteration)
+- Configure Sentry DSN for production observability
+- Empty-state polish on 6 most-used list pages (Members, Bookings, Faults, Audiences, Pipeline)
+- Refund / cancellation policy linked in footer + trial signup modal
+
+### BLOCKED
+- Sicon + Sage 200 LIVE cutover — awaiting user credentials
+
+---
+
+
 ## Iteration 216bb — Sales Insights panel (Feb 2026)
 
 **Goal**: turn the marketing-chat data stream from iter 216ba into actionable sales intelligence — every prospect question becomes a homepage / pricing-page improvement signal.

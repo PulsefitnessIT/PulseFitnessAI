@@ -18,6 +18,7 @@ import { Users, UserPlus, Copy, Crown, Shield, User, Trash2, Building, Plus, Mai
 import SupplierEquipmentWizard from './SupplierEquipmentWizard';
 import SiconIntegrationTab from './SiconIntegrationTab';
 import FaultTemplatesManager from './Dashboard/FaultTemplatesManager';
+import LaunchReadinessPanel from '@/components/shared/LaunchReadinessPanel';
 
 const SettingsTab = () => {
  const { user, API, applyBranding } = useAuth();
@@ -246,7 +247,7 @@ const SettingsTab = () => {
 
  {/* Section Navigation */}
  <div className="flex items-center gap-2 border-b border-white/10 pb-4 overflow-x-auto">
- {['team', 'suppliers', 'branding', 'templates', 'sicon', 'onboarding'].map(s => {
+ {['team', 'suppliers', 'branding', 'templates', 'sicon', 'onboarding', 'launch'].map(s => {
  const active = settingsSection === s;
  return (
  <Button key={s} size="sm" variant="outline"
@@ -258,6 +259,7 @@ const SettingsTab = () => {
  : s === 'branding' ? t('settings.white_label')
  : s === 'templates' ? 'Fault Templates'
  : s === 'sicon' ? 'Sicon'
+ : s === 'launch' ? 'Launch readiness'
  : t('settings.onboarding')}
  </Button>
  );
@@ -267,6 +269,12 @@ const SettingsTab = () => {
  {/* Fault Templates Section */}
  {settingsSection === 'templates' && (
  <FaultTemplatesManager API={API} user={user} />
+ )}
+
+ {settingsSection === 'launch' && (
+ <div data-testid="settings-launch">
+ <LaunchReadinessPanel />
+ </div>
  )}
 
  {/* Team & Org Section */}
