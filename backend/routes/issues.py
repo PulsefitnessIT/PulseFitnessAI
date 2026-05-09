@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from utils.database import db, EMERGENT_LLM_KEY, RESEND_API_KEY, SENDER_EMAIL, APP_NAME, put_object
-from utils.auth import get_current_user, get_organization_filter
+from utils.auth import get_current_user, get_organization_filter, apply_site_lock
 from models.schemas import IssueCreate, ServiceRequest
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -278,13 +278,8 @@ async def _batch_enrich_supplier_cases(issues: list[dict]):
 @router.get("/issues")
 async def get_issues(user: dict = Depends(get_current_user), site_id: str = None) -> dict:
     org_filter = get_organization_filter(user)
-    if site_id:
-        org_filter["$or"] = [
-            {"site_id": site_id},
-            {"site_id": {"$exists": False}},
-            {"site_id": None},
-            {"site_id": ""},
-        ]
+    # Iter 216bl — site-locked staff are clamped to their allowed sites.
+    org_filter = apply_site_lock(user, site_id, org_filter)
     issues = await db.issues.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(500)
 
     await _batch_enrich_supplier_cases(issues)
@@ -303,6 +298,17 @@ async def get_issue_detail(issue_id: str, user: dict = Depends(get_current_user)
     issue = await db.issues.find_one({"id": issue_id, **org_filter}, {"_id": 0})
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found")
+    # Iter 216bl — if the user is site-locked, refuse access to issues
+    # outside their allowed sites. Done after the org filter so we
+    # don't leak existence of an issue across orgs.
+    role = (user.get("role") or "").lower()
+    is_priv = (
+        role in ("owner", "manager", "master_admin", "master")
+        or bool(user.get("is_master_admin"))
+    )
+    allowed = user.get("allowed_site_ids") or []
+    if not is_priv and allowed and issue.get("site_id") and issue["site_id"] not in allowed:
+        raise HTTPException(status_code=403, detail="You do not have access to that site")
     if 'serial_number' not in issue and 'machine_name' in issue:
         issue['serial_number'] = issue['machine_name']
 

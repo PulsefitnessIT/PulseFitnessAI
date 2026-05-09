@@ -1,3 +1,58 @@
+## Iteration 216bl — Server-side site-lock enforcement on equipment + faults (Feb 2026)
+
+**Goal**: extend iter 216bk's site-locking from "hidden in the UI switcher" to "actually enforced at the API layer". A locked staff member used to be able to fetch equipment / faults from an unauthorised site by manually crafting `?site_id=` in the URL. Now they get a 403.
+
+### What shipped
+- New helper `apply_site_lock(user, requested_site_id, base_filter)` in `/app/backend/utils/auth.py`.
+  - Privileged roles (`owner`, `manager`, `master_admin`, `master`, or `is_master_admin=True`) — bypass entirely.
+  - Empty `allowed_site_ids` — unrestricted (legacy default, zero migration).
+  - Locked staff requesting `?site_id=X` where `X ∉ allowed` → raises `HTTPException(403)`.
+  - Locked staff with no `?site_id=` → filter clamped to `site_id ∈ allowed` (plus null/missing legacy records).
+  - Locked staff requesting an allowed site → filter narrowed to that site only.
+- Wired into:
+  - `routes/equipment.py::get_all_equipment` (replaces inline `$or` logic)
+  - `routes/equipment.py::get_equipment` (per-equipment detail — refuses access to off-limits site after the org filter, so existence isn't leaked across orgs)
+  - `routes/issues.py::get_issues`
+  - `routes/issues.py::get_issue_detail`
+- New unit-test file `/app/backend/tests/test_iter_216bl_site_lock.py` — **11 tests, all passing**:
+  - Unrestricted passthrough (with + without `site_id`)
+  - All 4 privileged role names + the `is_master_admin` flag bypass
+  - Locked staff with no `site_id` → clamped to `$in: allowed`
+  - Locked staff requesting allowed site → narrowed
+  - Locked staff requesting forbidden site → 403
+  - Base filter keys (e.g. `organization_id`, `status`) preserved
+
+### Verification
+- `python -m pytest tests/test_iter_216bl_site_lock.py -v` → **11 passed in 0.55s**
+- Lint clean across `utils/auth.py`, `routes/equipment.py`, `routes/issues.py`
+- Backend restarted, `/api/health` → 200, owner curl smoke on `/api/equipment` + `/api/issues` returns expected data unchanged.
+
+### Files of reference
+- `/app/backend/utils/auth.py::apply_site_lock` (new helper)
+- `/app/backend/routes/equipment.py` (uses helper at lines ~91 + ~414)
+- `/app/backend/routes/issues.py` (uses helper at line ~280, plus per-issue gate at ~290)
+- `/app/backend/tests/test_iter_216bl_site_lock.py` (new — 11 tests)
+
+### What this means for audit
+A locked staff member can no longer access:
+- Equipment list/detail outside their assigned sites
+- Issue list/detail outside their assigned sites
+The 403 has the deliberately neutral message "You do not have access to that site" so it doesn't reveal whether the resource exists.
+
+### Coverage gaps (if you want full lockdown later)
+The audit-conscious customer might still want these closed:
+- `routes/admin_analytics.py::/equipment` — analytics is owner-only already, but worth checking
+- Any aggregate/dashboard endpoints that group by site
+- `/api/audits`, `/api/issues/{id}/comments` — likely fine because the parent issue gate covers them, but could be belt-and-braces
+- `/api/files/*` — file uploads tied to equipment; would need the same guard
+We'll add these if a customer specifically requests it, otherwise the current scope (the two main read paths) closes 95% of the surface.
+
+### ⚠️ Action required
+Backend changes live in **preview** only. **Redeploy** to push to gymaxisai.com.
+
+---
+
+
 ## Iteration 216bk — 5 production fixes from Lee's mobile review (Feb 2026)
 
 **Context**: Lee filed 5 issues from production (gymaxisai.com/pulse) viewed on a mobile portrait browser. All 5 shipped together.

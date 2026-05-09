@@ -9,7 +9,7 @@ import logging
 
 import os
 from utils.database import db, EMERGENT_LLM_KEY, APP_NAME, put_object, get_object
-from utils.auth import get_current_user, get_organization_filter
+from utils.auth import get_current_user, get_organization_filter, apply_site_lock
 
 # Backend-side base URL for building absolute, browser-loadable public URLs.
 # Prefer backend-native FRONTEND_URL; fall back to REACT_APP_BACKEND_URL for local/dev.
@@ -88,14 +88,9 @@ async def get_all_equipment(
     user: dict = Depends(get_current_user), site_id: str = None
 ) -> dict:
     org_filter = get_organization_filter(user)
-    if site_id:
-        # Show equipment assigned to this site + unassigned equipment
-        org_filter["$or"] = [
-            {"site_id": site_id},
-            {"site_id": {"$exists": False}},
-            {"site_id": None},
-            {"site_id": ""},
-        ]
+    # Iter 216bl — site-locked staff are clamped to their allowed sites.
+    # apply_site_lock subsumes the legacy site_id $or branch.
+    org_filter = apply_site_lock(user, site_id, org_filter)
     equipment_list = await db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(200)
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
     for equip in equipment_list:
@@ -417,6 +412,17 @@ async def get_equipment(equipment_id: str, user: dict = Depends(get_current_user
     equipment = await db.equipment.find_one({"id": equipment_id, **org_filter}, {"_id": 0})
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
+    # Iter 216bl — site-locked staff are refused access to equipment
+    # outside their allowed sites. After the org filter so existence
+    # isn't leaked across orgs.
+    role = (user.get("role") or "").lower()
+    is_priv = (
+        role in ("owner", "manager", "master_admin", "master")
+        or bool(user.get("is_master_admin"))
+    )
+    allowed = user.get("allowed_site_ids") or []
+    if not is_priv and allowed and equipment.get("site_id") and equipment["site_id"] not in allowed:
+        raise HTTPException(status_code=403, detail="You do not have access to that site")
     equipment['stats'] = await get_equipment_stats(equipment_id, user)
     issue_filter = get_organization_filter(user)
     if equipment.get('serial_number'):

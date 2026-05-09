@@ -158,6 +158,56 @@ def get_organization_filter(user: dict) -> dict:
         return {"user_id": user['id']}
 
 
+def apply_site_lock(user: dict, requested_site_id: str | None, base_filter: dict) -> dict:
+    """Iter 216bl — clamp a Mongo filter to the user's allowed sites.
+
+    Owners, managers, and master-admins always bypass — they see every
+    site in the org. Non-privileged staff are filtered by their
+    `users.allowed_site_ids` list when set + non-empty:
+
+      • requested_site_id is None  →  filter `site_id ∈ allowed`
+        (records with no site_id are always included so legacy data
+         the staff member could already see in the UI doesn't disappear)
+      • requested_site_id ∈ allowed →  filter narrowed to that site
+      • requested_site_id ∉ allowed →  raise 403
+
+    Empty / absent allowed_site_ids = unrestricted (legacy default).
+    Mutates a copy of `base_filter` and returns it.
+    """
+    role = (user.get("role") or "").lower()
+    is_privileged = (
+        role in ("owner", "manager", "master_admin", "master")
+        or bool(user.get("is_master_admin"))
+    )
+    out = dict(base_filter)
+    allowed = user.get("allowed_site_ids") or []
+    if is_privileged or not allowed:
+        # Privileged or unrestricted — caller's existing site_id handling stands.
+        if requested_site_id:
+            out["$or"] = [
+                {"site_id": requested_site_id},
+                {"site_id": {"$exists": False}},
+                {"site_id": None},
+                {"site_id": ""},
+            ]
+        return out
+
+    # Non-privileged + locked. Validate the requested site if any.
+    if requested_site_id and requested_site_id not in allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have access to that site",
+        )
+    site_set = [requested_site_id] if requested_site_id else list(allowed)
+    out["$or"] = [
+        {"site_id": {"$in": site_set}},
+        {"site_id": {"$exists": False}},
+        {"site_id": None},
+        {"site_id": ""},
+    ]
+    return out
+
+
 async def verify_api_key(api_key: str = Depends(api_key_header)) -> dict:
     if not api_key:
         raise HTTPException(status_code=401, detail="API key required")
