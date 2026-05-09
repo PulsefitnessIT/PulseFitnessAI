@@ -1,3 +1,31 @@
+## Iteration 216bh — formatApiError hardening: stop masking JS bugs as network errors (Feb 2026)
+
+**Goal**: kill the entire class of bugs where a client-side `ReferenceError` or `TypeError` (e.g. an undefined variable in a template literal — exactly the iter 216bg bug) is reported to operators as *"Network unreachable — check your connection and retry"*, sending them on a wifi-troubleshooting wild-goose chase.
+
+### What shipped
+- `/app/frontend/src/lib/formatApiError.js` — early branch that detects `ReferenceError`, `TypeError`, `SyntaxError` and returns `"Unexpected client error — share this with support: ${err.name}: ${err.message}"`. Also logs the original error to the console so dev-tools / Sentry can pick it up.
+- Last-resort fallback now distinguishes "no `err.response` AND no `err.code` BUT has a message" (likely an unhandled JS error → surface the message) from "truly opaque error" (still falls back to the network message).
+- New unit-test file `/app/frontend/src/lib/formatApiError.test.js` with **9 passing tests** covering:
+  - ReferenceError + TypeError do NOT produce "Network unreachable"
+  - ERR_NETWORK and ECONNABORTED still produce the right copy
+  - 401 / 403 / 500-series HTTP errors keep their existing UX strings
+  - Plain Error with message is surfaced, not masked
+  - Truly empty error still falls back to network copy
+- Tests run cleanly: `yarn test src/lib/formatApiError.test.js` → **Tests: 9 passed, 9 total** in 1.3s.
+
+### Why this matters
+A misleading error message is worse than a generic one. The iter 216bg bug took specific debugging because Lee was told it was a network problem when his network was fine. With this change, the same future bug would surface as "Unexpected client error: ReferenceError: API is not defined" — copy-paste-able, instantly diagnosable, no time wasted on connectivity checks.
+
+### Files of reference
+- `/app/frontend/src/lib/formatApiError.js` (hardened)
+- `/app/frontend/src/lib/formatApiError.test.js` (new)
+
+### Action for user
+Like the previous fix, this lives in **preview** only. **Redeploy** to push to gymaxisai.com. Pairs especially well with the upcoming Sentry DSN — once Sentry is live, the same bugs will also fire a breadcrumb to your dashboard with stack trace + URL + user, so you don't even need a customer report to spot them.
+
+---
+
+
 ## Iteration 216bg — Bug fix: master-admin "Reset Link" misleading network error (Feb 2026)
 
 **Reported by**: Lee on production (gymaxisai.com/master-admin) — clicked "Reset Link" on a user, got toast "Failed to generate reset link · Network unreachable — check your connection and retry" despite a healthy 5G connection.

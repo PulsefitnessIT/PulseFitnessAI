@@ -35,6 +35,23 @@ function _stringify(value) {
 }
 
 export function formatApiError(err, fallback = 'Something went wrong') {
+  // Iter 216bh — a real JS bug (e.g. ReferenceError from an undefined
+  // variable in a template literal, TypeError from .foo on undefined)
+  // would otherwise hit the no-status fallback below and be reported
+  // as "Network unreachable" — wildly misleading. Detect and surface
+  // the actual error name + message so the operator can paste it
+  // straight to support instead of chasing wifi signal.
+  if (err instanceof ReferenceError || err instanceof TypeError || err instanceof SyntaxError) {
+    const msg = (err && err.message) ? String(err.message) : err.name;
+    // eslint-disable-next-line no-console
+    console.error('[formatApiError] caught client-side bug:', err);
+    return {
+      title: fallback,
+      detail: `Unexpected client error — share this with support: ${err.name}: ${msg}`,
+      status: null,
+    };
+  }
+
   // Network-layer failure (no response received).
   if (err && err.code === 'ERR_NETWORK') {
     return {
@@ -137,6 +154,16 @@ export function formatApiError(err, fallback = 'Something went wrong') {
         };
       }
       // No status, no recognised code — last-resort fallback.
+      // Iter 216bh — distinguish "no response" (likely network) from
+      // an Error with a message (likely a client bug we didn't catch
+      // earlier). Surfacing the message helps support triage.
+      if (err && err.message && !err.response && !err.code) {
+        return {
+          title: fallback,
+          detail: `Unexpected error — share with support: ${err.message}`,
+          status: null,
+        };
+      }
       return {
         title: fallback,
         detail: serverDetail || NETWORK_FALLBACK,
