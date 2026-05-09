@@ -1,0 +1,68 @@
+{
+  "summary": "Phase S4 — Staffing Tasks · Forms · Compliance testing complete. Backend: 38/38 tests passed (100%). Frontend: All UI components verified - Operations tab with 3 sub-panels (Tasks, Forms, Compliance) working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216ap_staffing_s4_tasks_forms_compliance.py",
+    "/app/test_reports/pytest/pytest_results_216ap.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend code is well-structured with proper validation for task kinds, form field kinds, and cert severity banding",
+    "Frontend OperationsTab.js has proper data-testid attributes for all interactive elements",
+    "Severity banding logic correctly computes expired/expiring_30/expiring_90/ok/unknown based on expires_at date",
+    "Materialise endpoint is idempotent - dedupes on (parent_template_id, due_at YYYY-MM-DD prefix)",
+    "Form submission validates required fields and persists template_name_snapshot for audit trail"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216ap_staffing_s4_tasks_forms_compliance.py"
+  ],
+  "success_rate": {
+    "backend": "100% (38/38 passed)",
+    "frontend": "100% - All UI components verified"
+  },
+  "test_credentials": {
+    "owner": "bob@knockers.com / Test123!",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "rate_limit_bypass": "7d889c8f7c814c8fdfeeb49fd2ea8bca2b17df490c8df1fea50bd7d279f44105"
+  },
+  "seed_data_creation": "Created TEST_S4_ prefixed tasks, forms, and certs for testing (auto-cleaned after tests)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase S4 Tasks · Forms · Compliance fully tested and working. Backend tests cover: TASKS (CRUD, recurring daily/weekly, materialise idempotent, complete with photo verification, uncomplete), FORMS (templates CRUD, all 9 field kinds validated, submissions with required field validation), COMPLIANCE (certs CRUD, severity banding auto-computed, tracker endpoint with buckets and missing_staff). Frontend verified: Operations tab visible in Staffing console, 3 sub-tabs (Tasks & Checklists, Forms, Compliance) with pill toggle, all buttons and panels working.",
+  "features_tested": {
+    "backend": [
+      "GET /api/staffing/tasks - lists tasks for org, managers see all, staff see own assignments + unassigned",
+      "GET /api/staffing/tasks?date=YYYY-MM-DD - includes recurring daily AND weekly tasks matching weekday",
+      "POST /api/staffing/tasks - validates kind in {one_off, shift_linked, opening, closing, recurring}",
+      "POST /api/staffing/tasks - rejects recurring without recurrence, rejects weekly without weekdays",
+      "POST /api/staffing/tasks/{id}/complete - sets status=completed, rejects 400 when requires_photo=true and photo_url missing",
+      "POST /api/staffing/tasks/{id}/uncomplete - reverts completion",
+      "POST /api/staffing/tasks/materialise - generates one-off instances of recurring templates, idempotent",
+      "GET /api/staffing/forms/templates - lists templates, non-managers see only matching audience_role",
+      "POST /api/staffing/forms/templates - validates field kinds in {text, long_text, number, select, multiselect, checkbox, date, signature, photo}",
+      "POST /api/staffing/forms/templates/{id}/submit - validates required fields, persists template_name_snapshot",
+      "GET /api/staffing/forms/submissions - returns all (manager) or just own (staff)",
+      "POST /api/staffing/compliance/certs - creates cert with severity band auto-computed",
+      "GET /api/staffing/compliance/certs - lists certs scoped to caller",
+      "PATCH /api/staffing/compliance/certs/{id} - updates expires_at and re-bands severity",
+      "DELETE /api/staffing/compliance/certs/{id} - soft-archives",
+      "GET /api/staffing/compliance/tracker - groups certs by band, counts each, lists missing_staff",
+      "Severity banding: expired (past), expiring_30 (0-30d), expiring_90 (30-90d), ok (>90d), unknown (no expiry)"
+    ],
+    "frontend": [
+      "Operations tab visible in Staffing console after Comms Hub tab",
+      "3 sub-tabs (Tasks & Checklists, Forms, Compliance) selectable via pill toggle",
+      "Tasks panel: date picker filters list, New task button, Generate recurring button",
+      "Forms panel: New form button, Show submissions toggle",
+      "Compliance panel: severity summary chips per band, Add cert button, missing staff alert when missing_count > 0"
+    ]
+  }
+}
