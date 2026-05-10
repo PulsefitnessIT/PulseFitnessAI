@@ -150,12 +150,25 @@ const useMasterAdminActions = ({ API, headers, loadData, loadSectionData }) => {
     try {
       const res = await axios.post(`${API}/master-admin/organizations/${orgId}/users`, userForm, { headers });
       try { window.dispatchEvent(new CustomEvent('gymaxis:user-invited')); } catch (_) {}
+      // Refresh the list BEFORE we tell the user — guarantees the org
+      // panel renders the new user the moment they look for it.
+      await loadData();
       notify.success('User added');
-      loadData();
       // Iter 215ev — return the response body so the caller can access
       // invite_url when password was omitted (invite-link flow).
       return res.data;
     } catch (err) {
+      // If the backend says the user already exists, the most useful
+      // thing is to refresh the list (because the previous attempt
+      // probably succeeded but the UI lagged) and tell the user.
+      if (err?.response?.status === 409) {
+        try { await loadData(); } catch (_) { /* refresh best-effort */ }
+        notify.error(
+          'Already added',
+          'This email is already a user. The list has been refreshed — they should now appear under the org.',
+        );
+        return null;
+      }
       notifyApiError(notify, err, 'Failed to add user');
       return null;
     }

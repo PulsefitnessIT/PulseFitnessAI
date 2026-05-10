@@ -203,7 +203,18 @@ const MasterAdminPage = ({ onBack }) => {
       setStats(statsRes.data);
       setOrganizations(orgsRes.data.organizations || []);
       setUsers(usersRes.data.users || []);
-    } catch { /* ignored */ }
+    } catch (err) {
+      // Iter 216g · log silent failures so a single endpoint hiccup
+      // doesn't leave the org-users list quietly stale.
+      // eslint-disable-next-line no-console
+      console.error('[MasterAdmin loadData failed]', err?.response?.status, err?.response?.data || err?.message);
+      // Fall back: try fetching users alone so the org-users panel
+      // still refreshes even if stats/orgs failed.
+      try {
+        const usersRes = await axios.get(`${API}/master-admin/users`, { headers });
+        setUsers(usersRes.data.users || []);
+      } catch (_) { /* best effort */ }
+    }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
