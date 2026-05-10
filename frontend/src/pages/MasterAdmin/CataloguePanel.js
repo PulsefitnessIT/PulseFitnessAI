@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/App';
-import { Image as ImageIcon, FileText, Camera, Megaphone } from 'lucide-react';
+import { Image as ImageIcon, FileText, Camera, Megaphone, Share2 } from 'lucide-react';
 import AdminSpecSheets from './AdminSpecSheets';
 import AdminEquipmentImages from './AdminEquipmentImages';
 import ManufacturerDomainsPanel from './ManufacturerDomainsPanel';
 import MarketingImageLibraryPanel from './MarketingImageLibraryPanel';
+import SocialMediaLibraryPanel from './SocialMediaLibraryPanel';
 
 /**
  * Iter 215b — Equipment Image Catalogue (combined surface).
@@ -29,6 +30,7 @@ const CataloguePanel = () => {
           { id: 'spec-sheets', label: 'Spec Sheets', icon: FileText },
           { id: 'equipment-images', label: 'Equipment Images', icon: Camera },
           { id: 'marketing', label: 'Marketing', icon: Megaphone },
+          { id: 'social-media', label: 'Social Media', icon: Share2 },
         ].map((t) => {
           const Icon = t.icon;
           return (
@@ -49,6 +51,7 @@ const CataloguePanel = () => {
       {tab === 'spec-sheets' && <AdminSpecSheets headers={headers()} />}
       {tab === 'equipment-images' && <AdminEquipmentImages API={API} />}
       {tab === 'marketing' && <MarketingImageLibraryPanel />}
+      {tab === 'social-media' && <SocialMediaLibraryPanel />}
     </div>
   );
 };

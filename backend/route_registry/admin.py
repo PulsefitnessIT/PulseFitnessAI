@@ -45,6 +45,7 @@ from routes.custom_properties import router as custom_properties_router
 from routes.module_trials import router as module_trials_router
 from routes.master_admin_manufacturer_domains import router as master_admin_manufacturer_domains_router
 from routes.marketing_image_library import router as marketing_image_library_router
+from routes.social_media_library import router as social_media_library_router
 from routes.integration_health import router as integration_health_router
 from routes.companies_house import router as companies_house_router
 from routes.postcodes import router as postcodes_router
@@ -80,6 +81,7 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_catalogue_router,
         master_admin_manufacturer_domains_router,
         marketing_image_library_router,
+        social_media_library_router,
         master_admin_hubspot_parity_router,
         cross_module_tips_router,
         custom_properties_router,
