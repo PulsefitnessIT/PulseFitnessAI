@@ -1,0 +1,75 @@
+{
+  "summary": "Phase 1 Online Member Self-Signup (iteration 216g) backend testing complete. All 27 tests passed (100%). Public signup endpoints (branding, plans, draft, parq, checkout) and Stripe Connect endpoints (status, onboarding-link, link-existing, disconnect) all working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216g_online_signup.py",
+    "/app/test_reports/pytest/pytest_results_216g.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Public signup endpoints correctly require no auth - accessible for member self-signup",
+    "PARQ clearance logic correctly flags any 'yes' answer with clearance_required=true",
+    "Draft endpoint is idempotent - same draft_id updates instead of creating duplicate",
+    "Checkout endpoint correctly returns 400 with clear message when gym has no stripe_account_id",
+    "Stripe Connect endpoints properly enforce master admin authorization (403 for non-admins)",
+    "Platform fee correctly set to 1.0% as per spec",
+    "Link-existing endpoint validates acct_ prefix before calling Stripe API",
+    "Stripe API errors return 400 with error message (not 500 crash) - proper error handling"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216g_online_signup.py"
+  ],
+  "success_rate": {
+    "backend": "100% (27/27 passed)",
+    "frontend": "Skipped per request"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "tenant_test": "bob@knockers.com / Test123!",
+    "test_org_id": "6e2b80c5-05b0-4a8a-a06a-2af52ee7cd8c (Strong Fitness)",
+    "test_org_slug": "strong-fitness-test"
+  },
+  "seed_data_creation": "Test drafts created with TEST_ prefix emails during testing (auto-cleaned by test isolation)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 1 Online Member Self-Signup backend fully tested. All public signup endpoints (GET /branding, GET /plans, POST /draft, POST /parq, POST /checkout, GET /status) and Stripe Connect endpoints (GET /status, POST /onboarding-link, POST /link-existing, POST /dashboard-link, DELETE /disconnect) working correctly. Stripe Connect calls hit real Stripe API - 400 errors from Stripe are expected behavior (not bugs). Frontend testing was skipped per request.",
+  "features_tested": {
+    "public_signup_endpoints": [
+      "GET /api/public/signup/{slug}/branding - returns 200 with gym info + 7 PARQ questions (no auth)",
+      "GET /api/public/signup/{slug}/plans - returns published plans for gym (no auth, even if empty)",
+      "POST /api/public/signup/{slug}/draft - saves partial signup with email + step + plan_id, returns draft_id, idempotent",
+      "POST /api/public/signup/{slug}/parq - saves PARQ answers, sets clearance_required=true if any 'yes'",
+      "POST /api/public/signup/{slug}/checkout - fails 400 with 'gym has not connected payments' when no stripe_account_id",
+      "GET /api/public/signup/status/{session_id} - returns 404 for non-existent session"
+    ],
+    "stripe_connect_endpoints": [
+      "GET /api/stripe-connect/orgs/{org}/status - master admin only, returns connected:false for un-connected org, includes platform_fee_percent:1.0",
+      "POST /api/stripe-connect/orgs/{org}/onboarding-link - master admin only, creates Stripe Express account or returns 400 with Stripe error (not 500)",
+      "POST /api/stripe-connect/orgs/{org}/link-existing - accepts acct_… id or rejects invalid format with 400",
+      "POST /api/stripe-connect/orgs/{org}/dashboard-link - fails 400 when org has no connected account",
+      "DELETE /api/stripe-connect/orgs/{org}/disconnect - clears stripe_account_id"
+    ],
+    "authorization_tests": [
+      "All Stripe Connect endpoints return 403 for non-master-admin users",
+      "All public signup endpoints work without authentication"
+    ],
+    "validation_tests": [
+      "Draft requires valid email (rejects invalid format with 400)",
+      "PARQ requires draft_id (rejects missing with 400)",
+      "Checkout requires both draft_id and plan_id (rejects missing with 400)",
+      "Link-existing rejects account_id not starting with 'acct_'"
+    ]
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe Connect Express webhooks (account.updated) - only construct_event is wired; full webhook events not simulated in this test pass"]
+  }
+}

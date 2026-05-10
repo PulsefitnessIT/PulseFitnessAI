@@ -48,6 +48,8 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const LiteDashboardPage = lazy(() => import('@/pages/LiteDashboardPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
 const SSOCompletePage = lazy(() => import('@/pages/SSOCompletePage'));
+const JoinPage = lazy(() => import('@/pages/PublicSignup/JoinPage'));
+const JoinSuccess = lazy(() => import('@/pages/PublicSignup/JoinSuccess'));
 const LoginRedirectPage = lazy(() => import('@/pages/GymAxisLoginPage'));
 const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 const SupplierCasePage = lazy(() => import('@/pages/SupplierCasePage'));
@@ -144,6 +146,8 @@ export default function AppRoutes({ user, login }) {
     <Routes>
       {/* ─── Marketing site ─── */}
       <Route path="/" element={<MarketingHome />} />
+      <Route path="/m/:slug/join" element={<JoinPage />} />
+      <Route path="/m/:slug/join/success" element={<JoinSuccess />} />
       <Route path="/legacy-home" element={<Navigate to="/" replace />} />
       <Route path="/platform/service"     element={<ModulePage module={moduleService} />} />
       <Route path="/platform/crm"         element={<ModulePage module={moduleCrm} />} />

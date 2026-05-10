@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { notify } from '@/components/notifications';
 import { SectionCard, Pill, fmtMoney } from './shared';
-import { Lock, ShieldCheck, SlidersHorizontal, Pencil, Save, XIcon, Link2 } from 'lucide-react';
+import { Lock, ShieldCheck, SlidersHorizontal, Pencil, Save, XIcon, Link2, CreditCard } from 'lucide-react';
 import OrgLinkedSitesTab from './OrgLinkedSitesTab';
+import PaymentSetupCard from '../PaymentSetupCard';
 
 const OrgDrawer = ({ orgId, onClose, onChanged }) => {
   const { API } = useAuth();
@@ -111,6 +112,7 @@ const OrgDrawer = ({ orgId, onClose, onChanged }) => {
             <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-700 -mb-px" data-testid="org-drawer-tabs">
               {[
                 { id: 'overview', label: 'Overview' },
+                { id: 'payments', label: 'Payments', icon: CreditCard },
                 { id: 'linked-sites', label: 'Linked sites', icon: Link2 },
               ].map((t) => {
                 const Icon = t.icon;
@@ -132,6 +134,10 @@ const OrgDrawer = ({ orgId, onClose, onChanged }) => {
 
             {tab === 'linked-sites' ? (
               <OrgLinkedSitesTab orgId={orgId} orgName={data.organization?.name || ''} />
+            ) : tab === 'payments' ? (
+              <div className="pt-3" data-testid="org-drawer-payments">
+                <PaymentSetupCard organizationId={orgId} />
+              </div>
             ) : (
               <div className="space-y-4 text-sm pt-2">
                 <div className="grid grid-cols-3 gap-3">
