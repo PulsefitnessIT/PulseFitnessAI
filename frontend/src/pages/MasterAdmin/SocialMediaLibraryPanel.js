@@ -106,24 +106,63 @@ const SocialMediaLibraryPanel = () => {
   };
 
   const downloadImage = async (row) => {
-    // Force-download via a fetched blob so the browser saves with our filename.
+    // Mobile-friendly download. Browsers (iOS Safari especially) ignore
+    // the <a download> blob trick. Strategy:
+    //   1. Web Share API with files  -> native share sheet, "Save to Photos"
+    //   2. <a download> blob          -> desktop browsers
+    //   3. window.open                -> fallback so user can long-press save
     try {
       const res = await fetch(row.image_url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
+      const ext = (row.image_url.split('.').pop() || 'png').split('?')[0].slice(0, 5) || 'png';
+      const safe = row.label.replace(/[^a-z0-9]+/gi, '_').replace(/_+/g, '_').toLowerCase();
+      const filename = `${safe}.${ext}`;
+
+      const file = new File([blob], filename, { type: blob.type || 'image/png' });
+
+      // 1) Try Web Share API (works on iOS Safari 15+ and modern Android Chrome).
+      if (
+        typeof navigator !== 'undefined' &&
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare({ files: [file] }) &&
+        typeof navigator.share === 'function'
+      ) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: row.label,
+            text: 'GymAxis · social media post',
+          });
+          notify.success('Ready to save', 'Tap "Save to Photos" or "Save to Files" in the share sheet.');
+          return;
+        } catch (shareErr) {
+          if (shareErr?.name === 'AbortError') return; // user cancelled the share sheet
+          // otherwise fall through to download fallback below
+        }
+      }
+
+      // 2) Desktop: classic blob + <a download>.
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const safe = row.label.replace(/[^a-z0-9]+/gi, '_').replace(/_+/g, '_').toLowerCase();
-      const ext = (row.image_url.split('.').pop() || 'png').split('?')[0].slice(0, 5) || 'png';
+      const safe2 = row.label.replace(/[^a-z0-9]+/gi, '_').replace(/_+/g, '_').toLowerCase();
+      const ext2 = (row.image_url.split('.').pop() || 'png').split('?')[0].slice(0, 5) || 'png';
       a.href = blobUrl;
-      a.download = `${safe}.${ext}`;
+      a.download = `${safe2}.${ext2}`;
+      a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(blobUrl);
-      notify.success('Downloaded', row.label);
+      notify.success('Downloaded', `${safe2}.${ext2}`);
     } catch (e) {
-      notify.error('Download failed', e.message);
+      // 3) Last-resort fallback: open image so the user can long-press.
+      try {
+        window.open(row.image_url, '_blank', 'noopener');
+        notify.success('Opened in new tab', 'Long-press the image and choose "Save Image".');
+      } catch (openErr) {
+        notify.error('Download failed', e.message || 'Could not save image.');
+      }
     }
   };
 
@@ -364,9 +403,20 @@ const SocialMediaLibraryPanel = () => {
                             onClick={() => downloadImage(row)}
                             className="flex-1 h-8 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white text-xs"
                             data-testid={`social-download-${row.id}`}
+                            title="Save image (uses your phone's share sheet on mobile)"
                           >
-                            <Download size={12} className="mr-1" /> Image
+                            <Download size={12} className="mr-1" /> Save
                           </Button>
+                          <a
+                            href={row.image_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="h-8 px-2 inline-flex items-center justify-center rounded-md border border-zinc-200 text-zinc-700 hover:bg-zinc-50 text-xs"
+                            data-testid={`social-open-${row.id}`}
+                            title="Open image (long-press on mobile to save to Photos)"
+                          >
+                            <ImageIcon size={12} />
+                          </a>
                           <Button
                             size="sm"
                             variant="outline"
