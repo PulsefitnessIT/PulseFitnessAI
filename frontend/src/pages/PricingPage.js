@@ -468,6 +468,9 @@ function DynamicModulesSection({ onStartTrial, brandHint = 'gymaxis' }) {
         <p className="mt-6 text-center text-xs text-white/40">
           Prices include {((plans[0]?.vat_rate || 0.20) * 100).toFixed(0)}% VAT · Multi-site discount applies automatically.
         </p>
+        <p className="mt-2 text-center text-[11px] text-white/40">
+          Marketing module includes 5,000 emails/month. Need more? Email Boost packs from <span className="text-white/60 font-semibold">+£19/mo</span> (+25,000) to <span className="text-white/60 font-semibold">+£199/mo</span> (+500,000).
+        </p>
       </div>
     </section>
   );

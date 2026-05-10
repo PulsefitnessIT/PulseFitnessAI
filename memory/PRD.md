@@ -13210,3 +13210,89 @@ Frontend:
 - `/app/frontend/public/marketing/mosaic_master_fhd_native.png`
 - `/app/frontend/public/marketing/mosaic_tiles_fhd_native/tile_01..09.png`
 - `/app/frontend/public/marketing/instagram_campaign/01_cover.png … 09_cta.png`
+
+---
+
+## Iter 216g (cont) · Plan B + C + D — Marketing bolt-ons & pricing audit (May 10, 2026)
+
+### B. Marketing bolt-on packs (email & SMS)
+The Marketing module is now sold as a single base subscription (£39/mo
+including 5,000 emails/month) plus optional bolt-on packs:
+
+| Code              | Name                  | Kind  | + Emails | + SMS | Monthly |
+| ----------------- | --------------------- | ----- | -------- | ----- | ------- |
+| email_boost_25k   | Email Boost · 25,000  | email |   25,000 |     0 | £19.00  |
+| email_boost_100k  | Email Boost · 100,000 | email |  100,000 |     0 | £59.00  |
+| email_boost_500k  | Email Boost · 500,000 | email |  500,000 |     0 | £199.00 |
+| sms_pack_1k       | SMS Pack · 1,000      | sms   |        0 | 1,000 | £29.00  |
+
+Effective email cap = base 5,000 + sum(included_emails of attached packs).
+
+#### Endpoints
+- Master admin catalog CRUD: `GET/POST/PUT/DELETE /api/master-admin/marketing/addons[/{id}]`
+- Master admin per-org attach: `GET/POST /api/master-admin/marketing/orgs/{org}/addons`, `DELETE …/{attachment_id}`
+- Tenant: `GET /api/marketing/addons/catalog`, `GET /api/marketing/addons/mine`
+
+#### Collections
+- `marketing_addons`     — catalog of SKUs (id, code, name, kind, monthly_price_pence, included_emails, included_sms, active, sort_order)
+- `marketing_org_addons` — per-org attachments (id, organization_id, code, active, attached_at, attached_by, detached_at?, notes)
+
+#### UI
+- Master Admin → Pricing panel (gymaxis brand only): two new sections
+  underneath the plan rows — "Marketing add-on packs" (CRUD) and
+  "Pricing drift audit".
+- Customer Marketing module: the plan-badge usage indicator is now a
+  clickable "manage packs" trigger that opens the new
+  `EmailVolumePanel` (`/app/frontend/src/pages/Marketing/EmailVolumePanel.js`)
+  showing current cap, this-period usage, attached packs, and the
+  catalog with "Request enable" buttons (mailto-based until Stripe sub-line
+  ships).
+
+#### End-to-end smoke verified
+- Master admin attached `email_boost_100k` to Bob's org → Bob's
+  `/marketing/addons/mine` returned the pack with the correctly summed
+  effective cap (105,000 emails/mo) and addon cost (£59/mo).
+
+### C. Public PricingPage (homepage)
+Per user direction the plan card prices stay verbatim (Starter £29 /
+Pro £79 / Bundle £199 / Enterprise £249). Added a single line under the
+VAT footnote:
+> "Marketing module includes 5,000 emails/month. Need more? Email Boost
+> packs from +£19/mo (+25,000) to +£199/mo (+500,000)."
+
+### D. Pricing drift audit panel
+New read-only Master-admin panel (`PricingDriftPanel.js`) backed by
+`GET /api/master-admin/pricing/audit-drift`. Compares:
+1. `pricing_plans` (engine, source of truth) ↔ `marketing_plans` (legacy)
+2. `pricing_plans` ↔ `PricingPage.js` `PLANS` array (homepage)
+3. `organizations.memberships_tier` (legacy field) — flags orgs still
+   marked Pro after Plan A's UI removal.
+
+On smoke run it correctly flagged the legacy `marketing_plans` tiers (Pro
+£149, Enterprise £399) as drifting from the engine's £49 Marketing module.
+Each item carries a `severity`, `engine_value`, `drift_value`, and a `fix`
+hint so the operator knows what to do next.
+
+### Files
+Backend:
+- `/app/backend/routes/marketing_addons.py`            (new, ~270 lines)
+- `/app/backend/routes/pricing_drift_audit.py`         (new)
+- `/app/backend/route_registry/admin.py`               (registered both)
+
+Frontend:
+- `/app/frontend/src/pages/Marketing/EmailVolumePanel.js`            (new, customer-facing)
+- `/app/frontend/src/pages/MasterAdmin/MarketingAddonsPanel.js`      (new)
+- `/app/frontend/src/pages/MasterAdmin/PricingDriftPanel.js`         (new)
+- `/app/frontend/src/pages/MasterAdmin/PricingPanel.js`              (mounted both panels)
+- `/app/frontend/src/pages/MarketingSuite.js`                        (clickable usage badge → EmailVolumePanel)
+- `/app/frontend/src/pages/PricingPage.js`                           (Email-Boost mention added)
+
+### Next planned work
+- Self-serve Stripe sub-line checkout for bolt-on packs (turn the current
+  mailto "Request enable" CTA into a one-click upgrade).
+- Migration script: convert existing `marketing_plans` Pro/Enterprise
+  subscribers into base + best-fit bolt-on, then remove the
+  `master_admin/marketing/plans` admin screen.
+- HOMEPAGE_PRICES auto-sync — replace the static dict in
+  `pricing_drift_audit.py` with a one-time scrape of `PricingPage.js`
+  during CI so the audit can never go stale.

@@ -16,6 +16,8 @@ import {
   Save, RotateCcw, Sparkles, Plus, Trash2, ChevronDown, ChevronUp, History,
   PoundSterling, Euro, DollarSign, Loader2, Eye, EyeOff,
 } from 'lucide-react';
+import MarketingAddonsPanel from './MarketingAddonsPanel';
+import PricingDriftPanel from './PricingDriftPanel';
 
 const CURRENCIES = [
   { code: 'GBP', label: 'GBP £', icon: PoundSterling },
@@ -207,6 +209,22 @@ export default function PricingPanel() {
           onSave={() => savePlan(p)}
         />
       ))}
+
+      {/* Iter 216g · Plan B — Marketing add-on packs (email & SMS bolt-ons) */}
+      {brand === 'gymaxis' && (
+        <>
+          <div className="pt-4 mt-2 border-t border-zinc-200">
+            <h3 className="text-base font-semibold text-zinc-900 mb-1">Marketing add-on packs</h3>
+            <p className="text-xs text-zinc-500 mb-3">Email-volume + SMS bolt-ons that customers attach on top of the base Marketing module.</p>
+            <MarketingAddonsPanel />
+          </div>
+
+          {/* Iter 216g · Plan D — Pricing drift audit */}
+          <div className="pt-4 mt-2 border-t border-zinc-200">
+            <PricingDriftPanel />
+          </div>
+        </>
+      )}
 
       {showAudit && (
         <AuditDrawer entries={auditLog} onClose={() => setShowAudit(false)} />

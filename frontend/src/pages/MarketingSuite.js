@@ -45,6 +45,7 @@ import ContactsTab from './Marketing/ContactsTab';
 import MarketingTour from './Marketing/MarketingTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
+import EmailVolumePanel from './Marketing/EmailVolumePanel';
 
 // Guided "Start" tab sits first — it's the entry point for non-technical
 // users. Power users can ignore it and jump straight to any downstream tab.
@@ -109,6 +110,7 @@ const MarketingSuite = () => {
   }, [hideStart, tab]);
   const [wizardState, setWizardState] = useState({ open: false, preset: null, templateId: null });
   const [undoCampaignId, setUndoCampaignId] = useState(null);
+  const [emailPanelOpen, setEmailPanelOpen] = useState(false);
   const openWizard = (opts = {}) => setWizardState({ open: true, preset: opts.preset || 'wizard', templateId: opts.templateId || null });
   const closeWizard = (result) => {
     setWizardState({ open: false, preset: null, templateId: null });
@@ -302,10 +304,18 @@ const MarketingSuite = () => {
                 Free trial
               </span>
             )}
-            <span className="ml-auto text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+            <button
+              type="button"
+              onClick={() => setEmailPanelOpen(true)}
+              className="ml-auto text-[11px] hover:underline cursor-pointer transition-colors"
+              style={{ color: 'var(--theme-text-muted)' }}
+              data-testid="marketing-email-volume-trigger"
+              title="View email volume cap and bolt-on packs"
+            >
               {entitlement.subscription.usage_this_period.emails_sent ?? 0} / {entitlement.limits.monthly_emails.toLocaleString()} emails ·{' '}
               {entitlement.subscription.usage_this_period.ai_generations ?? 0} / {entitlement.limits.ai_generations.toLocaleString()} AI gens
-            </span>
+              <span className="ml-1.5 underline-offset-2 underline">manage packs</span>
+            </button>
           </div>
         )}
 
@@ -338,6 +348,14 @@ const MarketingSuite = () => {
         onJumpToTab={setTab}
         onComplete={() => { /* tour state already persisted server-side */ }}
       />
+
+      {emailPanelOpen && (
+        <EmailVolumePanel
+          API={API}
+          headers={headers}
+          onClose={() => setEmailPanelOpen(false)}
+        />
+      )}
     </div>
   );
 };
