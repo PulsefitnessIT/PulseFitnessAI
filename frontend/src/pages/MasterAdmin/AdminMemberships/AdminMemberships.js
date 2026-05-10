@@ -5,7 +5,6 @@ import OverviewTab from './OverviewTab';
 import OrganisationsTab from './OrganisationsTab';
 import TemplatesTab from './TemplatesTab';
 import BookingRulesTab from './BookingRulesTab';
-import TiersTab from './TiersTab';
 import RevenueTab from './RevenueTab';
 import EngagementTab from './EngagementTab';
 import InstructorsTab from './InstructorsTab';
@@ -18,7 +17,6 @@ const TABS = [
  { id: 'organisations', label: 'Organisations' },
  { id: 'engagement', label: 'Engagement & Retention' },
  { id: 'instructors', label: 'Instructors' },
- { id: 'tiers', label: 'Subscription Tiers' },
  { id: 'templates', label: 'Plan Templates' },
  { id: 'rules', label: 'Booking Rules' },
  { id: 'ai', label: 'AI Insights & Flags' },
@@ -58,7 +56,6 @@ const AdminMemberships = () => {
  {tab === 'organisations' && (
  <OrganisationsTab
  organizations={state.organizations}
- onSetTier={state.setOrgTier}
  onSetOverrides={state.setOrgOverrides}
  onOpenOrg={setOrgId}
  />
@@ -74,7 +71,6 @@ const AdminMemberships = () => {
  />
  )}
  {tab === 'rules' && <BookingRulesTab rules={state.bookingRules} onSave={state.saveBookingRules} />}
- {tab === 'tiers' && <TiersTab tierMatrix={state.tierMatrix} onSave={state.saveTierMatrix} />}
  {tab === 'revenue' && <RevenueTab revenue={state.revenue} />}
  {tab === 'engagement' && <EngagementTab engagement={state.engagement} />}
  {tab === 'instructors' && <InstructorsTab instructors={state.instructors} />}

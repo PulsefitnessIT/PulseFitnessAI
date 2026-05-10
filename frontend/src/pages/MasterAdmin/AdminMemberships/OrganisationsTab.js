@@ -1,21 +1,30 @@
 import React, { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Crown, Lock, Unlock, Search, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Lock, Unlock, Search, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { Pill, fmtMoney, fmtPct } from './shared';
 
-const OrganisationsTab = ({ organizations, onSetTier, onSetOverrides, onOpenOrg }) => {
+/**
+ * OrganisationsTab — single-tier model.
+ *
+ * Memberships no longer has Lite/Pro tiering at the product level. The
+ * `organizations.memberships_tier` field is preserved in the DB for
+ * forward-compat but is no longer surfaced or edited in the UI. Per-org
+ * controls reduce to: open drawer · lock/unlock.
+ */
+const OrganisationsTab = ({ organizations, onSetOverrides, onOpenOrg }) => {
   const [q, setQ] = useState('');
-  const [tier, setTier] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
     return organizations.filter((o) => {
-      if (tier !== 'all' && o.memberships_tier !== tier) return false;
       if (ql && !(o.name || '').toLowerCase().includes(ql)) return false;
+      if (statusFilter === 'locked' && !o.locked) return false;
+      if (statusFilter === 'active' && o.locked) return false;
       return true;
     });
-  }, [organizations, q, tier]);
+  }, [organizations, q, statusFilter]);
 
   return (
     <div className="space-y-4" data-testid="memberships-admin-orgs">
@@ -33,14 +42,14 @@ const OrganisationsTab = ({ organizations, onSetTier, onSetOverrides, onOpenOrg 
         <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-md">
           {[
             { id: 'all', label: 'All' },
-            { id: 'lite', label: 'Lite' },
-            { id: 'pro', label: 'Pro' },
+            { id: 'active', label: 'Active' },
+            { id: 'locked', label: 'Locked' },
           ].map((t) => (
             <button
               key={t.id}
-              onClick={() => setTier(t.id)}
-              className={`px-3 py-1 text-xs rounded-sm font-medium ${tier === t.id ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
-              data-testid={`orgs-tier-filter-${t.id}`}
+              onClick={() => setStatusFilter(t.id)}
+              className={`px-3 py-1 text-xs rounded-sm font-medium ${statusFilter === t.id ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+              data-testid={`orgs-status-filter-${t.id}`}
             >
               {t.label}
             </button>
@@ -54,7 +63,6 @@ const OrganisationsTab = ({ organizations, onSetTier, onSetOverrides, onOpenOrg 
           <thead>
             <tr className="text-[11px] uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
               <th className="text-left px-3 py-2.5 font-semibold">Organisation</th>
-              <th className="text-left px-3 py-2.5 font-semibold">Tier</th>
               <th className="text-right px-3 py-2.5 font-semibold">Members</th>
               <th className="text-right px-3 py-2.5 font-semibold">Plans</th>
               <th className="text-right px-3 py-2.5 font-semibold">Classes</th>
@@ -78,11 +86,6 @@ const OrganisationsTab = ({ organizations, onSetTier, onSetOverrides, onOpenOrg 
                   </button>
                   <p className="text-[11px] text-zinc-400 truncate">{o.slug || '—'}</p>
                 </td>
-                <td className="px-3 py-2.5">
-                  <Pill tone={o.memberships_tier === 'pro' ? 'violet' : 'zinc'} testid={`org-tier-${o.id}`}>
-                    {o.memberships_tier === 'pro' ? <><Crown size={10} className="mr-1" /> Pro</> : 'Lite'}
-                  </Pill>
-                </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{o.members}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{o.plans}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{o.classes}</td>
@@ -105,15 +108,6 @@ const OrganisationsTab = ({ organizations, onSetTier, onSetOverrides, onOpenOrg 
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 text-[11px] border-zinc-200 mr-1"
-                    onClick={() => onSetTier(o.id, o.memberships_tier === 'pro' ? 'lite' : 'pro')}
-                    data-testid={`org-toggle-tier-${o.id}`}
-                  >
-                    {o.memberships_tier === 'pro' ? 'Downgrade' : 'Upgrade to Pro'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
                     className="h-7 text-[11px] border-zinc-200"
                     onClick={() => onSetOverrides(o.id, { locked: !o.locked })}
                     data-testid={`org-toggle-lock-${o.id}`}
@@ -124,7 +118,7 @@ const OrganisationsTab = ({ organizations, onSetTier, onSetOverrides, onOpenOrg 
               </tr>
             ))}
             {!filtered.length && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-sm text-zinc-400">No organisations match your filters.</td></tr>
+              <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-zinc-400">No organisations match your filters.</td></tr>
             )}
           </tbody>
         </table>

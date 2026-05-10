@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { notify } from '@/components/notifications';
 import { SectionCard, Pill, fmtMoney } from './shared';
-import { Crown, Lock, ShieldCheck, SlidersHorizontal, Pencil, Save, XIcon, Link2 } from 'lucide-react';
+import { Lock, ShieldCheck, SlidersHorizontal, Pencil, Save, XIcon, Link2 } from 'lucide-react';
 import OrgLinkedSitesTab from './OrgLinkedSitesTab';
 
 const OrgDrawer = ({ orgId, onClose, onChanged }) => {
@@ -64,7 +64,6 @@ const OrgDrawer = ({ orgId, onClose, onChanged }) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
             {data?.organization?.name || 'Loading…'}
-            {data?.organization?.memberships_tier === 'pro' && <Pill tone="violet"><Crown size={10} className="mr-1" /> Pro</Pill>}
             {data?.organization?.locked && <Pill tone="red"><Lock size={10} className="mr-1" /> Locked</Pill>}
             {data && !editing && (
               <Button size="sm" variant="outline" onClick={startEdit} className="ml-auto h-7 text-xs" data-testid="org-drawer-edit">

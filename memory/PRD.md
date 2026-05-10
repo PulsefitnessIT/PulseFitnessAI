@@ -13148,3 +13148,65 @@ Frontend:
 - S5: HR 2.0 + mobile PWA polish (employee profiles 2.0, docs/contracts, disciplinary, training records, offline support)
 - S6: AI auto-rota + multi-site hierarchy + Sage payroll
 
+
+---
+
+## Iter 216g · Social Media Library + Memberships single-tier cleanup (May 10, 2026)
+
+### Social Media Library (Master Admin → Image Library → Social Media tab)
+- New 5th tab in `CataloguePanel` for downloadable social media posts.
+- New `social_media_library` MongoDB collection. CRUD endpoints under
+  `/api/master-admin/social-media-library`. Lazy seed on first GET.
+- 17 posts pre-seeded: 9-tile Instagram mosaic (FHD-native, generated via
+  Gemini Pro image preview, sliced into 1920×1920 tiles) + 7 single-post
+  Switch-thread images.
+- Each card surfaces image, caption, hashtags, channel + campaign tag, and
+  three actions: Save (mobile share-sheet aware), Open in tab, Copy caption,
+  Copy hashtags.
+- Mobile downloads use the **Web Share API** (`navigator.share` with files)
+  to pop the iOS / Android native save-sheet; falls back to `<a download>`
+  blob on desktop, then `window.open` for long-press save.
+
+### Memberships single-tier cleanup
+- Decision: Memberships no longer markets a Lite/Pro split. The product is
+  one tier in the Master Admin pricing engine and on the public homepage.
+- Removed from UI:
+  - `Subscription Tiers` tab on `AdminMemberships`
+  - `[All|Lite|Pro]` tier filter pills on Organisations tab
+  - `Tier` column + "Upgrade to Pro / Downgrade" per-row action
+  - `Lite / Pro Split` KPI on Memberships overview
+  - `Crown / Pro` pill on the org drawer header
+- Replaced filter pills with `[All|Active|Locked]` status filter.
+- DB field `organizations.memberships_tier` preserved (forward-compat,
+  zero-risk). Backend `/master-admin/memberships/.../tier` endpoint left
+  intact but no longer called from any UI.
+
+### Pricing audit findings (recommendations parked for follow-up)
+- Marketing has parallel pricing: `marketing_plans` collection
+  (Basic £49 / Pro £149 / Enterprise £399) duplicates the Marketing module
+  in `pricing_plans` (£39 base). Plan for next iteration: collapse to ONE
+  Marketing module + email-bolt-on packs (£19 / £59 / £199 for
+  +25k / +100k / +500k emails per month). Sunset `marketing_plans`.
+- Public `PricingPage.js` `PLANS` array still hard-codes
+  Starter £29 / Pro £79 / Bundle £199 / Enterprise £249 — kept verbatim per
+  user request. Will add a small "extra email bolt-ons available" line
+  when bolt-ons ship.
+
+### Files
+Backend:
+- `/app/backend/routes/social_media_library.py` (new)
+- `/app/backend/route_registry/admin.py` (registered router)
+
+Frontend:
+- `/app/frontend/src/pages/MasterAdmin/SocialMediaLibraryPanel.js` (new)
+- `/app/frontend/src/pages/MasterAdmin/CataloguePanel.js` (added Social Media tab)
+- `/app/frontend/src/pages/MasterAdmin/AdminMemberships/AdminMemberships.js` (dropped Tiers tab)
+- `/app/frontend/src/pages/MasterAdmin/AdminMemberships/OrganisationsTab.js` (rewrote without tier UI)
+- `/app/frontend/src/pages/MasterAdmin/AdminMemberships/OverviewTab.js` (dropped tier KPI)
+- `/app/frontend/src/pages/MasterAdmin/AdminMemberships/OrgDrawer.js` (dropped Pro pill)
+
+### Marketing assets (for the Social Media tab seed)
+- `/app/marketing/instagram_campaign/` — generation scripts and source PNGs
+- `/app/frontend/public/marketing/mosaic_master_fhd_native.png`
+- `/app/frontend/public/marketing/mosaic_tiles_fhd_native/tile_01..09.png`
+- `/app/frontend/public/marketing/instagram_campaign/01_cover.png … 09_cta.png`

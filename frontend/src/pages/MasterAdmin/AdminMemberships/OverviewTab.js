@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Users, PoundSterling, Calendar, AlertTriangle, Sparkles, Crown, TrendingUp, Activity,
+  Users, PoundSterling, Calendar, AlertTriangle, TrendingUp, Activity,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -9,7 +9,7 @@ import { StatCard, SectionCard, Pill, fmtMoney, fmtPct } from './shared';
 
 const OverviewTab = ({ overview, onDrillOrg }) => {
   if (!overview) return null;
-  const { kpis, tier_split, high_risk_orgs, trend } = overview;
+  const { kpis, high_risk_orgs, trend } = overview;
 
   return (
     <div className="space-y-5" data-testid="memberships-admin-overview">
@@ -20,10 +20,9 @@ const OverviewTab = ({ overview, onDrillOrg }) => {
         <StatCard label="Bookings 30d" value={kpis.bookings_30d?.toLocaleString() || 0} hint={`${kpis.bookings_7d || 0} this week`} icon={Calendar} color="text-amber-600" bg="bg-amber-50" testid="mkpi-bookings" />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
         <StatCard label="Churn 30d" value={fmtPct(kpis.churn_pct_30d)} hint={`${kpis.cancelled_30d || 0} cancellations`} icon={TrendingUp} color="text-red-600" bg="bg-red-50" testid="mkpi-churn" />
         <StatCard label="Occupancy 7d" value={fmtPct(kpis.occupancy_pct_7d)} icon={Activity} color="text-teal-600" bg="bg-teal-50" testid="mkpi-occupancy" />
-        <StatCard label="Lite / Pro Split" value={`${tier_split.lite} / ${tier_split.pro}`} hint="orgs" icon={Crown} color="text-amber-600" bg="bg-amber-50" testid="mkpi-tier" />
         <StatCard label="No-shows 30d" value={kpis.no_shows_30d?.toLocaleString() || 0} icon={AlertTriangle} color="text-orange-600" bg="bg-orange-50" testid="mkpi-noshow" />
       </div>
 
