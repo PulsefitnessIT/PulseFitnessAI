@@ -40,8 +40,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Iter 216f — colour values are intentionally hex literals here because
 // they're consumed as inline `style={{color}}` props on `<Icon>` components
 // (lucide-react doesn't accept CSS vars in its `color` prop). The
-// gymaxis/no-inline-hex rule is suppressed for this single config block.
-/* eslint-disable gymaxis/no-inline-hex */
+// inline hex values below are intentional for icon coloring only.
 const MODULE_OPTIONS = [
   { id: 'operations',  label: 'Operations',  icon: Wrench,    color: '#06B6D4' },
   { id: 'crm',         label: 'CRM',         icon: Users,     color: '#6366F1' },
@@ -50,7 +49,6 @@ const MODULE_OPTIONS = [
   { id: 'staffing',    label: 'Staffing',    icon: UserCog,   color: '#A855F7' },
   { id: 'reporting',   label: 'Reporting',   icon: BarChart3, color: '#2563EB' },
 ];
-/* eslint-enable gymaxis/no-inline-hex */
 
 const modulesFromPortalType = (pt) => {
   if (pt === 'crm') return ['crm'];
@@ -998,6 +996,15 @@ const AdminOrganizations = ({
  </SelectContent>
  </Select>
  {u.user_type === 'crm' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">CRM</Badge>}
+ {u.invited_role && u.invited_role !== u.role && (
+ <Badge
+ className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] cursor-help"
+ title={`This user was originally invited as "${u.invited_role}" but their current role is "${u.role || 'staff'}". If this is unexpected, change the role back via the dropdown.`}
+ data-testid={`role-mismatch-${u.id}`}
+ >
+ ⚠ Was invited as {u.invited_role}
+ </Badge>
+ )}
  {u.disabled && <Badge className="bg-red-50 text-red-600">Disabled</Badge>}
  {u.archived && <Badge className="bg-zinc-200 text-zinc-500">Archived</Badge>}
  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-zinc-400 hover:text-blue-600" onClick={() => setEditingUser({ ...u })} title="Edit details" data-testid={`edit-user-${u.id}`}>

@@ -1,3 +1,39 @@
+## Iter 216h3 — Role-mismatch warning badge in user list (Feb 10, 2026)
+
+**Followup from earlier issue list**: operators couldn't tell at a glance whether a user's invited role had drifted from their current role — exactly the failure mode that silently broke Craig's onboarding before iter 216h. Wanted a small "⚠ Was invited as X" badge in the per-org Users list whenever the two diverged.
+
+### What shipped
+
+**Backend (`routes/master_admin.py::get_all_users`)**
+- After merging all user rows, batch-fetch every `accepted` invite for the involved `(email × organization_id)` pairs (single Mongo round-trip, not N+1).
+- Keep the most-recent accepted invite per pair (compares `accepted_at` then `created_at`).
+- Stamp `invited_role` onto the response row ONLY when it differs from `user.role`. Aligned roles get no field — keeps the payload lean and lets the frontend render `u.invited_role && u.invited_role !== u.role` as the single trigger condition.
+- Pending (un-accepted) invites are ignored — they don't drive a mismatch warning.
+
+**Frontend (`pages/MasterAdmin/AdminOrganizations.js`)**
+- Inserted an amber `Badge` next to the role-select on each user row when `invited_role` is set, reading `⚠ Was invited as {invited_role}`.
+- `title` attribute carries the full explainer text (visible on hover): *"This user was originally invited as 'X' but their current role is 'Y'. If this is unexpected, change the role back via the dropdown."*
+- `data-testid="role-mismatch-{userId}"` for test addressability.
+- Cleared a stale `eslint-disable gymaxis/no-inline-hex` block that was crashing CRA dev-server's webpack-eslint loader (rule isn't registered in craco's eslint config — only in the flat-config CLI lint).
+
+### Regression test — `tests/test_iter_216h3_role_mismatch_badge.py` (4 cases, all passing)
+1. `test_no_mismatch_when_roles_aligned` — invite role == user role ⇒ no `invited_role` field.
+2. `test_mismatch_decorates_invited_role` — invited as manager, downgraded to staff ⇒ `invited_role=manager`.
+3. `test_most_recent_accepted_invite_wins` — multiple accepted invites ⇒ latest one drives the value.
+4. `test_pending_invite_does_not_drive_mismatch` — pending (un-accepted) invites are ignored.
+
+### Verified
+- 4/4 backend tests pass against live preview.
+- Live frontend smoke test: seeded a demo mismatch user (invited as manager, current role staff) → badge renders correctly next to role dropdown in the per-org Users panel ("⚠ Was invited as manager"). Demo data cleaned up post-verification.
+- Frontend lint clean, flat-config still passes after removing the stale `eslint-disable` suppressor.
+
+### ⚠ Action required
+Lives in **preview** only — **redeploy** to push to gymaxisai.com.
+
+---
+
+
+
 ## Iter 216h2 — Permissions matrix sub-tab (SOC 2 access-review view) (Feb 10, 2026)
 
 **Followup to iter 216h**: once admins can wear two hats (cross-platform + per-gym), operators need a one-glance view of "who has access to what" — both for sanity-checking dual-role assignments and as evidence artefact for quarterly SOC 2 access reviews.

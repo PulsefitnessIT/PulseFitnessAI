@@ -1401,6 +1401,38 @@ async def get_all_users(user: dict = Depends(get_current_user)):
         u["organization_name"] = org.get("name", "") if org else "N/A"
         u["org_status"] = org.get("status", "active") if org else "N/A"
 
+    # Iter 216h3 — Role-mismatch detection. Fetch the most-recent accepted
+    # invite per (email, org_id) and stamp `invited_role` on the user doc
+    # ONLY when it differs from their current role. The frontend renders a
+    # small warning badge so operators can spot users whose invited role
+    # was changed (legitimately or otherwise) after they joined.
+    pairs = [(u.get("email"), u.get("organization_id")) for u in all_users if u.get("email") and u.get("organization_id")]
+    if pairs:
+        emails = list({p[0] for p in pairs})
+        org_ids_for_invites = list({p[1] for p in pairs})
+        invites = await db.invites.find(
+            {
+                "email": {"$in": emails},
+                "organization_id": {"$in": org_ids_for_invites},
+                "status": "accepted",
+            },
+            {"_id": 0, "email": 1, "organization_id": 1, "role": 1, "accepted_at": 1, "created_at": 1},
+        ).to_list(length=None)
+        # Keep the most-recent accepted invite per (email, org_id).
+        invite_lookup: dict[tuple[str, str], dict] = {}
+        for inv in invites:
+            key = ((inv.get("email") or "").lower(), inv.get("organization_id") or "")
+            existing = invite_lookup.get(key)
+            ts = inv.get("accepted_at") or inv.get("created_at") or ""
+            existing_ts = (existing or {}).get("_ts", "")
+            if not existing or ts > existing_ts:
+                invite_lookup[key] = {**inv, "_ts": ts}
+        for u in all_users:
+            key = ((u.get("email") or "").lower(), u.get("organization_id") or "")
+            inv = invite_lookup.get(key)
+            if inv and inv.get("role") and inv["role"] != u.get("role"):
+                u["invited_role"] = inv["role"]
+
     return {"users": all_users}
 
 
