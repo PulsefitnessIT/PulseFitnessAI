@@ -1,3 +1,35 @@
+## Iter 216h2 — Permissions matrix sub-tab (SOC 2 access-review view) (Feb 10, 2026)
+
+**Followup to iter 216h**: once admins can wear two hats (cross-platform + per-gym), operators need a one-glance view of "who has access to what" — both for sanity-checking dual-role assignments and as evidence artefact for quarterly SOC 2 access reviews.
+
+### What shipped
+- New `pages/MasterAdmin/PermissionsMatrix.js`:
+  - **4 KPI tiles**: Active admins · With dual-role attachments · Total attachments · Gyms in catalogue.
+  - **Two view modes** (pill-switch): "By admin" (one row per admin, gyms as pill cluster) and "By gym" (one row per gym, attached admins as pill cluster). Same dataset, different axis — picks up the half users were going to need anyway.
+  - **Search** that matches across admin name, email, AND attached gym name (or by-gym view: gym name + attached admin names) so it stays useful in both modes.
+  - **"Only attached" toggle** hides rows with zero attachments — what you want 90% of the time when prepping an access review.
+  - **CSV export** (`matrix-export-csv` testid) — emits view-specific columns (`Admin/Email/Role/Pending/Count/Gyms` or `Gym/OrgID/Type/Count/Admins`), filename includes ISO timestamp, cells are properly escaped (handles commas, quotes, newlines in org names).
+  - **SOC 2 hint footer** spelling out the recommended quarterly workflow.
+- Wired in `pages/MasterAdmin/AdminRoles.js` as a third sub-tab next to Service Desk Members and Pulse Master Admins.
+
+### Verified
+- Lint clean across both touched files.
+- Seeded 2 test admins with overlapping attachments → matrix correctly rendered:
+  - By-admin view: 2 rows × 2 gym pills each (total attachments tile shows 4).
+  - By-gym view (only-attached filter): 3 distinct gyms, including Security Test Gym showing both admins (overlap rendering works).
+- Search filter narrows correctly. View switch + refresh tested via Playwright.
+- Test admins revoked post-verification.
+
+### Why no backend changes
+The existing iter-216h endpoints (`GET /master-admin/pulse-admins` returns `organization_memberships` + decorated `membership_org_names`; `GET /master-admin/organizations` returns the full catalogue) already expose everything the matrix needs. Building it client-side keeps the audit trail simple and means the export reflects exactly what the operator can see.
+
+### ⚠️ Action required
+Lives in **preview** only. **Redeploy** to push to gymaxisai.com so the access-review workflow is available in production.
+
+---
+
+
+
 ## Iter 216h — Pulse Master Admin dual-role org-attach UI (Feb 10, 2026)
 
 **Problem (Lee, prod):** Craig Henshall was provisioned as a Pulse Platform Admin but never appeared in the Pulse Fitness org's user list — operators needed him as BOTH a cross-platform admin AND visible/assignable inside a specific gym instance, without email conflicts.
