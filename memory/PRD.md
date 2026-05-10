@@ -1,3 +1,37 @@
+## Iter 216h — Pulse Master Admin dual-role org-attach UI (Feb 10, 2026)
+
+**Problem (Lee, prod):** Craig Henshall was provisioned as a Pulse Platform Admin but never appeared in the Pulse Fitness org's user list — operators needed him as BOTH a cross-platform admin AND visible/assignable inside a specific gym instance, without email conflicts.
+
+### What shipped (frontend completion of last fork's in-progress work)
+- `pages/MasterAdmin/AdminPulseAdmins.js`:
+  - Per-row "Attach gym" button (Building2 icon) opens an inline drawer with a checkbox list of all orgs (searchable scroll, ~88 entries currently).
+  - "Also a member of:" pill row under each admin showing every attached org with a per-pill X to detach (single-call save).
+  - Save button calls `PUT /api/master-admin/pulse-admins/{id}/org-memberships` with the full replacement id list; toast confirms count of attached gyms.
+  - Each interactive element has a unique `data-testid` (`pulse-admin-attach-{id}`, `pulse-admin-attached-pill-{id}-{orgId}`, `pulse-admin-membership-option-{id}-{orgId}`, etc.).
+
+### Backend (already in place from previous fork)
+- `routes/pulse_master_admin.py`:
+  - `PUT /master-admin/pulse-admins/{user_id}/org-memberships` — full replacement, validates org ids exist, audit-logged.
+  - `GET /master-admin/pulse-admins` — decorates each admin with `organization_memberships` + `membership_org_names`.
+- `routes/master_admin.py::admin_org_users` — fans out Pulse Admins with `organization_memberships` into virtual per-org rows so the existing `users.filter(u => u.organization_id === orgId)` UI works unchanged. Display label is "Pulse Platform Admin".
+
+### Regression test — `tests/test_iter_216h_pulse_admin_dual_role.py` (4 cases, all passing)
+1. `test_set_org_memberships_persists_and_decorates` — PUT round-trips through GET with org names attached.
+2. `test_org_memberships_replace_semantics` — passing `[]` clears all (full replacement, not append).
+3. `test_attached_admin_surfaces_in_org_users_list` — fans into per-org row + keeps cross-platform row.
+4. `test_invalid_org_id_is_dropped_silently` — bogus ids filtered, no 500.
+
+### Verified
+- 4/4 regression tests passing against live preview.
+- End-to-end smoke test via Playwright: provisioned admin → attached via UI → 88 orgs listed → pill rendered → cross-platform + per-org rows both present in `/master-admin/users` response.
+
+### ⚠️ Action required
+This UI lives in **preview** only. **Redeploy** to push to gymaxisai.com so the Master Admin can attach Craig Henshall (and future Pulse admins) to specific gyms.
+
+---
+
+
+
 ## Iter 216f2 — Reusable back-gesture-close hook + applied to high-impact dialogs (Feb 9, 2026)
 
 **Followup**: extract the iter-216f back-gesture pattern into a hook and apply it to the next obvious offenders so we don't manually reimplement the same useEffect everywhere.

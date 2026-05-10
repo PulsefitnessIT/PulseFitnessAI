@@ -98,6 +98,56 @@ const AdminPulseAdmins = ({ API }) => {
  }
  };
 
+ const openMembershipEditor = (admin) => {
+ setEditingMembership(admin.id);
+ setDraftMemberships(admin.organization_memberships || []);
+ };
+
+ const closeMembershipEditor = () => {
+ setEditingMembership(null);
+ setDraftMemberships([]);
+ };
+
+ const toggleMembershipOrg = (orgId) => {
+ setDraftMemberships((prev) => (
+ prev.includes(orgId) ? prev.filter((o) => o !== orgId) : [...prev, orgId]
+ ));
+ };
+
+ const saveMemberships = async (admin) => {
+ try {
+ await axios.put(
+ `${API}/master-admin/pulse-admins/${admin.id}/org-memberships`,
+ { organization_ids: draftMemberships },
+ { headers },
+ );
+ show({
+ tone: 'success',
+ title: 'Gym attachments updated',
+ detail: `${admin.full_name} now appears in ${draftMemberships.length} attached gym${draftMemberships.length === 1 ? '' : 's'}.`,
+ });
+ closeMembershipEditor();
+ load();
+ } catch (err) {
+ show({ tone: 'error', title: 'Couldn\'t save attachments', detail: err.response?.data?.detail });
+ }
+ };
+
+ const detachOrg = async (admin, orgId) => {
+ const remaining = (admin.organization_memberships || []).filter((o) => o !== orgId);
+ try {
+ await axios.put(
+ `${API}/master-admin/pulse-admins/${admin.id}/org-memberships`,
+ { organization_ids: remaining },
+ { headers },
+ );
+ show({ tone: 'success', title: 'Gym detached' });
+ load();
+ } catch (err) {
+ show({ tone: 'error', title: 'Couldn\'t detach', detail: err.response?.data?.detail });
+ }
+ };
+
  const reissueTempPwd = async (admin) => {
  const ok = await confirm({
  title: `Re-issue temp password for ${admin.full_name}?`,
@@ -227,7 +277,8 @@ const AdminPulseAdmins = ({ API }) => {
  ) : (
  <ul className="divide-y divide-zinc-100">
  {admins.map((a) => (
- <li key={a.id} className="py-3 flex items-center gap-3" data-testid={`pulse-admin-row-${a.id}`}>
+ <li key={a.id} className="py-3" data-testid={`pulse-admin-row-${a.id}`}>
+ <div className="flex items-center gap-3">
  <div className="w-9 h-9 rounded-full bg-zinc-100 grid place-items-center text-zinc-500">
  <Mail size={14} />
  </div>
@@ -248,6 +299,16 @@ const AdminPulseAdmins = ({ API }) => {
  <Button
  size="sm"
  variant="ghost"
+ onClick={() => openMembershipEditor(a)}
+ className="text-zinc-600 hover:text-[var(--color-brand-blue)] hover:bg-blue-50"
+ title="Attach this admin to specific gyms (dual-role)"
+ data-testid={`pulse-admin-attach-${a.id}`}
+ >
+ <Building2 size={14} />
+ </Button>
+ <Button
+ size="sm"
+ variant="ghost"
  onClick={() => reissueTempPwd(a)}
  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
  title="Re-issue temporary password & email"
@@ -258,6 +319,107 @@ const AdminPulseAdmins = ({ API }) => {
  <Button size="sm" variant="ghost" onClick={() => revoke(a)} className="text-red-500 hover:text-red-700 hover:bg-red-50" data-testid={`pulse-admin-revoke-${a.id}`}>
  <Trash2 size={14} />
  </Button>
+ </div>
+ )}
+ </div>
+
+ {/* Attached gyms pills */}
+ {(a.membership_org_names || []).length > 0 && (
+ <div className="mt-2 ml-12 flex flex-wrap items-center gap-1.5" data-testid={`pulse-admin-attached-${a.id}`}>
+ <span className="text-[10px] uppercase tracking-wider text-zinc-400">Also a member of:</span>
+ {a.membership_org_names.map((org) => (
+ <Badge
+ key={org.id}
+ variant="outline"
+ className="text-[11px] gap-1 pl-2 pr-1 py-0.5 bg-blue-50 border-blue-200 text-blue-800"
+ data-testid={`pulse-admin-attached-pill-${a.id}-${org.id}`}
+ >
+ <Building2 size={10} />
+ {org.name}
+ {a.active !== false && (
+ <button
+ type="button"
+ onClick={() => detachOrg(a, org.id)}
+ className="ml-0.5 rounded-full p-0.5 hover:bg-blue-200"
+ title={`Detach ${org.name}`}
+ data-testid={`pulse-admin-detach-${a.id}-${org.id}`}
+ >
+ <XIcon size={10} />
+ </button>
+ )}
+ </Badge>
+ ))}
+ </div>
+ )}
+
+ {/* Inline membership editor */}
+ {editingMembership === a.id && (
+ <div
+ className="mt-3 ml-12 p-3 rounded-lg border border-blue-200 bg-blue-50/40"
+ data-testid={`pulse-admin-membership-editor-${a.id}`}
+ >
+ <div className="flex items-center justify-between mb-2">
+ <p className="text-xs font-semibold text-zinc-800">
+ Attach <span className="text-[var(--color-brand-blue)]">{a.full_name}</span> to gyms
+ </p>
+ <Button
+ size="sm"
+ variant="ghost"
+ onClick={closeMembershipEditor}
+ className="h-6 px-2 text-zinc-500"
+ data-testid={`pulse-admin-membership-close-${a.id}`}
+ >
+ <XIcon size={12} />
+ </Button>
+ </div>
+ <p className="text-[11px] text-zinc-500 leading-relaxed mb-2">
+ Tick a gym to make this admin also appear in that gym's Users list (as a Pulse
+ Platform Admin). They keep their cross-org platform role — this is purely an
+ additive dual-role assignment.
+ </p>
+ <div className="max-h-56 overflow-y-auto rounded border border-blue-100 bg-white divide-y divide-zinc-100">
+ {orgs.length === 0 ? (
+ <p className="p-3 text-xs text-zinc-400">No organizations available.</p>
+ ) : orgs.map((o) => {
+ const checked = draftMemberships.includes(o.id);
+ return (
+ <label
+ key={o.id}
+ className="flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-zinc-50"
+ data-testid={`pulse-admin-membership-option-${a.id}-${o.id}`}
+ >
+ <input
+ type="checkbox"
+ checked={checked}
+ onChange={() => toggleMembershipOrg(o.id)}
+ className="rounded border-zinc-300"
+ />
+ <Building2 size={11} className="text-zinc-400" />
+ <span className="flex-1 truncate">{o.name}</span>
+ <span className="text-[10px] text-zinc-400 uppercase tracking-wider">{o.account_type || o.subscription_tier || ''}</span>
+ </label>
+ );
+ })}
+ </div>
+ <div className="mt-3 flex items-center justify-end gap-2">
+ <Button
+ size="sm"
+ variant="outline"
+ onClick={closeMembershipEditor}
+ className="text-xs"
+ data-testid={`pulse-admin-membership-cancel-${a.id}`}
+ >
+ Cancel
+ </Button>
+ <Button
+ size="sm"
+ onClick={() => saveMemberships(a)}
+ className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white text-xs"
+ data-testid={`pulse-admin-membership-save-${a.id}`}
+ >
+ Save attachments
+ </Button>
+ </div>
  </div>
  )}
  </li>
