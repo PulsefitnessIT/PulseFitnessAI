@@ -130,23 +130,32 @@ const AdminPulseAdmins = ({ API }) => {
 
  {/* Provision new */}
  <Card className="p-5 rounded-xl border-zinc-200">
- <div className="flex items-center gap-2 mb-4">
+ <div className="flex items-center gap-2 mb-2">
  <ShieldCheck size={18} className="text-[var(--color-brand-blue)]" />
- <h2 className="text-base font-semibold">Provision Pulse Master Admin</h2>
+ <h2 className="text-base font-semibold">Provision Pulse Platform Admin</h2>
+ </div>
+ <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 text-xs text-amber-800" data-testid="pulse-admin-warning">
+ <AlertCircle size={14} className="mt-0.5 shrink-0" />
+ <div>
+ <strong>This is NOT for adding a member of staff to a single gym.</strong> Pulse
+ Platform Admins are cross-org — they see ALL Pulse-customer gyms. To add a
+ regular employee to one gym, go to <em>Master Admin → Organizations →
+ [the gym] → expand → Users → Add user</em> instead.
+ </div>
  </div>
  <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
- Pulse Master Admins see the same Master Admin console you use, but with all data
- scoped to Pulse Fitness only. They can manage Pulse customers, payments, MOD sites,
+ Pulse Platform Admins see the same Master Admin console you use, but scoped to
+ Pulse-customer data only. They can manage Pulse customers, payments, MOD sites,
  analytics, integrations, and Stripe — but cannot see other GymAxis-internal data.
  </p>
  <form onSubmit={provision} className="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="provision-pulse-admin-form">
  <div>
  <Label className="text-xs">Full name</Label>
- <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Craig Henshall" className="mt-1" data-testid="pulse-admin-name" />
+ <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="e.g. Platform Operations Lead" className="mt-1" data-testid="pulse-admin-name" />
  </div>
  <div>
  <Label className="text-xs">Email</Label>
- <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="craig@pulsefitness.com" className="mt-1" data-testid="pulse-admin-email" />
+ <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="e.g. ops@pulsefitness.com" className="mt-1" data-testid="pulse-admin-email" />
  </div>
  <div className="md:col-span-2">
  <Button type="submit" disabled={busy} className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white rounded-full" data-testid="pulse-admin-submit">
