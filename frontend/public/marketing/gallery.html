@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GymAxis — Instagram Mosaic Gallery</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --panel: #14171f;
+    --text: #e7ecf3;
+    --muted: #9aa3b2;
+    --accent: #2563EB;
+    --accent2: #6F42C1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 32px 24px 16px; border-bottom: 1px solid #222632; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: 0.2px; }
+  h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p.lead { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  section { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  h2 { font-size: 15px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); margin: 24px 0 12px; font-weight: 600; }
+  .master { background: var(--panel); padding: 12px; border-radius: 14px; }
+  .master img { width: 100%; height: auto; display: block; border-radius: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: var(--panel); padding: 12px; border-radius: 14px; }
+  .tile { position: relative; background: #fff; border-radius: 6px; overflow: hidden; aspect-ratio: 1 / 1; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .badge { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.78); color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 999px; letter-spacing: 0.4px; }
+  .tile .open { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.78); color: #fff; font-size: 11px; padding: 4px 8px; border-radius: 999px; text-decoration: none; }
+  .tile .open:hover { background: var(--accent); }
+  .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  .link-card { background: var(--panel); padding: 14px 16px; border-radius: 10px; }
+  .link-card a { color: var(--text); text-decoration: none; display: block; }
+  .link-card a:hover { color: #66ccff; }
+  .link-card .name { font-size: 14px; font-weight: 600; }
+  .link-card .url { font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-all; }
+  footer { padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>GymAxis — <span>Instagram 9-Tile Mosaic</span> Gallery</h1>
+    <p class="lead">FHD-native (1920×1920 per tile). Right-click → "Save Image As" to download. The master shows the assembled grid.</p>
+  </header>
+
+  <section>
+    <h2>Stitched Master · 5760 × 5760</h2>
+    <div class="master">
+      <img src="/marketing/mosaic_master_fhd_native.png" alt="GymAxis stitched mosaic master" />
+    </div>
+
+    <h2>The 9 Posting Tiles · 1920 × 1920 each</h2>
+    <div class="grid">
+      <div class="tile"><span class="badge">01</span><img src="/marketing/mosaic_tiles_fhd_native/tile_01.png" alt="tile 01" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_01.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">02</span><img src="/marketing/mosaic_tiles_fhd_native/tile_02.png" alt="tile 02" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_02.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">03</span><img src="/marketing/mosaic_tiles_fhd_native/tile_03.png" alt="tile 03" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_03.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">04</span><img src="/marketing/mosaic_tiles_fhd_native/tile_04.png" alt="tile 04" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_04.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">05 · GA</span><img src="/marketing/mosaic_tiles_fhd_native/tile_05.png" alt="tile 05 GA hero" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_05.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">06</span><img src="/marketing/mosaic_tiles_fhd_native/tile_06.png" alt="tile 06" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_06.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">07</span><img src="/marketing/mosaic_tiles_fhd_native/tile_07.png" alt="tile 07" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_07.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">08</span><img src="/marketing/mosaic_tiles_fhd_native/tile_08.png" alt="tile 08" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_08.png" target="_blank" rel="noopener">Open ▸</a></div>
+      <div class="tile"><span class="badge">09</span><img src="/marketing/mosaic_tiles_fhd_native/tile_09.png" alt="tile 09" /><a class="open" href="/marketing/mosaic_tiles_fhd_native/tile_09.png" target="_blank" rel="noopener">Open ▸</a></div>
+    </div>
+
+    <h2>Direct download links</h2>
+    <div class="links">
+      <div class="link-card"><a href="/marketing/mosaic_master_fhd_native.png" target="_blank" rel="noopener"><div class="name">Master mosaic (5760×5760)</div><div class="url">/marketing/mosaic_master_fhd_native.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_01.png" target="_blank" rel="noopener"><div class="name">Tile 01 — Smarter Fitness</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_01.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_02.png" target="_blank" rel="noopener"><div class="name">Tile 02 — Stronger Business</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_02.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_03.png" target="_blank" rel="noopener"><div class="name">Tile 03 — Members / Data / Built</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_03.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_04.png" target="_blank" rel="noopener"><div class="name">Tile 04 — One Platform</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_04.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_05.png" target="_blank" rel="noopener"><div class="name">Tile 05 — GA Hero</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_05.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_06.png" target="_blank" rel="noopener"><div class="name">Tile 06 — Focus / Growth / Performance</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_06.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_07.png" target="_blank" rel="noopener"><div class="name">Tile 07 — Your Axis. Your Advantage.</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_07.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_08.png" target="_blank" rel="noopener"><div class="name">Tile 08 — Six Service Icons</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_08.png</div></a></div>
+      <div class="link-card"><a href="/marketing/mosaic_tiles_fhd_native/tile_09.png" target="_blank" rel="noopener"><div class="name">Tile 09 — GymAxis Lockup</div><div class="url">/marketing/mosaic_tiles_fhd_native/tile_09.png</div></a></div>
+    </div>
+  </section>
+
+  <footer>GymAxis · Smarter Fitness · Stronger Business</footer>
+</body>
+</html>
