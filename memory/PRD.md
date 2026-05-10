@@ -13296,3 +13296,71 @@ Frontend:
 - HOMEPAGE_PRICES auto-sync — replace the static dict in
   `pricing_drift_audit.py` with a one-time scrape of `PricingPage.js`
   during CI so the audit can never go stale.
+
+---
+
+## Iter 216g · Online Member Self-Signup — Phase 1 (May 10, 2026)
+
+### What ships
+Public, zero-auth membership sign-up flow at `/m/{slug}/join` powered by
+**Stripe Connect Express** (each gym brings their own Stripe; GymAxis takes
+a **1% application fee** per transaction).
+
+### User-confirmed product decisions
+- Payment methods: Stripe Card subscription + UK Bacs Direct Debit + Apple/Google/PayPal wallets.
+- PARQ: default 7-question PARQ-Q template, per-gym override supported.
+- Per-plan config: joining fee + monthly + contract months + early-termination fee + accept_card / accept_bacs / accept_wallet flags. Operator edits in Memberships → Plan Templates.
+- First-visit step: optional inline tour/induction request (Phase-2 will add a real calendar of available slots).
+- PARQ-flagged answers: payment proceeds, member record gets `parq_clearance_required: true`, gym chases GP letter within 14 days.
+- Abandoned drafts: saved after step-1 with the captured email so we can recover via magic link in Phase-2.
+- Gym Stripe model: **Stripe Connect Express** with optional "link existing Stripe account" path. 1% platform fee on every transaction.
+- URL pattern: `app.gymaxisai.com/m/{slug}/join` for now; subdomain `{slug}.gymaxisai.com/join` deferred until wildcard DNS + cert is configured in production.
+
+### Backend
+- `routes/stripe_connect.py`
+  - `GET    /api/stripe-connect/orgs/{org}/status`
+  - `POST   /api/stripe-connect/orgs/{org}/onboarding-link`  (creates Express acct + AccountLink)
+  - `POST   /api/stripe-connect/orgs/{org}/link-existing`     (paste `acct_…`)
+  - `POST   /api/stripe-connect/orgs/{org}/dashboard-link`    (Stripe Express login link)
+  - `DELETE /api/stripe-connect/orgs/{org}/disconnect`
+  - `POST   /api/webhooks/stripe-connect`                     (account.updated → cache bust)
+- `routes/public_signup.py`
+  - `GET    /api/public/signup/{slug}/branding`               (gym + PARQ template)
+  - `GET    /api/public/signup/{slug}/plans`                  (published plans)
+  - `POST   /api/public/signup/{slug}/draft`                  (idempotent on draft_id)
+  - `POST   /api/public/signup/{slug}/parq`
+  - `POST   /api/public/signup/{slug}/checkout`               (destination charge with `application_fee_percent: 1.0`, line items = monthly + joining fee, mode=subscription)
+  - `GET    /api/public/signup/status/{session_id}`           (front-end polls)
+  - `POST   /api/webhooks/stripe-checkout`                    (idempotent member finalisation)
+
+### New collections
+- `signup_drafts`         — partial sign-ups, recoverable via email magic link in Phase 2
+- `payment_transactions`  — required by Emergent payment playbook; one row per checkout session
+- `signup_events`         — emitted on `online_signup_completed` for downstream Marketing/CRM listeners
+- `members`               — extended with `joined_via=online_signup`, `parq_clearance_required`, `stripe_session_id`
+
+### New org fields
+`stripe_account_id`, `stripe_account_type` (`express` | `standard`), `stripe_connected_at`, `stripe_account_last_event_at`.
+
+### Frontend
+- `pages/PublicSignup/JoinPage.js`            — 5-step wizard at `/m/:slug/join`
+- `pages/PublicSignup/JoinSuccess.js`         — `/m/:slug/join/success` polling page
+- `pages/MasterAdmin/PaymentSetupCard.js`     — Connect onboarding card (3 states: not-connected / pending / ready)
+- `routes/AppRoutes.js`                       — `/m/:slug/join` + `/m/:slug/join/success` registered as public
+- `pages/MasterAdmin/AdminMemberships/OrgDrawer.js` — added "Payments" tab mounting PaymentSetupCard
+
+### Testing
+- 27/27 backend tests passed (testing agent v3 fork).
+- Test report: `/app/test_reports/iteration_216g.json`
+- Regression suite: `/app/backend/tests/test_iter_216g_online_signup.py`
+- Frontend smoke screenshot verified Step-1 (Plan picker) renders with seeded gym `strong-fitness-test` (Drop-in £5 + Monthly £50).
+
+### Phase 2 backlog (next iteration)
+- Tour/induction calendar configuration in Memberships
+- Welcome-journey trigger in Marketing module on `online_signup_completed`
+- Sage 200 / Sicon ledger posting on payment confirmation
+- Magic-link draft recovery emails + abandoned-cart sequence
+- CRM lead → member conversion + source attribution
+- Self-serve Stripe sub-line checkout for Marketing email-bolt-on packs
+- Custom domain (`join.{gym-domain}.com`) and subdomain wildcard
+- Master Admin "Online sign-ups" funnel KPIs panel
