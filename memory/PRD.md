@@ -13364,3 +13364,66 @@ a **1% application fee** per transaction).
 - Self-serve Stripe sub-line checkout for Marketing email-bolt-on packs
 - Custom domain (`join.{gym-domain}.com`) and subdomain wildcard
 - Master Admin "Online sign-ups" funnel KPIs panel
+
+---
+
+## Iter 216g · Phase 2 — Welcome journey + abandoned-cart + KPI funnel (May 10, 2026)
+
+### What ships
+1. **Welcome journey trigger (A)** — when a member completes online sign-up
+   the system fans out four scheduled emails: Day 0 *welcome*, Day 2
+   *book first class*, Day 7 *PT offer*, Day 14 *community*. A 60-second
+   background worker (`drain_signup_jobs`) drains pending jobs through
+   Resend (`utils.email.send_email`). Idempotent on `(event_id, step)`.
+2. **Abandoned-cart recovery (C)** — every 60s the worker scans
+   `signup_drafts` rows older than 1 hour with an email captured but no
+   member created. Sends a recovery email with an HMAC-signed magic link
+   that opens `/m/{slug}/join?draft={id}&token={token}` and pre-fills the
+   form. Max 2 recovery emails per draft (1h, 24h).
+3. **Online sign-ups KPI panel (E)** — new "Online Sign-ups" tab inside
+   Master Admin → Memberships. Funnel: views → drafts started →
+   completed → paid + revenue. Last-30 / 7 / 90 day filter. Per-gym
+   breakdown. Most recent 25 sign-ups list with PARQ-flagged badge.
+   Welcome-journey job queue status surfaced.
+
+### Endpoints added
+- `POST /api/public/signup/{slug}/track` — anonymous funnel page-view + step events
+- `GET  /api/public/signup/{slug}/draft/{draft_id}` — anonymous, pre-fill draft for magic-link recovery (404 missing, 410 already-completed)
+- `GET  /api/public/signup/recover/{token}` — anonymous, HMAC-verifies token then 302 redirects to `/m/{slug}/join?draft={id}&token={token}`
+- `GET  /api/master-admin/signups/funnel?days=30&organization_id=` — funnel KPIs + recent + by_org + journey_jobs
+
+### New collections
+- `signup_journey_jobs` — queued welcome-journey emails (`{event_id, step, run_at, status}`)
+- `signup_events` extended with `type=view`, `type=step_*`
+
+### Touched files
+Backend:
+- `routes/signup_journeys.py` (new, ~430 lines)
+- `routes/public_signup.py` (GET /draft/{id} added; _finalise_signup now schedules welcome journey)
+- `route_registry/admin.py` (registered new router)
+- `server.py` startup hook (start_worker_once + _try_schedule_for_pending_events)
+
+Frontend:
+- `pages/MasterAdmin/AdminMemberships/SignupsFunnelTab.js` (new)
+- `pages/MasterAdmin/AdminMemberships/AdminMemberships.js` (added `signups` tab)
+- `pages/PublicSignup/JoinPage.js` (page-view tracking + magic-link draft pre-fill)
+
+### Worker architecture
+Single-pod async background task launched on FastAPI startup. Drains every
+60 seconds. If you scale to multiple pods later, swap to a proper queue
+(Redis Streams / Mongo change streams with leader-election) — until then
+the optimistic `pending → sending` lock keeps it safe with two pods.
+
+### Testing
+- 68/68 backend tests passed (41 new Phase-2 + 27 regression of Phase-1).
+- Test files: `test_iter_216g_phase2_signup_journeys.py`, `test_iter_216g_phase2_integration.py`.
+- Test report: `/app/test_reports/iteration_216g_phase2.json`.
+
+### Phase 3 backlog
+- Sage / Sicon ledger posting on payment confirmation (BLOCKED on credentials)
+- Tour calendar with bookable slots (currently free-text "preferred time")
+- Self-serve Stripe sub-line checkout for Marketing email-bolt-on packs
+- Welcome-journey email **content editor** in Master Admin (right now copy is hard-coded)
+- Subdomain `{slug}.gymaxisai.com/join` (needs wildcard DNS + SSL)
+- Web-push reminders for unpaid drafts on the same device
+- A/B test framework for sign-up page copy variants
