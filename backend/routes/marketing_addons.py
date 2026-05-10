@@ -298,15 +298,16 @@ async def admin_detach_addon(
 
 @router.get("/marketing/addons/catalog")
 async def tenant_catalog(user: dict = Depends(get_current_user)):
-    """Read-only catalog of available packs for the operator's Marketing UI."""
+    """Read-only catalog of available packs.
+
+    Master admins (no `organization_id`) get the catalog without the
+    module-access gate so the Marketing module preview works correctly.
+    """
     org_id = user.get("organization_id")
-    if not org_id:
-        raise HTTPException(400, "Missing organization context")
-    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
-    if not org:
-        raise HTTPException(404, "Organization not found")
-    if not has_module(user, org, "marketing"):
-        raise HTTPException(403, "Marketing module not active for this organisation")
+    if org_id:
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+        if org and not has_module(user, org, "marketing") and not user.get("is_master_admin"):
+            raise HTTPException(403, "Marketing module not active for this organisation")
     await _seed_catalog_if_empty()
     rows = (
         await db.marketing_addons.find({"active": True}, {"_id": 0, "created_at": 0})
@@ -325,18 +326,24 @@ async def tenant_my_addons(user: dict = Depends(get_current_user)):
 
     Read-only by design — for now, attaching new packs is master-admin
     only (until the Stripe sub-line integration ships in a follow-up).
+    Master admin preview returns base limits with no attached packs so
+    the panel still renders cleanly.
     """
     org_id = user.get("organization_id")
     if not org_id:
-        raise HTTPException(400, "Missing organization context")
+        # Master-admin preview path — no tenant context.
+        return {
+            "rows": [],
+            "limits": _effective_limits([]),
+            "usage": {"emails_sent": 0, "sms_sent": 0, "ai_generations": 0, "contacts_count": 0},
+        }
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
     if not org:
         raise HTTPException(404, "Organization not found")
-    if not has_module(user, org, "marketing"):
+    if not has_module(user, org, "marketing") and not user.get("is_master_admin"):
         raise HTTPException(403, "Marketing module not active for this organisation")
     packs = await _list_org_addons(org_id)
     limits = _effective_limits(packs)
-    # surface usage if available
     sub = await db.marketing_subscriptions.find_one({"organization_id": org_id}, {"_id": 0})
     usage = (sub or {}).get("usage_this_period") or {"emails_sent": 0, "sms_sent": 0}
     return {"rows": packs, "limits": limits, "usage": usage}
