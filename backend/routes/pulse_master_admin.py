@@ -32,7 +32,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 
 from utils.auth import (
@@ -250,8 +250,26 @@ async def list_pulse_admins(user: dict = Depends(get_current_user)) -> dict:
     rows = await db.users.find(
         {"role": PULSE_ROLE},
         {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1,
-         "must_change_password": 1, "created_at": 1, "last_login": 1, "active": 1},
+         "must_change_password": 1, "created_at": 1, "last_login": 1, "active": 1,
+         "organization_memberships": 1},
     ).sort("created_at", -1).to_list(500)
+    # Decorate memberships with org names so the UI can render labels.
+    membership_org_ids: set[str] = set()
+    for r in rows:
+        for oid in r.get("organization_memberships") or []:
+            membership_org_ids.add(oid)
+    org_lookup: dict[str, str] = {}
+    if membership_org_ids:
+        async for o in db.organizations.find(
+            {"id": {"$in": list(membership_org_ids)}},
+            {"_id": 0, "id": 1, "name": 1},
+        ):
+            org_lookup[o["id"]] = o.get("name") or o["id"]
+    for r in rows:
+        r["membership_org_names"] = [
+            {"id": oid, "name": org_lookup.get(oid, oid)}
+            for oid in (r.get("organization_memberships") or [])
+        ]
     return {"admins": rows}
 
 
@@ -276,6 +294,54 @@ async def revoke_pulse_admin(user_id: str, user: dict = Depends(get_current_user
     except Exception:
         pass
     return {"ok": True}
+
+
+@router.put("/master-admin/pulse-admins/{user_id}/org-memberships")
+async def set_pulse_admin_org_memberships(user_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """Attach a Pulse Platform Admin to one or more orgs as a member.
+
+    The admin keeps their cross-org platform-admin role; this just makes
+    them ALSO appear in those orgs' user lists. Pass `organization_ids` as
+    a full replacement list (so passing `[]` clears all memberships).
+    """
+    _require_gymaxis_master(user)
+    target = await db.users.find_one(
+        {"id": user_id, "role": PULSE_ROLE},
+        {"_id": 0, "id": 1, "email": 1, "active": 1},
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Pulse admin not found")
+    raw_ids = body.get("organization_ids") or []
+    if not isinstance(raw_ids, list):
+        raise HTTPException(status_code=400, detail="organization_ids must be a list")
+    org_ids: list[str] = []
+    for oid in raw_ids:
+        if not isinstance(oid, str):
+            continue
+        existing = await db.organizations.find_one({"id": oid}, {"_id": 1})
+        if existing:
+            org_ids.append(oid)
+    org_ids = sorted(set(org_ids))
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "organization_memberships": org_ids,
+            "memberships_updated_at": datetime.now(timezone.utc).isoformat(),
+            "memberships_updated_by": user.get("email"),
+        }},
+    )
+    try:
+        from routes.master_admin import log_activity
+        await log_activity(
+            "pulse_admin_memberships_updated",
+            f"Set org memberships for {target['email']}: {org_ids}",
+            user.get("email", ""),
+            target_type="user",
+            target_id=user_id,
+        )
+    except Exception:
+        pass
+    return {"ok": True, "organization_ids": org_ids}
 
 
 @router.post("/master-admin/pulse-admins/{user_id}/reissue-temp-password")

@@ -5,11 +5,12 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Trash2, RefreshCw, Mail, ShieldCheck, AlertCircle, Copy, KeyRound } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, Mail, ShieldCheck, AlertCircle, Copy, KeyRound, Building2, X as XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useInlineBanner, useConfirm } from '@/components/notifications';
 import { SkeletonLine, SkeletonCircle } from '@/components/shared/Skeleton';
 
@@ -21,14 +22,21 @@ const AdminPulseAdmins = ({ API }) => {
  const [form, setForm] = useState({ email: '', full_name: '' });
  const [busy, setBusy] = useState(false);
  const [pendingTempPwd, setPendingTempPwd] = useState(null);
+ const [orgs, setOrgs] = useState([]);
+ const [editingMembership, setEditingMembership] = useState(null);   // admin id
+ const [draftMemberships, setDraftMemberships] = useState([]);
  const { banner, show, clear } = useInlineBanner();
  const confirm = useConfirm();
 
  const load = useCallback(async () => {
  setLoading(true);
  try {
- const { data } = await axios.get(`${API}/master-admin/pulse-admins`, { headers });
- setAdmins(data.admins || []);
+ const [a, o] = await Promise.all([
+ axios.get(`${API}/master-admin/pulse-admins`, { headers }),
+ axios.get(`${API}/master-admin/organizations`, { headers }),
+ ]);
+ setAdmins(a.data.admins || []);
+ setOrgs(o.data.organizations || []);
  } catch (err) {
  show({ tone: 'error', title: 'Couldn\'t load admins', detail: err.response?.data?.detail });
  }

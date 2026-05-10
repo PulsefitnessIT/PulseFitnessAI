@@ -1359,6 +1359,34 @@ async def get_all_users(user: dict = Depends(get_current_user)):
             merged_by_email[k] = u
     all_users = list(merged_by_email.values())
 
+    # Iter 216g — Pulse Platform Admins can be ATTACHED to one or more orgs
+    # via `organization_memberships`. They keep their cross-org platform
+    # role but should also surface inside each attached org's user list.
+    # We fan a virtual row per (admin × org_membership) so the existing
+    # `users.filter(u => u.organization_id === orgId)` UI logic works
+    # without changes.
+    pulse_with_membership = await db.users.find(
+        {"role": "pulse_master_admin", "organization_memberships": {"$exists": True, "$ne": []}},
+        {"_id": 0, "password": 0, "password_hash": 0},
+    ).to_list(500)
+    seen_keys: set[tuple[str, str]] = {
+        ((u.get("email") or "").lower(), u.get("organization_id") or "")
+        for u in all_users
+    }
+    for admin in pulse_with_membership:
+        email = (admin.get("email") or "").lower()
+        for oid in admin.get("organization_memberships") or []:
+            if (email, oid) in seen_keys:
+                continue
+            row = dict(admin)
+            row["organization_id"] = oid
+            row["portals"] = list(set((row.get("portals") or []) + ["service_portal", "crm"]))
+            row["user_type"] = "pulse_master_admin"
+            row["is_pulse_master_admin"] = True
+            row["display_role"] = "Pulse Platform Admin"
+            all_users.append(row)
+            seen_keys.add((email, oid))
+
     # Tier-3.5 N+1 fix: was `find_one` per user (2000 round-trips for 2000
     # users). Now: one batched fetch of all referenced orgs.
     org_ids = {u.get("organization_id") for u in all_users if u.get("organization_id")}
