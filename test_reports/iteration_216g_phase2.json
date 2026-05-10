@@ -1,0 +1,90 @@
+{
+  "summary": "Phase 2 Online Member Self-Signup (iteration 216g Phase 2) backend testing complete. All 68 tests passed (41 Phase 2 + 27 Phase 1 regression). New endpoints (track, get-draft, recover, funnel) and journey scheduling all working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216g_phase2_signup_journeys.py",
+    "/app/backend/tests/test_iter_216g_phase2_integration.py",
+    "/app/backend/tests/test_iter_216g_online_signup.py",
+    "/app/test_reports/pytest/pytest_results_216g_phase2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Track endpoint correctly handles all event types (view, draft_started, step_*) and silently absorbs non-existent slugs to avoid breaking the page",
+    "Get draft endpoint correctly returns 404 for non-existent drafts and 410 for completed signups (member_id set)",
+    "Recover endpoint correctly validates HMAC tokens - bad signature returns 400, expired returns 400, non-existent draft returns 404",
+    "Funnel endpoint correctly requires master admin auth (403 for non-admin, 401 for no auth)",
+    "Funnel KPIs include all required fields: views, drafts_started, drafts_completed, paid, revenue_pence, view_to_draft_pct, draft_to_paid_pct",
+    "Journey jobs collection is properly integrated into funnel response with status counts",
+    "Phase 1 endpoints (branding, plans, draft, parq, checkout, stripe-connect) all still working - no regressions"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216g_phase2_signup_journeys.py",
+    "/app/backend/tests/test_iter_216g_phase2_integration.py"
+  ],
+  "success_rate": {
+    "backend": "100% (68/68 passed - 41 Phase 2 + 27 Phase 1)",
+    "frontend": "Skipped per request"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "tenant_test": "bob@knockers.com / Test123!",
+    "test_org_id": "6e2b80c5-05b0-4a8a-a06a-2af52ee7cd8c (Strong Fitness)",
+    "test_org_slug": "strong-fitness-test"
+  },
+  "seed_data_creation": "Test drafts created with unique UUIDs during testing (no cleanup needed - test isolation)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 2 Online Member Self-Signup backend fully tested. All 4 NEW endpoints tested: POST /api/public/signup/{slug}/track (anonymous funnel tracking), GET /api/public/signup/{slug}/draft/{draft_id} (magic-link recovery pre-fill), GET /api/public/signup/recover/{token} (HMAC token verification with redirect), GET /api/master-admin/signups/funnel (KPI panel with days/org filters). Journey jobs scheduling verified via funnel endpoint. Abandoned cart scan verified not crashing. Phase 1 endpoints regression tested - all working.",
+  "features_tested": {
+    "phase2_new_endpoints": [
+      "POST /api/public/signup/{slug}/track - anonymous, accepts view/draft_started/step_* events, silently absorbs non-existent slugs",
+      "GET /api/public/signup/{slug}/draft/{draft_id} - anonymous, returns draft for magic-link pre-fill, 404 if missing, 410 if completed",
+      "GET /api/public/signup/recover/{token} - anonymous, verifies HMAC token, redirects 302/307 to join page with draft+token params",
+      "GET /api/master-admin/signups/funnel - master admin only, returns kpis (views, drafts_started, drafts_completed, paid, revenue_pence, view_to_draft_pct, draft_to_paid_pct), recent[], by_org[], journey_jobs{}"
+    ],
+    "token_verification_tests": [
+      "Valid token redirects to join page with draft and token params",
+      "Bad signature returns 400 with 'Invalid signature'",
+      "Expired token returns 400 with 'Link expired'",
+      "Non-existent draft returns 404",
+      "Malformed token returns 400"
+    ],
+    "funnel_tests": [
+      "Returns all required KPI fields",
+      "days=7 and days=30 query parameters work",
+      "organization_id filter works",
+      "Requires master admin (403 for non-admin)",
+      "Returns 401 without auth",
+      "journey_jobs field present with status counts"
+    ],
+    "e2e_tests": [
+      "Track view increments funnel views count",
+      "Create draft increments drafts_started count",
+      "Full flow: draft → parq → checkout (fails at payment without Stripe)"
+    ],
+    "phase1_regression_tests": [
+      "GET /api/public/signup/{slug}/branding - still works",
+      "GET /api/public/signup/{slug}/plans - still works",
+      "POST /api/public/signup/{slug}/draft - still works",
+      "POST /api/public/signup/{slug}/parq - still works",
+      "POST /api/public/signup/{slug}/checkout - still returns 400 without Stripe",
+      "GET /api/stripe-connect/orgs/{org}/status - still works"
+    ]
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": [
+      "Resend email sends — RESEND_API_KEY is real but tests verify behavior without checking actual email delivery",
+      "Stripe Connect Express webhooks — only construct_event is wired; full webhook events not simulated"
+    ]
+  },
+  "notes": "The welcome journey worker runs on a 60s background loop. For tests, journey job creation is verified via the funnel endpoint's journey_jobs field. The abandoned cart scan runs as part of the worker loop and was verified not to crash by checking the funnel endpoint still works."
+}

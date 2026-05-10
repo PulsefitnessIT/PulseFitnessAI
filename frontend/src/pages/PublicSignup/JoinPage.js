@@ -71,6 +71,25 @@ export default function JoinPage() {
         setGym(b.data?.gym);
         setParqQuestions(b.data?.parq_questions || []);
         setPlans(p.data?.plans || []);
+        // Funnel tracking — anonymous page view (Phase-2)
+        axios.post(`${API}/public/signup/${slug}/track`, {
+          event: 'view',
+          ref: document.referrer ? document.referrer.slice(0, 200) : '',
+          draft_id: draftFromQuery || null,
+        }).catch(() => {});
+        // Recover saved draft if magic-link token is present
+        if (draftFromQuery) {
+          try {
+            const r = await axios.get(`${API}/public/signup/${slug}/draft/${draftFromQuery}`);
+            const d = r.data?.draft;
+            if (d) {
+              if (d.plan_id) setChosenPlanId(d.plan_id);
+              if (d.details) setDetails((prev) => ({ ...prev, ...d.details }));
+              if (d.parq?.answers) setParqAnswers(d.parq.answers);
+              setStepIdx(1);  // jump straight to "Your details" — they were past step 0
+            }
+          } catch (_) { /* graceful */ }
+        }
       } catch (e) {
         setError(e.response?.data?.detail || 'Could not load this gym. Check the link.');
       } finally {

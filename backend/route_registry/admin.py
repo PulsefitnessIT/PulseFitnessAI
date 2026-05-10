@@ -50,6 +50,7 @@ from routes.marketing_addons import router as marketing_addons_router
 from routes.pricing_drift_audit import router as pricing_drift_audit_router
 from routes.stripe_connect import router as stripe_connect_router
 from routes.public_signup import router as public_signup_router
+from routes.signup_journeys import router as signup_journeys_router
 from routes.integration_health import router as integration_health_router
 from routes.companies_house import router as companies_house_router
 from routes.postcodes import router as postcodes_router
@@ -90,6 +91,7 @@ def register_admin(api_router: APIRouter) -> None:
         pricing_drift_audit_router,
         stripe_connect_router,
         public_signup_router,
+        signup_journeys_router,
         master_admin_hubspot_parity_router,
         cross_module_tips_router,
         custom_properties_router,

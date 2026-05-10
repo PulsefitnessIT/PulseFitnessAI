@@ -182,6 +182,27 @@ async def save_draft(slug: str = Path(...), body: dict = Body(...)):
     return {"ok": True, "draft_id": draft_id}
 
 
+@router.get("/public/signup/{slug}/draft/{draft_id}")
+async def get_draft(slug: str = Path(...), draft_id: str = Path(...)):
+    """Read-only draft fetch for magic-link pre-fill."""
+    gym = await _resolve_gym(slug)
+    draft = await db.signup_drafts.find_one(
+        {"id": draft_id, "organization_id": gym["id"]},
+        {"_id": 0},
+    )
+    if not draft:
+        raise HTTPException(404, "Draft not found")
+    if draft.get("member_id"):
+        raise HTTPException(410, "This sign-up has already been completed")
+    return {"draft": {
+        "id": draft["id"],
+        "plan_id": draft.get("plan_id"),
+        "details": draft.get("details") or {},
+        "parq": draft.get("parq") or {},
+        "step": draft.get("step", "details"),
+    }}
+
+
 @router.post("/public/signup/{slug}/parq")
 async def save_parq(slug: str = Path(...), body: dict = Body(...)):
     await _resolve_gym(slug)
@@ -396,7 +417,7 @@ async def _finalise_signup(session_id: str) -> str | None:
         {"$set": {"member_id": member_id, "step": "complete", "completed_at": _now()}},
     )
     # Emit a marketing/CRM signal — listeners hook in later.
-    await db.signup_events.insert_one({
+    evt = {
         "id": str(uuid.uuid4()),
         "organization_id": txn["organization_id"],
         "type": "online_signup_completed",
@@ -407,7 +428,14 @@ async def _finalise_signup(session_id: str) -> str | None:
         "tour_requested": bool(draft.get("tour_requested")),
         "first_class_id": draft.get("first_class_id"),
         "created_at": _now(),
-    })
+    }
+    await db.signup_events.insert_one(evt.copy())
+    # Phase-2: kick off the welcome-journey email schedule.
+    try:
+        from routes.signup_journeys import schedule_welcome_journey
+        await schedule_welcome_journey(evt)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("schedule_welcome_journey skipped for %s: %s", member_id, exc)
     return member_id
 
 

@@ -604,6 +604,15 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"Service seed failed: {e}")
 
+    # Iter 216g · Phase 2 — start the sign-up journey worker (welcome
+    # emails + abandoned-cart recovery). One-shot per pod.
+    try:
+        from routes.signup_journeys import start_worker_once, _try_schedule_for_pending_events
+        start_worker_once()
+        await _try_schedule_for_pending_events()
+    except Exception as e:
+        logger.error(f"Sign-up journey worker init failed: {e}")
+
     try:
         await _create_indexes()
     except Exception as e:

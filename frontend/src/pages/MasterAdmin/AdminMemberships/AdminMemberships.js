@@ -9,12 +9,14 @@ import RevenueTab from './RevenueTab';
 import EngagementTab from './EngagementTab';
 import InstructorsTab from './InstructorsTab';
 import AiAndFlagsTab from './AiAndFlagsTab';
+import SignupsFunnelTab from './SignupsFunnelTab';
 import OrgDrawer from './OrgDrawer';
 
 const TABS = [
  { id: 'overview', label: 'Overview' },
  { id: 'revenue', label: 'Revenue' },
  { id: 'organisations', label: 'Organisations' },
+ { id: 'signups', label: 'Online Sign-ups' },
  { id: 'engagement', label: 'Engagement & Retention' },
  { id: 'instructors', label: 'Instructors' },
  { id: 'templates', label: 'Plan Templates' },
@@ -71,6 +73,7 @@ const AdminMemberships = () => {
  />
  )}
  {tab === 'rules' && <BookingRulesTab rules={state.bookingRules} onSave={state.saveBookingRules} />}
+ {tab === 'signups' && <SignupsFunnelTab />}
  {tab === 'revenue' && <RevenueTab revenue={state.revenue} />}
  {tab === 'engagement' && <EngagementTab engagement={state.engagement} />}
  {tab === 'instructors' && <InstructorsTab instructors={state.instructors} />}
