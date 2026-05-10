@@ -18,6 +18,7 @@ import {
   Check, ChevronRight, ChevronLeft, Loader2, Heart, Mail, AlertTriangle,
   Calendar, MapPin, ShieldCheck,
 } from 'lucide-react';
+import TourSlotPicker from './TourSlotPicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -52,7 +53,7 @@ export default function JoinPage() {
     emergency_contact_name: '', emergency_contact_phone: '', marketing_consent: true,
   });
   const [parqAnswers, setParqAnswers] = useState({});
-  const [extras, setExtras] = useState({ tour_requested: false, tour_preferred_time: '', skip_extras: false });
+  const [extras, setExtras] = useState({ tour_requested: false, tour_slot_at: null, tour_booking_id: null, skip_extras: false });
 
   const cancelled = new URLSearchParams(location.search).get('cancelled');
 
@@ -351,28 +352,42 @@ export default function JoinPage() {
         {step === 'extras' && (
           <section data-testid="join-step-extras">
             <h2 className="text-2xl font-bold text-zinc-900 mb-2">Your first visit</h2>
-            <p className="text-sm text-zinc-500 mb-4">Optional — pick one or skip.</p>
-            <div className="space-y-2">
+            <p className="text-sm text-zinc-500 mb-4">Book an induction / tour now — or skip and the team will reach out after you sign up.</p>
+            <div className="space-y-3">
               <label className="block p-3 rounded-lg border border-zinc-200 bg-white cursor-pointer">
                 <div className="flex items-center gap-2">
                   <input
                     type="radio"
                     name="extras"
                     checked={extras.tour_requested && !extras.skip_extras}
-                    onChange={() => setExtras({ tour_requested: true, skip_extras: false, tour_preferred_time: extras.tour_preferred_time })}
+                    onChange={() => setExtras((prev) => ({ ...prev, tour_requested: true, skip_extras: false }))}
                     data-testid="extras-tour"
                   />
                   <Calendar size={14} /> <span className="text-sm font-semibold">Book an induction / tour</span>
                 </div>
-                {extras.tour_requested && (
-                  <input
-                    type="text"
-                    placeholder="Preferred day & time, e.g. 'Sat morning'"
-                    value={extras.tour_preferred_time}
-                    onChange={(e) => setExtras({ ...extras, tour_preferred_time: e.target.value })}
-                    className="mt-2 w-full px-3 py-2 text-sm border border-zinc-200 rounded-md"
-                    data-testid="extras-tour-when"
-                  />
+                {extras.tour_requested && !extras.skip_extras && (
+                  <div className="mt-3">
+                    {draftId ? (
+                      <TourSlotPicker
+                        API={API}
+                        slug={slug}
+                        draftId={draftId}
+                        email={details.email}
+                        fullName={`${details.first_name} ${details.last_name}`.trim()}
+                        value={extras.tour_slot_at ? { slot_at: extras.tour_slot_at, booking_id: extras.tour_booking_id } : null}
+                        onChange={(v) => setExtras((prev) => ({
+                          ...prev,
+                          tour_slot_at: v?.slot_at || null,
+                          tour_booking_id: v?.booking_id || null,
+                        }))}
+                        accent={accent}
+                      />
+                    ) : (
+                      <p className="text-xs text-zinc-500 italic">
+                        Saving your details… the slot picker will appear in a moment.
+                      </p>
+                    )}
+                  </div>
                 )}
               </label>
               <label className="block p-3 rounded-lg border border-zinc-200 bg-white cursor-pointer">
@@ -381,7 +396,7 @@ export default function JoinPage() {
                     type="radio"
                     name="extras"
                     checked={extras.skip_extras}
-                    onChange={() => setExtras({ tour_requested: false, skip_extras: true, tour_preferred_time: '' })}
+                    onChange={() => setExtras({ tour_requested: false, tour_slot_at: null, tour_booking_id: null, skip_extras: true })}
                     data-testid="extras-skip"
                   />
                   <span className="text-sm">Skip — I'll plan it later</span>

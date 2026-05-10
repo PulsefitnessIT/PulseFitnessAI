@@ -16,6 +16,7 @@ import {
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import LaunchReadinessPanel from '@/components/shared/LaunchReadinessPanel';
+import UpcomingToursPanel from './UpcomingToursPanel';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -172,6 +173,11 @@ export default function MembershipsStartTab({ setTab }) {
       {/* Iter 216bc — pre-launch readiness (sender branding + sample data) */}
       <div className="mt-8">
         <LaunchReadinessPanel />
+      </div>
+
+      {/* Iter 216h4 — upcoming tour bookings from the public sign-up flow */}
+      <div className="mt-6">
+        <UpcomingToursPanel compact />
       </div>
     </div>
   );

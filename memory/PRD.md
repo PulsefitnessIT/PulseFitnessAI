@@ -1,3 +1,60 @@
+## Iter 216h4 — Tour Calendar booking flow (Feb 10, 2026)
+
+**Followup**: replace the free-text "Preferred day & time" field on the public sign-up flow with a proper bookable slot grid + operator-side bookings management. Closes P2 from the upcoming-tasks list.
+
+### What shipped
+
+**Backend — new `routes/tour_bookings.py`**
+- `tour_configs` collection (per-org, falls back to sensible defaults: Mon-Fri 10-16, 30-min slots, capacity 1, 4-hour lead time, 14-day ahead window, "Reception" location).
+- `tour_bookings` collection (id, organization_id, draft_id, member_email/name, slot_at, duration_minutes, location, status [booked/cancelled/attended/no_show], created_at + audit fields).
+- **Public endpoints**:
+  - `GET /api/public/signup/{slug}/tour-config` — sensible defaults applied when no org config exists.
+  - `GET /api/public/signup/{slug}/tour-slots` — date-grouped grid of bookable slots, filters past + lead-time-violating + full slots.
+  - `POST /api/public/signup/{slug}/draft/{draft_id}/book-tour` — capacity-checked, idempotent on (draft × slot), auto-cancels prior booking on re-book.
+  - `POST /api/public/signup/{slug}/draft/{draft_id}/cancel-tour` — frees the slot.
+- **Operator endpoints** (owner/manager/master-admin gated):
+  - `GET /api/memberships/tour-config` / `PUT /api/memberships/tour-config`.
+  - `GET /api/memberships/tour-bookings` (default = upcoming + 7-day recent past).
+  - `POST /api/memberships/tour-bookings/{id}/cancel | /attended | /no-show`.
+- Registered in `route_registry/admin.py`.
+
+**Frontend — public flow**
+- New `pages/PublicSignup/TourSlotPicker.js` — horizontal day strip + slot grid, brand-coloured selected state, "booked" confirmation card with cancel, error states for capacity conflicts.
+- `pages/PublicSignup/JoinPage.js` — replaced the free-text `tour_preferred_time` input with the picker. Skip option preserved.
+
+**Frontend — operator console**
+- New `pages/Memberships/UpcomingToursPanel.js` — compact list of upcoming bookings with per-row Attended/No-show/Cancel actions. Status pills colour-coded. Empty state copy hints at the public sign-up source.
+- Embedded into `pages/Memberships/MembershipsStartTab.js` (Start tab, below LaunchReadinessPanel).
+
+**Regression test — `tests/test_iter_216h4_tour_calendar.py`** (9 cases, all passing)
+1. `test_public_tour_config_returns_defaults` — sensible defaults exposed.
+2. `test_slots_grid_respects_lead_time_and_window` — no past slots, no slots inside the lead-time cutoff.
+3. `test_book_then_slot_removed_from_availability` — booked slot drops from the public grid.
+4. `test_idempotent_rebook_same_draft_same_slot` — same booking_id returned with `idempotent: true`.
+5. `test_capacity_conflict_returns_409` — second draft trying a full slot → clear 409 message.
+6. `test_past_slot_rejected` — explicit past-slot bookings → 400.
+7. `test_operator_list_marks_attended` — operator list endpoint + mark-attended + cancel.
+8. `test_operator_get_tour_config_returns_defaults` — `_is_default` indicator flag for the UI.
+9. `test_operator_can_update_tour_config` — PUT round-trip with restore.
+
+### Verified live
+- Walked the public flow end-to-end via Playwright: plan → details → PARQ → slot picker (11 days × 12 slots) → booked-state card "Tour booked for Mon, May 11 at 10:00 · Reception · 30-minute slot".
+- Operator-side curl confirms the booking surfaces in `GET /api/memberships/tour-bookings` immediately, with all denormalised fields (email, name, slot_at, location).
+- All 9 backend regression tests pass.
+- Test data cleaned up post-verification.
+
+### Out of scope (intentionally deferred — easy follow-ups)
+- Operator UI to tune the weekly schedule (defaults work; tune via API for now).
+- Confirmation/reminder emails — placeholder hook in `_finalise_signup` is ready.
+- Sync to `class_occurrences` calendar.
+
+### ⚠ Action required
+Lives in **preview** only — **redeploy** to push to gymaxisai.com so the public sign-up tour booking is live for prospective members.
+
+---
+
+
+
 ## Iter 216h3 — Role-mismatch warning badge in user list (Feb 10, 2026)
 
 **Followup from earlier issue list**: operators couldn't tell at a glance whether a user's invited role had drifted from their current role — exactly the failure mode that silently broke Craig's onboarding before iter 216h. Wanted a small "⚠ Was invited as X" badge in the per-org Users list whenever the two diverged.
