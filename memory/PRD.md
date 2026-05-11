@@ -1,3 +1,24 @@
+## Iter 216h10 — Fix for "0 records wiped" on production purge (Feb 10, 2026)
+
+**Production bug reported**: user clicked "Remove everywhere" on Craig Henshall, toast showed "0 record(s) wiped" but the row remained. Root cause: my iter-216h8 purge endpoint only deleted from `db.users`, but the "Already added" check in `master_admin.py::add_user_to_organization` also looks at `db.crm_users` — so a stale row in `crm_users` was blocking re-onboarding without being touched by the purge.
+
+### What shipped
+- **Backend**: extended both `hard_purge_pulse_admin` (by id) AND `hard_purge_user_by_email` to ALSO delete from `db.crm_users`. Audit-log queries extended to find crm_users matches too, with `_collection: "crm_users"` annotation so the audit trail makes it obvious where rows came from.
+- **Frontend `GlobalUsersPanel.js`**: fixed misleading toast — when the email regex matches 0 rows, the toast now shows a **warning** (not success) with actionable hint, AND automatically falls back to a hard-delete by user_id (auto-archives first since hard-delete is archive-gated). Fallback emits its own success toast indicating it was used. Success toast also now mentions CRM rows wiped when applicable.
+
+### Why the fallback path matters
+If the stored email has a hidden character, weird whitespace, or unexpected format, the email-regex match returns 0 — but we still have the user_id from the row that was clicked. Falling back to id-based delete catches this edge case without operator intervention.
+
+### Regression — `test_iter_216h8_user_purge.py` extended to 5 tests (was 4)
+- New `test_purge_by_email_also_wipes_crm_users` seeds a crm_users row and verifies the purge endpoint deletes it. **All 5 pass.**
+
+### ⚠ Action required
+Lives in **preview** only — **redeploy** to push to gymaxisai.com. Craig's row can be cleared on production right now using the **Archive → Permanent Delete** path on his GlobalUsersPanel row (id-based delete, bypasses the regex bug).
+
+---
+
+
+
 ## Iter 216h9 — Global Users panel + leaver workflow (Feb 10, 2026)
 
 **Request**: add Archive + Delete to Master Admin → Users so departing employees can be cleanly removed.

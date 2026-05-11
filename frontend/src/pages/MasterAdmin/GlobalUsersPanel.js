@@ -83,10 +83,38 @@ const GlobalUsersPanel = ({
       );
       const d = r.data?.deleted || {};
       const total = Object.values(d).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
-      toast.success(
-        `${u.full_name || email} removed everywhere — ${total} record(s) wiped across ${d.users || 0} user row(s).`,
-        { duration: 7000 },
-      );
+      if (total === 0) {
+        // The email regex didn't match — the row probably exists with a
+        // slightly different email format. Fall back to a hard-delete by
+        // id, which is what the per-row Permanent-Delete button does.
+        // Auto-archive first if needed since hard-delete is archive-gated.
+        let fallbackDeleted = 0;
+        try {
+          if (!u.archived) {
+            await onArchiveUser?.(u.id, true);
+          }
+          await onHardDeleteUser?.(u.id, email);
+          fallbackDeleted = 1;
+        } catch {
+          // surface the original 0-match warning below
+        }
+        if (fallbackDeleted > 0) {
+          toast.success(
+            `${u.full_name || email} removed (fallback path used — email regex matched 0 rows but row deleted by id).`,
+            { duration: 7000 },
+          );
+        } else {
+          toast.warning(
+            `No records matched "${email}" — the row's stored email may have hidden characters or a different format. Try Archive then Permanent Delete on the row.`,
+            { duration: 9000 },
+          );
+        }
+      } else {
+        toast.success(
+          `${u.full_name || email} removed everywhere — ${total} record(s) wiped across ${d.users || 0} user row(s)${d.crm_users ? ` and ${d.crm_users} CRM row(s)` : ''}.`,
+          { duration: 7000 },
+        );
+      }
       onReload?.();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Couldn't remove user everywhere");

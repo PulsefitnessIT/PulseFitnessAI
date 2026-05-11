@@ -102,6 +102,31 @@ def test_purge_by_email_handles_same_local_part_variants(master_headers, db):
         db.users.delete_many({"email": {"$regex": f"@{domain}$"}})
 
 
+def test_purge_by_email_also_wipes_crm_users(master_headers, db):
+    """Iter 216h10 — crm_users collection is also purged. This was the bug
+    that caused Craig to be 'undeletable' on production: he was in crm_users
+    but the purge endpoint only wiped users."""
+    salt = uuid.uuid4().hex[:6]
+    email = f"crm-purge-{salt}@example.com"
+    now = datetime.now(timezone.utc).isoformat()
+    db.crm_users.insert_one({
+        "id": str(uuid.uuid4()), "email": email, "full_name": "CRM Purge Test",
+        "role": "crm_admin", "organization_id": "test-org",
+        "password": "x", "created_at": now,
+    })
+    try:
+        r = httpx.delete(
+            f"{API_URL}/api/master-admin/purge-user-by-email?email={email}",
+            headers=master_headers, timeout=30,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["deleted"]["crm_users"] == 1, body
+        assert db.crm_users.find_one({"email": email}) is None
+    finally:
+        db.crm_users.delete_many({"email": email})
+
+
 def test_purge_by_email_rejects_invalid_input(master_headers):
     r = httpx.delete(
         f"{API_URL}/api/master-admin/purge-user-by-email?email=not-an-email",

@@ -336,6 +336,7 @@ async def hard_purge_pulse_admin(user_id: str, user: dict = Depends(get_current_
 
     deleted = {
         "users": (await db.users.delete_many({"id": user_id})).deleted_count,
+        "crm_users": (await db.crm_users.delete_many({"email": email})).deleted_count,
         "invites": (await db.invites.delete_many({"email": email})).deleted_count,
         "signup_drafts": (await db.signup_drafts.delete_many({"email": email})).deleted_count,
         "signup_journey_jobs": (await db.signup_journey_jobs.delete_many({"to_email": email})).deleted_count,
@@ -378,6 +379,10 @@ async def hard_purge_user_by_email(email: str = Query(...), user: dict = Depends
     matched = await db.users.find(
         email_filter, {"_id": 0, "id": 1, "email": 1, "role": 1, "organization_id": 1},
     ).to_list(length=20)
+    matched_crm = await db.crm_users.find(
+        email_filter, {"_id": 0, "id": 1, "email": 1, "role": 1, "organization_id": 1},
+    ).to_list(length=20)
+    matched.extend({**m, "_collection": "crm_users"} for m in matched_crm)
     try:
         from routes.master_admin import log_activity
         await log_activity(
@@ -393,6 +398,7 @@ async def hard_purge_user_by_email(email: str = Query(...), user: dict = Depends
 
     deleted = {
         "users": (await db.users.delete_many(email_filter)).deleted_count,
+        "crm_users": (await db.crm_users.delete_many(email_filter)).deleted_count,
         "invites": (await db.invites.delete_many(email_filter)).deleted_count,
         "signup_drafts": (await db.signup_drafts.delete_many(email_filter)).deleted_count,
         "signup_journey_jobs": (await db.signup_journey_jobs.delete_many({"to_email": email_clean})).deleted_count,
