@@ -1,3 +1,68 @@
+## Iter 216h7 — Sicon mapping refresh + capability extensions (Feb 10, 2026)
+
+**Request**: are we tapping into everything Sicon offers, and is the audit story straight? Answer: no — the published mapping table (`SICON_FIELD_MAPPING`) only documented 27 fields while the actual wire payload carried ~150-200 across 7 entities. Several Sicon capabilities (SpareNum/SpareDate slots, finance-focused CL analysis codes, sub-status state machine, PO post-sync amendment) were unwired or under-used.
+
+### What shipped — Phase 1: Truth in the mapping table
+- Replaced `routes/sicon_mapping.py` (27 → **207 documented rows** across all 8 entities: Case, Contract, ContractLine, TrackingNote, Appointment, TimeBooking, Resource, Customer).
+- Every row carries entity / gymaxis_field / sicon_field / direction / type / notes.
+- All three directions (`→` push, `←` pull, `↔` bi-dir) explicitly labelled.
+- `GET /api/sicon/field-mapping` now returns `version: "iter-216h7"`, `total: 207`, plus a new `direction_summary` per entity for audit reviewers.
+- Drift-guard test fails the build if a new wire field ships without a doc row.
+
+### What shipped — Phase 2: Capability extensions (`utils/sicon_client.py`)
+- **Contract `SpareNum1-7` + `SpareDate1-7` wired** (previously only `SpareText1-7`). Accepts both `spare_num_map=[keys]` and `spare_num={slot: value}` shapes for flexibility.
+- **CLAnalysisCode 11-15 wired** on contract lines (5 new finance/governance signals: penalty band, KPI breach flag, finance approver, billing cycle override, holdback %).
+- **Sub-status state machine**: `map_gymaxis_to_sicon_case` now resolves `SiSMDocumentSubStatusID` via per-org `config.sub_status_mapping[workflow_state]` if no explicit id is set.
+- **PO amendment endpoint** (`POST /api/sicon/update-contract-po/{contract_id}`): exposes the previously-unused `update_contract_customer_order_number` client method. Outbox-protected + audit-logged.
+
+### What shipped — Phase 3: Proof document
+- `/app/docs/SICON_INTEGRATION_PROOF.md` — 9-section partner handover document:
+  1. Executive summary + entity coverage table.
+  2. API client coverage (every `SiconClient` method mapped to spec section).
+  3. End-to-end orchestration (outbound + inbound + worker + observability).
+  4. Field-level deep dive (per-entity field tables).
+  5. Capabilities NOT currently consumed (with reasons).
+  6. Authentication, security, audit.
+  7. Test coverage.
+  8. Change log.
+  9. Contact + version refs.
+
+### Regression — `tests/test_iter_216h7_sicon_mapping_audit.py` (12 cases, all passing)
+- Spare-text legacy path preserved.
+- Spare-num + spare-date slot serialisation (both map and dict shapes).
+- Out-of-range / non-int slot indices silently dropped.
+- CLAnalysisCode 11-15 round-trip.
+- Sub-status state machine (workflow_state → id, explicit id wins, omitted when no signals).
+- Mapping endpoint returns >100 rows + version + direction_summary.
+- Drift-guard: required iter-216h7 entries must all be in the table.
+- PO endpoint validates input.
+
+### Full regression: 40/40 iter-216h* tests passing
+- iter_216h dual-role admin: 4/4 ✓
+- iter_216h3 role-mismatch badge: 4/4 ✓
+- iter_216h4 tour calendar: 9/9 ✓
+- iter_216h5 tour conversion: 6/6 ✓
+- iter_216h6 tour reminders: 5/5 ✓
+- iter_216h7 sicon mapping + extensions: 12/12 ✓
+
+### Live verification (preview)
+```
+GET /api/sicon/field-mapping →
+  version: iter-216h7
+  total rows: 207
+  entities: 8
+  Resource: 25 ← pull rows (HR-grade engineer directory)
+  Case: 65 rows (52 push + 1 pull + 12 bi-dir)
+  ContractLine: 62 rows (largest entity, finance-heavy)
+```
+
+### ⚠ Action required
+Lives in **preview** only — **redeploy** to push to gymaxisai.com so the Sicon Mapping panel reflects the 207-row table and the new endpoints are reachable.
+
+---
+
+
+
 ## Iter 216h6 — 24-hour tour reminder email (Feb 10, 2026)
 
 **Followup to iter 216h5**: bookings are now visible, conversion is measurable — the next obvious lever for lifting attended-→-member is reducing no-shows. Industry research puts tour-reminder bumps at 20-30%, which in this funnel translates directly to more memberships. Wired into the existing `signup_journeys` worker so no new infra.

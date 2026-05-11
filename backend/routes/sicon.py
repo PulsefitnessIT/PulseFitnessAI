@@ -370,6 +370,65 @@ async def sync_contract(contract_id: str, user: dict = Depends(get_current_user)
         raise HTTPException(status_code=502, detail=f"Sicon contract sync failed: {str(e)[:200]}")
 
 
+@router.post("/sicon/update-contract-po/{contract_id}")
+async def update_contract_purchase_order(
+    contract_id: str,
+    data: Dict[str, Any],
+    user: dict = Depends(get_current_user),
+):
+    """Attach / amend a CustomerOrderNumber (PO) on an already-synced Sicon contract.
+
+    Iter 216h7 — surfaces `update_contract_customer_order_number` so finance
+    can attach a PO post-creation without re-syncing the whole contract
+    (which would overwrite header edits made directly in Sicon).
+    """
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    po = (data.get("customer_order_number") or "").strip()
+    if not po:
+        raise HTTPException(status_code=400, detail="customer_order_number is required")
+
+    contract = await db.crm_contracts.find_one(
+        {"id": contract_id, "organization_id": org_id}, {"_id": 0},
+    )
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    sicon_contract_id = contract.get("sicon_contract_id")
+    if not sicon_contract_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Contract not yet synced to Sicon — push the contract first.",
+        )
+
+    client = await get_sicon_client(org_id)
+    if not client:
+        raise HTTPException(status_code=400, detail="Sicon integration not configured")
+
+    try:
+        await client.update_contract_customer_order_number(int(sicon_contract_id), po)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        await db.crm_contracts.update_one(
+            {"id": contract_id},
+            {"$set": {
+                "customer_order_number": po,
+                "po_last_updated_at": now_iso,
+                "po_last_updated_by": user.get("email"),
+            }},
+        )
+        await log_sicon_event(
+            org_id, "contract_po_updated",
+            f"Contract {contract_id} (Sicon {sicon_contract_id}) PO updated to '{po}'",
+            True, user["id"],
+        )
+        return {"success": True, "customer_order_number": po, "updated_at": now_iso}
+    except SiconAPIError as e:
+        await enqueue_failed_operation(
+            org_id, "update_contract_po", "contract", contract_id,
+            {"sicon_contract_id": sicon_contract_id, "customer_order_number": po}, e,
+        )
+        raise HTTPException(status_code=502, detail=f"Sicon PO update failed: {str(e)[:200]}")
+
+
 # ── Inbound Poll ──────────────────────────────────────────────────
 
 @router.post("/sicon/poll-updates")

@@ -400,8 +400,15 @@ def map_gymaxis_to_sicon_case(issue: Dict, config: Dict, org_name: str = "",
     case_data["SiconCRMCompanyID"] = crm.get("crm_company_id") or config.get("default_crm_company_id", 0)
 
     # Sub-status for richer progress tracking
-    if issue.get("sicon_sub_status_id"):
-        case_data["SiSMDocumentSubStatusID"] = int(issue["sicon_sub_status_id"])
+    # Iter 216h7 — explicit field wins; otherwise resolve via per-org workflow_state map.
+    sub_status_id = issue.get("sicon_sub_status_id")
+    if not sub_status_id:
+        workflow_state = (issue.get("workflow_state") or "").lower()
+        sub_status_map = config.get("sub_status_mapping") or {}
+        if workflow_state and workflow_state in sub_status_map:
+            sub_status_id = sub_status_map[workflow_state]
+    if sub_status_id:
+        case_data["SiSMDocumentSubStatusID"] = int(sub_status_id)
 
     _apply_location(case_data, issue, config.get("location_address") or {})
 
@@ -446,12 +453,65 @@ def build_tracking_note_payload(note_text: str, created_by: str = "GymAxis AI",
 
 
 def _contract_spare_fields(contract: Dict) -> Dict:
-    """Serialise GymAxis metadata into Sicon Contract spare slots (7 text + 7 num + 7 date)."""
+    """Serialise GymAxis metadata into Sicon Contract spare slots.
+
+    Iter 216h7 — full coverage of Sicon's three spare-slot banks per contract
+    header (each bank has 7 slots, type-strict on Sicon side):
+      • SpareText1-7  ← strings (truncated at 250 chars)
+      • SpareNum1-7   ← floats (financial signals: targets, uplift caps, % values)
+      • SpareDate1-7  ← ISO date strings (renewal anchors, review dates, expiry)
+
+    Three input shapes are honoured for backwards-compat:
+      1. `contract.spare_text_map` / `spare_num_map` / `spare_date_map` —
+         list of source keys; the resolver pulls from `contract[key]`.
+      2. `contract.spare_text` / `spare_num` / `spare_date` — dict keyed by
+         slot index (1..7) for direct overrides.
+      3. Legacy: if only `spare_text_map` is set, behaviour is unchanged.
+    """
     spare: Dict = {}
+    # Text slots — pre-existing behaviour preserved.
     for i, key in enumerate(contract.get("spare_text_map") or [], start=1):
         if i > 7:
             break
         spare[f"SpareText{i}"] = str(contract.get(key, ""))[:250]
+    for idx, val in (contract.get("spare_text") or {}).items():
+        try:
+            i = int(idx)
+            if 1 <= i <= 7:
+                spare[f"SpareText{i}"] = str(val)[:250]
+        except (TypeError, ValueError):
+            continue
+    # Numeric slots — financial KPIs, uplift caps, % renewals, etc.
+    for i, key in enumerate(contract.get("spare_num_map") or [], start=1):
+        if i > 7:
+            break
+        val = contract.get(key)
+        if val not in (None, ""):
+            try:
+                spare[f"SpareNum{i}"] = float(val)
+            except (TypeError, ValueError):
+                pass
+    for idx, val in (contract.get("spare_num") or {}).items():
+        try:
+            i = int(idx)
+            if 1 <= i <= 7 and val not in (None, ""):
+                spare[f"SpareNum{i}"] = float(val)
+        except (TypeError, ValueError):
+            continue
+    # Date slots — ISO strings; Sicon parses them server-side.
+    for i, key in enumerate(contract.get("spare_date_map") or [], start=1):
+        if i > 7:
+            break
+        val = contract.get(key)
+        if val:
+            spare[f"SpareDate{i}"] = str(val)[:25]
+    for idx, val in (contract.get("spare_date") or {}).items():
+        try:
+            i = int(idx)
+            if 1 <= i <= 7 and val:
+                spare[f"SpareDate{i}"] = str(val)[:25]
+        except (TypeError, ValueError):
+            continue
     return spare
 
 
@@ -472,17 +532,27 @@ def map_gymaxis_contract_to_sicon(contract: Dict, sage_customer_id: int = 0) -> 
 def _contract_line_analysis_codes(line: Dict) -> Dict:
     """Pack SLA + GymAxis custom metadata into Sicon's analysis-code slots.
 
-    Uses CLAnalysisCode1-10 by convention (out of 150 available). Reserved:
-    - CL1 = SLA tier (Gold / Platinum / Silver)
-    - CL2 = Response-hours target
-    - CL3 = Resolution-hours target
-    - CL4 = OOS credit terms
-    - CL5 = Safety-critical flag
-    - CL6 = GymAxis internal asset_id (for joins)
-    - CL7 = GymAxis site_id
-    - CL8 = PPM frequency override (if different from VisitFrequency)
-    - CL9 = Tender pack reference
+    Uses CLAnalysisCode1-15 by convention (out of 150 available). Reserved:
+    - CL1  = SLA tier (Gold / Platinum / Silver)
+    - CL2  = Response-hours target
+    - CL3  = Resolution-hours target
+    - CL4  = OOS credit terms
+    - CL5  = Safety-critical flag
+    - CL6  = GymAxis internal asset_id (for joins)
+    - CL7  = GymAxis site_id
+    - CL8  = PPM frequency override (if different from VisitFrequency)
+    - CL9  = Tender pack reference
     - CL10 = Renewal notice days
+
+    Iter 216h7 — extended with five finance/governance signals so the
+    Sicon side can drive automation (penalty calc, escalation, etc.):
+    - CL11 = SLA penalty band ("0/5/10/25%" or absolute credit code)
+    - CL12 = KPI breach flag ("OK"|"WARN"|"BREACH") set by GymAxis SLA worker
+    - CL13 = Finance approver email (last contract amend authoriser)
+    - CL14 = Billing cycle override (e.g. "annual"|"semi-annual"|"quarterly")
+    - CL15 = Holdback % (retention against final invoice, finance use)
+
+    Any caller-supplied `analysis_codes` dict overrides these defaults.
     """
     sla = line.get("sla") or {}
     out = {
@@ -496,6 +566,12 @@ def _contract_line_analysis_codes(line: Dict) -> Dict:
         "CLAnalysisCode8": (line.get("ppm_frequency_override") or "")[:20],
         "CLAnalysisCode9": (line.get("tender_reference") or "")[:60],
         "CLAnalysisCode10": str(line.get("renewal_notice_days") or 90)[:10],
+        # Iter 216h7 finance/governance extensions
+        "CLAnalysisCode11": str(line.get("sla_penalty_band") or sla.get("penalty_band") or "")[:50],
+        "CLAnalysisCode12": (line.get("kpi_breach_flag") or "OK")[:10].upper(),
+        "CLAnalysisCode13": (line.get("finance_approver_email") or "")[:120],
+        "CLAnalysisCode14": (line.get("billing_cycle_override") or "")[:30],
+        "CLAnalysisCode15": str(line.get("holdback_pct") or "")[:10],
     }
     # Pass-through any caller-supplied overrides (analysis_codes dict)
     for k, v in (line.get("analysis_codes") or {}).items():
