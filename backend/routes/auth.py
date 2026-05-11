@@ -481,7 +481,26 @@ async def reset_password(body: dict) -> dict:
             "password_updated_at": datetime.now(timezone.utc).isoformat(),
         }},
     )
-    await db.password_reset_tokens.update_one({"token": token}, {"$set": {"used": True}})
+    await db.password_reset_tokens.update_one({"token": token}, {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}})
+
+    # Iter 216h29 — auto-archive every other still-unused invite token
+    # for this user. Operators who re-issued an invite while the first
+    # was still valid sometimes left two live links in the wild; from
+    # here on, the moment one is redeemed the rest become inert.
+    archived = await db.password_reset_tokens.update_many(
+        {
+            "user_id": reset_doc["user_id"],
+            "token": {"$ne": token},
+            "used": False,
+        },
+        {"$set": {
+            "used": True,
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "archived_reason": "auto_archived_after_sibling_redeemed",
+        }},
+    )
+    if archived.modified_count:
+        logger.info(f"[INVITE] Auto-archived {archived.modified_count} sibling invite tokens for user {reset_doc['user_id']}")
 
     # Iter 215ar — clear the org-level "initial password" reveal once the
     # primary contact has rotated their password (so master-admin no longer

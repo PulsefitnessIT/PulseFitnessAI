@@ -21,7 +21,7 @@
  * needed.
  */
 import React, { useMemo, useState } from 'react';
-import { Search, Users, ShieldCheck, Briefcase, UserCog, Archive, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Search, Users, ShieldCheck, Briefcase, UserCog, Archive, AlertTriangle, ChevronRight, Clock } from 'lucide-react';
 import { useBrandContext } from './BrandContext';
 
 const PILLS = [
@@ -102,11 +102,12 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
   }, [users]);
 
   const stats = useMemo(() => {
-    const c = { total: classified.length, pulse_admins: 0, owners: 0, staff: 0, crm_only: 0, archived: 0, mismatch: 0 };
+    const c = { total: classified.length, pulse_admins: 0, owners: 0, staff: 0, crm_only: 0, archived: 0, mismatch: 0, invite_pending: 0 };
     for (const u of classified) {
       if (u.status === 'archived' || u.is_archived) { c.archived += 1; continue; }
       c[u._category] = (c[u._category] || 0) + 1;
       if (u.invited_role && u.invited_role !== u.role) c.mismatch += 1;
+      if (u.invite_pending) c.invite_pending += 1;
     }
     return c;
   }, [classified]);
@@ -144,13 +145,14 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
       </div>
 
       {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="people-stats-strip">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3" data-testid="people-stats-strip">
         <StatTile label="Total active" value={stats.total - stats.archived} icon={Users} accent="#0A0A0A" hint={stats.archived ? `${stats.archived} archived` : ''} />
         <StatTile label="Pulse admins" value={stats.pulse_admins} icon={ShieldCheck} accent="#0055FF" />
         <StatTile label="Owners" value={stats.owners} icon={UserCog} accent="#7C3AED" />
         <StatTile label="Staff / Managers" value={stats.staff} icon={Briefcase} accent="#10B981" />
         <StatTile label="CRM only" value={stats.crm_only} icon={Users} accent="#F59E0B" />
         <StatTile label="Role mismatches" value={stats.mismatch} icon={AlertTriangle} accent={stats.mismatch ? '#DC2626' : '#71717A'} hint={stats.mismatch ? 'invited ≠ current' : 'all aligned'} />
+        <StatTile label="Invites pending" value={stats.invite_pending} icon={Clock} accent={stats.invite_pending ? '#B45309' : '#71717A'} hint={stats.invite_pending ? '72h links unredeemed' : 'all redeemed'} testId="people-stat-invite-pending" />
       </div>
 
       {/* Filter pills */}
@@ -219,6 +221,16 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-zinc-900 truncate">{u.full_name || u.email}</span>
                     <RoleChip user={u} />
+                    {u.invite_pending && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5"
+                        title={`Invite expires ${new Date(u.invite_pending.expires_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                        data-testid={`people-invite-pending-${u.id}`}
+                      >
+                        <Clock size={9} />
+                        {u.invite_pending.hours_left}h left
+                      </span>
+                    )}
                     {u.invited_role && u.invited_role !== u.role && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded px-1.5 py-0.5" data-testid={`people-mismatch-${u.id}`}>
                         <AlertTriangle size={10} />

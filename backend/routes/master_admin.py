@@ -1759,6 +1759,47 @@ async def get_all_users(user: dict = Depends(get_current_user), brand: str = "al
             if inv and inv.get("role") and inv["role"] != u.get("role"):
                 u["invited_role"] = inv["role"]
 
+    # Iter 216h29 — Pending-invite enrichment. Surfaces an `invite_pending`
+    # block on each user whose most recent password_reset_tokens entry is
+    # still unused AND not yet expired. The People Directory uses this to
+    # render an "Invite Pending — N hours left" badge so operators can
+    # chase stale invites before they expire.
+    user_ids = [u.get("id") for u in all_users if u.get("id")]
+    if user_ids:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        pending_cursor = db.password_reset_tokens.find(
+            {
+                "user_id": {"$in": user_ids},
+                "used": False,
+                "expires_at": {"$gt": now_iso},
+            },
+            {"_id": 0, "user_id": 1, "token": 1, "expires_at": 1, "created_at": 1, "issued_by": 1, "kind": 1},
+        ).sort("created_at", -1)
+        latest_per_user: dict[str, dict] = {}
+        async for tok in pending_cursor:
+            uid = tok.get("user_id")
+            if uid and uid not in latest_per_user:
+                latest_per_user[uid] = tok
+        if latest_per_user:
+            now_dt = datetime.now(timezone.utc)
+            for u in all_users:
+                tok = latest_per_user.get(u.get("id"))
+                if not tok:
+                    continue
+                try:
+                    exp_dt = datetime.fromisoformat(tok["expires_at"])
+                except Exception:  # noqa: BLE001
+                    continue
+                delta = exp_dt - now_dt
+                hours_left = max(0, int(delta.total_seconds() // 3600))
+                u["invite_pending"] = {
+                    "expires_at": tok["expires_at"],
+                    "issued_at":  tok.get("created_at"),
+                    "issued_by":  tok.get("issued_by"),
+                    "hours_left": hours_left,
+                    "kind":       tok.get("kind", "invite"),
+                }
+
     return {"users": all_users}
 
 

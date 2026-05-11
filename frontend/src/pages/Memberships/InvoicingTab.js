@@ -14,6 +14,7 @@ import { FileText, Mail, Eye, CheckCircle2, Clock, XCircle, Send, RefreshCcw, Us
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import EmptyState from '@/components/shared/EmptyState';
+import Button from '@/components/shared/Button';
 
 const STATUS_STYLES = {
   draft: 'bg-zinc-500/15 text-zinc-300',
@@ -235,11 +236,14 @@ export default function InvoicingTab({ API, headers }) {
 
       {/* Summary + actions */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button onClick={runPreview} disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold border border-[color:var(--theme-border)]"
-          data-testid="mbr-invoicing-refresh">
-          <RefreshCcw size={13} /> {loading ? 'Loading…' : 'Refresh preview'}
-        </button>
+        <Button
+          variant="secondary" size="md" icon={RefreshCcw}
+          loading={loading}
+          onClick={runPreview} disabled={loading}
+          data-testid="mbr-invoicing-refresh"
+        >
+          {loading ? 'Loading…' : 'Refresh preview'}
+        </Button>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)}
             data-testid="mbr-invoicing-send-email" />
@@ -257,18 +261,24 @@ export default function InvoicingTab({ API, headers }) {
             data-testid="mbr-invoicing-sibling-input"
             title="Percent off each sibling beyond the 1st child in a family's monthly invoice" />
           <span className="text-xs text-[color:var(--theme-text-muted)]">%</span>
-          <button onClick={saveSibling} disabled={siblingSaving}
-            className="rounded-lg px-2 py-1 text-[11px] font-extrabold border border-[color:var(--theme-border)] hover:bg-white/5"
-            data-testid="mbr-invoicing-sibling-save">
+          <Button
+            variant="secondary" size="sm"
+            onClick={saveSibling} disabled={siblingSaving}
+            data-testid="mbr-invoicing-sibling-save"
+          >
             {siblingSaving ? 'Saving…' : 'Save'}
-          </button>
+          </Button>
         </div>
-        <button onClick={generate} disabled={generating || !preview?.invoices?.length}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-extrabold"
-          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
-          data-testid="mbr-invoicing-generate">
-          <Receipt size={13} /> {generating ? 'Generating…' : `Generate invoice${preview?.invoices?.length === 1 ? '' : 's'}`}
-        </button>
+        <div className="ml-auto">
+          <Button
+            variant="primary" size="md" icon={Receipt}
+            loading={generating}
+            onClick={generate} disabled={generating || !preview?.invoices?.length}
+            data-testid="mbr-invoicing-generate"
+          >
+            {generating ? 'Generating…' : `Generate invoice${preview?.invoices?.length === 1 ? '' : 's'}`}
+          </Button>
+        </div>
       </div>
 
       {/* Preview table */}

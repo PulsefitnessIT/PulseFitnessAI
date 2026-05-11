@@ -1,3 +1,44 @@
+## Iter 216h29 — Invite-pending badge + Auto-archive sibling invites + Operator portal migration kick-off (Feb 11, 2026)
+
+### A. Auto-archive sibling invite tokens
+- `POST /api/auth/reset-password` now archives every other unused, unexpired token for the same user the moment one is redeemed. Stale invite links can no longer linger as second-chance access vectors. Marked with `archived_reason: 'auto_archived_after_sibling_redeemed'` for audit traceability.
+- Verified via the 17-check audit harness (`test_iter_216h26_audit.py`) — all green.
+
+### B. Pending-invite badge in People Directory
+- **Backend**: `GET /api/master-admin/users` now enriches each user with an `invite_pending` block when their most recent token is still unused AND not yet expired:
+  ```json
+  "invite_pending": { "expires_at", "issued_at", "issued_by", "hours_left", "kind" }
+  ```
+  Single aggregation query (no N+1) — only one extra round-trip for the whole directory.
+- **Frontend**: `PeopleDirectory.js` renders a small amber **"Nh LEFT"** badge next to the role chip on every row with a pending invite. Tooltip shows the full expiry timestamp.
+- **New "Invites pending" stat tile** in the top stats strip (7 tiles now, was 6). Live preview: 35 of 125 users have pending invites in the preview DB.
+
+### C. Operator portal button migration — first concrete batch
+- Migrated 3 top-bar CTAs in `Memberships → Invoicing` (the highest-traffic operator surface):
+  - **Refresh preview** → `<Button variant="secondary">` with built-in loading spinner.
+  - **Sibling discount → Save** → `<Button variant="secondary" size="sm">`.
+  - **Generate invoices** → `<Button variant="primary">` (brand cyan filled).
+- Demonstrates the migration pattern outside Master Admin without touching every button (per the "next feature touch" doctrine).
+
+### Verified
+- Audit harness `/app/backend/tests/test_iter_216h26_audit.py` re-run: **17/17 PASS**.
+- Live curl confirmed `invite_pending` is populated on 35 of 125 users with `hours_left=71`, `kind=invite`.
+- Live UI screenshot confirms the **"Invites pending — 35 — 72h links unredeemed"** stat tile renders + 35 amber badges visible across the Directory rows.
+
+### Files touched
+- `/app/backend/routes/auth.py` — sibling-archive logic (~22 LOC).
+- `/app/backend/routes/master_admin.py` — `invite_pending` enrichment in `/master-admin/users` (~40 LOC).
+- `/app/frontend/src/pages/MasterAdmin/PeopleDirectory.js` — badge + stat tile + 7-column grid.
+- `/app/frontend/src/pages/Memberships/InvoicingTab.js` — 3-button migration to `<Button>` primitive.
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Operators now have a one-glance signal that "Sarah's invite is about to expire" without leaving the People Directory.
+3. Auto-archive protects against the operator-error case of issuing two invites and accidentally letting the unused one stay live.
+
+---
+
+
 ## Iter 216h28 — Button-primitive migration: first batch (Feb 11, 2026)
 
 Migrated the iter-216h20-h24 Master Admin panels (the "canonical examples" per `/app/DESIGN_SYSTEM.md`) to use the shared `<Button>` primitive. Goal: prove the migration pattern, lock in the new design system, and stop the inline-style regression vector for new panels.
