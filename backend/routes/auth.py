@@ -524,6 +524,7 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "organization_id": user.get('organization_id'),
         "company_code": org.get('company_code') if org and user.get('role') in ['owner', 'manager'] else None,
         "is_master_admin": user.get('is_master_admin', False),
+        "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
         "account_type": org.get('account_type', 'full') if org else 'full',
         "trial": trial_state,

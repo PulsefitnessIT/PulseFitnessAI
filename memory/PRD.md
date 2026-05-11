@@ -1,3 +1,54 @@
+## Iter 216h22 — Master Admin redesign Phase 5: Integrations Hub + Pulse Master Admin scope-lock (Feb 11, 2026)
+
+P5 of the blueprint — single page for all third-party connections, plus a guarantee that **Pulse Master Admins only ever see Pulse Fitness data**.
+
+### What shipped (frontend)
+- **NEW `IntegrationsHub.js`** (Master Admin → Integrations → Hub):
+  - Summary strip with 4 tiles (Connected / Degraded / Not configured / Brand scope).
+  - 4 integration cards (Stripe Connect · Sicon Service · Orbit 4 · Sage 200) — each with status pill, brand badge, org-coverage tile (X / Y orgs · Z %), last-24h events / errors, "Open" affordance.
+  - Right-hand `Sheet` drawer that EMBEDS the full existing console page so **every Sicon and Sage mapping field stays visible and editable**:
+    - Sicon card → full `SiconIntegrationPage` (Overview · Organisations · Event Log · Configuration · **Field Mappings**).
+    - Orbit 4 card → full `IntegrationAdminPanel` for orbit4.
+    - Stripe Connect card → full `AdminStripeConnect` (platform settings + per-org onboarding rows).
+    - Sage 200 card → field-mapping reference table + coverage + pointer to Org Billing tab (Sage rides the Sicon bridge so the editor lives on the org doc).
+- **NEW Sidebar group `integrations-hub`** with 4 sub-tabs (Hub default · Orbit 4 · Sicon Service · Stripe Connect). The 3 legacy entries still deep-link.
+- **Brand Picker now scope-locks for Pulse Master Admins**:
+  - `BrandPicker.js` accepts an `isPulseAdmin` prop. When true, it forces `brand="pulse"` on mount and renders a non-clickable pill ("Pulse Fitness · SCOPE LOCKED") in place of the dropdown.
+  - `MasterAdminPage.js` derives `isPulseAdmin = !!(user?.is_pulse_admin && !user?.is_master_admin)` and passes it to both `BrandPicker` and `IntegrationsHub`.
+
+### Backend (1 new endpoint + 1 critical auth-payload fix)
+- **`GET /api/master-admin/integrations-hub`** — single round-trip JSON for the hub:
+  - `brand` (forced to `pulse` for `is_pulse_only(user)` callers).
+  - `integrations[4]`: each with `key`, `label`, `enabled`, `status` (connected / degraded / not_configured / down), `last_event_at`, `events_24h`, `errors_24h`, `orgs_configured`, `orgs_total`, `ref_field`. Stripe Connect row also returns `platform_fee_pct`.
+  - `summary` counts.
+- **CRITICAL FIX — `/api/auth/me` now returns `is_pulse_admin`**. The login response already included it, but `/auth/me` (the auth-rehydrate endpoint) did NOT — so on every page reload the React `user` lost its Pulse-admin flag. Routes guarded by `is_pulse_admin` (`/master-admin` access, BrandPicker scope-lock) failed silently and bounced Pulse admins to `/dashboard`. Restored.
+
+### Verified live (testing agent v3 + main agent smoke test)
+- **Testing agent report `/app/test_reports/iteration_216h22.json`** — 8 items, 7 PASSED, 1 PARTIAL (frontend Pulse-login blocked by rate-limit; backend behaviour verified via API).
+- **Main agent end-to-end smoke** (after `/auth/me` fix):
+  - Signed in as `pulse.scope.test@pulsefitness.com` → navigated to `/master-admin?section=integrations-hub`.
+  - Top bar shows **"Pulse Fitness · SCOPE LOCKED"** pill (data-testid `master-admin-brand-picker-locked`).
+  - Trigger dropdown (`master-admin-brand-picker-trigger`) NOT rendered — confirmed mutually exclusive.
+  - Brand-scope summary tile says "Locked (Pulse Master Admin)".
+  - Org-coverage on every card shows 0 / 3 (NOT 0 / 90) — Pulse-scoped server-side via `brand_filter_clause("pulse")`.
+  - All 4 integration cards render correctly with brand badge "Pulse Fitness" on each.
+
+### Side effect — new test account
+- **Pulse Master Admin scope test**: `pulse.scope.test@pulsefitness.com` / `TestPulse2026!` (added to `/app/memory/test_credentials.md`).
+
+### What this still does NOT do (handed to P6+)
+- `AdminPulse` panel intact — **NOT retired**, per user clarification ("we still need a Master Admin just for Pulse Fitness").
+- Sicon / Orbit 4 / Sage 200 "test connection" button + per-row drilldown (still via the embedded existing page).
+- P6 — Staff Onboarding wizard still pending.
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. As Master Admin: Sidebar → **Integrations → Hub** to drill any of the 4 connections in a side drawer with mapping fields preserved.
+3. Delegate a Pulse Master Admin via `POST /api/master-admin/pulse-admins` — they will be auto-locked to Pulse scope on every dashboard, list and audit.
+
+---
+
+
 ## Iter 216h21 — Master Admin redesign Phase 4: Organisations SSoT consolidation (Feb 11, 2026)
 
 P4 of the blueprint — collapses the multi-surface Organisations experience into a single drawer with 7 blueprint tabs.
