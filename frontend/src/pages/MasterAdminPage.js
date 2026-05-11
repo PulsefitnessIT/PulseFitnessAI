@@ -51,6 +51,9 @@ import AnalyticsSection from './MasterAdmin/AnalyticsSection';
 import { sectionTitles, sectionDescriptions, GROUP_SUBTABS, SECTION_TO_GROUP } from './MasterAdmin/SidebarConfig';
 import ConsolidatedTabsBar from './MasterAdmin/ConsolidatedTabsBar';
 import useMasterAdminActions from './MasterAdmin/hooks/useMasterAdminActions';
+// Iter 216h17 — brand context for Master Admin (Phase 1 IA redesign).
+import { BrandContextProvider } from './MasterAdmin/BrandContext';
+import BrandPicker from './MasterAdmin/BrandPicker';
 
 const MasterAdminPage = ({ onBack }) => {
   const { user, API, logout } = useAuth();
@@ -479,6 +482,7 @@ const MasterAdminPage = ({ onBack }) => {
               }}
             />
             <EmailHealthPill />
+            <BrandPicker />
             <Button
               size="sm"
               variant="outline"
@@ -546,7 +550,15 @@ const MasterAdminPage = ({ onBack }) => {
   );
 };
 
-export default MasterAdminPage;
+// Iter 216h17 — wrap in BrandContextProvider so every child panel
+// (current + future) can call `useBrandContext()` without re-injection.
+const MasterAdminPageWithBrand = (props) => (
+  <BrandContextProvider>
+    <MasterAdminPage {...props} />
+  </BrandContextProvider>
+);
+
+export default MasterAdminPageWithBrand;
 
 
 /* ─────────────────── Org Billing — simple picker ─────────────────── */

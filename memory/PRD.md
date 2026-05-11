@@ -1,3 +1,53 @@
+## Iter 216h17 — Master Admin redesign Phase 1: Information Architecture + Brand Context (Feb 11, 2026)
+
+**Audit findings & rationale**: The legacy Master Admin had 14 top-level sidebar entries + 23 sub-tabs (37 nav surfaces) — too dense for sales/marketing staff onboarding this week. Multiple single-source-of-truth violations identified across People (4 panels), Organisations (3 panels), Equipment images (5 panels), Integrations (5 panels). Brand divergence between Pulse Fitness and GymAxis was implemented ad hoc via scattered `gymaxisOnly` flags.
+
+Engaged `design_agent_full_stack` for the redesign blueprint → produced `/app/design_guidelines.json` with the new IA, brand strategy, People/Org SSoT designs, integrations hub plan, staff onboarding wizard, visual language references (Linear / Vercel / Stripe Atlas / Sentry / Notion teamspaces) and terminology cleanup.
+
+### What shipped in Phase 1 (foundation only — no data routing changes)
+- **New 8-entry sidebar IA** (`SidebarConfig.js` overwrite):
+  1. Overview — Dashboard · System Health · Setup checklist
+  2. People — Directory · Site-locked users · Staff onboarding
+  3. Organisations — List · Module subscriptions · Customer activation
+  4. Sites — Equipment images · Custom properties
+  5. Finance — Pricing · Org billing · Collections · Payments · Stripe · Financial ops · Refunds · CAPEX
+  6. Growth — Trials · Sales insights · Global analytics
+  7. Integrations — Orbit 4 · Sicon Service · Stripe Connect
+  8. Settings & Compliance — Audit log · Login events · Documents · Outbound emails · Ask Support · Support tools · Database viewer · Maintenance jobs · Design system
+- **Brand context** (`BrandContext.js`): React context + provider with All / Pulse Fitness / GymAxis. Persists to localStorage. Fires `master-admin-brand-change` window event so legacy panels can react. Exports `filterByBrand()` helper.
+- **Brand picker pill** (`BrandPicker.js`): Sits in the Master Admin top bar between Email Health and Refresh. Dropdown with 3 options + descriptive footer.
+- **Terminology cleanup** in `sectionTitles` / `sectionDescriptions`:
+  - "Trust & Reliability Engine" → "System health"
+  - "Roles & Access" → "People directory"
+  - "Tasks" → "Setup checklist"
+  - "Locked staff" → "Site-locked users"
+  - "Activation Funnel" → "Customer activation"
+  - "Estate Rollup" → "Module subscriptions"
+  - "Data Backfills" → "Maintenance jobs"
+  - "Onboarding" (ambiguous) → "Staff onboarding"
+- **`LEGACY_SECTION_REDIRECTS`** map documents which legacy section IDs were absorbed into which new groups (no functional redirect yet — `renderSection` still resolves all IDs directly; this map is for review/audit + future P2-P5 consolidations).
+
+### Verified live on preview
+- Sidebar shows all 8 entries with correct labels.
+- Brand picker pill labelled "All" by default; opens dropdown with All Brands (ACTIVE) · Pulse Fitness · GymAxis + footer copy.
+- Clicking Pulse Fitness flips the pill label to "Pulse" and persists to `localStorage.master_admin_brand_filter = 'pulse'`.
+- Clicking People renders the "People directory" header with the subtitle "Pulse Admins · Customer Owners · Customer Staff · CRM contacts — all in one directory" and sub-tabs Directory / Site-locked users / Staff onboarding.
+
+### Next phases (recommended order per blueprint)
+- **P2** — Wire BrandContext into every panel's data query (currently UI-only).
+- **P3** — Collapse the 4 People panels (`AdminUsers` + `GlobalUsersPanel` + `AdminPulseAdmins` + `AdminCRMUsers`) into one Directory page with role-coloured chips + drawer tabs (Profile · Sites · Permissions · Activity · Sessions).
+- **P4** — Collapse 3 Org panels into one Organisations page with tabbed drawer (Profile · Sites · People · Modules · Billing · Integrations · Activity).
+- **P5** — One Integrations hub with brand status pills + click-to-detail drawer.
+- **P6** — Staff Onboarding wizard (invite → role → sites → modules → audit) reusing the iter-216h15 reset-link flow.
+
+### ⚠ Action required
+1. **Redeploy** preview → production.
+2. As Master Admin on `gymaxisai.com`: top bar now has a brand-picker pill — click it, pick Pulse Fitness, refresh; the choice persists. Sidebar is reorganised into 8 clean groups.
+3. Tell me when to start P2/P3 — they're the high-value SSoT consolidations.
+
+---
+
+
 ## Iter 216h16 — Trust & Reliability RAM/CPU/Disk + Master Admin parity for site allocation (Feb 11, 2026)
 
 ### A. System resources panel on Trust dashboard (`psutil`)
