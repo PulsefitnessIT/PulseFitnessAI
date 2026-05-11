@@ -7,6 +7,7 @@ import {
   AlertCircle, PieChart, Award, UserCheck, Filter
 } from 'lucide-react';
 import axios from 'axios';
+import Button from '@/components/shared/Button';
 
 const fmt = (n) => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -65,7 +66,7 @@ function PipelineByStage({ data, isDark, c, onViewAll }) {
     <Card isDark={isDark}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold" style={{ color: c.text }}>Pipeline by Stage</h3>
-        <button onClick={onViewAll} className="text-[11px] font-medium text-[var(--color-info-ios)] hover:underline flex items-center gap-0.5">View all <ChevronRight size={12} /></button>
+        <Button variant="tertiary" size="sm" onClick={onViewAll} iconRight={ChevronRight} data-testid="crm-pipeline-stage-view-all">View all</Button>
       </div>
       {data.stage_breakdown.some(s => s.count > 0) ? (
         <div className="space-y-3">
@@ -101,7 +102,7 @@ function TasksDue({ tasks, isDark, c, onViewAll }) {
     <Card isDark={isDark}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold" style={{ color: c.text }}>Tasks Due</h3>
-        <button onClick={onViewAll} className="text-[10px] text-[var(--color-info-ios)] hover:underline">View all</button>
+        <Button variant="tertiary" size="sm" onClick={onViewAll} data-testid="crm-tasks-due-view-all">View all</Button>
       </div>
       {tasks.length > 0 ? (
         <div className="space-y-2">
@@ -152,7 +153,7 @@ function RecentActivity({ activities, isDark, c, onViewAll }) {
     <Card isDark={isDark}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold" style={{ color: c.text }}>Recent Activity</h3>
-        <button onClick={onViewAll} className="text-[10px] text-[var(--color-info-ios)] hover:underline">View all</button>
+        <Button variant="tertiary" size="sm" onClick={onViewAll} data-testid="crm-recent-activity-view-all">View all</Button>
       </div>
       {activities.length > 0 ? activities.slice(0, 6).map((act, i) => {
         const Icon = ACT_ICONS[act.type] || Activity;
@@ -185,7 +186,7 @@ function WorkflowActivity({ wfRuns, isDark, c, onManage }) {
       <div className="flex items-center gap-2 mb-3">
         <Zap size={14} style={{ color: 'var(--color-success-alt)' }} />
         <h3 className="text-sm font-semibold" style={{ color: c.text }}>Workflow Activity</h3>
-        <button onClick={onManage} className="text-[10px] text-[var(--color-info-ios)] hover:underline ml-auto">Manage</button>
+        <Button variant="tertiary" size="sm" onClick={onManage} className="ml-auto" data-testid="crm-workflow-manage">Manage</Button>
       </div>
       {wfRuns.length > 0 ? wfRuns.map(run => (
         <div key={run.id} className="flex items-start gap-2 py-1.5" style={{ borderBottom: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-neutral-100)'}` }}>
@@ -198,7 +199,7 @@ function WorkflowActivity({ wfRuns, isDark, c, onManage }) {
         </div>
       )) : (
         <p className="text-xs text-center py-4" style={{ color: c.textDim }}>
-          No workflow runs yet. <button onClick={onManage} className="text-[var(--color-info-ios)] hover:underline">Set up</button>
+          No workflow runs yet. <Button variant="tertiary" size="sm" onClick={onManage} data-testid="crm-workflow-setup">Set up</Button>
         </p>
       )}
     </Card>

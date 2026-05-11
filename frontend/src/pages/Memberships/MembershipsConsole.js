@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
+import Button from '@/components/shared/Button';
 import InvitePortalButton from '@/components/memberships/InvitePortalButton';
 import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import {
@@ -580,21 +581,22 @@ function MembersTab({ API, headers }) {
             onChange={setSavedView}
             currentFilter={{ ...(savedView?.filter || {}), ...(q ? { q } : {}) }}
           />
-          <button type="button" onClick={downloadTemplate} className="btn-secondary" data-testid="mbr-csv-template">
+          <Button variant="secondary" size="sm" onClick={downloadTemplate} data-testid="mbr-csv-template">
             CSV template
-          </button>
+          </Button>
           <ExportCsvButton module="members" label="Export CSV" testId="mbr-export-csv" />
-          <button type="button" onClick={() => importFileRef.current?.click()} disabled={importing}
-            className="btn-secondary"
+          <Button variant="secondary" size="sm" onClick={() => importFileRef.current?.click()}
+            disabled={importing}
+            loading={importing}
             data-testid="mbr-bulk-import">
-            {importing ? 'Importing…' : 'Bulk import'}
-          </button>
+            {importing ? 'Importing' : 'Bulk import'}
+          </Button>
           <input ref={importFileRef} type="file" accept=".csv,text/csv"
             onChange={(e) => handleImport(e.target.files?.[0])} className="hidden"
             data-testid="mbr-import-input" />
-          <button type="button" onClick={() => setAdding(true)} className="btn-primary" data-testid="mbr-add-member">
-            <Plus size={13} /> Add member
-          </button>
+          <Button variant="primary" size="sm" onClick={() => setAdding(true)} icon={Plus} data-testid="mbr-add-member">
+            Add member
+          </Button>
           <HelpHint guideId="mbr-onboard-first" testId="help-hint-members" />
         </div>
       </div>
@@ -1204,9 +1206,9 @@ function PlansInnerView({ API, headers }) {
     <div data-testid="mbr-plans">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <Header eyebrow="Products" title="Membership plans" subtitle="The shelves you sell from." />
-        <button onClick={() => setEditing('new')} className="rounded-lg px-3 py-2 text-sm font-extrabold flex items-center gap-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="mbr-plan-add">
-          <Plus size={13} /> New plan
-        </button>
+        <Button variant="primary" size="sm" onClick={() => setEditing('new')} icon={Plus} data-testid="mbr-plan-add">
+          New plan
+        </Button>
         <HelpHint guideId="mbr-first-plan" testId="help-hint-plans" />
       </div>
       {loading ? <Loading /> : plans.length === 0 ? <Empty text="No plans yet. Create your first product." /> : (
@@ -1281,9 +1283,9 @@ function ClassesTab({ API, headers }) {
     <div data-testid="mbr-classes">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <Header eyebrow="Schedule" title="Classes" subtitle="Recurring class templates — changes generate new occurrences for the next 8 weeks." />
-        <button onClick={() => setEditing('new')} className="rounded-lg px-3 py-2 text-sm font-extrabold flex items-center gap-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="mbr-class-add">
-          <Plus size={13} /> New class
-        </button>
+        <Button variant="primary" size="sm" onClick={() => setEditing('new')} icon={Plus} data-testid="mbr-class-add">
+          New class
+        </Button>
       </div>
       {loading ? <Loading /> : templates.length === 0 ? <Empty text="No classes yet. Create your first recurring template." /> : (
         <div className="mt-6 space-y-2">
@@ -1547,9 +1549,9 @@ function AdsTab({ API, headers }) {
     <div data-testid="mbr-ads">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <Header eyebrow="Promotions" title="Ads & announcements" subtitle="Surface banners in the member app — promos, events, challenges." />
-        <button onClick={() => setEditing('new')} className="rounded-lg px-3 py-2 text-sm font-extrabold flex items-center gap-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="mbr-ads-add">
-          <Plus size={13} /> New ad
-        </button>
+        <Button variant="primary" size="sm" onClick={() => setEditing('new')} icon={Plus} data-testid="mbr-ads-add">
+          New ad
+        </Button>
       </div>
       {loading ? <Loading /> : ads.length === 0 ? <Empty text="No ads yet. Create one to nudge members from the book tab." /> : (
         <div className="mt-6 space-y-2">
