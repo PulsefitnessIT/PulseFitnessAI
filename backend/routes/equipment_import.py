@@ -57,6 +57,11 @@ WARRANTY EXTRACTION:
 - For non-Pulse warranties, generate normalised warranty_code (years + default Silver=CCC).
 - If NO warranty information exists, leave warranty_code and warranty_description empty.
 
+EQUIPMENT NAMING RULES (CRITICAL — fixes long unreadable rows):
+- `equipment_name` is the SHORT subtype, e.g. "Treadmill", "StepMill", "Upright Cycle", "Recumbent Cycle", "Cross-Trainer", "Rower", "Smith Machine", "Lat Pulldown". Pick the shortest accurate noun. NEVER include console / colour / connectivity details here.
+- `model` is the SHORT product code printed on the invoice (the part number / SKU like "260G", "200H-AAF", "240G-AAV"). Use the line's stock_item_code if present; otherwise fall back to a short manufacturer model number.
+- `description` is the FULL marketing line, verbatim (e.g. "Premium StepMill with 18.5\" (Cirrus V4) Touchscreen Console, Apple/Samsung Watch Connectivity, Content Mirroring & Wireless Charging in Sand Black"). Operators want this kept for search, but it MUST NOT be the model.
+
 Return ONLY valid JSON with this structure:
 {{
   "account_ref": "string",
@@ -87,7 +92,9 @@ Return ONLY valid JSON with this structure:
   "equipment": [
     {{
       "make": "string (manufacturer; fall back to supplier_name if line doesn't state one)",
-      "model": "string (full product description)",
+      "equipment_name": "string (SHORT — e.g. 'Treadmill', 'StepMill', 'Upright Cycle')",
+      "model": "string (SHORT — invoice stock_item_code / part number, e.g. '260G', '200H-AAF')",
+      "description": "string (FULL marketing line as printed on the invoice)",
       "equipment_category": "Cardiovascular|Strength|Free Weights|Functional|Accessories",
       "serial_number": "string or empty",
       "unit_price": number,
@@ -576,6 +583,11 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
     # branded line-by-line on the invoice. Operators saw "Unknown" for
     # every Pulse Fitness item; this fixes it without losing the AI's
     # judgement on lines that DO declare a manufacturer.
+    #
+    # Iter 216h13 — also derive the SHORT display fields (`name`,
+    # `model`) here so the wizard review table shows clean rows like
+    # "Treadmill · 260G" instead of pasting the 200-char marketing
+    # description. The long description goes in `description`.
     supplier = (extracted.get("supplier_name") or "").strip()
     enriched_eq = []
     for eq in (extracted.get("equipment") or []):
@@ -584,6 +596,13 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
         if not make and supplier and supplier.lower() != "unknown":
             make = supplier
         cur["make"] = make
+        # Promote short display fields without losing the original AI output.
+        short_name = _short_equipment_name(cur)
+        short_model = _short_model_code(cur)
+        full_desc = (cur.get("description") or cur.get("model") or "").strip()
+        cur["name"] = short_name
+        cur["description"] = full_desc
+        cur["model"] = short_model
         enriched_eq.append(cur)
     extracted["equipment"] = enriched_eq
 
@@ -942,6 +961,8 @@ _EQUIPMENT_KEYWORDS = {
 
 def _build_sicon_row(eq: dict, account_ref: str, site_name: str, supplier: str, invoice_number: str) -> dict:
     """Build a single Sicon CSV row dict from an equipment item."""
+    full_desc = (eq.get("description") or eq.get("model") or "").strip()
+    short_model = _short_model_code(eq) or eq.get("model", "")
     return {
         "Invoice Customer Ref": account_ref,
         "Location Description": site_name,
@@ -951,10 +972,10 @@ def _build_sicon_row(eq: dict, account_ref: str, site_name: str, supplier: str, 
         "Contract Number": "",
         "Contract Line No": "",
         "SLA Name": eq.get("sla_name", ""),
-        "Stock Item Code": eq.get("stock_item_code", ""),
-        "Description": eq.get("model", ""),
+        "Stock Item Code": eq.get("stock_item_code", "") or short_model,
+        "Description": full_desc,
         "Make": eq.get("make", supplier),
-        "Model": eq.get("model", ""),
+        "Model": short_model,
         "Serial Number": eq.get("serial_number", ""),
         "Install Date": eq.get("install_date", ""),
         "Manufacturer Warranty Expiry Date": eq.get("warranty_expiry", ""),
@@ -972,22 +993,95 @@ def _build_sicon_row(eq: dict, account_ref: str, site_name: str, supplier: str, 
     }
 
 
+def _short_equipment_name(eq: dict) -> str:
+    """Iter 216h13 — pick the SHORT subtype noun for the equipment row
+    display. Order of preference:
+      1. AI-extracted `equipment_name` (new field added to the prompt).
+      2. Heuristic from the long description (treadmill / cycle / etc.).
+      3. The equipment_category (Cardiovascular, etc.) as last resort.
+    Never returns the full marketing line — that goes in `notes`.
+    """
+    name = (eq.get("equipment_name") or "").strip()
+    if name and len(name) <= 40:
+        return name
+    desc = (eq.get("description") or eq.get("model") or "").lower()
+    # Walk a small ordered keyword list — earlier matches win.
+    for keyword, label in [
+        ("recumbent cycle", "Recumbent Cycle"),
+        ("upright cycle", "Upright Cycle"),
+        ("indoor cycle", "Indoor Cycle"),
+        ("spin bike", "Spin Bike"),
+        ("air bike", "Air Bike"),
+        ("treadmill", "Treadmill"),
+        ("stepmill", "StepMill"),
+        ("stair climber", "Stair Climber"),
+        ("cross-trainer", "Cross-Trainer"),
+        ("cross trainer", "Cross-Trainer"),
+        ("elliptical", "Elliptical"),
+        ("rower", "Rower"),
+        ("ski erg", "Ski Erg"),
+        ("smith machine", "Smith Machine"),
+        ("lat pulldown", "Lat Pulldown"),
+        ("leg press", "Leg Press"),
+        ("chest press", "Chest Press"),
+        ("cable crossover", "Cable Crossover"),
+        ("dumbbell", "Dumbbell"),
+        ("kettlebell", "Kettlebell"),
+        ("barbell", "Barbell"),
+        ("rack", "Rack"),
+        ("bench", "Bench"),
+    ]:
+        if keyword in desc:
+            return label
+    cat = (eq.get("equipment_category") or "").strip()
+    return cat or "Equipment"
+
+
+def _short_model_code(eq: dict) -> str:
+    """Iter 216h13 — use the short part number / stock_item_code as the
+    `model` field so equipment rows read 'Pulse Fitness · 260G · 12345'
+    instead of pasting the full 200-char marketing description.
+    """
+    code = (eq.get("stock_item_code") or "").strip()
+    if code:
+        return code
+    raw_model = (eq.get("model") or "").strip()
+    # If `model` already looks short (≤ 24 chars, no spaces beyond 2 words)
+    # treat it as a code; otherwise return empty so the UI can show "—".
+    if raw_model and len(raw_model) <= 24 and raw_model.count(" ") <= 2:
+        return raw_model
+    return ""
+
+
 def _build_equipment_doc(eq: dict, ctx: dict) -> dict:
     """Build a single equipment document from extracted invoice data.
     ctx keys: target_user_id, target_org_id, supplier, account_ref,
               invoice_number, default_location, import_id, batch_id
+
+    Iter 216h13 — split AI output into display vs storage:
+      - `name`   = SHORT subtype (e.g. 'Treadmill', 'StepMill', 'Upright Cycle')
+      - `model`  = SHORT stock code (e.g. '260G', '200H-AAF')
+      - `notes`  = "Imported from invoice {n}" + the FULL marketing
+                   description (so it's still searchable in the
+                   equipment search bar without crowding the row).
     """
-    note = f"Imported from invoice {ctx['invoice_number']}"
+    short_name = _short_equipment_name(eq)
+    short_model = _short_model_code(eq)
+    description = (eq.get("description") or eq.get("model") or "").strip()
+    note_parts = [f"Imported from invoice {ctx['invoice_number']}"]
     if ctx.get("batch_id"):
-        note += f" (batch {ctx['batch_id']})"
+        note_parts.append(f"batch {ctx['batch_id']}")
+    if description and description != short_name and description != short_model:
+        note_parts.append(description)
+    note = " · ".join(note_parts)
     return {
         "id": str(uuid.uuid4()),
         "user_id": ctx["target_user_id"],
         "organization_id": ctx["target_org_id"],
-        "name": eq.get("model", "Unknown Equipment"),
-        "equipment_type": _classify_equipment(eq.get("model", "")),
+        "name": short_name,
+        "equipment_type": _classify_equipment(description or short_name),
         "manufacturer": eq.get("make", ctx["supplier"]),
-        "model": eq.get("model", ""),
+        "model": short_model,
         "serial_number": eq.get("serial_number", ""),
         "location": eq.get("location", "") or ctx["default_location"],
         "purchase_date": _parse_date_to_iso(eq.get("install_date", "")),
@@ -1001,6 +1095,7 @@ def _build_equipment_doc(eq: dict, ctx: dict) -> dict:
         "status": "operational",
         "condition": "excellent",
         "notes": note,
+        "description": description,
         "import_id": ctx["import_id"],
         **({"batch_id": ctx["batch_id"]} if ctx.get("batch_id") else {}),
         "created_at": datetime.now(timezone.utc).isoformat(),

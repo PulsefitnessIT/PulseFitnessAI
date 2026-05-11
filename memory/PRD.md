@@ -1,3 +1,25 @@
+## Iter 216h13 — Short equipment-row display for Pulse Fitness invoice imports (Feb 11, 2026)
+
+**Operator-reported (with screenshots)**: imported equipment rows were rendering the full 200-char Pulse marketing line ("Premium StepMill with 18.5\" (Cirrus V4) Touchscreen Console, Apple/Samsung Watch Connectivity, Content Mirroring & Wireless Charging in Sand Black…") as BOTH the equipment `name` AND `model`, blowing the row layout out of the page. Operator demanded the row match the manual-add format already used elsewhere on GymAxis: `Treadmill (cardio)` · `Pulse Fitness · 260G · 12345` · `Main gym · Installed 07 May 2026`.
+
+### What shipped (backend)
+- **`_EXTRACTION_TEMPLATE` schema gained `equipment_name`** (SHORT subtype noun e.g. 'Treadmill', 'StepMill', 'Upright Cycle') **and `description`** (FULL marketing line). The prompt explicitly forbids stuffing the marketing line into `model`.
+- **`_short_equipment_name(eq)`**: Picks the AI's `equipment_name` when present + ≤ 40 chars; otherwise applies a heuristic keyword walk (treadmill / stepmill / upright cycle / recumbent cycle / cross-trainer / rower / smith machine / lat pulldown / leg press / chest press / dumbbell / kettlebell / rack / bench / etc.).
+- **`_short_model_code(eq)`**: Prefers `stock_item_code` (e.g. `260G`, `200H-AAF`). Refuses any "model" string > 24 chars or > 2 spaces — those are marketing lines disguised as model numbers.
+- **`_build_equipment_doc`**: Now produces clean rows. `name = short subtype`, `model = short stock code`, `description = full marketing line` (preserved for search), `notes = "Imported from invoice {n} · {description}"`.
+- **Wizard preview** + **Sicon CSV row** + **`/parse-invoice` response** all use the same helpers, so the wizard table preview matches what gets created on confirm.
+
+### Regression — `test_iter_216h13_short_equipment_display.py` (13/13 passing)
+- Short-name prefers AI extracted, falls back to heuristic, rejects 200-char strings disguised as names.
+- Short-model prefers `stock_item_code`, rejects > 24-char marketing lines.
+- End-to-end `_build_equipment_doc` produces clean Pulse Fitness row with full description preserved in `notes` / `description`.
+
+### Cost reassurance
+Operator was concerned $17.44 was per-invoice cost — clarified: that's the TOTAL cumulative Universal-Key spend across every AI feature since signup. Per-invoice Carshalton-sized extraction costs ~$0.10–0.20 (Haiku 4.5).
+
+---
+
+
 ## Iter 216h12 — Carshalton invoice import: truncation + missing fields + supplier auto-matching (Feb 11, 2026)
 
 **Production bugs reported**: User uploaded the Carshalton Invoice PDF (Pulse Fitness → South Thames College, £421,804.01 gross, 88 line items across 20 pages). Operators complained that the import "missing details and supplier matching".

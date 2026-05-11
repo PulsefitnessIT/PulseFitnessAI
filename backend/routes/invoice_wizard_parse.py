@@ -157,21 +157,25 @@ async def parse_invoice_for_wizard(file: UploadFile = File(...), user: dict = De
 
     equipment = []
     supplier = (extracted.get("supplier_name") or "").strip()
+    # Iter 216h13 — use the same short-name + short-model helpers the
+    # equipment doc builder uses so the wizard preview matches the row
+    # that will actually be created on confirm.
+    from routes.equipment_import import _short_equipment_name, _short_model_code
     for item in (extracted.get("equipment") or []):
-        # Iter 216k — multi-site parity with single-site flow:
-        #   • include unit_price + stock_item_code (was being dropped)
-        #   • include AI-detected equipment_category (new this iter)
-        #   • fall back to supplier_name when the AI couldn't pin a
-        #     manufacturer to a particular line — that's why operators
-        #     were seeing "Unknown" for every Pulse Fitness item.
         make = (item.get("make") or item.get("manufacturer") or "").strip()
         if not make and supplier and supplier.lower() != "unknown":
             make = supplier
+        short_name = _short_equipment_name(item)
+        short_model = _short_model_code(item)
+        full_desc = (item.get("description") or item.get("model") or "").strip()
         equipment.append({
-            "name": (item.get("name") or item.get("model") or "").strip(),
+            # Display fields — what the wizard table shows
+            "name": short_name,
+            "model": short_model,
+            "description": full_desc,
+            # Backing fields — preserved for the confirm step + Sicon export
             "make": make,
             "manufacturer": make,
-            "model": (item.get("model") or "").strip(),
             "serial_number": (item.get("serial_number") or item.get("serial") or "").strip(),
             "equipment_type": (item.get("equipment_type") or item.get("type") or "").strip(),
             "equipment_category": (item.get("equipment_category") or "").strip(),
