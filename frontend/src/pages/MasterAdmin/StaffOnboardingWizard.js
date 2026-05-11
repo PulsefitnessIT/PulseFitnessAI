@@ -28,6 +28,7 @@ import {
   UserPlus, Mail, Briefcase, MapPin, Layers, ClipboardCheck,
   ArrowLeft, ArrowRight, Check, Copy, Link as LinkIcon, RefreshCw, AlertCircle,
 } from 'lucide-react';
+import Button from '@/components/shared/Button';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -463,22 +464,20 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
                 {result.invite_url}
               </code>
               <div className="flex gap-2 pt-1">
-                <button
-                  type="button" onClick={copyLink}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50"
-                  style={{ borderColor: '#E4E4E7' }}
+                <Button
+                  variant="secondary" size="sm" icon={Copy}
+                  onClick={copyLink}
                   data-testid="staff-wizard-copy-link"
                 >
-                  <Copy size={12} /> Copy link
-                </button>
-                <a
+                  Copy link
+                </Button>
+                <Button
+                  as="a" variant="secondary" size="sm" icon={Mail}
                   href={`mailto:${result.email}?subject=Welcome to GymAxis&body=Hi ${encodeURIComponent(result.full_name)},%0D%0A%0D%0AClick this 72h link to set your password and sign in:%0D%0A${encodeURIComponent(result.invite_url)}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50"
-                  style={{ borderColor: '#E4E4E7' }}
                   data-testid="staff-wizard-email-link"
                 >
-                  <Mail size={12} /> Email it
-                </a>
+                  Email it
+                </Button>
               </div>
             </div>
           ) : (
@@ -487,14 +486,13 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
             </div>
           )}
           <div className="flex gap-2">
-            <button
-              type="button" onClick={reset}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50"
-              style={{ borderColor: '#E4E4E7' }}
+            <Button
+              variant="secondary" size="sm" icon={RefreshCw}
+              onClick={reset}
               data-testid="staff-wizard-reset"
             >
-              <RefreshCw size={12} /> Invite another
-            </button>
+              Invite another
+            </Button>
           </div>
         </div>
       );
@@ -581,39 +579,32 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
 
       {!result && (
         <div className="flex justify-between items-center">
-          <button
-            type="button"
+          <Button
+            variant="secondary" icon={ArrowLeft}
             onClick={() => setIdx((i) => Math.max(0, i - 1))}
             disabled={idx === 0 || busy}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md border bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ borderColor: '#E4E4E7' }}
             data-testid="staff-wizard-back"
           >
-            <ArrowLeft size={13} /> Back
-          </button>
+            Back
+          </Button>
           {idx < STEPS.length - 1 ? (
-            <button
-              type="button"
+            <Button
+              variant="primary" iconRight={ArrowRight}
               onClick={() => setIdx((i) => i + 1)}
               disabled={!canNext()}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md text-white disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: '#0055FF' }}
               data-testid="staff-wizard-next"
             >
-              Next <ArrowRight size={13} />
-            </button>
+              Next
+            </Button>
           ) : (
-            <button
-              type="button"
+            <Button
+              variant="primary" icon={busy ? undefined : LinkIcon} loading={busy}
               onClick={onCreate}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-md text-white disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: '#0055FF' }}
               data-testid="staff-wizard-submit"
             >
-              {busy ? <RefreshCw size={13} className="animate-spin" /> : <LinkIcon size={13} />}
               {busy ? 'Creating…' : 'Generate invite link'}
-            </button>
+            </Button>
           )}
         </div>
       )}

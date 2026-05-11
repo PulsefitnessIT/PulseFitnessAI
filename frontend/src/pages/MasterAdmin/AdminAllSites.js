@@ -17,6 +17,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { MapPin, RefreshCw, Search, ExternalLink, Building2, Star } from 'lucide-react';
+import Button from '@/components/shared/Button';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -98,17 +99,14 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
             Flat list of every physical site across {isPulseAdmin ? 'Pulse Fitness' : 'every organisation'}. Click a row to open the parent organisation&apos;s Sites tab.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="secondary" size="sm" icon={RefreshCw}
           onClick={load}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50"
-          style={{ borderColor: '#E4E4E7' }}
           data-testid="admin-all-sites-refresh"
         >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           Refresh
-        </button>
+        </Button>
       </div>
 
       {/* Totals strip */}

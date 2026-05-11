@@ -1,3 +1,35 @@
+## Iter 216h28 — Button-primitive migration: first batch (Feb 11, 2026)
+
+Migrated the iter-216h20-h24 Master Admin panels (the "canonical examples" per `/app/DESIGN_SYSTEM.md`) to use the shared `<Button>` primitive. Goal: prove the migration pattern, lock in the new design system, and stop the inline-style regression vector for new panels.
+
+### Panels migrated
+| Panel | Inline buttons removed | Variants used |
+|---|---|---|
+| `StaffOnboardingWizard.js` | 6 (Back, Next, Submit, Copy link, Email it, Invite another) | primary · secondary · tertiary |
+| `IntegrationsHub.js` | 1 (Refresh) | secondary (with loading prop) |
+| `AdminAllSites.js` | 1 (Refresh) | secondary |
+| `OrgIntegrationsTab.js` | 1 (Refresh) + 3 inline "Manage" links left as plain anchors | tertiary |
+| `UserDetailDrawer.js` | 4 (Issue link, Copy again, Close, Full edit in legacy panel) | primary · secondary · tertiary |
+
+**13 inline button blocks** replaced with `<Button>` invocations. All `data-testid`s preserved — zero test regressions.
+
+### Verified
+- `/app/backend/tests/test_iter_216h26_audit.py` re-run after migration: **17/17 checks PASS**.
+- Live smoke screenshots of the 4 migrated panels show consistent button styling:
+  - Primary CTAs (Next, Issue & copy reset link) — brand cyan filled, exactly one per screen.
+  - Secondary actions (Refresh, Back, Email it, Copy link) — outlined, supportive.
+  - Tertiary (Close in drawer, Open on cards) — text + underline-on-hover, low emphasis.
+- Lint clean across all 5 panels.
+
+### Migration is intentionally bounded
+The user asked for "panel-by-panel on next feature touch" — this batch deliberately ships only the Master Admin panels we created in P3-P6. Operator/member portal buttons will migrate on their next feature touch (the `<Button>` primitive is purely additive — legacy buttons keep working).
+
+### ⚠ Action required
+- Future panels: import `<Button>` from `@/components/shared/Button` — DO NOT write `<button className="inline-flex …">` anymore. See `/app/DESIGN_SYSTEM.md` for the anti-pattern catalogue.
+
+---
+
+
 ## Iter 216h26-27 — Master Admin → portal audit + Empty-state pass + Button hierarchy (Feb 11, 2026)
 
 Three deliverables in one push.

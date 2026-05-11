@@ -25,6 +25,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ArrowLeftRight, Banknote, Plug, ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2, Clock, XCircle, ExternalLink, Settings } from 'lucide-react';
+import Button from '@/components/shared/Button';
 import SiconIntegrationPage from './SiconIntegrationPage';
 import IntegrationAdminPanel from '../IntegrationAdminPanel';
 import AdminStripeConnect from './AdminStripeConnect';
@@ -243,17 +244,15 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
             One screen for every third-party connection. Brand context: <span className="font-semibold text-zinc-700">{brandLabel}</span>. Click any card to manage.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="secondary" size="sm" icon={RefreshCw}
+          loading={loading}
           onClick={load}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50"
-          style={{ borderColor: '#E4E4E7' }}
           data-testid="integrations-hub-refresh"
         >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           Refresh
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="integrations-hub-summary">

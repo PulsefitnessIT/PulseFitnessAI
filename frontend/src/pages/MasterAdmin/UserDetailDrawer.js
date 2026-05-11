@@ -19,6 +19,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
+import Button from '@/components/shared/Button';
 
 const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -170,15 +171,16 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
               Generates a one-time 72 h link the user can use to set their own password. Master Admin never sees the plaintext.
             </p>
             {!linkUrl ? (
-              <button
-                type="button"
+              <Button
+                variant="primary" size="md"
+                className="w-full"
                 onClick={sendResetLink}
+                loading={linkBusy}
                 disabled={linkBusy}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#0055FF] text-white text-sm font-semibold px-3 py-2 hover:bg-[#003ECC] transition-colors disabled:opacity-50"
                 data-testid="people-drawer-issue-reset-link"
               >
                 {linkBusy ? 'Issuing...' : 'Issue & copy reset link'}
-              </button>
+              </Button>
             ) : (
               <div className="rounded border border-emerald-200 bg-emerald-50 p-2.5 space-y-1.5" data-testid="people-drawer-reset-link-result">
                 <code className="block font-mono text-[10px] break-all text-zinc-700">{linkUrl}</code>
@@ -188,15 +190,14 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
                       Expires {new Date(linkExpiry).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   )}
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary" size="sm"
+                    icon={copied ? Check : Copy}
                     onClick={copyLink}
-                    className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border bg-white"
-                    style={{ borderColor: '#E4E4E7' }}
                     data-testid="people-drawer-copy-reset-link"
                   >
-                    {copied ? <Check size={11} /> : <Copy size={11} />} {copied ? 'Copied' : 'Copy again'}
-                  </button>
+                    {copied ? 'Copied' : 'Copy again'}
+                  </Button>
                 </div>
               </div>
             )}
@@ -205,24 +206,22 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
 
         {/* Footer actions */}
         <div className="border-t p-4 flex items-center justify-between gap-2" style={{ borderColor: '#F4F4F5' }}>
-          <button
-            type="button"
+          <Button
+            variant="tertiary" size="md"
             onClick={onClose}
-            className="text-sm text-zinc-600 hover:text-zinc-900"
             data-testid="people-drawer-cancel"
           >
             Close
-          </button>
+          </Button>
           {onOpenLegacyEdit && (
-            <button
-              type="button"
+            <Button
+              variant="secondary" size="md"
+              iconRight={ArrowUpRight}
               onClick={() => { onOpenLegacyEdit(user); onClose(); if (onReload) onReload(); }}
-              className="inline-flex items-center gap-1.5 rounded-md border bg-white px-3 py-1.5 text-sm font-medium hover:bg-zinc-50"
-              style={{ borderColor: '#E4E4E7' }}
               data-testid="people-drawer-open-legacy"
             >
-              Full edit in legacy panel <ArrowUpRight size={12} />
-            </button>
+              Full edit in legacy panel
+            </Button>
           )}
         </div>
       </aside>

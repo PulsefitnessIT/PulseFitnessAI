@@ -14,7 +14,8 @@
  */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Banknote, Plug, ArrowUpRight, CheckCircle2, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Banknote, Plug, ArrowUpRight, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import Button from '@/components/shared/Button';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -90,15 +91,16 @@ const OrgIntegrationsTab = ({ org }) => {
         <p className="text-xs text-zinc-500">
           Per-org connection status. Click <strong className="text-zinc-700">Manage</strong> to jump to the global console.
         </p>
-        <button
-          type="button"
+        <Button
+          variant="tertiary" size="sm"
+          loading={loading}
+          icon={loading ? undefined : RefreshCw}
           onClick={load}
           disabled={loading}
-          className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-600 hover:text-zinc-900"
           data-testid={`org-integrations-refresh-${org.id}`}
         >
-          {loading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />} Refresh
-        </button>
+          Refresh
+        </Button>
       </div>
 
       {error && (
