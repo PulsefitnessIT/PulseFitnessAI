@@ -1,0 +1,70 @@
+{
+  "summary": "Iter 216h23 (All Sites + Sidebar Restructure) - 7/7 backend tests PASSED, frontend visual verification PASSED. New GET /api/master-admin/all-sites endpoint works correctly with auth gating, Pulse scope filtering (brand='pulse'), and query params (org_id, site_type, q, limit). Frontend AdminAllSites component renders correctly with totals strip (32 sites, 17 HQs, 15 branches), filter bar (search, type, org dropdowns), and sites table. Sidebar restructure verified: 'Sites' standalone entry REMOVED, 'Catalogue & Library' entry EXISTS, 'All sites' sub-tab under Organisations EXISTS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "test_1_all_sites_endpoint_auth": {
+      "status": "PASSED",
+      "details": "GET /api/master-admin/all-sites returns 401 without authentication token."
+    },
+    "test_2_all_sites_gymaxis_admin": {
+      "status": "PASSED",
+      "details": "GymAxis Master Admin gets all sites with brand='all'. Response includes sites[], totals{sites,head_offices,branches,equipment}, brand. Verified 32 sites, 17 head offices, 15 branches."
+    },
+    "test_3_all_sites_query_params": {
+      "status": "PASSED",
+      "details": "Query params work correctly: site_type=head_office returns only HQs, site_type=branch returns only branches. Limit param respected."
+    },
+    "test_4_pulse_admin_scope": {
+      "status": "PASSED",
+      "details": "Pulse Master Admin (pulse.scope.test@pulsefitness.com) gets brand='pulse' and filtered sites. Pulse admin sees same or fewer sites than GymAxis admin, confirming scope filtering."
+    },
+    "test_5_sidebar_restructure": {
+      "status": "PASSED",
+      "details": "Sidebar verified via screenshot: 'Organisations' group visible with sub-tabs (List, All sites, Customer onboarding, Module subscriptions, Customer activation). 'Catalogue & Library' entry visible. Standalone 'Sites' entry REMOVED."
+    },
+    "test_6_admin_all_sites_component": {
+      "status": "PASSED",
+      "details": "AdminAllSites component renders at section=all-sites with data-testid=admin-all-sites. Totals strip (data-testid=admin-all-sites-totals) shows 4 tiles. Filter bar has search, type filter, org filter, result count. Table (data-testid=admin-all-sites-table) renders site rows."
+    },
+    "test_7_regression_endpoints": {
+      "status": "PASSED",
+      "details": "GET /api/master-admin/organizations returns 200 with organizations[]. GET /api/master-admin/integrations-hub returns 200 with integrations[]. Pulse admin integrations-hub returns brand='pulse'."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_all_sites_216h23.py",
+    "/app/test_reports/pytest/pytest_results_216h23.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SidebarConfig.js correctly defines 'all-sites' sub-tab under 'organizations' group (line 64)",
+    "SidebarConfig.js correctly renames 'Sites' to 'Catalogue & Library' (line 78)",
+    "AdminAllSites.js correctly fetches /api/master-admin/all-sites and renders totals, filters, table",
+    "AdminAllSites.js row click correctly pushes URL params (section=organizations, expand=ORG_ID, view=sites) and dispatches gymaxis:set-section event",
+    "AdminOrganizations.js correctly reads ?expand=ORG&view=VIEW from URL on mount (lines 457-465)",
+    "Backend all_sites_across_orgs endpoint correctly applies Pulse scope via is_pulse_only() and brand_filter_clause()"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_all_sites_216h23.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "gymaxis_master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_master_admin": "pulse.scope.test@pulsefitness.com / TestPulse2026!"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h23 testing complete. All Sites page working correctly at /master-admin?section=all-sites. Backend returns 32 sites across orgs. Pulse scope filtering verified - Pulse admin sees brand='pulse'. Sidebar restructure verified - 'Sites' renamed to 'Catalogue & Library', 'All sites' added under Organisations. Site row click navigation pushes URL params for org drawer with Sites tab. Rate limiting may affect rapid UI testing - use RATE_LIMIT_BYPASS_SECRET header for backend tests."
+}

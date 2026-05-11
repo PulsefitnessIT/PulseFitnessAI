@@ -54,21 +54,31 @@ export const SIDEBAR_ITEMS = [
   //    though the hub creates *organisations* (Onboard Site / Head
   //    Office / Packets / Bulk Imports). Operator feedback:
   //    "we've lost Organisation Onboarding which was working perfectly".
+  //    Iter 216h23 — added "All sites" cross-org sub-tab. Sites STILL
+  //    belong to an Organisation (no SSoT duplication), but HQ ops now
+  //    has a flat power-view across every org.
   {
     id: 'organizations', label: 'Organisations', icon: Building, group: 'main',
     subTabs: [
       { id: 'organizations',     label: 'List',                  icon: Building },
+      { id: 'all-sites',         label: 'All sites',             icon: MapPin },
       { id: 'onboarding',        label: 'Customer onboarding',   icon: Rocket },
       { id: 'estate-rollup',     label: 'Module subscriptions',  icon: BarChart3 },
       { id: 'activation-funnel', label: 'Customer activation',   icon: TrendingUp },
     ],
   },
-  // 4. Sites — physical locations + hardware catalogue
+  // 4. Catalogue & Library — equipment master data (manufacturer
+  //    catalogue, spec sheets, equipment images), marketing image
+  //    library, social media library.
+  //    Iter 216h23 — was misleadingly labelled "Sites". A "Site" is a
+  //    physical location and lives inside an Organisation (drawer
+  //    Sites tab + Organisations → All sites). The contents here are
+  //    NOT sites — they're cross-org master data + brand assets.
   {
-    id: 'catalogue', label: 'Sites', icon: MapPin, group: 'main',
+    id: 'catalogue', label: 'Catalogue & Library', icon: ImageIcon, group: 'main',
     subTabs: [
-      { id: 'catalogue',         label: 'Equipment images',  icon: ImageIcon },
-      { id: 'custom-properties', label: 'Custom properties', icon: ListChecks },
+      { id: 'catalogue',         label: 'Equipment catalogue',  icon: ImageIcon },
+      { id: 'custom-properties', label: 'Custom properties',    icon: ListChecks },
     ],
   },
   // 5. Finance — pricing, billing, payments, Stripe, CAPEX, refunds
@@ -217,7 +227,8 @@ export const sectionTitles = {
   'refunds': 'Refunds',
   'design-system': 'Design system',
   'db-viewer': 'Database viewer',
-  catalogue: 'Equipment image catalogue',
+  catalogue: 'Equipment catalogue & spec sheets',
+  'all-sites': 'All sites',
   'integration-health': 'Integration health',
   'custom-properties': 'Custom properties',
   organizations: 'Organisations',
@@ -259,7 +270,8 @@ export const sectionDescriptions = {
   'refunds': 'Issue and track Stripe refunds',
   'design-system': 'Living reference gallery — every button, tab pill, and input in one place',
   'db-viewer': 'Read-only Mongo collection browser — search, paginate, and export.',
-  catalogue: 'Cached manufacturer images, uploaded Pulse spec sheets, per-machine photo overrides.',
+  catalogue: 'Manufacturer catalogue, spec sheets, equipment image library and brand assets — all the master data reused across every org and every site.',
+  'all-sites': 'Every physical site across every organisation. Filter by brand, org, or site type. Click any row to drill into the parent organisation&apos;s Sites drawer.',
   'integration-health': 'Live status of every third-party service.',
   'integrations-hub': 'All third-party connections in one screen — Stripe Connect, Sicon, Orbit 4 and Sage 200. Click any card to manage.',
   organizations: 'Customer organisations — Pulse Fitness, GymAxis. Click any row for a full drawer.',

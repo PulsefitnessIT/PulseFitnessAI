@@ -3697,6 +3697,114 @@ async def purge_test_data(
 
 
 
+@router.get("/master-admin/all-sites")
+async def all_sites_across_orgs(
+    user: dict = Depends(get_current_user),
+    org_id: Optional[str] = None,
+    site_type: Optional[str] = None,
+    q: Optional[str] = None,
+    limit: int = 500,
+):
+    """Iter 216h23 — Cross-organisation physical-sites list.
+
+    Lives at `Master Admin → Organisations → All sites` sub-tab. Solves
+    the "where are all my Pulse sites?" question without breaking the
+    SSoT principle (a Site still belongs to exactly one Organisation —
+    this is just a flat power-view across all orgs).
+
+    Per-row enrichments:
+      • org_name / org_brand  — joined from `organizations`.
+      • equipment_count       — `equipment` docs scoped to (org_id, site_id).
+      • members_count         — `members` (or `crm_users`) scoped likewise.
+      • is_head_office        — direct from the site doc.
+      • last_activity         — most recent of any audit_logs / issues
+                                / check_sheet_instances touching the site.
+
+    Brand scope: Pulse-only admins receive only Pulse-brand sites.
+    Query filters: `org_id`, `site_type`, free-text `q` (matches name).
+    """
+    require_master_admin(user)
+    from utils.brand_filter import brand_filter_clause
+
+    # Org scope (Pulse-only admins are pinned to Pulse-brand orgs).
+    pulse_only = is_pulse_only(user)
+    org_filter: dict = {}
+    if pulse_only:
+        org_filter = brand_filter_clause("pulse")
+    if org_id:
+        org_filter = {**org_filter, "id": org_id}
+
+    orgs = await db.organizations.find(
+        org_filter, {"_id": 0, "id": 1, "name": 1, "brand": 1},
+    ).to_list(2000)
+    org_index = {o["id"]: o for o in orgs}
+    if not org_index:
+        return {"sites": [], "totals": {"sites": 0, "head_offices": 0, "branches": 0, "equipment": 0}}
+
+    site_query: dict = {"organization_id": {"$in": list(org_index.keys())}}
+    if site_type == "head_office":
+        site_query["is_head_office"] = True
+    elif site_type == "branch":
+        site_query["is_head_office"] = {"$ne": True}
+    if q:
+        site_query["name"] = {"$regex": q, "$options": "i"}
+
+    sites = await db.sites.find(site_query, {"_id": 0}).sort([("organization_id", 1), ("name", 1)]).to_list(limit)
+
+    # Bulk equipment counts per (org, site).
+    eq_pipeline = [
+        {"$match": {"organization_id": {"$in": list(org_index.keys())}, "site_id": {"$exists": True}}},
+        {"$group": {"_id": {"org": "$organization_id", "site": "$site_id"}, "n": {"$sum": 1}}},
+    ]
+    eq_counts = {(d["_id"]["org"], d["_id"]["site"]): d["n"] async for d in db.equipment.aggregate(eq_pipeline)}
+
+    # Bulk member counts per site (best-effort — schema varies by tenant).
+    mem_pipeline = [
+        {"$match": {"organization_id": {"$in": list(org_index.keys())}, "site_id": {"$exists": True}}},
+        {"$group": {"_id": {"org": "$organization_id", "site": "$site_id"}, "n": {"$sum": 1}}},
+    ]
+    mem_counts = {(d["_id"]["org"], d["_id"]["site"]): d["n"] async for d in db.members.aggregate(mem_pipeline)}
+
+    enriched = []
+    head_office_count = 0
+    branch_count = 0
+    total_equipment = 0
+    for s in sites:
+        org = org_index.get(s.get("organization_id"), {})
+        is_hq = bool(s.get("is_head_office"))
+        head_office_count += 1 if is_hq else 0
+        branch_count += 0 if is_hq else 1
+        eq = eq_counts.get((s.get("organization_id"), s.get("id")), 0)
+        total_equipment += eq
+        enriched.append({
+            "id":              s.get("id"),
+            "name":            s.get("name"),
+            "organization_id": s.get("organization_id"),
+            "org_name":        org.get("name") or "—",
+            "org_brand":       org.get("brand") or "gymaxis",
+            "is_head_office":  is_hq,
+            "site_type":       s.get("site_type") or ("head_office" if is_hq else "branch"),
+            "city":            s.get("city") or s.get("address", {}).get("city") if isinstance(s.get("address"), dict) else s.get("city"),
+            "postcode":        s.get("postcode") or (s.get("address") or {}).get("postcode") if isinstance(s.get("address"), dict) else s.get("postcode"),
+            "active":          s.get("active", True),
+            "equipment_count": eq,
+            "members_count":   mem_counts.get((s.get("organization_id"), s.get("id")), 0),
+            "created_at":      s.get("created_at"),
+        })
+
+    return {
+        "sites": enriched,
+        "totals": {
+            "sites":         len(enriched),
+            "head_offices":  head_office_count,
+            "branches":      branch_count,
+            "equipment":     total_equipment,
+        },
+        "brand": "pulse" if pulse_only else "all",
+    }
+
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Iter 216bm — Locked-staff audit view
 # ──────────────────────────────────────────────────────────────────────

@@ -45,6 +45,7 @@ import IntegrationHealthPanel from './MasterAdmin/IntegrationHealthPanel';
 import EmailHealthPill from './MasterAdmin/EmailHealthPill';
 import CommandPalette from './MasterAdmin/CommandPalette';
 import AdminOrganizations from './MasterAdmin/AdminOrganizations';
+import AdminAllSites from './MasterAdmin/AdminAllSites';
 import IntegrationsHub from './MasterAdmin/IntegrationsHub';
 
 import AdminSidebar from './MasterAdmin/AdminSidebar';
@@ -436,6 +437,11 @@ const MasterAdminPage = ({ onBack }) => {
         // right-hand drawer that embeds the full existing console page
         // for the picked integration (preserving every mapping field).
         return <IntegrationsHub isPulseAdmin={isPulseAdmin} />;
+      case 'all-sites':
+        // Iter 216h23 — Cross-org physical sites list. Lives under the
+        // Organisations group (sites still belong to one org — SSoT
+        // preserved). Row click jumps to the parent org's Sites drawer.
+        return <AdminAllSites isPulseAdmin={isPulseAdmin} />;
       default:
         return null;
     }
