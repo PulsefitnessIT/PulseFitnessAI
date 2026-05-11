@@ -1,3 +1,51 @@
+## Iter 216h30 — Empty-state pass (CRM + Spec Sheets) + Operator portal Button migration batch 2 (Feb 11, 2026)
+
+Two deliverables in one push.
+
+### A. D2 — Empty-state pass: CRM Contacts / Pipeline + Master Admin Spec Sheets
+Migrated 4 more empty-state panels to the canonical `<EmptyState>` primitive:
+- **CRM → Contacts** (`CRMContacts.js`): replaces bare "No contacts yet" div with opportunity-framed copy + "Add your first contact" primary CTA. `data-testid="crm-contacts-empty"`.
+- **CRM → Pipeline → List view** (`CRMPipeline.js`): replaces "No deals in pipeline" plain div. Copy: "Your pipeline is wide open". `data-testid="crm-pipeline-list-empty"`.
+- **Master Admin → Spec Sheets** (`AdminSpecSheets.js`): two distinct empty states now —
+  - `spec-sheets-empty` when no sheets uploaded ("Drop manufacturer PDFs above…")
+  - `spec-sheets-empty-filtered` when the filter zeroes results ("Try clearing the search box…")
+
+### B. D3 — Button-primitive migration: Operator portal batch
+Migrated all high-traffic top-bar CTAs in the operator portals to use the shared `<Button>` primitive (per the "next feature touch" doctrine):
+
+| Surface | Buttons migrated | Variants |
+|---|---|---|
+| `CRMDashboard.js` | 5 (View all × 3 · Manage · Set up) | tertiary |
+| `MembershipsConsole.js` — Members tab | 3 (CSV template, Bulk import, Add member) | secondary · secondary · primary |
+| `MembershipsConsole.js` — Plans tab | 1 (New plan) | primary |
+| `MembershipsConsole.js` — Classes tab | 1 (New class) | primary |
+| `MembershipsConsole.js` — Ads tab | 1 (New ad) | primary |
+
+**11 inline button blocks** replaced. All `data-testid`s preserved. Bulk-import button now uses the built-in `loading` prop spinner instead of an ad-hoc "Importing…" text.
+
+### Verified live (testing agent v3 — `/app/test_reports/iteration_216h30.json`)
+- **Frontend success rate: 100%** — every `data-testid` resolved in DOM.
+- CRM Dashboard: all 5 tertiary buttons render + click without console errors.
+- Memberships Members/Plans/Classes/Ads: primary cyan CTAs visible; secondary outline buttons visible on Members.
+- Empty-state testids exist in source for the 3 new panels (will render on a tenant with no contacts/deals/spec sheets).
+- Lint clean across all 5 files.
+
+### Files touched
+- `/app/frontend/src/pages/CRM/CRMContacts.js` (~10 LOC)
+- `/app/frontend/src/pages/CRM/CRMPipeline.js` (~8 LOC)
+- `/app/frontend/src/pages/MasterAdmin/AdminSpecSheets.js` (~14 LOC)
+- `/app/frontend/src/pages/CRM/CRMDashboard.js` (~12 LOC)
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js` (~20 LOC)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Operator portals now visually consistent with the Master Admin redesign — exactly ONE brand-cyan primary CTA per panel.
+3. Future Operations / CRM / Memberships panels: import `<Button>` from `@/components/shared/Button`. See `/app/DESIGN_SYSTEM.md`.
+
+---
+
+
+
 ## Iter 216h29 — Invite-pending badge + Auto-archive sibling invites + Operator portal migration kick-off (Feb 11, 2026)
 
 ### A. Auto-archive sibling invite tokens
