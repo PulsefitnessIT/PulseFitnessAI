@@ -1,3 +1,50 @@
+## Iter 216h25 — Jump-to-user toast + Extended brand_filter coverage (Feb 11, 2026)
+
+Two parallel deliverables, both verified live end-to-end.
+
+### A. "Jump to this user" link in duplicate-user error toast
+- **Backend**: `POST /api/master-admin/organizations/{org_id}/users` 409 response is now **structured**:
+  ```json
+  { "detail": { "code": "user_exists", "message": "...", "user_id": "...", "full_name": "...", "organization_id": "...", "collection": "users|crm_users", "email": "..." } }
+  ```
+- **Frontend wizard (`StaffOnboardingWizard.js`)**: when the 409 carries `code:'user_exists'`, an **amber toast** renders with a "Jump to this user in the directory →" button (`data-testid=staff-wizard-jump-to-user`). Clicking it pushes `?section=roles&focus_user={id}` and dispatches the new `gymaxis:focus-user` event.
+- **`AdminRoles.js` listener**: subscribes to `gymaxis:focus-user`, resolves the user from `globalUsersProps.users` by id or email, switches to the Directory tab, opens the `UserDetailDrawer`, and scrolls the row into view. Also honours `?focus_user=` on mount so deep-links from elsewhere work the same way.
+
+### B. Brand filter extended to audit-log + marketing-suite (+ financial-ops left strict)
+- **Audit log** (`/app/backend/routes/master_admin_audit_log.py`):
+  - New helpers `_resolve_brand_org_ids()` + `_is_pulse_only()`.
+  - `_gather()` accepts `brand_org_ids: Optional[set]` and intersects per-collection queries via `_apply_brand()`.
+  - All 3 public endpoints (`/audit-log`, `/summary`, `/export.csv`) accept `?brand=`.
+  - **Pulse Master Admins are SERVER-SIDE FORCED to `pulse` regardless of the query param** — defence in depth.
+- **Marketing Suite** (`/app/backend/routes/marketing/admin.py`):
+  - `/master-admin/marketing/analytics` and `/master-admin/marketing/subscriptions` now accept `?brand=`.
+  - Same Pulse-force behaviour.
+  - Response payload now carries the resolved `brand` field so the UI knows what scope it's looking at.
+- **Financial Ops** (`/app/backend/routes/financial_ops.py`):
+  - Already gated by `_require_master_admin` which only allows `is_master_admin=True`. **Pulse admins receive 403** — correct behaviour because financial-ops is GymAxis-platform-level data (reserve fund, LLM credits, platform burn). No brand-filter needed.
+  - Testing agent patched a pre-existing minor MongoDB ObjectId serialisation bug in `_get_config()` (re-fetch after insert).
+- **Frontend wiring**:
+  - `AuditLogPanel.js` + `AdminMarketingSuite.js` (Analytics + Subscriptions) now consume `useBrandContext().brand` and append `?brand=` to fetch URLs. Reload fires automatically when the operator flips the top-bar BrandPicker.
+
+### Verified live (testing agent v3 — `/app/test_reports/iteration_216h25.json`)
+- **22/22 tests PASSED** (backend 17/17 · frontend 5/5):
+  - Structured 409 response.
+  - Toast renders + Jump button works end-to-end.
+  - `?focus_user=` URL param opens drawer on mount.
+  - Audit-log accepts `?brand=` (list, summary, export.csv).
+  - Marketing analytics/subscriptions accept `?brand=`.
+  - Pulse admins forced to `pulse` on all 5 endpoints.
+  - Financial-ops returns 403 for Pulse admins (correct).
+  - GymAxis admins can freely toggle.
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Pulse Master Admin scope-lock is now enforced **server-side** on audit-log + marketing, in addition to the existing UI lock — defence in depth against malformed/replay requests.
+3. Operators who try to invite an existing user from the wizard now get a one-click "Jump to this user" deep link instead of a flat error.
+
+---
+
+
 ## Iter 216h24 — Master Admin redesign Phase 6: Staff Onboarding wizard (Feb 11, 2026)
 
 P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add user" buttons scattered across the People panels with one canonical 5-step linear wizard that the user explicitly asked for ("invite → role → sites → modules → audit").
