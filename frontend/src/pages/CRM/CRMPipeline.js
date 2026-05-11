@@ -459,10 +459,12 @@ function ListView({ opps, onSelect, c, isDark }) {
         </table>
       </div>
       {opps.length === 0 && (
-        <div className="text-center py-16">
-          <Target size={40} className="mx-auto mb-3" style={{ color: c.textDim }} />
-          <p className="text-sm" style={{ color: c.textDim }}>No deals in pipeline</p>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="Your pipeline is wide open"
+          hint="Add your first opportunity to start tracking deals through stages, set probabilities, and forecast revenue. Or import existing deals from CSV."
+          testId="crm-pipeline-list-empty"
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
+import EmptyState from '@/components/shared/EmptyState';
 import {
   Upload, FileText, Trash2, Loader2, CheckCircle,
   Image as ImageIcon, RefreshCw, Search, X, ChevronDown, ChevronUp,
@@ -320,10 +321,19 @@ const AdminSpecSheets = ({ headers }) => {
 
       {/* Spec Sheets Grid */}
       {filtered.length === 0 && specSheets.length === 0 ? (
-        <Card className="p-12 text-center border-zinc-200">
-          <FileText size={40} className="mx-auto text-zinc-300 mb-4" />
-          <p className="text-zinc-500 text-sm">No spec sheets uploaded yet. Drop your Pulse Fitness PDFs above.</p>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="No spec sheets uploaded yet"
+          hint="Drop manufacturer PDFs above to extract key specs (model, weight, voltage, dimensions). Spec sheets attach to equipment automatically when models match — so every operator's equipment page links straight to the right PDF."
+          testId="spec-sheets-empty"
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No spec sheets match this filter"
+          hint="Try clearing the search box or switching brand/category filters."
+          testId="spec-sheets-empty-filtered"
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map(spec => {

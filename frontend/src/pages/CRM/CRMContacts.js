@@ -10,6 +10,7 @@ import CustomFieldsPanel from '@/components/shared/CustomFieldsPanel';
 import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import CRMAuditTrail from './CRMAuditTrail';
 import HelpHint from '@/components/HelpHint';
+import EmptyState from '@/components/shared/EmptyState';
 
 function ContactList({ onSelect, c, isDark, API, headers }) {
   const [contacts, setContacts] = useState([]);
@@ -126,11 +127,13 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
           </div>
         ))}
         {contacts.length === 0 && (
-          <div className="text-center py-16 rounded-lg border" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
-            <Users size={40} className="mx-auto mb-3" style={{ color: c.textDim }} />
-            <p className="text-sm font-medium" style={{ color: c.textMuted }}>No contacts yet</p>
-            <button onClick={() => setShowCreate(true)} className="text-sm text-[var(--color-info-ios)] mt-2 hover:underline">Add your first contact</button>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No contacts in your CRM yet"
+            hint="Add leads manually, import from CSV, or let the inbound webhook capture them from your marketing forms. Every lead lives here until it's qualified into a deal."
+            primaryAction={{ label: 'Add your first contact', onClick: () => setShowCreate(true), testId: 'crm-empty-add-contact' }}
+            testId="crm-contacts-empty"
+          />
         )}
       </div>
 
