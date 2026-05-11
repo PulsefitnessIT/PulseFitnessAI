@@ -2044,4 +2044,5 @@ const AdminOrganizations = ({
  );
 };
 
+export { HardDeleteUserDialog };
 export default AdminOrganizations;

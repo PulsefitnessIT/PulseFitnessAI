@@ -357,7 +357,21 @@ const MasterAdminPage = ({ onBack }) => {
       case 'marketing-suite':
         return <AdminMarketingSuite API={API} />;
       case 'roles':
-        return <AdminRoles API={API} />;
+        return (
+          <AdminRoles
+            API={API}
+            globalUsersProps={{
+              users,
+              loading: false,
+              onReload: loadData,
+              onImpersonate: (userId) => actions.impersonateUser(userId, setImpersonateDialog),
+              onResetPassword: actions.resetPassword,
+              onDisableUser: actions.disableUser,
+              onArchiveUser: actions.archiveUser,
+              onHardDeleteUser: actions.hardDeleteUser,
+            }}
+          />
+        );
       case 'stripe-connect':
         return <AdminStripeConnect API={API} isMasterAdmin={!isPulseAdmin} />;
       case 'pricing':

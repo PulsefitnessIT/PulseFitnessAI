@@ -1,3 +1,42 @@
+## Iter 216h9 — Global Users panel + leaver workflow (Feb 10, 2026)
+
+**Request**: add Archive + Delete to Master Admin → Users so departing employees can be cleanly removed.
+
+### What shipped
+- **New** `pages/MasterAdmin/GlobalUsersPanel.js`: cross-org user directory with search, 4-pill status filter (All / Active / Disabled / Archived — each with a live count), and a leaver-workflow help banner spelling out the Archive → Permanent Delete vs Remove-everywhere paths.
+- **Per-row actions** (gated appropriately):
+  - Impersonate · Reset password
+  - Disable / Enable (toggle)
+  - Archive / Unarchive (soft-removal preserving history)
+  - Permanent Delete (only visible AFTER archive; single-row hard-delete; uses the existing `HardDeleteUserDialog` for the email-typed confirmation)
+  - **Remove everywhere** (visible on all non-protected rows; uses the iter-216h8 `purge-by-email` endpoint to wipe every variant on the same domain + invites + drafts + journey jobs + tour bookings in one click)
+- Master Admin / `admin@gymaxisai.com` rows are auto-protected — the destructive buttons are hidden so they can't be self-locked-out.
+- Wired in `pages/MasterAdmin/AdminRoles.js` as a 4th sub-tab (Service Desk · Pulse Master Admins · Permissions matrix · **Users**).
+- Hooked into `MasterAdminPage.js` so it consumes the already-loaded `users` array + reuses existing `useMasterAdminActions` hooks (disableUser, archiveUser, hardDeleteUser, resetPassword, impersonateUser).
+- Exported `HardDeleteUserDialog` from `AdminOrganizations.js` so both panels share the exact same email-typed confirmation UX.
+
+### Verified live
+- "Users" sub-tab renders with 109 users, 4 status pills + counts.
+- All actions visible per row (Impersonate, Reset PW, Disable, Archive, Remove everywhere).
+- Permanent Delete button correctly hidden on Active/Disabled rows — appears only after Archive (gate matches the org-drawer view).
+- Cleaned up 17 leftover iter-216h test admins from preview during smoke-test.
+
+### Full regression: 44/44 iter-216h* tests passing
+- iter_216h dual-role: 4/4
+- iter_216h3 role mismatch: 4/4
+- iter_216h4 tour calendar: 9/9
+- iter_216h5 tour conversion: 6/6
+- iter_216h6 tour reminders: 5/5
+- iter_216h7 sicon mapping: 12/12
+- iter_216h8 user purge: 4/4
+
+### ⚠ Action required
+Lives in **preview** only — **redeploy** to push to gymaxisai.com so the Users sub-tab + Remove-everywhere flow are live in production.
+
+---
+
+
+
 ## Iter 216h8 — Hard-purge endpoints for botched onboardings (Feb 10, 2026)
 
 **Reported (with screenshots)**: Craig Henshall ended up in both `users` collections (one as a revoked Pulse Admin `craig.henshall@pulsefitness.com`, another as a regular org user attempt `craig@pulsefitness.com`). The existing `revoke` only soft-deletes (`active: false`), so re-trying to add the same email always failed with "Already added". Operator wanted a way to start fresh.
