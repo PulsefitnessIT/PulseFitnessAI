@@ -1,57 +1,166 @@
 {
-  "theme": "LIGHT",
-  "archetype": "4 (Swiss & High-Contrast - Clean SaaS)",
-  "audit_summary": {
-    "pulse_cyan_leaks": "Instances found in GymAxis authenticated pages (e.g., MasterAdmin/AdminMODConsole.js, MasterAdmin/PricingPanel.js, ActivationFunnelPanel.js) using `var(--color-brand-cyan)` or `#19CDFF`. This violates the isolation rule, leaking Pulse's cyan into GymAxis.",
-    "dark_tokens_on_light_mode": "Hardcoded dark backgrounds (`bg-[var(--color-surface-dark-alt)]`, `bg-[#121212]`, `bg-[#171717]`) applied directly on cards in light mode (e.g., MasterAdmin/AdminCRMUsers.js, SiconIntegrationTab.js, AboutPage.js). This creates the 'Black cards all throughout the site on light mode' bug.",
-    "modal_violations": "Modals pop up in inconsistent positions (some centered, some right drawers), lack a uniform top-right close 'X', and have nested `overflow-y-auto` causing double internal vertical sliders (e.g., AdminOrganizations.js, PricingPanel.js, AdminOnboardingPackets.js)."
+  "theme_and_archetype": {
+    "domain": "Enterprise SaaS Admin",
+    "theme": "Light",
+    "archetype": "4 (Swiss & High-Contrast)",
+    "reasoning": "Clarity, authority, and functional focus. Needs to feel like an enterprise control room rather than a developer console. High-contrast ensures readability for dense data sets like users, permissions, and audit logs."
   },
-  "refresh_blueprint": {
-    "pulse_isolation_rule": "CRITICAL: DO NOT redesign Pulse Fitness branded pages. Any component or route under `data-brand=\"pulse\"` or `/pulse` MUST REMAIN UNTOUCHED (keep Proxima Nova / Cyan). GymAxis surfaces MUST NEVER use Pulse Cyan (`var(--color-brand-cyan)` or `#19CDFF`); use the GymAxis navy/purple gradient.",
-    "typography": "GymAxis: Headings (Satoshi), Body (Inter). Ensure text classes use `text-slate-900` for headings and `text-slate-600` or `text-muted-foreground` for body in light mode.",
-    "palette_tweaks": "Migrate black card backgrounds to `bg-card` or `var(--gx-bg-paper)` and remove hardcoded dark shades. Change all GymAxis CTA and active pills to use `gx-btn-primary`, `gx-btn-secondary`, or explicit brand gradients (`var(--gx-brand-from)` to `var(--gx-brand-to)`).",
-    "motion_patterns": "Fast native feel (`transition-all duration-200 ease-out`). Hover interactions should subtly lift elements (`hover:-translate-y-0.5`, `hover:shadow-md`)."
+  "visual_language": {
+    "fonts": {
+      "headings": {
+        "family": "Cabinet Grotesk",
+        "rationale": "Breaks the default 'Inter' SaaS look while maintaining enterprise legibility and adding a premium structural feel."
+      },
+      "body": {
+        "family": "IBM Plex Sans",
+        "rationale": "High-density readability for tables, logs, and technical configurations."
+      },
+      "rules": "H1 up to text-4xl with tracking-tight. H2 at text-2xl. Use font-light and font-semibold to create tension."
+    },
+    "colors": {
+      "primary": "#0055FF",
+      "background": "#FAFAFA",
+      "surface": "#FFFFFF",
+      "text_primary": "#0A0A0A",
+      "text_secondary": "#52525B",
+      "borders": "#E4E4E7",
+      "accents": {
+        "warning": "#F59E0B",
+        "danger": "#EF4444",
+        "success": "#10B981"
+      }
+    },
+    "surfaces": "Grid Borders for dense tables. Glassmorphism exclusively for sticky headers or contextual floating action bars. No soft shadows; use 1px solid borders to define hierarchy.",
+    "spacing": "Generous Spacing Philosophy. Use p-6 and p-8 for main layout containers to let data breathe. Tables use p-4 for row cells. Dense headers.",
+    "moodboard_references": [
+      "Linear (Role-Based Adaptive Views, sidebars)",
+      "Vercel (Card layouts, toggle panels, command palettes)",
+      "Sentry (Audit logs, system health graphs)"
+    ]
   },
-  "modal_chrome_spec": {
-    "default_position": "Centered on screen. Do not use right-side drawers manually unless it is an explicitly global Sheet pattern. Use `Dialog` from shadcn/ui.",
-    "backdrop": "bg-black/40 backdrop-blur-sm fixed inset-0 z-50.",
-    "x_close_button": "MUST exist on every modal. Position: absolute top-4 right-4. Icon: `<X className=\"w-4 h-4\" />` (lucide-react). Structure: A button with `h-8 w-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-blue-500`.",
-    "max_height_overflow": "Outer DialogContent MUST have `max-h-[90vh]` or `max-h-[calc(100vh-4rem)]` with `overflow-y-auto`. Internal form/body sections MUST NOT have `overflow-y-auto`. Scroll the whole dialog body as one single piece.",
-    "border_radius": "rounded-2xl (16px).",
-    "shadow": "shadow-xl.",
-    "focus_trap": "Use native shadcn/ui Dialog primitives which handle focus trapping out of the box."
+  "information_architecture": {
+    "target_top_level_items": 8,
+    "sidebar_tree": [
+      {
+        "name": "Overview",
+        "sub_nav": ["Dashboard", "System Health"]
+      },
+      {
+        "name": "People",
+        "sub_nav": ["Directory", "Roles & Permissions", "Onboarding Wizard"]
+      },
+      {
+        "name": "Organisations",
+        "sub_nav": ["List", "Hierarchy", "Module Subscriptions"]
+      },
+      {
+        "name": "Sites",
+        "sub_nav": ["Locations", "Hardware"]
+      },
+      {
+        "name": "Finance",
+        "sub_nav": ["Billing Overview", "Collections", "Financial Ops"]
+      },
+      {
+        "name": "Growth",
+        "sub_nav": ["Trials & Activation", "Marketing Suite"]
+      },
+      {
+        "name": "Integrations",
+        "sub_nav": ["Connected Apps", "Webhooks"]
+      },
+      {
+        "name": "Settings & Compliance",
+        "sub_nav": ["Audit Log", "Database Viewer", "Global Preferences"]
+      }
+    ]
   },
-  "card_pattern_spec": {
-    "background": "bg-card or bg-white (var(--gx-bg-paper)). NEVER use hardcoded dark hex codes for cards.",
-    "border": "border border-border (or border-slate-200).",
-    "border_radius": "rounded-2xl (16px).",
-    "shadow": "shadow-sm. On hover (if interactive): shadow-md -translate-y-0.5.",
-    "padding_scale": "p-6 (24px).",
-    "header_rhythm": "flex items-center justify-between mb-6. Title is text-lg font-semibold tracking-tight text-slate-900.",
-    "body_rhythm": "flex flex-col gap-4.",
-    "footer_rhythm": "mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3.",
-    "consistency": "Apply this rhythm universally to 'Create Class' in Memberships, 'Edit Org' in Master Admin, and all dashboard metric cards."
+  "brand_context_strategy": {
+    "recommendation": "Single app with a universal brand-picker toggle in the header.",
+    "justification": "Maintains a single codebase and SSoT for Master Admins. A fixed top-left context switcher (All / Pulse Fitness / GymAxis) changes the data scope (filtering tables) and subtle UI theme accents (e.g., active states) without redirecting to a new URL. It reinforces that the Admin controls the entire ecosystem."
   },
-  "rollout_classes_and_variables": {
-    "remove_classes": [
-      "bg-[#121212]",
-      "bg-[#171717]",
-      "bg-[var(--color-surface-dark-alt)]",
-      "text-[var(--color-brand-cyan)]",
-      "bg-[var(--color-brand-cyan)]",
-      "border-[var(--color-brand-cyan)]"
+  "people_ssot_design": {
+    "page_structure": "Single 'Directory' Page with a unified TanStack table. Replaces AdminUsers, GlobalUsersPanel, AdminPulseAdmins, AdminCRMUsers.",
+    "filters": [
+      "Type (Pulse Admin, Owner, Staff, CRM-only)",
+      "Site Access",
+      "Status (Active, Invited, Locked)"
     ],
-    "apply_classes": [
-      "bg-card",
-      "text-card-foreground",
-      "gx-card",
-      "gx-btn-primary",
-      "gx-btn-secondary",
-      "gx-grad-text"
+    "role_colored_chip_system": "Pulse Admin (Blue), Owner (Purple), Staff (Gray), CRM (Green).",
+    "drawer_tabs": [
+      "Profile (Basic Info, Avatar)",
+      "Sites (Locations they can access)",
+      "Permissions (Role matrix overrides)",
+      "Activity (Audit log filtered by user)",
+      "Sessions (Active logins, force logout)"
     ],
-    "css_variables_migration": "Use `--background`, `--foreground`, `--card`, `--card-foreground` for surfaces. Use `--gx-brand-from` to `--gx-brand-to` for accents instead of legacy cyan."
+    "bulk_actions": "Floating action bar (Glassmorphism) appears when rows are selected for bulk role change or password resets."
   },
-  "image_urls": {},
-  "instructions_to_main_agent": "1. Search and replace `bg-[var(--color-surface-dark-alt)]`, `bg-[#121212]`, and `bg-[#171717]` with `bg-card` or `gx-card` across all GymAxis pages. 2. Purge `var(--color-brand-cyan)` from GymAxis files, replacing with `var(--gx-brand-from)` or the `gx-grad-text` utility. 3. Refactor all Modals/Dialogs to use the unified modal_chrome_spec layout (centered `DialogContent`, max-h-[90vh], overflow-y-auto, NO nested scrollbars, absolute top-4 right-4 X close button). 4. Ensure Pulse routes (`/pulse` or `data-brand=\"pulse\"`) are 100% UNTOUCHED. 5. Add `data-testid` to all interactive components.",
-  "component_path": "/app/frontend/src/components/ui/"
+  "organisations_ssot_design": {
+    "page_structure": "Single 'Organisations' List replacing AdminOrganizations, AdminPulse, AdminMemberships/OrganisationsTab.",
+    "drawer_tabs": [
+      "Profile (Name, Head Office, Tax ID)",
+      "Sites (List of connected facilities)",
+      "People (Linked staff/owners)",
+      "Modules (Subscription toggles)",
+      "Billing (Stripe status, MRR)",
+      "Integrations (Tenant-specific keys)",
+      "Activity (Audit log)"
+    ]
+  },
+  "integrations_hub_design": {
+    "page_structure": "Grid of 'Integration Cards' (Sicon, Stripe, Resend, Sage 200, Orbit 4, Companies House).",
+    "card_anatomy": "Logo, Title, Status Pill (Healthy, Syncing, Error), Last Sync Timestamp.",
+    "click_to_detail_drawer": "Shows connection logs, API keys, sync settings, and manual trigger buttons."
+  },
+  "staff_onboarding_wizard": {
+    "flow": "Guided 4-step modal or full-page flow using Shadcn Tabs or Stepper.",
+    "steps": [
+      {"step": 1, "name": "Invite", "details": "Email, Name, Job Title"},
+      {"step": 2, "name": "Role Assignment", "details": "Select template (Admin, Manager, Coach)"},
+      {"step": 3, "name": "Site Access", "details": "Assign Head Office or specific sites"},
+      {"step": 4, "name": "Review & Send", "details": "Audit summary, trigger Send Reset/Invite Link"}
+    ]
+  },
+  "terminology_cleanup": {
+    "Locked staff": "Site-locked users",
+    "Archive": "Removed users",
+    "Activation funnel": "Customer activation",
+    "Tasks": "Setup checklist",
+    "Data Backfills": "Maintenance jobs",
+    "AdminUsers": "Directory",
+    "AdminPulseAdmins": "Directory"
+  },
+  "empty_stale_states": {
+    "strategy": "Avoid diluting the surface. Do not show empty panels as large blank cards.",
+    "implementation": "Collapse empty sections (e.g., 'Setup checklist' disappears or becomes a small '0 Tasks' badge in the header). Use 'Ghost' illustrations minimally. Guide user to action immediately (e.g., 'Add your first Integration')."
+  },
+  "phasing_recommendation": {
+    "confirmed_order": [
+      "P1: New Information Architecture & Sidebar (Foundation)",
+      "P2: Brand Context Toggle (Scope control early)",
+      "P3: People SSoT (Highest risk, most fragmentation)",
+      "P4: Organisations SSoT (Depends on People links)",
+      "P5: Integrations Hub (Consolidates remaining loose ends)",
+      "P6: Staff Onboarding Wizard (Polishes the experience now that SSoT is ready)"
+    ],
+    "changes_made": "Moved 'Brand toggle' up to P2. Defining the data scope (All vs Pulse vs GymAxis) early prevents building the SSoT tables twice. It sets the context for how P3 and P4 fetch and filter data."
+  },
+  "image_urls": [
+    {
+      "url": "https://images.pexels.com/photos/14589344/pexels-photo-14589344.jpeg",
+      "category": "User Avatars",
+      "description": "Dummy avatar for People directory rows."
+    },
+    {
+      "url": "https://images.pexels.com/photos/6146051/pexels-photo-6146051.jpeg",
+      "category": "User Avatars",
+      "description": "Dummy avatar for People directory rows."
+    }
+  ],
+  "instructions_to_main_agent": [
+    "Strictly follow the Single Source of Truth structures defined.",
+    "Implement the layout with pure HTML/Tailwind using grid-borders style, avoiding nested Shadcn cards where not needed.",
+    "Add data-testid to every interactive element (e.g., data-testid='sidebar-people-link', data-testid='people-table-row')."
+  ]
 }
