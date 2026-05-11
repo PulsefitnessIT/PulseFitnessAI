@@ -1,0 +1,76 @@
+{
+  "summary": "Iteration 216h31 - Verified Head Office selectable for owners on multi-site orgs. Backend HQ auto-create + sort working correctly. Frontend SiteSwitcher on /pulse shows HQ-star-first list with 'All Operations Sites' entry. Minor issue: Master Admin sites endpoint doesn't sort HQ first.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/master-admin/organizations/{org_id}/sites",
+        "issue": "Does not sort HQ site first - sorts by created_at instead. Regular /api/sites endpoint correctly sorts HQ first (line 82 in sites.py), but master-admin endpoint (lines 442-457) lacks this sorting.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h15_team_management.py",
+    "/app/test_reports/pytest/pytest_results_216h31.xml"
+  ],
+  "action_items": [
+    "Consider adding HQ-first sorting to /api/master-admin/organizations/{org_id}/sites endpoint for consistency with /api/sites"
+  ],
+  "critical_code_review_comments": [
+    "Backend /api/sites endpoint correctly auto-creates HQ when org has sites but none flagged is_head_office (lines 27-57 in sites.py)",
+    "Backend /api/sites endpoint correctly sorts HQ to top of list (line 82 in sites.py)",
+    "Frontend SiteSwitcher component correctly renders HQ star icon and 'All Operations Sites' entry",
+    "Frontend LiteDashboardPage correctly passes onAllSites/onPickSite props to SiteSwitcher (lines 629-635)",
+    "Navbar SiteSwitcher (line 392) is only shown on /dashboard, not /pulse - this is correct per iter 216bk comment"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "pulse_pro_owner": "bob@knockers.com / Test123! (Strong Fitness, 2 sites)",
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "N/A",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bob's account_type is 'full' not 'pulse_pro' but he has an active trial so isPro=true in LiteDashboardPage. The SiteSwitcher in the dashboard header (not Navbar) shows HQ-star-first list with 'All Operations Sites' entry. Rate limiting may occur after multiple login attempts - wait 10-15 seconds between tests.",
+  "verified_features": {
+    "backend_hq_auto_create": {
+      "test": "GET /api/sites as owner with 2 sites (none flagged HQ)",
+      "result": "PASS - HQ auto-created with name 'Strong Fitness Head Office', is_head_office=true, auto_created=true"
+    },
+    "backend_hq_sort": {
+      "test": "GET /api/sites returns HQ at top of list",
+      "result": "PASS - HQ is first in the list regardless of creation order"
+    },
+    "backend_pytest": {
+      "test": "test_iter_216h15_team_management.py",
+      "result": "PASS - 13/13 tests passed"
+    },
+    "frontend_site_switcher_trigger": {
+      "test": "SiteSwitcher trigger renders with data-testid=site-switcher-trigger",
+      "result": "PASS - Found with text 'Strong Fitness Head Office'"
+    },
+    "frontend_all_operations_sites": {
+      "test": "Dropdown contains 'All Operations Sites' entry with data-testid=site-switcher-all",
+      "result": "PASS - Found with 'overview' badge"
+    },
+    "frontend_hq_star": {
+      "test": "HQ site shows Star icon (amber-500)",
+      "result": "PASS - Strong Fitness Head Office shows ★ HQ indicator"
+    },
+    "frontend_site_list": {
+      "test": "Site list shows 2 sites with HQ first",
+      "result": "PASS - [0] Strong Fitness Head Office ★ HQ, [1] TEST_S2_Site"
+    }
+  },
+  "rca_of_the_issue": "N/A - no bugs found in the primary feature. Minor inconsistency in master-admin endpoint sorting is a nice-to-have improvement."
+}

@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/App';
 import { X, Menu, Eye, EyeOff, Settings, UserCircle, LogOut, ChevronDown, Crown, Globe, Sun, Moon, Loader2, CheckCircle, HelpCircle, MapPin, LifeBuoy } from 'lucide-react';
 import PulseFitnessLogo from './PulseFitnessLogo';
+import SiteSwitcher from './SiteSwitcher';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +31,6 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  const [forgotLoading, setForgotLoading] = useState(false);
  const [showUserMenu, setShowUserMenu] = useState(false);
  const [showLangMenu, setShowLangMenu] = useState(false);
- const [showSiteMenu, setShowSiteMenu] = useState(false);
  const [orgLogo, setOrgLogo] = useState(null);
  const [systemChoice, setSystemChoice] = useState(null); // { portal: response, crm: response }
  const [captchaToken, setCaptchaToken] = useState('');
@@ -380,48 +380,16 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  )}
 
  {/* Site Switcher — owners only, when >1 site.
-     Iter 216bk — hidden on /pulse because the operations
-     dashboard renders its own viewport-safe SiteSwitcher in
-     the welcome banner. Showing both crowded the mobile
-     header and confused operators (Lee, Feb 2026 prod feedback). */}
+     Iter 216h31 — replaced bespoke inline dropdown with the canonical
+     <SiteSwitcher> so the GymAxis Pro `/dashboard` shows the same
+     HQ-star-first list that Pulse Pro / Lite operators see on /pulse.
+     Backend (/api/sites) auto-creates a real Head Office row and
+     sorts it to the top, so the operator can always pick HQ even
+     when no site was originally flagged as head office.
+     Iter 216bk — hidden on /pulse because the operations dashboard
+     renders its own viewport-safe SiteSwitcher in the welcome banner. */}
  {sites.length > 1 && isOnDashboard && !isOnPulse && user?.role === 'owner' && !user?.is_master_admin && (
- <div className="relative">
- <button
- onClick={() => setShowSiteMenu(!showSiteMenu)}
- className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border hover:opacity-80 transition-colors"
- style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
- data-testid="site-switcher-btn"
- >
- <MapPin size={14} />
- <span className="text-xs font-medium max-w-[100px] truncate">{activeSite?.name || 'Site'}</span>
- <ChevronDown size={12} className={`transition-transform ${showSiteMenu ? 'rotate-180' : ''}`} />
- </button>
- {showSiteMenu && (
- <>
- <div className="fixed inset-0 z-40" onClick={() => setShowSiteMenu(false)} />
- <div className="absolute right-0 top-full mt-2 w-56 rounded-lg shadow-xl z-50 overflow-hidden" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }} data-testid="site-dropdown">
- <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--theme-border)' }}>
- <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--theme-text-muted)' }}>Switch Site</p>
- </div>
- {sites.map(site => (
- <button
- key={site.id}
- onClick={() => { setActiveSite(site); setShowSiteMenu(false); }}
- className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${activeSite?.id === site.id ? 'font-medium' : 'opacity-70 hover:opacity-100'}`}
- style={{ color: 'var(--theme-text)' }}
- data-testid={`site-option-${site.id}`}
- >
- <MapPin size={14} className={activeSite?.id === site.id ? 'text-[var(--color-brand-blue)]' : ''} />
- <div className="text-left truncate">
- <span className="block truncate">{site.name}</span>
- {site.address && <span className="block text-[10px] truncate" style={{ color: 'var(--theme-text-muted)' }}>{site.address}</span>}
- </div>
- </button>
- ))}
- </div>
- </>
- )}
- </div>
+ <SiteSwitcher />
  )}
  
  {/* User Menu Dropdown */}
