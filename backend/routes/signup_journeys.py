@@ -302,6 +302,95 @@ async def _scan_abandoned_carts() -> int:
     return sent
 
 
+# ── Tour reminders (iter 216h6) ──────────────────────────────────────
+
+
+def _render_tour_reminder(*, gym: dict, booking: dict) -> tuple[str, str]:
+    """24h-before reminder. Plain-spoken, low friction, single CTA: cancel link."""
+    gym_name = gym.get("name") or "your gym"
+    slot_dt = datetime.fromisoformat(booking["slot_at"].replace("Z", "+00:00"))
+    # We render in UTC + ask the user to add to calendar — keeps the email
+    # timezone-stable across daylight-savings / browser locale boundaries.
+    when = slot_dt.strftime("%A %d %B at %H:%M UTC")
+    location = booking.get("location") or "Reception"
+    name = (booking.get("member_name") or "").split(" ")[0] or "there"
+    cancel_url = (
+        f"{_origin()}/m/{gym.get('slug') or gym['id']}/join?cancel_tour={booking.get('draft_id') or ''}"
+    )
+    base_btn = (
+        f'<a href="{cancel_url}" style="display:inline-block;background:#f4f4f5;'
+        f'color:#27272a;padding:10px 20px;border-radius:8px;text-decoration:none;'
+        f'font-weight:500;font-family:Helvetica,Arial,sans-serif;border:1px solid #d4d4d8">'
+    )
+    subject = f"Reminder: your tour at {gym_name} tomorrow"
+    html = (
+        f"<h2>Hi {name},</h2>"
+        f"<p>Quick reminder — your <strong>{gym_name}</strong> tour is "
+        f"<strong>{when}</strong>.</p>"
+        f"<p><strong>Where:</strong> {location}<br/>"
+        f"<strong>How long:</strong> about {booking.get('duration_minutes', 30)} minutes — "
+        f"wear something comfortable, no gym kit needed.</p>"
+        f"<p>If you can't make it any more, no problem — just hit the button below to "
+        f"free up the slot for someone else:</p>"
+        f"<p>{base_btn}Cancel my tour</a></p>"
+        f"<p style='color:#71717a;font-size:13px'>See you soon!</p>"
+    )
+    return subject, html
+
+
+async def _scan_tour_reminders() -> int:
+    """Find tour bookings 22-26h out, send a reminder, mark `reminder_sent_at`.
+
+    Window is intentionally wider than the cadence (worker ticks every 60s but
+    the window is 4 hours) so that a worker hiccup doesn't drop reminders on
+    the floor. Idempotency comes from `reminder_sent_at` — once set, the row
+    falls out of the query.
+    """
+    now = _now()
+    lo = _iso(now + timedelta(hours=22))
+    hi = _iso(now + timedelta(hours=26))
+    sent = 0
+    cur = db.tour_bookings.find({
+        "status": "booked",
+        "slot_at": {"$gte": lo, "$lte": hi},
+        "member_email": {"$exists": True, "$ne": ""},
+        "$or": [{"reminder_sent_at": {"$exists": False}}, {"reminder_sent_at": None}],
+    }, {"_id": 0})
+    async for booking in cur:
+        # Best-effort optimistic lock so two worker ticks racing won't double-send.
+        upd = await db.tour_bookings.update_one(
+            {"id": booking["id"], "$or": [
+                {"reminder_sent_at": {"$exists": False}},
+                {"reminder_sent_at": None},
+            ]},
+            {"$set": {"reminder_sent_at": _iso(now), "reminder_status": "sending"}},
+        )
+        if upd.modified_count == 0:
+            continue
+        gym = await db.organizations.find_one(
+            {"id": booking["organization_id"]}, {"_id": 0},
+        ) or {}
+        try:
+            subject, html = _render_tour_reminder(gym=gym, booking=booking)
+            ok = await send_email(
+                to=booking["member_email"], subject=subject, html=html,
+                organization_id=booking["organization_id"],
+            )
+            await db.tour_bookings.update_one(
+                {"id": booking["id"]},
+                {"$set": {"reminder_status": "sent" if ok else "failed"}},
+            )
+            if ok:
+                sent += 1
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Tour reminder send failed for %s: %s", booking.get("id"), exc)
+            await db.tour_bookings.update_one(
+                {"id": booking["id"]},
+                {"$set": {"reminder_status": "failed", "reminder_error": str(exc)[:300]}},
+            )
+    return sent
+
+
 # ── Worker (drains every 60s, started by FastAPI lifespan) ─────────────
 
 
@@ -340,6 +429,7 @@ async def drain_signup_jobs():
                     }},
                 )
             await _scan_abandoned_carts()
+            await _scan_tour_reminders()
         except Exception as exc:  # noqa: BLE001
             log.warning("Worker iteration error: %s", exc, exc_info=True)
         await asyncio.sleep(60)
@@ -507,4 +597,4 @@ async def funnel(
     }
 
 
-__all__ = ["router", "schedule_welcome_journey", "start_worker_once", "_try_schedule_for_pending_events"]
+__all__ = ["router", "schedule_welcome_journey", "start_worker_once", "_try_schedule_for_pending_events", "_scan_tour_reminders"]

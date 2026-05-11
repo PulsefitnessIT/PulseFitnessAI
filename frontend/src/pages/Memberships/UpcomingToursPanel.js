@@ -111,6 +111,15 @@ const UpcomingToursPanel = ({ compact = false }) => {
                   <span className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wider ${STATUS_STYLE[b.status] || 'bg-zinc-50 text-zinc-500 border-zinc-200'}`}>
                     {b.status?.replace('_', ' ')}
                   </span>
+                  {b.reminder_status === 'sent' && (
+                    <span
+                      className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wider bg-violet-50 text-violet-700 border-violet-200"
+                      title="24-hour reminder email sent"
+                      data-testid={`tour-booking-reminder-${b.id}`}
+                    >
+                      Reminder sent
+                    </span>
+                  )}
                 </p>
               </div>
               {b.status === 'booked' && (

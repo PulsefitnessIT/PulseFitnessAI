@@ -1,3 +1,43 @@
+## Iter 216h6 — 24-hour tour reminder email (Feb 10, 2026)
+
+**Followup to iter 216h5**: bookings are now visible, conversion is measurable — the next obvious lever for lifting attended-→-member is reducing no-shows. Industry research puts tour-reminder bumps at 20-30%, which in this funnel translates directly to more memberships. Wired into the existing `signup_journeys` worker so no new infra.
+
+### What shipped
+
+**Backend** (`routes/signup_journeys.py`)
+- New `_scan_tour_reminders()` async function added to the same 60-second worker tick that already drives welcome journeys + abandoned-cart recovery.
+- Window: bookings with `slot_at` between 22h and 26h from `now` (4-hour window so a worker hiccup doesn't drop reminders). Filters: `status='booked'`, `member_email` present, `reminder_sent_at` unset.
+- Best-effort optimistic lock (`update_one` with the same predicate that filtered the row) — two worker ticks racing won't double-send.
+- Reminder email template uses Resend via the existing `send_email()` helper. Plain-spoken copy, single low-friction CTA: "Cancel my tour" linking back to `/m/{slug}/join?cancel_tour={draft_id}`. Renders the slot in UTC + asks user to add to calendar (timezone-stable across DST / browser locale).
+- Failure path: still stamps `reminder_sent_at` so we don't retry-loop on a chronically bad email address; `reminder_status='failed'` with truncated error retained for ops debugging.
+
+**Frontend** (`pages/Memberships/UpcomingToursPanel.js`)
+- Violet "Reminder sent" pill appears next to the status pill on bookings where the worker has shipped the 24h email — gives operators visibility without a separate "comms log" panel.
+
+**Regression test — `tests/test_iter_216h6_tour_reminders.py`** (5 cases, all passing)
+1. Booking 24h out + unsent → reminder is sent, `reminder_sent_at` stamped.
+2. Already-reminded booking inside the window → no second send (idempotency).
+3. Bookings outside the window (5h or 48h out) → no send.
+4. Cancelled booking inside the window → no send.
+5. Failed send still stamps `reminder_sent_at` (prevents retry-loop on bad addresses) + records `reminder_status='failed'`.
+
+### Full regression: 28/28 iter-216h* tests pass
+- iter_216h dual-role admin: 4/4 ✓
+- iter_216h3 role-mismatch badge: 4/4 ✓
+- iter_216h4 tour calendar: 9/9 ✓
+- iter_216h5 tour conversion: 6/6 ✓
+- iter_216h6 tour reminders: 5/5 ✓
+
+### Why no integration playbook call
+Resend is already integrated in `utils.email.send_email()` from earlier iterations (Phase 2 abandoned-cart recovery uses it). This iteration only adds a new caller — no SDK changes, no new keys, no new playbook needed.
+
+### ⚠ Action required
+Lives in **preview** only — **redeploy** to push to gymaxisai.com so production tour bookings start getting their 24h-ahead reminders.
+
+---
+
+
+
 ## Iter 216h5 — Tour Conversion KPI tile (Feb 10, 2026)
 
 **Followup to iter 216h4**: now that real tour bookings are landing in `tour_bookings`, surface the booked-→-attended-→-became-member funnel so operators can see whether the public sign-up tour flow actually drives memberships (and which gym staff are converting best, after a future per-staff slice).
