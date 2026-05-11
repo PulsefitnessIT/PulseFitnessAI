@@ -1493,8 +1493,27 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
     if not email or not full_name:
         raise HTTPException(status_code=400, detail="email and full_name are required")
 
-    if await db.users.find_one({"email": email}) or await db.crm_users.find_one({"email": email}):
-        raise HTTPException(status_code=409, detail=f"User {email} already exists")
+    # Iter 216h25 — return existing user_id + collection in the 409
+    # payload so the frontend toast can render a "Jump to this user"
+    # link directly into People → Directory drawer.
+    existing = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "full_name": 1, "organization_id": 1})
+    collection = "users"
+    if not existing:
+        existing = await db.crm_users.find_one({"email": email}, {"_id": 0, "id": 1, "full_name": 1, "organization_id": 1})
+        collection = "crm_users"
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "user_exists",
+                "message": f"User {email} already exists",
+                "user_id": existing.get("id"),
+                "full_name": existing.get("full_name"),
+                "organization_id": existing.get("organization_id"),
+                "collection": collection,
+                "email": email,
+            },
+        )
 
     user_id = str(uuid.uuid4())
     # In invite mode we store a random high-entropy placeholder so the

@@ -53,6 +53,8 @@ async def _get_config() -> dict:
     if not config:
         config = {**DEFAULT_FINANCIAL_CONFIG, "id": str(uuid.uuid4())}
         await db.financial_config.insert_one(config)
+        # Re-fetch to ensure _id is excluded (insert_one mutates the dict)
+        config = await db.financial_config.find_one({}, {"_id": 0})
     return config
 
 

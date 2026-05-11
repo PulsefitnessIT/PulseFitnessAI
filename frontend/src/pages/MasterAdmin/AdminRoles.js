@@ -35,6 +35,42 @@ const AdminRoles = ({ API, globalUsersProps }) => {
   const [tab, setTab] = useState('directory');
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // Iter 216h25 — Listen for cross-section "jump to user" requests
+  // fired by the Staff Onboarding wizard's 409 toast. The wizard
+  // dispatches `gymaxis:focus-user` with {user_id, email} after
+  // pushing ?section=roles&focus_user=... to the URL. We resolve the
+  // user from the latest props.users list and open the drawer.
+  React.useEffect(() => {
+    const resolveAndOpen = (refId) => {
+      if (!refId) return;
+      const list = globalUsersProps?.users || [];
+      const u = list.find((x) => x.id === refId) || list.find((x) => (x.email || '').toLowerCase() === String(refId).toLowerCase());
+      if (u) {
+        setTab('directory');
+        setSelectedUser(u);
+        setTimeout(() => {
+          const row = document.querySelector(`[data-testid="people-row-${u.id}"]`);
+          if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 200);
+      }
+    };
+    // Honour focus_user on mount
+    try {
+      const refId = new URLSearchParams(window.location.search).get('focus_user');
+      if (refId) {
+        resolveAndOpen(refId);
+        const params = new URLSearchParams(window.location.search);
+        params.delete('focus_user');
+        const qs = params.toString();
+        window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+      }
+    } catch { /* noop */ }
+
+    const onFocus = (e) => resolveAndOpen(e.detail?.user_id || e.detail?.email);
+    window.addEventListener('gymaxis:focus-user', onFocus);
+    return () => window.removeEventListener('gymaxis:focus-user', onFocus);
+  }, [globalUsersProps?.users]);
+
   // Iter 216h20 — When the operator clicks "Full edit in legacy panel"
   // inside the drawer, we close the drawer, flip the tab to the legacy
   // GlobalUsersPanel and bubble up a reload so the row is fresh.

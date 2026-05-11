@@ -14,6 +14,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useBrandContext } from './BrandContext';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import {
@@ -55,6 +56,8 @@ const SINCE_OPTIONS = [
 export default function AuditLogPanel() {
   const { API } = useAuth();
   const headers = useMemo(() => ({ Authorization: `Bearer ${localStorage.getItem('token')}` }), []);
+  // Iter 216h25 — top-bar BrandPicker scopes the audit log too.
+  const { brand } = useBrandContext();
 
   const [sinceDays, setSinceDays] = useState(7);
   const [kinds, setKinds] = useState(new Set());  // empty = all
@@ -78,9 +81,12 @@ export default function AuditLogPanel() {
       if (kinds.size) params.set('kinds', Array.from(kinds).join(','));
       if (actorEmail.trim()) params.set('actor_email', actorEmail.trim().toLowerCase());
       if (orgFilter.trim()) params.set('organization_id', orgFilter.trim());
+      if (brand && brand !== 'all') params.set('brand', brand);
+      const summParams = new URLSearchParams({ since_days: String(sinceDays) });
+      if (brand && brand !== 'all') summParams.set('brand', brand);
       const [list, summ] = await Promise.all([
         axios.get(`${API}/master-admin/audit-log?${params}`, { headers }),
-        axios.get(`${API}/master-admin/audit-log/summary?since_days=${sinceDays}`, { headers }),
+        axios.get(`${API}/master-admin/audit-log/summary?${summParams}`, { headers }),
       ]);
       setData(list.data);
       setSummary(summ.data);
@@ -89,7 +95,7 @@ export default function AuditLogPanel() {
     } finally {
       setLoading(false);
     }
-  }, [API, headers, sinceDays, kinds, actorEmail, orgFilter]);
+  }, [API, headers, sinceDays, kinds, actorEmail, orgFilter, brand]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -99,6 +105,7 @@ export default function AuditLogPanel() {
       if (kinds.size) params.set('kinds', Array.from(kinds).join(','));
       if (actorEmail.trim()) params.set('actor_email', actorEmail.trim().toLowerCase());
       if (orgFilter.trim()) params.set('organization_id', orgFilter.trim());
+      if (brand && brand !== 'all') params.set('brand', brand);
       const res = await fetch(`${API}/master-admin/audit-log/export.csv?${params}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();

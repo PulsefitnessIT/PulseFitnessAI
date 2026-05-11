@@ -52,11 +52,20 @@ async def admin_update_plan(plan_id: str, body: dict = Body(...), user: dict = D
 
 
 @router.get("/master-admin/marketing/analytics")
-async def admin_marketing_analytics(user: dict = Depends(get_current_user)):
+async def admin_marketing_analytics(brand: str = "all", user: dict = Depends(get_current_user)):
     """Platform-wide marketing KPIs. Pulse-scoped via the same helper used
-    elsewhere in master_admin."""
+    elsewhere in master_admin.
+
+    Iter 216h25 — accepts a ``?brand=`` query param so GymAxis Master
+    Admins can focus the view on Pulse-only or GymAxis-only orgs from
+    the top-bar BrandPicker. Pulse Master Admins remain locked to
+    ``pulse`` regardless of the query param.
+    """
     _require_admin(user)
     from routes.master_admin import is_pulse_only, PULSE_VISIBLE_ACCOUNT_TYPES
+    from utils.brand_filter import normalise_brand, brand_filter_clause
+
+    canonical_brand = "pulse" if is_pulse_only(user) else normalise_brand(brand)
 
     org_filter: dict = {}
     if is_pulse_only(user):
@@ -65,6 +74,12 @@ async def admin_marketing_analytics(user: dict = Depends(get_current_user)):
         ).to_list(length=None)
         ids = [o["id"] for o in ps]
         org_filter = {"organization_id": {"$in": ids}}
+    elif canonical_brand != "all":
+        clause = brand_filter_clause(canonical_brand, collection="organizations")
+        if clause:
+            brand_orgs = await db.organizations.find(clause, {"_id": 0, "id": 1}).to_list(length=None)
+            ids = [o["id"] for o in brand_orgs]
+            org_filter = {"organization_id": {"$in": ids}}
 
     total_subs = await db.marketing_subscriptions.count_documents({**org_filter, "status": {"$in": ["active", "trial"]}})
     by_plan: dict[str, int] = {}
@@ -112,19 +127,31 @@ async def admin_marketing_analytics(user: dict = Depends(get_current_user)):
         "journeys_active": journeys_active,
         "top_orgs_by_email": top,
         "scoped": is_pulse_only(user),
+        "brand": canonical_brand,
     }
 
 
 @router.get("/master-admin/marketing/subscriptions")
-async def admin_list_subscriptions(user: dict = Depends(get_current_user)):
+async def admin_list_subscriptions(brand: str = "all", user: dict = Depends(get_current_user)):
+    """Iter 216h25 — accepts ``?brand=`` so GymAxis Master Admins can
+    focus the view on Pulse-only or GymAxis-only orgs. Pulse Master
+    Admins remain locked to ``pulse`` regardless."""
     _require_admin(user)
     from routes.master_admin import is_pulse_only, PULSE_VISIBLE_ACCOUNT_TYPES
+    from utils.brand_filter import normalise_brand, brand_filter_clause
+
+    canonical_brand = "pulse" if is_pulse_only(user) else normalise_brand(brand)
     flt: dict = {}
     if is_pulse_only(user):
         ps = await db.organizations.find(
             {"account_type": {"$in": PULSE_VISIBLE_ACCOUNT_TYPES}}, {"_id": 0, "id": 1},
         ).to_list(length=None)
         flt = {"organization_id": {"$in": [o["id"] for o in ps]}}
+    elif canonical_brand != "all":
+        clause = brand_filter_clause(canonical_brand, collection="organizations")
+        if clause:
+            brand_orgs = await db.organizations.find(clause, {"_id": 0, "id": 1}).to_list(length=None)
+            flt = {"organization_id": {"$in": [o["id"] for o in brand_orgs]}}
     subs = await db.marketing_subscriptions.find(flt, {"_id": 0}).sort("created_at", -1).limit(500).to_list(length=500)
     # Decorate with org name + plan price.
     org_ids = list({s["organization_id"] for s in subs})

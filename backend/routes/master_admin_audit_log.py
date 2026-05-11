@@ -84,11 +84,26 @@ async def _enrich_orgs(events: list[dict]) -> list[dict]:
 async def _gather(
     *, since_iso: str, kinds: Optional[set[str]],
     org_id: Optional[str], actor_email: Optional[str], limit: int,
+    brand_org_ids: Optional[set] = None,
 ) -> list[dict]:
     """Pull candidate events from each source collection, normalise them,
     and return a merged+sorted list. Each source is capped at ``limit``
-    so a single noisy collection can't starve the others."""
+    so a single noisy collection can't starve the others.
+
+    Iter 216h25 — ``brand_org_ids`` is an optional pre-resolved set of
+    org IDs from the BrandPicker filter. When provided, every per-org
+    query is intersected with this set so Pulse Master Admins cannot
+    see GymAxis events and vice versa.
+    """
     out: list[dict] = []
+
+    def _apply_brand(q: dict) -> dict:
+        if brand_org_ids is None:
+            return q
+        # Caller-supplied org_id takes precedence (already pinned to one).
+        if "organization_id" in q and isinstance(q["organization_id"], str):
+            return q if q["organization_id"] in brand_org_ids else {**q, "organization_id": "___no_match___"}
+        return {**q, "organization_id": {"$in": list(brand_org_ids)}}
 
     # ── login_events ────────────────────────────────────────────────
     if kinds is None or any(k in kinds for k in (
@@ -103,7 +118,7 @@ async def _gather(
             q["action"] = {"$in": list(kinds & {
                 "login", "login_failed", "logout", "mfa_verify", "mfa_failed", "password_reset",
             })}
-        cursor = db.login_events.find(q, {"_id": 0}).sort("created_at", -1).limit(limit)
+        cursor = db.login_events.find(_apply_brand(q), {"_id": 0}).sort("created_at", -1).limit(limit)
         async for ev in cursor:
             out.append({
                 "timestamp": ev.get("created_at"),
@@ -132,7 +147,7 @@ async def _gather(
             wanted = [k.replace("wallet_", "") for k in kinds if k.startswith("wallet_")]
             if wanted:
                 q["kind"] = {"$in": wanted}
-        cursor = db.wallet_ledger.find(q, {"_id": 0}).sort("created_at", -1).limit(limit)
+        cursor = db.wallet_ledger.find(_apply_brand(q), {"_id": 0}).sort("created_at", -1).limit(limit)
         async for ev in cursor:
             kind = f"wallet_{ev.get('kind') or 'debit'}"
             amt = int(ev.get("amount_pence") or 0)
@@ -168,7 +183,7 @@ async def _gather(
         ]}
         if org_id:
             q["organization_id"] = org_id
-        cursor = db.membership_class_invoices.find(q, {"_id": 0}).sort(
+        cursor = db.membership_class_invoices.find(_apply_brand(q), {"_id": 0}).sort(
             "paid_at", -1,
         ).limit(limit * 2)  # 2× so we can split into "paid" + "generated" rows
         async for inv in cursor:
@@ -229,7 +244,7 @@ async def _gather(
     # ── system_jobs (autopay sweep completions) ─────────────────────
     if kinds is None or "autopay_sweep" in kinds:
         q = {"kind": "autopay_sweep", "started_at": {"$gte": since_iso}}
-        cursor = db.system_jobs.find(q, {"_id": 0}).sort("started_at", -1).limit(limit)
+        cursor = db.system_jobs.find(_apply_brand(q), {"_id": 0}).sort("started_at", -1).limit(limit)
         async for j in cursor:
             s = j.get("stats") or {}
             out.append({
@@ -251,6 +266,37 @@ async def _gather(
     return out[:limit]
 
 
+async def _resolve_brand_org_ids(user: dict, brand: str) -> Optional[set]:
+    """Iter 216h25 — Resolve the BrandPicker setting into a set of
+    organisation IDs.
+
+    Returns:
+      * ``None`` when no scope restriction is needed (GymAxis admin
+        chose 'all') — `_gather` skips its brand intersection.
+      * a ``set[str]`` of org IDs when restriction applies. Pulse
+        Master Admins are forced to ``pulse`` regardless of the
+        request param.
+    """
+    from utils.brand_filter import normalise_brand, brand_filter_clause
+
+    if _is_pulse_only(user):
+        canonical = "pulse"
+    else:
+        canonical = normalise_brand(brand)
+        if canonical == "all":
+            return None
+
+    clause = brand_filter_clause(canonical, collection="organizations")
+    if not clause:
+        return None
+    orgs = await db.organizations.find(clause, {"_id": 0, "id": 1}).to_list(length=None)
+    return {o["id"] for o in orgs}
+
+
+def _is_pulse_only(user: dict) -> bool:
+    return bool(user.get("is_pulse_admin") and not user.get("is_master_admin"))
+
+
 @router.get("")
 async def list_audit_events(
     user: dict = Depends(get_current_user),
@@ -258,27 +304,36 @@ async def list_audit_events(
     kinds: Optional[str] = Query(None, description="comma-separated event kinds"),
     organization_id: Optional[str] = Query(None),
     actor_email: Optional[str] = Query(None),
+    brand: str = Query("all", description="all | pulse | gymaxis — top-bar BrandPicker scope"),
     limit: int = Query(200, ge=1, le=2000),
 ):
     """Return recent audit events, newest first. Free-form filters
     collapse to no-op when omitted so the default is "last 7 days,
-    every kind, every org"."""
+    every kind, every org".
+
+    Iter 216h25 — ``brand`` resolves the BrandPicker top-bar setting
+    into an org-id intersection. Pulse Master Admins are forced to
+    ``pulse`` regardless of the query param.
+    """
     require_master_admin(user)
     since = (datetime.now(timezone.utc) - timedelta(days=since_days)).isoformat()
     kind_set: Optional[set[str]] = None
     if kinds:
         kind_set = {k.strip() for k in kinds.split(",") if k.strip() in _EVENT_KINDS}
+    brand_org_ids = await _resolve_brand_org_ids(user, brand)
     events = await _gather(
         since_iso=since, kinds=kind_set,
         org_id=organization_id,
         actor_email=(actor_email or "").lower().strip() or None,
         limit=limit,
+        brand_org_ids=brand_org_ids,
     )
     events = await _enrich_orgs(events)
     return {
         "count": len(events),
         "since": since,
         "events": events,
+        "brand": "pulse" if (brand_org_ids is not None and _is_pulse_only(user)) else brand,
     }
 
 
@@ -286,12 +341,14 @@ async def list_audit_events(
 async def audit_summary(
     user: dict = Depends(get_current_user),
     since_days: int = Query(7, ge=1, le=90),
+    brand: str = Query("all"),
 ):
     """Small counts-per-kind summary — feeds the panel's top-row tiles."""
     require_master_admin(user)
     since = (datetime.now(timezone.utc) - timedelta(days=since_days)).isoformat()
+    brand_org_ids = await _resolve_brand_org_ids(user, brand)
     events = await _gather(since_iso=since, kinds=None, org_id=None,
-                           actor_email=None, limit=2000)
+                           actor_email=None, limit=2000, brand_org_ids=brand_org_ids)
     counts: dict[str, int] = {}
     by_sev = {"info": 0, "warning": 0, "critical": 0}
     for e in events:
@@ -312,6 +369,7 @@ async def export_audit_csv(
     kinds: Optional[str] = Query(None),
     organization_id: Optional[str] = Query(None),
     actor_email: Optional[str] = Query(None),
+    brand: str = Query("all"),
     limit: int = Query(10000, ge=1, le=10000),
 ):
     """CSV export for SOC 2 / pentest / support desk evidence packets."""
@@ -320,11 +378,13 @@ async def export_audit_csv(
     kind_set: Optional[set[str]] = None
     if kinds:
         kind_set = {k.strip() for k in kinds.split(",") if k.strip() in _EVENT_KINDS}
+    brand_org_ids = await _resolve_brand_org_ids(user, brand)
     events = await _gather(
         since_iso=since, kinds=kind_set,
         org_id=organization_id,
         actor_email=(actor_email or "").lower().strip() or None,
         limit=limit,
+        brand_org_ids=brand_org_ids,
     )
     events = await _enrich_orgs(events)
 

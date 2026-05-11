@@ -2,8 +2,9 @@
  * Master Admin — Marketing Suite
  * Two sub-tabs: Plans (editor) + Analytics (platform KPIs).
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useBrandContext } from './BrandContext';
 import { Sparkles, Edit2, Save, BarChart3, Loader2, PoundSterling, Mail, ImagePlus, Workflow, Users, Plus, Trash2, X } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -100,11 +101,14 @@ const Tile = ({ label, value, accent = 'text-zinc-900', icon: Icon, sub }) => (
 );
 
 const Analytics = ({ API, headers }) => {
- const [data, setData] = useState(null);
- useEffect(() => {
- axios.get(`${API}/master-admin/marketing/analytics`, { headers }).then((r) => setData(r.data)).catch(() => setData({}));
- // eslint-disable-next-line
- }, []);
+  const { brand } = useBrandContext();
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    // Iter 216h25 — pass top-bar BrandPicker to the analytics endpoint.
+    const qs = brand && brand !== 'all' ? `?brand=${encodeURIComponent(brand)}` : '';
+    axios.get(`${API}/master-admin/marketing/analytics${qs}`, { headers }).then((r) => setData(r.data)).catch(() => setData({}));
+    // eslint-disable-next-line
+  }, [brand]);
  if (!data) return <div className="flex items-center gap-2 text-zinc-400 py-8"><Loader2 className="animate-spin" size={14} /> Loading…</div>;
  return (
  <div className="space-y-4" data-testid="admin-marketing-analytics">
@@ -231,21 +235,26 @@ const SubscriptionEditor = ({ API, headers, initial, plans, orgs, onClose, onSav
 
 const Subscriptions = ({ API, headers }) => {
  const confirm = useConfirm();
+ const { brand } = useBrandContext();
  const [subs, setSubs] = useState(null);
  const [plans, setPlans] = useState([]);
  const [orgs, setOrgs] = useState([]);
  const [editing, setEditing] = useState(null); // null=hidden, {} = new, {…sub} = edit
 
- const reload = () => axios.get(`${API}/master-admin/marketing/subscriptions`, { headers })
- .then((r) => setSubs(r.data.subscriptions))
- .catch(() => setSubs([]));
+ const reload = useCallback(() => {
+   const qs = brand && brand !== 'all' ? `?brand=${encodeURIComponent(brand)}` : '';
+   return axios.get(`${API}/master-admin/marketing/subscriptions${qs}`, { headers })
+     .then((r) => setSubs(r.data.subscriptions))
+     .catch(() => setSubs([]));
+ }, [API, headers, brand]);
 
  useEffect(() => {
  reload();
  axios.get(`${API}/master-admin/marketing/plans`, { headers }).then((r) => setPlans(r.data.plans)).catch(() => {});
- axios.get(`${API}/master-admin/organizations`, { headers }).then((r) => setOrgs(r.data.organizations || [])).catch(() => {});
+ const orgQs = brand && brand !== 'all' ? `?brand=${encodeURIComponent(brand)}` : '';
+ axios.get(`${API}/master-admin/organizations${orgQs}`, { headers }).then((r) => setOrgs(r.data.organizations || [])).catch(() => {});
  // eslint-disable-next-line
- }, []);
+ }, [brand]);
 
  const remove = async (orgId, orgName) => {
  const ok = await confirm({

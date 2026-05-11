@@ -206,8 +206,24 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
 
       setResult(created);
     } catch (e) {
-      const msg = e.response?.data?.detail || e.message || 'Failed to create user';
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      const detail = e.response?.data?.detail;
+      // Iter 216h25 — structured 409 from /organizations/{id}/users when
+      // the email is already on file. Render a deep-link to the existing
+      // user instead of a flat error string.
+      if (detail && typeof detail === 'object' && detail.code === 'user_exists') {
+        setError({
+          message: detail.message || `User ${detail.email} already exists`,
+          existingUser: {
+            id: detail.user_id,
+            full_name: detail.full_name,
+            email: detail.email,
+            organization_id: detail.organization_id,
+          },
+        });
+      } else {
+        const msg = detail || e.message || 'Failed to create user';
+        setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      }
     }
     setBusy(false);
   };
@@ -501,9 +517,38 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
           </div>
         ))}
         {error && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-start gap-2" data-testid="staff-wizard-error">
-            <AlertCircle size={12} className="mt-0.5" /> {error}
-          </div>
+          (typeof error === 'object' && error.existingUser) ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900 flex items-start gap-2" data-testid="staff-wizard-error">
+              <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
+              <div className="space-y-1.5 min-w-0">
+                <p>
+                  <strong>{error.existingUser.email}</strong> already has an account
+                  {error.existingUser.full_name ? <> as <strong>{error.existingUser.full_name}</strong></> : null}.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const params = new URLSearchParams(window.location.search);
+                      params.set('section', 'roles');
+                      params.set('focus_user', error.existingUser.id || error.existingUser.email);
+                      window.history.pushState({}, '', `?${params.toString()}`);
+                      window.dispatchEvent(new CustomEvent('gymaxis:set-section', { detail: { section: 'roles' } }));
+                      window.dispatchEvent(new CustomEvent('gymaxis:focus-user', { detail: { user_id: error.existingUser.id, email: error.existingUser.email } }));
+                    } catch { /* noop */ }
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 underline hover:text-amber-700"
+                  data-testid="staff-wizard-jump-to-user"
+                >
+                  Jump to this user in the directory →
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-start gap-2" data-testid="staff-wizard-error">
+              <AlertCircle size={12} className="mt-0.5" /> {typeof error === 'string' ? error : (error.message || 'Failed')}
+            </div>
+          )
         )}
       </div>
     );
