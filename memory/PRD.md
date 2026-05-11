@@ -1,3 +1,38 @@
+## Iter 216h32 — HOTFIX: Head Office not auto-created for Lee on production (Feb 11, 2026)
+
+### Operator-reported (with screenshot)
+On production (`gymaxisai.com/pulse`), Lee Somers' site switcher showed only:
+- All Operations Sites · iGym Carshalton (61 eq) ✓ · iGym Congleton (0 eq).
+
+The expected **★ Pulse Fitness Head Office** row was missing despite iter 216h15's auto-create code being live (confirmed by the "All Operations Sites" label rename shipping in the same deploy).
+
+### Root cause
+Iter 216h15's auto-create logic was gated by an `is_privileged` role check (`role in ("owner", "manager", "master_admin", "master")` or `is_master_admin=True`). Production has legacy operator users whose `role` field doesn't fall in that exact allow-list (e.g. `"admin"`, `"site_manager"`, etc.), so the lazy-on-read auto-create silently skipped the insert and Lee's org never received its HQ row.
+
+### Fix (backend only)
+- **`/app/backend/routes/sites.py`** — dropped the `is_privileged` gate around auto-create. Auto-create now ALWAYS runs whenever the org has ≥1 site and none flagged `is_head_office`. The operation is fully idempotent (the second call no-ops because `any(is_head_office)` now resolves True) and harmless for non-privileged callers — they just won't see HQ themselves until an owner visits (their `allowed_site_ids` filter still applies as before).
+- Added a `logging.warning("auto_create_hq.skipped: org_doc missing …")` for the (should-be-impossible) case where the operator's `organization_id` doesn't resolve to a real org. Helps spot mis-linked accounts in prod logs.
+- `is_privileged` is still computed and used for `allowed_site_ids` filtering — no behavioural change there.
+
+### Verified
+- **`test_iter_216h15_team_management.py`** extended with a new regression:
+  - `test_get_sites_auto_creates_hq_for_non_privileged_role` — seeds an org with role=`"admin"` (deliberately outside the old allow-list) and confirms HQ is auto-created on first `/api/sites` call.
+- **All 14 tests pass** (13 existing + 1 new).
+- Lint clean.
+
+### Files touched
+- `/app/backend/routes/sites.py` (~+30 / −10 LOC — moved auto-create out of the role gate, added diagnostic log).
+- `/app/backend/tests/test_iter_216h15_team_management.py` (+39 LOC — new regression test).
+
+### ⚠ Action required
+1. **Redeploy preview → production.** This is a 1-file backend fix; no DB migration required.
+2. After deploy, ask Lee to reload `gymaxisai.com/pulse`. The FIRST page load triggers GET `/api/sites` which fires auto-create → "Pulse Fitness Head Office" appears at the top of the dropdown with the ★ icon. Idempotent — subsequent reloads are no-ops.
+3. The same hotfix retroactively repairs every other production org that has sites but no HQ (Tottenham Green, MOD sites, customer orgs etc.) the moment one of their users next loads the dashboard.
+
+---
+
+
+
 ## Iter 216h31 — Head Office selectable for owners (multi-site orgs) — UX parity across all dashboards (Feb 11, 2026)
 
 Closes P1 backlog item *"Head Office site not selectable for owners"*.

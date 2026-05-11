@@ -93,6 +93,44 @@ def test_get_sites_does_not_double_create_hq(org_with_owner, make_headers, db):
     assert hq_count == 1
 
 
+def test_get_sites_auto_creates_hq_for_non_privileged_role(db, make_headers):
+    """Iter 216h32 — Lee's prod incident: auto-create must fire regardless
+    of the caller's role allow-list. Earlier the gate was limited to
+    owner/manager/master_admin which silently skipped the insert for
+    legacy roles like "admin" or "site_manager".
+    """
+    org_id = f"test-h32-org-{uuid.uuid4().hex[:8]}"
+    user_id = f"test-h32-user-{uuid.uuid4().hex[:8]}"
+    site_ids = [f"test-h32-site-{uuid.uuid4().hex[:8]}" for _ in range(2)]
+    try:
+        db.organizations.insert_one({"id": org_id, "name": "Pulse Fitness 32"})
+        # Note: role intentionally NOT in the privileged allow-list.
+        db.users.insert_one({
+            "id": user_id, "email": f"h32-{uuid.uuid4().hex[:6]}@example.com",
+            "organization_id": org_id, "role": "admin", "full_name": "Legacy Admin",
+            "password": "x", "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        db.sites.insert_many([
+            {"id": site_ids[0], "organization_id": org_id, "name": "iGym Carshalton",
+             "is_head_office": False, "created_at": datetime.now(timezone.utc).isoformat()},
+            {"id": site_ids[1], "organization_id": org_id, "name": "iGym Congleton",
+             "is_head_office": False, "created_at": datetime.now(timezone.utc).isoformat()},
+        ])
+        # Call /api/sites as the non-privileged user — auto-create should fire.
+        r = httpx.get(f"{API_URL}/api/sites", headers=make_headers(user_id), timeout=30)
+        assert r.status_code == 200, r.text
+        # The HQ should now exist in db.sites regardless of whether THIS user
+        # sees it (they might be filtered by allowed_site_ids).
+        hq = db.sites.find_one({"organization_id": org_id, "is_head_office": True})
+        assert hq is not None
+        assert hq["name"].endswith(" Head Office")
+        assert hq["auto_created"] is True
+    finally:
+        db.users.delete_many({"organization_id": org_id})
+        db.sites.delete_many({"organization_id": org_id})
+        db.organizations.delete_one({"id": org_id})
+
+
 # ── Invite — delivery=reset_link path ─────────────────────────────
 
 def test_invite_with_reset_link_delivery_returns_invite_url(org_with_owner, make_headers, db):

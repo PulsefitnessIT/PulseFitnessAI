@@ -24,37 +24,53 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
     if not org_id:
         return {"sites": []}
 
-    # Iter 216h15 — auto-create a real Head Office site when an org has
-    # ≥1 site but none is flagged `is_head_office`. Head Office is a
-    # PROPER site (sales/marketing/admin staff are assigned to it, even
-    # though it usually has no equipment), so it must be persisted in
-    # `db.sites` rather than synthesised on read. Idempotent: only runs
-    # when there are real sites AND no real HQ already exists.
+    # Iter 216h15 / 216h32 — auto-create a real Head Office site when an
+    # org has ≥1 site but none is flagged `is_head_office`. Head Office
+    # is a PROPER site (sales/marketing/admin staff are assigned to it,
+    # even though it usually has no equipment), so it must be persisted
+    # in `db.sites` rather than synthesised on read. Idempotent: only
+    # runs when there are real sites AND no real HQ already exists.
+    #
+    # Iter 216h32 — dropped the `is_privileged` gate. Lee's production
+    # incident (Pulse Fitness · iGym Carshalton / Congleton, no HQ row)
+    # showed that gating auto-create on a narrow role allow-list silently
+    # skipped the insert whenever the operator's role wasn't exactly
+    # owner/manager (e.g. legacy roles like "admin" or "site_manager").
+    # Auto-create is idempotent and harmless for non-privileged callers —
+    # they just won't see the HQ themselves until an owner visits.
     role = (user.get("role") or "").lower()
     is_privileged = (
         role in ("owner", "manager", "master_admin", "master")
         or bool(user.get("is_master_admin"))
     )
-    if is_privileged:
-        existing = await db.sites.find(
-            {"organization_id": org_id}, {"_id": 0, "id": 1, "is_head_office": 1},
-        ).to_list(200)
-        if existing and not any(bool(s.get("is_head_office")) for s in existing):
-            org_doc = await db.organizations.find_one(
-                {"id": org_id}, {"_id": 0, "name": 1, "address": 1},
+    existing = await db.sites.find(
+        {"organization_id": org_id}, {"_id": 0, "id": 1, "is_head_office": 1},
+    ).to_list(200)
+    if existing and not any(bool(s.get("is_head_office")) for s in existing):
+        org_doc = await db.organizations.find_one(
+            {"id": org_id}, {"_id": 0, "name": 1, "address": 1},
+        )
+        if org_doc:
+            hq_id = str(uuid.uuid4())
+            await db.sites.insert_one({
+                "id": hq_id,
+                "organization_id": org_id,
+                "name": f"{org_doc.get('name', 'Head Office')} Head Office",
+                "address": org_doc.get("address", ""),
+                "is_head_office": True,
+                "default_location": "Head Office",
+                "auto_created": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        else:
+            # Diagnostic — should never happen since the user's
+            # organization_id always matches a real org doc, but log it
+            # so we can spot mis-linked accounts.
+            import logging
+            logging.warning(
+                "auto_create_hq.skipped: org_doc missing for org_id=%s user=%s",
+                org_id, user.get("email"),
             )
-            if org_doc:
-                hq_id = str(uuid.uuid4())
-                await db.sites.insert_one({
-                    "id": hq_id,
-                    "organization_id": org_id,
-                    "name": f"{org_doc.get('name', 'Head Office')} Head Office",
-                    "address": org_doc.get("address", ""),
-                    "is_head_office": True,
-                    "default_location": "Head Office",
-                    "auto_created": True,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                })
 
     sites = await db.sites.find(
         {"organization_id": org_id}, {"_id": 0}
