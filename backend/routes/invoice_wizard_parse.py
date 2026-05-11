@@ -113,7 +113,7 @@ async def parse_invoice_for_wizard(file: UploadFile = File(...), user: dict = De
     fallback) and image uploads directly."""
     require_master_admin(user)
     from utils.file_validation import validate_upload
-    from routes.equipment_import import extract_invoice_smart
+    from routes.equipment_import import extract_invoice_smart, match_supplier
 
     data = await file.read()
     allowed = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
@@ -199,5 +199,18 @@ async def parse_invoice_for_wizard(file: UploadFile = File(...), user: dict = De
         "equipment": equipment,
         "equipment_count": len(equipment),
         "supplier_name": extracted.get("supplier_name", ""),
+        "supplier_vat_number": extracted.get("supplier_vat_number", ""),
+        "supplier_company_number": extracted.get("supplier_company_number", ""),
+        "customer_name": extracted.get("customer_name", ""),
+        "customer_reference": extracted.get("customer_reference", ""),
+        "due_date": extracted.get("due_date", ""),
+        "payment_terms": extracted.get("payment_terms", ""),
+        "bank_details": extracted.get("bank_details") or {},
+        "totals": extracted.get("totals") or {},
         "invoice_number": extracted.get("invoice_number", ""),
+        "matched_supplier": await match_supplier(
+            user.get("organization_id"),
+            extracted.get("supplier_name", ""),
+            extracted.get("supplier_vat_number", "") or "",
+        ),
     }

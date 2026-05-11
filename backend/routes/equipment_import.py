@@ -64,7 +64,24 @@ Return ONLY valid JSON with this structure:
   "invoice_number": "string",
   "install_date": "dd/mm/yyyy",
   "supplier_name": "string",
+  "supplier_vat_number": "string or empty (UK suppliers usually 9 digits)",
+  "supplier_company_number": "string or empty",
   "delivery_address": "string (multiline, as-printed on invoice — used for site postcode parsing)",
+  "customer_name": "string (the 'Bill To' / 'Invoice Address' company name — NOT the delivery site)",
+  "customer_reference": "string or empty (PO ref / customer code printed under 'Please quote on payment')",
+  "due_date": "dd/mm/yyyy or empty",
+  "payment_terms": "string or empty (e.g. '7 days from document date', 'Net 30')",
+  "bank_details": {{
+    "bank_name": "string or empty",
+    "account_name": "string or empty",
+    "account_number": "string or empty",
+    "sort_code": "string or empty"
+  }},
+  "totals": {{
+    "net": number,
+    "vat": number,
+    "gross": number
+  }},
   "warranty_code": "WAR-XXX-YYY or empty",
   "warranty_description": "e.g. 3 Year Gold Level Warranty or empty",
   "equipment": [
@@ -84,9 +101,17 @@ INVOICE TEXT:
 """
 
 
+# Iter 216h12 — raised from 12 000 → 40 000 to cover multi-page Pulse
+# Fitness invoices (Carshalton was 24 090 chars; previous cap dropped
+# the second half — every line item past page 5 plus the totals / bank /
+# customer-ref blocks). Haiku-4.5 input window is 200 K tokens; 40 K
+# chars ≈ 10 K tokens, well within budget.
+_PDF_TEXT_MAX_CHARS = 40_000
+
+
 def _build_extraction_prompt(pdf_text: str) -> str:
-    """Build the AI extraction prompt with truncated invoice text."""
-    return _EXTRACTION_TEMPLATE.format(pdf_text=pdf_text[:12000])
+    """Build the AI extraction prompt with the (almost) full invoice text."""
+    return _EXTRACTION_TEMPLATE.format(pdf_text=pdf_text[:_PDF_TEXT_MAX_CHARS])
 WARRANTY_SLA_MAP = {
     "AAA": "Platinum",
     "BBB": "Gold",
@@ -404,6 +429,61 @@ async def extract_invoice_smart(data: bytes, content_type: str | None) -> dict:
     return result
 
 
+def _normalise_supplier_name(name: str) -> str:
+    """Lowercase + strip company suffixes + non-alphanum so 'Pulse
+    Fitness Limited' / 'PULSE FITNESS LTD.' / 'Pulse Fitness' all
+    collapse to the same key for fuzzy matching."""
+    if not name:
+        return ""
+    n = name.lower().strip()
+    for suffix in (" limited", " ltd.", " ltd", " plc", " inc", " inc.", " llc", " gmbh", " (uk)"):
+        if n.endswith(suffix):
+            n = n[: -len(suffix)].strip()
+    return re.sub(r"[^a-z0-9]+", "", n)
+
+
+async def match_supplier(
+    org_id: str, supplier_name: str, vat_number: str = "",
+) -> dict | None:
+    """Iter 216h12 — look up an existing supplier in the org's directory
+    that matches the AI-extracted `supplier_name`. Match priority:
+
+      1. Exact (case-insensitive) name match.
+      2. VAT number match (if the AI got the VAT number AND we stored it).
+      3. Normalised name match (strips 'Ltd', punctuation, spaces).
+
+    Returns the matched supplier doc (no `_id`) or None.
+    """
+    if not org_id or not supplier_name:
+        return None
+    org_filter = {"organization_id": org_id}
+    # 1. Exact, case-insensitive name (anchored regex)
+    safe = re.escape(supplier_name.strip())
+    match = await db.suppliers.find_one(
+        {**org_filter, "name": {"$regex": f"^{safe}$", "$options": "i"}},
+        {"_id": 0},
+    )
+    if match:
+        return match
+    # 2. VAT match
+    if vat_number:
+        match = await db.suppliers.find_one(
+            {**org_filter, "vat_number": vat_number.strip()},
+            {"_id": 0},
+        )
+        if match:
+            return match
+    # 3. Normalised name match (load shortlist + compare in python — small N)
+    target = _normalise_supplier_name(supplier_name)
+    if not target:
+        return None
+    cursor = db.suppliers.find(org_filter, {"_id": 0, "id": 1, "name": 1, "vat_number": 1, "email": 1, "phone": 1, "address": 1})
+    async for sup in cursor:
+        if _normalise_supplier_name(sup.get("name", "")) == target:
+            return sup
+    return None
+
+
 def _enrich_equipment_dates(extracted: dict) -> dict:
     """Add warranty, SLA, and service dates to each equipment item."""
     install_date = extracted.get("install_date", "")
@@ -511,6 +591,16 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
         _build_import_record(import_id, user["id"], file.filename, extracted, warranty_info, storage)
     )
 
+    # Iter 216h12 — auto-match the extracted supplier against the org's
+    # supplier directory so the wizard can offer "Link to existing
+    # Pulse Fitness supplier" instead of forcing the operator to create
+    # a duplicate.
+    matched_supplier = await match_supplier(
+        user.get("organization_id"),
+        extracted.get("supplier_name", ""),
+        extracted.get("supplier_vat_number", "") or "",
+    )
+
     return {
         "import_id": import_id,
         "account_ref": extracted.get("account_ref", ""),
@@ -518,12 +608,22 @@ async def parse_invoice(file: UploadFile = File(...), user=Depends(get_current_u
         "invoice_number": extracted.get("invoice_number", ""),
         "install_date": extracted.get("install_date", ""),
         "supplier_name": extracted.get("supplier_name", ""),
+        "supplier_vat_number": extracted.get("supplier_vat_number", ""),
+        "supplier_company_number": extracted.get("supplier_company_number", ""),
+        "customer_name": extracted.get("customer_name", ""),
+        "customer_reference": extracted.get("customer_reference", ""),
+        "due_date": extracted.get("due_date", ""),
+        "payment_terms": extracted.get("payment_terms", ""),
+        "bank_details": extracted.get("bank_details") or {},
+        "totals": extracted.get("totals") or {},
         "warranty_code": extracted.get("warranty_code", ""),
         "warranty_description": extracted.get("warranty_description", ""),
         "warranty_expiry": warranty_info["expiry_date"],
         "sla_name": warranty_info["sla"],
         "equipment": enriched_eq,
         "equipment_count": len(enriched_eq),
+        "matched_supplier": matched_supplier,
+        "matched_supplier_id": (matched_supplier or {}).get("id") or "",
     }
 
 
