@@ -2,15 +2,30 @@
  * Iter 216h17 — Brand context picker pill, lives in the Master Admin
  * top bar. Replaces the ad-hoc `gymaxisOnly` flag scattering across
  * sidebar/panel files.
+ *
+ * Iter 216h22 — `isPulseAdmin` prop. When the signed-in operator is a
+ * delegated Pulse Master Admin (`is_pulse_admin && !is_master_admin`)
+ * the picker is FORCED to "Pulse" on mount and rendered as a
+ * non-clickable scope pill so Pulse admins can never accidentally
+ * peek at GymAxis-only customers. GymAxis Master Admins keep the
+ * full toggle.
  */
 import React from 'react';
-import { ChevronDown, Globe2 } from 'lucide-react';
+import { ChevronDown, Globe2, Shield } from 'lucide-react';
 import { useBrandContext, BRAND_OPTIONS } from './BrandContext';
 
-export const BrandPicker = ({ compact = false }) => {
+export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
   const { brand, setBrand, brandShort, brandAccent } = useBrandContext();
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
+
+  // Force the brand to Pulse for Pulse-only admins on first mount and
+  // any time they somehow ended up on a different brand (e.g. stale
+  // localStorage from a previous GymAxis-master session in the same
+  // browser). Idempotent.
+  React.useEffect(() => {
+    if (isPulseAdmin && brand !== 'pulse') setBrand('pulse');
+  }, [isPulseAdmin, brand, setBrand]);
 
   React.useEffect(() => {
     if (!open) return undefined;
@@ -20,6 +35,23 @@ export const BrandPicker = ({ compact = false }) => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  // Pulse-only admins see a locked scope pill — no dropdown, no other
+  // brand options visible. Hover tooltip explains why.
+  if (isPulseAdmin) {
+    return (
+      <div
+        className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 text-sm font-medium shadow-sm"
+        style={{ borderColor: '#BFDBFE', color: '#1D4ED8', background: '#EFF6FF' }}
+        title="Pulse Master Admin scope — your account only sees Pulse Fitness data."
+        data-testid="master-admin-brand-picker-locked"
+      >
+        <Shield size={13} />
+        <span className="font-semibold tracking-tight">Pulse Fitness</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Scope locked</span>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="relative inline-block" data-testid="master-admin-brand-picker">

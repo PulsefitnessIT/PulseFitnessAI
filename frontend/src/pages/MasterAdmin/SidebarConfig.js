@@ -94,10 +94,11 @@ export const SIDEBAR_ITEMS = [
       { id: 'analytics',       label: 'Global analytics', icon: BarChart3 },
     ],
   },
-  // 7. Integrations — Orbit 4, Sicon, Stripe Connect (+ future hub)
+  // 7. Integrations — Hub + sub-pages (Iter 216h22 — Hub is now default).
   {
-    id: 'orbit4', label: 'Integrations', icon: Plug, group: 'main',
+    id: 'integrations-hub', label: 'Integrations', icon: Plug, group: 'main',
     subTabs: [
+      { id: 'integrations-hub',  label: 'Hub',           icon: Plug },
       { id: 'orbit4',            label: 'Orbit 4',       icon: ArrowLeftRight },
       { id: 'sicon-integration', label: 'Sicon Service', icon: ArrowLeftRight },
       { id: 'stripe-connect',    label: 'Stripe Connect', icon: Banknote },
@@ -166,9 +167,9 @@ export const LEGACY_SECTION_REDIRECTS = {
   'activation-funnel':  'organizations',
   'catalogue':          'catalogue',
   'custom-properties':  'catalogue',
-  'orbit4':             'orbit4',
-  'sicon-integration':  'orbit4',
-  'stripe-connect':     'orbit4',
+  'orbit4':             'integrations-hub',
+  'sicon-integration':  'integrations-hub',
+  'stripe-connect':     'integrations-hub',
   'pricing':            'finance',
   'org-billing':        'finance',
   'collections':        'finance',
@@ -205,6 +206,7 @@ export const sectionTitles = {
   'marketing-suite': 'Marketing suite',
   orbit4: 'Orbit 4',
   'sicon-integration': 'Sicon Service',
+  'integrations-hub': 'Integrations hub',
   roles: 'People directory',                    // Iter 216h17 — was "Roles & Access"
   'stripe-connect': 'Stripe Connect',
   support: 'Support tools',
@@ -259,6 +261,7 @@ export const sectionDescriptions = {
   'db-viewer': 'Read-only Mongo collection browser — search, paginate, and export.',
   catalogue: 'Cached manufacturer images, uploaded Pulse spec sheets, per-machine photo overrides.',
   'integration-health': 'Live status of every third-party service.',
+  'integrations-hub': 'All third-party connections in one screen — Stripe Connect, Sicon, Orbit 4 and Sage 200. Click any card to manage.',
   organizations: 'Customer organisations — Pulse Fitness, GymAxis. Click any row for a full drawer.',
   backfills: 'One-off maintenance jobs — preview, then commit. Powers data clean-up.',
   finance: 'Pricing, billing, payments, Stripe and CAPEX in one place.',

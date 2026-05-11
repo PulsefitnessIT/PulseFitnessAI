@@ -45,6 +45,7 @@ import IntegrationHealthPanel from './MasterAdmin/IntegrationHealthPanel';
 import EmailHealthPill from './MasterAdmin/EmailHealthPill';
 import CommandPalette from './MasterAdmin/CommandPalette';
 import AdminOrganizations from './MasterAdmin/AdminOrganizations';
+import IntegrationsHub from './MasterAdmin/IntegrationsHub';
 
 import AdminSidebar from './MasterAdmin/AdminSidebar';
 import OverviewSection from './MasterAdmin/OverviewSection';
@@ -429,6 +430,12 @@ const MasterAdminPage = ({ onBack }) => {
         // `orgsProps` bundle keeps every action (status / tier /
         // features / users / drawer) wired identically.
         return <AdminOrganizations {...orgsProps} />;
+      case 'integrations-hub':
+        // Iter 216h22 — P5 Integrations Hub. 4 cards (Stripe Connect /
+        // Sicon / Orbit 4 / Sage 200) with brand status pills + a
+        // right-hand drawer that embeds the full existing console page
+        // for the picked integration (preserving every mapping field).
+        return <IntegrationsHub isPulseAdmin={isPulseAdmin} />;
       default:
         return null;
     }
@@ -497,7 +504,7 @@ const MasterAdminPage = ({ onBack }) => {
               }}
             />
             <EmailHealthPill />
-            <BrandPicker />
+            <BrandPicker isPulseAdmin={isPulseAdmin} />
             <Button
               size="sm"
               variant="outline"

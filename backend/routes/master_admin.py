@@ -1272,6 +1272,160 @@ async def org_integration_health(org_id: str, user: dict = Depends(get_current_u
         },
     }
 
+@router.get("/master-admin/integrations-hub")
+async def integrations_hub(user: dict = Depends(get_current_user)):
+    """Iter 216h22 — single round-trip status summary for the new
+    Integrations Hub page (P5 redesign).
+
+    READ-ONLY aggregate of the 4 third-party connections Master Admins
+    care about most:
+      • stripe_connect — platform-level Stripe Express OAuth, plus a
+        count of orgs that have completed onboarding.
+      • sicon          — Sicon Service (Sage 200 ledger) — config doc
+        in `db.integrations` + per-org Sicon customer-number coverage.
+      • orbit4         — Orbit 4 stock master — same shape as Sicon.
+      • sage200        — Per-org Sage customer numbers (Sage is wired
+        via the Sicon bridge — no separate platform creds).
+
+    Per-row fields:
+      • enabled             — platform-level toggle
+      • status              — "connected" | "degraded" | "not_configured" | "down"
+      • last_event_at       — most recent integration_logs timestamp
+      • events_24h          — count of integration_logs in the last 24 h
+      • errors_24h          — count where success=False in last 24 h
+      • orgs_configured     — number of orgs that have the per-org ref
+      • orgs_total          — total org count (for the brand currently filtered)
+      • brand               — "all" | "pulse" | "gymaxis" — applied
+                              to the orgs_configured/total counts.
+    """
+    require_master_admin(user)
+    from utils.brand_filter import brand_filter_clause
+    brand = "all"
+    # Pulse-only callers are pinned to the Pulse brand server-side too.
+    if is_pulse_only(user):
+        brand = "pulse"
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff_iso = cutoff.isoformat()
+
+    async def _row(integration_id: str, ref_field: str, label: str):
+        """Build a per-integration row using the `integrations` and
+        `integration_logs` collections plus per-org ref coverage."""
+        cfg = await db.integrations.find_one({"integration_id": integration_id}, {"_id": 0}) or {}
+        enabled = bool(cfg.get("enabled", False))
+        events_24h = await db.integration_logs.count_documents({
+            "integration_id": integration_id, "timestamp": {"$gte": cutoff_iso},
+        })
+        errors_24h = await db.integration_logs.count_documents({
+            "integration_id": integration_id, "timestamp": {"$gte": cutoff_iso}, "success": False,
+        })
+        # Most recent event (any). For the "Last sync" pill.
+        last_doc = await db.integration_logs.find_one(
+            {"integration_id": integration_id},
+            {"_id": 0, "timestamp": 1, "success": 1},
+            sort=[("timestamp", -1)],
+        )
+
+        # Per-org ref coverage. Scope to the brand filter when present.
+        org_query: dict = {}
+        if brand == "pulse":
+            org_query = brand_filter_clause("pulse")
+        elif brand == "gymaxis":
+            org_query = brand_filter_clause("gymaxis")
+
+        orgs_total = await db.organizations.count_documents(org_query)
+        ref_query = {**org_query, ref_field: {"$exists": True, "$ne": ""}}
+        orgs_configured = await db.organizations.count_documents(ref_query) if ref_field else 0
+
+        if not enabled and not orgs_configured:
+            status = "not_configured"
+        elif errors_24h > 0 and errors_24h >= max(1, events_24h // 5):
+            status = "degraded"
+        elif enabled:
+            status = "connected"
+        else:
+            status = "not_configured"
+
+        return {
+            "key": integration_id,
+            "label": label,
+            "enabled": enabled,
+            "status": status,
+            "last_event_at": (last_doc or {}).get("timestamp"),
+            "last_event_success": (last_doc or {}).get("success"),
+            "events_24h": events_24h,
+            "errors_24h": errors_24h,
+            "orgs_configured": orgs_configured,
+            "orgs_total": orgs_total,
+            "ref_field": ref_field,
+        }
+
+    sicon_row  = await _row("sicon",  "sicon_customer_account_number", "Sicon Service (Sage 200 ledger)")
+    orbit_row  = await _row("orbit4", "orbit4_customer_id",             "Orbit 4 (stock master)")
+
+    # Stripe Connect is platform-level + per-org onboarding state.
+    stripe_cfg = await db.app_config.find_one({"_id": "stripe_connect"}, {"_id": 0}) or {}
+    stripe_enabled = bool(stripe_cfg.get("enabled", True))  # Stripe is on unless explicitly off
+    stripe_org_query: dict = {"stripe_connect_account_id": {"$exists": True, "$ne": ""}}
+    if brand == "pulse":
+        stripe_org_query = {**brand_filter_clause("pulse"), **stripe_org_query}
+    elif brand == "gymaxis":
+        stripe_org_query = {**brand_filter_clause("gymaxis"), **stripe_org_query}
+    stripe_orgs_configured = await db.organizations.count_documents(stripe_org_query)
+    stripe_orgs_total = await db.organizations.count_documents(
+        brand_filter_clause(brand) if brand != "all" else {},
+    )
+    stripe_status = "connected" if stripe_orgs_configured > 0 else ("not_configured" if not stripe_enabled else "degraded")
+    stripe_row = {
+        "key": "stripe_connect",
+        "label": "Stripe Connect",
+        "enabled": stripe_enabled,
+        "status": stripe_status,
+        "last_event_at": None,
+        "last_event_success": None,
+        "events_24h": 0,
+        "errors_24h": 0,
+        "orgs_configured": stripe_orgs_configured,
+        "orgs_total": stripe_orgs_total,
+        "platform_fee_pct": stripe_cfg.get("platform_fee_pct"),
+        "ref_field": "stripe_connect_account_id",
+    }
+
+    # Sage 200 is sub-integration: customer numbers stored on the org
+    # doc, posts ride the Sicon bridge.
+    sage_org_query = {**(brand_filter_clause(brand) if brand != "all" else {}), "sage_customer_number": {"$exists": True, "$ne": ""}}
+    sage_orgs_configured = await db.organizations.count_documents(sage_org_query)
+    sage_status = "connected" if sage_orgs_configured > 0 else "not_configured"
+    sage_row = {
+        "key": "sage200",
+        "label": "Sage 200 (customer ledger)",
+        "enabled": sage_orgs_configured > 0,
+        "status": sage_status,
+        "last_event_at": None,
+        "last_event_success": None,
+        "events_24h": 0,
+        "errors_24h": 0,
+        "orgs_configured": sage_orgs_configured,
+        "orgs_total": stripe_orgs_total,
+        "ref_field": "sage_customer_number",
+    }
+
+    summary = {
+        "connected":      sum(1 for r in (stripe_row, sicon_row, orbit_row, sage_row) if r["status"] == "connected"),
+        "degraded":       sum(1 for r in (stripe_row, sicon_row, orbit_row, sage_row) if r["status"] == "degraded"),
+        "not_configured": sum(1 for r in (stripe_row, sicon_row, orbit_row, sage_row) if r["status"] == "not_configured"),
+        "total":          4,
+    }
+
+    return {
+        "brand": brand,
+        "integrations": [stripe_row, sicon_row, orbit_row, sage_row],
+        "summary": summary,
+    }
+
+
+
+
 
 
 
