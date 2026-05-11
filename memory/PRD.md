@@ -1,3 +1,51 @@
+## Iter 216h19 — Master Admin redesign Phase 3: People SSoT consolidation (Feb 11, 2026)
+
+The biggest single-source-of-truth win of the redesign. Four legacy People panels collapsed into one **People Directory** that operators can actually onboard staff against this week.
+
+### What shipped (frontend only — backend already merges correctly since iter 215ev)
+- **`PeopleDirectory.js`** — single React surface that absorbs the per-row responsibilities of:
+  - `AdminUsers` (cross-org user list)
+  - `GlobalUsersPanel` (archive / purge / leaver flow — preserved as a legacy fallback tab)
+  - `AdminPulseAdmins` (dual-role Pulse Master Admins — still has its own panel for the matrix; surfaces as rows in Directory)
+  - `AdminCRMUsers` (CRM-only contacts — surfaces as rows with the `CRM` portal badge)
+- **Components inside the Directory**:
+  - **6-tile stats strip** — Total active · Pulse admins · Owners · Staff/Managers · CRM-only · Role mismatches.
+  - **6 filter pills** with live counts — Everyone / Pulse Admins / Owners / Staff & Managers / CRM contacts / Archived. Pills are colour-coded to match the role-chip palette.
+  - **Search box** scoped to name + email + organisation name.
+  - **Role chips** (Pulse Admin = blue, Owner = purple, Manager = emerald, Staff = zinc, Master Admin = orange).
+  - **Portal badges** per row (Service Portal / CRM / Pulse Platform).
+  - **Role mismatch warning** (red `invited as X` chip) when `invited_role ≠ current_role` (iter 216h3 detection surfaced here).
+  - **Site-pin hint** — "N site(s) pinned" inline when `allowed_site_ids` is non-empty.
+- **`AdminRoles.js` restructured** — Directory is now the FIRST tab (default). Permissions matrix, Service Desk team, Pulse Master Admins, and the legacy GlobalUsersPanel each get their own clearly-labelled tab. "Legacy users panel" name explicitly flags it as the pre-P3 surface so operators know it's there as a safety net only.
+- **Brand-aware** — the Directory consumes the brand-filtered `users` array from `MasterAdminPage.loadData` (iter 216h18). Flipping the brand picker re-filters everything; the brand label is echoed in the directory subtitle.
+
+### Verified live on preview
+Master Admin → People → Directory rendered cleanly with:
+- 101 total active, 20 Pulse admins, 49 owners, 30 staff/managers, 2 CRM-only, 0 role mismatches.
+- Pill click "Owners" → 49 rows filtered correctly.
+- Search "admin" chained with the Owners pill → 9 rows.
+- Legacy users panel tab still accessible.
+- Sidebar IA from P1 intact (8 entries).
+
+### Important consolidation accounting
+- **Before P3**: a single human was renderable in 4 different lists with 4 divergent action sets.
+- **After P3**: one row per (email × org_id), portal badges show which systems they have access to, click any row to deep-drill via existing UserEditDialog (Profile / Sites / Permissions / Activity tabs already exist from iter 216h15 + 216h16).
+- **No DB changes** — the dedupe / merge already happens server-side in `/api/master-admin/users`. P3 is pure UX consolidation.
+
+### ⚠ Action required
+1. **Redeploy** preview → production.
+2. As Master Admin on `gymaxisai.com`: People → Directory should land you on the new unified list. Use it for the staff onboarding this week.
+3. If anything feels missing, the "Legacy users panel" sub-tab is still 1 click away as a safety net for the first release.
+
+### Remaining roadmap
+- 🟢 P4 — Collapse 3 Organisation panels (AdminOrganizations + AdminPulse + Memberships orgs tab).
+- 🟠 P5 — Integrations hub (5 surfaces → 1 page).
+- 🔵 P6 — Staff Onboarding wizard.
+- 🔵 P3-followup — wire the Directory's row click into the existing UserEditDialog drawer (currently calls `onReload`).
+
+---
+
+
 ## Iter 216h18 — Master Admin redesign Phase 2: Brand Context wired into data layer (Feb 11, 2026)
 
 P1 (iter 216h17) shipped the UI scaffolding for the brand picker. P2 wires the picker into the actual data queries — operators flipping Pulse / GymAxis / All now changes what data is loaded, not just the pill label.

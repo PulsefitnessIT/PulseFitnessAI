@@ -1,30 +1,39 @@
 /**
- * AdminRoles — combines GymAxis-master-only role-management surfaces under
- * a single "Roles" sidebar entry:
+ * AdminRoles — Master Admin "People" hub.
  *
- *   1. Service Desk Members  (Pulse Fitness internal ops staff with /service-desk access)
- *   2. Pulse Master Admins   (delegated platform admins, see scoped /master-admin)
- *   3. Permissions matrix    (SOC 2 view of who's attached where)
- *   4. Users                 (Iter 216h9 — cross-org user directory with archive + delete + leaver flow)
+ * Iter 216h19 (P3) — leads with the new unified People Directory
+ * (Single source of truth). Legacy detail panels live behind their
+ * own sub-tabs for one release as a safety net.
  *
- * Each lives behind its own sub-tab pill.
+ * Tab order:
+ *   1. Directory          — NEW: unified list, role chips, filters, search.
+ *   2. Permissions matrix — Cross-org attach view (SOC 2).
+ *   3. Service Desk team  — Pulse Fitness internal ops staff.
+ *   4. Pulse Master Admins — delegated platform admins.
+ *   5. Legacy: Users      — pre-P3 GlobalUsersPanel (kept for archive/purge UI).
+ *
+ * Once operators are happy with the Directory, the "Legacy" tab is
+ * removed in a follow-up iter and GlobalUsersPanel's UX moves into
+ * the Directory's drawer.
  */
 import React, { useState } from 'react';
-import { UserCog, KeyRound, Grid3x3, Users } from 'lucide-react';
+import { Users, Grid3x3, UserCog, KeyRound, FolderArchive } from 'lucide-react';
 import AdminServiceDesk from './AdminServiceDesk';
 import AdminPulseAdmins from './AdminPulseAdmins';
 import PermissionsMatrix from './PermissionsMatrix';
 import GlobalUsersPanel from './GlobalUsersPanel';
+import PeopleDirectory from './PeopleDirectory';
 
 const TABS = [
-  { id: 'service-desk', label: 'Service Desk Members', icon: UserCog },
-  { id: 'pulse-admins', label: 'Pulse Master Admins', icon: KeyRound },
+  { id: 'directory', label: 'Directory', icon: Users },
   { id: 'matrix', label: 'Permissions matrix', icon: Grid3x3 },
-  { id: 'users', label: 'Users', icon: Users },
+  { id: 'service-desk', label: 'Service Desk team', icon: UserCog },
+  { id: 'pulse-admins', label: 'Pulse Master Admins', icon: KeyRound },
+  { id: 'legacy-users', label: 'Legacy users panel', icon: FolderArchive },
 ];
 
 const AdminRoles = ({ API, globalUsersProps }) => {
-  const [tab, setTab] = useState('service-desk');
+  const [tab, setTab] = useState('directory');
 
   return (
     <div className="space-y-6" data-testid="admin-roles-page">
@@ -45,10 +54,16 @@ const AdminRoles = ({ API, globalUsersProps }) => {
         ))}
       </div>
 
+      {tab === 'directory' && (
+        <PeopleDirectory
+          users={globalUsersProps?.users || []}
+          onOpenUser={(u) => globalUsersProps?.onOpenUser?.(u) ?? globalUsersProps?.onReload?.()}
+        />
+      )}
+      {tab === 'matrix' && <PermissionsMatrix API={API} />}
       {tab === 'service-desk' && <AdminServiceDesk API={API} />}
       {tab === 'pulse-admins' && <AdminPulseAdmins API={API} />}
-      {tab === 'matrix' && <PermissionsMatrix API={API} />}
-      {tab === 'users' && <GlobalUsersPanel {...(globalUsersProps || {})} />}
+      {tab === 'legacy-users' && <GlobalUsersPanel {...(globalUsersProps || {})} />}
     </div>
   );
 };
