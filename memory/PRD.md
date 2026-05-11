@@ -1,3 +1,50 @@
+## Iter 216h31 — Head Office selectable for owners (multi-site orgs) — UX parity across all dashboards (Feb 11, 2026)
+
+Closes P1 backlog item *"Head Office site not selectable for owners"*.
+
+### Root cause
+Iter 216h15 already shipped the backend foundations: `/api/sites` auto-creates a real `db.sites` row flagged `is_head_office=true` when an org has ≥1 site but none is HQ, and sorts HQ to the top of the response. The `LiteDashboardPage` (rendered on `/pulse`) consumed this via the canonical `<SiteSwitcher>` component with `All Operations Sites` + HQ-star UI.
+
+But on the GymAxis Pro `/dashboard` route, the **`Navbar`** had its own bespoke inline site dropdown that:
+- Didn't render the HQ star icon,
+- Didn't include the "All Operations Sites" pseudo-entry,
+- Didn't apply HQ-first sorting visually,
+so legacy GymAxis-Pro owners with multi-site orgs felt the regression even though their Pulse-Pro counterparts had everything.
+
+### What shipped
+
+#### Frontend
+- **`Navbar.js`** — replaced the bespoke 38-line inline dropdown (`site-switcher-btn` / `site-dropdown` / `site-option-*`) with the canonical `<SiteSwitcher>` component (`site-switcher-trigger` + `site-switcher-menu` + `site-switcher-item-*`). Now every owner sees:
+  - HQ row with a star icon, always sorted first.
+  - Same dropdown styling and viewport-safe positioning everywhere.
+  - (No `All Operations Sites` entry on `/dashboard` because that route doesn't yet have an aggregated overview — single-site picking only.)
+- Removed unused `showSiteMenu` state.
+
+#### Backend
+- **`/api/master-admin/organizations/{org_id}/sites`** — added HQ-first sort (`enriched.sort(key=lambda s: (not bool(s.get("is_head_office")), 0))`) so the Master Admin org drawer's Sites tab renders Head Office at the top. Matches the operator-facing `/api/sites` behaviour.
+
+### Verified end-to-end (testing agent — `/app/test_reports/iteration_216h31.json`)
+- **Backend success rate: 100%** (13/13 — `test_iter_216h15_team_management.py`).
+- **Frontend success rate: 100%**:
+  - SiteSwitcher trigger renders for Bob (Strong Fitness, 2 sites).
+  - "All Operations Sites" entry visible with "overview" badge.
+  - HQ row "Strong Fitness Head Office" shows ★ icon and sits at index 0.
+  - Non-HQ site "TEST_S2_Site" sits at index 1.
+  - Pick a site → trigger label updates.
+- Lint clean (frontend + backend).
+
+### Files touched
+- `/app/frontend/src/components/shared/Navbar.js` (~40 LOC removed, 12 LOC added; SiteSwitcher import added)
+- `/app/backend/routes/sites.py` (3 LOC added — HQ sort for master-admin endpoint)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. As Lee on `gymaxisai.com`: top-bar site switcher now shows **★ Head Office** first, followed by the rest of the sites. No need to remember which site has the HQ flag — the platform makes it the default.
+
+---
+
+
+
 ## Iter 216h30 — Empty-state pass (CRM + Spec Sheets) + Operator portal Button migration batch 2 (Feb 11, 2026)
 
 Two deliverables in one push.

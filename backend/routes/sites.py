@@ -454,6 +454,9 @@ async def admin_list_org_sites(org_id: str, user: dict = Depends(get_current_use
         enriched.append({**site, "equipment_count": eq_count, "issue_count": issue_count})
 
     if enriched:
+        # Iter 216h31 — mirror /api/sites: sort HQ to the top so the
+        # Master Admin org drawer's Sites tab renders Head Office first.
+        enriched.sort(key=lambda s: (not bool(s.get("is_head_office")), 0))
         return {"sites": enriched}
 
     org = await db.organizations.find_one(
