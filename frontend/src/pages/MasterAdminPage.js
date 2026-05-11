@@ -44,6 +44,7 @@ import RecentErrorsPanel from './MasterAdmin/RecentErrorsPanel';
 import IntegrationHealthPanel from './MasterAdmin/IntegrationHealthPanel';
 import EmailHealthPill from './MasterAdmin/EmailHealthPill';
 import CommandPalette from './MasterAdmin/CommandPalette';
+import AdminOrganizations from './MasterAdmin/AdminOrganizations';
 
 import AdminSidebar from './MasterAdmin/AdminSidebar';
 import OverviewSection from './MasterAdmin/OverviewSection';
@@ -419,6 +420,15 @@ const MasterAdminPage = ({ onBack }) => {
         return <RecentErrorsPanel />;
       case 'integration-health':
         return <IntegrationHealthPanel />;
+      case 'organizations':
+        // Iter 216h21 — direct render for the Organisations sidebar
+        // entry. Previously this lived behind the Overview surface's
+        // sub-tab and only showed up via the OverviewSection's "Service
+        // Portal · Organisations" inner tab — which the iter 216h17
+        // sidebar redesign no longer routes to. The same shared
+        // `orgsProps` bundle keeps every action (status / tier /
+        // features / users / drawer) wired identically.
+        return <AdminOrganizations {...orgsProps} />;
       default:
         return null;
     }

@@ -27,6 +27,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useBackGestureClose } from '@/lib/useBackGestureClose';
 import AddressFields from '@/components/shared/AddressFields';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
+import OrgIntegrationsTab from './OrgIntegrationsTab';
 
 // Iter 216bg — module-scope API base for the user-credentials side-drawer
 // handlers (Reset Link, Temp Password). Several inner onClick handlers
@@ -978,13 +979,14 @@ useEffect(() => {
                   }}
                   className="px-5 pt-3"
                 >
-                  <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full bg-slate-100 h-auto" data-testid={`org-manage-tabs-${org.id}`}>
-                    <TabsTrigger value="details"  data-testid={`org-tab-details-${org.id}`}>Details</TabsTrigger>
-                    <TabsTrigger value="users"    data-testid={`org-tab-users-${org.id}`}>Users</TabsTrigger>
-                    <TabsTrigger value="features" data-testid={`org-tab-features-${org.id}`}>Features</TabsTrigger>
-                    <TabsTrigger value="sites"    data-testid={`org-tab-sites-${org.id}`}>Sites</TabsTrigger>
-                    <TabsTrigger value="billing"  data-testid={`org-tab-billing-${org.id}`}>Billing</TabsTrigger>
-                    <TabsTrigger value="audit"    data-testid={`org-tab-audit-${org.id}`}>Audit</TabsTrigger>
+                  <TabsList className="grid grid-cols-4 sm:grid-cols-7 w-full bg-slate-100 h-auto" data-testid={`org-manage-tabs-${org.id}`}>
+                    <TabsTrigger value="details"      data-testid={`org-tab-details-${org.id}`}>Profile</TabsTrigger>
+                    <TabsTrigger value="sites"        data-testid={`org-tab-sites-${org.id}`}>Sites</TabsTrigger>
+                    <TabsTrigger value="users"        data-testid={`org-tab-users-${org.id}`}>People</TabsTrigger>
+                    <TabsTrigger value="features"     data-testid={`org-tab-features-${org.id}`}>Modules</TabsTrigger>
+                    <TabsTrigger value="billing"      data-testid={`org-tab-billing-${org.id}`}>Billing</TabsTrigger>
+                    <TabsTrigger value="integrations" data-testid={`org-tab-integrations-${org.id}`}>Integrations</TabsTrigger>
+                    <TabsTrigger value="audit"        data-testid={`org-tab-audit-${org.id}`}>Activity</TabsTrigger>
                   </TabsList>
                 </Tabs>
 
@@ -1404,6 +1406,16 @@ useEffect(() => {
  </p>
  </div>
  )}
+
+{/* NEW Tab — Integrations (Iter 216h21).
+    Per-org connection snapshot for Stripe Connect, Sicon, Orbit 4
+    and Sage 200, with one-click jumps to the global consoles. */}
+{isExpanded && expandedView === 'integrations' && (
+<div className="bg-white" data-testid={`org-integrations-panel-${org.id}`}>
+<OrgIntegrationsTab org={org} />
+</div>
+)}
+
 
  {/* NEW Tab — Audit log scoped to this org. */}
  {isExpanded && expandedView === 'audit' && (

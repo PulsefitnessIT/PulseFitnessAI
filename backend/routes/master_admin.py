@@ -1204,6 +1204,77 @@ async def _create_org_user(org: dict, email: str, full_name: str, password: str,
     return "CRM" if is_crm else "Service Portal"
 
 
+@router.get("/master-admin/organizations/{org_id}/integration-health")
+async def org_integration_health(org_id: str, user: dict = Depends(get_current_user)):
+    """Iter 216h21 — per-org integration health snapshot for the
+    Organisations drawer's new Integrations tab (P4 redesign).
+
+    READ-ONLY. Surfaces the connection state of every third-party
+    integration that touches a single organisation:
+      • stripe_connect — Stripe Express onboarding + platform fee
+      • sicon          — Sicon Service (Sage 200 ledger) account ref
+      • orbit4         — Orbit 4 stock / equipment master
+      • sage200        — Sage 200 customer ledger
+
+    The canonical editors for these connections live on the global
+    Integrations pages — this endpoint just returns the per-org slice
+    so operators don't have to bounce around the console.
+    """
+    require_master_admin(user)
+    org = await assert_org_in_pulse_scope(user, org_id)
+
+    # Stripe Connect — pull whatever's persisted on the org doc plus
+    # the platform-fee setting from `app_config` if available.
+    stripe_account_id = org.get("stripe_connect_account_id") or org.get("stripe_account_id") or ""
+    stripe_charges_enabled = bool(org.get("stripe_charges_enabled", False))
+    stripe_payouts_enabled = bool(org.get("stripe_payouts_enabled", False))
+    platform_cfg = await db.app_config.find_one({"_id": "stripe_connect"}, {"_id": 0}) or {}
+    platform_fee_pct = platform_cfg.get("platform_fee_pct")
+
+    # Sicon — configured iff the org has a customer account ref AND
+    # the platform-level Sicon integration is in `configured` state.
+    sicon_platform = await _integration_status("sicon")
+    sicon_account = org.get("sicon_customer_account_number") or org.get("sicon_customer_number") or ""
+    sicon_auto_post = bool(org.get("sicon_auto_post", False))
+
+    # Orbit 4 — same pattern.
+    orbit_platform = await _integration_status("orbit4")
+    orbit_customer = org.get("orbit4_customer_id") or ""
+
+    # Sage 200 — currently lives via the customer number on the org
+    # doc + the same Sicon bridge for posting. Treated as a separate
+    # row in the UI because operators think of them separately.
+    sage_account = org.get("sage_customer_number") or ""
+
+    return {
+        "org_id": org_id,
+        "stripe_connect": {
+            "connected": bool(stripe_account_id),
+            "account_id": stripe_account_id,
+            "charges_enabled": stripe_charges_enabled,
+            "payouts_enabled": stripe_payouts_enabled,
+            "platform_fee_pct": platform_fee_pct,
+        },
+        "sicon": {
+            "configured": bool(sicon_account) and bool(sicon_platform.get("configured")),
+            "platform_configured": bool(sicon_platform.get("configured")),
+            "account_ref": sicon_account,
+            "auto_post": sicon_auto_post,
+        },
+        "orbit4": {
+            "configured": bool(orbit_customer) and bool(orbit_platform.get("configured")),
+            "platform_configured": bool(orbit_platform.get("configured")),
+            "customer_id": orbit_customer,
+        },
+        "sage200": {
+            "configured": bool(sage_account),
+            "account_ref": sage_account,
+        },
+    }
+
+
+
+
 @router.post("/master-admin/users/{user_id}/invite-link")
 async def issue_user_invite_link(user_id: str, user: dict = Depends(get_current_user)):
     """Iter 215ev — issue a signed set-password link for a user.

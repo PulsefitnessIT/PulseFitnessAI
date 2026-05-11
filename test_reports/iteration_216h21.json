@@ -1,0 +1,51 @@
+{
+  "summary": "Iter 216h21 (P4 Master Admin redesign) - All 6 test items PASSED. Backend endpoint GET /api/master-admin/organizations/{org_id}/integration-health works correctly with auth gating. Frontend Organisations page renders 90+ orgs with 7-tab drawer (Profile/Sites/People/Modules/Billing/Integrations/Activity). Integrations tab shows 4 rows with status pills and Manage links. People Directory with UserDetailDrawer works. Sidebar restructure verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "test_1_integration_health_endpoint": {
+      "status": "PASSED",
+      "details": "GET /api/master-admin/organizations/{org_id}/integration-health returns correct JSON with stripe_connect, sicon, orbit4, sage200 blocks. Returns 401 without token, 401 with invalid token. Returns 'not configured' shapes for orgs without integration data."
+    },
+    "test_2_organizations_list": {
+      "status": "PASSED",
+      "details": "AdminOrganizations renders correctly with 90 org cards. renderSection case 'organizations' properly wired."
+    },
+    "test_3_drawer_tabs": {
+      "status": "PASSED",
+      "details": "All 7 tabs found with correct labels: Profile (details), Sites (sites), People (users), Modules (features), Billing (billing), Integrations (integrations), Activity (audit). data-testids: org-tab-{details|sites|users|features|billing|integrations|audit}-{org.id}"
+    },
+    "test_4_integrations_tab": {
+      "status": "PASSED",
+      "details": "Integrations panel renders 4 rows: Stripe Connect, Sicon Service (Sage 200 ledger), Orbit 4 (stock/equipment master), Sage 200 (customer ledger). Each row has status pill (NOT CONFIGURED). First 3 rows have Manage links. Refresh button present."
+    },
+    "test_5_people_directory_drawer": {
+      "status": "PASSED",
+      "details": "People -> Directory (section=roles) loads PeopleDirectory with 101 users. Clicking user row opens UserDetailDrawer showing name, email, role, and 'Issue & copy reset link' button."
+    },
+    "test_6_sidebar_restructure": {
+      "status": "PASSED",
+      "details": "'Staff onboarding' removed from People sidebar. 'Customer onboarding' present in Organisations sidebar. AdminOnboardingHub renders with Onboard Site, Head Office (multi-site), Onboarding Packets, Bulk Imports tabs."
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "Master Admin: admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h21 P4 testing complete. All new features working: integration-health endpoint, 7-tab org drawer with Integrations tab, sidebar restructure. People Directory at section=roles, Customer onboarding at section=onboarding."
+}
