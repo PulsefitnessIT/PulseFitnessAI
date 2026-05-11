@@ -46,16 +46,21 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'roles',        label: 'Directory',           icon: Users },
       { id: 'locked-staff', label: 'Site-locked users',   icon: Lock },
-      { id: 'onboarding',   label: 'Staff onboarding',    icon: Rocket },
     ],
   },
-  // 3. Organisations — SSoT for customers / orgs / multi-site groups
+  // 3. Organisations — SSoT for customers / orgs / multi-site groups.
+  //    Iter 216h20 — restored "Customer onboarding" here. It was
+  //    misfiled under People → "Staff onboarding" in iter 216h17 even
+  //    though the hub creates *organisations* (Onboard Site / Head
+  //    Office / Packets / Bulk Imports). Operator feedback:
+  //    "we've lost Organisation Onboarding which was working perfectly".
   {
     id: 'organizations', label: 'Organisations', icon: Building, group: 'main',
     subTabs: [
-      { id: 'organizations', label: 'List',                icon: Building },
-      { id: 'estate-rollup', label: 'Module subscriptions', icon: BarChart3 },
-      { id: 'activation-funnel', label: 'Customer activation', icon: TrendingUp },
+      { id: 'organizations',     label: 'List',                  icon: Building },
+      { id: 'onboarding',        label: 'Customer onboarding',   icon: Rocket },
+      { id: 'estate-rollup',     label: 'Module subscriptions',  icon: BarChart3 },
+      { id: 'activation-funnel', label: 'Customer activation',   icon: TrendingUp },
     ],
   },
   // 4. Sites — physical locations + hardware catalogue
@@ -156,7 +161,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'backfills':          'settings-compliance',
   'design-system':      'settings-compliance',
   'locked-staff':       'roles',
-  'onboarding':         'roles',
+  'onboarding':         'organizations',
   'estate-rollup':      'organizations',
   'activation-funnel':  'organizations',
   'catalogue':          'catalogue',
@@ -192,7 +197,7 @@ export const sectionTitles = {
   trust: 'System health',                       // Iter 216h17 — was "Trust & Reliability Engine"
   'ask-support': 'Ask Support Desk',
   payments: 'Payments & subscriptions',
-  onboarding: 'Staff onboarding',               // Iter 216h17 — was "Onboarding" (ambiguous)
+  onboarding: 'Customer onboarding',             // Iter 216h20 — restored from People/"Staff onboarding". The hub creates customer organisations, not staff.
   trials: 'Trials',
   'activation-funnel': 'Customer activation',   // Iter 216h17 — terminology cleanup
   'sales-insights': 'Sales insights',
@@ -238,7 +243,7 @@ export const sectionDescriptions = {
   payments: 'Revenue tracking and subscription management',
   analytics: 'Cross-gym analytics and trends',
   'marketing-suite': 'Marketing Suite — plans, subscriptions, platform-wide KPIs',
-  onboarding: 'Onboard a new site, send shareable packets, or bulk-load CSV rosters',
+  onboarding: 'Onboard a new customer organisation, send shareable packets, or bulk-load CSV rosters',
   trials: 'Track active trials, extend deadlines, convert to paid',
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',
   'sales-insights': 'Top sales objections + AI-spotted themes from the public marketing chat.',

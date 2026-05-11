@@ -1,3 +1,28 @@
+## Iter 216h20 — Drawer wiring + Organisation Onboarding restored (Feb 11, 2026)
+
+### A. P3-followup — `UserDetailDrawer` wired into People Directory
+- `AdminRoles.js` now owns a `selectedUser` state. Clicking any row in `PeopleDirectory` opens the existing `UserDetailDrawer.js` (Profile + 72 h reset link + "Full edit in legacy panel").
+- "Full edit in legacy panel" closes the drawer, flips the Roles sub-tab to `legacy-users`, fires `gymaxis:focus-legacy-user` window event (carries `user_id` + `email`) so `GlobalUsersPanel` can scroll/expand the matching row in a follow-up iter, and triggers the parent `onReload`.
+- Verified live: 101 rows render, first row → drawer opens with name `Iter216h Dual-Role Test`, role `pulse_master_admin`, organisation, email and the "Issue & copy reset link" button all populated.
+
+### B. Regression fix — Organisation Onboarding restored
+- **Operator feedback**: "We've lost Organisation Onboarding which was working perfectly."
+- **Root cause**: Iter 216h17 moved the onboarding hub under People and relabelled it "Staff onboarding" — but the hub creates **customer organisations** (sub-tabs: Onboard Site / Head Office (multi-site) / Onboarding Packets / Bulk Imports). Operators looking for *Organisation* onboarding never thought to look under People → Staff onboarding.
+- **Fix** (`SidebarConfig.js`):
+  - Moved `onboarding` from the People group to the Organisations group.
+  - Relabelled sidebar entry **"Staff onboarding" → "Customer onboarding"**.
+  - Section title updated to "Customer onboarding".
+  - Section description updated to "Onboard a new customer organisation, send shareable packets, or bulk-load CSV rosters".
+  - `LEGACY_SECTION_REDIRECTS['onboarding']` now points to `'organizations'`.
+- Verified live: Organisations sidebar entry now shows 4 sub-tabs (List · Customer onboarding · Module subscriptions · Customer activation). Customer onboarding renders `<AdminOnboardingHub>` with all 4 wizards intact.
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. As Master Admin on `gymaxisai.com`: Sidebar → **Organisations → Customer onboarding** — runs the brand-new customer wizard. The drawer in People → Directory opens on row click for fast reset-link issuance.
+
+---
+
+
 ## Iter 216h19 — Master Admin redesign Phase 3: People SSoT consolidation (Feb 11, 2026)
 
 The biggest single-source-of-truth win of the redesign. Four legacy People panels collapsed into one **People Directory** that operators can actually onboard staff against this week.
