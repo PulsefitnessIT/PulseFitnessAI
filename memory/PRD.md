@@ -1,3 +1,42 @@
+## Iter 216h26-27 — Master Admin → portal audit + Empty-state pass + Button hierarchy (Feb 11, 2026)
+
+Three deliverables in one push.
+
+### A. Portal-linkage audit (iter 216h26)
+- **17 / 17 end-to-end checks PASSED** between every Master Admin write surface and the customer-facing runtime (`/auth/me`, `module_access`, equipment listing, marketing-subscription gate, etc.).
+- Full report at `/app/AUDIT_PORTAL_LINKS.md`. Live test harness at `/app/backend/tests/test_iter_216h26_audit.py` — re-runnable any time.
+- **1 broken link fixed**: `POST /api/master-admin/organizations` now returns a 72 h invite link for the freshly-provisioned primary contact (`owner.invite_url` + top-level `invite_url`). Operators no longer need to use the legacy reveal-password handover — they can ship the self-serve reset link straight away. Frontend `useMasterAdminActions.createOrganization` surfaces the link in the success toast.
+- New helper `_mint_invite_link(user_id, email, issued_by)` in `master_admin.py` keeps the iter-216h15 reset-link flow consistent across every creation surface (Staff Onboarding wizard, Customer Onboarding wizard, manual /users/{id}/invite-link).
+
+### B. D2 — Empty-state pass (iter 216h27)
+- Upgraded the 3 highest-visibility empty states to use the canonical `<EmptyState>` component:
+  - **Memberships → Mobile App Builder**: was a bare div with "No cards yet". Now an EmptyState with icon, opportunity-framed title ("Your members' home screen is blank"), and a hint that explains what cards do.
+  - **Master Admin → Login events**: was inline grey "No events match the current filter." Now structured EmptyState explaining the SOC 2 evidence purpose.
+  - **Master Admin → Audit log (desktop + mobile)**: same upgrade. Both renderers (table + mobile cards) now use EmptyState with consistent copy.
+- Full status table in `/app/DESIGN_SYSTEM.md` — 11 panels now adopt the canonical pattern; 3 remaining low-priority panels listed.
+
+### C. D3 — Button-hierarchy audit (iter 216h27)
+- New `<Button>` primitive at `/app/frontend/src/components/shared/Button.js` — **caps the vocabulary at 3 variants + 1 destructive**:
+  - `primary` — brand cyan filled; exactly ONE per screen.
+  - `secondary` — outline; supportive actions (Cancel / Bulk import / Refresh).
+  - `tertiary` — text + underline-on-hover; low-emphasis "View all", "Manage", "Reset filter".
+  - `destructive` — soft red; always confirm via `useConfirm()`.
+- 3 sizes (sm / md / lg), `icon` prop for Lucide icons, `loading` spinner, `as` prop for anchors.
+- Anti-pattern catalogue + migration plan in `/app/DESIGN_SYSTEM.md`.
+
+### Verified live
+- Audit harness PASS 17/17 after every change.
+- Login Events page now renders without runtime errors (fixed an `onClearFilter is not defined` regression introduced + caught immediately).
+- Audit log panel renders successfully with 11 events visible.
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. The Master Admin Customer Onboarding wizard now offers the operator a copyable 72 h invite link in the success toast — no more password handover.
+3. New panels MUST use `<Button>` and `<EmptyState>` from `/app/frontend/src/components/shared/`. Legacy panels migrate on next touch (anti-pattern catalogue in `/app/DESIGN_SYSTEM.md`).
+
+---
+
+
 ## Iter 216h25 — Jump-to-user toast + Extended brand_filter coverage (Feb 11, 2026)
 
 Two parallel deliverables, both verified live end-to-end.

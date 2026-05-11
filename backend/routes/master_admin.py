@@ -791,6 +791,36 @@ def _generate_initial_password(length: int = 14) -> str:
     return f"{pick(alphabet, 4)}{pick(digits, 3)}{pick(alphabet, 3)}{pick(symbols, 2)}"
 
 
+async def _mint_invite_link(user_id: str, email: str, issued_by_email: str = "system") -> dict:
+    """Iter 216h26 — Mint a 72 h reset-link invite for a user.
+
+    Extracted from POST /master-admin/users/{user_id}/invite-link so
+    that org create + customer onboarding can return a self-serve
+    invite URL alongside (or instead of) the legacy reveal-password
+    handover. Lets every Master Admin creation surface stay consistent
+    with the iter-216h15 reset-link flow.
+    """
+    import secrets as _secrets
+    from datetime import timedelta as _td
+    token = _secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + _td(hours=72)).isoformat()
+    await db.password_reset_tokens.insert_one({
+        "token": token,
+        "user_id": user_id,
+        "email": email,
+        "expires_at": expires_at,
+        "used": False,
+        "kind": "invite",
+        "issued_by": issued_by_email,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    return {
+        "invite_url": f"{frontend_url}/reset-password?token={token}",
+        "expires_at": expires_at,
+    }
+
+
 async def _ensure_primary_contact_user(org: dict, actor: dict) -> Optional[str]:
     """If `primary_contact_email` is set on `org` and no user exists for that
     email, auto-provision an admin user in the right collection(s) and
@@ -892,9 +922,34 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
     # initial password from the org panel until the user changes it.
     await _ensure_primary_contact_user(org_doc, user)
 
+    # Iter 216h26 — also mint a 72 h invite link so the operator can
+    # send a self-serve "set your own password" URL instead of relying
+    # on the credentials-reveal handover. Both paths remain valid;
+    # operators can pick whichever fits the customer.
+    invite_payload = None
+    try:
+        org_after = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+        owner_id = (org_after or {}).get("primary_contact_user_id")
+        owner_email = (org_after or {}).get("primary_contact_email")
+        if owner_id and owner_email:
+            invite_payload = await _mint_invite_link(owner_id, owner_email, user.get("email", "system"))
+    except Exception:  # noqa: BLE001 — never fail org creation on invite mint
+        invite_payload = None
+
     await log_activity("org_created", f"Created organisation: {name} ({portal_type})", user["email"], "organization", org_id)
     fresh = await db.organizations.find_one({"id": org_id}, {"_id": 0, "primary_contact_initial_password": 0})
-    return {**(fresh or org_doc), "user_count": 0}
+    response: dict = {**(fresh or org_doc), "user_count": 0}
+    if invite_payload:
+        response["owner"] = {
+            "email": fresh.get("primary_contact_email"),
+            "user_id": fresh.get("primary_contact_user_id"),
+            "invite_url": invite_payload["invite_url"],
+            "invite_expires_at": invite_payload["expires_at"],
+        }
+        # Convenience top-level keys so older callers keep working.
+        response["invite_url"] = invite_payload["invite_url"]
+        response["invite_expires_at"] = invite_payload["expires_at"]
+    return response
 
 
 

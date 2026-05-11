@@ -138,11 +138,22 @@ const useMasterAdminActions = ({ API, headers, loadData, loadSectionData }) => {
 
   const createOrganization = useCallback(async (orgForm) => {
     try {
-      await axios.post(`${API}/master-admin/organizations`, orgForm, { headers });
-      notify.success('Organisation created');
+      const res = await axios.post(`${API}/master-admin/organizations`, orgForm, { headers });
+      const data = res.data || {};
+      // Iter 216h26 — the backend now mints a 72 h invite link for the
+      // primary contact alongside the legacy plaintext password.
+      // Surface it so the operator can ship the link straight away
+      // without the reveal-password handover step.
+      if (data.invite_url) {
+        notify.success(`Organisation created. Invite link: ${data.invite_url}`);
+      } else {
+        notify.success('Organisation created');
+      }
       loadData();
+      return data;
     } catch (err) {
       notifyApiError(notify, err, 'Failed to create organisation');
+      throw err;
     }
   }, [API, headers, loadData]);
 

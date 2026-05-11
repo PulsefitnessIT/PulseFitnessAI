@@ -1,0 +1,88 @@
+# GymAxis Design System — Master Admin + Operator portals
+*Iter 216h27 · Feb 11, 2026*
+
+Single canonical reference for empty states and button hierarchy. This doc was created as the deliverable for the **D2 Empty-state pass** and **D3 Button-hierarchy audit** items in `/app/memory/UX_AND_PROCESS_BACKLOG.md`. Whenever a new panel, tab, list, drawer or wizard is added, use the patterns below.
+
+---
+
+## D2 — Empty-state pattern (mandatory for every list/grid)
+
+Use the shared `<EmptyState>` component at `/app/frontend/src/components/shared/EmptyState.js`. Three slots:
+
+| Slot | Purpose | Constraint |
+|---|---|---|
+| `icon` | A Lucide icon that hints at the missing thing (`Users`, `Wallet`, `Receipt`, `ScrollText`, `Smartphone`…). | One per state. No emoji. |
+| `title` | What's missing. ≤ 6 words. Avoid "No X". Prefer the *opportunity*: "Your members' home screen is blank" instead of "No cards yet". | Sentence case. |
+| `hint` | Why it matters + how to fix. 1 short sentence. | ≤ 24 words. |
+| `primaryAction` | Single CTA that fixes it. Optional but recommended. | Exactly one. |
+| `secondaryAction` | "Clear filter", "View example", "Import CSV". | Optional. |
+
+### Coverage status (iter 216h27)
+
+| Panel | EmptyState adopted | testId | Iter |
+|---|---|---|---|
+| Memberships → MemberHome (no members) | ✅ | `mbr-empty-add` | 215bt |
+| Memberships → Invoicing | ✅ | — | 215bt |
+| Operations → Faults | ✅ × 2 | — | 215bt |
+| CRM → Pipeline | ✅ (partial) | — | 215bt |
+| Marketing → Campaigns | ✅ | — | 215bt |
+| Marketing → Audiences | ✅ | — | 215bt |
+| LiteDashboard → Staffing | ✅ | — | 215bt |
+| LiteDashboard → Faults | ✅ | — | 215bt |
+| **Memberships → Mobile App Builder** | ✅ ◀ **iter 216h27** | `mab-empty-state` | 216h27 |
+| **Master Admin → Login events** | ✅ ◀ **iter 216h27** | `login-events-empty` | 216h27 |
+| **Master Admin → Audit log (desktop + mobile)** | ✅ ◀ **iter 216h27** | `audit-log-empty`, `aud-empty-mobile` | 216h27 |
+
+### Still TODO (low priority — content rich already)
+- CRM → Leads list (current "No deals in pipeline" inline text)
+- Master Admin → Spec Sheets (no list view yet, only upload)
+- Service Desk → Tickets (handled by ticket app, not our concern)
+
+---
+
+## D3 — Button hierarchy — capped at 3 variants (+ 1 destructive)
+
+Use the shared `<Button>` component at `/app/frontend/src/components/shared/Button.js`. **Do not write new inline button styles.** If your design needs a 4th variant, get explicit sign-off — it usually means the screen has too many actions competing.
+
+### The vocabulary
+
+| Variant | Visual | Use for | Rule of thumb |
+|---|---|---|---|
+| `primary` | Brand cyan filled, dark text, bold | The *one* "do the thing" action on the screen | **Exactly one per screen**. If you reach for two, the screen has two CTAs — split into a sub-task or demote one. |
+| `secondary` | Outline + neutral background | Supporting actions next to the primary | Refresh, Cancel, Bulk import, Export. Pluralisable — 2-3 max next to a primary. |
+| `tertiary` | Text-only with underline-on-hover | Low-emphasis links and inline navigation | "View all", "Manage", "Reset filter". No more than 4 visible at once. |
+| `destructive` | Soft red filled | Delete / Archive / Revoke / Disconnect | Always confirm via `useConfirm()`. Never use as primary for first-render screens. |
+
+### Sizes
+- `sm` (text-xs, px-2.5 py-1.5) — inline in dense tables.
+- `md` (text-sm, px-3 py-2) — **default**, use everywhere unless you have a reason.
+- `lg` (text-sm, px-4 py-2.5) — hero CTAs in empty states + onboarding.
+
+### Quick examples
+
+```jsx
+import Button from '@/components/shared/Button';
+import { Plus, Download, Trash2 } from 'lucide-react';
+
+// One primary, supporting secondaries.
+<Button variant="primary" icon={Plus}>Add member</Button>
+<Button variant="secondary" icon={Download}>Export CSV</Button>
+<Button variant="tertiary">View all</Button>
+
+// Destructive (always behind a confirm).
+<Button variant="destructive" icon={Trash2}>Archive</Button>
+```
+
+### Anti-patterns we replaced (iter 216h27)
+- Multiple `inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50` repeated everywhere → use `<Button variant="secondary">`.
+- Custom blue-filled `style={{ background: '#0055FF' }}` for the "Generate" / "Save" CTA → use `<Button variant="primary">`.
+- 6+ variants of "View / Open / Manage" text links — collapse to `<Button variant="tertiary">`.
+
+### Migration plan
+The new component is opt-in — existing buttons will keep working. New panels MUST use `<Button>`. Old panels migrate over time on the panel's next feature touch. The `StaffOnboardingWizard.js`, `AdminAllSites.js`, `IntegrationsHub.js`, `OrgIntegrationsTab.js` shipped in iters 216h21-216h24 are the canonical examples for the new style — match their look when migrating.
+
+---
+
+## Iter 216h26 audit findings (see `/app/AUDIT_PORTAL_LINKS.md` for the full report)
+
+**17 / 17 portal linkages verified.** One bug fixed: customer-onboarding org create now returns a 72 h invite link for the primary contact, alongside the legacy reveal-password handover (`POST /api/master-admin/organizations` → response payload `owner.invite_url`).

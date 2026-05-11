@@ -19,8 +19,9 @@ import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import {
   Loader2, Shield, ShieldAlert, AlertOctagon, Download, RefreshCw,
-  LogIn, CreditCard, Wallet, Receipt, Zap, Info,
+  LogIn, CreditCard, Wallet, Receipt, Zap, Info, ScrollText,
 } from 'lucide-react';
+import EmptyState from '@/components/shared/EmptyState';
 
 // Order matters — sets the default order in the filter chips bar.
 const KIND_META = {
@@ -216,8 +217,13 @@ export default function AuditLogPanel() {
           </thead>
           <tbody>
             {events.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-zinc-400 text-sm" data-testid="aud-empty">
-                No events in this window.
+              <tr><td colSpan={5} className="px-0 py-4" data-testid="aud-empty">
+                <EmptyState
+                  icon={ScrollText}
+                  title="No audit events in this window"
+                  hint="Try a wider time range or clear the kind filter. Every login, payment, integration sync and admin write is captured for SOC 2 evidence."
+                  testId="audit-log-empty"
+                />
               </td></tr>
             )}
             {events.map((e, i) => {
@@ -251,9 +257,13 @@ export default function AuditLogPanel() {
       <div className="md:hidden bg-white border border-zinc-200 rounded-lg overflow-hidden divide-y divide-zinc-100"
         data-testid="audit-log-cards">
         {events.length === 0 && (
-          <div className="px-4 py-10 text-center text-zinc-400 text-sm" data-testid="aud-empty-mobile">
-            No events in this window.
-          </div>
+          <EmptyState
+            icon={ScrollText}
+            title="No events"
+            hint="Widen the time range or clear filters."
+            testId="aud-empty-mobile"
+            className="m-0"
+          />
         )}
         {events.map((e, i) => {
           const meta = KIND_META[e.kind] || { label: e.kind, icon: Info };

@@ -21,6 +21,7 @@ import {
   CalendarDays, ClipboardList, Dumbbell, Wrench, Trophy, Activity,
   ShoppingBag, BarChart3, Megaphone, QrCode, Share2, Sparkles,
 } from 'lucide-react';
+import EmptyState from '@/components/shared/EmptyState';
 
 const ICONS = {
   CalendarDays, ClipboardList, Dumbbell, Wrench, Trophy, Activity,
@@ -211,13 +212,12 @@ export default function MobileAppBuilderTab({ API, headers }) {
           Layout · {cards.length} card{cards.length === 1 ? '' : 's'}
         </div>
         {cards.length === 0 && (
-          <div
-            className="rounded-xl border border-dashed p-8 text-center text-sm"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
-            data-testid="mab-empty-state"
-          >
-            No cards yet. Add cards from the picker below to build your members&apos; home screen.
-          </div>
+          <EmptyState
+            icon={Smartphone}
+            title="Your members' home screen is blank"
+            hint="Pick a card below — Timetable, Live faults, Class league — and drag to reorder. Members see this exact layout on iOS, Android and the web app."
+            testId="mab-empty-state"
+          />
         )}
         {cards.map((card, idx) => {
           const spec = registryById[card.type];

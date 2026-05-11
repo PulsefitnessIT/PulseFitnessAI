@@ -14,6 +14,7 @@ import {
   Loader2, Search, ShieldAlert, ShieldCheck, LogIn, LogOut,
   KeyRound, RefreshCw, AlertTriangle, Clock, ScrollText,
 } from 'lucide-react';
+import EmptyState from '@/components/shared/EmptyState';
 
 const ACTION_META = {
   login:           { label: 'Login',          icon: LogIn,       tone: 'ok' },
@@ -158,7 +159,12 @@ export default function LoginEventsPanel() {
           Recent activity · last {data?.events?.length || 0}
         </div>
         {(!data?.events || data.events.length === 0) ? (
-          <div className="p-8 text-center text-sm text-zinc-400">No events match the current filter.</div>
+          <EmptyState
+            icon={ScrollText}
+            title="No login events match this filter"
+            hint="Try widening the time window or clearing the search box. The platform records every login, logout, MFA event and password reset for SOC 2 evidence."
+            testId="login-events-empty"
+          />
         ) : (
           <ol className="divide-y divide-zinc-100">
             {data.events.map((e, idx) => (
