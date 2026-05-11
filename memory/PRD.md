@@ -1,3 +1,32 @@
+## Iter 216h14 — Synthetic Head Office in SiteSwitcher for multi-site owners (Feb 11, 2026)
+
+**Production bug** (reported by Lee Somers @ Pulse Fitness): dropdown shows "All sites | iGym Carshalton | iGym Congleton" but **no Head Office** even though Lee is an owner. **Root cause**: neither of Pulse Fitness's 2 gym sites was flagged `is_head_office=true`. Their corporate HQ exists as the `organizations` row, not a separate `sites` row, so `/api/sites` correctly returned just the 2 gyms.
+
+### Fix
+- **`/api/sites`**: when an org has ≥1 site but **none** is flagged HQ, inject a synthetic entry derived from the org record at the TOP of the list:
+  ```
+  { id: "hq:{org_id}", name: "{Org name} Head Office",
+    is_head_office: true, is_synthetic: true,
+    equipment_count: <org-wide>, issue_count: <org-wide> }
+  ```
+- **`LiteDashboardPage`**: when `activeSite.id` starts with `hq:`, skip the `?site_id=...` param on equipment/issues queries → synthetic HQ behaves like an org-wide overview.
+
+### Verified
+- 5 seeded test scenarios in `test_iter_216h14_synthetic_hq.py` — **5/5 passing**.
+- Pins: injection happens, equipment count aggregates org-wide, NO injection when real HQ exists, single-site fallback unchanged, site-locking still works for unprivileged staff.
+
+### ⚠ Action required
+1. **Redeploy** preview → production.
+2. On `gymaxisai.com` as Lee Somers, refresh — dropdown should now show "All sites | Pulse Fitness Head Office | iGym Carshalton | iGym Congleton". Selecting Head Office shows org-wide data.
+3. (Optional) If Lee wants a *physical* HQ site (e.g. corporate office in Congleton) instead of the synthetic one, he can go to **Pulse Settings → Sites → mark one as HQ** OR create a new site with the HQ flag — the synthetic HQ will then disappear (real HQ takes priority).
+
+### Still pending (reported by Lee in same message)
+- **Owner-side site allocation for staff** — currently Master Admin has site-allocation UI; owners don't. Need: per-user `allowed_site_ids` multi-select in Account Settings → Team & Roles.
+- **"Send password reset link" option** — owners currently see a temp password inline; they want a button to email the staff a reset link instead (matching Master Admin's existing UX).
+
+---
+
+
 ## Iter 216h13 — Short equipment-row display + backfill endpoint (Feb 11, 2026)
 
 **Operator-reported (with screenshots)**: imported equipment rows were rendering the full 200-char Pulse marketing line ("Premium StepMill with 18.5\" (Cirrus V4) Touchscreen Console, Apple/Samsung Watch Connectivity, Content Mirroring & Wireless Charging in Sand Black…") as BOTH the equipment `name` AND `model`, blowing the row layout out of the page. Operator demanded the row match the manual-add format: `Treadmill (cardio)` · `Pulse Fitness · 260G · 12345`.

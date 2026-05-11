@@ -50,6 +50,39 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
         enriched.append({**site, "equipment_count": eq_count, "issue_count": issue_count})
 
     if enriched:
+        # Iter 216h14 — if NO existing site is flagged as Head Office, inject
+        # a synthetic HQ entry derived from the organisation record. This
+        # gives Pulse Fitness-style orgs (where the corporate HQ is the
+        # `organizations` row, not a separate `sites` row) a selectable
+        # "Head Office" in the SiteSwitcher without needing the operator
+        # to first create a dummy HQ site by hand.
+        #
+        # The synthetic id uses the `hq:` prefix so frontend code can
+        # detect it and either (a) treat it as an org-wide / All-sites
+        # view, or (b) route to a future HQ-specific dashboard. Backend
+        # equipment/issues queries that join on `site_id` will simply
+        # return 0 hits for `hq:` ids — which is the correct behaviour
+        # for a virtual HQ (it has no physical equipment of its own).
+        has_real_hq = any(bool(s.get("is_head_office")) for s in enriched)
+        if not has_real_hq:
+            org = await db.organizations.find_one(
+                {"id": org_id}, {"_id": 0, "id": 1, "name": 1, "address": 1}
+            )
+            if org:
+                org_eq_count = await db.equipment.count_documents({"organization_id": org_id})
+                org_issue_count = await db.issues.count_documents({"organization_id": org_id})
+                synthetic_hq = {
+                    "id": f"hq:{org_id}",
+                    "organization_id": org_id,
+                    "name": f"{org.get('name', 'Head Office')} Head Office",
+                    "address": org.get("address", ""),
+                    "is_head_office": True,
+                    "is_synthetic": True,  # frontend treats this as org-wide view
+                    "equipment_count": org_eq_count,
+                    "issue_count": org_issue_count,
+                }
+                # HQ goes first so the SiteSwitcher shows it at the top of the list.
+                enriched = [synthetic_hq] + enriched
         return {"sites": enriched}
 
     # Fallback: no sites — return org as default site
