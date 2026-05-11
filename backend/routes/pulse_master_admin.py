@@ -296,6 +296,111 @@ async def revoke_pulse_admin(user_id: str, user: dict = Depends(get_current_user
     return {"ok": True}
 
 
+@router.delete("/master-admin/pulse-admins/{user_id}/purge")
+async def hard_purge_pulse_admin(user_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Iter 216h8 — Hard-delete a Pulse Admin row + all related records.
+
+    Use this ONLY when you want to start completely fresh with an email
+    address (e.g. after a botched onboarding where the user never logged
+    in). Wipes:
+      • users row
+      • invites for that email
+      • signup_drafts for that email
+      • signup_journey_jobs for that email
+      • tour_bookings for that email
+    Logs an audit event before deletion so the trail isn't lost.
+    """
+    _require_gymaxis_master(user)
+    target = await db.users.find_one(
+        {"id": user_id, "role": PULSE_ROLE},
+        {"_id": 0, "email": 1, "full_name": 1, "active": 1},
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Pulse admin not found")
+    email = (target.get("email") or "").lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Cannot purge — user has no email")
+
+    # Audit FIRST so the trail survives the delete.
+    try:
+        from routes.master_admin import log_activity
+        await log_activity(
+            "pulse_admin_purged",
+            f"Hard-deleted Pulse Master Admin {email} (was '{target.get('full_name')}'); active={target.get('active')}",
+            user.get("email", ""),
+            target_type="user",
+            target_id=user_id,
+        )
+    except Exception:
+        pass
+
+    deleted = {
+        "users": (await db.users.delete_many({"id": user_id})).deleted_count,
+        "invites": (await db.invites.delete_many({"email": email})).deleted_count,
+        "signup_drafts": (await db.signup_drafts.delete_many({"email": email})).deleted_count,
+        "signup_journey_jobs": (await db.signup_journey_jobs.delete_many({"to_email": email})).deleted_count,
+        "tour_bookings": (await db.tour_bookings.delete_many({"member_email": email})).deleted_count,
+    }
+    return {"ok": True, "email": email, "deleted": deleted}
+
+
+@router.delete("/master-admin/purge-user-by-email")
+async def hard_purge_user_by_email(email: str = Query(...), user: dict = Depends(get_current_user)) -> dict:
+    """Iter 216h8 — Email-keyed full purge across collections.
+
+    Addressable by EMAIL so you can reset records when a user accidentally
+    ended up in multiple places (e.g. as a Pulse Admin AND a regular org
+    user with two spellings of the same name). Master-admin only.
+    Matches both the exact email and other addresses with the same local
+    part on the same domain (handles 'craig@' vs 'craig.henshall@' style
+    confusion). All rows are audited before deletion.
+    """
+    _require_gymaxis_master(user)
+    email_clean = (email or "").strip().lower()
+    if not email_clean or "@" not in email_clean:
+        raise HTTPException(status_code=400, detail="Valid email required")
+
+    local_part = email_clean.split("@")[0]
+    domain = email_clean.split("@")[1]
+    # Use the FIRST dot-segment as the match prefix so 'craig.henshall' also
+    # catches 'craig'. This is the common confusion mode after re-onboarding.
+    prefix = local_part.split(".")[0] if "." in local_part else local_part
+    email_filter = {"$or": [
+        {"email": email_clean},
+        {"email": {"$regex": f"^{prefix}(\\.|@)", "$options": "i"}},
+    ]}
+    # Tighten the regex match to the same domain so we don't accidentally
+    # wipe 'craig@other-domain.com'.
+    email_filter["$or"][1]["email"] = {
+        "$regex": f"^{prefix}(\\..*)?@{domain}$", "$options": "i",
+    }
+
+    matched = await db.users.find(
+        email_filter, {"_id": 0, "id": 1, "email": 1, "role": 1, "organization_id": 1},
+    ).to_list(length=20)
+    try:
+        from routes.master_admin import log_activity
+        await log_activity(
+            "user_purged_by_email",
+            f"Hard-deleted {len(matched)} user row(s) matching '{email_clean}': "
+            + ", ".join(f"{m['email']}/{m.get('role')}@{m.get('organization_id') or 'platform'}" for m in matched),
+            user.get("email", ""),
+            target_type="user_email",
+            target_id=email_clean,
+        )
+    except Exception:
+        pass
+
+    deleted = {
+        "users": (await db.users.delete_many(email_filter)).deleted_count,
+        "invites": (await db.invites.delete_many(email_filter)).deleted_count,
+        "signup_drafts": (await db.signup_drafts.delete_many(email_filter)).deleted_count,
+        "signup_journey_jobs": (await db.signup_journey_jobs.delete_many({"to_email": email_clean})).deleted_count,
+        "tour_bookings": (await db.tour_bookings.delete_many({"member_email": email_clean})).deleted_count,
+    }
+    return {"ok": True, "email": email_clean, "matched_rows": len(matched), "deleted": deleted}
+
+
 @router.put("/master-admin/pulse-admins/{user_id}/org-memberships")
 async def set_pulse_admin_org_memberships(user_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
     """Attach a Pulse Platform Admin to one or more orgs as a member.

@@ -148,6 +148,30 @@ const AdminPulseAdmins = ({ API }) => {
  }
  };
 
+ const hardPurge = async (admin) => {
+ const sure = window.confirm(
+ `PERMANENTLY DELETE ${admin.full_name} (${admin.email})?\n\n`
+ + 'This wipes the user row, invites, signup drafts, journey jobs, and tour bookings for that email. Cannot be undone.\n\n'
+ + 'Use this when you want to re-onboard the same email cleanly.'
+ );
+ if (!sure) return;
+ try {
+ const r = await axios.delete(
+ `${API}/master-admin/pulse-admins/${admin.id}/purge`,
+ { headers },
+ );
+ const d = r.data?.deleted || {};
+ show({
+ tone: 'success',
+ title: 'Permanently deleted',
+ detail: `Wiped ${d.users || 0} user, ${d.invites || 0} invite(s), ${d.signup_drafts || 0} draft(s). The email is now free for re-onboarding.`,
+ });
+ load();
+ } catch (err) {
+ show({ tone: 'error', title: 'Purge failed', detail: err.response?.data?.detail });
+ }
+ };
+
  const reissueTempPwd = async (admin) => {
  const ok = await confirm({
  title: `Re-issue temp password for ${admin.full_name}?`,
@@ -320,6 +344,18 @@ const AdminPulseAdmins = ({ API }) => {
  <Trash2 size={14} />
  </Button>
  </div>
+ )}
+ {a.active === false && (
+ <Button
+ size="sm"
+ variant="outline"
+ onClick={() => hardPurge(a)}
+ className="border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 text-[11px] font-semibold"
+ title="Permanently delete — wipes user row, invites, drafts, journey jobs. Cannot be undone. Use when you want to re-onboard with the same email."
+ data-testid={`pulse-admin-purge-${a.id}`}
+ >
+ <Trash2 size={12} className="mr-1" /> Permanent delete
+ </Button>
  )}
  </div>
 

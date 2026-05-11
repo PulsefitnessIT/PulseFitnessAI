@@ -1,3 +1,27 @@
+## Iter 216h8 — Hard-purge endpoints for botched onboardings (Feb 10, 2026)
+
+**Reported (with screenshots)**: Craig Henshall ended up in both `users` collections (one as a revoked Pulse Admin `craig.henshall@pulsefitness.com`, another as a regular org user attempt `craig@pulsefitness.com`). The existing `revoke` only soft-deletes (`active: false`), so re-trying to add the same email always failed with "Already added". Operator wanted a way to start fresh.
+
+### What shipped
+- **`DELETE /api/master-admin/pulse-admins/{user_id}/purge`** — by id, wipes user row + invites + signup drafts + journey jobs + tour bookings for that email. Master-admin only. Audited before delete.
+- **`DELETE /api/master-admin/purge-user-by-email?email=...`** — by email, smart-matches variants on the same domain (uses the first dot-segment as the prefix, so `craig.henshall@pulsefitness.com` ALSO catches `craig@pulsefitness.com`). Master-admin only. Audited.
+- **UI button**: in `AdminPulseAdmins.js`, a red outlined "Permanent delete" button now appears on **revoked** admin rows (kept hidden until the row is revoked so it can't be hit by accident). Native confirm dialog with the full warning text before the call fires.
+
+### Regression — `tests/test_iter_216h8_user_purge.py` (4 cases, all passing)
+1. Purge-by-id wipes the user row and removes from the listing.
+2. Purge-by-email matches same-local-part variants on same domain (`craig@` AND `craig.henshall@` deleted in one call).
+3. Invalid email input → 400 / missing param → 422.
+4. Unauthenticated → 401/403.
+
+Also patched `test_iter_216h_pulse_admin_dual_role.py` to use the rate-limit bypass header so the full iter-216h* suite can run cleanly in CI.
+
+### ⚠ Action required for production "fresh start with Craig"
+Lives in **preview** only — production still needs the redeploy. See finish-summary for the step-by-step "Get Craig up and running" runbook.
+
+---
+
+
+
 ## Iter 216h7 — Sicon mapping refresh + capability extensions (Feb 10, 2026)
 
 **Request**: are we tapping into everything Sicon offers, and is the audit story straight? Answer: no — the published mapping table (`SICON_FIELD_MAPPING`) only documented 27 fields while the actual wire payload carried ~150-200 across 7 entities. Several Sicon capabilities (SpareNum/SpareDate slots, finance-focused CL analysis codes, sub-status state machine, PO post-sync amendment) were unwired or under-used.

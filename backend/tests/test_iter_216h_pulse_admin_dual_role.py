@@ -26,6 +26,7 @@ API_URL = os.environ.get("REACT_APP_BACKEND_URL_TEST") or os.environ.get(
 )
 MASTER_EMAIL = os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 MASTER_PWD = os.environ.get("MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
+BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
 
 
 @pytest.fixture
@@ -33,6 +34,7 @@ def master_token():
     r = httpx.post(
         f"{API_URL}/api/auth/login",
         json={"email": MASTER_EMAIL, "password": MASTER_PWD},
+        headers={"X-RateLimit-Bypass": BYPASS},
         timeout=30,
     )
     r.raise_for_status()
