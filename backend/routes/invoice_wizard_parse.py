@@ -218,3 +218,145 @@ async def parse_invoice_for_wizard(file: UploadFile = File(...), user: dict = De
             extracted.get("supplier_vat_number", "") or "",
         ),
     }
+
+
+
+# ── Iter 216h13 — Backfill helper for legacy invoice-imported equipment ──
+#
+# Equipment imported BEFORE iter 216h13 stored the 200-char Pulse Fitness
+# marketing line as both `name` and `model`, which blew the equipment-row
+# layout out of the page. This endpoint walks every equipment doc that
+# was imported from an invoice and re-splits the long name/model into
+# short `name` (subtype noun), short `model` (stock code), and a
+# preserved `description` (full marketing line).
+#
+# Defaults to dry-run so the operator can eyeball the changes before
+# applying them. Master-Admin gated.
+
+def _looks_like_legacy_long_row(eq: dict) -> bool:
+    """True when the equipment doc still has the pre-iter-216h13 shape —
+    i.e. either `name` or `model` contains a long marketing line
+    (> 24 chars and > 2 spaces). New imports never produce this shape
+    because `_build_equipment_doc` short-circuits it."""
+    name = (eq.get("name") or "").strip()
+    model = (eq.get("model") or "").strip()
+    name_long = len(name) > 30 and name.count(" ") >= 3
+    model_long = len(model) > 24 and model.count(" ") >= 2
+    return name_long or model_long
+
+
+@router.post("/master-admin/equipment/backfill-short-display")
+async def backfill_equipment_short_display(
+    body: dict | None = None,
+    dry_run: bool = True,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h13 — Rewrite legacy invoice-imported equipment rows so
+    `name` is the short subtype noun and `model` is the short stock
+    code (matching the iter-216h13 import behaviour). The full
+    marketing line is preserved in the `description` field.
+
+    Accepts `dry_run` either as a query param (matches existing
+    BackfillsPanel convention) OR inside the JSON body.
+
+    Body (all optional):
+      - `organization_id`: limit to one org. If omitted, the backfill
+                           runs across **every** org (master-admin only).
+      - `site_name`: limit to one location (matches `location` field
+                     stamped from the invoice delivery address).
+      - `supplier_name`: limit to rows matching this supplier (case-
+                         insensitive).
+      - `dry_run`: bool, overrides query param.
+
+    Returns:
+      {
+        "dry_run": bool,
+        "total_candidates": int,           # legacy rows matched by filter
+        "equipment_to_update": int,        # rows whose name/model actually changes
+        "equipment_updated": int,          # 0 when dry_run; otherwise == equipment_to_update
+        "orgs": int,                       # distinct org count touched
+        "preview": [ {id, before, after}, ... ]  # first 200
+      }
+    """
+    require_master_admin(user)
+    from utils.database import db
+    from routes.equipment_import import _short_equipment_name, _short_model_code
+
+    body = body or {}
+    if "dry_run" in body:
+        dry_run = bool(body["dry_run"])
+    org_id = (body.get("organization_id") or "").strip()
+    site_name = (body.get("site_name") or "").strip()
+    supplier_name = (body.get("supplier_name") or "").strip()
+
+    query: dict = {}
+    if org_id:
+        query["organization_id"] = org_id
+    # Only touch rows that were imported from an invoice. Either they
+    # have a non-empty `import_id` OR their notes start with the
+    # canonical stub "Imported from invoice".
+    query["$or"] = [
+        {"import_id": {"$exists": True, "$ne": ""}},
+        {"notes": {"$regex": "^Imported from invoice"}},
+    ]
+    if site_name:
+        import re as _re
+        query["location"] = {"$regex": f"^{_re.escape(site_name)}$", "$options": "i"}
+    if supplier_name:
+        import re as _re
+        query["supplier"] = {"$regex": f"^{_re.escape(supplier_name)}$", "$options": "i"}
+
+    cursor = db.equipment.find(query, {"_id": 0})
+    candidates: list[dict] = []
+    async for doc in cursor:
+        candidates.append(doc)
+
+    preview: list[dict] = []
+    to_update: list[dict] = []
+    touched_orgs: set[str] = set()
+    for eq in candidates:
+        if not _looks_like_legacy_long_row(eq):
+            continue
+        # Synthesize the source the short helpers expect.
+        long_text = (eq.get("name") or eq.get("model") or "")
+        synth = {
+            "equipment_name": "",  # force heuristic
+            "description": long_text,
+            "model": eq.get("model") or "",
+            "stock_item_code": eq.get("stock_item_code") or "",
+            "equipment_category": eq.get("equipment_category") or eq.get("equipment_type") or "",
+        }
+        new_name = _short_equipment_name(synth)
+        new_model = _short_model_code(synth)
+        old_name = (eq.get("name") or "").strip()
+        old_model = (eq.get("model") or "").strip()
+        if new_name == old_name and new_model == old_model:
+            continue
+        update = {
+            "name": new_name,
+            "model": new_model,
+            "description": (eq.get("description") or long_text).strip(),
+        }
+        to_update.append({"id": eq["id"], "update": update})
+        touched_orgs.add(eq.get("organization_id") or "")
+        if len(preview) < 200:
+            preview.append({
+                "id": eq["id"],
+                "before": {"name": old_name, "model": old_model},
+                "after": update,
+            })
+
+    updated_count = 0
+    if not dry_run and to_update:
+        for item in to_update:
+            await db.equipment.update_one({"id": item["id"]}, {"$set": item["update"]})
+        updated_count = len(to_update)
+
+    return {
+        "dry_run": dry_run,
+        "total_candidates": len(candidates),
+        "equipment_to_update": len(to_update),
+        "equipment_updated": updated_count,
+        "orgs": len([o for o in touched_orgs if o]),
+        "preview": preview,
+    }

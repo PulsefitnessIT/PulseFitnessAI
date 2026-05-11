@@ -8,7 +8,7 @@
  */
 import React, { useState } from 'react';
 import axios from 'axios';
-import { RefreshCcw, FileText, Wrench, Loader2, CheckCircle2 } from 'lucide-react';
+import { RefreshCcw, FileText, Wrench, Loader2, CheckCircle2, ListChecks } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,16 @@ const BACKFILLS = [
     countKey: 'matched',
     appliedKey: 'matched',
     consideredKey: 'considered',
+  },
+  {
+    id: 'short-display',
+    title: 'Short equipment-row display (iter 216h13)',
+    icon: ListChecks,
+    description: 'Rewrite legacy invoice-imported equipment so `name` is the short subtype noun (Treadmill / StepMill / Upright Cycle) and `model` is the short stock code (260G, 200H-AAF). Full marketing line preserved in `description`. Run this once after deploy to clean up Carshalton + any other long-row imports.',
+    path: '/master-admin/equipment/backfill-short-display',
+    countKey: 'equipment_to_update',
+    appliedKey: 'equipment_updated',
+    consideredKey: 'total_candidates',
   },
 ];
 

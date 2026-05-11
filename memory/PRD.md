@@ -1,21 +1,41 @@
-## Iter 216h13 — Short equipment-row display for Pulse Fitness invoice imports (Feb 11, 2026)
+## Iter 216h13 — Short equipment-row display + backfill endpoint (Feb 11, 2026)
 
-**Operator-reported (with screenshots)**: imported equipment rows were rendering the full 200-char Pulse marketing line ("Premium StepMill with 18.5\" (Cirrus V4) Touchscreen Console, Apple/Samsung Watch Connectivity, Content Mirroring & Wireless Charging in Sand Black…") as BOTH the equipment `name` AND `model`, blowing the row layout out of the page. Operator demanded the row match the manual-add format already used elsewhere on GymAxis: `Treadmill (cardio)` · `Pulse Fitness · 260G · 12345` · `Main gym · Installed 07 May 2026`.
+**Operator-reported (with screenshots)**: imported equipment rows were rendering the full 200-char Pulse marketing line ("Premium StepMill with 18.5\" (Cirrus V4) Touchscreen Console, Apple/Samsung Watch Connectivity, Content Mirroring & Wireless Charging in Sand Black…") as BOTH the equipment `name` AND `model`, blowing the row layout out of the page. Operator demanded the row match the manual-add format: `Treadmill (cardio)` · `Pulse Fitness · 260G · 12345`.
 
 ### What shipped (backend)
-- **`_EXTRACTION_TEMPLATE` schema gained `equipment_name`** (SHORT subtype noun e.g. 'Treadmill', 'StepMill', 'Upright Cycle') **and `description`** (FULL marketing line). The prompt explicitly forbids stuffing the marketing line into `model`.
-- **`_short_equipment_name(eq)`**: Picks the AI's `equipment_name` when present + ≤ 40 chars; otherwise applies a heuristic keyword walk (treadmill / stepmill / upright cycle / recumbent cycle / cross-trainer / rower / smith machine / lat pulldown / leg press / chest press / dumbbell / kettlebell / rack / bench / etc.).
-- **`_short_model_code(eq)`**: Prefers `stock_item_code` (e.g. `260G`, `200H-AAF`). Refuses any "model" string > 24 chars or > 2 spaces — those are marketing lines disguised as model numbers.
-- **`_build_equipment_doc`**: Now produces clean rows. `name = short subtype`, `model = short stock code`, `description = full marketing line` (preserved for search), `notes = "Imported from invoice {n} · {description}"`.
-- **Wizard preview** + **Sicon CSV row** + **`/parse-invoice` response** all use the same helpers, so the wizard table preview matches what gets created on confirm.
+- **`_EXTRACTION_TEMPLATE` schema gained `equipment_name`** (SHORT subtype noun) **and `description`** (FULL marketing line).
+- **`_short_equipment_name(eq)`**: Picks AI-extracted name when ≤ 40 chars; heuristic keyword fallback (treadmill/stepmill/upright cycle/recumbent cycle/cross-trainer/rower/smith machine/lat pulldown/leg press/etc.).
+- **`_short_model_code(eq)`**: Prefers `stock_item_code`. Refuses any "model" > 24 chars or > 2 spaces.
+- **`_build_equipment_doc`**: Now produces clean rows. `name = short subtype`, `model = short stock code`, `description = full marketing line`, `notes = "Imported from invoice {n} · {description}"`.
+- **Wizard preview** + **Sicon CSV row** + **`/parse-invoice` response** all use the same helpers → wizard preview matches what gets created on confirm.
 
-### Regression — `test_iter_216h13_short_equipment_display.py` (13/13 passing)
-- Short-name prefers AI extracted, falls back to heuristic, rejects 200-char strings disguised as names.
-- Short-model prefers `stock_item_code`, rejects > 24-char marketing lines.
-- End-to-end `_build_equipment_doc` produces clean Pulse Fitness row with full description preserved in `notes` / `description`.
+### Backfill endpoint for legacy data
+- **`POST /api/master-admin/equipment/backfill-short-display`** (master-admin gated):
+  - Body: `{organization_id?, site_name?, supplier_name?, dry_run?}` — also accepts `?dry_run=true|false` query param.
+  - Only touches rows with `import_id` set OR notes starting with "Imported from invoice" (manual-add rows are untouched).
+  - Skips rows already in the short shape (idempotent — second run returns 0 updates).
+  - Returns `{dry_run, total_candidates, equipment_to_update, equipment_updated, orgs, preview[≤200]}`.
+- **UI**: New card in **Master Admin → Data Backfills** titled "Short equipment-row display (iter 216h13)" with Preview + Apply buttons. Reuses the existing dry-run-first pattern.
+
+### Verified live (preview)
+- Seeded 4 rows (3 legacy long + 1 control short manual-add).
+- Dry-run preview returned `equipment_to_update: 3` with the exact before→after split (StepMill / 200H-AAF, Upright Cycle / 240G-AAV, Treadmill / 210T-BBC).
+- Commit applied 3 updates; control row untouched.
+- Re-running commit returned `equipment_updated: 0` — idempotent.
+- New backfill card visible in MA → Data Backfills with Preview + Apply buttons.
+
+### Regression — 19/19 passing across two new test files
+- `test_iter_216h13_short_equipment_display.py` (13/13): helper unit tests.
+- `test_iter_216h13_backfill_short_display.py` (6/6): API tests — dry-run preview, commit, skips already-short rows, idempotency, master-admin gate, site-name filter.
 
 ### Cost reassurance
-Operator was concerned $17.44 was per-invoice cost — clarified: that's the TOTAL cumulative Universal-Key spend across every AI feature since signup. Per-invoice Carshalton-sized extraction costs ~$0.10–0.20 (Haiku 4.5).
+Operator was concerned $17.44 was per-invoice. Clarified via support_agent: 1 credit = $0.20 USD, so 20 credits = $4. Their $17.44 is cumulative spend across every AI feature since signup (≈ 87 credits worth). A single Carshalton-sized extraction costs ~$0.10–0.20 (Claude Haiku 4.5). Add balance via Profile → Universal Key; auto-recharge available.
+
+### ⚠ Action required
+1. Top up Universal Key.
+2. Redeploy preview → production.
+3. On production: **Master Admin → Data Backfills → "Short equipment-row display" → Preview → Apply** to clean up the existing Carshalton rows (no need to delete + re-import; preserves equipment IDs, fault history, QR codes).
+4. New invoice imports going forward will already use the short shape.
 
 ---
 
