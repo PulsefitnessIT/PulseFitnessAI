@@ -221,6 +221,9 @@ const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) 
     else processFile(files?.[0]);
   };
 
+  // Iter 216h33 — guard dragenter too so Safari doesn't lock the
+  // cursor to "no-drop" before the dropzone registers dragover.
+  const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); };
   const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); };
   const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); };
   const handleDrop = (e) => {
@@ -257,6 +260,7 @@ const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) 
       <Card
         className={`p-8 border-2 border-dashed transition-colors text-center cursor-pointer ${dragOver ? 'border-[var(--color-brand-blue)] bg-[rgb(var(--rgb-brand-blue)/0.05)]' : 'border-zinc-200 hover:border-[rgb(var(--rgb-brand-blue)/0.3)]'}`}
         onClick={() => !uploading && fileRef.current?.click()}
+        onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

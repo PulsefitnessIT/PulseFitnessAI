@@ -16,6 +16,7 @@ axios.defaults.withCredentials = true;
 import AppRoutes from '@/routes/AppRoutes';
 import TrialBanner from './components/TrialBanner';
 import ScrollToTop from './components/shared/ScrollToTop';
+import GlobalDragGuard from './components/shared/GlobalDragGuard';
 import TrialLockedPage from './components/TrialLockedPage';
 import CookieConsent from './components/shared/CookieConsent';
 import OfflineBanner from './components/shared/OfflineBanner';
@@ -323,6 +324,7 @@ function App() {
  <BrowserRouter>
  <NotificationConfirmProvider>
  <ScrollToTop />
+ <GlobalDragGuard />
  {localStorage.getItem('impersonation_active') === '1' && (
  <div
  className="bg-red-600 text-white text-center text-xs py-1.5 px-3 flex items-center justify-center gap-3 sticky top-0 z-[200]"

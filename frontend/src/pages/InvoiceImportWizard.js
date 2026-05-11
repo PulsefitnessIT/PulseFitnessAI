@@ -79,6 +79,10 @@ export default function InvoiceImportWizard({ onComplete, onClose }) {
  };
 
  const handleFileInput = (e) => processFile(e.target.files?.[0]);
+ // Iter 216h33 — file dropzones must guard dragenter too (Safari fires
+ // it before dragover; missing preventDefault locks the cursor to
+ // "no-drop" and the eventual drop falls back to the document default).
+ const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); };
  const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); };
  const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); };
  const handleDrop = (e) => {
@@ -189,6 +193,7 @@ export default function InvoiceImportWizard({ onComplete, onClose }) {
  className={`max-w-lg mx-auto p-8 border-2 border-dashed transition-colors cursor-pointer ${dragOver ? 'border-[var(--color-brand-blue)] bg-[rgb(var(--rgb-brand-blue)/0.05)]' : 'border-[var(--theme-border)] hover:border-[rgb(var(--rgb-brand-blue)/0.6)]'}`}
  style={{ background: 'var(--theme-surface)' }}
  onClick={() => fileRef.current?.click()}
+ onDragEnter={handleDragEnter}
  onDragOver={handleDragOver}
  onDragLeave={handleDragLeave}
  onDrop={handleDrop}

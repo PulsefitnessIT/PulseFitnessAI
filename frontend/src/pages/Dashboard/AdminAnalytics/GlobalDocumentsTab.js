@@ -94,6 +94,13 @@ const GlobalDocumentsTab = () => {
  });
 
  // Upload handlers
+ // Iter 216h33 — dragenter must also preventDefault so Safari/Firefox
+ // don't snap the cursor to "no-drop" before dragover registers.
+ const handleDragEnter = (e) => {
+ e.preventDefault();
+ e.stopPropagation();
+ dragRef.current?.classList.add('border-blue-500');
+ };
  const handleDrop = (e) => {
  e.preventDefault();
  e.stopPropagation();
@@ -514,6 +521,7 @@ const GlobalDocumentsTab = () => {
  {/* Drop Zone */}
  <div
  ref={dragRef}
+ onDragEnter={handleDragEnter}
  onDrop={handleDrop}
  onDragOver={handleDragOver}
  onDragLeave={handleDragLeave}

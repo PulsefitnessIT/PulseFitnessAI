@@ -113,6 +113,12 @@ const AdminSpecSheets = ({ headers }) => {
   };
 
   const handleFileInput = (e) => processFiles(e.target.files);
+  // Iter 216h33 — file dropzones must guard ALL three of dragenter +
+  // dragover + drop. Some browsers (Safari especially) fire `dragenter`
+  // before any `dragover`, and if `dragenter` doesn't `preventDefault`
+  // the browser locks in the "no drop allowed" cursor and the eventual
+  // `drop` will fall back to the document default (opening the file).
+  const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); };
   const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); };
   const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); };
   const handleDrop = (e) => {
@@ -227,6 +233,7 @@ const AdminSpecSheets = ({ headers }) => {
       <Card
         className={`p-8 border-2 border-dashed transition-colors text-center cursor-pointer ${dragOver ? 'border-[var(--color-brand-blue-dark)] bg-[var(--color-brand-blue-dark)]/5' : 'border-zinc-200 hover:border-[var(--color-brand-blue-dark)]/30'}`}
         onClick={() => !uploading && fileRef.current?.click()}
+        onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

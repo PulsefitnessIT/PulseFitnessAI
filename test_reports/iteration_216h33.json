@@ -1,0 +1,81 @@
+{
+  "summary": "Iteration 216h33 - Verified GlobalDragGuard fix for drag-and-drop spec sheet upload bug. GlobalDragGuard correctly prevents file drags at window level while allowing in-app drags (Kanban, scheduler). All dropzones (AdminSpecSheets, InvoiceImportWizard, GlobalDocumentsTab, PulseOnboardingWizard) have proper onDragEnter handlers. Master Admin and Pulse Pro dashboards load without React errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_216h33.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GlobalDragGuard component (lines 32-65) correctly implements isFileDrag() check - only prevents drags with 'Files' type, allowing text/plain in-app drags",
+    "GlobalDragGuard mounted in App.js line 327 inside BrowserRouter - correct placement",
+    "AdminSpecSheets.js dropzone (lines 233-240) has all 4 handlers: onDragEnter, onDragOver, onDragLeave, onDrop with data-testid='spec-sheet-dropzone'",
+    "InvoiceImportWizard.js dropzone (lines 192-200) has all 4 handlers with proper preventDefault/stopPropagation",
+    "GlobalDocumentsTab.js dropzone (lines 521-531) has all 4 handlers with data-testid='upload-dropzone'",
+    "PulseOnboardingWizard.js dropzone (lines 260-269) has all 4 handlers with data-testid='onboard-invoice-dropzone'",
+    "All handleDragEnter implementations call e.preventDefault() and e.stopPropagation() - Safari/Firefox compatibility fix"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - frontend only testing",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_pro_owner": "bob@knockers.com / Test123!"
+  },
+  "seed_data_creation": "N/A",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "GlobalDragGuard fix verified working. File drags anywhere on page are prevented (defaultPrevented=true), while in-app drags (text/plain) are NOT prevented (defaultPrevented=false). Spec Sheets dropzone accessible via Master Admin → Catalogue & Library → Spec Sheets tab. Console errors about CSP script loading are expected (external analytics scripts blocked) - not React errors.",
+  "verified_features": {
+    "global_drag_guard": {
+      "test": "Dispatch synthetic DragEvent with Files type to window",
+      "result": "PASS - defaultPrevented=true for file drags",
+      "in_app_drag_test": "Dispatch synthetic DragEvent with text/plain type to window",
+      "in_app_result": "PASS - defaultPrevented=false for in-app drags (Kanban, scheduler, staffing still work)"
+    },
+    "spec_sheet_dropzone": {
+      "test": "Navigate to Master Admin → Catalogue & Library → Spec Sheets",
+      "result": "PASS - dropzone found with data-testid='spec-sheet-dropzone'",
+      "handlers": "onDragEnter, onDragOver, onDragLeave, onDrop all present"
+    },
+    "invoice_import_wizard_dropzone": {
+      "code_review": "PASS - handleDragEnter added (line 85), dropzone JSX (lines 192-200)",
+      "handlers": "onDragEnter, onDragOver, onDragLeave, onDrop all present"
+    },
+    "global_documents_dropzone": {
+      "code_review": "PASS - handleDragEnter added (lines 99-103), dropzone JSX (lines 521-531)",
+      "handlers": "onDragEnter, onDragOver, onDragLeave, onDrop all present"
+    },
+    "pulse_onboarding_dropzone": {
+      "code_review": "PASS - handleDragEnter added (line 226), dropzone JSX (lines 260-269)",
+      "handlers": "onDragEnter, onDragOver, onDragLeave, onDrop all present"
+    },
+    "master_admin_pages": {
+      "overview": "PASS - loads without React errors",
+      "people": "PASS - loads without React errors",
+      "organisations": "PASS - loads without React errors",
+      "catalogue_spec_sheets": "PASS - loads without React errors"
+    },
+    "pulse_dashboard": {
+      "test": "Login as bob@knockers.com, navigate to /pulse",
+      "result": "PASS - dashboard loads, GlobalDragGuard working"
+    }
+  },
+  "rca_of_the_issue": {
+    "original_bug": "When uploading spec sheets via drag-and-drop, files opened in browser tabs instead of uploading, crashing the browser",
+    "root_cause": "Missing window-level drag guard - drops that missed the dropzone (or started outside it) hit the document's default handler which opens files in browser",
+    "fix_applied": [
+      "1. Added GlobalDragGuard component with window-level dragover/drop listeners that preventDefault for file drags only",
+      "2. Added onDragEnter handler to all dropzones (Safari fires dragenter before dragover, missing preventDefault locks cursor to 'no-drop')",
+      "3. GlobalDragGuard checks dataTransfer.types for 'Files' - only blocks external file drags, allows in-app drag-drop (Kanban, scheduler)"
+    ],
+    "verification": "Synthetic DragEvent tests confirm file drags are blocked at window level while text drags pass through"
+  }
+}
