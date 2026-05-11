@@ -24,15 +24,41 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
     if not org_id:
         return {"sites": []}
 
-    sites = await db.sites.find(
-        {"organization_id": org_id}, {"_id": 0}
-    ).sort("created_at", 1).to_list(100)
-
+    # Iter 216h15 — auto-create a real Head Office site when an org has
+    # ≥1 site but none is flagged `is_head_office`. Head Office is a
+    # PROPER site (sales/marketing/admin staff are assigned to it, even
+    # though it usually has no equipment), so it must be persisted in
+    # `db.sites` rather than synthesised on read. Idempotent: only runs
+    # when there are real sites AND no real HQ already exists.
     role = (user.get("role") or "").lower()
     is_privileged = (
         role in ("owner", "manager", "master_admin", "master")
         or bool(user.get("is_master_admin"))
     )
+    if is_privileged:
+        existing = await db.sites.find(
+            {"organization_id": org_id}, {"_id": 0, "id": 1, "is_head_office": 1},
+        ).to_list(200)
+        if existing and not any(bool(s.get("is_head_office")) for s in existing):
+            org_doc = await db.organizations.find_one(
+                {"id": org_id}, {"_id": 0, "name": 1, "address": 1},
+            )
+            if org_doc:
+                hq_id = str(uuid.uuid4())
+                await db.sites.insert_one({
+                    "id": hq_id,
+                    "organization_id": org_id,
+                    "name": f"{org_doc.get('name', 'Head Office')} Head Office",
+                    "address": org_doc.get("address", ""),
+                    "is_head_office": True,
+                    "default_location": "Head Office",
+                    "auto_created": True,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                })
+
+    sites = await db.sites.find(
+        {"organization_id": org_id}, {"_id": 0}
+    ).sort("created_at", 1).to_list(100)
     allowed = user.get("allowed_site_ids") or []
     if not is_privileged and allowed:
         allowed_set = set(allowed)
@@ -50,39 +76,10 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
         enriched.append({**site, "equipment_count": eq_count, "issue_count": issue_count})
 
     if enriched:
-        # Iter 216h14 — if NO existing site is flagged as Head Office, inject
-        # a synthetic HQ entry derived from the organisation record. This
-        # gives Pulse Fitness-style orgs (where the corporate HQ is the
-        # `organizations` row, not a separate `sites` row) a selectable
-        # "Head Office" in the SiteSwitcher without needing the operator
-        # to first create a dummy HQ site by hand.
-        #
-        # The synthetic id uses the `hq:` prefix so frontend code can
-        # detect it and either (a) treat it as an org-wide / All-sites
-        # view, or (b) route to a future HQ-specific dashboard. Backend
-        # equipment/issues queries that join on `site_id` will simply
-        # return 0 hits for `hq:` ids — which is the correct behaviour
-        # for a virtual HQ (it has no physical equipment of its own).
-        has_real_hq = any(bool(s.get("is_head_office")) for s in enriched)
-        if not has_real_hq:
-            org = await db.organizations.find_one(
-                {"id": org_id}, {"_id": 0, "id": 1, "name": 1, "address": 1}
-            )
-            if org:
-                org_eq_count = await db.equipment.count_documents({"organization_id": org_id})
-                org_issue_count = await db.issues.count_documents({"organization_id": org_id})
-                synthetic_hq = {
-                    "id": f"hq:{org_id}",
-                    "organization_id": org_id,
-                    "name": f"{org.get('name', 'Head Office')} Head Office",
-                    "address": org.get("address", ""),
-                    "is_head_office": True,
-                    "is_synthetic": True,  # frontend treats this as org-wide view
-                    "equipment_count": org_eq_count,
-                    "issue_count": org_issue_count,
-                }
-                # HQ goes first so the SiteSwitcher shows it at the top of the list.
-                enriched = [synthetic_hq] + enriched
+        # Iter 216h15 — sort HQ to the top of the list (so the
+        # SiteSwitcher renders "Head Office" first), then real sites
+        # in their original creation order.
+        enriched.sort(key=lambda s: (not bool(s.get("is_head_office")), 0))
         return {"sites": enriched}
 
     # Fallback: no sites — return org as default site

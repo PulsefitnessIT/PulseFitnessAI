@@ -69,7 +69,7 @@ const AllSitesOverview = ({ onPickSite }) => {
   return (
     <div className="space-y-6" data-testid="all-sites-overview">
       <PageHeader
-        title="All Sites — Estate Overview"
+        title="All Operations Sites — Estate Overview"
         subtitle="Aggregated KPIs and per-site rankings across every Pulse site"
         icon={Globe2}
         testId="all-sites-header"

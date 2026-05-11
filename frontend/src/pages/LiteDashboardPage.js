@@ -152,11 +152,7 @@ const LiteDashboardPage = () => {
 
   const loadData = useCallback(async () => {
     try {
-      // Iter 216h14 — synthetic Head Office (id prefix `hq:`) is an
-      // org-wide view, NOT a real site filter. Skip the site_id param
-      // so the equipment + issues queries return everything in the org.
-      const isHqSynthetic = !!(activeSite && typeof activeSite.id === 'string' && activeSite.id.startsWith('hq:'));
-      const siteParam = (activeSite && !activeSite.is_default && !isHqSynthetic) ? `?site_id=${activeSite.id}` : '';
+      const siteParam = (activeSite && !activeSite.is_default) ? `?site_id=${activeSite.id}` : '';
       const [eqRes, issRes, fileRes, supRes] = await Promise.all([
         axios.get(`${API}/equipment${siteParam}`, { headers }),
         axios.get(`${API}/issues${siteParam}`, { headers }),
@@ -621,7 +617,7 @@ const LiteDashboardPage = () => {
                   Pulse Fitness {isPro && <span className="text-[var(--color-brand-cyan-hover)]">Pro</span>}
                   {user?.company_name && (
                     <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
-                      · {allSitesActive ? 'All Sites' : (activeSite?.name || user.company_name)}
+                      · {allSitesActive ? 'All Operations Sites' : (activeSite?.name || user.company_name)}
                     </span>
                   )}
                 </h1>

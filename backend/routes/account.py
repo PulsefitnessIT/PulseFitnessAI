@@ -25,7 +25,7 @@ import logging
 import os
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta as _td, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.responses import RedirectResponse, StreamingResponse
@@ -61,6 +61,34 @@ def _public_user(u: dict) -> dict:
         "phone": u.get("phone"),
         "last_login": u.get("last_login"),
         "created_at": u.get("created_at"),
+        # Iter 216h15 — site allocation + reset audit trail
+        "allowed_site_ids": u.get("allowed_site_ids") or [],
+        "password_reset_sent_at": u.get("password_reset_sent_at"),
+        "password_reset_sent_by": u.get("password_reset_sent_by"),
+    }
+
+
+async def _issue_reset_token(target_user: dict, issued_by_email: str) -> dict:
+    """Mint a 72-hour `password_reset_token` for the target user. Returns
+    a dict with `invite_url` + `expires_at`. Mirrors the master-admin
+    invite-link endpoint so the owner-side flow is identical."""
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + _td(hours=72)).isoformat()
+    await db.password_reset_tokens.insert_one({
+        "token": token,
+        "user_id": target_user["id"],
+        "email": target_user.get("email", ""),
+        "expires_at": expires_at,
+        "used": False,
+        "kind": "invite",
+        "issued_by": issued_by_email,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    return {
+        "invite_url": f"{frontend_url}/reset-password?token={token}",
+        "expires_at": expires_at,
+        "email": target_user.get("email", ""),
     }
 
 
@@ -175,6 +203,18 @@ async def invite_team_member(body: dict, user: dict = Depends(get_current_user))
     email = (body or {}).get("email", "").strip().lower()
     full_name = (body or {}).get("full_name", "").strip()
     role = ((body or {}).get("role") or "staff").lower()
+    # Iter 216h15 — owners can now choose between (a) issuing a temp
+    # password they share inline OR (b) emailing the user a self-serve
+    # password reset link (matching Master Admin's existing UX).
+    delivery = ((body or {}).get("delivery") or "temp_password").lower()
+    if delivery not in {"temp_password", "reset_link"}:
+        delivery = "temp_password"
+    # Iter 216h15 — optional per-site allocation at invite time.
+    allowed_site_ids = list((body or {}).get("allowed_site_ids") or [])
+    if not isinstance(allowed_site_ids, list):
+        allowed_site_ids = []
+    allowed_site_ids = [str(s) for s in allowed_site_ids if s]
+
     if not email or not full_name:
         raise HTTPException(status_code=400, detail="Email and full name are required")
     if role not in ALLOWED_ROLES or role == "owner":
@@ -186,27 +226,49 @@ async def invite_team_member(body: dict, user: dict = Depends(get_current_user))
     if existing:
         raise HTTPException(status_code=409, detail="A user with this email already exists")
 
-    temp_password = f"Welcome{secrets.token_hex(3)}!"
     user_id = str(uuid.uuid4())
     now_iso = datetime.now(timezone.utc).isoformat()
+    # When delivery=reset_link, we still seed a random password so the
+    # account row is valid — the user will overwrite it via the reset
+    # link before they can log in. We never disclose this seed.
+    seed_password = f"Welcome{secrets.token_hex(3)}!"
     new_user = {
         "id": user_id,
         "email": email,
         "full_name": full_name,
-        "password": hash_password(temp_password),
+        "password": hash_password(seed_password),
         "role": role,
         "status": "active",
         "avatar_url": None,
         "organization_id": user.get("organization_id"),
         "invited_by": user["id"],
         "must_change_password": True,
+        "allowed_site_ids": allowed_site_ids,
         "created_at": now_iso,
     }
     await db.users.insert_one(new_user)
-    return {
+
+    response: dict = {
         "id": user_id, "email": email, "full_name": full_name, "role": role,
-        "temp_password": temp_password,
+        "allowed_site_ids": allowed_site_ids,
+        "delivery": delivery,
     }
+    if delivery == "reset_link":
+        link = await _issue_reset_token(new_user, user.get("email", ""))
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {
+                "password_reset_sent_at": now_iso,
+                "password_reset_sent_by": user.get("email", ""),
+            }},
+        )
+        response.update({
+            "invite_url": link["invite_url"],
+            "expires_at": link["expires_at"],
+        })
+    else:
+        response["temp_password"] = seed_password
+    return response
 
 
 @router.patch("/account/team/{user_id}")
@@ -257,6 +319,86 @@ async def remove_team_member(user_id: str, user: dict = Depends(get_current_user
         raise HTTPException(status_code=403, detail="Cannot remove the Owner")
     await db.users.delete_one({"id": user_id})
     return {"success": True}
+
+
+# ── Iter 216h15 — Per-user site allocation + send reset link ──────
+
+@router.patch("/account/team/{user_id}/site-access")
+async def update_team_member_site_access(user_id: str, body: dict, user: dict = Depends(get_current_user)) -> dict:
+    """Owner/manager assigns the set of sites a teammate can see.
+
+    Empty list = unrestricted (legacy default — staff sees every site
+    in the org). Non-empty list = whitelist; `/sites` filters by it
+    for non-privileged roles.
+
+    Body: `{"allowed_site_ids": ["site-1", "site-2"]}`
+    """
+    _require_team_admin(user)
+    target = await db.users.find_one(
+        {"id": user_id, "organization_id": user.get("organization_id")},
+        {"_id": 0, "id": 1, "role": 1},
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    if target.get("role") == "owner":
+        raise HTTPException(status_code=403, detail="Owners always see every site")
+    raw = (body or {}).get("allowed_site_ids")
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=400, detail="allowed_site_ids must be a list of site ids")
+    cleaned = [str(s) for s in raw if isinstance(s, (str, int)) and str(s).strip()]
+    # Verify each id belongs to the caller's org so we can't pin staff
+    # to sites outside their tenant.
+    if cleaned:
+        valid_ids = {
+            s["id"] async for s in db.sites.find(
+                {"organization_id": user.get("organization_id"), "id": {"$in": cleaned}},
+                {"_id": 0, "id": 1},
+            )
+        }
+        cleaned = [s for s in cleaned if s in valid_ids]
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "allowed_site_ids": cleaned,
+            "site_access_updated_at": datetime.now(timezone.utc).isoformat(),
+            "site_access_updated_by": user.get("email", ""),
+        }},
+    )
+    fresh = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+    return _public_user(fresh or target)
+
+
+@router.post("/account/team/{user_id}/send-reset-link")
+async def send_reset_link_to_team_member(user_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Issue a fresh 72-hour password-reset link for a teammate. The
+    owner can copy the URL OR (when Resend is wired) email it directly.
+    Stamps the user row with `password_reset_sent_at` / `_by` so the
+    Team & Roles list shows an at-a-glance audit trail."""
+    _require_team_admin(user)
+    target = await db.users.find_one(
+        {"id": user_id, "organization_id": user.get("organization_id")},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1},
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    if target.get("role") == "owner" and user.get("id") != target.get("id"):
+        raise HTTPException(status_code=403, detail="Cannot send a reset link to the Owner")
+    link = await _issue_reset_token(target, user.get("email", ""))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "password_reset_sent_at": now_iso,
+            "password_reset_sent_by": user.get("email", ""),
+        }},
+    )
+    return {
+        "invite_url": link["invite_url"],
+        "expires_at": link["expires_at"],
+        "email": target.get("email", ""),
+        "sent_at": now_iso,
+        "sent_by": user.get("email", ""),
+    }
 
 
 

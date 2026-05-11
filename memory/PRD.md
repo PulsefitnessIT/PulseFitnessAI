@@ -1,28 +1,51 @@
-## Iter 216h14 — Synthetic Head Office in SiteSwitcher for multi-site owners (Feb 11, 2026)
+## Iter 216h15 — Real auto-created Head Office + owner team management (Feb 11, 2026)
 
-**Production bug** (reported by Lee Somers @ Pulse Fitness): dropdown shows "All sites | iGym Carshalton | iGym Congleton" but **no Head Office** even though Lee is an owner. **Root cause**: neither of Pulse Fitness's 2 gym sites was flagged `is_head_office=true`. Their corporate HQ exists as the `organizations` row, not a separate `sites` row, so `/api/sites` correctly returned just the 2 gyms.
+**Operator feedback**: "Head Office is a proper site — sales/marketing/admin are assigned to it, even though it usually has no equipment." Also: (B) "Can't allocate staff to sites" and (C) "Owners need ability to send a reset link, not show inline temp password."
 
-### Fix
-- **`/api/sites`**: when an org has ≥1 site but **none** is flagged HQ, inject a synthetic entry derived from the org record at the TOP of the list:
-  ```
-  { id: "hq:{org_id}", name: "{Org name} Head Office",
-    is_head_office: true, is_synthetic: true,
-    equipment_count: <org-wide>, issue_count: <org-wide> }
-  ```
-- **`LiteDashboardPage`**: when `activeSite.id` starts with `hq:`, skip the `?site_id=...` param on equipment/issues queries → synthetic HQ behaves like an org-wide overview.
+### Replaced synthetic HQ with auto-created real HQ
+- Iter 216h14's synthetic `hq:{org_id}` was wrong (couldn't have staff/users assigned). Replaced with: when an org has ≥1 site but **none** flagged HQ, `/api/sites` now **persists a real `db.sites` row** (`name = "{Org} Head Office"`, `is_head_office=true`, `auto_created=true`). Idempotent. Existing real HQ takes priority.
+- HQ is sorted to the TOP of the SiteSwitcher list.
+- Renamed dropdown label **"All sites" → "All Operations Sites"** (dashboard header + SiteSwitcher dropdown + AllSitesOverview page title).
 
-### Verified
-- 5 seeded test scenarios in `test_iter_216h14_synthetic_hq.py` — **5/5 passing**.
-- Pins: injection happens, equipment count aggregates org-wide, NO injection when real HQ exists, single-site fallback unchanged, site-locking still works for unprivileged staff.
+### B. Site allocation for owners
+- New endpoint `PATCH /api/account/team/{user_id}/site-access` — owner pins a teammate to a subset of org sites (or clears → full access).
+- Tenant-isolation: site ids from other orgs are silently filtered out.
+- Owners can't pin themselves or other owners (they always see all sites).
+- Audit fields stamped: `site_access_updated_at`, `site_access_updated_by`.
+- **Account Settings → Team & Roles**: each teammate row now shows a "Sites: …" summary with an inline "Edit sites" toggle that opens a chip-style multi-select.
+- Invite form gained a "Pin to sites (optional)" chip selector — pins at invite time.
+
+### C. Send reset link (replaces inline temp password)
+- New endpoint `POST /api/account/team/{user_id}/send-reset-link` — issues a 72 h password reset token, mirrors Master Admin's existing UX, stamps `password_reset_sent_at` + `password_reset_sent_by` for the audit trail.
+- Invite form: added "Delivery" dropdown — `Email password reset link (recommended)` vs `Show temporary password inline`. Default is reset link.
+- Each existing teammate row has a **"Send reset link"** button that issues a fresh link, copies it to the operator's clipboard, and updates the audit trail.
+- Audit trail line ("Last reset link sent {date} by {owner email}") appears under the teammate row when applicable.
+
+### Verified — 13/13 tests passing in `test_iter_216h15_team_management.py`
+1. Auto-create HQ on first `/api/sites` call (real `db.sites` row, not synthetic).
+2. Idempotent — second call doesn't double-create.
+3. Invite with `delivery=reset_link` returns invite_url, no temp_password leak.
+4. Legacy `delivery=temp_password` still works.
+5. Invite-time `allowed_site_ids` is persisted.
+6. Owner can pin staff to subset of sites.
+7. Empty allowed_site_ids = full access.
+8. Foreign-org site ids are filtered out (tenant isolation).
+9. Owners cannot be pinned.
+10. Send-reset-link returns invite URL + audit stamps.
+11. Send-reset-link 404s for unknown users.
+12. Send-reset-link rejects other owners as targets.
+13. `/api/account/team` GET surfaces the reset audit trail.
+
+### Visual smoke test (preview, impersonating Test Owner of multi-site org with no HQ)
+- Page header reads: **"Pulse Fitness · Test HQ No Flag Head Office"** ← auto-created HQ.
+- Invite form shows DELIVERY dropdown + PIN TO SITES chip strip with HQ first (★ icon).
 
 ### ⚠ Action required
 1. **Redeploy** preview → production.
-2. On `gymaxisai.com` as Lee Somers, refresh — dropdown should now show "All sites | Pulse Fitness Head Office | iGym Carshalton | iGym Congleton". Selecting Head Office shows org-wide data.
-3. (Optional) If Lee wants a *physical* HQ site (e.g. corporate office in Congleton) instead of the synthetic one, he can go to **Pulse Settings → Sites → mark one as HQ** OR create a new site with the HQ flag — the synthetic HQ will then disappear (real HQ takes priority).
-
-### Still pending (reported by Lee in same message)
-- **Owner-side site allocation for staff** — currently Master Admin has site-allocation UI; owners don't. Need: per-user `allowed_site_ids` multi-select in Account Settings → Team & Roles.
-- **"Send password reset link" option** — owners currently see a temp password inline; they want a button to email the staff a reset link instead (matching Master Admin's existing UX).
+2. As Lee on `gymaxisai.com`:
+   - Open Account Settings → Team & Roles → invite a sales-admin teammate with delivery = "Email password reset link" → pin to "Pulse Fitness Head Office" only.
+   - Send reset link to any existing teammate — copies URL to clipboard.
+3. Confirm the SiteSwitcher now shows: **All Operations Sites | ★ Pulse Fitness Head Office | iGym Carshalton | iGym Congleton**.
 
 ---
 

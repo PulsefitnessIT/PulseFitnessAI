@@ -34,7 +34,7 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
   if (!sites || sites.length < 2) return null;
 
   const label = allSitesActive
-    ? 'All sites'
+    ? 'All Operations Sites'
     : (activeSite?.name || 'Pick a site');
 
   /**
@@ -96,7 +96,7 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
               data-testid="site-switcher-all"
             >
               <Globe2 size={14} className="text-[var(--color-brand-blue)]" />
-              <span className="flex-1 font-semibold">All sites</span>
+              <span className="flex-1 font-semibold">All Operations Sites</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgb(var(--rgb-brand-blue)/0.12)] text-[var(--color-brand-blue)] font-bold">overview</span>
               {allSitesActive ? <Check size={14} className="text-emerald-500" /> : null}
             </button>
