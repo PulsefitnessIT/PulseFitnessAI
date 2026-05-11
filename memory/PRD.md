@@ -1,3 +1,52 @@
+## Iter 216h24 — Master Admin redesign Phase 6: Staff Onboarding wizard (Feb 11, 2026)
+
+P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add user" buttons scattered across the People panels with one canonical 5-step linear wizard that the user explicitly asked for ("invite → role → sites → modules → audit").
+
+### What shipped (frontend only — no new backend code)
+- **NEW `StaffOnboardingWizard.js`** at Master Admin → People → "Onboard staff" sub-tab. 5 steps:
+  1. **Identity** — full name + work email + brand context. Pulse-only admins get the brand forced to `pulse`.
+  2. **Role** — 7 tiles in 2 groups (Platform: GymAxis Master Admin · Pulse Master Admin · Service Desk; Customer org: Owner · Manager · Staff · Instructor). Pulse Master Admins cannot invite a "GymAxis Master Admin".
+  3. **Sites** — only meaningful for org-scoped roles. Multi-select site checkboxes loaded from `GET /api/master-admin/organizations/{org_id}/sites`. Empty = all sites (no restriction).
+  4. **Modules** — 4 toggles (Operations Portal · Memberships · Marketing Suite · CRM). Toggling OFF sends a `module_overrides` entry; ON inherits the org default.
+  5. **Review** — summary card → "Generate invite link" CTA. On success: 72 h invite URL with **Copy** and **Email** actions.
+- Reuses **4 existing backend endpoints** (no new backend code):
+  - `POST /api/master-admin/pulse-admins` for the Pulse Master Admin role.
+  - `POST /api/master-admin/organizations/{org_id}/users` for every org-scoped + master_admin + service_desk role.
+  - `PUT /api/master-admin/users/{user_id}/edit` for `allowed_site_ids` and `module_overrides`.
+  - `POST /api/master-admin/users/{user_id}/invite-link` to mint / re-mint the 72 h reset-link.
+- Reuses the iter-216h15 reset-link flow exactly — Master Admin never sees the user's plaintext password; the user sets it from the 72 h link on first visit.
+
+### Sidebar restructure
+- People group now has 3 sub-tabs: **Directory · Onboard staff · Site-locked users**.
+
+### Verified live
+- **Testing agent v3 `/app/test_reports/iteration_216h24.json` — 12/12 PASSED** (backend + frontend 100%):
+  1. Wizard loads with 5 step pills.
+  2. Step 1 input validation works.
+  3. 7 role tiles in 2 groups.
+  4. Sites checkboxes load from API.
+  5. Module override toggle.
+  6. Happy path e2e — created user, invite link returned with `/reset-password?token=`.
+  7. Pulse Master Admin scope hides GymAxis Master Admin role + forces brand + filters orgs to Pulse only.
+  8-10. Backend endpoint calls verified.
+  11. Created user appears in unified directory.
+  12. Regression: People → Directory still works.
+- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://maintenance-hub-357.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
+
+### Pulse Master Admin guardrails
+- 'GymAxis Master Admin' role tile hidden.
+- Brand toggle hidden (Pulse scope forced).
+- Org dropdown only shows Pulse-brand orgs (2-3 of 90 in preview).
+- Server-side guardrails inherited from existing endpoints (master-admin + Pulse-scope checks).
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. As Master Admin: Sidebar → **People → Onboard staff** to invite a new team member. The wizard takes < 60 seconds end-to-end.
+3. The Master Admin redesign blueprint is now **COMPLETE through P6**. Remaining UX/process backlog work (button hierarchy audit, empty-state pass, dark-mode commit-or-strip) is independent of the redesign.
+
+---
+
+
 ## Iter 216h23 — IA cleanup: kill misleading "Sites" sidebar entry + add "All sites" under Organisations (Feb 11, 2026)
 
 Operator feedback: *"Sites is showing the equipment catalogue. Could Sites be under Organisations?"* Chose option (b): kill the standalone, rename the contents, add an "All sites" cross-org sub-tab under Organisations. **SSoT preserved** — a Site still belongs to exactly one Organisation; the only editor is the Organisation drawer's Sites tab.
