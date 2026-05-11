@@ -1,3 +1,46 @@
+## Iter 216h21 — Master Admin redesign Phase 4: Organisations SSoT consolidation (Feb 11, 2026)
+
+P4 of the blueprint — collapses the multi-surface Organisations experience into a single drawer with 7 blueprint tabs.
+
+### What shipped (frontend)
+- **`MasterAdminPage.renderSection`** — added `case 'organizations'` so the sidebar's `Organisations → List` entry now renders `<AdminOrganizations {...orgsProps} />` directly. Previously this section ID had no case and silently fell through to `null`, leaving the page blank.
+- **`AdminOrganizations.js` drawer tabs renamed + new tab added**:
+  - Old: Details · Users · Features · Sites · Billing · Audit (6).
+  - New: **Profile · Sites · People · Modules · Billing · Integrations · Activity (7)**.
+  - `value` keys (`details`/`users`/`features`/`sites`/`billing`/`integrations`/`audit`) and data-testids were preserved so existing tests & deep-links still resolve. Only the visible labels + the order changed (Sites moved up next to Profile per the blueprint reading order).
+- **NEW component `OrgIntegrationsTab.js`** — surfaces per-org connection status for **Stripe Connect / Sicon Service / Orbit 4 / Sage 200**. Each row carries a status pill (Connected / Not configured), a descriptive line (account ref, platform fee, auto-post flag) and a "Manage" link that fires the existing `gymaxis:set-section` window event to jump to the global integration console.
+- The panel calls the new endpoint on mount + on Refresh; gracefully degrades to org-doc fields when the endpoint errors.
+
+### Backend (1 new endpoint, master-admin-gated)
+- **`GET /api/master-admin/organizations/{org_id}/integration-health`** — returns a 4-block JSON snapshot:
+  - `stripe_connect`: `connected`, `account_id`, `charges_enabled`, `payouts_enabled`, `platform_fee_pct`.
+  - `sicon`: `configured` (org-ref ∩ platform-configured), `platform_configured`, `account_ref`, `auto_post`.
+  - `orbit4`: `configured`, `platform_configured`, `customer_id`.
+  - `sage200`: `configured`, `account_ref`.
+- Permission gate: `require_master_admin` + `assert_org_in_pulse_scope` (so Pulse Admins only see their own scope).
+- No new collection/schema. Pure read across `organizations` + `app_config`.
+
+### Verified live (testing agent v3 — `/app/test_reports/iteration_216h21.json`)
+- **All 6 test items PASSED** (backend + frontend 100%):
+  1. Endpoint returns correct JSON shape; 401 without token; 401 with invalid token; "not configured" shape on orgs with no integration data.
+  2. Organisations sidebar entry renders ~90 org cards (was previously blank).
+  3. Drawer shows 7 tabs in correct order (Profile/Sites/People/Modules/Billing/Integrations/Activity).
+  4. Integrations panel renders 4 rows + status pills + Manage links + Refresh button.
+  5. Regression: People → Directory row click → UserDetailDrawer still works (iter 216h20).
+  6. Regression: "Customer onboarding" is under Organisations sidebar (iter 216h20).
+
+### What this still does NOT do (handed to P5/P6)
+- The standalone `AdminPulse` (Overview → Service Portal → Pulse) panel is left intact for now; the new per-org Integrations tab now covers the same drill-down need but the global KPI strip + MRR table on Overview is still useful for tier-mix at-a-glance.
+- The Memberships admin's separate `OrganisationsTab` is left intact (specialised lock/unlock view inside the Memberships admin — different mental model).
+- P5 (Integrations hub) and P6 (Staff Onboarding wizard) still pending.
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. As Master Admin on `gymaxisai.com`: Sidebar → **Organisations → List** → click any org row's pencil → use the new **Integrations** tab to see per-org Stripe/Sicon/Orbit/Sage status at a glance, with Manage deep-links to the global consoles.
+
+---
+
+
 ## Iter 216h20 — Drawer wiring + Organisation Onboarding restored (Feb 11, 2026)
 
 ### A. P3-followup — `UserDetailDrawer` wired into People Directory
