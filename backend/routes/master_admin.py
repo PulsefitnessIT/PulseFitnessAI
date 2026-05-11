@@ -326,11 +326,20 @@ async def search_organizations(
 
 
 @router.get("/master-admin/organizations")
-async def get_all_organizations(user: dict = Depends(get_current_user)):
+async def get_all_organizations(
+    user: dict = Depends(get_current_user),
+    brand: str = "all",
+):
     require_master_admin(user)
     org_filter: dict = {}
     if is_pulse_only(user):
         org_filter["account_type"] = {"$in": PULSE_VISIBLE_ACCOUNT_TYPES}
+    # Iter 216h18 — Master Admin brand context filter. Applies after
+    # the pulse-only guard so a Pulse Master Admin who flips the
+    # picker to "GymAxis" still sees nothing (their permission gate
+    # always wins).
+    from utils.brand_filter import merge_brand_filter
+    org_filter = merge_brand_filter(org_filter, brand, collection="organizations")
     orgs = await db.organizations.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(500)
     if not orgs:
         return {"organizations": []}
@@ -1313,7 +1322,7 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
 
 
 @router.get("/master-admin/users")
-async def get_all_users(user: dict = Depends(get_current_user)):
+async def get_all_users(user: dict = Depends(get_current_user), brand: str = "all"):
     require_master_admin(user)
 
     # Pulse-only admins see users belonging to Pulse-visible orgs only.
@@ -1327,6 +1336,24 @@ async def get_all_users(user: dict = Depends(get_current_user)):
         user_filter = {"organization_id": {"$in": list(pulse_org_ids)}}
     else:
         user_filter = {}
+
+    # Iter 216h18 — Master Admin brand context filter.
+    from utils.brand_filter import merge_brand_filter, normalise_brand
+    canonical_brand = normalise_brand(brand)
+    if canonical_brand != "all":
+        # If a specific brand is requested, scope by org account_type
+        # so that even legacy users whose own `account_type` is null
+        # follow their parent org's brand (the org is authoritative).
+        org_brand_filter = merge_brand_filter({}, brand, collection="organizations")
+        if org_brand_filter:
+            brand_org_docs = await db.organizations.find(
+                org_brand_filter, {"_id": 0, "id": 1},
+            ).to_list(length=None)
+            brand_org_ids = {o["id"] for o in brand_org_docs}
+            # Intersect with the pulse-only set if applicable.
+            if pulse_org_ids is not None:
+                brand_org_ids &= pulse_org_ids
+            user_filter["organization_id"] = {"$in": list(brand_org_ids) or [""]}
 
     sp_users = await db.users.find(user_filter, {"_id": 0, "password": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
     crm_list = await db.crm_users.find(user_filter, {"_id": 0, "password": 0}).sort("created_at", -1).to_list(1000)

@@ -52,7 +52,7 @@ import { sectionTitles, sectionDescriptions, GROUP_SUBTABS, SECTION_TO_GROUP } f
 import ConsolidatedTabsBar from './MasterAdmin/ConsolidatedTabsBar';
 import useMasterAdminActions from './MasterAdmin/hooks/useMasterAdminActions';
 // Iter 216h17 — brand context for Master Admin (Phase 1 IA redesign).
-import { BrandContextProvider } from './MasterAdmin/BrandContext';
+import { BrandContextProvider, useBrandContext } from './MasterAdmin/BrandContext';
 import BrandPicker from './MasterAdmin/BrandPicker';
 
 const MasterAdminPage = ({ onBack }) => {
@@ -195,13 +195,18 @@ const MasterAdminPage = ({ onBack }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
 
+  // Iter 216h18 — read the brand context so loadData re-fetches
+  // whenever the operator flips the brand picker.
+  const { brand: _brandCtx } = useBrandContext();
+  const _brandQS = _brandCtx && _brandCtx !== 'all' ? `?brand=${_brandCtx}` : '';
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [statsRes, orgsRes, usersRes] = await Promise.all([
-        axios.get(`${API}/master-admin/stats`, { headers }),
-        axios.get(`${API}/master-admin/organizations`, { headers }),
-        axios.get(`${API}/master-admin/users`, { headers }),
+        axios.get(`${API}/master-admin/stats${_brandQS}`, { headers }),
+        axios.get(`${API}/master-admin/organizations${_brandQS}`, { headers }),
+        axios.get(`${API}/master-admin/users${_brandQS}`, { headers }),
       ]);
       setStats(statsRes.data);
       setOrganizations(orgsRes.data.organizations || []);
@@ -214,13 +219,13 @@ const MasterAdminPage = ({ onBack }) => {
       // Fall back: try fetching users alone so the org-users panel
       // still refreshes even if stats/orgs failed.
       try {
-        const usersRes = await axios.get(`${API}/master-admin/users`, { headers });
+        const usersRes = await axios.get(`${API}/master-admin/users${_brandQS}`, { headers });
         setUsers(usersRes.data.users || []);
       } catch (_) { /* best effort */ }
     }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API]);
+  }, [API, _brandQS]);
 
   const loadSectionData = useCallback(async (sec) => {
     try {
