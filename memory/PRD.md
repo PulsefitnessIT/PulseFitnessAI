@@ -1,3 +1,50 @@
+## Iter 216h23 — IA cleanup: kill misleading "Sites" sidebar entry + add "All sites" under Organisations (Feb 11, 2026)
+
+Operator feedback: *"Sites is showing the equipment catalogue. Could Sites be under Organisations?"* Chose option (b): kill the standalone, rename the contents, add an "All sites" cross-org sub-tab under Organisations. **SSoT preserved** — a Site still belongs to exactly one Organisation; the only editor is the Organisation drawer's Sites tab.
+
+### Conceptual clarification (now reflected in the UI)
+- **Organisation** = customer/legal entity (Pulse Fitness Ltd, Tottenham Green Trust). 90 in preview DB.
+- **Site** = physical location belonging to ONE Organisation (Pulse Birmingham, Brockwell Lido Main Pool). 32 in preview DB.
+- **Equipment Catalogue** = platform-wide master data (model images, spec sheets, custom properties). Reused across every Org + Site. NOT a Site.
+
+### What shipped (frontend)
+- **Sidebar "Sites" entry DELETED**. Its contents (Equipment catalogue, Spec sheets, Equipment images, Manufacturers, Marketing library, Social media library) re-homed under a new **"Catalogue & Library"** sidebar entry — accurate label for cross-org master data + brand assets.
+- **NEW "All sites" sub-tab inside Organisations group** (sits between List and Customer onboarding):
+  - Cross-org flat table of every physical site.
+  - Per-row: HQ/branch icon, name, parent org, brand pill, city + postcode, equipment count, members count.
+  - Totals strip (Total sites · Head offices · Branches · Equipment).
+  - Filter bar (free-text search, site-type, organisation dropdown) with live result count.
+  - **Row click pushes URL params `?section=organizations&expand=ORG_ID&view=sites`** + dispatches `gymaxis:set-section` so `AdminOrganizations` (which already reads those params on mount) opens the right org drawer on the Sites tab. SSoT preserved — editing flows through the existing drawer.
+- New `AdminAllSites.js` component (read-only power view).
+
+### Backend (1 new endpoint)
+- **`GET /api/master-admin/all-sites`** — master-admin-gated cross-org sites list:
+  - Query params: `org_id`, `site_type` (`head_office`/`branch`/`all`), `q` (free text), `limit`.
+  - Per-row enrichments: `equipment_count` and `members_count` via single aggregation passes (no N+1).
+  - Pulse-only admins receive `brand="pulse"` and orgs filtered through `brand_filter_clause("pulse")` — scope-lock honoured server-side.
+
+### Verified live
+- **Testing agent v3 `/app/test_reports/iteration_216h23.json` — 7/7 PASSED**:
+  1. Endpoint auth gate (401 without token).
+  2. GymAxis admin sees 32 sites / 17 HQs / 15 branches / brand="all".
+  3. Query params work (site_type filter, limit).
+  4. Pulse admin sees brand="pulse" with scope-filtered sites.
+  5. Sidebar verified: Sites entry GONE, Catalogue & Library present, All sites under Organisations.
+  6. `AdminAllSites` component renders with all expected testids.
+  7. Regression: Org list, Integrations Hub, Pulse Master Admin scope-lock all still work.
+- **Main agent live smoke**: sign-in → All sites loads 32 rows with totals strip → click any row → URL flips to `?section=organizations&expand=...&view=sites` → Organisation drawer opens on Sites tab with Module-Overrides toggles visible. End-to-end navigation pattern works.
+
+### Fix to the JSX literal-escape bug
+- Cleaned up three places where `\u2026` / `\u2019` had leaked into JSX strings inside `AdminAllSites.js` and the section description. They now render as proper "…" and "&apos;".
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. As Master Admin: Sidebar → **Organisations → All sites** for a flat cross-org power view. Click any row to drill into that organisation's Sites drawer.
+3. Equipment images / spec sheets / manufacturer catalogue / marketing library / social media library all moved to **Catalogue & Library** in the sidebar (same content, accurate label).
+
+---
+
+
 ## Iter 216h22 — Master Admin redesign Phase 5: Integrations Hub + Pulse Master Admin scope-lock (Feb 11, 2026)
 
 P5 of the blueprint — single page for all third-party connections, plus a guarantee that **Pulse Master Admins only ever see Pulse Fitness data**.
