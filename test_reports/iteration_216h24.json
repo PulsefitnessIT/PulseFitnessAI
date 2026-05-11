@@ -1,0 +1,89 @@
+{
+  "summary": "Iter 216h24 (P6 — Staff Onboarding Wizard) - 10/10 backend tests PASSED, frontend E2E wizard flow PASSED. The 5-step wizard (Identity → Role → Sites → Modules → Review) works correctly. All 4 backend endpoints used by the wizard verified: POST /api/master-admin/organizations/{org_id}/users, POST /api/master-admin/pulse-admins, PUT /api/master-admin/users/{user_id}/edit, POST /api/master-admin/users/{user_id}/invite-link. Invite link generated with /reset-password?token= format. Pulse Master Admin scope correctly hides 'GymAxis Master Admin' role tile and forces Pulse brand. Regression: People → Directory still shows unified list with 110 users.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "test_1_wizard_loads": {
+      "status": "PASSED",
+      "details": "Staff Onboarding Wizard loads at /master-admin?section=staff-onboarding with data-testid=staff-onboarding-wizard. All 5 step pills visible (identity, role, sites, modules, review)."
+    },
+    "test_2_step1_identity_validation": {
+      "status": "PASSED",
+      "details": "Next button disabled until name >= 2 chars AND email matches regex. Brand context toggle visible for GymAxis admin (Pulse Fitness / GymAxis)."
+    },
+    "test_3_step2_role_tiles": {
+      "status": "PASSED",
+      "details": "7 role tiles in 2 groups (Platform: master_admin, pulse_master_admin, service_desk; Customer org: owner, manager, staff, instructor). Org dropdown appears for org-scoped roles."
+    },
+    "test_4_step3_sites": {
+      "status": "PASSED",
+      "details": "Sites list loads from /api/master-admin/organizations/{org_id}/sites. Empty selection = all sites."
+    },
+    "test_5_step4_modules": {
+      "status": "PASSED",
+      "details": "4 module toggles (operations, memberships, marketing, crm). Toggling OFF sends module_overrides={marketing:false} to backend."
+    },
+    "test_6_happy_path_e2e": {
+      "status": "PASSED",
+      "details": "Full wizard flow: name='Onboard Test User', email='onboard.test.{timestamp}@example.com', role='staff', org selected, sites empty, marketing OFF. Result panel shows invite link with /reset-password?token=. Copy and Email buttons visible."
+    },
+    "test_7_pulse_admin_scope": {
+      "status": "PASSED",
+      "details": "Pulse Master Admin (pulse.scope.test@pulsefitness.com): 'GymAxis Master Admin' role tile HIDDEN, brand toggle HIDDEN (Pulse scope forced), org dropdown shows only 2 Pulse-brand orgs."
+    },
+    "test_8_backend_create_org_user": {
+      "status": "PASSED",
+      "details": "POST /api/master-admin/organizations/{org_id}/users creates user and returns invite_url with 72h token."
+    },
+    "test_9_backend_edit_user": {
+      "status": "PASSED",
+      "details": "PUT /api/master-admin/users/{user_id}/edit accepts module_overrides={marketing:false}."
+    },
+    "test_10_backend_invite_link": {
+      "status": "PASSED",
+      "details": "POST /api/master-admin/users/{user_id}/invite-link returns invite_url with /reset-password?token=."
+    },
+    "test_11_user_in_directory": {
+      "status": "PASSED",
+      "details": "Created user appears in GET /api/master-admin/users unified directory."
+    },
+    "test_12_regression_directory": {
+      "status": "PASSED",
+      "details": "People → Directory still shows unified list (110 users). Sub-tabs visible: Directory, Onboard staff, Site-locked users."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_onboarding_wizard_216h24.py",
+    "/app/test_reports/pytest/pytest_results_216h24.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "StaffOnboardingWizard.js correctly implements 5-step linear flow with local state management",
+    "Wizard correctly calls 4 backend endpoints in sequence: create user → edit (module_overrides) → invite-link (if needed)",
+    "Pulse admin scope correctly filters role tiles (hides master_admin) and forces brand='pulse'",
+    "SidebarConfig.js correctly defines 'staff-onboarding' sub-tab under 'roles' (People) group",
+    "MasterAdminPage.js correctly renders StaffOnboardingWizard for section='staff-onboarding' with isPulseAdmin prop"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_onboarding_wizard_216h24.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "gymaxis_master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "pulse_master_admin": "pulse.scope.test@pulsefitness.com / TestPulse2026!"
+  },
+  "seed_data_creation": "Multiple TEST_ prefixed users created during testing (TEST_onboard_staff_*, TEST_pulse_admin_*, TEST_edit_user_*, TEST_invite_link_*, TEST_directory_*, TEST_master_admin_*)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h24 (P6 Staff Onboarding Wizard) testing complete. All features working: 5-step wizard, 7 role tiles, org/site selection, module overrides, invite link generation. Pulse admin scope correctly restricts to Pulse-brand only. Backend endpoints: POST /api/master-admin/organizations/{org_id}/users, POST /api/master-admin/pulse-admins, PUT /api/master-admin/users/{user_id}/edit, POST /api/master-admin/users/{user_id}/invite-link. Rate limiting may affect rapid UI testing - use RATE_LIMIT_BYPASS_SECRET header for backend tests."
+}

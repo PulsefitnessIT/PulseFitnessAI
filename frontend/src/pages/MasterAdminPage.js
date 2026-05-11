@@ -46,6 +46,7 @@ import EmailHealthPill from './MasterAdmin/EmailHealthPill';
 import CommandPalette from './MasterAdmin/CommandPalette';
 import AdminOrganizations from './MasterAdmin/AdminOrganizations';
 import AdminAllSites from './MasterAdmin/AdminAllSites';
+import StaffOnboardingWizard from './MasterAdmin/StaffOnboardingWizard';
 import IntegrationsHub from './MasterAdmin/IntegrationsHub';
 
 import AdminSidebar from './MasterAdmin/AdminSidebar';
@@ -442,6 +443,11 @@ const MasterAdminPage = ({ onBack }) => {
         // Organisations group (sites still belong to one org — SSoT
         // preserved). Row click jumps to the parent org's Sites drawer.
         return <AdminAllSites isPulseAdmin={isPulseAdmin} />;
+      case 'staff-onboarding':
+        // Iter 216h24 — P6. 5-step wizard for inviting new staff /
+        // admins. Reuses the iter-216h15 reset-link flow so the
+        // master admin never sees plaintext passwords.
+        return <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />;
       default:
         return null;
     }

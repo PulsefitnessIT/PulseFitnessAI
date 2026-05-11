@@ -44,8 +44,9 @@ export const SIDEBAR_ITEMS = [
   {
     id: 'roles', label: 'People', icon: Users, group: 'main',
     subTabs: [
-      { id: 'roles',        label: 'Directory',           icon: Users },
-      { id: 'locked-staff', label: 'Site-locked users',   icon: Lock },
+      { id: 'roles',          label: 'Directory',         icon: Users },
+      { id: 'staff-onboarding', label: 'Onboard staff',   icon: Rocket },
+      { id: 'locked-staff',   label: 'Site-locked users', icon: Lock },
     ],
   },
   // 3. Organisations — SSoT for customers / orgs / multi-site groups.
@@ -172,6 +173,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'backfills':          'settings-compliance',
   'design-system':      'settings-compliance',
   'locked-staff':       'roles',
+  'staff-onboarding':   'roles',
   'onboarding':         'organizations',
   'estate-rollup':      'organizations',
   'activation-funnel':  'organizations',
@@ -218,6 +220,7 @@ export const sectionTitles = {
   'sicon-integration': 'Sicon Service',
   'integrations-hub': 'Integrations hub',
   roles: 'People directory',                    // Iter 216h17 — was "Roles & Access"
+  'staff-onboarding': 'Onboard staff',
   'stripe-connect': 'Stripe Connect',
   support: 'Support tools',
   emails: 'Outbound emails',
@@ -261,6 +264,7 @@ export const sectionDescriptions = {
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',
   'sales-insights': 'Top sales objections + AI-spotted themes from the public marketing chat.',
   roles: 'Pulse Admins · Customer Owners · Customer Staff · CRM contacts — all in one directory.',
+  'staff-onboarding': '5-step wizard to invite a new platform admin or org-scoped staff member. Generates a 72h invite link — the user sets their own password.',
   'stripe-connect': 'Connect Pulse Fitness to Stripe via OAuth, tune the platform fee, preview profit per customer',
   support: 'Tools for customer support',
   emails: 'Outbound email audit trail',
