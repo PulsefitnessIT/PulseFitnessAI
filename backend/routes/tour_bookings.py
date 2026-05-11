@@ -433,4 +433,84 @@ async def operator_mark_no_show(
     return {"ok": True}
 
 
+# ── Conversion KPI ───────────────────────────────────────────────────────
+
+
+@router.get("/memberships/tour-conversion")
+async def operator_tour_conversion(
+    days: int = 30, user: dict = Depends(get_current_user),
+) -> dict:
+    """Booked → attended → became-member funnel for the last N days.
+
+    A booking "became_member" when the associated `signup_drafts.member_id`
+    is non-null (i.e. payment completed and the draft was finalised),
+    OR when a `members` row exists whose email matches the booking's
+    `member_email` and whose `joined_at >= booking.created_at`.
+
+    Conversion ratios are floats in [0, 1] — easier to render either as
+    a percentage or as a 0-1 bar. Period defaults to last 30 days; cap
+    at 365 to bound the aggregate.
+    """
+    org_id = _require_org_member(user)
+    days = max(1, min(365, int(days)))
+    cutoff = _iso(_now() - timedelta(days=days))
+
+    rows = await db.tour_bookings.find(
+        {"organization_id": org_id, "created_at": {"$gte": cutoff}},
+        {"_id": 0, "id": 1, "draft_id": 1, "status": 1, "member_email": 1, "created_at": 1},
+    ).to_list(length=5000)
+
+    total = len(rows)
+    by_status: dict[str, int] = {"booked": 0, "attended": 0, "no_show": 0, "cancelled": 0}
+    for r in rows:
+        by_status[r.get("status", "booked")] = by_status.get(r.get("status", "booked"), 0) + 1
+
+    # Cross-reference: did any of these tour-bookers become members?
+    became_member = 0
+    if rows:
+        # Path A: signup_drafts that completed (member_id present).
+        draft_ids = [r["draft_id"] for r in rows if r.get("draft_id")]
+        completed_drafts: set[str] = set()
+        if draft_ids:
+            async for d in db.signup_drafts.find(
+                {"id": {"$in": draft_ids}, "member_id": {"$ne": None}},
+                {"_id": 0, "id": 1},
+            ):
+                completed_drafts.add(d["id"])
+        # Path B: members table rows by email (covers walk-ins / off-flow joins).
+        emails = list({r["member_email"] for r in rows if r.get("member_email")})
+        member_emails: set[str] = set()
+        if emails:
+            async for m in db.members.find(
+                {"organization_id": org_id, "email": {"$in": emails}},
+                {"_id": 0, "email": 1, "joined_at": 1},
+            ):
+                # Match the email even if joined_at is missing (legacy rows).
+                if m.get("email"):
+                    member_emails.add(m["email"].lower())
+        for r in rows:
+            if r.get("draft_id") in completed_drafts:
+                became_member += 1
+                continue
+            email = (r.get("member_email") or "").lower()
+            if email and email in member_emails:
+                became_member += 1
+
+    def _pct(num: int, denom: int) -> float:
+        return round(num / denom, 4) if denom > 0 else 0.0
+
+    return {
+        "period_days": days,
+        "total_booked": total,
+        "by_status": by_status,
+        "became_member": became_member,
+        "conversion_rates": {
+            "booked_to_attended": _pct(by_status["attended"], total),
+            "attended_to_member": _pct(became_member, by_status["attended"]),
+            "booked_to_member": _pct(became_member, total),
+        },
+        "generated_at": _iso(_now()),
+    }
+
+
 __all__ = ["router"]

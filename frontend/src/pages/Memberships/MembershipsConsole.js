@@ -38,6 +38,7 @@ import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import HelpHint from '@/components/HelpHint';
+import TourConversionTile from '@/pages/Memberships/TourConversionTile';
 import ProductTour from '@/components/shared/ProductTour';
 import AnalyticsTab from '@/pages/Memberships/AnalyticsTab';
 import BookingRulesTab from '@/pages/Memberships/BookingRulesTab';
@@ -385,6 +386,9 @@ function DashboardTab({ API, headers }) {
         )}
       </section>
       <CommissionSection API={API} headers={headers} />
+      <section className="mt-8">
+        <TourConversionTile />
+      </section>
     </div>
   );
 }

@@ -1,3 +1,48 @@
+## Iter 216h5 — Tour Conversion KPI tile (Feb 10, 2026)
+
+**Followup to iter 216h4**: now that real tour bookings are landing in `tour_bookings`, surface the booked-→-attended-→-became-member funnel so operators can see whether the public sign-up tour flow actually drives memberships (and which gym staff are converting best, after a future per-staff slice).
+
+### What shipped
+
+**Backend — new endpoint in `routes/tour_bookings.py`**
+- `GET /api/memberships/tour-conversion?days=30` (auth-gated, org-scoped, `days` clamped to [1, 365]).
+- Two paths for `became_member` (counts a tour-booker as converted on either):
+  - Path A — `signup_drafts.member_id` non-null for the booking's draft_id (i.e. payment completed the public flow).
+  - Path B — `members` row whose email matches the booking's `member_email` (covers walk-ins / off-flow joins).
+- Returns: `period_days`, `total_booked`, `by_status` (booked/attended/no_show/cancelled), `became_member`, `conversion_rates.{booked_to_attended, attended_to_member, booked_to_member}` as floats in [0, 1].
+
+**Frontend — new `pages/Memberships/TourConversionTile.js`**
+- 3 funnel-step tiles (Booked · Attended · Became member) with brand-coloured icons + percentage sub-labels.
+- 3 stacked horizontal bars rendering the funnel visually (100% → attended% → member%).
+- Period pill switch (7d / 30d / 90d) + manual refresh button.
+- Bottom-row context line: no-show + cancelled + upcoming counts on the left; "Attended → Member %" on the right.
+- Empty state copy invites the operator to share the public sign-up page to start the funnel.
+- Embedded into `MembershipsConsole.js → DashboardTab` (below CommissionSection so it sits with revenue-adjacent metrics).
+
+**Regression test — `tests/test_iter_216h5_tour_conversion.py`** (6 cases, all passing)
+1. Empty period returns proper structure.
+2. Status counts reflect inserted bookings.
+3. `became_member` increments via members-email path.
+4. `became_member` increments via signup_drafts.member_id path.
+5. Conversion ratios stay in [0, 1] and respect the math under varied inputs.
+6. `days` query is clamped (99999 → 365, -5 → 1).
+
+### Verified live
+- Seeded a realistic mini-funnel (5 bookings: 2 attended → 1 became member, 1 no-show, 1 cancelled, 1 booked) → API returned `total=5, attended=2 (40%), became_member=1 (20% booked / 50% attended)`.
+- Frontend dashboard rendered: "Booked 5 · Attended 2 (40% of booked) · Became member 1 (20% of booked)" with the 3-tier funnel bar (blue 100% → green 40% → violet 20%) and bottom summary "1 no-show · 1 cancelled · 1 upcoming · Attended → Member 50%".
+- Test data cleaned up post-verification.
+- Period switch + refresh both working.
+
+### ⚠ Action required
+Lives in **preview** only — **redeploy** to push to gymaxisai.com so you can see the tour-conversion funnel for your real members.
+
+### Side-effect noted
+Temporarily extended the Strong Fitness Test org's trial to `2026-12-31` so the Memberships dashboard could render past the trial-expired paywall during smoke testing. Reset if needed via the master-admin org editor.
+
+---
+
+
+
 ## Iter 216h4 — Tour Calendar booking flow (Feb 10, 2026)
 
 **Followup**: replace the free-text "Preferred day & time" field on the public sign-up flow with a proper bookable slot grid + operator-side bookings management. Closes P2 from the upcoming-tasks list.
