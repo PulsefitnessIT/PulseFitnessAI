@@ -10,6 +10,7 @@ import {
  ShieldCheck, ShieldAlert, Activity, CheckCircle2, XCircle,
  Clock, RefreshCw, Zap, TrendingDown, TrendingUp, Wand2, ChevronRight,
  Sparkles, Loader2, AlertOctagon, History, ArrowRight, Undo2,
+ Cpu, MemoryStick, HardDrive,
 } from 'lucide-react';
 import SecurityChecksPanel from './SecurityChecksPanel';
 
@@ -41,6 +42,106 @@ const SummaryTile = ({ label, value, hint, icon: Icon, tone }) => (
  </div>
  </Card>
 );
+
+// Iter 216h16 — system resource gauges (CPU, RAM, disk) for capacity planning.
+const STATUS_COLOR = {
+  ok: { bar: 'bg-emerald-500', text: 'text-emerald-700', ring: 'border-emerald-300', label: 'OK' },
+  warn: { bar: 'bg-amber-500', text: 'text-amber-700', ring: 'border-amber-300', label: 'WATCH' },
+  critical: { bar: 'bg-red-500', text: 'text-red-700', ring: 'border-red-300', label: 'UPGRADE NOW' },
+};
+
+const ResourceGauge = ({ label, percent, hint, status = 'ok', icon: Icon, testId }) => {
+  const tone = STATUS_COLOR[status] || STATUS_COLOR.ok;
+  const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+  return (
+    <div className={`rounded-xl border bg-white p-4 ${tone.ring}`} data-testid={testId}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon size={16} className="text-zinc-600" />}
+          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-600">{label}</span>
+        </div>
+        <span className={`text-[10px] font-bold ${tone.text}`}>{tone.label}</span>
+      </div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className="text-2xl font-bold text-zinc-900" data-testid={`${testId}-percent`}>{pct.toFixed(1)}%</span>
+        {hint && <span className="text-[11px] text-zinc-500" data-testid={`${testId}-hint`}>{hint}</span>}
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+        <div className={`h-full ${tone.bar} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+};
+
+const SystemResourcesPanel = ({ system }) => {
+  if (!system) return null;
+  if (system.error) {
+    return (
+      <Card className="p-4 border-l-4 border-amber-500" data-testid="trust-system-error">
+        <p className="text-xs text-amber-700">System metrics unavailable: {system.error}</p>
+      </Card>
+    );
+  }
+  const cpu = system.cpu || {};
+  const mem = system.memory || {};
+  const disk = system.disk || {};
+  const proc = system.process || {};
+  const ramHint = `${(mem.used_mb || 0).toFixed(0)} / ${(mem.total_mb || 0).toFixed(0)} MB`;
+  const diskHint = `${(disk.used_gb || 0).toFixed(1)} / ${(disk.total_gb || 0).toFixed(1)} GB`;
+  const cpuHint = `${cpu.count_logical || 0} cores · load ${(cpu.load_avg?.['1m'] || 0).toFixed(2)}`;
+  return (
+    <Card className="p-5" data-testid="trust-system-panel">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Cpu size={16} className="text-zinc-600" />
+          <h3 className="text-sm font-bold text-zinc-900">System resources · this pod</h3>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider text-zinc-500" data-testid="trust-system-hostname">
+          {(system.hostname || '').slice(0, 32)} · PID {proc.pid || '—'}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <ResourceGauge
+          label="CPU"
+          percent={cpu.percent || 0}
+          hint={cpuHint}
+          status={(cpu.percent || 0) >= 90 ? 'critical' : (cpu.percent || 0) >= 70 ? 'warn' : 'ok'}
+          icon={Cpu}
+          testId="trust-gauge-cpu"
+        />
+        <ResourceGauge
+          label="RAM"
+          percent={mem.percent || 0}
+          hint={ramHint}
+          status={mem.status || 'ok'}
+          icon={MemoryStick}
+          testId="trust-gauge-ram"
+        />
+        <ResourceGauge
+          label="Disk"
+          percent={disk.percent || 0}
+          hint={diskHint}
+          status={disk.status || 'ok'}
+          icon={HardDrive}
+          testId="trust-gauge-disk"
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-zinc-500" data-testid="trust-system-meta">
+        <span><strong className="text-zinc-700">Process RSS:</strong> {(proc.rss_mb || 0).toFixed(0)} MB</span>
+        <span>·</span>
+        <span><strong className="text-zinc-700">Process CPU:</strong> {(proc.cpu_percent || 0).toFixed(1)}%</span>
+        {proc.started_at && (<>
+          <span>·</span>
+          <span><strong className="text-zinc-700">Up since:</strong> {new Date(proc.started_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+        </>)}
+        {(mem.status === 'warn' || mem.status === 'critical' || disk.status === 'warn' || disk.status === 'critical') && (<>
+          <span>·</span>
+          <span className="text-amber-700 font-semibold">Tip: consider upgrading your Emergent compute package before usage hits 90%.</span>
+        </>)}
+      </div>
+    </Card>
+  );
+};
 
 const EventRow = ({ ev, onAck, onResolve, busy, onOpen }) => {
  const s = SEVERITY_STYLES[ev.severity] || SEVERITY_STYLES.info;
@@ -389,7 +490,7 @@ export default function TrustDashboard({ refreshTick = 0 }) {
  }
  if (!data) return null;
 
- const { summary, reliability, integrations, open_events, self_heal_log } = data;
+ const { summary, reliability, integrations, open_events, self_heal_log, system } = data;
  const reliabilityTone = reliability.reliability_pct >= 99
  ? 'border-l-4 border-emerald-500'
  : reliability.reliability_pct >= 95
@@ -456,6 +557,9 @@ export default function TrustDashboard({ refreshTick = 0 }) {
  <SummaryTile label="Resolved (24h)" value={summary.resolved_24h} icon={CheckCircle2}
  tone="border-l-4 border-emerald-500" />
  </div>
+
+ {/* Iter 216h16 — system resources for capacity planning */}
+ <SystemResourcesPanel system={system} />
 
  <Card className="p-5">
  <div className="flex items-center gap-2 mb-3">

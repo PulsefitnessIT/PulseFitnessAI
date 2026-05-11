@@ -118,8 +118,98 @@ async def trust_overview(user: dict = Depends(get_current_user)) -> dict:
         "integrations": integrations,
         "open_events": open_events,
         "self_heal_log": self_heal,
+        "system": _system_metrics(),
         "generated_at": _now_iso(),
     }
+
+
+# ── Iter 216h16 — per-pod system metrics (psutil) ──────────────────────────
+#
+# Gives Master Admins a real-time read on CPU + RAM + disk utilisation
+# so they can decide whether to upgrade the Emergent compute package
+# BEFORE users start hitting OOMs / 503s. The numbers reflect the
+# container the backend pod is running in (Kubernetes pod cgroup
+# limits, where applicable), NOT the underlying node — so the % values
+# are meaningful to the operator's pricing decision.
+
+def _system_metrics() -> dict:
+    """Snapshot CPU, memory, disk + load + pid metadata. Wrapped in a
+    try/except so a future libc/psutil edge case can't break the whole
+    overview endpoint."""
+    try:
+        import psutil  # noqa: WPS433 — runtime import keeps cold-start cheap
+        import os as _os
+        vm = psutil.virtual_memory()
+        sm = psutil.swap_memory()
+        du = psutil.disk_usage("/")
+        try:
+            la1, la5, la15 = _os.getloadavg()
+        except (OSError, AttributeError):
+            la1 = la5 = la15 = 0.0
+        try:
+            proc = psutil.Process()
+            proc_rss_mb = round(proc.memory_info().rss / (1024 ** 2), 1)
+            proc_cpu_pct = proc.cpu_percent(interval=0.05)
+            proc_started_at = datetime.fromtimestamp(proc.create_time(), tz=timezone.utc).isoformat()
+        except Exception:
+            proc_rss_mb = proc_cpu_pct = 0.0
+            proc_started_at = None
+        return {
+            "cpu": {
+                "percent": psutil.cpu_percent(interval=0.05),
+                "count_logical": psutil.cpu_count(logical=True) or 0,
+                "count_physical": psutil.cpu_count(logical=False) or 0,
+                "load_avg": {"1m": round(la1, 2), "5m": round(la5, 2), "15m": round(la15, 2)},
+            },
+            "memory": {
+                "total_mb": round(vm.total / (1024 ** 2), 1),
+                "used_mb": round(vm.used / (1024 ** 2), 1),
+                "available_mb": round(vm.available / (1024 ** 2), 1),
+                "percent": vm.percent,
+                # Iter 216h16 — UI surfaces this banner colour ramp:
+                #   < 70%  → ok (green), 70-89% → warn (amber), ≥ 90% → critical (red)
+                "status": (
+                    "critical" if vm.percent >= 90
+                    else "warn" if vm.percent >= 70
+                    else "ok"
+                ),
+            },
+            "swap": {
+                "total_mb": round(sm.total / (1024 ** 2), 1),
+                "used_mb": round(sm.used / (1024 ** 2), 1),
+                "percent": sm.percent,
+            },
+            "disk": {
+                "total_gb": round(du.total / (1024 ** 3), 2),
+                "used_gb": round(du.used / (1024 ** 3), 2),
+                "free_gb": round(du.free / (1024 ** 3), 2),
+                "percent": du.percent,
+                "status": (
+                    "critical" if du.percent >= 90
+                    else "warn" if du.percent >= 80
+                    else "ok"
+                ),
+            },
+            "process": {
+                "rss_mb": proc_rss_mb,
+                "cpu_percent": proc_cpu_pct,
+                "started_at": proc_started_at,
+                "pid": _os.getpid(),
+            },
+            "hostname": _os.environ.get("HOSTNAME") or _os.uname().nodename,
+            "captured_at": _now_iso(),
+        }
+    except Exception as exc:  # pragma: no cover — defensive only
+        return {"error": str(exc)[:120], "captured_at": _now_iso()}
+
+
+@router.get("/system")
+async def trust_system_metrics(user: dict = Depends(get_current_user)) -> dict:
+    """Cheap, pollable snapshot of the backend pod's resource usage —
+    cheap enough to poll every 10 s from the Trust dashboard without
+    measurably impacting throughput."""
+    require_master_admin(user)
+    return _system_metrics()
 
 
 @router.get("/events")

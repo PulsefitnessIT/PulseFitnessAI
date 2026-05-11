@@ -415,7 +415,35 @@ const AdminOrganizations = ({
  // Iter 215bi — temp password from in-dialog reset, surfaced inline.
  const [lastResetTempPw, setLastResetTempPw] = useState(null);
  const [lastInviteUrl, setLastInviteUrl] = useState(null);
+// Iter 216h16 — sites listing for the user-edit drawer's site allocation block.
+const [editUserSites, setEditUserSites] = useState([]);
+const [editUserSitesLoading, setEditUserSitesLoading] = useState(false);
+
  // Iter 215bh — module filter (filters by enabled_modules array on org).
+
+// Iter 216h16 — when the user-edit drawer opens, fetch the parent
+// org's sites so the operator can pin the user to a subset of sites
+// (mirrors the owner-side Team & Roles chip selector).
+useEffect(() => {
+  if (!editingUser?.organization_id) { setEditUserSites([]); return undefined; }
+  let cancelled = false;
+  (async () => {
+    setEditUserSitesLoading(true);
+    try {
+      const tk = localStorage.getItem('token');
+      const r = await axios.get(
+        `${API}/master-admin/organizations/${editingUser.organization_id}/sites`,
+        { headers: { Authorization: `Bearer ${tk}` } },
+      );
+      if (!cancelled) setEditUserSites(r.data?.sites || []);
+    } catch {
+      if (!cancelled) setEditUserSites([]);
+    }
+    if (!cancelled) setEditUserSitesLoading(false);
+  })();
+  return () => { cancelled = true; };
+}, [editingUser?.organization_id]);
+
  const [moduleFilter, setModuleFilter] = useState('all');
 
  // Iter 215au — when ⌘K (CommandPalette) selects an org, the parent
@@ -1719,6 +1747,62 @@ const AdminOrganizations = ({
    </p>
  ) : null}
  </div>
+
+{/* Iter 216h16 — Site allocation (allowed_site_ids) for non-owner roles.
+    Owners are exempt (they always see all sites). Master Admins are also
+    exempt (platform-wide access). Persisted via the existing
+    PATCH /master-admin/users/{id} endpoint which already accepts the
+    `allowed_site_ids` field. */}
+{(editingUser.role !== 'owner' && !editingUser.is_master_admin && editingUser.role !== 'master_admin') && (
+  <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3" data-testid="edit-user-sites-panel">
+    <div className="flex items-center justify-between mb-2">
+      <p className="text-xs font-bold uppercase tracking-wider text-zinc-700">Site access</p>
+      <span className="text-[10px] text-zinc-500">
+        {((editingUser.allowed_site_ids || []).length === 0)
+          ? 'All sites in org'
+          : `${(editingUser.allowed_site_ids || []).length} pinned`}
+      </span>
+    </div>
+    {editUserSitesLoading ? (
+      <p className="text-[11px] text-zinc-500">Loading sites…</p>
+    ) : editUserSites.length === 0 ? (
+      <p className="text-[11px] text-zinc-500 italic">This org has no sites yet.</p>
+    ) : (
+      <>
+        <div className="flex flex-wrap gap-1.5">
+          {editUserSites.map((s) => {
+            const pinned = (editingUser.allowed_site_ids || []).includes(s.id);
+            return (
+              <button
+                type="button"
+                key={s.id}
+                onClick={() => {
+                  const cur = editingUser.allowed_site_ids || [];
+                  const next = pinned ? cur.filter((x) => x !== s.id) : [...cur, s.id];
+                  setEditingUser({ ...editingUser, allowed_site_ids: next });
+                }}
+                className="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                style={{
+                  borderColor: pinned ? '#0055FF' : '#e4e4e7',
+                  background: pinned ? 'rgba(0,85,255,0.08)' : 'transparent',
+                  color: pinned ? '#0055FF' : '#27272a',
+                  fontWeight: pinned ? 600 : 400,
+                }}
+                data-testid={`edit-user-site-pick-${s.id}`}
+              >
+                {s.is_head_office ? '★ ' : ''}{s.name}{pinned ? ' ✓' : ''}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-zinc-500 mt-2 leading-snug">
+          Leave empty for full org-wide access. Selecting sites locks this teammate to those sites only. Owners + Master Admins always see every site.
+        </p>
+      </>
+    )}
+  </div>
+)}
+
 
 {/* Iter 216a — Per-User Feature Editor.
     Lets Master Admins / Site Owners revoke access to specific modules
