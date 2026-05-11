@@ -1,3 +1,53 @@
+## Iter 216h33 — HOTFIX: Drag-and-drop opening files in browser instead of uploading (Feb 11, 2026)
+
+### Operator-reported (Lee, production)
+"Master Admin → Spec Sheets — I dragged and dropped spec sheets to upload them. They didn't upload. Instead every spec sheet opened up as a file in my browser, crashing the browser. Please ensure that every drag-and-drop is working as it should do and items dragged and dropped actually upload to the platform."
+
+### Root cause
+The Spec Sheets dropzone (and most others) called `preventDefault()` correctly on `dragOver` + `drop` events that landed exactly on the Card element — but if the file was dropped even a few pixels OUTSIDE the Card (or the user started a drag and let go without precisely targeting the dropzone), the event hit `document`'s default handler. The browser's default handler opens dropped files — when Lee dropped 10 PDFs near the dropzone, Chrome opened 10 new tabs, each rendering a 20+ MB PDF, then ran out of memory and crashed.
+
+### What shipped
+
+#### New global guard
+- **NEW `/app/frontend/src/components/shared/GlobalDragGuard.js`** — mounts two window-level listeners (`dragover` + `drop`) that call `preventDefault()` *only* when `dataTransfer.types` contains `"Files"`. That keeps:
+  - **Files dropped anywhere on the page** → blocked from browser's "open file" default (the bug Lee hit).
+  - **In-app drag-drop** (CRM Pipeline Kanban, ServiceScheduler slots, Memberships StudioBuilder, StaffingConsole roster, MobileAppBuilder cards) → completely untouched because those drags carry `text/plain` or `text/uri-list`, NOT `Files`.
+- **Wired in `App.js`** inside `<BrowserRouter>` so it covers every route (operator portals, master admin, member apps, kiosk).
+
+#### Defensive `onDragEnter` added to every file dropzone
+Safari (and some Firefox builds) fire `dragenter` before any `dragover`. If `dragenter` doesn't `preventDefault`, the cursor locks to "no-drop" and the eventual `drop` falls through to the document default. Added `onDragEnter={handleDragEnter}` to:
+- `AdminSpecSheets.js` (`spec-sheet-dropzone`)
+- `InvoiceImportWizard.js`
+- `GlobalDocumentsTab.js` (`upload-dropzone`)
+- `PulseOnboardingWizard.js` (`onboard-invoice-dropzone`)
+
+`EquipmentPhotoUpload.js` already had `onDragEnter` — no change needed.
+
+### Verified live (testing agent v3 — `/app/test_reports/iteration_216h33.json`)
+- **Frontend success rate: 100%**.
+- **GlobalDragGuard synthetic test**:
+  - File drag (`types=['Files']`) → `defaultPrevented=true` ✓ (browser won't open the file).
+  - In-app drag (`types=['text/plain']`) → `defaultPrevented=false` ✓ (Kanban etc. still work).
+- All 4 file dropzones verified to have `onDragEnter` + `onDragOver` + `onDragLeave` + `onDrop` with proper `preventDefault` / `stopPropagation`.
+- Master Admin (Overview / People / Organisations / Catalogue & Library → Spec Sheets) — 0 React errors.
+- Pulse dashboard (Bob) — 0 React errors.
+
+### Files touched
+- **NEW** `/app/frontend/src/components/shared/GlobalDragGuard.js` (~65 LOC)
+- `/app/frontend/src/App.js` (+2 LOC — import + mount)
+- `/app/frontend/src/pages/MasterAdmin/AdminSpecSheets.js` (+8 LOC — dragEnter handler + JSX wiring)
+- `/app/frontend/src/pages/InvoiceImportWizard.js` (+5 LOC)
+- `/app/frontend/src/pages/Dashboard/AdminAnalytics/GlobalDocumentsTab.js` (+8 LOC)
+- `/app/frontend/src/pages/PulseOnboardingWizard.js` (+3 LOC)
+
+### ⚠ Action required
+1. **Redeploy preview → production.** Frontend-only fix; no DB migration.
+2. After deploy, Lee can drag-drop multiple PDFs onto the Spec Sheets dropzone — they will all upload to the platform AND files dropped just outside the dropzone will no longer crash the browser.
+
+---
+
+
+
 ## Iter 216h32 — HOTFIX: Head Office not auto-created for Lee on production (Feb 11, 2026)
 
 ### Operator-reported (with screenshot)
