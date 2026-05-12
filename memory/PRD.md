@@ -1432,6 +1432,48 @@ Lives in **preview** only — **redeploy** to push to gymaxisai.com. If the prod
 ---
 
 
+## Iter 216h49 — Six-feature production batch (Feb 12, 2026)
+
+Single batch shipping six requested features after Lee's feedback on production. All backend changes verified by the testing agent (16/16 tests pass — `/app/test_reports/iteration_216h49.json`).
+
+### 1. Kit transfer + delete between sites (owner/manager)
+- New endpoint `POST /api/equipment/{id}/move` — moves equipment to another site within the same org. Validates target site belongs to the org. Cascades the move to linked `issues` so per-site dashboards reconcile. Audit-logged.
+- `PATCH /api/equipment/{id}` now accepts `site_id` (gated to owner/manager/master_admin).
+- `DELETE /api/equipment/{id}` is now **org-scoped instead of user-scoped** — was a latent bug where owners couldn't delete kit added by other staff. Audit-logged. Gated to owner/manager/master_admin.
+- Frontend (`LiteEquipmentTab.js`): inline Move + Delete row actions on every equipment card. Move opens an inline site-picker; Delete uses `useConfirm` for a destructive confirmation modal.
+
+### 2. Service Desk Equipment search (Sicon Service parity)
+- New endpoint `GET /api/service-desk/equipment` — global free-text + filter search across every customer's equipment. Hydrates `organization_name` and `site_name` inline so desk operators have org+site context without impersonating. Audit-logged.
+- New `DeskEquipment.js` page wired into `ServiceDeskPage` as a top-level tab. 300ms debounce, read-only by design (mutations still flow through customer's own console).
+
+### 3. Auto-sync staff → Staffing module
+- `GET /api/staffing/staff` now auto-backfills missing `staff_members` rows from `db.users` on every manager call. Match priority: `user_id` → `email` (case-insensitive). Maps `owner/manager` → `manager`, `staff` → `reception`. New rows tagged `auto_synced_from_users:true` for audit. Eliminates the duplicate-entry pain Lee reported.
+
+### 4. Documents upload UX trio
+- `LiteDocumentsTab` got a drag-and-drop dropzone matching the AdminSpecSheets pattern. Drop or click — uploads route into the **currently active category tab** automatically.
+- `LiteDashboardPage.handleDocumentUpload` rewired through the global `useUploadQueue()` hook so per-file progress shows in the bottom-right drawer with bytes-uploaded percentage.
+- **Page-leave guard** added to `UploadQueue` itself: while any task is queued/uploading, a `beforeunload` listener fires the browser's native "Leave site?" prompt. Auto-clears once every task settles. Single source of truth — every consumer that uses `useUploadQueue()` gets the guard for free.
+
+### 5. Compression visibility
+- `POST /api/files/upload` already PyMuPDF-compresses PDFs (30-60% reduction). Now also returns `original_size` and `compression_ratio` in the file_doc so the UI can surface "62% saved" toasts.
+
+### 6. Auto-open tours disabled
+- `ProductTour.js` — auto-open useEffect gated behind a `const AUTO_OPEN = false` so manual triggers (`resetTour()`) still work from user-menu "Start tour" buttons.
+- `CRMApp.js` — removed the `setShowTour(true)` auto-open on first login.
+- `MarketingTour.js` — removed the `if (!data.tour_seen) setOpen(true)` first-visit auto-open. Sidebar trigger still launches the tour manually.
+
+Per Lee's note: "the tours need updating as they aren't pointing in the right directions or buttons" — the auto-open is killed now; the tour scripts themselves are a follow-up task to refresh content + targets.
+
+### Bug found and fixed by testing agent
+- `service_desk.py` line 165: `log_desk_action()` was called without `await` and with mismatched arg order. Testing agent corrected the signature to `await log_desk_action(user, action, target_type, target_id, summary, details=...)`.
+
+### Files touched
+**Backend**: `equipment.py`, `service_desk.py`, `staffing.py`, `files.py`
+**Frontend**: `App.js` (already in this iteration), `UploadQueue.js`, `LiteDashboardPage.js`, `LiteDashboard/LiteDocumentsTab.js`, `LiteDashboard/LiteEquipmentTab.js`, `ServiceDeskPage.js`, **new** `ServiceDesk/DeskEquipment.js`, `ProductTour.js`, `CRM/CRMApp.js`, `Marketing/MarketingTour.js`
+
+---
+
+
 ## Iter 216h48 — KILL the recurring "SiteSwitcher disappears for owners" bug class (Feb 12, 2026)
 
 **Production bug** (reported by Lee Somers — Pulse Fitness owner, 3 sites: HQ + iGym Carshalton + iGym Congleton): "I can no longer see Site selection". Confirmed **recurrence** of the same bug class that we've patched 3 times already (iter 216h32, 216h31, 216bk).
