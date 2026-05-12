@@ -98,7 +98,32 @@ import { Plus, Download, Trash2 } from 'lucide-react';
     <Button variant="ghostDestructive" size="iconSm" icon={Trash2} title="Archive" />
   </RowActions>
 </div>
+
+// Iter 216h44 — `<ListPanel>` super-component bundles toolbar + loading + empty + rows.
+<ListPanel
+  search={{ value: q, onChange: setQ, placeholder: 'Search…', testId: 'list-search' }}
+  count={{ value: total, label: 'contact' }}
+  secondaryActions={[<ExportCsvButton key="csv" module="contacts" />]}
+  primaryAction={{ label: 'New Contact', icon: Plus, onClick: openCreate, testId: 'create-contact-btn' }}
+  loading={loading}
+  empty={{ when: items.length === 0, icon: Users, title: 'No contacts yet', primaryAction: { label: 'Add your first contact', onClick: openCreate } }}
+  data-testid="crm-contacts-list"
+>
+  {items.map(row => <Row key={row.id} row={row} />)}
+</ListPanel>
 ```
+
+### Iter 216h44 — `<ListPanel>`
+
+Standardises the toolbar + loading + empty surfaces that every list view duplicates today. Rows stay caller-owned (too domain-specific to abstract).
+
+Bundles:
+- **Toolbar:** optional title/subtitle + search input + count chip + secondary actions array + primary CTA.
+- **Loading state:** centred brand spinner.
+- **Empty state:** delegates to `<EmptyState>` so the API matches existing usage.
+- **Rows:** children in a `space-y-2` wrapper.
+
+Adopted in CRM Contacts in iter 216h44 — ~25 LOC saved per panel. Future targets: CRMCompanies, CRMPipeline list view, Memberships Plans/Classes/Ads, PromotionsTab.
 
 ### Iter 216h40 — `<RowActions>` cluster
 

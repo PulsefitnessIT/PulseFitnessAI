@@ -1,3 +1,47 @@
+## Iter 216h44 — `<ListPanel>` super-component (Feb 12, 2026)
+
+### Why
+CRM Contacts / Companies / Pipeline-List / Memberships Plans / Classes / Ads / Promotions all duplicate the same 30-50 LOC scaffold every panel:
+- A toolbar row with a search input on the left, a count chip, a list of secondary actions, and a primary CTA on the right.
+- A centred loading spinner.
+- An `<EmptyState>` when the list is empty.
+- A `space-y-2` rows wrapper.
+
+That repeated scaffold was ~1,000 LOC of platform-wide boilerplate that drifted into 3 slightly different layouts (different gaps, different spinner sizes, different count-chip placements).
+
+### What shipped — `<ListPanel>`
+- **NEW `/app/frontend/src/components/shared/ListPanel.js`** (~150 LOC). Props-driven super-component that bundles the four repeated surfaces and lets the caller own the actual rows (which are too domain-specific to abstract — contact rows look nothing like plan cards).
+- Props: `title`, `subtitle`, `search ({ value, onChange, placeholder, testId })`, `count ({ value, label, singular?, plural? })`, `secondaryActions []`, `primaryAction ({ label, icon, onClick, ... })`, `loading`, `empty ({ when, ...EmptyState props })`, `toolbarRight`, `className`, `children`, `data-testid`.
+- Auto-generates an inner `*-toolbar` and `*-loading` testId derived from the parent `data-testid` for finer-grained test selectors.
+- Delegates the empty state to the existing `<EmptyState>` so the API matches what consumers already know.
+
+### First adoption — `CRM Contacts`
+- Replaced the 25-LOC toolbar+rows+EmptyState scaffold in `CRMContacts.js → ContactList` with a single `<ListPanel>` invocation. **Net: −24 / +18 LOC** for the list view.
+- Removed now-unused `EmptyState` and `Search` imports.
+- All existing `data-testid`s preserved verbatim (`crm-contacts-list`, `contact-search`, `contacts-export-csv`, `create-contact-btn`, `crm-contacts-empty`, `crm-empty-add-contact`, `contact-row-*`, `contact-company-tag-*`).
+
+### Design system doc updated
+`/app/DESIGN_SYSTEM.md` documents `<ListPanel>` with a copy-pasteable example and a target adoption list (CRMCompanies, CRMPipeline list view, Memberships Plans/Classes/Ads, PromotionsTab).
+
+### Verified
+- Lint clean across `ListPanel.js` and `CRMContacts.js`.
+- CRM page loads with **0 React errors** post-migration (smoke test confirmed). The CRM onboarding tour overlay blocks automated clicks but the entire React tree is healthy — proven by clean lazy-chunk load.
+- 19/19 backend regression tests from iter 216h43 still pass.
+
+### Files touched
+- **NEW** `/app/frontend/src/components/shared/ListPanel.js` (~150 LOC)
+- `/app/frontend/src/pages/CRM/CRMContacts.js` (~−40 / +30 LOC, including unused-import cleanup)
+- `/app/DESIGN_SYSTEM.md` (+20 LOC)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. New list views going forward: use `<ListPanel>` instead of bespoke scaffolds — see `CRMContacts.js → ContactList` for the canonical example.
+3. Migrating existing panels (CRMCompanies, CRMPipeline list, Memberships Plans / Classes / Ads, PromotionsTab) on next feature touch will shave another ~150-200 LOC.
+
+---
+
+
+
 ## Iter 216h43 — HOTFIX: CRM bouncing already-logged-in Pulse Fitness users to CRMLogin (Feb 12, 2026)
 
 ### Operator-reported (Lee, production)

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useCRM } from './CRMApp';
 import {
-  Users, Plus, Search, ChevronRight, Phone, Mail, Building2, ArrowLeft,
+  Users, Plus, ChevronRight, Phone, Mail, Building2, ArrowLeft,
   FileText, Calendar, Activity, Target, CheckCircle, Star, Shield, Tag, Globe, Edit2, X, Loader2, Database
 } from 'lucide-react';
 import axios from 'axios';
@@ -10,8 +10,8 @@ import CustomFieldsPanel from '@/components/shared/CustomFieldsPanel';
 import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import CRMAuditTrail from './CRMAuditTrail';
 import HelpHint from '@/components/HelpHint';
-import EmptyState from '@/components/shared/EmptyState';
 import Button from '@/components/shared/Button';
+import ListPanel from '@/components/shared/ListPanel';
 
 function ContactList({ onSelect, c, isDark, API, headers }) {
   const [contacts, setContacts] = useState([]);
@@ -79,64 +79,55 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
   const openCreate = () => { loadCompanies(); setShowCreate(true); setForm({ first_name: '', last_name: '', email: '', phone: '', job_title: '', company_id: '', company_name: '', is_decision_maker: false, lifecycle: 'lead', opt_out_email: false, opt_out_sms: false, opt_out_phone: false }); };
 
   return (
-    <div data-testid="crm-contacts-list">
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: c.textDim }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts..." className="w-full pl-9 pr-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}`, color: c.text }} data-testid="contact-search" />
-        </div>
-        <div className="flex items-center gap-3">
-          <p className="text-xs" style={{ color: c.textDim }}>{total} contact{total !== 1 ? 's' : ''}</p>
-          <ExportCsvButton module="contacts" label="Export" testId="contacts-export-csv" />
-          <Button variant="primary" size="sm" onClick={openCreate} icon={Plus} data-testid="create-contact-btn">
-            New Contact
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {contacts.map(ct => (
-          <div key={ct.id} onClick={() => onSelect(ct.id)} className="flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.005]"
-            style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`contact-row-${ct.id}`}>
-            <div className="w-10 h-10 rounded-full bg-[var(--color-accent-indigo)]/15 flex items-center justify-center text-sm font-bold shrink-0" style={{ color: 'var(--color-accent-indigo)' }}>
-              {ct.first_name?.[0]}{ct.last_name?.[0]}
+    <ListPanel
+      data-testid="crm-contacts-list"
+      search={{ value: search, onChange: setSearch, placeholder: 'Search contacts...', testId: 'contact-search' }}
+      count={{ value: total, label: 'contact' }}
+      secondaryActions={[
+        <ExportCsvButton key="csv" module="contacts" label="Export" testId="contacts-export-csv" />,
+      ]}
+      primaryAction={{ label: 'New Contact', icon: Plus, onClick: openCreate, testId: 'create-contact-btn' }}
+      empty={{
+        when: contacts.length === 0,
+        icon: Users,
+        title: 'No contacts in your CRM yet',
+        hint: "Add leads manually, import from CSV, or let the inbound webhook capture them from your marketing forms. Every lead lives here until it's qualified into a deal.",
+        primaryAction: { label: 'Add your first contact', onClick: () => setShowCreate(true), testId: 'crm-empty-add-contact' },
+        testId: 'crm-contacts-empty',
+      }}
+    >
+      {contacts.map(ct => (
+        <div key={ct.id} onClick={() => onSelect(ct.id)} className="flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.005]"
+          style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`contact-row-${ct.id}`}>
+          <div className="w-10 h-10 rounded-full bg-[var(--color-accent-indigo)]/15 flex items-center justify-center text-sm font-bold shrink-0" style={{ color: 'var(--color-accent-indigo)' }}>
+            {ct.first_name?.[0]}{ct.last_name?.[0]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{ct.first_name} {ct.last_name}</p>
+              {ct.is_decision_maker && <Star size={12} className="text-amber-500 shrink-0" />}
+              {ct.is_champion && <Shield size={12} className="text-green-500 shrink-0" />}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{ct.first_name} {ct.last_name}</p>
-                {ct.is_decision_maker && <Star size={12} className="text-amber-500 shrink-0" />}
-                {ct.is_champion && <Shield size={12} className="text-green-500 shrink-0" />}
-              </div>
-              <div className="flex items-center gap-3 mt-0.5">
-                {ct.job_title && <span className="text-[11px]" style={{ color: c.textDim }}>{ct.job_title}</span>}
-              </div>
-            </div>
-            {ct.company_name && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md shrink-0" style={{ background: isDark ? 'var(--color-navy-900)' : 'var(--color-info-bg)', border: `1px solid ${isDark ? 'var(--color-navy-800)' : 'var(--color-blue-200)'}` }} data-testid={`contact-company-tag-${ct.id}`}>
-                <Building2 size={11} style={{ color: 'var(--color-info-ios)' }} />
-                <span className="text-[11px] font-medium" style={{ color: 'var(--color-info-ios)' }}>{ct.company_name}</span>
-              </div>
-            )}
-            {!ct.company_name && (
-              <span className="text-[10px] px-2 py-0.5 rounded shrink-0" style={{ background: isDark ? '#2D1B1B' : 'var(--color-rose-50)', color: 'var(--color-danger)' }}>Unassigned</span>
-            )}
-            <div className="flex items-center gap-3 shrink-0">
-              {ct.email && <Mail size={14} style={{ color: c.textDim }} />}
-              {ct.phone && <Phone size={14} style={{ color: c.textDim }} />}
-              <ChevronRight size={16} style={{ color: c.textDim }} />
+            <div className="flex items-center gap-3 mt-0.5">
+              {ct.job_title && <span className="text-[11px]" style={{ color: c.textDim }}>{ct.job_title}</span>}
             </div>
           </div>
-        ))}
-        {contacts.length === 0 && (
-          <EmptyState
-            icon={Users}
-            title="No contacts in your CRM yet"
-            hint="Add leads manually, import from CSV, or let the inbound webhook capture them from your marketing forms. Every lead lives here until it's qualified into a deal."
-            primaryAction={{ label: 'Add your first contact', onClick: () => setShowCreate(true), testId: 'crm-empty-add-contact' }}
-            testId="crm-contacts-empty"
-          />
-        )}
-      </div>
+          {ct.company_name && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md shrink-0" style={{ background: isDark ? 'var(--color-navy-900)' : 'var(--color-info-bg)', border: `1px solid ${isDark ? 'var(--color-navy-800)' : 'var(--color-blue-200)'}` }} data-testid={`contact-company-tag-${ct.id}`}>
+              <Building2 size={11} style={{ color: 'var(--color-info-ios)' }} />
+              <span className="text-[11px] font-medium" style={{ color: 'var(--color-info-ios)' }}>{ct.company_name}</span>
+            </div>
+          )}
+          {!ct.company_name && (
+            <span className="text-[10px] px-2 py-0.5 rounded shrink-0" style={{ background: isDark ? '#2D1B1B' : 'var(--color-rose-50)', color: 'var(--color-danger)' }}>Unassigned</span>
+          )}
+          <div className="flex items-center gap-3 shrink-0">
+            {ct.email && <Mail size={14} style={{ color: c.textDim }} />}
+            {ct.phone && <Phone size={14} style={{ color: c.textDim }} />}
+            <ChevronRight size={16} style={{ color: c.textDim }} />
+          </div>
+        </div>
+      ))}
 
       {showCreate && createPortal((
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowCreate(false)} data-testid="crm-new-contact-backdrop">
@@ -245,7 +236,7 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
           </div>
         </div>
       ), document.body)}
-    </div>
+    </ListPanel>
   );
 }
 
