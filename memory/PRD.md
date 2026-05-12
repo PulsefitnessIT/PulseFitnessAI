@@ -1,3 +1,41 @@
+## Iter 216h58 — Drag-and-drop logo + auto-extracted brand palette (Feb 12, 2026)
+
+### Context
+Following the iter 216h57 fix to logo & avatar uploads, the operator accepted the suggested enhancement: turn the static logo picker into a drag-and-drop zone AND auto-extract a brand-colour palette from the uploaded logo so the operator can one-click apply a primary colour without firing up a colour picker.
+
+### What shipped
+
+#### Backend (`routes/account.py`)
+- **`_extract_brand_palette(img, n=5)`** — Pillow MEDIANCUT adaptive quantisation (no sklearn dep). For transparent PNGs the image is composited on white before quantising. Filters out near-white (`max(rgb)≥245 AND min(rgb)≥235`) and near-black (`max(rgb)≤25`) pixels so logo backgrounds and stroke outlines don't pollute the palette. Returns up to 5 hex strings in dominance order.
+- **`POST /api/account/logo`** — now also returns `brand_palette` alongside `logo_url`, and persists `brand_palette` on the org document.
+- **`POST /api/account/branding/apply`** — new endpoint. Body: `{primary_color: "#RRGGBB"}`. Writes the colour to ALL three brand-colour fields the codebase reads (`branding.primary_color`, `primary_brand_colour`, `brand_color`) so member emails, supplier cases, member portal and memberships launch-kit all pick up the new colour. Hex validation via regex; Owner/Manager only.
+- **`GET /api/account/organisation`** — now also returns `brand_palette` and a resolved `primary_color` (cascade `branding.primary_color` → `primary_brand_colour` → `brand_color`).
+
+#### Frontend (`AccountSettingsModal.js`)
+- `OrganisationSection` — logo section refactored into a dashed-border drag-and-drop zone (`account-org-logo-dropzone`) with `onDragOver` highlight, `onDrop` upload, and the existing file-picker as a fallback.
+- After upload the response's `brand_palette` is stored on local state and rendered as 16×16 colour swatches (`account-org-palette-swatch-{hex}`). The active brand colour gets a ring-2 ring-offset highlight.
+- Clicking a swatch calls `POST /account/branding/apply` and updates the active highlight in-place. Loading state per-swatch via `applyingColor`.
+- Toast feedback: upload success notes the number of colours detected; apply confirms the new hex.
+
+### Verified
+- 11/11 backend tests pass (testing-agent iter 216h58).
+- Manual curl e2e:
+  - Realistic 3-colour PNG (cyan #19CDFF + orange #FF6E40 + purple #6633CC blocks on transparent BG) → palette = exactly those 3 in dominance order.
+  - `POST /branding/apply { "#19CDFF" }` → all 3 fields updated, returned to client correctly via `GET /organisation`.
+  - Invalid hex (`"red"`) → 400 "primary_color must be a #RRGGBB hex string".
+- Frontend code-review: dropzone, swatches, drag handlers, applyBrandColor confirmed wired.
+
+### Files touched
+- `/app/backend/routes/account.py` (+80 LOC — `_extract_brand_palette`, palette in logo response, `POST /branding/apply`, `GET /organisation` extended)
+- `/app/frontend/src/components/shared/AccountSettingsModal.js` (~+95 LOC — dropzone + palette swatches + applyBrandColor)
+
+### Operator impact
+Drop a logo → see the dominant colours in 2 seconds → click your brand colour → it propagates to every member-facing surface in the platform (invoices, supplier cases, launch-kit emails) without a single colour-picker click.
+
+---
+
+
+
 ## Iter 216h57 — HOTFIX: 5 production UX bugs (fault detail clutter, manufacturer-photo crash, logo & avatar uploads) (Feb 12, 2026)
 
 ### Operator-reported (Lee, 5 screenshots)
