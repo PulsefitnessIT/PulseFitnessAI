@@ -47,11 +47,18 @@ const SiteModulesOverride = ({ siteId, siteName, theme = 'dark' }) => {
   const setOverride = async (key, enabled) => {
     setSaving(key);
     try {
-      await axios.put(`${API}/sites/${siteId}/modules`,
+      const r = await axios.put(`${API}/sites/${siteId}/modules`,
         { modules: { [key]: { enabled } } },
         { headers: authHeaders() }
       );
-      notify.success(`${key} ${enabled ? 'enabled' : 'disabled'} for ${siteName}`);
+      // Iter 216h60 — backend returns ok:false + blocked:[...] when a
+      // site override tries to enable a module the parent org has off.
+      // Surface that explicit reason instead of silently "succeeding".
+      if (r.data?.ok === false && r.data?.blocked?.length) {
+        notify.error('Blocked', r.data.detail || `Cannot enable ${r.data.blocked.join(', ')} at site level`);
+      } else {
+        notify.success(`${key} ${enabled ? 'enabled' : 'disabled'} for ${siteName}`);
+      }
       await load();
     } catch (e) {
       notifyApiError(notify, e, 'Failed to update');

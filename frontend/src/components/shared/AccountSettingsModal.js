@@ -198,7 +198,7 @@ function ProfileSection({ profile, onProfileUpdate }) {
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────
-function OnboardingSection({ onJumpSection, onClose }) {
+function OnboardingSection({ onJumpSection, onClose, profile }) {
   const headers = useAuthHeaders();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
@@ -219,11 +219,42 @@ function OnboardingSection({ onJumpSection, onClose }) {
     return () => { cancelled = true; };
   }, [headers]);
 
+  // Iter 216h60 — resolve symbolic onboarding routes to ACTUAL react-
+  // router routes for the current user. Previously the backend handed
+  // out `/sites` and `/dashboard?tab=equipment` indiscriminately and
+  // Pulse/Lite operators bounced to the GymAxis 404 page (Lee's
+  // screenshot). Now we map them to the right destination.
+  const resolveRoute = (route) => {
+    if (!route) return route;
+    const isMaster = !!profile?.is_master_admin;
+    const at = (profile?.account_type || '').toLowerCase();
+    const isPulse = at === 'pulse_pro' || at === 'lite';
+    // /sites isn't a real route — direct to the right Sites surface.
+    if (route === '/sites' || route.startsWith('/sites?')) {
+      if (isMaster) return '/master-admin?section=organizations';
+      // Pulse operators manage sites via the Settings dialog (which
+      // hosts PulseSettingsTab → "Add Site"). Opening with the
+      // ?settings=sites deep-link triggers the dialog on mount.
+      if (isPulse) return '/pulse?settings=sites';
+      return '/dashboard';
+    }
+    // Equipment tab: Pulse operators land on /pulse with the equipment tab.
+    if (route.startsWith('/dashboard?tab=equipment')) {
+      if (isPulse) return '/pulse?tab=equipment';
+    }
+    if (route === '/dashboard' || route.startsWith('/dashboard?')) {
+      if (isMaster) return route.replace('/dashboard', '/master-admin');
+      if (isPulse) return route.replace('/dashboard', '/pulse');
+    }
+    if (route === '/pricing' && isMaster) return '/master-admin?section=integrations-hub';
+    return route;
+  };
+
   const handleStep = (step) => {
     if (step.cta_section) {
       onJumpSection(step.cta_section);
     } else if (step.cta_route) {
-      navigate(step.cta_route);
+      navigate(resolveRoute(step.cta_route));
       onClose();
     }
   };
@@ -1639,6 +1670,7 @@ export default function AccountSettingsModal({ open, onClose }) {
               <OnboardingSection
                 onJumpSection={(id) => setSection(id)}
                 onClose={onClose}
+                profile={profile}
               />
             )}
             {section === 'security' && <SecuritySection />}

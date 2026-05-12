@@ -219,6 +219,18 @@ const LiteDashboardPage = () => {
     return () => window.removeEventListener('gymaxis-jump', handler);
   }, [issues, equipment]);
 
+  // Iter 216h60 — honour `?tab=` and `?settings=sites` so the Account
+  // Settings onboarding deep-links (e.g. "Add extra site" → /pulse?
+  // settings=sites) actually land on the right surface. Previously
+  // those CTAs pointed at /sites which 404'd.
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+    const settings = searchParams.get('settings');
+    if (settings) setShowSettingsDialog(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const openFaults = issues.filter(i => i.status === 'open');
   const operational = equipment.filter(e => !openFaults.some(f => f.serial_number === (e.serial_number || e.name)));
   const outOfOrder = equipment.length - operational.length;

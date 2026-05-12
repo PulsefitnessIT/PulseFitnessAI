@@ -395,20 +395,27 @@ async def get_site_modules(site_id: str, user: dict = Depends(get_current_user))
         )
     if not site:
         raise HTTPException(404, "Site not found")
-    org = await db.organizations.find_one({"id": site.get("organization_id")}, {"_id": 0, "modules": 1, "account_type": 1}) or {}
+    org = await db.organizations.find_one({"id": site.get("organization_id")}, {"_id": 0, "modules": 1, "account_type": 1, "module_trials": 1}) or {}
     org_modules = (org.get("modules") or {})
     site_modules = (site.get("modules") or {})
 
-    from utils.module_access import resolve_module_access
-    org_resolved = resolve_module_access(user, org)
+    from utils.module_access import _org_module_access
+    # Iter 216h60 — use the user-agnostic org resolver so master-admin
+    # introspection doesn't inflate the effective set.
+    org_resolved = _org_module_access({"is_master_admin": False, "account_type": "full"}, org)
 
     effective = {}
     for k in _VALID_MODULES:
+        org_on = bool(org_resolved.get(k, False))
         site_cfg = site_modules.get(k)
         if isinstance(site_cfg, dict) and "enabled" in site_cfg:
-            effective[k] = bool(site_cfg["enabled"])
+            # Iter 216h60 — site override cannot exceed org access.
+            # A legacy override saying enabled=true on a module the
+            # org now has off should resolve to FALSE so the operator
+            # never sees a phantom-enabled module.
+            effective[k] = bool(site_cfg["enabled"]) and org_on
         else:
-            effective[k] = org_resolved.get(k, False)
+            effective[k] = org_on
     return {
         "site_id": site["id"], "site_name": site.get("name"),
         "site_overrides": site_modules, "org_modules": org_modules,
@@ -432,6 +439,25 @@ async def set_site_modules(site_id: str, body: dict = Body(...), user: dict = De
         raise HTTPException(404, "Site not found")
     incoming = (body.get("modules") or {})
     existing = (site.get("modules") or {})
+    # Iter 216h60 — guard: site override cannot ENABLE a module the
+    # parent org has disabled. Operator feedback (Lee): "Sites are
+    # showing that they have modules switched on however the main
+    # feature control is switched off." Sites toggles must be a strict
+    # subset of the org-level matrix.
+    # We deliberately compute the org's *intrinsic* access (not
+    # user-scoped) — passing user=master-admin to resolve_module_access
+    # returns all-true and would defeat the guard. The right check is:
+    # "is this module enabled at the ORG layer regardless of which
+    # user is making the call?"
+    site_full = await db.sites.find_one({"id": site_id}, {"_id": 0, "organization_id": 1})
+    org_doc = await db.organizations.find_one(
+        {"id": (site_full or {}).get("organization_id")}, {"_id": 0, "modules": 1, "account_type": 1, "module_trials": 1},
+    ) or {}
+    from utils.module_access import _org_module_access
+    # Use a synthetic non-master, non-mod user so the resolver applies
+    # the actual org matrix + trials + account-type defaults.
+    org_resolved = _org_module_access({"is_master_admin": False, "account_type": "full"}, org_doc)
+    blocked: list[str] = []
     next_modules = {**existing}
     cleared: list[str] = []
     set_keys: list[str] = []
@@ -442,9 +468,27 @@ async def set_site_modules(site_id: str, body: dict = Body(...), user: dict = De
             next_modules.pop(key, None)
             cleared.append(key)
         elif isinstance(cfg, dict) and "enabled" in cfg:
-            next_modules[key] = {"enabled": bool(cfg["enabled"])}
+            wants_on = bool(cfg["enabled"])
+            if wants_on and not org_resolved.get(key, False):
+                # Refuse to enable a module the parent org has off.
+                blocked.append(key)
+                # Also strip any previously-stored override so the UI
+                # immediately reflects the org-level state.
+                next_modules.pop(key, None)
+                continue
+            next_modules[key] = {"enabled": wants_on}
             set_keys.append(key)
     await db.sites.update_one({"id": site_id}, {"$set": {"modules": next_modules}})
+    if blocked:
+        return {
+            "ok": False,
+            "modules": next_modules, "cleared": cleared, "set": set_keys,
+            "blocked": blocked,
+            "detail": (
+                f"Cannot enable {', '.join(blocked)} at site level — the parent organisation has "
+                "that module turned off. Enable it on the org first via Master Admin → Modules."
+            ),
+        }
     return {"ok": True, "modules": next_modules, "cleared": cleared, "set": set_keys}
 
 
