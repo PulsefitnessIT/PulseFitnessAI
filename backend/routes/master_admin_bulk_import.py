@@ -51,9 +51,16 @@ router = APIRouter()
 # default. Pulse Fitness use Sicon's "Invoice Customer Ref" as the
 # site reference, so we also accept that alias (resolved against the
 # site's `invoice_customer_ref` field) when `site_name` is blank.
+#
+# Iter 216h51 — `supplier` column added. Resolves to a row in the
+# `suppliers` collection within the same org so fault auto-emails route
+# to the correct service-supplier email address. Matches first on name
+# (case-insensitive), then on the supplier's `service_email` if the
+# column happens to contain an email instead of a company name.
 _EQUIPMENT_HEADERS = [
     "site_name",
     "customer_account_number",
+    "supplier",
     "name", "equipment_type", "manufacturer", "model", "serial_number",
     "purchase_date", "warranty_expiry", "service_provider",
     "unit_price",
@@ -62,6 +69,7 @@ _EQUIPMENT_HEADERS = [
 _EQUIPMENT_EXAMPLE = [
     "Carshalton Sports Centre",
     "PULSENC01",
+    "Pulse Fitness",
     "Treadmill — Cardio Bay 3", "Treadmill", "Life Fitness", "T7000", "LFT-2024-04958",
     "2024-01-15", "2027-01-15", "Pulse Fitness Service",
     "3450.00",
@@ -243,6 +251,66 @@ async def _resolve_site_for_org(
     return site_id, (None if site_id else f"Site '{site_name or ref}' not found in target org — import the sites first")
 
 
+# Iter 216h51 — supplier resolver. The equipment import accepts a
+# `supplier` column that maps to an existing row in db.suppliers within
+# the same org. The match is fuzzy-by-design so spreadsheets with
+# slightly different capitalisation (e.g. "Pulse Fitness" vs "Pulse
+# Fitness Limited") still resolve. When matched, the supplier's id +
+# email get baked onto the equipment doc so the auto-fault-email flow
+# can route notifications to the right service-supplier inbox without
+# a per-equipment lookup.
+async def _resolve_supplier_for_org(
+    supplier_name: str,
+    org_id: str,
+    cache: dict,
+) -> Optional[dict]:
+    """Return the matched supplier doc ({id, name, email, ...}) or None
+    if either no supplier name was supplied OR no match was found.
+    Result is cached per (org_id, lower(name))."""
+    name = (supplier_name or "").strip()
+    if not name:
+        return None
+    key = (org_id, name.lower())
+    if key in cache:
+        return cache[key]
+    import re as _re
+    safe = _re.escape(name)
+    # 1) Exact (case-insensitive) name match.
+    match = await db.suppliers.find_one(
+        {"organization_id": org_id, "name": {"$regex": f"^{safe}$", "$options": "i"}},
+        {"_id": 0},
+    )
+    # 2) Email match (if the CSV column accidentally has an email).
+    if not match and "@" in name:
+        match = await db.suppliers.find_one(
+            {"organization_id": org_id, "service_email": name.lower()},
+            {"_id": 0},
+        )
+        if not match:
+            match = await db.suppliers.find_one(
+                {"organization_id": org_id, "email": name.lower()},
+                {"_id": 0},
+            )
+    # 3) Normalised name fallback ("Pulse Fitness Ltd." ⇄ "pulsefitness").
+    if not match:
+        # Cheap, since suppliers per org rarely > 50.
+        normalised_target = _re.sub(r"[^a-z0-9]+", "", name.lower())
+        for suffix in (" limited", " ltd.", " ltd", " plc", " inc", " inc.", " llc"):
+            if normalised_target.endswith(_re.sub(r"[^a-z0-9]+", "", suffix)):
+                normalised_target = normalised_target[: -len(_re.sub(r"[^a-z0-9]+", "", suffix))]
+        cursor = db.suppliers.find(
+            {"organization_id": org_id},
+            {"_id": 0, "id": 1, "name": 1, "service_email": 1, "email": 1, "phone": 1},
+        )
+        async for sup in cursor:
+            ssn = _re.sub(r"[^a-z0-9]+", "", (sup.get("name") or "").lower())
+            if ssn and ssn == normalised_target:
+                match = sup
+                break
+    cache[key] = match
+    return match
+
+
 @router.post("/master-admin/bulk-import/equipment")
 async def bulk_import_equipment(
     file: UploadFile = File(...),
@@ -261,6 +329,7 @@ async def bulk_import_equipment(
     imported, skipped, errors = 0, 0, []
     org_cache: dict = {}
     site_cache: dict = {}
+    supplier_cache: dict = {}
     org_breakdown: dict = {}
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -302,6 +371,12 @@ async def bulk_import_equipment(
                     errors.append(f"Row {i}: {site_err}")
                 continue
             unit_price = _parse_decimal(_normalize(row, "unit_price", "Unit Price", "price", "Price"))
+            # Iter 216h51 — resolve supplier so fault-emails route to
+            # the right inbox. Falls back to the manufacturer column
+            # when the supplier column is blank (common when the
+            # supplier IS the manufacturer, e.g. Pulse Fitness).
+            supplier_input = _normalize(row, "supplier", "Supplier") or _normalize(row, "manufacturer")
+            supplier_match = await _resolve_supplier_for_org(supplier_input, target_org, supplier_cache)
             doc = {
                 "id": str(uuid.uuid4()),
                 "organization_id": target_org,
@@ -314,7 +389,15 @@ async def bulk_import_equipment(
                 "purchase_date": _normalize(row, "purchase_date", "Purchase Date") or None,
                 "warranty_expiry": _normalize(row, "warranty_expiry", "Warranty Expiry") or None,
                 "service_provider": _normalize(row, "service_provider", "Service Provider"),
-                "supplier": _normalize(row, "supplier", "Supplier") or _normalize(row, "manufacturer"),
+                # Iter 216h51 — supplier resolved against suppliers col.
+                # Store the canonical supplier name on the equipment doc
+                # AND the supplier_id / supplier_email for fault routing.
+                "supplier": (supplier_match or {}).get("name") or supplier_input,
+                "supplier_id": (supplier_match or {}).get("id"),
+                "supplier_email": (
+                    (supplier_match or {}).get("service_email")
+                    or (supplier_match or {}).get("email")
+                ),
                 "location": _normalize(row, "location", "Location"),
                 "notes": _normalize(row, "notes", "Notes"),
                 "length": _parse_decimal(_normalize(row, "length", "Length")),

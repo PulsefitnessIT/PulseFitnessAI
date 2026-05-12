@@ -340,7 +340,11 @@ async def get_all_organizations(
     # always wins).
     from utils.brand_filter import merge_brand_filter
     org_filter = merge_brand_filter(org_filter, brand, collection="organizations")
-    orgs = await db.organizations.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(500)
+    # Iter 216h51 — limit raised from 500 → 2000 so Pulse's multi-site
+    # customer list isn't silently truncated in the onboarding picker.
+    # 2k is comfortably above any realistic operator's customer count
+    # while still capped for safety.
+    orgs = await db.organizations.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(2000)
     if not orgs:
         return {"organizations": []}
 

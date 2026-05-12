@@ -28,7 +28,26 @@ const TIERS = [
 ];
 
 /* ─────── STEP 0: Choose Mode ─────── */
-const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSelectedOrg }) => (
+const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSelectedOrg }) => {
+  // Iter 216h51 — searchable + alphabetised picker. Lee reported that
+  // scrolling through Pulse's full customer list takes ages; a search
+  // box short-circuits that. We also sort by name (case-insensitive)
+  // so the same customer is always in the same screen position.
+  const [search, setSearch] = useState('');
+  const sortedOrgs = React.useMemo(() => (
+    [...(orgs || [])].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
+  ), [orgs]);
+  const filteredOrgs = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sortedOrgs;
+    return sortedOrgs.filter(o => (
+      (o.name || '').toLowerCase().includes(q)
+      || (o.company_code || '').toLowerCase().includes(q)
+      || (o.account_type || '').toLowerCase().includes(q)
+    ));
+  }, [sortedOrgs, search]);
+
+  return (
   <div className="space-y-8" data-testid="onboard-step-choose">
     <div className="text-center">
       <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight" style={{ fontFamily: 'Outfit' }}>Onboard a Site</h2>
@@ -85,12 +104,31 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
 
     {mode === 'existing' && (
       <div className="max-w-2xl mx-auto">
-        <Label className="text-zinc-500 text-xs mb-2 block">Select Existing Customer</Label>
-        {orgs.length === 0 ? (
+        <div className="flex items-center justify-between mb-2">
+          <Label className="text-zinc-500 text-xs">Select Existing Customer</Label>
+          <span className="text-[10px] text-zinc-400">
+            {filteredOrgs.length === sortedOrgs.length
+              ? `${sortedOrgs.length} customer${sortedOrgs.length === 1 ? '' : 's'}`
+              : `${filteredOrgs.length} of ${sortedOrgs.length}`}
+          </span>
+        </div>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, company code or type…"
+          className="bg-white mb-2 h-9"
+          data-testid="onboard-org-search"
+        />
+        {sortedOrgs.length === 0 ? (
           <p className="text-zinc-400 text-sm">No existing organizations found.</p>
+        ) : filteredOrgs.length === 0 ? (
+          <div className="text-center py-8 border border-dashed border-zinc-200 rounded-lg">
+            <p className="text-zinc-400 text-sm">No customers match "{search}"</p>
+            <button onClick={() => setSearch('')} className="text-xs text-[var(--color-brand-blue)] hover:underline mt-1">Clear search</button>
+          </div>
         ) : (
-          <div className="space-y-2 max-h-64 overflow-y-auto border border-zinc-200 rounded-lg p-2">
-            {orgs.map(o => (
+          <div className="space-y-2 max-h-[28rem] overflow-y-auto border border-zinc-200 rounded-lg p-2" data-testid="onboard-org-list">
+            {filteredOrgs.map(o => (
               <button
                 key={o.id}
                 onClick={() => setSelectedOrg(o)}
@@ -112,7 +150,8 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
       </div>
     )}
   </div>
-);
+  );
+};
 
 /* ─────── STEP 1: Upload Invoice (AI) — Bulk Support ─────── */
 const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) => {
