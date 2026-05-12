@@ -1,3 +1,44 @@
+## Iter 216h42 — HOTFIX: "You're offline" banner false-positive on production (Feb 12, 2026)
+
+### Operator-reported (Lee, production, mobile 5G)
+Production deployment at `gymaxisai.com/pulse` and `gymaxisai.com/master-admin` showed "You're offline — showing the last cached data." on **every screen including after logout**, while Lee was on full-bars 5G. Banner stuck even on a hard reload.
+
+### Root cause
+The `useOnlineStatus` hook (iter 215d9) blindly trusted the browser's `navigator.onLine` flag. That API is famously unreliable on **Chrome Android** — false positives fire when:
+- The page is backgrounded then resumed.
+- Corporate VPNs / split tunnels / data-savers are active.
+- The service worker takes over and momentarily detaches from the network stack.
+
+Lee's Chrome Android was triggering one of these false `offline` events, the banner mounted, and there was no recovery path because the hook never re-checked.
+
+### Fix — verify before trust
+- **`/app/frontend/src/hooks/useOnlineStatus.js`** now follows the canonical "probe before trust" pattern:
+  - On `offline` browser event → fire a 4-second `fetch(REACT_APP_BACKEND_URL/api/health?t={now})` probe with `cache: 'no-store'` and `credentials: 'omit'`. Only flip `online=false` if the probe genuinely fails.
+  - Cache-buster query string forces the SW to attempt the real network so an aggressive cache layer can't lie to us.
+  - On `online` browser event → trust instantly (false-positives in that direction are harmless).
+  - **Self-healing** — while we believe we're offline, re-probe every 20 s. The banner dismisses itself if connectivity recovers behind the browser's back, no user action needed.
+  - On mount with `navigator.onLine === false` → probe immediately so a stale flag at page load doesn't show a phantom banner.
+
+### Verified end-to-end (live Playwright test)
+| Scenario | Expected | Result |
+|---|---|---|
+| Genuinely online (no events) | Banner hidden | ✅ Hidden |
+| **Fake `offline` event** (the Lee bug) — probe `/api/health` succeeds | Banner stays hidden | ✅ **Hidden** |
+| Real network outage — `/api/health` blocked via `page.route` | Probe fails → banner appears | ✅ Visible |
+
+Plus: `/api/health` returns `200 {"status":"ok"}` from the preview URL (production has the same endpoint).
+
+### Files touched
+- `/app/frontend/src/hooks/useOnlineStatus.js` (rewrite — ~+85 / −15 LOC)
+
+### ⚠ Action required
+1. **Redeploy preview → production.** This is a 1-file frontend fix; no DB / env-var changes.
+2. After deploy Lee hard-reloads `gymaxisai.com/pulse` on his 5G phone — the offline banner will no longer show. If Chrome Android still fires false `offline` events, the hook's probe loop catches them within ~5 s and keeps the banner hidden. The banner only appears now when the device genuinely can't reach `/api/health`.
+
+---
+
+
+
 ## Iter 216h41 — `<RowActions>` adoption batch 2 — Marketing + LiteDashboard staffing (Feb 12, 2026)
 
 Continuation of iter 216h40's `<RowActions>` cluster — applied to the remaining hover-reveal patterns across Marketing + LiteDashboard staffing surfaces.
