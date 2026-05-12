@@ -1,3 +1,52 @@
+## Iter 216h55 — HOTFIX: 500k-row bulk import (`Request body exceeds 2097152 bytes`) (Feb 12, 2026)
+
+### Operator-reported (Lee, production screenshot)
+"Bulk import still not working — Pulse Fitness could be importing up to 500k pieces of equipment, we need to ensure this works and can cope with the amount of information that is going to be required by this system." UI showed: `Couldn't import equipment — Request body exceeds 2097152 bytes`.
+
+### Root cause
+Iter 216h54 surfaced row-level error reasons but the *request itself* never reached the importer at scale — three structural caps blocked Pulse-volume CSVs:
+
+1. **Body-size middleware** — `/api/master-admin/bulk-import/*` was **not in** `UPLOAD_PATH_PREFIXES` in `utils/security_plus.py`, so it inherited the 2 MB default. Lee's 500k equipment CSV is ~120-150 MB.
+2. **Per-endpoint `validate_upload` cap** — explicitly set to `10 * 1024 * 1024` (10 MB) on every bulk-import endpoint.
+3. **Per-row inserts** — `await db.equipment.insert_one(doc)` AND `await db.equipment.find_one({"serial_number": serial}, ...)` *for every row*. At 500k rows that's 1 M DB round-trips — would take 30+ minutes even if the body fit.
+
+### What shipped
+
+#### Middleware — 3rd body-size tier
+`utils/security_plus.py`:
+- New `BULK_IMPORT_BODY_LIMIT_BYTES = 200 MB` (override via `MAX_BULK_IMPORT_BYTES`).
+- New `BULK_IMPORT_PATH_PREFIXES` allow-list covering `/api/master-admin/bulk-import/`, `/api/master-admin/sites/import`, `/api/master-admin/equipment/import`.
+- `body_size_guard` now does a 3-tier resolution: bulk-import → 200 MB; upload → 25 MB; default → 2 MB.
+
+#### Bulk-import endpoint scale-up (`routes/master_admin_bulk_import.py`)
+For all 3 importers (equipment, customers, sites):
+- `validate_upload(..., max_size=200 * 1024 * 1024)` matches the new middleware cap.
+- **Pre-loaded duplicate sets** — one bulk query per target org populates a Python `set` of existing serials/emails/site-names. Per-row check is now `serial in set` (O(1)) instead of 500k Mongo `find_one`s.
+- **Batched inserts** — accumulate rows into a `pending` list and flush every 500 rows via `db.<col>.insert_many(pending, ordered=False)`. Row-by-row fallback on insert_many failure preserves the per-row error reporting from iter 216h54.
+- Cache the just-inserted serial/email/site-name into the set so a duplicate *within* the same CSV is also caught.
+
+### Verified on the live preview
+| File | Rows | Body | Wall-clock | Imported | Errors |
+|---|---|---|---|---|---|
+| `eq_big.csv` | 5,000 | 0.78 MB | **0.44 s** | 5,000 | 0 |
+| `eq_huge.csv` | 50,000 | 7 MB | **2.16 s** | 50,000 | 0 |
+| `eq_mixed.csv` | 103 (3 invalid + 100 valid) | 19 KB | 0.10 s | 100 | 3 (missing name, unknown site, duplicate serial — all surfaced verbatim) |
+
+Throughput: ~23k rows/sec end-to-end. Pulse's 500k equipment CSV projects to **~22 seconds** wall-clock. The 2 MB-cap 413 is gone. Error-path semantics from iter 216h54 are fully preserved.
+
+### Files touched
+- `/app/backend/utils/security_plus.py` (~+25 / −5 LOC — 3rd body-size tier + bulk-import path allow-list)
+- `/app/backend/routes/master_admin_bulk_import.py` (~+120 / −40 LOC — pre-loaded sets, batched `insert_many`, 200 MB caps across all 3 endpoints)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Lee re-uploads the failing equipment CSV. The 200 MB request now passes the middleware; batched inserts complete a Pulse-scale (500k) file in ~20-25 s rather than 30 min.
+3. If even bigger imports arrive (>200 MB), bump `MAX_BULK_IMPORT_BYTES` in `backend/.env`. Long-term consideration: move to a chunked/streamed upload + background-job pattern if files routinely exceed 500 MB.
+
+---
+
+
+
 ## Iter 216h54 — HOTFIX: `Session revoked` 401 on Service Desk + Bulk-import row-level errors (Feb 12, 2026)
 
 ### A. P0 — "Session revoked" race-condition fix on `/auth/refresh`

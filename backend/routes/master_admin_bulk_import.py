@@ -324,7 +324,11 @@ async def bulk_import_equipment(
     default_org = await _resolve_target_org(user, organization_id) if organization_id else None
 
     contents = await file.read()
-    validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=10 * 1024 * 1024)
+    # Iter 216h55 — Pulse Fitness onboards ~500k equipment pieces in one
+    # CSV (~120-150 MB). The middleware enforces 200 MB upstream so we
+    # match that ceiling here. Smaller customers naturally pay nothing
+    # extra — the cost is only on the actual byte size.
+    validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=200 * 1024 * 1024)
     text = contents.decode("utf-8-sig", errors="ignore")
     reader = csv.DictReader(io.StringIO(text))
 
@@ -332,8 +336,42 @@ async def bulk_import_equipment(
     org_cache: dict = {}
     site_cache: dict = {}
     supplier_cache: dict = {}
+    # Iter 216h55 — per-org cache of existing serial numbers. One bulk
+    # query on first hit per org replaces 500k per-row find_one calls
+    # (~30 min → ~3 s on Pulse scale).
+    serial_set_cache: dict = {}
     org_breakdown: dict = {}
     now_iso = datetime.now(timezone.utc).isoformat()
+
+    # Iter 216h55 — batched inserts. 500 docs per insert_many call gives
+    # the best throughput vs. memory trade-off on Pulse-scale imports.
+    BATCH_SIZE = 500
+    pending: list = []
+
+    async def _flush_pending():
+        if not pending:
+            return
+        try:
+            await db.equipment.insert_many(pending, ordered=False)
+        except Exception as exc:
+            logger.warning(f"bulk insert_many failed, falling back row-by-row: {exc}")
+            for d in pending:
+                try:
+                    await db.equipment.insert_one(d)
+                except Exception as e2:
+                    errors.append(f"DB insert failed for row id {d.get('id')}: {e2}")
+        pending.clear()
+
+    async def _serial_set_for(target_org: str) -> set:
+        if target_org in serial_set_cache:
+            return serial_set_cache[target_org]
+        cursor = db.equipment.find(
+            {"organization_id": target_org, "serial_number": {"$exists": True, "$ne": ""}},
+            {"_id": 0, "serial_number": 1},
+        )
+        s = {doc["serial_number"] async for doc in cursor if doc.get("serial_number")}
+        serial_set_cache[target_org] = s
+        return s
 
     for i, row in enumerate(reader, start=2):  # +1 header, +1 1-indexed
         try:
@@ -350,10 +388,8 @@ async def bulk_import_equipment(
                 continue
             serial = _normalize(row, "serial_number", "Serial Number", "serial")
             if serial:
-                exists = await db.equipment.find_one(
-                    {"organization_id": target_org, "serial_number": serial}, {"_id": 0, "id": 1},
-                )
-                if exists:
+                existing_serials = await _serial_set_for(target_org)
+                if serial in existing_serials:
                     skipped += 1
                     errors.append(
                         f"Row {i}: duplicate — equipment with serial '{serial}' already exists in this org"
@@ -423,11 +459,20 @@ async def bulk_import_equipment(
                 "updated_at": now_iso,
                 "imported_via": "bulk_csv",
             }
-            await db.equipment.insert_one(doc)
+            pending.append(doc)
+            # Add serial to cache so a duplicate WITHIN the same CSV is also caught.
+            if serial:
+                serial_set_cache[target_org].add(serial)
             imported += 1
             org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
+            if len(pending) >= BATCH_SIZE:
+                await _flush_pending()
         except Exception as exc:  # one bad row shouldn't kill the whole import
             errors.append(f"Row {i}: {exc}")
+
+    # Flush the tail.
+    await _flush_pending()
+
     return {
         "imported": imported, "skipped": skipped,
         "errors": errors[:50], "error_count": len(errors),
@@ -446,14 +491,46 @@ async def bulk_import_customers(
     default_org = await _resolve_target_org(user, organization_id) if organization_id else None
 
     contents = await file.read()
-    validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=10 * 1024 * 1024)
+    # Iter 216h55 — Pulse-scale CSVs can be ~150 MB. The middleware
+    # enforces the upper cap, so we match here.
+    validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=200 * 1024 * 1024)
     text = contents.decode("utf-8-sig", errors="ignore")
     reader = csv.DictReader(io.StringIO(text))
 
     imported, skipped, errors = 0, 0, []
     org_cache: dict = {}
+    # Iter 216h55 — pre-loaded email set per target org, refilled lazily.
+    email_set_cache: dict = {}
     org_breakdown: dict = {}
     now_iso = datetime.now(timezone.utc).isoformat()
+
+    BATCH_SIZE = 500
+    pending: list = []
+
+    async def _flush_pending():
+        if not pending:
+            return
+        try:
+            await db.crm_contacts.insert_many(pending, ordered=False)
+        except Exception as exc:
+            logger.warning(f"customers insert_many failed, falling back row-by-row: {exc}")
+            for d in pending:
+                try:
+                    await db.crm_contacts.insert_one(d)
+                except Exception as e2:
+                    errors.append(f"DB insert failed for row id {d.get('id')}: {e2}")
+        pending.clear()
+
+    async def _email_set_for(target_org: str) -> set:
+        if target_org in email_set_cache:
+            return email_set_cache[target_org]
+        cursor = db.crm_contacts.find(
+            {"organization_id": target_org, "email": {"$exists": True, "$ne": ""}},
+            {"_id": 0, "email": 1},
+        )
+        s = {(doc.get("email") or "").lower() async for doc in cursor if doc.get("email")}
+        email_set_cache[target_org] = s
+        return s
 
     for i, row in enumerate(reader, start=2):
         try:
@@ -471,10 +548,8 @@ async def bulk_import_customers(
                 errors.append(f"Row {i}: missing email, first_name and last_name — at least one is required")
                 continue
             if email:
-                exists = await db.crm_contacts.find_one(
-                    {"email": email, "organization_id": target_org}, {"_id": 0, "id": 1},
-                )
-                if exists:
+                existing_emails = await _email_set_for(target_org)
+                if email in existing_emails:
                     skipped += 1
                     errors.append(f"Row {i}: duplicate — contact with email '{email}' already exists in this org")
                     continue
@@ -500,11 +575,18 @@ async def bulk_import_customers(
                 "created_at": now_iso,
                 "updated_at": now_iso,
             }
-            await db.crm_contacts.insert_one(doc)
+            pending.append(doc)
+            if email:
+                email_set_cache[target_org].add(email)
             imported += 1
             org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
+            if len(pending) >= BATCH_SIZE:
+                await _flush_pending()
         except Exception as exc:
             errors.append(f"Row {i}: {exc}")
+
+    await _flush_pending()
+
     return {
         "imported": imported, "skipped": skipped,
         "errors": errors[:50], "error_count": len(errors),
@@ -559,7 +641,8 @@ async def bulk_import_sites(
         raise HTTPException(status_code=403, detail="Org is not Pulse-visible")
 
     blob = await file.read()
-    validate_upload(file_bytes=blob, filename=file.filename, allowed=MIME_SPREADSHEETS)
+    # Iter 216h55 — match the new 200 MB platform-wide bulk-import cap.
+    validate_upload(file_bytes=blob, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=200 * 1024 * 1024)
     try:
         text = blob.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -572,6 +655,33 @@ async def bulk_import_sites(
     ) > 0
     now_iso = datetime.now(timezone.utc).isoformat()
 
+    # Iter 216h55 — pre-load existing site names for the target org
+    # (one query instead of one per row) + batch inserts.
+    name_cursor = db.sites.find(
+        {"organization_id": organization_id},
+        {"_id": 0, "name": 1},
+    )
+    existing_names = {
+        (doc.get("name") or "").lower().strip() async for doc in name_cursor if doc.get("name")
+    }
+
+    BATCH_SIZE = 500
+    pending: list = []
+
+    async def _flush_pending():
+        if not pending:
+            return
+        try:
+            await db.sites.insert_many([d.copy() for d in pending], ordered=False)
+        except Exception as exc:
+            logger.warning(f"sites insert_many failed, falling back row-by-row: {exc}")
+            for d in pending:
+                try:
+                    await db.sites.insert_one(d.copy())
+                except Exception as e2:
+                    errors.append(f"DB insert failed for row id {d.get('id')}: {e2}")
+        pending.clear()
+
     for i, row in enumerate(reader, start=2):
         try:
             name = _normalize(row, "site_name", "name", "Site Name", "Name")
@@ -579,13 +689,7 @@ async def bulk_import_sites(
                 skipped += 1
                 errors.append(f"Row {i}: missing site_name")
                 continue
-            import re as _re
-            existing = await db.sites.find_one(
-                {"organization_id": organization_id,
-                 "name": {"$regex": f"^{_re.escape(name)}$", "$options": "i"}},
-                {"_id": 0, "id": 1},
-            )
-            if existing:
+            if name.lower().strip() in existing_names:
                 skipped += 1
                 errors.append(f"Row {i}: duplicate — a site named '{name}' already exists in this org")
                 continue
@@ -621,10 +725,15 @@ async def bulk_import_sites(
                 "default_location": _normalize(row, "default_location") or "Main Floor",
                 "created_at": now_iso,
             }
-            await db.sites.insert_one(doc.copy())
+            pending.append(doc)
+            existing_names.add(name.lower().strip())
             imported += 1
+            if len(pending) >= BATCH_SIZE:
+                await _flush_pending()
         except Exception as exc:
             errors.append(f"Row {i}: {exc}")
+
+    await _flush_pending()
 
     return {
         "imported": imported, "skipped": skipped,

@@ -296,16 +296,38 @@ async def audit_required(collection: str, doc: dict, retries: int = 2) -> None:
 
 DEFAULT_BODY_LIMIT_BYTES = int(os.environ.get("MAX_REQUEST_BYTES", str(2 * 1024 * 1024)))  # 2 MB
 UPLOAD_BODY_LIMIT_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))   # 25 MB
-UPLOAD_PATH_PREFIXES = ("/api/equipment-import", "/api/upload", "/api/files", "/api/spec-sheets", "/api/equipment/", "/api/mod/site/attachments", "/api/master-admin/invoice/", "/api/master-admin/sites/preview-csv", "/api/master-admin/equipment/preview-csv")
+# Iter 216h55 — Pulse Fitness imports up to ~500k pieces of equipment in a
+# single CSV (~120-150 MB). Bulk-import endpoints get their own tier so
+# the 25 MB single-file upload limit doesn't reject onboarding payloads.
+BULK_IMPORT_BODY_LIMIT_BYTES = int(os.environ.get("MAX_BULK_IMPORT_BYTES", str(200 * 1024 * 1024)))  # 200 MB
+UPLOAD_PATH_PREFIXES = (
+    "/api/equipment-import", "/api/upload", "/api/files", "/api/spec-sheets",
+    "/api/equipment/", "/api/mod/site/attachments", "/api/master-admin/invoice/",
+    "/api/master-admin/sites/preview-csv", "/api/master-admin/equipment/preview-csv",
+)
+BULK_IMPORT_PATH_PREFIXES = (
+    "/api/master-admin/bulk-import/",
+    "/api/master-admin/sites/import",
+    "/api/master-admin/equipment/import",
+)
 
 
 def _is_upload_path(path: str) -> bool:
     return any(path.startswith(p) for p in UPLOAD_PATH_PREFIXES)
 
 
+def _is_bulk_import_path(path: str) -> bool:
+    return any(path.startswith(p) for p in BULK_IMPORT_PATH_PREFIXES)
+
+
 async def body_size_guard(request: Request,
                           call_next: Callable[[Request], Awaitable]):
     """Rejects requests whose body exceeds the per-route limit.
+
+    Three tiers (iter 216h55):
+      • Bulk-import endpoints  → 200 MB (Pulse-scale CSV onboarding)
+      • Upload endpoints       → 25 MB  (individual file uploads)
+      • Everything else        → 2 MB
 
     Two-layer enforcement:
       1. Content-Length header check (cheap, rejects before reading).
@@ -317,7 +339,13 @@ async def body_size_guard(request: Request,
     """
     from starlette.responses import JSONResponse
 
-    limit = UPLOAD_BODY_LIMIT_BYTES if _is_upload_path(str(request.url.path)) else DEFAULT_BODY_LIMIT_BYTES
+    path = str(request.url.path)
+    if _is_bulk_import_path(path):
+        limit = BULK_IMPORT_BODY_LIMIT_BYTES
+    elif _is_upload_path(path):
+        limit = UPLOAD_BODY_LIMIT_BYTES
+    else:
+        limit = DEFAULT_BODY_LIMIT_BYTES
 
     content_length = request.headers.get("content-length")
     if content_length:
