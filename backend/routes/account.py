@@ -198,7 +198,16 @@ async def upload_logo(
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ) -> dict:
-    """Upload an org logo (PNG/JPEG). Only owners/managers can update."""
+    """Upload an org logo (PNG/JPEG). Only owners/managers can update.
+
+    Iter 216h58 — also extracts a 5-colour brand palette via Pillow's
+    adaptive quantisation so the operator can one-click apply a
+    sensible primary brand colour without firing up a colour picker.
+    The palette is sorted by frequency, skipping near-white / pure-
+    black pixels (logos typically sit on transparent or white
+    backgrounds and almost-black stroke pixels aren't useful brand
+    colours).
+    """
     role = (user.get("role") or "").lower()
     if role not in ("owner", "manager") and not user.get("is_master_admin"):
         raise HTTPException(status_code=403, detail="Only owners or managers can update the logo")
@@ -230,6 +239,9 @@ async def upload_logo(
         content_type, ext = "image/jpeg", "jpg"
     compressed = buf.getvalue()
 
+    # ── Palette extraction (iter 216h58) ──
+    palette = _extract_brand_palette(img)
+
     path = f"{APP_NAME}/logos/{org_id}/{uuid.uuid4()}.{ext}"
     logo_path: str | None = None
     try:
@@ -242,9 +254,55 @@ async def upload_logo(
 
     await db.organizations.update_one(
         {"id": org_id},
-        {"$set": {"logo_url": logo_url, "logo_path": logo_path, "logo_content_type": content_type}},
+        {"$set": {
+            "logo_url": logo_url, "logo_path": logo_path,
+            "logo_content_type": content_type,
+            "brand_palette": palette,
+        }},
     )
-    return {"logo_url": logo_url}
+    return {"logo_url": logo_url, "brand_palette": palette}
+
+
+def _extract_brand_palette(img: "Image.Image", n: int = 5) -> list[str]:
+    """Pick the `n` most dominant non-trivial colours from an image.
+
+    Uses Pillow's adaptive quantisation (no sklearn dependency).
+    Filters out near-white, near-black, and near-transparent pixels
+    since logos sit on neutral backgrounds and the actual brand
+    colour is what we want to surface.
+    """
+    try:
+        # Handle transparency by compositing on white before quantising.
+        if img.mode in ("RGBA", "LA"):
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            bg.paste(img, mask=img.split()[-1])
+            src = bg
+        else:
+            src = img.convert("RGB")
+        # 32 candidate colours is plenty for a typical logo.
+        q = src.quantize(colors=32, method=Image.MEDIANCUT)
+        palette = q.getpalette() or []
+        counts = sorted(q.getcolors() or [], key=lambda c: -c[0])
+        out: list[str] = []
+        for count, idx in counts:
+            if idx * 3 + 2 >= len(palette):
+                continue
+            r, g, b = palette[idx*3], palette[idx*3+1], palette[idx*3+2]
+            # Skip near-white (background) and near-black (outline)
+            mn, mx = min(r, g, b), max(r, g, b)
+            if mx >= 245 and mn >= 235:
+                continue
+            if mx <= 25:
+                continue
+            hex_color = f"#{r:02x}{g:02x}{b:02x}".upper()
+            if hex_color not in out:
+                out.append(hex_color)
+            if len(out) >= n:
+                break
+        return out or ["#19CDFF"]  # GymAxis default fallback
+    except Exception as exc:
+        logger.warning(f"[account] palette extraction failed: {exc}")
+        return []
 
 
 @router.delete("/account/logo")
@@ -569,9 +627,18 @@ async def get_organisation(user: dict = Depends(get_current_user)) -> dict:
     if not org:
         raise HTTPException(status_code=404, detail="Organisation not found")
     payload = {k: org.get(k, "") for k in ORG_ALLOWED_FIELDS}
+    payload["id"] = org.get("id", "")
     payload["name"] = org.get("name", "")
     payload["company_code"] = org.get("company_code", "")
     payload["logo_url"] = org.get("logo_url", "")
+    # Iter 216h58 — palette + active primary brand colour for the UI.
+    payload["brand_palette"] = org.get("brand_palette", []) or []
+    payload["primary_color"] = (
+        (org.get("branding") or {}).get("primary_color")
+        or org.get("primary_brand_colour")
+        or org.get("brand_color")
+        or ""
+    )
     return payload
 
 
@@ -589,10 +656,59 @@ async def update_organisation(body: dict, user: dict = Depends(get_current_user)
         await db.organizations.update_one({"id": org_id}, {"$set": updates})
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
     payload = {k: (org or {}).get(k, "") for k in ORG_ALLOWED_FIELDS}
+    payload["id"] = (org or {}).get("id", "")
     payload["name"] = (org or {}).get("name", "")
     payload["company_code"] = (org or {}).get("company_code", "")
     payload["logo_url"] = (org or {}).get("logo_url", "")
+    payload["brand_palette"] = (org or {}).get("brand_palette", []) or []
+    payload["primary_color"] = (
+        ((org or {}).get("branding") or {}).get("primary_color")
+        or (org or {}).get("primary_brand_colour")
+        or (org or {}).get("brand_color")
+        or ""
+    )
     return payload
+
+
+# ── Brand palette apply (iter 216h58) ────────────────────────────
+
+_HEX_RE = __import__("re").compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+@router.post("/account/branding/apply")
+async def apply_brand_color(body: dict, user: dict = Depends(get_current_user)) -> dict:
+    """One-click apply a colour from the extracted logo palette.
+
+    Writes the same hex to all three brand-colour fields the rest of
+    the codebase reads (`branding.primary_color`, `primary_brand_colour`,
+    `brand_color`) so member-facing emails, supplier cases, and the
+    member portal pick up the new colour without further plumbing.
+    """
+    role = (user.get("role") or "").lower()
+    if role not in ("owner", "manager") and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Only owners or managers can update brand colours")
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organisation linked to this account")
+    primary = (body or {}).get("primary_color") or ""
+    if not _HEX_RE.match(primary):
+        raise HTTPException(status_code=400, detail="primary_color must be a #RRGGBB hex string")
+    primary = primary.upper()
+
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "branding": 1})
+    branding = dict((org or {}).get("branding") or {})
+    branding["primary_color"] = primary
+
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {
+            "branding": branding,
+            "primary_brand_colour": primary,
+            "brand_color": primary,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    return {"primary_color": primary}
 
 
 # ── Onboarding checklist (live derivation) ────────────────────────
