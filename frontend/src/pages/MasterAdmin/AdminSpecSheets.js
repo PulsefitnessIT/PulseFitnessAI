@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import EmptyState from '@/components/shared/EmptyState';
+import { useUploadQueue } from '@/components/shared/UploadQueue';
 import {
   Upload, FileText, Trash2, Loader2, CheckCircle,
   Image as ImageIcon, RefreshCw, Search, X, ChevronDown, ChevronUp,
@@ -64,15 +65,14 @@ const SpecImage = ({ specId, alt }) => {
 const AdminSpecSheets = ({ headers }) => {
   const [specSheets, setSpecSheets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [processingCount, setProcessingCount] = useState(0);
   const [expandedSpec, setExpandedSpec] = useState(null);
   const [rematching, setRematching] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const fileRef = useRef(null);
+  const { enqueue } = useUploadQueue();
 
   const fetchSpecs = async () => {
     try {
@@ -87,29 +87,36 @@ const AdminSpecSheets = ({ headers }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSpecs(); }, []);
 
-  const processFiles = async (fileList) => {
-    const pdfFiles = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  const processFiles = (fileList) => {
+    const pdfFiles = Array.from(fileList || []).filter(f => f.name.toLowerCase().endsWith('.pdf'));
     if (pdfFiles.length === 0) { notify.error('No PDF files found'); return; }
-    setUploading(true);
-    setProcessingCount(pdfFiles.length);
-    let successCount = 0;
-    for (const file of pdfFiles) {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        await axios.post(`${API}/spec-sheets/upload`, formData, { headers, timeout: 120000 });
-        successCount++;
-      } catch (err) {
-        notify.error(`${file.name}: ${err.response?.data?.detail || 'Failed'}`);
-      }
-      setProcessingCount(prev => prev - 1);
-    }
-    setUploading(false);
-    setProcessingCount(0);
-    if (successCount > 0) {
-      notify.success(`${successCount} spec sheet${successCount > 1 ? 's' : ''} uploaded and matched`);
-      fetchSpecs();
-    }
+    // Iter 216h34 — hand off to the global UploadQueue so each file
+    // gets a visible row in the bottom-right drawer with per-file
+    // progress + retry. The previous "Processing… N remaining" pattern
+    // hid which specific file was stuck or had failed.
+    let completed = 0;
+    enqueue(pdfFiles, async (file, onProgress) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      await axios.post(`${API}/spec-sheets/upload`, formData, {
+        headers,
+        timeout: 120000,
+        onUploadProgress: (e) => {
+          if (e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      });
+    }, {
+      source: 'spec-sheets',
+      onDone: () => {
+        completed += 1;
+        // Refresh once we suspect the last upload landed. We refresh on
+        // every onDone — cheap call, single-table read.
+        fetchSpecs();
+        if (completed === pdfFiles.length) {
+          notify.success(`${pdfFiles.length} spec sheet${pdfFiles.length > 1 ? 's' : ''} uploaded and matched`);
+        }
+      },
+    });
   };
 
   const handleFileInput = (e) => processFiles(e.target.files);
@@ -232,7 +239,7 @@ const AdminSpecSheets = ({ headers }) => {
       {/* Upload Zone */}
       <Card
         className={`p-8 border-2 border-dashed transition-colors text-center cursor-pointer ${dragOver ? 'border-[var(--color-brand-blue-dark)] bg-[var(--color-brand-blue-dark)]/5' : 'border-zinc-200 hover:border-[var(--color-brand-blue-dark)]/30'}`}
-        onClick={() => !uploading && fileRef.current?.click()}
+        onClick={() => fileRef.current?.click()}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -240,23 +247,15 @@ const AdminSpecSheets = ({ headers }) => {
         data-testid="spec-sheet-dropzone"
       >
         <input type="file" accept=".pdf" multiple onChange={handleFileInput} ref={fileRef} className="hidden" data-testid="spec-sheet-file-input" />
-        {uploading ? (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 size={32} className="animate-spin text-[var(--color-brand-blue-dark)]" />
-            <p className="text-sm text-zinc-600 font-medium">Processing spec sheets... ({processingCount} remaining)</p>
-            <p className="text-xs text-zinc-400">AI is extracting model info and hero images</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-[var(--color-brand-blue-dark)]/10 flex items-center justify-center">
+            <Upload size={24} className="text-[var(--color-brand-blue-dark)]" />
           </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-16 h-16 rounded-full bg-[var(--color-brand-blue-dark)]/10 flex items-center justify-center">
-              <Upload size={24} className="text-[var(--color-brand-blue-dark)]" />
-            </div>
-            <p className="text-sm text-zinc-600 font-medium">
-              {specSheets.length > 0 ? 'Upload more spec sheets' : 'Upload Pulse Fitness spec sheets'}
-            </p>
-            <p className="text-xs text-zinc-400">Drop PDFs here or click to browse. AI will extract model info, specs, and product images.</p>
-          </div>
-        )}
+          <p className="text-sm text-zinc-600 font-medium">
+            {specSheets.length > 0 ? 'Upload more spec sheets' : 'Upload Pulse Fitness spec sheets'}
+          </p>
+          <p className="text-xs text-zinc-400">Drop PDFs here or click to browse. AI will extract model info, specs, and product images. Track progress in the upload drawer.</p>
+        </div>
       </Card>
 
       {/* Search + Count */}

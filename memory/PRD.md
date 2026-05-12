@@ -1,3 +1,50 @@
+## Iter 216h34 — Upload Queue Drawer + Button-primitive migration batch 3 (Feb 12, 2026)
+
+Two deliverables, both following the "bulletproof drag-drop" thread from iter 216h33.
+
+### A. UploadQueue + bottom-right drawer
+- **NEW `/app/frontend/src/components/shared/UploadQueue.js`** — global upload queue with a pinned bottom-right drawer:
+  - `UploadQueueProvider` mounted once in `App.js` (inside `<BrowserRouter>`, alongside `GlobalDragGuard` + `NotificationConfirmProvider`).
+  - `useUploadQueue()` hook returns `{ enqueue, retry, remove, clearDone, tasks }`. Panels call `enqueue(files, handler, { source, onDone })`; the handler signature is `(file, onProgress) => Promise<any>`.
+  - `<UploadQueueDrawer>` auto-mounts inside the provider. Auto-opens when the queue is non-empty; collapsible. Per-file row shows name + progress bar + status (queued / uploading / done / failed) + per-file retry/dismiss.
+  - Drawer survives navigation — operators can flip tabs while large PDFs upload in the background.
+  - Failed uploads stay in the drawer with a retry button; successful ones can be cleared in bulk via the footer "Clear complete" button.
+- **`AdminSpecSheets.js` refactored to use the queue** — replaced the serial-await for-loop + monolithic "Processing N remaining" with a parallel `enqueue()` call. Each PDF gets its own row + per-file progress via `axios.onUploadProgress`. Removed the now-redundant `uploading`/`processingCount` state.
+- Other dropzones (`InvoiceImportWizard`, `GlobalDocumentsTab`, `PulseOnboardingWizard`) will adopt on next feature touch — the API is purely additive so legacy code keeps working.
+
+### B. `<Button>` primitive migration batch 3
+Operator/CRM panels, per the "next feature touch" doctrine:
+| Surface | Buttons migrated | Variants |
+|---|---|---|
+| `CRMPipeline.js` top bar | 2 (Report, New Deal) | secondary · primary |
+| `CRMContacts.js` top bar | 1 (New Contact) | primary |
+| `OverviewTab.js` (Operations) | 1 (Log Issue CTA) | primary lg |
+
+Renamed the shadcn `Button` import to `ShadcnButton` in `OverviewTab.js` so the 3 remaining low-priority `<ShadcnButton variant="outline">` blocks continue to work — they'll migrate on a later touch.
+
+### Verified
+- Lint clean across `UploadQueue.js`, `AdminSpecSheets.js`, `App.js`, `CRMPipeline.js`, `CRMContacts.js`, `OverviewTab.js`.
+- Smoke screenshot of Master Admin → Catalogue & Library → **Spec Sheets**: dropzone visible, EmptyState rendering, drawer hidden (no tasks), **0 React errors**.
+- Drawer initialised correctly (test enqueue would show it bottom-right).
+- GlobalDragGuard + UploadQueue working in tandem — files dropped on the dropzone go through the queue; files dropped elsewhere are still blocked from opening in the browser.
+
+### Files touched
+- **NEW** `/app/frontend/src/components/shared/UploadQueue.js` (~270 LOC)
+- `/app/frontend/src/App.js` (+3 LOC — import + wrap)
+- `/app/frontend/src/pages/MasterAdmin/AdminSpecSheets.js` (~−25 / +30 LOC — queue integration)
+- `/app/frontend/src/pages/CRM/CRMPipeline.js` (+2 / −4 LOC)
+- `/app/frontend/src/pages/CRM/CRMContacts.js` (+2 / −2 LOC)
+- `/app/frontend/src/pages/Dashboard/OverviewTab.js` (~+4 / −2 LOC + import rename)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Lee retries the spec-sheet drop on production. Each PDF appears as its own row in the bottom-right drawer with live progress; failed uploads can be retried per-row; he can navigate to other tabs while the AI extraction completes in the background.
+3. Future dropzones: import `useUploadQueue()` from `@/components/shared/UploadQueue` and call `enqueue()` — see `AdminSpecSheets.js` for the canonical pattern.
+
+---
+
+
+
 ## Iter 216h33 — HOTFIX: Drag-and-drop opening files in browser instead of uploading (Feb 11, 2026)
 
 ### Operator-reported (Lee, production)

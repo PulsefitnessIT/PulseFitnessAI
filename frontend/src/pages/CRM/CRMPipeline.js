@@ -9,6 +9,7 @@ import {
 import axios from 'axios';
 import HelpHint from '@/components/HelpHint';
 import EmptyState from '@/components/shared/EmptyState';
+import Button from '@/components/shared/Button';
 import CRMAuditTrail from './CRMAuditTrail';
 
 const STAGE_COLORS = {
@@ -587,9 +588,9 @@ export default function CRMPipeline() {
           <HelpHint guideId="crm-pipeline-first-deal" testId="help-hint-pipeline" />
         </p>
         <div className="flex items-center gap-2 ml-auto">
-          <button type="button" onClick={printReport} className="btn-secondary" data-testid="print-report-btn">
-            <Printer size={14} /> Report
-          </button>
+          <Button variant="secondary" size="sm" onClick={printReport} icon={Printer} data-testid="print-report-btn">
+            Report
+          </Button>
           <div className="subtab-bar">
             <button type="button" onClick={() => setView('kanban')} className={`subtab-pill ${view === 'kanban' ? 'is-active' : ''}`} data-testid="view-kanban-btn">
               <LayoutGrid size={14} />
@@ -598,9 +599,9 @@ export default function CRMPipeline() {
               <List size={14} />
             </button>
           </div>
-          <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-deal-btn">
-            <Plus size={14} /> New Deal
-          </button>
+          <Button variant="primary" size="sm" onClick={openCreate} icon={Plus} data-testid="create-deal-btn">
+            New Deal
+          </Button>
         </div>
       </div>
 

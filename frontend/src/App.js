@@ -17,6 +17,7 @@ import AppRoutes from '@/routes/AppRoutes';
 import TrialBanner from './components/TrialBanner';
 import ScrollToTop from './components/shared/ScrollToTop';
 import GlobalDragGuard from './components/shared/GlobalDragGuard';
+import { UploadQueueProvider } from './components/shared/UploadQueue';
 import TrialLockedPage from './components/TrialLockedPage';
 import CookieConsent from './components/shared/CookieConsent';
 import OfflineBanner from './components/shared/OfflineBanner';
@@ -325,6 +326,7 @@ function App() {
  <NotificationConfirmProvider>
  <ScrollToTop />
  <GlobalDragGuard />
+ <UploadQueueProvider>
  {localStorage.getItem('impersonation_active') === '1' && (
  <div
  className="bg-red-600 text-white text-center text-xs py-1.5 px-3 flex items-center justify-center gap-3 sticky top-0 z-[200]"
@@ -363,6 +365,7 @@ function App() {
  {user && <SetupChecklist />}
  {user && <GlobalCommandPalette />}
  <BrandAttrSync user={user} />
+ </UploadQueueProvider>
  </NotificationConfirmProvider>
  </BrowserRouter>
  <Toaster position="top-right" theme={theme} />

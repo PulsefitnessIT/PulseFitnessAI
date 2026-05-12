@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button as ShadcnButton } from '@/components/ui/button';
+import Button from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, MessageSquare, Upload, Shield } from 'lucide-react';
 
@@ -17,8 +18,7 @@ const OverviewTab = ({
 
  {/* Log Issue CTA at top */}
  <div className="mb-6">
- <Button onClick={onLogIssue} className="px-6 py-3 text-base" data-testid="overview-log-issue-btn">
- <AlertCircle className="mr-2" size={20} />
+ <Button variant="primary" size="lg" onClick={onLogIssue} icon={AlertCircle} data-testid="overview-log-issue-btn">
  {t('faults.log_fault')}
  </Button>
  </div>
@@ -37,9 +37,9 @@ const OverviewTab = ({
  </p>
  </div>
  </div>
- <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10" onClick={onViewExpiryAlerts} data-testid="view-expiry-alerts-btn">
+ <ShadcnButton size="sm" variant="outline" className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10" onClick={onViewExpiryAlerts} data-testid="view-expiry-alerts-btn">
  {t('dashboard.view_alerts')}
- </Button>
+ </ShadcnButton>
  </div>
  )}
 
@@ -208,15 +208,15 @@ const OverviewTab = ({
  <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-6" data-testid="quick-actions-card">
  <h3 className="text-xl font-semibold text-white mb-4">{t('dashboard.quick_actions')}</h3>
  <div className="space-y-3">
- <Button onClick={() => onNavigateTab('diagnosis')} className="w-full justify-start" data-testid="quick-action-diagnosis">
+ <ShadcnButton onClick={() => onNavigateTab('diagnosis')} className="w-full justify-start" data-testid="quick-action-diagnosis">
  <MessageSquare className="mr-2" size={18} />{t('diagnosis.title')}
- </Button>
- <Button onClick={() => onNavigateTab('equipment')} variant="outline" className="w-full border-[var(--theme-border)] text-white justify-start hover:bg-white/10" data-testid="quick-action-audit">
+ </ShadcnButton>
+ <ShadcnButton onClick={() => onNavigateTab('equipment')} variant="outline" className="w-full border-[var(--theme-border)] text-white justify-start hover:bg-white/10" data-testid="quick-action-audit">
  <Upload className="mr-2" size={18} />{t('dashboard.generate_audit')}
- </Button>
- <Button onClick={onLogIssue} variant="outline" className="w-full border-[var(--theme-border)] text-white justify-start hover:bg-white/10" data-testid="quick-action-issue">
+ </ShadcnButton>
+ <ShadcnButton onClick={onLogIssue} variant="outline" className="w-full border-[var(--theme-border)] text-white justify-start hover:bg-white/10" data-testid="quick-action-issue">
  <AlertCircle className="mr-2" size={18} />{t('faults.log_fault')}
- </Button>
+ </ShadcnButton>
  </div>
  </Card>
 

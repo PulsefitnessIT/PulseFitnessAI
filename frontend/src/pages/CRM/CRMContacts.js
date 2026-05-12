@@ -11,6 +11,7 @@ import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import CRMAuditTrail from './CRMAuditTrail';
 import HelpHint from '@/components/HelpHint';
 import EmptyState from '@/components/shared/EmptyState';
+import Button from '@/components/shared/Button';
 
 function ContactList({ onSelect, c, isDark, API, headers }) {
   const [contacts, setContacts] = useState([]);
@@ -87,9 +88,9 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
         <div className="flex items-center gap-3">
           <p className="text-xs" style={{ color: c.textDim }}>{total} contact{total !== 1 ? 's' : ''}</p>
           <ExportCsvButton module="contacts" label="Export" testId="contacts-export-csv" />
-          <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-contact-btn">
-            <Plus size={14} /> New Contact
-          </button>
+          <Button variant="primary" size="sm" onClick={openCreate} icon={Plus} data-testid="create-contact-btn">
+            New Contact
+          </Button>
         </div>
       </div>
 
