@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import Button from '@/components/shared/Button';
+import RowActions from '@/components/shared/RowActions';
 
 const CHANNEL_META = {
   email:     { icon: Mail,           label: 'Email',     color: 'text-blue-500' },
@@ -349,23 +351,26 @@ const AIDirectorPanel = ({ API, headers, entitlement, seedBriefId, onSeedConsume
                     <Target size={9}/> {b.goal || 'no goal'} · refined ×{b.refined_count || 0}
                   </p>
                 </button>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    try {
-                      await axios.delete(`${API}/api/marketing/creative/director/briefs/${b.id}`, { headers });
-                      setRecentBriefs((prev) => prev.filter((x) => x.id !== b.id));
-                      notify.success('Brief removed from history');
-                    } catch (err) {
-                      notifyApiError(notify, err, 'Delete failed');
-                    }
-                  }}
-                  className="absolute top-1 right-1 p-1 rounded text-zinc-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition"
-                  title="Delete this brief from history"
-                  aria-label="Delete brief"
-                  data-testid={`director-recent-delete-${b.id}`}>
-                  <X size={11}/>
-                </button>
+                <RowActions className="!absolute top-1 right-1">
+                  <Button
+                    variant="ghostDestructive"
+                    size="iconSm"
+                    icon={X}
+                    title="Delete this brief from history"
+                    aria-label="Delete brief"
+                    data-testid={`director-recent-delete-${b.id}`}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await axios.delete(`${API}/api/marketing/creative/director/briefs/${b.id}`, { headers });
+                        setRecentBriefs((prev) => prev.filter((x) => x.id !== b.id));
+                        notify.success('Brief removed from history');
+                      } catch (err) {
+                        notifyApiError(notify, err, 'Delete failed');
+                      }
+                    }}
+                  />
+                </RowActions>
               </div>
             ))}
           </div>

@@ -1,3 +1,43 @@
+## Iter 216h41 — `<RowActions>` adoption batch 2 — Marketing + LiteDashboard staffing (Feb 12, 2026)
+
+Continuation of iter 216h40's `<RowActions>` cluster — applied to the remaining hover-reveal patterns across Marketing + LiteDashboard staffing surfaces.
+
+### Migrated (4 clusters, 4 buttons)
+
+| File | Surface | Cluster contents |
+|---|---|---|
+| `Marketing/AIDirectorPanel.js` | AI Director recent-briefs grid | Delete brief (`ghostDestructive · iconSm`) — kept `!absolute top-1 right-1` positioning so the cluster still floats over the brief card |
+| `LiteDashboard/staffing/OperationsTab.js` | Tasks list row | Delete task (`ghostDestructive · iconSm`) |
+| `LiteDashboard/staffing/CommsTab.js` | Own message (own user) | Edit + Delete (`ghost · iconSm` + `ghostDestructive · iconSm`, gap=0.5 for tight chat density) |
+| `LiteDashboard/staffing/CommsTab.js` | Other user message (manager) | Delete (`ghostDestructive · iconSm`) |
+
+All button-level `data-testid`s preserved verbatim (`director-recent-delete-{id}`, `task-delete-{id}`, `msg-edit-{id}`, `msg-delete-{id}`).
+
+### Intentionally skipped (different patterns)
+
+| Match | Why |
+|---|---|
+| `Marketing/AIAssistant.js:192` ChevronRight | Decorative icon (not a button) — just an affordance hint. |
+| `Marketing/CreativeStudioTab.js:570` `<div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 ...">` | Full image hover-overlay with rich child content (title + CTA). Doesn't fit the icon-button cluster pattern; should stay bespoke. |
+| `LiteDashboard/StaffingConsole.js:378` inline shift-pill delete | The trash icon is inline *inside* a coloured status pill (alongside time + AlertTriangle), not in a separate cluster div. Wrapping in `<RowActions>` would change layout. |
+
+### Verified
+- Lint clean across `AIDirectorPanel.js`, `OperationsTab.js`, `CommsTab.js`.
+- Smoke navigation to `/marketing` succeeded with 0 React errors.
+
+### Files touched
+- `/app/frontend/src/pages/Marketing/AIDirectorPanel.js` (+22 / −16 LOC — wrapped floating delete in RowActions)
+- `/app/frontend/src/pages/LiteDashboard/staffing/OperationsTab.js` (+5 / −6 LOC + Button/RowActions imports)
+- `/app/frontend/src/pages/LiteDashboard/staffing/CommsTab.js` (+10 / −7 LOC + imports)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Staff using the iPad chat (`CommsTab`) and task ops console can now actually tap delete/edit icons that were previously sticky-on-hover. Marketing managers can delete recent Director briefs without struggling on touch.
+
+---
+
+
+
 ## Iter 216h40 — `<RowActions>` cluster component + 6 row migrations (Feb 12, 2026)
 
 ### Why

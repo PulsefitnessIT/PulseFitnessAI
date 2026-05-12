@@ -13,6 +13,8 @@ import {
   Pencil, Calendar as CalIcon, AlertTriangle, Check, ClipboardList,
   ChevronDown, ChevronRight, Upload, Send, RefreshCw,
 } from 'lucide-react';
+import Button from '@/components/shared/Button';
+import RowActions from '@/components/shared/RowActions';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -184,11 +186,9 @@ function TaskRow({ task, isManager, staffList, onComplete, onUncomplete, onDelet
         </div>
       </div>
       {isManager && (
-        <button type="button" onClick={() => onDelete(task)}
-          className="opacity-0 group-hover:opacity-100 hover:opacity-100 w-7 h-7 rounded-full inline-flex items-center justify-center"
-          style={{ color: 'var(--theme-text-muted)' }} data-testid={`task-delete-${task.id}`}>
-          <Trash2 size={11} />
-        </button>
+        <RowActions>
+          <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(task)} icon={Trash2} title="Delete task" data-testid={`task-delete-${task.id}`} />
+        </RowActions>
       )}
     </div>
   );

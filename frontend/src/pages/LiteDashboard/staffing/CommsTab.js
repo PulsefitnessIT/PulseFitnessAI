@@ -16,6 +16,8 @@ import {
   Send, Loader2, Plus, MessageSquare, Megaphone, Hash, Users as UsersIcon,
   Clock, AlertTriangle, Check, CheckCheck, Pin, Pencil, Trash2, X, Search,
 } from 'lucide-react';
+import Button from '@/components/shared/Button';
+import RowActions from '@/components/shared/RowActions';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -214,13 +216,15 @@ function MessageRow({ msg, mine, isManager, onEdit, onDelete }) {
         <span>{timeShort(msg.sent_at)}</span>
         {msg.edited_at && <span>· edited</span>}
         {!deleted && mine && (
-          <span className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button type="button" onClick={() => onEdit(msg)} className="p-0.5" data-testid={`msg-edit-${msg.id}`}><Pencil size={9} /></button>
-            <button type="button" onClick={() => onDelete(msg)} className="p-0.5" data-testid={`msg-delete-${msg.id}`}><Trash2 size={9} /></button>
-          </span>
+          <RowActions gap={0.5}>
+            <Button variant="ghost" size="iconSm" onClick={() => onEdit(msg)} icon={Pencil} title="Edit message" data-testid={`msg-edit-${msg.id}`} />
+            <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(msg)} icon={Trash2} title="Delete message" data-testid={`msg-delete-${msg.id}`} />
+          </RowActions>
         )}
         {!mine && isManager && !deleted && (
-          <button type="button" onClick={() => onDelete(msg)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5" data-testid={`msg-delete-${msg.id}`}><Trash2 size={9} /></button>
+          <RowActions>
+            <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(msg)} icon={Trash2} title="Delete message" data-testid={`msg-delete-${msg.id}`} />
+          </RowActions>
         )}
       </div>
     </div>
