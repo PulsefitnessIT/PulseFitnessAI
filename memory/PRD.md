@@ -1,3 +1,50 @@
+## Iter 216h59 — 4 quick-win UX & module-scoping fixes (Feb 12, 2026)
+
+### Operator-reported (Lee, 5 screenshots)
+Subset of an 8-bug report, scoped to the 4 low-risk single-file fixes for this iteration. Items (e-h) — site-level module override guard, archive/delete site, reports/suppliers/staffing scoping — deferred per operator's "ship A first" steer.
+
+### What shipped
+
+#### (a) Archive tab → Settings & Compliance
+- **`/app/frontend/src/pages/MasterAdmin/SidebarConfig.js`** — `archive` removed from `overview.subTabs` and re-mounted inside `settings-compliance.subTabs` alongside Audit log, Login events, Documents, etc. `LEGACY_SECTION_REDIRECTS` updated. Master Admin Dashboard Overview is now Dashboard / System Health / Setup checklist only. Archive is more naturally a compliance / data-lifecycle tool, so it now sits with its peers.
+
+#### (b) Memberships no longer auto-enables CRM
+- **`/app/backend/routes/master_admin.py`** — removed the iter-215c auto-bundle block in `PUT /master-admin/organizations/{org_id}/features` that flipped `modules.crm.enabled = true` whenever Memberships was enabled.
+- **`/app/backend/utils/module_access.py`** — `crm_modes()` `leisure` flag now derived from `access.crm` (was `access.memberships`). Memberships and CRM are truly independent now: an operator can run Memberships standalone, run CRM standalone, or both — without one forcing the other.
+
+#### (c) Uploaded logo overrides Pulse/GymAxis navbar logo
+- **`/app/frontend/src/components/shared/Navbar.js`** — logo render priority reordered: `orgLogo > showPulseBrand > GymAxisLockup > initial-box`. The Pulse Fitness short-circuit at the top of the conditional no longer wins over a customer-uploaded logo. When `orgLogo` is set, the org's `branding.company_name` label is shown instead of "Pulse Fitness" / "GymAxis".
+- **`/app/backend/routes/auth.py`** — `GET /organization/logo` now passes through new `/api/account/logo/{org_id}?v=…` proxy URLs (from iter 216h57) and `data:` URI fallbacks unchanged. Was previously only handling `http://…` and `/api/public/files/…`.
+
+#### (d) Brand Kit auto-applies extracted palette
+- **`/app/frontend/src/pages/Marketing/BrandKitTab.js`** — `onLogoUpload` now also POSTs the file to `/api/account/logo` (in parallel with the existing data-URI save) to pull the auto-extracted `brand_palette`. Sets `primary_color = palette[0]` and `secondary_color = palette[1]` automatically — but only when the existing values are still GymAxis defaults (`#19CDFF`, `#5B8CFF`, `#66CCFF`, `#0055FF`, `#000000`, `#FFFFFF`). If the operator already curated custom colours, they're preserved. Toast message lists the detected colours.
+
+### Verified
+- 6/6 backend tests pass (testing-agent iter 216h59):
+  - PUT features with memberships=true + crm=false now PERSISTS crm=false (was being auto-flipped before).
+  - `crm_modes()` no longer leaks leisure access when only memberships is on.
+  - GET /organization/logo handles all 4 URL formats (http, /api/public/files/, /api/account/logo/, data:).
+- Frontend code-review confirmed (a), (c), (d) wired correctly.
+- Manual curl: Pulse → memberships=true,crm=false → confirmed both stored independently. Restored to all-on at end.
+
+### Files touched
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js` (~+8 / −10 LOC — Archive moved between groups + legacy redirect map)
+- `/app/backend/routes/master_admin.py` (~+12 / −10 LOC — removed auto-bundle, replaced with comment for traceability)
+- `/app/backend/utils/module_access.py` (~+5 / −3 LOC — crm_modes leisure now reads `access.crm`)
+- `/app/frontend/src/components/shared/Navbar.js` (~+15 / −10 LOC — logo priority reorder)
+- `/app/backend/routes/auth.py` (~+10 LOC — extra proxy-URL formats in GET /organization/logo)
+- `/app/frontend/src/pages/Marketing/BrandKitTab.js` (~+30 / −5 LOC — palette auto-apply on logo upload)
+
+### Deferred to next session (per operator's "A first" choice)
+- (e) Site-level module overrides shouldn't enable a module the parent org has OFF
+- (f) Master Admin: Archive / Delete site buttons inside site detail drawer
+- (g) Reports + Suppliers scoped to current site (aggregate only on "All sites")
+- (h) Staffing scoped to allocated sites only
+
+---
+
+
+
 ## Iter 216h58 — Drag-and-drop logo + auto-extracted brand palette (Feb 12, 2026)
 
 ### Context
