@@ -32,7 +32,7 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from PIL import Image
 
 from utils.auth import get_current_user, hash_password, verify_password
-from utils.database import APP_NAME, db, put_object
+from utils.database import APP_NAME, db, put_object, get_object
 from utils.security import validate_password_strength
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,15 @@ async def upload_avatar(
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ) -> dict:
-    """Compress to a 256×256 JPEG (≤ ~80 KB) and persist via object storage."""
+    """Compress to a 256×256 JPEG (≤ ~80 KB) and persist via object storage.
+
+    Iter 216h57 — previously stored the raw object-store *path* in
+    `avatar_url` (e.g. ``gymaxis-ai/avatars/{uid}/{u}.jpg``) which the
+    browser couldn't load (no host, no auth) — the `<img>` would 404
+    and show the alt text 'Avatar'. The fix stores the path internally
+    as ``avatar_path`` and exposes ``/api/account/avatar/{user_id}``
+    as a public streaming proxy so the URL just works.
+    """
     raw = await file.read()
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file")
@@ -122,23 +130,164 @@ async def upload_avatar(
     compressed = buf.getvalue()
 
     path = f"{APP_NAME}/avatars/{user['id']}/{uuid.uuid4()}.jpg"
+    avatar_path: str | None = None
     try:
-        result = put_object(path, compressed, "image/jpeg")
-        avatar_url = result.get("url", result.get("path") or path)
+        put_object(path, compressed, "image/jpeg")
+        avatar_path = path
+        # Cache-buster query string so the new image displaces the old one
+        # immediately in the browser cache.
+        avatar_url = f"/api/account/avatar/{user['id']}?v={uuid.uuid4().hex[:8]}"
     except Exception as exc:
         # Object-store outage: fall back to inline data URI so the avatar still
         # round-trips. Compressed JPEG fits comfortably in the user document.
         logger.warning(f"[account] avatar object-store put failed, embedding inline: {exc}")
         avatar_url = "data:image/jpeg;base64," + base64.b64encode(compressed).decode("ascii")
 
-    await db.users.update_one({"id": user["id"]}, {"$set": {"avatar_url": avatar_url}})
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"avatar_url": avatar_url, "avatar_path": avatar_path}},
+    )
     return {"avatar_url": avatar_url}
+
+
+@router.get("/account/avatar/{user_id}")
+async def serve_avatar(user_id: str) -> Response:
+    """Public proxy that streams the user's avatar bytes from object
+    storage (iter 216h57). Public on purpose — avatars are non-sensitive
+    and the URL is embedded in <img> tags throughout the app."""
+    rec = await db.users.find_one(
+        {"id": user_id}, {"_id": 0, "avatar_path": 1, "avatar_url": 1},
+    )
+    if not rec:
+        raise HTTPException(status_code=404, detail="User not found")
+    path = rec.get("avatar_path")
+    if not path:
+        # Legacy: avatar_url stored as raw object-store path.
+        legacy = rec.get("avatar_url") or ""
+        if legacy and not legacy.startswith("http") and not legacy.startswith("data:") and "/" in legacy:
+            path = legacy
+    if not path:
+        raise HTTPException(status_code=404, detail="No avatar")
+    try:
+        data, content_type = get_object(path)
+    except Exception as exc:
+        logger.warning(f"Failed to load avatar for {user_id}: {exc}")
+        raise HTTPException(status_code=404, detail="Avatar not available") from exc
+    return Response(
+        content=data,
+        media_type=content_type or "image/jpeg",
+        headers={"Cache-Control": "public, max-age=600"},
+    )
 
 
 @router.delete("/account/avatar")
 async def delete_avatar(user: dict = Depends(get_current_user)) -> dict:
-    await db.users.update_one({"id": user["id"]}, {"$set": {"avatar_url": None}})
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"avatar_url": None, "avatar_path": None}},
+    )
     return {"avatar_url": None}
+
+
+# ── Organisation Logo (iter 216h57) ──────────────────────────────
+# Same proxy pattern as avatars so the Account Settings "Upload logo"
+# CTA works inline rather than navigating away and closing the modal.
+
+@router.post("/account/logo")
+async def upload_logo(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Upload an org logo (PNG/JPEG). Only owners/managers can update."""
+    role = (user.get("role") or "").lower()
+    if role not in ("owner", "manager") and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Only owners or managers can update the logo")
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organisation linked to this account")
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Logo must be 8 MB or smaller")
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img.load()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not parse image")
+
+    # Preserve transparency for PNGs; fit within a 512px bounding box.
+    is_png = (img.format or "").upper() == "PNG"
+    img.thumbnail((512, 512), Image.LANCZOS)
+    buf = io.BytesIO()
+    if is_png:
+        img.save(buf, format="PNG", optimize=True)
+        content_type, ext = "image/png", "png"
+    else:
+        img = img.convert("RGB")
+        img.save(buf, format="JPEG", quality=88, optimize=True)
+        content_type, ext = "image/jpeg", "jpg"
+    compressed = buf.getvalue()
+
+    path = f"{APP_NAME}/logos/{org_id}/{uuid.uuid4()}.{ext}"
+    logo_path: str | None = None
+    try:
+        put_object(path, compressed, content_type)
+        logo_path = path
+        logo_url = f"/api/account/logo/{org_id}?v={uuid.uuid4().hex[:8]}"
+    except Exception as exc:
+        logger.warning(f"[account] logo object-store put failed, embedding inline: {exc}")
+        logo_url = f"data:{content_type};base64," + base64.b64encode(compressed).decode("ascii")
+
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {"logo_url": logo_url, "logo_path": logo_path, "logo_content_type": content_type}},
+    )
+    return {"logo_url": logo_url}
+
+
+@router.delete("/account/logo")
+async def delete_logo(user: dict = Depends(get_current_user)) -> dict:
+    role = (user.get("role") or "").lower()
+    if role not in ("owner", "manager") and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Only owners or managers can update the logo")
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organisation linked to this account")
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {"logo_url": None, "logo_path": None}},
+    )
+    return {"logo_url": None}
+
+
+@router.get("/account/logo/{org_id}")
+async def serve_logo(org_id: str) -> Response:
+    """Public proxy for the org logo (iter 216h57)."""
+    rec = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "logo_path": 1, "logo_url": 1, "logo_content_type": 1},
+    )
+    if not rec:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+    path = rec.get("logo_path")
+    if not path:
+        legacy = rec.get("logo_url") or ""
+        if legacy and not legacy.startswith("http") and not legacy.startswith("data:") and "/" in legacy:
+            path = legacy
+    if not path:
+        raise HTTPException(status_code=404, detail="No logo")
+    try:
+        data, content_type = get_object(path)
+    except Exception as exc:
+        logger.warning(f"Failed to load logo for {org_id}: {exc}")
+        raise HTTPException(status_code=404, detail="Logo not available") from exc
+    return Response(
+        content=data,
+        media_type=rec.get("logo_content_type") or content_type or "image/png",
+        headers={"Cache-Control": "public, max-age=600"},
+    )
 
 
 # ── Profile ──────────────────────────────────────────────────────
@@ -463,7 +612,7 @@ ONBOARDING_STEPS = [
      "cta_label": "Open Team & Roles", "cta_section": "team"},
     {"id": "upload_logo", "label": "Upload logo",
      "description": "Your logo brands every invoice, member-facing email, and case page.",
-     "cta_label": "Upload logo", "cta_route": "/dashboard?settings=brand"},
+     "cta_label": "Upload logo", "cta_section": "organisation"},
     {"id": "import_machines", "label": "Import machines to site(s)",
      "description": "Pull equipment from a supplier invoice (PDF) or upload a CSV.",
      "cta_label": "Import equipment", "cta_route": "/dashboard?tab=equipment"},

@@ -546,6 +546,8 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
         "account_type": org.get('account_type', 'full') if org else 'full',
+        "avatar_url": user.get('avatar_url'),
+        "phone": user.get('phone'),
         "trial": trial_state,
         "features": features,
         "module_access": module_access,

@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import {
  FileText, Upload, PoundSterling, Send, Plus, Trash2, X,
- Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Link2, Mail, Wrench, Loader2
+ Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Link2, Mail, Wrench, Loader2, CalendarDays
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 
@@ -393,24 +393,34 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
 
- {/* Supplier Fault Card — prominent deep link */}
- {issue.supplier_case?.token && (
- <div className="flex items-center justify-between p-3 rounded-lg bg-[rgb(var(--rgb-brand-blue)/0.1)] border border-[rgb(var(--rgb-brand-blue)/0.3)]" data-testid={`supplier-card-banner-${issue.id}`}>
- <div className="flex items-center gap-2 min-w-0">
- <ExternalLink size={14} className="text-[var(--color-brand-cyan-hover)] shrink-0" />
+ {/* Iter 216h57 — Replaced the blue Supplier Fault Card deep-link
+     with a prominent Engineer Visit panel. The Supplier-Card link
+     still lives inside the Supplier Communication card below, so
+     removing the duplicate banner here de-clutters the detail view. */}
+ {issue.supplier_case?.scheduled_date && (
+ <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20" data-testid={`engineer-visit-banner-${issue.id}`}>
+ <div className="flex items-start gap-3 min-w-0">
+ <CalendarDays size={18} className="text-purple-400 shrink-0 mt-0.5" />
  <div className="min-w-0">
- <p className="text-white text-sm font-medium">Supplier Fault Card</p>
- <p className="text-[var(--color-text-muted)] text-xs truncate">See exactly what {issue.supplier || 'the supplier'} sees for this job</p>
+ <p className="text-purple-400 text-xs font-semibold uppercase tracking-wider">Engineer Visit Scheduled</p>
+ <p className="text-white text-base font-semibold mt-0.5">
+ {new Date(issue.supplier_case.scheduled_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+ </p>
+ {issue.supplier_case.engineer_name && (
+ <p className="text-[var(--color-text-muted)] text-xs mt-0.5">Engineer: {issue.supplier_case.engineer_name}</p>
+ )}
  </div>
  </div>
+ {issue.supplier_case?.token && (
  <Button
- size="sm"
+ size="sm" variant="outline"
  onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}`, '_blank', 'noopener')}
- className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white text-xs shrink-0"
- data-testid={`supplier-card-link-${issue.id}`}
+ className="border-purple-500/40 text-purple-400 hover:bg-purple-500/20 text-xs shrink-0"
+ data-testid={`engineer-visit-reschedule-${issue.id}`}
  >
- Open
+ Reschedule
  </Button>
+ )}
  </div>
  )}
 
@@ -638,18 +648,10 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
 
- {/* Scheduled visit banner */}
- {issue.supplier_case?.scheduled_date && (
- <div className="flex items-center gap-2 p-2.5 mb-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
- <Clock size={14} className="text-purple-400 shrink-0" />
- <div className="flex-1 min-w-0">
- <span className="text-purple-400 text-xs font-semibold">Engineer Visit: </span>
- <span className="text-white text-xs">{new Date(issue.supplier_case.scheduled_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
- {issue.supplier_case.engineer_name && <span className="text-[var(--color-text-muted)] text-xs"> — {issue.supplier_case.engineer_name}</span>}
- </div>
- <Badge className="bg-purple-500/20 text-purple-400 text-[9px] capitalize shrink-0">{(issue.supplier_case?.current_status || '').replace('_', ' ')}</Badge>
- </div>
- )}
+ {/* Iter 216h57 — Engineer-visit banner moved up to the prominent
+     position previously occupied by the Supplier Fault Card. Kept
+     here is only the chat thread itself + the Supplier Card deep
+     link in the header. */}
 
  {/* Chat messages */}
  <div className={`overflow-y-auto space-y-2 mb-3 rounded-lg p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border-soft)] ${showFullHistory ? 'max-h-[280px]' : ''}`} style={{ minHeight: '40px' }}>

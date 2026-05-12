@@ -1,0 +1,98 @@
+{
+  "summary": "Iter 216h57 bug fix verification. Backend tests: 9/9 passed (BUG 4b logo endpoints, BUG 5b avatar endpoints + /auth/me fields). Frontend code review confirms all 5 bug fixes are in place. UI testing limited by rate limiting on login.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h57_bugs.py",
+    "/app/test_reports/pytest/pytest_results_216h57.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BUG 1+2 FIX VERIFIED: IssueDetailPanel.js lines 396-425 - Blue Supplier Fault Card banner replaced with purple Engineer Visit banner. data-testid='engineer-visit-banner-{issue.id}' and 'engineer-visit-reschedule-{issue.id}' present.",
+    "BUG 3 FIX VERIFIED: LiteDialogs.js lines 158-181 - onAutoLookup handler now uses top-of-file 'notify' import (notify.success/notify.error) instead of broken 'await import(sonner).notify'.",
+    "BUG 4 FIX VERIFIED: AccountSettingsModal.js OrganisationSection has inline logo upload (lines 761-800). Onboarding step 'upload_logo' uses cta_section='organisation' to jump to this section instead of navigating away.",
+    "BUG 5 FIX VERIFIED: Backend account.py stores avatar_path internally and exposes /api/account/avatar/{user_id} as public proxy. avatar_url now points to this proxy URL instead of raw object-store path."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h57_bugs.py (new test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 passed)",
+    "frontend": "Code review verified - UI testing limited by rate limiting"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Test avatars and logos uploaded during backend tests. These are cleaned up by DELETE endpoints.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 5 bug fixes verified via code review and backend API tests. BUG 4b/5b backend endpoints fully tested. BUG 1+2 (IssueDetailPanel), BUG 3 (LiteDialogs), BUG 4 (AccountSettingsModal onboarding), BUG 5 (avatar proxy) - code changes confirmed correct. Note: AccountSettingsModal is for Owner/Manager/Staff users only - Master Admins see a different 'Account Details' modal. To test BUG 4/5 UI, login as a non-master-admin user with owner/manager role.",
+  "verified_features": {
+    "bug_1_2_engineer_visit_banner": {
+      "status": "CODE VERIFIED",
+      "file": "/app/frontend/src/pages/IssueDetailPanel.js",
+      "lines": "396-425",
+      "changes": [
+        "Blue Supplier Fault Card banner REMOVED",
+        "Purple Engineer Visit Scheduled banner ADDED with data-testid='engineer-visit-banner-{issue.id}'",
+        "Reschedule button with data-testid='engineer-visit-reschedule-{issue.id}'"
+      ]
+    },
+    "bug_3_find_manufacturer_photo": {
+      "status": "CODE VERIFIED",
+      "file": "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js",
+      "lines": "158-181",
+      "changes": [
+        "onAutoLookup handler uses notify.success/notify.error from top-of-file import",
+        "Previously used broken 'await import(sonner).notify' which caused runtime error"
+      ]
+    },
+    "bug_4_upload_logo_cta": {
+      "status": "BACKEND VERIFIED + CODE VERIFIED",
+      "backend_tests": [
+        "test_logo_upload_returns_logo_url - PASSED",
+        "test_logo_proxy_returns_image - PASSED",
+        "test_logo_delete_returns_null - PASSED",
+        "test_onboarding_upload_logo_step_has_cta_section - PASSED"
+      ],
+      "frontend_changes": [
+        "OrganisationSection has inline logo upload (data-testid='account-section-logo', 'account-org-logo-upload-btn')",
+        "Onboarding step 'upload_logo' uses cta_section='organisation' instead of cta_route"
+      ]
+    },
+    "bug_5_avatar_proxy": {
+      "status": "BACKEND VERIFIED + CODE VERIFIED",
+      "backend_tests": [
+        "test_auth_me_includes_avatar_url_field - PASSED",
+        "test_auth_me_includes_phone_field - PASSED",
+        "test_avatar_upload_returns_avatar_url - PASSED",
+        "test_avatar_proxy_returns_image - PASSED",
+        "test_auth_me_reflects_uploaded_avatar - PASSED"
+      ],
+      "implementation": {
+        "avatar_path": "Stored internally in user document",
+        "avatar_url": "Now points to /api/account/avatar/{user_id}?v=... proxy URL",
+        "proxy_endpoint": "GET /api/account/avatar/{user_id} streams image from object storage"
+      }
+    }
+  },
+  "test_results": {
+    "backend_pytest": {
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "file": "/app/backend/tests/test_iter_216h57_bugs.py"
+    },
+    "frontend_playwright": {
+      "status": "LIMITED - Rate limiting blocked login attempts",
+      "code_review": "All 5 bug fixes verified in source code"
+    }
+  }
+}

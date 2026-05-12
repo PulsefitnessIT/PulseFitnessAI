@@ -657,7 +657,15 @@ function OrganisationSection({ billing, profile }) {
     primary_contact_phone: '', website: '',
   });
   const [saving, setSaving] = useState(false);
+  // Iter 216h57 — inline logo upload so the "Upload logo" onboarding
+  // step works without navigating away (previously it tried to push
+  // to /dashboard?settings=brand which doesn't exist and closed the
+  // settings modal).
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoFileRef = useRef(null);
   const isOwner = (profile?.role || '').toLowerCase() === 'owner';
+  const isManager = (profile?.role || '').toLowerCase() === 'manager';
+  const canEditLogo = isOwner || isManager;
 
   useEffect(() => {
     let cancelled = false;
@@ -703,6 +711,37 @@ function OrganisationSection({ billing, profile }) {
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const onLogoFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const { data } = await axios.post(`${API}/account/logo`, fd, {
+        headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
+      });
+      setOrg((o) => ({ ...(o || {}), logo_url: data.logo_url }));
+      toast.success('Logo uploaded');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Logo upload failed');
+    }
+    setLogoUploading(false);
+    if (logoFileRef.current) logoFileRef.current.value = '';
+  };
+
+  const removeLogo = async () => {
+    setLogoUploading(true);
+    try {
+      await axios.delete(`${API}/account/logo`, { headers: headers() });
+      setOrg((o) => ({ ...(o || {}), logo_url: null }));
+      toast.success('Logo removed');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Remove failed');
+    }
+    setLogoUploading(false);
+  };
+
   return (
     <div className="space-y-5" data-testid="account-section-organisation">
       <div className="account-card rounded-xl p-5">
@@ -712,6 +751,60 @@ function OrganisationSection({ billing, profile }) {
         </div>
         <div className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
           Joined {billing?.member_since ? new Date(billing.member_since).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+        </div>
+      </div>
+
+      {/* Iter 216h57 — inline logo upload (Owner / Manager).
+          The previous flow navigated to /dashboard?settings=brand which
+          closed the modal and didn't actually surface an uploader.
+          Onboarding step `upload_logo` now jumps to this section. */}
+      <div data-testid="account-section-logo">
+        <h3 className="account-section-title">Organisation logo</h3>
+        <p className="account-section-sub">PNG transparent or JPG. Brands every invoice, member-facing email, and supplier case page.</p>
+        <div className="mt-3 flex items-center gap-5">
+          <div className="relative w-24 h-24 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: 'var(--theme-surface-sunken)', border: '1px solid var(--theme-border)' }}>
+            {org?.logo_url ? (
+              <img src={org.logo_url} alt={`${org?.name || 'Organisation'} logo`} className="max-w-full max-h-full object-contain" data-testid="account-org-logo-img" />
+            ) : (
+              <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>No logo</span>
+            )}
+            {logoUploading && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-white" />
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <input
+              ref={logoFileRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={onLogoFile} className="hidden" data-testid="account-org-logo-input"
+            />
+            <button
+              type="button"
+              onClick={() => logoFileRef.current?.click()}
+              disabled={!canEditLogo || logoUploading}
+              className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider px-3 py-1.5 border rounded-md transition disabled:opacity-50"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="account-org-logo-upload-btn"
+            >
+              <Camera size={13} /> {org?.logo_url ? 'Replace logo' : 'Upload logo'}
+            </button>
+            {org?.logo_url && canEditLogo && (
+              <button
+                type="button"
+                onClick={removeLogo}
+                disabled={logoUploading}
+                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider px-3 py-1.5 hover:text-red-400 transition disabled:opacity-50"
+                style={{ color: 'var(--theme-text-muted)' }}
+                data-testid="account-org-logo-remove-btn"
+              >
+                <Trash2 size={13} /> Remove
+              </button>
+            )}
+            {!canEditLogo && (
+              <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>Only the Owner or a Manager can change the logo.</p>
+            )}
+          </div>
         </div>
       </div>
 

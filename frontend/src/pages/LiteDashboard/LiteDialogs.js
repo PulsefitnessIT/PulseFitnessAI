@@ -157,13 +157,13 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                 canAutoLookup={!photoUrl && !selectedEquipment.auto_image_url && !selectedEquipment.spec_sheet_image && !specId}
                 onAutoLookup={async () => {
                   try {
-                    const r = await (await import('axios')).default.post(
+                    const r = await axios.post(
                       `${API_BASE}/equipment/${selectedEquipment.id}/lookup-image`,
                       {},
                       { headers: { Authorization: `Bearer ${authToken}` } },
                     );
                     if (r.data && r.data.image_url) {
-                      (await import('sonner')).notify.success(
+                      notify.success(
                         r.data.verified ? 'Product image found & AI-verified' : 'Candidate image found — please review',
                       );
                       selectedEquipment.auto_image_url = r.data.image_url;
@@ -171,10 +171,13 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                       selectedEquipment.auto_image_verified = !!r.data.verified;
                       setPhotoUrl(null); // force re-render
                     } else {
-                      (await import('sonner')).notify.error(r.data?.message || 'No matching image found');
+                      notify.error(r.data?.message || 'No matching image found');
                     }
-                  } catch {
-                    (await import('sonner')).notify.error('Auto-lookup failed');
+                  } catch (err) {
+                    // Iter 216h57 — fixed runtime crash on the
+                    // "Find manufacturer photo" button. Previously
+                    // used a non-existent `sonner.notify` import path.
+                    notify.error(err?.response?.data?.detail || 'Manufacturer photo lookup failed');
                   }
                 }}
                 onUploaded={(newUrl) => {
