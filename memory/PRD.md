@@ -1432,6 +1432,41 @@ Lives in **preview** only — **redeploy** to push to gymaxisai.com. If the prod
 ---
 
 
+## Iter 216h53 — Bulk import sites + Service Desk full merge + Sites click-through + Archive relocation (Feb 12, 2026)
+
+Lee's batch ask: (1) fix the bulk-import failure (he uploaded a sites CSV via the equipment slot), (2) full merge of Service Desk + Service Ops under one shell with 8 specified tabs, (3) clickable sites in Master Admin → Orgs with Site Details + Equipment tabs, (4) move Archive somewhere more logical.
+
+### 1. Bulk-import sites box + CSV sniffer fix
+- **New endpoint** `POST /api/master-admin/bulk-import/sites?organization_id=` + matching `GET /api/master-admin/bulk-import/templates/sites`. Sites are org-scoped (no customer_account_number column on the template) so the target tenant is required upfront. Idempotent dedupe by case-insensitive site name. Persists `invoice_customer_ref` for Sicon linkage.
+- **AdminBulkImports.js** — now a 3-column grid: Sites + Equipment + Customers. Equipment hint copy updated to reflect the new `site_name`, `supplier`, `unit_price` columns from iters 216h50/216h51.
+- **CSV sniffer fix** — `_sniff_mime_fallback` now tries `latin-1` decode after UTF-8 fails, so Excel-exported CSVs with Windows-1252 characters (en-dash 0x96, smart quotes 0x93/0x94) are accepted. Was the actual root cause of Lee's "Couldn't import equipment" toast — his Third Space CSV had `"Third Space – Canary Wharf"` (en-dash) and the sniffer returned `application/octet-stream` → 415.
+
+### 2. Service Desk full merge
+- **New unified `/service-desk` page** with Lee's 8 tabs in the specified order: Dashboard | Cases | Scheduler | Customers | Equipment | Parts | Billing | Engineers. Plus an "Insights" section housing Supplier health / Reports / Audit log.
+- **Embedded Service Ops pages** — added `ServiceOpsEmbeddedContext` to `ServiceOpsShell` so each Ops page (Scheduler, Engineers, Parts, Billing, Reports, Cases-board) renders body-only when invoked from inside the merged Service Desk shell. Avoids duplicate hero+nav.
+- **Legacy routes** `/service-ops/*` 302-redirect to `/service-desk`. Deep links still work.
+- **Portal switcher** — Service Ops button removed from `AdminSidebar.js` (Service Desk is now the single entry).
+- Auth gate unchanged for now (master_admin or is_service_desk). Tenant access opens in a future iteration when Pulse-facing.
+
+### 3. Sites click-through
+- **New `SiteDetailDrawer.js`** — opens when clicking any non-default site row in Master Admin → Orgs → Customer → Sites tab.
+- Two tabs: **Site Details** (editable form: name, Sicon `invoice_customer_ref`, full address, site phone/email, manager name+email, default location — saves via PATCH `/api/master-admin/organizations/{org}/sites/{site}`) and **Equipment** (inline-editable table — name/type/model/serial/supplier/location columns, save-per-row via PATCH `/api/equipment/{id}`).
+- Site row in OrgSitesPanel gets a `cursor-pointer` + chevron-right + invoice_customer_ref display when present.
+
+### 4. Archive relocation
+- Moved from Service Desk → Master Admin → Overview → Archive (alongside Dashboard, System Health, Setup checklist). Data-lifecycle concern, not a customer-support workflow. Single line addition to `SidebarConfig.js` + `MasterAdminPage.js` case handler.
+
+### Testing
+- `/app/test_reports/iteration_216h53.json` — **13/13 backend tests PASS** (sites template/import, dedupe, auth, Windows-1252 CSV acceptance, service-ops redirects). Frontend verified: all 11 tabs in Service Desk render, Archive moved correctly, site detail drawer code valid.
+- Smoke test of Lee's actual CSV: **6/6 imported cleanly** from a fresh Third Space sites file.
+
+### Files
+- **Backend**: `master_admin_bulk_import.py` (+sites endpoints), `master_admin.py` (invoice_customer_ref in bulk sites insert), `utils/file_validation.py` (latin-1 fallback)
+- **Frontend**: `ServiceDeskPage.js` (full rewrite — 11 tabs), `ServiceOps/ServiceOpsShell.js` (embedded context), `routes/AppRoutes.js` (legacy redirects), `MasterAdmin/SidebarConfig.js` + `MasterAdminPage.js` (Archive relocated), **NEW** `MasterAdmin/SiteDetailDrawer.js`, `MasterAdmin/OrgSitesPanel.js` (clickable sites + invoice_ref display), `MasterAdmin/AdminBulkImports.js` (3-column grid + updated hints), `MasterAdmin/AdminSidebar.js` (Service Ops button removed)
+
+---
+
+
 ## Iter 216h52 — Service Desk → Supplier Health (cross-customer rollup) (Feb 12, 2026)
 
 GymAxis-facing follow-up to iter 216h51's supplier-routed equipment imports. Lee's pivot: Pulse wouldn't chase suppliers themselves, but **GymAxis benefits most** from a top-down view of supplier performance across the entire customer base — useful for renewal negotiations and proactive supplier management.
