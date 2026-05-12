@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Building2, Plus, Search, ChevronRight, Users, Target, AlertTriangle,
+  Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
   Shield, Phone, Mail, Globe, MapPin, Tag, MoreHorizontal, ArrowLeft,
   FileText, Calendar, Activity, DollarSign, CheckCircle, Clock, Edit2, Trash2, X,
   Upload, Download, Sparkles, Loader2, Hash
@@ -10,6 +10,7 @@ import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 import Button from '@/components/shared/Button';
+import ListPanel from '@/components/shared/ListPanel';
 
 const TYPES = ['all', 'prospect', 'customer', 'partner', 'former'];
 const TYPE_COLORS = { prospect: 'var(--color-warning)', customer: 'var(--color-success-alt)', partner: 'var(--color-info-ios)', former: 'var(--color-text-faint-alt)' };
@@ -82,61 +83,56 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
   };
 
   return (
-    <div data-testid="crm-companies-list">
-      {/* Toolbar — search + filters + count + new company */}
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: c.textDim }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search companies..." className="w-full pl-9 pr-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}`, color: c.text }} data-testid="company-search" />
-        </div>
+    <>
+      <ListPanel
+      data-testid="crm-companies-list"
+      search={{ value: search, onChange: setSearch, placeholder: 'Search companies...', testId: 'company-search' }}
+      count={{ value: total, label: 'account' }}
+      primaryAction={{ label: 'New Company', icon: Plus, onClick: () => setShowCreate(true), testId: 'create-company-btn' }}
+      empty={{
+        when: companies.length === 0,
+        icon: Building2,
+        title: 'No companies yet',
+        primaryAction: { label: 'Create your first company', onClick: () => setShowCreate(true) },
+        testId: 'crm-companies-empty',
+      }}
+      toolbarRight={(
         <div className="flex gap-1">
           {TYPES.map(t => (
             <button key={t} onClick={() => setTypeFilter(t)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${typeFilter === t ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
-              style={typeFilter !== t ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}>
+              style={typeFilter !== t ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}
+              data-testid={`company-type-filter-${t}`}>
               {t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
-        <p className="text-xs ml-auto" style={{ color: c.textDim }}>{total} account{total !== 1 ? 's' : ''}</p>
-        <button type="button" onClick={() => setShowCreate(true)} className="btn-primary" data-testid="create-company-btn">
-          <Plus size={14} /> New Company
-        </button>
-      </div>
-
-      {/* Company Cards */}
-      <div className="space-y-2">
-        {companies.map(co => (
-          <div key={co.id} onClick={() => onSelect(co.id)} className="flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.005]"
-            style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`company-row-${co.id}`}>
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)'}15` }}>
-              <Building2 size={18} style={{ color: TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)' }} />
+      )}
+    >
+      {companies.map(co => (
+        <div key={co.id} onClick={() => onSelect(co.id)} className="flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.005]"
+          style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`company-row-${co.id}`}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)'}15` }}>
+            <Building2 size={18} style={{ color: TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{co.name}</p>
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)'}20`, color: TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)' }}>{co.type}</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{co.name}</p>
-                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)'}20`, color: TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)' }}>{co.type}</span>
-              </div>
-              <div className="flex items-center gap-3 mt-0.5">
-                {co.sector && <span className="text-[11px]" style={{ color: c.textDim }}>{co.sector}</span>}
-                {co.city && <span className="text-[11px]" style={{ color: c.textDim }}>{co.city}</span>}
-              </div>
-            </div>
-            <div className="flex items-center gap-4 shrink-0 text-xs">
-              <div className="text-center hidden sm:block"><p className="font-bold" style={{ color: c.text }}>{co.contact_count || 0}</p><p style={{ color: c.textDim }}>contacts</p></div>
-              <div className="text-center hidden sm:block"><p className="font-bold" style={{ color: 'var(--color-info-ios)' }}>{co.opportunity_count || 0}</p><p style={{ color: c.textDim }}>deals</p></div>
-              <div className="text-center hidden md:block"><p className="font-bold" style={{ color: co.open_cases > 0 ? 'var(--color-accent-amber)' : 'var(--color-success-alt)' }}>{co.open_cases || 0}</p><p style={{ color: c.textDim }}>cases</p></div>
-              <ChevronRight size={16} style={{ color: c.textDim }} />
+            <div className="flex items-center gap-3 mt-0.5">
+              {co.sector && <span className="text-[11px]" style={{ color: c.textDim }}>{co.sector}</span>}
+              {co.city && <span className="text-[11px]" style={{ color: c.textDim }}>{co.city}</span>}
             </div>
           </div>
-        ))}
-        {companies.length === 0 && (
-          <div className="text-center py-16 rounded-lg border" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
-            <Building2 size={40} className="mx-auto mb-3" style={{ color: c.textDim }} />
-            <p className="text-sm font-medium" style={{ color: c.textMuted }}>No companies yet</p>
-            <button onClick={() => setShowCreate(true)} className="text-sm text-[var(--color-info-ios)] mt-2 hover:underline">Create your first company</button>
+          <div className="flex items-center gap-4 shrink-0 text-xs">
+            <div className="text-center hidden sm:block"><p className="font-bold" style={{ color: c.text }}>{co.contact_count || 0}</p><p style={{ color: c.textDim }}>contacts</p></div>
+            <div className="text-center hidden sm:block"><p className="font-bold" style={{ color: 'var(--color-info-ios)' }}>{co.opportunity_count || 0}</p><p style={{ color: c.textDim }}>deals</p></div>
+            <div className="text-center hidden md:block"><p className="font-bold" style={{ color: co.open_cases > 0 ? 'var(--color-accent-amber)' : 'var(--color-success-alt)' }}>{co.open_cases || 0}</p><p style={{ color: c.textDim }}>cases</p></div>
+            <ChevronRight size={16} style={{ color: c.textDim }} />
           </div>
-        )}
-      </div>
+        </div>
+      ))}
+      </ListPanel>
 
       {/* Create Dialog */}
       {showCreate && (
@@ -268,7 +264,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

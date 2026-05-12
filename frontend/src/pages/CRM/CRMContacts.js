@@ -79,7 +79,8 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
   const openCreate = () => { loadCompanies(); setShowCreate(true); setForm({ first_name: '', last_name: '', email: '', phone: '', job_title: '', company_id: '', company_name: '', is_decision_maker: false, lifecycle: 'lead', opt_out_email: false, opt_out_sms: false, opt_out_phone: false }); };
 
   return (
-    <ListPanel
+    <>
+      <ListPanel
       data-testid="crm-contacts-list"
       search={{ value: search, onChange: setSearch, placeholder: 'Search contacts...', testId: 'contact-search' }}
       count={{ value: total, label: 'contact' }}
@@ -128,6 +129,7 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
           </div>
         </div>
       ))}
+      </ListPanel>
 
       {showCreate && createPortal((
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowCreate(false)} data-testid="crm-new-contact-backdrop">
@@ -236,7 +238,7 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
           </div>
         </div>
       ), document.body)}
-    </ListPanel>
+    </>
   );
 }
 

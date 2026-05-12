@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Plus, Search, FileText, ChevronRight, ArrowLeft, Building2, MapPin,
+  Plus, FileText, ChevronRight, ArrowLeft, Building2, MapPin,
   Calendar, DollarSign, Shield, Clock, CheckCircle, AlertTriangle,
   Edit2, Trash2, X, Wrench, Activity, Copy, Send, ThumbsUp,
   ThumbsDown, RefreshCw, Link2, PenTool, ChevronDown, BarChart3,
@@ -10,6 +10,7 @@ import {
 import axios from 'axios';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';
+import ListPanel from '@/components/shared/ListPanel';
 
 const TIER_COLORS = { warranty: 'var(--color-text-faint-alt)', bronze: 'var(--color-bronze)', silver: 'var(--color-silver)', gold: 'var(--color-gold)', platinum: '#E5E4E2', bespoke: 'var(--color-accent-violet)' };
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', sent: 'var(--color-info-ios)', negotiation: 'var(--color-accent-magenta)', signed: 'var(--color-success-alt)', active: 'var(--color-info-ios)', expiring: 'var(--color-accent-amber)', expired: 'var(--color-danger-alt)', renewed: 'var(--color-success-alt)', cancelled: 'var(--color-danger)', amended: 'var(--color-accent-violet)' };
@@ -130,14 +131,6 @@ function ContractList({ c, isDark, API, headers, onSelect }) {
 
   return (
     <div data-testid="contracts-list">
-      {/* Toolbar — count + new */}
-      <div className="flex items-center justify-end gap-3 mb-3 flex-wrap">
-        <p className="text-xs mr-auto" style={{ color: c.textDim }}>{total} contracts</p>
-        <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-contract-btn">
-          <Plus size={14} /> New Contract
-        </button>
-      </div>
-
       {/* Stats Row */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5" data-testid="contracts-stats">
@@ -150,28 +143,31 @@ function ContractList({ c, isDark, API, headers, onSelect }) {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: c.textDim }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contracts..."
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-md" style={{ background: isDark ? '#111' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}`, color: c.text }}
-            data-testid="contracts-search" />
-        </div>
-        <div className="flex gap-1 overflow-x-auto">
-          {['', 'active', 'draft', 'pending_approval', 'approved', 'expiring', 'expired'].map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${statusFilter === s ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
-              style={statusFilter !== s ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}
-              data-testid={`filter-${s || 'all'}`}>
-              {s ? s.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'All'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Contract Rows */}
-      <div className="space-y-2">
+      <ListPanel
+        search={{ value: search, onChange: setSearch, placeholder: 'Search contracts...', testId: 'contracts-search' }}
+        count={{ value: total, label: 'contract' }}
+        primaryAction={{ label: 'New Contract', icon: Plus, onClick: openCreate, testId: 'create-contract-btn' }}
+        empty={{
+          when: filtered.length === 0,
+          icon: FileText,
+          title: 'No contracts found',
+          hint: search || statusFilter ? 'Try clearing your search or filters.' : 'Create your first contract to start tracking deliverables and renewals.',
+          primaryAction: search || statusFilter ? undefined : { label: 'Create a contract', onClick: openCreate },
+          testId: 'contracts-empty',
+        }}
+        toolbarRight={(
+          <div className="flex gap-1 overflow-x-auto">
+            {['', 'active', 'draft', 'pending_approval', 'approved', 'expiring', 'expired'].map(s => (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${statusFilter === s ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
+                style={statusFilter !== s ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}
+                data-testid={`filter-${s || 'all'}`}>
+                {s ? s.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'All'}
+              </button>
+            ))}
+          </div>
+        )}
+      >
         {filtered.map(contract => {
           const sc = STATUS_COLORS[contract.status] || 'var(--color-text-faint-alt)';
           const tc = TIER_COLORS[contract.tier] || 'var(--color-text-faint-alt)';
@@ -200,8 +196,7 @@ function ContractList({ c, isDark, API, headers, onSelect }) {
             </div>
           );
         })}
-        {filtered.length === 0 && <p className="text-center py-8 text-sm" style={{ color: c.textDim }}>No contracts found</p>}
-      </div>
+      </ListPanel>
 
       {/* Create Modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Contract" isDark={isDark} c={c}>

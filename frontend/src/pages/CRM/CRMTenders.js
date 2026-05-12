@@ -7,6 +7,8 @@ import {
   Building2, User, Calendar, Loader2, X, Zap, TrendingUp
 } from 'lucide-react';
 import axios from 'axios';
+import Button from '@/components/shared/Button';
+import ListPanel from '@/components/shared/ListPanel';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', parsing: 'var(--color-info-ios)', in_progress: 'var(--color-warning)', review: 'var(--color-accent-magenta)', submitted: 'var(--color-success-alt)', won: 'var(--color-success-alt-2)', lost: 'var(--color-danger)' };
 const Q_STATUS_COLORS = { not_started: 'var(--color-text-faint-alt)', draft: 'var(--color-warning)', reviewed: 'var(--color-accent-magenta)', final: 'var(--color-success-alt)' };
@@ -59,63 +61,58 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
   const openCreate = () => { loadCompanies(); setShowCreate(true); };
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
-
   return (
-    <div data-testid="crm-tender-list">
-      <div className="flex items-center justify-end gap-3 mb-3 flex-wrap">
-        <p className="text-xs mr-auto" style={{ color: c.textDim }}>{total} tender{total !== 1 ? 's' : ''}</p>
-        <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-tender-btn">
-          <Plus size={14} /> New Tender
-        </button>
-      </div>
-
-      {tenders.length === 0 ? (
-        <div className="text-center py-16 rounded-lg border" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
-          <Award size={40} className="mx-auto mb-3" style={{ color: c.textDim }} />
-          <p className="text-sm font-medium" style={{ color: c.textMuted }}>No tenders yet</p>
-          <p className="text-xs mt-1" style={{ color: c.textDim }}>Upload a tender pack to start winning contracts</p>
-          <button onClick={openCreate} className="text-sm text-[var(--color-info-ios)] mt-3 hover:underline">Create your first tender</button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {tenders.map(t => {
-            const statusColor = STATUS_COLORS[t.status] || 'var(--color-text-faint-alt)';
-            const progress = t.total_questions > 0 ? Math.round((t.answered_questions / t.total_questions) * 100) : 0;
-            return (
-              <div key={t.id} onClick={() => onSelect(t.id)}
-                className="flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.003]"
-                style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}
-                data-testid={`tender-row-${t.id}`}>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${statusColor}15` }}>
-                  <Award size={18} style={{ color: statusColor }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{t.title}</p>
-                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{t.status}</span>
-                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textDim }}>{t.type}</span>
-                  </div>
-                  <p className="text-[11px] mt-0.5" style={{ color: c.textDim }}>
-                    {t.issuer && <>{t.issuer} &middot; </>}
-                    {t.total_questions} questions &middot; {t.answered_questions} answered &middot; {t.documents_uploaded} docs
-                    {t.deadline && <> &middot; Due: {new Date(t.deadline).toLocaleDateString('en-GB')}</>}
-                  </p>
-                </div>
-                <div className="w-20 shrink-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px]" style={{ color: c.textDim }}>{progress}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-border-alt)' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: progress >= 80 ? 'var(--color-success-alt)' : progress >= 40 ? 'var(--color-warning)' : 'var(--color-text-faint-alt)' }} />
-                  </div>
-                </div>
-                <ChevronRight size={16} style={{ color: c.textDim }} />
+    <>
+      <ListPanel
+        data-testid="crm-tender-list"
+        count={{ value: total, label: 'tender' }}
+        primaryAction={{ label: 'New Tender', icon: Plus, onClick: openCreate, testId: 'create-tender-btn' }}
+        loading={loading}
+        empty={{
+          when: tenders.length === 0,
+          icon: Award,
+          title: 'No tenders yet',
+          hint: 'Upload a tender pack to start winning contracts.',
+          primaryAction: { label: 'Create your first tender', onClick: openCreate },
+          testId: 'crm-tender-empty',
+        }}
+      >
+        {tenders.map(t => {
+          const statusColor = STATUS_COLORS[t.status] || 'var(--color-text-faint-alt)';
+          const progress = t.total_questions > 0 ? Math.round((t.answered_questions / t.total_questions) * 100) : 0;
+          return (
+            <div key={t.id} onClick={() => onSelect(t.id)}
+              className="flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.003]"
+              style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}
+              data-testid={`tender-row-${t.id}`}>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${statusColor}15` }}>
+                <Award size={18} style={{ color: statusColor }} />
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{t.title}</p>
+                  <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{t.status}</span>
+                  <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textDim }}>{t.type}</span>
+                </div>
+                <p className="text-[11px] mt-0.5" style={{ color: c.textDim }}>
+                  {t.issuer && <>{t.issuer} &middot; </>}
+                  {t.total_questions} questions &middot; {t.answered_questions} answered &middot; {t.documents_uploaded} docs
+                  {t.deadline && <> &middot; Due: {new Date(t.deadline).toLocaleDateString('en-GB')}</>}
+                </p>
+              </div>
+              <div className="w-20 shrink-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px]" style={{ color: c.textDim }}>{progress}%</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-border-alt)' }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: progress >= 80 ? 'var(--color-success-alt)' : progress >= 40 ? 'var(--color-warning)' : 'var(--color-text-faint-alt)' }} />
+                </div>
+              </div>
+              <ChevronRight size={16} style={{ color: c.textDim }} />
+            </div>
+          );
+        })}
+      </ListPanel>
 
       {/* Create Tender Dialog */}
       {showCreate && (
@@ -190,7 +187,7 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
