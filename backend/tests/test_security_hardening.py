@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import os
 import uuid
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -96,6 +97,35 @@ def test_jwt_revocation_missing_jti_is_noop():
         await revoke_jwt("", 0)
         assert await is_jwt_revoked(None) is False
         assert await is_jwt_revoked("") is False
+
+    run(_go())
+
+
+def test_jwt_revocation_grace_window_still_valid():
+    """Iter 216h54 — refresh-rotation revocation with a grace window
+    must keep the old jti valid until the window elapses."""
+    async def _go():
+        jti = new_jti()
+        exp = int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
+        # Revoke with a 5 s grace — token must still be valid right now
+        await revoke_jwt(jti, exp, reason="refresh", grace_seconds=5)
+        assert await is_jwt_revoked(jti) is False, (
+            "in-flight requests within grace window must NOT see Session revoked"
+        )
+
+    run(_go())
+
+
+def test_jwt_revocation_grace_window_expires():
+    """After the grace window elapses the deny list takes effect."""
+    async def _go():
+        jti = new_jti()
+        exp = int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
+        # Set effective_at to a tiny window so we can wait it out fast.
+        await revoke_jwt(jti, exp, reason="refresh", grace_seconds=1)
+        assert await is_jwt_revoked(jti) is False
+        await asyncio.sleep(1.2)
+        assert await is_jwt_revoked(jti) is True
 
     run(_go())
 

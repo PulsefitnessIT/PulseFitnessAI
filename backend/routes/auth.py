@@ -559,13 +559,19 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
 
 @router.post("/auth/refresh")
 async def refresh_token(user: dict = Depends(get_current_user)) -> dict:
-    """Issue a fresh JWT token + revoke the old one (rotation)."""
+    """Issue a fresh JWT token + revoke the old one (rotation).
+
+    Iter 216h54 — the old jti is revoked with a 60-second grace window
+    so any in-flight requests that already captured the old token
+    (App.js loadSites / loadBranding / freshly-mounted dashboards)
+    can complete cleanly before the deny list kicks in.
+    """
     from utils.security_plus import revoke_jwt
     old_jti = user.get("_jwt_jti")
     old_exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
     new_token = create_token(user['id'])
     if old_jti:
-        await revoke_jwt(old_jti, int(old_exp), reason="refresh")
+        await revoke_jwt(old_jti, int(old_exp), reason="refresh", grace_seconds=60)
     return {"token": new_token}
 
 

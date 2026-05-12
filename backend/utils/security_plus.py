@@ -98,26 +98,59 @@ def client_rate_key(request: Request, user: Optional[dict], suffix: str) -> str:
 
 # ════════════════════ P1+.11 — JWT revocation ════════════════════
 
-async def revoke_jwt(jti: str, exp_ts: int, reason: str = "logout") -> None:
-    """Add a JWT's jti to the deny list. TTL index will sweep it after expiry."""
+async def revoke_jwt(
+    jti: str,
+    exp_ts: int,
+    reason: str = "logout",
+    grace_seconds: int = 0,
+) -> None:
+    """Add a JWT's jti to the deny list. TTL index will sweep it after expiry.
+
+    Iter 216h54 — `grace_seconds` lets the caller delay the effective
+    revocation. This is critical on `/auth/refresh`: an immediate revoke
+    on rotation races with in-flight client requests still carrying the
+    old token (e.g. parallel /auth/me + /sites + /branding fired on
+    page load). With a 60s grace window those in-flight calls complete
+    cleanly; replay attacks past the window are still blocked.
+    """
     if not jti:
         return
+    effective_at = datetime.now(timezone.utc) + timedelta(seconds=max(0, grace_seconds))
     await db.jwt_revocations.update_one(
         {"jti": jti},
         {"$set": {
             "jti": jti, "reason": reason,
             "exp": datetime.fromtimestamp(exp_ts, tz=timezone.utc),
             "revoked_at": datetime.now(timezone.utc).isoformat(),
+            "effective_at": effective_at.isoformat(),
         }},
         upsert=True,
     )
 
 
 async def is_jwt_revoked(jti: Optional[str]) -> bool:
+    """Return True only if the jti is on the deny list AND past its
+    `effective_at` grace window. Tokens still inside the grace window
+    are treated as valid so a just-rotated session doesn't 401 the
+    handful of requests already in-flight when refresh completed.
+    """
     if not jti:
         return False
-    row = await db.jwt_revocations.find_one({"jti": jti}, {"_id": 0, "jti": 1})
-    return row is not None
+    row = await db.jwt_revocations.find_one(
+        {"jti": jti}, {"_id": 0, "jti": 1, "effective_at": 1},
+    )
+    if not row:
+        return False
+    eff = row.get("effective_at")
+    if not eff:
+        # Legacy rows without grace window — treat as immediately revoked
+        # (preserves old behaviour for logouts and pre-216h54 revocations).
+        return True
+    try:
+        eff_dt = datetime.fromisoformat(eff.replace("Z", "+00:00")) if isinstance(eff, str) else eff
+    except Exception:
+        return True
+    return datetime.now(timezone.utc) >= eff_dt
 
 
 async def ensure_revocation_indexes() -> None:

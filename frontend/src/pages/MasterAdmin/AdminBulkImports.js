@@ -89,15 +89,32 @@ const AdminBulkImports = ({ API }) => {
  const tenants = Object.keys(data?.org_breakdown || {}).length;
  const detail = [
  data.skipped ? `${data.skipped} skipped` : null,
+ data.error_count ? `${data.error_count} row issue${data.error_count === 1 ? '' : 's'} — see details below` : null,
  tenants > 1 ? `routed across ${tenants} tenants` : null,
  ].filter(Boolean).join(' · ');
  show({
- tone: data.imported > 0 ? 'success' : 'warning',
+ tone: data.imported > 0 ? (data.error_count ? 'warning' : 'success') : 'warning',
  title: `Imported ${data.imported} ${kind}`,
  detail: detail || undefined,
  });
  } catch (err) {
- show({ tone: 'error', title: `Couldn't import ${kind}`, detail: err.response?.data?.detail });
+ // Iter 216h54 — surface row-level failures that the backend returns
+ // alongside the HTTPException detail. Lee specifically asked to see
+ // WHY a CSV failed without having to ask support.
+ const data = err.response?.data;
+ const detail = typeof data === 'string' ? data : (data?.detail || err.message || 'Unknown error');
+ const rowErrors = Array.isArray(data?.errors) ? data.errors : [];
+ setResults((r) => ({
+   ...r,
+   [kind]: rowErrors.length
+     ? { imported: 0, skipped: 0, errors: rowErrors, error_count: data?.error_count || rowErrors.length, _failed: true, _detail: detail }
+     : { imported: 0, skipped: 0, errors: [detail], error_count: 1, _failed: true, _detail: detail },
+ }));
+ show({
+   tone: 'error',
+   title: `Couldn't import ${kind}`,
+   detail: typeof detail === 'string' ? detail : 'See error details below',
+ });
  }
  setBusy((b) => ({ ...b, [kind]: false }));
  };
@@ -159,17 +176,28 @@ const AdminBulkImports = ({ API }) => {
  </div>
 
  {result && (
- <div className={`mt-3 rounded-lg p-3 text-xs ${result.imported > 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`} data-testid={`bulk-result-${kind}`}>
- <p className={`font-semibold flex items-center gap-1.5 ${result.imported > 0 ? 'text-emerald-800' : 'text-amber-800'}`}>
- {result.imported > 0 ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
- {result.imported} imported · {result.skipped || 0} skipped
+ <div className={`mt-3 rounded-lg p-3 text-xs ${result._failed ? 'bg-red-50 border border-red-200' : result.imported > 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`} data-testid={`bulk-result-${kind}`}>
+ <p className={`font-semibold flex items-center gap-1.5 ${result._failed ? 'text-red-800' : result.imported > 0 ? 'text-emerald-800' : 'text-amber-800'}`}>
+ {result._failed ? <AlertCircle size={13} /> : result.imported > 0 ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+ {result._failed
+   ? `Import failed${result._detail ? ` — ${result._detail}` : ''}`
+   : `${result.imported} imported · ${result.skipped || 0} skipped${result.error_count ? ` · ${result.error_count} error${result.error_count === 1 ? '' : 's'}` : ''}`}
  </p>
  {result.errors?.length > 0 && (
- <details className="mt-2">
- <summary className="cursor-pointer text-zinc-600 hover:text-zinc-800">{result.errors.length} parse warning(s)</summary>
- <ul className="mt-1.5 space-y-0.5 font-mono text-[10px] text-zinc-600">
- {result.errors.map((e, i) => <li key={i}>· {e}</li>)}
+ <details className="mt-2" open={(result.error_count || result.errors.length) > 0} data-testid={`bulk-errors-${kind}`}>
+ <summary className="cursor-pointer text-zinc-700 hover:text-zinc-900 font-medium">
+ {result.error_count && result.error_count > result.errors.length
+   ? `Showing first ${result.errors.length} of ${result.error_count} row issue(s) — fix and re-upload`
+   : `${result.errors.length} row issue(s) — fix and re-upload`}
+ </summary>
+ <ul className="mt-1.5 space-y-0.5 font-mono text-[10px] text-zinc-700 max-h-60 overflow-auto pr-1">
+ {result.errors.map((e, i) => <li key={i} data-testid={`bulk-error-row-${kind}-${i}`}>· {e}</li>)}
  </ul>
+ {result.error_count && result.error_count > result.errors.length && (
+ <p className="mt-2 text-[10px] text-zinc-500 italic">
+   {result.error_count - result.errors.length} more issue(s) hidden. Re-upload after fixing these first batch — remaining will surface on the next run.
+ </p>
+ )}
  </details>
  )}
  </div>

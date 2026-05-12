@@ -346,6 +346,7 @@ async def bulk_import_equipment(
             name = _normalize(row, "name", "Name")
             if not name:
                 skipped += 1
+                errors.append(f"Row {i}: missing required column 'name'")
                 continue
             serial = _normalize(row, "serial_number", "Serial Number", "serial")
             if serial:
@@ -354,6 +355,9 @@ async def bulk_import_equipment(
                 )
                 if exists:
                     skipped += 1
+                    errors.append(
+                        f"Row {i}: duplicate — equipment with serial '{serial}' already exists in this org"
+                    )
                     continue
             # Iter 216h50 — link to a pre-imported site by name (or by
             # Sicon "Invoice Customer Ref" fallback). Sites import runs
@@ -425,7 +429,8 @@ async def bulk_import_equipment(
         except Exception as exc:  # one bad row shouldn't kill the whole import
             errors.append(f"Row {i}: {exc}")
     return {
-        "imported": imported, "skipped": skipped, "errors": errors[:10],
+        "imported": imported, "skipped": skipped,
+        "errors": errors[:50], "error_count": len(errors),
         "organization_id": default_org,
         "org_breakdown": org_breakdown,
     }
@@ -463,6 +468,7 @@ async def bulk_import_customers(
             last_name = _normalize(row, "last_name", "Last Name", "LastName")
             if not (email or first_name or last_name):
                 skipped += 1
+                errors.append(f"Row {i}: missing email, first_name and last_name — at least one is required")
                 continue
             if email:
                 exists = await db.crm_contacts.find_one(
@@ -470,6 +476,7 @@ async def bulk_import_customers(
                 )
                 if exists:
                     skipped += 1
+                    errors.append(f"Row {i}: duplicate — contact with email '{email}' already exists in this org")
                     continue
             doc = {
                 "id": str(uuid.uuid4()),
@@ -499,7 +506,8 @@ async def bulk_import_customers(
         except Exception as exc:
             errors.append(f"Row {i}: {exc}")
     return {
-        "imported": imported, "skipped": skipped, "errors": errors[:10],
+        "imported": imported, "skipped": skipped,
+        "errors": errors[:50], "error_count": len(errors),
         "organization_id": default_org,
         "org_breakdown": org_breakdown,
     }
@@ -579,6 +587,7 @@ async def bulk_import_sites(
             )
             if existing:
                 skipped += 1
+                errors.append(f"Row {i}: duplicate — a site named '{name}' already exists in this org")
                 continue
 
             is_hq_raw = _normalize(row, "is_head_office", "Is Head Office", "head_office")
@@ -618,7 +627,8 @@ async def bulk_import_sites(
             errors.append(f"Row {i}: {exc}")
 
     return {
-        "imported": imported, "skipped": skipped, "errors": errors[:20],
+        "imported": imported, "skipped": skipped,
+        "errors": errors[:50], "error_count": len(errors),
         "organization_id": organization_id,
         "org_breakdown": {organization_id: imported} if imported else {},
     }
