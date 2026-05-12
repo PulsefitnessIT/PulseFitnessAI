@@ -4,7 +4,7 @@ All mutating endpoints write a row to `service_desk_audit_log` via `log_desk_act
 """
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from utils.auth import create_token
 from utils.database import db
@@ -169,6 +169,245 @@ async def search_equipment_global(
     )
 
     return {"equipment": rows, "total": total}
+
+
+# ── Cross-customer Supplier Health (Iter 216h52) ─────────────────
+#
+# GymAxis ops want a top-down view of how their supplier ecosystem
+# is performing across every gym customer — which suppliers are
+# servicing the most kit, who has open faults stacking up, who's
+# blowing through SLAs. This drives renewal negotiations and lets
+# GymAxis chase under-performing suppliers on behalf of customers
+# rather than each gym chasing individually.
+#
+# Suppliers are grouped by normalised name (lower-cased, suffix-
+# stripped) so a customer entering "Pulse Fitness Limited" and
+# another entering "Pulse Fitness" roll up into the same supplier.
+
+import re as _re_mod
+_SUFFIX_RE = _re_mod.compile(r"\s*(limited|ltd\.?|plc|inc\.?|llc)\s*$", _re_mod.I)
+
+
+def _normalise_supplier_name(name: str) -> str:
+    """Strip common company suffixes + lowercase + collapse whitespace.
+    Mirrors the resolver in master_admin_bulk_import.py so the rollup
+    here joins seamlessly with the equipment-import resolution."""
+    if not name:
+        return ""
+    base = _SUFFIX_RE.sub("", name).strip().lower()
+    return _re_mod.sub(r"\s+", " ", base)
+
+
+@router.get("/suppliers/health")
+async def supplier_health_global(
+    days: int = 30,
+    sort: str = "open_issues",  # open_issues | equipment | sla_breaches | name
+    user: dict = Depends(require_service_desk),
+) -> dict:
+    """Aggregate supplier health metrics across every customer org.
+
+    For each unique (normalised) supplier name returns:
+      - customer_org_count : how many customer orgs use this supplier
+      - equipment_count : total equipment linked
+      - open_issues_count : issues with status != resolved on linked kit
+      - resolved_issues_window : resolved in the last `days`
+      - sla_breaches_window : (resolved_at − created_at) > equipment.sla_response_time
+      - avg_response_hours : mean (first_response_at − created_at)
+      - avg_resolution_hours : mean (resolved_at − created_at)
+      - aliases : list of every literal supplier name that collapsed into this row
+      - orgs : [{id, name, equipment_count, open_issues_count}] for drill-down
+    """
+    days = max(1, min(365, int(days)))
+    window_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    # 1) Pull every supplier from every org. Then group by normalised name.
+    all_suppliers = await db.suppliers.find(
+        {}, {"_id": 0, "id": 1, "name": 1, "organization_id": 1, "email": 1, "service_email": 1, "phone": 1, "supplier_types": 1},
+    ).to_list(5000)
+
+    # name_norm → {names: set, supplier_ids: set, org_ids: set, contact: {...}}
+    groups: Dict[str, Dict[str, Any]] = {}
+    for s in all_suppliers:
+        n = _normalise_supplier_name(s.get("name", ""))
+        if not n:
+            continue
+        g = groups.setdefault(n, {
+            "name": s.get("name") or n.title(),
+            "aliases": set(),
+            "supplier_ids": set(),
+            "org_ids": set(),
+            "email": s.get("email") or s.get("service_email"),
+            "phone": s.get("phone"),
+            "supplier_types": set(),
+        })
+        g["aliases"].add(s.get("name") or "")
+        g["supplier_ids"].add(s["id"])
+        if s.get("organization_id"):
+            g["org_ids"].add(s["organization_id"])
+        for st in s.get("supplier_types") or []:
+            if st:
+                g["supplier_types"].add(st)
+
+    # 2) Pull equipment in one shot, group by normalised supplier name.
+    all_equipment = await db.equipment.find(
+        {}, {"_id": 0, "id": 1, "organization_id": 1, "supplier": 1, "supplier_id": 1, "sla_response_time": 1},
+    ).to_list(50000)
+    eq_by_norm: Dict[str, list] = {}
+    for e in all_equipment:
+        n = _normalise_supplier_name(e.get("supplier", ""))
+        if not n:
+            continue
+        eq_by_norm.setdefault(n, []).append(e)
+        # Ensure equipment surfaces a supplier even if no supplier doc was created.
+        if n not in groups:
+            groups[n] = {
+                "name": (e.get("supplier") or n.title()),
+                "aliases": {e.get("supplier") or ""},
+                "supplier_ids": set(),
+                "org_ids": {e.get("organization_id")} if e.get("organization_id") else set(),
+                "email": None, "phone": None, "supplier_types": set(),
+            }
+        groups[n]["org_ids"].add(e.get("organization_id"))
+
+    # 3) Pull recent issues in one shot.
+    all_issues = await db.issues.find(
+        {},
+        {"_id": 0, "id": 1, "organization_id": 1, "equipment_id": 1, "asset_id": 1,
+         "status": 1, "created_at": 1, "resolved_at": 1, "first_response_at": 1},
+    ).to_list(50000)
+    # Quick eq_id → norm map.
+    eq_id_to_norm: Dict[str, str] = {}
+    eq_id_to_sla: Dict[str, Optional[int]] = {}
+    eq_id_to_org: Dict[str, str] = {}
+    for e in all_equipment:
+        norm = _normalise_supplier_name(e.get("supplier", ""))
+        if norm:
+            eq_id_to_norm[e["id"]] = norm
+        eq_id_to_sla[e["id"]] = e.get("sla_response_time")
+        eq_id_to_org[e["id"]] = e.get("organization_id", "")
+
+    # 4) Tally per-group metrics.
+    org_names: Dict[str, str] = {}
+    org_ids_needed: set = set()
+    for g in groups.values():
+        org_ids_needed.update(g["org_ids"])
+    if org_ids_needed:
+        async for o in db.organizations.find(
+            {"id": {"$in": list(org_ids_needed)}}, {"_id": 0, "id": 1, "name": 1},
+        ):
+            org_names[o["id"]] = o.get("name", "")
+
+    metrics: Dict[str, Dict[str, Any]] = {n: {
+        "open_issues_count": 0, "resolved_issues_window": 0, "sla_breaches_window": 0,
+        "response_secs": [], "resolution_secs": [],
+        "per_org": {},  # org_id → {equipment_count, open_issues_count}
+    } for n in groups}
+
+    # Equipment counts per (norm, org).
+    for e in all_equipment:
+        norm = _normalise_supplier_name(e.get("supplier", ""))
+        if not norm or norm not in metrics:
+            continue
+        org_id = e.get("organization_id") or ""
+        po = metrics[norm]["per_org"].setdefault(org_id, {"equipment_count": 0, "open_issues_count": 0})
+        po["equipment_count"] += 1
+
+    # Issue rollups.
+    for iss in all_issues:
+        eq_id = iss.get("equipment_id") or iss.get("asset_id")
+        if not eq_id:
+            continue
+        norm = eq_id_to_norm.get(eq_id)
+        if not norm or norm not in metrics:
+            continue
+        m = metrics[norm]
+        org_id = iss.get("organization_id") or eq_id_to_org.get(eq_id, "")
+        po = m["per_org"].setdefault(org_id, {"equipment_count": 0, "open_issues_count": 0})
+        status = (iss.get("status") or "open").lower()
+        if status != "resolved":
+            m["open_issues_count"] += 1
+            po["open_issues_count"] += 1
+            continue
+        # Resolved — windowed metrics
+        if (iss.get("resolved_at") or "") < window_iso:
+            continue
+        m["resolved_issues_window"] += 1
+        try:
+            created = datetime.fromisoformat((iss.get("created_at") or "").replace("Z", "+00:00"))
+            resolved = datetime.fromisoformat(iss["resolved_at"].replace("Z", "+00:00"))
+            resp_secs = (resolved - created).total_seconds()
+            m["resolution_secs"].append(resp_secs)
+            sla_h = eq_id_to_sla.get(eq_id)
+            if sla_h and resp_secs > sla_h * 3600:
+                m["sla_breaches_window"] += 1
+        except (ValueError, KeyError, TypeError):
+            pass
+        if iss.get("first_response_at"):
+            try:
+                created = datetime.fromisoformat((iss.get("created_at") or "").replace("Z", "+00:00"))
+                first = datetime.fromisoformat(iss["first_response_at"].replace("Z", "+00:00"))
+                m["response_secs"].append((first - created).total_seconds())
+            except (ValueError, KeyError, TypeError):
+                pass
+
+    # 5) Build the response array.
+    out = []
+    for norm, g in groups.items():
+        m = metrics[norm]
+        equipment_count = sum(po["equipment_count"] for po in m["per_org"].values())
+        avg_response = (sum(m["response_secs"]) / len(m["response_secs"]) / 3600) if m["response_secs"] else None
+        avg_resolution = (sum(m["resolution_secs"]) / len(m["resolution_secs"]) / 3600) if m["resolution_secs"] else None
+        out.append({
+            "name": g["name"],
+            "normalised_name": norm,
+            "aliases": sorted(a for a in g["aliases"] if a and a != g["name"]),
+            "customer_org_count": len([oid for oid in m["per_org"] if oid]),
+            "equipment_count": equipment_count,
+            "open_issues_count": m["open_issues_count"],
+            "resolved_issues_window": m["resolved_issues_window"],
+            "sla_breaches_window": m["sla_breaches_window"],
+            "avg_response_hours": round(avg_response, 1) if avg_response is not None else None,
+            "avg_resolution_hours": round(avg_resolution, 1) if avg_resolution is not None else None,
+            "email": g["email"],
+            "phone": g["phone"],
+            "supplier_types": sorted(g["supplier_types"]),
+            "orgs": [
+                {
+                    "id": oid,
+                    "name": org_names.get(oid, "Unknown org"),
+                    "equipment_count": po["equipment_count"],
+                    "open_issues_count": po["open_issues_count"],
+                }
+                for oid, po in m["per_org"].items() if oid
+            ],
+        })
+
+    # Sort
+    if sort == "equipment":
+        out.sort(key=lambda r: r["equipment_count"], reverse=True)
+    elif sort == "sla_breaches":
+        out.sort(key=lambda r: (r["sla_breaches_window"], r["open_issues_count"]), reverse=True)
+    elif sort == "name":
+        out.sort(key=lambda r: r["name"].lower())
+    else:  # default open_issues
+        out.sort(key=lambda r: (r["open_issues_count"], r["sla_breaches_window"]), reverse=True)
+
+    # Top-level rollup for the page summary card.
+    totals = {
+        "supplier_count": len(out),
+        "equipment_total": sum(r["equipment_count"] for r in out),
+        "open_issues_total": sum(r["open_issues_count"] for r in out),
+        "sla_breaches_total": sum(r["sla_breaches_window"] for r in out),
+        "window_days": days,
+    }
+
+    await log_desk_action(
+        user, "suppliers.health", "supplier", "global",
+        f"Supplier health rollup: {len(out)} suppliers, {totals['open_issues_total']} open issues",
+        details={"window_days": days, "sort": sort},
+    )
+
+    return {"suppliers": out, "totals": totals}
 
 
 # ── Customer detail / edit ───────────────────────────────────────

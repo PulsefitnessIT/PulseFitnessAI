@@ -1432,6 +1432,49 @@ Lives in **preview** only — **redeploy** to push to gymaxisai.com. If the prod
 ---
 
 
+## Iter 216h52 — Service Desk → Supplier Health (cross-customer rollup) (Feb 12, 2026)
+
+GymAxis-facing follow-up to iter 216h51's supplier-routed equipment imports. Lee's pivot: Pulse wouldn't chase suppliers themselves, but **GymAxis benefits most** from a top-down view of supplier performance across the entire customer base — useful for renewal negotiations and proactive supplier management.
+
+### Backend — `GET /api/service-desk/suppliers/health`
+- Aggregates `db.suppliers + db.equipment + db.issues` across **every customer org**, grouped by **normalised supplier name** (same suffix-strip + lowercase logic as the equipment importer's resolver, so "Pulse Fitness" and "Pulse Fitness Limited" collapse into one row).
+- Returns per-supplier metrics:
+  - `customer_org_count` — how many GymAxis customers use this supplier
+  - `equipment_count` — total kit serviced across customers
+  - `open_issues_count` — open issues on linked kit (org-wide)
+  - `resolved_issues_window` / `sla_breaches_window` — within configurable `days` window (default 30, capped 1y)
+  - `avg_response_hours` / `avg_resolution_hours` — derived from issue timestamps + `equipment.sla_response_time` for breach detection
+  - `aliases` — list of every literal name that collapsed into this row
+  - `orgs[]` — per-customer drill-down (equipment_count + open_issues_count per customer org)
+- Supports `sort` (open_issues | sla_breaches | equipment | name).
+- Top-level `totals` block summarises supplier count, kit total, open-issue total, SLA breach total.
+- Service-desk auth gated. Audit-logged via `log_desk_action(suppliers.health)`.
+
+### Frontend — `DeskSuppliers.js` (new) + Service Desk tab
+- New "Supplier Health" tab in Service Desk (between Equipment and Archive).
+- Header rollup row with 4 stat pills (suppliers tracked / kit serviced / open issues / SLA breaches in window). Colour-coded amber/red when non-zero.
+- Window picker (7d / 30d / 90d / 1y) + Sort picker (Open issues / SLA breaches / Kit serviced / A→Z).
+- Searchable list (matches name, aliases, or customer org names).
+- Each row collapses into a detail panel with per-customer breakdown, breach rate %, avg first-response and resolution, plus the alias list.
+- Hot suppliers (>0 SLA breaches OR ≥5 open issues) get a red AlertTriangle icon for at-a-glance triage.
+
+### Use case
+GymAxis ops can now:
+1. See in 1 click which suppliers are dragging on response times across the customer base
+2. Drill into per-customer impact (e.g. "Vendor X has 5 open faults at Pulse and 3 at Tottenham")
+3. Use breach-rate % during contract renewal negotiations on behalf of customers
+4. Spot suppliers entered with slightly different names across customers (the alias rollup catches these)
+
+### Files
+- **Backend**: `service_desk.py` (+`GET /service-desk/suppliers/health`, +`_normalise_supplier_name`)
+- **Frontend**: NEW `ServiceDesk/DeskSuppliers.js`, `ServiceDeskPage.js` (Suppliers tab wired in)
+
+### Testing
+- Smoke test via curl: endpoint returns valid rollup (1 supplier "Pulse Fitness" used by 2 customer orgs, 3 kit, 0 open issues). Lint + ruff clean.
+
+---
+
+
 ## Iter 216h51 — Onboarding picker UX + supplier-routed equipment imports + test-data purge (Feb 12, 2026)
 
 Three follow-ups after Lee's screenshot showing the onboarding "Existing Customer" picker cluttered with TEST_ orgs from prior agent runs.
