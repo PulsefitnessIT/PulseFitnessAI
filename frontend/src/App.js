@@ -18,6 +18,7 @@ import TrialBanner from './components/TrialBanner';
 import ScrollToTop from './components/shared/ScrollToTop';
 import GlobalDragGuard from './components/shared/GlobalDragGuard';
 import { UploadQueueProvider } from './components/shared/UploadQueue';
+import { UnifiedAuthProvider } from './components/shared/UnifiedAuthProvider';
 import TrialLockedPage from './components/TrialLockedPage';
 import CookieConsent from './components/shared/CookieConsent';
 import OfflineBanner from './components/shared/OfflineBanner';
@@ -324,6 +325,7 @@ function App() {
  </a>
  <BrowserRouter>
  <NotificationConfirmProvider>
+ <UnifiedAuthProvider>
  <ScrollToTop />
  <GlobalDragGuard />
  <UploadQueueProvider>
@@ -366,6 +368,7 @@ function App() {
  {user && <GlobalCommandPalette />}
  <BrandAttrSync user={user} />
  </UploadQueueProvider>
+ </UnifiedAuthProvider>
  </NotificationConfirmProvider>
  </BrowserRouter>
  <Toaster position="top-right" theme={theme} />

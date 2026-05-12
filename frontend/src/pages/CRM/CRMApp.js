@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/App';
+import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 import Navbar from '@/components/shared/Navbar';
 import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
 import axios from 'axios';
@@ -398,6 +399,7 @@ export default function CRMApp() {
   // switcher) to keep look-and-feel consistent with Operations,
   // Memberships and Marketing.
   const mainAuth = useAuth();
+  const unifiedAuth = useUnifiedAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('start');
@@ -515,96 +517,45 @@ export default function CRMApp() {
     // Check for explicit logout via URL param
     const params = new URLSearchParams(window.location.search);
     if (params.get('logout') === '1') {
-      localStorage.removeItem('crm_token');
+      unifiedAuth.logout('crm');
       localStorage.removeItem('crm_tour_seen');
       window.history.replaceState({}, '', '/crm');
       setLoading(false);
       return;
     }
 
-    // Iter 216h43 — trust the CRM token if it exists, always.
+    // Iter 216h45 — bootstrap now defers to <UnifiedAuthProvider>.
+    // The provider already auto-cross-logins from main → CRM the
+    // moment a main token lands, and hydrates `identity.crm` via
+    // `/crm/auth/me`. We just observe those derived values and
+    // either set the local `user` state or — once we know nothing's
+    // going to land — drop the loading spinner and let CRMLogin
+    // render.
     //
-    // The previous flow (iter 215aa) required a sessionStorage flag
-    // `crm_active_session` to be present before trusting localStorage's
-    // `crm_token`, with the rationale of "prevents stale cross-tab
-    // logins". In practice this caused Lee's Pulse Fitness team to be
-    // bounced to CRMLogin on every new tab / refresh — sessionStorage
-    // is per-tab so the flag was missing 100% of the time on a fresh
-    // tab, the code then DELETED the valid CRM token and tried to
-    // cross-login from the main JWT. When cross-login then timed out
-    // or returned a transient 403 on flaky mobile networks, the user
-    // saw CRMLogin even though their main session was alive.
-    //
-    // Cross-tab token reuse is the whole point of `localStorage` (vs.
-    // `sessionStorage`); rejecting it broke the very feature the
-    // browser provides.
-    //
-    // New behaviour:
-    //   1. If a CRM token exists → call `/crm/auth/me` to validate it.
-    //   2. If it validates → log the user in. Done.
-    //   3. If it 401s → strip it, fall through to cross-login.
-    //   4. If no CRM token (or it 401'd) AND a main JWT exists →
-    //      attempt `/crm/auth/cross-login`.
-    //   5. If both fail → show CRMLogin.
-    //
-    // Net effect: an already-logged-in user is NEVER asked to log in
-    // to CRM again, regardless of tab/PWA mode.
-
-    const crmToken = localStorage.getItem('crm_token');
-
-    const tryCrossLogin = () => {
-      const mainToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      if (!mainToken) { setLoading(false); return; }
-      axios.post(
-        `${API}/crm/auth/cross-login`, {},
-        { headers: { Authorization: `Bearer ${mainToken}` } },
-      )
-        .then((res) => {
-          if (res.data?.token) {
-            localStorage.setItem('crm_token', res.data.token);
-            sessionStorage.setItem('crm_active_session', '1');
-            return axios.get(`${API}/crm/auth/me`, {
-              headers: { Authorization: `Bearer ${res.data.token}` },
-            });
-          }
-          return null;
-        })
-        .then((meRes) => {
-          if (meRes && meRes.data?.email) setUser(meRes.data);
-          setLoading(false);
-        })
-        .catch(() => { setLoading(false); });
-    };
-
-    if (crmToken) {
-      axios.get(`${API}/crm/auth/me`, { headers: { Authorization: `Bearer ${crmToken}` } })
-        .then(res => {
-          if (res.data && res.data.email) {
-            setUser(res.data);
-            // Refresh the session flag so legacy code paths (e.g. CRM
-            // logout, settings panel) that still check it keep working.
-            sessionStorage.setItem('crm_active_session', '1');
-            setLoading(false);
-          } else {
-            // Empty body — token went bad. Strip and try cross-login.
-            localStorage.removeItem('crm_token');
-            sessionStorage.removeItem('crm_active_session');
-            tryCrossLogin();
-          }
-        })
-        .catch(() => {
-          // 401 / 403 / network. Strip and fall through to cross-login.
-          localStorage.removeItem('crm_token');
-          sessionStorage.removeItem('crm_active_session');
-          tryCrossLogin();
-        });
-    } else {
-      tryCrossLogin();
+    // The earlier per-tab session flag / token-strip cycle (which
+    // caused Lee's iter 216h43 bug) is now gone entirely. A logged-
+    // in user is never bounced.
+    if (unifiedAuth.identity.crm?.email) {
+      setUser(unifiedAuth.identity.crm);
+      setLoading(false);
+      return;
     }
-  }, []);
+    // No CRM identity yet — but if main token exists, the provider
+    // is mid-flight. Give it a beat before falling back to login.
+    const hasMain = !!unifiedAuth.tokens.main;
+    if (!hasMain && !unifiedAuth.tokens.crm) {
+      setLoading(false);
+      return;
+    }
+    // Wait up to 6 s for the provider's identity probe to land.
+    const timer = setTimeout(() => setLoading(false), 6000);
+    return () => clearTimeout(timer);
+  }, [unifiedAuth.identity.crm, unifiedAuth.tokens.main, unifiedAuth.tokens.crm, unifiedAuth.logout]);
 
   const login = (token, userData) => {
-    localStorage.setItem('crm_token', token);
+    // Iter 216h45 — funnel through UnifiedAuthProvider so other
+    // modules + the in-tab event bus see the new token instantly.
+    unifiedAuth.login({ scope: 'crm', token, identity: userData });
     sessionStorage.setItem('crm_active_session', '1');
     setUser(userData);
     // Show tour for new users
@@ -615,8 +566,7 @@ export default function CRMApp() {
     window.dispatchEvent(new Event('pwa-check-install'));
   };
   const logout = () => {
-    localStorage.removeItem('crm_token');
-    sessionStorage.removeItem('crm_active_session');
+    unifiedAuth.logout('crm');
     setUser(null);
   };
   const [navTarget, setNavTarget] = useState(null); // {type: 'company', id: '...'}

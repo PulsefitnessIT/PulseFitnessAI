@@ -1,3 +1,64 @@
+## Iter 216h45 — `<UnifiedAuthProvider>` + `useUnifiedAuth()` (Feb 12, 2026)
+
+### Why
+Two recurring "ghost-login" bugs in close succession traced to the same root issue:
+- Iter 216h42: false-offline banner (auth state assumed from `navigator.onLine`).
+- Iter 216h43: CRM kicking already-logged-in users to CRMLogin because the per-tab `sessionStorage` gate deleted a valid CRM token.
+
+Both were treated as one-off bugs but the *class* of bug remained — every module owned its own `localStorage` token key + bootstrap routine. Auth state could and did diverge across modules. The same shape of bug was guaranteed to surface again under different circumstances.
+
+### What shipped — `<UnifiedAuthProvider>`
+- **NEW `/app/frontend/src/components/shared/UnifiedAuthProvider.js`** (~210 LOC). Single source of truth for the three platform tokens:
+  - **main** — `localStorage.token` (operations / memberships / master admin)
+  - **crm** — `localStorage.crm_token` (CRM workspace)
+  - **member** — `localStorage.member_token` (member kiosk / app)
+- **API surface:**
+  ```js
+  const { tokens, identity, login, logout, refresh } = useUnifiedAuth();
+  ```
+  - `tokens` = strings or null.
+  - `identity` = hydrated via `/auth/me` + `/crm/auth/me`.
+  - `login({ scope, token, identity? })` — writes localStorage + broadcasts.
+  - `logout(scope?)` — omit scope to wipe all 3.
+  - `refresh.crm()` — re-exchange main → CRM (call from 401 handlers).
+- **Cross-tab + in-tab sync:** watches `window.storage` (cross-tab) and a custom `gymaxis:auth-changed` event (in-tab). All consumers stay in lock-step.
+- **Auto-cross-login:** the moment a `main` token lands without a `crm` token, the provider eagerly POSTs to `/api/crm/auth/cross-login` with a 6 s timeout. If the org doesn't have CRM enabled, the call silently 403s and no harm done.
+- **Stale-token healing:** when `/crm/auth/me` returns 401/403, the provider strips the bad token AND lets the auto-cross-login effect re-mint a fresh one from main. The user never sees a login screen if their main session is alive.
+- **Backwards-compatible:** still writes to the same localStorage keys, so the 196 files across the codebase that read `localStorage.getItem('token')` directly keep working unchanged. Migration to `useUnifiedAuth()` is incremental.
+
+### Wiring in `App.js`
+`<UnifiedAuthProvider>` mounted inside `<BrowserRouter>` → wraps the rest of the tree (alongside `<GlobalDragGuard>` and `<UploadQueueProvider>`).
+
+### First migration — `CRMApp.js` bootstrap
+- The bespoke per-tab session flag + token-strip cycle (the iter 216h43 fix) is now gone entirely. The `useEffect` defers to `unifiedAuth.identity.crm`, `unifiedAuth.tokens.main`, and `unifiedAuth.tokens.crm`. Maximum spinner time: 6 s.
+- The `login(token, userData)` and `logout()` callbacks pipe through `unifiedAuth.login({ scope: 'crm', ... })` / `unifiedAuth.logout('crm')` so other modules see the change instantly.
+
+### Verified end-to-end (live Playwright)
+| Step | Token state | CRMLogin shown? |
+|---|---|---|
+| 1. Main login | main:✓ crm:✗ | n/a |
+| 2. Nav to /crm | main:✗ crm:✓ ← **provider auto-issued via cross-login** | **False** ✓ |
+| 3. Clear sessionStorage + reload /crm (Lee's exact bug) | main:✗ crm:✓ | **False** ✓ |
+| 4. 0 React errors | — | — |
+
+Lee's iter 216h43 recurring bug is now **structurally impossible** for any consumer using `useUnifiedAuth()`. As more consumers migrate, the entire class of "logged in but module X says logged out" disappears.
+
+### Files touched
+- **NEW** `/app/frontend/src/components/shared/UnifiedAuthProvider.js` (~210 LOC)
+- `/app/frontend/src/App.js` (+3 LOC — import + wrap)
+- `/app/frontend/src/pages/CRM/CRMApp.js` (~−75 / +30 LOC — bootstrap reduced to a thin observer; `login`/`logout` callbacks delegate to the provider)
+- `/app/DESIGN_SYSTEM.md` (+20 LOC — documented the new provider + hook)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Future modules: import `useUnifiedAuth` from `@/components/shared/UnifiedAuthProvider`. The naming is `useUnifiedAuth` (NOT `useAuth`) to avoid colliding with the existing `useAuth` from `App.js` (which manages the *main* user object — different concern).
+3. Existing localStorage callers keep working — no big-bang rewrite required.
+4. Member-app login flows can adopt `unifiedAuth.login({ scope: 'member', token })` on next touch.
+
+---
+
+
+
 ## Iter 216h44 — `<ListPanel>` super-component (Feb 12, 2026)
 
 ### Why

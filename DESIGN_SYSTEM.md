@@ -125,6 +125,25 @@ Bundles:
 
 Adopted in CRM Contacts in iter 216h44 — ~25 LOC saved per panel. Future targets: CRMCompanies, CRMPipeline list view, Memberships Plans/Classes/Ads, PromotionsTab.
 
+### Iter 216h45 — `<UnifiedAuthProvider>` + `useUnifiedAuth()`
+
+Single source of truth for all three platform tokens (main, crm, member). Watches `localStorage` cross-tab via `window.storage` plus an in-tab `gymaxis:auth-changed` event bus. **Auto-cross-logins** to CRM the moment the main token lands, eliminating the entire class of "logged in but CRM asks me to log in again" bugs.
+
+API:
+```js
+const { tokens, identity, login, logout, refresh } = useUnifiedAuth();
+
+tokens   = { main, crm, member };    // strings or null
+identity = { main, crm };             // hydrated via /auth/me + /crm/auth/me
+login({ scope, token, identity? });   // scope ∈ 'main'|'crm'|'member'
+logout(scope?);                       // omit to wipe all 3
+refresh.crm();                        // re-exchange main → CRM (use from 401 handlers)
+```
+
+Backwards-compatible: still writes to the same `token` / `crm_token` / `member_token` localStorage keys, so the 196 existing direct-localStorage readers across the platform keep working. Migration to `useUnifiedAuth()` is incremental.
+
+First adoption: `CRMApp.js` bootstrap (iter 216h45). The bespoke per-tab session-flag + token-strip cycle (root cause of iter 216h43's Lee bug) is now gone entirely — the provider owns the auth lifecycle.
+
 ### Iter 216h40 — `<RowActions>` cluster
 
 The hover-reveal pattern (`opacity-0 group-hover:opacity-100 transition`) had drifted into 4 slightly different incantations across CRM + Memberships row UIs. `<RowActions>` standardises it AND fixes a long-standing iPad/iPhone bug: native `:hover` is sticky on touch devices, so hidden-by-default row actions were unreachable on mobile. The component injects a one-time `@media (hover: none), (pointer: coarse)` rule that forces `opacity: 1` on touch.
