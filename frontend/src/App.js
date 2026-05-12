@@ -74,8 +74,29 @@ function App() {
  // the new light default. The toggle button in the Navbar still flips
  // both ways for users who prefer dark.
  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
- const [sites, setSites] = useState([]);
- const [activeSite, setActiveSite] = useState(null);
+ // Iter 216h48 — Pre-hydrate sites + activeSite from localStorage so the
+ // SiteSwitcher renders on first paint instead of flashing blank while
+ // the network round-trip for /api/sites completes. Lee Somers reported
+ // the switcher "disappearing" intermittently on production; root cause
+ // was the page rendering with `sites = []` before `loadSites()` finished.
+ // The prior fixes (auto-HQ insert, role-gating widening, dropdown viewport)
+ // patched the *correctness* paths but never the *hydration race*, so the
+ // bug class kept recurring under different disguises. localStorage cache
+ // is refreshed every time /api/sites resolves, so it stays in sync.
+ const [sites, setSites] = useState(() => {
+   try {
+     const cached = localStorage.getItem('sites_cache');
+     if (!cached) return [];
+     const parsed = JSON.parse(cached);
+     return Array.isArray(parsed) ? parsed : [];
+   } catch { return []; }
+ });
+ const [activeSite, setActiveSite] = useState(() => {
+   try {
+     const cached = localStorage.getItem('active_site_cache');
+     return cached ? JSON.parse(cached) : null;
+   } catch { return null; }
+ });
  // Iter 215bz — elevate token to AuthContext so consumers can do
  // `const { token } = useAuth()` instead of reaching into localStorage
  // independently (source-of-truth divergence caused the Product Tour
@@ -168,8 +189,12 @@ function App() {
  const res = await axios.get(`${API}/sites`, { headers: { Authorization: `Bearer ${token}` } });
  const siteList = res.data?.sites || [];
  setSites(siteList);
+ // Iter 216h48 — persist for next-page-load hydration so the
+ // SiteSwitcher never flashes empty between refreshes.
+ try { localStorage.setItem('sites_cache', JSON.stringify(siteList)); } catch { /* quota */ }
  if (siteList.length > 0 && !activeSite) {
  setActiveSite(siteList[0]);
+ try { localStorage.setItem('active_site_cache', JSON.stringify(siteList[0])); } catch { /* quota */ }
  }
  } catch {}
  };
@@ -177,6 +202,18 @@ function App() {
  const refreshSites = () => {
  const token = localStorage.getItem('token');
  if (token) loadSites(token);
+ };
+
+ // Iter 216h48 — Wrapped setter that also persists the active site
+ // to localStorage so a full page reload restores the operator's
+ // last selection on first paint (no flash, no fallback to the first
+ // site in the list).
+ const setActiveSitePersisted = (site) => {
+ setActiveSite(site);
+ try {
+ if (site) localStorage.setItem('active_site_cache', JSON.stringify(site));
+ else localStorage.removeItem('active_site_cache');
+ } catch { /* quota */ }
  };
 
  useEffect(() => {
@@ -269,6 +306,11 @@ function App() {
  setSites([]);
  setActiveSite(null);
  setToken(null);
+ // Iter 216h48 — wipe the site caches too on cross-tab logout.
+ try {
+ localStorage.removeItem('sites_cache');
+ localStorage.removeItem('active_site_cache');
+ } catch { /* quota */ }
  return;
  }
  // Login (or token refresh) elsewhere → fetch the new user doc.
@@ -294,6 +336,11 @@ function App() {
  const logout = () => {
  localStorage.removeItem('token');
  localStorage.removeItem('user_cache');
+ // Iter 216h48 — also clear site caches so the next user logging in
+ // on this device doesn't see the previous operator's sites flash
+ // before /api/sites resolves.
+ localStorage.removeItem('sites_cache');
+ localStorage.removeItem('active_site_cache');
  setToken(null);
  setUser(null);
  setBranding(null);
@@ -317,7 +364,7 @@ function App() {
  }
 
  return (
- <AuthContext.Provider value={{ user, token, login, logout, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite, refreshSites }}>
+ <AuthContext.Provider value={{ user, token, login, logout, API, branding, applyBranding, theme, toggleTheme, sites, activeSite, setActiveSite: setActiveSitePersisted, refreshSites }}>
  <div className="App">
  {/* WCAG: Skip to main content link */}
  <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[999] focus:bg-[var(--color-brand-blue)] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm">

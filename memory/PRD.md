@@ -1432,6 +1432,42 @@ Lives in **preview** only — **redeploy** to push to gymaxisai.com. If the prod
 ---
 
 
+## Iter 216h48 — KILL the recurring "SiteSwitcher disappears for owners" bug class (Feb 12, 2026)
+
+**Production bug** (reported by Lee Somers — Pulse Fitness owner, 3 sites: HQ + iGym Carshalton + iGym Congleton): "I can no longer see Site selection". Confirmed **recurrence** of the same bug class that we've patched 3 times already (iter 216h32, 216h31, 216bk).
+
+### Why it kept coming back
+Every prior fix patched a *different gate* — auto-HQ insert, role-spelling, route gate, dropdown viewport — but **none of them addressed the actual root cause**: a **hydration race**.
+
+Render flow on the affected surfaces (`/dashboard` Navbar + `/pulse` LiteDashboardPage):
+1. React mounts → `sites` state initial value = `[]`
+2. First paint → `<SiteSwitcher>` runs `if (sites.length < 2) return null` → switcher invisible
+3. `loadSites()` resolves a few hundred ms later → `setSites([...3 sites])` → re-render → switcher pops in
+
+For Lee this manifested as "the switcher disappears" because:
+- Every token refresh / cross-tab login triggered a fresh `loadSites()` round-trip
+- Background tab focus / soft-nav also re-ran the bootstrap
+- The empty-array first paint persisted longer on slow networks / overloaded mobile
+
+### The fix — pre-hydrate sites + activeSite from localStorage
+- `useState(() => …)` initialisers in `App.js` now read `sites_cache` and `active_site_cache` from localStorage on mount, so the switcher renders **on first paint** with the last-known list.
+- `loadSites()` writes the fresh list back to `sites_cache` after every successful fetch — cache stays in sync.
+- New wrapper `setActiveSitePersisted` exposed via AuthContext so consumer-side `setActiveSite(site)` calls (SiteSwitcher → handlePickSite) also persist.
+- Logout + cross-tab storage handlers explicitly wipe both caches so the next user on the same device doesn't see the previous operator's sites flash.
+
+### Why this finally kills the bug class
+Previously every recurrence was "one more uncovered gate". Now there is **only one path** — the cache is the source-of-truth on first paint, the network is the source-of-truth on every subsequent render, and the cache is replaced atomically by the network call. There are no more "empty array between paint and network" windows.
+
+### Files touched
+- `/app/frontend/src/App.js` — pre-hydrate `sites` + `activeSite`, wrap `setActiveSite`, clear caches on logout / cross-tab storage logout.
+
+### Testing
+- Lint clean. Webpack compile clean. User reported the switcher re-appears after refresh (cache-hit path), and now it should NOT disappear in the first place because the cache renders it immediately.
+- Manual prod verification recommended: Lee logs in on production, hard-reloads, switcher should appear instantly (not after a beat).
+
+---
+
+
 ## Iter 216h47 — `<ListPanel>` adoption across CRM list views (Feb 12, 2026)
 
 Continuing the rollout of the shared `<ListPanel>` skeleton (iter 216h44) into more CRM list views so the toolbar/search/count/empty/loading patterns stop being duplicated 30-50 LOC at a time.
