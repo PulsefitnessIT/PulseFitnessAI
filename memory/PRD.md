@@ -1,3 +1,63 @@
+## Iter 216h54 — HOTFIX: `Session revoked` 401 on Service Desk + Bulk-import row-level errors (Feb 12, 2026)
+
+### A. P0 — "Session revoked" race-condition fix on `/auth/refresh`
+
+#### Operator-reported (Lee, production)
+After loading `gymaxisai.com/service-desk`, the dashboard would intermittently 401 with `Session revoked` and bounce to login. Pattern: any parallel request that captured the JWT *before* App.js's `refreshToken()` completed would race the immediate revocation of the old jti.
+
+#### Root cause
+`/api/auth/refresh` revoked the old jti via `revoke_jwt` the moment a new token was minted. App.js fires `refreshToken()` on every page load alongside `loadSites(token)` + `loadBranding(token)` + freshly-mounted page useEffects (e.g. `DeskSummary` fetching `/service-desk/summary`). Those in-flight calls — using the same token value that was just revoked — got 401'd.
+
+#### Fix — grace window on revocation
+- **`/app/backend/utils/security_plus.py`** — `revoke_jwt(jti, exp_ts, reason, grace_seconds=0)` now stores an `effective_at` timestamp. `is_jwt_revoked(jti)` only treats the deny-list entry as active once `now >= effective_at`.
+- **`/app/backend/routes/auth.py`** — `/auth/refresh` passes `grace_seconds=60`. Logout still uses the default `0` for immediate revoke.
+- **Backwards-compatible**: legacy revocation rows without `effective_at` are treated as immediately revoked (preserves logout-revoke semantics for existing deny-list entries).
+
+#### Verified
+- 4 new regression tests in `test_security_hardening.py` — `test_jwt_revocation_grace_window_still_valid` + `test_jwt_revocation_grace_window_expires` + existing roundtrip + missing-jti.
+- 17/17 testing-agent backend tests PASS, including the explicit "in-flight old-token after refresh stays valid" check.
+- Curl reproduction: login → /auth/refresh → re-use old token on /service-desk/summary → **HTTP 200** (was 401).
+
+### B. P1 — Bulk-import row-level errors surface in the UI
+
+#### Operator-reported (Lee, production)
+"Bulk import fails and the UI just says 'failed'. I shouldn't have to ask Emergent to decode why."
+
+#### Fix — every skipped row now gets a reason
+- **`/app/backend/routes/master_admin_bulk_import.py`** — emits `Row N: <reason>` for every skipped row across all three importers:
+  - Equipment: missing `name`, duplicate `serial_number`, unknown `site_name`, unknown `customer_account_number`, validate-upload failure.
+  - Customers: missing all of email/first/last, duplicate email, unknown account number.
+  - Sites: missing `site_name`, duplicate name, unknown columns.
+- Response payload extended with `error_count` (total errors regardless of truncation cap), `errors` returns up to 50 entries (was 10/20).
+
+#### Frontend
+- **`/app/frontend/src/pages/MasterAdmin/AdminBulkImports.js`** — result card now:
+  - Auto-opens the `<details>` block whenever errors exist (no more hidden warnings).
+  - Renders red "Import failed" panel when the whole request 4xx/5xx'd, with `err.response.data.errors` if the server attached row context.
+  - Shows `X imported · Y skipped · Z error(s)` summary and "Showing first 50 of N" when truncated.
+  - Each row error has `data-testid="bulk-error-row-{kind}-{i}"` for testability.
+
+### C. Service Desk 8-tab parity — confirmed
+- `/app/frontend/src/pages/ServiceDeskPage.js` already wires all 8 Lee-spec primary tabs (Dashboard, Cases, Scheduler, Customers, Equipment, Parts, Billing, Engineers) plus 3 Insights tabs (Supplier health, Reports, Audit log). The Service Ops pages mount via lazy-loaded `<Suspense>` inside `<ServiceOpsEmbeddedContext.Provider>`. No functionality was lost in the merge — verified via testing agent.
+
+### Files touched
+- `/app/backend/utils/security_plus.py` (~+35 / −5 LOC — grace window in revoke_jwt + is_jwt_revoked)
+- `/app/backend/routes/auth.py` (+5 LOC — pass grace_seconds=60 on refresh)
+- `/app/backend/routes/master_admin_bulk_import.py` (+8 LOC — per-row error reasons, error_count, larger cap)
+- `/app/backend/tests/test_security_hardening.py` (+30 LOC — 2 new grace-window tests + asyncio import)
+- `/app/backend/tests/test_iter_216h54_jwt_grace_bulk_errors.py` (NEW — testing-agent regression suite)
+- `/app/frontend/src/pages/MasterAdmin/AdminBulkImports.js` (~+25 / −10 LOC — auto-open details + truncation badge + failed-state styling)
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend (`utils/security_plus.py`, `routes/auth.py`, `routes/master_admin_bulk_import.py`) + frontend (`AdminBulkImports.js`).
+2. After deploy, Lee can hard-refresh `gymaxisai.com/service-desk` without seeing the 'Session revoked' bounce.
+3. Lee retries the failing CSV imports — the result card now lists exactly which rows failed and why (missing column, duplicate, unknown site/account number), no support ticket required.
+4. The Service Desk Dashboard now hosts all 8 Lee-spec tabs + Insights — every Service Ops feature (case board, scheduler, parts, billing, engineers) is reachable from the unified left sidebar.
+
+---
+
+
+
 ## Iter 216h45 — `<UnifiedAuthProvider>` + `useUnifiedAuth()` (Feb 12, 2026)
 
 ### Why
