@@ -606,9 +606,7 @@ function MembersTab({ API, headers }) {
             <p className="font-semibold text-white">
               Bulk import: {importResult.created} created · {importResult.skipped} skipped
             </p>
-            <button onClick={() => setImportResult(null)} className="text-[color:var(--theme-text-muted)] hover:text-white">
-              <X size={14} />
-            </button>
+          <Button variant="ghost" size="iconSm" onClick={() => setImportResult(null)} icon={X} title="Dismiss" data-testid="mbr-import-result-dismiss" />
           </div>
           {importResult.skipped > 0 && (
             <ul className="mt-2 space-y-0.5 text-xs text-[color:var(--theme-text-muted)] max-h-40 overflow-y-auto">
@@ -896,7 +894,7 @@ function LegacyMemberDetailDrawer({ API, headers, memberId, onClose }) {
             <h3 className="text-xl font-extrabold tracking-tight">{m.first_name} {m.last_name}</h3>
             <div className="text-xs text-[color:var(--theme-text-muted)] mt-1">{m.email} · {m.phone || '—'}</div>
           </div>
-          <button onClick={() => onClose(false)} className="p-2 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5 text-[color:var(--theme-text-muted)]"><X size={16} /></button>
+          <Button variant="ghost" size="icon" onClick={() => onClose(false)} icon={X} title="Close" data-testid="mbr-drawer-close" />
         </header>
         <div className="p-5 space-y-5">
           <section>
@@ -1100,9 +1098,9 @@ function TimetableTab({ API, headers }) {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <Header eyebrow="This week" title="Timetable" subtitle="Every class across the studio. Tap a class to announce or mark attendance." />
         <div className="flex gap-2 items-center">
-          <button onClick={() => setWeekStart(new Date(weekStart.getTime() - 7 * 86400000))} className="p-2 rounded border border-[color:var(--theme-border)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-week-prev"><ChevronLeft size={14} /></button>
+          <Button variant="secondary" size="icon" onClick={() => setWeekStart(new Date(weekStart.getTime() - 7 * 86400000))} icon={ChevronLeft} title="Previous week" data-testid="mbr-week-prev" />
           <div className="text-sm font-bold px-3">{days[0].toLocaleDateString()} – {days[6].toLocaleDateString()}</div>
-          <button onClick={() => setWeekStart(new Date(weekStart.getTime() + 7 * 86400000))} className="p-2 rounded border border-[color:var(--theme-border)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-week-next"><ChevronRight size={14} /></button>
+          <Button variant="secondary" size="icon" onClick={() => setWeekStart(new Date(weekStart.getTime() + 7 * 86400000))} icon={ChevronRight} title="Next week" data-testid="mbr-week-next" />
           <HelpHint guideId="mbr-first-class" testId="help-hint-timetable" />
         </div>
       </div>
@@ -1223,8 +1221,8 @@ function PlansInnerView({ API, headers }) {
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                  <button onClick={() => setEditing(p)} className="p-1.5 rounded hover:bg-black/[0.06] dark:hover:bg-white dark:bg-zinc-900/10 text-[color:var(--theme-text-muted)] hover:text-white" data-testid={`mbr-plan-edit-${p.id}`} title="Edit"><Edit3 size={12} /></button>
-                  <button onClick={() => archive(p)} className="p-1.5 rounded hover:bg-red-500/20 text-red-300" data-testid={`mbr-plan-archive-${p.id}`} title="Archive"><Trash2 size={12} /></button>
+                  <Button variant="ghost" size="iconSm" onClick={() => setEditing(p)} icon={Edit3} title="Edit" data-testid={`mbr-plan-edit-${p.id}`} />
+                  <Button variant="ghostDestructive" size="iconSm" onClick={() => archive(p)} icon={Trash2} title="Archive" data-testid={`mbr-plan-archive-${p.id}`} />
                 </div>
               </div>
               <div className="text-2xl font-extrabold tracking-tight mt-2">£{(p.price_pence / 100).toFixed(2)}</div>
@@ -1301,7 +1299,7 @@ function ClassesTab({ API, headers }) {
                 </div>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                <button onClick={(e) => { e.stopPropagation(); archive(t); }} className="p-2 rounded hover:bg-red-500/20 text-red-300" data-testid={`mbr-class-archive-${t.id}`} title="Archive"><Trash2 size={12} /></button>
+                <Button variant="ghostDestructive" size="icon" onClick={(e) => { e.stopPropagation(); archive(t); }} icon={Trash2} title="Archive" data-testid={`mbr-class-archive-${t.id}`} />
               </div>
             </div>
           ))}
@@ -1376,7 +1374,7 @@ function AppUrlCard({ org }) {
           <Printer size={11} /> Poster
         </a>
         <a href={appUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-app-url-open">Open</a>
-        <button onClick={copy} className="p-2 rounded-lg hover:bg-black/[0.06] dark:hover:bg-white dark:bg-zinc-900/10 text-[color:var(--theme-text-muted)]" data-testid="mbr-app-url-copy"><Copy size={14} /></button>
+        <Button variant="ghost" size="icon" onClick={copy} icon={Copy} title="Copy URL" data-testid="mbr-app-url-copy" />
       </div>
       <BrandPreview org={org} appUrl={appUrl} />
     </div>
@@ -1568,11 +1566,9 @@ function AdsTab({ API, headers }) {
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
-                  <button onClick={() => toggle(a)} className="p-2 rounded hover:bg-black/[0.06] dark:hover:bg-white dark:bg-zinc-900/10 text-[color:var(--theme-text-muted)]" data-testid={`mbr-ad-toggle-${a.id}`} title={a.active ? 'Pause' : 'Resume'}>
-                    {a.active ? <Pause size={12} /> : <CheckCircle2 size={12} />}
-                  </button>
-                  <button onClick={() => setEditing(a)} className="p-2 rounded hover:bg-black/[0.06] dark:hover:bg-white dark:bg-zinc-900/10 text-[color:var(--theme-text-muted)]" data-testid={`mbr-ad-edit-${a.id}`}><Edit3 size={12} /></button>
-                  <button onClick={() => del(a)} className="p-2 rounded hover:bg-red-500/20 text-red-300" data-testid={`mbr-ad-delete-${a.id}`}><Trash2 size={12} /></button>
+                  <Button variant="ghost" size="icon" onClick={() => toggle(a)} icon={a.active ? Pause : CheckCircle2} title={a.active ? 'Pause' : 'Resume'} data-testid={`mbr-ad-toggle-${a.id}`} />
+                  <Button variant="ghost" size="icon" onClick={() => setEditing(a)} icon={Edit3} title="Edit" data-testid={`mbr-ad-edit-${a.id}`} />
+                  <Button variant="ghostDestructive" size="icon" onClick={() => del(a)} icon={Trash2} title="Delete" data-testid={`mbr-ad-delete-${a.id}`} />
                 </div>
               </div>
             </div>

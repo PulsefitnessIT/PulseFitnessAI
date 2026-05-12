@@ -57,6 +57,19 @@ Use the shared `<Button>` component at `/app/frontend/src/components/shared/Butt
 - `sm` (text-xs, px-2.5 py-1.5) — inline in dense tables.
 - `md` (text-sm, px-3 py-2) — **default**, use everywhere unless you have a reason.
 - `lg` (text-sm, px-4 py-2.5) — hero CTAs in empty states + onboarding.
+- `icon` (p-2, square) — Iter 216h37. **Icon-only** action button — pair with `ghost`/`ghostDestructive` + `title` for accessibility.
+- `iconSm` (p-1.5, square) — Iter 216h37. Tighter version for very dense row actions (e.g. inline plan list actions).
+
+### Iter 216h37 — Ghost variants (row actions)
+
+`ghost` and `ghostDestructive` are dedicated to **row-action icon buttons**: edit / archive / delete / toggle / copy / week-nav / drawer-close. No border, transparent background, soft hover surface that doesn't compete with table content.
+
+| Variant | Hover | Use for |
+|---|---|---|
+| `ghost` | Subtle neutral (`bg-black/[0.06]`) | Edit, Copy, Toggle, drawer Close, week prev/next, Resume. |
+| `ghostDestructive` | Red-tinted (`bg-red-500/15`) | Archive, Delete, Cancel-row. |
+
+Always pass a `title="…"` so the icon has an accessible label. Don't pass children — `icon` / `iconSm` sizes skip the text span automatically.
 
 ### Quick examples
 
@@ -71,6 +84,11 @@ import { Plus, Download, Trash2 } from 'lucide-react';
 
 // Destructive (always behind a confirm).
 <Button variant="destructive" icon={Trash2}>Archive</Button>
+
+// Iter 216h37 — Row-action icon buttons.
+<Button variant="ghost" size="icon" icon={Edit3} title="Edit" />
+<Button variant="ghost" size="icon" icon={Copy} title="Copy URL" />
+<Button variant="ghostDestructive" size="iconSm" icon={Trash2} title="Archive" />
 ```
 
 ### Anti-patterns we replaced (iter 216h27)

@@ -1,3 +1,62 @@
+## Iter 216h37 — Icon-button vocabulary added to design system + Memberships row-action migration (Feb 12, 2026)
+
+### Why
+After iter 216h35 there were still **20 raw `<button>` blocks** in `MembershipsConsole.js` — almost all of them tiny icon-only row actions (Edit, Archive, Delete, Toggle, Copy, week-nav arrows, drawer Close). The `<Button>` primitive only knew about the 3-variant text-button vocabulary (primary/secondary/tertiary + destructive) so these row actions had no home and kept their bespoke `p-2 rounded hover:bg-...` classes.
+
+### What shipped — `Button.js`
+Two new **variants** + two new **sizes** (fully backwards-compatible):
+
+| New | Purpose |
+|---|---|
+| `variant="ghost"` | Row-action icon button. No border, transparent bg, soft neutral hover (`bg-black/[0.06]`). |
+| `variant="ghostDestructive"` | Same shape, red-tinted hover (`bg-red-500/15`) + red text. For archive/delete row icons. |
+| `size="icon"` (p-2) | Square icon-only — skips the children span so a single Lucide icon centres in the box. |
+| `size="iconSm"` (p-1.5) | Tighter version for very dense row actions. |
+
+The `icon` / `iconSm` sizes deliberately omit the `<span>{children}</span>` so passing only the `icon={...}` prop renders a perfect square. Pair with `title="…"` for screen-reader accessibility.
+
+### Migration in `MembershipsConsole.js`
+11 row-action buttons migrated (the entire vocabulary that was outside the design system):
+
+| Surface | Variant · Size |
+|---|---|
+| Import-result dismiss (X) | `ghost` · `iconSm` |
+| Member drawer close (X) | `ghost` · `icon` |
+| Week prev / next arrows (×2) | `secondary` · `icon` (kept the border) |
+| Plan edit | `ghost` · `iconSm` |
+| Plan archive | `ghostDestructive` · `iconSm` |
+| Class archive | `ghostDestructive` · `icon` |
+| App URL copy | `ghost` · `icon` |
+| Ad toggle (Pause / Resume) | `ghost` · `icon` (dynamic Lucide via prop) |
+| Ad edit | `ghost` · `icon` |
+| Ad delete | `ghostDestructive` · `icon` |
+
+**Result:** `MembershipsConsole.js` went from **30 raw `<button>` blocks** (iter 216h27 baseline) → **10 remaining** (all tab pills / full-card selectors — they belong to a different vocabulary and intentionally stay inline).
+
+Total `data-testid`s preserved verbatim. Added one new id (`mbr-import-result-dismiss`) and one missing one (`mbr-drawer-close`) for testability.
+
+### Design system doc updated
+`/app/DESIGN_SYSTEM.md` now documents the new variants + sizes + the canonical row-action pattern, with examples.
+
+### Verified
+- Lint clean across `Button.js`, `MembershipsConsole.js`.
+- Smoke screenshot of Master Admin dashboard — 0 React errors after the Button primitive changes.
+- Backwards-compatible: every existing `Button` call site continues to work (only added new variants/sizes; nothing removed).
+
+### Files touched
+- `/app/frontend/src/components/shared/Button.js` (~+45 / −5 LOC — 2 new variants, 2 new sizes, icon-only render path)
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js` (~−24 / +12 LOC — 11 row-action migrations)
+- `/app/DESIGN_SYSTEM.md` (+30 LOC — documented `ghost` + `ghostDestructive` + `icon`/`iconSm`)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. New row-action icon buttons across the platform should use `<Button variant="ghost" size="icon" icon={…} title="…">` — see `MembershipsConsole.js` for examples.
+3. Next operator/CRM panel touch: replace any remaining inline `p-2 rounded hover:bg-…` patterns with the new ghost vocabulary.
+
+---
+
+
+
 ## Iter 216h36 — UploadQueueDrawer becomes mobile-aware (Feb 12, 2026)
 
 ### Why
