@@ -1,3 +1,46 @@
+## Iter 216h60 — (e) Site module-override guard + Onboarding CTA route fixes (Feb 12, 2026)
+
+### Operator-reported (Lee)
+1. (e) "Site module switches shouldn't be able to be turned on if the main head office is off" — sites were showing modules enabled while the org Feature Control panel had them off.
+2. Account Settings → Onboarding → "Add Extra Site" Review button → bounced to `/sites` → GymAxis 404 page. Lee asked for an audit of every onboarding step CTA.
+
+### What shipped
+
+#### (e) Site module-override guard
+- **`/app/backend/routes/sites.py`** — `set_site_modules()` now refuses to enable a module at the site level when the parent org has it off. Returns `{ok:false, blocked:[…], detail:"Cannot enable X at site level — the parent organisation has that module turned off. Enable it on the org first via Master Admin → Modules."}`. Any previously-stored override for the blocked key is also stripped so the UI immediately reflects truth.
+- `get_site_modules()` `effective[k]` is now `site_override AND org_on`, so legacy overrides storing `enabled=true` on a module the org now has off resolve to `false`.
+- **Critical detail (the first attempt didn't work):** previous code passed the calling user to `resolve_module_access(user, org)`, but master-admin returns all-True there → the guard was bypassed. Switched to `_org_module_access({is_master_admin: False, account_type: "full"}, org)` — a synthetic non-master user — so the resolver actually reads the org matrix instead of short-circuiting.
+- **`/app/frontend/src/components/sites/SiteModulesOverride.js`** — `setOverride()` now reads `r.data.ok === false` and surfaces `detail` via `notify.error('Blocked', …)` so operators see exactly why the toggle didn't take.
+
+#### Onboarding CTA route audit
+- **`/app/frontend/src/components/shared/AccountSettingsModal.js`** — new `resolveRoute(step.cta_route)` helper inside `OnboardingSection`. Maps:
+  - `/sites` → `/master-admin?section=organizations` (master admin) | `/pulse?settings=sites` (Pulse Pro/Lite) | `/dashboard` (full).
+  - `/dashboard?tab=equipment` → `/pulse?tab=equipment` for Pulse operators.
+  - `/pricing` → `/master-admin?section=integrations-hub` for master admins.
+  - All other `/dashboard*` → swapped for `/pulse*` or `/master-admin*` to match the user's actual home.
+- `profile` is now threaded into `OnboardingSection` so the resolver can read `account_type` and `is_master_admin`.
+- **`/app/frontend/src/pages/LiteDashboardPage.js`** — new useEffect reads `?tab=` and `?settings=` from URL search params so `/pulse?tab=equipment` switches the active tab and `/pulse?settings=sites` auto-opens the Settings dialog (which hosts `PulseSettingsTab` → "Add Site" UI).
+
+### Verified
+- 9/9 backend tests pass (testing-agent iter 216h60).
+- Manual curl e2e: PUT marketing=true on a Pulse site while org.marketing=false → `{ok:false, blocked:['marketing'], detail:"Cannot enable marketing at site level — …"}`. GET effective then shows `marketing:false`. Restored Pulse to all-on after.
+- Onboarding step list audited: site_details + extra_sites + import_machines + connect_stripe all now resolve to real routes; team/organisation/profile cta_sections all switch in-modal.
+
+### Files touched
+- `/app/backend/routes/sites.py` (~+40 / −10 LOC — guard + user-agnostic org resolver call)
+- `/app/frontend/src/components/sites/SiteModulesOverride.js` (~+10 / −3 LOC — render blocked message)
+- `/app/frontend/src/components/shared/AccountSettingsModal.js` (~+35 LOC — `resolveRoute()` + profile prop threading)
+- `/app/frontend/src/pages/LiteDashboardPage.js` (~+10 LOC — searchParams `?tab=` and `?settings=` handler)
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend (`routes/sites.py`) + frontend (3 files).
+2. Lee revisits a Pulse site that had a phantom module override: the panel now reads the capped effective value. Toggling a module the org has off shows the explicit "Cannot enable X at site level" error rather than silently storing a phantom override.
+3. Lee clicks "Add Extra Site Review" in Onboarding — modal navigates to either Master Admin → Organizations (if master admin) or auto-opens the Pulse Settings dialog with the Sites pane.
+
+---
+
+
+
 ## Iter 216h59 — 4 quick-win UX & module-scoping fixes (Feb 12, 2026)
 
 ### Operator-reported (Lee, 5 screenshots)
