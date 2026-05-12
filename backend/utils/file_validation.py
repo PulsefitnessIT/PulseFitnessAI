@@ -132,6 +132,20 @@ def _sniff_mime_fallback(data: bytes) -> str:
         return "text/plain"
     except UnicodeDecodeError:
         pass
+    # Iter 216h53 — Excel often exports CSVs in Windows-1252 (en-dash,
+    # smart quotes, etc.). UTF-8 fails on bytes like 0x96 but the file
+    # is still a perfectly valid CSV. Try latin-1 (always succeeds) and
+    # if the first KB has comma-delimited printable content, classify
+    # as text/plain so the CSV importer accepts it.
+    try:
+        sample = data[:1024].decode("latin-1")
+        if "," in sample and sample.count("\n") < 100:
+            # Heuristic: ≥1 comma, mostly printable, not too many newlines.
+            printable = sum(1 for ch in sample if ch.isprintable() or ch in "\r\n\t")
+            if printable / max(1, len(sample)) > 0.95:
+                return "text/plain"
+    except Exception:
+        pass
     return "application/octet-stream"
 
 

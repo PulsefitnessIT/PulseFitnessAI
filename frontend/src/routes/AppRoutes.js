@@ -212,15 +212,16 @@ export default function AppRoutes({ user, login }) {
       <Route path="/memberships/setup" element={user ? <ModuleAccessGate module="memberships"><MembershipsSetupWizard /></ModuleAccessGate> : <Navigate to="/login" replace />} />
       <Route path="/gym-floor" element={<GymFloorPage />} />
 
-      {/* ─── Service Desk / Service Ops ─── */}
+      {/* ─── Service Desk (unified — iter 216h53 full merge of Service Ops) ─── */}
       <Route path="/service-desk" element={(user?.is_master_admin || user?.is_service_desk) ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
-      <Route path="/service-ops" element={user ? <ServiceOpsDeskPage /> : <Navigate to="/login" replace />} />
-      <Route path="/service-ops/scheduler" element={user ? <ServiceOpsScheduler /> : <Navigate to="/login" replace />} />
-      <Route path="/service-ops/engineers" element={user ? <ServiceOpsEngineers /> : <Navigate to="/login" replace />} />
-      <Route path="/service-ops/parts" element={user ? <ServiceOpsParts /> : <Navigate to="/login" replace />} />
-      <Route path="/service-ops/billing" element={user ? <ServiceOpsBilling /> : <Navigate to="/login" replace />} />
-      <Route path="/service-ops/reports" element={user ? <ServiceOpsReports /> : <Navigate to="/login" replace />} />
-      <Route path="/service-ops/comms" element={user ? <ServiceOpsComms /> : <Navigate to="/login" replace />} />
+      {/* Legacy /service-ops/* URLs redirect to the unified hub. Deep links still work — the merged shell defaults to Dashboard. */}
+      <Route path="/service-ops" element={<Navigate to="/service-desk" replace />} />
+      <Route path="/service-ops/scheduler" element={<Navigate to="/service-desk" replace />} />
+      <Route path="/service-ops/engineers" element={<Navigate to="/service-desk" replace />} />
+      <Route path="/service-ops/parts" element={<Navigate to="/service-desk" replace />} />
+      <Route path="/service-ops/billing" element={<Navigate to="/service-desk" replace />} />
+      <Route path="/service-ops/reports" element={<Navigate to="/service-desk" replace />} />
+      <Route path="/service-ops/comms" element={<Navigate to="/service-desk" replace />} />
       <Route path="/svc/engineer" element={user ? <ServiceOpsEngineerHome /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs/:caseId" element={user ? <ServiceOpsEngineerJob /> : <Navigate to="/login" replace />} />
 

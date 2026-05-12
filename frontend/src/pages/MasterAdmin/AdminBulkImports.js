@@ -8,7 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
  Download, Upload, Wrench, Users, FileSpreadsheet, ChevronRight,
- CheckCircle2, AlertCircle, Building2, Loader2,
+ CheckCircle2, AlertCircle, Building2, Loader2, MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -41,10 +41,11 @@ const AdminBulkImports = ({ API }) => {
  const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
  const [orgs, setOrgs] = useState([]);
  const [orgId, setOrgId] = useState('');
- const [busy, setBusy] = useState({ equipment: false, customers: false });
- const [results, setResults] = useState({ equipment: null, customers: null });
+ const [busy, setBusy] = useState({ equipment: false, customers: false, sites: false });
+ const [results, setResults] = useState({ equipment: null, customers: null, sites: null });
  const equipmentInput = useRef(null);
  const customersInput = useRef(null);
+ const sitesInput = useRef(null);
  const { banner, show, clear } = useInlineBanner();
 
  useEffect(() => {
@@ -61,6 +62,15 @@ const AdminBulkImports = ({ API }) => {
 
  const runImport = async (kind, file) => {
  if (!file) return;
+ // Iter 216h53 — sites must be scoped to a specific target org.
+ if (kind === 'sites' && !orgId) {
+ show({
+ tone: 'warning',
+ title: 'Pick a target organisation first',
+ detail: 'Sites have no customer_account_number column — choose which customer this site list belongs to in the Target customer dropdown above.',
+ });
+ return;
+ }
  clear();
  setBusy((b) => ({ ...b, [kind]: true }));
  setResults((r) => ({ ...r, [kind]: null }));
@@ -203,13 +213,21 @@ const AdminBulkImports = ({ API }) => {
  </div>
  </Card>
 
- <div className="grid md:grid-cols-2 gap-4">
+ <div className="grid md:grid-cols-3 gap-4">
+ <ImportCard
+ kind="sites"
+ icon={MapPin}
+ title="Bulk import sites"
+ description="Upload a CSV of all customer sites in one shot — alphabetised, with Sicon Invoice Customer Ref support. Pick the Target customer above first; sites are always org-scoped."
+ headers={['site_name', 'invoice_customer_ref', 'address_line1', 'address_line2', 'city', 'county', 'postcode', 'country', 'phone', 'email', 'site_manager_name', 'site_manager_email', 'is_head_office', 'default_location']}
+ inputRef={sitesInput}
+ />
  <ImportCard
  kind="equipment"
  icon={Wrench}
  title="Bulk import equipment"
- description="Upload a CSV of every machine across one or many customer floors. Duplicates by serial_number are skipped automatically."
- headers={['customer_account_number', 'name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'purchase_date', 'warranty_expiry', 'service_provider', 'length', 'width', 'height', 'location', 'notes']}
+ description="Upload a CSV of every machine across one or many customer floors. Equipment auto-links to sites by site_name; supplier resolves to a row in the suppliers directory so fault emails route correctly. Duplicates by serial_number are skipped."
+ headers={['site_name', 'customer_account_number', 'supplier', 'name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'purchase_date', 'warranty_expiry', 'service_provider', 'unit_price', 'length', 'width', 'height', 'location', 'notes']}
  inputRef={equipmentInput}
  />
  <ImportCard

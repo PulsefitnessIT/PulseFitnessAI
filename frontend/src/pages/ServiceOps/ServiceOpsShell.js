@@ -19,13 +19,19 @@
  * Light & dark mode handled entirely via theme tokens — no hardcoded
  * colours. See _serviceops.css for the full design layer.
  */
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ClipboardList, Calendar, Package, FileText, BarChart3, Mail,
   Smartphone, Plus, HardHat,
 } from 'lucide-react';
 import './_serviceops.css';
+
+// Iter 216h53 — when the shell renders inside the merged Service Desk
+// page, the outer hero + nav strip is suppressed (the merged page
+// already has its own sidebar + tab bar). Consumers wrap with
+// <ServiceOpsEmbeddedContext.Provider value={true}> to flip the flag.
+export const ServiceOpsEmbeddedContext = createContext(false);
 
 const NAV = [
   { id: 'desk',      to: '/service-ops',           label: 'Desk',      Icon: ClipboardList },
@@ -50,6 +56,24 @@ export default function ServiceOpsShell({
   pageTestId,
   narrow = false,
 }) {
+  const embedded = useContext(ServiceOpsEmbeddedContext);
+  // When embedded, render the page body only — the merged Service Desk
+  // page provides its own header + nav. Still wrap in a minimal div so
+  // .svc-* CSS rules continue to scope correctly.
+  if (embedded) {
+    return (
+      <div className={`svc-shell svc-shell--embedded ${narrow ? 'svc-page-narrow' : ''}`} data-testid={testId}>
+        <div className="svc-page svc-page--embedded" data-testid={pageTestId}>
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-2 justify-end mb-4" data-testid="svc-hero-actions">
+              {actions}
+            </div>
+          ) : null}
+          <div className="space-y-5" data-testid="svc-body">{children}</div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`svc-shell ${narrow ? 'svc-page-narrow' : ''}`} data-testid={testId}>
       <div className="svc-page" data-testid={pageTestId}>

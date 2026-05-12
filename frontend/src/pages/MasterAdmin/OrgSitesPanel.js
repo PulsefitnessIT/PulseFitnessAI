@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { X, MapPin, Loader2, Crown, Plus, Upload, Download } from 'lucide-react';
+import { X, MapPin, Loader2, Crown, Plus, Upload, Download, ChevronRight } from 'lucide-react';
 import SiteModulesOverride from '@/components/sites/SiteModulesOverride';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import SiteDetailDrawer from './SiteDetailDrawer';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -24,6 +25,9 @@ const OrgSitesPanel = ({ org, onClose }) => {
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hqBusyId, setHqBusyId] = useState(null);
+  // Iter 216h53 — click a site row to open the detail drawer (Site
+  // Details + Equipment inline-edit tabs).
+  const [selectedSite, setSelectedSite] = useState(null);
 
   // Add-site / CSV-import workflow state.
   const [showAdd, setShowAdd] = useState(false);
@@ -252,7 +256,12 @@ const OrgSitesPanel = ({ org, onClose }) => {
       ) : (
         <div className="space-y-3">
           {sites.map((site) => (
-            <div key={site.id} className="bg-white border border-zinc-200 rounded-md p-3" data-testid={`org-site-row-${site.id}`}>
+            <div
+              key={site.id}
+              className={`bg-white border border-zinc-200 rounded-md p-3 transition-colors ${site.is_default ? '' : 'cursor-pointer hover:border-blue-300 hover:bg-blue-50/30'}`}
+              data-testid={`org-site-row-${site.id}`}
+              onClick={() => { if (!site.is_default) setSelectedSite(site); }}
+            >
               <div className="flex items-center justify-between mb-1">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-zinc-800 truncate flex items-center gap-1.5">
@@ -268,31 +277,45 @@ const OrgSitesPanel = ({ org, onClose }) => {
                   <div className="flex items-center gap-3 mt-0.5 text-[10px] text-zinc-400">
                     <span>{site.equipment_count ?? 0} machines</span>
                     <span>{site.issue_count ?? 0} faults</span>
+                    {site.invoice_customer_ref && <span>Ref: {site.invoice_customer_ref}</span>}
                   </div>
                 </div>
-                {!site.is_default && (
-                  <button
-                    type="button"
-                    onClick={() => setHeadOffice(site)}
-                    disabled={hqBusyId === site.id}
-                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border transition-colors flex items-center gap-1 ${
-                      site.is_head_office
-                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                        : 'bg-white text-zinc-600 border-zinc-200 hover:border-amber-300 hover:text-amber-700'
-                    }`}
-                    data-testid={`org-site-hq-toggle-${site.id}`}
-                    title={site.is_head_office ? 'Clear Head Office flag' : 'Mark as Head Office'}
-                  >
-                    {hqBusyId === site.id ? <Loader2 size={10} className="animate-spin" /> : <Crown size={10} />}
-                    {site.is_head_office ? 'HQ' : 'Set HQ'}
-                  </button>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {!site.is_default && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setHeadOffice(site); }}
+                      disabled={hqBusyId === site.id}
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border transition-colors flex items-center gap-1 ${
+                        site.is_head_office
+                          ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                          : 'bg-white text-zinc-600 border-zinc-200 hover:border-amber-300 hover:text-amber-700'
+                      }`}
+                      data-testid={`org-site-hq-toggle-${site.id}`}
+                      title={site.is_head_office ? 'Clear Head Office flag' : 'Mark as Head Office'}
+                    >
+                      {hqBusyId === site.id ? <Loader2 size={10} className="animate-spin" /> : <Crown size={10} />}
+                      {site.is_head_office ? 'HQ' : 'Set HQ'}
+                    </button>
+                  )}
+                  {!site.is_default && <ChevronRight size={14} className="text-zinc-400" />}
+                </div>
               </div>
               {!site.is_default && (<SiteModulesOverride siteId={site.id} siteName={site.name} theme="light" />)}
               {site.is_default && (<p className="mt-2 text-[11px] text-zinc-400 italic">Default fallback site — overrides apply once a real site is created.</p>)}
             </div>
           ))}
         </div>
+      )}
+
+      {/* Iter 216h53 — Click-to-open Site Details + Equipment drawer */}
+      {selectedSite && (
+        <SiteDetailDrawer
+          orgId={org.id}
+          site={selectedSite}
+          onClose={() => setSelectedSite(null)}
+          onSaved={() => { loadSites(); }}
+        />
       )}
     </div>
   );

@@ -13,6 +13,8 @@ This module exposes:
   • GET  /api/master-admin/bulk-import/templates/customers  — CSV template
   • POST /api/master-admin/bulk-import/equipment            — import equipment
   • POST /api/master-admin/bulk-import/customers            — import customers
+  • POST /api/master-admin/bulk-import/sites                 — import sites (iter 216h53)
+  • GET  /api/master-admin/bulk-import/templates/sites       — CSV template (passthrough)
 
 Both POST endpoints accept an optional `organization_id` query param so the
 admin can target the import at a specific Pulse customer's tenant.
@@ -500,6 +502,125 @@ async def bulk_import_customers(
         "imported": imported, "skipped": skipped, "errors": errors[:10],
         "organization_id": default_org,
         "org_breakdown": org_breakdown,
+    }
+
+
+# ── Sites bulk import (Iter 216h53) ──────────────────────────────────────
+#
+# Lee uploaded a sites CSV via the equipment slot and the upload failed.
+# This endpoint matches the same shape as the equipment + customers
+# endpoints above so Master Admin → Bulk Imports has a third box for
+# sites without forcing operators back into the multi-site wizard.
+
+@router.get("/master-admin/bulk-import/templates/sites")
+async def template_sites_passthrough(user: dict = Depends(get_current_user)) -> Response:
+    """Returns the same template as /api/master-admin/sites/template.csv.
+    Re-exposed under the bulk-import prefix so the AdminBulkImports UI
+    can use a single template-download helper for every kind."""
+    _require_pulse_or_master(user)
+    from routes.sites_import import _SITE_CSV_HEADERS, _SITE_CSV_EXAMPLE_ROWS
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_SITE_CSV_HEADERS)
+    for row in _SITE_CSV_EXAMPLE_ROWS:
+        writer.writerow(row)
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sites_template.csv"},
+    )
+
+
+@router.post("/master-admin/bulk-import/sites")
+async def bulk_import_sites(
+    organization_id: str = Query(..., description="Target organisation — sites are always org-scoped"),
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Import a CSV of sites into a target customer org. Sites MUST be
+    scoped to a single org (no `customer_account_number` column on the
+    sites template), so the target is required upfront."""
+    _require_pulse_or_master(user)
+    org = await db.organizations.find_one(
+        {"id": organization_id},
+        {"_id": 0, "id": 1, "name": 1, "account_type": 1},
+    )
+    if not org:
+        raise HTTPException(status_code=404, detail="Target organisation not found")
+    if org.get("account_type") not in PULSE_VISIBLE_ACCOUNT_TYPES and org.get("account_type") is not None:
+        raise HTTPException(status_code=403, detail="Org is not Pulse-visible")
+
+    blob = await file.read()
+    validate_upload(file_bytes=blob, filename=file.filename, allowed=MIME_SPREADSHEETS)
+    try:
+        text = blob.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = blob.decode("latin-1")
+    reader = csv.DictReader(io.StringIO(text))
+
+    imported, skipped, errors = 0, 0, []
+    head_office_set = await db.sites.count_documents(
+        {"organization_id": organization_id, "is_head_office": True},
+    ) > 0
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    for i, row in enumerate(reader, start=2):
+        try:
+            name = _normalize(row, "site_name", "name", "Site Name", "Name")
+            if not name:
+                skipped += 1
+                errors.append(f"Row {i}: missing site_name")
+                continue
+            import re as _re
+            existing = await db.sites.find_one(
+                {"organization_id": organization_id,
+                 "name": {"$regex": f"^{_re.escape(name)}$", "$options": "i"}},
+                {"_id": 0, "id": 1},
+            )
+            if existing:
+                skipped += 1
+                continue
+
+            is_hq_raw = _normalize(row, "is_head_office", "Is Head Office", "head_office")
+            is_hq = is_hq_raw.lower() in {"yes", "true", "1", "y", "head office", "hq"}
+            if is_hq and not head_office_set:
+                head_office_set = True
+            elif is_hq:
+                is_hq = False  # Already an HQ on this org — downgrade.
+
+            doc = {
+                "id": str(uuid.uuid4()),
+                "organization_id": organization_id,
+                "name": name,
+                "address": _normalize(row, "address_line1", "address", "Address"),
+                "address_line1": _normalize(row, "address_line1", "address"),
+                "address_line2": _normalize(row, "address_line2"),
+                "address_line3": _normalize(row, "address_line3"),
+                "city": _normalize(row, "city", "City"),
+                "county": _normalize(row, "county", "County"),
+                "postcode": _normalize(row, "postcode", "Postcode", "post_code"),
+                "country": _normalize(row, "country", "Country") or "United Kingdom",
+                "phone": _normalize(row, "phone", "Phone"),
+                "email": _normalize(row, "email", "Email"),
+                "site_manager_name": _normalize(row, "site_manager_name", "Site Manager"),
+                "site_manager_email": _normalize(row, "site_manager_email"),
+                "invoice_customer_ref": _normalize(
+                    row, "invoice_customer_ref", "Invoice Customer Ref",
+                    "sicon_customer_ref", "customer_ref",
+                ),
+                "is_head_office": is_hq,
+                "default_location": _normalize(row, "default_location") or "Main Floor",
+                "created_at": now_iso,
+            }
+            await db.sites.insert_one(doc.copy())
+            imported += 1
+        except Exception as exc:
+            errors.append(f"Row {i}: {exc}")
+
+    return {
+        "imported": imported, "skipped": skipped, "errors": errors[:20],
+        "organization_id": organization_id,
+        "org_breakdown": {organization_id: imported} if imported else {},
     }
 
 

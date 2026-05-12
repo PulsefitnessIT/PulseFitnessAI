@@ -156,16 +156,8 @@ const AdminSidebar = ({
  <HeadphonesIcon size={16} className="text-orange-500" /> Service Desk
  </button>
  )}
- {!isPulseAdmin && (
- <button
- onClick={() => { navigate('/service-ops'); setSidebarOpen(false); }}
- className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
- data-testid="portal-switch-service-ops"
- title="New: native field-service operations console (replaces Sicon)"
- >
- <Sparkles size={16} className="text-emerald-500" /> Service Ops <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-emerald-600">New</span>
- </button>
- )}
+ {/* Iter 216h53 — Service Ops folded into Service Desk (full merge).
+     Button removed; users land on the unified hub via "Service Desk" above. */}
  </div>
  </div>
 

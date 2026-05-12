@@ -2621,6 +2621,9 @@ async def admin_bulk_create_sites(org_id: str, body: dict = Body(...), user: dic
             "email": (row.get("email") or "").strip(),
             "site_manager_name": (row.get("site_manager_name") or "").strip(),
             "site_manager_email": (row.get("site_manager_email") or "").strip(),
+            # Iter 216h53 — Sicon per-site "Invoice Customer Ref" so bulk
+            # site imports populate the same field as the wizard path.
+            "invoice_customer_ref": (row.get("invoice_customer_ref") or "").strip(),
             "is_head_office": is_hq,
             "default_location": (row.get("default_location") or "Main Floor").strip(),
             "created_at": datetime.now(timezone.utc).isoformat(),

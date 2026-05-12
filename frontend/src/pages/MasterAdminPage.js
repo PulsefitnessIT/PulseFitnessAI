@@ -323,6 +323,11 @@ const MasterAdminPage = ({ onBack }) => {
         return <AdminPayments stats={stats} organizations={organizations} />;
       case 'trust':
         return <TrustDashboard refreshTick={refreshTick} />;
+      case 'archive':
+        // Iter 216h53 — relocated from Service Desk to Master Admin →
+        // Overview → Archive. Archive is a data-lifecycle concern, not
+        // a customer-support concern, so it sits alongside System Health.
+        return <AdminArchive />;
       case 'ask-support':
         return <AskSupportDesk />;
       case 'analytics':

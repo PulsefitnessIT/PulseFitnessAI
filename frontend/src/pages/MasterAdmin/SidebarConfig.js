@@ -37,6 +37,11 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'overview',  label: 'Dashboard',     icon: LayoutDashboard },
       { id: 'trust',     label: 'System Health', icon: ShieldCheck },
+      // Iter 216h53 — Archive relocated here from Service Desk. Archive
+      // is a data-lifecycle / health concern (purged/soft-deleted orgs +
+      // restore tooling), so it sits more naturally next to System Health
+      // than inside the Service Desk operator workflow.
+      { id: 'archive',   label: 'Archive',       icon: FolderArchive },
       { id: 'tasks',     label: 'Setup checklist', icon: ListChecks },
     ],
   },
@@ -208,6 +213,7 @@ export const sectionTitles = {
   'audit-log': 'Audit log',
   'locked-staff': 'Site-locked users',          // Iter 216h17 — terminology cleanup
   trust: 'System health',                       // Iter 216h17 — was "Trust & Reliability Engine"
+  archive: 'Archive',                           // Iter 216h53 — relocated from Service Desk
   'ask-support': 'Ask Support Desk',
   payments: 'Payments & subscriptions',
   onboarding: 'Customer onboarding',             // Iter 216h20 — restored from People/"Staff onboarding". The hub creates customer organisations, not staff.
