@@ -1,3 +1,53 @@
+## Iter 216h57 — HOTFIX: 5 production UX bugs (fault detail clutter, manufacturer-photo crash, logo & avatar uploads) (Feb 12, 2026)
+
+### Operator-reported (Lee, 5 screenshots)
+1. Fault detail card shows THREE buttons to open the Supplier Modal (top "View supplier card" pill + blue "Supplier Fault Card → Open" banner + "Supplier Card" link in the Supplier Communication header). Lee wants only the one inside the Supplier Communication card.
+2. The space freed by removing the blue banner should display the engineer's scheduled visit details.
+3. "Find manufacturer photo" button creates a runtime error when clicked.
+4. Account Settings → Onboarding → "Upload logo" closes the settings modal instead of letting the operator upload.
+5. Profile picture upload shows the word "Avatar" inside the circle instead of the uploaded image.
+
+### Root causes & fixes
+
+#### Bug 1+2 — Fault detail clutter
+- **`/app/frontend/src/pages/IssueDetailPanel.js`** — replaced the blue `Supplier Fault Card` deep-link banner (lines ~396-415) with a prominent purple **Engineer Visit Scheduled** card (testid `engineer-visit-banner-{issue.id}`) that surfaces the scheduled date, engineer name, and a Reschedule CTA. Also removed the smaller in-comms `Engineer Visit:` chip since that info is now front-and-centre. The Supplier-Card link survives only in the Supplier Communication card header.
+
+#### Bug 3 — Find manufacturer photo crash
+- **`/app/frontend/src/pages/LiteDashboard/LiteDialogs.js`** — `onAutoLookup` used the bogus path `(await import('sonner')).notify.success(...)`. `sonner` exports `toast`, not `notify`. Replaced with the top-of-file `notify` import (from `@/components/notifications`) and dropped the redundant dynamic axios import.
+
+#### Bug 4 — Upload logo closes settings modal
+- **`/app/backend/routes/account.py`** — `ONBOARDING_STEPS['upload_logo']` previously used `cta_route: '/dashboard?settings=brand'` (a route that doesn't exist, so `navigate()` fired and `onClose()` closed the modal). Now uses `cta_section: 'organisation'` which switches the modal tab in-place.
+- **`AccountSettingsModal.js`** — added an **Organisation logo** subsection inside `OrganisationSection` with proper upload/remove handlers (testids: `account-section-logo`, `account-org-logo-upload-btn`, `account-org-logo-input`, `account-org-logo-img`, `account-org-logo-remove-btn`). Owner/Manager only (Staff sees a guard message).
+
+#### Bug 5 — Profile picture shows alt text "Avatar"
+- **`/app/backend/routes/account.py`** — root cause: `put_object()` returned `{"path": "gymaxis-ai/avatars/.../foo.jpg"}` with NO `url` field. The avatar code stored that raw path as `avatar_url`, then the browser tried to load it as a relative URL → 404 → `<img alt="avatar">` rendered the alt text.
+- Added a public proxy: `GET /api/account/avatar/{user_id}` and `GET /api/account/logo/{org_id}` (modelled on the existing `/equipment/{id}/photo` pattern in `routes/equipment.py`). Streams from object storage with `Cache-Control: public, max-age=600`.
+- Avatar/logo upload now stores `avatar_path` / `logo_path` internally and returns `avatar_url = /api/account/avatar/{user_id}?v=…cache-buster`. Data-URI fallback retained for object-store outages.
+- **`/app/backend/routes/auth.py`** — `/auth/me` now includes `avatar_url` and `phone` so the AccountSettingsModal hydrates the avatar on first render.
+
+### Files touched
+- `/app/backend/routes/account.py` (+115 / −5 LOC — avatar proxy, logo upload + proxy + delete, cta_section swap)
+- `/app/backend/routes/auth.py` (+2 LOC — avatar_url, phone in /auth/me)
+- `/app/frontend/src/components/shared/AccountSettingsModal.js` (+90 LOC — Organisation logo subsection)
+- `/app/frontend/src/pages/IssueDetailPanel.js` (~+30 / −20 LOC — Engineer Visit banner replaces Supplier Fault Card banner; CalendarDays import added)
+- `/app/frontend/src/pages/LiteDashboard/LiteDialogs.js` (~+10 / −10 LOC — sonner.notify → notify)
+
+### Verified
+- 9/9 backend tests pass (testing-agent iter 216h57):
+  - POST/DELETE /api/account/logo + GET /api/account/logo/{org_id} round-trip → 200/image/png.
+  - POST /api/account/avatar + GET /api/account/avatar/{user_id} round-trip → 200/image/jpeg.
+  - /api/auth/me now includes avatar_url + phone.
+  - cta_section='organisation' on the upload_logo step.
+- Frontend lint clean across all 5 files; code review by testing agent confirmed all 5 fixes in place.
+
+### ⚠ Action required
+1. Redeploy preview → production. Multi-file change (backend account.py + auth.py, frontend modal + issue detail + dialog).
+2. Operators with previously-uploaded avatars (stored as raw object-store paths) will see them seamlessly via the new proxy thanks to the legacy fallback in `serve_avatar` / `serve_logo`. No data migration needed.
+
+---
+
+
+
 ## Iter 216h56 — HOTFIX: Blank trailing CSV rows counted as errors (Feb 12, 2026)
 
 ### Operator-reported (Lee, with screenshot)
