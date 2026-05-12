@@ -1,3 +1,39 @@
+## Iter 216h39 — CheckinTab × close buttons migrated (design call: Lucide X) (Feb 12, 2026)
+
+### Design call
+The deferred `×` text-glyph close buttons in `CheckinTab.js` had two paths: keep the glyph (custom render path inside `<Button>`) vs. swap to the Lucide `X` icon (consistency with every other close button on the platform). **Chose Lucide X** — every other close button in this session (`mbr-drawer-close`, `mbr-studio-builder-close`, `mbr-import-result-dismiss`, all 3 dialog closes in operator portals) uses Lucide `X`, so keeping a one-off glyph would actively *create* the visual drift the design system is built to prevent.
+
+### Migrated (6 buttons, all in `Memberships/CheckinTab.js`)
+
+| Surface | testId | Before → After |
+|---|---|---|
+| Roster drawer close | `mbr-checkin-roster-close` (preserved) | `<button>×` → `ghost · iconSm · X` |
+| Member search close | `mbr-checkin-search-close` (preserved) | `<button>×` → `ghost · iconSm · X` |
+| Kiosk dialog close | `mbr-checkin-kiosk-dlg-close` (preserved) | `<button>×` → `ghost · iconSm · X` |
+| Share dialog close | `share-dialog-close` (new) | `<button>×` → `ghost · iconSm · X` |
+| Walk-in dialog close | `walk-in-dialog-close` (new) | `<button>×` → `ghost · iconSm · X` |
+| Broadcast dialog close | `broadcast-dialog-close` (new) | `<button>×` → `ghost · iconSm · X` |
+
+Three new `data-testid`s added (the original `×` buttons had no IDs) — directly improves testability for the share/walk-in/broadcast modals.
+
+Imported `X` from `lucide-react` and `Button` from `@/components/shared/Button`.
+
+### Verified
+- Lint clean.
+- `grep "×</button>" CheckinTab.js` → 0 hits (sweep complete).
+- Master Admin renders with 0 React errors.
+
+### Files touched
+- `/app/frontend/src/pages/Memberships/CheckinTab.js` (+10 / −6 LOC + 2 line import diff)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Front-desk check-in console, kiosk token dialog, member search, share dialog, walk-in flow, and class-broadcast modal all now show the same Lucide `X` close glyph as the rest of the platform.
+
+---
+
+
+
 ## Iter 216h38 — Ghost-button sweep across CRM + Operations + Memberships drawers (Feb 12, 2026)
 
 Continuation of iter 216h37's icon-button vocabulary — applies the new `ghost` / `ghostDestructive` variants to the remaining `p-2 rounded hover:bg-…` inline patterns across the operator portals.

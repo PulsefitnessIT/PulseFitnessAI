@@ -10,10 +10,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   CalendarDays, ClipboardCheck, Search, UserCheck, UserX, RefreshCw,
-  Send, Tablet, Copy, KeyRound, AlertCircle, Loader2, Users, UserPlus, Megaphone, Share2,
+  Send, Tablet, Copy, KeyRound, AlertCircle, Loader2, Users, UserPlus, Megaphone, Share2, X,
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import Button from '@/components/shared/Button';
 
 export default function CheckinTab({ API, headers }) {
   const [classes, setClasses] = useState([]);
@@ -230,7 +231,7 @@ function RosterDrawer({ API, headers, occ, onClose }) {
                 {occ.instructor_name && ` · ${occ.instructor_name}`}
               </p>
             </div>
-            <button onClick={onClose} className="p-1.5 hover:bg-zinc-500/10 rounded text-[color:var(--theme-text-muted)]" data-testid="mbr-checkin-roster-close">×</button>
+            <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="mbr-checkin-roster-close" />
           </div>
         </div>
         <div className="p-4">
@@ -355,7 +356,7 @@ function MemberSearchDialog({ API, headers, onClose }) {
       <div className="relative w-full max-w-lg bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl p-4 max-h-[calc(100vh-2rem)] flex flex-col" onClick={(e) => e.stopPropagation()} data-testid="mbr-checkin-search">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-extrabold flex items-center gap-2"><Search size={16} /> Find member</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-zinc-500/10" data-testid="mbr-checkin-search-close">×</button>
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="mbr-checkin-search-close" />
         </div>
         <input autoFocus type="text" placeholder="Type a name, email, or phone…"
           value={q} onChange={(e) => setQ(e.target.value)}
@@ -434,7 +435,7 @@ function KioskDialog({ API, headers, onClose }) {
       <div className="relative w-full max-w-lg bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] rounded-2xl p-4 max-h-[calc(100vh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="mbr-checkin-kiosk-dlg">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-extrabold flex items-center gap-2"><Tablet size={16} /> Kiosk mode</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-zinc-500/10" data-testid="mbr-checkin-kiosk-dlg-close">×</button>
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="mbr-checkin-kiosk-dlg-close" />
         </div>
         <p className="text-xs text-[color:var(--theme-text-muted)] mb-4">
           Open the kiosk URL on a reception tablet — members check in by typing their name and entering the 6-digit code from their Pass tab.
@@ -524,7 +525,7 @@ function ShareClassDialog({ API, occ, onClose }) {
             <p className="text-[9px] uppercase tracking-wider font-bold text-cyan-500">Share</p>
             <h3 className="text-base font-extrabold">{occ.name}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-zinc-500/10 text-[color:var(--theme-text-muted)]">×</button>
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="share-dialog-close" />
         </div>
         {ogUrl ? (
           <img src={ogUrl} alt="Social preview" width={520} height={273}
@@ -600,7 +601,7 @@ function WalkInDialog({ API, headers, occ, onClose, onSuccess }) {
             <p className="text-[9px] uppercase tracking-wider font-bold text-cyan-500">Walk-in</p>
             <h3 className="text-base font-extrabold">Add &amp; check in</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-zinc-500/10 text-[color:var(--theme-text-muted)]">×</button>
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="walk-in-dialog-close" />
         </div>
         <div className="space-y-2">
           <input autoFocus placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)}
@@ -656,7 +657,7 @@ function BroadcastDialog({ API, headers, occ, onClose }) {
             <p className="text-[9px] uppercase tracking-wider font-bold text-amber-500">Broadcast</p>
             <h3 className="text-base font-extrabold">Message this class</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-zinc-500/10 text-[color:var(--theme-text-muted)]">×</button>
+          <Button variant="ghost" size="iconSm" onClick={onClose} icon={X} title="Close" data-testid="broadcast-dialog-close" />
         </div>
         <div className="space-y-2">
           <input placeholder={`Subject (default: "Update: ${occ.name}")`} value={subject} onChange={(e) => setSubject(e.target.value)}
