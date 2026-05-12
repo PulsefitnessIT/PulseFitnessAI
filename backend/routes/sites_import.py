@@ -36,8 +36,15 @@ def require_master_admin(user: dict):
 
 # Canonical CSV columns — keep in lock-step with the wizard's site form
 # fields so the preview-csv endpoint can map directly to that shape.
+#
+# Iter 216h50 — `invoice_customer_ref` added. Sicon Service uses this
+# as a per-site reference number that ties posted invoices back to the
+# correct site. Pulse Fitness asked for this column on the import so
+# they can populate multi-site refs in one shot during onboarding
+# instead of editing every site by hand afterwards.
 _SITE_CSV_HEADERS = [
     "site_name",
+    "invoice_customer_ref",
     "address_line1",
     "address_line2",
     "address_line3",
@@ -55,7 +62,8 @@ _SITE_CSV_HEADERS = [
 
 _SITE_CSV_EXAMPLE_ROWS = [
     [
-        "Example Site Name", "1 High Street", "", "",
+        "Example Site Name", "INV-EXM-001",
+        "1 High Street", "", "",
         "London", "Greater London", "SW1A 1AA", "United Kingdom",
         "020 0000 0000", "site@example.com",
         "Jane Doe", "jane.doe@example.com",
@@ -124,6 +132,15 @@ async def preview_sites_csv(file: UploadFile = File(...), user: dict = Depends(g
             continue
         rows.append({
             "name": name,
+            # Iter 216h50 — Sicon Service per-site reference number.
+            # Accept aliases so users dropping in their own spreadsheet
+            # don't have to rename their column.
+            "invoice_customer_ref": (
+                row.get("invoice_customer_ref", "")
+                or row.get("invoice customer ref", "")
+                or row.get("sicon_customer_ref", "")
+                or row.get("customer_ref", "")
+            ),
             "address_line1": row.get("address_line1", "") or row.get("address", ""),
             "address_line2": row.get("address_line2", ""),
             "address_line3": row.get("address_line3", ""),

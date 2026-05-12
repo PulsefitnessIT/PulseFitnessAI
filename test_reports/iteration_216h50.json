@@ -1,0 +1,83 @@
+{
+  "summary": "Backend testing for Iter 216h50 features: Sites CSV template with invoice_customer_ref, Sites preview-csv with aliases, Sites CRUD with invoice_customer_ref, Equipment CSV template with site_name first + unit_price, Equipment bulk-import with site resolution and unit_price parsing. Found and fixed 1 bug in master-admin PATCH endpoint. All 15 tests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h50_bulk_import.py",
+    "/app/test_reports/pytest/pytest_results_216h50.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/routes/sites.py (added invoice_customer_ref to master-admin PATCH endpoint)",
+    "/app/backend/tests/test_iter_216h50_bulk_import.py (new test file)"
+  ],
+  "success_rate": {"backend": "100% (15/15 passed)", "frontend": "N/A - backend only test"},
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!"
+  },
+  "seed_data_creation": "Test organizations and sites created dynamically during tests via onboard-head-office endpoint with TEST_ prefix",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All Iter 216h50 backend features verified working. The master-admin PATCH endpoint was missing invoice_customer_ref support - this was fixed during testing.",
+  "test_results": {
+    "sites_csv_template": {
+      "status": "PASS",
+      "tests": [
+        "test_template_has_invoice_customer_ref_column - invoice_customer_ref is SECOND column after site_name",
+        "test_template_example_row_has_invoice_ref - Example row has INV-EXM-001"
+      ]
+    },
+    "sites_preview_csv": {
+      "status": "PASS",
+      "tests": [
+        "test_preview_preserves_invoice_customer_ref - Field preserved on all rows",
+        "test_preview_accepts_alias_invoice_customer_ref_with_space - 'Invoice Customer Ref' alias works",
+        "test_preview_accepts_alias_sicon_customer_ref - 'sicon_customer_ref' alias works",
+        "test_preview_accepts_alias_customer_ref - 'customer_ref' alias works"
+      ]
+    },
+    "sites_crud": {
+      "status": "PASS",
+      "tests": [
+        "test_site_created_with_invoice_customer_ref - Field stored via onboard-head-office",
+        "test_patch_site_invoice_customer_ref_via_master_admin - Field updatable via master-admin PATCH"
+      ]
+    },
+    "equipment_csv_template": {
+      "status": "PASS",
+      "tests": [
+        "test_template_has_site_name_first_and_unit_price - site_name is FIRST column, unit_price present",
+        "test_template_example_row_values - 'Carshalton Sports Centre' first, unit_price=3450.00"
+      ]
+    },
+    "equipment_bulk_import": {
+      "status": "PASS",
+      "tests": [
+        "test_import_equipment_with_site_name_resolution - Site resolved by name, site_id set",
+        "test_import_equipment_site_name_mismatch_error - Non-existent site returns error, row skipped",
+        "test_import_equipment_fallback_to_invoice_customer_ref - Blank site_name + valid ref resolves",
+        "test_import_equipment_unit_price_parsing - Int/decimal/blank all parse correctly",
+        "test_import_equipment_no_site_reference_allowed - No site ref imports with site_id=None"
+      ]
+    }
+  },
+  "bug_fixed": {
+    "file": "/app/backend/routes/sites.py",
+    "line": 522,
+    "issue": "Master-admin PATCH endpoint (/api/master-admin/organizations/{org_id}/sites/{site_id}) did not support updating invoice_customer_ref field",
+    "fix": "Added 'invoice_customer_ref' to the list of updatable fields in admin_patch_org_site()"
+  },
+  "verified_data_storage": {
+    "equipment_purchase_price": "Populated from unit_price column (verified in DB: 3450 -> 3450.0, 3450.50 -> 3450.5, blank -> None)",
+    "equipment_replacement_cost": "Populated from unit_price column (same as purchase_price)",
+    "equipment_site_id": "Set correctly when site resolved by name or invoice_customer_ref, None when no site reference"
+  }
+}

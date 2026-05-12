@@ -466,6 +466,8 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
                       const r = await axios.post(`${API}/master-admin/sites/preview-csv`, fd, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
                         const csvSites = (r.data?.sites || []).map((s) => ({
                           name: s.name,
+                          // Iter 216h50 — Sicon per-site reference number
+                          invoice_customer_ref: s.invoice_customer_ref || '',
                           address_line1: s.address_line1 || '', address_line2: s.address_line2 || '', address_line3: s.address_line3 || '',
                           city: s.city || '', county: s.county || '',
                           postcode: s.postcode || '', country: s.country || 'United Kingdom',
@@ -543,6 +545,20 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
                   <Label className="text-xs text-zinc-500">Default Equipment Location</Label>
                   <Input value={s.default_location} onChange={(e) => setForm((f) => ({ ...f, sites: f.sites.map((x, idx) => idx === i ? { ...x, default_location: e.target.value } : x) }))} placeholder="Main Floor" className="mt-1 bg-white" />
                 </div>
+              </div>
+              {/* Iter 216h50 — Sicon per-site "Invoice Customer Ref".
+                  Optional during onboarding but populating it now means
+                  equipment imports later can resolve site by this code
+                  instead of forcing an exact site-name match. */}
+              <div>
+                <Label className="text-xs text-zinc-500">Invoice Customer Ref <span className="text-zinc-400 normal-case">(Sicon)</span></Label>
+                <Input
+                  value={s.invoice_customer_ref || ''}
+                  onChange={(e) => setForm((f) => ({ ...f, sites: f.sites.map((x, idx) => idx === i ? { ...x, invoice_customer_ref: e.target.value } : x) }))}
+                  placeholder="e.g. INV-CAR-001"
+                  className="mt-1 bg-white"
+                  data-testid={`ho-site-invoice-ref-${i}`}
+                />
               </div>
 
               {/* Iter 216e — Equipment capture for this site.

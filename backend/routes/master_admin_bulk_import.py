@@ -43,16 +43,28 @@ router = APIRouter()
 
 # Headers chosen to match the existing CSV importers' aliases so files
 # downloaded from here drop straight into either path without remapping.
+#
+# Iter 216h50 — `site_name` is the FIRST column so equipment imported
+# in bulk auto-links to a site that already exists in the target org.
+# `unit_price` feeds the Capex replacement-cost model so reports reflect
+# the actual purchase price rather than the equipment-type profile
+# default. Pulse Fitness use Sicon's "Invoice Customer Ref" as the
+# site reference, so we also accept that alias (resolved against the
+# site's `invoice_customer_ref` field) when `site_name` is blank.
 _EQUIPMENT_HEADERS = [
+    "site_name",
     "customer_account_number",
     "name", "equipment_type", "manufacturer", "model", "serial_number",
     "purchase_date", "warranty_expiry", "service_provider",
+    "unit_price",
     "length", "width", "height", "location", "notes",
 ]
 _EQUIPMENT_EXAMPLE = [
+    "Carshalton Sports Centre",
     "PULSENC01",
     "Treadmill — Cardio Bay 3", "Treadmill", "Life Fitness", "T7000", "LFT-2024-04958",
     "2024-01-15", "2027-01-15", "Pulse Fitness Service",
+    "3450.00",
     "2.20", "0.95", "1.55", "Cardio Mezzanine", "Brand new — first install",
 ]
 
@@ -190,6 +202,47 @@ async def _resolve_row_target_org(
     return org_id, None if org_id else f"Unknown customer_account_number '{code}'"
 
 
+# Iter 216h50 — equipment-import site resolver. Matches on (in order):
+#   1. Exact-match site name (case-insensitive)
+#   2. invoice_customer_ref / sicon_customer_ref equality
+#   3. Returns (None, "site not found") so the row is reported, not silently inserted
+async def _resolve_site_for_org(
+    site_name: str,
+    invoice_customer_ref: str,
+    org_id: str,
+    cache: dict,
+) -> tuple[Optional[str], Optional[str]]:
+    """Resolve a site reference to a site_id within the org. Returns
+    (site_id, error_or_none). Site name takes priority over the ref; if
+    neither is supplied the row is allowed through with site_id=None so
+    org-wide kit imports still work."""
+    site_name = (site_name or "").strip()
+    ref = (invoice_customer_ref or "").strip()
+    if not site_name and not ref:
+        return None, None  # site is genuinely optional
+    cache_key = (org_id, site_name.lower(), ref.lower())
+    if cache_key in cache:
+        cached = cache[cache_key]
+        return cached, (None if cached else f"Site '{site_name or ref}' not found in target org")
+    query: dict = {"organization_id": org_id}
+    if site_name:
+        import re as _re
+        query["name"] = {"$regex": f"^{_re.escape(site_name)}$", "$options": "i"}
+    elif ref:
+        query["invoice_customer_ref"] = ref
+    site = await db.sites.find_one(query, {"_id": 0, "id": 1})
+    site_id = site["id"] if site else None
+    # If name-search failed and a ref was supplied, fall back to ref.
+    if not site_id and site_name and ref:
+        site = await db.sites.find_one(
+            {"organization_id": org_id, "invoice_customer_ref": ref},
+            {"_id": 0, "id": 1},
+        )
+        site_id = site["id"] if site else None
+    cache[cache_key] = site_id
+    return site_id, (None if site_id else f"Site '{site_name or ref}' not found in target org — import the sites first")
+
+
 @router.post("/master-admin/bulk-import/equipment")
 async def bulk_import_equipment(
     file: UploadFile = File(...),
@@ -207,6 +260,7 @@ async def bulk_import_equipment(
 
     imported, skipped, errors = 0, 0, []
     org_cache: dict = {}
+    site_cache: dict = {}
     org_breakdown: dict = {}
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -230,6 +284,24 @@ async def bulk_import_equipment(
                 if exists:
                     skipped += 1
                     continue
+            # Iter 216h50 — link to a pre-imported site by name (or by
+            # Sicon "Invoice Customer Ref" fallback). Sites import runs
+            # first during onboarding so by the time equipment lands the
+            # site rows already exist.
+            site_name = _normalize(row, "site_name", "Site Name", "site")
+            invoice_customer_ref = _normalize(
+                row, "invoice_customer_ref", "Invoice Customer Ref",
+                "sicon_customer_ref", "customer_ref",
+            )
+            site_id, site_err = await _resolve_site_for_org(site_name, invoice_customer_ref, target_org, site_cache)
+            if (site_name or invoice_customer_ref) and not site_id:
+                # The operator explicitly named a site that doesn't exist — surface
+                # so they can re-run the sites import first.
+                skipped += 1
+                if site_err:
+                    errors.append(f"Row {i}: {site_err}")
+                continue
+            unit_price = _parse_decimal(_normalize(row, "unit_price", "Unit Price", "price", "Price"))
             doc = {
                 "id": str(uuid.uuid4()),
                 "organization_id": target_org,
@@ -248,6 +320,13 @@ async def bulk_import_equipment(
                 "length": _parse_decimal(_normalize(row, "length", "Length")),
                 "width": _parse_decimal(_normalize(row, "width", "Width")),
                 "height": _parse_decimal(_normalize(row, "height", "Height")),
+                # Iter 216h50 — unit_price stored on both purchase_price
+                # (ledger) and replacement_cost (capex feeder). Capex
+                # falls back to the equipment-type profile when this is
+                # None, so leaving the column blank is safe.
+                "purchase_price": unit_price,
+                "replacement_cost": unit_price,
+                "site_id": site_id,
                 "status": "active",
                 "manuals": [],
                 "photos": [],

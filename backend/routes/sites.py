@@ -250,6 +250,9 @@ async def create_site(
         "name": name,
         "address": (body.get("address") or "").strip(),
         "postcode": (body.get("postcode") or "").strip(),
+        # Iter 216h50 — Sicon "Invoice Customer Ref" per-site reference.
+        # Stored even when blank so the field is always present on read.
+        "invoice_customer_ref": (body.get("invoice_customer_ref") or "").strip(),
         "is_head_office": is_head_office,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -281,7 +284,7 @@ async def update_site(
         raise HTTPException(status_code=404, detail="Site not found")
 
     updates = {}
-    for field in ("name", "address", "postcode"):
+    for field in ("name", "address", "postcode", "invoice_customer_ref"):
         if field in body:
             updates[field] = (body[field] or "").strip()
     # Phase S2 — optional geofence config for staff time-clock.
@@ -516,7 +519,9 @@ async def admin_patch_org_site(
         raise HTTPException(status_code=404, detail="Site not found")
 
     updates: dict = {}
-    for field in ("name", "address", "postcode"):
+    # Iter 216h50 — include invoice_customer_ref so master-admin can update
+    # the Sicon per-site reference without impersonating the org owner.
+    for field in ("name", "address", "postcode", "invoice_customer_ref"):
         if field in body:
             updates[field] = (body[field] or "").strip()
     if "is_head_office" in body:

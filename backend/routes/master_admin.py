@@ -2735,6 +2735,8 @@ async def _validate_head_office_payload(data: dict) -> dict:
             **addr,
             "phone": (s.get("phone") or "").strip(),
             "email": (s.get("email") or "").strip().lower(),
+            # Iter 216h50 — Sicon "Invoice Customer Ref" per-site reference.
+            "invoice_customer_ref": (s.get("invoice_customer_ref") or "").strip(),
             "default_location": (s.get("default_location") or "Main Floor").strip(),
             "is_head_office": is_hq,
             # Iter 216e — optional per-site equipment list captured inline
@@ -2854,6 +2856,10 @@ async def onboard_head_office(data: dict = Body(...), user: dict = Depends(get_c
             "postcode": s["postcode"],
             "phone": s["phone"],
             "email": s["email"],
+            # Iter 216h50 — Sicon "Invoice Customer Ref" per-site reference.
+            # Plumbed through the multi-site onboarding wizard so equipment
+            # imports later can resolve site by this code as well as by name.
+            "invoice_customer_ref": (s.get("invoice_customer_ref") or "").strip(),
             "default_location": s["default_location"],
             "is_head_office": s["is_head_office"],
             "created_at": now,
