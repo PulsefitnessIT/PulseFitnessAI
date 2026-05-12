@@ -9,6 +9,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import DocumentQA from '@/components/shared/DocumentQA';
+import { useUploadQueue } from '@/components/shared/UploadQueue';
 import {
  FileText, Upload, FolderOpen, Book, Award, Search, Trash2, Download,
  Eye, Image, FileSpreadsheet, Brain, Loader2, Printer, Copy, Building2,
@@ -33,8 +34,6 @@ const GlobalDocumentsTab = () => {
  const [uploadSupplier, setUploadSupplier] = useState('');
  const [uploadCategory, setUploadCategory] = useState('manuals');
  const [autoDetect, setAutoDetect] = useState(false);
- const [uploading, setUploading] = useState(false);
- const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
  const [uploadResult, setUploadResult] = useState(null);
  const fileInputRef = useRef(null);
  const dragRef = useRef(null);
@@ -46,6 +45,11 @@ const GlobalDocumentsTab = () => {
 
  // Assign to org state
  const [assignDialog, setAssignDialog] = useState(null);
+ // Iter 216h35 — adopt the global UploadQueueDrawer so a bulk upload
+ // can continue in the background after the dialog closes. The
+ // dialog state stays for choosing supplier/category before kick-off;
+ // once the request is in-flight the drawer takes over.
+ const { enqueue } = useUploadQueue();
 
  // AI scan state
  const [scanning, setScanning] = useState(false);
@@ -136,38 +140,47 @@ const GlobalDocumentsTab = () => {
  notify.error('Please enter a supplier name or enable auto-detect');
  return;
  }
- setUploading(true);
- setUploadResult(null);
- setUploadProgress({ done: 0, total: uploadFiles.length });
+ // Iter 216h35 — enqueue ONE bulk task so the drawer shows live
+ // progress while the dialog closes. The endpoint accepts all files
+ // in a single FormData, so we wrap the bulk POST in an enqueue()
+ // call whose `file` is a synthetic descriptor with the count.
+ const files = uploadFiles;
+ const supplier = autoDetect ? 'Auto-detecting...' : uploadSupplier.trim();
+ const category = uploadCategory;
+ const autoFlag = autoDetect;
+ const totalSize = files.reduce((s, f) => s + (f.size || 0), 0);
+ const bulkLabel = `${files.length} document${files.length === 1 ? '' : 's'} → ${supplier === 'Auto-detecting...' ? 'auto-detect' : supplier}`;
+ const synthetic = new File([], bulkLabel, { type: 'application/octet-stream' });
+ Object.defineProperty(synthetic, 'size', { value: totalSize });
 
+ enqueue([synthetic], async (_synth, onProgress) => {
  const formData = new FormData();
- uploadFiles.forEach(f => formData.append('files', f));
- formData.append('supplier_name', autoDetect ? 'Auto-detecting...' : uploadSupplier.trim());
- formData.append('category', uploadCategory);
- formData.append('auto_detect', autoDetect);
-
- try {
+ files.forEach(f => formData.append('files', f));
+ formData.append('supplier_name', supplier);
+ formData.append('category', category);
+ formData.append('auto_detect', autoFlag);
  const res = await axios.post(`${API}/master-admin/documents/upload`, formData, {
  headers: { ...headers, 'Content-Type': 'multipart/form-data' },
  timeout: 300000,
+ onUploadProgress: (evt) => {
+ if (evt.total && onProgress) onProgress((evt.loaded / evt.total) * 100);
+ },
  });
  const { uploaded, duplicates_found, detected_suppliers, auto_detected } = res.data;
-
  if (auto_detected && detected_suppliers && Object.keys(detected_suppliers).length > 0) {
  setUploadResult({ detected_suppliers, uploaded, duplicates_found });
- notify.success(`${uploaded} document${uploaded !== 1 ? 's' : ''} uploaded — AI detected suppliers for each file`);
+ notify.success(`${uploaded} document${uploaded !== 1 ? 's' : ''} uploaded — AI detected suppliers`);
  } else {
  notify.success(`${uploaded} document${uploaded !== 1 ? 's' : ''} uploaded${duplicates_found > 0 ? ` (${duplicates_found} duplicate${duplicates_found !== 1 ? 's' : ''} detected)` : ''}`);
+ }
+ loadDocuments();
+ }, { source: 'global-documents' });
+
+ // Close dialog immediately; drawer takes over visibility.
  setShowUploadDialog(false);
  setUploadFiles([]);
  setUploadSupplier('');
  setAutoDetect(false);
- }
- loadDocuments();
- } catch (err) {
- notify.error('Upload failed — try fewer files or smaller sizes');
- }
- setUploading(false);
  };
 
  // Document actions
@@ -563,18 +576,16 @@ const GlobalDocumentsTab = () => {
  </div>
  )}
 
- {/* Upload Button */}
+ {/* Upload Button — Iter 216h35: drawer now owns in-flight UI, so
+     this button no longer waits; it kicks off the bulk task and the
+     dialog closes immediately. */}
  <Button
  onClick={handleMassUpload}
- disabled={uploading || !uploadFiles.length || (!autoDetect && !uploadSupplier.trim())}
+ disabled={!uploadFiles.length || (!autoDetect && !uploadSupplier.trim())}
  className="w-full"
  data-testid="upload-submit-btn"
  >
- {uploading ? (
- <><Loader2 size={16} className="mr-2 animate-spin" /> {autoDetect ? 'Uploading & Detecting Suppliers...' : 'Uploading & AI Indexing...'}</>
- ) : (
- <><Upload size={16} className="mr-2" /> Upload {uploadFiles.length} Document{uploadFiles.length !== 1 ? 's' : ''}{autoDetect ? ' (AI Auto-detect)' : ''}</>
- )}
+ <Upload size={16} className="mr-2" /> Upload {uploadFiles.length} Document{uploadFiles.length !== 1 ? 's' : ''}{autoDetect ? ' (AI Auto-detect)' : ''}
  </Button>
 
  {/* AI Detection Results */}

@@ -425,10 +425,9 @@ function CommissionSection({ API, headers }) {
         <h2 className="text-[color:var(--theme-text-muted)] font-bold text-xs uppercase tracking-wider">Instructor commission · {month}</h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-[color:var(--theme-text-muted)]">Total <strong className="text-white">£{(data.grand_total_pence / 100).toFixed(2)}</strong></span>
-          <button onClick={downloadCsv} data-testid="mbr-commission-csv"
-             className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[rgb(var(--rgb-brand-cyan)/0.4)] text-[var(--color-brand-cyan)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.1)]">
+          <Button variant="secondary" size="sm" onClick={downloadCsv} data-testid="mbr-commission-csv" className="uppercase tracking-wider">
             CSV
-          </button>
+          </Button>
         </div>
       </div>
       <div className="rounded-xl border border-[color:var(--theme-border)] overflow-hidden">
@@ -912,8 +911,8 @@ function LegacyMemberDetailDrawer({ API, headers, memberId, onClose }) {
                   <div className="text-xs text-[color:var(--theme-text-muted)]">Credits <span className="font-bold text-white">{active.credits_remaining ?? '∞'}</span></div>
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <button onClick={freeze} className="flex items-center gap-1 rounded-lg border border-[color:var(--theme-border)] px-3 py-1.5 text-xs font-bold hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-freeze"><Pause size={11} /> Freeze</button>
-                  <button onClick={cancel} className="flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/5 text-red-300 px-3 py-1.5 text-xs font-bold hover:bg-red-500/15" data-testid="mbr-cancel"><XOctagon size={11} /> Cancel</button>
+                  <Button variant="secondary" size="sm" onClick={freeze} icon={Pause} data-testid="mbr-freeze">Freeze</Button>
+                  <Button variant="destructive" size="sm" onClick={cancel} icon={XOctagon} data-testid="mbr-cancel">Cancel</Button>
                 </div>
               </div>
             ) : <Empty text="No active plan." />}
@@ -931,12 +930,12 @@ function LegacyMemberDetailDrawer({ API, headers, memberId, onClose }) {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => recordPayment(p)} className="flex-1 rounded-lg py-2 text-xs font-extrabold uppercase tracking-wider" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid={`mbr-record-${p.id}`}>
+                    <Button variant="primary" size="sm" onClick={() => recordPayment(p)} className="flex-1 uppercase tracking-wider" data-testid={`mbr-record-${p.id}`}>
                       Record payment
-                    </button>
-                    <button onClick={() => assign(p.id)} className="flex-1 rounded-lg py-2 text-xs font-bold uppercase tracking-wider border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid={`mbr-assign-${p.id}`}>
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => assign(p.id)} className="flex-1 uppercase tracking-wider" data-testid={`mbr-assign-${p.id}`}>
                       Comp / assign
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1368,11 +1367,10 @@ function AppUrlCard({ org }) {
           <div className="text-[10px] uppercase tracking-[0.25em] font-extrabold text-[var(--color-brand-cyan)]">Your member app</div>
           <div className="text-sm font-mono text-[color:var(--theme-text)] truncate mt-0.5" data-testid="mbr-app-url">{appUrl}</div>
         </div>
-        <button onClick={sendKit} disabled={sendingKit}
-          className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded bg-[var(--color-brand-cyan)] text-black hover:bg-[rgb(var(--rgb-brand-cyan)/0.9)] disabled:opacity-40"
+        <Button variant="primary" size="sm" onClick={sendKit} disabled={sendingKit} loading={sendingKit} icon={Sparkles} className="uppercase tracking-wider"
           data-testid="mbr-launch-kit-send" title="Email the launch kit (poster + socials + templates)">
-          <Sparkles size={11} /> {sendingKit ? 'Sending…' : 'Launch kit'}
-        </button>
+          {sendingKit ? 'Sending' : 'Launch kit'}
+        </Button>
         <a href={bragUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-app-brag-open" title="Shareable live-stats card">Brag</a>
         <a href={posterUrl} target="_blank" rel="noreferrer" download={`${org.slug}-reception-poster.png`} className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[rgb(var(--rgb-brand-cyan)/0.4)] text-[var(--color-brand-cyan)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.1)]" data-testid="mbr-app-poster-download" title="Download A4 reception poster">
           <Printer size={11} /> Poster
@@ -1428,10 +1426,10 @@ function BrandPreview({ org, appUrl }) {
               data-testid="mbr-brand-preview-mode-live"
             >Live</button>
           </div>
-          <button onClick={() => setSendOpen(true)} className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1.5 rounded border border-[rgb(var(--rgb-brand-cyan)/0.4)] text-[var(--color-brand-cyan)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.1)]" data-testid="mbr-brand-send-to-members">
+          <Button variant="secondary" size="sm" onClick={() => setSendOpen(true)} className="uppercase tracking-wider" data-testid="mbr-brand-send-to-members">
             Send to members
-          </button>
-          <button onClick={() => setExpanded(false)} className="text-[10px] font-bold text-[color:var(--theme-text-muted)] hover:text-white" data-testid="mbr-brand-preview-hide">Hide</button>
+          </Button>
+          <Button variant="tertiary" size="sm" onClick={() => setExpanded(false)} data-testid="mbr-brand-preview-hide">Hide</Button>
         </div>
       </div>
       <div className="flex justify-center">
@@ -1498,9 +1496,9 @@ function BrandPreview({ org, appUrl }) {
         <div className="mt-4 rounded-lg border border-[color:var(--theme-border)] bg-[color:var(--theme-surface-hover)] p-4" data-testid="mbr-brand-send-panel">
           <div className="text-[10px] uppercase tracking-[0.25em] font-extrabold text-[var(--color-brand-cyan)] mb-2">Share your app</div>
           <div className="flex flex-wrap gap-2">
-            <a href={smsUrl} className="px-3 py-1.5 rounded text-[11px] font-extrabold uppercase tracking-wider border border-[color:var(--theme-border)] text-white hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-brand-send-sms">SMS template</a>
-            <a href={emailUrl} className="px-3 py-1.5 rounded text-[11px] font-extrabold uppercase tracking-wider border border-[color:var(--theme-border)] text-white hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-brand-send-email">Email template</a>
-            <button onClick={() => { navigator.clipboard.writeText(shareText); notify.success('Message copied'); }} className="px-3 py-1.5 rounded text-[11px] font-extrabold uppercase tracking-wider border border-[color:var(--theme-border)] text-white hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-brand-send-copy">Copy message</button>
+            <Button as="a" variant="secondary" size="sm" href={smsUrl} className="uppercase tracking-wider" data-testid="mbr-brand-send-sms">SMS template</Button>
+            <Button as="a" variant="secondary" size="sm" href={emailUrl} className="uppercase tracking-wider" data-testid="mbr-brand-send-email">Email template</Button>
+            <Button variant="secondary" size="sm" onClick={() => { navigator.clipboard.writeText(shareText); notify.success('Message copied'); }} className="uppercase tracking-wider" data-testid="mbr-brand-send-copy">Copy message</Button>
           </div>
           <div className="text-[10px] text-[color:var(--theme-text-muted)] mt-3 italic">"{shareText}"</div>
         </div>

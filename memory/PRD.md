@@ -1,3 +1,55 @@
+## Iter 216h35 — UploadQueue adoption batch 2 + Button migration in MembershipsConsole (Feb 12, 2026)
+
+Two deliverables completing iter 216h34's queue+button threads.
+
+### A. UploadQueue adoption in remaining dropzones
+
+| Surface | Adoption | Rationale |
+|---|---|---|
+| `PulseOnboardingWizard.js` (multi-file path) | **Adopted** — extracted shared `parseAndMerge(file, onProgress)` helper, refactored `processMultipleFiles` to call `enqueue()` so each PDF gets its own drawer row with per-file progress + retry. Operators can navigate during long AI extractions. | Multi-file drops were previously a serial for-loop with only "N more in queue…" text. |
+| `GlobalDocumentsTab.js` (bulk Mass Upload) | **Adopted** — single bulk task per upload session. Synthetic `File` descriptor (`"5 documents → Acme Manufacturing"`) ferries the bundle through the queue. Dialog now closes immediately on upload; drawer takes over visibility. Removed unused `uploading` / `uploadProgress` state. | Bulk-as-one-call pattern fit better as a single task than per-file enqueue. |
+| `PulseOnboardingWizard.js` (single-file path) | **Intentionally kept inline** | The wizard's phased `InvoiceParseProgress` UI ("Reading page X of Y… Extracting equipment… Done") is an interactive step the user actively waits on — the drawer is the wrong UX here. |
+| `InvoiceImportWizard.js` | **Intentionally kept inline** | Same reason — single-file flow where step 2 (review) only unlocks after parse completes; navigating away mid-parse would orphan the wizard. Wizard-step inline progress remains. |
+
+**Result:** Every dropzone that benefits from background uploading + per-file retry now does so. The two wizards that *don't* benefit explicitly stay inline (and the choice is documented in code comments).
+
+### B. `<Button>` primitive migration in `MembershipsConsole.js`
+8 high-traffic raw `<button>` blocks converted to the design-system primitive:
+
+| Surface | Before → After | Variant |
+|---|---|---|
+| Member drawer · Freeze | inline bordered → `<Button>` | secondary |
+| Member drawer · Cancel | inline red border → `<Button>` | **destructive** (first usage of this variant) |
+| Plan card · Record payment | inline cyan → `<Button>` | primary |
+| Plan card · Comp / assign | inline bordered → `<Button>` | secondary |
+| App URL row · Launch kit | inline cyan + spinner → `<Button loading>` | primary (with loading prop) |
+| Brand preview · Send to members | inline cyan-outline → `<Button>` | secondary |
+| Brand preview · Hide | inline tertiary text → `<Button>` | tertiary |
+| Brand send dialog · SMS / Email / Copy | inline anchors → `<Button as="a">` ×3 | secondary |
+| Commission CSV | inline cyan-outline → `<Button>` | secondary |
+
+11 total replacements. `data-testid`s preserved verbatim. **22 raw `<button>` blocks remain** in `MembershipsConsole.js`, almost all of which are icon-only table row actions (edit / archive / toggle / pause / week-prev / week-next) and tiny tab pills — they're outside the primary/secondary vocabulary and will migrate when the design system grows an `iconButton` size or `tab` variant.
+
+### Verified
+- Lint clean across `UploadQueue.js`, `PulseOnboardingWizard.js`, `GlobalDocumentsTab.js`, `MembershipsConsole.js`, `AdminSpecSheets.js`.
+- Master Admin → Spec Sheets renders, dropzone visible, drawer hidden when no tasks — 0 React errors.
+- GymAxis admin console (`/master-admin`) loads — 0 React errors after the changes.
+- Memberships console renders with no errors when accessed via operator login.
+
+### Files touched
+- `/app/frontend/src/pages/PulseOnboardingWizard.js` (+30 / −60 LOC — `parseAndMerge` helper, queue adoption)
+- `/app/frontend/src/pages/Dashboard/AdminAnalytics/GlobalDocumentsTab.js` (+25 / −35 LOC — bulk task enqueue, dialog auto-close)
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js` (~+20 / −30 LOC — 11 Button migrations)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Operators dropping multiple invoices onto the Pulse onboarding wizard / mass-uploading documents in Master Admin now see per-file drawer rows with retry. The InvoiceImportWizard's single-file step retains its bespoke parse-progress UI by design.
+3. Memberships console members can be frozen, cancelled, and have payments recorded via the new shared primitives — same `data-testid`s, no behaviour change.
+
+---
+
+
+
 ## Iter 216h34 — Upload Queue Drawer + Button-primitive migration batch 3 (Feb 12, 2026)
 
 Two deliverables, both following the "bulletproof drag-drop" thread from iter 216h33.

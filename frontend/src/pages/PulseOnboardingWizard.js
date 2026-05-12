@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import InvoiceParseProgress from '@/components/shared/InvoiceParseProgress';
+import { useUploadQueue } from '@/components/shared/UploadQueue';
 import {
   Building2, Users, Wrench, CheckCircle, ArrowRight, ArrowLeft,
   Loader2, Plus, Trash2, UserPlus, Upload, Download,
@@ -119,11 +120,70 @@ const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) 
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [processedInvoices, setProcessedInvoices] = useState([]);
+  // Iter 216h35 — `processingQueue` (the local "N more in queue…" UI)
+  // was replaced by the canonical bottom-right UploadQueueDrawer so
+  // operators see per-file progress + retry even after closing the
+  // wizard. The state stays as a slim derived list of currently-queued
+  // file names for the lightweight inline indicator next to the
+  // dropzone (drawer is the source of truth, this is just a hint).
   const [processingQueue, setProcessingQueue] = useState([]);
   const [currentFile, setCurrentFile] = useState('');
   // Iter 216m — phased AI parse progress so operators see motion
   // instead of a static spinner during the 30 s extraction.
   const [parseProgress, setParseProgress] = useState(null);
+  const { enqueue } = useUploadQueue();
+
+  // Iter 216h35 — shared "parse one invoice and merge into form" helper
+  // used by both the inline single-file path (with phased parseProgress
+  // UI) and the multi-file enqueue() path (drawer-based).
+  const parseAndMerge = async (file, onProgress) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      throw new Error(`${file.name} — not a PDF`);
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axios.post(`${API}/equipment-import/parse-invoice`, formData, {
+      headers: { ...headers },
+      timeout: 120000,
+      onUploadProgress: (evt) => {
+        if (evt.total && onProgress) onProgress((evt.loaded / evt.total) * 100);
+      },
+    });
+    const invoiceResult = { ...res.data, filename: file.name };
+    setProcessedInvoices(prev => [...prev, invoiceResult]);
+    // Use functional updates so concurrent files don't clobber each other.
+    if (res.data.site_name) setForm(f => ({ ...f, site_name: f.site_name || res.data.site_name }));
+    if (res.data.account_ref) setForm(f => ({ ...f, account_ref: f.account_ref || res.data.account_ref }));
+    if (res.data.install_date) setForm(f => ({ ...f, install_date: f.install_date || res.data.install_date }));
+    if (res.data.supplier_name) setForm(f => ({ ...f, supplier_name: f.supplier_name || res.data.supplier_name }));
+    if (res.data.equipment?.length > 0) {
+      const supplierFallback = (res.data.supplier_name || '').trim();
+      const goodSupplier = supplierFallback && supplierFallback.toLowerCase() !== 'unknown' ? supplierFallback : '';
+      const mapped = res.data.equipment.map(eq => ({
+        name: eq.model || '',
+        equipment_type: classifyEquipment(eq.model || ''),
+        equipment_category: eq.equipment_category || '',
+        manufacturer: (eq.make && eq.make.trim()) || goodSupplier || 'Unknown',
+        model: eq.model || '',
+        serial_number: eq.serial_number || '',
+        location: form.default_location || 'Main Floor',
+        unit_price: eq.unit_price || 0,
+        stock_item_code: eq.stock_item_code || '',
+        warranty_code: eq.warranty_code || '',
+        warranty_expiry: eq.warranty_expiry || '',
+        sla_name: eq.sla_name || '',
+        _invoice: res.data.invoice_number || file.name,
+        _import_id: res.data.import_id,
+      }));
+      setForm(f => ({ ...f, equipment: [...f.equipment, ...mapped] }));
+    }
+    setAiData(prev => prev
+      ? { ...prev, batch_import_ids: [...(prev.batch_import_ids || [prev.import_id]), res.data.import_id] }
+      : { ...res.data, batch_import_ids: [res.data.import_id] }
+    );
+    return res.data;
+  };
 
   const processFile = async (file) => {
     if (!file) return;
@@ -140,62 +200,14 @@ const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) 
       if (m && m.length) pageCount = m.length;
     } catch { /* best effort */ }
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await axios.post(`${API}/equipment-import/parse-invoice`, formData, {
-        headers: { ...headers },
-        timeout: 120000,
-        onUploadProgress: (evt) => {
-          const pct = evt.total ? (evt.loaded / evt.total) * 100 : 0;
-          setParseProgress({ phase: pct >= 100 ? 'parse' : 'upload', pct, pageCount });
-        },
+      const data = await parseAndMerge(file, (pct) => {
+        setParseProgress({ phase: pct >= 100 ? 'parse' : 'upload', pct, pageCount });
       });
-      const invoiceResult = { ...res.data, filename: file.name };
-
-      setProcessedInvoices(prev => [...prev, invoiceResult]);
-
-      // Set first invoice's site info as form defaults
-      if (res.data.site_name && !form.site_name) setForm(f => ({ ...f, site_name: res.data.site_name }));
-      if (res.data.account_ref) setForm(f => ({ ...f, account_ref: res.data.account_ref }));
-      if (res.data.install_date) setForm(f => ({ ...f, install_date: res.data.install_date }));
-      if (res.data.supplier_name) setForm(f => ({ ...f, supplier_name: res.data.supplier_name }));
-
-      if (res.data.equipment?.length > 0) {
-        // Iter 216k — supplier-as-make fallback now happens server-side;
-        // we still keep the client-side guard for older deploys that
-        // haven't shipped the backend fix yet, so the wizard never shows
-        // "Unknown" for a Pulse Fitness invoice if the supplier was
-        // identified at all.
-        const supplierFallback = (res.data.supplier_name || '').trim();
-        const goodSupplier = supplierFallback && supplierFallback.toLowerCase() !== 'unknown' ? supplierFallback : '';
-        const mapped = res.data.equipment.map(eq => ({
-          name: eq.model || '',
-          equipment_type: classifyEquipment(eq.model || ''),
-          // Iter 216k — AI now returns equipment_category; pass through
-          // verbatim so the review table can show / edit it.
-          equipment_category: eq.equipment_category || '',
-          manufacturer: (eq.make && eq.make.trim()) || goodSupplier || 'Unknown',
-          model: eq.model || '',
-          serial_number: eq.serial_number || '',
-          location: form.default_location || 'Main Floor',
-          unit_price: eq.unit_price || 0,
-          stock_item_code: eq.stock_item_code || '',
-          warranty_code: eq.warranty_code || '',
-          warranty_expiry: eq.warranty_expiry || '',
-          sla_name: eq.sla_name || '',
-          _invoice: res.data.invoice_number || file.name,
-          _import_id: res.data.import_id,
-        }));
-        setForm(f => ({ ...f, equipment: [...f.equipment, ...mapped] }));
-        notify.success(`${file.name}: extracted ${mapped.length} items`);
-      }
-
-      // Update aiData (keep first for backward compat, store batch info)
-      setAiData(prev => prev ? { ...prev, batch_import_ids: [...(prev.batch_import_ids || [prev.import_id]), res.data.import_id] } : { ...res.data, batch_import_ids: [res.data.import_id] });
-      setParseProgress({ phase: 'done', itemCount: res.data.equipment?.length || 0 });
+      notify.success(`${file.name}: extracted ${data.equipment?.length || 0} items`);
+      setParseProgress({ phase: 'done', itemCount: data.equipment?.length || 0 });
       setTimeout(() => setParseProgress(null), 3500);
     } catch (err) {
-      const detail = err?.response?.data?.detail || 'Failed';
+      const detail = err?.response?.data?.detail || err?.message || 'Failed';
       setParseProgress({ phase: 'error', message: `${file.name}: ${detail}` });
       setTimeout(() => setParseProgress(null), 6000);
       notify.error(`${file.name}: ${detail}`);
@@ -204,15 +216,30 @@ const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) 
     setCurrentFile('');
   };
 
-  const processMultipleFiles = async (fileList) => {
+  const processMultipleFiles = (fileList) => {
     const pdfFiles = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.pdf'));
     if (pdfFiles.length === 0) { notify.error('No PDF files found'); return; }
+    // Iter 216h35 — route multi-file drops through the global
+    // UploadQueueDrawer for per-file progress + retry. The wizard's
+    // inline "phased parseProgress" UI continues to render for the
+    // single-file path because that flow is interactive (the user
+    // explicitly waits for ONE PDF to parse before moving on); for
+    // multi-drop scenarios the drawer is the right UX.
     setProcessingQueue(pdfFiles.map(f => f.name));
-    for (const file of pdfFiles) {
-      await processFile(file);
-      setProcessingQueue(prev => prev.filter(n => n !== file.name));
-    }
-    setProcessingQueue([]);
+    enqueue(pdfFiles, async (file, onProgress) => {
+      try {
+        await parseAndMerge(file, onProgress);
+      } finally {
+        setProcessingQueue(prev => prev.filter(n => n !== file.name));
+      }
+    }, {
+      source: 'onboarding-invoices',
+      onDone: (file) => {
+        // Friendly toast per file so operators see successes even if
+        // the drawer is collapsed.
+        notify.success(`${file.name} extracted`);
+      },
+    });
   };
 
   const handleFileInput = (e) => {
