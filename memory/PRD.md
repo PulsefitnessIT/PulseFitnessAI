@@ -1432,6 +1432,33 @@ Lives in **preview** only — **redeploy** to push to gymaxisai.com. If the prod
 ---
 
 
+## Iter 216h47 — `<ListPanel>` adoption across CRM list views (Feb 12, 2026)
+
+Continuing the rollout of the shared `<ListPanel>` skeleton (iter 216h44) into more CRM list views so the toolbar/search/count/empty/loading patterns stop being duplicated 30-50 LOC at a time.
+
+### What shipped
+- **CRMCompanies.js**: `CompanyList` migrated to `<ListPanel>` with `search` (`company-search`), `count` (`X accounts`), `primaryAction` (`create-company-btn`), `empty` (`crm-companies-empty`), and the type-filter pills (all/prospect/customer/partner/former) wired into `toolbarRight` with fresh testids `company-type-filter-<type>`.
+- **CRMTenders.js**: `TenderList` migrated with `count`, `primaryAction`, `loading` (replaces the inline spinner block), and `empty` (`crm-tender-empty`). Wrapped in a Fragment so the create dialog renders alongside the empty state.
+- **CRMContracts.js**: `ContractList` migrated. Stats card row (`contracts-stats`) renders above the ListPanel; ListPanel owns `search`, `count`, `primaryAction`, status filter pills (`toolbarRight`), and `empty` (`contracts-empty`). Search input testid preserved as `contracts-search`. Removed unused `Search` icon import.
+- **CRMContacts.js**: latent regression fix — when the list was empty, the Create Contact dialog (which lived inside ListPanel children) wouldn't render because `<ListPanel>` skips children when the empty state shows. Wrapped the component in a React Fragment so the dialog modal is a sibling of `<ListPanel>` rather than a child, guaranteeing the empty-state primaryAction successfully opens the dialog.
+
+### Why this matters
+- Eliminates ~150 LOC of duplicated toolbar/empty/loading/search boilerplate across four pages.
+- Single point of truth for list chrome — future visual tweaks (e.g. mobile breakpoint behaviour for count chips, or animation on row insert) update every list at once.
+- Catches the latent "empty-state primary action does nothing" bug uniformly: every consumer that wraps in a Fragment now gets the dialog-render guarantee for free.
+
+### Testing
+`/app/test_reports/iteration_216h34.json` — all four migrated lists (Contacts/Companies/Contracts/Tenders) verified to render with the expected data-testids, dialogs open from both header and empty-state primary actions, type/status filter pills function, and UnifiedAuthProvider verification on Member Portal + CRM session persistence both PASS.
+
+### Files touched
+- `/app/frontend/src/pages/CRM/CRMContacts.js` (+ Fragment wrapper)
+- `/app/frontend/src/pages/CRM/CRMCompanies.js`
+- `/app/frontend/src/pages/CRM/CRMTenders.js`
+- `/app/frontend/src/pages/CRM/CRMContracts.js`
+
+---
+
+
 ## Iter 216h10 — Fix for "0 records wiped" on production purge (Feb 10, 2026)
 
 **Production bug reported**: user clicked "Remove everywhere" on Craig Henshall, toast showed "0 record(s) wiped" but the row remained. Root cause: my iter-216h8 purge endpoint only deleted from `db.users`, but the "Already added" check in `master_admin.py::add_user_to_organization` also looks at `db.crm_users` — so a stale row in `crm_users` was blocking re-onboarding without being touched by the purge.
