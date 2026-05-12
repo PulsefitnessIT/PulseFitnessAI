@@ -522,61 +522,84 @@ export default function CRMApp() {
       return;
     }
 
-    const token = localStorage.getItem('crm_token');
-    // Auto-login if token exists:
-    // - In PWA standalone mode, always try (sessionStorage is lost between launches)
-    // - In browser, require sessionStorage flag (prevents stale cross-tab logins)
-    const hasSession = sessionStorage.getItem('crm_active_session');
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    if (token && (hasSession || isPWA)) {
-      axios.get(`${API}/crm/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    // Iter 216h43 — trust the CRM token if it exists, always.
+    //
+    // The previous flow (iter 215aa) required a sessionStorage flag
+    // `crm_active_session` to be present before trusting localStorage's
+    // `crm_token`, with the rationale of "prevents stale cross-tab
+    // logins". In practice this caused Lee's Pulse Fitness team to be
+    // bounced to CRMLogin on every new tab / refresh — sessionStorage
+    // is per-tab so the flag was missing 100% of the time on a fresh
+    // tab, the code then DELETED the valid CRM token and tried to
+    // cross-login from the main JWT. When cross-login then timed out
+    // or returned a transient 403 on flaky mobile networks, the user
+    // saw CRMLogin even though their main session was alive.
+    //
+    // Cross-tab token reuse is the whole point of `localStorage` (vs.
+    // `sessionStorage`); rejecting it broke the very feature the
+    // browser provides.
+    //
+    // New behaviour:
+    //   1. If a CRM token exists → call `/crm/auth/me` to validate it.
+    //   2. If it validates → log the user in. Done.
+    //   3. If it 401s → strip it, fall through to cross-login.
+    //   4. If no CRM token (or it 401'd) AND a main JWT exists →
+    //      attempt `/crm/auth/cross-login`.
+    //   5. If both fail → show CRMLogin.
+    //
+    // Net effect: an already-logged-in user is NEVER asked to log in
+    // to CRM again, regardless of tab/PWA mode.
+
+    const crmToken = localStorage.getItem('crm_token');
+
+    const tryCrossLogin = () => {
+      const mainToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!mainToken) { setLoading(false); return; }
+      axios.post(
+        `${API}/crm/auth/cross-login`, {},
+        { headers: { Authorization: `Bearer ${mainToken}` } },
+      )
+        .then((res) => {
+          if (res.data?.token) {
+            localStorage.setItem('crm_token', res.data.token);
+            sessionStorage.setItem('crm_active_session', '1');
+            return axios.get(`${API}/crm/auth/me`, {
+              headers: { Authorization: `Bearer ${res.data.token}` },
+            });
+          }
+          return null;
+        })
+        .then((meRes) => {
+          if (meRes && meRes.data?.email) setUser(meRes.data);
+          setLoading(false);
+        })
+        .catch(() => { setLoading(false); });
+    };
+
+    if (crmToken) {
+      axios.get(`${API}/crm/auth/me`, { headers: { Authorization: `Bearer ${crmToken}` } })
         .then(res => {
           if (res.data && res.data.email) {
             setUser(res.data);
+            // Refresh the session flag so legacy code paths (e.g. CRM
+            // logout, settings panel) that still check it keep working.
             sessionStorage.setItem('crm_active_session', '1');
+            setLoading(false);
           } else {
+            // Empty body — token went bad. Strip and try cross-login.
             localStorage.removeItem('crm_token');
             sessionStorage.removeItem('crm_active_session');
+            tryCrossLogin();
           }
-          setLoading(false);
         })
         .catch(() => {
+          // 401 / 403 / network. Strip and fall through to cross-login.
           localStorage.removeItem('crm_token');
           sessionStorage.removeItem('crm_active_session');
-          setLoading(false);
+          tryCrossLogin();
         });
     } else {
-      // No active CRM session. Iter 216aw · Phase 4 #9 — auto-bridge:
-      // if we have a main platform JWT, exchange it for a CRM-scoped
-      // token via /crm/auth/cross-login so direct URL navigation works
-      // without bouncing the user to CRMLogin.
-      if (token && !hasSession && !isPWA) {
-        localStorage.removeItem('crm_token');
-      }
-      const mainToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      if (mainToken) {
-        axios.post(
-          `${API}/crm/auth/cross-login`, {},
-          { headers: { Authorization: `Bearer ${mainToken}` } },
-        )
-          .then((res) => {
-            if (res.data?.token) {
-              localStorage.setItem('crm_token', res.data.token);
-              sessionStorage.setItem('crm_active_session', '1');
-              return axios.get(`${API}/crm/auth/me`, {
-                headers: { Authorization: `Bearer ${res.data.token}` },
-              });
-            }
-            return null;
-          })
-          .then((meRes) => {
-            if (meRes && meRes.data?.email) setUser(meRes.data);
-            setLoading(false);
-          })
-          .catch(() => { setLoading(false); });
-      } else {
-        setLoading(false);
-      }
+      tryCrossLogin();
     }
   }, []);
 

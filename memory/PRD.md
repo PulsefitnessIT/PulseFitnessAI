@@ -1,3 +1,50 @@
+## Iter 216h43 — HOTFIX: CRM bouncing already-logged-in Pulse Fitness users to CRMLogin (Feb 12, 2026)
+
+### Operator-reported (Lee, production)
+Pulse Fitness staff already logged into `gymaxisai.com` (Operations / Memberships / Master Admin) were being kicked to **CRMLogin** the moment they clicked into CRM. Lee flagged this as a recurring bug.
+
+### Root cause
+The CRM bootstrap (iter 215aa, `CRMApp.js` line 525-555) gated `crm_token` reuse on a `sessionStorage.crm_active_session` flag *and* PWA mode, with the rationale "prevents stale cross-tab logins". In practice:
+
+1. `sessionStorage` is **per-tab** — opening CRM in a new tab or doing a hard refresh wipes the flag.
+2. The else-branch then **deleted the perfectly valid `crm_token` from `localStorage`** and tried a `POST /crm/auth/cross-login` exchange from the main JWT.
+3. On flaky mobile networks (Lee's exact production scenario — 5G dropping packets at coffee shops), cross-login would time out OR return a transient `403`. Catch → `setLoading(false)` → CRMLogin shown.
+4. The user saw "log in to CRM" even though their main session was still alive.
+
+The cross-tab gating was the wrong protection layer: `localStorage` exists *specifically* to share auth across tabs in the same browser profile. Rejecting it broke the one cross-tab UX it was designed for.
+
+### Fix
+- **`/app/frontend/src/pages/CRM/CRMApp.js`** — replaced the gated reuse logic with **verify-before-replace**:
+  1. If `crm_token` exists → call `/crm/auth/me` to validate it.
+  2. If valid → log the user in. Restore the `crm_active_session` flag for legacy callers. **Done.**
+  3. If invalid (401/403/network) → strip and fall through to cross-login.
+  4. If no CRM token (or it 401'd) and a main JWT exists → attempt `/crm/auth/cross-login`.
+  5. Only if BOTH paths fail → show CRMLogin.
+- **Net effect:** an already-logged-in user is **never** asked to log in to CRM again, regardless of tab/PWA mode.
+
+### Verified end-to-end (live Playwright tests on preview)
+| Scenario | Expected | Result |
+|---|---|---|
+| Login to main app → navigate to /crm | Auto-bridge via cross-login → CRM workspace | ✅ CRM Command Center shown, no CRMLogin |
+| CRM token persisted | `localStorage.crm_token` set | ✅ True |
+| **Clear `sessionStorage` then re-navigate to /crm** (= new tab / refresh — Lee's exact bug) | Existing valid CRM token used; CRMLogin **NOT** shown | ✅ **CRMLogin hidden — bug fixed** |
+| 0 React errors throughout | Clean console | ✅ `Errors: []` |
+
+Backend cross-login regression — `test_iter_215de_permissions_forecast.py` + `test_iter_215dc_territories.py` → **19/19 passing**, no regressions.
+
+Backend probe: `POST /api/crm/auth/cross-login` returns 200 with valid token; `/api/crm/auth/me` returns the user email.
+
+### Files touched
+- `/app/frontend/src/pages/CRM/CRMApp.js` (~+75 / −60 LOC — verify-before-replace flow with full comments)
+
+### ⚠ Action required
+1. **Redeploy preview → production.** This is a 1-file frontend fix; no DB / env-var / backend changes.
+2. After deploy Lee's Pulse Fitness team will no longer see the CRM login screen when they navigate to `/crm` from any logged-in tab. New-tab / hard-refresh / PWA / mobile-browser — all paths now resume the existing CRM session.
+
+---
+
+
+
 ## Iter 216h42 — HOTFIX: "You're offline" banner false-positive on production (Feb 12, 2026)
 
 ### Operator-reported (Lee, production, mobile 5G)
