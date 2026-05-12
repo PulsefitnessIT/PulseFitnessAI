@@ -135,6 +135,22 @@ def _normalize(row: dict, *keys: str) -> str:
     return ""
 
 
+def _is_blank_row(row: dict) -> bool:
+    """Iter 216h56 — Excel + Google Sheets CSV exports routinely append
+    millions of empty trailing rows (one operator reported a 10 M-row
+    file with 98 real records). Without this check every empty row was
+    counted as `skipped` AND appended to `errors` ('missing required
+    column'), exploding the response payload and making the operator
+    think the import was broken.
+
+    Returns True if every cell in the row is empty/whitespace.
+    """
+    for v in row.values():
+        if v and str(v).strip():
+            return False
+    return True
+
+
 async def _resolve_target_org(user: dict, organization_id: Optional[str]) -> str:
     """If the admin specified `organization_id`, validate it's a Pulse-visible
     customer. Otherwise default to the admin's own organization (only valid
@@ -375,6 +391,11 @@ async def bulk_import_equipment(
 
     for i, row in enumerate(reader, start=2):  # +1 header, +1 1-indexed
         try:
+            # Iter 216h56 — Excel/Sheets exports drag along millions of
+            # empty trailing rows. Skip them silently so they don't
+            # pollute `skipped` + `errors`.
+            if _is_blank_row(row):
+                continue
             target_org, route_err = await _resolve_row_target_org(row, default_org, org_cache)
             if not target_org:
                 skipped += 1
@@ -534,6 +555,9 @@ async def bulk_import_customers(
 
     for i, row in enumerate(reader, start=2):
         try:
+            # Iter 216h56 — skip blank trailing rows from Excel/Sheets exports.
+            if _is_blank_row(row):
+                continue
             target_org, route_err = await _resolve_row_target_org(row, default_org, org_cache)
             if not target_org:
                 skipped += 1
@@ -684,6 +708,9 @@ async def bulk_import_sites(
 
     for i, row in enumerate(reader, start=2):
         try:
+            # Iter 216h56 — skip blank trailing rows from Excel/Sheets exports.
+            if _is_blank_row(row):
+                continue
             name = _normalize(row, "site_name", "name", "Site Name", "Name")
             if not name:
                 skipped += 1

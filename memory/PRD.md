@@ -1,3 +1,32 @@
+## Iter 216h56 — HOTFIX: Blank trailing CSV rows counted as errors (Feb 12, 2026)
+
+### Operator-reported (Lee, with screenshot)
+Result toast read: **"Imported 98 equipment · 10,494,277 skipped · 10,494,277 row issues — see details below"** on a CSV with only ~100 real records. Every blank trailing row was being treated as a failed import.
+
+### Root cause
+Excel and Google Sheets exports drag along millions of empty trailing rows (Excel pads to 1,048,576 rows × however many sheet duplicates; Lee's file appears to have come out of a tool that 10×'d that). The iter 216h54 row-error work then logged each blank row as `Row N: missing required column 'name'`, both inflating `skipped` and producing an unreadable error log.
+
+### Fix
+- **`/app/backend/routes/master_admin_bulk_import.py`** — new `_is_blank_row(row)` helper that returns `True` when every cell is empty/whitespace. Wired into the loop top of all three importers (equipment, customers, sites) as the very first check. Truly-blank rows are now `continue`'d silently — they do NOT increment `skipped` or `error_count`.
+
+### Verified
+| File contents | Imported | Skipped | Errors |
+|---|---|---|---|
+| 98 real + **100,000 blank** trailing rows | **98** | **0** | **0** |
+
+Plus the earlier mixed-content regression (1 missing-name + 1 unknown-site + 1 duplicate + 100 valid) still returns 100 imported / 3 skipped / 3 errors with verbatim row reasons. Wall-clock: 0.56 s for the 100k blank-row file.
+
+### Files touched
+- `/app/backend/routes/master_admin_bulk_import.py` (~+25 LOC — `_is_blank_row` helper + 3 call-sites)
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend-only change.
+2. Lee re-uploads the same Excel-exported CSV. Result toast will now match the real record count (`Imported N equipment · 0 skipped · 0 row issues`) instead of being inflated by the spreadsheet's padding rows.
+
+---
+
+
+
 ## Iter 216h55 — HOTFIX: 500k-row bulk import (`Request body exceeds 2097152 bytes`) (Feb 12, 2026)
 
 ### Operator-reported (Lee, production screenshot)
