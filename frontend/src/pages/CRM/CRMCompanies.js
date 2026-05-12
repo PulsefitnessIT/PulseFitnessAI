@@ -9,6 +9,7 @@ import {
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
+import Button from '@/components/shared/Button';
 
 const TYPES = ['all', 'prospect', 'customer', 'partner', 'former'];
 const TYPE_COLORS = { prospect: 'var(--color-warning)', customer: 'var(--color-success-alt)', partner: 'var(--color-info-ios)', former: 'var(--color-text-faint-alt)' };
@@ -575,7 +576,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
     <div data-testid="crm-company-detail">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={onBack} className="p-1.5 rounded-md transition-colors hover:bg-white/5" style={{ color: c.textDim }}><ArrowLeft size={18} /></button>
+        <Button variant="ghost" size="iconSm" onClick={onBack} icon={ArrowLeft} title="Back" data-testid="crm-company-back" />
         <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${TYPE_COLORS[company.type] || 'var(--color-text-faint-alt)'}15` }}>
           <Building2 size={20} style={{ color: TYPE_COLORS[company.type] || 'var(--color-text-faint-alt)' }} />
         </div>

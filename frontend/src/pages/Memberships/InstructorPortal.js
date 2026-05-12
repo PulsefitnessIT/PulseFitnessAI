@@ -15,6 +15,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import Button from '@/components/shared/Button';
 import {
   Calendar, Clock, Users as UsersIcon, MapPin, ChevronLeft, CheckCircle2,
   XCircle, Sparkles, LogOut, Loader2, PoundSterling, Dumbbell, ArrowLeft,
@@ -136,7 +137,7 @@ function TopBar({ me, onSignOut }) {
         <div className="text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--color-brand-cyan)]">Instructor</div>
         <div className="text-sm font-extrabold">{me.name}</div>
       </div>
-      <button onClick={onSignOut} className="p-2 rounded-lg text-white/50 hover:bg-white dark:bg-zinc-900/5" data-testid="instructor-signout"><LogOut size={15} /></button>
+      <Button variant="ghost" size="icon" onClick={onSignOut} icon={LogOut} title="Sign out" data-testid="instructor-signout" />
     </header>
   );
 }

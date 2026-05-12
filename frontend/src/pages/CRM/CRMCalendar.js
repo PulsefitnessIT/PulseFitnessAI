@@ -5,6 +5,7 @@ import {
   FileText, CheckCircle, Activity, MapPin, Wrench, Plus, X, Users, Filter
 } from 'lucide-react';
 import axios from 'axios';
+import Button from '@/components/shared/Button';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const EVENT_TYPES = [
@@ -173,11 +174,11 @@ export default function CRMCalendar() {
         {/* Calendar Grid */}
         <div className="flex-1">
           <div className="flex items-center justify-between mb-4">
-            <button onClick={prevMonth} className="p-1.5 rounded-md hover:bg-white/5" style={{ color: c.textDim }} data-testid="calendar-prev"><ChevronLeft size={18} /></button>
+            <Button variant="ghost" size="iconSm" onClick={prevMonth} icon={ChevronLeft} title="Previous month" data-testid="calendar-prev" />
             <h2 className="text-base font-semibold" style={{ color: c.text }}>
               {currentDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
             </h2>
-            <button onClick={nextMonth} className="p-1.5 rounded-md hover:bg-white/5" style={{ color: c.textDim }} data-testid="calendar-next"><ChevronRight size={18} /></button>
+            <Button variant="ghost" size="iconSm" onClick={nextMonth} icon={ChevronRight} title="Next month" data-testid="calendar-next" />
           </div>
 
           <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden border" style={{ background: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>

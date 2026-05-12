@@ -28,6 +28,7 @@ import {
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import ActivityTimelineTab from '@/pages/Memberships/ActivityTimelineTab';
+import Button from '@/components/shared/Button';
 
 const TABS = [
   { id: 'profile',  label: 'Profile',  icon: User },
@@ -260,12 +261,8 @@ function PaymentsTab({ memberId, API, headers, memberships, plans, onAssignPlan,
               </p>
             </div>
             <div className="flex gap-2 mt-3">
-              <button onClick={onFreeze} className="inline-flex items-center gap-1 rounded-lg border border-[color:var(--theme-border)] px-3 py-1.5 text-xs font-bold hover:bg-[color:var(--theme-surface-hover)]" data-testid="member-drawer-freeze">
-                <Pause size={11} /> Freeze
-              </button>
-              <button onClick={onCancel} className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 text-rose-700 px-3 py-1.5 text-xs font-bold hover:bg-rose-100" data-testid="member-drawer-cancel">
-                <XOctagon size={11} /> Cancel
-              </button>
+              <Button variant="secondary" size="sm" onClick={onFreeze} icon={Pause} data-testid="member-drawer-freeze">Freeze</Button>
+              <Button variant="destructive" size="sm" onClick={onCancel} icon={XOctagon} data-testid="member-drawer-cancel">Cancel</Button>
             </div>
           </div>
         ) : <Empty text="No active plan." />}

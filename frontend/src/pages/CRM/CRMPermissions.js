@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Shield, EyeOff, Trash2, Plus, Lock } from 'lucide-react';
+import Button from '@/components/shared/Button';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
@@ -92,9 +93,7 @@ function SharingRules({ rules, entityTypes, accessLevels, onChange }) {
                 <td className="px-2 py-2 capitalize">{r.entity_type}</td>
                 <td className="px-2 py-2">{ACCESS_LABEL[r.access] || r.access}</td>
                 <td className="px-2 py-2 text-right">
-                  <button onClick={() => remove(r)} className="p-1.5 rounded-md hover:bg-red-50 text-red-500" aria-label="Remove" data-testid={`rule-remove-${r.role}-${r.entity_type}`}>
-                    <Trash2 size={13} />
-                  </button>
+                  <Button variant="ghostDestructive" size="iconSm" onClick={() => remove(r)} icon={Trash2} title="Remove" aria-label="Remove" data-testid={`rule-remove-${r.role}-${r.entity_type}`} />
                 </td>
               </tr>
             ))}
@@ -189,9 +188,7 @@ function FieldPerms({ perms, entityTypes, onChange }) {
                 <td className="px-2 py-2 capitalize">{p.entity_type}</td>
                 <td className="px-2 py-2"><code className="text-xs">{p.field}</code></td>
                 <td className="px-2 py-2 text-right">
-                  <button onClick={() => remove(p)} className="p-1.5 rounded-md hover:bg-red-50 text-red-500" aria-label="Remove" data-testid={`field-remove-${p.role}-${p.entity_type}-${p.field}`}>
-                    <Trash2 size={13} />
-                  </button>
+                  <Button variant="ghostDestructive" size="iconSm" onClick={() => remove(p)} icon={Trash2} title="Remove" aria-label="Remove" data-testid={`field-remove-${p.role}-${p.entity_type}-${p.field}`} />
                 </td>
               </tr>
             ))}

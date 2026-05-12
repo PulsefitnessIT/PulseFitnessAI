@@ -4,6 +4,7 @@ import {
   Upload, FolderOpen, Search, Trash2, Download, FileText, File, Image, X, Filter, Eye
 } from 'lucide-react';
 import axios from 'axios';
+import Button from '@/components/shared/Button';
 
 const CATEGORIES = ['spec_sheets', 'pre_install', 'maintenance', 'manuals', 'general', 'contract', 'proposal', 'invoice', 'other'];
 const CAT_COLORS = { general: 'var(--color-info-ios)', contract: 'var(--color-accent-magenta)', proposal: 'var(--color-warning)', invoice: 'var(--color-success-alt)', manual: 'var(--color-cyan-500)', other: 'var(--color-text-faint-alt)', spec_sheets: 'var(--color-info)', pre_install: 'var(--color-accent-amber)', maintenance: 'var(--color-success)', manuals: 'var(--color-accent-indigo)' };
@@ -159,9 +160,7 @@ export default function CRMDocuments() {
                     <Download size={14} />
                   </a>
                   {(doc.uploaded_by === user?.id || user?.role === 'admin' || user?.role === 'owner') && (
-                    <button onClick={() => handleDelete(doc.id)} className="p-2 rounded-md hover:bg-[rgb(var(--rgb-danger-alt)/0.1)]" style={{ color: c.textDim }} data-testid={`doc-delete-${doc.id}`}>
-                      <Trash2 size={14} />
-                    </button>
+                    <Button variant="ghostDestructive" size="icon" onClick={() => handleDelete(doc.id)} icon={Trash2} title="Delete document" data-testid={`doc-delete-${doc.id}`} />
                   )}
                 </div>
               </div>

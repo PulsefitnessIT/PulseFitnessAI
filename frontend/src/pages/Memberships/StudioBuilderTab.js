@@ -17,6 +17,7 @@ import {
   AlertTriangle, Save, Loader2, X, RefreshCw, Tag,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import Button from '@/components/shared/Button';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 // 30-minute slots from 06:00 → 22:00 (covers most studios)
@@ -734,7 +735,7 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
             <p className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-[var(--color-brand-cyan)]">Class template</p>
             <h3 className="text-lg font-extrabold">{isEdit ? 'Edit class' : 'New class'}</h3>
           </div>
-          <button onClick={onClose} className="p-2 rounded hover:bg-black/5 dark:hover:bg-white/5"><X size={14} /></button>
+          <Button variant="ghost" size="icon" onClick={onClose} icon={X} title="Close" data-testid="mbr-studio-builder-close" />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4 text-sm">
