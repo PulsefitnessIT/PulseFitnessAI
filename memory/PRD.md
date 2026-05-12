@@ -1432,6 +1432,44 @@ Lives in **preview** only — **redeploy** to push to gymaxisai.com. If the prod
 ---
 
 
+## Iter 216h51 — Onboarding picker UX + supplier-routed equipment imports + test-data purge (Feb 12, 2026)
+
+Three follow-ups after Lee's screenshot showing the onboarding "Existing Customer" picker cluttered with TEST_ orgs from prior agent runs.
+
+### 1. Onboarding "Existing Customer" picker — searchable + alphabetised
+- `PulseOnboardingWizard.js` `ChooseModeStep` now has a search input above the customer list. Filters client-side on name, company_code, and account_type (300ms snappy, no API calls).
+- List sorted alphabetically (case-insensitive) so the same customer is always in the same screen position.
+- Result count chip ("23 customers" or "5 of 23") above the list so operators know if a filter is active.
+- Scroll container height raised from `max-h-64` (16rem ≈ 6 rows) → `max-h-[28rem]` (28rem ≈ 11 rows). With search active, scrolling becomes a fallback rather than the primary navigation.
+- Backend `GET /api/master-admin/organizations` `to_list` limit raised **500 → 2000** so a customer like Pulse can't be silently truncated out of the list as they grow.
+
+### 2. Equipment CSV — `supplier` column + auto-resolve
+- New 3rd column in the bulk-import template. Resolves to a row in `db.suppliers` within the same org so the equipment doc carries `supplier_id` AND `supplier_email` after import. Fault-notification flows already key off these fields — no further wiring needed.
+- New `_resolve_supplier_for_org` helper matches in three passes:
+  1. Exact case-insensitive name match
+  2. Email match (if the CSV column accidentally contains an email)
+  3. Normalised-name fuzzy match — strips `[^a-z0-9]` and the suffixes `Limited/Ltd/Ltd./PLC/Inc/Inc./LLC` so "Pulse Fitness Limited" matches a seeded "Pulse Fitness"
+- Blank supplier falls back to the `manufacturer` column (existing behaviour) — preserves backwards compatibility.
+
+### 3. Preview cleanup + canonical test user
+- Ran the existing `purge_test_artefacts.py` script — 60 orgs archived/deleted.
+- Followed with an aggressive sweep that archived & purged 37 additional test orgs (anything not on a protected list of {GymAxis Master Admin, Pulse Fitness, Strong Fitness, The Third Space Group Limited}).
+- Also deleted 45 orphan test users + 0 orphan staff_members + orphan equipment/sites cascading.
+- Final state: **5-6 orgs** in preview (a clean baseline for Lee's demos).
+- Created **canonical agent test user**: `e1.agent@gymaxisai.com / E1Agent123!` (owner, Pulse Fitness org). Documented in `/app/memory/test_credentials.md`. Going forward, the agent will use this single account for all login testing instead of disposable TEST_ orgs.
+
+### Testing
+- `/app/test_reports/iteration_216h51.json` — 12/12 tests pass (3× canonical user, 3× template header, 4× supplier resolution, 2× orgs endpoint).
+
+### Files touched
+- **Backend**: `master_admin_bulk_import.py`, `master_admin.py`
+- **Frontend**: `PulseOnboardingWizard.js`
+- **Scripts**: ran `backend/scripts/purge_test_artefacts.py` + ad-hoc cleanup
+- **Memory**: `test_credentials.md` updated with canonical E1 agent account
+
+---
+
+
 ## Iter 216h50 — Multi-site bulk import polish + Capex feeder (Feb 12, 2026)
 
 Three connected enhancements requested for Pulse Fitness multi-site onboarding so a fresh tenant goes from "zero" to "fully populated" via two CSV uploads instead of dozens of manual entries.
