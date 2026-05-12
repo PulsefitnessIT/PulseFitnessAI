@@ -1432,6 +1432,38 @@ Lives in **preview** only — **redeploy** to push to gymaxisai.com. If the prod
 ---
 
 
+## Iter 216h50 — Multi-site bulk import polish + Capex feeder (Feb 12, 2026)
+
+Three connected enhancements requested for Pulse Fitness multi-site onboarding so a fresh tenant goes from "zero" to "fully populated" via two CSV uploads instead of dozens of manual entries.
+
+### 1. Sites CSV — `invoice_customer_ref` column added
+- New SECOND column in the sites CSV template (`/api/master-admin/sites/template.csv`). Sicon Service uses this code as the per-site customer reference, so populating it during onboarding lets Sicon's ledger postings reconcile straight away without a follow-up site-edit pass.
+- `preview-csv` endpoint accepts the official header plus three friendly aliases (`Invoice Customer Ref` with space, `sicon_customer_ref`, `customer_ref`) so operators dropping their own spreadsheet in don't have to rename columns.
+- Persisted on `db.sites.invoice_customer_ref` via three write paths: standard `POST /api/sites`, `PATCH /api/sites/{id}`, master-admin onboard-head-office wizard, and master-admin PATCH `/api/master-admin/organizations/{org}/sites/{site}` (added during this iteration after the testing agent flagged it missing).
+- `HeadOfficeOnboardingWizard.js` — new editable field "Invoice Customer Ref (Sicon)" on every site row, hydrated from the CSV preview and submitted with the onboarding payload.
+
+### 2. Equipment CSV — `site_name` as first column
+- The bulk-import template (`GET /api/master-admin/bulk-import/templates/equipment`) now leads with `site_name`. Operators import sites first, then equipment auto-links to the resolved `site_id` so per-site dashboards populate correctly out of the gate.
+- New `_resolve_site_for_org` helper resolves each row in this priority order:
+  1. Exact-match site name (case-insensitive)
+  2. Fall back to `invoice_customer_ref` lookup (so a row with blank site name but a populated Sicon ref still resolves)
+  3. If both supplied and neither matches, the row is **skipped** with an explicit error message so the operator can fix the sites import first
+- Per-org site cache means same-name rows incur a single DB hit per unique site.
+
+### 3. `unit_price` column → Capex feeder
+- New column in the equipment template. Parsed via `_parse_decimal` (handles "3450", "3450.50", "3,450.00", blank).
+- Written to **both** `equipment.purchase_price` (for ledger / Sage 200 posting) **and** `equipment.replacement_cost` (which `routes/capex.py` already reads — falls back to the equipment-type profile default when null). So once kit is bulk-imported with unit prices the Capex Analysis report immediately reflects actual asset values instead of generic estimates.
+
+### Testing
+- `/app/test_reports/iteration_216h50.json` — 15/15 tests pass. Testing agent added a missing master-admin PATCH path for `invoice_customer_ref`.
+
+### Files touched
+- **Backend**: `sites_import.py`, `sites.py`, `master_admin_bulk_import.py`, `master_admin.py`
+- **Frontend**: `MasterAdmin/HeadOfficeOnboardingWizard.js`
+
+---
+
+
 ## Iter 216h49 — Six-feature production batch (Feb 12, 2026)
 
 Single batch shipping six requested features after Lee's feedback on production. All backend changes verified by the testing agent (16/16 tests pass — `/app/test_reports/iteration_216h49.json`).
