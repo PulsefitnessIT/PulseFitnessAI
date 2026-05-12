@@ -1,0 +1,81 @@
+{
+  "summary": "Iter 216h59 — 4 quick-win UX/scoping fixes testing. Backend: 6/6 tests passed. Frontend: Code review verified all changes. (a) Archive tab moved from Overview to Settings & Compliance. (b) Memberships no longer auto-enables CRM — modules toggle independently. (c) Org logo overrides Pulse/GymAxis logo in navbar. (d) Brand Kit auto-sets colors from logo palette.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h59_ux_fixes.py",
+    "/app/test_reports/pytest/pytest_results_216h59.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BACKEND VERIFIED (b): PUT /api/master-admin/organizations/{org_id}/features with memberships=true AND crm=false now persists correctly. The auto-bundle code in routes/master_admin.py (line ~538-551) is now commented out with explanatory note.",
+    "BACKEND VERIFIED (b): utils/module_access.crm_modes() now derives leisure from access.crm (NOT access.memberships). GET /api/me/crm-modes returns {leisure:false, business:false} when crm=false, even if memberships=true.",
+    "BACKEND VERIFIED (c): GET /api/organization/logo now recognizes /api/account/logo/{org_id}?v=... proxy URLs (line 985-986 in auth.py) and returns them as-is.",
+    "FRONTEND VERIFIED (a): SidebarConfig.js line 129 — Archive tab is now in settings-compliance.subTabs. Overview.subTabs (lines 37-41) only contains Dashboard, System Health, Setup checklist.",
+    "FRONTEND VERIFIED (c): Navbar.js lines 295-306 — orgLogo now takes priority over showPulseBrand. When orgLogo is set, it renders with data-testid='org-logo' and pulse-logo/gymaxis-logo won't render.",
+    "FRONTEND VERIFIED (d): BrandKitTab.js lines 49-105 — onLogoUpload now POSTs to /api/account/logo, extracts brand_palette, and auto-sets primary_color (palette[0]) and secondary_color (palette[1]) ONLY if current colors are GymAxis defaults."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h59_ux_fixes.py (new test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 passed)",
+    "frontend": "Code review verified - all changes confirmed"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "e1_test_agent": "e1.agent@gymaxisai.com / E1Agent123!",
+    "pulse_org_id": "8cd02d8c-e5a2-4c13-bdb9-8b143b85455f"
+  },
+  "seed_data_creation": "Modules restored to all-enabled for Pulse Fitness org after testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 4 UX fixes verified: (a) Archive tab relocated to Settings & Compliance in SidebarConfig.js, (b) Memberships/CRM decoupling confirmed via backend tests - PUT /features persists independent module states and crm_modes() derives leisure from crm flag, (c) Navbar logo priority reordered so orgLogo wins over Pulse/GymAxis defaults, (d) BrandKitTab auto-populates colors from logo palette when defaults are in use. Browser automation had login issues but backend API tests and code review confirm all changes.",
+  "verified_features": {
+    "archive_tab_relocation": {
+      "status": "CODE VERIFIED",
+      "file": "/app/frontend/src/pages/MasterAdmin/SidebarConfig.js",
+      "details": "Archive (line 129) is in settings-compliance.subTabs. Overview.subTabs (lines 37-41) has only Dashboard, System Health, Setup checklist."
+    },
+    "module_decoupling": {
+      "status": "BACKEND VERIFIED",
+      "tests": [
+        "test_memberships_true_crm_false_persists - PASSED",
+        "test_crm_modes_with_memberships_true_crm_false - PASSED (leisure=false, business=false)",
+        "test_crm_modes_with_crm_enabled - PASSED (leisure=true, business=false)"
+      ]
+    },
+    "org_logo_priority": {
+      "status": "CODE VERIFIED",
+      "files": [
+        "/app/frontend/src/components/shared/Navbar.js (lines 295-306)",
+        "/app/backend/routes/auth.py (lines 985-986)"
+      ],
+      "details": "orgLogo > showPulseBrand > shouldShowGymAxisLockup > brandColor initial-box"
+    },
+    "brand_kit_auto_colors": {
+      "status": "CODE VERIFIED",
+      "file": "/app/frontend/src/pages/Marketing/BrandKitTab.js",
+      "details": "onLogoUpload POSTs to /api/account/logo, extracts brand_palette, auto-sets primary_color/secondary_color only when current colors are GymAxis defaults (#19CDFF, #5B8CFF, #66CCFF, #0055FF, #000000, #ffffff, #FFFFFF)"
+    }
+  },
+  "test_results": {
+    "backend_pytest": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "file": "/app/backend/tests/test_iter_216h59_ux_fixes.py"
+    },
+    "frontend_playwright": {
+      "status": "LIMITED - Login redirect issue in browser automation",
+      "code_review": "All required changes verified in source code"
+    }
+  }
+}

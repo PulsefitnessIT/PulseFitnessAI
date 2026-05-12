@@ -287,10 +287,15 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  <div className="max-w-7xl mx-auto px-4">
  <div className="flex justify-between items-center h-20">
  <Link to={user ? (showPulseBrand ? '/pulse' : '/dashboard') : '/'} className="flex items-center space-x-2.5" data-testid="nav-logo">
- {showPulseBrand ? (
+ {/* Iter 216h59 — uploaded org logo now wins over Pulse / GymAxis
+     defaults. Per operator request: "Once the user uploads a logo
+     it should overtake the Pulse Fitness/GymAxis logo in the
+     navbar." Falls back to Pulse → GymAxis → initial-box in that
+     order when no custom logo is uploaded. */}
+ {orgLogo ? (
+ <img src={orgLogo} alt={branding?.company_name || 'Logo'} className="h-10 w-10 object-contain rounded" data-testid="org-logo" />
+ ) : showPulseBrand ? (
  <img src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg" alt="Pulse Fitness" className="h-10 rounded-md object-cover" style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }} data-testid="pulse-logo" />
- ) : orgLogo ? (
- <img src={orgLogo} alt="Logo" className="h-10 w-10 object-contain rounded" data-testid="org-logo" />
  ) : shouldShowGymAxisLockup ? (
  <img src="/brand/gymaxis-mark-tight.png" alt="GymAxis" className="h-10 w-10 object-contain" data-testid="gymaxis-logo" draggable={false} />
  ) : (
@@ -299,7 +304,11 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  </div>
  )}
  <div>
- {showPulseBrand ? null : shouldShowGymAxisLockup ? (
+ {orgLogo ? (
+ <span className="font-bold text-xl tracking-tight" style={{ color: 'var(--theme-text)' }} data-testid="org-name-label">
+ {branding?.company_name || ''}
+ </span>
+ ) : showPulseBrand ? null : shouldShowGymAxisLockup ? (
  <span className="font-bold text-xl tracking-tight" style={{ fontFamily: "'Satoshi', 'Inter', system-ui, sans-serif", color: 'var(--theme-text)' }}>
  {user && branding?.company_name && !branding.company_name.toLowerCase().includes('gymaxis')
  ? branding.company_name

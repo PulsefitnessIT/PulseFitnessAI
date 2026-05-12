@@ -535,18 +535,19 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             if old_modules.get(m_key) != entry:
                 changes[f"module:{m_key}"] = {"from": old_modules.get(m_key), "to": entry}
 
-        # Iter 215c — Bundle Leisure CRM with Memberships. Whenever
-        # Memberships is enabled, the org automatically gets CRM access
-        # (leisure mode). Disabling Memberships does NOT auto-disable
-        # CRM — Business CRM may be paid-for separately.
-        memberships_entry = merged.get("memberships")
-        if memberships_entry and memberships_entry.get("enabled"):
-            crm_entry = dict(merged.get("crm") or {})
-            if not crm_entry.get("enabled"):
-                crm_entry["enabled"] = True
-                crm_entry.setdefault("tier", memberships_entry.get("tier", "pro"))
-                merged["crm"] = crm_entry
-                changes["module:crm:auto_bundle"] = {"reason": "memberships_enabled"}
+        # Iter 216h59 — REMOVED Memberships→CRM auto-bundle. Operator
+        # feedback (Lee): "Memberships and CRM are supposed to be able
+        # to work stand-alone." Modules now toggle independently in the
+        # Feature Control Panel; the leisure-CRM gate inside
+        # `utils/module_access.crm_modes()` was also flipped to read
+        # the `crm` flag directly. Old auto-bundle behaviour replicated
+        # below for reference (kept commented out to make the change
+        # traceable):
+        #     memberships_entry = merged.get("memberships")
+        #     if memberships_entry and memberships_entry.get("enabled"):
+        #         crm_entry = dict(merged.get("crm") or {})
+        #         if not crm_entry.get("enabled"):
+        #             crm_entry["enabled"] = True ...
         set_doc["modules"] = merged
 
     if not set_doc:

@@ -152,15 +152,20 @@ def _business_crm_flag(org: Optional[dict]) -> bool:
 
 
 def crm_modes(user: dict, org: Optional[dict]) -> dict[str, bool]:
-    """Return per-mode CRM access for this user."""
+    """Return per-mode CRM access for this user.
+
+    Iter 216h59 — decoupled from Memberships. Operators asked
+    (Lee, prod feedback) for Memberships and CRM to work independently,
+    so leisure-mode access now follows the CRM module toggle alone.
+    Business CRM remains a per-org opt-in flag on top of that.
+    """
     if user.get("is_master_admin"):
         return {"leisure": True, "business": True}
     access = resolve_module_access(user, org)
-    # Leisure CRM is bundled with Memberships — operators never have to
-    # toggle it separately. Any org with Memberships gets it for free.
-    leisure = bool(access.get("memberships"))
-    # Business CRM is opt-in per org.
-    business = bool(_business_crm_flag(org)) and bool(access.get("crm", True))
+    # Leisure CRM requires CRM module to be ON.
+    leisure = bool(access.get("crm"))
+    # Business CRM is the explicit per-org opt-in on top of CRM access.
+    business = bool(_business_crm_flag(org)) and bool(access.get("crm"))
     return {"leisure": leisure, "business": business}
 
 

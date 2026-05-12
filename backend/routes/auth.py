@@ -978,6 +978,15 @@ async def get_org_logo(user: dict = Depends(get_current_user)) -> dict:
     # (the POST /organization/logo endpoint now stores this format directly)
     if logo_path.startswith('/api/public/files/'):
         return {"logo_url": logo_path}
+    # Iter 216h59 — also accept the iter 216h57 `/api/account/logo/{org_id}`
+    # proxy URL (returned by POST /api/account/logo). Either format works
+    # interchangeably — the Navbar fetches via this endpoint and renders
+    # whichever proxy URL was stored.
+    if logo_path.startswith('/api/account/logo/'):
+        return {"logo_url": logo_path}
+    # data: URIs (object-store outage fallback) pass through unchanged.
+    if logo_path.startswith('data:'):
+        return {"logo_url": logo_path}
     # Otherwise, find the file by storage_path and return public URL
     file_doc = await db.files.find_one({"storage_path": logo_path}, {"_id": 0, "id": 1})
     if file_doc:

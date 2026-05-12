@@ -55,10 +55,45 @@ export default function BrandKitTab({ API, headers }) {
     }
     setUploading(true);
     try {
+      // Iter 216h59 — also upload to the org-level logo endpoint so the
+      // navbar picks up the new logo automatically AND we get the
+      // auto-extracted brand palette back. We then auto-populate the
+      // BrandKit's primary + secondary colours from the dominant
+      // colours pulled out of the image — operator no longer has to
+      // hand-pick colours that match their logo.
+      const fd = new FormData();
+      fd.append('file', file);
+      let extracted = [];
+      try {
+        const orgRes = await axios.post(`${API}/api/account/logo`, fd, {
+          headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+        });
+        extracted = orgRes.data?.brand_palette || [];
+      } catch (orgErr) {
+        // Org-level upload failure doesn't block the BrandKit upload —
+        // operator can still hand-pick colours below.
+        // eslint-disable-next-line no-console
+        console.warn('Org logo sync failed (non-fatal):', orgErr);
+      }
+
       const reader = new FileReader();
       reader.onload = async () => {
         const dataUrl = reader.result;
-        await save({ primary_logo_data_url: dataUrl });
+        const patch = { primary_logo_data_url: dataUrl };
+        // Auto-apply extracted palette only when the operator hasn't
+        // already set custom colours (i.e. they're still the GymAxis
+        // defaults). This avoids stomping on a brand they've curated.
+        const defaults = ['#19CDFF', '#5B8CFF', '#66CCFF', '#0055FF', '#000000', '#ffffff', '#FFFFFF'];
+        const primaryIsDefault = !kit?.primary_color || defaults.includes((kit.primary_color || '').toUpperCase()) || defaults.includes((kit.primary_color || '').toLowerCase());
+        const secondaryIsDefault = !kit?.secondary_color || defaults.includes((kit.secondary_color || '').toUpperCase()) || defaults.includes((kit.secondary_color || '').toLowerCase());
+        if (extracted[0] && primaryIsDefault) patch.primary_color = extracted[0];
+        if (extracted[1] && secondaryIsDefault) patch.secondary_color = extracted[1];
+        await save(patch);
+        if (extracted.length > 0 && (patch.primary_color || patch.secondary_color)) {
+          notify.success(
+            `Brand colours auto-detected: ${[patch.primary_color, patch.secondary_color].filter(Boolean).join(' + ')}`,
+          );
+        }
         setUploading(false);
       };
       reader.onerror = () => { notify.error('Could not read file'); setUploading(false); };
