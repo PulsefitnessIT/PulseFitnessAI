@@ -1,12 +1,12 @@
 /**
- * Portal invite claim page (iter 216ak · Sprint B · G5).
+ * Portal invite claim page (iter 216ak · Sprint B · G5 → iter 216h46).
  *
  * Landing page for the magic link an operator sent from the Members tab:
  *   /m/{slug}/claim?t=<invite-token>
  *
  * The member picks a password, we POST /api/member-auth/claim-invite,
- * store the returned bearer under MEMBER_TOKEN_KEY and bounce them into
- * the normal member portal at /m/{slug}.
+ * pipe the returned bearer through UnifiedAuthProvider (scope='member')
+ * and bounce them into the normal member portal at /m/{slug}.
  */
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
@@ -14,15 +14,16 @@ import axios from 'axios';
 import { Lock, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const MEMBER_TOKEN_KEY = 'member_token';
 
 export default function MemberClaimPage() {
   const { slug } = useParams();
   const [params] = useSearchParams();
   const token = params.get('t') || '';
   const navigate = useNavigate();
+  const unifiedAuth = useUnifiedAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,7 +43,10 @@ export default function MemberClaimPage() {
     setBusy(true);
     try {
       const r = await axios.post(`${API}/member-auth/claim-invite`, { token, password });
-      if (r.data?.token) localStorage.setItem(MEMBER_TOKEN_KEY, r.data.token);
+      // Iter 216h46 — pipe through UnifiedAuthProvider so the rest of
+      // the platform (OfflineBanner gating, future provider-aware
+      // surfaces) sees the new member session immediately.
+      if (r.data?.token) unifiedAuth.login({ scope: 'member', token: r.data.token });
       notify.success(`Welcome to ${branding?.name || 'your studio'}!`);
       navigate(`/m/${slug}`, { replace: true });
     } catch (err) {

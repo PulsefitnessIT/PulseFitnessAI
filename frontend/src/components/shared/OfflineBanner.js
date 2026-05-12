@@ -1,5 +1,5 @@
 /**
- * OfflineBanner (iter 215d9 → 215da)
+ * OfflineBanner (iter 215d9 → 215da → 216h46)
  *
  * Sticky pill below the Navbar that surfaces two signals:
  *   1. Connectivity state ("offline" / brief "back online") — 215d9.
@@ -9,18 +9,25 @@
  * "You're offline — showing cached data." Optionally with an inline
  * pill showing how many edits are queued for sync.
  *
- * When online but with a non-empty queue (rare — we auto-drain on
- * reconnect, but this shows briefly while flushing or when a drain
- * has stalled), we show "N edits syncing…" with a retry button.
+ * Iter 216h46 — auth-gated. The banner now ONLY renders when a user
+ * is signed in (any scope — main/crm/member). Lee's iter 216h42 bug
+ * reported the offline banner showing "on every screen even when I
+ * log out" — even after the false-positive fix, the banner persisted
+ * on public/marketing/login surfaces where it's useless and confusing.
+ * Gating on `useUnifiedAuth().tokens` makes the banner an
+ * authenticated-only concern, matching the rest of the operator
+ * chrome (Navbar, GlobalCommandPalette, etc).
  */
 import React, { useEffect, useState } from 'react';
 import { WifiOff, CheckCircle2, RefreshCw, CloudOff } from 'lucide-react';
 import useOnlineStatus from '../../hooks/useOnlineStatus';
 import useOfflineQueue from '../../hooks/useOfflineQueue';
+import { useUnifiedAuth } from './UnifiedAuthProvider';
 
 export default function OfflineBanner() {
   const { online } = useOnlineStatus();
   const { count, flushing, flush } = useOfflineQueue();
+  const { tokens } = useUnifiedAuth();
   const [showBackOnline, setShowBackOnline] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
 
@@ -43,7 +50,14 @@ export default function OfflineBanner() {
 
   const offline = !online;
   const syncing = online && (flushing || count > 0);
+  const signedIn = !!(tokens.main || tokens.crm || tokens.member);
 
+  // Iter 216h46 — public surfaces (marketing site, /pulse landing,
+  // /crm login, member-app login) should NEVER show the offline
+  // banner, regardless of network state. Those surfaces have no
+  // cached data to fall back to, and the banner just looks broken
+  // on a static page.
+  if (!signedIn) return null;
   if (!offline && !showBackOnline && !syncing) return null;
 
   let background = '#1F2937';

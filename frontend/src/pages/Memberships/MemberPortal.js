@@ -31,6 +31,7 @@ import FamilyTab from './FamilyTab';
 import HomeTab from './MemberHomeTab';
 import MemberEventsTab from './MemberEventsTab';
 import { StudioVocabProvider, useStudioVocab, capNoun } from '@/hooks/useStudioVocab';
+import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -54,6 +55,12 @@ const MORE_ITEMS = [
 ];
 
 export default function MemberPortal({ slug }) {
+  // Iter 216h46 — member token now flows through UnifiedAuthProvider.
+  // The portal still keeps its own `token` state for tight local
+  // re-renders, but writes/reads route through the provider so the
+  // rest of the platform (OfflineBanner, future cross-module APIs)
+  // stays in lock-step.
+  const unifiedAuth = useUnifiedAuth();
   const [token, setToken] = useState(() => localStorage.getItem(MEMBER_TOKEN_KEY));
   const [member, setMember] = useState(null);
   const [branding, setBranding] = useState(null);
@@ -83,24 +90,24 @@ export default function MemberPortal({ slug }) {
   }, [branding]);
 
   const handleAuthed = useCallback((t, m) => {
-    localStorage.setItem(MEMBER_TOKEN_KEY, t);
+    unifiedAuth.login({ scope: 'member', token: t });
     setToken(t);
     setMember(m);
-  }, []);
+  }, [unifiedAuth]);
 
   const signOut = useCallback(() => {
-    localStorage.removeItem(MEMBER_TOKEN_KEY);
+    unifiedAuth.logout('member');
     setToken(null);
     setMember(null);
-  }, []);
+  }, [unifiedAuth]);
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
     axios.get(`${API}/member-auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => setMember(r.data.member))
-      .catch(() => { localStorage.removeItem(MEMBER_TOKEN_KEY); setToken(null); })
+      .catch(() => { unifiedAuth.logout('member'); setToken(null); })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, unifiedAuth]);
 
   // Pull the studio vocabulary once per session so every tab/toast can
   // swap "member" → the industry noun (athlete, dancer, swimmer, etc).
