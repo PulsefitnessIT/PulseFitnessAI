@@ -51,6 +51,10 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
   const { API } = useAuth();
   const [activeDocTab, setActiveDocTab] = useState('manuals');
   const [indexing, setIndexing] = useState({}); // { [fileId]: bool }
+  // Iter 216h49 — drag-and-drop dropzone matching the spec-sheet pattern.
+  // `dragOver` flips the dropzone styling; the dragenter/over/leave/drop
+  // handlers stopPropagation so the GlobalDragGuard doesn't intercept.
+  const [dragOver, setDragOver] = useState(false);
 
   // Build the filtered set per category, plus a catch-all "Other" for
   // anything stored under a non-canonical category.
@@ -101,6 +105,54 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
           on upload), users just don't need a percentage gauge cluttering
           the page. */}
       <DocumentQA compact />
+
+      {/* Iter 216h49 — Drag-and-drop dropzone. Matches the spec-sheet
+          pattern (AdminSpecSheets) so the gesture is consistent across
+          the platform. Always uploads into the *currently active* category
+          tab so operators can drag a Matrix T75 manual onto the Manuals
+          tab and have it auto-categorised. */}
+      {onUpload ? (
+        <div
+          className={`p-6 border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors ${
+            dragOver ? 'border-[var(--color-brand-blue)] bg-[var(--color-brand-blue)]/5' : ''
+          }`}
+          style={{
+            borderColor: dragOver ? 'var(--color-brand-blue)' : 'var(--theme-border)',
+            background: dragOver ? 'rgb(var(--rgb-brand-cyan-hover) / 0.04)' : 'transparent',
+          }}
+          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
+          onDrop={(e) => {
+            e.preventDefault(); e.stopPropagation(); setDragOver(false);
+            if (activeDocTab !== 'other') onUpload(e.dataTransfer?.files, activeDocTab);
+          }}
+          onClick={() => {
+            // Trigger the hidden input for the currently active category
+            const el = document.getElementById(`doc-dropzone-input-${activeDocTab}`);
+            if (el) el.click();
+          }}
+          data-testid="doc-dropzone"
+        >
+          <input
+            id={`doc-dropzone-input-${activeDocTab}`}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+            className="hidden"
+            onChange={(e) => onUpload(e, activeDocTab)}
+            data-testid="doc-dropzone-input"
+          />
+          <Upload size={22} className="mx-auto mb-2" style={{ color: 'var(--color-brand-blue)' }} />
+          <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>
+            Drop files here or click to browse
+          </p>
+          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+            Files will upload into the active <strong>{activeDocTab.replace(/-/g, ' ')}</strong> tab.
+            Progress shows in the bottom-right drawer.
+          </p>
+        </div>
+      ) : null}
 
       {/* Category tab bar */}
       <div

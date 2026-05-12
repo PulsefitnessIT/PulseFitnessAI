@@ -223,7 +223,9 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
   const [seeding, setSeeding] = useState(false);
   const step = STEPS[stepIdx];
 
-  // Load status on mount; auto-open if not seen.
+  // Iter 216h49 — Auto-open disabled. The tour content is out of date
+  // ("not pointing at the right buttons" per Lee). Manual launch via
+  // the sidebar trigger (setStepIdx + setOpen) still works.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -231,7 +233,6 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
         const { data } = await axios.get(`${API}/api/marketing/tour/status`, { headers });
         if (!cancelled) {
           setStatus(data);
-          if (!data.tour_seen) setOpen(true);
         }
       } catch { /* sidebar isn't critical */ }
     })();

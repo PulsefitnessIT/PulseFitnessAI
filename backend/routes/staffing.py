@@ -234,8 +234,19 @@ def _shift_hours(s: dict) -> float:
 
 @router.get("/staffing/staff")
 async def list_staff(include_inactive: bool = Query(False), user: dict = Depends(get_current_user)):
-    """Managers see all staff. Staff see their own profile only."""
+    """Managers see all staff. Staff see their own profile only.
+
+    Iter 216h49 — Auto-backfill: any platform user (db.users) on this org
+    that doesn't already have a matching staff_members row is added on the
+    fly with sensible defaults. Lee reported that staff added via Master
+    Admin → People had to be re-added inside Staffing, causing duplicates
+    and easy-to-miss "ghost" staff. This union pattern keeps the two
+    collections in sync without changing every user-creation code path.
+    """
     org_id = _org(user)
+    # ── Auto-backfill missing staff_members rows for managers ──────
+    if _is_manager(user):
+        await _ensure_staff_for_org_users(org_id)
     q: dict = {"organization_id": org_id}
     if not include_inactive:
         q["active"] = True
@@ -244,6 +255,68 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
         q["id"] = sid or "__none__"
     rows = await db.staff_members.find(q, {"_id": 0}).sort("full_name", 1).to_list(1000)
     return {"staff": rows, "role": _role(user)}
+
+
+async def _ensure_staff_for_org_users(org_id: str) -> int:
+    """Iter 216h49 — Ensure every db.users row on this org has a matching
+    db.staff_members row. Returns the number of rows inserted.
+
+    Match priority (so we don't double-insert):
+      1. staff_members.user_id == users.id
+      2. staff_members.email == users.email (case-insensitive)
+    Roles map: gym 'owner'/'manager'/'staff' → staffing 'manager'/'manager'/'reception'.
+    The owner is included so they appear in the rota; rate defaults to 0.
+    """
+    users = await db.users.find(
+        {"organization_id": org_id, "disabled": {"$ne": True}},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1},
+    ).to_list(2000)
+    if not users:
+        return 0
+    existing_staff = await db.staff_members.find(
+        {"organization_id": org_id},
+        {"_id": 0, "user_id": 1, "email": 1},
+    ).to_list(5000)
+    seen_user_ids = {s.get("user_id") for s in existing_staff if s.get("user_id")}
+    seen_emails = {(s.get("email") or "").strip().lower() for s in existing_staff if s.get("email")}
+
+    role_map = {"owner": "manager", "manager": "manager", "staff": "reception"}
+    inserted = 0
+    now_iso = _now().isoformat()
+    for u in users:
+        if u["id"] in seen_user_ids:
+            continue
+        em = (u.get("email") or "").strip().lower()
+        if em and em in seen_emails:
+            # Match by email — bind the user_id so future lookups are
+            # O(1) and self-healing.
+            await db.staff_members.update_one(
+                {"organization_id": org_id, "email": {"$regex": f"^{em}$", "$options": "i"}, "user_id": {"$exists": False}},
+                {"$set": {"user_id": u["id"], "updated_at": now_iso}},
+            )
+            continue
+        doc = {
+            "id": str(uuid4()),
+            "organization_id": org_id,
+            "user_id": u["id"],
+            "email": u.get("email"),
+            "full_name": u.get("full_name") or (u.get("email") or "").split("@")[0] or "Unnamed",
+            "primary_role": role_map.get((u.get("role") or "").lower(), "reception"),
+            "secondary_roles": [],
+            "certifications": [],
+            "site_ids": [],
+            "contract_type": "part_time",
+            "hourly_cost": 0.0,
+            "active": True,
+            "created_at": now_iso,
+            "auto_synced_from_users": True,
+        }
+        await db.staff_members.insert_one(doc.copy())
+        inserted += 1
+        if em:
+            seen_emails.add(em)
+        seen_user_ids.add(u["id"])
+    return inserted
 
 
 @router.post("/staffing/staff")

@@ -486,6 +486,9 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], user: dict =
         "replacement_cost", "expected_lifespan_years",
         # Supplier reassignment — restricted below to owner/manager roles.
         "supplier",
+        # Iter 216h49 — owners/managers can now move kit between sites
+        # directly via PATCH. Also gated below.
+        "site_id",
     }
     update_data = {k: v for k, v in data.items() if k in allowed_fields}
 
@@ -500,6 +503,16 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], user: dict =
         raise HTTPException(
             status_code=403,
             detail="Only owners and managers can change the supplier on equipment",
+        )
+
+    # Iter 216h49 — site moves are an organisational decision and must
+    # also be gated. Non-privileged staff cannot transfer kit between sites.
+    if "site_id" in update_data and user.get("role") not in (
+        "owner", "manager", "master_admin",
+    ) and not user.get("is_master_admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only owners and managers can move equipment between sites",
         )
 
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -563,19 +576,119 @@ async def _dispatch_single_equipment_reassignment(
 
 @router.delete("/equipment/{equipment_id}")
 async def delete_equipment(equipment_id: str, user: dict = Depends(get_current_user)) -> dict:
+    # Iter 216h49 — was previously scoped to {user_id: user['id']} which
+    # meant only the original uploader could delete the kit. Lee
+    # (org owner) reported he couldn't delete kit created by other staff.
+    # Switch to org-scoped (with owner/manager gate) so any privileged
+    # operator within the org can retire a piece of kit.
+    if user.get("role") not in ("owner", "manager", "master_admin") and not user.get("is_master_admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only owners and managers can delete equipment",
+        )
+    org_filter = get_organization_filter(user)
     # Capture before delete for audit trail
-    doc = await db.equipment.find_one({"id": equipment_id, "user_id": user['id']}, {"_id": 0, "name": 1, "serial_number": 1, "organization_id": 1})
-    result = await db.equipment.delete_one({"id": equipment_id, "user_id": user['id']})
+    doc = await db.equipment.find_one(
+        {"id": equipment_id, **org_filter},
+        {"_id": 0, "name": 1, "serial_number": 1, "organization_id": 1, "site_id": 1},
+    )
+    result = await db.equipment.delete_one({"id": equipment_id, **org_filter})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Equipment not found")
     from utils.security_plus import audit_required
     await audit_required("security_audit_log", {
         "event": "equipment.deleted", "actor_id": user["id"], "actor_email": user.get("email"),
         "org_id": (doc or {}).get("organization_id"),
+        "site_id": (doc or {}).get("site_id"),
         "equipment_id": equipment_id, "equipment_name": (doc or {}).get("name"),
         "serial_number": (doc or {}).get("serial_number"),
     })
     return {"success": True}
+
+
+@router.post("/equipment/{equipment_id}/move")
+async def move_equipment_site(
+    equipment_id: str,
+    body: Dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h49 — Move a piece of equipment to a different site within
+    the same organisation. Owner/manager only (master admin also allowed
+    so platform staff can reorganise without impersonation).
+
+    Body: { "site_id": "<target site id>" }
+
+    Validates that the target site belongs to the same org as the
+    equipment, persists the move with an audit-log entry, and returns
+    the updated equipment row.
+    """
+    if user.get("role") not in ("owner", "manager", "master_admin") and not user.get("is_master_admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only owners and managers can move equipment between sites",
+        )
+    target_site_id = (body.get("site_id") or "").strip()
+    if not target_site_id:
+        raise HTTPException(status_code=400, detail="site_id is required")
+
+    org_filter = get_organization_filter(user)
+    equipment = await db.equipment.find_one(
+        {"id": equipment_id, **org_filter},
+        {"_id": 0, "id": 1, "name": 1, "site_id": 1, "organization_id": 1, "serial_number": 1},
+    )
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    target_site = await db.sites.find_one(
+        {"id": target_site_id, "organization_id": equipment.get("organization_id")},
+        {"_id": 0, "id": 1, "name": 1},
+    )
+    if not target_site:
+        raise HTTPException(
+            status_code=404,
+            detail="Target site not found on this organisation",
+        )
+
+    previous_site_id = equipment.get("site_id")
+    if previous_site_id == target_site_id:
+        return {"success": True, "moved": False, "equipment_id": equipment_id}
+
+    await db.equipment.update_one(
+        {"id": equipment_id},
+        {"$set": {
+            "site_id": target_site_id,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    # Linked issues travel with the equipment so the per-site dashboards
+    # reconcile correctly. Suppliers / contracts stay org-scoped.
+    await db.issues.update_many(
+        {"equipment_id": equipment_id},
+        {"$set": {"site_id": target_site_id}},
+    )
+
+    from utils.security_plus import audit_required
+    await audit_required("security_audit_log", {
+        "event": "equipment.moved",
+        "actor_id": user["id"],
+        "actor_email": user.get("email"),
+        "org_id": equipment.get("organization_id"),
+        "equipment_id": equipment_id,
+        "equipment_name": equipment.get("name"),
+        "serial_number": equipment.get("serial_number"),
+        "from_site_id": previous_site_id,
+        "to_site_id": target_site_id,
+        "to_site_name": target_site.get("name"),
+    })
+
+    return {
+        "success": True,
+        "moved": True,
+        "equipment_id": equipment_id,
+        "from_site_id": previous_site_id,
+        "to_site_id": target_site_id,
+        "to_site_name": target_site.get("name"),
+    }
 
 
 @router.get("/equipment/{equipment_id}/stats")

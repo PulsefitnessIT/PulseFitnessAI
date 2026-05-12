@@ -4,9 +4,9 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Wrench, Search, ChevronRight, Shield, Camera, Sparkles, Loader2, Plus } from 'lucide-react';
+import { Wrench, Search, ChevronRight, Shield, Camera, Sparkles, Loader2, Plus, MoreHorizontal, ArrowRightLeft, Trash2, MapPin } from 'lucide-react';
 import { useAuth } from '@/App';
-import { useInlineBanner, InlineProgress } from '@/components/notifications';
+import { useInlineBanner, InlineProgress, notify, useConfirm } from '@/components/notifications';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
 import HelpHint from '@/components/HelpHint';
 
@@ -16,10 +16,56 @@ const LiteEquipmentTab = ({
   getSeverityStyle, getSeverityLabel, getStatusColor, onEquipmentUpdated,
   onAddEquipment,
 }) => {
-  const { API } = useAuth();
+  const { API, sites, user } = useAuth();
   const [bulkRunning, setBulkRunning] = useState(false);
   const { banner: bulkBanner, show: showBulkBanner } = useInlineBanner({ autoDismissMs: 8000 });
+  const confirm = useConfirm();
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+  // Iter 216h49 — owners/managers can move kit between sites + delete kit
+  // directly from the list. `movingId` controls the inline site-picker
+  // popover for one equipment row at a time.
+  const [movingId, setMovingId] = useState(null);
+  const canManageKit = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
+  const realSites = (sites || []).filter(s => !s.is_default);
+
+  const moveEquipment = async (eqId, targetSiteId) => {
+    try {
+      const res = await axios.post(
+        `${API}/equipment/${eqId}/move`,
+        { site_id: targetSiteId },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      notify.success(
+        res.data?.moved === false ? 'Already at that site' : 'Equipment moved',
+        res.data?.to_site_name ? `Now at ${res.data.to_site_name}` : undefined,
+      );
+      setMovingId(null);
+      onEquipmentUpdated && onEquipmentUpdated();
+    } catch (e) {
+      notify.error('Move failed', e?.response?.data?.detail || 'Try again or refresh.');
+    }
+  };
+
+  const deleteEquipment = async (eq) => {
+    const ok = await confirm({
+      title: `Delete "${eq.name || 'this equipment'}"?`,
+      detail: 'This permanently removes the kit and unlinks any open faults. Audit-logged. Cannot be undone.',
+      tone: 'warning',
+      confirmLabel: 'Delete kit',
+    });
+    if (!ok) return;
+    try {
+      await axios.delete(
+        `${API}/equipment/${eq.id}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      notify.success('Equipment deleted');
+      onEquipmentUpdated && onEquipmentUpdated();
+    } catch (e) {
+      notify.error('Delete failed', e?.response?.data?.detail || 'Try again.');
+    }
+  };
+
   const missingImages = filteredEquipment.filter(
     (eq) => !eq.photo_url && !eq.spec_sheet_id && !eq.auto_image_url
   ).length;
@@ -147,9 +193,66 @@ const LiteEquipmentTab = ({
                 <div className="flex items-center gap-2 shrink-0">
                   {openFaults > 0 && <Badge className="bg-red-500/15 text-red-400 border-0 text-xs">{openFaults} fault{openFaults > 1 ? 's' : ''}</Badge>}
                   {eq.warranty_expiry && new Date(eq.warranty_expiry) > new Date() && <Shield size={14} className="text-emerald-400" />}
+                  {/* Iter 216h49 — owner/manager kit row actions. Stop
+                      propagation so clicks don't drill into the detail view. */}
+                  {canManageKit && realSites.length > 1 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--theme-surface-hover)]"
+                      onClick={(e) => { e.stopPropagation(); setMovingId(movingId === eq.id ? null : eq.id); }}
+                      data-testid={`lite-equip-move-${eq.id}`}
+                      title="Move to another site"
+                    >
+                      <ArrowRightLeft size={13} />
+                    </Button>
+                  )}
+                  {canManageKit && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-[var(--color-text-muted)] hover:text-red-400 hover:bg-red-500/10"
+                      onClick={(e) => { e.stopPropagation(); deleteEquipment(eq); }}
+                      data-testid={`lite-equip-delete-${eq.id}`}
+                      title="Delete kit"
+                    >
+                      <Trash2 size={13} />
+                    </Button>
+                  )}
                   <ChevronRight size={16} className="text-[var(--color-text-muted)]" />
                 </div>
               </div>
+              {movingId === eq.id && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-3 pt-3 border-t flex flex-col gap-1.5"
+                  style={{ borderColor: 'var(--theme-border)' }}
+                  data-testid={`lite-equip-move-picker-${eq.id}`}
+                >
+                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+                    Move "{eq.name}" to which site?
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {realSites.map(s => (
+                      <Button
+                        key={s.id}
+                        type="button"
+                        size="sm"
+                        variant={s.id === eq.site_id ? 'secondary' : 'outline'}
+                        disabled={s.id === eq.site_id}
+                        className="h-8 text-xs"
+                        onClick={() => moveEquipment(eq.id, s.id)}
+                        data-testid={`lite-equip-move-target-${eq.id}-${s.id}`}
+                      >
+                        <MapPin size={11} className="mr-1" />
+                        {s.name}{s.id === eq.site_id ? ' (current)' : ''}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Card>
           );
         })}

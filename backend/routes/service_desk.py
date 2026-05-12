@@ -4,6 +4,7 @@ All mutating endpoints write a row to `service_desk_audit_log` via `log_desk_act
 """
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from datetime import datetime, timezone, timedelta
+from typing import Any, Dict
 
 from utils.auth import create_token
 from utils.database import db
@@ -71,6 +72,103 @@ async def list_customers(
     orgs = await cursor.to_list(limit)
     total = await db.organizations.count_documents(query)
     return {"organizations": orgs, "total": total}
+
+
+# ── Global equipment search (Iter 216h49) ────────────────────────
+#
+# Pulse Fitness currently uses Sicon Service to look up "what's that
+# treadmill in Carshalton" by serial number from a single search box.
+# Service Desk gets feature parity here — one search across every org's
+# equipment with org + site context surfaced inline.
+
+@router.get("/equipment")
+async def search_equipment_global(
+    q: str = "",
+    org_id: str = "",
+    site_id: str = "",
+    equipment_type: str = "",
+    manufacturer: str = "",
+    skip: int = 0,
+    limit: int = 50,
+    user: dict = Depends(require_service_desk),
+) -> dict:
+    """Global equipment search across every customer organisation.
+
+    Service Desk feature-parity with Sicon Service. Filters all use AND.
+    Returns equipment rows enriched with their parent org name + site name
+    so the desk operator never has to drill into a customer to identify
+    "which gym is this kit at".
+
+    Args:
+        q: free-text — matches name, model, manufacturer, serial number
+        org_id: scope to one organisation
+        site_id: scope to one site (org_id optional, but site is unique
+                 per-org so usually paired)
+        equipment_type / manufacturer: exact-match filters
+        skip / limit: pagination
+    """
+    query: Dict[str, Any] = {}
+    if org_id:
+        query["organization_id"] = org_id
+    if site_id:
+        query["site_id"] = site_id
+    if equipment_type:
+        query["equipment_type"] = equipment_type
+    if manufacturer:
+        query["manufacturer"] = manufacturer
+    if q:
+        # Mongo $or with case-insensitive regex. Anchored to be cheap on
+        # short queries; Pulse has fewer than 100k equipment rows so a
+        # collection scan is acceptable until a text index is justified.
+        import re
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        query["$or"] = [
+            {"name": rx}, {"model": rx}, {"manufacturer": rx},
+            {"serial_number": rx}, {"equipment_type": rx},
+        ]
+
+    projection = {
+        "_id": 0, "id": 1, "name": 1, "equipment_type": 1, "manufacturer": 1,
+        "model": 1, "serial_number": 1, "location": 1, "site_id": 1,
+        "organization_id": 1, "purchase_date": 1, "warranty_expiry": 1,
+        "supplier": 1, "created_at": 1,
+    }
+    cursor = (
+        db.equipment.find(query, projection)
+        .sort("created_at", -1)
+        .skip(max(0, int(skip)))
+        .limit(min(200, max(1, int(limit))))
+    )
+    rows = await cursor.to_list(limit)
+    total = await db.equipment.count_documents(query)
+
+    # Hydrate org + site names in a single pass each to avoid N+1.
+    org_ids = list({r.get("organization_id") for r in rows if r.get("organization_id")})
+    site_ids = list({r.get("site_id") for r in rows if r.get("site_id")})
+    orgs = {
+        o["id"]: o.get("name", "")
+        for o in await db.organizations.find(
+            {"id": {"$in": org_ids}}, {"_id": 0, "id": 1, "name": 1},
+        ).to_list(len(org_ids) or 1)
+    } if org_ids else {}
+    sites = {
+        s["id"]: s.get("name", "")
+        for s in await db.sites.find(
+            {"id": {"$in": site_ids}}, {"_id": 0, "id": 1, "name": 1},
+        ).to_list(len(site_ids) or 1)
+    } if site_ids else {}
+
+    for r in rows:
+        r["organization_name"] = orgs.get(r.get("organization_id"), "")
+        r["site_name"] = sites.get(r.get("site_id"), "")
+
+    await log_desk_action(
+        user, "equipment.search", "equipment", "global",
+        f"Equipment search: q={q!r}, results={len(rows)}",
+        details={"q": q, "org_id": org_id, "site_id": site_id, "count": len(rows)},
+    )
+
+    return {"equipment": rows, "total": total}
 
 
 # ── Customer detail / edit ───────────────────────────────────────

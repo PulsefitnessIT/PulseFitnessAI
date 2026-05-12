@@ -28,7 +28,7 @@
  * operator can flip tabs while large PDFs upload in the background.
  */
 import React, {
-  createContext, useCallback, useContext, useMemo, useReducer, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState,
 } from 'react';
 import {
   Upload, X, ChevronDown, ChevronUp, RotateCw, CheckCircle2, AlertTriangle, Loader2,
@@ -124,6 +124,29 @@ export function UploadQueueProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({ tasks, enqueue, retry, remove, clearDone }), [tasks, enqueue, retry, remove, clearDone]);
+
+  // Iter 216h49 — Page-leave guard. Lee reported losing an in-progress
+  // manual upload because he clicked away from the page mid-transfer.
+  // While any task is QUEUED or UPLOADING, attach a beforeunload handler
+  // so the browser prompts before tab close / hard refresh / route
+  // change. Auto-cleared the moment all tasks settle (done/failed) so
+  // we don't pester operators once the work is finished.
+  const inFlightCount = tasks.filter(
+    t => t.status === STATUS.QUEUED || t.status === STATUS.UPLOADING,
+  ).length;
+  useEffect(() => {
+    if (inFlightCount === 0) return undefined;
+    const handler = (e) => {
+      e.preventDefault();
+      // Most modern browsers ignore custom messages and show a generic
+      // "Leave site?" prompt — but setting returnValue is still required
+      // to trigger the dialog at all.
+      e.returnValue = `${inFlightCount} upload${inFlightCount === 1 ? '' : 's'} in progress — leaving will cancel them.`;
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [inFlightCount]);
 
   return (
     <UploadQueueCtx.Provider value={value}>

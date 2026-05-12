@@ -33,6 +33,7 @@ async def upload_file(file: UploadFile = File(...), category: str = Query("gener
     ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
     data = await file.read()
     original_filename = file.filename
+    original_size = len(data)
 
     # Sniff actual bytes — reject polyglots (e.g. HTML disguised as PDF).
     # Uses a permissive but non-executable allow-list covering images, PDFs,
@@ -43,7 +44,9 @@ async def upload_file(file: UploadFile = File(...), category: str = Query("gener
         allowed=MIME_ALL_ATTACHMENTS,
     )
 
-    # Compress PDFs before storage
+    # Compress PDFs before storage (PyMuPDF — typically 30-60% smaller
+    # with no visible quality loss). Falls back to the original bytes
+    # automatically if compression bloats the file.
     if ext.lower() == "pdf":
         from utils.pdf_compress import compress_pdf
         data = compress_pdf(data)
@@ -77,6 +80,8 @@ async def upload_file(file: UploadFile = File(...), category: str = Query("gener
         "original_filename": original_filename,
         "content_type": content_type,
         "size": result.get("size", len(data)),
+        "original_size": original_size,
+        "compression_ratio": round(1 - (len(data) / original_size), 3) if original_size > 0 and len(data) < original_size else 0,
         "content_hash": content_hash,
         "created_at": datetime.now(timezone.utc).isoformat()
     }

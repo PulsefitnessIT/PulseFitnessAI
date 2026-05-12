@@ -5,7 +5,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   LayoutDashboard, Users, ScrollText, Upload, LogOut,
-  Search, Eye, ArrowLeft, UserCog, Archive as ArchiveIcon,
+  Search, Eye, ArrowLeft, UserCog, Archive as ArchiveIcon, Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +16,13 @@ import DeskSummary from './ServiceDesk/DeskSummary';
 import DeskCustomers from './ServiceDesk/DeskCustomers';
 import DeskCustomerDetail from './ServiceDesk/DeskCustomerDetail';
 import DeskAuditLog from './ServiceDesk/DeskAuditLog';
+import DeskEquipment from './ServiceDesk/DeskEquipment';
 import AdminArchive from './MasterAdmin/AdminArchive';
 
 const TABS = [
   { id: 'summary', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'equipment', label: 'Equipment', icon: Wrench },
   { id: 'archive', label: 'Archive', icon: ArchiveIcon },
   { id: 'imports', label: 'Imports', icon: Upload, disabled: true, note: 'Coming soon' },
   { id: 'audit', label: 'Audit Log', icon: ScrollText },
@@ -122,6 +124,7 @@ export default function ServiceDeskPage() {
           />
         )}
         {tab === 'archive' && <AdminArchive />}
+        {tab === 'equipment' && <DeskEquipment API={API} />}
         {tab === 'audit' && <DeskAuditLog API={API} />}
       </main>
     </div>

@@ -558,9 +558,10 @@ export default function CRMApp() {
     unifiedAuth.login({ scope: 'crm', token, identity: userData });
     sessionStorage.setItem('crm_active_session', '1');
     setUser(userData);
-    // Show tour for new users
+    // Iter 216h49 — auto-open tour disabled per user feedback; the
+    // <ProductTour variant="crm" /> ref still exposes resetTour() for
+    // a manual "Start tour" trigger once the steps are updated.
     if (!localStorage.getItem('crm_tour_seen')) {
-      setShowTour(true);
       localStorage.setItem('crm_tour_seen', '1');
     }
     window.dispatchEvent(new Event('pwa-check-install'));

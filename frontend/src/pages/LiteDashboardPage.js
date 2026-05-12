@@ -39,6 +39,7 @@ import ModuleSwitcher from '../components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '../components/shared/CrossModuleTipsBanner';
 import PulseProUpgradeCta from '../components/shared/PulseProUpgradeCta';
 import PillTabBar from '../components/shared/PillTabBar';
+import { useUploadQueue } from '../components/shared/UploadQueue';
 import { useUserPref } from '@/utils/userPrefs';
 
 const SEVERITY_OPTIONS = [
@@ -146,6 +147,10 @@ const LiteDashboardPage = () => {
   const [suppliers, setSuppliers] = useState([]);
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
+  // Iter 216h49 — global upload queue surfaces per-file progress in the
+  // bottom-right drawer + guards against accidental tab close while
+  // uploads are in flight.
+  const { enqueue } = useUploadQueue();
 
   const adminDemoRole = isAdmin ? searchParams.get('role') : null;
   const userRole = adminDemoRole || (isAdmin ? 'owner' : (user?.role || 'staff'));
@@ -438,9 +443,20 @@ const LiteDashboardPage = () => {
     }
   };
 
-  const handleDocumentUpload = async (e, category = 'general') => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleDocumentUpload = (filesOrEvent, category = 'general') => {
+    // Iter 216h49 — accept either a FileList (from drag-and-drop) or the
+    // original change event from <input type="file"> for backwards
+    // compatibility with every consumer that hasn't migrated yet.
+    let fileList;
+    let inputEl = null;
+    if (filesOrEvent && filesOrEvent.target && filesOrEvent.target.files) {
+      fileList = filesOrEvent.target.files;
+      inputEl = filesOrEvent.target;
+    } else {
+      fileList = filesOrEvent;
+    }
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
     // Iter 216j — full Pulse documents restore. Allow every category
     // shown in the doc tab bar, including RAMS/SOPs/Compliance which the
     // user wants to upload for AI indexing.
@@ -457,26 +473,34 @@ const LiteDashboardPage = () => {
       other: 'other',
     };
     const cat = catMap[category] || 'general';
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
+
+    let completed = 0;
+    enqueue(files, async (file, onProgress) => {
+      const formData = new FormData();
+      formData.append('file', file);
       await axios.post(`${API}/files/upload?category=${cat}`, formData, {
         headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+        timeout: 180000,
+        onUploadProgress: (evt) => {
+          if (evt.total) onProgress(Math.round((evt.loaded / evt.total) * 100));
+        },
       });
-      showDocBanner({
-        tone: 'success',
-        title: 'Document uploaded',
-        detail: `Added to ${category.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} · ${file.name}`,
-      });
-      loadData();
-    } catch {
-      showDocBanner({
-        tone: 'error',
-        title: 'Upload failed',
-        detail: 'The file couldn\'t be uploaded. Check the file size (max 25MB) and type, then try again.',
-      });
-    }
-    e.target.value = '';
+    }, {
+      source: 'documents',
+      label: category,
+      onDone: () => {
+        completed += 1;
+        loadData();
+        if (completed === files.length) {
+          showDocBanner({
+            tone: 'success',
+            title: files.length === 1 ? 'Document uploaded' : `${files.length} documents uploaded`,
+            detail: `Added to ${category.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}`,
+          });
+        }
+      },
+    });
+    if (inputEl) inputEl.value = '';
   };
 
   const handleUpdateIssueStatus = async (issueId, newStatus) => {

@@ -379,10 +379,18 @@ const ProductTour = forwardRef(({ variant = 'gymaxis' }, ref) => {
   })();
 
   useEffect(() => {
+    // Iter 216h49 — Auto-open disabled platform-wide per Lee's feedback
+    // ("the tours need updating as they aren't pointing in the right
+    // directions or buttons"). Manual triggers via `resetTour()` (the
+    // "Start tour" button in the user menu) still work, so operators
+    // who want a refresher can launch it on demand once the steps are
+    // updated. Re-enable auto-open by flipping this flag to true.
+    const AUTO_OPEN = false;
+    if (!AUTO_OPEN) return undefined;
     // Iter 215bw — also honour the legacy non-scoped key, so an operator
     // who completed the tour before this change won't be re-prompted.
     const completed = localStorage.getItem(tourKey) || localStorage.getItem(baseKey);
-    if (completed) return;
+    if (completed) return undefined;
 
     // Iter 216o-6 — Wait for the WelcomeHero onboarding card to be
     // dismissed before launching the product tour. Showing both at once
@@ -417,7 +425,7 @@ const ProductTour = forwardRef(({ variant = 'gymaxis' }, ref) => {
       clearInterval(intervalId);
       clearTimeout(safetyId);
     };
-  }, [tourKey, variant]);
+  }, [tourKey, baseKey, variant]);
 
   const handleEvent = useCallback((event) => {
     const { type, status, action } = event || {};
