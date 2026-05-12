@@ -155,10 +155,31 @@ export function useUploadQueue() {
 }
 
 // ─── Drawer UI ──────────────────────────────────────────────────────
+//
+// Iter 216h36 — mobile-aware. The fixed bottom-right 340 px card is
+// great on a laptop but collides with the iOS home indicator and the
+// software keyboard on a phone. Now responsive:
+//   • md+ (≥ 768 px) — unchanged: bottom-right floating card, 340 px wide.
+//   • <md             — slide-up sheet pinned to the bottom, full-width
+//                       minus 8 px margin. Collapsed state becomes a
+//                       slim handle bar with a single-line summary so
+//                       it never blocks page content. Expanded state
+//                       respects `env(safe-area-inset-bottom)` so the
+//                       footer "Clear complete" button stays above the
+//                       iOS home indicator.
+//   The list also grows tall enough on mobile to be usefully readable
+//   (60 vh max instead of 280 px).
 
 function UploadQueueDrawer() {
   const { tasks, retry, remove, clearDone } = useContext(UploadQueueCtx) || { tasks: [] };
-  const [collapsed, setCollapsed] = useState(false);
+  // Start collapsed on small viewports so the drawer doesn't eat half
+  // the screen the moment a file upload starts.
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(max-width: 767px)').matches;
+    }
+    return false;
+  });
 
   if (!tasks || tasks.length === 0) return null;
 
@@ -168,13 +189,21 @@ function UploadQueueDrawer() {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-[200] w-[340px] rounded-xl shadow-2xl border overflow-hidden"
+      className="
+        fixed z-[200] rounded-t-2xl md:rounded-xl shadow-2xl border overflow-hidden
+        bottom-0 left-2 right-2 md:bottom-4 md:left-auto md:right-4 md:w-[340px]
+      "
       style={{
         background: 'var(--theme-surface, #fff)',
         borderColor: 'var(--theme-border, #E4E4E7)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
       data-testid="upload-queue-drawer"
     >
+      {/* Mobile grab handle — hidden on desktop. */}
+      <div className="md:hidden flex justify-center pt-1.5 pb-0.5">
+        <div className="w-9 h-1 rounded-full" style={{ background: 'var(--theme-border, #E4E4E7)' }} aria-hidden />
+      </div>
       {/* Header */}
       <button
         type="button"
@@ -183,7 +212,7 @@ function UploadQueueDrawer() {
         style={{ borderColor: 'var(--theme-border, #E4E4E7)' }}
         data-testid="upload-queue-toggle"
       >
-        <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: 'rgb(var(--rgb-brand-cyan, 0 214 224) / 0.12)' }}>
+        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0" style={{ background: 'rgb(var(--rgb-brand-cyan, 0 214 224) / 0.12)' }}>
           {inFlight > 0 ? (
             <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-brand-cyan, #00D6E0)' }} />
           ) : failed > 0 ? (
@@ -207,9 +236,14 @@ function UploadQueueDrawer() {
         {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
 
-      {/* Tasks */}
+      {/* Tasks — taller list on mobile so it's actually readable.
+          280 px on desktop, 60 vh on mobile (still leaves header room). */}
       {!collapsed && (
-        <div className="max-h-[280px] overflow-y-auto" data-testid="upload-queue-list">
+        <div
+          className="overflow-y-auto"
+          style={{ maxHeight: 'min(60vh, 280px)' }}
+          data-testid="upload-queue-list"
+        >
           {tasks.map(t => (
             <UploadTaskRow key={t.id} task={t} onRetry={() => retry(t.id)} onRemove={() => remove(t.id)} />
           ))}

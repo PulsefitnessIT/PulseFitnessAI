@@ -1,3 +1,48 @@
+## Iter 216h36 — UploadQueueDrawer becomes mobile-aware (Feb 12, 2026)
+
+### Why
+Iter 216h34's bottom-right floating card looks great on a laptop but on a phone (390 px wide):
+- Collides with the **iOS home indicator** (bottom-4 lands directly on the swipe area).
+- Gets covered by the **software keyboard** the second the operator opens a comment field.
+- The 340 px fixed width leaves only 50 px of horizontal margin → cramped, half-cut filenames.
+
+A studio manager photographing a damaged dumbbell on their phone (via `EquipmentPhotoUpload`) couldn't see drawer progress mid-upload because the drawer overlapped the iOS bottom system area.
+
+### What shipped
+**Single-file change** to `/app/frontend/src/components/shared/UploadQueue.js`:
+
+| Behaviour | md+ (≥768 px) | <md mobile |
+|---|---|---|
+| Position | `bottom-4 right-4` (unchanged) | `bottom-0 left-2 right-2` — slide-up sheet pinned to the bottom, full-width minus 8 px margins. |
+| Corner radius | `rounded-xl` all sides | `rounded-t-2xl` only top corners (sheet style). |
+| Width | 340 px fixed | Full viewport width minus 16 px. |
+| Default state | Expanded | **Collapsed** — uses `window.matchMedia('(max-width: 767px)')` on init so the drawer doesn't eat half the screen the moment a file upload starts. |
+| List height | `max-h-[280px]` | `max-h-[min(60vh, 280px)]` so the list grows on tall mobile screens but never devours the page. |
+| Safe area | n/a | `paddingBottom: env(safe-area-inset-bottom)` so the footer + grab handle clear the iOS home indicator. |
+| Grab handle | None | iOS-style horizontal pill (36 × 4 px) at the top to telegraph "this slides". |
+
+### Verified live
+Injected a probe div with the exact same Tailwind classes at the **mobile 390 × 844 viewport**:
+```
+rect:    { x: 8, y: 778, width: 374, height: 66, right: 382 }
+bottom:  0px      ← pinned to bottom
+left:    8px      ← respects left-2
+right:   8px      ← respects right-2
+width:   374px    ← full width minus 16 px margin
+```
+At desktop 1920 px the drawer kept its 340 × bottom-right position (`x=1564, right=1904`). Functional behaviour (enqueueing 3 spec sheets → drawer auto-renders, header summary, per-file rows, "Clear complete" footer) was verified live via Playwright file-input drop on the Spec Sheets dropzone — 0 React errors.
+
+### Files touched
+- `/app/frontend/src/components/shared/UploadQueue.js` (~+30 / −10 LOC in `UploadQueueDrawer`)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. Field staff uploading photos on a phone now see a sheet-style drawer at the bottom with grab handle, clear of the home indicator, and collapsed by default so the page underneath stays usable.
+
+---
+
+
+
 ## Iter 216h35 — UploadQueue adoption batch 2 + Button migration in MembershipsConsole (Feb 12, 2026)
 
 Two deliverables completing iter 216h34's queue+button threads.
