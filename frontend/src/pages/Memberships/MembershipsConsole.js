@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
 import Button from '@/components/shared/Button';
+import RowActions from '@/components/shared/RowActions';
 import InvitePortalButton from '@/components/memberships/InvitePortalButton';
 import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import {
@@ -1220,10 +1221,10 @@ function PlansInnerView({ API, headers }) {
                     <div className="text-xs text-[color:var(--theme-text-muted)] capitalize">{(p.kind || '').replace('_', ' ')} · {p.billing_cycle}</div>
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                <RowActions data-testid={`mbr-plan-actions-${p.id}`}>
                   <Button variant="ghost" size="iconSm" onClick={() => setEditing(p)} icon={Edit3} title="Edit" data-testid={`mbr-plan-edit-${p.id}`} />
                   <Button variant="ghostDestructive" size="iconSm" onClick={() => archive(p)} icon={Trash2} title="Archive" data-testid={`mbr-plan-archive-${p.id}`} />
-                </div>
+                </RowActions>
               </div>
               <div className="text-2xl font-extrabold tracking-tight mt-2">£{(p.price_pence / 100).toFixed(2)}</div>
               <div className="text-xs text-[color:var(--theme-text-muted)] mt-1">
@@ -1298,9 +1299,9 @@ function ClassesTab({ API, headers }) {
                   {t.instructor_name || 'No instructor'} · {t.room_name || 'No room'} · {t.credits_to_book ?? 1} credit{t.credits_to_book === 1 ? '' : 's'}
                 </div>
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+              <RowActions data-testid={`mbr-class-actions-${t.id}`}>
                 <Button variant="ghostDestructive" size="icon" onClick={(e) => { e.stopPropagation(); archive(t); }} icon={Trash2} title="Archive" data-testid={`mbr-class-archive-${t.id}`} />
-              </div>
+              </RowActions>
             </div>
           ))}
         </div>
@@ -1565,11 +1566,11 @@ function AdsTab({ API, headers }) {
                     {PLACEMENTS.find((p) => p.value === a.placement)?.label || a.placement} · {a.impressions || 0} views · {a.clicks || 0} clicks
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
+                <RowActions data-testid={`mbr-ad-actions-${a.id}`}>
                   <Button variant="ghost" size="icon" onClick={() => toggle(a)} icon={a.active ? Pause : CheckCircle2} title={a.active ? 'Pause' : 'Resume'} data-testid={`mbr-ad-toggle-${a.id}`} />
                   <Button variant="ghost" size="icon" onClick={() => setEditing(a)} icon={Edit3} title="Edit" data-testid={`mbr-ad-edit-${a.id}`} />
                   <Button variant="ghostDestructive" size="icon" onClick={() => del(a)} icon={Trash2} title="Delete" data-testid={`mbr-ad-delete-${a.id}`} />
-                </div>
+                </RowActions>
               </div>
             </div>
           ))}

@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import Button from '@/components/shared/Button';
+import RowActions from '@/components/shared/RowActions';
 
 const KIND_OPTIONS = [
   { value: 'recurring',  label: 'Memberships' },
@@ -133,11 +135,9 @@ function PromoCard({ promo, plans, onArchive }) {
           </div>
           <p className="text-xs text-[color:var(--theme-text-muted)] mt-0.5 truncate">{promo.name}</p>
         </div>
-        <button onClick={onArchive}
-          className="opacity-0 group-hover:opacity-100 transition p-1.5 rounded hover:bg-red-500/20 text-red-300"
-          data-testid={`mbr-promo-archive-${promo.id}`} title="Deactivate">
-          <Trash2 size={12} />
-        </button>
+        <RowActions>
+          <Button variant="ghostDestructive" size="iconSm" onClick={onArchive} icon={Trash2} title="Deactivate" data-testid={`mbr-promo-archive-${promo.id}`} />
+        </RowActions>
       </div>
 
       <div className="text-2xl font-extrabold tracking-tight text-emerald-500 mt-2 flex items-center gap-1">

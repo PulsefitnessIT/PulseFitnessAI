@@ -1,3 +1,53 @@
+## Iter 216h40 — `<RowActions>` cluster component + 6 row migrations (Feb 12, 2026)
+
+### Why
+The hover-reveal pattern `<div className="opacity-0 group-hover:opacity-100 transition ...">` had drifted into **4 different incantations** across 8+ row UIs in CRM and Memberships, AND had a long-standing iPad/iPhone bug — native `:hover` is sticky on touch, so hidden-by-default row actions either flashed on first tap then stayed (gummy) or stayed completely hidden depending on the OS.
+
+### What shipped
+
+#### NEW `<RowActions>` (`/app/frontend/src/components/shared/RowActions.js`)
+- Wraps 2-4 ghost-variant `<Button>` icons in a flexbox with `opacity-0 group-hover:opacity-100 transition-opacity`.
+- **Mobile/touch fix:** injects a one-time `<style id="row-actions-style">` block with `@media (hover: none), (pointer: coarse) { .row-actions-hover-reveal { opacity: 1 !important; } }`. Row actions are always visible on touch devices — no more invisible-on-iPad bug.
+- Configurable: `alwaysVisible` (opt out of hover-reveal), `align` (left/right), `gap` (0.5–2), `data-testid`.
+- Parent row must have Tailwind's `group` class (which they already do across our codebase — verified during migration).
+
+#### Call-site migrations (6 clusters → 9 ghost buttons standardised)
+
+| File | Cluster | Buttons inside |
+|---|---|---|
+| `MembershipsConsole.js` (Plans) | `mbr-plan-actions-{id}` (new testId) | Edit · Archive |
+| `MembershipsConsole.js` (Classes) | `mbr-class-actions-{id}` (new testId) | Archive |
+| `MembershipsConsole.js` (Ads) | `mbr-ad-actions-{id}` (new testId) | Toggle · Edit · Delete |
+| `Memberships/PromotionsTab.js` | (no testId, single child) | Deactivate |
+| `CRM/CRMContracts.js` (Sites list) | (single child) | Remove site |
+| `CRM/CRMContracts.js` (Assets list) | (single child) | Remove asset |
+
+All button-level `data-testid`s preserved verbatim. Three new cluster-level testIds added for testability.
+
+### Design system doc updated
+`/app/DESIGN_SYSTEM.md` documents the `<RowActions>` cluster with usage example, props, and the parent-must-be-`group` requirement.
+
+### Verified end-to-end
+- Lint clean across `RowActions.js`, `MembershipsConsole.js`, `PromotionsTab.js`, `CRMContracts.js`.
+- Smoke-tested on `/memberships`: `<style id="row-actions-style">` was injected into the DOM with the correct `@media (hover: none), (pointer: coarse) { .row-actions-hover-reveal { opacity: 1 !important; } }` rule.
+- 0 React errors after navigation to Memberships.
+
+### Files touched
+- **NEW** `/app/frontend/src/components/shared/RowActions.js` (~95 LOC)
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js` (+3 / −3 LOC × 3 clusters)
+- `/app/frontend/src/pages/Memberships/PromotionsTab.js` (+3 / −5 LOC)
+- `/app/frontend/src/pages/CRM/CRMContracts.js` (+6 / −6 LOC × 2 clusters)
+- `/app/DESIGN_SYSTEM.md` (+24 LOC)
+
+### ⚠ Action required
+1. Redeploy preview → production.
+2. iPad operators can now actually tap the row-action icons on Plans/Classes/Ads/Promotions/Contracts — previously they were unreachable.
+3. Future row-action sites: wrap ghost-icon clusters in `<RowActions>` instead of bespoke `flex gap-1 opacity-0 group-hover:opacity-100` divs. See the design system doc.
+
+---
+
+
+
 ## Iter 216h39 — CheckinTab × close buttons migrated (design call: Lucide X) (Feb 12, 2026)
 
 ### Design call

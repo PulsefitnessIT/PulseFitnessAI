@@ -89,7 +89,28 @@ import { Plus, Download, Trash2 } from 'lucide-react';
 <Button variant="ghost" size="icon" icon={Edit3} title="Edit" />
 <Button variant="ghost" size="icon" icon={Copy} title="Copy URL" />
 <Button variant="ghostDestructive" size="iconSm" icon={Trash2} title="Archive" />
+
+// Iter 216h40 — Cluster row-action buttons with hover-reveal + touch-friendly fallback.
+<div className="group flex items-center justify-between …">
+  <RowMeta />
+  <RowActions>
+    <Button variant="ghost" size="iconSm" icon={Edit3} title="Edit" />
+    <Button variant="ghostDestructive" size="iconSm" icon={Trash2} title="Archive" />
+  </RowActions>
+</div>
 ```
+
+### Iter 216h40 — `<RowActions>` cluster
+
+The hover-reveal pattern (`opacity-0 group-hover:opacity-100 transition`) had drifted into 4 slightly different incantations across CRM + Memberships row UIs. `<RowActions>` standardises it AND fixes a long-standing iPad/iPhone bug: native `:hover` is sticky on touch devices, so hidden-by-default row actions were unreachable on mobile. The component injects a one-time `@media (hover: none), (pointer: coarse)` rule that forces `opacity: 1` on touch.
+
+Props:
+- `alwaysVisible` — opt out of hover-reveal (detail pages).
+- `align` — `right` (default) | `left`.
+- `gap` — `0.5` | `1` (default) | `1.5` | `2`.
+- `data-testid` — for tests.
+
+Parent row **must** have the Tailwind `group` class.
 
 ### Anti-patterns we replaced (iter 216h27)
 - Multiple `inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50` repeated everywhere → use `<Button variant="secondary">`.

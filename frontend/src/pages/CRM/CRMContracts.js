@@ -8,6 +8,8 @@ import {
   Settings2, ExternalLink, Zap
 } from 'lucide-react';
 import axios from 'axios';
+import Button from '@/components/shared/Button';
+import RowActions from '@/components/shared/RowActions';
 
 const TIER_COLORS = { warranty: 'var(--color-text-faint-alt)', bronze: 'var(--color-bronze)', silver: 'var(--color-silver)', gold: 'var(--color-gold)', platinum: '#E5E4E2', bespoke: 'var(--color-accent-violet)' };
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', sent: 'var(--color-info-ios)', negotiation: 'var(--color-accent-magenta)', signed: 'var(--color-success-alt)', active: 'var(--color-info-ios)', expiring: 'var(--color-accent-amber)', expired: 'var(--color-danger-alt)', renewed: 'var(--color-success-alt)', cancelled: 'var(--color-danger)', amended: 'var(--color-accent-violet)' };
@@ -298,9 +300,9 @@ function SitesTab({ contract, contractId, API, headers, isDark, c, reload }) {
               <p className="text-[11px]" style={{ color: c.textDim }}>{[site.address, site.city, site.postcode].filter(Boolean).join(', ')}</p>
               {site.notes && <p className="text-[10px] mt-0.5 italic" style={{ color: c.textDim }}>{site.notes}</p>}
             </div>
-            <button onClick={() => removeSite(site.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 transition-opacity" data-testid={`remove-site-${site.id}`}>
-              <Trash2 size={13} style={{ color: 'var(--color-danger)' }} />
-            </button>
+            <RowActions>
+              <Button variant="ghostDestructive" size="iconSm" onClick={() => removeSite(site.id)} icon={Trash2} title="Remove site" data-testid={`remove-site-${site.id}`} />
+            </RowActions>
           </div>
         ))}
         {(contract.sites || []).length === 0 && <p className="text-center py-8 text-sm" style={{ color: c.textDim }}>No sites added yet</p>}
@@ -378,9 +380,9 @@ function AssetsTab({ contract, contractId, API, headers, isDark, c, reload }) {
                   {asset.warranty_end && ` · Warranty: ${fmtDate(asset.warranty_end)}`}
                 </p>
               </div>
-              <button onClick={() => removeAsset(asset.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 transition-opacity" data-testid={`remove-asset-${asset.id}`}>
-                <Trash2 size={13} style={{ color: 'var(--color-danger)' }} />
-              </button>
+              <RowActions>
+                <Button variant="ghostDestructive" size="iconSm" onClick={() => removeAsset(asset.id)} icon={Trash2} title="Remove asset" data-testid={`remove-asset-${asset.id}`} />
+              </RowActions>
             </div>
           );
         })}
