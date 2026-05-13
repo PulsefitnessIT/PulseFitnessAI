@@ -1,6 +1,6 @@
 """Marketing — Brand Auto-Discovery.
 
-Iter 216h70 — when a customer enables the Marketing module (or saves
+Iter 216h70 — when a tenant enables the Marketing module (or saves
 their website URL for the first time), kick off a background crawl
 that builds their **brand kit + marketing intelligence pack** from
 their existing website:
@@ -20,7 +20,7 @@ their existing website:
 
 Results land as a *draft* doc that the operator reviews + applies via
 `POST /apply`. Images are mirrored to our object storage and PIL-
-compressed (quality=85, max-dim 2000 px) so they survive customer
+compressed (quality=85, max-dim 2000 px) so they survive site
 re-designs without quality loss.
 
 API:
@@ -65,7 +65,7 @@ MAX_PAGES = 8
 CRAWL_TIMEOUT = 12.0
 # Iter 216h71 — many corporate sites block crawler-style User-Agents
 # at the WAF (Cloudflare, Akamai) regardless of robots.txt. Identify
-# as a real Chrome to land on the customer-facing HTML; we keep an
+# as a real Chrome to land on the public-facing HTML; we keep an
 # X-Robot header so good-faith server admins can still see it's us.
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -527,7 +527,7 @@ async def _claude_summarise(text_corpus: str) -> dict:
             api_key=api_key,
             session_id=f"brand-discovery-{datetime.now(timezone.utc).timestamp()}",
             system_message=(
-                "You analyse a customer's website copy and extract marketing brand intelligence. "
+                "You analyse a tenant's website copy and extract marketing brand intelligence. "
                 "The vertical is unknown — could be a gym, a SaaS, an e-commerce store, a service "
                 "business, anything. Infer it from the copy. Reply ONLY with valid JSON (no prose, "
                 "no markdown fences) with these keys:\n"
@@ -693,7 +693,7 @@ async def _run_discovery(org_id: str, website_url: str) -> None:
 
 
 class StartReq(BaseModel):
-    website_url: HttpUrl = Field(..., description="Customer's public website URL")
+    website_url: HttpUrl = Field(..., description="Tenant's public website URL")
 
 
 @router.post("/marketing/brand-discovery/start", dependencies=[Depends(require_module("marketing"))])

@@ -165,7 +165,7 @@ Frontend lint clean across all 9 new files.
 ## Iter 216h71 — Marketing Starter Pack + tenant backfills (Feb 13, 2026)
 
 ### Why
-Iter 216h70 finish improvement: "Now that we extract tone-of-voice + audiences + campaigns, auto-draft a starter content pack so a customer goes from blank Marketing module → ready content in under a minute." Plus Lee asked us to **confirm brand auto-discovery has run + brand kits are built for Third Space AND Pulse Fitness customers**.
+Iter 216h70 finish improvement: "Now that we extract tone-of-voice + audiences + campaigns, auto-draft a starter content pack so a tenant goes from blank Marketing module → ready content in under a minute." Plus Lee asked us to **confirm brand auto-discovery has run + brand kits are built for Third Space AND Pulse Fitness seed orgs**.
 
 ### What shipped
 
@@ -209,7 +209,7 @@ Persistence: `marketing_starter_pack` (one doc per org) — `{organization_id, p
 - Drafts state: 3 collapsible email cards (Welcome / Win-back / Promo, color-bar coded green/amber/indigo) showing subject + preview, expand to reveal full body. 3 social cards (Instagram / Facebook / X) with platform icons. **Copy to clipboard** on every card. **Re-generate** + **Clear** in footer.
 
 ### Tenant backfills — Third Space + Pulse Fitness
-Both real customer orgs now have:
+Both seed orgs now have:
 
 | Tenant | Website | Discovery result |
 |---|---|---|
@@ -219,7 +219,7 @@ Both real customer orgs now have:
 Both confirmed visually in /marketing → Brand Kit.
 
 ### Tenant-agnostic confirmation
-**Yes — the brand auto-discovery + starter pack features work identically for any tenant with the Marketing module enabled.** Both endpoints scope every read/write by `organization_id` (resolved via `_org_id(user)`) and are guarded by `require_module("marketing")`. Third Space, Pulse Fitness, and any future customer get the same flow on activation. The backfills above prove this — same endpoints, two different tenants, two on-brand outputs.
+**Yes — the brand auto-discovery + starter pack features work identically for any tenant with the Marketing module enabled.** Both endpoints scope every read/write by `organization_id` (resolved via `_org_id(user)`) and are guarded by `require_module("marketing")`. Third Space, Pulse Fitness, and any future tenant get the same flow on activation. The backfills above prove this — same endpoints, two different tenants, two on-brand outputs.
 
 ### Verified (testing-agent iter 216h71 — 10/10 backend + frontend all green)
 - Starter pack generate / get / delete / auth / module-guard — all passing
@@ -255,7 +255,7 @@ Lint clean across all touched files.
 ## Iter 216h70 — Marketing: Brand auto-discovery + tab reorder (Feb 13, 2026)
 
 ### Why
-Lee's ask: "If a customer purchases the Marketing module, on sign-up they enter their website. From that point in the background AI should crawl their website to build up the brand kit — standards, fonts, text sizes, logos, images, etc. Grab as much intelligence as possible. **Massive time saver.**" Plus: tab reorder — Start FIRST (auto-removing checklist parity with other modules), Dashboard SECOND (renamed from Performance).
+Lee's ask: "If a tenant enables the Marketing module, on sign-up they enter their website. From that point in the background AI should crawl their website to build up the brand kit — standards, fonts, text sizes, logos, images, etc. Grab as much intelligence as possible. **Massive time saver.**" Plus: tab reorder — Start FIRST (auto-removing checklist parity with other modules), Dashboard SECOND (renamed from Performance).
 
 ### Operator decisions (captured)
 1. Trigger: (a) Auto on first website-URL save.
@@ -280,7 +280,7 @@ Four endpoints, all behind `require_module("marketing")`:
 2. Discover same-domain links, prioritising `/about`, `/timetable`, `/classes`, `/membership`, `/pricing`, `/offers`, `/promotions`, `/blog`, `/contact`.
 3. Crawl up to 8 pages total. Accumulate hex colours (CSS/HTML), `font-family` + Google-Fonts declarations, plain-text corpus.
 4. From the homepage: extract **logo candidates** (`<link rel=icon>`, `og:image`, `<img>` near `<header>` with logo class), **marketing imagery** (≥200 × 200 px, skips icons/avatars), **social handles** (FB / IG / TikTok / X / LinkedIn / YouTube).
-5. **Image storage** — top 3 logos + top 8 images downloaded → PIL-compressed (longest side cap 2000 px, JPEG quality=85, PNG optimize for RGBA logos) → `put_object("gymaxis/brand-discovery/{org}/...")`. Returned `stored_url` points to **our** storage so they survive customer redesigns.
+5. **Image storage** — top 3 logos + top 8 images downloaded → PIL-compressed (longest side cap 2000 px, JPEG quality=85, PNG optimize for RGBA logos) → `put_object("gymaxis/brand-discovery/{org}/...")`. Returned `stored_url` points to **our** storage so they survive site redesigns.
 6. **Claude Haiku 4.5** single call (Emergent LLM key) — returns JSON with `tone_of_voice`, `audiences`, `current_campaigns`, `has_timetable`, `keywords`. Cost: ~$0.01–0.03 per gym.
 
 Persistence: `marketing_brand_discovery` collection (one doc per org).
@@ -313,7 +313,7 @@ New: **`Start · Dashboard · Insights · Campaigns · Journeys · Contacts · A
 | POST /discard wipes doc | ✅ |
 | POST /apply without ready draft → 400 | ✅ |
 | All endpoints require marketing module + auth | ✅ |
-| Image storage uses `put_object()` — `stored_url` is GymAxis storage path, NOT customer CDN | ✅ |
+| Image storage uses `put_object()` — `stored_url` is GymAxis storage path, NOT a third-party CDN | ✅ |
 | Tab order: Start FIRST (`data-testid='marketing-tab-start'`), Dashboard SECOND (`id='performance'`, label='Dashboard') | ✅ |
 | BrandDiscoveryPanel renders with URL input, "Discover my brand" button, running → ready → applied flow | ✅ |
 

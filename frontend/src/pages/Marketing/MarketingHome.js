@@ -150,20 +150,20 @@ function SocialProof() {
     <section className="py-20 md:py-28 bg-white" data-testid="gx-social-proof">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Trusted by operators</p>
-          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">Numbers that matter</h2>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Built for fitness operators</p>
+          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">What the platform delivers on day one</h2>
         </div>
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <Stat value="32%" label="Lower churn after 6 months" />
-          <Stat value="2.4×" label="Faster fault resolution" />
-          <Stat value="£14k" label="Average annual revenue lift per site" />
-          <Stat value="99.97%" label="Platform uptime" />
+          <Stat value="One screen" label="Members, classes, equipment & finance" />
+          <Stat value="AI-first" label="Brand auto-discovery, marketing co-pilot, fault triage" />
+          <Stat value="500k rows" label="Bulk imports tested for multi-site rollouts" />
+          <Stat value="GDPR-ready" label="UK GDPR DPA + UK-only data residency" />
         </div>
         <blockquote className="mt-16 max-w-3xl mx-auto text-center">
           <p className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 leading-snug">
-            "We replaced four tools with GymAxis on day one. By month three, our front desk had the entire member journey on one screen."
+            "Built by gym operators, for gym operators. Replace four tools with one that thinks like you do."
           </p>
-          <footer className="mt-5 text-sm text-slate-500">Operations Director · Multi-site fitness group</footer>
+          <footer className="mt-5 text-sm text-slate-500">Founding principle · GymAxis AI</footer>
         </blockquote>
       </div>
     </section>
