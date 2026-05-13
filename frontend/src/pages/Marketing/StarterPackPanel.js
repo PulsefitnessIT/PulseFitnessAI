@@ -1,5 +1,5 @@
 /**
- * Marketing Starter Pack panel — iter 216h71.
+ * Marketing Starter Pack panel — iter 216h71 + 216h74 launch wiring.
  *
  * Sits below the Brand Auto-Discovery panel in Brand Kit. Lets the
  * operator one-click "Generate my starter pack" — Claude Haiku 4.5
@@ -7,15 +7,20 @@
  * posts (Instagram / Facebook / X) in their tone-of-voice using the
  * audience segments + campaigns extracted by brand discovery.
  *
- * The drafts are persisted server-side so the operator can return to
- * them later. Each draft has a "Copy to clipboard" button so they can
- * paste into their email tool or scheduler.
+ * Iter 216h74 — every email now has 3 launch actions:
+ *   • Send test to me        → real Resend dispatch to the operator
+ *   • Create campaign draft  → POST /campaigns → "Open in Campaigns"
+ *   • (Top-of-pack) Build welcome journey → 3 emails wired with waits
+ *
+ * Social cards retain "Copy to clipboard" until the Meta/X OAuth
+ * scheduling MVP lands.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Wand2, Mail, Instagram, Facebook, Twitter, Loader2, Sparkles,
-  CheckCircle2, Copy, Trash2,
+  CheckCircle2, Copy, Trash2, Send, FilePlus, GitBranch, ExternalLink,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -34,6 +39,8 @@ const SOCIAL_META = {
 export default function StarterPackPanel({ API, headers }) {
   const [doc, setDoc] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState(null); // e.g. "test:welcome", "campaign:promo", "journey"
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     try {
@@ -61,7 +68,7 @@ export default function StarterPackPanel({ API, headers }) {
   };
 
   const clear = async () => {
-    if (!window.confirm('Clear your starter pack drafts?')) return;
+    if (!window.confirm('Clear your starter pack drafts? Any campaigns or journeys you already created stay put.')) return;
     setBusy(true);
     try {
       await axios.delete(`${API}/api/marketing/starter-pack`, { headers });
@@ -83,7 +90,78 @@ export default function StarterPackPanel({ API, headers }) {
     }
   };
 
+  const sendTest = async (emailId, label) => {
+    setBusyAction(`test:${emailId}`);
+    try {
+      const r = await axios.post(
+        `${API}/api/marketing/starter-pack/emails/${emailId}/test-send`,
+        {},
+        { headers },
+      );
+      notify.success(`${label} test email sent to ${r.data?.to || 'your inbox'}`);
+      await load();
+    } catch (e) {
+      notifyApiError(notify, e, 'Test send failed');
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const createCampaign = async (emailId, label) => {
+    setBusyAction(`campaign:${emailId}`);
+    try {
+      const r = await axios.post(
+        `${API}/api/marketing/starter-pack/emails/${emailId}/create-campaign`,
+        {},
+        { headers },
+      );
+      const campaignId = r.data?.campaign_id;
+      if (r.data?.already_exists) {
+        notify.success(`${label} campaign already exists — opening in Campaigns`);
+      } else {
+        notify.success(`${label} campaign created — pick an audience and Send`);
+      }
+      await load();
+      // Deep-link to the campaigns tab. Marketing tab keys live in MarketingSuite.
+      if (campaignId) {
+        navigate(`/marketing?tab=campaigns&campaign=${encodeURIComponent(campaignId)}`);
+      }
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not create campaign draft');
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const createJourney = async () => {
+    setBusyAction('journey');
+    try {
+      const r = await axios.post(
+        `${API}/api/marketing/starter-pack/create-journey`,
+        {},
+        { headers },
+      );
+      const journeyId = r.data?.journey_id;
+      if (r.data?.already_exists) {
+        notify.success('Welcome journey already exists — opening in Journeys');
+      } else {
+        notify.success('Welcome journey created · 3 emails wired with waits');
+      }
+      await load();
+      if (journeyId) {
+        navigate(`/marketing?tab=journeys&journey=${encodeURIComponent(journeyId)}`);
+      }
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not build the welcome journey');
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const pack = doc?.pack;
+  const launches = doc?.launches || {};
+  const emailLaunches = launches.emails || {};
+  const journeyId = launches.journey_id;
 
   return (
     <div
@@ -102,8 +180,8 @@ export default function StarterPackPanel({ API, headers }) {
           <h3 className="text-base font-bold mt-1">3 emails + 3 social posts in your tone</h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xl">
             We'll use your brand voice, audience segments and current campaigns to draft a
-            welcome email, a win-back email, a promo email, and three social posts. Edit
-            anything before you send.
+            welcome email, a win-back email, a promo email, and three social posts. Send a
+            test, push to Campaigns, or bundle all three into a Welcome Journey in one click.
           </p>
         </div>
         {pack && (
@@ -129,13 +207,52 @@ export default function StarterPackPanel({ API, headers }) {
 
       {pack && (
         <div className="space-y-4" data-testid="starter-pack-drafts">
+          {/* Journey CTA — sits above the email list */}
+          <div className="rounded-lg border border-purple-200 dark:border-purple-900/40 bg-white/70 dark:bg-zinc-900/60 p-3 flex items-center justify-between gap-3 flex-wrap"
+            data-testid="starter-pack-journey-row">
+            <div className="flex items-start gap-2 min-w-0">
+              <GitBranch size={16} className="text-purple-500 mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  Welcome series · 3 emails, automated
+                </div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Welcome → wait 3d → Win-back → wait 7d → Promo. Drops into Journeys as a draft so you can wire the trigger & publish.
+                </div>
+              </div>
+            </div>
+            {journeyId ? (
+              <button
+                onClick={() => navigate(`/marketing?tab=journeys&journey=${encodeURIComponent(journeyId)}`)}
+                className="px-3 py-1.5 text-xs font-bold rounded-md border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 inline-flex items-center gap-1.5"
+                data-testid="starter-pack-open-journey">
+                <CheckCircle2 size={11} /> Journey created · Open
+                <ExternalLink size={10} />
+              </button>
+            ) : (
+              <button
+                onClick={createJourney}
+                disabled={busyAction === 'journey'}
+                className="px-3 py-1.5 text-xs font-bold rounded-md bg-purple-600 hover:bg-purple-700 text-white inline-flex items-center gap-1.5 disabled:opacity-50"
+                data-testid="starter-pack-build-journey">
+                {busyAction === 'journey'
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : <GitBranch size={11} />}
+                Build welcome journey
+              </button>
+            )}
+          </div>
+
           {/* Emails */}
           <Section icon={Mail} title="Email templates">
             <div className="space-y-2">
               {(pack.emails || []).map((em) => {
                 const meta = EMAIL_META[em.id] || { label: em.id, hint: '', color: '#71717a' };
+                const launch = emailLaunches[em.id] || {};
+                const campaignId = launch.campaign_id;
+                const testSentAt = launch.test_sent_at;
                 return (
-                  <details key={em.id} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 group">
+                  <details key={em.id} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 group" data-testid={`starter-pack-email-${em.id}`}>
                     <summary className="cursor-pointer p-3 flex items-center gap-2 list-none">
                       <span className="w-1.5 h-6 rounded shrink-0" style={{ background: meta.color }} />
                       <div className="flex-1 min-w-0">
@@ -152,8 +269,51 @@ export default function StarterPackPanel({ API, headers }) {
                         <Copy size={10} /> Copy
                       </button>
                     </summary>
-                    <div className="px-4 pb-3 text-xs whitespace-pre-wrap font-mono leading-relaxed text-zinc-700 dark:text-zinc-300 border-t border-zinc-100 dark:border-zinc-800 pt-2 mt-1">
-                      {em.body}
+                    <div className="px-4 pb-3 border-t border-zinc-100 dark:border-zinc-800 pt-2 mt-1 space-y-3">
+                      <div className="text-xs whitespace-pre-wrap font-mono leading-relaxed text-zinc-700 dark:text-zinc-300">
+                        {em.body}
+                      </div>
+                      <div className="flex items-center flex-wrap gap-2 pt-1">
+                        <button
+                          onClick={(e) => { e.preventDefault(); sendTest(em.id, meta.label); }}
+                          disabled={busyAction === `test:${em.id}`}
+                          className="px-2.5 py-1 text-[11px] font-bold rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 inline-flex items-center gap-1.5 disabled:opacity-50"
+                          data-testid={`starter-pack-test-send-${em.id}`}>
+                          {busyAction === `test:${em.id}`
+                            ? <Loader2 size={10} className="animate-spin" />
+                            : <Send size={10} />}
+                          Send test to me
+                        </button>
+                        {testSentAt && (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
+                            data-testid={`starter-pack-test-sent-${em.id}`}>
+                            <CheckCircle2 size={10} /> Sent {formatRelative(testSentAt)}
+                          </span>
+                        )}
+                        {campaignId ? (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigate(`/marketing?tab=campaigns&campaign=${encodeURIComponent(campaignId)}`);
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 inline-flex items-center gap-1.5"
+                            data-testid={`starter-pack-open-campaign-${em.id}`}>
+                            <CheckCircle2 size={10} /> Campaign · Open
+                            <ExternalLink size={9} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.preventDefault(); createCampaign(em.id, meta.label); }}
+                            disabled={busyAction === `campaign:${em.id}`}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md bg-purple-600 hover:bg-purple-700 text-white inline-flex items-center gap-1.5 disabled:opacity-50"
+                            data-testid={`starter-pack-create-campaign-${em.id}`}>
+                            {busyAction === `campaign:${em.id}`
+                              ? <Loader2 size={10} className="animate-spin" />
+                              : <FilePlus size={10} />}
+                            Create campaign
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </details>
                 );
@@ -190,7 +350,7 @@ export default function StarterPackPanel({ API, headers }) {
           <div className="rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900 p-2.5 text-xs flex items-start gap-2">
             <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
             <span className="text-emerald-700 dark:text-emerald-200">
-              <strong>Drafts saved.</strong> Copy any one to your email tool / scheduler, or re-generate after a fresh brand refresh.
+              <strong>Drafts saved.</strong> Send a test to yourself before sharing, push any email straight to Campaigns, or bundle all three into a Welcome Journey above.
             </span>
           </div>
 
@@ -217,4 +377,21 @@ function Section({ icon: Icon, title, children }) {
       {children}
     </div>
   );
+}
+
+function formatRelative(iso) {
+  if (!iso) return '';
+  try {
+    const then = new Date(iso).getTime();
+    const diff = Math.max(0, Date.now() - then);
+    const m = Math.round(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.round(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.round(h / 24);
+    return `${d}d ago`;
+  } catch {
+    return '';
+  }
 }

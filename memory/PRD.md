@@ -1,3 +1,76 @@
+## Iter 216h74 — Starter Pack: Send/Launch wiring (Feb 13, 2026)
+
+### Why
+Lee's P1 backlog item: "Wire up the newly configured Marketing Starter Pack to the actual Send/Launch flows." The h71 starter pack rendered 3 emails + 3 social posts with **Copy** buttons only — the operator still had to manually paste copy into Campaigns / their email tool. This iter closes the loop: every email draft becomes a real Campaign and/or a real Resend test send in one click, and all three emails can be auto-wired into a Welcome Journey.
+
+### What shipped
+
+#### Backend — `routes/marketing/starter_pack.py` (+~180 LOC)
+Three new module-gated endpoints alongside the existing generate/get/delete:
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/marketing/starter-pack/emails/{email_id}/test-send` | Real Resend dispatch to the operator (or `{to: ...}`). Subject prefixed `[Test]`. Co-brand wrapper applied (h64). |
+| POST | `/api/marketing/starter-pack/emails/{email_id}/create-campaign` | Creates a `marketing_campaigns` draft pre-loaded with the email's subject + HTML body. Idempotent — second call returns `already_exists: true` + the same campaign id. |
+| POST | `/api/marketing/starter-pack/create-journey` | Creates a `marketing_journeys` draft: send(Welcome) → wait 3d → send(Win-back) → wait 7d → send(Promo). 5 nodes + 4 edges, status=draft, trigger=`member_signed_up`. Idempotent. |
+
+Helpers added:
+- `_plain_to_html()` — converts Claude's plain-text body (paragraphs split on `\n\n`) into email-client-safe inline-styled HTML with `<p style="margin:0 0 16px 0;line-height:1.55;color:#1f2937;font-size:15px;">`. HTML-escapes content. Idempotent (skips conversion if already-HTML).
+- `_find_email()` — 400 on unknown id, 404 if pack hasn't been generated yet.
+- `_load_pack_doc()` — friendly 404 with the "click Draft my starter pack" hint.
+
+Launch state persisted into `marketing_starter_pack.launches`:
+```jsonc
+{
+  "emails": {
+    "welcome": {"campaign_id": "...", "campaign_created_at": "...", "test_sent_at": "...", "test_sent_to": "..."},
+    "win_back": {...},
+    "promo": {...}
+  },
+  "journey_id": "...",
+  "journey_created_at": "..."
+}
+```
+
+#### Frontend — `pages/Marketing/StarterPackPanel.js` (~+130 LOC)
+- **Top row CTA**: "Build welcome journey" — purple, with a `GitBranch` icon, swaps to "Journey created · Open" (green) once wired and deep-links to `/marketing?tab=journeys&journey=<id>`.
+- **Per-email card body** (when an email's `<details>` is expanded):
+  - "Send test to me" — fires Resend, shows "Sent 2m ago" relative timestamp once delivered.
+  - "Create campaign" — POSTs the create-campaign endpoint and deep-links to `/marketing?tab=campaigns&campaign=<id>`. Once a campaign exists for that slot, the button flips to "Campaign · Open" (green) and just re-navigates.
+- Both buttons share the same `busyAction` state so only one action shows a spinner at a time. Idempotent backend ↔ idempotent UI: clicking twice never creates duplicates.
+- `formatRelative()` helper renders the test-send timestamp as "just now / 5m ago / 2h ago / 3d ago".
+- Notifications via `notify.success` + `notifyApiError` so the operator gets a clean toast on every action.
+
+### Verified
+- **Backend pytest**: 10/10 passing in `/app/backend/tests/test_iter_216h74_starter_pack_launch.py`:
+  - create-campaign creates a draft + idempotent + 400 on bad id + launches state persisted.
+  - create-journey wires the correct 5-node / 4-edge shape, wait minutes = 3·24·60 and 7·24·60, send-email nodes carry subject + body_html.
+  - test-send accepts 200 or 502 (preview's Resend sender domain is unverified — endpoint still proves the wiring is correct), 400 on bad id, 400 on malformed `to`.
+  - All endpoints require auth (401/403).
+- **Manual curl E2E**: create-campaign → idempotent → create-journey → 5 nodes / 4 edges → cleanup.
+- **Frontend smoke**: data-testids present (`starter-pack-build-journey`, `starter-pack-create-campaign-welcome`, `starter-pack-test-send-welcome`, …); deep-linking to Campaigns/Journeys tabs verified through MarketingSuite's `?tab=` initial-tab resolver.
+
+### Files touched
+- `/app/backend/routes/marketing/starter_pack.py` (+~180 LOC — 3 endpoints + helpers + launch-state persistence)
+- `/app/frontend/src/pages/Marketing/StarterPackPanel.js` (rewritten, ~+130 LOC — Build-journey CTA + per-email Send-test + Create-campaign buttons + state-based "Open" rebadging + `useNavigate` deep-links)
+- `/app/backend/tests/test_iter_216h74_starter_pack_launch.py` (NEW — 10 regression tests)
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend (`starter_pack.py`) + frontend (`StarterPackPanel.js`).
+2. Production sender domain (e.g. `gymaxisai.com`) must be **verified on Resend** for "Send test to me" to land in the operator's inbox. Without verification the endpoint returns a 502 with the explicit "domain not verified" message — operators still get value from create-campaign + create-journey without the live send.
+3. Operator workflow after deploy:
+   - Marketing → Brand Kit → Starter Pack panel → "Draft my starter pack".
+   - On each email: **Send test to me** to preview in their inbox, **Create campaign** to push the draft into Campaigns (then pick an audience and Send), or use the top-of-pack **Build welcome journey** to drop all three into a wired 3-step automation in Journeys.
+
+### Knock-on benefits
+- Zero copy/paste between the starter pack and the production Send/Launch tools.
+- The journey draft becomes a starting point any operator can edit — change a wait duration, add a branch, swap the trigger from `member_signed_up` to a custom event.
+- Launches persist on the pack doc, so re-visits show the operator exactly which drafts have been wired live.
+
+---
+
+
+
 ## Iter 216h73 — Brand Discovery: full homepage marketing capture (Feb 13, 2026)
 
 ### Why
