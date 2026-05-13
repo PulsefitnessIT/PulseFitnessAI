@@ -1,3 +1,74 @@
+## Iter 216h72 — Refactor: AccountSettingsModal split (Feb 13, 2026)
+
+### Why
+Backlog P2 item: `/app/frontend/src/components/shared/AccountSettingsModal.js` had grown to **1687 LOC**, mixing modal shell + 7 distinct section concerns + ad-hoc helpers + 60-line `<style>` block. Maintenance was a chore — any change to "Team & Roles" forced a re-render of the entire monolithic file in your head before touching it. Splitting was the obvious next move now that we're shipping multiple iters per day.
+
+### What shipped
+
+**Folder structure (NEW `/app/frontend/src/components/shared/AccountSettings/`):**
+```
+AccountSettings/
+├── shared.js         (37 LOC)  — API const, SECTIONS array, useAuthHeaders, FieldRow
+├── profile.js        (170 LOC) — ProfileSection
+├── onboarding.js     (135 LOC) — OnboardingSection
+├── security.js       (95 LOC)  — SecuritySection
+├── preferences.js    (33 LOC)  — PreferencesSection
+├── billing.js        (242 LOC) — BillingSection
+├── organisation.js   (381 LOC) — OrganisationSection
+└── team.js           (463 LOC) — TeamSection (largest — candidate for further split if it grows)
+```
+
+**`AccountSettingsModal.js`** — **1687 → 196 LOC (88% reduction).** Now owns ONLY:
+- Modal open/close + Escape key + body-scroll-lock
+- One-time `/account/billing` fetch (drives both billing + profile state)
+- Side-rail navigation + section routing
+- The shared `<style>` block (`account-input`, `account-btn-*`, `account-nav-active`, etc.)
+
+**Refactor invariants preserved:**
+- All data-testids verbatim (`account-settings-modal`, `account-nav-{section}`, `account-settings-close`, …)
+- All section prop signatures unchanged (no consumer needed updating)
+- Zero behavioural changes — strict mechanical extraction
+- No CSS class renames, no new selectors
+
+### Verified (testing-agent iter 216h72 — 14/14, 100%)
+- Dashboard renders without runtime errors after the import re-shuffle ✓
+- Every section renders correctly:
+  - Profile (avatar / name / email / phone / save)
+  - Onboarding (progress bar + checklist)
+  - Security (password change + MFA setup card)
+  - Preferences (theme toggle + digest preferences)
+  - Plan & Billing (trial state + current plan + modules + payment history)
+  - Organisation (name / drag-drop logo / brand palette / registered address)
+  - Team & Roles (invite + team list + site access + reset link)
+- Escape closes the modal ✓
+- Backdrop click closes the modal ✓
+- Body scroll lock works ✓
+
+Frontend lint clean across all 9 new files.
+
+### Files touched
+- `/app/frontend/src/components/shared/AccountSettingsModal.js` (-1491 LOC — rewrite from 1687 → 196)
+- `/app/frontend/src/components/shared/AccountSettings/shared.js` (NEW)
+- `/app/frontend/src/components/shared/AccountSettings/profile.js` (NEW)
+- `/app/frontend/src/components/shared/AccountSettings/onboarding.js` (NEW)
+- `/app/frontend/src/components/shared/AccountSettings/security.js` (NEW)
+- `/app/frontend/src/components/shared/AccountSettings/preferences.js` (NEW)
+- `/app/frontend/src/components/shared/AccountSettings/billing.js` (NEW)
+- `/app/frontend/src/components/shared/AccountSettings/organisation.js` (NEW)
+- `/app/frontend/src/components/shared/AccountSettings/team.js` (NEW)
+
+### ⚠ Action required
+1. Redeploy preview → production. Frontend-only, zero behavioural changes.
+2. Future iterations can edit a single ~150-450 LOC section file without re-reading the whole modal — measurable velocity win.
+
+### Follow-up candidates (P3)
+- `team.js` (463 LOC) is the largest remaining. If it grows past ~600 LOC, candidates for further split: invite-flow into `team/invite.js`, reset-password into `team/reset.js`, site-access matrix into `team/site-access.js`.
+- `organisation.js` (381 LOC) has 3 logical concerns (org details / branding / registered address) — could split if it grows further.
+
+---
+
+
+
 ## Iter 216h71 — Marketing Starter Pack + tenant backfills (Feb 13, 2026)
 
 ### Why
