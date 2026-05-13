@@ -7,7 +7,7 @@
  * keep working.
  */
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 
@@ -19,12 +19,27 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const { banner, show, clear } = useInlineBanner({ autoDismiss: false });
+
+  // Iter 216h68 — `?next=/some/path` lets the SessionResumedBanner
+  // (and any other deep-link sender) bounce the user back to where
+  // they were AFTER successful re-auth. We only honour relative
+  // paths to avoid open-redirect abuse.
+  const nextParam = (() => {
+    try {
+      const sp = new URLSearchParams(location.search);
+      const raw = sp.get('next');
+      if (!raw) return null;
+      if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
+    } catch { /* ignore */ }
+    return null;
+  })();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,12 +54,12 @@ export default function LoginPage() {
         navigate('/change-password', { replace: true });
         return;
       }
-      const dest = (u.is_master_admin || u.is_pulse_admin)
+      const fallback = (u.is_master_admin || u.is_pulse_admin)
         ? '/master-admin'
         : (u.account_type === 'lite' || u.account_type === 'pulse_pro')
           ? '/pulse'
           : '/dashboard';
-      navigate(dest, { replace: true });
+      navigate(nextParam || fallback, { replace: true });
     } catch (err) {
       // Gym-floor fallback — same form, but POST against /gym-floor/login
       // when the field looks like a kiosk username (no '@') and the

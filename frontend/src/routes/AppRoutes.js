@@ -50,7 +50,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
 const SSOCompletePage = lazy(() => import('@/pages/SSOCompletePage'));
 const JoinPage = lazy(() => import('@/pages/PublicSignup/JoinPage'));
 const JoinSuccess = lazy(() => import('@/pages/PublicSignup/JoinSuccess'));
-const LoginRedirectPage = lazy(() => import('@/pages/GymAxisLoginPage'));
+const LoginRedirectPage = lazy(() => import('@/pages/LoginRedirectPage'));
 const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 const SupplierCasePage = lazy(() => import('@/pages/SupplierCasePage'));
 const CustomerOnboardingForm = lazy(() => import('@/pages/CustomerOnboardingForm'));
@@ -186,7 +186,10 @@ export default function AppRoutes({ user, login }) {
       <Route path="/legal/dpia" element={<DpiaPage />} />
 
       {/* ─── Auth & onboarding ─── */}
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginRedirectPage />} />
+      {/* Iter 216h68 — always render LoginRedirectPage so it can honour
+          `?next=/path` for already-logged-in users (e.g. when the
+          SessionResumedBanner deep-links back after a 24h+ expiry). */}
+      <Route path="/login" element={<LoginRedirectPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/sso-complete" element={<SSOCompletePage />} />
       <Route path="/change-password" element={user ? <ForceChangePasswordPage /> : <Navigate to="/login" replace />} />

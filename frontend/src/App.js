@@ -13,6 +13,83 @@ import { ConfirmProvider as NotificationConfirmProvider } from '@/components/not
 // cross-origin API integrations, so this is a pure additive change.
 axios.defaults.withCredentials = true;
 
+// ═══ Iter 216h68 — silent JWT refresh + session-resumed banner ═══
+// When ANY operator API call returns 401, attempt ONE silent
+// `/api/auth/refresh` with the current localStorage token. If the
+// refresh succeeds, retry the original request transparently with
+// the new token (the user never sees the failure). If the refresh
+// also fails (token genuinely expired, >24 h), dispatch a global
+// `gymaxis:session-expired` event so the <SessionResumedBanner>
+// can offer a friendly re-auth CTA instead of the operator's
+// next save silently 401-ing into the void.
+//
+// Concurrent 401s share a single in-flight refresh promise so we
+// never spam `/auth/refresh` when a dashboard fires 6 parallel
+// fetches against an expired token.
+{
+  const __API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+  let __refreshInflight = null;
+  axios.interceptors.response.use(
+    (resp) => resp,
+    async (error) => {
+      const cfg = error?.config;
+      const status = error?.response?.status;
+      if (!cfg || status !== 401) return Promise.reject(error);
+      const url = String(cfg.url || '');
+      // Only proxy operator-side `/api/*` calls. Skip auth endpoints
+      // (avoid loops), CRM (UnifiedAuthProvider handles cross-login),
+      // and member portal (different token kind).
+      if (!url.includes('/api/')) return Promise.reject(error);
+      if (
+        url.includes('/api/auth/login') ||
+        url.includes('/api/auth/register') ||
+        url.includes('/api/auth/refresh') ||
+        url.includes('/api/auth/me') ||
+        url.includes('/api/crm/') ||
+        url.includes('/api/member/')
+      ) {
+        return Promise.reject(error);
+      }
+      if (cfg.__sessionRetried) return Promise.reject(error);
+      const currentToken = (() => {
+        try { return localStorage.getItem('token'); } catch { return null; }
+      })();
+      if (!currentToken) return Promise.reject(error);
+      if (!__refreshInflight) {
+        __refreshInflight = axios.post(
+          `${__API}/auth/refresh`, {},
+          { headers: { Authorization: `Bearer ${currentToken}` }, timeout: 8000 },
+        ).then((r) => {
+          const next = r?.data?.token || null;
+          if (next) {
+            try { localStorage.setItem('token', next); } catch { /* quota */ }
+            try {
+              window.dispatchEvent(new CustomEvent('gymaxis:token-refreshed', { detail: { token: next } }));
+            } catch { /* ignore */ }
+          }
+          return next;
+        }).catch(() => null).finally(() => {
+          // Release the gate on next macrotask so callers waiting on
+          // the same promise still get the resolved value, but the
+          // NEXT wave of 401s can re-trigger.
+          setTimeout(() => { __refreshInflight = null; }, 0);
+        });
+      }
+      const next = await __refreshInflight;
+      if (!next) {
+        try {
+          window.dispatchEvent(new CustomEvent('gymaxis:session-expired'));
+        } catch { /* ignore */ }
+        return Promise.reject(error);
+      }
+      cfg.__sessionRetried = true;
+      cfg.headers = cfg.headers || {};
+      cfg.headers.Authorization = `Bearer ${next}`;
+      return axios(cfg);
+    },
+  );
+}
+
 import AppRoutes from '@/routes/AppRoutes';
 import TrialBanner from './components/TrialBanner';
 import ScrollToTop from './components/shared/ScrollToTop';
@@ -26,6 +103,7 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import AskGymAxis from './components/AskGymAxis';
 import NPSWidget from './components/shared/NPSWidget';
 import FeedbackWidget from './components/shared/FeedbackWidget';
+import SessionResumedBanner from './components/shared/SessionResumedBanner';
 import UnifiedAssistant from './components/UnifiedAssistant';
 import CommandPalette, { useCommandPalette } from './components/CommandPalette';
 
@@ -320,7 +398,19 @@ function App() {
  .catch(() => { /* ignore — next refresh will heal */ });
  };
  window.addEventListener('storage', onStorage);
- return () => window.removeEventListener('storage', onStorage);
+ // Iter 216h68 — also listen for the in-tab `gymaxis:token-refreshed`
+ // event fired by the axios interceptor's silent refresh. Without
+ // this, useAuth().token returns the stale value until the next full
+ // re-render (rare race but real on tab-focus refreshes).
+ const onTokenRefreshed = (e) => {
+   const next = e?.detail?.token;
+   if (next) setToken(next);
+ };
+ window.addEventListener('gymaxis:token-refreshed', onTokenRefreshed);
+ return () => {
+   window.removeEventListener('storage', onStorage);
+   window.removeEventListener('gymaxis:token-refreshed', onTokenRefreshed);
+ };
  }, []);
 
  const login = (token, userData) => {
@@ -422,6 +512,7 @@ function App() {
  <CookieConsent />
  <OfflineBanner />
  <PWAInstallPrompt />
+ <SessionResumedBanner />
  {user && <AskGymAxisGuard />}
  {user && <NPSWidget />}
  </div>
