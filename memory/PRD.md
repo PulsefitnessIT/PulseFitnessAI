@@ -1,3 +1,68 @@
+## Iter 216h68 — Silent JWT refresh + Session-resumed banner (Feb 13, 2026)
+
+### Why
+Pre-empt the "I lost my CRM notes because my session expired" complaint thread. After iter 216h67 hardened the CRM cross-login, the remaining hole was the main JWT itself: any operator API call returning a 401 (e.g. token revoked mid-session by an admin, 24 h hard expiry on a long-running tablet) was a hard logout — no retry, no warning, half-typed forms lost.
+
+### What shipped
+
+#### Global axios 401 interceptor (silent refresh)
+**File:** `/app/frontend/src/App.js`
+
+Module-level interceptor that:
+- Catches **401s** on any operator-side `/api/*` call.
+- Skips a defensive deny-list (`/api/auth/login`, `/api/auth/register`, `/api/auth/refresh`, `/api/auth/me`, `/api/crm/*`, `/api/member/*`) to avoid loops + leave CRM to `<UnifiedAuthProvider>` (iter 216h67) + leave member-portal tokens alone.
+- Attempts **one silent** `POST /api/auth/refresh` with the current `localStorage.token` (timeout 8 s).
+- **Concurrency-safe** — concurrent 401s share a single in-flight `__refreshInflight` promise so 6 parallel dashboard fetches don't trigger 6 refreshes.
+- On success: writes the new token, fires `gymaxis:token-refreshed` (so the App's `useAuth().token` and any other listeners stay in sync), retries the original request transparently — **the user never sees the failure**.
+- On failure: fires `gymaxis:session-expired` so the banner can offer a friendly CTA.
+
+#### `<SessionResumedBanner>`
+**File:** `/app/frontend/src/components/shared/SessionResumedBanner.js` (NEW)
+- Listens for `gymaxis:session-expired` and renders a sticky bottom-centre alert card: "Your session has expired — sign in again to keep working. We'll bring you straight back to this page." with **Dismiss** + **Sign in again** CTAs.
+- **Sign in again** routes to `/login?next=<current_path>` so re-auth lands the user back where they were — preserving form context.
+- Suppresses itself on `/login` (avoids double-display).
+- Auto-hides if `gymaxis:token-refreshed` fires while shown (e.g. another tab re-authed and broadcast a fresh token via the `storage` event).
+
+#### `?next=/path` deep-link plumbing
+**Files:** `/app/frontend/src/pages/LoginPage.js`, `/app/frontend/src/pages/LoginRedirectPage.js`, `/app/frontend/src/routes/AppRoutes.js`
+- Both LoginPage (post-credential flow) and LoginRedirectPage (already-authenticated guard) read `?next=/path` and route the user there, falling back to the role-based default (`/master-admin` / `/pulse` / `/dashboard`) when missing.
+- Only **relative paths** are accepted (`/path/...`, must NOT start with `//`) to defeat open-redirect abuse.
+- `<Route path="/login">` simplified to **always** render `<LoginRedirectPage>`; the auth-state branching now lives inside the component (was previously a brittle inline `user ? <Navigate /> : <LoginRedirect />`).
+
+#### Pre-existing bug fix (testing-agent catch)
+**File:** `/app/frontend/src/routes/AppRoutes.js` line 53
+- The lazy import was pointing at `@/pages/GymAxisLoginPage` (a stale path from an earlier refactor) instead of `@/pages/LoginRedirectPage`. The latent bug never surfaced because the page rendered visually identical content — but it meant the `?next=` flow was being silently bypassed for authenticated users. Now imports the correct module.
+
+### Verified (testing-agent iter 216h68 — 100% pass, 7/7)
+| Test | Result |
+|---|---|
+| Authenticated user → `/login?next=/pulse` redirects to `/pulse` | ✅ |
+| Unauthenticated user logs in via `/login?next=/pulse` → lands on `/pulse` | ✅ |
+| `gymaxis:session-expired` → banner renders with correct text + CTAs | ✅ |
+| Dismiss button hides banner, no navigation | ✅ |
+| Sign in again → routes to `/login?next=…` | ✅ |
+| Banner suppresses itself on `/login` | ✅ |
+| CRM 401s do NOT trigger the banner (UnifiedAuthProvider handles) | ✅ |
+
+Frontend lint clean across all 5 touched files.
+
+### Files touched
+- `/app/frontend/src/App.js` (+85 LOC — module-level axios interceptor + token-refreshed listener + `<SessionResumedBanner>` mount)
+- `/app/frontend/src/components/shared/SessionResumedBanner.js` (NEW, ~95 LOC)
+- `/app/frontend/src/pages/LoginPage.js` (+12 LOC — `useLocation` + `nextParam` reader)
+- `/app/frontend/src/pages/LoginRedirectPage.js` (+8 LOC — `?next=` honoured for authenticated users; only safe relative paths)
+- `/app/frontend/src/routes/AppRoutes.js` (-1/+5 LOC — `/login` route + fixed import path)
+
+### ⚠ Action required
+1. Redeploy preview → production. Frontend-only.
+2. Operator UX after deploy:
+   - Mid-session 401 (revoked token / network blip) → silent refresh → retry → **operator notices nothing**.
+   - True session expiry (>24 h, refresh also fails) → friendly bottom banner with **Sign in again** CTA → `/login?next=<current_path>` → after sign-in, lands back on the same page they were on.
+
+---
+
+
+
 ## Iter 216h67 — HOTFIX: CRM still bouncing logged-in mobile users to CRMLogin (Feb 13, 2026)
 
 ### Operator-reported (Jack Ottey, mobile screenshot)
