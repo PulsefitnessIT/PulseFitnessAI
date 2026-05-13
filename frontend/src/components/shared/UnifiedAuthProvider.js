@@ -84,7 +84,23 @@ export function UnifiedAuthProvider({ children }) {
     member: readToken('member'),
   }));
   const [identity, setIdentity] = useState({ main: null, crm: null });
+  // Iter 216h67 — cross-login retry telemetry surfaced to consumers
+  // (e.g. CRMApp uses this to render a "Reconnecting…" state with a
+  // manual Try-again button instead of bouncing the user to CRMLogin
+  // when their main session is alive but the network blip ate the
+  // cross-login response).
+  const [crmExchangeStatus, setCrmExchangeStatus] = useState({
+    state: 'idle',       // 'idle' | 'pending' | 'failed' | 'unavailable'
+    attempts: 0,
+    lastError: null,
+  });
   const crossLoginInflight = useRef(false);
+  const crossLoginAttemptsRef = useRef(0);
+  const crossLoginTimerRef = useRef(null);
+  // Cap automatic retries at 3 (1s + 2s + 4s = 7s headroom on top of
+  // the per-call 6s timeout). After that the consumer surfaces a
+  // "Try again" CTA so the user can manually retry.
+  const MAX_CROSS_LOGIN_ATTEMPTS = 3;
 
   // ── Token reads: react to both cross-tab `storage` events and our
   // own in-tab `gymaxis:auth-changed` so consumers stay in sync.
@@ -108,25 +124,114 @@ export function UnifiedAuthProvider({ children }) {
   // ── Auto-cross-login: when main token exists but CRM token is
   // missing OR invalid, eagerly exchange. This is what kills the
   // "I'm logged in but CRM asks me to log in again" bug class.
-  // The actual stale-token check happens in the consumer (call
-  // `refresh.crm()` from a 401 handler); here we just ensure the
-  // CRM token is present whenever the main token is.
-  useEffect(() => {
-    if (!tokens.main || tokens.crm || crossLoginInflight.current) return;
+  //
+  // Iter 216h67 — mobile-network hardening. The original implementation
+  // (216h45) had no retry: any timeout / 5xx silently dropped the
+  // exchange and CRMApp eventually rendered CRMLogin to a user with
+  // a perfectly valid main session. We now retry up to 3× with
+  // exponential backoff and expose status to consumers so they can
+  // render a "Reconnecting…" state instead of a bogus login screen.
+  const attemptCrossLogin = useCallback(async () => {
+    const main = readToken('main');
+    if (!main) {
+      setCrmExchangeStatus({ state: 'idle', attempts: 0, lastError: null });
+      return;
+    }
+    if (crossLoginInflight.current) return;
     crossLoginInflight.current = true;
-    axios.post(
-      `${API}/crm/auth/cross-login`, {},
-      { headers: { Authorization: `Bearer ${tokens.main}` }, timeout: 6000 },
-    )
-      .then((res) => {
-        if (res.data?.token) {
-          writeToken('crm', res.data.token);
-          broadcast();
-        }
-      })
-      .catch(() => { /* CRM module may be disabled for this org. Silent. */ })
-      .finally(() => { crossLoginInflight.current = false; });
-  }, [tokens.main, tokens.crm]);
+    const attempt = crossLoginAttemptsRef.current + 1;
+    crossLoginAttemptsRef.current = attempt;
+    setCrmExchangeStatus({ state: 'pending', attempts: attempt, lastError: null });
+    try {
+      const res = await axios.post(
+        `${API}/crm/auth/cross-login`, {},
+        { headers: { Authorization: `Bearer ${main}` }, timeout: 8000 },
+      );
+      if (res.data?.token) {
+        writeToken('crm', res.data.token);
+        broadcast();
+        crossLoginAttemptsRef.current = 0;
+        setCrmExchangeStatus({ state: 'idle', attempts: 0, lastError: null });
+      } else {
+        // 200 OK but no token in payload — treat as unavailable so we
+        // don't hammer the endpoint. Common for orgs without CRM
+        // entitlement.
+        setCrmExchangeStatus({ state: 'unavailable', attempts: attempt, lastError: 'CRM not available for this account' });
+      }
+    } catch (err) {
+      const status = err?.response?.status;
+      // 401/403 = the main token cannot exchange (e.g. account doesn't
+      // have CRM access). Don't retry — surface "unavailable".
+      if (status === 401 || status === 403) {
+        setCrmExchangeStatus({
+          state: 'unavailable',
+          attempts: attempt,
+          lastError: err?.response?.data?.detail || 'CRM access denied for this account',
+        });
+      } else if (attempt < MAX_CROSS_LOGIN_ATTEMPTS) {
+        // Transient network / 5xx — retry with exponential backoff.
+        const delayMs = Math.min(4000, 1000 * Math.pow(2, attempt - 1));
+        setCrmExchangeStatus({
+          state: 'pending',
+          attempts: attempt,
+          lastError: err?.message || 'Network error',
+        });
+        crossLoginTimerRef.current = setTimeout(() => {
+          crossLoginInflight.current = false;
+          attemptCrossLogin();
+        }, delayMs);
+        return; // don't reset inflight yet — the timer will
+      } else {
+        setCrmExchangeStatus({
+          state: 'failed',
+          attempts: attempt,
+          lastError: err?.message || 'CRM is unreachable',
+        });
+      }
+    } finally {
+      // Reset inflight unless a retry timer is queued.
+      if (!crossLoginTimerRef.current) {
+        crossLoginInflight.current = false;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Cancel any pending retry when state changes (e.g. logout).
+    return () => {
+      if (crossLoginTimerRef.current) {
+        clearTimeout(crossLoginTimerRef.current);
+        crossLoginTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!tokens.main) {
+      // No main → nothing to exchange. Reset attempt counter so the
+      // next main login starts fresh.
+      crossLoginAttemptsRef.current = 0;
+      if (crossLoginTimerRef.current) {
+        clearTimeout(crossLoginTimerRef.current);
+        crossLoginTimerRef.current = null;
+      }
+      setCrmExchangeStatus({ state: 'idle', attempts: 0, lastError: null });
+      return;
+    }
+    if (tokens.crm) {
+      // CRM token landed (either from this exchange or another tab).
+      // Stop trying and reset the attempt counter.
+      crossLoginAttemptsRef.current = 0;
+      if (crossLoginTimerRef.current) {
+        clearTimeout(crossLoginTimerRef.current);
+        crossLoginTimerRef.current = null;
+      }
+      setCrmExchangeStatus({ state: 'idle', attempts: 0, lastError: null });
+      return;
+    }
+    // Main present, CRM missing — kick off the exchange chain.
+    attemptCrossLogin();
+  }, [tokens.main, tokens.crm, attemptCrossLogin]);
 
   // ── Identity hydration. Lightweight `/auth/me` + `/crm/auth/me`
   // calls so consumers don't each redo the same fetch.
@@ -183,18 +288,40 @@ export function UnifiedAuthProvider({ children }) {
   const refreshCrm = useCallback(async () => {
     const main = readToken('main');
     if (!main) return null;
+    // Iter 216h67 — reset the attempt counter so a user-triggered
+    // retry always gets a fresh window (3 more attempts).
+    crossLoginAttemptsRef.current = 0;
+    if (crossLoginTimerRef.current) {
+      clearTimeout(crossLoginTimerRef.current);
+      crossLoginTimerRef.current = null;
+    }
     try {
       const res = await axios.post(
         `${API}/crm/auth/cross-login`, {},
-        { headers: { Authorization: `Bearer ${main}` }, timeout: 6000 },
+        { headers: { Authorization: `Bearer ${main}` }, timeout: 8000 },
       );
       if (res.data?.token) {
         writeToken('crm', res.data.token);
         broadcast();
+        setCrmExchangeStatus({ state: 'idle', attempts: 0, lastError: null });
         return res.data.token;
       }
-    } catch {
-      /* fallthrough */
+      setCrmExchangeStatus({ state: 'unavailable', attempts: 1, lastError: 'CRM not available' });
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        setCrmExchangeStatus({
+          state: 'unavailable',
+          attempts: 1,
+          lastError: err?.response?.data?.detail || 'CRM access denied',
+        });
+      } else {
+        setCrmExchangeStatus({
+          state: 'failed',
+          attempts: 1,
+          lastError: err?.message || 'CRM is unreachable',
+        });
+      }
     }
     return null;
   }, []);
@@ -205,7 +332,11 @@ export function UnifiedAuthProvider({ children }) {
     login,
     logout,
     refresh: { crm: refreshCrm },
-  }), [tokens, identity, login, logout, refreshCrm]);
+    // Iter 216h67 — surfaced so consumers (CRMApp) can render
+    // "Reconnecting…" + manual retry instead of CRMLogin when a
+    // logged-in user hits a CRM-cross-login network blip.
+    crmExchangeStatus,
+  }), [tokens, identity, login, logout, refreshCrm, crmExchangeStatus]);
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }
@@ -225,6 +356,7 @@ export function useUnifiedAuth() {
         else { writeToken('main', null); writeToken('crm', null); writeToken('member', null); }
       },
       refresh: { crm: async () => null },
+      crmExchangeStatus: { state: 'idle', attempts: 0, lastError: null },
     };
   }
   return v;

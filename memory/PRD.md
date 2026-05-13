@@ -1,3 +1,51 @@
+## Iter 216h67 — HOTFIX: CRM still bouncing logged-in mobile users to CRMLogin (Feb 13, 2026)
+
+### Operator-reported (Jack Ottey, mobile screenshot)
+"Again a logged in user is being asked to log into CRM on mobile. It's OK on desktop." Mobile preview screenshot showed CRMLogin while Jack's main session was alive.
+
+### Root cause — recurrence of iter 216h43 / 216h45 bug class
+The iter 216h45 `<UnifiedAuthProvider>` introduced auto-cross-login (`main token` → `crm_token` via `POST /api/crm/auth/cross-login`) but had **no retry** on network failure:
+- `.catch(() => { /* silent */ })` swallowed timeouts.
+- On flaky mobile (5G drops, corporate VPN, captive portal handoff), the single 6 s attempt would time out → no CRM token → CRMApp's 6 s loading window dropped → CRMLogin rendered.
+- Identical symptom to Lee's iter 216h43 bug but a different code path; the iter 216h43 fix was per-module, the *class* recurred at the provider level.
+
+### What shipped
+
+#### `<UnifiedAuthProvider>` mobile-hardening
+**File:** `/app/frontend/src/components/shared/UnifiedAuthProvider.js`
+- New `attemptCrossLogin()` with **3-attempt exponential backoff** (1 s / 2 s / 4 s). Total worst-case ~22 s before the user sees "CRM is unreachable" instead of silently failing.
+- Per-call timeout bumped 6 s → **8 s** (mobile tolerance).
+- Distinguishes **401/403** ("CRM not enabled for this account") from **5xx / network** ("CRM unreachable"). Auth failures don't retry; network failures do.
+- Exposes new `crmExchangeStatus` to consumers — `{state: 'idle'|'pending'|'failed'|'unavailable', attempts, lastError}`. Consumers can render the right UI based on the failure mode.
+- `refresh.crm()` resets the attempt counter so a manual retry always gets a fresh window.
+
+#### CRMApp.js — "Reconnecting…" splash replaces wrongful CRMLogin
+**File:** `/app/frontend/src/pages/CRM/CRMApp.js`
+- Initial loading window tightened **6 s → 3 s** so the user sees state sooner.
+- NEW branch: when `!user && main token present && no crm token`, render a **"Reconnecting to your CRM workspace…"** card with the spinner + attempt counter (1 of 3, 2 of 3, etc.).
+- After all retries fail, the card flips to **"CRM is unreachable"** (network) or **"CRM is not enabled for your account"** (401/403), with a **Try again** button (data-testid `crm-reconnect-retry-btn`) and a **Back to dashboard** link.
+- **CRMLogin only renders when both `main` AND `crm` tokens are absent** — a genuine logged-out state. A logged-in user is structurally protected from being asked to re-enter creds.
+
+### Verified end-to-end
+| Scenario | Result |
+|---|---|
+| Block `/api/crm/auth/cross-login` via Playwright route → navigate to /crm on iPhone-size viewport | "CRM is unreachable" card with "Try again" + "Back to dashboard", **0 CRMLogin elements found** ✓ |
+| Happy path (no network interference) | CRM Command Center renders normally, no reconnect splash, no CRMLogin ✓ |
+
+Frontend lint clean across `UnifiedAuthProvider.js` + `CRMApp.js`.
+
+### Files touched
+- `/app/frontend/src/components/shared/UnifiedAuthProvider.js` (~+95 / −15 LOC — retry chain + status surface)
+- `/app/frontend/src/pages/CRM/CRMApp.js` (~+70 / −1 LOC — reconnect splash + tighter loading window)
+
+### ⚠ Action required
+1. Redeploy preview → production. Frontend-only.
+2. Jack reopens `gymaxisai.com/crm` on his phone — the moment his main session is alive, CRM either loads (happy path) or shows a friendly "Reconnecting…" / "Try again" card. He's never bounced to CRMLogin while logged in.
+
+---
+
+
+
 ## Iter 216h66 — CRM Lead Conversion flow (Salesforce-style) (Feb 13, 2026)
 
 ### Why

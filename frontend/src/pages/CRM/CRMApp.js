@@ -547,8 +547,11 @@ export default function CRMApp() {
       setLoading(false);
       return;
     }
-    // Wait up to 6 s for the provider's identity probe to land.
-    const timer = setTimeout(() => setLoading(false), 6000);
+    // Wait up to 3 s for the provider's identity probe to land —
+    // after that, the (!user && main && !crm) branch below renders
+    // the explicit "Reconnecting…" splash with a Try-again button
+    // (iter 216h67) instead of leaving the bare spinner up.
+    const timer = setTimeout(() => setLoading(false), 3000);
     return () => clearTimeout(timer);
   }, [unifiedAuth.identity.crm, unifiedAuth.tokens.main, unifiedAuth.tokens.crm, unifiedAuth.logout]);
 
@@ -585,6 +588,77 @@ export default function CRMApp() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: c.bg }}>
         <div className="w-6 h-6 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Iter 216h67 — mobile-network hardening. If the user has a valid
+  // main session but the CRM cross-login hasn't landed yet (typical
+  // on flaky mobile networks), DO NOT bounce them to CRMLogin. Show
+  // a "Reconnecting…" splash with a manual Try-again button. The
+  // provider auto-retries 3× with backoff; this UI lets the user
+  // recover from a permanent failure without re-typing creds they
+  // shouldn't need.
+  if (!user && unifiedAuth.tokens.main && !unifiedAuth.tokens.crm) {
+    const exch = unifiedAuth.crmExchangeStatus || { state: 'idle', attempts: 0, lastError: null };
+    const isFailed = exch.state === 'failed' || exch.state === 'unavailable';
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center p-6"
+        style={{ background: c.bg }}
+        data-testid="crm-reconnect-splash"
+      >
+        <div
+          className="w-full max-w-sm rounded-2xl border p-6 text-center shadow-sm"
+          style={{ background: c.surface, borderColor: c.border }}
+        >
+          {!isFailed ? (
+            <>
+              <div className="w-10 h-10 mx-auto mb-3 rounded-full border-2 border-[var(--color-info-ios)] border-t-transparent animate-spin" />
+              <h2 className="text-base font-bold mb-1" style={{ color: c.text }}>
+                Reconnecting to your CRM workspace…
+              </h2>
+              <p className="text-xs" style={{ color: c.textMuted }}>
+                You're signed in — we're just re-establishing your CRM session.
+                {exch.attempts > 0 && ` (attempt ${exch.attempts} of 3)`}
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-10 h-10 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: 'var(--color-warning)20', color: 'var(--color-warning)' }}>
+                <AlertTriangle size={20} />
+              </div>
+              <h2 className="text-base font-bold mb-1" style={{ color: c.text }}>
+                {exch.state === 'unavailable' ? 'CRM is not enabled for your account' : 'CRM is unreachable'}
+              </h2>
+              <p className="text-xs mb-4" style={{ color: c.textMuted }}>
+                {exch.state === 'unavailable'
+                  ? "Your operator hasn't enabled CRM for this account. Ask a master admin to switch it on, or contact support."
+                  : "Your main session is fine, but we couldn't reach the CRM service. Check your connection and try again."}
+              </p>
+              {exch.state === 'failed' && (
+                <button
+                  type="button"
+                  onClick={() => unifiedAuth.refresh.crm()}
+                  className="w-full px-4 py-2 text-sm font-bold rounded-md transition-all hover:opacity-90"
+                  style={{ background: 'var(--color-info-ios)', color: '#fff' }}
+                  data-testid="crm-reconnect-retry-btn"
+                >
+                  Try again
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => { window.location.href = '/dashboard'; }}
+                className="w-full mt-2 px-4 py-2 text-xs"
+                style={{ color: c.textMuted }}
+                data-testid="crm-reconnect-back-btn"
+              >
+                Back to dashboard
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   }
