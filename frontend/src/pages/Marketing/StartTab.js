@@ -20,6 +20,7 @@ import {
   HeartHandshake, Dumbbell, PartyPopper, CheckCircle2, Flame, EyeOff,
 } from 'lucide-react';
 import { useUserPref } from '@/utils/userPrefs';
+import ActivationMilestonesCard from '@/components/shared/ActivationMilestonesCard';
 
 const OUTCOMES = [
   { icon: Calendar,   title: 'Fill empty classes',        note: 'Automated nudges for low-attendance sessions' },
@@ -96,6 +97,13 @@ export default function StartTab({ openWizard, setTab }) {
 
   return (
     <div className="space-y-8 pulse-font-body" data-testid="mkt-start-tab">
+      {/* Iter 216h70 — same auto-hiding "first wins" checklist that the
+          other modules show. Once every milestone fires, the card
+          flips `hideStartTabs=true` and Start disappears from the tab
+          bar (Dashboard becomes the new first tab) — matching the
+          rest of the platform's onboarding pattern. */}
+      <ActivationMilestonesCard />
+
       {/* 1. SECTION OVERVIEW */}
       <div>
         <h2 className="text-2xl sm:text-3xl tracking-tight font-semibold pulse-font-heading mb-1" style={{ color: 'var(--theme-text)' }}>

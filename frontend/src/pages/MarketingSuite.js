@@ -49,16 +49,17 @@ import EmailVolumePanel from './Marketing/EmailVolumePanel';
 
 // Guided "Start" tab sits first — it's the entry point for non-technical
 // users. Power users can ignore it and jump straight to any downstream tab.
-// Iter 238h — Performance is now the marketing dashboard, so it sits
-// first. The rest is grouped into a logical workflow:
-//   Discover → Performance, Insights
-//   Reach    → Campaigns, Journeys
-//   Segment  → Audiences, Dynamic Lists
-//   Capture  → Forms & Pages
-//   Create   → Creative Studio, Brand Kit, Social
+// Iter 216h70 — Lee's Feb 2026 ask: "Move Start to the first option —
+// Start should be the same as the other modules, a check sheet of
+// tasks that auto-removes once complete. Next option should be
+// Dashboard (which takes over from Performance)."
+//   1. Start    — guided onboarding checklist (auto-hides via
+//                 ActivationMilestonesCard when all milestones land)
+//   2. Dashboard — live KPI dashboard (the old Performance tab, renamed)
+//   3. Insights, Campaigns, Journeys, … (unchanged order below)
 const TABS = [
-  { id: 'performance',   label: 'Performance',     icon: BarChart3,  feature: null },
   { id: 'start',         label: 'Start',           icon: Sparkles,   feature: null },
+  { id: 'performance',   label: 'Dashboard',       icon: BarChart3,  feature: null },
   { id: 'insights',      label: 'Insights',        icon: Lightbulb,  feature: null },
   { id: 'campaigns',     label: 'Campaigns',       icon: Mail,       feature: 'campaigns' },
   { id: 'journeys',      label: 'Journeys',        icon: Workflow,   feature: 'journeys' },
@@ -77,16 +78,21 @@ const MarketingSuite = () => {
   // Tabs and the entitlement call here all build their own `${API}/api/...`
   // URLs, so we pass the bare backend URL (no /api suffix).
   const API = process.env.REACT_APP_BACKEND_URL;
-  // Iter 238h — default to Performance (the new marketing dashboard)
-  // so operators see live KPIs immediately on entering the suite.
-  // Iter 215dl — accept ?tab=contacts (or any valid tab id) so the
-  // /crm → /marketing fallback for non-CRM-Pro tenants lands on the
-  // right place. ?from=crm shows a small "you're on CRM Lite" toast.
+  // Iter 216h70 — first visit lands on Start (the new first tab); once
+  // ActivationMilestonesCard flips `hideStartTabs=true`, the next
+  // visit defaults to Dashboard (the renamed Performance) because
+  // Start is the first visible tab when present, otherwise Dashboard.
   const initialTabFromQuery = (() => {
-    if (typeof window === 'undefined') return 'performance';
+    if (typeof window === 'undefined') return 'start';
     const sp = new URLSearchParams(window.location.search);
     const want = sp.get('tab');
-    return want && TABS.some((t) => t.id === want) ? want : 'performance';
+    if (want && TABS.some((t) => t.id === want)) return want;
+    try {
+      const hidden = localStorage.getItem('userPref:hideStartTabs') === 'true';
+      return hidden ? 'performance' : 'start';
+    } catch {
+      return 'start';
+    }
   })();
   const [tab, setTab] = useState(initialTabFromQuery);
   useEffect(() => {
@@ -105,8 +111,9 @@ const MarketingSuite = () => {
   const [hideStart] = useUserPref('hideStartTabs', false);
   const visibleTabs = useMemo(() => hideStart ? TABS.filter((t) => t.id !== 'start') : TABS, [hideStart]);
   useEffect(() => {
-    // If the user toggled hide while sitting on the Start tab, pivot to Insights.
-    if (hideStart && tab === 'start') setTab('insights');
+    // If the user toggled hide while sitting on the Start tab, pivot to
+    // Dashboard (the new label for performance).
+    if (hideStart && tab === 'start') setTab('performance');
   }, [hideStart, tab]);
   const [wizardState, setWizardState] = useState({ open: false, preset: null, templateId: null });
   const [undoCampaignId, setUndoCampaignId] = useState(null);

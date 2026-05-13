@@ -1,0 +1,98 @@
+{
+  "summary": "Iter 216h70 — Brand Auto-Discovery feature testing complete. All backend API tests (7/7) and frontend UI tests passed. Verified: (1) POST /start returns {ok:true, status:'queued'}, (2) GET /status transitions queued→running→ready within ~10s, (3) Ready draft contains colours, fonts, logos, images, socials, intelligence, pages_visited, (4) POST /apply copies draft values to brand-kit and flips status to 'applied', (5) POST /discard wipes the doc, (6) POST /apply without ready draft returns 400, (7) Endpoints require marketing module (auth guard). Frontend verified: Start tab is FIRST, Dashboard tab is SECOND (id=performance, label='Dashboard'), BrandDiscoveryPanel renders at top of Brand Kit tab with URL input and 'Discover my brand' button, running/ready/applied states work correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h70_brand_discovery.py",
+    "/app/test_reports/pytest/pytest_results_216h70.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Brand discovery backend implementation is solid - uses BackgroundTask for async crawl, PIL for image compression (quality=85, max 2000px), Claude Haiku 4.5 for intelligence extraction",
+    "Image storage uses put_object() which returns stored_url - verified to be GymAxis storage path (not customer CDN)",
+    "Frontend BrandDiscoveryPanel correctly polls /status every 2s while running, stops when ready/applied/failed",
+    "Tab order in MarketingSuite.js TABS array correctly places 'start' first and 'performance' (labelled 'Dashboard') second",
+    "Module guard (require_module('marketing')) correctly protects all 4 endpoints"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h70_brand_discovery.py"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "test_credentials": "e1.agent@gymaxisai.com / E1Agent123!",
+  "seed_data_creation": "None - used existing test user with marketing module enabled",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Brand Auto-Discovery feature is fully working. Backend endpoints: POST /start, GET /status, POST /apply, POST /discard all tested. Frontend: BrandDiscoveryPanel at top of Brand Kit tab, tab order verified (Start first, Dashboard second). Test file created at /app/backend/tests/test_iter_216h70_brand_discovery.py for regression testing.",
+  "tests_executed": [
+    {
+      "test": "Backend: POST /start returns queued",
+      "result": "PASSED"
+    },
+    {
+      "test": "Backend: GET /status transitions to ready with draft structure",
+      "result": "PASSED"
+    },
+    {
+      "test": "Backend: POST /apply copies draft to brand-kit",
+      "result": "PASSED"
+    },
+    {
+      "test": "Backend: POST /discard wipes doc",
+      "result": "PASSED"
+    },
+    {
+      "test": "Backend: POST /apply without ready draft returns 400",
+      "result": "PASSED"
+    },
+    {
+      "test": "Backend: Endpoints require auth",
+      "result": "PASSED"
+    },
+    {
+      "test": "Frontend: Tab order - Start first, Dashboard second",
+      "result": "PASSED"
+    },
+    {
+      "test": "Frontend: BrandDiscoveryPanel renders with URL input and Discover button",
+      "result": "PASSED"
+    },
+    {
+      "test": "Frontend: Discovery flow - running → ready → applied states",
+      "result": "PASSED"
+    },
+    {
+      "test": "Frontend: Apply updates brand kit colours",
+      "result": "PASSED"
+    }
+  ],
+  "verified_features": {
+    "backend": {
+      "POST /api/marketing/brand-discovery/start": "Returns {ok:true, status:'queued', website_url}",
+      "GET /api/marketing/brand-discovery/status": "Returns progress and draft with colours, fonts, logos, images, socials, intelligence, pages_visited",
+      "POST /api/marketing/brand-discovery/apply": "Copies primary_color, secondary_color, font_heading, font_body, primary_logo_url, voice to brand-kit; status flips to 'applied'",
+      "POST /api/marketing/brand-discovery/discard": "Wipes discovery doc; subsequent GET returns {}",
+      "Module guard": "All endpoints require marketing module enabled"
+    },
+    "frontend": {
+      "Tab order": "Start tab FIRST (data-testid='marketing-tab-start'), Dashboard tab SECOND (id='performance', label='Dashboard')",
+      "BrandDiscoveryPanel": "Renders at top of Brand Kit tab with data-testid='brand-discovery-panel'",
+      "URL input": "data-testid='brand-discovery-url-input'",
+      "Discover button": "data-testid='brand-discovery-start' with text 'Discover my brand'",
+      "Running state": "data-testid='brand-discovery-running' with spinner and progress text",
+      "Draft preview": "data-testid='brand-discovery-draft' with colour swatches, fonts, logos, images, intelligence, socials",
+      "Apply button": "data-testid='brand-discovery-apply'",
+      "Discard button": "data-testid='brand-discovery-discard'",
+      "Applied state": "Shows 'Discovery applied' confirmation"
+    }
+  }
+}

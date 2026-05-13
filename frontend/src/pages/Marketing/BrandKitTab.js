@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import BrandDiscoveryPanel from './BrandDiscoveryPanel';
 
 export default function BrandKitTab({ API, headers }) {
   const [kit, setKit] = useState(null);
@@ -114,6 +115,11 @@ export default function BrandKitTab({ API, headers }) {
 
   return (
     <div className="space-y-5" data-testid="brand-kit-tab">
+      {/* Iter 216h70 — Brand auto-discovery from website. Crawls the
+          customer's site in the background and proposes a brand draft
+          (colours, fonts, logos, marketing images + intelligence). */}
+      <BrandDiscoveryPanel API={API} headers={headers} onApplied={load} />
+
       {/* Logo */}
       <Section icon={ImageIcon} title="Logo"
         hint="Used at the top of Director posters and email headers. PNG with transparency works best.">

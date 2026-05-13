@@ -18,6 +18,7 @@ from routes.marketing import (
     assistant,
     attribution,
     audiences,
+    brand_discovery,
     brand_kit,
     campaigns,
     contacts,
@@ -66,6 +67,7 @@ for sub in (
     assistant,
     tour,
     brand_kit,
+    brand_discovery,
     dynamic_lists,
 ):
     router.include_router(sub.router)
