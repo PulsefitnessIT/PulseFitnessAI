@@ -80,6 +80,17 @@ LEDGER_STATES = {"accrued", "approved", "paid", "clawed_back", "rejected"}
 PAYOUT_STATES = {"queued", "processing", "paid", "failed"}
 PAYOUT_METHODS = {"manual_csv", "stripe_connect"}
 
+# Iter 216h76 — Live Partner Plan Stripe subscription (Phase 2 of the
+# Partner Engineer Network). Two env-driven Stripe prices map to the
+# auto-computed `app_fee_tier`:
+#   • STRIPE_PRICE_PARTNER_PLAN_30 → £30/mo (0-4 active referrals)
+#   • STRIPE_PRICE_PARTNER_PLAN_15 → £15/mo (5-9 active referrals)
+#   • free tier (10+) → subscription is cancelled at period end
+PARTNER_PLAN_PRICE_IDS_BY_TIER = {
+    30: "STRIPE_PRICE_PARTNER_PLAN_30",
+    15: "STRIPE_PRICE_PARTNER_PLAN_15",
+}
+
 
 # ───────────────────────── helpers ─────────────────────────
 
@@ -178,9 +189,13 @@ async def _active_referral_count(partner_id: str) -> int:
 
 async def _recompute_app_fee(partner_id: str) -> dict:
     """Recompute the partner's app-fee tier off the live active count.
-    Persists `app_fee_tier` + `enhanced_review_required` and returns the tier."""
+    Persists `app_fee_tier` + `enhanced_review_required` and returns the
+    tier. Also re-syncs the live Stripe subscription (if any) so that
+    crossing a milestone (£30 → £15 → free) automatically transitions
+    the partner's billing without a manual round-trip."""
     count = await _active_referral_count(partner_id)
     tier = _app_fee_tier(count)
+    previous = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0, "app_fee_tier": 1, "subscription": 1})
     await db.partner_engineers.update_one(
         {"id": partner_id},
         {"$set": {
@@ -190,7 +205,119 @@ async def _recompute_app_fee(partner_id: str) -> dict:
             "updated_at": _now(),
         }},
     )
+    # Auto-sync Stripe subscription if the tier price changed.
+    prev_tier = (previous or {}).get("app_fee_tier") or {}
+    if prev_tier.get("price_gbp") != tier["price_gbp"]:
+        try:
+            await _sync_partner_subscription_to_tier(partner_id, tier)
+        except Exception:
+            logger.exception("[partners] subscription auto-sync failed for partner=%s", partner_id)
     return tier
+
+
+# ───────────────────────── Stripe subscription helpers (iter 216h76) ─────────────────────────
+
+
+def _partner_plan_price_id_for_tier(tier: dict) -> Optional[str]:
+    """Return the env-configured Stripe price ID matching this tier's
+    `price_gbp` — or None when the tier is free (no subscription needed)
+    or when the env var is unset (production must seed the price IDs)."""
+    env_key = PARTNER_PLAN_PRICE_IDS_BY_TIER.get(tier.get("price_gbp"))
+    if not env_key:
+        return None
+    return os.environ.get(env_key) or None
+
+
+async def _sync_partner_subscription_to_tier(partner_id: str, tier: dict) -> None:
+    """Live Stripe subscription transitions for a partner when their
+    `app_fee_tier` changes (e.g. 4 → 5 active referrals = £30 → £15).
+
+    Behaviour:
+      • Free tier (10+ refs)  → cancel at period_end (engineer keeps
+        access until the end of the paid month, then it lapses to free).
+      • Paid tier change      → ``stripe.Subscription.modify`` to swap
+        the price ID with proration, so the engineer is credited fairly
+        for the lower price.
+      • No active sub yet     → no-op (engineer hasn't checked out).
+    """
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    sub_state = (partner or {}).get("subscription") or {}
+    sub_id = sub_state.get("stripe_subscription_id")
+    if not sub_id:
+        return  # nothing to sync until checkout completes
+
+    try:
+        import stripe  # local import — keeps Stripe optional in unit tests
+        stripe.api_key = os.environ.get("STRIPE_API_KEY")
+    except ImportError:
+        logger.warning("[partners] stripe SDK unavailable — skipping subscription sync")
+        return
+
+    target_price_id = _partner_plan_price_id_for_tier(tier)
+    try:
+        sub = stripe.Subscription.retrieve(sub_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[partners] subscription retrieve failed: %s", exc)
+        return
+
+    if target_price_id is None:
+        # Free tier — cancel at period end so we don't take another £30/£15.
+        if sub.get("cancel_at_period_end"):
+            return
+        try:
+            stripe.Subscription.modify(sub_id, cancel_at_period_end=True)
+        except Exception:
+            logger.exception("[partners] cancel-at-period-end failed")
+            return
+        await db.partner_engineers.update_one(
+            {"id": partner_id},
+            {"$set": {"subscription.cancel_at_period_end": True,
+                      "subscription.synced_at": _now()}},
+        )
+        await _audit(partner_id=partner_id, actor_id="system",
+                     action="subscription_cancel_at_period_end",
+                     after={"reason": "free_tier_unlocked"})
+        return
+
+    # Paid tier — swap the price ID on the existing subscription item.
+    items = (sub.get("items") or {}).get("data") or []
+    if not items:
+        return
+    current_price_id = (items[0].get("price") or {}).get("id")
+    if current_price_id == target_price_id:
+        # Already correct; just clear any pending cancellation.
+        if sub.get("cancel_at_period_end"):
+            try:
+                stripe.Subscription.modify(sub_id, cancel_at_period_end=False)
+                await db.partner_engineers.update_one(
+                    {"id": partner_id},
+                    {"$set": {"subscription.cancel_at_period_end": False,
+                              "subscription.synced_at": _now()}},
+                )
+            except Exception:
+                logger.exception("[partners] re-instate failed")
+        return
+    try:
+        stripe.Subscription.modify(
+            sub_id,
+            cancel_at_period_end=False,
+            proration_behavior="create_prorations",
+            items=[{"id": items[0]["id"], "price": target_price_id}],
+        )
+    except Exception:
+        logger.exception("[partners] subscription price swap failed")
+        return
+    await db.partner_engineers.update_one(
+        {"id": partner_id},
+        {"$set": {
+            "subscription.stripe_price_id": target_price_id,
+            "subscription.cancel_at_period_end": False,
+            "subscription.synced_at": _now(),
+        }},
+    )
+    await _audit(partner_id=partner_id, actor_id="system",
+                 action="subscription_price_swap",
+                 after={"price_id": target_price_id, "tier_gbp": tier["price_gbp"]})
 
 
 # ───────────────────────── PARTNER (self) endpoints ─────────────────────────
@@ -311,6 +438,196 @@ async def my_commission(user: dict = Depends(get_current_user)):
             "clawed_back": _sum("clawed_back"),
         },
     }
+
+
+# ───────────────────────── PARTNER PLAN subscription (iter 216h76) ─────────────────────────
+
+
+@router.post("/partners/me/subscription/checkout")
+async def create_partner_subscription_checkout(
+    body: dict = Body(default_factory=dict), user: dict = Depends(get_current_user),
+):
+    """Create a Stripe Checkout Session for the partner's app-fee plan.
+
+    The price ID auto-selects from the partner's CURRENT `app_fee_tier` —
+    so a brand-new partner lands on the £30 price, a partner with 5+
+    active referrals lands on £15, and a partner at the free tier gets
+    a friendly 400 ("you're already free, no checkout needed")."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "No partner profile — apply first")
+    if partner.get("status") != "approved":
+        raise HTTPException(400, "Application must be approved before starting the subscription")
+    tier = await _recompute_app_fee(partner["id"])
+    if tier["price_gbp"] == 0:
+        raise HTTPException(400, "You're on the free tier — no subscription needed")
+    price_id = _partner_plan_price_id_for_tier(tier)
+    if not price_id:
+        raise HTTPException(
+            501,
+            "Partner Plan Stripe price IDs not configured — ask Master Admin to set "
+            "STRIPE_PRICE_PARTNER_PLAN_30 and STRIPE_PRICE_PARTNER_PLAN_15 in the env.",
+        )
+
+    origin_url = (body.get("origin_url") or "").rstrip("/") or (
+        os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or ""
+    ).rstrip("/")
+    if not origin_url:
+        raise HTTPException(400, "origin_url is required")
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_API_KEY")
+    except ImportError:
+        raise HTTPException(503, "Stripe SDK unavailable")
+
+    success_url = f"{origin_url}/partner-engineer?subscription=success&session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}/partner-engineer?subscription=cancelled"
+    metadata = {
+        "partner_id": partner["id"],
+        "user_id": user["id"],
+        "user_email": user.get("email") or "",
+        "kind": "partner_engineer_plan",
+        "tier_gbp": str(tier["price_gbp"]),
+    }
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer_email=user.get("email"),
+            metadata=metadata,
+            subscription_data={"metadata": metadata},
+        )
+    except Exception as exc:
+        logger.exception("[partners] partner-plan checkout failed")
+        raise HTTPException(400, f"Stripe checkout failed: {exc}")
+
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {
+            "subscription.checkout_session_id": session.id,
+            "subscription.checkout_started_at": _now(),
+            "subscription.target_price_id": price_id,
+        }},
+    )
+    return {"url": session.url, "session_id": session.id}
+
+
+@router.post("/partners/me/subscription/cancel")
+async def cancel_partner_subscription(user: dict = Depends(get_current_user)):
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "No partner profile")
+    sub_id = ((partner.get("subscription") or {}).get("stripe_subscription_id"))
+    if not sub_id:
+        raise HTTPException(400, "No active subscription to cancel")
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_API_KEY")
+        stripe.Subscription.modify(sub_id, cancel_at_period_end=True)
+    except Exception as exc:
+        raise HTTPException(400, f"Stripe cancellation failed: {exc}")
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {"subscription.cancel_at_period_end": True, "subscription.synced_at": _now()}},
+    )
+    await _audit(partner_id=partner["id"], actor_id=user["id"],
+                 action="subscription_cancel", after={"cancel_at_period_end": True})
+    return {"ok": True}
+
+
+@router.post("/partners/me/subscription/resume")
+async def resume_partner_subscription(user: dict = Depends(get_current_user)):
+    """Reverse a pending-cancellation. Useful if the engineer dropped
+    below the free threshold and wants to keep paying for the moment."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "No partner profile")
+    sub_id = ((partner.get("subscription") or {}).get("stripe_subscription_id"))
+    if not sub_id:
+        raise HTTPException(400, "No subscription to resume")
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_API_KEY")
+        stripe.Subscription.modify(sub_id, cancel_at_period_end=False)
+    except Exception as exc:
+        raise HTTPException(400, f"Stripe resume failed: {exc}")
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {"subscription.cancel_at_period_end": False, "subscription.synced_at": _now()}},
+    )
+    await _audit(partner_id=partner["id"], actor_id=user["id"],
+                 action="subscription_resume", after={"cancel_at_period_end": False})
+    return {"ok": True}
+
+
+# ──── Stripe webhook entrypoints (called from routes/payments.py) ────
+
+
+async def handle_partner_checkout_completed(session_data: dict) -> Optional[dict]:
+    """Hook from `_handle_checkout_completed`. Wires a fresh Stripe
+    subscription to the partner profile."""
+    metadata = session_data.get("metadata") or {}
+    if metadata.get("kind") != "partner_engineer_plan":
+        return None
+    partner_id = metadata.get("partner_id")
+    sub_id = session_data.get("subscription")
+    customer_id = session_data.get("customer")
+    if not (partner_id and sub_id):
+        return None
+    await db.partner_engineers.update_one(
+        {"id": partner_id},
+        {"$set": {
+            "subscription.stripe_subscription_id": sub_id,
+            "subscription.stripe_customer_id": customer_id,
+            "subscription.status": "active",
+            "subscription.activated_at": _now(),
+            "subscription.cancel_at_period_end": False,
+            "subscription.synced_at": _now(),
+        }},
+    )
+    await _audit(partner_id=partner_id, actor_id="system",
+                 action="subscription_activated",
+                 after={"stripe_subscription_id": sub_id, "stripe_customer_id": customer_id})
+    return {"partner_id": partner_id, "subscription_id": sub_id}
+
+
+async def handle_partner_subscription_event(sub_data: dict) -> Optional[dict]:
+    """Hook from `customer.subscription.{updated,deleted}` webhooks. Keeps
+    the partner profile in sync with Stripe (status, period end, cancel flag)."""
+    metadata = sub_data.get("metadata") or {}
+    if metadata.get("kind") != "partner_engineer_plan":
+        return None
+    partner_id = metadata.get("partner_id")
+    sub_id = sub_data.get("id")
+    if not (partner_id and sub_id):
+        return None
+    status = sub_data.get("status") or "unknown"
+    items = (sub_data.get("items") or {}).get("data") or []
+    current_price = (items[0].get("price") or {}).get("id") if items else None
+    period_end_epoch = sub_data.get("current_period_end") or 0
+    period_end_iso = (
+        datetime.fromtimestamp(int(period_end_epoch), tz=timezone.utc).isoformat()
+        if period_end_epoch else None
+    )
+    update: dict = {
+        "subscription.status": status,
+        "subscription.current_period_end": period_end_iso,
+        "subscription.cancel_at_period_end": bool(sub_data.get("cancel_at_period_end")),
+        "subscription.stripe_price_id": current_price,
+        "subscription.synced_at": _now(),
+    }
+    if status in ("canceled", "unpaid", "incomplete_expired"):
+        update["subscription.cancelled_at"] = _now()
+    await db.partner_engineers.update_one({"id": partner_id}, {"$set": update})
+    await _audit(partner_id=partner_id, actor_id="system",
+                 action="subscription_event",
+                 after={"status": status, "price_id": current_price,
+                        "cancel_at_period_end": update["subscription.cancel_at_period_end"]})
+    return {"partner_id": partner_id, "status": status}
 
 
 # ───────────────────────── PUBLIC referral attribution ─────────────────────────

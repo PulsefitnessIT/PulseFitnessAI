@@ -13,12 +13,13 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Copy, ExternalLink, Wrench, Users, PoundSterling, Sparkles, Loader2,
-  CheckCircle2, AlertTriangle,
+  CheckCircle2, AlertTriangle, CreditCard, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { notifyApiError } from '@/lib/formatApiError';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -35,6 +36,8 @@ export default function PartnerDashboard() {
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
   const [data, setData] = useState({ partner: null, referrals: [], commission: null });
   const [loading, setLoading] = useState(true);
+  const [subBusy, setSubBusy] = useState(false);
+  const [params, setParams] = useSearchParams();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,6 +61,65 @@ export default function PartnerDashboard() {
   }, [headers]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Handle the post-Stripe-checkout return.
+  useEffect(() => {
+    const status = params.get('subscription');
+    if (status === 'success') {
+      notify.success('Subscription active — welcome to the Partner Engineer Plan');
+      params.delete('subscription'); params.delete('session_id');
+      setParams(params, { replace: true });
+      load();
+    } else if (status === 'cancelled') {
+      notify.error('Checkout cancelled — no charge made');
+      params.delete('subscription');
+      setParams(params, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
+  const startSubscription = async () => {
+    setSubBusy(true);
+    try {
+      const r = await axios.post(`${API}/api/partners/me/subscription/checkout`,
+        { origin_url: window.location.origin }, { headers });
+      if (r.data?.url) {
+        window.location.href = r.data.url;
+        return;
+      }
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not start subscription');
+    } finally {
+      setSubBusy(false);
+    }
+  };
+
+  const cancelSubscription = async () => {
+    if (!window.confirm('Cancel your Partner Plan? You\'ll keep access until the end of the current billing period.')) return;
+    setSubBusy(true);
+    try {
+      await axios.post(`${API}/api/partners/me/subscription/cancel`, {}, { headers });
+      notify.success('Subscription cancellation scheduled for the end of this period');
+      await load();
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not cancel');
+    } finally {
+      setSubBusy(false);
+    }
+  };
+
+  const resumeSubscription = async () => {
+    setSubBusy(true);
+    try {
+      await axios.post(`${API}/api/partners/me/subscription/resume`, {}, { headers });
+      notify.success('Subscription resumed');
+      await load();
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not resume');
+    } finally {
+      setSubBusy(false);
+    }
+  };
 
   const copy = async (text) => {
     try { await navigator.clipboard.writeText(text); notify.success('Copied to clipboard'); }
@@ -150,6 +212,13 @@ export default function PartnerDashboard() {
             Share with gym owners — when they sign up via this link, we'll automatically attribute their account and start your commission clock once their first Operations payment clears.
           </p>
         </Card>
+
+        {/* Subscription card — iter 216h76 */}
+        <SubscriptionCard
+          partner={partner} tier={tier} activeCount={activeCount}
+          busy={subBusy} onStart={startSubscription}
+          onCancel={cancelSubscription} onResume={resumeSubscription}
+        />
 
         {/* Stat grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -248,5 +317,85 @@ function Stat({ label, value, sub, testId }) {
       <div className="text-2xl font-black mt-1 text-zinc-900 dark:text-zinc-100">{value}</div>
       {sub && <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">{sub}</div>}
     </div>
+  );
+}
+
+function SubscriptionCard({ partner, tier, activeCount, busy, onStart, onCancel, onResume }) {
+  const sub = partner.subscription || {};
+  const isActive = sub.status === 'active' || sub.status === 'trialing';
+  const willCancel = !!sub.cancel_at_period_end;
+  const periodEnd = sub.current_period_end ? new Date(sub.current_period_end) : null;
+  const freeTier = tier.price_gbp === 0;
+
+  if (partner.status !== 'approved') {
+    return null; // hide until application is approved
+  }
+
+  return (
+    <Card title="Partner plan subscription" icon={CreditCard} testId="partner-subscription-card">
+      {freeTier ? (
+        <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-900 p-3 text-sm text-emerald-800 dark:text-emerald-100 flex items-start gap-2"
+          data-testid="partner-sub-free-tier">
+          <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
+          <div>
+            <div className="font-bold">Free tier active — {activeCount} active referrals</div>
+            <div className="text-[12px] mt-0.5 text-emerald-700 dark:text-emerald-200">
+              You've unlocked free Engineer App access. {sub.cancel_at_period_end && periodEnd
+                ? <>Your paid subscription will lapse on {periodEnd.toLocaleDateString()}.</>
+                : null}
+            </div>
+          </div>
+        </div>
+      ) : !isActive ? (
+        <div className="flex items-start justify-between gap-3 flex-wrap"
+          data-testid="partner-sub-cta">
+          <div className="text-sm text-zinc-700 dark:text-zinc-200">
+            <div className="font-bold">Start your Partner Engineer Plan</div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              £{tier.price_gbp}/mo · auto-discounts to £15/mo at 5 active referrals and free at 10+. Cancel any time.
+            </div>
+          </div>
+          <button onClick={onStart} disabled={busy}
+            className="px-4 py-2 text-sm font-bold rounded-md bg-purple-600 hover:bg-purple-700 text-white inline-flex items-center gap-1.5 disabled:opacity-50"
+            data-testid="partner-sub-start">
+            {busy ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={13} />}
+            Start subscription
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-start justify-between gap-3 flex-wrap"
+          data-testid="partner-sub-active">
+          <div className="text-sm text-zinc-700 dark:text-zinc-200 min-w-0">
+            <div className="font-bold inline-flex items-center gap-1.5">
+              {willCancel
+                ? <span className="text-amber-600 dark:text-amber-300">Cancels {periodEnd ? periodEnd.toLocaleDateString() : 'at period end'}</span>
+                : <><CheckCircle2 size={13} className="text-emerald-500" /> Active · £{tier.price_gbp}/mo</>}
+            </div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {periodEnd && !willCancel
+                ? <>Next charge {periodEnd.toLocaleDateString()}</>
+                : willCancel ? 'No future charges scheduled.' : 'Billing in progress…'}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {willCancel ? (
+              <button onClick={onResume} disabled={busy}
+                className="px-3 py-1.5 text-xs font-bold rounded-md bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1 disabled:opacity-50"
+                data-testid="partner-sub-resume">
+                {busy ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+                Resume
+              </button>
+            ) : (
+              <button onClick={onCancel} disabled={busy}
+                className="px-3 py-1.5 text-xs font-bold rounded-md border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 inline-flex items-center gap-1 disabled:opacity-50"
+                data-testid="partner-sub-cancel">
+                {busy ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

@@ -1,3 +1,83 @@
+## Iter 216h76 — Partner Plan: Live Stripe subscription (Phase 2a · Feb 13, 2026)
+
+### Why
+P2 backlog from h75: "Live £30/£15/free Partner Plan Stripe subscription that reads the auto-computed `app_fee_tier`." Without live billing, the foundation was money-aware but inert — engineers couldn't actually pay £30/mo for their Engineer App access, and milestone-driven discounts (5+ refs = £15, 10+ refs = free) couldn't transition automatically.
+
+### What shipped
+
+#### Backend — `routes/partners.py` (~200 LOC added)
+**Env-driven price IDs** (production must seed these once the Stripe products are created):
+- `STRIPE_PRICE_PARTNER_PLAN_30` → £30/mo
+- `STRIPE_PRICE_PARTNER_PLAN_15` → £15/mo
+- Free tier (10+ active refs) ⇒ subscription is cancelled at period end — no price ID needed.
+
+**Three new partner-self endpoints**:
+| Endpoint | Behaviour |
+|---|---|
+| `POST /partners/me/subscription/checkout` | Spins a Stripe Checkout Session (subscription mode) using the partner's CURRENT tier price. Returns 501 when env vars unset, 400 when tier is free, 400 when application unapproved. `subscription_data.metadata.kind="partner_engineer_plan"` is the discriminator the webhook uses to route back. |
+| `POST /partners/me/subscription/cancel` | Sets `cancel_at_period_end=true` on Stripe → keeps Engineer App access until end of paid month. |
+| `POST /partners/me/subscription/resume` | Reverses a pending cancellation. |
+
+**Auto-sync on tier milestones** — `_recompute_app_fee` now detects whenever the `app_fee_tier.price_gbp` changes (e.g. 4 → 5 active refs flips £30 → £15) and:
+- For paid → paid transitions: `stripe.Subscription.modify(items=[{id, price=NEW}])` with `proration_behavior="create_prorations"` so the engineer is credited fairly for the difference.
+- For paid → free (10+ refs): `cancel_at_period_end=true` so the engineer enjoys the rest of the month at zero risk of accidental double-billing, then lapses naturally to free.
+- For free → paid (re-activation): no Stripe call until the engineer manually re-checks-out (the existing Cancel/Resume flow handles voluntary toggles).
+
+**Webhook hooks** in `routes/payments.py`:
+- `checkout.session.completed` → calls `handle_partner_checkout_completed` which binds the new `stripe_subscription_id` + `stripe_customer_id` onto the partner row and audit-logs the activation.
+- `customer.subscription.updated` (NEW handler) → calls `handle_partner_subscription_event` to keep the partner profile mirrored: `status`, `current_period_end` (ISO), `cancel_at_period_end`, `stripe_price_id`.
+- `customer.subscription.deleted` → the existing platform handler now also routes into `handle_partner_subscription_event` for partner cleanup.
+- All hooks discriminate on `metadata.kind == "partner_engineer_plan"` so they NEVER touch non-partner subscriptions (Operations module, etc.).
+
+#### Frontend — `pages/PartnerEngineer/PartnerDashboard.js` (~+90 LOC)
+- New **"Partner plan subscription"** card slotted between the referral block and the stat grid, only visible once the application is approved.
+- Three visual states driven by partner data:
+  - **No active sub** → "Start your Partner Engineer Plan · £30/mo · auto-discounts to £15 at 5 refs and free at 10+" with a **Start subscription** button that redirects to Stripe Checkout.
+  - **Active sub** → "Active · £X/mo · Next charge YYYY-MM-DD" with a **Cancel** button.
+  - **Pending cancellation** → "Cancels YYYY-MM-DD" with a **Resume** button.
+  - **Free tier** → "Free tier active — N active referrals" green confirmation, no buttons.
+- Post-Checkout return is handled inline: `?subscription=success` → toast + clear params + reload partner; `?subscription=cancelled` → friendly toast.
+
+### Verified
+- **25/25 backend pytest** passing (h75 17 + h76 8):
+  - Checkout 501 when env vars unset.
+  - Free-tier blocks checkout with 400.
+  - `handle_partner_checkout_completed` binds the subscription onto the partner.
+  - `handle_partner_subscription_event` mirrors `status`/price/cancel-flag/period-end.
+  - Non-partner-kind metadata is correctly ignored — other Stripe subscriptions in the platform are not touched.
+  - Price-id resolver returns `None` for free tier and unconfigured tiers.
+  - Cancel with no subscription returns 400.
+- **Live recompute → auto-tier-swap** smoke test passed: seeded 5 active referrals → `_recompute_app_fee` flipped tier from £30 to £15 cleanly with no Stripe-call exceptions when no subscription is bound yet.
+- **Frontend smoke**: subscription card rendered at `/partner-engineer` with the correct "Start subscription · £30/mo" CTA.
+
+### Files touched
+- `/app/backend/routes/partners.py` (+~200 LOC — subscription helpers, 3 endpoints, 2 webhook hooks, auto-sync in `_recompute_app_fee`)
+- `/app/backend/routes/payments.py` (+25 LOC — `_handle_subscription_updated`, partner-checkout hook, webhook handler registration)
+- `/app/frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (+~90 LOC — `SubscriptionCard` component + state-driven actions)
+- `/app/backend/tests/test_iter_216h76_partner_subscription.py` (NEW — 8 regression tests)
+
+### ⚠ Action required (production)
+1. **Create the two Stripe products** in the Stripe Dashboard:
+   - Product: "GymAxis Partner Engineer Plan · £30/mo" → recurring monthly £30 GBP
+   - Product: "GymAxis Partner Engineer Plan · £15/mo" → recurring monthly £15 GBP
+2. **Add the two price IDs to backend `.env`**:
+   ```
+   STRIPE_PRICE_PARTNER_PLAN_30=price_xxx
+   STRIPE_PRICE_PARTNER_PLAN_15=price_yyy
+   ```
+3. **Restart backend**: `sudo supervisorctl restart backend`.
+4. Without these env vars, the Start-subscription button returns 501 with a friendly "ask Master Admin" message — engineers can still see and apply, but can't subscribe yet.
+
+### Phase 2 remaining (next iters)
+- **Stripe Connect Express** auto-payouts to engineers (replaces CSV).
+- **Engineer App access guard** — `/svc/engineer` requires `subscription.status === "active"` OR a customer-added job grant.
+- **Verified Partner public listing** — recommended engineers visible to customers in the Operations module's "find an engineer" widget.
+- **Performance / reliability scoring** rolled into the level decision matrix.
+
+---
+
+
+
 ## Iter 216h75 — Partner Engineer Network · Phase 1 (Feb 13, 2026)
 
 ### Operator brief

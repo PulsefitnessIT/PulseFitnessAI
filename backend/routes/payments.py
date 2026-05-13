@@ -329,6 +329,14 @@ async def _handle_checkout_completed(data: dict) -> None:
     user_id = metadata.get("user_id")
     package_id = metadata.get("package_id")
     if not (user_id and package_id and data.get("payment_status") == "paid"):
+        # Iter 216h76 — Partner Engineer Plan checkout. Non-package
+        # subscription kinds (no package_id) flow through here, so we
+        # give the partners module a chance to bind the new sub.
+        try:
+            from routes.partners import handle_partner_checkout_completed
+            await handle_partner_checkout_completed(data)
+        except Exception:
+            logger.exception("[partners] partner checkout binding failed")
         return
     existing = await db.payment_transactions.find_one({"session_id": session_id, "payment_status": "paid"})
     if existing:
@@ -345,6 +353,22 @@ async def _handle_subscription_deleted(data: dict) -> None:
             {"email": customer_email},
             {"$set": {"subscription_active": False, "subscription_cancelled_at": datetime.now(timezone.utc).isoformat()}},
         )
+    # Iter 216h76 — Partner Engineer Plan subscription sync.
+    try:
+        from routes.partners import handle_partner_subscription_event
+        await handle_partner_subscription_event(data)
+    except Exception:
+        logger.exception("[partners] partner subscription-deleted sync failed")
+
+
+async def _handle_subscription_updated(data: dict) -> None:
+    """Handle customer.subscription.updated — keeps the partner profile
+    in sync with Stripe (status, price ID, cancel-at-period-end)."""
+    try:
+        from routes.partners import handle_partner_subscription_event
+        await handle_partner_subscription_event(data)
+    except Exception:
+        logger.exception("[partners] partner subscription-updated sync failed")
 
 
 async def _handle_invoice_payment_failed(data: dict) -> None:
@@ -472,6 +496,7 @@ async def _handle_invoice_paid(data: dict) -> None:
 WEBHOOK_HANDLERS = {
     "checkout.session.completed": _handle_checkout_completed,
     "customer.subscription.deleted": _handle_subscription_deleted,
+    "customer.subscription.updated": _handle_subscription_updated,
     "invoice.payment_failed": _handle_invoice_payment_failed,
     "invoice.paid": _handle_invoice_paid,
 }
