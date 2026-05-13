@@ -1,3 +1,93 @@
+## Iter 216h80 — Find an Engineer + Pulse Fitness Isolation (Feb 13, 2026)
+
+### Why
+Final brief from h75: "Verified Partner public listing surfaced to customers in their postcode radius." Plus an explicit guard: **"The engineer partner program is only for GymAxis customers NOT Pulse Fitness, ensure there is no bleed through."** This iter ships both.
+
+### What shipped
+
+#### Backend — `routes/partners.py`
+**Pulse Fitness isolation** (the "no bleed-through" guarantee):
+- `_is_pulse_user(user)` and `async _is_pulse_org(org_id)` — match on `account_type in {pulse_pro, pulse_lite, pulse}`, `is_pulse_admin`, or `brand in {pulse, pulse_fitness}`.
+- `_require_gymaxis_only(user)` — raises 403 with a clear message: "The Partner Engineer Network is exclusive to GymAxis — Pulse Fitness customers don't have access to this programme."
+- Applied at 4 critical entry points:
+  1. `POST /partners/apply` — Pulse users can't apply.
+  2. `attach_referral_to_org` — Pulse orgs are silently skipped on signup.
+  3. `accrue_commission_on_invoice_paid` — defensive Pulse check (even if a legacy referred_by_partner_id is present, accrual returns None).
+  4. `POST /customer-engineer-grants` — Pulse customers can't issue grants.
+
+**"Find an engineer" widget endpoints**:
+| Method · path | Behaviour |
+|---|---|
+| `GET /api/partners/find-engineers?postcode=...` | Returns ONLY `verified_partner` + `strategic_partner` matching the postcode outcode prefix (≥2 chars) OR carrying ≥75km travel radius (nationwide). Sorted: in-area first, then strategic above verified, then by 90-day performance score desc. Surfaces only public-safe fields (name, company, level, outcode AREA, radius, brands, skills, qualifications, score, tier, avg rating, jobs_completed_90d). **NEVER** returns email, phone, or commercial counts. |
+| `POST /api/partners/find-engineers/{id}/request-contact` | Creates a `partner_contact_requests` row the engineer sees on their dashboard. Body `{note}`. Engineer must be approved + verified/strategic. |
+
+Both endpoints are gated by `_require_gymaxis_only(user)` AND a secondary `_is_pulse_org(user.organization_id)` check — defense in depth. New collection `partner_contact_requests` with appropriate indexes.
+
+#### Frontend — `pages/ServiceOps/FindEngineerPanel.js` (NEW, ~200 LOC)
+- Lives on Service Desk → Cases tab between the Engineer Roster and the Filters/Cases stack.
+- Postcode search box (uppercased, Enter to submit) → results card per engineer with:
+  - Level badge (Verified — sky-blue · Strategic — purple)
+  - Performance tier badge (Top-tier / Strong / Solid / Building track record / New partner)
+  - "In your area" emerald pill or muted "Wide-radius"
+  - Outcode area + travel radius + 90d-jobs count + ★ avg rating
+  - Up to 4 brand chips + 3 skill chips
+  - **"Request contact"** button → prompts for optional note → POST → button flips to green "Request sent ✓"
+- Silent 403 handling: Pulse customers get a `null` render (no UI surface at all, the API has already rejected them).
+- Friendly empty-state when no verified partners match: "the network's still growing. Add an ad-hoc contractor via the Engineer Roster above, or check back as more engineers join."
+
+### Verified
+- **58/58 partner-network pytest passing** (h75/h76/h77/h78/h79/h80):
+  - Widget surfaces only verified+strategic levels
+  - Widget never leaks email/phone/commercial fields
+  - In-area match on outcode prefix; out-of-area below-75km partners excluded
+  - Unverified partner doesn't surface
+  - Request-contact creates audit row; 404 when partner not verified
+  - Missing postcode → 422
+  - **Pulse user CAN'T apply** → 403 with "GymAxis-exclusive" message
+  - **Pulse user CAN'T search engineers** → 403
+  - **Pulse user CAN'T create grants** → 403
+  - **Pulse org legacy referred_by_partner_id does NOT attach on signup** (subprocess-isolated helper call)
+  - **Pulse org Operations invoice does NOT accrue commission** even with legacy referred_by present (defensive double-check inside the accrual function)
+- **Live preview** smoke: Service Desk Cases tab renders both Engineer Roster (h78) AND Find an Engineer (h80) panels side-by-side. Postcode search produces clean empty-state copy.
+
+### Files touched
+- `/app/backend/routes/partners.py` (+~80 LOC — Pulse guard helpers, widget endpoints, indexes, defensive accrual check, GymAxis-only on apply + grants + attach)
+- `/app/frontend/src/pages/ServiceOps/FindEngineerPanel.js` (NEW)
+- `/app/frontend/src/pages/ServiceOps/ServiceDeskPage.js` (+2 LOC — import + render)
+- `/app/backend/tests/test_iter_216h80_find_engineer_pulse_isolation.py` (NEW — 11 tests)
+
+### Operational impact
+- A Pulse customer who hits any partner endpoint gets a friendly 403. No silent failures.
+- A Pulse customer's Service Desk doesn't render the FindEngineerPanel at all (component silently returns null on 403). Engineer Roster panel is similarly protected via the same backend block on grants.
+- **Defense in depth**: even if a Pulse org has a legacy `referred_by_partner_id` on it (data migration, manual DB edit, etc.), the accrual code's secondary `account_type`/`brand` check on `organizations` blocks the leak before any ledger row is created.
+
+### Partner Engineer Network → COMPLETE 🎉
+With h80 shipped, the brief from h75 is fully delivered:
+1. ✅ Partner onboarding (h75)
+2. ✅ Engineer Partner Plan (h75 + h76 — Live Stripe £30 with £15/free auto-discount)
+3. ✅ Referral tracking (h75)
+4. ✅ Commission tracking (h75 — signup 50% + £3/mo recurring · CSV payouts)
+5. ✅ Engineer App subscription logic (h76 + h77)
+6. ✅ Partner status levels (h75 — 4 levels, h79 performance-based recommendations)
+7. ✅ Master Admin controls (h75 — approve/reject/suspend/level/queue/payout/CSV)
+8. ✅ Stripe billing integration (h76 — live £30 + £15 + free transitions)
+9. ✅ Partner dashboard (h75 + h76 subscription card)
+10. ✅ Partner performance reporting (h79 — 90d composite score, tier, recommendation)
+11. ✅ Customer-added engineers via grants (h77 + h78 — backend + UI)
+12. ✅ Public listing for verified partners (h80)
+13. ✅ GymAxis-only isolation from Pulse Fitness (h80)
+
+### Phase 3 / nice-to-haves (no longer P1)
+- Customer-side rating prompt at case sign-off (backend already accepts ratings via cases PUT)
+- Engineer contact-requests inbox in Partner Dashboard (notifies via Resend)
+- Stripe Connect Express auto-payouts (replaces CSV)
+- Monthly partner scorecard email (mentioned in h79 finish)
+- Per-case scope enforcement on customer grants (today grants are "active=true → any job"; per_case scope is recorded but not yet enforced at job-fetch time)
+
+---
+
+
+
 ## Iter 216h79 — Partner Performance Scoring (Feb 13, 2026)
 
 ### Why

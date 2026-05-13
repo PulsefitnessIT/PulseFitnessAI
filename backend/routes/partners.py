@@ -73,6 +73,55 @@ SIGNUP_REWARD_PCT = 0.5
 OPERATIONS_PRICE_GBP = 69  # Iter 216h75 — bumped from £59
 TERMS_VERSION = "2026-02-13"
 
+# Iter 216h80 — Pulse Fitness isolation. The Partner Engineer Network
+# is a GymAxis-only commercial layer. Pulse customers/orgs must NEVER:
+#   • see the "Find an engineer" widget
+#   • have their first Operations invoice trigger a signup reward
+#   • be allowed to attach a referral code on signup
+#   • be issued customer-engineer grants
+# We import lazily to avoid an import cycle.
+PULSE_ACCOUNT_TYPES = {"pulse_pro", "pulse_lite", "pulse"}
+
+
+def _is_pulse_user(user: dict) -> bool:
+    at = (user or {}).get("account_type") or ""
+    if at.lower() in PULSE_ACCOUNT_TYPES:
+        return True
+    if user.get("is_pulse_admin"):
+        return True
+    if (user.get("brand") or "").lower() in ("pulse", "pulse_fitness"):
+        return True
+    return False
+
+
+async def _is_pulse_org(org_id: Optional[str]) -> bool:
+    """True if the organisation is on the Pulse Fitness portal."""
+    if not org_id:
+        return False
+    org = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "account_type": 1, "brand": 1},
+    )
+    if not org:
+        return False
+    at = (org.get("account_type") or "").lower()
+    if at in PULSE_ACCOUNT_TYPES:
+        return True
+    if (org.get("brand") or "").lower() in ("pulse", "pulse_fitness"):
+        return True
+    return False
+
+
+def _require_gymaxis_only(user: dict) -> None:
+    """Raise 403 if the caller is a Pulse Fitness user. The Partner
+    Engineer Network is exclusively a GymAxis programme."""
+    if _is_pulse_user(user):
+        raise HTTPException(
+            status_code=403,
+            detail="The Partner Engineer Network is exclusive to GymAxis — Pulse Fitness customers don't have access to this programme.",
+        )
+
+
 PARTNER_STATUSES = {"draft", "pending", "approved", "rejected", "suspended"}
 PARTNER_LEVELS = {"customer_added", "engineer_partner", "verified_partner", "strategic_partner"}
 LEDGER_KINDS = {"signup_reward", "recurring"}
@@ -338,6 +387,7 @@ async def get_my_partner(user: dict = Depends(get_current_user)):
 async def apply_partner(body: dict = Body(...), user: dict = Depends(get_current_user)):
     """Submit / refresh the partner application. Idempotent — calling
     again updates the draft profile until master admin approval lands."""
+    _require_gymaxis_only(user)
     existing = await db.partner_engineers.find_one({"user_id": user["id"]}, {"_id": 0})
     if existing and existing.get("status") == "approved":
         # Once approved, only individual profile-edit endpoints can mutate.
@@ -669,6 +719,10 @@ async def attach_referral_to_org(*, organization_id: str, ref_code: Optional[str
     )
     if not partner:
         return None
+    # Iter 216h80 — Pulse Fitness isolation. Block referral attachment
+    # if the org is a Pulse customer (programme is GymAxis-only).
+    if await _is_pulse_org(organization_id):
+        return None
     # Anti-abuse: partner can't refer their own org.
     if partner.get("owner_organization_id") == organization_id:
         return None
@@ -750,9 +804,14 @@ async def accrue_commission_on_invoice_paid(invoice_data: dict) -> Optional[dict
 
     org = await db.organizations.find_one(
         {"stripe_customer_id": customer_id},
-        {"_id": 0, "id": 1, "referred_by_partner_id": 1},
+        {"_id": 0, "id": 1, "referred_by_partner_id": 1, "account_type": 1, "brand": 1},
     )
     if not (org and org.get("referred_by_partner_id")):
+        return None
+    # Iter 216h80 — defensive Pulse check. Even if a Pulse org somehow
+    # ended up with a referred_by_partner_id (legacy data), block accrual.
+    if (org.get("account_type") or "").lower() in PULSE_ACCOUNT_TYPES \
+            or (org.get("brand") or "").lower() in ("pulse", "pulse_fitness"):
         return None
     if not _is_operations_charge(invoice_data):
         return None
@@ -1306,6 +1365,7 @@ async def create_customer_grant(body: dict = Body(...), user: dict = Depends(get
     """Customer grants an engineer access to specific jobs/cases without
     forcing them to subscribe. This is the "customer-added engineer"
     onboarding path."""
+    _require_gymaxis_only(user)
     org_id = user.get("organization_id")
     if not org_id:
         raise HTTPException(403, "Organization context required")
@@ -1537,6 +1597,149 @@ async def admin_partners_leaderboard(
 # ─── End of iter 216h79 additions ───
 
 
+# ───────────────────────── PUBLIC "FIND AN ENGINEER" WIDGET (iter 216h80) ─────────────────────────
+
+
+# Quick & deterministic postcode prefix matcher. Live geocoding can
+# come in a later iter — for MVP we match on the first 2-4 chars of
+# the UK outcode (e.g. "SW1A" matches "SW1A", "SW1", "SW") which is
+# good enough for "engineers within the same broad area".
+
+
+def _outcode(postcode: str) -> str:
+    """Return the UK outcode (chars before the space, e.g. 'SW1A' from
+    'SW1A 1AA'). Uppercased & whitespace-stripped."""
+    if not postcode:
+        return ""
+    pc = re.sub(r"\s+", " ", postcode.strip().upper())
+    return pc.split(" ", 1)[0] if " " in pc else pc[:4]
+
+
+def _postcode_match(engineer_pc: str, customer_pc: str) -> bool:
+    """Loose match on the outcode prefix — engineer covers customer if
+    they share any leading character sequence of >=2 chars, OR the
+    engineer's `travel_radius_km` is generous (≥75km counts as
+    nationwide for MVP)."""
+    a = _outcode(engineer_pc)
+    b = _outcode(customer_pc)
+    if not a or not b:
+        return False
+    # Same outcode prefix (≥2 chars) → match
+    for n in (4, 3, 2):
+        if a[:n] == b[:n]:
+            return True
+    return False
+
+
+@router.get("/partners/find-engineers")
+async def find_engineers(
+    postcode: str = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    """Return verified / strategic Partner Engineers within reach of the
+    customer's postcode. GymAxis-only — Pulse users get 403.
+
+    Surface limited fields only (NO email, phone, commercial data).
+    """
+    _require_gymaxis_only(user)
+    # Also block if the user's own org is Pulse — guards customer-by-org.
+    if user.get("organization_id"):
+        if await _is_pulse_org(user["organization_id"]):
+            raise HTTPException(403, "The Partner Engineer Network is exclusive to GymAxis customers.")
+
+    customer_pc = _validate_postcode(postcode)
+    cur = db.partner_engineers.find(
+        {"status": "approved", "level": {"$in": ["verified_partner", "strategic_partner"]}},
+        {"_id": 0, "id": 1, "full_name": 1, "company_name": 1, "level": 1,
+         "service_postcode": 1, "travel_radius_km": 1, "brands_supported": 1,
+         "skills": 1, "qualifications": 1, "active_referral_count": 1},
+    )
+    rows = await cur.to_list(length=500)
+
+    # Score by postcode match + travel-radius generosity.
+    matched = []
+    nationwide = []
+    for r in rows:
+        eng_pc = r.get("service_postcode") or ""
+        radius = r.get("travel_radius_km") or 25
+        if _postcode_match(eng_pc, customer_pc):
+            matched.append(r)
+        elif radius >= 75:
+            nationwide.append(r)
+
+    # Pull in live performance scores so customers see the strongest first.
+    scored = []
+    for r in matched + nationwide:
+        try:
+            perf = await compute_partner_performance(r["id"], window_days=90)
+        except Exception:
+            perf = {"score": 0, "tier": "insufficient_data"}
+        scored.append({
+            "id": r["id"],
+            "full_name": r["full_name"],
+            "company_name": r.get("company_name"),
+            "level": r["level"],
+            "service_postcode_area": _outcode(r.get("service_postcode") or ""),
+            "travel_radius_km": r.get("travel_radius_km"),
+            "brands_supported": r.get("brands_supported") or [],
+            "skills": r.get("skills") or [],
+            "qualifications": r.get("qualifications") or [],
+            "score":  perf.get("score", 0),
+            "tier":   perf.get("tier"),
+            "rating": (perf.get("counts") or {}).get("avg_rating"),
+            "jobs_completed_90d": (perf.get("counts") or {}).get("closed", 0),
+            "in_area":  r in matched,
+        })
+    # Top-tier + strategic always rank above verified; within tier, score desc.
+    scored.sort(key=lambda x: (
+        not x["in_area"],                            # in-area first
+        x["level"] != "strategic_partner",           # strategic ranks above verified
+        -(x["score"] or 0),
+    ))
+    return {"postcode": customer_pc, "engineers": scored, "in_area_count": len(matched)}
+
+
+@router.post("/partners/find-engineers/{partner_id}/request-contact")
+async def request_engineer_contact(
+    partner_id: str,
+    body: dict = Body(default_factory=dict),
+    user: dict = Depends(get_current_user),
+):
+    """A customer expresses interest in an engineer. We DON'T leak the
+    engineer's email; instead we create a `partner_contact_requests` row
+    and (P2) notify the engineer via Resend. The engineer can then
+    accept the lead from their dashboard."""
+    _require_gymaxis_only(user)
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(403, "Organization context required")
+    if await _is_pulse_org(org_id):
+        raise HTTPException(403, "GymAxis-only programme")
+    partner = await db.partner_engineers.find_one(
+        {"id": partner_id, "status": "approved",
+         "level": {"$in": ["verified_partner", "strategic_partner"]}},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1},
+    )
+    if not partner:
+        raise HTTPException(404, "Engineer is not available")
+    req = {
+        "id": _new_id(),
+        "partner_id": partner_id,
+        "requested_by_organization_id": org_id,
+        "requested_by_user_id": user["id"],
+        "requested_by_user_email": user.get("email"),
+        "note": (body.get("note") or "").strip()[:1000],
+        "status": "new",
+        "created_at": _now(),
+    }
+    await db.partner_contact_requests.insert_one(req)
+    req.pop("_id", None)
+    return {"ok": True, "request": req}
+
+
+# ─── End of iter 216h80 additions ───
+
+
 # ───────────────────────── indexes (called from server startup) ─────────────────────────
 
 
@@ -1557,3 +1760,6 @@ async def ensure_partner_indexes() -> None:
     # Iter 216h77 — customer-added engineer grants
     await db.partner_job_grants.create_index([("engineer_user_id", 1), ("active", 1)])
     await db.partner_job_grants.create_index([("granted_by_organization_id", 1), ("created_at", -1)])
+    # Iter 216h80 — find-engineers widget
+    await db.partner_contact_requests.create_index([("partner_id", 1), ("created_at", -1)])
+    await db.partner_contact_requests.create_index([("requested_by_organization_id", 1), ("created_at", -1)])
