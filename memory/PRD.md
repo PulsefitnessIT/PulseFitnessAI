@@ -1,3 +1,96 @@
+## Iter 216h70 — Marketing: Brand auto-discovery + tab reorder (Feb 13, 2026)
+
+### Why
+Lee's ask: "If a customer purchases the Marketing module, on sign-up they enter their website. From that point in the background AI should crawl their website to build up the brand kit — standards, fonts, text sizes, logos, images, etc. Grab as much intelligence as possible. **Massive time saver.**" Plus: tab reorder — Start FIRST (auto-removing checklist parity with other modules), Dashboard SECOND (renamed from Performance).
+
+### Operator decisions (captured)
+1. Trigger: (a) Auto on first website-URL save.
+2. Scope: (a) Homepage + top 8 internal pages.
+3. Apply: (a) Draft for operator review.
+4. Storage: (b) **Mirror images to our object storage**, compressed without quality loss (PIL JPEG q=85 / PNG optimized, max 2000 px longest side).
+
+### What shipped
+
+#### Backend — `routes/marketing/brand_discovery.py` (NEW, ~360 LOC)
+Four endpoints, all behind `require_module("marketing")`:
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/marketing/brand-discovery/start` | Queues `BackgroundTask`, persists `website_url` on the org doc |
+| GET  | `/api/marketing/brand-discovery/status` | Polled by UI — returns `{status, progress, draft, error}` |
+| POST | `/api/marketing/brand-discovery/apply` | Copies draft → `marketing_brand_kit` (selective per-field flags) |
+| POST | `/api/marketing/brand-discovery/discard` | Wipes the doc |
+
+**Crawler pipeline:**
+1. Fetch homepage with httpx (10 s timeout, User-Agent identifies us).
+2. Discover same-domain links, prioritising `/about`, `/timetable`, `/classes`, `/membership`, `/pricing`, `/offers`, `/promotions`, `/blog`, `/contact`.
+3. Crawl up to 8 pages total. Accumulate hex colours (CSS/HTML), `font-family` + Google-Fonts declarations, plain-text corpus.
+4. From the homepage: extract **logo candidates** (`<link rel=icon>`, `og:image`, `<img>` near `<header>` with logo class), **marketing imagery** (≥200 × 200 px, skips icons/avatars), **social handles** (FB / IG / TikTok / X / LinkedIn / YouTube).
+5. **Image storage** — top 3 logos + top 8 images downloaded → PIL-compressed (longest side cap 2000 px, JPEG quality=85, PNG optimize for RGBA logos) → `put_object("gymaxis/brand-discovery/{org}/...")`. Returned `stored_url` points to **our** storage so they survive customer redesigns.
+6. **Claude Haiku 4.5** single call (Emergent LLM key) — returns JSON with `tone_of_voice`, `audiences`, `current_campaigns`, `has_timetable`, `keywords`. Cost: ~$0.01–0.03 per gym.
+
+Persistence: `marketing_brand_discovery` collection (one doc per org).
+
+#### Frontend — `BrandDiscoveryPanel.js` (NEW, ~310 LOC)
+Lives at the top of Marketing → Brand Kit. 5 states:
+- **Idle** — Globe-icon URL input + "Discover my brand" CTA.
+- **Running** — Polls `/status` every 2 s; shows spinner + live stage label (`fetching {url}`, `compressing & storing assets`, `analysing tone & audiences`).
+- **Ready** — Full draft preview: colour swatches, fonts, logo grid, image grid (4-8 cols responsive), intelligence panel (tone-of-voice + audience chips + campaign bullets), social handles, collapsible "pages crawled" list. **Apply / Discard** CTAs.
+- **Applied** — "Discovery applied. Re-run any time after a website redesign."
+- **Failed** — Amber alert with error detail.
+
+#### Marketing tab reorder — `MarketingSuite.js`
+Old: `Performance · Start · Insights · …`
+New: **`Start · Dashboard · Insights · Campaigns · Journeys · Contacts · Audiences · Dynamic Lists · Forms & Pages · Creative Studio · Brand Kit · Social`**
+- `id: 'performance'` retained for back-compat with bookmarks + `?tab=` URLs; only the **label** changed to "Dashboard".
+- Default-tab logic: if `localStorage:userPref:hideStartTabs === 'true'` (operator has completed onboarding milestones) → land on `performance` (Dashboard). Otherwise → land on `start`.
+
+#### Marketing → Start tab — `StartTab.js`
+- Imports `<ActivationMilestonesCard>` and renders it at the top. Once all milestones land, the card flips `hideStartTabs=true` → the **Start** tab auto-removes itself from the tab bar, matching every other module's onboarding pattern.
+
+### Verified (testing-agent iter 216h70 — 100%, 10/10)
+
+| Test | Result |
+|---|---|
+| POST /start returns `{ok:true, status:'queued', website_url}` | ✅ |
+| GET /status transitions queued → running → ready (~10 s for small sites) | ✅ |
+| Ready draft has colours, fonts, logos, images, socials, intelligence, pages_visited | ✅ |
+| POST /apply copies fields to brand-kit; status → 'applied' | ✅ |
+| POST /discard wipes doc | ✅ |
+| POST /apply without ready draft → 400 | ✅ |
+| All endpoints require marketing module + auth | ✅ |
+| Image storage uses `put_object()` — `stored_url` is GymAxis storage path, NOT customer CDN | ✅ |
+| Tab order: Start FIRST (`data-testid='marketing-tab-start'`), Dashboard SECOND (`id='performance'`, label='Dashboard') | ✅ |
+| BrandDiscoveryPanel renders with URL input, "Discover my brand" button, running → ready → applied flow | ✅ |
+
+Backend pytest file: `/app/backend/tests/test_iter_216h70_brand_discovery.py` (regression).
+Lint clean across all 6 touched files.
+
+### Real-world smoke
+- `example.com` → fully crawled, applied, discarded in <15 s.
+- `gymaxisai.com` → Claude extracted full audience pack: *"gym owners · fitness operators · fitness business managers"*, tone: *"Professional and solution-focused, emphasizing innovation and operational efficiency for fitness business owners."*, fonts: Inter (heading) + Outfit (body). Pure Next.js sites yield fewer colours/logos due to compiled CSS — multi-page legacy gym sites will yield much richer drafts.
+
+### Files touched
+- `/app/backend/routes/marketing/brand_discovery.py` (NEW)
+- `/app/backend/routes/marketing/__init__.py` (+2 LOC — register router)
+- `/app/frontend/src/pages/Marketing/BrandDiscoveryPanel.js` (NEW)
+- `/app/frontend/src/pages/Marketing/BrandKitTab.js` (+3 LOC — mount panel at top)
+- `/app/frontend/src/pages/Marketing/StartTab.js` (+8 LOC — mount ActivationMilestonesCard at top)
+- `/app/frontend/src/pages/MarketingSuite.js` (~−15 / +18 LOC — tab reorder + default-tab logic)
+- `/app/backend/tests/test_iter_216h70_brand_discovery.py` (NEW — regression tests)
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend + frontend.
+2. Operator flow after deploy:
+   - Marketing → **Start** (new first tab) shows the activation checklist.
+   - Marketing → Brand Kit → **Brand Auto-Discovery** panel at the top lets them drop their website URL and click **Discover my brand**.
+   - 10-30 s later the draft appears with colours, fonts, logos, ~8 marketing images, tone-of-voice, audience segments, current campaigns, social handles.
+   - **Apply to brand kit** commits the draft to the operator's permanent brand kit; **Discard** wipes it. They can **Re-run** after a website redesign.
+
+---
+
+
+
 ## Iter 216h69 — Upload throttle + concurrency cap for spec-sheet uploads (Feb 13, 2026)
 
 ### Operator-reported (Lee Somers, screenshot)
