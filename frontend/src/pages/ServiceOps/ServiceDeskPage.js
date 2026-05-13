@@ -20,6 +20,8 @@ import { notify } from '@/components/notifications';
 import ServiceDeskIntakeForm from './ServiceDeskIntakeForm';
 import ServiceCaseDrawer from './ServiceCaseDrawer';
 import ServiceOpsShell, { SvcPrimaryButton, SvcSecondaryButton } from './ServiceOpsShell';
+// Iter 216h78 — Engineer Roster (customer-grants UI for ad-hoc contractors)
+import EngineerRosterPanel from './EngineerRosterPanel';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -306,6 +308,8 @@ export default function ServiceDeskPage() {
         loading={loading}
         onCaseClick={setActiveCaseId}
       />
+
+      <EngineerRosterPanel />
 
       <div className="svc-section">
         <div className="svc-section-head">

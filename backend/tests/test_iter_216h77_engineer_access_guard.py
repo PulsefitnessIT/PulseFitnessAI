@@ -60,16 +60,28 @@ def db():
 @pytest.fixture
 def reset_operator(db):
     """Each test starts with the operator partner in a known state:
-    approved, paid tier (£30), no subscription, no grants."""
+    approved, paid tier (£30), no subscription, no grants, no extra
+    referrals (so app_fee_tier is recomputed to £30/mo)."""
     def _reset():
+        # Drop any test-seeded referrals + force tier back to £30.
         db.partner_engineers.update_one(
             {"email": OPERATOR_EMAIL},
-            {"$set": {"status": "approved"},
+            {"$set": {"status": "approved",
+                      "active_referral_count": 0,
+                      "app_fee_tier": {"price_gbp": 30, "label": "£30/mo",
+                                        "enhanced_review_required": False}},
              "$unset": {"subscription.stripe_subscription_id": "",
                         "subscription.status": "", "subscription.stripe_price_id": "",
                         "subscription.cancel_at_period_end": ""}},
         )
         db.partner_job_grants.delete_many({"engineer_email": OPERATOR_EMAIL})
+        # Clean any orphan referrals from previous-run failures
+        partner = db.partner_engineers.find_one({"email": OPERATOR_EMAIL}, {"_id": 0, "id": 1})
+        if partner:
+            db.partner_referrals.delete_many({
+                "partner_id": partner["id"],
+                "referred_organization_id": {"$regex": "^freetier-"},
+            })
     _reset()
     yield
     _reset()
