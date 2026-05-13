@@ -31,6 +31,8 @@
  *                                       When `when=true` AND children is empty, renders <EmptyState>.
  *   - `toolbarRight`       (optional) — extra JSX appended to the toolbar (filters / view-switchers).
  *   - `className`          (optional) — wrapper override.
+ *   - `bodyClassName`      (optional) — override for the inner body wrapper (default `space-y-2`).
+ *                                       Use this for grid layouts like Plans / Promotions cards.
  *   - `data-testid`        (optional).
  *   - `children`           — list rows.
  *
@@ -63,6 +65,7 @@ const ListPanel = ({
   empty,
   toolbarRight,
   className = '',
+  bodyClassName = 'space-y-2',
   children,
   ...rest
 }) => {
@@ -147,7 +150,7 @@ const ListPanel = ({
           testId={empty.testId}
         />
       ) : (
-        <div className="space-y-2">
+        <div className={bodyClassName}>
           {children}
         </div>
       )}

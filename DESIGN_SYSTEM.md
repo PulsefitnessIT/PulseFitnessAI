@@ -121,9 +121,9 @@ Bundles:
 - **Toolbar:** optional title/subtitle + search input + count chip + secondary actions array + primary CTA.
 - **Loading state:** centred brand spinner.
 - **Empty state:** delegates to `<EmptyState>` so the API matches existing usage.
-- **Rows:** children in a `space-y-2` wrapper.
+- **Rows:** children in a `space-y-2` wrapper by default. Override with `bodyClassName` for grid layouts (Plans, Promotions cards) — e.g. `bodyClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"`.
 
-Adopted in CRM Contacts in iter 216h44 — ~25 LOC saved per panel. Future targets: CRMCompanies, CRMPipeline list view, Memberships Plans/Classes/Ads, PromotionsTab.
+Adopted in CRM Contacts (iter 216h44), CRM Companies (iter 216h44 follow-up), Memberships Plans / Classes / Ads (iter 216h65), and Memberships Promotions (iter 216h65) — ~25 LOC saved per panel. Remaining target: CRMPipeline list view (deferred — its toolbar is too bespoke to fit without compromising the Kanban switcher).
 
 ### Iter 216h45 — `<UnifiedAuthProvider>` + `useUnifiedAuth()`
 

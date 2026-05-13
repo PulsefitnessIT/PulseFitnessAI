@@ -23,6 +23,7 @@ import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';
+import ListPanel from '@/components/shared/ListPanel';
 import InvitePortalButton from '@/components/memberships/InvitePortalButton';
 import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import {
@@ -1202,44 +1203,54 @@ function PlansInnerView({ API, headers }) {
 
   return (
     <div data-testid="mbr-plans">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <Header eyebrow="Products" title="Membership plans" subtitle="The shelves you sell from." />
-        <Button variant="primary" size="sm" onClick={() => setEditing('new')} icon={Plus} data-testid="mbr-plan-add">
-          New plan
-        </Button>
-        <HelpHint guideId="mbr-first-plan" testId="help-hint-plans" />
-      </div>
-      {loading ? <Loading /> : plans.length === 0 ? <Empty text="No plans yet. Create your first product." /> : (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {plans.map((p) => (
-            <div key={p.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4 group" data-testid={`mbr-plan-${p.id}`}>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-1.5 h-8 rounded shrink-0" style={{ background: p.colour }} />
-                  <div className="min-w-0">
-                    <div className="font-bold text-white text-sm truncate">{p.name}</div>
-                    <div className="text-xs text-[color:var(--theme-text-muted)] capitalize">{(p.kind || '').replace('_', ' ')} · {p.billing_cycle}</div>
-                  </div>
+      <ListPanel
+        data-testid="mbr-plans-list"
+        title="Membership plans"
+        subtitle="The shelves you sell from."
+        count={{ value: plans.length, label: 'plan' }}
+        secondaryActions={[
+          <HelpHint key="help" guideId="mbr-first-plan" testId="help-hint-plans" />,
+        ]}
+        primaryAction={{ label: 'New plan', icon: Plus, onClick: () => setEditing('new'), testId: 'mbr-plan-add' }}
+        loading={loading}
+        empty={{
+          when: plans.length === 0,
+          icon: PackageOpen,
+          title: 'No plans yet',
+          hint: 'Create your first product — a monthly unlimited, a class pack, or a fixed-term course. Plans appear in member sign-up the moment you publish.',
+          primaryAction: { label: 'Create your first plan', onClick: () => setEditing('new'), testId: 'mbr-plan-empty-create' },
+          testId: 'mbr-plans-empty',
+        }}
+        bodyClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+      >
+        {plans.map((p) => (
+          <div key={p.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4 group" data-testid={`mbr-plan-${p.id}`}>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-1.5 h-8 rounded shrink-0" style={{ background: p.colour }} />
+                <div className="min-w-0">
+                  <div className="font-bold text-white text-sm truncate">{p.name}</div>
+                  <div className="text-xs text-[color:var(--theme-text-muted)] capitalize">{(p.kind || '').replace('_', ' ')} · {p.billing_cycle}</div>
                 </div>
-                <RowActions data-testid={`mbr-plan-actions-${p.id}`}>
-                  <Button variant="ghost" size="iconSm" onClick={() => setEditing(p)} icon={Edit3} title="Edit" data-testid={`mbr-plan-edit-${p.id}`} />
-                  <Button variant="ghostDestructive" size="iconSm" onClick={() => archive(p)} icon={Trash2} title="Archive" data-testid={`mbr-plan-archive-${p.id}`} />
-                </RowActions>
               </div>
-              <div className="text-2xl font-extrabold tracking-tight mt-2">£{(p.price_pence / 100).toFixed(2)}</div>
-              <div className="text-xs text-[color:var(--theme-text-muted)] mt-1">
-                {p.included_classes === 'unlimited' ? 'Unlimited classes' :
-                 p.credits_count ? `${p.credits_count} credits` : 'Credits only'}
-              </div>
-              <div className="flex gap-1.5 mt-3 flex-wrap">
-                {p.freeze_allowed && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/5 rounded px-1.5 py-0.5">Freezable</span>}
-                {p.cancel_notice_days > 0 && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/5 rounded px-1.5 py-0.5">{p.cancel_notice_days}d notice</span>}
-                {p.upfront_fee_pence > 0 && <span className="text-[10px] font-bold text-amber-200 bg-amber-500/10 rounded px-1.5 py-0.5">£{(p.upfront_fee_pence/100).toFixed(0)} joining</span>}
-              </div>
+              <RowActions data-testid={`mbr-plan-actions-${p.id}`}>
+                <Button variant="ghost" size="iconSm" onClick={() => setEditing(p)} icon={Edit3} title="Edit" data-testid={`mbr-plan-edit-${p.id}`} />
+                <Button variant="ghostDestructive" size="iconSm" onClick={() => archive(p)} icon={Trash2} title="Archive" data-testid={`mbr-plan-archive-${p.id}`} />
+              </RowActions>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="text-2xl font-extrabold tracking-tight mt-2">£{(p.price_pence / 100).toFixed(2)}</div>
+            <div className="text-xs text-[color:var(--theme-text-muted)] mt-1">
+              {p.included_classes === 'unlimited' ? 'Unlimited classes' :
+               p.credits_count ? `${p.credits_count} credits` : 'Credits only'}
+            </div>
+            <div className="flex gap-1.5 mt-3 flex-wrap">
+              {p.freeze_allowed && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/5 rounded px-1.5 py-0.5">Freezable</span>}
+              {p.cancel_notice_days > 0 && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/5 rounded px-1.5 py-0.5">{p.cancel_notice_days}d notice</span>}
+              {p.upfront_fee_pence > 0 && <span className="text-[10px] font-bold text-amber-200 bg-amber-500/10 rounded px-1.5 py-0.5">£{(p.upfront_fee_pence/100).toFixed(0)} joining</span>}
+            </div>
+          </div>
+        ))}
+      </ListPanel>
       {editing && <PlanEditorModal API={API} headers={headers} plan={editing === 'new' ? null : editing}
         onClose={(refresh) => { setEditing(null); if (refresh) load(); }} />}
     </div>
@@ -1279,33 +1290,40 @@ function ClassesTab({ API, headers }) {
 
   return (
     <div data-testid="mbr-classes">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <Header eyebrow="Schedule" title="Classes" subtitle="Recurring class templates — changes generate new occurrences for the next 8 weeks." />
-        <Button variant="primary" size="sm" onClick={() => setEditing('new')} icon={Plus} data-testid="mbr-class-add">
-          New class
-        </Button>
-      </div>
-      {loading ? <Loading /> : templates.length === 0 ? <Empty text="No classes yet. Create your first recurring template." /> : (
-        <div className="mt-6 space-y-2">
-          {templates.map((t) => (
-            <div key={t.id} onClick={() => setEditing(t)} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3.5 flex items-center gap-3 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan)/0.4)] transition group" data-testid={`mbr-class-${t.id}`}>
-              <div className="w-1 h-12 rounded shrink-0" style={{ background: t.colour || 'var(--color-brand-cyan)' }} />
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-white text-sm truncate">{t.name} <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] uppercase ml-1">· {t.category}</span></div>
-                <div className="text-xs text-[color:var(--theme-text-muted)] mt-0.5">
-                  {(t.recurs_days || []).map((d) => DAYS_OF_WEEK[d]?.label).join(', ') || 'No recurrence'} · {t.start_time} · {t.duration_min}min · cap {t.capacity}
-                </div>
-                <div className="text-[11px] text-[color:var(--theme-text-muted)] mt-0.5">
-                  {t.instructor_name || 'No instructor'} · {t.room_name || 'No room'} · {t.credits_to_book ?? 1} credit{t.credits_to_book === 1 ? '' : 's'}
-                </div>
+      <ListPanel
+        data-testid="mbr-classes-list"
+        title="Classes"
+        subtitle="Recurring class templates — changes generate new occurrences for the next 8 weeks."
+        count={{ value: templates.length, label: 'class', plural: 'classes' }}
+        primaryAction={{ label: 'New class', icon: Plus, onClick: () => setEditing('new'), testId: 'mbr-class-add' }}
+        loading={loading}
+        empty={{
+          when: templates.length === 0,
+          icon: Calendar,
+          title: 'No classes yet',
+          hint: 'Create your first recurring template — pick days, instructor, and capacity. We auto-generate occurrences 8 weeks out.',
+          primaryAction: { label: 'Create your first class', onClick: () => setEditing('new'), testId: 'mbr-class-empty-create' },
+          testId: 'mbr-classes-empty',
+        }}
+      >
+        {templates.map((t) => (
+          <div key={t.id} onClick={() => setEditing(t)} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3.5 flex items-center gap-3 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan)/0.4)] transition group" data-testid={`mbr-class-${t.id}`}>
+            <div className="w-1 h-12 rounded shrink-0" style={{ background: t.colour || 'var(--color-brand-cyan)' }} />
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-white text-sm truncate">{t.name} <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] uppercase ml-1">· {t.category}</span></div>
+              <div className="text-xs text-[color:var(--theme-text-muted)] mt-0.5">
+                {(t.recurs_days || []).map((d) => DAYS_OF_WEEK[d]?.label).join(', ') || 'No recurrence'} · {t.start_time} · {t.duration_min}min · cap {t.capacity}
               </div>
-              <RowActions data-testid={`mbr-class-actions-${t.id}`}>
-                <Button variant="ghostDestructive" size="icon" onClick={(e) => { e.stopPropagation(); archive(t); }} icon={Trash2} title="Archive" data-testid={`mbr-class-archive-${t.id}`} />
-              </RowActions>
+              <div className="text-[11px] text-[color:var(--theme-text-muted)] mt-0.5">
+                {t.instructor_name || 'No instructor'} · {t.room_name || 'No room'} · {t.credits_to_book ?? 1} credit{t.credits_to_book === 1 ? '' : 's'}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+            <RowActions data-testid={`mbr-class-actions-${t.id}`}>
+              <Button variant="ghostDestructive" size="icon" onClick={(e) => { e.stopPropagation(); archive(t); }} icon={Trash2} title="Archive" data-testid={`mbr-class-archive-${t.id}`} />
+            </RowActions>
+          </div>
+        ))}
+      </ListPanel>
       {editing && <ClassEditorModal API={API} headers={headers} template={editing === 'new' ? null : editing}
         onClose={(refresh) => { setEditing(null); if (refresh) load(); }} />}
     </div>
@@ -1544,38 +1562,45 @@ function AdsTab({ API, headers }) {
 
   return (
     <div data-testid="mbr-ads">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <Header eyebrow="Promotions" title="Ads & announcements" subtitle="Surface banners in the member app — promos, events, challenges." />
-        <Button variant="primary" size="sm" onClick={() => setEditing('new')} icon={Plus} data-testid="mbr-ads-add">
-          New ad
-        </Button>
-      </div>
-      {loading ? <Loading /> : ads.length === 0 ? <Empty text="No ads yet. Create one to nudge members from the book tab." /> : (
-        <div className="mt-6 space-y-2">
-          {ads.map((a) => (
-            <div key={a.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4 group" data-testid={`mbr-ad-${a.id}`}
-                 style={{ borderLeft: `3px solid ${a.background_colour || 'var(--color-brand-cyan)'}` }}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white text-sm truncate">{a.headline}</span>
-                    {!a.active && <span className="text-[9px] font-extrabold uppercase text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/10 px-1.5 py-0.5 rounded">Paused</span>}
-                  </div>
-                  {a.body && <div className="text-xs text-[color:var(--theme-text-muted)] mt-0.5 truncate">{a.body}</div>}
-                  <div className="text-[10px] text-[color:var(--theme-text-muted)] mt-1 uppercase tracking-wider">
-                    {PLACEMENTS.find((p) => p.value === a.placement)?.label || a.placement} · {a.impressions || 0} views · {a.clicks || 0} clicks
-                  </div>
+      <ListPanel
+        data-testid="mbr-ads-list"
+        title="Ads & announcements"
+        subtitle="Surface banners in the member app — promos, events, challenges."
+        count={{ value: ads.length, label: 'ad' }}
+        primaryAction={{ label: 'New ad', icon: Plus, onClick: () => setEditing('new'), testId: 'mbr-ads-add' }}
+        loading={loading}
+        empty={{
+          when: ads.length === 0,
+          icon: Megaphone,
+          title: 'No ads yet',
+          hint: 'Create one to nudge members from the book tab — limited-time promo, upcoming event, or a new challenge.',
+          primaryAction: { label: 'Create your first ad', onClick: () => setEditing('new'), testId: 'mbr-ads-empty-create' },
+          testId: 'mbr-ads-empty',
+        }}
+      >
+        {ads.map((a) => (
+          <div key={a.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4 group" data-testid={`mbr-ad-${a.id}`}
+               style={{ borderLeft: `3px solid ${a.background_colour || 'var(--color-brand-cyan)'}` }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-sm truncate">{a.headline}</span>
+                  {!a.active && <span className="text-[9px] font-extrabold uppercase text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/10 px-1.5 py-0.5 rounded">Paused</span>}
                 </div>
-                <RowActions data-testid={`mbr-ad-actions-${a.id}`}>
-                  <Button variant="ghost" size="icon" onClick={() => toggle(a)} icon={a.active ? Pause : CheckCircle2} title={a.active ? 'Pause' : 'Resume'} data-testid={`mbr-ad-toggle-${a.id}`} />
-                  <Button variant="ghost" size="icon" onClick={() => setEditing(a)} icon={Edit3} title="Edit" data-testid={`mbr-ad-edit-${a.id}`} />
-                  <Button variant="ghostDestructive" size="icon" onClick={() => del(a)} icon={Trash2} title="Delete" data-testid={`mbr-ad-delete-${a.id}`} />
-                </RowActions>
+                {a.body && <div className="text-xs text-[color:var(--theme-text-muted)] mt-0.5 truncate">{a.body}</div>}
+                <div className="text-[10px] text-[color:var(--theme-text-muted)] mt-1 uppercase tracking-wider">
+                  {PLACEMENTS.find((p) => p.value === a.placement)?.label || a.placement} · {a.impressions || 0} views · {a.clicks || 0} clicks
+                </div>
               </div>
+              <RowActions data-testid={`mbr-ad-actions-${a.id}`}>
+                <Button variant="ghost" size="icon" onClick={() => toggle(a)} icon={a.active ? Pause : CheckCircle2} title={a.active ? 'Pause' : 'Resume'} data-testid={`mbr-ad-toggle-${a.id}`} />
+                <Button variant="ghost" size="icon" onClick={() => setEditing(a)} icon={Edit3} title="Edit" data-testid={`mbr-ad-edit-${a.id}`} />
+                <Button variant="ghostDestructive" size="icon" onClick={() => del(a)} icon={Trash2} title="Delete" data-testid={`mbr-ad-delete-${a.id}`} />
+              </RowActions>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </ListPanel>
       {editing && <AdEditor API={API} headers={headers} ad={editing === 'new' ? null : editing} onClose={(reload) => { setEditing(null); if (reload) load(); }} />}
     </div>
   );

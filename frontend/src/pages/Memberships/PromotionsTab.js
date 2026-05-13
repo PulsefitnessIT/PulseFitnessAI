@@ -16,6 +16,7 @@ import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';
+import ListPanel from '@/components/shared/ListPanel';
 
 const KIND_OPTIONS = [
   { value: 'recurring',  label: 'Memberships' },
@@ -74,33 +75,27 @@ export default function PromotionsTab({ API, headers }) {
 
   return (
     <div data-testid="mbr-promotions">
-      <div className="flex items-end justify-end gap-4 flex-wrap">
-        <button type="button" onClick={() => setEditing('new')}
-          className="btn-primary"
-          data-testid="mbr-promo-add">
-          <Plus size={13} /> New code
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="mt-10 text-center text-[color:var(--theme-text-muted)] text-sm flex items-center justify-center gap-2">
-          <Loader2 size={14} className="animate-spin" /> Loading…
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="mt-10 rounded-xl border border-dashed border-[color:var(--theme-border)] p-10 text-center" data-testid="mbr-promo-empty">
-          <Tag size={32} className="mx-auto text-[color:var(--theme-text-muted)] mb-3" />
-          <p className="text-sm font-semibold">No promotions yet</p>
-          <p className="text-xs text-[color:var(--theme-text-muted)] mt-1">
-            Create your first code — first-month-free, summer launch, or loyalty rewards.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {rows.map((p) => (
-            <PromoCard key={p.id} promo={p} plans={plans} onArchive={() => archive(p)} />
-          ))}
-        </div>
-      )}
+      <ListPanel
+        data-testid="mbr-promotions-list"
+        title="Promotions"
+        subtitle="Operator-managed promo codes. Discounts enforced at Stripe — first-month-free, summer launch, loyalty rewards."
+        count={{ value: rows.length, label: 'code' }}
+        primaryAction={{ label: 'New code', icon: Plus, onClick: () => setEditing('new'), testId: 'mbr-promo-add' }}
+        loading={loading}
+        empty={{
+          when: rows.length === 0,
+          icon: Tag,
+          title: 'No promotions yet',
+          hint: 'Create your first code — first-month-free, summer launch, or loyalty rewards. Members paste it at Stripe Checkout.',
+          primaryAction: { label: 'Create your first code', onClick: () => setEditing('new'), testId: 'mbr-promo-empty-create' },
+          testId: 'mbr-promo-empty',
+        }}
+        bodyClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+      >
+        {rows.map((p) => (
+          <PromoCard key={p.id} promo={p} plans={plans} onArchive={() => archive(p)} />
+        ))}
+      </ListPanel>
 
       {editing === 'new' && (
         <PromoEditorModal
