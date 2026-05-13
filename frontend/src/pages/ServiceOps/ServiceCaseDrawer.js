@@ -22,6 +22,7 @@ import axios from 'axios';
 import {
   X, Loader2, Clock, AlertTriangle, MapPin, Phone, Mail, User as UserIcon,
   Wrench, Activity, Save, Send, ChevronRight, Sparkles, CheckCircle2, History, Bell,
+  FileText, Link as LinkIcon, RefreshCw,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import './_serviceops.css';
@@ -261,6 +262,75 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       await load();
     } catch (e) {
       notify.error('Failed to update', e?.response?.data?.detail || e.message);
+    }
+  };
+
+  // Iter 216h82 — Service Report PDF + email (operator-side fast-path)
+  const [reportBusy, setReportBusy] = useState('');
+  const openServiceReport = () => {
+    if (!caseId) return;
+    fetch(`${API}/svc/cases/${caseId}/service-report.pdf`, auth())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      })
+      .catch((e) => notify.error('Could not open report', e.message || String(e)));
+  };
+  const emailServiceReport = async () => {
+    if (!caseId || reportBusy) return;
+    const defaultTo = doc?.customer_email || '';
+    const to = window.prompt('Send the service report to which email?', defaultTo);
+    if (!to) return;
+    const note = window.prompt('Add a short note (optional)', '') || '';
+    setReportBusy('email');
+    try {
+      const r = await axios.post(
+        `${API}/svc/cases/${caseId}/service-report/email`,
+        { to, note },
+        auth(),
+      );
+      notify.success('Report emailed', `Sent to ${r.data?.to || to}`);
+      await load();
+    } catch (e) {
+      notify.error('Could not send report', e?.response?.data?.detail || e.message);
+    } finally { setReportBusy(''); }
+  };
+
+  // Iter 216h83 — Customer Live Tracking link (Uber-style share)
+  const [trackingUrl, setTrackingUrl] = useState('');
+  const copyTrackingLink = async () => {
+    if (!caseId) return;
+    try {
+      const r = await axios.get(`${API}/svc/cases/${caseId}/tracking-link`, auth());
+      const url = r.data?.url || '';
+      setTrackingUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        notify.success('Tracking link copied', 'Paste into SMS / WhatsApp / email for the customer.');
+      } catch {
+        window.prompt('Copy the link below and share with the customer:', url);
+      }
+    } catch (e) {
+      notify.error('Could not generate tracking link', e?.response?.data?.detail || e.message);
+    }
+  };
+  const regenerateTrackingLink = async () => {
+    if (!caseId) return;
+    if (!window.confirm('Regenerate the tracking link? The previous link will stop working.')) return;
+    try {
+      const r = await axios.post(`${API}/svc/cases/${caseId}/tracking-link/regenerate`, {}, auth());
+      const url = r.data?.url || '';
+      setTrackingUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        notify.success('New tracking link copied', 'Old link is now invalid.');
+      } catch {
+        window.prompt('Copy the new link:', url);
+      }
+    } catch (e) {
+      notify.error('Could not regenerate', e?.response?.data?.detail || e.message);
     }
   };
 
@@ -616,6 +686,84 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               >
                 <Save size={11} /> Save changes
               </button>
+            </div>
+          ) : null}
+          {/* Iter 216h83 — Customer Live Tracking link share */}
+          <div
+            className="rounded-lg border p-2 flex items-center gap-2 flex-wrap"
+            style={{ borderColor: 'var(--theme-border, #e5e7eb)' }}
+            data-testid="drawer-tracking-link-row"
+          >
+            <LinkIcon size={13} className="opacity-70" />
+            <span className="text-[11.5px] font-semibold">Customer tracking</span>
+            {trackingUrl ? (
+              <span
+                className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                style={{ background: '#dbeafe', color: '#1d4ed8' }}
+                data-testid="drawer-tracking-link-active"
+              >
+                Link active
+              </span>
+            ) : null}
+            <div className="ml-auto flex gap-1.5">
+              <button
+                type="button"
+                onClick={copyTrackingLink}
+                className="svc-btn svc-btn-primary svc-btn-sm"
+                data-testid="drawer-tracking-link-copy"
+              >
+                <LinkIcon size={11} /> {trackingUrl ? 'Copy again' : 'Get link'}
+              </button>
+              {trackingUrl ? (
+                <button
+                  type="button"
+                  onClick={regenerateTrackingLink}
+                  className="svc-btn svc-btn-secondary svc-btn-sm"
+                  title="Invalidate the old link and mint a fresh one"
+                  data-testid="drawer-tracking-link-regenerate"
+                >
+                  <RefreshCw size={11} /> Regenerate
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {/* Iter 216h82 — Customer-facing Service Report shortcut */}
+          {(['repaired', 'awaiting_sign_off', 'closed', 'invoiced'].includes(doc?.status)) ? (
+            <div
+              className="rounded-lg border p-2 flex items-center gap-2 flex-wrap"
+              style={{ borderColor: 'var(--theme-border, #e5e7eb)' }}
+              data-testid="drawer-service-report"
+            >
+              <FileText size={13} className="opacity-70" />
+              <span className="text-[11.5px] font-semibold">Service report</span>
+              {doc?.service_report_sent_at ? (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                  style={{ background: '#dcfce7', color: '#166534' }}
+                  data-testid="drawer-service-report-sent"
+                >
+                  Sent to {doc.service_report_sent_to || 'customer'}
+                </span>
+              ) : null}
+              <div className="ml-auto flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={openServiceReport}
+                  className="svc-btn svc-btn-secondary svc-btn-sm"
+                  data-testid="drawer-service-report-view"
+                >
+                  View
+                </button>
+                <button
+                  type="button"
+                  onClick={emailServiceReport}
+                  disabled={reportBusy === 'email'}
+                  className="svc-btn svc-btn-primary svc-btn-sm"
+                  data-testid="drawer-service-report-email"
+                >
+                  <Send size={11} /> {reportBusy === 'email' ? 'Sending…' : (doc?.service_report_sent_at ? 'Resend' : 'Email customer')}
+                </button>
+              </div>
             </div>
           ) : null}
           {legalNext.length > 0 ? (

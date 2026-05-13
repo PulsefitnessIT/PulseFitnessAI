@@ -240,7 +240,37 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         .find({"case_id": case_id, **of, "engineer_id": user["id"]}, {"_id": 0})
         .sort("start_at", -1).limit(20).to_list(20)
     )
-    return {**case, "events": events, "photos": photos, "time_entries": time_entries}
+    # Iter 216h85 — Asset history (last 3 prior cases on the same asset)
+    asset_history: list = []
+    asset_id = case.get("asset_id") or ""
+    asset_name = (case.get("asset_name") or "").strip()
+    if asset_id or asset_name:
+        history_q: dict = {
+            **of,
+            "id": {"$ne": case_id},
+            "status": {"$in": ["closed", "invoiced", "repaired", "awaiting_sign_off"]},
+        }
+        if asset_id:
+            history_q["asset_id"] = asset_id
+        else:
+            history_q["asset_name"] = asset_name
+        asset_history = (
+            await db.svc_cases.find(
+                history_q,
+                {
+                    "_id": 0, "id": 1, "reference": 1, "title": 1,
+                    "fault_code": 1, "status": 1, "closed_at": 1,
+                    "created_at": 1, "customer_rating": 1, "resolution_notes": 1,
+                },
+            ).sort([("closed_at", -1), ("created_at", -1)]).limit(3).to_list(3)
+        )
+    return {
+        **case,
+        "events": events,
+        "photos": photos,
+        "time_entries": time_entries,
+        "asset_history": asset_history,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────

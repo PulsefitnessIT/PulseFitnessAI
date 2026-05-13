@@ -98,6 +98,10 @@ from routes.svc.comms import router as svc_comms_router
 from routes.svc.views import router as svc_views_router
 # Iter 215dy — Phase 8 D Integrations admin console
 from routes.svc.integrations.health import router as svc_integrations_health_router
+# Iter 216h82 — Customer-facing per-job Service Report PDF + email
+from routes.svc.service_report import router as svc_service_report_router
+# Iter 216h83 — Public customer live-tracking
+from routes.svc.public_tracking import router as svc_public_tracking_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -182,6 +186,10 @@ _UNGATED_ROUTERS = (
     svc_views_router,
     # Iter 215dy — Phase 8 D Integrations admin console
     svc_integrations_health_router,
+    # Iter 216h82 — per-job Service Report PDF + email
+    svc_service_report_router,
+    # Iter 216h83 — public live tracking
+    svc_public_tracking_router,
 )
 
 

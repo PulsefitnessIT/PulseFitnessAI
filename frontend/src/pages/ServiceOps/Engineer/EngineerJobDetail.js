@@ -23,7 +23,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Phone, MapPin, Wrench, Loader2, Play, Square, Camera, PenLine,
   CheckCircle, Image as ImageIcon, ChevronRight, Clock, AlertTriangle, WifiOff,
-  Sparkles, Mic, MicOff, Navigation, Plus,
+  Sparkles, Mic, MicOff, Navigation, Plus, FileText, Send, Package, Trash2, Search,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { queuedMutation } from '@/utils/queuedMutation';
@@ -276,6 +276,107 @@ export default function EngineerJobDetail() {
     setBusy('');
   };
 
+  // ── Parts allocation (iter 216h84) ───────────────────────────
+  const [partsOpen, setPartsOpen] = useState(false);
+  const [partSearch, setPartSearch] = useState('');
+  const [partResults, setPartResults] = useState([]);
+  const [partSearchBusy, setPartSearchBusy] = useState(false);
+  const [partQty, setPartQty] = useState(1);
+  const [partSource, setPartSource] = useState('van');
+  const allocatedParts = useMemo(() => job?.allocated_parts || [], [job]);
+
+  useEffect(() => {
+    if (!partsOpen) { setPartResults([]); return; }
+    const q = partSearch.trim();
+    if (!q) { setPartResults([]); return; }
+    const t = setTimeout(async () => {
+      setPartSearchBusy(true);
+      try {
+        const r = await axios.get(
+          `${API}/svc/parts?search=${encodeURIComponent(q)}&limit=10`,
+          auth(),
+        );
+        setPartResults(r.data?.parts || []);
+      } catch {
+        setPartResults([]);
+      } finally { setPartSearchBusy(false); }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [partSearch, partsOpen]);
+
+  const allocatePart = async (part) => {
+    if (!job || busy) return;
+    setBusy(`part-${part.sku}`);
+    try {
+      await axios.post(
+        `${API}/svc/parts/allocate`,
+        {
+          case_id: job.id,
+          part_sku: part.sku,
+          qty: Math.max(1, parseInt(partQty, 10) || 1),
+          source: partSource,
+          engineer_id: job.assigned_engineer_id,
+        },
+        auth(),
+      );
+      notify.success('Part allocated', `${partQty} × ${part.sku}`);
+      setPartSearch('');
+      setPartResults([]);
+      await load();
+    } catch (e) {
+      notify.error('Could not allocate part', e?.response?.data?.detail || e.message);
+    } finally { setBusy(''); }
+  };
+
+  const deallocatePart = async (allocationId) => {
+    if (!allocationId || busy) return;
+    if (!window.confirm('Remove this part from the job?')) return;
+    setBusy(`unalloc-${allocationId}`);
+    try {
+      await axios.delete(`${API}/svc/parts/allocate/${allocationId}`, auth());
+      notify.success('Part removed');
+      await load();
+    } catch (e) {
+      notify.error('Could not remove', e?.response?.data?.detail || e.message);
+    } finally { setBusy(''); }
+  };
+
+  // ── Service Report (PDF + email) ─────────────────────────────
+  const openServiceReport = () => {
+    if (!job) return;
+    const url = `${API}/svc/cases/${job.id}/service-report.pdf?token=${encodeURIComponent(localStorage.getItem('token') || '')}`;
+    // Some browsers ignore Authorization header on window.open; fallback: fetch + blob.
+    fetch(`${API}/svc/cases/${job.id}/service-report.pdf`, auth())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      })
+      .catch((e) => notify.error('Could not open report', e.message || String(e)));
+    void url;
+  };
+
+  const emailServiceReport = async () => {
+    if (!job || busy) return;
+    const defaultTo = job.customer_email || '';
+    const to = window.prompt('Send the service report to which email?', defaultTo);
+    if (!to) return;
+    const note = window.prompt('Add a short note (optional)', '') || '';
+    setBusy('email-report');
+    try {
+      const r = await axios.post(
+        `${API}/svc/cases/${job.id}/service-report/email`,
+        { to, note },
+        auth(),
+      );
+      notify.success('Report emailed', `Sent to ${r.data?.to || to}`);
+      await load();
+    } catch (e) {
+      notify.error('Could not send report', e?.response?.data?.detail || e.message);
+    } finally { setBusy(''); }
+  };
+
   // ── Complete ─────────────────────────────────────────────────
   const submitComplete = async (target) => {
     if (!job) return;
@@ -390,6 +491,32 @@ export default function EngineerJobDetail() {
           {job.description ? <p className="text-sm border-t pt-2" style={{ borderColor: 'var(--theme-border)' }}>{job.description}</p> : null}
         </section>
 
+        {/* Iter 216h85 — Asset history sidebar */}
+        {(job.asset_history || []).length > 0 ? (
+          <section
+            className="rounded-2xl border p-3"
+            style={{ borderColor: 'var(--theme-border)', background: '#fef9c3' }}
+            data-testid="job-asset-history"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900 mb-1.5">
+              ⚡ Asset history · {job.asset_name || 'this asset'} ({job.asset_history.length} prior visit{job.asset_history.length === 1 ? '' : 's'})
+            </p>
+            <ul className="space-y-1.5">
+              {job.asset_history.map((h) => (
+                <li key={h.id} className="text-xs" data-testid={`job-asset-history-${h.id}`}>
+                  <span className="font-bold opacity-80">{h.reference || h.id.slice(0, 8)}</span>
+                  <span className="opacity-70"> · {h.title || 'Job'}</span>
+                  {h.fault_code ? <span className="opacity-60"> · {h.fault_code}</span> : null}
+                  {h.customer_rating ? <span className="opacity-70"> · {'★'.repeat(h.customer_rating)}</span> : null}
+                  <span className="opacity-50 ml-1 tabular-nums">
+                    · {(h.closed_at || h.created_at || '').split('T')[0]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {/* Customer */}
         {(job.customer_name || job.customer_phone || job.customer_email) ? (
           <section className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-customer">
@@ -500,6 +627,158 @@ export default function EngineerJobDetail() {
         ) : null}
 
 
+        {/* Parts used (iter 216h84) */}
+        {!isClosed ? (
+          <section
+            className="rounded-2xl border p-3 space-y-2"
+            style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }}
+            data-testid="job-parts-section"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">
+                Parts used ({allocatedParts.length})
+              </p>
+              <button
+                type="button"
+                onClick={() => setPartsOpen((v) => !v)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-white"
+                style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+                data-testid="job-parts-toggle"
+              >
+                <Package size={12} /> {partsOpen ? 'Close' : 'Add part'}
+              </button>
+            </div>
+            {allocatedParts.length > 0 ? (
+              <ul className="space-y-1.5">
+                {allocatedParts.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs"
+                    style={{ borderColor: 'var(--theme-border)' }}
+                    data-testid={`job-part-row-${p.id}`}
+                  >
+                    <span className="font-bold">{p.qty} ×</span>
+                    <span className="truncate flex-1">
+                      <span className="font-semibold">{p.part_sku}</span>
+                      <span className="opacity-60"> · {p.part_name || ''}</span>
+                    </span>
+                    <span
+                      className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: p.source === 'van' ? '#fef9c3' : '#e0e7ff',
+                        color: p.source === 'van' ? '#92400e' : '#3730a3',
+                      }}
+                    >
+                      {p.source}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deallocatePart(p.id)}
+                      disabled={busy === `unalloc-${p.id}`}
+                      className="p-1 opacity-60 hover:opacity-100 disabled:opacity-40"
+                      data-testid={`job-part-remove-${p.id}`}
+                      aria-label="Remove"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : !partsOpen ? (
+              <p className="text-xs opacity-60 italic">No parts used yet — tap Add part to record consumables.</p>
+            ) : null}
+            {partsOpen ? (
+              <div className="space-y-2 pt-1 border-t" style={{ borderColor: 'var(--theme-border)' }}>
+                <div className="flex items-center gap-1.5">
+                  <Search size={12} className="opacity-50" />
+                  <input
+                    type="text"
+                    value={partSearch}
+                    onChange={(e) => setPartSearch(e.target.value)}
+                    placeholder="Search SKU, name or manufacturer…"
+                    className="flex-1 px-2 py-1.5 rounded-lg border bg-transparent text-xs"
+                    style={{ borderColor: 'var(--theme-border)' }}
+                    data-testid="job-parts-search"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <label className="flex items-center gap-1">
+                    <span className="opacity-60">Qty</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={partQty}
+                      onChange={(e) => setPartQty(e.target.value)}
+                      className="w-12 px-1.5 py-1 rounded border bg-transparent text-xs"
+                      style={{ borderColor: 'var(--theme-border)' }}
+                      data-testid="job-parts-qty"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 ml-2">
+                    <span className="opacity-60">From</span>
+                    <select
+                      value={partSource}
+                      onChange={(e) => setPartSource(e.target.value)}
+                      className="px-1.5 py-1 rounded border bg-transparent text-xs"
+                      style={{ borderColor: 'var(--theme-border)' }}
+                      data-testid="job-parts-source"
+                    >
+                      <option value="van">Van</option>
+                      <option value="warehouse">Warehouse</option>
+                    </select>
+                  </label>
+                </div>
+                {partSearchBusy ? (
+                  <p className="text-xs opacity-50 italic">Searching…</p>
+                ) : partResults.length === 0 && partSearch ? (
+                  <p className="text-xs opacity-50 italic" data-testid="job-parts-empty">No matches in your catalogue.</p>
+                ) : null}
+                {partResults.length > 0 ? (
+                  <ul className="space-y-1">
+                    {partResults.map((p) => (
+                      <li key={p.sku} className="flex items-center gap-2">
+                        <span className="flex-1 text-xs truncate">
+                          <span className="font-bold">{p.sku}</span>
+                          <span className="opacity-60"> · {p.name}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => allocatePart(p)}
+                          disabled={busy.startsWith('part-')}
+                          className="px-2 py-1 rounded-md text-[11px] font-bold text-white disabled:opacity-50"
+                          style={{ background: '#10b981' }}
+                          data-testid={`job-parts-allocate-${p.sku}`}
+                        >
+                          {busy === `part-${p.sku}` ? '…' : 'Allocate'}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+        ) : allocatedParts.length > 0 ? (
+          <section
+            className="rounded-2xl border p-3"
+            style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }}
+            data-testid="job-parts-section-readonly"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60 mb-2">
+              Parts used ({allocatedParts.length})
+            </p>
+            <ul className="space-y-1.5">
+              {allocatedParts.map((p) => (
+                <li key={p.id} className="text-xs">
+                  <span className="font-bold">{p.qty} ×</span>{' '}
+                  <span className="font-semibold">{p.part_sku}</span>
+                  <span className="opacity-60"> · {p.part_name || ''}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {/* Photos */}
         <section className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-photos-section">
           <div className="flex items-center justify-between mb-2">
@@ -575,6 +854,58 @@ export default function EngineerJobDetail() {
             </div>
           )}
         </section>
+
+        {/* Service Report — visible once the job is ready for sign-off or closed */}
+        {(['repaired', 'awaiting_sign_off', 'closed', 'invoiced'].includes(job.status)) ? (
+          <section
+            className="rounded-2xl border p-3 space-y-2"
+            style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }}
+            data-testid="job-service-report-section"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Service report</p>
+              {job.service_report_sent_at ? (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  style={{ background: '#dcfce7', color: '#166534' }}
+                  data-testid="job-service-report-sent-pill"
+                >
+                  Sent · {fmtRelative(job.service_report_sent_at)}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs opacity-70">
+              One-page PDF: site, asset, time, parts, photos, sign-off, rating. Hand to the customer or email it.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={openServiceReport}
+                disabled={busy.startsWith('email-report')}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold border disabled:opacity-60"
+                style={{ borderColor: 'var(--theme-border)' }}
+                data-testid="job-view-service-report"
+              >
+                <FileText size={13} /> View report
+              </button>
+              <button
+                type="button"
+                onClick={emailServiceReport}
+                disabled={busy === 'email-report'}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+                style={{ background: '#1d4ed8' }}
+                data-testid="job-email-service-report"
+              >
+                <Send size={13} /> {busy === 'email-report' ? 'Sending…' : (job.service_report_sent_at ? 'Resend' : 'Send to customer')}
+              </button>
+            </div>
+            {job.service_report_sent_to ? (
+              <p className="text-[10px] opacity-60" data-testid="job-service-report-recipient">
+                Last sent to {job.service_report_sent_to}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         {/* Complete & sign-off */}
         {!isClosed ? (
