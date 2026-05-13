@@ -264,7 +264,28 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
     }
   };
 
+  // Iter 216h81 — Customer rating prompt at case sign-off. When the
+  // customer closes a case, surface a star rating prompt BEFORE the
+  // transition fires so they can't miss it.
+  const [ratingTarget, setRatingTarget] = useState(null); // pending status target
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  // If a rating already exists on the case, don't re-prompt.
+  const existingRating = merged?.customer_rating;
+
   const doTransition = async (target) => {
+    // Closing/sign-off path → prompt for rating if engineer is assigned
+    // and no rating recorded yet.
+    if (
+      (target === 'closed' || target === 'invoiced')
+      && merged?.assigned_engineer_id
+      && !existingRating
+      && ratingTarget !== target  // already shown
+    ) {
+      setRatingTarget(target);
+      return;
+    }
     setSaving(true);
     try {
       await axios.post(
@@ -274,6 +295,57 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       );
       setTransitionReason('');
       notify.success(`Moved to ${STATUS_LABEL[target] || target}`);
+      await load();
+      onChanged?.();
+    } catch (e) {
+      notify.error('Transition rejected', e?.response?.data?.detail || e.message);
+    } finally { setSaving(false); }
+  };
+
+  const submitRatingAndTransition = async () => {
+    if (!ratingTarget) return;
+    setRatingSubmitting(true);
+    try {
+      // 1) Write the rating (and optional comment) onto the case
+      if (rating > 0) {
+        await axios.put(`${API}/svc/cases/${caseId}`, {
+          customer_rating: rating,
+          customer_rating_comment: ratingComment.trim() || undefined,
+        }, auth());
+      }
+      // 2) Then perform the transition
+      await axios.post(
+        `${API}/svc/cases/${caseId}/transition`,
+        { to: ratingTarget, reason: transitionReason || '' },
+        auth(),
+      );
+      setTransitionReason('');
+      const tgt = ratingTarget;
+      setRatingTarget(null); setRating(0); setRatingComment('');
+      notify.success(rating > 0 ? `Closed · thanks for rating ${rating} stars` : `Moved to ${STATUS_LABEL[tgt] || tgt}`);
+      await load();
+      onChanged?.();
+    } catch (e) {
+      notify.error('Could not close', e?.response?.data?.detail || e.message);
+    } finally { setRatingSubmitting(false); }
+  };
+
+  const skipRatingAndTransition = async () => {
+    if (!ratingTarget) return;
+    setRating(0); setRatingComment('');
+    const tgt = ratingTarget;
+    setRatingTarget(null);
+    // Re-enter doTransition with no rating; the guard checks `ratingTarget !== target`
+    // so we briefly hold this in a local then call the API directly.
+    setSaving(true);
+    try {
+      await axios.post(
+        `${API}/svc/cases/${caseId}/transition`,
+        { to: tgt, reason: transitionReason || '' },
+        auth(),
+      );
+      setTransitionReason('');
+      notify.success(`Moved to ${STATUS_LABEL[tgt] || tgt}`);
       await load();
       onChanged?.();
     } catch (e) {
@@ -309,6 +381,15 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   {STATUS_LABEL[merged?.status] || merged?.status || '—'}
                 </span>
                 <SLABadge resolveAt={merged?.sla_resolve_at} />
+                {existingRating ? (
+                  <span
+                    className="svc-pill inline-flex items-center gap-0.5"
+                    style={{ background: '#fef3c7', color: '#92400e', fontWeight: 700 }}
+                    title={merged?.customer_rating_comment || `Customer rated this case ${existingRating}/5`}
+                    data-testid="drawer-customer-rating">
+                    <span style={{ color: '#f59e0b' }}>★</span> {existingRating}/5
+                  </span>
+                ) : null}
               </div>
             </div>
             <button type="button" onClick={onClose} aria-label="Close" data-testid="drawer-close" className="svc-icon-btn">
@@ -572,10 +653,90 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           )}
         </footer>
       </aside>
+
+      {/* Iter 216h81 — Customer rating prompt at sign-off */}
+      {ratingTarget && (
+        <RatingPromptModal
+          rating={rating}
+          setRating={setRating}
+          comment={ratingComment}
+          setComment={setRatingComment}
+          busy={ratingSubmitting}
+          targetLabel={STATUS_LABEL[ratingTarget] || ratingTarget}
+          onSubmit={submitRatingAndTransition}
+          onSkip={skipRatingAndTransition}
+          onCancel={() => { setRatingTarget(null); setRating(0); setRatingComment(''); }}
+        />
+      )}
     </div>
   );
 
   return createPortal(drawer, document.body);
+}
+
+
+function RatingPromptModal({ rating, setRating, comment, setComment, busy, targetLabel, onSubmit, onSkip, onCancel }) {
+  return (
+    <div
+      className="svc-drawer-overlay"
+      style={{ zIndex: 1100 }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel?.(); }}
+      data-testid="rating-prompt-modal"
+    >
+      <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl max-w-md w-full p-6"
+        style={{ margin: 'auto' }}>
+        <h2 className="text-lg font-black mb-1">Rate this engineer's work</h2>
+        <p className="text-xs svc-muted mb-4">
+          Your rating feeds the partner performance score and helps GymAxis recognise the best engineers. Optional — you can skip.
+        </p>
+        <div className="flex gap-1.5 justify-center my-4" data-testid="rating-stars">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} type="button" onClick={() => setRating(n)}
+              data-testid={`rating-star-${n}`}
+              className="text-3xl leading-none transition-transform hover:scale-110"
+              style={{ color: rating >= n ? '#f59e0b' : '#d4d4d8' }}>
+              ★
+            </button>
+          ))}
+        </div>
+        {rating > 0 && (
+          <div className="text-center text-xs font-bold svc-muted mb-3" data-testid="rating-summary">
+            {['', 'Poor', 'Could be better', 'Solid', 'Great', 'Excellent'][rating]}
+          </div>
+        )}
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wider font-bold svc-muted">Comment (optional)</span>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value.slice(0, 500))}
+            placeholder="Anything you'd like to flag to GymAxis or the engineer?"
+            rows={3}
+            className="svc-input w-full mt-1"
+            data-testid="rating-comment"
+          />
+        </label>
+        <div className="flex items-center justify-between gap-2 mt-5 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+          <button onClick={onSkip} disabled={busy}
+            className="svc-btn-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-50"
+            data-testid="rating-skip">
+            Skip & {targetLabel.toLowerCase()}
+          </button>
+          <div className="flex gap-2">
+            <button onClick={onCancel} disabled={busy}
+              className="svc-btn-sm"
+              data-testid="rating-cancel">
+              Cancel
+            </button>
+            <button onClick={onSubmit} disabled={busy || rating === 0}
+              className="svc-btn-sm svc-btn-primary disabled:opacity-50"
+              data-testid="rating-submit">
+              {busy ? 'Saving…' : `Submit & ${targetLabel.toLowerCase()}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Field({ label, children }) {
