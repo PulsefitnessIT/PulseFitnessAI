@@ -1,3 +1,49 @@
+## Iter 216h64 — Co-branded email wrapper (Feb 12, 2026)
+
+### Operator-reported (Lee)
+"Ensure any emails that go out from our system are branded with the pulse fitness logo and the gym logo."
+
+### What shipped
+
+#### Backend (`utils/email.py`)
+- New helper: `wrap_branded(html, organization_id)` — wraps every outbound email's HTML in a co-branded shell with:
+  - **Left header:** operator's uploaded logo (from `org.logo_url`) OR an initial-circle if no logo yet, plus the operator's name.
+  - **Right header:** platform mark. Pulse Pro / Lite tenants show the Pulse Fitness lockup with `· powered by GymAxis` strapline; full accounts show the GymAxis mark.
+  - **Footer:** co-branded "Operator · Platform" strip with an email-preferences disclaimer.
+- `_abs_url()` resolves relative paths (`/api/account/logo/{id}?v=…`) to fully qualified URLs against `EMAIL_PUBLIC_BASE_URL` / `REACT_APP_BACKEND_URL` so the `<img>` tags work inside Gmail/Outlook.
+- Idempotent — `gymaxis-email-cobrand-wrap` class marker prevents double-wrapping when upstream builders already pre-wrap.
+- Resilient — unknown org ID, no org ID, empty operator name all fall back to the platform-only header without crashing.
+
+#### Integration
+- `send_email()` now calls `await wrap_branded(html, organization_id)` immediately before constructing the Resend payload. Existing callers that already pass `organization_id` get co-branding automatically; the few that didn't (e.g. `trial_lifecycle._send_trial_reminder`) now do.
+- All existing email builders (`memberships_emails`, `svc_digest`, `archive_lifecycle`, etc.) are wrapped transparently — they didn't need any changes.
+
+### Verified
+- 23/23 backend tests pass (testing-agent iter 216h64).
+- 4/4 dedicated regression tests in `tests/test_email_cobrand.py`:
+  - `test_wraps_platform_only` — wrap without org_id still produces a header
+  - `test_wraps_pulse_tenant` — Pulse Pro tenant shows Pulse Fitness mark
+  - `test_idempotent` — second wrap is a no-op
+  - `test_unknown_org_falls_back_to_platform` — unknown org id doesn't crash
+- Manual preview e2e: `wrap_branded` on a Pulse Fitness payload produces 1,548 bytes of clean HTML with the operator logo proxy URL absolutized.
+
+### Files touched
+- `/app/backend/utils/email.py` (~+155 LOC — wrap_branded + helpers + integration in send_email)
+- `/app/backend/utils/trial_lifecycle.py` (+1 LOC — pass organization_id)
+- `/app/backend/tests/test_email_cobrand.py` (NEW — 60 LOC, 4 tests)
+
+### ⚠ Action required
+1. Set `EMAIL_PUBLIC_BASE_URL=https://gymaxisai.com` (or the production frontend URL) in production env so the operator-logo proxy URLs in emails resolve to the canonical domain.
+2. Redeploy backend.
+
+### Knock-on benefits
+- Every existing email flow (membership confirmations, supplier case updates, trial reminders, weekly digests, password resets) is now co-branded with no per-template change.
+- Operators that upload their logo via `/api/account/logo` immediately get the new branding on their next outbound email.
+
+---
+
+
+
 ## Iter 216h63 — (h) Site-scoped Staffing + Compare-Sites enhancement (Feb 12, 2026)
 
 ### Operator-reported (Lee)
