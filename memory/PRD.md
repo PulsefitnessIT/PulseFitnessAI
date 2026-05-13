@@ -1,3 +1,51 @@
+## Iter 216h62 — (g) Site-scoped Reports + Suppliers (Feb 12, 2026)
+
+### Operator-reported (Lee)
+"Multi site - Reports - Each site should have their own set of reports for their own machines - only when the owner/manager selects all sites should they be able to see the reports as a collective. Same goes for the supplier option."
+
+### What shipped
+
+#### Backend (`routes/reports.py`)
+All three operator-facing report endpoints accept an optional `site_id` query param and delegate to the existing `apply_site_lock(user, site_id, org_filter)` utility:
+- `GET /api/reports/resolution-stats?site_id={id}`
+- `GET /api/reports/equipment-summary?site_id={id}`
+- `GET /api/reports/operational?period=…&site_id={id}`
+
+Omitting `site_id` returns the org-wide aggregate (used when the SiteSwitcher is in "All Operations Sites" mode).
+
+#### Backend (`routes/suppliers.py`)
+`GET /api/suppliers?site_id={id}` now returns only suppliers that actually service equipment at the requested site. Two-step filter:
+1. Pull `equipment.supplier_id` + `equipment.supplier` at the target site.
+2. Filter the suppliers directory by `id ∈ supplier_ids OR name ∈ supplier_names`.
+
+Empty result when the site has equipment with `supplier='X'` but the directory doesn't contain X surfaces a useful data-hygiene signal rather than a phantom listing.
+
+#### Frontend
+- **`PulseReportsTab.js`** — derives `scopeSiteId` from `useAuth()` (`activeSite.id` when `sites.length > 1` and a single site is picked). Appends `site_id=…` to both `/reports/resolution-stats` and `/reports/operational` calls. New **scope badge** above the sub-tab bar (testid `reports-scope-badge`) reading either `Scope: <site name>` or `Scope: All Operations Sites · aggregate` — single-site tenants don't see it.
+- **`ReportsTab.js`** + **`OperationalReportsTab.js`** — same `scopeSiteId` pattern.
+- **`LiteDashboardPage.js`** — suppliers fetch now uses the existing `siteParam` already passed to `/equipment` and `/issues`. SiteSwitcher updates reload suppliers along with everything else.
+- **`Dashboard/hooks/useDashboardData.js`** — suppliers fetch reads `active_site_cache` from localStorage (the hook doesn't have direct access to `useAuth()` context) and appends `site_id=…`.
+
+### Verified
+- 10/11 backend tests pass (testing-agent iter 216h62) + UI flow verified.
+- Manual curl as Pulse Fitness owner: `/api/suppliers` → 1 supplier (`Pulse Fitness`). `/api/suppliers?site_id=<new site with no eq>` → 0 (correct intersection behaviour).
+
+### Files touched
+- `/app/backend/routes/reports.py` (~+10 LOC — 3 endpoints accept site_id + apply_site_lock import)
+- `/app/backend/routes/suppliers.py` (~+30 LOC — two-step supplier intersection filter)
+- `/app/frontend/src/pages/PulseReportsTab.js` (~+30 LOC — scopeSiteId + scope badge)
+- `/app/frontend/src/pages/ReportsTab.js` (~+10 LOC — scopeSiteId)
+- `/app/frontend/src/pages/OperationalReportsTab.js` (~+10 LOC — scopeSiteId)
+- `/app/frontend/src/pages/Dashboard/hooks/useDashboardData.js` (~+15 LOC — localStorage active_site_cache read)
+- `/app/frontend/src/pages/LiteDashboardPage.js` (~+5 LOC — siteParam threaded into suppliers)
+
+### Deferred (last from the 8-bug set)
+- (h) Staffing scoped to allocated sites only — next iteration.
+
+---
+
+
+
 ## Iter 216h61 — Master Admin Site Drawer: equipment listing fix + Archive/Restore/Delete (Feb 12, 2026)
 
 ### Operator-reported (Lee, with screenshot)
