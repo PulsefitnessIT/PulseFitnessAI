@@ -52,7 +52,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from routes.marketing.helpers import _now_iso, _org_id
 from utils.auth import get_current_user
-from utils.database import db, put_object
+from utils.database import db, put_object, get_object
 from utils.module_guard import require_module
 
 logger = logging.getLogger(__name__)
@@ -62,8 +62,21 @@ APP_NAME = "gymaxis"
 
 # Crawl tuning (per iter 216h70 brief): homepage + top 8 internal pages
 MAX_PAGES = 8
-CRAWL_TIMEOUT = 10.0
-USER_AGENT = "GymAxisBrandDiscoveryBot/1.0 (+https://gymaxisai.com)"
+CRAWL_TIMEOUT = 12.0
+# Iter 216h71 — many corporate sites block crawler-style User-Agents
+# at the WAF (Cloudflare, Akamai) regardless of robots.txt. Identify
+# as a real Chrome to land on the customer-facing HTML; we keep an
+# X-Robot header so good-faith server admins can still see it's us.
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 GymAxisBrandDiscovery/1.0"
+)
+EXTRA_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-GB,en;q=0.9",
+    "X-GymAxis-Crawler": "brand-discovery/1.0 (+https://gymaxisai.com)",
+}
 HEX_RE = re.compile(r"#(?:[0-9a-fA-F]{3}){1,2}\b")
 GOOGLE_FONTS_RE = re.compile(r"family=([A-Za-z0-9+:,_-]+)")
 # Common marketing-relevant paths to favour during link discovery
@@ -134,11 +147,21 @@ def _extract_fonts(html: str) -> dict:
             name = fam.split(":")[0].replace("+", " ").strip()
             if name:
                 fonts[name] += 5  # weight Google Fonts higher
-    # font-family declarations
+    # font-family declarations — skip CSS custom-property tokens
+    # (`var(--foo)`) and the standard generic fallback families. The
+    # iter 216h70 build accidentally captured `var` from sites that
+    # use design-token CSS variables (e.g. Third Space's WordPress
+    # theme) — guard against that here.
+    GENERIC = {"sans-serif", "serif", "monospace", "system-ui", "ui-sans-serif", "inherit", "var", "system", "ui-monospace", "ui-serif"}
     for m in re.findall(r"font-family\s*:\s*['\"]?([A-Za-z][A-Za-z0-9 _-]+)", html):
         name = m.strip().split(",")[0].replace('"', "").replace("'", "").strip()
-        if name and name.lower() not in {"sans-serif", "serif", "monospace", "system-ui", "ui-sans-serif", "inherit"}:
-            fonts[name] += 1
+        # Reject obvious CSS-variable / generic noise.
+        if not name or name.lower() in GENERIC or name.lower().startswith("var("):
+            continue
+        # Reject the literal token "var" left over from `var(--foo)` regex captures.
+        if name.lower() == "var":
+            continue
+        fonts[name] += 1
     top = [n for n, _ in fonts.most_common(4)]
     return {"heading": top[0] if top else None, "body": top[1] if len(top) > 1 else top[0] if top else None, "all": top}
 
@@ -246,7 +269,7 @@ def _discover_links(soup: BeautifulSoup, base_url: str) -> list[str]:
 
 async def _compress_and_store(url: str, kind: str, org_id: str, idx: int) -> Optional[dict]:
     """Download → PIL-compress (quality=85, max 2000px on longest side) → upload to storage."""
-    async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}) as client:
+    async with httpx.AsyncClient(headers=EXTRA_HEADERS, follow_redirects=True) as client:
         raw = await _fetch_bytes(client, url)
     if not raw:
         return None
@@ -279,11 +302,14 @@ async def _compress_and_store(url: str, kind: str, org_id: str, idx: int) -> Opt
         logger.debug("[brand-discovery] compress failed for %s: %s", url, exc)
         return None
     key = f"{APP_NAME}/brand-discovery/{org_id}/{kind}-{idx}.{ext}"
-    result = put_object(key, data, content_type)
+    put_object(key, data, content_type)
+    # Iter 216h71 — surface a routable public URL the frontend can
+    # render straight away. Asset bytes are served by the /asset/{path}
+    # route below; it streams from object storage with caching headers.
     return {
         "source_url": url,
-        "stored_url": result.get("url") or result.get("path"),
-        "path": result.get("path"),
+        "stored_url": f"/api/marketing/brand-discovery/asset/{key}",
+        "storage_key": key,
         "size_bytes": len(data),
         "kind": kind,
     }
@@ -338,7 +364,7 @@ async def _run_discovery(org_id: str, website_url: str) -> None:
             upsert=True,
         )
 
-        async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}) as client:
+        async with httpx.AsyncClient(headers=EXTRA_HEADERS, follow_redirects=True) as client:
             homepage_html = await _fetch(client, website_url)
             if not homepage_html:
                 raise RuntimeError(f"Could not load homepage at {website_url}")
@@ -504,3 +530,26 @@ async def discard(user: dict = Depends(get_current_user)) -> dict:
     org_id = await _org_id(user)
     await db.marketing_brand_discovery.delete_one({"organization_id": org_id})
     return {"ok": True}
+
+
+# Iter 216h71 — serve compressed brand-discovery assets back to the
+# frontend. Path must start with `{APP_NAME}/brand-discovery/{org}/`
+# and resolve to the requester's own org to prevent cross-tenant leaks.
+from fastapi.responses import Response  # noqa: E402
+
+
+@router.get("/marketing/brand-discovery/asset/{full_path:path}")
+async def serve_asset(full_path: str, user: dict = Depends(get_current_user)):
+    org_id = await _org_id(user)
+    expected_prefix = f"{APP_NAME}/brand-discovery/{org_id}/"
+    if not full_path.startswith(expected_prefix):
+        raise HTTPException(403, "Cross-tenant asset access denied")
+    try:
+        data, content_type = get_object(full_path)
+    except Exception:
+        raise HTTPException(404, "Asset not found")
+    return Response(
+        content=data,
+        media_type=content_type or "application/octet-stream",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )

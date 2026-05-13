@@ -29,6 +29,7 @@ from routes.marketing import (
     insights,
     journeys,
     social,
+    starter_pack,
     templates,
     tour,
 )
@@ -68,6 +69,7 @@ for sub in (
     tour,
     brand_kit,
     brand_discovery,
+    starter_pack,
     dynamic_lists,
 ):
     router.include_router(sub.router)

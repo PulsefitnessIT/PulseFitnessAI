@@ -21,6 +21,7 @@ import {
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import BrandDiscoveryPanel from './BrandDiscoveryPanel';
+import StarterPackPanel from './StarterPackPanel';
 
 export default function BrandKitTab({ API, headers }) {
   const [kit, setKit] = useState(null);
@@ -119,6 +120,11 @@ export default function BrandKitTab({ API, headers }) {
           customer's site in the background and proposes a brand draft
           (colours, fonts, logos, marketing images + intelligence). */}
       <BrandDiscoveryPanel API={API} headers={headers} onApplied={load} />
+
+      {/* Iter 216h71 — once they have a voice/tone (manually set or
+          from brand discovery), let them one-click draft a starter
+          pack of 3 emails + 3 social posts in their tone. */}
+      <StarterPackPanel API={API} headers={headers} />
 
       {/* Logo */}
       <Section icon={ImageIcon} title="Logo"
