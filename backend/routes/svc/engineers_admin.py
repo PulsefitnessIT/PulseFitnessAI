@@ -28,6 +28,8 @@ router = APIRouter()
 ALLOWED_ENGINEER_FIELDS = {
     "full_name", "email", "mobile", "home_address", "vehicle_reg",
     "skills", "working_hours", "active", "sage_user_id",
+    # Iter 216h87 — trust signals surfaced on the public tracking card.
+    "photo_url", "qualifications", "years_experience", "verified",
 }
 
 

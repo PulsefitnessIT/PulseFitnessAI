@@ -57,16 +57,61 @@ def _public_status_meta(status: str) -> dict:
     }.get(status, {"label": status.replace("_", " ").title(), "stage": 1, "tone": "info", "blurb": ""})
 
 
-def _engineer_card(engineer: dict | None) -> dict | None:
+def _engineer_card(engineer: dict | None, stats: dict | None = None) -> dict | None:
     if not engineer:
         return None
     full_name = engineer.get("full_name") or engineer.get("email") or ""
     first = full_name.split()[0] if full_name else "Your engineer"
     skills = engineer.get("skills") or []
-    return {
+    qualifications = engineer.get("qualifications") or []
+    card = {
         "first_name": first,
-        "skills": skills[:4],
+        "skills": skills[:6],
+        "qualifications": qualifications[:4],
         "vehicle_reg": engineer.get("vehicle_reg") or "",
+        "photo_url": engineer.get("photo_url") or "",
+        "verified": bool(engineer.get("verified")),
+    }
+    if stats:
+        card.update({
+            "jobs_completed_90d": int(stats.get("jobs_completed_90d") or 0),
+            "avg_rating": stats.get("avg_rating"),
+            "ratings_count": int(stats.get("ratings_count") or 0),
+        })
+    if engineer.get("years_experience"):
+        card["years_experience"] = int(engineer["years_experience"])
+    return card
+
+
+async def _engineer_public_stats(engineer_id: str, org_id: str | None) -> dict:
+    """Lightweight, brand-safe stats for the tracking card.
+
+    Works for BOTH internal engineers AND partner engineers — pulls from
+    `svc_cases` only (no commercial fields). Returns 90-day closed job
+    count and average customer rating across those rows.
+    """
+    from datetime import timedelta
+    if not engineer_id:
+        return {}
+    window_start = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    base = {"assigned_engineer_id": engineer_id, "status": {"$in": ["closed", "invoiced"]}}
+    if org_id:
+        base["organization_id"] = org_id
+    jobs_90d = await db.svc_cases.count_documents(
+        {**base, "closed_at": {"$gte": window_start}},
+    )
+    pipeline = [
+        {"$match": {**base, "customer_rating": {"$gte": 1}}},
+        {"$group": {"_id": None, "avg": {"$avg": "$customer_rating"},
+                    "n": {"$sum": 1}}},
+    ]
+    agg = await db.svc_cases.aggregate(pipeline).to_list(1)
+    avg = round(float(agg[0]["avg"]), 2) if agg else None
+    n = int(agg[0]["n"]) if agg else 0
+    return {
+        "jobs_completed_90d": jobs_90d,
+        "avg_rating": avg,
+        "ratings_count": n,
     }
 
 
@@ -124,10 +169,16 @@ async def public_track(token: str):
         raise HTTPException(404, "Tracking link not found")
     # Resolve engineer (public-safe fields only).
     engineer = None
+    engineer_stats: dict = {}
     if case.get("assigned_engineer_id"):
         engineer = await db.svc_engineers.find_one(
             {"id": case["assigned_engineer_id"]},
-            {"_id": 0, "full_name": 1, "skills": 1, "vehicle_reg": 1, "email": 1},
+            {"_id": 0, "full_name": 1, "skills": 1, "vehicle_reg": 1, "email": 1,
+             "photo_url": 1, "qualifications": 1, "verified": 1, "id": 1,
+             "years_experience": 1},
+        )
+        engineer_stats = await _engineer_public_stats(
+            case["assigned_engineer_id"], case.get("organization_id"),
         )
     # Most recent customer-visible event for the timeline.
     last_events = (
@@ -182,7 +233,7 @@ async def public_track(token: str):
         "sla_resolve_at": case.get("sla_resolve_at"),
         "closed_at": case.get("closed_at"),
         "updated_at": case.get("updated_at"),
-        "engineer": _engineer_card(engineer),
+        "engineer": _engineer_card(engineer, engineer_stats),
         "events": customer_safe_events,
         "rating_captured": bool(case.get("customer_rating")),
         "report_sent": bool(case.get("service_report_sent_at")),

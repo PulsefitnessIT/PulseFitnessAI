@@ -1257,6 +1257,7 @@ async def evaluate_engineer_app_access(user: dict) -> dict:
           allowed: bool,
           reason:  str,   # one of: active_subscription | free_tier |
                           # customer_grant | master_admin |
+                          # internal_engineer |  # h86 — direct tenant employee
                           # needs_subscription | needs_application |
                           # application_pending | application_rejected |
                           # suspended
@@ -1276,6 +1277,24 @@ async def evaluate_engineer_app_access(user: dict) -> dict:
     grant_count = await db.partner_job_grants.count_documents(
         {"engineer_user_id": user["id"], "active": True},
     )
+
+    # Iter 216h86 — Internal engineer bypass. Direct employees of a tenant
+    # (Pulse Fitness, GymAxis customer orgs, etc.) get a `svc_engineers`
+    # row created by their owner/manager. They are NOT independent
+    # contractors and shouldn't be funnelled into the £30/mo Partner Plan.
+    #
+    # The bypass only applies when the user has NOT enrolled as a partner.
+    # Enrolling as a partner is an opt-in choice — the rules of that
+    # contract apply once you've signed up.
+    if partner is None:
+        internal_engineer = await db.svc_engineers.find_one(
+            {"id": user["id"], "organization_id": user.get("organization_id"), "active": {"$ne": False}},
+            {"_id": 0, "id": 1},
+        )
+        if internal_engineer is not None:
+            return {"allowed": True, "reason": "internal_engineer", "partner": None,
+                    "subscription": {}, "app_fee_tier": {}, "active_grant_count": grant_count}
+
     base = {
         "partner": partner,
         "subscription": (partner or {}).get("subscription") or {},

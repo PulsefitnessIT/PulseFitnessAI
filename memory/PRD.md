@@ -1,3 +1,81 @@
+## Iter 216h86 + h87 — Pulse engineer bypass + Engineer trust card (Feb 13, 2026)
+
+User raised a strategic question: "we don't want the partner program for
+Pulse Fitness, but the app can very much work the same." Audit confirmed
+the engineer-app guard (h77) was funneling everybody — including direct
+employees of tenant orgs — through the £30/mo Partner Plan check.
+Shipped two fixes.
+
+### h86 — Internal engineer bypass
+- `evaluate_engineer_app_access` (in `routes/partners.py`) gains a new
+  reason: **`internal_engineer`**. Triggers when:
+    1. User has NO `partner_engineers` row (i.e. never opted into the
+       partner program), AND
+    2. User has a `svc_engineers` row in their own org with `active!=false`.
+  → Returns `allowed=True`, bypassing all subscription checks.
+- Business model preserved: if you DID enrol as a partner, the partner
+  rules apply (you opted in). Pulse / GymAxis-customer employees who
+  never applied just use the app as part of their org's plan.
+- Pulse engineers now get: photos, signatures, voice notes, parts on
+  the engineer screen (h84), asset history (h85), service report PDF
+  (h82) — the entire engineer experience — without any commercial layer.
+- Tests: 2/2 passing. Verified no regression to h77 (15/15 still pass).
+
+### h87 — Engineer trust card on the public tracking page
+- `_engineer_card()` (in `routes/svc/public_tracking.py`) expanded to
+  include: `photo_url`, `verified`, `qualifications`, `years_experience`
+  + computed stats `avg_rating`, `ratings_count`, `jobs_completed_90d`
+  (last 90 days, scoped to same org). Stats are aggregated inline from
+  `svc_cases` — works for partner AND internal engineers alike.
+- New `_engineer_public_stats()` helper runs a lightweight `$avg`
+  aggregation + a `count_documents`. Brand-safe — no commercial data
+  leaks.
+- `ALLOWED_ENGINEER_FIELDS` in `engineers_admin.py` now accepts
+  `photo_url`, `qualifications`, `years_experience`, `verified` so
+  operators can populate them via the existing engineer-edit form.
+- Frontend `PublicTrackingPage.js` upgraded:
+  - **Photo** (avatar w/ brand-colour border) OR initial circle.
+  - **Verified pill** (green ✓ Verified · top right).
+  - **Rating row**: ★ avg · n reviews.
+  - **Jobs in 90 days** · **years experience** chips.
+  - **Skills chips** (up to 6, brand-tinted).
+  - **Qualifications chips** (emerald, ✓-prefixed — IOSH, PAT, CSCS, etc).
+- Tests: 2/2 passing.
+
+### Bug found and fixed during build
+- Initial `years_experience` plumbing pulled it from `stats` instead of
+  the engineer doc — fixed by sourcing it from `engineer["years_experience"]`
+  in `_engineer_card`.
+
+### Verified
+- **83/83 passing across h75 → h87** (4 skipped from earlier h74).
+  Zero regressions on the h77 access guard despite the bypass change.
+- Frontend lint clean.
+- Live preview verified: `/track/<token>` on mobile (420×880) now shows
+  the full trust card stack — avatar · Verified · 4.75★ · 4 reviews ·
+  6 jobs in 90d · 7+ yrs · 4 skills · 3 qualifications.
+
+### Files touched
+**Backend**
+- `/app/backend/routes/partners.py` (+22 LOC — internal_engineer bypass)
+- `/app/backend/routes/svc/public_tracking.py` (+50 LOC — engineer stats + card fields)
+- `/app/backend/routes/svc/engineers_admin.py` (+2 LOC — extra allowed fields)
+- `/app/backend/tests/test_iter_216h86_87_pulse_engineer_and_profile.py` (NEW · 4 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/PublicTracking/PublicTrackingPage.js` (~+70 LOC for the upgraded card)
+
+### Strategic outcome
+- **Partner program**: GymAxis customers only. Independent contractors. £30/mo (auto-discounted via referrals).
+- **Pulse Fitness engineers**: direct employees of Pulse-branded tenants → use the engineer app fully via the internal_engineer bypass. No partner involvement.
+- **GymAxis customer in-house engineers**: same as Pulse — employees, not contractors, use the app via internal_engineer bypass.
+- **Customer-perceived quality**: tracking page now answers "who's coming?" with photo, real rating, real job count, verified badge, named qualifications. A trust signal on par with ServiceTitan / Jobber.
+
+---
+
+
+
+
 ## Iter 216h82 → h85 — Customer Happiness Pack (Feb 13, 2026)
 
 Strategic BDM audit of the Partner Engineer Network identified 4 gaps standing

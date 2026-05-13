@@ -203,31 +203,87 @@ export default function PublicTrackingPage() {
         {/* Engineer card */}
         {data.engineer ? (
           <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-5" data-testid="track-engineer-card">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Your engineer</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Your engineer</p>
+              {data.engineer.verified ? (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider"
+                  style={{ background: '#dcfce7', color: '#166534' }}
+                  data-testid="track-engineer-verified"
+                >
+                  ✓ Verified
+                </span>
+              ) : null}
+            </div>
             <div className="flex items-center gap-3">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-extrabold text-white"
-                style={{ background: brand }}
-              >
-                {(data.engineer.first_name || 'E')[0].toUpperCase()}
-              </div>
+              {data.engineer.photo_url ? (
+                <img
+                  src={data.engineer.photo_url}
+                  alt={data.engineer.first_name}
+                  className="w-14 h-14 rounded-full object-cover border-2"
+                  style={{ borderColor: brand }}
+                  data-testid="track-engineer-photo"
+                />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-extrabold text-white"
+                  style={{ background: brand }}
+                >
+                  {(data.engineer.first_name || 'E')[0].toUpperCase()}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-slate-800" data-testid="track-engineer-name">{data.engineer.first_name}</p>
-                {data.engineer.skills?.length ? (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {data.engineer.skills.slice(0, 4).map((s) => (
-                      <span
-                        key={s}
-                        className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                        style={{ background: `${brand}1A`, color: brand }}
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
+                <p className="font-bold text-slate-800 text-base" data-testid="track-engineer-name">
+                  {data.engineer.first_name}
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs text-slate-500 mt-0.5">
+                  {(data.engineer.avg_rating != null && data.engineer.ratings_count > 0) ? (
+                    <span className="inline-flex items-center gap-0.5" data-testid="track-engineer-rating">
+                      <Star size={11} className="text-amber-400" fill="currentColor" />
+                      <span className="font-bold text-slate-700">{data.engineer.avg_rating}</span>
+                      <span>· {data.engineer.ratings_count} review{data.engineer.ratings_count === 1 ? '' : 's'}</span>
+                    </span>
+                  ) : null}
+                  {(data.engineer.jobs_completed_90d || 0) > 0 ? (
+                    <span data-testid="track-engineer-jobs">
+                      {data.engineer.jobs_completed_90d} job{data.engineer.jobs_completed_90d === 1 ? '' : 's'} in 90 days
+                    </span>
+                  ) : null}
+                  {data.engineer.years_experience ? (
+                    <span data-testid="track-engineer-experience">
+                      {data.engineer.years_experience}+ yrs experience
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
+            {data.engineer.skills?.length ? (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {data.engineer.skills.map((s) => (
+                  <span
+                    key={s}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: `${brand}1A`, color: brand }}
+                    data-testid={`track-engineer-skill-${s.replace(/\W+/g, '_')}`}
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {data.engineer.qualifications?.length ? (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {data.engineer.qualifications.map((q) => (
+                  <span
+                    key={q}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider border border-emerald-200 bg-emerald-50 text-emerald-700"
+                    data-testid={`track-engineer-qual-${q.replace(/\W+/g, '_')}`}
+                  >
+                    ✓ {q}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </section>
         ) : null}
 
