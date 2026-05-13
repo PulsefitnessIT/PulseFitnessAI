@@ -1,3 +1,67 @@
+## Iter 216h79 — Partner Performance Scoring (Feb 13, 2026)
+
+### Why
+Final piece of the Partner Engineer Network promise: surface objective, data-driven performance scoring so Master Admin's level decisions (Engineer → Verified → Strategic) aren't subjective. Built on top of existing `svc_cases` — zero data duplication.
+
+### What shipped
+
+#### Backend — `routes/partners.py` (+~120 LOC)
+**Composite score** out of 100, weighted across 4 components, computed pure-read-only from `svc_cases` joined on `assigned_engineer_id == partner.user_id`:
+
+| Component | Weight | Source |
+|---|---|---|
+| SLA compliance  | 40% | `closed_at <= sla_resolve_at` ratio on closed cases in window |
+| Completion rate | 30% | `closed / (closed + cancelled + rejected)` |
+| Volume          | 20% | `closed / 50` (capped at 1.0 — 50 closed jobs/90d = full marks) |
+| CSAT            | 10% | `avg(customer_rating) / 5.0`, neutral 0.8 if no ratings present |
+
+**Tier classification** with level-up recommendations:
+- 90–100 → **Top-tier** · recommends `strategic_partner`
+- 75–89  → **Strong** · recommends `verified_partner`
+- 60–74  → **Solid** · recommends `engineer_partner`
+- < 60   → **Needs improvement**
+- < 5 closed jobs → **Insufficient data** (with "need X more jobs" hint)
+
+**Endpoints**:
+| Method · path | Behaviour |
+|---|---|
+| `GET /api/master-admin/partners/{id}/performance?window_days=90` | Full breakdown — score, components, counts, tier, recommended_level |
+| `GET /api/master-admin/partners/performance/leaderboard?window_days=90` | All approved partners scored over the same window, sorted by score desc (insufficient_data bucket last) |
+
+**Customer-rating capture**: added `customer_rating` (1–5) and `customer_rating_comment` to the allow-list in `routes/svc/cases.py::update_case` so the existing `PUT /api/svc/cases/{id}` round-trips ratings from any sign-off UI.
+
+#### Frontend — `pages/MasterAdmin/AdminPartners.js`
+- New **Performance** column on the partner table showing the tier badge (5 colour-coded states), numeric score, and a ⭐ star with avg-rating when ratings exist.
+- **Promote pill** that appears under the level dropdown ONLY when the partner's score-derived `recommended_level` differs from their current level — one-click promotes via the existing `set_level` endpoint.
+- Tooltip on the numeric score shows the full breakdown: `SLA 83% · CSAT 4.67 · 12 jobs in 90d`.
+- `leaderboard` fetched once in parallel with the partners/queue/summary triple — single round trip, no N+1.
+
+### Verified
+- **47/47 partner-network pytest** passing (h75 + h76 + h77 + h78 + h79):
+  - Empty window → insufficient_data + score 0
+  - 3 closed jobs (below MIN_CLOSED_FOR_SCORE=5) → still insufficient_data
+  - 10 perfect cases (within SLA + 5★) → score 84 → "strong" → recommends verified_partner
+  - 50 perfect cases → score 100.0 → "top_tier" → recommends strategic_partner
+  - 8 closed (2 within SLA · CSAT 2) + 4 cancelled → score 37 → "needs_improvement"
+  - Leaderboard sorts by score desc, insufficient_data last
+  - `window_days=1000` → 422 validation error
+  - Customer rating round-trips through `PUT /api/svc/cases/{id}`
+- **Live preview**: seeded 12 cases (10 within SLA, 8×5★ + 4×4★) on the E1 partner → Master Admin shows **STRONG · 78 · ★4.67 · Promote** in the row.
+
+### Files touched
+- `/app/backend/routes/partners.py` (+~120 LOC — `compute_partner_performance` + 2 endpoints)
+- `/app/backend/routes/svc/cases.py` (+2 fields to `EDITABLE_FIELDS`)
+- `/app/frontend/src/pages/MasterAdmin/AdminPartners.js` (+~50 LOC — Performance column, Promote pill, PerformanceCell + TIER_STYLE)
+- `/app/backend/tests/test_iter_216h79_partner_performance.py` (NEW — 8 tests)
+
+### Phase 2 remaining
+- **Verified Partner public listing** — "find an engineer" widget in Operations (sole P2 item left from h75's brief).
+- Customer-side **rating prompt** at case sign-off — backend already accepts `customer_rating`; just needs a star-picker in the case drawer's close flow.
+
+---
+
+
+
 ## Iter 216h78 — Engineer Roster (customer-side grants UI · Feb 13, 2026)
 
 ### Why

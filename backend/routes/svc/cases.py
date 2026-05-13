@@ -202,6 +202,9 @@ _VALID_PATCH_FIELDS = {
     "customer_phone", "estimated_minutes", "tags",
     "equipment_ids", "equipment_serials", "required_skills",
     "comms_auto_notify",
+    # Iter 216h79 — customer rating captured at case sign-off, feeds the
+    # partner performance score.
+    "customer_rating", "customer_rating_comment",
 }
 
 

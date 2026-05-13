@@ -1360,6 +1360,183 @@ async def revoke_customer_grant(grant_id: str, user: dict = Depends(get_current_
 # ─── End of iter 216h77 additions ───
 
 
+# ───────────────────────── PARTNER PERFORMANCE SCORING (iter 216h79) ─────────────────────────
+
+
+SCORE_WEIGHTS = {
+    "sla":        0.40,
+    "completion": 0.30,
+    "volume":     0.20,
+    "csat":       0.10,
+}
+# Volume normalisation — 50 closed jobs in the window = full marks. This
+# is intentionally generous: partners who close 50+ jobs/quarter are at
+# the top of the volume curve.
+VOLUME_FULL_MARK = 50
+# Minimum closed jobs before we'll publish a score — avoids over-weighting
+# a partner who has done one perfect job.
+MIN_CLOSED_FOR_SCORE = 5
+# Score → reliability tier (these inform level-up RECOMMENDATIONS only;
+# Master Admin still has to manually approve the level change).
+SCORE_TIERS = [
+    (90, "top_tier",          "Top-tier",          "strategic_partner"),
+    (75, "strong",            "Strong",            "verified_partner"),
+    (60, "solid",             "Solid",             "engineer_partner"),
+    (0,  "needs_improvement", "Needs improvement", None),
+]
+
+
+def _classify_score(score: float, closed_count: int) -> dict:
+    if closed_count < MIN_CLOSED_FOR_SCORE:
+        return {
+            "tier": "insufficient_data",
+            "tier_label": "Insufficient data",
+            "recommended_level": None,
+            "rationale": f"Need {MIN_CLOSED_FOR_SCORE - closed_count} more closed jobs in the window before we can publish a score.",
+        }
+    for threshold, tier, label, level in SCORE_TIERS:
+        if score >= threshold:
+            return {"tier": tier, "tier_label": label, "recommended_level": level,
+                    "rationale": None}
+    return {"tier": "needs_improvement", "tier_label": "Needs improvement",
+            "recommended_level": None, "rationale": None}
+
+
+async def compute_partner_performance(partner_id: str, window_days: int = 90) -> dict:
+    """Pure read-only scoring over the partner's `user_id`'s closed cases
+    in the last `window_days`. Returns a dict the Master Admin UI can
+    render directly.
+
+    Components:
+      • sla_compliance — closed_within_sla / closed_total
+      • completion_rate — closed / (closed + cancelled + rejected) in window
+      • volume         — closed_total / VOLUME_FULL_MARK (capped 1.0)
+      • csat           — avg customer_rating / 5.0 (neutral 0.8 if no ratings)
+
+    Each is normalised to [0, 1], weighted, and summed → 0-100.
+    """
+    from datetime import timedelta  # local import — keeps cold-path clean
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0, "user_id": 1, "level": 1})
+    if not partner:
+        raise HTTPException(404, "Partner not found")
+    user_id = partner["user_id"]
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+
+    closed_cur = db.svc_cases.find(
+        {
+            "assigned_engineer_id": user_id,
+            "status": {"$in": ["closed", "invoiced"]},
+            "closed_at": {"$gte": cutoff},
+        },
+        {"_id": 0, "closed_at": 1, "sla_resolve_at": 1, "customer_rating": 1, "priority": 1},
+    )
+    closed = await closed_cur.to_list(length=10_000)
+    cancelled_count = await db.svc_cases.count_documents({
+        "assigned_engineer_id": user_id,
+        "status": {"$in": ["cancelled", "rejected"]},
+        "updated_at": {"$gte": cutoff},
+    })
+
+    closed_total = len(closed)
+    if closed_total == 0:
+        # Fully empty window — return zeros so the UI knows.
+        return {
+            "partner_id": partner_id,
+            "window_days": window_days,
+            "score": 0,
+            "components": {"sla_compliance": 0, "completion_rate": 0, "volume": 0, "csat": 0},
+            "counts": {"closed": 0, "closed_within_sla": 0, "cancelled": cancelled_count,
+                       "rated": 0, "avg_rating": None},
+            **_classify_score(0, 0),
+        }
+
+    closed_within_sla = sum(
+        1 for c in closed
+        if c.get("closed_at") and c.get("sla_resolve_at")
+        and c["closed_at"] <= c["sla_resolve_at"]
+    )
+    sla_compliance = closed_within_sla / closed_total
+
+    total_attempted = closed_total + cancelled_count
+    completion_rate = (closed_total / total_attempted) if total_attempted else 1.0
+
+    volume = min(1.0, closed_total / VOLUME_FULL_MARK)
+
+    rated = [c for c in closed if isinstance(c.get("customer_rating"), (int, float))]
+    if rated:
+        avg_rating = sum(c["customer_rating"] for c in rated) / len(rated)
+        csat = max(0.0, min(1.0, avg_rating / 5.0))
+    else:
+        avg_rating = None
+        # Neutral default — don't penalise partners who have closed jobs
+        # in a system where rating capture isn't widespread yet.
+        csat = 0.8
+
+    score_raw = (
+        SCORE_WEIGHTS["sla"]        * sla_compliance
+        + SCORE_WEIGHTS["completion"] * completion_rate
+        + SCORE_WEIGHTS["volume"]     * volume
+        + SCORE_WEIGHTS["csat"]       * csat
+    )
+    score = round(score_raw * 100, 1)
+
+    return {
+        "partner_id": partner_id,
+        "window_days": window_days,
+        "score": score,
+        "components": {
+            "sla_compliance":   round(sla_compliance, 3),
+            "completion_rate":  round(completion_rate, 3),
+            "volume":           round(volume, 3),
+            "csat":             round(csat, 3),
+        },
+        "counts": {
+            "closed":            closed_total,
+            "closed_within_sla": closed_within_sla,
+            "cancelled":         cancelled_count,
+            "rated":             len(rated),
+            "avg_rating":        round(avg_rating, 2) if avg_rating is not None else None,
+        },
+        **_classify_score(score, closed_total),
+    }
+
+
+@router.get("/master-admin/partners/{partner_id}/performance")
+async def admin_partner_performance(
+    partner_id: str,
+    window_days: int = Query(90, ge=7, le=365),
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    return await compute_partner_performance(partner_id, window_days=window_days)
+
+
+@router.get("/master-admin/partners/performance/leaderboard")
+async def admin_partners_leaderboard(
+    window_days: int = Query(90, ge=7, le=365),
+    user: dict = Depends(get_current_user),
+):
+    """Returns every approved partner scored over the same window — used
+    by the Master Admin Partner Engineers panel to surface the score
+    column without N round-trips. Top-tier partners appear first."""
+    _require_master_admin(user)
+    partners = await db.partner_engineers.find(
+        {"status": "approved"}, {"_id": 0, "id": 1, "full_name": 1, "company_name": 1,
+                                  "level": 1, "email": 1, "active_referral_count": 1},
+    ).to_list(length=1000)
+    rows = []
+    for p in partners:
+        perf = await compute_partner_performance(p["id"], window_days=window_days)
+        rows.append({**p, "performance": perf})
+    # Sort: insufficient_data at the bottom, then by score desc.
+    rows.sort(key=lambda r: (r["performance"]["tier"] == "insufficient_data",
+                              -r["performance"]["score"]))
+    return {"window_days": window_days, "partners": rows}
+
+
+# ─── End of iter 216h79 additions ───
+
+
 # ───────────────────────── indexes (called from server startup) ─────────────────────────
 
 

@@ -15,7 +15,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, CheckCircle2, X, ShieldCheck, PoundSterling, Users,
-  Download, ChevronRight, BadgeCheck,
+  Download, ChevronRight, BadgeCheck, Star, TrendingUp,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -35,20 +35,28 @@ export default function AdminPartners() {
   const [partners, setPartners] = useState([]);
   const [queue, setQueue] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [leaderboard, setLeaderboard] = useState({});  // {partner_id: performance}
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null); // partner_id or ledger_id mid-action
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, qRes, sRes] = await Promise.all([
+      const [pRes, qRes, sRes, lbRes] = await Promise.all([
         axios.get(`${API}/api/master-admin/partners`, { headers }),
         axios.get(`${API}/api/master-admin/partners/commission/queue`, { headers }),
         axios.get(`${API}/api/master-admin/partners/reports/summary`, { headers }),
+        axios.get(`${API}/api/master-admin/partners/performance/leaderboard?window_days=90`, { headers })
+          .catch(() => ({ data: { partners: [] } })),
       ]);
       setPartners(pRes.data?.partners || []);
       setQueue(qRes.data?.queue || []);
       setSummary(sRes.data || null);
+      const lbMap = {};
+      for (const row of lbRes.data?.partners || []) {
+        lbMap[row.id] = row.performance;
+      }
+      setLeaderboard(lbMap);
     } catch (e) {
       notifyApiError(notify, e, 'Failed to load partners');
     } finally {
@@ -171,11 +179,14 @@ export default function AdminPartners() {
                   <th className="text-left py-2 pr-3">Level</th>
                   <th className="text-left py-2 pr-3">Code</th>
                   <th className="text-right py-2 pr-3">Active refs</th>
+                  <th className="text-left py-2 pr-3">Performance</th>
                   <th className="text-right py-2 pl-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {partners.map((p) => (
+                {partners.map((p) => {
+                  const perf = leaderboard[p.id] || null;
+                  return (
                   <tr key={p.id} className="border-b border-zinc-100 dark:border-zinc-900" data-testid={`admin-partner-row-${p.id}`}>
                     <td className="py-2 pr-3">
                       <div className="font-bold text-zinc-900 dark:text-zinc-100">{p.full_name}</div>
@@ -188,9 +199,24 @@ export default function AdminPartners() {
                         data-testid={`admin-partner-level-${p.id}`}>
                         {LEVELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
                       </select>
+                      {perf?.recommended_level && perf.recommended_level !== p.level && (
+                        <div className="mt-1">
+                          <button
+                            onClick={() => setLevel(p, perf.recommended_level)}
+                            disabled={busy === p.id}
+                            className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 inline-flex items-center gap-1 hover:bg-emerald-200 dark:hover:bg-emerald-900/50"
+                            data-testid={`admin-partner-promote-${p.id}`}
+                            title={`Promote to ${perf.recommended_level} based on score ${perf.score}`}>
+                            <TrendingUp size={9} /> Promote
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="py-2 pr-3 font-mono text-xs">{p.referral_code}</td>
                     <td className="py-2 pr-3 text-right text-xs">{p.active_referral_count || 0}</td>
+                    <td className="py-2 pr-3" data-testid={`admin-partner-perf-${p.id}`}>
+                      <PerformanceCell perf={perf} />
+                    </td>
                     <td className="py-2 pl-2 text-right">
                       <div className="inline-flex gap-1">
                         {p.status !== 'approved' && (
@@ -217,7 +243,7 @@ export default function AdminPartners() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>
@@ -305,4 +331,35 @@ function StatusPill({ status }) {
     suspended: 'bg-zinc-300 text-zinc-800',
   };
   return <span className={'px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-[9px] ' + (map[status] || 'bg-zinc-100')}>{status}</span>;
+}
+
+const TIER_STYLE = {
+  top_tier:           { cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200', label: 'Top-tier' },
+  strong:             { cls: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',                 label: 'Strong' },
+  solid:              { cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',         label: 'Solid' },
+  needs_improvement:  { cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200',             label: 'Needs work' },
+  insufficient_data:  { cls: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',                label: 'No data' },
+};
+
+function PerformanceCell({ perf }) {
+  if (!perf) return <span className="text-[10px] text-zinc-400">—</span>;
+  const tier = TIER_STYLE[perf.tier] || TIER_STYLE.insufficient_data;
+  const hasScore = perf.tier !== 'insufficient_data';
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={'px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-[9px] ' + tier.cls}>
+        {tier.label}
+      </span>
+      {hasScore && (
+        <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-200" title={`SLA ${(perf.components.sla_compliance * 100).toFixed(0)}% · CSAT ${perf.counts.avg_rating || '—'} · ${perf.counts.closed} jobs in 90d`}>
+          {perf.score.toFixed(0)}
+        </span>
+      )}
+      {perf.counts?.avg_rating && (
+        <span className="text-[10px] text-zinc-500 inline-flex items-center gap-0.5">
+          <Star size={9} className="fill-amber-400 text-amber-400" /> {perf.counts.avg_rating}
+        </span>
+      )}
+    </div>
+  );
 }
