@@ -37,12 +37,24 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
 
   const loadData = useCallback(async () => {
     const token = localStorage.getItem('token');
+    // Iter 216h62 — site-scoped suppliers (read activeSite from
+    // localStorage cache so callers don't have to re-thread the prop).
+    // Owners/managers viewing All-sites mode clear the cache, so we
+    // automatically fall back to the org-wide list.
+    let scopeSiteParam = '';
+    try {
+      const cached = localStorage.getItem('active_site_cache');
+      if (cached) {
+        const s = JSON.parse(cached);
+        if (s?.id && !s?.is_default) scopeSiteParam = `?site_id=${encodeURIComponent(s.id)}`;
+      }
+    } catch { /* ignore */ }
     try {
       const [issuesRes, auditsRes, tasksRes, suppliersRes, equipmentRes, healthRes, expiryRes] = await Promise.all([
         axios.get(`${API}/issues`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/audit/history`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/maintenance/tasks`),
-        axios.get(`${API}/suppliers`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { suppliers: [] } })),
+        axios.get(`${API}/suppliers${scopeSiteParam}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { suppliers: [] } })),
         axios.get(`${API}/equipment`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { equipment: [] } })),
         axios.get(`${API}/gym-health-score`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
         axios.get(`${API}/expiry-alerts`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { alerts: [], total: 0 } })),

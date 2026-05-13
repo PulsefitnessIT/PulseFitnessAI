@@ -12,20 +12,25 @@ import {
 
 const OperationalReportsTab = () => {
   const { t } = useTranslation();
-  const { API } = useAuth();
+  const { API, activeSite, sites } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('30d');
+  // Iter 216h62 — site-scoped reports.
+  const isMultiSite = (sites?.length || 0) > 1;
+  const scopeSiteId = isMultiSite && activeSite?.id ? activeSite.id : null;
 
   useEffect(() => {
     loadData();
-  }, [period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, scopeSiteId]);
 
   const loadData = async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
     try {
-      const res = await axios.get(`${API}/reports/operational?period=${period}`, {
+      const siteParam = scopeSiteId ? `&site_id=${encodeURIComponent(scopeSiteId)}` : '';
+      const res = await axios.get(`${API}/reports/operational?period=${period}${siteParam}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setData(res.data);

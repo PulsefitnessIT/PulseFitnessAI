@@ -8,15 +8,20 @@ import PageHeader from '@/components/shared/PageHeader';
 import KpiTile from '@/components/shared/KpiTile';
 
 const ReportsTab = () => {
-  const { API } = useAuth();
+  const { API, activeSite, sites } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Iter 216h62 — scope reports to the active site when the org has
+  // multiple sites and the operator hasn't toggled All-sites mode.
+  const isMultiSite = (sites?.length || 0) > 1;
+  const scopeSiteId = isMultiSite && activeSite?.id ? activeSite.id : null;
 
   useEffect(() => {
     const load = async () => {
       const token = localStorage.getItem('token');
       try {
-        const res = await axios.get(`${API}/reports/resolution-stats`, {
+        const q = scopeSiteId ? `?site_id=${encodeURIComponent(scopeSiteId)}` : '';
+        const res = await axios.get(`${API}/reports/resolution-stats${q}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setStats(res.data);
@@ -27,7 +32,7 @@ const ReportsTab = () => {
       }
     };
     load();
-  }, [API]);
+  }, [API, scopeSiteId]);
 
   if (loading) return <div className="text-[var(--color-text-muted)] text-center py-16">Loading reports...</div>;
   if (!stats) return <div className="text-[var(--color-text-muted)] text-center py-16">No data available</div>;

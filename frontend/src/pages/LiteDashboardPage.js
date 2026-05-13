@@ -162,7 +162,11 @@ const LiteDashboardPage = () => {
         axios.get(`${API}/equipment${siteParam}`, { headers }),
         axios.get(`${API}/issues${siteParam}`, { headers }),
         axios.get(`${API}/files/list`, { headers }),
-        axios.get(`${API}/suppliers`, { headers }).catch(() => ({ data: { suppliers: [] } })),
+        // Iter 216h62 — suppliers scoped to the active site so the
+        // operator only sees vendors that actually service THAT site.
+        // Toggling to All-sites mode (activeSite cleared) drops the
+        // param and the backend returns the org-wide list.
+        axios.get(`${API}/suppliers${siteParam}`, { headers }).catch(() => ({ data: { suppliers: [] } })),
       ]);
       setEquipment(eqRes.data.equipment || eqRes.data || []);
       setIssues(issRes.data.issues || []);

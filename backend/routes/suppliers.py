@@ -125,8 +125,38 @@ async def send_welcome_email(supplier_id: str, user: dict = Depends(get_current_
 
 
 @router.get("/suppliers")
-async def get_suppliers(user: dict = Depends(get_current_user)):
+async def get_suppliers(
+    site_id: str | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 216h62 — `site_id` query param filters the list down to
+    suppliers that actually service equipment at that site. Omitted =
+    all suppliers in the org (used when SiteSwitcher is on "All
+    Operations Sites"). Matches by supplier_id first, then falls back
+    to supplier_name for legacy equipment rows that pre-date the
+    supplier-directory pivot."""
     org_filter = get_organization_filter(user)
+    if site_id:
+        # Pull the set of supplier ids + names attached to equipment at
+        # the requested site, then return only the supplier directory
+        # entries that intersect.
+        eq_rows = await db.equipment.find(
+            {**org_filter, "site_id": site_id},
+            {"_id": 0, "supplier": 1, "supplier_id": 1},
+        ).to_list(2000)
+        ids = {r["supplier_id"] for r in eq_rows if r.get("supplier_id")}
+        names = {(r.get("supplier") or "").strip() for r in eq_rows if (r.get("supplier") or "").strip()}
+        if not ids and not names:
+            return {"suppliers": []}
+        supplier_filter = {"$or": []}
+        if ids:
+            supplier_filter["$or"].append({"id": {"$in": list(ids)}})
+        if names:
+            supplier_filter["$or"].append({"name": {"$in": list(names)}})
+        suppliers = await db.suppliers.find(
+            {**org_filter, **supplier_filter}, {"_id": 0},
+        ).sort("name", 1).to_list(200)
+        return {"suppliers": suppliers}
     suppliers = await db.suppliers.find(org_filter, {"_id": 0}).sort("name", 1).to_list(100)
     return {"suppliers": suppliers}
 

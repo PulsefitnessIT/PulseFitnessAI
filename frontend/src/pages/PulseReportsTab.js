@@ -19,7 +19,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import KPIPerformanceDashboard from './KPIPerformanceDashboard';
 
 const PulseReportsTab = () => {
-  const { API, user } = useAuth();
+  const { API, user, activeSite, sites } = useAuth();
   const [resStats, setResStats] = useState(null);
   const [opsReport, setOpsReport] = useState(null);
   const [period, setPeriod] = useState('30d');
@@ -28,12 +28,22 @@ const PulseReportsTab = () => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
+  // Iter 216h62 — when the operator has picked a single site via the
+  // SiteSwitcher we scope the reports to that site. Owner/manager
+  // toggling to "All Operations Sites" (allSitesActive on the parent)
+  // clears activeSite, which makes us send no site_id and get the
+  // aggregate report back.
+  const isMultiSite = (sites?.length || 0) > 1;
+  const scopeSiteId = isMultiSite && activeSite?.id ? activeSite.id : null;
+  const siteParam = scopeSiteId ? `&site_id=${encodeURIComponent(scopeSiteId)}` : '';
+  const siteOnlyParam = scopeSiteId ? `?site_id=${encodeURIComponent(scopeSiteId)}` : '';
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [resRes, opsRes] = await Promise.all([
-        axios.get(`${API}/reports/resolution-stats`, { headers }),
-        axios.get(`${API}/reports/operational?period=${period}`, { headers }),
+        axios.get(`${API}/reports/resolution-stats${siteOnlyParam}`, { headers }),
+        axios.get(`${API}/reports/operational?period=${period}${siteParam}`, { headers }),
       ]);
       setResStats(resRes.data);
       setOpsReport(opsRes.data);
@@ -41,7 +51,8 @@ const PulseReportsTab = () => {
       console.error('Failed to load reports:', err);
     }
     setLoading(false);
-  }, [API, period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API, period, scopeSiteId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -59,6 +70,28 @@ const PulseReportsTab = () => {
         icon={BarChart3}
         testId="pulse-reports-header"
       />
+
+      {/* Iter 216h62 — scope badge tells the operator exactly which
+          slice of data they're looking at. Switch via the navbar
+          SiteSwitcher → "All Operations Sites" to aggregate. */}
+      {isMultiSite && (
+        <div className="flex items-center gap-2 text-xs" data-testid="reports-scope-badge">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}>
+            {scopeSiteId ? (
+              <>
+                <span className="opacity-60">Scope:</span>
+                <span className="font-semibold">{activeSite?.name}</span>
+              </>
+            ) : (
+              <>
+                <span className="opacity-60">Scope:</span>
+                <span className="font-semibold">All Operations Sites</span>
+                <span className="opacity-60">· aggregate</span>
+              </>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Sub-tab switcher */}
       <div className="subtab-bar mb-2 overflow-x-auto" role="tablist" style={{ WebkitOverflowScrolling: 'touch' }}>
