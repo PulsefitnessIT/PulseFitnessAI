@@ -1,3 +1,78 @@
+## Iter 216h66 — CRM Lead Conversion flow (Salesforce-style) (Feb 13, 2026)
+
+### Why
+P1 backlog: a proper "Convert Lead" UX so reps can promote a contact + (optionally) create the linked account and open a deal in pipeline — in a single guided modal — instead of the manual three-step lifecycle/company/opportunity dance.
+
+### Operator preferences (captured before build)
+1. Lifecycle defaults to **Customer** post-convert (option a).
+2. Conversion **does not require** an opportunity (just lifecycle + company is enough).
+3. **Block re-conversion** — hide Convert once lifecycle ≠ 'lead'.
+4. No extra side-effects (no auto follow-up tasks, no welcome emails).
+
+### What shipped
+
+#### Backend — `POST /api/crm/v2/contacts/{contact_id}/convert`
+**File:** `/app/backend/routes/crm_v2.py` (new endpoint, ~200 LOC inserted between `delete_contact` and the Opportunities section).
+
+Request body:
+```jsonc
+{
+  "company_action": "link" | "create" | "skip",
+  "company_id": "...",                         // when 'link'
+  "company_data": {"name", "sector", "website", "phone", ...},  // when 'create'
+  "create_opportunity": false,
+  "opportunity": {"title", "value", "stage", "close_date", "next_step"},
+  "new_lifecycle": "customer" | "prospect" | "champion"
+}
+```
+Response: `{ok, contact_id, company_id, opportunity_id, new_lifecycle}`.
+
+Logic:
+- **Blocks re-conversion** — 400 `Cannot convert — contact lifecycle is already 'X'`.
+- `create` company path reuses territory + owner auto-assignment from `assign_from_territory` (parity with `POST /companies`).
+- `link` validates the target company exists in the org.
+- `skip` keeps the existing `contact.company_id` link untouched.
+- Opportunity creation inherits territory/owner from the linked company when present, fires `deal_created` (and `deal_value_above` when value > 0) workflows.
+- Always writes a `convert` audit record + a "Lead converted → {lifecycle}" activity in `crm2_activities`.
+
+#### Frontend — Convert button + ConvertLeadModal
+**File:** `/app/frontend/src/pages/CRM/CRMContacts.js`.
+- Pulled `navigateTo` into `ContactDetail` props.
+- New green **Convert** button (data-testid `contact-convert-btn`) in the detail header, visible ONLY when `contact.lifecycle === 'lead'`. Auto-hides after successful conversion.
+- New `<ConvertLeadModal>` (createPortal'd) with 3 sections:
+  1. **Account** — Link existing (autocomplete + searchable list) · Create new (name/sector/website) · Skip (leave as-is).
+  2. **Opportunity** (collapsed by default) — title/value/stage/close-date.
+  3. **Mark contact as** — Customer (default) · Prospect · Champion.
+- On success: closes the modal, reloads the contact, and (if an opportunity was created) `navigateTo('opportunity', opp_id)` so the rep lands on the new deal in pipeline.
+- All testids documented: `convert-lead-dialog`, `convert-link-existing`, `convert-create-new`, `convert-skip-company`, `convert-company-search`, `convert-company-pick-{id}`, `convert-new-company-name|sector|website`, `convert-create-opp-toggle`, `convert-opp-title|value|stage|close-date`, `convert-new-lifecycle`, `convert-lead-submit`, `convert-lead-cancel`, `convert-lead-close`, `convert-lead-error`.
+
+### Verified
+- Backend pytest suite (testing-agent iter 216h66): **11/11 passing** (`/app/backend/tests/test_iter_216h66_lead_conversion.py`):
+  - create company + opp path, link existing path, skip-company path (lifecycle-only).
+  - Validations: 400 on missing company_id (link), 400 on missing name (create), 400 on missing title (opp), 404 on non-existent contact, 404 on non-existent linked company.
+  - Re-conversion blocked with explicit message.
+  - Audit + activity records created.
+- Manual curl smoke: all 3 conversion paths + re-convert block working.
+- Frontend smoke screenshot: Convert button renders green next to Edit in the header; modal opens with Lead Conversion eyebrow, 3-section layout, and pre-filled "Create new company" path using the contact's existing `company_name`.
+
+### Files touched
+- `/app/backend/routes/crm_v2.py` (~+200 LOC — new POST /contacts/{id}/convert endpoint)
+- `/app/frontend/src/pages/CRM/CRMContacts.js` (~+260 LOC — Convert button + ConvertLeadModal component; navigateTo prop)
+- `/app/backend/tests/test_iter_216h66_lead_conversion.py` (NEW — 11 regression tests)
+- `/app/memory/PRD.md` (this entry)
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend (`crm_v2.py`) + frontend (`CRMContacts.js`).
+2. After deploy reps can:
+   - Open a CRM lead → click the new green **Convert** button.
+   - Pick "Link existing", "Create new", or "Skip" for the account.
+   - Optionally toggle "Open a deal in pipeline" with title/value/stage/close-date.
+   - Confirm — the contact's lifecycle flips to Customer (or chosen), the company is created/linked, and (if an opp was created) they land directly on the new deal in Pipeline.
+
+---
+
+
+
 ## Iter 216h65 — `<ListPanel>` adoption across Memberships + ListPanel grid support (Feb 13, 2026)
 
 ### Why
