@@ -146,7 +146,7 @@ async def _send_reminder_if_due(org: Dict[str, Any], frontend_url: str) -> bool:
     upgrade_url = f"{frontend_url.rstrip('/')}/dashboard?upgrade=1" if frontend_url else "/dashboard?upgrade=1"
     html = _trial_reminder_html(org.get("name", "there"), days_left or 1, upgrade_url)
     subject = "Final day of your GymAxis trial" if due_marker == "day13" else f"{days_left} days left of your GymAxis trial"
-    sent_ok = await send_email(recipient, subject, html)
+    sent_ok = await send_email(recipient, subject, html, organization_id=org_id)
     if sent_ok:
         await db.organizations.update_one(
             {"id": org_id},

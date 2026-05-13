@@ -1,0 +1,115 @@
+{
+  "summary": "Iter 216h64 — Co-branded Email Wrapper. Backend: 23/23 tests passed. All email co-branding features verified: wrap_branded() correctly wraps HTML with operator logo (left) + platform mark (right), idempotent wrapping, unknown org fallback, absolute URL resolution, and send_email integration.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_email_cobrand.py",
+    "/app/backend/tests/test_email_cobrand_comprehensive.py",
+    "/app/test_reports/pytest/pytest_results_216h64.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "VERIFIED: wrap_branded(html, org_id) wraps HTML with co-brand header (operator logo left, platform mark right) + footer",
+    "VERIFIED: Pulse Fitness org (8cd02d8c-...) has account_type='full' → gets GymAxis platform mark (NOT Pulse Fitness mark)",
+    "VERIFIED: Third Space org (c695638c-...) has account_type='pulse_pro' → gets Pulse Fitness platform mark",
+    "VERIFIED: wrap_branded with no org_id still wraps with 'gymaxis-email-cobrand-wrap' marker and GymAxis platform mark",
+    "VERIFIED: Idempotent — wrap_branded(wrap_branded(html)) == wrap_branded(html) via _looks_branded() marker detection",
+    "VERIFIED: Unknown org_id falls back gracefully to GymAxis platform mark without crashing",
+    "VERIFIED: send_email() at line 260 calls wrap_branded(html, organization_id) before passing to Resend",
+    "VERIFIED: trial_lifecycle._send_trial_reminder at line 149 passes organization_id=org_id to send_email",
+    "VERIFIED: _abs_url() converts relative paths (/api/account/logo/...) to absolute URLs using PUBLIC_BASE_URL",
+    "VERIFIED: _abs_url() passes through http(s):// URLs and data: URIs unchanged",
+    "CODE REVIEW: Platform mark logic at line 74: pulse_pro and lite → Pulse Fitness logo; all others → GymAxis logo",
+    "CODE REVIEW: PUBLIC_BASE_URL resolution order: EMAIL_PUBLIC_BASE_URL → FRONTEND_URL → REACT_APP_BACKEND_URL"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_email_cobrand_comprehensive.py (new comprehensive test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (23/23 passed)",
+    "frontend": "N/A - backend only testing"
+  },
+  "test_credentials": {
+    "pulse_fitness_org": {
+      "id": "8cd02d8c-e5a2-4c13-bdb9-8b143b85455f",
+      "account_type": "full",
+      "platform_mark": "GymAxis"
+    },
+    "third_space_org": {
+      "id": "c695638c-5f60-424d-bdd0-2273e6c24205",
+      "account_type": "pulse_pro",
+      "platform_mark": "Pulse Fitness"
+    }
+  },
+  "seed_data_creation": "None - used existing orgs in database",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All iter 216h64 co-branded email features verified. Key findings: (1) Pulse Fitness org has account_type='full' so gets GymAxis platform mark, NOT Pulse Fitness mark. (2) Third Space org has account_type='pulse_pro' so gets Pulse Fitness platform mark. (3) The platform mark logic is: pulse_pro/lite → Pulse Fitness; everything else → GymAxis. (4) Operator logo (left side) comes from org.logo_url resolved to absolute URL. (5) wrap_branded is idempotent via 'gymaxis-email-cobrand-wrap' marker class. (6) send_email wraps HTML before Resend call. (7) trial_lifecycle passes org_id to send_email.",
+  "verified_features": {
+    "wrap_branded_function": {
+      "status": "VERIFIED",
+      "tests": [
+        "test_pulse_fitness_org_wraps_correctly",
+        "test_third_space_org_gets_pulse_platform_mark",
+        "test_no_org_id_still_wraps",
+        "test_unknown_org_id_wraps_without_crash"
+      ]
+    },
+    "platform_mark_logic": {
+      "status": "VERIFIED",
+      "behavior": "pulse_pro/lite → Pulse Fitness logo; full/other → GymAxis logo",
+      "tests": [
+        "test_pulse_fitness_uses_gymaxis_platform_mark",
+        "test_pulse_pro_gets_pulse_mark",
+        "test_full_account_gets_gymaxis_mark"
+      ]
+    },
+    "idempotent_wrapping": {
+      "status": "VERIFIED",
+      "tests": [
+        "test_idempotent_with_org_id",
+        "test_idempotent_without_org_id",
+        "test_looks_branded_detection"
+      ]
+    },
+    "absolute_url_resolution": {
+      "status": "VERIFIED",
+      "tests": [
+        "test_abs_url_relative_path",
+        "test_abs_url_already_absolute",
+        "test_abs_url_data_uri",
+        "test_abs_url_empty_none"
+      ]
+    },
+    "send_email_integration": {
+      "status": "VERIFIED",
+      "location": "utils/email.py line 260",
+      "tests": ["test_send_email_wraps_html"]
+    },
+    "trial_lifecycle_integration": {
+      "status": "VERIFIED",
+      "location": "utils/trial_lifecycle.py line 149",
+      "behavior": "send_email(recipient, subject, html, organization_id=org_id)"
+    }
+  },
+  "test_results": {
+    "backend_pytest": {
+      "total": 23,
+      "passed": 23,
+      "skipped": 0,
+      "failed": 0,
+      "files": [
+        "/app/backend/tests/test_email_cobrand.py (4 tests)",
+        "/app/backend/tests/test_email_cobrand_comprehensive.py (19 tests)"
+      ]
+    }
+  },
+  "note_on_org_account_types": "IMPORTANT: The review request stated Pulse Fitness org (8cd02d8c-...) is pulse_pro, but actual DB shows account_type='full'. Third Space org (c695638c-...) is the actual pulse_pro tenant. Tests were adjusted to match actual data."
+}

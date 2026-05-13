@@ -7,6 +7,178 @@ from utils.database import RESEND_API_KEY, SENDER_EMAIL, db
 
 logger = logging.getLogger(__name__)
 
+# Iter 216h64 — co-branded email wrapper. Every outbound email is wrapped
+# in a header showing GymAxis (the platform) + the operator's logo, plus
+# a matching footer. Pulse Pro tenants get the Pulse Fitness mark in the
+# co-brand slot. Logos resolve to absolute URLs against the platform's
+# public domain so the <img> tags survive Gmail/Outlook caching.
+
+PUBLIC_BASE_URL = (
+    os.environ.get("EMAIL_PUBLIC_BASE_URL")
+    or os.environ.get("FRONTEND_URL")
+    or os.environ.get("REACT_APP_BACKEND_URL")
+    or ""
+).rstrip("/")
+
+GYMAXIS_LOGO_MARK = (
+    "https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/"
+    "gymaxis-mark-tight.png"
+)
+PULSE_FITNESS_LOGO = (
+    "https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/"
+    "iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
+)
+
+
+def _abs_url(maybe_relative: str | None) -> str:
+    """Convert /api/account/logo/{id} or /api/public/files/{id} into a
+    fully-qualified URL for the email image. data: URIs and absolute
+    URLs pass through unchanged. Empty / None returns ""."""
+    if not maybe_relative:
+        return ""
+    if maybe_relative.startswith("http://") or maybe_relative.startswith("https://"):
+        return maybe_relative
+    if maybe_relative.startswith("data:"):
+        return maybe_relative
+    if not PUBLIC_BASE_URL:
+        return maybe_relative  # best-effort relative
+    return f"{PUBLIC_BASE_URL}{maybe_relative}"
+
+
+async def _resolve_co_brand(organization_id: str | None) -> dict:
+    """Return logos + names for the co-brand header.
+
+    Result keys: gym_logo, gym_name, partner_logo, partner_name.
+    `partner_logo` defaults to the GymAxis mark; Pulse Pro accounts use
+    the Pulse Fitness lockup. Operator logos that aren't yet uploaded
+    fall back to an initial-circle inside the header.
+    """
+    gym_logo = ""
+    gym_name = "GymAxis"
+    partner_logo = GYMAXIS_LOGO_MARK
+    partner_name = "GymAxis AI"
+    if not organization_id:
+        return {"gym_logo": "", "gym_name": "", "partner_logo": partner_logo, "partner_name": partner_name}
+    try:
+        org = await db.organizations.find_one(
+            {"id": organization_id},
+            {"_id": 0, "name": 1, "logo_url": 1, "logo_path": 1, "account_type": 1},
+        )
+    except Exception:
+        org = None
+    if not org:
+        return {"gym_logo": "", "gym_name": "", "partner_logo": partner_logo, "partner_name": partner_name}
+    gym_name = (org.get("name") or "").strip() or gym_name
+    gym_logo = _abs_url(org.get("logo_url") or "")
+    # Pulse Pro tenants get the Pulse Fitness lockup as the platform mark.
+    if (org.get("account_type") or "").lower() in ("pulse_pro", "lite"):
+        partner_logo = PULSE_FITNESS_LOGO
+        partner_name = "Pulse Fitness · powered by GymAxis"
+    return {
+        "gym_logo": gym_logo, "gym_name": gym_name,
+        "partner_logo": partner_logo, "partner_name": partner_name,
+    }
+
+
+def _header_html(brand: dict, accent: str = "#0055FF") -> str:
+    """Render the dual-logo header. Operator logo on the LEFT, platform
+    mark on the RIGHT. Empty operator logo falls back to a circle with
+    the operator's name initial. The single visible separator keeps
+    the header readable in both light + dark email clients."""
+    gym_logo = brand.get("gym_logo") or ""
+    gym_name = brand.get("gym_name") or ""
+    partner_logo = brand.get("partner_logo") or GYMAXIS_LOGO_MARK
+    partner_name = brand.get("partner_name") or "GymAxis"
+    if gym_logo:
+        left_block = (
+            f'<img src="{gym_logo}" alt="{gym_name}" style="max-height:42px;max-width:160px;'
+            f'vertical-align:middle;border:0;" />'
+        )
+    elif gym_name:
+        initial = gym_name[:1].upper() or "G"
+        left_block = (
+            f'<div style="display:inline-block;width:38px;height:38px;border-radius:8px;'
+            f'background:{accent};color:#fff;line-height:38px;text-align:center;font-weight:800;'
+            f'font-size:18px;font-family:Arial,sans-serif;vertical-align:middle;">{initial}</div>'
+            f'<span style="margin-left:10px;color:#1a1a1a;font-weight:700;font-size:15px;'
+            f'font-family:Arial,sans-serif;vertical-align:middle;">{gym_name}</span>'
+        )
+    else:
+        left_block = ""
+    right_block = (
+        f'<img src="{partner_logo}" alt="{partner_name}" style="max-height:30px;max-width:140px;'
+        f'vertical-align:middle;border:0;" />'
+    )
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        'style="width:100%;background:#ffffff;border-bottom:1px solid #e5e7eb;">'
+        '  <tr>'
+        f'    <td style="padding:18px 30px;text-align:left;vertical-align:middle;width:50%;">{left_block}</td>'
+        f'    <td style="padding:18px 30px;text-align:right;vertical-align:middle;width:50%;">{right_block}</td>'
+        '  </tr>'
+        '</table>'
+    )
+
+
+def _footer_html(brand: dict) -> str:
+    """Co-branded footer with both logos as small marks."""
+    gym_name = brand.get("gym_name") or ""
+    partner_name = brand.get("partner_name") or "GymAxis AI"
+    bits = []
+    if gym_name:
+        bits.append(f'<strong>{gym_name}</strong>')
+    bits.append(partner_name)
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        'style="width:100%;background:#f5f5f5;">'
+        '  <tr><td style="padding:18px 30px;text-align:center;color:#888;font-size:11px;'
+        'font-family:Arial,sans-serif;">'
+        + ' · '.join(bits) +
+        '<br/><span style="color:#aaa;font-size:10px;">'
+        'You\'re receiving this because of your account with the operator above. '
+        'Manage email preferences in your dashboard.</span>'
+        '  </td></tr>'
+        '</table>'
+    )
+
+
+def _looks_branded(html: str) -> bool:
+    """Heuristic — body already contains a co-brand header (e.g. it was
+    pre-wrapped by an upstream builder). Avoid double-wrapping."""
+    if not html:
+        return True
+    needle = "gymaxis-email-cobrand-wrap"
+    return needle in html
+
+
+async def wrap_branded(html: str, organization_id: str | None = None) -> str:
+    """Wrap raw HTML in the co-branded shell. Idempotent — wrapping an
+    already-wrapped body is a no-op.
+
+    Iter 216h64 — even without an organization_id we still wrap so
+    platform-only emails (welcome, password reset, trial signup) get
+    the GymAxis mark in the header for consistency.
+    """
+    if _looks_branded(html):
+        return html
+    brand = await _resolve_co_brand(organization_id)
+    # When there's no operator logo OR name, suppress the empty left
+    # block so the header just shows the platform mark centred.
+    if not brand.get("gym_logo") and not brand.get("gym_name"):
+        brand["gym_name"] = ""
+    header = _header_html(brand)
+    footer = _footer_html(brand)
+    return (
+        '<div class="gymaxis-email-cobrand-wrap" '
+        'style="background:#f9fafb;padding:24px 0;font-family:Arial,sans-serif;">'
+        '<div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;'
+        'overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">'
+        f'{header}'
+        f'<div style="padding:0;">{html}</div>'
+        f'{footer}'
+        '</div></div>'
+    )
+
 try:
     import resend
     if RESEND_API_KEY:
@@ -82,11 +254,15 @@ async def send_email(
             pass
 
     try:
+        # Iter 216h64 — auto-wrap in the co-branded shell (operator
+        # logo + GymAxis/Pulse Fitness mark) when an organization_id is
+        # supplied. Idempotent: already-wrapped HTML passes through.
+        branded_html = await wrap_branded(html, organization_id)
         params = {
             "from": from_addr,
             "to": [to],
             "subject": subject,
-            "html": html,
+            "html": branded_html,
         }
         if reply_to:
             params["reply_to"] = reply_to
