@@ -87,7 +87,21 @@ from utils.svc_state import (
 from routes.svc.integrations import sicon_sync, sage_invoice
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/svc/engineer", tags=["Service Ops · Engineer Mobile"])
+# Iter 216h77 — Engineer App access guard. Every endpoint under this
+# router requires the caller to either:
+#   • have an active Partner Engineer Plan subscription, OR
+#   • qualify for the free tier (10+ active referrals), OR
+#   • have at least one active customer-added grant, OR
+#   • be a master/pulse admin (support & QA access).
+# On denial we return 402 with a structured body so the PWA can redirect
+# the engineer to the subscription page rather than silently 401.
+from routes.partners import require_engineer_app_access  # noqa: E402
+
+router = APIRouter(
+    prefix="/svc/engineer",
+    tags=["Service Ops · Engineer Mobile"],
+    dependencies=[Depends(require_engineer_app_access)],
+)
 
 
 def _now() -> str:

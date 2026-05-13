@@ -1,3 +1,85 @@
+## Iter 216h77 — Engineer App Access Guard (Phase 2b · Feb 13, 2026)
+
+### Why
+P2 backlog item: gate `/svc/engineer*` access behind the Partner Engineer Network so that the £30/£15/free Partner Plan from h76 isn't just an opt-in feature — it's the way you unlock the Engineer App. Per h75 decision (5a), every engineer must hold an active subscription OR qualify via the free tier OR have an explicit customer grant.
+
+### What shipped
+
+#### Backend
+**New router-level dependency** in `routes/partners.py` (~140 LOC):
+- `evaluate_engineer_app_access(user)` — pure resolver returning `{allowed, reason, partner, subscription, app_fee_tier, active_grant_count}`. Reasons: `master_admin · active_subscription · trialing · free_tier · customer_grant · needs_application · application_pending · application_rejected · suspended · needs_subscription`.
+- `require_engineer_app_access` — FastAPI Depends wrapper. On denial, raises HTTP **402 Payment Required** with a structured body:
+  ```json
+  {
+    "detail": {
+      "code": "engineer_app_blocked",
+      "reason": "needs_subscription",
+      "subscription_status": null,
+      "app_fee_tier_gbp": 30,
+      "message": "Start the £30/mo Partner Engineer Plan..."
+    }
+  }
+  ```
+- 402 was chosen deliberately over 403 — semantically "you can pay to fix this", which the PWA uses to route to subscription rather than logout.
+
+**Wired the guard onto the entire `/svc/engineer/*` router** in one line — every endpoint inherits via `APIRouter(dependencies=[Depends(require_engineer_app_access)])`. Zero per-route changes; future endpoints are gated by default.
+
+**Active subscription states** that grant access: `active`, `trialing`, `past_due` (dunning continues; we don't hard-cut the engineer mid-incident).
+
+**Master admin bypass** — `is_master_admin / is_pulse_admin / role==pulse_master_admin` always pass, so support & QA can impersonate.
+
+**Customer-added engineer grants** — new collection `partner_job_grants`:
+| Endpoint | Behaviour |
+|---|---|
+| `GET  /api/customer-engineer-grants` | Customer lists grants they've issued |
+| `POST /api/customer-engineer-grants` | Customer grants an engineer access (body: `engineer_email`, optional `case_ids[]`, `scope`, `note`) |
+| `DELETE /api/customer-engineer-grants/{id}` | Customer revokes a grant (soft — sets `active=false`, audit-preserved) |
+
+The engineer doesn't need a subscription or partner profile to use the app when an active grant exists for their `user_id`. This implements h75 5b semantics under the umbrella of the 5a policy: contractors hired one-off don't pay; full partners do.
+
+**Frontend access status endpoint**: `GET /api/partners/me/engineer-access` returns the same `{allowed, reason, …}` shape WITHOUT raising 402 — so the dashboard / landing pages can render the right CTA without first triggering a 402 toast.
+
+#### Frontend
+- **`pages/ServiceOps/Engineer/EngineerAccessGate.js`** (NEW, ~85 LOC) — 5 reason-driven views (`needs_application`, `application_pending`, `application_rejected`, `suspended`, `needs_subscription`), each with a contextual icon, headline, sub-copy, and a single CTA to the right destination (`/partner-engineer/apply` or `/partner-engineer`). Footer always mentions the customer-grant fallback so the engineer knows they have options.
+- **`EngineerHome.js`** — `load()` now intercepts 402 with `code=engineer_app_blocked` and renders the gate in-place. Other errors continue to fire the existing toast. State managed via a single `accessBlock` value; render returns the gate component when set.
+
+### Verified
+- **35/35 backend pytest** passing across h75 (17), h76 (7), and h77 (11):
+  - Master admin can hit `/svc/engineer/me` (HTTP 200)
+  - Paid tier + no sub + no grant → HTTP 402 with `reason="needs_subscription"` and `app_fee_tier_gbp=30`
+  - Active subscription unblocks (status `active` or `trialing`)
+  - 10+ active referrals auto-flips to free tier and unblocks
+  - Active customer grant unblocks (even with `reason=customer_grant`)
+  - Revoked grant doesn't unlock
+  - Suspended partner returns 402 with `reason="suspended"`
+  - Customer can create + list + revoke grants
+  - Unknown engineer email returns 404 on grant create
+  - `/partners/me/engineer-access` returns 200 with `allowed=false` (never 402)
+- **Frontend smoke**: gate renders correctly at `/svc/engineer` for the operator E1 partner with no active subscription — purple lock icon, "Activate the Engineer App" headline, "Start subscription" CTA links to `/partner-engineer`.
+
+### Files touched
+- `/app/backend/routes/partners.py` (+~140 LOC — access resolver, dependency, 3 grant endpoints, indexes)
+- `/app/backend/routes/svc/engineer.py` (+5 LOC — router-level `Depends(require_engineer_app_access)`)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerAccessGate.js` (NEW)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerHome.js` (402 interception + gate render)
+- `/app/backend/tests/test_iter_216h77_engineer_access_guard.py` (NEW — 11 tests, sync pymongo to avoid Motor loop-pinning)
+- `/app/backend/tests/test_iter_216h7{5,6}_*.py` (`_run_async` revert for consistency)
+
+### ⚠ Operational impact
+- **Existing svc_engineers users without a partner profile will now be blocked.** Master admin needs to either:
+  1. Have those engineers apply via `/partner-engineer/apply` and approve them, OR
+  2. Issue customer grants from each gym's Service Desk (frontend admin UI for this is the next sub-task — backend endpoints are ready).
+- The 402 response means existing engineer mobile clients on a stale build will get an unusual error code. Their next deploy/refresh picks up the new gate.
+
+### Phase 2 remaining (next iters)
+- **Customer-side Service Desk UI** for the engineer-grants endpoints (Add Engineer / Revoke).
+- **Verified Partner public listing** in the Operations module ("find an engineer").
+- **Performance / reliability scoring** for level decisions.
+
+---
+
+
+
 ## Iter 216h76 — Partner Plan: Live Stripe subscription (Phase 2a · Feb 13, 2026)
 
 ### Why

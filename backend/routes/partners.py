@@ -1167,6 +1167,199 @@ async def admin_reports_summary(user: dict = Depends(get_current_user)):
     }
 
 
+# ───────────────────────── ENGINEER APP ACCESS GUARD (iter 216h77) ─────────────────────────
+
+
+ACTIVE_SUB_STATES = {"active", "trialing", "past_due"}  # past_due still has access; dunning fixes it
+
+
+def _has_access_via_subscription(partner: dict) -> bool:
+    sub = (partner or {}).get("subscription") or {}
+    return sub.get("status") in ACTIVE_SUB_STATES
+
+
+def _has_access_via_free_tier(partner: dict) -> bool:
+    tier = (partner or {}).get("app_fee_tier") or {}
+    return (tier.get("price_gbp") or 0) == 0
+
+
+async def _has_access_via_grant(user_id: str) -> bool:
+    grant = await db.partner_job_grants.find_one(
+        {"engineer_user_id": user_id, "active": True}, {"_id": 1},
+    )
+    return grant is not None
+
+
+async def evaluate_engineer_app_access(user: dict) -> dict:
+    """Pure, side-effect-free reason resolver. Used by the frontend access
+    landing page and the request-time guard. Returns:
+
+        {
+          allowed: bool,
+          reason:  str,   # one of: active_subscription | free_tier |
+                          # customer_grant | master_admin |
+                          # needs_subscription | needs_application |
+                          # application_pending | application_rejected |
+                          # suspended
+          partner: dict | None,
+          subscription: dict,
+          app_fee_tier: dict,
+          active_grant_count: int,
+        }
+    """
+    # Master admin always passes — they support engineers & need to test.
+    if user.get("is_master_admin") or user.get("is_pulse_admin") or \
+       user.get("role") == "pulse_master_admin":
+        return {"allowed": True, "reason": "master_admin", "partner": None,
+                "subscription": {}, "app_fee_tier": {}, "active_grant_count": 0}
+
+    partner = await db.partner_engineers.find_one({"user_id": user["id"]}, {"_id": 0})
+    grant_count = await db.partner_job_grants.count_documents(
+        {"engineer_user_id": user["id"], "active": True},
+    )
+    base = {
+        "partner": partner,
+        "subscription": (partner or {}).get("subscription") or {},
+        "app_fee_tier": (partner or {}).get("app_fee_tier") or {},
+        "active_grant_count": grant_count,
+    }
+
+    if grant_count > 0:
+        # Customer-added engineers without a partner profile still get
+        # job-specific access. This honours the h75 brief: "If a customer
+        # adds an engineer only to complete jobs for that customer,
+        # ensure the engineer can receive and complete assigned jobs."
+        return {"allowed": True, "reason": "customer_grant", **base}
+
+    if not partner:
+        return {"allowed": False, "reason": "needs_application", **base}
+    if partner["status"] == "pending":
+        return {"allowed": False, "reason": "application_pending", **base}
+    if partner["status"] == "rejected":
+        return {"allowed": False, "reason": "application_rejected", **base}
+    if partner["status"] == "suspended":
+        return {"allowed": False, "reason": "suspended", **base}
+
+    if _has_access_via_free_tier(partner):
+        return {"allowed": True, "reason": "free_tier", **base}
+    if _has_access_via_subscription(partner):
+        return {"allowed": True, "reason": "active_subscription", **base}
+
+    return {"allowed": False, "reason": "needs_subscription", **base}
+
+
+async def require_engineer_app_access(user: dict = Depends(get_current_user)) -> dict:
+    """FastAPI dependency wrapping `evaluate_engineer_app_access`. Raises
+    a structured 402 (Payment Required) when access is denied so the
+    frontend can route the engineer to the subscription page rather than
+    silently bounce them to /login."""
+    decision = await evaluate_engineer_app_access(user)
+    if decision["allowed"]:
+        return user
+    raise HTTPException(
+        status_code=402,
+        detail={
+            "code": "engineer_app_blocked",
+            "reason": decision["reason"],
+            "subscription_status": decision["subscription"].get("status"),
+            "app_fee_tier_gbp": decision["app_fee_tier"].get("price_gbp"),
+            "message": _BLOCK_MESSAGES.get(decision["reason"], "Engineer App access is restricted."),
+        },
+    )
+
+
+_BLOCK_MESSAGES = {
+    "needs_application":      "Apply to the Partner Engineer Network to start accepting jobs.",
+    "application_pending":    "Your Partner Engineer application is under review. We'll email you within 2 working days.",
+    "application_rejected":   "Your Partner Engineer application was not approved. Update your details and resubmit.",
+    "suspended":              "Your Partner Engineer access has been suspended. Contact GymAxis support.",
+    "needs_subscription":     "Start the £30/mo Partner Engineer Plan to unlock the Engineer App. Discounts kick in automatically at 5 active referrals.",
+}
+
+
+@router.get("/partners/me/engineer-access")
+async def get_my_engineer_access(user: dict = Depends(get_current_user)):
+    """Public-facing access status — used by the frontend gate landing page
+    to render the correct CTA without 402'ing first."""
+    decision = await evaluate_engineer_app_access(user)
+    decision["partner"] = _public(decision["partner"])
+    return decision
+
+
+# ───────────────────────── CUSTOMER-ADDED ENGINEER GRANTS ─────────────────────────
+
+
+@router.get("/customer-engineer-grants")
+async def list_customer_grants(user: dict = Depends(get_current_user)):
+    """List all engineer grants this customer has issued."""
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(403, "Organization context required")
+    rows = await db.partner_job_grants.find(
+        {"granted_by_organization_id": org_id}, {"_id": 0},
+    ).sort("created_at", -1).to_list(length=500)
+    return {"grants": rows}
+
+
+@router.post("/customer-engineer-grants")
+async def create_customer_grant(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Customer grants an engineer access to specific jobs/cases without
+    forcing them to subscribe. This is the "customer-added engineer"
+    onboarding path."""
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(403, "Organization context required")
+    engineer_email = (body.get("engineer_email") or "").strip().lower()
+    if not engineer_email:
+        raise HTTPException(400, "engineer_email is required")
+    case_ids = body.get("case_ids") or []
+    if not isinstance(case_ids, list):
+        raise HTTPException(400, "case_ids must be a list")
+
+    # Look up the engineer user (must already have a GymAxis account).
+    eng_user = await db.users.find_one({"email": engineer_email}, {"_id": 0, "id": 1, "email": 1, "full_name": 1})
+    if not eng_user:
+        raise HTTPException(404, f"No GymAxis user with email '{engineer_email}'. Ask them to sign up first.")
+
+    grant_id = _new_id()
+    doc = {
+        "id": grant_id,
+        "engineer_user_id": eng_user["id"],
+        "engineer_email": engineer_email,
+        "engineer_name": eng_user.get("full_name"),
+        "granted_by_organization_id": org_id,
+        "granted_by_user_id": user["id"],
+        "case_ids": [str(c) for c in case_ids][:200],
+        "scope": (body.get("scope") or "per_case").lower(),  # per_case | org_wide
+        "note": (body.get("note") or "").strip()[:500],
+        "active": True,
+        "created_at": _now(),
+        "revoked_at": None,
+        "revoked_by": None,
+    }
+    await db.partner_job_grants.insert_one(doc)
+    doc.pop("_id", None)
+    return {"ok": True, "grant": doc}
+
+
+@router.delete("/customer-engineer-grants/{grant_id}")
+async def revoke_customer_grant(grant_id: str, user: dict = Depends(get_current_user)):
+    org_id = user.get("organization_id")
+    grant = await db.partner_job_grants.find_one(
+        {"id": grant_id, "granted_by_organization_id": org_id}, {"_id": 0},
+    )
+    if not grant:
+        raise HTTPException(404, "Grant not found")
+    await db.partner_job_grants.update_one(
+        {"id": grant_id},
+        {"$set": {"active": False, "revoked_at": _now(), "revoked_by": user["id"]}},
+    )
+    return {"ok": True}
+
+
+# ─── End of iter 216h77 additions ───
+
+
 # ───────────────────────── indexes (called from server startup) ─────────────────────────
 
 
@@ -1184,3 +1377,6 @@ async def ensure_partner_indexes() -> None:
     )
     await db.partner_payouts.create_index([("partner_id", 1), ("status", 1)])
     await db.partner_audit_log.create_index([("partner_id", 1), ("at", -1)])
+    # Iter 216h77 — customer-added engineer grants
+    await db.partner_job_grants.create_index([("engineer_user_id", 1), ("active", 1)])
+    await db.partner_job_grants.create_index([("granted_by_organization_id", 1), ("created_at", -1)])

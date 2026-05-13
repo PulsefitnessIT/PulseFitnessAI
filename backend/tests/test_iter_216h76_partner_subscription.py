@@ -49,20 +49,10 @@ def db_client():
 
 
 class TestSubscriptionCheckoutGuards:
-    def test_unconfigured_env_returns_501(self, op_headers):
-        # Save and clear the env vars so the guard fires deterministically.
-        saved_30 = os.environ.pop("STRIPE_PRICE_PARTNER_PLAN_30", None)
-        saved_15 = os.environ.pop("STRIPE_PRICE_PARTNER_PLAN_15", None)
-        try:
-            r = requests.post(
-                f"{BASE_URL}/api/partners/me/subscription/checkout",
-                json={"origin_url": BASE_URL}, headers=op_headers, timeout=10,
-            )
-            assert r.status_code == 501
-            assert "STRIPE_PRICE_PARTNER_PLAN_30" in r.text
-        finally:
-            if saved_30: os.environ["STRIPE_PRICE_PARTNER_PLAN_30"] = saved_30
-            if saved_15: os.environ["STRIPE_PRICE_PARTNER_PLAN_15"] = saved_15
+    # NOTE: `test_unconfigured_env_returns_501` removed in h77 — once
+    # production Stripe price IDs are seeded, the test can't depend on
+    # local-process env state. The equivalent unit-test is
+    # `TestPriceIdResolver.test_unknown_tier_returns_none`.
 
     def test_free_tier_blocks_checkout(self, op_headers, db_client):
         """Force the partner to 10+ active refs → tier=0/free → checkout 400."""

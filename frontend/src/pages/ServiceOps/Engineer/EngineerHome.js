@@ -20,6 +20,7 @@ import {
   PlayCircle, WifiOff,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import EngineerAccessGate from './EngineerAccessGate';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -95,6 +96,7 @@ export default function EngineerHome() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [accessBlock, setAccessBlock] = useState(null);
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -113,12 +115,24 @@ export default function EngineerHome() {
       ]);
       setMe(m.data);
       setJobs(j.data.jobs || []);
+      setAccessBlock(null);
     } catch (e) {
+      // Iter 216h77 — Engineer App access guard. 402 means the engineer
+      // doesn't have an active subscription / grant; render the access
+      // gate landing in-place rather than a toast spam.
+      if (e?.response?.status === 402 && e?.response?.data?.detail?.code === 'engineer_app_blocked') {
+        setAccessBlock(e.response.data.detail);
+        return;
+      }
       if (online) notify.error('Failed to load jobs', e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
   }, [tab, online]);
 
   useEffect(() => { load(); }, [load]);
+
+  if (accessBlock) {
+    return <EngineerAccessGate detail={accessBlock} />;
+  }
 
   return (
     <div className="min-h-screen pb-24" style={{ background: 'var(--theme-bg, #f8fafc)' }} data-testid="engineer-home">
