@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import logging
 
 from utils.database import db
-from utils.auth import get_current_user, get_organization_filter
+from utils.auth import get_current_user, get_organization_filter, apply_site_lock
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -75,8 +75,15 @@ async def _fetch_health_counts(org_filter: dict) -> dict:
 
 
 @router.get("/gym-health-score")
-async def get_gym_health_score(user: dict = Depends(get_current_user)) -> dict:
+async def get_gym_health_score(
+    site_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h65 — `site_id` query param scopes the score to a
+    single site. Omitting it = aggregate across the org (used when
+    SiteSwitcher = All Operations Sites)."""
     org_filter = get_organization_filter(user)
+    org_filter = apply_site_lock(user, site_id, org_filter)
     c = await _fetch_health_counts(org_filter)
 
     # Not-ready state: no equipment onboarded AND no faults logged.
