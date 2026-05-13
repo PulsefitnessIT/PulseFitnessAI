@@ -1,3 +1,49 @@
+## Iter 216h63 — (h) Site-scoped Staffing + Compare-Sites enhancement (Feb 12, 2026)
+
+### Operator-reported (Lee)
+- (h) "Once staff have been allocated to a site too they still can be seen on other sites staffing option — should only be seen on the sites they're allocated to."
+- Operator agreed to the iter 216h62 follow-up: ship a Compare-Sites mode in Operational Reports so multi-site Pulse brands can benchmark in one screen.
+
+### What shipped
+
+#### (h) Staffing scoped to allocated sites
+**Backend:**
+- **`/app/backend/routes/account.py`** — `GET /api/account/team?site_id={id}` filters `users` to only those whose `allowed_site_ids` array contains `site_id`. Owners/Managers AND users with empty `allowed_site_ids` (org-wide access) are ALWAYS included so leadership doesn't vanish when an operator switches sites.
+- **`/app/backend/routes/staffing_clock.py`** — `GET /api/staffing/clock/board?site_id={id}` pre-loads the user IDs allowed at that site, then filters `staff_members` by `user_id ∈ allowed_users`. Staff with no `user_id` link (legacy / kiosk-only) treated as org-wide.
+
+**Frontend:**
+- **`TimeClockTab.js`** — `ClockBoard` reads `active_site_cache` from localStorage (the staffing panels don't have direct `useAuth()` context) and appends `site_id=` to the board endpoint. SiteSwitcher changes ripple through the punch board.
+- `AccountSettingsModal` Team section deliberately stays org-wide — that's the leadership-only admin UI for invites + site-allocation.
+
+#### Compare-Sites enhancement (Operational Reports)
+- **`/app/frontend/src/pages/OperationalReportsTab.js`** — new collapsible "Compare sites" card (only renders for multi-site tenants). Operator selects 2-3 site pills (capped at 3) and clicks `Compare N sites`. We fan-out parallel `/reports/operational?site_id=…&period=…` requests and render a table: Site / Total faults / Open / Resolved / Avg resolution / PO value / Top supplier.
+- Test IDs: `compare-sites-panel`, `compare-sites-toggle`, `compare-site-pill-{id}`, `compare-sites-run-btn`, `compare-sites-table`, `compare-row-{id}`.
+
+### Verified
+- 11/11 backend tests pass (testing-agent iter 216h63).
+- Manual e2e curl: `/team` org-wide=2, `?site_id=A`=2 (owner+staff), `?site_id=B`=1 (owner only, Site-A staff hidden).
+- Frontend: Compare panel renders, 3 site pills, table renders with 2 rows + 7 columns.
+
+### Files touched
+- `/app/backend/routes/account.py` (~+30 LOC — site_id filter on list_team)
+- `/app/backend/routes/staffing_clock.py` (~+45 LOC — site_id intersection on clock_board)
+- `/app/frontend/src/pages/LiteDashboard/staffing/TimeClockTab.js` (~+15 LOC — localStorage active_site_cache read + ?site_id append)
+- `/app/frontend/src/pages/OperationalReportsTab.js` (~+85 LOC — Compare Sites panel + state + fan-out runner)
+
+### All 8 operator-reported items from the Feb 12 screenshot set are now shipped
+- (a) Archive → Settings & Compliance ✅ (216h59)
+- (b) Memberships ≠ CRM ✅ (216h59)
+- (c) Uploaded logo overrides navbar ✅ (216h59)
+- (d) Brand Kit auto-applies palette ✅ (216h59)
+- (e) Site module override guard ✅ (216h60)
+- (f) Master Admin Archive/Delete site ✅ (216h61)
+- (g) Site-scoped Reports + Suppliers ✅ (216h62)
+- (h) Site-scoped Staffing ✅ (216h63)
+
+---
+
+
+
 ## Iter 216h62 — (g) Site-scoped Reports + Suppliers (Feb 12, 2026)
 
 ### Operator-reported (Lee)
