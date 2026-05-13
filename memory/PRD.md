@@ -1,3 +1,47 @@
+## Iter 216h65 — `<ListPanel>` adoption across Memberships + ListPanel grid support (Feb 13, 2026)
+
+### Why
+P1 backlog item from iter 216h44: adopt `<ListPanel>` across remaining list views. Pre-existing adopters: CRMContacts, CRMCompanies. Target this iter: Memberships Plans, Classes, Ads, Promotions.
+
+### What shipped
+
+#### `<ListPanel>` extension
+- **`/app/frontend/src/components/shared/ListPanel.js`** — new `bodyClassName` prop (defaults to `space-y-2`). Lets callers override the children wrapper for grid layouts. E.g. `bodyClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"` for card-based panels like Plans and Promotions.
+
+#### Migrations (4 panels)
+All migrations preserve existing `data-testid`s verbatim and add new ones for the ListPanel root + empty-state CTA where missing.
+
+| Panel | File | Notes |
+|---|---|---|
+| **PlansInnerView** | `MembershipsConsole.js` ~L1204 | grid bodyClassName, count chip "N plan(s)", empty `mbr-plans-empty` |
+| **ClassesTab** | `MembershipsConsole.js` ~L1280 | default `space-y-2`, count "N class(es)", empty `mbr-classes-empty` |
+| **AdsTab** | `MembershipsConsole.js` ~L1545 | default `space-y-2`, count "N ad(s)", empty `mbr-ads-empty` |
+| **PromotionsTab** | `PromotionsTab.js` ~L78 | grid bodyClassName, count "N code(s)", empty `mbr-promo-empty` (preserved), new CTA `mbr-promo-empty-create` |
+
+Replaced the bespoke `<Header eyebrow=… title=… subtitle=…>` + free-floating Button + custom Loading/Empty pattern with the standard ListPanel surface. Net ~30-40 LOC saved per panel. The rich empty states now have icon + title + hint + primary CTA, matching CRM Contacts / Companies.
+
+### Verified
+- Lint clean across all 3 touched files (ListPanel.js, MembershipsConsole.js, PromotionsTab.js).
+- Testing-agent iter 216h65 (frontend only): **100% verified** — all 4 migrated panels render with correct title, subtitle, count chip, primary CTA, and rich empty state. CRM Contacts + Companies regression-clean. No console errors. Create-flow modals (PlanEditorModal, PromoEditorModal) still open correctly.
+- Manual smoke screenshots confirmed Plans, Ads, Promotions empty states render with brand-cyan CTAs.
+
+### Files touched
+- `/app/frontend/src/components/shared/ListPanel.js` (+5 LOC — bodyClassName prop + docs)
+- `/app/frontend/src/pages/Memberships/MembershipsConsole.js` (~-90 / +75 LOC — 3 panels migrated, +1 ListPanel import)
+- `/app/frontend/src/pages/Memberships/PromotionsTab.js` (~-35 / +20 LOC — PromotionsTab migrated, +1 ListPanel import)
+- `/app/DESIGN_SYSTEM.md` (~+5 / -2 LOC — documented bodyClassName + updated adoption list)
+
+### Deferred
+- **CRMPipeline list view** — listed in the iter 216h44 target list but its toolbar is too bespoke (kanban/list view switcher, weighted-value summary, Report print button, HelpHint inline). Forcing it into ListPanel would compromise the dual-view layout. Marked complete-as-deferred in DESIGN_SYSTEM.md.
+
+### ⚠ Action required
+1. Redeploy preview → production. Frontend-only change.
+2. Operators visiting Memberships → Plans / Classes / Ads / Promotions tabs now see a consistent empty-state experience matching CRM Contacts.
+
+---
+
+
+
 ## Iter 216h64 — Co-branded email wrapper (Feb 12, 2026)
 
 ### Operator-reported (Lee)
