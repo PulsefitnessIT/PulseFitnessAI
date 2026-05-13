@@ -1,0 +1,111 @@
+{
+  "summary": "Iter 216h63 — Site-scoped Staffing + Compare Sites Enhancement. Backend: 11/11 tests passed. Frontend: All features verified - Compare Sites panel renders with 3 site pills, comparison table shows 2 rows with correct columns; Time Clock tab shows Live Punch Board with site-scoped filtering.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h63_site_scoped_staffing.py",
+    "/app/test_reports/pytest/pytest_results_216h63.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BACKEND VERIFIED: GET /api/account/team?site_id={id} correctly filters roster to users whose allowed_site_ids contains site_id",
+    "BACKEND VERIFIED: Owners/Managers with empty allowed_site_ids (org-wide access) ALWAYS appear in filtered team list",
+    "BACKEND VERIFIED: Staff allocated to SITE_HQ appears in ?site_id=SITE_HQ but NOT in ?site_id=SITE_B",
+    "BACKEND VERIFIED: GET /api/staffing/clock/board?site_id={id} filters staff_members against users.allowed_site_ids",
+    "BACKEND VERIFIED: Clock board returns proper summary (on_shift, on_break, off, late counts)",
+    "BACKEND VERIFIED: GET /api/reports/operational?period=30d&site_id={id} returns site-specific data for comparison",
+    "FRONTEND VERIFIED: Compare Sites panel (data-testid='compare-sites-panel') renders for multi-site tenant (Pulse Fitness with 3 sites)",
+    "FRONTEND VERIFIED: Compare Sites toggle (data-testid='compare-sites-toggle') opens/closes the panel",
+    "FRONTEND VERIFIED: 3 site pills found (data-testid='compare-site-pill-{siteId}')",
+    "FRONTEND VERIFIED: Compare button (data-testid='compare-sites-run-btn') disabled until >= 2 sites selected",
+    "FRONTEND VERIFIED: Compare Sites table (data-testid='compare-sites-table') renders with columns: Site, Total faults, Open, Resolved, Avg resolution, PO value, Top supplier",
+    "FRONTEND VERIFIED: 2 comparison rows (data-testid='compare-row-{siteId}') rendered after clicking Compare",
+    "FRONTEND VERIFIED: Time Clock tab shows Live Punch Board with site-scoped data",
+    "FRONTEND VERIFIED: Clock Board shows summary stats (On shift, On break, Late, Off)",
+    "CODE REVIEW: account.py list_team() uses $or filter to always include owners/managers + users with empty/no allowed_site_ids",
+    "CODE REVIEW: staffing_clock.py clock_board() pre-loads allowed users for site and filters staff_members by user_id intersection",
+    "CODE REVIEW: TimeClockTab.js reads localStorage 'active_site_cache' and passes site_id to /staffing/clock/board",
+    "CODE REVIEW: OperationalReportsTab.js shows Compare Sites panel only when isMultiSite=true (sites.length > 1)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h63_site_scoped_staffing.py (new test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 passed)",
+    "frontend": "100% - All UI elements verified via Playwright"
+  },
+  "test_credentials": {
+    "pulse_owner": "e1.agent@gymaxisai.com / E1Agent123!",
+    "pulse_org_id": "8cd02d8c-e5a2-4c13-bdb9-8b143b85455f",
+    "pulse_sites": {
+      "HQ": "6b21f42d-dd40-41ea-b6fe-889512c3ec32",
+      "SITE_B": "3c9ef5a9-1ad4-454d-b558-8d67cc4ecbbf",
+      "SITE_C": "56d62145-be7a-4fef-bb03-d69020eed87b"
+    }
+  },
+  "seed_data_creation": "Test staff user created with allowed_site_ids=[SITE_HQ] for site filtering tests, cleaned up after tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All iter 216h63 features verified: (1) GET /api/account/team?site_id filters roster to allocated staff while always showing owners/managers. (2) GET /api/staffing/clock/board?site_id filters staff_members by user.allowed_site_ids intersection. (3) Frontend TimeClockTab reads localStorage 'active_site_cache' and passes site_id to clock board API. (4) Compare Sites panel in OperationalReportsTab shows for multi-site tenants (isMultiSite=true), allows selecting 2-3 sites, renders comparison table with faults/resolution/PO data. (5) Single-site tenants won't see Compare Sites panel.",
+  "verified_features": {
+    "team_site_filter": {
+      "status": "VERIFIED",
+      "endpoint": "GET /api/account/team?site_id={id}",
+      "behavior": "Filters roster to users with allowed_site_ids containing site_id. Owners/Managers always visible."
+    },
+    "clock_board_site_filter": {
+      "status": "VERIFIED",
+      "endpoint": "GET /api/staffing/clock/board?site_id={id}",
+      "behavior": "Filters staff_members by user.allowed_site_ids intersection. Legacy rows without user_id treated as org-wide."
+    },
+    "time_clock_site_scope": {
+      "status": "VERIFIED",
+      "component": "TimeClockTab.js",
+      "behavior": "Reads localStorage 'active_site_cache' and passes site_id to /staffing/clock/board"
+    },
+    "compare_sites_panel": {
+      "status": "VERIFIED",
+      "testids": ["compare-sites-panel", "compare-sites-toggle", "compare-site-pill-{siteId}", "compare-sites-run-btn", "compare-sites-table", "compare-row-{siteId}"],
+      "behavior": "Shows for multi-site tenants. Pick 2-3 sites, click Compare, renders table with Site/Total faults/Open/Resolved/Avg resolution/PO value/Top supplier columns."
+    },
+    "single_site_tenant_behavior": {
+      "status": "VERIFIED (by code review)",
+      "behavior": "isMultiSite = (sites?.length || 0) > 1 - single-site tenants won't see Compare Sites panel"
+    }
+  },
+  "test_results": {
+    "backend_pytest": {
+      "total": 11,
+      "passed": 11,
+      "skipped": 0,
+      "failed": 0,
+      "file": "/app/backend/tests/test_iter_216h63_site_scoped_staffing.py",
+      "tests": [
+        "TestTeamSiteFilter::test_team_no_site_filter_returns_all",
+        "TestTeamSiteFilter::test_team_with_site_filter_includes_owner",
+        "TestTeamSiteFilter::test_team_site_filter_shows_allocated_staff",
+        "TestTeamSiteFilter::test_team_site_filter_hides_unallocated_staff",
+        "TestClockBoardSiteFilter::test_clock_board_no_site_filter",
+        "TestClockBoardSiteFilter::test_clock_board_with_site_filter",
+        "TestClockBoardSiteFilter::test_clock_board_different_sites_different_results",
+        "TestOperationalReportsCompareSites::test_operational_reports_endpoint",
+        "TestOperationalReportsCompareSites::test_operational_reports_per_site",
+        "TestSitesEndpoint::test_sites_list",
+        "TestCleanup::test_cleanup_test_users"
+      ]
+    },
+    "frontend_playwright": {
+      "status": "All features verified via screenshots",
+      "compare_sites_panel": "Found with 3 site pills, comparison table rendered with 2 rows",
+      "time_clock_tab": "Live Punch Board found with summary stats (On shift/On break/Late/Off)",
+      "staffing_dashboard": "Workforce Control Centre with coverage heatmap visible"
+    }
+  }
+}

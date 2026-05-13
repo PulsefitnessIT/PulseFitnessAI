@@ -315,12 +315,19 @@ async def clock_history(
 # ─────────────────────── Manager — clock board / audit ───────────
 
 @router.get("/staffing/clock/board")
-async def clock_board(user: dict = Depends(get_current_user)):
+async def clock_board(
+    site_id: str | None = None,
+    user: dict = Depends(get_current_user),
+):
     """Live snapshot — every staff member's current punch state.
 
     Returns one row per active staff member with: their last event,
     derived state, today's scheduled shift (if any), and a `late`
     flag (scheduled to be in but no clock_in yet).
+
+    Iter 216h63 (h) — `site_id` filters the board to staff allocated
+    to the requested site. Staff with empty `allowed_site_ids` (i.e.
+    org-wide access — owners + managers) always appear.
     """
     _require_manager(user)
     org_id = _org(user)
@@ -328,9 +335,43 @@ async def clock_board(user: dict = Depends(get_current_user)):
     today = now.date().isoformat()
     now_hm = now.strftime("%H:%M")
 
+    # Iter 216h63 — when site_id is provided we need to intersect
+    # `staff_members` against `users.allowed_site_ids`. staff_members
+    # rows carry a `user_id` for clocked employees; legacy rows without
+    # a user_id (manually-added engineers, kiosk-only staff) are treated
+    # as org-wide for now.
+    staff_filter: dict = {"organization_id": org_id, "active": True}
+    if site_id:
+        # Find every user that's allocated to this site OR has no site
+        # restriction at all.
+        scoped_users = await db.users.find(
+            {
+                "organization_id": org_id,
+                "$or": [
+                    {"allowed_site_ids": site_id},
+                    {"allowed_site_ids": {"$exists": False}},
+                    {"allowed_site_ids": {"$size": 0}},
+                    {"role": {"$in": ["owner", "manager"]}},
+                ],
+            },
+            {"_id": 0, "id": 1},
+        ).to_list(2000)
+        allowed_user_ids = {u["id"] for u in scoped_users}
+        # Accept staff rows where user_id matches OR there's no user_id
+        # link (legacy/kiosk-only members are org-wide).
+        staff_filter = {
+            "organization_id": org_id,
+            "active": True,
+            "$or": [
+                {"user_id": {"$in": list(allowed_user_ids)}},
+                {"user_id": {"$exists": False}},
+                {"user_id": None},
+            ],
+        }
+
     staff = await db.staff_members.find(
-        {"organization_id": org_id, "active": True},
-        {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1},
+        staff_filter,
+        {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "user_id": 1},
     ).to_list(1000)
     if not staff:
         return {"as_of": now.isoformat(), "rows": [], "summary": {"on_shift": 0, "on_break": 0, "off": 0, "late": 0}}

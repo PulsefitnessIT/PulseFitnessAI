@@ -20,6 +20,13 @@ const OperationalReportsTab = () => {
   const isMultiSite = (sites?.length || 0) > 1;
   const scopeSiteId = isMultiSite && activeSite?.id ? activeSite.id : null;
 
+  // Iter 216h63 — compare-sites mode. Operator picks 2-3 sites and
+  // we fan-out the same report request for each, render side-by-side.
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareSiteIds, setCompareSiteIds] = useState([]);
+  const [compareData, setCompareData] = useState(null);  // { siteId: data, ... }
+  const [comparing, setComparing] = useState(false);
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -39,6 +46,35 @@ const OperationalReportsTab = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleCompareSite = (id) => {
+    setCompareSiteIds((prev) => {
+      if (prev.includes(id)) return prev.filter((s) => s !== id);
+      if (prev.length >= 3) return prev; // cap at 3
+      return [...prev, id];
+    });
+  };
+
+  const runComparison = async () => {
+    if (compareSiteIds.length < 2) return;
+    setComparing(true);
+    const token = localStorage.getItem('token');
+    try {
+      const responses = await Promise.all(
+        compareSiteIds.map((sid) =>
+          axios.get(`${API}/reports/operational?period=${period}&site_id=${encodeURIComponent(sid)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then((r) => [sid, r.data])
+        )
+      );
+      const map = {};
+      responses.forEach(([sid, d]) => { map[sid] = d; });
+      setCompareData(map);
+    } catch (err) {
+      console.error('Compare-sites failed:', err);
+    }
+    setComparing(false);
   };
 
   if (loading) return <div className="text-[var(--color-text-muted)] text-center py-16">Loading operational data...</div>;
@@ -68,6 +104,98 @@ const OperationalReportsTab = () => {
           ))}
         </div>
       </div>
+
+      {/* Iter 216h63 — Compare Sites panel. Pulse multi-site brands
+          can pick 2-3 sites and see side-by-side faults / open / avg
+          resolution / PO value within a single screen, rather than
+          flipping the SiteSwitcher between gyms. */}
+      {isMultiSite && (
+        <Card className="bg-[var(--theme-surface)] border-[color:var(--theme-border)] p-4" data-testid="compare-sites-panel">
+          <button
+            type="button"
+            onClick={() => setCompareOpen((v) => !v)}
+            className="w-full flex items-center justify-between text-left"
+            data-testid="compare-sites-toggle"
+          >
+            <div>
+              <h3 className="text-base font-semibold text-[color:var(--theme-text)]">Compare sites</h3>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Pick 2–3 sites to benchmark faults, resolution time, and PO spend side-by-side.
+              </p>
+            </div>
+            <span className="text-xs text-[var(--color-brand-cyan)] font-semibold">{compareOpen ? '— Close' : '+ Open'}</span>
+          </button>
+          {compareOpen && (
+            <div className="mt-4 space-y-3" data-testid="compare-sites-body">
+              <div className="flex flex-wrap gap-2">
+                {(sites || []).map((s) => {
+                  const checked = compareSiteIds.includes(s.id);
+                  const disabled = !checked && compareSiteIds.length >= 3;
+                  return (
+                    <button
+                      key={s.id} type="button"
+                      onClick={() => toggleCompareSite(s.id)}
+                      disabled={disabled}
+                      className={`px-3 py-1.5 text-xs rounded-full border transition ${checked ? 'bg-[var(--color-brand-blue)] text-white border-[var(--color-brand-blue)]' : 'border-[color:var(--theme-border)] text-[color:var(--theme-text)] hover:bg-[var(--theme-surface-sunken)]'} disabled:opacity-40 disabled:cursor-not-allowed`}
+                      data-testid={`compare-site-pill-${s.id}`}
+                    >
+                      {checked ? '✓ ' : ''}{s.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  onClick={runComparison}
+                  disabled={compareSiteIds.length < 2 || comparing}
+                  className="bg-[var(--color-brand-blue)] text-white"
+                  data-testid="compare-sites-run-btn"
+                >
+                  {comparing ? 'Comparing…' : `Compare ${compareSiteIds.length} site${compareSiteIds.length === 1 ? '' : 's'}`}
+                </Button>
+                <span className="text-[10px] text-[var(--color-text-muted)]">{compareSiteIds.length}/3 selected</span>
+              </div>
+              {compareData && (
+                <div className="overflow-x-auto -mx-4 px-4 pt-2" data-testid="compare-sites-table">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-[color:var(--theme-border)]">
+                      <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                        <th className="py-2 pr-3 font-semibold">Site</th>
+                        <th className="py-2 pr-3 font-semibold">Total faults</th>
+                        <th className="py-2 pr-3 font-semibold">Open</th>
+                        <th className="py-2 pr-3 font-semibold">Resolved</th>
+                        <th className="py-2 pr-3 font-semibold">Avg resolution</th>
+                        <th className="py-2 pr-3 font-semibold">PO value</th>
+                        <th className="py-2 pr-3 font-semibold">Top supplier</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {compareSiteIds.map((sid) => {
+                        const cd = compareData[sid];
+                        const site = (sites || []).find((s) => s.id === sid);
+                        if (!cd) return null;
+                        const topSupplier = Object.entries(cd.by_supplier || {}).sort(([, a], [, b]) => b - a)[0];
+                        return (
+                          <tr key={sid} className="border-b border-[color:var(--theme-border)]/40" data-testid={`compare-row-${sid}`}>
+                            <td className="py-2 pr-3 font-semibold text-[color:var(--theme-text)]">{site?.name || sid}</td>
+                            <td className="py-2 pr-3 text-[color:var(--theme-text)]">{cd.total_faults}</td>
+                            <td className="py-2 pr-3 text-red-500">{cd.open_faults}</td>
+                            <td className="py-2 pr-3 text-green-600">{cd.resolved_faults}</td>
+                            <td className="py-2 pr-3 text-yellow-500">{cd.avg_resolution_hours}h</td>
+                            <td className="py-2 pr-3 text-emerald-500">£{(cd.total_po_value || 0).toLocaleString()}</td>
+                            <td className="py-2 pr-3 text-[color:var(--theme-text)]">{topSupplier ? `${topSupplier[0]} (${topSupplier[1]})` : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Top Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

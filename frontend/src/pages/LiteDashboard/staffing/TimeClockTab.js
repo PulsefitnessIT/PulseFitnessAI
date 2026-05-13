@@ -45,15 +45,29 @@ function ClockBoard({ headers }) {
   const [data, setData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Iter 216h63 — site-scoped board. Read activeSite from localStorage
+  // so we don't have to thread context through every staffing panel.
+  const scopeSiteId = (() => {
+    try {
+      const cached = localStorage.getItem('active_site_cache');
+      if (cached) {
+        const s = JSON.parse(cached);
+        if (s?.id && !s?.is_default) return s.id;
+      }
+    } catch { /* ignore */ }
+    return null;
+  })();
+
   const load = useCallback(async (bg = false) => {
     if (!bg) setData(null);
     else setRefreshing(true);
     try {
-      const { data: d } = await axios.get(`${API}/staffing/clock/board`, { headers });
+      const q = scopeSiteId ? `?site_id=${encodeURIComponent(scopeSiteId)}` : '';
+      const { data: d } = await axios.get(`${API}/staffing/clock/board${q}`, { headers });
       setData(d);
     } catch { /* noop */ }
     setRefreshing(false);
-  }, [headers]);
+  }, [headers, scopeSiteId]);
 
   useEffect(() => {
     load();

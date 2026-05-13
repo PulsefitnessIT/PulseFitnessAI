@@ -392,12 +392,41 @@ async def change_password(body: dict, user: dict = Depends(get_current_user)) ->
 # ── Team & Roles ─────────────────────────────────────────────────
 
 @router.get("/account/team")
-async def list_team(user: dict = Depends(get_current_user)) -> dict:
+async def list_team(
+    site_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """List org team members.
+
+    Iter 216h63 (h) — `site_id` query param filters the roster to only
+    staff allocated to that site (i.e. `allowed_site_ids` contains the
+    site_id). Owners + Managers — who have no `allowed_site_ids`
+    restriction (empty list == access to every site) — are ALWAYS
+    visible regardless of which site is being viewed so the Staffing
+    tab still shows leadership. Omitting `site_id` returns the whole
+    roster (used by SiteSwitcher → All Operations Sites).
+    """
     org_id = user.get("organization_id")
     if not org_id:
         return {"members": []}
+    base_filter = {"organization_id": org_id}
+    if site_id:
+        # Match users either:
+        #   • whose allowed_site_ids array contains the requested site,
+        #   • OR who have no `allowed_site_ids` at all (owners/managers
+        #     with org-wide access), since they're effectively assigned
+        #     to every site.
+        base_filter = {
+            "organization_id": org_id,
+            "$or": [
+                {"allowed_site_ids": site_id},
+                {"allowed_site_ids": {"$exists": False}},
+                {"allowed_site_ids": {"$size": 0}},
+                {"role": {"$in": ["owner", "manager"]}},
+            ],
+        }
     cursor = db.users.find(
-        {"organization_id": org_id},
+        base_filter,
         {"_id": 0, "password": 0},
     ).sort("created_at", 1)
     members = [_public_user(u) async for u in cursor]
