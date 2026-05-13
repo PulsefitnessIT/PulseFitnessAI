@@ -12,7 +12,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
-  X, Loader2, MapPin, Wrench, Save, Building2, Crown,
+  X, Loader2, MapPin, Wrench, Save, Building2, Crown, Archive, Trash2, RotateCcw,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -46,6 +46,10 @@ const SiteDetailDrawer = ({ orgId, site, onClose, onSaved }) => {
   });
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Iter 216h61 — track archive state locally so the header buttons can
+  // flip between Archive/Restore without a full reload.
+  const [archived, setArchived] = useState(!!site.archived);
+  const [busy, setBusy] = useState(false); // archive / delete in flight
   const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setDirty(true); };
 
   const saveDetails = async () => {
@@ -62,6 +66,48 @@ const SiteDetailDrawer = ({ orgId, site, onClose, onSaved }) => {
     }
   };
 
+  // Iter 216h61 (f) — Archive / Restore / Hard delete.
+  const archiveSite = async () => {
+    if (!window.confirm(`Archive "${site.name}"? It will be hidden from operator-facing screens. Equipment, faults, and history are preserved.`)) return;
+    setBusy(true);
+    try {
+      await axios.post(`${API}/master-admin/organizations/${orgId}/sites/${site.id}/archive`, {}, { headers: auth() });
+      notify.success('Site archived');
+      setArchived(true);
+      onSaved && onSaved();
+    } catch (e) {
+      notify.error('Archive failed', e?.response?.data?.detail || 'Try again.');
+    }
+    setBusy(false);
+  };
+
+  const restoreSite = async () => {
+    setBusy(true);
+    try {
+      await axios.post(`${API}/master-admin/organizations/${orgId}/sites/${site.id}/restore`, {}, { headers: auth() });
+      notify.success('Site restored');
+      setArchived(false);
+      onSaved && onSaved();
+    } catch (e) {
+      notify.error('Restore failed', e?.response?.data?.detail || 'Try again.');
+    }
+    setBusy(false);
+  };
+
+  const deleteSite = async () => {
+    if (!window.confirm(`PERMANENTLY DELETE "${site.name}"? This cannot be undone. Only allowed when the site has no equipment and no open issues.`)) return;
+    setBusy(true);
+    try {
+      await axios.delete(`${API}/master-admin/organizations/${orgId}/sites/${site.id}`, { headers: auth() });
+      notify.success('Site deleted');
+      onSaved && onSaved();
+      onClose && onClose();
+    } catch (e) {
+      notify.error('Delete blocked', e?.response?.data?.detail || 'Try again.');
+    }
+    setBusy(false);
+  };
+
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-end md:items-center justify-end" data-testid="site-detail-drawer">
       <div className="bg-white w-full md:max-w-3xl h-[92vh] md:h-[88vh] md:rounded-l-xl shadow-2xl flex flex-col">
@@ -71,11 +117,47 @@ const SiteDetailDrawer = ({ orgId, site, onClose, onSaved }) => {
             {site.is_head_office ? <Crown size={16} className="text-amber-600" /> : <MapPin size={16} className="text-blue-600" />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-zinc-900 truncate">{site.name}</p>
+            <p className="text-sm font-semibold text-zinc-900 truncate flex items-center gap-2">
+              {site.name}
+              {archived && <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 rounded">Archived</span>}
+            </p>
             <p className="text-xs text-zinc-500 truncate">
               {site.is_head_office ? 'Head Office · ' : ''}
               {[site.city, site.postcode].filter(Boolean).join(' · ') || 'No location set'}
             </p>
+          </div>
+          {/* Iter 216h61 (f) — Archive / Restore / Delete actions */}
+          <div className="flex items-center gap-1 shrink-0">
+            {archived ? (
+              <button
+                onClick={restoreSite}
+                disabled={busy}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                data-testid="site-detail-restore"
+                title="Restore site"
+              >
+                <RotateCcw size={12} /> Restore
+              </button>
+            ) : (
+              <button
+                onClick={archiveSite}
+                disabled={busy}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                data-testid="site-detail-archive"
+                title="Soft-archive (preserves data)"
+              >
+                <Archive size={12} /> Archive
+              </button>
+            )}
+            <button
+              onClick={deleteSite}
+              disabled={busy}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+              data-testid="site-detail-delete"
+              title="Hard delete (only when empty)"
+            >
+              <Trash2 size={12} /> Delete
+            </button>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-zinc-100 rounded-md text-zinc-500" data-testid="site-detail-close">
             <X size={16} />
@@ -179,16 +261,23 @@ const EquipmentInlineList = ({ orgId, siteId, siteName }) => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // Master admin sees everything. We pass site_id so the existing
-      // /api/equipment endpoint scopes to the correct site.
-      const r = await axios.get(`${API}/equipment?site_id=${siteId}`, { headers: auth() });
+      // Iter 216h61 — use the master-admin-scoped equipment endpoint
+      // (org_id in the path) rather than `/api/equipment?site_id=`,
+      // which falls back to filtering by the master-admin's own user_id
+      // when their token has no organization_id — returning 0 cross-org
+      // results. Lee saw only stale TEST_QR equipment because that's
+      // what the master-admin created themselves via curl.
+      const r = await axios.get(
+        `${API}/master-admin/organizations/${orgId}/sites/${siteId}/equipment`,
+        { headers: auth() },
+      );
       setItems(r.data?.equipment || []);
     } catch {
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [siteId]);
+  }, [orgId, siteId]);
 
   useEffect(() => { load(); }, [load]);
 

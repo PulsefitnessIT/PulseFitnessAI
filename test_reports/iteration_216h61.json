@@ -1,0 +1,88 @@
+{
+  "summary": "Iter 216h61 — Master Admin Site Archive/Restore/Delete + Equipment Listing bug fix. Backend: 9/9 tests passed. Frontend: UI verified via screenshots showing 29 equipment items for Third Space Canary Wharf (bug fix confirmed).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h61_site_archive_equipment.py",
+    "/app/test_reports/pytest/pytest_results_216h61.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BACKEND VERIFIED: GET /api/master-admin/organizations/{org_id}/sites/{site_id}/equipment returns 29 items for Third Space Canary Wharf (not 3 stale TEST_QR rows)",
+    "BACKEND VERIFIED: POST /api/master-admin/organizations/{org}/sites/{site}/archive blocks archiving the only HQ site with 400 error 'Cannot archive the Head Office while it's the only HQ'",
+    "BACKEND VERIFIED: POST /api/master-admin/organizations/{org}/sites/{site}/archive succeeds for non-HQ sites (Islington) with ok:true, archived:true",
+    "BACKEND VERIFIED: POST /api/master-admin/organizations/{org}/sites/{site}/restore flips archived back to false with ok:true, archived:false",
+    "BACKEND VERIFIED: DELETE /api/master-admin/organizations/{org}/sites/{site} blocks deletion when site has equipment (29 items) with 400 error mentioning equipment count",
+    "BACKEND VERIFIED: PATCH /api/master-admin/organizations/{org}/sites/{site} accepts all 14 extended fields (name, address, postcode, invoice_customer_ref, address_line1, address_line2, city, county, country, phone, email, site_manager_name, site_manager_email, default_location)",
+    "BACKEND VERIFIED: GET /api/sites filters out archived sites for operators (archived:$ne:true filter at line 80)",
+    "FRONTEND VERIFIED: SiteDetailDrawer Equipment tab uses /api/master-admin/organizations/{org}/sites/{site}/equipment endpoint (line 270-271)",
+    "FRONTEND VERIFIED: SiteDetailDrawer header has Archive/Delete buttons with data-testid='site-detail-archive' and 'site-detail-delete'",
+    "FRONTEND VERIFIED: Archive button flips to Restore button (data-testid='site-detail-restore') when site is archived",
+    "UI VERIFIED: Third Space Canary Wharf shows 29 machines in Sites tab (screenshot 30_third_space.png)",
+    "UI VERIFIED: All sites view shows Third Space - Canary Wharf with 29 equipment items (screenshot 31_sites.png)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h61_site_archive_equipment.py (new test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 passed)",
+    "frontend": "UI verified via screenshots - equipment count shows 29 items"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "third_space_org_id": "c695638c-5f60-424d-bdd0-2273e6c24205",
+    "third_space_canary_wharf_site_id": "d194718d-3e32-4cd7-8831-f1c39d6e7122",
+    "third_space_islington_site_id": "8b482dcc-2f0e-4086-9999-d4ca92372d22"
+  },
+  "seed_data_creation": "Islington site restored after archive/restore cycle test",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All iter 216h61 fixes verified: (1) Equipment listing bug fixed - master-admin endpoint now uses org_id from URL path instead of falling back to user_id filter, returning 29 real equipment items for Third Space Canary Wharf. (2) Archive/Restore/Delete buttons added to SiteDetailDrawer header with proper data-testids. (3) Archive blocked for only HQ site, succeeds for non-HQ. (4) Delete blocked when site has equipment/issues. (5) PATCH accepts 14 extended fields. (6) Archived sites filtered from operator /api/sites endpoint.",
+  "verified_features": {
+    "equipment_listing_bug_fix": {
+      "status": "VERIFIED",
+      "details": "GET /api/master-admin/organizations/{org_id}/sites/{site_id}/equipment returns 29 items for Third Space Canary Wharf",
+      "root_cause": "Previous /api/equipment endpoint fell back to filtering by master-admin's user_id (returning only equipment they created) instead of using org_id from URL path"
+    },
+    "archive_site": {
+      "status": "VERIFIED",
+      "hq_blocked": "400 error when archiving only HQ site",
+      "non_hq_success": "ok:true, archived:true for non-HQ sites"
+    },
+    "restore_site": {
+      "status": "VERIFIED",
+      "details": "ok:true, archived:false after restore"
+    },
+    "delete_site": {
+      "status": "VERIFIED",
+      "blocked_with_equipment": "400 error mentioning equipment count"
+    },
+    "patch_extended_fields": {
+      "status": "VERIFIED",
+      "fields": ["name", "address", "postcode", "invoice_customer_ref", "address_line1", "address_line2", "city", "county", "country", "phone", "email", "site_manager_name", "site_manager_email", "default_location"]
+    },
+    "archived_sites_filtered": {
+      "status": "VERIFIED",
+      "details": "GET /api/sites excludes archived sites for operators"
+    }
+  },
+  "test_results": {
+    "backend_pytest": {
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "file": "/app/backend/tests/test_iter_216h61_site_archive_equipment.py"
+    },
+    "frontend_playwright": {
+      "status": "UI verified via screenshots",
+      "equipment_count_verified": "29 items shown for Third Space Canary Wharf"
+    }
+  }
+}

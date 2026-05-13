@@ -72,8 +72,12 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
                 org_id, user.get("email"),
             )
 
+    # Iter 216h61 — hide archived sites from the operator UI. The
+    # Master Admin org drawer still lists them (with an "Archived"
+    # badge) via `admin_list_org_sites`, but operator-facing screens
+    # treat archived as deleted-but-recoverable.
     sites = await db.sites.find(
-        {"organization_id": org_id}, {"_id": 0}
+        {"organization_id": org_id, "archived": {"$ne": True}}, {"_id": 0}
     ).sort("created_at", 1).to_list(100)
     allowed = user.get("allowed_site_ids") or []
     if not is_privileged and allowed:
@@ -541,6 +545,129 @@ async def admin_list_org_sites(org_id: str, user: dict = Depends(get_current_use
 
 
 
+@router.get("/master-admin/organizations/{org_id}/sites/{site_id}/equipment")
+async def admin_list_site_equipment(
+    org_id: str,
+    site_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h61 — master-admin equipment listing scoped to a single
+    site. Mirrors `/api/equipment?site_id=` but uses the target org_id
+    rather than the master-admin's own `user_id` (which is what the
+    generic `/equipment` endpoint falls back to for master-admin users
+    that don't have an organization_id, returning 0 cross-org results).
+
+    Used by the Master Admin Site Detail drawer → Equipment tab to
+    drill into Third Space / Pulse / any-customer machines.
+    """
+    from routes.master_admin import require_master_admin, assert_org_in_pulse_scope
+    require_master_admin(user)
+    await assert_org_in_pulse_scope(user, org_id)
+
+    items = await db.equipment.find(
+        {"organization_id": org_id, "site_id": site_id},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(1000)
+    return {"equipment": items, "count": len(items)}
+
+
+@router.post("/master-admin/organizations/{org_id}/sites/{site_id}/archive")
+async def admin_archive_site(
+    org_id: str,
+    site_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h61 (f) — soft-archive a site. Keeps the row in the
+    sites collection so equipment + issues + audit trail still resolve
+    historically, but flips `archived=true` so it disappears from the
+    operator-facing UI. Restore by clearing the flag (DELETE returns
+    the archive metadata so it can be undone)."""
+    from routes.master_admin import require_master_admin, assert_org_in_pulse_scope
+    require_master_admin(user)
+    await assert_org_in_pulse_scope(user, org_id)
+
+    site = await db.sites.find_one({"id": site_id, "organization_id": org_id}, {"_id": 0})
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    if site.get("is_head_office"):
+        # Refuse to archive HQ until the operator demotes it or moves
+        # equipment elsewhere. Prevents accidental data orphaning.
+        head_office_count = await db.sites.count_documents(
+            {"organization_id": org_id, "is_head_office": True, "archived": {"$ne": True}},
+        )
+        if head_office_count <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Cannot archive the Head Office while it's the only HQ. "
+                    "Promote another site to Head Office first, then archive this one."
+                ),
+            )
+    await db.sites.update_one(
+        {"id": site_id, "organization_id": org_id},
+        {"$set": {
+            "archived": True,
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "archived_by": user.get("id"),
+        }},
+    )
+    return {"ok": True, "site_id": site_id, "archived": True}
+
+
+@router.post("/master-admin/organizations/{org_id}/sites/{site_id}/restore")
+async def admin_restore_site(
+    org_id: str,
+    site_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h61 — undo an archive."""
+    from routes.master_admin import require_master_admin, assert_org_in_pulse_scope
+    require_master_admin(user)
+    await assert_org_in_pulse_scope(user, org_id)
+    r = await db.sites.update_one(
+        {"id": site_id, "organization_id": org_id},
+        {"$unset": {"archived": "", "archived_at": "", "archived_by": ""}},
+    )
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="Site not found")
+    return {"ok": True, "site_id": site_id, "archived": False}
+
+
+@router.delete("/master-admin/organizations/{org_id}/sites/{site_id}")
+async def admin_delete_site(
+    org_id: str,
+    site_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h61 (f) — HARD delete a site. Refused when the site has
+    equipment or open issues — operator must move/archive those first
+    so no historical data is silently orphaned. The Site Detail drawer
+    must explicitly call this after a confirmation dialog.
+    """
+    from routes.master_admin import require_master_admin, assert_org_in_pulse_scope
+    require_master_admin(user)
+    await assert_org_in_pulse_scope(user, org_id)
+
+    site = await db.sites.find_one({"id": site_id, "organization_id": org_id}, {"_id": 0})
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    eq_count = await db.equipment.count_documents({"organization_id": org_id, "site_id": site_id})
+    open_issue_count = await db.issues.count_documents(
+        {"organization_id": org_id, "site_id": site_id, "status": {"$nin": ["resolved", "closed", "archived"]}},
+    )
+    if eq_count or open_issue_count:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot delete '{site.get('name')}' while it still has "
+                f"{eq_count} equipment item(s) and {open_issue_count} open issue(s). "
+                "Move the equipment to another site or archive the site instead."
+            ),
+        )
+    await db.sites.delete_one({"id": site_id, "organization_id": org_id})
+    return {"ok": True, "site_id": site_id, "deleted": True}
+
+
 @router.patch("/master-admin/organizations/{org_id}/sites/{site_id}")
 async def admin_patch_org_site(
     org_id: str,
@@ -565,7 +692,16 @@ async def admin_patch_org_site(
     updates: dict = {}
     # Iter 216h50 — include invoice_customer_ref so master-admin can update
     # the Sicon per-site reference without impersonating the org owner.
-    for field in ("name", "address", "postcode", "invoice_customer_ref"):
+    # Iter 216h61 — extended editable field set (Lee's SiteDetailDrawer
+    # form) so the master-admin form actually persists every cell it
+    # exposes (city, county, country, phone, email, manager contacts,
+    # default location and the line1/2 address breakdown).
+    for field in (
+        "name", "address", "postcode", "invoice_customer_ref",
+        "address_line1", "address_line2", "city", "county", "country",
+        "phone", "email", "site_manager_name", "site_manager_email",
+        "default_location",
+    ):
         if field in body:
             updates[field] = (body[field] or "").strip()
     if "is_head_office" in body:
