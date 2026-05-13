@@ -5,7 +5,7 @@ import {
   Banknote, Rocket, ListChecks, Users, Palette, Tag, Receipt, ShieldAlert,
   Wallet, Megaphone, LifeBuoy, Lock, FolderArchive, AlertCircle, AlertOctagon,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
-  Plug, MapPin, Building, Settings,
+  Plug, MapPin, Building, Settings, BadgeCheck,
 } from 'lucide-react';
 
 /**
@@ -102,6 +102,7 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'trials',          label: 'Trials',           icon: Timer },
       { id: 'sales-insights',  label: 'Sales insights',   icon: Sparkles },
+      { id: 'partners',        label: 'Partner Engineers', icon: BadgeCheck },
       { id: 'analytics',       label: 'Global analytics', icon: BarChart3 },
     ],
   },

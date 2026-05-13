@@ -8,7 +8,7 @@
  *       - Memberships £29/mo
  *       - CRM £49/mo
  *       - Marketing £49/mo
- *       - Operations £59/mo
+ *       - Operations £69/mo
  *
  * All plans include a 3-day free trial with every module unlocked. CTA
  * triggers the in-app trial signup modal (per user choice 215be — option
@@ -103,7 +103,7 @@ const MODULES = [
     id: 'operations',
     name: 'Operations',
     icon: Wrench,
-    monthly: 59,
+    monthly: 69,
     tagline: 'Assets, faults, RAs, supplier portal — keep your sites safe.',
     accent: 'from-amber-500 to-orange-400',
     features: [
@@ -348,7 +348,7 @@ export default function GymAxisPricingPage() {
         { '@type': 'Offer', name: 'Memberships', price: '29.00', priceCurrency: 'GBP' },
         { '@type': 'Offer', name: 'CRM',         price: '49.00', priceCurrency: 'GBP' },
         { '@type': 'Offer', name: 'Marketing',   price: '49.00', priceCurrency: 'GBP' },
-        { '@type': 'Offer', name: 'Operations',  price: '59.00', priceCurrency: 'GBP' },
+        { '@type': 'Offer', name: 'Operations',  price: '69.00', priceCurrency: 'GBP' },
       ],
     },
   });

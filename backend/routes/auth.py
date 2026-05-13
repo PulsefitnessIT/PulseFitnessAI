@@ -145,6 +145,16 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
     token = create_token(user_id)
     set_auth_cookie(response, token)
 
+    # Iter 216h75 — Partner Engineer Network referral attribution. The
+    # ref_code is bound write-once to the new org so the next cleared
+    # Operations invoice automatically accrues commission. Failures here
+    # must never block signup.
+    try:
+        from routes.partners import attach_referral_to_org
+        await attach_referral_to_org(organization_id=organization_id, ref_code=getattr(user, "ref_code", None))
+    except Exception:
+        logger.exception("[partners] referral attribution failed")
+
     return {
         "token": token,
         "user": {

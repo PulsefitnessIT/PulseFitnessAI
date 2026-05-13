@@ -469,6 +469,9 @@ async def _create_indexes() -> None:
     await ensure_support_audit_indexes()
     from routes.support_escalate import ensure_support_escalate_indexes
     await ensure_support_escalate_indexes()
+    # Iter 216h75 — Partner Engineer Network indexes
+    from routes.partners import ensure_partner_indexes
+    await ensure_partner_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()

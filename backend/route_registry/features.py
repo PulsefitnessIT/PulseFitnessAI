@@ -72,6 +72,7 @@ from routes.help_search import router as help_search_router
 from routes.account_billing import router as account_billing_router
 from routes.lifecycle_emails_admin import router as lifecycle_emails_admin_router
 from routes.admin_refunds import router as admin_refunds_router
+from routes.partners import router as partners_router
 
 # Iter 215dn — Service Operations Phase 1 (replaces Sicon Service)
 from routes.svc.cases import router as svc_cases_router
@@ -146,6 +147,7 @@ _UNGATED_ROUTERS = (
     account_billing_router,
     lifecycle_emails_admin_router,
     admin_refunds_router,
+    partners_router,
     help_router,
     staffing_router,
     staffing_clock_router,

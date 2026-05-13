@@ -83,6 +83,9 @@ const ServiceOpsEngineers = lazy(() => import('@/pages/ServiceOps/EngineersAdmin
 const ServiceOpsParts = lazy(() => import('@/pages/ServiceOps/PartsInventoryPage'));
 const ServiceOpsBilling = lazy(() => import('@/pages/ServiceOps/BillingPage'));
 const ServiceOpsReports = lazy(() => import('@/pages/ServiceOps/ServiceOpsReportsPage'));
+// Iter 216h75 — Partner Engineer Network (Phase 1)
+const PartnerApplyWizard = lazy(() => import('@/pages/PartnerEngineer/PartnerApplyWizard'));
+const PartnerDashboard = lazy(() => import('@/pages/PartnerEngineer/PartnerDashboard'));
 const ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
 const IntegrationsConsole = lazy(() => import('@/pages/Admin/IntegrationsConsole'));
 const ServiceOpsEngineerHome = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHome'));
@@ -227,6 +230,10 @@ export default function AppRoutes({ user, login }) {
       <Route path="/service-ops/comms" element={<Navigate to="/service-desk" replace />} />
       <Route path="/svc/engineer" element={user ? <ServiceOpsEngineerHome /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs/:caseId" element={user ? <ServiceOpsEngineerJob /> : <Navigate to="/login" replace />} />
+
+      {/* Iter 216h75 — Partner Engineer Network (Phase 1) */}
+      <Route path="/partner-engineer" element={user ? <PartnerDashboard /> : <Navigate to="/login?next=/partner-engineer" replace />} />
+      <Route path="/partner-engineer/apply" element={user ? <PartnerApplyWizard /> : <Navigate to="/login?next=/partner-engineer/apply" replace />} />
 
       {/* ─── Member-facing surfaces (white-label) ─── */}
       <Route path="/members" element={<MemberPortal />} />

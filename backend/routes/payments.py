@@ -54,7 +54,7 @@ PRICING_CATALOG = {
         {"id": "marketing", "name": "Marketing", "monthly": 49.0, "annual": 490.0,
          "stripe_price_id": STRIPE_PRICE_MARKETING,
          "stripe_price_id_annual": os.environ.get("STRIPE_PRICE_MARKETING_ANNUAL")},
-        {"id": "operations", "name": "Operations", "monthly": 59.0, "annual": 590.0,
+        {"id": "operations", "name": "Operations", "monthly": 69.0, "annual": 690.0,
          "stripe_price_id": STRIPE_PRICE_OPERATIONS,
          "stripe_price_id_annual": os.environ.get("STRIPE_PRICE_OPERATIONS_ANNUAL")},
     ],
@@ -458,6 +458,15 @@ async def _handle_invoice_paid(data: dict) -> None:
             {"id": org["id"]},
             {"$set": {"billing_status": "active"}, "$unset": {"suspended_for_billing_at": ""}},
         )
+
+    # Iter 216h75 — Partner Engineer Network commission accrual. Idempotent
+    # by Stripe invoice id, scoped to Operations module charges only. Never
+    # block the original webhook flow on a partner failure.
+    try:
+        from routes.partners import accrue_commission_on_invoice_paid
+        await accrue_commission_on_invoice_paid(data)
+    except Exception:
+        logger.exception("[partners] commission accrual failed")
 
 
 WEBHOOK_HANDLERS = {

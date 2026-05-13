@@ -18,6 +18,11 @@ class UserRegister(BaseModel):
     phone: Optional[str] = None
     # Cloudflare Turnstile token — required for trial signups only.
     cf_turnstile_response: Optional[str] = None
+    # Iter 216h75 — Partner Engineer Network referral attribution.
+    # When supplied (and matches an approved partner_engineers row), the
+    # new organisation is permanently linked to that partner for
+    # commission accrual on the first cleared Operations invoice.
+    ref_code: Optional[str] = None
 
 
 class UserLogin(BaseModel):

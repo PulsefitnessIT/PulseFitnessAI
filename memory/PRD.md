@@ -1,3 +1,140 @@
+## Iter 216h75 — Partner Engineer Network · Phase 1 (Feb 13, 2026)
+
+### Operator brief
+"Build the Partner Engineer Network as a brand-new commercial layer on top of the existing Engineer App + Service Desk. One source of truth. Bulletproof against abuse."
+
+### Operator decisions (captured)
+- Operations module £59 → **£69/mo** (drives the 50% signup reward maths).
+- **MVP first** — Phase 1 ships the foundation; Stripe Connect auto-payouts + live £30/mo subscription billing land in Phase 2.
+- Payouts Phase 1: **CSV export** through Master Admin → BACS, with the schema already wired for Stripe Connect Express drop-in.
+- Engineer identity: **new `partner_engineers` collection** linked by `user_id` — keeps commercial state out of `svc_engineers` (the operational Engineer App profile).
+- Customer-added engineers will need an active Partner subscription to use the Engineer App (Phase 2 enforcement; Phase 1 still creates the data).
+
+### What shipped
+
+#### Backend — `routes/partners.py` (NEW, ~620 LOC)
+4 new collections (all indexed in `server.startup`):
+- `partner_engineers`        — profile, referral_code, status, level, terms, payout config, app-fee tier
+- `partner_referrals`        — one row per referred org (unique on `referred_organization_id`)
+- `partner_commission_ledger` — append-only accruals (unique on `source_invoice_id`)
+- `partner_payouts`          — batched approved accruals (CSV / Connect)
+- `partner_audit_log`        — every state transition with actor + before/after
+
+20 endpoints, 8 self-service + 12 master-admin:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET  /partners/me` | Partner profile + live recomputed referral link & app-fee tier |
+| `POST /partners/apply` | Idempotent onboarding submission |
+| `GET  /partners/me/referrals` | Referred orgs (status, first_paid_at, recurring totals) |
+| `GET  /partners/me/commission` | Ledger + totals by status |
+| `GET  /partners/public/lookup?code=` | Public referral-code validation for signup pages |
+| `POST /master-admin/partners/{id}/approve` | + level swap |
+| `POST /master-admin/partners/{id}/reject` | with audited reason |
+| `POST /master-admin/partners/{id}/suspend` | |
+| `POST /master-admin/partners/{id}/level` | Validated against `PARTNER_LEVELS` |
+| `POST /master-admin/partners/referrals/{id}/flag-pre-existing` | Anti-abuse claw-back |
+| `GET  /master-admin/partners/commission/queue` | Accrued rows awaiting approval, enriched with partner name/email |
+| `POST /master-admin/partners/commission/{id}/approve` | |
+| `POST /master-admin/partners/commission/{id}/reject` | |
+| `POST /master-admin/partners/payouts/queue` | Bundle approved rows → payout |
+| `POST /master-admin/partners/payouts/{id}/mark-paid` | + BACS reference |
+| `GET  /master-admin/partners/payouts/{id}/csv` | Streaming CSV download |
+| `GET  /master-admin/partners/reports/summary` | Headline counts + commission totals by state |
+
+#### Commission engine
+- Operations module is detected via `STRIPE_PRICE_OPERATIONS` env var OR the literal word `operations` in the invoice line description (resilient to env config drift).
+- **Signup reward**: 50% of the FIRST cleared Operations invoice (£34.50 on £69) — written once, gated by `partner_referrals.first_paid_at`.
+- **Recurring**: £3/month on every subsequent Operations invoice for that referral, with `recurring_total_paid_gbp` tracked on the referral row for audit.
+- **Idempotent** by Stripe `invoice.id` — unique partial index on `partner_commission_ledger.source_invoice_id`; webhook replays are a no-op.
+
+#### Anti-abuse rules (all unit-tested)
+1. `attach_referral_to_org` refuses if the partner's own org would be the referred org.
+2. `organizations.referred_by_partner_id` is write-once — re-attribution is silently rejected.
+3. `pre_existing_in_pipeline=true` on a referral suppresses new accruals AND claws back any non-paid ledger rows for that referral.
+4. Unique constraint on `partner_referrals.referred_organization_id` means a single org can NEVER be claimed by two partners.
+5. Master Admin approval is REQUIRED before a ledger row can join a payout batch.
+6. Every state transition (apply, approve, reject, suspend, level, claw-back, payout-queue, mark-paid) writes a `partner_audit_log` row with actor + before/after.
+7. Referral codes drawn from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O/1/I) — defeats homoglyph confusion.
+
+#### App-fee tiering — auto-computed on every `/partners/me`
+```
+0–4 active referrals   →  £30/mo
+5–9  →  £15/mo
+10+  →  free
+25+  →  free + `enhanced_review_required=true`
+```
+Stored on `partner_engineers.app_fee_tier` so the Stripe sync job in Phase 2 can transition the customer to the correct price ID without a UI round-trip.
+
+#### Pricing bump — Operations £59 → £69
+- `routes/payments.py::PRICING_CATALOG` updated.
+- `pages/Marketing/PricingMarketingPage.js` module card, JSON-LD offer, and header doc-comment all bumped.
+- *Stripe Price ID stays untouched* — production Stripe products need a manual `stripe products` update (separate ops migration). The legacy guard test (`test_stripe_prices_guard_216o.py`) still asserts £59 / 59pence and is left as-is so we don't accidentally pretend Stripe is live.
+
+#### Frontend
+- `pages/PartnerEngineer/PartnerApplyWizard.js` (~220 LOC) — mobile-friendly 5-step onboarding (welcome → profile → service area → skills/brands → terms). Idempotent against an existing draft. Posts to `/partners/apply`.
+- `pages/PartnerEngineer/PartnerDashboard.js` (~190 LOC) — referral link + code with copy buttons; 4-stat grid (active refs · app fee · pending payout · paid lifetime); referred-customers table; commission ledger table. Hard scope — no CRM / Operations / Memberships data exposed.
+- `pages/MasterAdmin/AdminPartners.js` (~230 LOC) — applications table (approve/reject/suspend/level), commission queue grouped per partner with one-click "Queue payout + CSV download", live summary chips.
+- Sidebar: new `Growth → Partner Engineers` entry (`BadgeCheck` icon) routes to the new admin section.
+- Routes: `/partner-engineer` (dashboard) + `/partner-engineer/apply` (wizard), both behind auth.
+
+#### Referral attribution hook
+- `models/schemas.UserRegister.ref_code` (optional) — signup pages can append `?ref=CODE` and the auth flow passes it through.
+- `routes/auth.register` calls `attach_referral_to_org` post-creation; failures are logged but never block signup.
+
+#### Stripe webhook hook
+- `routes/payments._handle_invoice_paid` calls `accrue_commission_on_invoice_paid` after the original logic finishes. Idempotent, scoped to Operations charges, never blocks the original handler.
+
+### Verified
+- **17/17 backend pytest** passing in `/app/backend/tests/test_iter_216h75_partner_network.py`:
+  - apply happy path + idempotency + terms validation
+  - master admin list / approve / reject / suspend / level (+ bad-level 400 / no-auth 401)
+  - public referral lookup (valid + unknown)
+  - commission accrual: signup 50% of £69 = £34.50, recurring £3, webhook replay no-op
+  - anti-abuse: own-org refusal, already-attributed immutability, pre-existing-flag accrual block
+  - app-fee tier thresholds (0/4/5/9/10/25)
+  - full queue → approve → CSV → mark-paid round-trip
+  - reports summary shape
+- **Live curl E2E**: apply → admin list → approve → public lookup → simulated invoices → commission queue → approve all → payout queue → CSV download → mark paid (with BACS reference).
+- **Frontend smoke**: `/partner-engineer` rendered for the approved E1 Agent — Hi banner, APPROVED badge, referral link `https://…/?ref=AGQZKPAP`, all 4 stats live, empty states for referrals + ledger.
+
+### Files touched
+- `/app/backend/routes/partners.py` (NEW, ~620 LOC)
+- `/app/backend/routes/auth.py` (+10 LOC — `ref_code` attribution call)
+- `/app/backend/models/schemas.py` (+5 LOC — `UserRegister.ref_code`)
+- `/app/backend/routes/payments.py` (+10 LOC — webhook hook + £59→£69 catalog)
+- `/app/backend/route_registry/features.py` (+2 LOC — register the router)
+- `/app/backend/server.py` (+3 LOC — `ensure_partner_indexes` at startup)
+- `/app/frontend/src/pages/PartnerEngineer/PartnerApplyWizard.js` (NEW)
+- `/app/frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (NEW)
+- `/app/frontend/src/pages/MasterAdmin/AdminPartners.js` (NEW)
+- `/app/frontend/src/pages/MasterAdminPage.js` (+3 LOC — `partners` case)
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js` (+3 LOC — new sub-tab + `BadgeCheck` import)
+- `/app/frontend/src/routes/AppRoutes.js` (+5 LOC — `/partner-engineer` routes)
+- `/app/frontend/src/pages/Marketing/PricingMarketingPage.js` (price bump £59→£69 in 3 spots)
+- `/app/backend/tests/test_iter_216h75_partner_network.py` (NEW — 17 tests)
+- `/app/memory/test_credentials.md` (E1 partner record)
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend + frontend.
+2. **Stripe production**: manually update the Operations module's price product on the Stripe dashboard (`STRIPE_PRICE_OPERATIONS`) from £59 → £69 to match the platform-side bump. Old subscriptions on the £59 price ID will continue at £59 until each customer's billing cycle migrates (Stripe doesn't auto-migrate price IDs).
+3. **Partner Engineer terms PDF**: replace the inline terms preview in the Apply Wizard's step 5 with a link to the final legal document once produced.
+4. Phase 2 hooks already wired (no Phase 1 rework needed):
+   - `partner_engineers.payout.method` → flip to `stripe_connect` once Connect Express onboarding lands.
+   - `partner_engineers.subscription.stripe_subscription_id` → set when the £30/£15/free Partner Plan goes live.
+   - `partner_engineers.app_fee_tier` is already auto-computed — Phase 2 just reads it and transitions the Stripe subscription's price ID.
+
+### Phase 2 backlog (locked-in, not yet shipped)
+- Stripe Connect Express onboarding for engineer payouts (one-click "Connect with Stripe" in the Partner Dashboard).
+- Live Stripe billing for the Partner Plan: £30 → auto-transition to £15 at 5 active refs, free at 10, mark for enhanced review at 25.
+- Engineer App access guard — require active partner subscription (or customer-added job grant) for `/svc/engineer` access.
+- Partner public listing for "find an engineer" — verified partners only.
+- Performance / reliability scoring rolled into the partner level decision matrix.
+
+---
+
+
+
 ## Iter 216h74 — Starter Pack: Send/Launch wiring (Feb 13, 2026)
 
 ### Why
