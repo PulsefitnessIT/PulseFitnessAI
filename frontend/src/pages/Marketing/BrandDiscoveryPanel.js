@@ -22,6 +22,7 @@ import axios from 'axios';
 import {
   Sparkles, Globe, Loader2, CheckCircle2, AlertTriangle, RefreshCw,
   Palette, Type, Image as ImageIcon, Megaphone, Users, Heart, X,
+  Award, MousePointerClick, Video, Search, Layout,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -256,12 +257,93 @@ export default function BrandDiscoveryPanel({ API, headers, onApplied }) {
             </Section>
           )}
 
+          {/* Iter 216h73 — Homepage headlines (hero H1 + value-prop H2s) */}
+          {(draft.headlines?.h1 || draft.headlines?.h2s?.length > 0) && (
+            <Section title="Homepage copy" icon={Layout}>
+              {draft.headlines.h1 && (
+                <div className="mb-2">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 mb-0.5">Hero headline</div>
+                  <p className="text-sm font-semibold leading-snug" data-testid="brand-discovery-hero-h1">{draft.headlines.h1}</p>
+                </div>
+              )}
+              {draft.headlines.h2s?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 mb-0.5">Value props (H2)</div>
+                  <ul className="text-xs space-y-0.5 list-disc pl-4 text-zinc-700 dark:text-zinc-300">
+                    {draft.headlines.h2s.map((h, i) => <li key={i}>{h}</li>)}
+                  </ul>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Iter 216h73 — Homepage meta (page title, og, meta description) */}
+          {draft.homepage_meta && Object.keys(draft.homepage_meta).length > 0 && (
+            <Section title="SEO & sharing" icon={Search}>
+              <div className="text-xs space-y-1.5">
+                {draft.homepage_meta.page_title && <Row label="Page title">{draft.homepage_meta.page_title}</Row>}
+                {draft.homepage_meta.meta_description && <Row label="Meta description">{draft.homepage_meta.meta_description}</Row>}
+                {(draft.homepage_meta.og_title || draft.homepage_meta.og_description) && (
+                  <Row label="Open Graph (Facebook / LinkedIn share)">
+                    {draft.homepage_meta.og_title && <div className="font-semibold">{draft.homepage_meta.og_title}</div>}
+                    {draft.homepage_meta.og_description && <div className="text-zinc-500 dark:text-zinc-400">{draft.homepage_meta.og_description}</div>}
+                  </Row>
+                )}
+              </div>
+            </Section>
+          )}
+
+          {/* Iter 216h73 — Primary CTAs */}
+          {draft.ctas?.length > 0 && (
+            <Section title="Primary CTAs" icon={MousePointerClick}>
+              <div className="flex flex-wrap gap-1.5">
+                {draft.ctas.map((cta, i) => (
+                  <span key={i} className="px-2 py-1 rounded-md border border-indigo-200 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-200 text-xs font-semibold">
+                    {cta.label}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">CTAs match the brand voice — copy / replicate in your own campaigns.</p>
+            </Section>
+          )}
+
+          {/* Iter 216h73 — Social proof */}
+          {draft.social_proof?.length > 0 && (
+            <Section title="Social proof" icon={Award}>
+              <ul className="text-xs space-y-0.5 list-disc pl-4 text-zinc-700 dark:text-zinc-300">
+                {draft.social_proof.map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
+            </Section>
+          )}
+
+          {/* Iter 216h73 — Hero video */}
+          {draft.hero_video && draft.hero_video.src && (
+            <Section title="Hero video" icon={Video}>
+              <a href={draft.hero_video.src} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:underline break-all">
+                <Video size={11} /> {draft.hero_video.src}
+              </a>
+            </Section>
+          )}
+
           {/* Intelligence */}
           {draft.intelligence && Object.keys(draft.intelligence).length > 0 && (
             <Section title="Marketing intelligence" icon={Sparkles}>
               <div className="space-y-3 text-xs">
+                {draft.intelligence.vertical && (
+                  <Row label="Detected vertical">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200">{draft.intelligence.vertical}</span>
+                  </Row>
+                )}
                 {draft.intelligence.tone_of_voice && (
                   <Row icon={Heart} label="Tone of voice">{draft.intelligence.tone_of_voice}</Row>
+                )}
+                {draft.intelligence.value_propositions?.length > 0 && (
+                  <Row label="Value propositions">
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {draft.intelligence.value_propositions.map((v, i) => <li key={i}>{v}</li>)}
+                    </ul>
+                  </Row>
                 )}
                 {draft.intelligence.audiences?.length > 0 && (
                   <Row icon={Users} label="Audiences">
@@ -275,6 +357,16 @@ export default function BrandDiscoveryPanel({ API, headers, onApplied }) {
                     <ul className="list-disc pl-4 space-y-0.5">
                       {draft.intelligence.current_campaigns.map((c, i) => <li key={i}>{c}</li>)}
                     </ul>
+                  </Row>
+                )}
+                {draft.intelligence.pricing_model && (
+                  <Row label="Pricing model">{draft.intelligence.pricing_model}</Row>
+                )}
+                {draft.intelligence.competitor_mentions?.length > 0 && (
+                  <Row label="Competitors mentioned">
+                    {draft.intelligence.competitor_mentions.map((c, i) => (
+                      <span key={i} className="inline-block mr-1 mb-1 px-1.5 py-0.5 rounded text-[10px] bg-zinc-100 dark:bg-zinc-800">{c}</span>
+                    ))}
                   </Row>
                 )}
               </div>

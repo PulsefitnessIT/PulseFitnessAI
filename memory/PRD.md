@@ -1,3 +1,96 @@
+## Iter 216h73 — Brand Discovery: full homepage marketing capture (Feb 13, 2026)
+
+### Why
+Operator stress-test against **tryholo.ai** (a modern AI marketing SaaS, Framer-built) revealed gaps in our iter 216h70 capture. The brief: *"ensure we are capturing everything that's required for the homepage marketing brand capture."*
+
+### Gaps found (iter 216h70 baseline)
+| Signal | Before | Why it matters |
+|---|---|---|
+| **Hero headline (H1)** | ❌ Not captured | The #1 piece of marketing copy on any homepage |
+| **Value propositions (H2s)** | ❌ Not captured | Reusable feature/benefit copy |
+| **Page meta** (title, description, OG, Twitter) | ❌ Not captured | SEO + social-card defaults |
+| **Primary CTAs** | ❌ Not captured | Replicable button copy (Buy now, Get started…) |
+| **Social proof** | ❌ Not captured | "Trusted by 10,000+", "4.8/5 stars" |
+| **Hero video** | ❌ Not captured | Modern hero sections are video-first |
+| **Detected vertical** (Claude) | ❌ Hard-coded to "gym" | Failed on AI SaaS / e-commerce / SMB sites |
+| **Value props in Claude** | ❌ Not asked | Extra layer beyond tone-of-voice |
+| **Pricing model** | ❌ Not asked | Critical for ad / email targeting |
+| **Competitor mentions** | ❌ Not asked | Goldmine for positioning |
+| **Logo ranking** | ⚠ Favicon-first | Often picked a 32×32 favicon over the actual brand mark |
+
+### What shipped
+
+#### `_extract_homepage_meta(soup, base_url)` — NEW
+Captures `page_title`, `meta_description`, `meta_keywords`, `og_title`, `og_description`, `og_image`, `twitter_title`, `twitter_description`, and `theme_color`. The `theme_color` from `<meta name="theme-color">` is automatically promoted into the brand palette if it's a hex and wasn't already captured by the CSS sweep.
+
+#### `_extract_headlines(soup)` — NEW
+Pulls the first `<h1>` (hero headline) and up to 6 `<h2>` (value props) + 6 `<h3>` (sub-sections).
+
+#### `_extract_ctas(soup)` — NEW
+Pulls primary CTA buttons. Detection: `<button>` element OR `<a>` with `btn`/`button`/`cta`/`primary` in class OR text matching the high-signal CTA verb list (`Get started`, `Sign up`, `Try free`, `Book a demo`, `Subscribe`, `Buy now`, etc.). Filters out privacy/terms/sitemap junk. **Two dedup patterns** for hover-state twins (Framer / Webflow):
+- Exact-half mirror: `"Buy now Buy now"` → `"Buy now"`
+- Tooltip-wrapped odd-length: `"Join Us Modal Join Us"` → `"Join Us"`
+
+#### `_extract_social_proof(text)` — NEW
+Regex-driven scrape across full visible homepage text for patterns like *"trusted by X"*, *"10,000+ customers"*, *"rated 4.8 stars"*, *"500K downloads"*. Returns up to 6 deduped phrases.
+
+#### `_extract_hero_video(soup, base_url)` — NEW
+Looks for `<video>` (with `src`/`<source>` and `poster`) or first YouTube/Vimeo/Wistia `<iframe>`. Returns `{kind, src, poster}`.
+
+#### `_find_logo_candidates(soup, base_url)` — RE-RANKED
+Iter 216h70 picked favicons first because they came from the `<link rel=icon>` pass. Now scored:
+- Header `<img>` with `logo` in class/alt → +10
+- `og:image` / `twitter:image` → 5
+- `apple-touch-icon` → 3
+- `<link rel=icon>` favicon → 1
+
+Result: tryholo.ai now picks the proper Holo wordmark as the primary logo (not the favicon).
+
+#### `_claude_summarise()` — REWRITTEN business-agnostic
+Old prompt was hard-coded to "gym / fitness business" and Claude refused to analyse non-fitness sites. New prompt:
+- **Infers vertical** from the copy (`vertical` field: "AI marketing SaaS", "luxury gym chain", "boutique e-commerce"…)
+- Returns `vertical`, `tone_of_voice`, `audiences`, **`value_propositions`** (NEW — 3-6 product/service value props), `current_campaigns`, **`pricing_model`** (NEW), `keywords`, **`competitor_mentions`** (NEW — *"alternatives to X"* references), `has_video`.
+- Corpus cap bumped 12k → 15k chars (cost still <$0.02 with Haiku 4.5).
+
+#### Frontend — `BrandDiscoveryPanel.js`
+6 new draft sections rendered in this order:
+1. **Homepage copy** — hero H1 (data-testid `brand-discovery-hero-h1`) + value-prop H2 list.
+2. **SEO & sharing** — page title, meta description, Open-Graph title/description.
+3. **Primary CTAs** — chip list of detected CTAs.
+4. **Social proof** — bullet list.
+5. **Hero video** — clickable link.
+6. **Marketing intelligence** — now includes vertical chip, value-prop bullets, pricing model row, competitor chips.
+
+### Stress test — tryholo.ai (Lee's URL)
+Full successful capture:
+- 6 brand colours + 4 fonts (Inter, Satoshi, Fragment Mono, Gabarito) + reordered logos
+- **Hero H1**: *"Launch 10x more content. 75% faster."*
+- **6 value-prop H2s** + 6 H3s
+- **Meta**: page title + description + OG title/description/image + Twitter card
+- **CTA**: "Buy now" (after hover-state dedupe)
+- **Social proof**: *"Used by those who move fast"*, *"4268 customers"*, *"5 brands"*
+- **Hero video**: Framer-hosted mp4 URL captured
+- **Claude intelligence**: vertical=*"AI marketing SaaS"* · tone=*"Confident, playful, founder-focused"* · 6 audiences · **3 specific value props** · 3 current campaigns including *"New Years Sale 70% OFF"* · pricing model=*"Subscription from $39/month with 70% off promotion"* · 12 keywords · **competitors: Blaze AI, ArcAds, AdCreative.ai**
+
+### Backfills
+Both Third Space (`thirdspace.london`) and Pulse Fitness (`gymaxisai.com`) re-crawled + re-applied with the new signal set:
+- **Third Space**: 8 CTAs ("Join Us", "Find your club", "Become a member", "Classes", "Clubs", "Personal Training", "Nutrition"), vertical=*"luxury gym chain"*, 6 value propositions.
+- **Pulse Fitness** (gymaxisai.com): vertical=*"fitness operator SaaS"*.
+
+### Files touched
+- `/app/backend/routes/marketing/brand_discovery.py` (~+150 LOC — 4 new extractors, 1 rewritten Claude prompt, 1 re-ranked logo function, wiring in `_run_discovery`)
+- `/app/frontend/src/pages/Marketing/BrandDiscoveryPanel.js` (~+80 LOC — 6 new draft sections + extended intelligence layout)
+
+Lint clean across both files.
+
+### ⚠ Action required
+1. Redeploy preview → production. Backend + frontend.
+2. Re-run brand discovery for existing tenants to pick up the new fields (existing apply'd brand kits retain core visuals — only the *new* extras need a re-run to populate).
+
+---
+
+
+
 ## Iter 216h72 — Refactor: AccountSettingsModal split (Feb 13, 2026)
 
 ### Why

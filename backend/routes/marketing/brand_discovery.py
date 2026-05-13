@@ -167,43 +167,236 @@ def _extract_fonts(html: str) -> dict:
 
 
 def _find_logo_candidates(soup: BeautifulSoup, base_url: str) -> list[str]:
-    candidates: list[str] = []
-    # 1. <link rel="icon"> / apple-touch-icon
-    for link in soup.find_all("link"):
-        rel = " ".join(link.get("rel") or []).lower()
-        if "icon" in rel and link.get("href"):
-            candidates.append(urljoin(base_url, link["href"]))
-    # 2. og:image
-    for meta in soup.find_all("meta"):
-        if (meta.get("property") or "").lower() in {"og:image", "twitter:image"}:
-            if meta.get("content"):
-                candidates.append(urljoin(base_url, meta["content"]))
-    # 3. <img> in <header> or top of body with "logo" in class/alt
-    for img in soup.find_all("img", limit=30):
+    """Find logo URLs, ranked by likelihood of being the primary brand mark.
+
+    Iter 216h73 — re-ranked. The iter 216h70 version put favicons first
+    because they were picked up by the `<link rel=icon>` pass, which
+    meant tryholo.ai's primary logo ended up below a 32x32 favicon.
+    Now scored: header `<img>` with `logo` in class/alt > og:image >
+    apple-touch-icon > favicon.
+    """
+    candidates: dict[str, int] = {}  # url → score (higher = better)
+    # 1. <img> in <header>/<nav>/SVG containers — highest priority.
+    for img in soup.find_all("img", limit=40):
         cls = " ".join(img.get("class") or []).lower()
         alt = (img.get("alt") or "").lower()
-        src = img.get("src") or ""
-        if not src:
+        src = img.get("src") or img.get("data-src") or ""
+        if not src or src.startswith("data:"):
             continue
         score = 0
         if "logo" in cls:
-            score += 3
+            score += 10
         if "logo" in alt:
-            score += 2
+            score += 6
         if "logo" in src.lower():
-            score += 1
+            score += 4
         if img.find_parent(["header", "nav"]):
-            score += 1
-        if score >= 2:
-            candidates.append(urljoin(base_url, src))
-    # Dedupe preserving order
-    seen = set()
-    out = []
-    for c in candidates:
-        if c not in seen:
-            seen.add(c)
-            out.append(c)
-    return out[:6]
+            score += 4
+        # Wordmark / brand alt hints.
+        if any(t in alt for t in ("brand", "wordmark", "company")):
+            score += 2
+        if score >= 4:
+            url = urljoin(base_url, src)
+            candidates[url] = max(candidates.get(url, 0), score)
+    # 2. og:image (usually a nicely-cropped marketing card) — score 5.
+    for meta in soup.find_all("meta"):
+        prop = (meta.get("property") or meta.get("name") or "").lower()
+        if prop in {"og:image", "twitter:image"} and meta.get("content"):
+            url = urljoin(base_url, meta["content"])
+            candidates.setdefault(url, 5)
+    # 3. apple-touch-icon — score 3 (decent 180x180 mark).
+    for link in soup.find_all("link"):
+        rel = " ".join(link.get("rel") or []).lower()
+        href = link.get("href") or ""
+        if not href:
+            continue
+        url = urljoin(base_url, href)
+        if "apple-touch-icon" in rel:
+            candidates.setdefault(url, 3)
+        elif "icon" in rel:
+            # Lowest priority — typically just a 32x32 favicon.
+            candidates.setdefault(url, 1)
+    # Sort by score desc, preserve insertion order on ties.
+    return [u for u, _ in sorted(candidates.items(), key=lambda kv: -kv[1])[:6]]
+
+
+def _extract_homepage_meta(soup: BeautifulSoup, base_url: str) -> dict:
+    """Pull the homepage marketing meta: title, description, OG, twitter card.
+
+    Iter 216h73 — these are the highest-signal copy + sharing assets
+    on any marketing site. Captured separately so the operator can
+    apply them as the brand's default homepage / social-card defaults.
+    """
+    out: dict[str, str] = {}
+    if soup.title and soup.title.string:
+        out["page_title"] = soup.title.string.strip()[:200]
+    for meta in soup.find_all("meta"):
+        prop = (meta.get("property") or meta.get("name") or "").lower()
+        content = (meta.get("content") or "").strip()
+        if not prop or not content:
+            continue
+        if prop == "description":
+            out["meta_description"] = content[:400]
+        elif prop == "keywords":
+            out["meta_keywords"] = content[:400]
+        elif prop == "og:title":
+            out["og_title"] = content[:200]
+        elif prop == "og:description":
+            out["og_description"] = content[:400]
+        elif prop == "og:image":
+            out["og_image"] = urljoin(base_url, content)
+        elif prop == "twitter:title":
+            out.setdefault("twitter_title", content[:200])
+        elif prop == "twitter:description":
+            out.setdefault("twitter_description", content[:400])
+        elif prop in ("theme-color", "msapplication-tilecolor"):
+            if HEX_RE.fullmatch(content):
+                out["theme_color"] = content.lower()
+    return out
+
+
+def _extract_headlines(soup: BeautifulSoup) -> dict:
+    """Pull hero H1 + top H2s as value props.
+
+    Iter 216h73 — operator-facing headlines are the most reusable
+    piece of brand copy. We grab the first H1 (typically the hero
+    statement) and the first 6 H2s (typically the value props or
+    section titles). Cleaned of script residue.
+    """
+    def _text(el):
+        return " ".join(el.get_text(separator=" ").split())[:240]
+    h1 = soup.find("h1")
+    h2s = [_text(h) for h in soup.find_all("h2", limit=10) if _text(h)]
+    h3s = [_text(h) for h in soup.find_all("h3", limit=8) if _text(h)]
+    return {
+        "h1": _text(h1) if h1 else None,
+        "h2s": h2s[:6],
+        "h3s": h3s[:6],
+    }
+
+
+def _extract_ctas(soup: BeautifulSoup) -> list[dict]:
+    """Pull primary CTA buttons from the homepage.
+
+    Iter 216h73 — we look for `<a>` with button-like styling (class
+    contains 'btn', 'button', 'cta') OR a `<button>` element, then
+    return the deduped, prioritised list of CTA copy + destination.
+
+    Iter 216h73-b — Framer / Webflow / modern static-site generators
+    use opaque hashed class names so the heuristic above misses
+    legitimate CTAs. We also accept any `<a>` whose copy matches a
+    known CTA verb list, or whose text is 2-5 words and ends in a
+    typical CTA word.
+    """
+    HIGH_SIGNAL_CTAS = {
+        "get started", "sign up", "sign up free", "sign up now", "create account",
+        "start free", "try free", "try it free", "try for free", "start for free",
+        "book a demo", "request a demo", "see a demo", "watch demo",
+        "join now", "join", "start now", "free trial", "start trial", "start your free trial",
+        "subscribe", "subscribe now", "buy now", "shop now", "order now",
+        "download", "download now", "install", "install now",
+        "contact us", "contact sales", "get in touch", "learn more",
+    }
+    CTA_VERB_PREFIXES = ("get ", "start ", "try ", "join ", "book ", "sign up", "buy ", "shop ", "create ", "claim ", "unlock ")
+    seen: set[str] = set()
+    out: list[dict] = []
+    for el in soup.find_all(["a", "button"], limit=120):
+        text = " ".join(el.get_text(separator=" ").split())
+        if not text or len(text) > 50 or len(text) < 2:
+            continue
+        cls = " ".join(el.get("class") or []).lower()
+        href = (el.get("href") or "").strip()
+        lower = text.lower()
+        is_button = el.name == "button" or any(t in cls for t in ("btn", "button", "cta", "primary"))
+        is_high_signal = lower in HIGH_SIGNAL_CTAS or any(lower.startswith(p) for p in CTA_VERB_PREFIXES)
+        if not is_button and not is_high_signal:
+            continue
+        # Skip nav links and footer junk.
+        if any(skip in lower for skip in ("privacy", "terms", "cookie", "sitemap", "menu", "navigation")):
+            continue
+        # Skip if the link is a fragment anchor with no copy value.
+        if href.startswith("#") and len(text.split()) < 2:
+            continue
+        if lower in seen:
+            continue
+        # Iter 216h73-b — Framer + similar generators wrap hover-state
+        # twins so a CTA renders as "Buy now Buy now". Detect that
+        # pattern: a string where the first half equals the second.
+        half = len(lower) // 2
+        if half >= 4 and lower[:half].strip() == lower[half:].strip():
+            text = text[:len(text) // 2].strip()
+            lower = text.lower()
+            if lower in seen:
+                continue
+        # Iter 216h73-c — also strip tooltip / modal wrappers like
+        # "Join Us Modal Join Us" or "Sign In Open Sign In" where a
+        # decorative element sits in the middle of the duplicated copy.
+        tokens = lower.split()
+        if 4 <= len(tokens) <= 8 and len(tokens) % 2 == 1:
+            n = (len(tokens) - 1) // 2
+            if tokens[:n] == tokens[n + 1:]:
+                text = " ".join(text.split()[:n])
+                lower = text.lower()
+                if not lower or lower in seen:
+                    continue
+        seen.add(lower)
+        out.append({"label": text, "href": href, "is_button": is_button})
+        if len(out) >= 8:
+            break
+    return out
+
+
+# Social-proof patterns: numbers + descriptors like "10,000+ customers",
+# "trusted by 500 brands", "rated 4.8 stars", "1M downloads".
+_SOCIAL_PROOF_PATTERNS = [
+    re.compile(r"\b(?:trusted by|used by|loved by|joined by|powering)\s+[\w,+\s]+\b", re.IGNORECASE),
+    re.compile(r"\b\d{1,3}(?:[,.]?\d{3})*\+?\s*(?:customers|users|members|brands|companies|teams|gyms|operators)\b", re.IGNORECASE),
+    re.compile(r"\b(?:rated|scored)\s+\d(?:\.\d)?\s*(?:stars?|out of|/)\s*\d?\b", re.IGNORECASE),
+    re.compile(r"\b\d{1,3}(?:,\d{3})*\+\s*(?:downloads|installs|sign[- ]ups)\b", re.IGNORECASE),
+]
+
+
+def _extract_social_proof(text: str) -> list[str]:
+    found: list[str] = []
+    seen: set[str] = set()
+    for pat in _SOCIAL_PROOF_PATTERNS:
+        for m in pat.findall(text):
+            phrase = m.strip()
+            if 5 < len(phrase) < 120 and phrase.lower() not in seen:
+                seen.add(phrase.lower())
+                found.append(phrase)
+                if len(found) >= 6:
+                    return found
+    return found
+
+
+def _extract_hero_video(soup: BeautifulSoup, base_url: str) -> Optional[dict]:
+    """Find a hero `<video>` or embedded YouTube/Vimeo iframe near the top of the page."""
+    # Prefer a real <video> in or near the top of <body>.
+    video = soup.find("video")
+    if video:
+        src = video.get("src") or ""
+        poster = video.get("poster") or ""
+        # If no inline src, look for the first <source>.
+        if not src:
+            source = video.find("source")
+            if source and source.get("src"):
+                src = source["src"]
+        if src:
+            return {
+                "kind": "video",
+                "src": urljoin(base_url, src),
+                "poster": urljoin(base_url, poster) if poster else None,
+            }
+    # Otherwise, look for a YouTube / Vimeo iframe.
+    for iframe in soup.find_all("iframe", limit=12):
+        src = iframe.get("src") or ""
+        if not src:
+            continue
+        host = urlparse(src).netloc.lower()
+        if "youtube.com" in host or "youtu.be" in host or "vimeo.com" in host or "wistia." in host:
+            return {"kind": "iframe", "src": src, "poster": None}
+    return None
 
 
 def _find_marketing_images(soup: BeautifulSoup, base_url: str) -> list[str]:
@@ -316,7 +509,15 @@ async def _compress_and_store(url: str, kind: str, org_id: str, idx: int) -> Opt
 
 
 async def _claude_summarise(text_corpus: str) -> dict:
-    """Single Claude Haiku 4.5 call to summarise tone, audiences, campaigns."""
+    """Single Claude Haiku 4.5 call to summarise tone, audiences, campaigns.
+
+    Iter 216h73 — prompt rewritten to be **business-agnostic**. The
+    iter 216h70 version was hard-coded to 'gym/fitness business', which
+    caused Claude to refuse on AI SaaS / e-commerce / general SMB sites
+    (e.g. tryholo.ai — see the operator-reported smoke test). The
+    prompt now infers the vertical from the copy and produces the same
+    intelligence shape for any vertical.
+    """
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key or not text_corpus.strip():
         return {}
@@ -326,17 +527,24 @@ async def _claude_summarise(text_corpus: str) -> dict:
             api_key=api_key,
             session_id=f"brand-discovery-{datetime.now(timezone.utc).timestamp()}",
             system_message=(
-                "You analyse a gym / fitness business website. Reply ONLY with valid JSON, no prose, with these keys:\n"
-                "  tone_of_voice: 1-2 sentences capturing the brand's tone\n"
-                "  audiences: array of audience segments mentioned (e.g. 'young professionals', 'families', 'PT clients')\n"
-                "  current_campaigns: array of any promos/offers/launches mentioned (max 5 items, each 1 line)\n"
-                "  has_timetable: boolean — does the site reference a class schedule\n"
-                "  keywords: array of 5-10 product/service keywords the brand emphasises (e.g. 'HIIT', 'spa', 'family-friendly')\n"
-                "Keep arrays short and concrete. If unsure, leave empty. Output strictly JSON with NO markdown fences."
+                "You analyse a customer's website copy and extract marketing brand intelligence. "
+                "The vertical is unknown — could be a gym, a SaaS, an e-commerce store, a service "
+                "business, anything. Infer it from the copy. Reply ONLY with valid JSON (no prose, "
+                "no markdown fences) with these keys:\n"
+                "  vertical: 1-3 word category (e.g. 'AI marketing SaaS', 'boutique gym', 'fitness equipment manufacturer')\n"
+                "  tone_of_voice: 1-2 sentences capturing the brand's voice (style, register, energy)\n"
+                "  audiences: array of audience segments the copy clearly targets (3-6 items)\n"
+                "  value_propositions: array of 3-6 clear product/service value props as 1-line statements\n"
+                "  current_campaigns: array of any active promos/offers/launches mentioned (max 5 items)\n"
+                "  pricing_model: 1-2 word summary if pricing is mentioned (e.g. 'free trial + monthly subscription', 'membership tiers', '£40-200/month')\n"
+                "  keywords: array of 6-12 product/service keywords the brand emphasises\n"
+                "  competitor_mentions: array of any competitors / 'alternatives to X' calls made\n"
+                "  has_video: boolean — does the page reference a product video / demo\n"
+                "Keep arrays short, concrete, copied as close to the source language as possible. If a field is unknown leave it empty (empty string for strings, [] for arrays, false for booleans). Output strictly JSON with NO markdown fences."
             ),
         ).with_model("anthropic", "claude-haiku-4-5-20251001")
-        # Truncate corpus to ~12k chars — well within Haiku context, keeps cost <$0.01.
-        snippet = text_corpus[:12000]
+        # Truncate corpus to ~15k chars — Haiku context is plenty, cost <$0.02.
+        snippet = text_corpus[:15000]
         answer = await chat.send_message(UserMessage(text=f"Website copy:\n{snippet}"))
         import json
         # Tolerate accidental markdown fences in spite of the system prompt.
@@ -398,6 +606,19 @@ async def _run_discovery(org_id: str, website_url: str) -> None:
             image_candidates = _find_marketing_images(homepage_soup, website_url)
             socials = _find_social(homepage_soup)
             fonts = _extract_fonts(homepage_html)
+            # Iter 216h73 — homepage marketing signals: meta tags,
+            # hero headline, value-prop H2s, CTA copy, social proof,
+            # hero video. These are the highest-value extracted
+            # signals for the "homepage brand capture" use case Lee
+            # raised against tryholo.ai.
+            homepage_meta = _extract_homepage_meta(homepage_soup, website_url)
+            headlines = _extract_headlines(homepage_soup)
+            ctas = _extract_ctas(homepage_soup)
+            hero_video = _extract_hero_video(homepage_soup, website_url)
+            # Social proof scraped from the full visible homepage
+            # text (heroes + sections), not from individual pages.
+            homepage_text = " ".join(BeautifulSoup(homepage_html, "html.parser").get_text(separator=" ").split())
+            social_proof = _extract_social_proof(homepage_text)
 
         # Compress + store top logos (up to 3) + top images (up to 8) in parallel.
         await db.marketing_brand_discovery.update_one(
@@ -423,6 +644,11 @@ async def _run_discovery(org_id: str, website_url: str) -> None:
         intel = await _claude_summarise("\n\n".join(combined_text))
 
         colours = [c for c, _ in colours_acc.most_common(6)]
+        # Iter 216h73 — promote the meta theme-color into the palette
+        # if the site declared one and we didn't already capture it.
+        theme_color = homepage_meta.get("theme_color") if homepage_meta else None
+        if theme_color and theme_color not in colours:
+            colours = [theme_color] + colours[:5]
         draft = {
             "primary_color": colours[0] if colours else None,
             "secondary_color": colours[1] if len(colours) > 1 else None,
@@ -433,6 +659,12 @@ async def _run_discovery(org_id: str, website_url: str) -> None:
             "socials": {k: v for k, v in socials.items() if v},
             "intelligence": intel,
             "pages_visited": visited_pages,
+            # Iter 216h73 — homepage marketing signals
+            "homepage_meta": homepage_meta,
+            "headlines": headlines,
+            "ctas": ctas,
+            "hero_video": hero_video,
+            "social_proof": social_proof,
         }
         await db.marketing_brand_discovery.update_one(
             {"organization_id": org_id},
