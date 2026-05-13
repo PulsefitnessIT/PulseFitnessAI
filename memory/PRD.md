@@ -1,3 +1,42 @@
+## Iter 216h61 — Master Admin Site Drawer: equipment listing fix + Archive/Restore/Delete (Feb 12, 2026)
+
+### Operator-reported (Lee, with screenshot)
+1. "Site drawer equipment — not being pulled through — machines are on customer portal but not here to be edited/deleted." Third Space - Canary Wharf showed 3 TEST_QR rows instead of its 29 real machines.
+2. (f) "Master admin has no option to archive or delete a site — the option should be within site details."
+
+### Root cause (equipment bug)
+`SiteDetailDrawer` called `/api/equipment?site_id={siteId}` with the master-admin's own token. The generic `/equipment` endpoint uses `get_organization_filter(user)` which, for master-admin tokens that have no `organization_id`, falls back to `{user_id: master_id}` — so it silently returned only equipment the master-admin had personally created (e.g. test rows from curl smoke tests). Cross-org browsing was broken.
+
+### What shipped
+
+#### Backend (`routes/sites.py`)
+- **NEW** `GET /api/master-admin/organizations/{org_id}/sites/{site_id}/equipment` — explicit org-in-path listing. Doesn't consult the calling user's organization_id; only requires `require_master_admin(user)` + `assert_org_in_pulse_scope(user, org_id)`.
+- **NEW** `POST /api/master-admin/organizations/{org}/sites/{site}/archive` — soft-archive (`archived=true` + `archived_at` + `archived_by`). Refuses to archive the only HQ with an actionable error.
+- **NEW** `POST /api/master-admin/organizations/{org}/sites/{site}/restore` — `$unset` the archive metadata.
+- **NEW** `DELETE /api/master-admin/organizations/{org}/sites/{site}` — HARD delete. Refused when site still has equipment OR open issues, with a verbatim "Cannot delete X while it still has Y equipment item(s) and Z open issue(s). Move the equipment to another site or archive the site instead." message.
+- **EXTENDED** `PATCH /api/master-admin/organizations/{org}/sites/{site}` — accepts the full SiteDetailDrawer field set (address_line1/2, city, county, country, phone, email, site_manager_name, site_manager_email, default_location).
+- **HIDDEN** archived sites from operator-facing `GET /api/sites` (added `archived: {$ne: True}` to the find filter). Master Admin listing still shows them with the badge for restore.
+
+#### Frontend (`SiteDetailDrawer.js`)
+- Equipment tab now calls the new master-admin-scoped endpoint → real equipment count.
+- Header now has Archive (or Restore when archived) and Delete buttons with confirm prompts (testids: `site-detail-archive`, `site-detail-restore`, `site-detail-delete`). "Archived" badge appears next to the site name when applicable.
+
+### Verified
+- 9/9 backend tests pass (testing-agent iter 216h61) + screenshot evidence showing the 29-equipment fix.
+- Manual curl e2e: GET endpoint → count=29 real items. DELETE Canary Wharf → 400 with explicit equipment+issue count. ARCHIVE the only HQ → 400 with promote-first message. ARCHIVE Islington (non-HQ) → ok:true. RESTORE → ok:true.
+
+### Files touched
+- `/app/backend/routes/sites.py` (+115 LOC — 4 new endpoints + extended PATCH + /sites archived filter)
+- `/app/frontend/src/pages/MasterAdmin/SiteDetailDrawer.js` (+75 LOC — endpoint URL fix + Archive/Restore/Delete handlers + header buttons + Archived badge)
+
+### Deferred (per operator's "A first" steer; (e) shipped iter 216h60, (f) shipped here)
+- (g) Reports + Suppliers scoped to current site (aggregate only on "All sites")
+- (h) Staffing scoped to allocated sites only
+
+---
+
+
+
 ## Iter 216h60 — (e) Site module-override guard + Onboarding CTA route fixes (Feb 12, 2026)
 
 ### Operator-reported (Lee)
