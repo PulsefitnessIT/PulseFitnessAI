@@ -100,7 +100,13 @@ const AdminSpecSheets = ({ headers }) => {
       formData.append('file', file);
       await axios.post(`${API}/spec-sheets/upload`, formData, {
         headers,
-        timeout: 120000,
+        // Iter 216h69 — bump per-file timeout 120 s → 300 s. AI
+        // extraction (Claude / Gemini) on a 30 MB PDF can take
+        // 60-90 s and the UploadQueue now caps concurrency at 3
+        // (so the backend never sees more than 3 simultaneous
+        // extractions). 5 min gives generous headroom even on a
+        // saturated AI provider.
+        timeout: 300000,
         onUploadProgress: (e) => {
           if (e.total) onProgress(Math.round((e.loaded / e.total) * 100));
         },

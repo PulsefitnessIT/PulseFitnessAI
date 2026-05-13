@@ -1,3 +1,55 @@
+## Iter 216h69 — Upload throttle + concurrency cap for spec-sheet uploads (Feb 13, 2026)
+
+### Operator-reported (Lee Somers, screenshot)
+"Master Admin → Catalogue & Library → trying to upload multiple spec sheets — 7 of 9 failed due to `timeout of 120000ms exceeded`. We can't have timeouts when users are trying to upload documents. I need to upload 160 spec sheets in live and we need to assume end users will do the same on their platform logins."
+
+### Root cause
+`<UploadQueueProvider>` (iter 216h34) was firing ALL queued files in parallel (`newTasks.forEach(t => runTask(t.id))`). Each spec-sheet upload triggers a synchronous AI extraction (Claude/Gemini) on the backend that takes 30–90 s per PDF. With 9 parallel uploads, the AI extractor saturated → the last 6 calls queued internally → exceeded the 120 s client timeout → 7/9 failed despite the backend being healthy.
+
+### Strategy shipped — client-side concurrency cap
+
+**File:** `/app/frontend/src/components/shared/UploadQueue.js`
+- New per-`source` slot scheduler with `SOURCE_CAP_DEFAULTS`:
+  - `spec-sheets`: **3** concurrent (each is a 30–90 s AI call)
+  - `equipment-photo`: 4
+  - `upload` (generic): 8 — preserves the legacy "fire all" feel for fast uploads
+- `enqueue()` accepts an `opts.maxConcurrent` override so callers can tune per-source caps.
+- New `runTask` wraps the original task runner with a slot acquire/release dance — running tasks fire, the rest queue, and `releaseSlot` pulls the next waiter the moment a running task settles (success OR failure).
+- `remove()` also drains the slot's `waiting` array so a user-cancelled task doesn't strand its slot.
+- `retry()` re-routes through the same scheduler so a burst of retries never blows past the cap.
+
+**File:** `/app/frontend/src/pages/MasterAdmin/AdminSpecSheets.js`
+- Per-file timeout bumped **120 s → 300 s** (5 min). With concurrency now capped at 3, the AI extractor never sees more than 3 simultaneous requests; 5 min gives generous headroom on slow PDFs.
+
+**File:** `/app/frontend/src/components/shared/UploadQueue.js` (drawer UI)
+- Header now reads **"Uploading 3 of 9 files"** instead of "Uploading 9 files" — operator sees that throttling is happening, not stuck.
+- Subtitle row adds **`6 WAITING`** so the queued count is explicit.
+
+### Verified (Playwright smoke, 9-file fake-PDF upload with 2 s mocked AI delay)
+- At t=1.2 s: "Uploading 3 of 9 files · 6 WAITING" ✓
+- At t=12 s: "9 uploads complete · 9 DONE · 0 FAILED" ✓
+- No timeouts. Files 3–8 visibly queue and roll through as files 0–2 complete.
+
+### Capacity math for the 160-file real-world target
+- 160 files × ~45 s average AI extraction × 3-concurrent = ~40 minutes wall-clock.
+- Operator can leave the tab open (the iter 216h49 page-leave guard already prompts on accidental tab close while uploads are in-flight).
+- Drawer surfaces per-file status the whole time so they can spot any single failure without losing context.
+
+### Future option (if needed)
+If real-world AI calls turn out to genuinely take >5 min for the worst-case PDFs, we can flip the backend `/spec-sheets/upload` to **accept → return spec_id immediately → run extraction in a FastAPI BackgroundTask → expose a polling status endpoint**. That removes the per-file timeout entirely. For now the throttle + 5 min timeout is sufficient for the stated 160-file batch.
+
+### Files touched
+- `/app/frontend/src/components/shared/UploadQueue.js` (+85 / −10 LOC — slot scheduler + drawer label tweaks)
+- `/app/frontend/src/pages/MasterAdmin/AdminSpecSheets.js` (+8 / −1 LOC — bumped per-file timeout with rationale comment)
+
+### ⚠ Action required
+1. Redeploy preview → production. Frontend-only.
+2. Lee can now drop all 160 spec sheets at once — the drawer will work through them 3 at a time. No more `timeout of 120000ms exceeded`.
+
+---
+
+
+
 ## Iter 216h68 — Silent JWT refresh + Session-resumed banner (Feb 13, 2026)
 
 ### Why

@@ -69,8 +69,22 @@ export function UploadQueueProvider({ children }) {
   // Keep handler refs out of state so React doesn't re-render on every
   // progress tick. Indexed by task id.
   const handlersRef = React.useRef(new Map());
+  // Iter 216h69 — per-source concurrency caps. Lee uploaded 9 spec
+  // sheets in parallel; each PDF triggers an AI-extraction request
+  // that takes 30-90s on the backend. With all 9 firing at once the
+  // last few queued internally and exceeded the 120 s client timeout.
+  // We now throttle starts per `source` so the AI extractor never
+  // sees more than N concurrent requests.
+  //
+  // Layout: { [source]: { running: Set<taskId>, waiting: Array<taskId>, cap: number } }
+  const slotsRef = React.useRef({});
+  const SOURCE_CAP_DEFAULTS = {
+    'spec-sheets': 3,         // each upload is a 30-90s AI call
+    'equipment-photo': 4,
+    upload: 8,                // generic — keeps the legacy "fire all" feel
+  };
 
-  const runTask = useCallback(async (taskId) => {
+  const runTaskRaw = useCallback(async (taskId) => {
     const handler = handlersRef.current.get(taskId);
     if (!handler) return;
     dispatch({ type: 'patch', id: taskId, patch: { status: STATUS.UPLOADING, progress: 0, error: null } });
@@ -88,15 +102,57 @@ export function UploadQueueProvider({ children }) {
     }
   }, []);
 
+  // Iter 216h69 — slot-aware scheduler. Starts a queued task only when
+  // the source's running set has room; otherwise the task waits and is
+  // pulled the moment another task in the same source settles.
+  const releaseSlot = useCallback((source, taskId) => {
+    const slot = slotsRef.current[source];
+    if (!slot) return;
+    slot.running.delete(taskId);
+    while (slot.waiting.length > 0 && slot.running.size < slot.cap) {
+      const next = slot.waiting.shift();
+      slot.running.add(next);
+      // Fire-and-forget; releaseSlot pulls the next when done.
+      runTaskRaw(next).finally(() => releaseSlot(source, next));
+    }
+  }, [runTaskRaw]);
+
+  const runTask = useCallback((taskId, source) => {
+    const src = source || 'upload';
+    if (!slotsRef.current[src]) {
+      slotsRef.current[src] = {
+        running: new Set(),
+        waiting: [],
+        cap: SOURCE_CAP_DEFAULTS[src] || 6,
+      };
+    }
+    const slot = slotsRef.current[src];
+    if (slot.running.size < slot.cap) {
+      slot.running.add(taskId);
+      runTaskRaw(taskId).finally(() => releaseSlot(src, taskId));
+    } else {
+      slot.waiting.push(taskId);
+    }
+  }, [runTaskRaw, releaseSlot]);
+
   const enqueue = useCallback((files, fn, opts = {}) => {
     const list = Array.from(files || []);
     if (list.length === 0) return [];
+    const source = opts.source || 'upload';
+    // Allow caller to override the per-source cap explicitly.
+    if (opts.maxConcurrent && slotsRef.current[source]) {
+      slotsRef.current[source].cap = opts.maxConcurrent;
+    } else if (opts.maxConcurrent) {
+      slotsRef.current[source] = {
+        running: new Set(), waiting: [], cap: opts.maxConcurrent,
+      };
+    }
     const newTasks = list.map(file => ({
       id: nextId(),
       name: file.name,
       size: file.size,
       label: opts.label || file.name,
-      source: opts.source || 'upload',
+      source,
       status: STATUS.QUEUED,
       progress: 0,
       error: null,
@@ -106,16 +162,27 @@ export function UploadQueueProvider({ children }) {
       handlersRef.current.set(t.id, { file: list[i], fn, onDone: opts.onDone });
     });
     dispatch({ type: 'enqueue', tasks: newTasks });
-    // Kick off each task — they run in parallel. If you want serial,
-    // chain inside the handler.
-    newTasks.forEach(t => runTask(t.id));
+    // Schedule each task through the slot-aware runner — starts up to
+    // `cap` concurrently and queues the rest.
+    newTasks.forEach(t => runTask(t.id, source));
     return newTasks.map(t => t.id);
   }, [runTask]);
 
-  const retry = useCallback((taskId) => runTask(taskId), [runTask]);
+  const retry = useCallback((taskId) => {
+    // Manual retry — fire through the same slot-aware scheduler so a
+    // burst of retries doesn't blow past the cap.
+    const task = tasks.find(t => t.id === taskId);
+    runTask(taskId, task?.source);
+  }, [tasks, runTask]);
 
   const remove = useCallback((taskId) => {
     handlersRef.current.delete(taskId);
+    // Iter 216h69 — if the user dismisses a queued task we need to
+    // pull it from the waiting array too, otherwise the slot stays
+    // empty when the running set drains.
+    Object.values(slotsRef.current).forEach((slot) => {
+      slot.waiting = slot.waiting.filter((id) => id !== taskId);
+    });
     dispatch({ type: 'remove', id: taskId });
   }, []);
 
@@ -206,7 +273,12 @@ function UploadQueueDrawer() {
 
   if (!tasks || tasks.length === 0) return null;
 
-  const inFlight = tasks.filter(t => t.status === STATUS.QUEUED || t.status === STATUS.UPLOADING).length;
+  // Iter 216h69 — split inFlight into "uploading right now" vs
+  // "queued waiting for a slot" so the user can see throttling at
+  // work instead of fearing their files are stuck.
+  const uploading = tasks.filter(t => t.status === STATUS.UPLOADING).length;
+  const queued = tasks.filter(t => t.status === STATUS.QUEUED).length;
+  const inFlight = uploading + queued;
   const failed = tasks.filter(t => t.status === STATUS.FAILED).length;
   const done = tasks.filter(t => t.status === STATUS.DONE).length;
 
@@ -247,13 +319,13 @@ function UploadQueueDrawer() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold tracking-tight" style={{ color: 'var(--theme-text, #18181B)' }}>
             {inFlight > 0
-              ? `Uploading ${inFlight} file${inFlight === 1 ? '' : 's'}`
+              ? `Uploading ${uploading} of ${inFlight} file${inFlight === 1 ? '' : 's'}`
               : failed > 0
                 ? `${failed} upload${failed === 1 ? '' : 's'} failed`
                 : `${done} upload${done === 1 ? '' : 's'} complete`}
           </p>
           <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted, #71717A)' }}>
-            {tasks.length} total · {done} done · {failed} failed
+            {tasks.length} total · {done} done · {failed} failed{queued > 0 ? ` · ${queued} waiting` : ''}
           </p>
         </div>
         {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
