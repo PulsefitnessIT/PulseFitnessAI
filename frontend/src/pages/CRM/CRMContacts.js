@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useCRM } from './CRMApp';
 import {
-  Users, Plus, ChevronRight, Phone, Mail, Building2, ArrowLeft,
-  FileText, Calendar, Activity, Target, CheckCircle, Star, Shield, Tag, Globe, Edit2, X, Loader2, Database
+  Users, Plus, ChevronRight, Phone, Mail, Building2, ArrowLeft, ArrowRightLeft,
+  FileText, Calendar, Activity, Target, CheckCircle, Star, Shield, Tag, Globe, Edit2, X, Loader2, Database, Sparkles
 } from 'lucide-react';
 import axios from 'axios';
 import CustomFieldsPanel from '@/components/shared/CustomFieldsPanel';
@@ -242,7 +242,7 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
   );
 }
 
-function ContactDetail({ contactId, onBack, c, isDark, API, headers }) {
+function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo }) {
   const [contact, setContact] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddNote, setShowAddNote] = useState(false);
@@ -252,6 +252,7 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers }) {
   const [editForm, setEditForm] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [companies, setCompanies] = useState([]);
+  const [showConvert, setShowConvert] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -319,6 +320,17 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers }) {
           </div>
         </div>
         <button onClick={openEdit} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="contact-edit-btn"><Edit2 size={12} className="inline mr-1" /> Edit</button>
+        {contact.lifecycle === 'lead' && (
+          <button
+            onClick={() => setShowConvert(true)}
+            className="px-3 py-1.5 text-xs font-bold rounded-md transition-all hover:opacity-90 flex items-center gap-1.5"
+            style={{ background: 'var(--color-success-alt, #16A34A)', color: '#fff' }}
+            data-testid="contact-convert-btn"
+            title="Convert this lead — link/create a company and optionally open a deal"
+          >
+            <ArrowRightLeft size={12} /> Convert
+          </button>
+        )}
         <button onClick={() => setShowAddNote(true)} className="px-3 py-1.5 bg-[var(--color-info-ios)] text-white text-xs font-medium rounded-md"><Plus size={12} className="inline mr-1" /> Activity</button>
       </div>
 
@@ -471,6 +483,24 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers }) {
         </div>
       )}
 
+      {showConvert && (
+        <ConvertLeadModal
+          API={API}
+          headers={headers}
+          contact={contact}
+          c={c}
+          isDark={isDark}
+          onClose={() => setShowConvert(false)}
+          onConverted={({ opportunity_id }) => {
+            setShowConvert(false);
+            load();
+            if (opportunity_id && navigateTo) {
+              navigateTo('opportunity', opportunity_id);
+            }
+          }}
+        />
+      )}
+
       {showAddNote && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddNote(false)}>
           <div className="w-full max-w-md mx-4 rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
@@ -541,4 +571,348 @@ export default function CRMContacts() {
 
   if (selectedId) return <ContactDetail contactId={selectedId} onBack={() => setSelectedId(null)} {...crm} />;
   return <ContactList onSelect={setSelectedId} {...crm} />;
+}
+
+/* ───────────────────────── Convert Lead Modal ─────────────────────────
+ * Iter 216h66 — Salesforce-style "Convert Lead":
+ *   - Link existing company OR create a new one inline.
+ *   - Optionally create an Opportunity in one click.
+ *   - Bump the contact's lifecycle to "Customer" (default).
+ * Backend: POST /api/crm/v2/contacts/{id}/convert (see crm_v2.py).
+ */
+const CONVERT_STAGES = [
+  { id: 'qualified', label: 'Qualified' },
+  { id: 'discovery', label: 'Discovery' },
+  { id: 'solution', label: 'Solution Review' },
+  { id: 'proposal', label: 'Proposal Sent' },
+];
+
+function ConvertLeadModal({ API, headers, contact, c, isDark, onClose, onConverted }) {
+  const hasExistingCompany = !!contact?.company_id;
+  const [step, setStep] = useState({
+    company_action: hasExistingCompany ? 'link' : 'create',
+    company_id: contact?.company_id || '',
+    new_company: {
+      name: contact?.company_name || '',
+      sector: '',
+      website: '',
+    },
+    create_opportunity: false,
+    opportunity: {
+      title: contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() + ' — new business' : '',
+      value: '',
+      stage: 'qualified',
+      close_date: '',
+    },
+    new_lifecycle: 'customer',
+  });
+  const [companies, setCompanies] = useState([]);
+  const [companySearch, setCompanySearch] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get(`${API}/crm/v2/companies?limit=200`, { headers: headers() });
+        if (!cancelled) setCompanies(res.data?.companies || []);
+      } catch (e) { /* tolerated */ }
+    })();
+    return () => { cancelled = true; };
+  }, [API, headers]);
+
+  const filteredCompanies = companySearch.trim()
+    ? companies.filter((co) => (co.name || '').toLowerCase().includes(companySearch.toLowerCase()))
+    : companies;
+
+  const valid = (() => {
+    if (step.company_action === 'link' && !step.company_id) return false;
+    if (step.company_action === 'create' && !step.new_company.name.trim()) return false;
+    if (step.create_opportunity && !step.opportunity.title.trim()) return false;
+    return true;
+  })();
+
+  const submit = async () => {
+    if (!valid) return;
+    setBusy(true);
+    setError('');
+    try {
+      const body = {
+        company_action: step.company_action,
+        new_lifecycle: step.new_lifecycle,
+        create_opportunity: step.create_opportunity,
+      };
+      if (step.company_action === 'link') body.company_id = step.company_id;
+      if (step.company_action === 'create') body.company_data = step.new_company;
+      if (step.create_opportunity) {
+        body.opportunity = {
+          title: step.opportunity.title.trim(),
+          value: parseFloat(step.opportunity.value) || 0,
+          stage: step.opportunity.stage,
+          close_date: step.opportunity.close_date,
+        };
+      }
+      const res = await axios.post(`${API}/crm/v2/contacts/${contact.id}/convert`, body, { headers: headers() });
+      onConverted?.(res.data || {});
+    } catch (e) {
+      const detail = e?.response?.data?.detail || e?.message || 'Conversion failed';
+      setError(typeof detail === 'string' ? detail : 'Conversion failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return createPortal((
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-full max-w-xl mx-4 rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="convert-lead-dialog"
+      >
+        <div className="sticky top-0 z-10 -mx-6 -mt-6 px-6 pt-6 pb-3 mb-4 flex items-center justify-between border-b"
+          style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', borderColor: c.border }}>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-bold flex items-center gap-1.5" style={{ color: 'var(--color-success-alt, #16A34A)' }}>
+              <Sparkles size={11} /> Lead conversion
+            </div>
+            <h2 className="text-lg font-bold mt-0.5" style={{ color: c.text }}>
+              Convert {contact?.first_name} {contact?.last_name}
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: c.textDim }}>
+              Link or create the account, optionally open a deal, and mark the contact as a customer.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 hover:opacity-70" style={{ color: c.textDim }} data-testid="convert-lead-close">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* ── 1. Account ── */}
+        <section className="mb-5">
+          <div className="text-[10px] uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5" style={{ color: c.textDim }}>
+            <Building2 size={11} /> Account
+          </div>
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => setStep({ ...step, company_action: 'link' })}
+              className={`flex-1 px-3 py-2 text-xs font-medium rounded-md border transition-all ${step.company_action === 'link' ? 'border-[var(--color-info-ios)]' : ''}`}
+              style={{
+                background: step.company_action === 'link' ? 'var(--color-info-ios)20' : (isDark ? 'var(--color-surface-dark-1)' : '#fff'),
+                color: step.company_action === 'link' ? 'var(--color-info-ios)' : c.textMuted,
+                borderColor: step.company_action === 'link' ? 'var(--color-info-ios)' : c.border,
+              }}
+              data-testid="convert-link-existing"
+            >
+              Link existing company
+            </button>
+            <button
+              onClick={() => setStep({ ...step, company_action: 'create' })}
+              className={`flex-1 px-3 py-2 text-xs font-medium rounded-md border transition-all ${step.company_action === 'create' ? 'border-[var(--color-info-ios)]' : ''}`}
+              style={{
+                background: step.company_action === 'create' ? 'var(--color-info-ios)20' : (isDark ? 'var(--color-surface-dark-1)' : '#fff'),
+                color: step.company_action === 'create' ? 'var(--color-info-ios)' : c.textMuted,
+                borderColor: step.company_action === 'create' ? 'var(--color-info-ios)' : c.border,
+              }}
+              data-testid="convert-create-new"
+            >
+              Create new company
+            </button>
+            <button
+              onClick={() => setStep({ ...step, company_action: 'skip', company_id: '' })}
+              className={`px-3 py-2 text-xs font-medium rounded-md border transition-all ${step.company_action === 'skip' ? 'border-[var(--color-info-ios)]' : ''}`}
+              style={{
+                background: step.company_action === 'skip' ? 'var(--color-info-ios)20' : (isDark ? 'var(--color-surface-dark-1)' : '#fff'),
+                color: step.company_action === 'skip' ? 'var(--color-info-ios)' : c.textMuted,
+                borderColor: step.company_action === 'skip' ? 'var(--color-info-ios)' : c.border,
+              }}
+              data-testid="convert-skip-company"
+              title="Skip — leave the contact's current account link as-is"
+            >
+              Skip
+            </button>
+          </div>
+
+          {step.company_action === 'link' && (
+            <div>
+              <input
+                value={companySearch}
+                onChange={(e) => setCompanySearch(e.target.value)}
+                placeholder="Search companies..."
+                className="w-full mb-2 px-3 py-2 text-sm rounded-md"
+                style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                data-testid="convert-company-search"
+              />
+              <div className="max-h-40 overflow-y-auto rounded-md border" style={{ borderColor: c.border }}>
+                {filteredCompanies.length === 0 ? (
+                  <p className="text-center text-xs py-4" style={{ color: c.textDim }}>No companies match.</p>
+                ) : filteredCompanies.slice(0, 30).map((co) => (
+                  <button
+                    key={co.id}
+                    onClick={() => setStep({ ...step, company_id: co.id })}
+                    className={`w-full flex items-center justify-between text-left px-3 py-2 text-sm border-b transition-colors`}
+                    style={{
+                      background: step.company_id === co.id ? 'var(--color-info-ios)15' : 'transparent',
+                      borderColor: c.border,
+                      color: step.company_id === co.id ? 'var(--color-info-ios)' : c.text,
+                    }}
+                    data-testid={`convert-company-pick-${co.id}`}
+                  >
+                    <span className="truncate">{co.name}</span>
+                    {step.company_id === co.id && <CheckCircle size={14} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step.company_action === 'create' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="col-span-2">
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Company Name *</label>
+                <input
+                  value={step.new_company.name}
+                  onChange={(e) => setStep({ ...step, new_company: { ...step.new_company, name: e.target.value } })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="convert-new-company-name"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Sector</label>
+                <input
+                  value={step.new_company.sector}
+                  onChange={(e) => setStep({ ...step, new_company: { ...step.new_company, sector: e.target.value } })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="convert-new-company-sector"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Website</label>
+                <input
+                  value={step.new_company.website}
+                  onChange={(e) => setStep({ ...step, new_company: { ...step.new_company, website: e.target.value } })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="convert-new-company-website"
+                />
+              </div>
+            </div>
+          )}
+
+          {step.company_action === 'skip' && (
+            <p className="text-xs px-3 py-2 rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-1)' : 'var(--color-neutral-100)', color: c.textMuted }}>
+              {contact?.company_name
+                ? `The contact will keep its existing link to "${contact.company_name}".`
+                : 'The contact will not be linked to any company. You can add one later from the contact detail.'}
+            </p>
+          )}
+        </section>
+
+        {/* ── 2. Opportunity (optional) ── */}
+        <section className="mb-5">
+          <label className="flex items-center gap-2 cursor-pointer mb-3" data-testid="convert-create-opp-toggle">
+            <input
+              type="checkbox"
+              checked={step.create_opportunity}
+              onChange={(e) => setStep({ ...step, create_opportunity: e.target.checked })}
+              className="rounded"
+            />
+            <span className="text-[10px] uppercase tracking-wider font-bold flex items-center gap-1.5" style={{ color: c.textDim }}>
+              <Target size={11} /> Open a deal in pipeline
+            </span>
+          </label>
+          {step.create_opportunity && (
+            <div className="grid grid-cols-2 gap-2 pl-6">
+              <div className="col-span-2">
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Deal Title *</label>
+                <input
+                  value={step.opportunity.title}
+                  onChange={(e) => setStep({ ...step, opportunity: { ...step.opportunity, title: e.target.value } })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="convert-opp-title"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Value (£)</label>
+                <input
+                  type="number"
+                  value={step.opportunity.value}
+                  onChange={(e) => setStep({ ...step, opportunity: { ...step.opportunity, value: e.target.value } })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="convert-opp-value"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Stage</label>
+                <select
+                  value={step.opportunity.stage}
+                  onChange={(e) => setStep({ ...step, opportunity: { ...step.opportunity, stage: e.target.value } })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="convert-opp-stage"
+                >
+                  {CONVERT_STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Close Date</label>
+                <input
+                  type="date"
+                  value={step.opportunity.close_date}
+                  onChange={(e) => setStep({ ...step, opportunity: { ...step.opportunity, close_date: e.target.value } })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="convert-opp-close-date"
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ── 3. Lifecycle ── */}
+        <section className="mb-5">
+          <div className="text-[10px] uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5" style={{ color: c.textDim }}>
+            <CheckCircle size={11} /> Mark contact as
+          </div>
+          <select
+            value={step.new_lifecycle}
+            onChange={(e) => setStep({ ...step, new_lifecycle: e.target.value })}
+            className="w-full px-3 py-2 text-sm rounded-md"
+            style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+            data-testid="convert-new-lifecycle"
+          >
+            <option value="customer">Customer</option>
+            <option value="prospect">Prospect</option>
+            <option value="champion">Champion</option>
+          </select>
+        </section>
+
+        {error && (
+          <div className="mb-4 px-3 py-2 rounded-md text-xs" style={{ background: 'var(--color-danger)15', color: 'var(--color-danger)' }} data-testid="convert-lead-error">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm" style={{ color: c.textMuted }} data-testid="convert-lead-cancel">
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={!valid || busy}
+            className="px-4 py-2 text-sm font-bold rounded-md flex items-center gap-1.5 disabled:opacity-50"
+            style={{ background: 'var(--color-success-alt, #16A34A)', color: '#fff' }}
+            data-testid="convert-lead-submit"
+          >
+            {busy ? <><Loader2 size={12} className="animate-spin" /> Converting...</> : <><ArrowRightLeft size={12} /> Convert lead</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  ), document.body);
 }

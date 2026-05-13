@@ -434,6 +434,215 @@ async def delete_contact(contact_id: str, user=Depends(get_crm_user)):
 
 
 # ═══════════════════════════════════════════
+# LEAD CONVERSION — Iter 216h66
+# Salesforce-style "Convert Lead" — link/create a Company,
+# optionally create an Opportunity, and bump the contact's
+# lifecycle from 'lead' to 'customer' (or operator override).
+# ═══════════════════════════════════════════
+
+@router.post("/contacts/{contact_id}/convert")
+async def convert_lead(contact_id: str, data: dict, user=Depends(get_crm_user)):
+    existing = await db.crm2_contacts.find_one({"id": contact_id, **_of(user)})
+    if not existing:
+        raise HTTPException(404, "Contact not found")
+    if existing.get("lifecycle") != "lead":
+        raise HTTPException(
+            400,
+            f"Cannot convert — contact lifecycle is already '{existing.get('lifecycle', 'unknown')}'. "
+            "Only leads can be converted.",
+        )
+
+    org_id = user.get("organization_id")
+    of = _of(user)
+    new_lifecycle = (data.get("new_lifecycle") or "customer").strip()
+    if new_lifecycle not in ("customer", "prospect", "champion"):
+        new_lifecycle = "customer"
+
+    # ─── 1. Resolve company ──────────────────────────────────────
+    company_action = (data.get("company_action") or "skip").strip()
+    company_id = data.get("company_id") or existing.get("company_id") or None
+    company_name = existing.get("company_name", "")
+
+    if company_action == "link":
+        if not company_id:
+            raise HTTPException(400, "company_action='link' requires a company_id")
+        co = await db.crm2_companies.find_one({"id": company_id, **of}, {"_id": 0, "name": 1})
+        if not co:
+            raise HTTPException(404, "Linked company not found")
+        company_name = co.get("name", "")
+
+    elif company_action == "create":
+        cd = data.get("company_data") or {}
+        if not (cd.get("name") or "").strip():
+            raise HTTPException(400, "company_action='create' requires company_data.name")
+        company = {
+            "id": _id(), "organization_id": org_id,
+            "name": cd.get("name", "").strip(),
+            "sector": cd.get("sector", ""),
+            "type": "customer",  # converted lead → customer account by default
+            "website": cd.get("website", ""),
+            "phone": cd.get("phone", "") or existing.get("phone", ""),
+            "email": cd.get("email", "") or existing.get("email", ""),
+            "address": "",
+            "address_line1": "", "address_line2": "", "address_line3": "",
+            "city": "", "postcode": "", "county": "",
+            "country": cd.get("country", "United Kingdom"),
+            "company_number": cd.get("company_number", ""),
+            "description": "",
+            "directors": [],
+            "account_owner_id": user.get("id"),
+            "account_owner_name": user.get("full_name", ""),
+            "sla_tier": "standard",
+            "revenue_band": "",
+            "status": "active",
+            "tags": [],
+            "notes": "",
+            "territory_id": None,
+            "owner_id": user.get("id"),
+            "owner_name": user.get("full_name", ""),
+            "region": "",
+            "created_at": _now(), "updated_at": _now(),
+        }
+        # Reuse the territory auto-assignment used in create_company().
+        try:
+            from routes.crm_territories import assign_from_territory
+            assignment = await assign_from_territory(company, org_id)
+            if assignment:
+                company["territory_id"] = assignment.get("territory_id")
+                if assignment.get("owner_id"):
+                    company["owner_id"] = assignment["owner_id"]
+                    company["owner_name"] = assignment.get("owner_name", "")
+                    company["account_owner_id"] = assignment["owner_id"]
+                    company["account_owner_name"] = assignment.get("owner_name", "")
+        except Exception:
+            pass
+        await db.crm2_companies.insert_one(company)
+        await record_audit(entity_type="company", entity_id=company["id"], action="create", user=user, after=company)
+        await db.crm2_activities.insert_one({
+            "id": _id(), "organization_id": org_id,
+            "type": "system", "subject": "Company created (lead conversion)",
+            "body": f"{user.get('full_name', '')} created {company['name']} during lead conversion of {existing.get('first_name', '')} {existing.get('last_name', '')}",
+            "company_id": company["id"], "contact_id": contact_id,
+            "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
+            "created_at": _now(), "updated_at": _now(),
+        })
+        try:
+            await evaluate_workflows("company_created", company, org_id, user.get("full_name", ""))
+        except Exception:
+            pass
+        company_id = company["id"]
+        company_name = company["name"]
+    # company_action == 'skip' (default) — keep existing company link if any.
+
+    # ─── 2. Optionally create the opportunity ────────────────────
+    opportunity_id = None
+    if data.get("create_opportunity"):
+        op = data.get("opportunity") or {}
+        title = (op.get("title") or "").strip()
+        if not title:
+            raise HTTPException(400, "opportunity.title is required when create_opportunity=true")
+        stage = op.get("stage") or "qualified"
+        stage_info = next((s for s in OPPORTUNITY_STAGES if s["id"] == stage), None)
+        if not stage_info:
+            raise HTTPException(400, f"Unknown stage '{stage}'")
+        value = float(op.get("value") or 0)
+        opp = {
+            "id": _id(), "organization_id": org_id,
+            "title": title,
+            "company_id": company_id,
+            "company_name": company_name,
+            "contact_id": contact_id,
+            "contact_name": f"{existing.get('first_name', '')} {existing.get('last_name', '')}".strip(),
+            "stage": stage,
+            "value": value,
+            "probability": stage_info["probability"],
+            "weighted_value": value * stage_info["probability"] / 100,
+            "close_date": op.get("close_date", ""),
+            "owner_id": user.get("id"),
+            "owner_name": user.get("full_name", ""),
+            "source": op.get("source", "lead_conversion"),
+            "competitor": "",
+            "risk_factors": [],
+            "next_step": op.get("next_step", ""),
+            "tags": [],
+            "stage_entered_at": _now(),
+            "stage_history": [{"stage": stage, "entered_at": _now(), "by": user.get("full_name", "")}],
+            "territory_id": None,
+            "created_at": _now(), "updated_at": _now(),
+        }
+        # Inherit territory & owner from the linked company when present.
+        if company_id:
+            try:
+                parent = await db.crm2_companies.find_one(
+                    {"id": company_id}, {"_id": 0, "territory_id": 1, "owner_id": 1, "owner_name": 1},
+                )
+                if parent and parent.get("territory_id"):
+                    opp["territory_id"] = parent["territory_id"]
+                    if parent.get("owner_id"):
+                        opp["owner_id"] = parent["owner_id"]
+                        opp["owner_name"] = parent.get("owner_name", "")
+            except Exception:
+                pass
+        await db.crm2_opportunities.insert_one(opp)
+        await record_audit(entity_type="opportunity", entity_id=opp["id"], action="create", user=user, after=opp)
+        await db.crm2_activities.insert_one({
+            "id": _id(), "organization_id": org_id,
+            "type": "system", "subject": f"Opportunity created from lead conversion: {opp['title']}",
+            "body": f"£{opp['value']:,.0f} | Stage: {stage_info['name']}",
+            "company_id": company_id, "contact_id": contact_id, "opportunity_id": opp["id"],
+            "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
+            "created_at": _now(), "updated_at": _now(),
+        })
+        try:
+            await evaluate_workflows("deal_created", opp, org_id, user.get("full_name", ""))
+            if value > 0:
+                await evaluate_workflows("deal_value_above", opp, org_id, user.get("full_name", ""))
+        except Exception:
+            pass
+        opportunity_id = opp["id"]
+
+    # ─── 3. Update the contact lifecycle + company link ──────────
+    updates = {
+        "lifecycle": new_lifecycle,
+        "converted_at": _now(),
+        "converted_by": user.get("full_name", ""),
+        "updated_at": _now(),
+    }
+    if company_id:
+        updates["company_id"] = company_id
+        updates["company_name"] = company_name
+    await db.crm2_contacts.update_one({"id": contact_id}, {"$set": updates})
+    after_contact = {**{k: v for k, v in existing.items() if k != "_id"}, **updates}
+    await record_audit(
+        entity_type="contact", entity_id=contact_id, action="convert",
+        user=user, before={k: v for k, v in existing.items() if k != "_id"}, after=after_contact,
+    )
+    await db.crm2_activities.insert_one({
+        "id": _id(), "organization_id": org_id,
+        "type": "system",
+        "subject": f"Lead converted → {new_lifecycle}",
+        "body": (
+            f"{user.get('full_name', '')} converted lead "
+            f"{existing.get('first_name', '')} {existing.get('last_name', '')}"
+            + (f" · company: {company_name}" if company_name else "")
+            + (" · opportunity created" if opportunity_id else "")
+        ),
+        "company_id": company_id, "contact_id": contact_id,
+        "opportunity_id": opportunity_id,
+        "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
+        "created_at": _now(), "updated_at": _now(),
+    })
+
+    return {
+        "ok": True,
+        "contact_id": contact_id,
+        "company_id": company_id,
+        "opportunity_id": opportunity_id,
+        "new_lifecycle": new_lifecycle,
+    }
+
+
+# ═══════════════════════════════════════════
 # OPPORTUNITIES — Sales pipeline engine
 # ═══════════════════════════════════════════
 
