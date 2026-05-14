@@ -1,3 +1,46 @@
+## Iter 216h107 — Per-tenant Tender PDF branding (Feb 14, 2026)
+
+Made the brand resolver from iter 216h106 fully configurable per
+tenant through Master Admin → Theme Settings, so future CRM tenants
+can ship a branded pitch deck without code changes.
+
+### Backend (`routes/master_admin_theme.py`)
+- Three new keys on `theme_overrides`:
+  - `tender_company_name` (≤120 chars, freeform)
+  - `tender_primary_color` (hex)
+  - `tender_logo_url` (≤500 chars)
+- `_OVERRIDABLE_KEYS` + `ThemeOverrideUpdate` Pydantic model extended.
+- PUT handler now dispatches hex vs freeform validation per key.
+
+### CRM resolver (`routes/crm_v2.py:_resolve_crm_brand`)
+Priority order:
+1. `theme_overrides.tender_company_name` (Master Admin set)
+2. `branding.company_name` (legacy)
+3. `org.name` (only if NOT a platform-org name)
+4. `"Pulse Fitness"` (final fallback)
+Logo URL and primary colour use the same cascade against
+`tender_logo_url` / `tender_primary_color`.
+
+### Frontend (`MasterAdmin/ThemeSettingsPanel.js`)
+- New `<TenderBrandingSection />` component appended to the
+  per-tenant overrides card.
+- Live PDF cover preview that updates as you type — shows
+  "A pitch from {company} for your team" tinted in the selected
+  primary colour, with optional logo image.
+- Save / Clear handlers now include the three tender_* keys.
+
+### Test status
+testing_agent_v3_fork (iter 216h107) — **100 % pass**
+(15/15 backend + 100 % frontend). Live-preview, save/clear,
+validation (>120 char company name → 422, >500 char URL → 422,
+invalid hex → 400) all green. End-to-end PDF rendering
+re-verified via pypdf: setting overrides → "Wolverhampton
+Fitness Co." appears on every slide footer; clearing them
+falls back to "Pulse Fitness".
+
+---
+
+
 ## Iter 216h106 — Tender PDFs: kill GymAxis bleed into Pulse Fitness (Feb 14, 2026)
 
 User reported the pitch-deck cover read "A pitch from GymAxis AI for
