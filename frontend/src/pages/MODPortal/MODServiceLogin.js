@@ -74,7 +74,9 @@ export default function MODServiceLogin() {
     setError(''); setBusy(true);
     try {
       const r = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/login`, {
-        email: email.trim().toLowerCase(), password,
+        email: email.trim().toLowerCase(),
+        password,
+        portal: 'mod',
       });
       const data = r.data || {};
       login(data.token, data.user, data.refresh_token);

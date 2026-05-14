@@ -61,6 +61,15 @@ class StaffUpdate(BaseModel):
     phone: Optional[str] = Field(default=None, min_length=5, max_length=40)
 
 
+class StaffTransferRequest(BaseModel):
+    """Move one staff record from this site to another site within the
+    same MOD force (Army/RAF/Navy). The destination site_id MUST belong
+    to the same force or the request is rejected."""
+    staff_id: str
+    destination_site_id: str
+    reason: Optional[str] = Field(default=None, max_length=400)
+
+
 class FaultSubmit(BaseModel):
     equipment_id: str
     fault_type: str = Field(..., pattern=r"^(not_working|noise|electrical|damage|safety|other)$")
@@ -681,6 +690,207 @@ async def mod_staff_delete(staff_id: str, user: dict = Depends(get_current_user)
         raise HTTPException(404, "Staff not found")
     await _audit(org["id"], user.get("id"), "staff.delete", staff_id=staff_id)
     return {"ok": True}
+
+
+# ── Force-scoped staff search + transfer (Iter 216h113e) ─────
+# Lets a MOD site move one of its staff to another site within the
+# SAME MOD force (Army↔Army, RAF↔RAF, Navy↔Navy). This is a Pulse
+# Fitness "Staffing" feature for MOD tenants — Army can never see or
+# transfer to RAF/Navy sites and vice-versa.
+@router.get("/mod/site/staff-search")
+async def mod_staff_search(
+    q: str = Query("", max_length=120),
+    user: dict = Depends(get_current_user),
+):
+    """Search active staff across all sites in the caller's force.
+    Returns matches with their current site_name so the caller can
+    decide who to transfer. The caller's own site is excluded from
+    results to avoid confusion (use the standard /staff list for
+    your own staff)."""
+    org = await _require_mod_site(user)
+    force = (org.get("mod_force") or "").lower()
+    if force not in {"army", "navy", "raf"}:
+        raise HTTPException(400, "Site has no force assignment")
+
+    # All sites in the same force.
+    sites = await db.organizations.find(
+        {"account_type": "mod_site", "mod_force": force, "is_mod": True},
+        {"_id": 0, "id": 1, "name": 1, "mod_branch": 1},
+    ).to_list(2000)
+    site_by_id = {s["id"]: s for s in sites}
+    if not site_by_id:
+        return {"results": [], "force": force.upper()}
+
+    # Build query — case-insensitive name OR email contains.
+    needle = (q or "").strip()
+    staff_q: dict = {
+        "site_id": {"$in": list(site_by_id.keys())},
+        "is_active": {"$ne": False},
+    }
+    if needle:
+        # Escape regex special chars to avoid ReDoS / surprises.
+        import re as _re
+        rx = {"$regex": _re.escape(needle), "$options": "i"}
+        staff_q["$or"] = [{"name": rx}, {"email": rx}]
+
+    rows = await db.mod_site_staff.find(
+        staff_q,
+        {"_id": 0, "id": 1, "name": 1, "role": 1, "email": 1, "phone": 1, "site_id": 1, "last_reported_at": 1},
+    ).sort("name", 1).limit(50).to_list(50)
+
+    own_site_id = org["id"]
+    out = []
+    for r in rows:
+        site = site_by_id.get(r["site_id"]) or {}
+        out.append({
+            "id": r["id"],
+            "name": r.get("name"),
+            "role": r.get("role"),
+            "email": r.get("email"),
+            "phone": r.get("phone"),
+            "current_site_id": r["site_id"],
+            "current_site_name": site.get("name") or "(unknown site)",
+            "current_branch": site.get("mod_branch"),
+            "is_own_site": r["site_id"] == own_site_id,
+            "last_reported_at": r.get("last_reported_at"),
+        })
+    return {"results": out, "force": force.upper(), "matches": len(out)}
+
+
+@router.get("/mod/site/transfer-targets")
+async def mod_transfer_targets(user: dict = Depends(get_current_user)):
+    """List sites the caller can transfer staff TO — every other site
+    in the same force. Used to populate the destination picker."""
+    org = await _require_mod_site(user)
+    force = (org.get("mod_force") or "").lower()
+    if force not in {"army", "navy", "raf"}:
+        raise HTTPException(400, "Site has no force assignment")
+    sites = await db.organizations.find(
+        {
+            "account_type": "mod_site",
+            "mod_force": force,
+            "is_mod": True,
+            "id": {"$ne": org["id"]},
+        },
+        {"_id": 0, "id": 1, "name": 1, "mod_branch": 1},
+    ).sort("name", 1).to_list(2000)
+    return {
+        "force": force.upper(),
+        "current_site_id": org["id"],
+        "current_site_name": org.get("name"),
+        "sites": [
+            {"id": s["id"], "name": s["name"], "branch": s.get("mod_branch")}
+            for s in sites
+        ],
+    }
+
+
+@router.post("/mod/site/staff/transfer")
+async def mod_staff_transfer(
+    payload: StaffTransferRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Move a single staff record to a destination site WITHIN THE
+    SAME FORCE. Caller must be at a site that currently owns the
+    staff member, OR at the destination site (i.e. either side of a
+    transfer can initiate it). Cross-force transfers are rejected."""
+    org = await _require_mod_site(user)
+    caller_site_id = org["id"]
+    caller_force = (org.get("mod_force") or "").lower()
+    if caller_force not in {"army", "navy", "raf"}:
+        raise HTTPException(400, "Caller site has no force assignment")
+
+    # Fetch the staff record (it can live at ANY site in the force).
+    staff = await db.mod_site_staff.find_one({"id": payload.staff_id}, {"_id": 0})
+    if not staff:
+        raise HTTPException(404, "Staff member not found")
+
+    source_site = await db.organizations.find_one(
+        {"id": staff["site_id"]}, {"_id": 0, "id": 1, "name": 1, "mod_force": 1, "mod_branch": 1},
+    )
+    dest_site = await db.organizations.find_one(
+        {"id": payload.destination_site_id, "account_type": "mod_site"},
+        {"_id": 0, "id": 1, "name": 1, "mod_force": 1, "mod_branch": 1, "is_mod": 1},
+    )
+    if not source_site or not dest_site:
+        raise HTTPException(404, "Source or destination site not found")
+
+    # Force lock — Army↔Army, RAF↔RAF, Navy↔Navy only.
+    src_force = (source_site.get("mod_force") or "").lower()
+    dst_force = (dest_site.get("mod_force") or "").lower()
+    if src_force != caller_force or dst_force != caller_force:
+        raise HTTPException(
+            403,
+            f"Cross-force transfers are not permitted. Staff member belongs "
+            f"to {src_force.upper() or 'unknown'}; destination is "
+            f"{dst_force.upper() or 'unknown'}; you are at {caller_force.upper()}.",
+        )
+
+    # Caller must be either the source or destination site (auditable).
+    if caller_site_id not in {source_site["id"], dest_site["id"]}:
+        raise HTTPException(
+            403,
+            "You can only initiate transfers involving your own site.",
+        )
+
+    if source_site["id"] == dest_site["id"]:
+        raise HTTPException(400, "Source and destination sites are the same")
+
+    # Idempotency / collision: same email already exists at destination?
+    email_lc = (staff.get("email_lc") or (staff.get("email") or "").lower().strip())
+    if email_lc:
+        clash = await db.mod_site_staff.find_one({
+            "site_id": dest_site["id"],
+            "email_lc": email_lc,
+            "is_active": {"$ne": False},
+            "id": {"$ne": staff["id"]},
+        }, {"_id": 0, "id": 1})
+        if clash:
+            raise HTTPException(
+                409,
+                f"A staff member with this email is already active at "
+                f"{dest_site['name']}. Resolve the duplicate before transferring.",
+            )
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    transfer_record = {
+        "from_site_id": source_site["id"],
+        "from_site_name": source_site.get("name"),
+        "to_site_id": dest_site["id"],
+        "to_site_name": dest_site.get("name"),
+        "transferred_at": now_iso,
+        "transferred_by": user.get("email") or user.get("id"),
+        "reason": (payload.reason or "").strip() or None,
+    }
+    await db.mod_site_staff.update_one(
+        {"id": staff["id"]},
+        {
+            "$set": {
+                "site_id": dest_site["id"],
+                "updated_at": now_iso,
+            },
+            "$push": {"transfer_history": transfer_record},
+        },
+    )
+
+    # Audit at BOTH sites so the trail is visible to either operator.
+    await _audit(
+        source_site["id"], user.get("id"), "staff.transfer.out",
+        staff_id=staff["id"], to_site_id=dest_site["id"], reason=transfer_record["reason"],
+    )
+    await _audit(
+        dest_site["id"], user.get("id"), "staff.transfer.in",
+        staff_id=staff["id"], from_site_id=source_site["id"], reason=transfer_record["reason"],
+    )
+
+    return {
+        "ok": True,
+        "staff_id": staff["id"],
+        "staff_name": staff.get("name"),
+        "from_site_name": source_site.get("name"),
+        "to_site_name": dest_site.get("name"),
+        "transferred_at": now_iso,
+    }
 
 
 # ── Fault wizard submit ──────────────────────────────────────
@@ -1602,6 +1812,33 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
             uid = str(uuid.uuid4())
             await db.users.insert_one({**body, "id": uid, "email": email, "created_at": now})
             created["users"].append({"email": email, "rank": rank, "name": full_name, "created": True})
+
+        # Iter 216h113e — also seed a parallel `mod_site_staff` record so
+        # the cross-site staff transfer feature can find these personnel
+        # via search. Idempotent: upsert by (site_id, email_lc).
+        staff_email_lc = email.lower().strip()
+        await db.mod_site_staff.update_one(
+            {"site_id": site_org_id, "email_lc": staff_email_lc},
+            {
+                "$set": {
+                    "name": full_name,
+                    "role": f"{rank} — PT Instructor",
+                    "email": email,
+                    "email_lc": staff_email_lc,
+                    "phone": mobile or "",
+                    "is_active": True,
+                    "site_id": site_org_id,
+                    "updated_at": now,
+                },
+                "$setOnInsert": {
+                    "id": str(uuid.uuid4()),
+                    "fault_count": 0,
+                    "last_reported_at": None,
+                    "created_at": now,
+                },
+            },
+            upsert=True,
+        )
 
     # Catterick Garrison HQ owner (demo presenter login)
     hq_email = "catterick.demo.lead@army.mod.local"

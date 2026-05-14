@@ -20,7 +20,7 @@ import {
   Eye, Shield, Megaphone, Sparkles, Plus, Trash2, CheckCircle2, X,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
   LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
-  IdCard, Wand2,
+  IdCard, Wand2, ArrowRightLeft,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import PillTabBar from '@/components/shared/PillTabBar';
@@ -33,6 +33,7 @@ import CommsTab from '@/pages/LiteDashboard/staffing/CommsTab';
 import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
+import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import ProductTour from '@/components/shared/ProductTour';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -57,6 +58,11 @@ const TABS_ALL = [
   { id: 'hr',           label: 'HR',            icon: IdCard,      roles: ['owner','manager','master_admin'] },
   { id: 'ai-rota',      label: 'AI Rota',       icon: Wand2,       roles: ['owner','manager','master_admin'] },
   { id: 'ai',           label: 'AI Insights',   icon: Sparkles,    roles: ['owner','manager','master_admin'] },
+  // Iter 216h113e — MOD-only: cross-site staff transfer within the
+  // same force. Hidden for non-MOD tenants. The button itself is
+  // gated below by `isMOD`; this entry stays in the registry so the
+  // role filter still resolves correctly.
+  { id: 'mod-transfer', label: 'Transfers',     icon: ArrowRightLeft, roles: ['owner','manager','master_admin','staff'], modOnly: true },
 ];
 
 export default function StaffingConsole() {
@@ -69,8 +75,12 @@ export default function StaffingConsole() {
     return ['owner','manager','staff','gym_floor'].includes(r) ? r : 'staff';
   }, [user]);
   const isManager = role === 'owner' || role === 'manager' || role === 'master_admin';
+  const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
 
-  const tabs = useMemo(() => TABS_ALL.filter((t) => t.roles.includes(role)), [role]);
+  const tabs = useMemo(
+    () => TABS_ALL.filter((t) => t.roles.includes(role) && (!t.modOnly || isMOD)),
+    [role, isMOD],
+  );
   const [tab, setTab] = useState(tabs[0]?.id || 'leave');
 
   // Switch to a valid tab if role-based filtering drops the current one.

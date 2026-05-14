@@ -32,6 +32,14 @@ class UserLogin(BaseModel):
     # hardening — security audit medium finding).
     email: str
     password: str
+    # Iter 216h113f — portal scope. When set to "mod" the login is
+    # only honoured for MOD account types (`mod_site` / `mod_branch` /
+    # `mod_org`); any other account is rejected with a portal-mismatch
+    # error so the MODService surface stays isolated from the
+    # commercial Pulse Fitness customer base. When unset / "pulse",
+    # MOD accounts are bounced back so they end up on /MODService
+    # rather than inside a Third Space tenant.
+    portal: Optional[str] = None
 
 
 class UserResponse(BaseModel):

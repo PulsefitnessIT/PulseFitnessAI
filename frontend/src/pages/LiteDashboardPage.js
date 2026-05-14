@@ -601,18 +601,24 @@ const LiteDashboardPage = () => {
         : { id: 'staffing', label: 'Gym Floor',   icon: ClipboardList },
     ];
     if (userRole === 'staff') {
-      // MOD staff need Reports too (compliance/audit trail). Non-MOD
-      // staff stay on the base Pro tab set.
+      // MOD staff need Reports + Suppliers too (compliance/audit
+      // trail; staff need to contact equipment suppliers directly).
+      // Non-MOD staff stay on the base Pro tab set.
       return isMOD
-        ? [...proBase, { id: 'reports', label: 'Reports', icon: BarChart3 }]
+        ? [
+            ...proBase,
+            { id: 'reports',   label: 'Reports',   icon: BarChart3 },
+            { id: 'suppliers', label: 'Suppliers', icon: Truck },
+          ]
         : proBase;
     }
-    // Iter 216h113d — MOD managers/owners see Reports but NOT
-    // Suppliers or Gym Layout (HQ/procurement domains).
+    // Iter 216h113e — MOD managers/owners need Reports + Suppliers
+    // (they contact suppliers directly). Gym Layout stays HQ-only.
     if (isMOD) {
       return [
         ...proBase,
-        { id: 'reports', label: 'Reports', icon: BarChart3 },
+        { id: 'reports',   label: 'Reports',   icon: BarChart3 },
+        { id: 'suppliers', label: 'Suppliers', icon: Truck },
       ];
     }
     // Managers and Owners see everything (Weekly Digest lives inside Reports)

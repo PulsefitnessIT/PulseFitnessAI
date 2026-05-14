@@ -327,6 +327,33 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
     # 3. Account-state checks.
     _enforce_account_status(user)
 
+    # 3b. Portal-scope enforcement (Iter 216h113f).
+    # MODService is its own entity — visitors signing in on
+    # /MODService MUST have a MOD account_type, and conversely MOD
+    # users cannot sign in via the standard Pulse Fitness login
+    # (preventing the cross-tenant leak where a `*@mod.gov.uk` user
+    # who happens to be a Third Space team member ends up on the
+    # MOD-branded shell of Third Space's tenant).
+    requested_portal = (credentials.portal or "").lower().strip()
+    user_at = (user.get("account_type") or "").lower()
+    is_mod_user = user_at.startswith("mod_")
+    if requested_portal == "mod" and not is_mod_user:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This account is not registered for the MOD Service Portal. "
+                "Please sign in via your unit's standard Pulse Fitness URL."
+            ),
+        )
+    if requested_portal in ("", "pulse", "standard") and is_mod_user:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "MOD personnel accounts must sign in via the MOD Service "
+                "Portal at /MODService."
+            ),
+        )
+
     # 4. Successful login — clear lockout counter & honour MFA if configured.
     clear_failed_logins(credentials.email)
     mfa_response = await _maybe_issue_mfa_step1(user)
