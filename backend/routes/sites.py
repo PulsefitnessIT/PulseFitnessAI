@@ -100,6 +100,52 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
         # SiteSwitcher renders "Head Office" first), then real sites
         # in their original creation order.
         enriched.sort(key=lambda s: (not bool(s.get("is_head_office")), 0))
+    else:
+        enriched = []
+
+    # Iter 216h113j — MOD Head Office rollup. When the caller is at a
+    # MOD HQ org (`account_type=mod_org`), expose every `mod_site` org
+    # that shares the same `mod_force` as a virtual site so the HQ's
+    # SiteSwitcher / reports can drill into individual gyms or roll
+    # everything up under "All Operations Sites". Each MOD site is its
+    # own organisation row, so we surface them with their org id
+    # serving double duty as the site id.
+    at = (user.get("account_type") or "").lower()
+    if at == "mod_org":
+        org_doc = await db.organizations.find_one(
+            {"id": org_id}, {"_id": 0, "mod_force": 1, "name": 1},
+        )
+        force = (org_doc or {}).get("mod_force") if org_doc else None
+        if force:
+            child_orgs = await db.organizations.find(
+                {
+                    "account_type": "mod_site",
+                    "mod_force": (force or "").lower(),
+                    "is_mod": True,
+                    "status": {"$ne": "archived"},
+                },
+                {"_id": 0, "id": 1, "name": 1, "address": 1, "mod_branch": 1, "mod_force": 1},
+            ).sort("name", 1).to_list(2000)
+            existing_ids = {s.get("id") for s in enriched}
+            for c in child_orgs:
+                if c["id"] in existing_ids:
+                    continue
+                eq_count = await db.equipment.count_documents({"site_id": c["id"]})
+                issue_count = await db.issues.count_documents({"site_id": c["id"]})
+                enriched.append({
+                    "id": c["id"],
+                    "organization_id": c["id"],
+                    "name": c.get("name") or "(unnamed)",
+                    "address": c.get("address") or "",
+                    "mod_branch": c.get("mod_branch"),
+                    "mod_force": c.get("mod_force"),
+                    "is_mod_child": True,
+                    "is_head_office": False,
+                    "equipment_count": eq_count,
+                    "issue_count": issue_count,
+                })
+
+    if enriched:
         return {"sites": enriched}
 
     # Fallback: no sites — return org as default site
@@ -291,6 +337,17 @@ async def update_site(
     for field in ("name", "address", "postcode", "invoice_customer_ref"):
         if field in body:
             updates[field] = (body[field] or "").strip()
+    # Iter 216h113j — MOD force selector (army/raf/navy). MOD tenants
+    # tag each site with one of the three services so HQ rollups can
+    # filter correctly. Non-MOD orgs ignore this field entirely.
+    if "mod_force" in body:
+        v = (body.get("mod_force") or "").strip().lower()
+        if v in ("army", "raf", "navy"):
+            updates["mod_force"] = v
+        elif v in ("", None):
+            updates["mod_force"] = None
+        else:
+            raise HTTPException(400, "mod_force must be one of army | raf | navy")
     # Phase S2 — optional geofence config for staff time-clock.
     # latitude/longitude are floats in decimal degrees; radius is metres.
     for field in ("latitude", "longitude", "geofence_radius_m"):
@@ -704,6 +761,16 @@ async def admin_patch_org_site(
     ):
         if field in body:
             updates[field] = (body[field] or "").strip()
+    # Iter 216h113j — MOD force tag. Sites tagged with a force show
+    # up in their HQ rollup view.
+    if "mod_force" in body:
+        v = (body.get("mod_force") or "").strip().lower()
+        if v in ("army", "raf", "navy"):
+            updates["mod_force"] = v
+        elif not v:
+            updates["mod_force"] = None
+        else:
+            raise HTTPException(400, "mod_force must be one of army | raf | navy")
     if "is_head_office" in body:
         new_hq = bool(body.get("is_head_office"))
         updates["is_head_office"] = new_hq

@@ -336,20 +336,33 @@ function App() {
  } catch {}
  };
 
- const loadSites = async (token) => {
- try {
- const res = await axios.get(`${API}/sites`, { headers: { Authorization: `Bearer ${token}` } });
- const siteList = res.data?.sites || [];
- setSites(siteList);
- // Iter 216h48 — persist for next-page-load hydration so the
- // SiteSwitcher never flashes empty between refreshes.
- try { localStorage.setItem('sites_cache', JSON.stringify(siteList)); } catch { /* quota */ }
- if (siteList.length > 0 && !activeSite) {
- setActiveSite(siteList[0]);
- try { localStorage.setItem('active_site_cache', JSON.stringify(siteList[0])); } catch { /* quota */ }
- }
- } catch {}
- };
+  const loadSites = async (token) => {
+    try {
+      const res = await axios.get(`${API}/sites`, { headers: { Authorization: `Bearer ${token}` } });
+      const siteList = res.data?.sites || [];
+      setSites(siteList);
+      // Iter 216h48 — persist for next-page-load hydration so the
+      // SiteSwitcher never flashes empty between refreshes.
+      try { localStorage.setItem('sites_cache', JSON.stringify(siteList)); } catch { /* quota */ }
+      // Iter 216h113j — Validate the current activeSite against the
+      // user's NEW site list and reset it if not present. This
+      // closes a cross-tenant leak where switching from a Third
+      // Space user to a MOD user kept the stale activeSite (e.g.
+      // "Third Space — Mayfair") visible in the MOD header until
+      // the operator explicitly switched sites.
+      setActiveSite((current) => {
+        if (!current) return siteList[0] || null;
+        const stillPresent = siteList.some((s) => s.id === current.id);
+        if (stillPresent) return current;
+        const next = siteList[0] || null;
+        try {
+          if (next) localStorage.setItem('active_site_cache', JSON.stringify(next));
+          else localStorage.removeItem('active_site_cache');
+        } catch { /* quota */ }
+        return next;
+      });
+    } catch {}
+  };
 
  const refreshSites = () => {
  const token = localStorage.getItem('token');

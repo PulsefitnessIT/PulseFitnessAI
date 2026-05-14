@@ -108,7 +108,7 @@ export default function MODServiceLogin() {
             src={MOD_LOGO}
             alt="UK Ministry of Defence"
             className="h-12 sm:h-14 w-auto object-contain"
-            style={{ objectPosition: 'left center', maxWidth: '260px' }}
+            style={{ objectPosition: 'left center', maxWidth: '260px', background: 'var(--theme-surface, #FFFFFF)' }}
             data-testid="mod-logo-image"
           />
         </div>

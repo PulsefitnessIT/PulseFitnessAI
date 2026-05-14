@@ -27,6 +27,7 @@ import SecuritySection from './AccountSettings/security';
 import PreferencesSection from './AccountSettings/preferences';
 import BillingSection from './AccountSettings/billing';
 import OrganisationSection from './AccountSettings/organisation';
+import SuppliersSection from './AccountSettings/suppliers';
 import TeamSection from './AccountSettings/team';
 
 export default function AccountSettingsModal({ open, onClose }) {
@@ -193,6 +194,7 @@ export default function AccountSettingsModal({ open, onClose }) {
             {section === 'preferences' && <PreferencesSection />}
             {section === 'billing' && <BillingSection billing={billing} onClose={onClose} />}
             {section === 'organisation' && <OrganisationSection billing={billing} profile={profile} />}
+            {section === 'suppliers' && <SuppliersSection />}
             {section === 'team' && <TeamSection profile={profile} inviteCode={billing?.organization_code} />}
           </div>
         </div>

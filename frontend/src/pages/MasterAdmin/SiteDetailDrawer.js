@@ -43,6 +43,9 @@ const SiteDetailDrawer = ({ orgId, site, onClose, onSaved }) => {
     site_manager_name: site.site_manager_name || '',
     site_manager_email: site.site_manager_email || '',
     default_location: site.default_location || 'Main Floor',
+    // Iter 216h113j — MOD force tagging. Only persists when the
+    // org is a MOD tenant; ignored on the backend otherwise.
+    mod_force: site.mod_force || '',
   });
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -215,6 +218,37 @@ const SiteDetailsForm = ({ form, set, dirty, saving, onSave }) => (
     <div className="grid grid-cols-2 gap-3">
       <Field label="Invoice Customer Ref (Sicon)" value={form.invoice_customer_ref} onChange={(v) => set('invoice_customer_ref', v)} placeholder="e.g. INV-CAR-001" testId="site-detail-invoice-ref" />
       <Field label="Default equipment location" value={form.default_location} onChange={(v) => set('default_location', v)} placeholder="Main Floor" testId="site-detail-default-location" />
+    </div>
+
+    {/* Iter 216h113j — Force tag for MOD tenants. Visible to all
+        Master Admin users; only persists when the org is a MOD
+        tenant. Shows three radio-style pills for a clean choice. */}
+    <div data-testid="site-detail-mod-force">
+      <label className="block text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-1.5">
+        MOD Force (Army / RAF / Navy — leave blank for non-MOD sites)
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {[
+          { id: '',     label: 'Not MOD' },
+          { id: 'army', label: 'British Army' },
+          { id: 'raf',  label: 'Royal Air Force' },
+          { id: 'navy', label: 'Royal Navy' },
+        ].map((opt) => (
+          <button
+            key={opt.id || 'none'}
+            type="button"
+            onClick={() => set('mod_force', opt.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+              form.mod_force === opt.id
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
+            }`}
+            data-testid={`site-detail-mod-force-${opt.id || 'none'}`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
     </div>
 
     <p className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold pt-2 border-t border-zinc-100">Address</p>
