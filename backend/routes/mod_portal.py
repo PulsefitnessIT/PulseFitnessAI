@@ -1199,6 +1199,34 @@ async def mod_fault_submit(
         except Exception as e:  # pragma: no cover
             logger.warning("MOD urgent escalation email failed: %s", e)
 
+    # Iter 216h114 — Route fault to the machine's configured supplier so
+    # MOD sites can address requests to decentralised suppliers (each
+    # MOD site may have a different DIO / DEFCON service contract).
+    # Order of resolution:
+    #   1. Equipment's explicit `supplier_id` (preferred — direct link)
+    #   2. Equipment's `supplier` name (matched on supplier directory)
+    #   3. Fall back to manufacturer_keywords auto-match
+    try:
+        supplier_doc = await _resolve_equipment_supplier(equipment, site_id)
+        supplier_email = (supplier_doc or {}).get("email", "").strip() if supplier_doc else ""
+        if supplier_email:
+            asyncio.create_task(send_email(
+                supplier_email,
+                f"[Fault Log] {ticket_ref} — {org.get('name')} — {equipment.get('name')}",
+                _supplier_fault_email_html(org, equipment, doc, supplier_doc),
+            ))
+            doc["supplier_notified_email"] = supplier_email
+            doc["supplier_notified_name"] = supplier_doc.get("name", "")
+            await db.issues.update_one(
+                {"id": issue_id},
+                {"$set": {
+                    "supplier_notified_email": supplier_email,
+                    "supplier_notified_name": supplier_doc.get("name", ""),
+                }},
+            )
+    except Exception as e:  # pragma: no cover
+        logger.warning("MOD supplier-routed fault email failed: %s", e)
+
     # Confirmation email to the reporter.
     try:
         asyncio.create_task(send_email(
@@ -1519,6 +1547,180 @@ async def mod_admin_rotate_password(site_id: str, user: dict = Depends(get_curre
     }
 
 
+# ── HQ-level (mod_org / mod_branch) Site Login provisioning ───────
+# Iter 216h114 — Owner/Manager of a MOD HQ org (e.g. British Army Head
+# Office, Catterick Garrison) needs to roll out site logins for each
+# of their child sites WITHOUT going through a master admin. This
+# endpoint provisions (or rotates) a site's shared login on behalf of
+# the HQ user, returns the new plaintext password ONCE, and optionally
+# emails the credentials to a nominated contact.
+
+class HQProvisionPayload(BaseModel):
+    notify_email: EmailStr | None = None
+    rotate_if_exists: bool = True
+
+
+@router.post("/mod/pro/sites/{site_id}/provision-credentials")
+async def mod_hq_provision_site_credentials(
+    site_id: str,
+    payload: HQProvisionPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 216h114 — Generate / rotate a site login for a child MOD site
+    on behalf of a MOD HQ user.
+
+    Caller must be `mod_org` or `mod_branch` AND the target site must
+    fall within their scope (same `mod_root_id`, plus matching
+    `mod_branch` for branch-tier callers).
+
+    Behaviour:
+      • If the site has no `mod_site` user yet, one is created using a
+        slug derived from the site name as the username, and a fresh
+        password is minted.
+      • If a `mod_site` user already exists and ``rotate_if_exists`` is
+        ``True``, the password is rotated.
+      • The new plaintext password is returned exactly once — the
+        server only stores the bcrypt hash thereafter.
+      • If ``notify_email`` is supplied, the credentials are emailed to
+        that address using the standard rotation email template.
+    """
+    org = await _require_mod_pro(user)
+    site = await db.organizations.find_one(
+        {"id": site_id, "account_type": "mod_site"}, {"_id": 0},
+    )
+    if not site:
+        raise HTTPException(404, "MOD site not found")
+    # Scope check: must share root + (branch if branch-tier)
+    if site.get("mod_root_id") != org.get("mod_root_id"):
+        raise HTTPException(403, "Site is outside your MOD organisation scope")
+    if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
+        raise HTTPException(403, "Site is outside your branch scope")
+
+    from passlib.context import CryptContext
+    from utils.mod_password_rotation import mint_site_password
+
+    pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    # Look specifically for a SHARED SITE LOGIN — a mod_site user
+    # that authenticates by `username` (no email). This differentiates
+    # the shared kiosk login from personnel records that may also be
+    # account_type=mod_site (they sign in by email).
+    site_user = await db.users.find_one(
+        {
+            "organization_id": site_id,
+            "account_type": "mod_site",
+            "username": {"$exists": True, "$nin": [None, ""]},
+        },
+        {"_id": 0},
+    )
+
+    # Compute the canonical username for this site (slug-based) so
+    # we can rotate when it exists OR create when it doesn't.
+    base_slug = (site.get("site_code") or site.get("name") or "mod-site").lower()
+    base_slug = "".join(c if c.isalnum() else "-" for c in base_slug).strip("-")
+
+    if site_user:
+        if not payload.rotate_if_exists:
+            raise HTTPException(
+                409,
+                "Site already has a login. Set rotate_if_exists=true to mint a new password.",
+            )
+        username = site_user["username"]
+        new_password = mint_site_password(username)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        await db.users.update_one(
+            {"id": site_user["id"]},
+            {"$set": {
+                "password": pwd_ctx.hash(new_password),
+                "password_updated_at": now_iso,
+                "rotation_reminder_stage": None,
+                "rotation_reminder_sent_at": None,
+            }},
+        )
+        await _audit(
+            site_id, user.get("id"), "site_login.rotate",
+            username=username, by_role=org.get("account_type"),
+        )
+    else:
+        username = base_slug or f"mod-site-{uuid.uuid4().hex[:6]}"
+        # If username collision (with a different org), append suffix.
+        if await db.users.find_one({"username": username}, {"_id": 0, "id": 1}):
+            username = f"{username}-{uuid.uuid4().hex[:4]}"
+        new_password = mint_site_password(username)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        # NOTE: The `users.email` index is unique and treats `null` as
+        # a key value, so we MUST give shared-site logins a unique
+        # placeholder email instead of `None`. The username remains
+        # the actual sign-in identifier.
+        placeholder_email = f"{username}@mod.site.local"
+        # Just in case of collision, append a uuid suffix.
+        if await db.users.find_one({"email": placeholder_email}, {"_id": 0, "id": 1}):
+            placeholder_email = f"{username}+{uuid.uuid4().hex[:6]}@mod.site.local"
+        await db.users.insert_one({
+            "id": str(uuid.uuid4()),
+            "username": username,
+            "email": placeholder_email,
+            "password": pwd_ctx.hash(new_password),
+            "full_name": site.get("name") or "MOD Site",
+            "role": "owner",
+            "account_type": "mod_site",
+            "organization_id": site_id,
+            "is_site_account": True,
+            "is_mod_user": True,
+            "mod_force": site.get("mod_force"),
+            "password_updated_at": now_iso,
+            "created_at": now_iso,
+            "created_by": user.get("id"),
+        })
+        await _audit(
+            site_id, user.get("id"), "site_login.provision",
+            username=username, by_role=org.get("account_type"),
+        )
+
+    # Optional: email the credentials to the nominated contact.
+    notified = False
+    if payload.notify_email:
+        try:
+            html = _hq_provision_email_html(site, username, new_password)
+            subject = f"[MOD site login] {site.get('name')} — credentials"
+            await send_email(payload.notify_email, subject, html)
+            notified = True
+        except Exception as e:  # pragma: no cover
+            logger.warning("HQ provision email failed: %s", e)
+
+    return {
+        "ok": True,
+        "site_id": site_id,
+        "site_name": site.get("name"),
+        "username": username,
+        "password": new_password,
+        "rotated": bool(site_user),
+        "notified_email": payload.notify_email if notified else None,
+        "note": (
+            "This password is shown ONCE. Copy it now — the server only "
+            "stores a bcrypt hash going forward."
+        ),
+    }
+
+
+def _hq_provision_email_html(site: dict, username: str, new_password: str) -> str:
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Site Login</div>
+    <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{site.get('name')}</h1>
+  </div>
+  <div style="padding:22px 28px;">
+    <p>The site login for <strong>{site.get('name')}</strong> has been provisioned by your HQ.</p>
+    <table style="margin-top:14px;border-collapse:collapse;">
+      <tr><td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
+          <td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;font-weight:700;"><code>{username}</code></td></tr>
+      <tr><td style="padding:8px 14px;background:#0A0B10;color:#19CDFF;border:1px solid #0A0B10;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
+          <td style="padding:8px 14px;background:#0A0B10;color:#fff;border:1px solid #0A0B10;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
+    </table>
+    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="https://maintenance-hub-357.preview.emergentagent.com/MODService" style="color:#19CDFF;">/MODService</a> using the username + site code.</p>
+  </div>
+</div>"""
+
+
 # ── Red Team Drill mode ──────────────────────────────────────────
 # Lets a master admin inject a simulated URGENT fault into a MOD site so
 # the PTI, on-call engineer routing, and escalation email flows can be
@@ -1812,6 +2014,80 @@ def _confirmation_email_html(site: dict, eq: dict, doc: dict) -> str:
     <p>Thanks {doc.get('reporter_name','').split(' ')[0]} — we have your fault report for <strong>{eq.get('name')}</strong> at {site.get('name')}.</p>
     <p style="color:#6E7476;font-size:13px;">Priority: <strong style="color:#1B1D1D;">{doc.get('priority','').upper()}</strong>. We'll be in touch on {doc.get('reporter_email')} or {doc.get('reporter_phone')} as the engineer is assigned.</p>
   </div>
+</div>"""
+
+
+async def _resolve_equipment_supplier(eq: dict, site_id: str) -> Optional[dict]:
+    """Iter 216h114 — Resolve the supplier responsible for an equipment row.
+
+    Resolution order:
+      1. ``supplier_id`` field on the equipment (direct link)
+      2. ``supplier`` name (exact match against the site/org's supplier dir)
+      3. ``manufacturer`` matched against any supplier's
+         ``manufacturer_keywords`` (case-insensitive)
+
+    Returns the supplier doc or ``None`` if no match. Scope is restricted
+    to the same organisation (site_id is the MOD site's organization_id).
+    """
+    if not eq:
+        return None
+    # 1. Direct id link
+    supplier_id = (eq.get("supplier_id") or "").strip()
+    if supplier_id:
+        doc = await db.suppliers.find_one(
+            {"id": supplier_id, "organization_id": site_id}, {"_id": 0},
+        )
+        if doc:
+            return doc
+    # 2. Name match
+    supplier_name = (eq.get("supplier") or "").strip()
+    if supplier_name:
+        doc = await db.suppliers.find_one(
+            {"organization_id": site_id, "name": supplier_name}, {"_id": 0},
+        )
+        if doc:
+            return doc
+    # 3. Manufacturer keyword auto-match
+    manufacturer = (eq.get("manufacturer") or "").strip().lower()
+    if manufacturer:
+        cursor = db.suppliers.find(
+            {"organization_id": site_id, "manufacturer_keywords": {"$exists": True, "$ne": []}},
+            {"_id": 0},
+        )
+        async for s in cursor:
+            for kw in (s.get("manufacturer_keywords") or []):
+                if kw and kw.strip().lower() in manufacturer:
+                    return s
+    return None
+
+
+def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) -> str:
+    """Iter 216h114 — Email sent to a machine's configured supplier when a
+    fault is logged. Contains the ticket, equipment details, reporter
+    contact, and a CTA to the public case page (handled by the existing
+    supplier portal flow). Branded for MOD-as-Pulse."""
+    contact = (supplier or {}).get("contact_name") or (supplier or {}).get("name", "Service Team")
+    attachment_block = _inline_attachment_block(doc)
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Supplier Notification</div>
+    <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>
+  </div>
+  <div style="padding:22px 28px;">
+    <p>Dear {contact},</p>
+    <p>A fault has been logged on a machine you service at <strong>{site.get('name')}</strong>. Details below — please follow up directly with the reporter.</p>
+    <table style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;margin-top:14px;">
+      <tr><td style="padding:6px 0;color:#6E7476;width:140px;">Ticket</td><td style="padding:6px 0;font-weight:700;">{doc['mod_ticket_ref']}</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;">Priority</td><td style="padding:6px 0;font-weight:700;">{doc.get('priority','').upper()}</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;">Asset</td><td style="padding:6px 0;">{eq.get('name','')} ({eq.get('equipment_type', eq.get('machine_type',''))})</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;">Manufacturer</td><td style="padding:6px 0;">{eq.get('manufacturer','—')} · {eq.get('model','')}</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;">Serial</td><td style="padding:6px 0;font-family:ui-monospace,Menlo,monospace;">{eq.get('serial_number','—')}</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;">Reporter</td><td style="padding:6px 0;">{doc.get('reporter_name','')} · <a href="mailto:{doc.get('reporter_email','')}" style="color:#19CDFF;">{doc.get('reporter_email','')}</a> · {doc.get('reporter_phone','')}</td></tr>
+    </table>
+  </div>
+  {attachment_block}
 </div>"""
 
 

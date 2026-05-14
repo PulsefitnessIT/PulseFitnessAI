@@ -10,8 +10,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
-import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2 } from 'lucide-react';
+import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2, KeyRound, Copy, Check, Mail, X } from 'lucide-react';
 import { useAuth } from '@/App';
+import { notify } from '@/components/notifications';
 import KpiTile from '@/components/shared/KpiTile';
 import PageHeader from '@/components/shared/PageHeader';
 
@@ -22,10 +23,14 @@ const scoreColor = (s) => {
 };
 
 const AllSitesOverview = ({ onPickSite }) => {
-  const { API, setActiveSite } = useAuth();
+  const { API, setActiveSite, user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Iter 216h114 — MOD HQ users (mod_branch / mod_org) can generate or
+  // rotate the shared site login for each of their child sites.
+  const isModHQ = ['mod_branch', 'mod_org'].includes(user?.account_type || '');
+  const [siteLoginTarget, setSiteLoginTarget] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -156,15 +161,29 @@ const AllSitesOverview = ({ onPickSite }) => {
                     <td className="px-3 py-2.5 text-right hidden md:table-cell" style={{ color: s.overdue_faults > 0 ? '#dc2626' : 'var(--theme-text)' }}>{s.overdue_faults}</td>
                     <td className="px-3 py-2.5 text-right hidden md:table-cell" style={{ color: 'var(--theme-text)' }}>{s.equipment_count}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => goToSite(s)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded hover:bg-[var(--theme-hover-bg)]"
-                        style={{ color: 'var(--color-brand-blue)' }}
-                        data-testid={`leaderboard-go-${s.id}`}
-                      >
-                        Open <ArrowRight size={11} />
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        {isModHQ && (
+                          <button
+                            type="button"
+                            onClick={() => setSiteLoginTarget(s)}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]"
+                            style={{ color: 'var(--color-brand-cyan-hover)' }}
+                            data-testid={`leaderboard-site-login-${s.id}`}
+                            title="Generate / rotate this site's login"
+                          >
+                            <KeyRound size={11} /> Site login
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => goToSite(s)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded hover:bg-[var(--theme-hover-bg)]"
+                          style={{ color: 'var(--color-brand-blue)' }}
+                          data-testid={`leaderboard-go-${s.id}`}
+                        >
+                          Open <ArrowRight size={11} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -176,8 +195,169 @@ const AllSitesOverview = ({ onPickSite }) => {
           </table>
         </div>
       </Card>
+
+      {/* Iter 216h114 — Site Login generator modal (MOD HQ only) */}
+      {isModHQ && siteLoginTarget && (
+        <SiteLoginModal
+          site={siteLoginTarget}
+          API={API}
+          onClose={() => setSiteLoginTarget(null)}
+        />
+      )}
     </div>
   );
 };
 
 export default AllSitesOverview;
+
+
+/* ─────────── Iter 216h114 — MOD HQ Site Login provisioning ─────────── */
+function SiteLoginModal({ site, API, onClose }) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+  const headers = { Authorization: `Bearer ${token}` };
+  const [step, setStep] = useState('confirm');
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const generate = async () => {
+    setSubmitting(true);
+    try {
+      const r = await axios.post(
+        `${API}/mod/pro/sites/${site.id}/provision-credentials`,
+        { notify_email: notifyEmail.trim() || null, rotate_if_exists: true },
+        { headers },
+      );
+      setResult(r.data);
+      setStep('result');
+      if (r.data?.notified_email) notify.success(`Credentials emailed to ${r.data.notified_email}`);
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not generate site login');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copyCreds = async () => {
+    if (!result) return;
+    const text = `Site: ${result.site_name}\nUsername: ${result.username}\nSite code: ${result.password}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" data-testid="mod-site-login-modal">
+      <div className="w-full max-w-md rounded-2xl border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
+        <header className="px-5 py-4 border-b flex items-start justify-between gap-3" style={{ borderColor: 'var(--theme-border-soft)' }}>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-cyan-hover)' }}>
+              Pulse Fitness · MOD Site Login
+            </div>
+            <h3 className="text-base font-extrabold tracking-tight mt-1" style={{ color: 'var(--theme-text)' }} data-testid="mod-site-login-title">
+              {site.name}
+            </h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-[var(--theme-hover-bg)]" data-testid="mod-site-login-close">
+            <X size={16} style={{ color: 'var(--theme-text-muted)' }} />
+          </button>
+        </header>
+
+        <div className="p-5 space-y-4">
+          {step === 'confirm' && (
+            <>
+              <p className="text-sm" style={{ color: 'var(--theme-text)' }}>
+                Generate (or rotate) the shared site login for this MOD site.
+                The new password is shown once — copy it now and share securely
+                with the on-site PTI.
+              </p>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
+                  Email credentials to (optional)
+                </label>
+                <div className="flex items-center gap-2">
+                  <Mail size={14} className="shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
+                  <input
+                    type="email"
+                    placeholder="ops.lead@army.mod.local"
+                    value={notifyEmail}
+                    onChange={(e) => setNotifyEmail(e.target.value)}
+                    className="flex-1 rounded-md px-3 py-2 text-sm focus:outline-none"
+                    style={{ background: 'var(--theme-surface-2)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
+                    data-testid="mod-site-login-notify-email"
+                  />
+                </div>
+                <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+                  Leave blank to view + copy from this dialog only.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button type="button" onClick={onClose} className="px-3 py-2 text-xs font-bold rounded-md hover:bg-[var(--theme-hover-bg)]" style={{ color: 'var(--theme-text-muted)' }} data-testid="mod-site-login-cancel">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={generate}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-xs font-extrabold uppercase tracking-wider rounded-md text-white disabled:opacity-50"
+                  style={{ background: 'var(--color-brand-cyan-hover)' }}
+                  data-testid="mod-site-login-generate"
+                >
+                  {submitting ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                  Generate
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 'result' && result && (
+            <>
+              <div className="rounded-lg border p-3 text-xs" style={{ borderColor: 'rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.10)', color: 'var(--theme-text)' }} data-testid="mod-site-login-once-warning">
+                {result.note || 'This password is shown once — copy it now.'}
+              </div>
+              <div className="space-y-2">
+                <div className="rounded-md p-3" style={{ background: 'var(--theme-surface-2)', border: '1px solid var(--theme-border)' }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>Username</div>
+                  <code className="block mt-1 text-sm font-mono" style={{ color: 'var(--theme-text)' }} data-testid="mod-site-login-username">{result.username}</code>
+                </div>
+                <div className="rounded-md p-3" style={{ background: '#0A0B10', border: '1px solid var(--color-brand-cyan-hover)' }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--color-brand-cyan-hover)' }}>Site code</div>
+                  <code className="block mt-1 text-sm font-mono break-all" style={{ color: '#fff' }} data-testid="mod-site-login-password">{result.password}</code>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={copyCreds}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-md border hover:bg-[var(--theme-hover-bg)]"
+                  style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                  data-testid="mod-site-login-copy"
+                >
+                  {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                  {copied ? 'Copied' : 'Copy both'}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3 py-2 text-xs font-extrabold uppercase tracking-wider rounded-md text-white"
+                  style={{ background: 'var(--color-brand-cyan-hover)' }}
+                  data-testid="mod-site-login-done"
+                >
+                  Done
+                </button>
+              </div>
+              {result.rotated ? (
+                <p className="text-[11px] pt-1" style={{ color: 'var(--theme-text-muted)' }}>Previous code has been invalidated immediately.</p>
+              ) : (
+                <p className="text-[11px] pt-1" style={{ color: 'var(--theme-text-muted)' }}>New site account created — ready to use straight away.</p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

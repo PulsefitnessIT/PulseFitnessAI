@@ -486,6 +486,9 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], user: dict =
         "replacement_cost", "expected_lifespan_years",
         # Supplier reassignment — restricted below to owner/manager roles.
         "supplier",
+        # Iter 216h114 — also persist the supplier id when assigning so
+        # fault-routing prefers the direct link over name lookups.
+        "supplier_id",
         # Iter 216h49 — owners/managers can now move kit between sites
         # directly via PATCH. Also gated below.
         "site_id",
@@ -497,7 +500,7 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], user: dict =
 
     # Supplier changes are a commercial decision — gated to owners/managers
     # (and master admins for impersonation). Staff may edit every other field.
-    if "supplier" in update_data and user.get("role") not in (
+    if ("supplier" in update_data or "supplier_id" in update_data) and user.get("role") not in (
         "owner", "manager", "master_admin",
     ):
         raise HTTPException(

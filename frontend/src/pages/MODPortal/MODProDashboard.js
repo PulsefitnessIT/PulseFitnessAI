@@ -10,9 +10,10 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Activity, AlertTriangle, Building2, LogOut, Gauge, Wrench, Shield, ArrowUpRight,
-  ClipboardList, TrendingUp, FileText, PoundSterling,
+  ClipboardList, TrendingUp, FileText, PoundSterling, KeyRound, Copy, Check, Loader2, Mail, X,
 } from 'lucide-react';
 import { useAuth } from '@/App';
+import { notify } from '@/components/notifications';
 import GymFloorManagerTab from '../LiteDashboard/GymFloorManagerTab';
 
 export default function MODProDashboard() {
@@ -167,10 +168,7 @@ export default function MODProDashboard() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {(data.sites || []).map((s) => (
-              <div key={s.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5" data-testid={`mod-pro-site-${s.id}`}>
-                <div className="font-bold text-white text-sm">{s.name}</div>
-                <div className="text-xs text-white/60">{s.mod_branch} · {s.site_code || '—'}</div>
-              </div>
+              <SiteRow key={s.id} site={s} API={API} headers={headers} />
             ))}
           </div>
         </section>
@@ -410,4 +408,181 @@ function Stat({ label, value }) {
 
 function Skeleton({ text }) {
   return <p className="text-center text-xs text-white/50 py-10">{text}</p>;
+}
+
+
+/* ─────────── Iter 216h114 — Site Login provisioning ─────────── */
+function SiteRow({ site, API, headers }) {
+  const [showModal, setShowModal] = useState(false);
+  return (
+    <>
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 flex items-center gap-3" data-testid={`mod-pro-site-${site.id}`}>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-white text-sm truncate">{site.name}</div>
+          <div className="text-xs text-white/60">{site.mod_branch} · {site.site_code || '—'}</div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-[var(--color-brand-cyan)]/10 hover:bg-[var(--color-brand-cyan)]/20 text-[var(--color-brand-cyan)] border border-[var(--color-brand-cyan)]/30"
+          data-testid={`mod-pro-site-login-btn-${site.id}`}
+          title="Generate / rotate this site's login"
+        >
+          <KeyRound size={12} /> Site login
+        </button>
+      </div>
+      {showModal && (
+        <GenerateLoginModal
+          site={site}
+          API={API}
+          headers={headers}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function GenerateLoginModal({ site, API, headers, onClose }) {
+  const [step, setStep] = useState('confirm'); // confirm · result
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const generate = async () => {
+    setSubmitting(true);
+    try {
+      const r = await axios.post(
+        `${API}/mod/pro/sites/${site.id}/provision-credentials`,
+        { notify_email: notifyEmail.trim() || null, rotate_if_exists: true },
+        { headers },
+      );
+      setResult(r.data);
+      setStep('result');
+      if (r.data?.notified_email) notify.success(`Credentials emailed to ${r.data.notified_email}`);
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not generate site login');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copyCreds = async () => {
+    if (!result) return;
+    const text = `Site: ${result.site_name}\nUsername: ${result.username}\nSite code: ${result.password}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" data-testid="mod-site-login-modal">
+      <div className="w-full max-w-md rounded-2xl bg-[var(--color-surface-darker)] border border-white/10 overflow-hidden">
+        <header className="px-5 py-4 border-b border-white/10 flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">
+              Pulse Fitness · MOD Site Login
+            </div>
+            <h3 className="text-white text-base font-extrabold tracking-tight mt-1" data-testid="mod-site-login-title">
+              {site.name}
+            </h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10" data-testid="mod-site-login-close">
+            <X size={16} />
+          </button>
+        </header>
+
+        <div className="p-5 space-y-4">
+          {step === 'confirm' && (
+            <>
+              <p className="text-sm text-white/80">
+                Generate (or rotate) the shared site login for this MOD site.
+                The new password is shown once — copy it now and share securely
+                with the on-site PTI.
+              </p>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-white/60">
+                  Email credentials to (optional)
+                </label>
+                <div className="flex items-center gap-2">
+                  <Mail size={14} className="text-white/40 shrink-0" />
+                  <input
+                    type="email"
+                    placeholder="ops.lead@army.mod.local"
+                    value={notifyEmail}
+                    onChange={(e) => setNotifyEmail(e.target.value)}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[var(--color-brand-cyan)]"
+                    data-testid="mod-site-login-notify-email"
+                  />
+                </div>
+                <p className="text-[11px] text-white/40">
+                  Leave blank to view + copy from this dialog only.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button type="button" onClick={onClose} className="px-3 py-2 text-xs font-bold rounded-md text-white/70 hover:text-white" data-testid="mod-site-login-cancel">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={generate}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-xs font-extrabold uppercase tracking-wider rounded-md bg-[var(--color-brand-cyan)] hover:opacity-90 text-black disabled:opacity-50"
+                  data-testid="mod-site-login-generate"
+                >
+                  {submitting ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                  Generate
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 'result' && result && (
+            <>
+              <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200" data-testid="mod-site-login-once-warning">
+                {result.note || 'This password is shown once — copy it now.'}
+              </div>
+              <div className="space-y-2">
+                <div className="rounded-md bg-white/5 border border-white/10 p-3">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-white/50">Username</div>
+                  <code className="block mt-1 text-sm font-mono text-white" data-testid="mod-site-login-username">{result.username}</code>
+                </div>
+                <div className="rounded-md bg-black border border-[var(--color-brand-cyan)]/40 p-3">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--color-brand-cyan)]">Site code</div>
+                  <code className="block mt-1 text-sm font-mono text-white break-all" data-testid="mod-site-login-password">{result.password}</code>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={copyCreds}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-md border border-white/10 text-white/80 hover:bg-white/5"
+                  data-testid="mod-site-login-copy"
+                >
+                  {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                  {copied ? 'Copied' : 'Copy both'}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3 py-2 text-xs font-extrabold uppercase tracking-wider rounded-md bg-[var(--color-brand-cyan)] text-black hover:opacity-90"
+                  data-testid="mod-site-login-done"
+                >
+                  Done
+                </button>
+              </div>
+              {result.rotated ? (
+                <p className="text-[11px] text-white/40 pt-1">Previous code has been invalidated immediately.</p>
+              ) : (
+                <p className="text-[11px] text-white/40 pt-1">New site account created — ready to use straight away.</p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

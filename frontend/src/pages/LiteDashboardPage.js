@@ -419,7 +419,11 @@ const LiteDashboardPage = () => {
       equipment_id: eq.id,
       serial_number: eq.serial_number || eq.name,
       machine_type: eq.equipment_type || '',
-      supplier: eq.manufacturer || '',
+      // Iter 216h114 — prefer the machine's explicitly-configured
+      // supplier (set per-machine via the Equipment detail panel) so
+      // fault notifications route to the correct supplier. Fall back
+      // to manufacturer name only when no supplier has been chosen.
+      supplier: eq.supplier || eq.manufacturer || '',
     });
     fetchCoverage(eq.id);
     const existing = openFaults.filter(f => f.serial_number === (eq.serial_number || eq.name));
@@ -953,6 +957,12 @@ const LiteDashboardPage = () => {
         onSuccessDismiss={() => { setSuccessModal(null); setActiveTab('faults'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         isPro={isPro}
         headers={headers}
+        userRole={userRole}
+        onSupplierChange={(equipmentId, supplierName, supplierId) => {
+          setEquipment((list) => list.map((e) => (
+            e.id === equipmentId ? { ...e, supplier: supplierName, supplier_id: supplierId } : e
+          )));
+        }}
       />
 
       {/* Mobile Bottom Navigation */}

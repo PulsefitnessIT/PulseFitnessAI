@@ -1,0 +1,85 @@
+{
+  "summary": "Iter 216h114 testing PASSED. All backend APIs working correctly. MOD Site Login provisioning, supplier routing, and equipment supplier editor features verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "All Sites Overview",
+        "issues": ["Minor: 'MOD site not found' toast briefly appears when clicking Site Login button for Catterick Garrison (the HQ itself) - this is expected behavior as HQ is not a child site"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h114_full.py",
+    "/app/backend/tests/test_iter_216h114_supplier_and_site_login.py",
+    "/app/test_reports/pytest/pytest_results_iter_216h114.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h114_full.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 passed)",
+    "frontend": "100% - All tested features working"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "mod_hq_branch": "catterick.demo.lead@army.mod.local / ArmyDemo2026!",
+    "mod_hq_org": "army.command@army.mod.local / ArmyDemo2026!",
+    "mod_site": "daniel.hayes@army.mod.local / ArmyDemo2026!",
+    "tenant_owner": "e1.agent@gymaxisai.com / E1Agent123!"
+  },
+  "seed_data_creation": "Used POST /api/mod/demo/seed-army-catterick to create Catterick Garrison hierarchy with 7 child MOD sites",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 216h114 verified: (1) POST /api/mod/pro/sites/{site_id}/provision-credentials works for mod_branch HQ user, returns username+password, supports notify_email. (2) Provisioned site login can authenticate via /api/auth/login with portal='mod'. (3) PATCH /api/equipment/{id} accepts supplier/supplier_id for owner/manager. (4) GET /api/sites/overview returns 7+ child mod sites with is_mod_child=true. (5) POST /api/mod/site/faults records supplier_notified_* when equipment has matching supplier. (6) Frontend All Sites Overview shows Site Login buttons for each MOD child site. (7) SiteLoginModal has Generate button, displays credentials with Copy functionality. (8) Equipment detail drawer has SupplierEditor with data-testid='lite-equip-supplier-edit-btn', 'lite-equip-supplier-select', 'lite-equip-supplier-save'.",
+  "verified_features": {
+    "provision_credentials_endpoint": {
+      "status": "WORKING",
+      "endpoint": "POST /api/mod/pro/sites/{site_id}/provision-credentials",
+      "returns": "{ok: true, site_id, username, password}",
+      "auth_required": "mod_branch or mod_org HQ user",
+      "403_for_non_mod_hq": true,
+      "notify_email_support": true
+    },
+    "provisioned_site_login": {
+      "status": "WORKING",
+      "endpoint": "POST /api/auth/login",
+      "payload": "{email: <username>, password: <plaintext>, portal: 'mod'}",
+      "returns": "token + user.account_type='mod_site'"
+    },
+    "equipment_supplier_patch": {
+      "status": "WORKING",
+      "endpoint": "PATCH /api/equipment/{id}",
+      "payload": "{supplier, supplier_id}",
+      "owner_manager_allowed": true,
+      "staff_rejected": true
+    },
+    "sites_overview_mod_children": {
+      "status": "WORKING",
+      "endpoint": "GET /api/sites/overview",
+      "returns": "7+ child mod sites with is_mod_child=true for Catterick HQ"
+    },
+    "mod_fault_supplier_routing": {
+      "status": "WORKING",
+      "endpoint": "POST /api/mod/site/faults",
+      "behavior": "Records supplier_notified_email + supplier_notified_name when equipment has matching supplier"
+    },
+    "frontend_all_sites_leaderboard": {
+      "status": "WORKING",
+      "site_login_buttons": "8 buttons found (data-testid='leaderboard-site-login-{id}')",
+      "site_login_modal": "Opens with Generate button, displays credentials"
+    },
+    "frontend_supplier_editor": {
+      "status": "WORKING",
+      "data_testids": ["lite-equip-supplier-edit-btn", "lite-equip-supplier-select", "lite-equip-supplier-save"],
+      "visible_for": "owner/manager roles only"
+    }
+  }
+}

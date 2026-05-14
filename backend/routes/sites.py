@@ -110,20 +110,35 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
     # everything up under "All Operations Sites". Each MOD site is its
     # own organisation row, so we surface them with their org id
     # serving double duty as the site id.
+    # Iter 216h114 — same logic for `mod_branch` HQ users (e.g.
+    # Catterick Garrison): every mod_site sharing this branch shows
+    # up so HQ owners/managers can roll out site logins from one
+    # screen.
     at = (user.get("account_type") or "").lower()
-    if at == "mod_org":
+    if at in ("mod_org", "mod_branch"):
         org_doc = await db.organizations.find_one(
-            {"id": org_id}, {"_id": 0, "mod_force": 1, "name": 1},
+            {"id": org_id},
+            {"_id": 0, "mod_force": 1, "mod_branch": 1, "name": 1, "mod_root_id": 1},
         )
-        force = (org_doc or {}).get("mod_force") if org_doc else None
-        if force:
+        if org_doc:
+            force = (org_doc.get("mod_force") or "").lower()
+            child_query = {
+                "account_type": "mod_site",
+                "is_mod": True,
+                "status": {"$ne": "archived"},
+            }
+            if at == "mod_branch":
+                # Branch-tier: only sites within this branch.
+                branch = org_doc.get("mod_branch") or ""
+                if branch:
+                    child_query["mod_branch"] = branch
+                # Belt-and-braces: also scope by root id when present.
+                if org_doc.get("mod_root_id"):
+                    child_query["mod_root_id"] = org_doc["mod_root_id"]
+            elif force:
+                child_query["mod_force"] = force
             child_orgs = await db.organizations.find(
-                {
-                    "account_type": "mod_site",
-                    "mod_force": (force or "").lower(),
-                    "is_mod": True,
-                    "status": {"$ne": "archived"},
-                },
+                child_query,
                 {"_id": 0, "id": 1, "name": 1, "address": 1, "mod_branch": 1, "mod_force": 1},
             ).sort("name", 1).to_list(2000)
             existing_ids = {s.get("id") for s in enriched}
@@ -259,6 +274,77 @@ async def get_sites_overview(user: dict = Depends(get_current_user)) -> dict:
         total_equipment += eq_count
         total_open += open_faults
         total_overdue += overdue_faults
+
+    # Iter 216h114 — Inject MOD sub-org sites for HQ users so the
+    # AllSitesOverview leaderboard surfaces every child gym (each is
+    # its own organisation, not a row in db.sites). Lets MOD HQ owners
+    # generate Site Login codes for any gym in one screen.
+    at = (user.get("account_type") or "").lower()
+    if at in ("mod_org", "mod_branch"):
+        try:
+            hq_doc = await db.organizations.find_one(
+                {"id": org_id},
+                {"_id": 0, "mod_force": 1, "mod_branch": 1, "mod_root_id": 1},
+            ) or {}
+            child_query = {
+                "account_type": "mod_site",
+                "is_mod": True,
+                "status": {"$ne": "archived"},
+            }
+            if at == "mod_branch":
+                if hq_doc.get("mod_branch"):
+                    child_query["mod_branch"] = hq_doc["mod_branch"]
+                if hq_doc.get("mod_root_id"):
+                    child_query["mod_root_id"] = hq_doc["mod_root_id"]
+            elif hq_doc.get("mod_force"):
+                child_query["mod_force"] = (hq_doc["mod_force"] or "").lower()
+            existing_ids = {s.get("id") for s in enriched}
+            child_orgs = await db.organizations.find(
+                child_query,
+                {"_id": 0, "id": 1, "name": 1, "address": 1, "postcode": 1,
+                 "mod_branch": 1, "mod_force": 1},
+            ).sort("name", 1).to_list(2000)
+            for c in child_orgs:
+                if c["id"] in existing_ids:
+                    continue
+                # Equipment + issue counts use organization_id (each
+                # MOD site = its own org), not site_id.
+                child_filter = {"organization_id": c["id"]}
+                eq_count = await db.equipment.count_documents(child_filter)
+                open_faults = await db.issues.count_documents({
+                    **child_filter, "status": {"$in": ["open", "in_progress", "awaiting_parts"]},
+                })
+                overdue_faults = await db.issues.count_documents({
+                    **child_filter,
+                    "status": {"$in": ["open", "in_progress", "awaiting_parts"]},
+                    "sla_deadline": {"$lt": now_iso, "$ne": None},
+                })
+                faults_this_week = await db.issues.count_documents({
+                    **child_filter, "created_at": {"$gte": week_ago},
+                })
+                score = 100 - min(40, open_faults * 8) - min(20, overdue_faults * 5)
+                score = max(0, min(100, score))
+                enriched.append({
+                    "id": c["id"],
+                    "name": c.get("name") or "Unnamed site",
+                    "address": c.get("address") or "",
+                    "postcode": c.get("postcode") or "",
+                    "is_head_office": False,
+                    "is_mod_child": True,
+                    "mod_branch": c.get("mod_branch"),
+                    "mod_force": c.get("mod_force"),
+                    "equipment_count": eq_count,
+                    "open_faults": open_faults,
+                    "overdue_faults": overdue_faults,
+                    "faults_this_week": faults_this_week,
+                    "completion_rate": 0.0,
+                    "score": score,
+                })
+                total_equipment += eq_count
+                total_open += open_faults
+                total_overdue += overdue_faults
+        except Exception:  # pragma: no cover
+            pass
 
     # Sort by score desc, then by open_faults asc (tiebreak)
     ranked = sorted(enriched, key=lambda x: (-x["score"], x["open_faults"]))

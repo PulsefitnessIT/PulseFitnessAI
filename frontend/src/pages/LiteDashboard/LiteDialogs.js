@@ -35,13 +35,58 @@ const useBlobUrl = (url) => {
 };
 
 /* ─── Equipment Detail with Tabs (Details | Spec Sheet) ─── */
-const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)' }) => {
+const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)', userRole = 'staff', onSupplierChange }) => {
   const specId = selectedEquipment.spec_sheet_id;
   const hasSpec = !!specId;
   const [activeTab, setActiveTab] = useState('details');
   const [photoUrl, setPhotoUrl] = useState(selectedEquipment.photo_url || null);
   const pdfBlobUrl = useBlobUrl(hasSpec && activeTab === 'spec-sheet' ? `${API_BASE}/spec-sheets/pdf/${specId}` : null);
   const authToken = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+
+  // Iter 216h114 — Inline Supplier editor. Owners/managers see a
+  // dropdown sourced from /api/suppliers so they can re-route fault
+  // notifications without leaving the equipment drawer.
+  const canEditSupplier = userRole === 'owner' || userRole === 'manager' || userRole === 'master_admin';
+  const [supplierOptions, setSupplierOptions] = useState([]);
+  const [editingSupplier, setEditingSupplier] = useState(false);
+  const [savingSupplier, setSavingSupplier] = useState(false);
+  const [currentSupplier, setCurrentSupplier] = useState(selectedEquipment.supplier || '');
+  useEffect(() => { setCurrentSupplier(selectedEquipment.supplier || ''); }, [selectedEquipment.id, selectedEquipment.supplier]);
+  useEffect(() => {
+    if (!canEditSupplier) return;
+    let cancelled = false;
+    axios
+      .get(`${API_BASE}/suppliers`, { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((r) => { if (!cancelled) setSupplierOptions(r.data?.suppliers || []); })
+      .catch(() => { if (!cancelled) setSupplierOptions([]); });
+    return () => { cancelled = true; };
+  }, [canEditSupplier, authToken]);
+
+  const handleSaveSupplier = async (supplierName, notifySupplier = false) => {
+    setSavingSupplier(true);
+    try {
+      const match = supplierOptions.find((s) => s.name === supplierName);
+      await axios.patch(
+        `${API_BASE}/equipment/${selectedEquipment.id}`,
+        {
+          supplier: supplierName,
+          supplier_id: match?.id || null,
+          notify_supplier: notifySupplier,
+        },
+        { headers: { Authorization: `Bearer ${authToken}` } },
+      );
+      setCurrentSupplier(supplierName);
+      selectedEquipment.supplier = supplierName;
+      if (match?.id) selectedEquipment.supplier_id = match.id;
+      setEditingSupplier(false);
+      notify.success(notifySupplier ? 'Supplier updated and notified' : 'Supplier updated');
+      if (onSupplierChange) onSupplierChange(selectedEquipment.id, supplierName, match?.id || null);
+    } catch (err) {
+      notify.error(err?.response?.data?.detail || 'Could not update supplier');
+    } finally {
+      setSavingSupplier(false);
+    }
+  };
 
   const eqFaults = getEquipmentFaults(selectedEquipment);
   const eqFiles = getEquipmentFiles(selectedEquipment);
@@ -221,9 +266,35 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                     testId: 'lite-equip-manufacturer',
                   },
                   { label: 'Location', value: selectedEquipment.location, testId: 'lite-equip-location' },
-                  { label: 'Supplier', value: selectedEquipment.supplier, accent: !!selectedEquipment.supplier, testId: 'lite-equip-supplier' },
+                  { label: 'Supplier', value: currentSupplier, accent: !!currentSupplier, testId: 'lite-equip-supplier' },
                 ]}
               />
+              {/* Iter 216h114 — Per-machine supplier override (owners/managers only).
+                  Lets MOD managers route fault notifications to the
+                  correct supplier without leaving the drawer. */}
+              {canEditSupplier && (
+                <div className="mt-3" data-testid="lite-equip-supplier-editor">
+                  {!editingSupplier ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditingSupplier(true)}
+                      className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-md border border-[var(--theme-border)] text-[var(--color-text-muted)] hover:text-[var(--theme-text)] hover:border-[var(--color-brand-cyan-hover)]"
+                      data-testid="lite-equip-supplier-edit-btn"
+                    >
+                      {currentSupplier ? 'Change supplier' : '+ Assign supplier'}
+                    </button>
+                  ) : (
+                    <SupplierEditor
+                      options={supplierOptions}
+                      current={currentSupplier}
+                      saving={savingSupplier}
+                      onSave={handleSaveSupplier}
+                      onCancel={() => setEditingSupplier(false)}
+                      brandAccent={brandAccent}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -348,6 +419,67 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
   );
 };
 
+/* ─── Inline Supplier Editor (Iter 216h114) ───
+   Dropdown selector for the per-machine supplier override. Lists the
+   org's supplier directory (/api/suppliers). Owner/manager-only —
+   the parent component gates visibility. */
+const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccent }) => {
+  const [value, setValue] = useState(current || '');
+  const [notify_, setNotify] = useState(false);
+  const hasOptions = options && options.length > 0;
+  return (
+    <div className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3" data-testid="lite-equip-supplier-form">
+      <Label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1.5">
+        Supplier (used for fault routing)
+      </Label>
+      {!hasOptions ? (
+        <p className="text-xs text-[var(--color-text-muted)] py-2" data-testid="lite-equip-supplier-empty">
+          No suppliers configured. Open Account Settings → Suppliers to add one.
+        </p>
+      ) : (
+        <>
+          <Select value={value} onValueChange={setValue}>
+            <SelectTrigger className="bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)] h-9 text-xs" data-testid="lite-equip-supplier-select">
+              <SelectValue placeholder="Choose a supplier…" />
+            </SelectTrigger>
+            <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60">
+              {options.map((s) => (
+                <SelectItem key={s.id} value={s.name} className="text-[var(--theme-text)] text-xs">
+                  {s.name}{s.email ? ` · ${s.email}` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <label className="flex items-center gap-2 mt-2.5 text-[11px] text-[var(--color-text-muted)] cursor-pointer" data-testid="lite-equip-supplier-notify-toggle">
+            <input
+              type="checkbox"
+              checked={notify_}
+              onChange={(e) => setNotify(e.target.checked)}
+              className="accent-cyan-500"
+            />
+            Email the supplier about this assignment
+          </label>
+        </>
+      )}
+      <div className="flex items-center justify-end gap-1.5 mt-3">
+        <Button size="sm" variant="ghost" onClick={onCancel} className="h-7 text-[11px] text-[var(--color-text-muted)]" data-testid="lite-equip-supplier-cancel">
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => onSave(value, notify_)}
+          disabled={saving || !value || !hasOptions || value === current}
+          className="h-7 text-[11px] text-white"
+          style={{ background: brandAccent }}
+          data-testid="lite-equip-supplier-save"
+        >
+          {saving ? <Loader2 size={12} className="animate-spin" /> : 'Save'}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Fault Machine Selector: Group by type, then pick serial ───
    Iter 216d2 — uses the shared helper (see Dashboard/faultMachineGrouping.js)
    so Lite + GymAxis dashboards both group by the same "name → equipment_type"
@@ -440,7 +572,10 @@ const LiteDialogs = ({
   onAddMachineToJob,
   onRemoveStagedMachine,
   // Pro features
-  isPro, headers
+  isPro, headers,
+  // Iter 216h114 — caller role + supplier-change callback used to
+  // power the inline supplier editor in the equipment detail dialog.
+  userRole = 'staff', onSupplierChange,
 }) => {
   const [triageResult, setTriageResult] = useState(null);
   const [triaging, setTriaging] = useState(false);
@@ -523,6 +658,8 @@ const LiteDialogs = ({
             getStatusColor={getStatusColor}
             onLogFaultForEquipment={onLogFaultForEquipment}
             onDownloadFile={onDownloadFile}
+            userRole={userRole}
+            onSupplierChange={onSupplierChange}
           />}
         </DialogContent>
       </Dialog>

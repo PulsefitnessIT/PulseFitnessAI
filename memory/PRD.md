@@ -1,3 +1,58 @@
+## Iter 216h114 — Per-machine supplier routing + HQ-provisioned MOD Site Login (Feb 15, 2026)
+
+### What shipped
+
+**1. Per-machine supplier override + fault email routing.**
+   * Equipment `PATCH` now accepts both `supplier` (name) and `supplier_id`
+     (direct link), owner/manager-gated.
+   * The Equipment detail drawer renders an inline "Change supplier"
+     dropdown sourced from `/api/suppliers`. Optional "email the supplier
+     about this assignment" checkbox triggers the standard reassignment
+     mailer.
+   * Fault wizard now reads the machine's persisted `supplier` (not just
+     `manufacturer`) — fixes the long-standing bug where the fault email
+     always routed to the manufacturer regardless of contract.
+   * MOD fault submission (`POST /api/mod/site/faults`) now emails the
+     resolved supplier in addition to the on-call and reporter. Resolution
+     order: explicit `supplier_id` → name match → `manufacturer_keywords`
+     auto-match. `supplier_notified_email` is persisted on the issue doc.
+
+**2. HQ-provisioned MOD Site Login.**
+   * New endpoint `POST /api/mod/pro/sites/{site_id}/provision-credentials`.
+   * Accessible to `mod_org` and `mod_branch` users — scope-checked to
+     same `mod_root_id` (+ `mod_branch` for branch-tier callers).
+   * Generates a fresh shared-site login when none exists, or rotates
+     the password when one does. Returns the plaintext password exactly
+     once.
+   * Optional `notify_email` payload field emails the credentials via
+     the standard Pulse MOD rotation template.
+   * UI: AllSitesOverview leaderboard (MOD HQ only) now exposes a
+     "Site login" button per child site → opens a modal that wraps the
+     above call.
+   * Sub-orgs surfaced: `/api/sites/list` + `/api/sites/overview` now
+     inject `mod_site` orgs sharing the caller's `mod_branch` (branch-tier)
+     or `mod_force` (org-tier) so HQ users see every gym in one screen.
+
+### Files touched
+- `/app/backend/routes/mod_portal.py` (HQ provision endpoint, supplier
+  routing in MOD fault flow, supplier email template)
+- `/app/backend/routes/equipment.py` (allow `supplier_id` on PATCH)
+- `/app/backend/routes/sites.py` (inject MOD child sites for HQ users)
+- `/app/frontend/src/pages/LiteDashboard/LiteDialogs.js` (inline supplier
+  editor in Equipment detail drawer)
+- `/app/frontend/src/pages/LiteDashboardPage.js` (fix supplier passthrough
+  + thread userRole / onSupplierChange through to LiteDialogs)
+- `/app/frontend/src/pages/LiteDashboard/AllSitesOverview.js` ("Site login"
+  button + modal for MOD HQ)
+- `/app/frontend/src/pages/MODPortal/MODProDashboard.js` (same "Site login"
+  button on the legacy MODProDashboard sites tile — defensive coverage in
+  case routing ever changes)
+
+### Tests
+- 4/4 new in `tests/test_iter_216h114_supplier_and_site_login.py`
+- 19/19 prior MOD + custom-domain tests still pass (no regressions)
+
+
 ## Iter 216h111 — Per-tenant Custom-domain routing (Feb 14, 2026)
 
 P1 item from the upcoming backlog. Master Admin can now point a
