@@ -1,3 +1,38 @@
+## Iter 216h105 — Commission section, removed CSV mention (Feb 14, 2026)
+
+The Engineer landing page was under-selling the earning story — the
+£100–£400 / referral was buried as one bullet in step 5 of "How it
+works", and the copy mentioned manual CSV payouts which is an
+internal implementation detail no engineer should ever see.
+
+### Changes
+- New **Commission** section between Perks and Pricing on
+  `/partners/engineers`. Three-card layout:
+  1. **50%** signup reward (one-off, first cleared Operations charge)
+  2. **£3 / site / mo** recurring (forever, per active site)
+  3. **£100–£400** premium-plan bonus (tiered by gym's plan)
+  Includes a sticky "Three ways you get paid" intro, four supporting
+  stats (Up to £450 first month · £3/mo recurring · Monthly payouts ·
+  No cap), and a worked example for 10 referred gyms.
+- **Hero strip** updated — replaced the generic "Mobile app ·
+  offline-capable" line with the headline earning line: "50% of first
+  month + £3/site/mo recurring".
+- **CSV removed** from `HOW_IT_WORKS` step 5 — replaced with
+  engineer-facing language ("Monthly payouts straight to your
+  account").
+- **FAQ** — new front-of-list entry "How much can I actually earn?"
+  + "How and when do commissions get paid?". Replaced the
+  Sage-200-time-card answer (operator-facing detail) with a
+  customer-invoicing clarification.
+
+### Test status
+Smoke screenshot verified — Commission section renders with all 3
+plan cards, 4 stats, the worked-example panel, and CSV is gone from
+the body text. No new regressions.
+
+---
+
+
 ## Iter 216h104 — Engineer Partner Network: header nav, public application form, fee-waiver copy fix (Feb 14, 2026)
 
 Three related pushes to grow the Partner Engineer Network funnel.

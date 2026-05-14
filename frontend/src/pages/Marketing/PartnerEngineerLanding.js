@@ -30,6 +30,45 @@ const TIER_TABLE = [
   { refs: '10+',   fee: 'Free', badge: 'Founding', hint: 'Founding Partner — your monthly fee is on us' },
 ];
 
+/* Iter 216h105 — Commission detail, surfaced front-and-centre on the
+   page so engineers see the earnings story before pricing or
+   pre-requisites. The first card is a one-off signup reward, the
+   second is the per-site monthly recurring split, and the third is
+   the headline tiered bonus for premium gym plans. */
+const COMMISSION_PLANS = [
+  {
+    kicker: 'SIGNUP REWARD',
+    headline: '50%',
+    sub: 'of the gym\'s first cleared Operations module payment',
+    detail: 'Recovered fast — most referrers see this land in the next billing cycle. Stacks with the recurring share below.',
+    cta: 'One-off · per gym',
+    accent: 'from-violet-500 to-purple-600',
+  },
+  {
+    kicker: 'MONTHLY RECURRING',
+    headline: '£3 / site / mo',
+    sub: 'for every active gym site you brought on, every month they stay',
+    detail: 'Refer 10 active sites → £30/mo · 30 sites → £90/mo · 100 sites → £300/mo. Paid for as long as the gym is on the platform.',
+    cta: 'Recurring · per gym',
+    accent: 'from-blue-500 to-indigo-600',
+  },
+  {
+    kicker: 'PREMIUM-PLAN BONUS',
+    headline: '£100 – £400',
+    sub: 'per active gym site you introduce, tiered by their plan',
+    detail: 'Higher-revenue plans (Pro, Enterprise) trigger a larger one-off bonus on top of the signup reward. Paid once the gym crosses the active threshold.',
+    cta: 'Bonus · tiered by plan',
+    accent: 'from-emerald-500 to-teal-600',
+  },
+];
+
+const COMMISSION_STATS = [
+  { stat: 'Up to £450', label: 'in the first month per gym you refer' },
+  { stat: '£3 / mo',    label: 'recurring per active site, forever' },
+  { stat: 'Monthly',    label: 'payouts · direct to your account' },
+  { stat: 'No cap',     label: 'on how many sites you can refer' },
+];
+
 const PERKS = [
   { icon: PoundSterling, title: 'Get paid for referrals',
     body: '£100 / £200 / £400 per active gym site you introduce — tiered by their plan. Paid monthly in arrears.' },
@@ -50,7 +89,7 @@ const HOW_IT_WORKS = [
   { n: 2, title: 'Get verified',    body: 'Our team reviews your details — usually within 2 working days.' },
   { n: 3, title: 'Subscribe',      body: 'Start the Partner Plan (£30/mo). Auto-discounts to £15 at 5 referrals, free at 10.' },
   { n: 4, title: 'Receive jobs',   body: 'Gyms invite you directly, or you accept open jobs in your postcodes.' },
-  { n: 5, title: 'Get paid',       body: 'Monthly CSV payouts cover referral commission. Customer invoices are handled by the gym.' },
+  { n: 5, title: 'Get paid',       body: 'We pay your referral commissions monthly, straight to you. Customer invoices stay between you and the gym you serve.' },
 ];
 
 const APP_BULLETS = [
@@ -77,6 +116,7 @@ export default function PartnerEngineerLanding() {
     <MarketingShell>
       <Hero />
       <Perks />
+      <Commission />
       <Pricing />
       <HowItWorks />
       <EngineerApp />
@@ -120,8 +160,8 @@ function Hero() {
             </a>
           </div>
           <ul className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-semibold text-slate-500">
+            <li className="inline-flex items-center gap-1.5"><PoundSterling size={13} className="text-emerald-500" />50% of first month + £3/site/mo recurring</li>
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />£30/mo · drops automatically</li>
-            <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />Mobile app · offline-capable</li>
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />Cancel anytime</li>
           </ul>
         </div>
@@ -201,6 +241,85 @@ function Perks() {
         </div>
       </div>
     </section>
+  );
+}
+
+
+/* ── Commission (Iter 216h105) — the headline earning story ──────── */
+function Commission() {
+  return (
+    <section className="relative py-20 md:py-28 overflow-hidden" data-testid="pe-commission">
+      <div className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(60% 40% at 20% 0%, rgba(124,58,237,0.08), transparent 60%), radial-gradient(50% 40% at 90% 80%, rgba(16,185,129,0.08), transparent 60%)' }} />
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="grid lg:grid-cols-[1fr_1.6fr] gap-12 items-start">
+          {/* Left intro */}
+          <div className="lg:sticky lg:top-28">
+            <p className="text-xs uppercase tracking-[0.2em] font-bold text-emerald-600">Earnings</p>
+            <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">
+              Three ways<br /> you get <span className="gx-gradient-text">paid.</span>
+            </h2>
+            <p className="mt-4 text-base text-slate-600 leading-relaxed">
+              Every gym you bring to GymAxis pays you back three different ways — a fast signup reward, a monthly cheque that grows as the network grows, and a premium bonus on bigger plans. No cap. No exclusivity. No volume targets.
+            </p>
+            <div className="mt-7 grid grid-cols-2 gap-3" data-testid="pe-commission-stats">
+              {COMMISSION_STATS.map((s) => (
+                <div key={s.label} className="rounded-2xl border border-slate-100 bg-white p-4">
+                  <p className="text-2xl font-black tracking-tight text-slate-900">{s.stat}</p>
+                  <p className="mt-1 text-xs text-slate-500 leading-snug">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 text-xs text-slate-500">Monthly payouts straight to your bank account. We handle the reconciliation — you just refer.</p>
+          </div>
+
+          {/* Right plan cards */}
+          <div className="grid gap-4">
+            {COMMISSION_PLANS.map((p, i) => (
+              <div
+                key={p.kicker}
+                className="relative rounded-3xl border border-slate-200 bg-white p-6 md:p-7 overflow-hidden hover:border-slate-300 transition-colors"
+                data-testid={`pe-commission-card-${i}`}
+              >
+                <div className={`absolute -top-12 -right-12 w-48 h-48 rounded-full opacity-25 bg-gradient-to-br ${p.accent}`} />
+                <div className="relative">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">{p.kicker}</p>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+                      {p.cta}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-5xl md:text-6xl font-black tracking-tighter text-slate-900">{p.headline}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">{p.sub}</p>
+                  <p className="mt-4 text-sm text-slate-500 leading-relaxed max-w-2xl">{p.detail}</p>
+                </div>
+              </div>
+            ))}
+
+            {/* Worked example */}
+            <div className="rounded-3xl bg-slate-900 text-white p-6 md:p-7 mt-2" data-testid="pe-commission-example">
+              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-emerald-300">A worked example · 10 gyms in your area</p>
+              <div className="mt-4 grid sm:grid-cols-3 gap-4">
+                <ExampleStat label="Signup rewards (10 × 50% of first month)" value="~£345" />
+                <ExampleStat label="Recurring (10 sites × £3 × 12 mo)" value="£360 / yr" />
+                <ExampleStat label="Engineer App fee" value="£0 (waived at 10+)" highlight />
+              </div>
+              <p className="mt-5 text-xs text-slate-300 leading-relaxed">
+                Premium-plan bonuses (£100–£400 / site) sit on top of these. Numbers shown ex-VAT and assume gyms stay on the platform — see FAQ for claw-back rules.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ExampleStat({ label, value, highlight }) {
+  return (
+    <div className={`rounded-2xl border p-4 ${highlight ? 'bg-emerald-500/15 border-emerald-400/30' : 'bg-white/5 border-white/10'}`}>
+      <p className={`text-2xl font-black tracking-tight ${highlight ? 'text-emerald-300' : 'text-white'}`}>{value}</p>
+      <p className="mt-1 text-[11px] text-slate-300 leading-snug">{label}</p>
+    </div>
   );
 }
 
@@ -347,10 +466,14 @@ function EngineerApp() {
 /* ── FAQ ───────────────────────────────────────────────── */
 function FAQ() {
   const items = [
+    { q: 'How much can I actually earn?',
+      a: 'Three stacking commissions per gym you bring on: a one-off signup reward (50% of their first cleared Operations payment), a £3/month recurring share for as long as the gym stays active, and a premium-plan bonus of £100–£400 per site for gyms on bigger plans. There\'s no cap on the number of gyms you can refer.' },
     { q: 'Do I work for GymAxis?',
-      a: 'No — you stay completely independent. Gyms invoice their customers directly, and you run your own business. We connect you, equip you with the app, and pay your referral commissions.' },
+      a: 'No — you stay completely independent. Gyms invoice their customers directly, and you run your own business. We connect you, equip you with the app, and pay your referral commissions monthly.' },
     { q: 'Who handles invoicing customers?',
-      a: 'The gym (our customer) bills the end customer. Your relationship is with the gym — they decide how to pay you per job. You can use Sage 200 integration for time-card reporting.' },
+      a: 'The gym (our customer) bills the end customer. Your relationship is with the gym — they decide how to pay you per job. We only handle your referral commissions.' },
+    { q: 'How and when do commissions get paid?',
+      a: 'Monthly, straight to your account. Signup rewards land as soon as the gym\'s first Operations payment clears. Recurring shares roll up at the end of each calendar month.' },
     { q: 'What are the £30/mo for?',
       a: 'Access to the Engineer App (mobile PWA), the gym-operator network, customer-facing tracking & service-report tooling, and AI tools like photo triage. The fee drops to £15 once you bring 5 referrals and is waived at 10.' },
     { q: 'How fast does the fee tier update?',
