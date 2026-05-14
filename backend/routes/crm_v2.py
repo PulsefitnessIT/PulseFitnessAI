@@ -33,28 +33,48 @@ _PLATFORM_ORG_NAMES = {"gymaxis ai", "gymaxis", "gymaxis ltd", "gymaxis limited"
 async def _resolve_crm_brand(user: dict) -> dict:
     """Resolve the company brand used on tender PDFs / pitch decks.
 
-    Priority:
-      1. explicit `org.branding.company_name` (operator override)
-      2. `org.name` if it's a real tenant (not the platform org)
-      3. "Pulse Fitness" — CRM is Pulse-only today
+    Priority for company name:
+      1. `org.theme_overrides.tender_company_name` (Master-Admin set,
+         per-tenant — Iter 216h107)
+      2. `org.branding.company_name` (legacy operator override)
+      3. `org.name` if it's a real tenant (not the platform org)
+      4. "Pulse Fitness" — CRM is Pulse-only today
+
+    Primary colour and logo URL also accept tender-specific overrides
+    from `theme_overrides` so a future second CRM tenant can ship a
+    fully branded pitch deck without code changes.
     """
     org = await db.organizations.find_one(
         {"id": user.get("organization_id")},
-        {"_id": 0, "name": 1, "branding": 1},
+        {"_id": 0, "name": 1, "branding": 1, "theme_overrides": 1},
     ) or {}
+    overrides = org.get("theme_overrides") or {}
     branding = org.get("branding") or {}
-    explicit = (branding.get("company_name") or "").strip()
+    tender_company = (overrides.get("tender_company_name") or "").strip()
+    legacy_company = (branding.get("company_name") or "").strip()
     raw_name = (org.get("name") or "").strip()
-    if explicit:
-        company = explicit
+    if tender_company:
+        company = tender_company
+    elif legacy_company:
+        company = legacy_company
     elif raw_name and raw_name.lower() not in _PLATFORM_ORG_NAMES:
         company = raw_name
     else:
         company = "Pulse Fitness"
+    primary_color = (
+        (overrides.get("tender_primary_color") or "").strip()
+        or branding.get("primary_color")
+        or "#19CDFF"
+    )
+    logo_url = (
+        (overrides.get("tender_logo_url") or "").strip()
+        or branding.get("logo_url")
+        or None
+    )
     return {
         "company_name": company,
-        "primary_color": branding.get("primary_color") or "#19CDFF",
-        "logo_url": branding.get("logo_url"),
+        "primary_color": primary_color,
+        "logo_url": logo_url,
     }
 
 

@@ -89,6 +89,10 @@ _OVERRIDABLE_KEYS = {
     "text_muted",
     "border",
     "accent",
+    # Iter 216h107 — Tender PDF branding overrides
+    "tender_company_name",
+    "tender_primary_color",
+    "tender_logo_url",
 }
 
 
@@ -100,6 +104,9 @@ class ThemeOverrideUpdate(BaseModel):
     text_muted: Optional[str] = Field(default=None)
     border: Optional[str] = Field(default=None)
     accent: Optional[str] = Field(default=None)
+    tender_company_name: Optional[str] = Field(default=None, max_length=120)
+    tender_primary_color: Optional[str] = Field(default=None)
+    tender_logo_url: Optional[str] = Field(default=None, max_length=500)
 
 
 def _validate_hex(name: str, value: Optional[str]) -> Optional[str]:
@@ -111,6 +118,18 @@ def _validate_hex(name: str, value: Optional[str]) -> Optional[str]:
     if not _HEX_RX.match(v):
         raise HTTPException(status_code=400, detail=f"{name} must be a hex colour like #19CDFF")
     return v.upper()
+
+
+def _validate_freeform(name: str, value: Optional[str], max_len: int = 120) -> Optional[str]:
+    """Whitespace-trim a freeform string. Empty → clear override."""
+    if value is None:
+        return None
+    v = value.strip()
+    if v == "":
+        return ""
+    if len(v) > max_len:
+        raise HTTPException(status_code=400, detail=f"{name} must be {max_len} characters or fewer")
+    return v
 
 
 @router.get("/audit")
@@ -180,9 +199,17 @@ async def set_org_theme(
 
     cleaned: dict[str, str] = {}
     keys_to_unset: list[str] = []
+    _COLOR_KEYS = {"primary", "primary_hover", "surface", "text", "text_muted", "border", "accent", "tender_primary_color"}
     for key in _OVERRIDABLE_KEYS:
         raw = getattr(payload, key, None)
-        validated = _validate_hex(key, raw)
+        if key in _COLOR_KEYS:
+            validated = _validate_hex(key, raw)
+        elif key == "tender_company_name":
+            validated = _validate_freeform(key, raw, max_len=120)
+        elif key == "tender_logo_url":
+            validated = _validate_freeform(key, raw, max_len=500)
+        else:
+            validated = _validate_freeform(key, raw)
         if validated is None:
             continue
         if validated == "":

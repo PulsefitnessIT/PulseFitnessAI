@@ -20,7 +20,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Palette, ShieldCheck, AlertTriangle, RefreshCw, Save, Eye, Building2,
-  Inbox, Hourglass, Sparkles,
+  Inbox, Hourglass, Sparkles, FileText, Image as ImageIcon,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -33,6 +33,17 @@ const OVERRIDE_FIELDS = [
   { key: 'text',          label: 'Body text',       placeholder: '#0A0C10' },
   { key: 'text_muted',    label: 'Muted text',      placeholder: '#52525B' },
   { key: 'border',        label: 'Border',          placeholder: '#E4E4E7' },
+];
+
+/* Iter 216h107 — Tender PDF branding overrides. These do NOT theme the
+   live UI — they only feed the CRM Tender Engine PDF / pitch-deck
+   generator. Leaving any field blank inherits the platform default
+   (currently "Pulse Fitness"). Stored on the same `theme_overrides`
+   sub-document on the organisation. */
+const TENDER_BRANDING_FIELDS = [
+  { key: 'tender_company_name',  label: 'Cover company name',  type: 'text',  placeholder: 'Pulse Fitness' },
+  { key: 'tender_primary_color', label: 'PDF primary colour',  type: 'color', placeholder: '#19CDFF' },
+  { key: 'tender_logo_url',      label: 'Cover logo URL',      type: 'url',   placeholder: 'https://cdn.example.com/logo.png' },
 ];
 
 // Iter 216h100 — preset palettes. Two presets: the platform's own
@@ -116,6 +127,12 @@ export default function ThemeSettingsPanel() {
         const cur = draft[key];
         if (cur != null) payload[key] = cur === '' ? '' : cur.toUpperCase();
       });
+      TENDER_BRANDING_FIELDS.forEach(({ key, type }) => {
+        const cur = draft[key];
+        if (cur == null) return;
+        if (type === 'color') payload[key] = cur === '' ? '' : cur.toUpperCase();
+        else payload[key] = cur; // freeform — keep case
+      });
       const r = await axios.put(`${API}/master-admin/theme/orgs/${orgId}`, payload, { headers: authHeader() });
       setOrgTheme((t) => ({ ...(t || {}), theme_overrides: r.data?.theme_overrides || {} }));
       setDraft({ ...(r.data?.theme_overrides || {}) });
@@ -134,6 +151,7 @@ export default function ThemeSettingsPanel() {
     try {
       const payload = {};
       OVERRIDE_FIELDS.forEach(({ key }) => { payload[key] = ''; });
+      TENDER_BRANDING_FIELDS.forEach(({ key }) => { payload[key] = ''; });
       await axios.put(`${API}/master-admin/theme/orgs/${orgId}`, payload, { headers: authHeader() });
       setDraft({});
       setOrgTheme((t) => ({ ...(t || {}), theme_overrides: {} }));
@@ -406,6 +424,9 @@ function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSav
               </div>
             ))}
           </div>
+
+          {/* Iter 216h107 — Tender PDF branding overrides */}
+          <TenderBrandingSection draft={draft} setDraft={setDraft} orgName={orgTheme?.org_name} />
           <div className="mt-5 flex items-center gap-2">
             <button
               type="button"
@@ -469,6 +490,91 @@ function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSav
       {!orgId && (
         <div className="text-xs text-zinc-400 italic">No tenant selected.</div>
       )}
+    </div>
+  );
+}
+
+
+/* ── Iter 216h107 — Tender PDF branding section ───────────────────── */
+function TenderBrandingSection({ draft, setDraft, orgName }) {
+  const company = (draft.tender_company_name || '').trim();
+  const color = (draft.tender_primary_color || '').trim() || '#19CDFF';
+  const logo = (draft.tender_logo_url || '').trim();
+  const previewCompany = company || 'Pulse Fitness';
+
+  return (
+    <div
+      className="mt-6 pt-5 border-t border-zinc-100"
+      data-testid="tender-branding-section"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <FileText size={13} className="text-zinc-500" />
+        <h4 className="text-sm font-semibold text-zinc-900">Tender PDF branding</h4>
+      </div>
+      <p className="text-[11px] text-zinc-500 mb-3 leading-relaxed">
+        Customises the cover slide of CRM Tender Engine PDFs and pitch decks for{' '}
+        <strong className="text-zinc-700">{orgName || 'this tenant'}</strong>.
+        These overrides only affect generated PDFs — not the live UI.
+      </p>
+
+      <div className="space-y-3">
+        {TENDER_BRANDING_FIELDS.map(({ key, label, placeholder, type }) => (
+          <div key={key} className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-zinc-700 flex-1">{label}</label>
+            {type === 'color' && (
+              <div
+                className="w-7 h-7 rounded-md border border-zinc-200"
+                style={{ background: draft[key] || 'transparent' }}
+              />
+            )}
+            <input
+              type="text"
+              value={draft[key] || ''}
+              onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+              placeholder={placeholder}
+              className={`rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:border-zinc-400 ${
+                type === 'color' ? 'w-28 font-mono uppercase' : 'flex-[2_2_0%] font-sans'
+              }`}
+              data-testid={`tender-brand-${key}`}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Live PDF cover preview */}
+      <div className="mt-4 rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm" data-testid="tender-brand-preview">
+        <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-[0.12em] font-bold text-zinc-400 flex items-center gap-1">
+            <Eye size={10} /> PDF cover preview
+          </span>
+          <span className="text-[10px] text-zinc-400 font-mono">A4 · landscape</span>
+        </div>
+        <div className="p-5">
+          {logo ? (
+            <img
+              src={logo}
+              alt="Logo"
+              className="h-9 mb-3 object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+              data-testid="tender-brand-preview-logo"
+            />
+          ) : (
+            <div className="h-9 mb-3 flex items-center gap-1 text-[11px] uppercase tracking-[0.15em] font-bold" style={{ color }}>
+              <ImageIcon size={12} /> {previewCompany}
+            </div>
+          )}
+          <p className="text-[10px] uppercase tracking-[0.18em] font-bold text-zinc-400">Cover</p>
+          <p className="text-xl font-black tracking-tight text-zinc-900 leading-tight">
+            Your tender opportunity
+          </p>
+          <p className="mt-1 text-sm font-semibold" style={{ color }}>
+            A pitch from {previewCompany} for your team
+          </p>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold text-white" style={{ background: color }}>
+            <FileText size={11} /> Tender response
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
