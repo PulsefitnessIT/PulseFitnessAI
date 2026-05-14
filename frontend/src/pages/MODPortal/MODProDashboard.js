@@ -9,7 +9,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Activity, AlertTriangle, Building2, LogOut, Gauge, Wrench, Shield, ArrowUpRight, ClipboardList,
+  Activity, AlertTriangle, Building2, LogOut, Gauge, Wrench, Shield, ArrowUpRight,
+  ClipboardList, TrendingUp, FileText, PoundSterling,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import GymFloorManagerTab from '../LiteDashboard/GymFloorManagerTab';
@@ -22,6 +23,10 @@ export default function MODProDashboard() {
 
   const [data, setData] = useState(null);
   const [showGymFloor, setShowGymFloor] = useState(false);
+  // Iter 216h110 — Operations / CAPEX / Reports pillars
+  const [activePillar, setActivePillar] = useState('operations');
+  const [capex, setCapex] = useState(null);
+  const [reports, setReports] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -34,6 +39,17 @@ export default function MODProDashboard() {
   }, [API]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Lazy-load CAPEX + Reports when each pillar is first opened.
+  useEffect(() => {
+    if (activePillar === 'capex' && !capex) {
+      axios.get(`${API}/mod/capex/overview`, { headers }).then((r) => setCapex(r.data)).catch(() => setCapex({ recommendations: [], age_buckets: {} }));
+    }
+    if (activePillar === 'reports' && !reports) {
+      axios.get(`${API}/mod/reports/summary`, { headers }).then((r) => setReports(r.data)).catch(() => setReports({ kpis: {}, fault_by_type_90d: [] }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePillar]);
 
   if (!data) return <div className="min-h-screen bg-[var(--color-ink-deep)] text-white grid place-items-center">Loading…</div>;
 
@@ -59,6 +75,29 @@ export default function MODProDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-5 pt-6 space-y-5">
+        {/* Iter 216h110 — Operations · CAPEX · Reports pillar nav */}
+        <nav className="flex items-center gap-2 border-b border-white/10 -mb-3" data-testid="mod-pro-pillars">
+          {[
+            { id: 'operations', label: 'Operations',  icon: Activity },
+            { id: 'capex',      label: 'CAPEX',       icon: PoundSterling },
+            { id: 'reports',    label: 'Reports',     icon: FileText },
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActivePillar(id)}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-colors ${
+                activePillar === id
+                  ? 'text-white border-b-2 border-amber-400 -mb-px'
+                  : 'text-white/40 hover:text-white/70 border-b-2 border-transparent'
+              }`}
+              data-testid={`mod-pillar-${id}`}
+            >
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </nav>
+
+        {activePillar === 'operations' && (<>
         {/* Hero totals */}
         <section className="grid grid-cols-2 md:grid-cols-5 gap-3" data-testid="mod-pro-totals">
           <StatTile icon={Building2} label="Sites"          value={t.sites ?? 0} />
@@ -160,6 +199,17 @@ export default function MODProDashboard() {
             </div>
           )}
         </section>
+        </>)}
+
+        {/* Iter 216h110 — CAPEX pillar */}
+        {activePillar === 'capex' && (
+          <CapexPanel capex={capex} />
+        )}
+
+        {/* Iter 216h110 — Reports pillar */}
+        {activePillar === 'reports' && (
+          <ReportsPanel reports={reports} />
+        )}
       </main>
     </div>
   );
@@ -208,4 +258,156 @@ function EmptyRow({ text, tone = 'neutral' }) {
   return (
     <div className={`rounded-xl border ${cls} bg-white/[0.02] p-6 text-center text-sm`}>{text}</div>
   );
+}
+
+
+
+/* ─────────────── Iter 216h110 — CAPEX & Reports panels ─────────────── */
+function CapexPanel({ capex }) {
+  if (!capex) return <Skeleton text="Loading CAPEX projection…" />;
+  const fmt = (n) => `£${Math.round(n || 0).toLocaleString('en-GB')}`;
+  const ageEntries = Object.entries(capex.age_buckets || {});
+  const maxAge = Math.max(1, ...ageEntries.map(([, v]) => v));
+
+  return (
+    <section className="space-y-5" data-testid="mod-capex-panel">
+      {/* Headline KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Fleet replacement cost" value={fmt(capex.fleet_replacement_cost_total)} accent="text-emerald-300" />
+        <Kpi label="Flagged for replacement" value={fmt(capex.fleet_replacement_cost_flagged)} accent="text-amber-300" />
+        <Kpi label="Equipment in scope" value={capex.total_equipment ?? 0} accent="text-sky-300" />
+        <Kpi label="Recommendations" value={capex.recommendation_total ?? 0} accent="text-rose-300" />
+      </div>
+
+      {/* Age histogram */}
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-white/80 mb-3">Equipment age profile · {capex.scope}</h3>
+        <div className="space-y-2.5">
+          {ageEntries.map(([bucket, count]) => (
+            <div key={bucket} className="flex items-center gap-3" data-testid={`mod-capex-age-${bucket}`}>
+              <span className="w-20 text-xs text-white/70">{bucket}</span>
+              <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-amber-400" style={{ width: `${(count / maxAge) * 100}%` }} />
+              </div>
+              <span className="w-12 text-right text-xs font-mono text-white">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Top recommendations table */}
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+        <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white/80">Top replacement candidates</h3>
+          <span className="text-[10px] uppercase tracking-wider text-white/40">High priority first · max 50 shown</span>
+        </div>
+        <div className="max-h-[480px] overflow-auto">
+          {(capex.recommendations || []).length === 0 ? (
+            <p className="text-center text-xs text-white/50 py-10">No replacement candidates — fleet is healthy.</p>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="bg-white/[0.04] text-white/50 uppercase text-[10px] tracking-wider">
+                <tr>
+                  <th className="text-left px-4 py-2 font-bold">Asset</th>
+                  <th className="text-left px-4 py-2 font-bold">Manufacturer</th>
+                  <th className="text-left px-4 py-2 font-bold">Reasons</th>
+                  <th className="text-right px-4 py-2 font-bold">Replacement £</th>
+                  <th className="text-center px-4 py-2 font-bold">Priority</th>
+                </tr>
+              </thead>
+              <tbody>
+                {capex.recommendations.map((r) => (
+                  <tr key={r.equipment_id} className="border-t border-white/5 hover:bg-white/[0.02]" data-testid={`mod-capex-row-${r.equipment_id}`}>
+                    <td className="px-4 py-2 text-white">{r.name}</td>
+                    <td className="px-4 py-2 text-white/60">{r.manufacturer || '—'}</td>
+                    <td className="px-4 py-2 text-white/60">{(r.reasons || []).join(' · ')}</td>
+                    <td className="px-4 py-2 text-right font-mono text-emerald-300">{fmt(r.replacement_cost)}</td>
+                    <td className="px-4 py-2 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        r.priority === 'high' ? 'bg-rose-500/15 text-rose-300' : 'bg-amber-500/15 text-amber-300'
+                      }`}>{r.priority}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+function ReportsPanel({ reports }) {
+  if (!reports) return <Skeleton text="Building service KPIs…" />;
+  const k = reports.kpis || {};
+  const max = Math.max(1, ...((reports.fault_by_type_90d || []).map((f) => f.count)));
+  return (
+    <section className="space-y-5" data-testid="mod-reports-panel">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Availability (live)" value={`${k.availability_pct ?? 100}%`} accent="text-emerald-300" />
+        <Kpi label="Out of service" value={k.out_of_service ?? 0} accent="text-rose-300" />
+        <Kpi label="Faults · 30 days" value={k.faults_30d ?? 0} accent="text-amber-300" />
+        <Kpi label="Open now" value={k.open_now ?? 0} accent="text-sky-300" />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white/80 mb-3">Fault types · last 90 days</h3>
+          {(reports.fault_by_type_90d || []).length === 0 ? (
+            <p className="text-xs text-white/50 py-6 text-center">No faults logged in the last 90 days.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {reports.fault_by_type_90d.map((f) => (
+                <div key={f.type} className="flex items-center gap-3" data-testid={`mod-report-type-${f.type}`}>
+                  <span className="w-32 text-xs text-white/70 capitalize">{f.type}</span>
+                  <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-sky-400" style={{ width: `${(f.count / max) * 100}%` }} />
+                  </div>
+                  <span className="w-10 text-right text-xs font-mono text-white">{f.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white/80">Service snapshot</h3>
+          <Stat label="Faults · 90 days" value={k.faults_90d ?? 0} />
+          <Stat label="Urgent · 30 days" value={k.urgent_30d ?? 0} />
+          <Stat label="Equipment total" value={k.equipment_total ?? 0} />
+          <Stat label="Scope" value={reports.scope} />
+          <p className="text-[10px] text-white/40 leading-relaxed pt-1">
+            Reports auto-refresh each time you open this panel.
+            Detailed PDF exports per Command Centre are available
+            on request — request via your account director.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+function Kpi({ label, value, accent = 'text-white' }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <p className="text-[10px] uppercase tracking-wider font-bold text-white/50">{label}</p>
+      <p className={`text-2xl font-extrabold tracking-tight ${accent}`} style={{ letterSpacing: '-0.02em' }}>{value}</p>
+    </div>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="text-xs text-white/60">{label}</span>
+      <span className="text-sm font-bold text-white">{value}</span>
+    </div>
+  );
+}
+
+function Skeleton({ text }) {
+  return <p className="text-center text-xs text-white/50 py-10">{text}</p>;
 }

@@ -1,3 +1,53 @@
+## Iter 216h110 — MOD module gating + Operations/CAPEX/Reports pillars (Feb 14, 2026)
+
+### Frontend firewall
+- New `MODForbidden` wrapper in `AppRoutes.js` reads
+  `localStorage.user_cache.account_type` and redirects MOD users
+  (`mod_site` / `mod_branch` / `mod_org`) away from non-MOD
+  modules. Wrapped routes: `/marketing`, `/crm`, `/crm/setup`,
+  `/memberships`, `/memberships/setup`, `/gym-floor`, `/pulse`,
+  `/partner-engineer`, `/partner-engineer/apply`.
+- Verified end-to-end: signed in as Catterick HQ branch user, all
+  six forbidden routes redirect to `/dashboard` (which renders
+  `MODProDashboard`).
+
+### MOD Pro dashboard — pillar nav
+Three top-level pillars now front-and-centre on the Catterick /
+Army HQ landing:
+1. **Operations** — existing totals / top offenders / urgent /
+   sites / gym-floor login.
+2. **CAPEX** — `GET /api/mod/capex/overview`. Headline KPIs,
+   age-bucket histogram, and a Top-50 replacement-candidates
+   table with priority badges and £-replacement rollups.
+3. **Reports** — `GET /api/mod/reports/summary`. Availability %,
+   out-of-service count, faults 30/90 day, urgent count, open
+   now, and a fault-type histogram (last 90 days).
+
+### Backend endpoints
+- `GET /api/mod/capex/overview` — equipment-driven CAPEX projection
+  across the caller's scope (`mod_org` = whole force / `mod_branch` =
+  branch / `mod_site` = that one site). Recommends replacement when
+  age >= 7 yrs OR faults_12mo >= 4.
+- `GET /api/mod/reports/summary` — service/availability/fault KPIs
+  rolled up against the same scope.
+
+### Seed boost — Iter 216h110
+`POST /api/mod/demo/seed-army-catterick` now also seeds:
+- **56 pieces of demo equipment** (8 machines × 7 sub-sites) with
+  realistic age + replacement cost values.
+- **140 demo faults** (mechanical / electrical / wear / safety /
+  cosmetic) spread over the last 12 months.
+
+### Numbers from a live re-render
+- 56 equipment in scope · 21 replacement candidates
+- £214,200 total fleet · £105,700 flagged (Smith Machine + 10-yr-old
+  treadmills with 5–7 faults are top of the list)
+- Availability 87.5% (7 out-of-service)
+- 21 mechanical faults in 90 days
+
+---
+
+
 ## Iter 216h109 — MOD Service Portal demo prep (Feb 14, 2026)
 
 User-driven for tomorrow's British Army presentation.

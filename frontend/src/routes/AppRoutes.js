@@ -133,6 +133,32 @@ function DashboardRoute({ user }) {
 }
 
 /**
+ * Iter 216h110 — MOD route firewall. Any direct URL access to
+ * non-Operations / non-CAPEX / non-Reports surfaces by a MOD user
+ * (`account_type` in {mod_site, mod_branch, mod_org}) is forced
+ * back to /dashboard, which then renders the correct MOD dashboard.
+ *
+ * Routes the MOD user IS allowed to reach:
+ *   /MODService(/login)  · /dashboard  · /service-desk (Operations)
+ *   /scan/:id            · /help       · /capex
+ *   /reports             · /account*   · /change-password
+ *   /m/* (public member surfaces — they're token-gated anyway)
+ *
+ * Anything else (Memberships, Marketing, CRM, Staffing, Layout,
+ * Pulse Pro main dashboard, Partner-Engineer, the GymAxis operator
+ * dashboard) is for non-MOD operators only.
+ */
+function MODForbidden({ children }) {
+  const stored = typeof window !== 'undefined' ? localStorage.getItem('user_cache') : null;
+  let at = '';
+  try { at = stored ? (JSON.parse(stored).account_type || '') : ''; } catch { /* ignore */ }
+  if (at === 'mod_site' || at === 'mod_branch' || at === 'mod_org') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
+/**
  * Iter 216c — explicit-toggle-aware CRM route. Master Admin's CRM
  * feature flag (module_access.crm) wins over the legacy hardcoded
  * "Pulse Pro / Lite / MOD never access CRM" guard.
@@ -227,13 +253,13 @@ export default function AppRoutes({ user, login }) {
       <Route path="/admin/design-system" element={user?.is_master_admin ? <DesignSystemPage /> : <Navigate to="/login" replace />} />
       <Route path="/admin/integrations" element={user?.is_master_admin ? <IntegrationsConsole /> : <Navigate to="/login" replace />} />
 
-      {/* ─── Modules ─── */}
-      <Route path="/marketing" element={user ? <ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate> : <Navigate to="/login" replace />} />
-      <Route path="/crm" element={<CrmRouteElement user={user} />} />
-      <Route path="/crm/setup" element={user ? <ModuleAccessGate module="crm"><CRMSetupWizard /></ModuleAccessGate> : <Navigate to="/login" replace />} />
-      <Route path="/memberships" element={user ? <ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate> : <Navigate to="/login" replace />} />
-      <Route path="/memberships/setup" element={user ? <ModuleAccessGate module="memberships"><MembershipsSetupWizard /></ModuleAccessGate> : <Navigate to="/login" replace />} />
-      <Route path="/gym-floor" element={<GymFloorPage />} />
+      {/* ─── Modules (Iter 216h110 — MOD users are firewalled out) ─── */}
+      <Route path="/marketing" element={user ? <MODForbidden><ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
+      <Route path="/crm" element={<MODForbidden><CrmRouteElement user={user} /></MODForbidden>} />
+      <Route path="/crm/setup" element={user ? <MODForbidden><ModuleAccessGate module="crm"><CRMSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
+      <Route path="/memberships" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
+      <Route path="/memberships/setup" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
+      <Route path="/gym-floor" element={<MODForbidden><GymFloorPage /></MODForbidden>} />
 
       {/* ─── Service Desk (unified — iter 216h53 full merge of Service Ops) ─── */}
       <Route path="/service-desk" element={(user?.is_master_admin || user?.is_service_desk) ? <ServiceDeskPage /> : <Navigate to="/login" replace />} />
@@ -248,9 +274,9 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer" element={user ? <ServiceOpsEngineerHome /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs/:caseId" element={user ? <ServiceOpsEngineerJob /> : <Navigate to="/login" replace />} />
 
-      {/* Iter 216h75 — Partner Engineer Network (Phase 1) */}
-      <Route path="/partner-engineer" element={user ? <PartnerDashboard /> : <Navigate to="/login?next=/partner-engineer" replace />} />
-      <Route path="/partner-engineer/apply" element={user ? <PartnerApplyWizard /> : <Navigate to="/login?next=/partner-engineer/apply" replace />} />
+      {/* Iter 216h75 — Partner Engineer Network (Phase 1) — Iter 216h110: MOD-blocked */}
+      <Route path="/partner-engineer" element={user ? <MODForbidden><PartnerDashboard /></MODForbidden> : <Navigate to="/login?next=/partner-engineer" replace />} />
+      <Route path="/partner-engineer/apply" element={user ? <MODForbidden><PartnerApplyWizard /></MODForbidden> : <Navigate to="/login?next=/partner-engineer/apply" replace />} />
 
       {/* ─── Member-facing surfaces (white-label) ─── */}
       <Route path="/members" element={<MemberPortal />} />
@@ -264,9 +290,9 @@ export default function AppRoutes({ user, login }) {
       <Route path="/staffing/kiosk" element={<StaffingKioskPage />} />
       <Route path="/instructor" element={<InstructorPortal />} />
 
-      {/* ─── Pulse ─── */}
+      {/* ─── Pulse (Iter 216h110 — MOD redirects to MOD dashboard) ─── */}
       <Route path="/pulse" element={
-        user ? <LiteDashboardPage /> : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
+        user ? <MODForbidden><LiteDashboardPage /></MODForbidden> : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
       } />
       <Route path="/pulse-pricing" element={<PulsePricingPage onLogin={(d) => login(d.token, d.user)} />} />
 

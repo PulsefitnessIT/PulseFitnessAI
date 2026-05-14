@@ -1478,10 +1478,10 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
     """
     require_master_admin(user)
     from utils.auth import hash_password
-    now = datetime.now(timezone.utc).isoformat()
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
     demo_password = "ArmyDemo2026!"
     pwd_hash = hash_password(demo_password)
-    pwd_field = "password"  # auth uses bare `password` field for hashed pw
     created = {"orgs": [], "users": []}
 
     # ── Army HQ ─────────────────────────────────────────────────
@@ -1642,6 +1642,74 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
     else:
         await db.users.insert_one({**hq_org_body, "id": str(uuid.uuid4()), "email": hq_org_email, "created_at": now})
 
+    # ── Demo equipment (8 machines × per sub-site) + a few faults
+    # so CAPEX + Reports panels render with realistic-looking data.
+    DEMO_MACHINES = [
+        ("Treadmill — Life Fitness Integrity", "Treadmill", "Life Fitness", "Integrity X", 3, 0),
+        ("Treadmill — Life Fitness Integrity", "Treadmill", "Life Fitness", "Integrity X", 8, 5),
+        ("Rower — Concept2 RowErg",            "Rower",     "Concept 2",    "RowErg",     2, 0),
+        ("Rower — Concept2 RowErg",            "Rower",     "Concept 2",    "RowErg",     6, 1),
+        ("Bike — Wattbike Atom",               "Bike",      "Wattbike",     "Atom",       4, 2),
+        ("Cable Cross — Technogym Selection",  "Strength",  "Technogym",    "Selection",  9, 4),
+        ("Smith Machine — Pulse 350g",         "Strength",  "Pulse Fitness","350g Smith",10, 7),
+        ("Functional Trainer — Pulse FT100",   "Strength",  "Pulse Fitness","FT100",      5, 1),
+    ]
+    DEMO_FAULT_TYPES = ["mechanical", "electrical", "wear", "safety", "cosmetic"]
+    eq_created = 0
+    fa_created = 0
+    for site_name, _site_code in _CATTERICK_SUBSITES:
+        site_org_id = site_org_map[site_name]
+        # Skip if equipment already exists for this site (idempotent)
+        existing_eq = await db.equipment.count_documents({"organization_id": site_org_id, "imported_via": "mod_demo_seed"})
+        if existing_eq > 0:
+            continue
+        for idx, (name, etype, mfr, model, age_yrs, faults_12mo) in enumerate(DEMO_MACHINES):
+            purchase_iso = (now_dt - timedelta(days=int(age_yrs * 365))).isoformat()
+            eq_id = str(uuid.uuid4())
+            replacement_cost = {"Treadmill": 5500, "Rower": 1200, "Bike": 2800, "Strength": 4800}.get(etype, 3000)
+            await db.equipment.insert_one({
+                "id": eq_id,
+                "organization_id": site_org_id,
+                "name": name,
+                "equipment_type": etype,
+                "manufacturer": mfr,
+                "model": model,
+                "serial_number": f"{mfr[:3].upper()}-{site_org_id[:4].upper()}-{idx:03d}",
+                "purchase_date": purchase_iso,
+                "purchase_price": replacement_cost,
+                "replacement_cost": replacement_cost,
+                "status": "active" if faults_12mo < 6 else "out_of_service",
+                "supplier": mfr,
+                "created_at": now,
+                "imported_via": "mod_demo_seed",
+            })
+            eq_created += 1
+            # Seed `faults_12mo` issues over the last year so the
+            # CAPEX recommender + Reports panel show real numbers.
+            for j in range(faults_12mo):
+                fa_id = str(uuid.uuid4())
+                offset_days = int((j + 1) * (365 / max(faults_12mo + 1, 1)))
+                created_at = now_dt - timedelta(days=offset_days)
+                ft = DEMO_FAULT_TYPES[j % len(DEMO_FAULT_TYPES)]
+                await db.issues.insert_one({
+                    "id": fa_id,
+                    "organization_id": site_org_id,
+                    "equipment_id": eq_id,
+                    "fault_type_mod": ft,
+                    "issue_description": f"Demo fault — {ft} reported at {site_name}",
+                    "status": "closed" if offset_days > 30 else "open",
+                    "priority": "urgent" if ft == "safety" and j == 0 else "high" if j < 2 else "normal",
+                    "severity": "urgent" if ft == "safety" and j == 0 else "high" if j < 2 else "normal",
+                    "reporter_name": "Demo seed",
+                    "reporter_email": "demo@army.mod.local",
+                    "created_at": created_at.isoformat(),
+                    "imported_via": "mod_demo_seed",
+                })
+                fa_created += 1
+
+    created["equipment"] = eq_created
+    created["faults"] = fa_created
+
     return {
         "ok": True,
         "demo_password": demo_password,
@@ -1674,3 +1742,160 @@ async def mod_site_users_roster(user: dict = Depends(get_current_user)):
          "rank": 1, "email": 1, "site_number": 1, "mobile": 1},
     ).sort("name", 1).to_list(500)
     return {"users": items, "total": len(items), "site_name": org.get("name")}
+
+
+
+# ══════════════════════════════════════════════════════════════════
+#     Iter 216h110 — CAPEX + Reports rollups (MOD only modules)
+# ══════════════════════════════════════════════════════════════════
+async def _resolve_org_scope(user: dict) -> tuple[list[str], str]:
+    """Resolve the org-IDs in scope for a MOD user's rollup view.
+
+    • mod_org   → all orgs with the same mod_force
+    • mod_branch→ all orgs with the same mod_branch
+    • mod_site  → just the caller's org
+    Returns (org_ids, scope_label).
+    """
+    at = user.get("account_type")
+    org_id = user.get("organization_id")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    if not org:
+        raise HTTPException(404, "Organisation not found")
+    if at == "mod_site" or not at:
+        return [org_id], org.get("name", "site")
+    if at == "mod_branch":
+        rows = await db.organizations.find(
+            {"mod_branch": org.get("mod_branch"), "mod_root_id": org.get("mod_root_id"), "is_mod": True},
+            {"_id": 0, "id": 1},
+        ).to_list(500)
+        return [r["id"] for r in rows] or [org_id], f"{org.get('mod_branch')} branch"
+    # mod_org → whole force
+    rows = await db.organizations.find(
+        {"mod_force": org.get("mod_force"), "is_mod": True}, {"_id": 0, "id": 1},
+    ).to_list(2000)
+    return [r["id"] for r in rows] or [org_id], (org.get("mod_force") or "force").upper()
+
+
+@router.get("/mod/capex/overview")
+async def mod_capex_overview(user: dict = Depends(get_current_user)):
+    """Equipment-driven CAPEX projection across the caller's scope.
+
+    No fancy ML — we bucket equipment by age and recommend replacement
+    when age > 7 yrs OR last 12-month fault count > 3. Replacement
+    cost defaults to the stored `replacement_cost` (or `purchase_price`).
+    """
+    org_ids, scope = await _resolve_org_scope(user)
+    now = datetime.now(timezone.utc)
+    one_year_ago = (now - timedelta(days=365)).isoformat()
+    items = await db.equipment.find(
+        {"organization_id": {"$in": org_ids}}, {"_id": 0},
+    ).to_list(20000)
+    fault_counts: dict[str, int] = {}
+    fault_cursor = db.issues.find(
+        {"organization_id": {"$in": org_ids}, "created_at": {"$gte": one_year_ago}},
+        {"_id": 0, "equipment_id": 1},
+    )
+    async for f in fault_cursor:
+        eid = f.get("equipment_id")
+        if eid:
+            fault_counts[eid] = fault_counts.get(eid, 0) + 1
+
+    age_buckets = {"<2 yrs": 0, "2–4 yrs": 0, "4–7 yrs": 0, "7+ yrs": 0, "unknown": 0}
+    recommendations: list[dict] = []
+    total_replacement_cost = 0.0
+    flagged_replacement_cost = 0.0
+
+    for eq in items:
+        rep = float(eq.get("replacement_cost") or eq.get("purchase_price") or 0)
+        total_replacement_cost += rep
+        purchase = (eq.get("purchase_date") or "")[:10]
+        age_yrs = None
+        if purchase:
+            try:
+                pdt = datetime.fromisoformat(purchase)
+                age_yrs = (now.replace(tzinfo=None) - pdt).days / 365.25
+            except ValueError:
+                age_yrs = None
+        if age_yrs is None:
+            age_buckets["unknown"] += 1
+        elif age_yrs < 2:
+            age_buckets["<2 yrs"] += 1
+        elif age_yrs < 4:
+            age_buckets["2–4 yrs"] += 1
+        elif age_yrs < 7:
+            age_buckets["4–7 yrs"] += 1
+        else:
+            age_buckets["7+ yrs"] += 1
+
+        fc = fault_counts.get(eq.get("id"), 0)
+        reasons = []
+        if age_yrs is not None and age_yrs >= 7:
+            reasons.append(f"{age_yrs:.1f} yrs old")
+        if fc >= 4:
+            reasons.append(f"{fc} faults in 12 mo")
+        if reasons:
+            flagged_replacement_cost += rep
+            recommendations.append({
+                "equipment_id": eq.get("id"),
+                "name": eq.get("name"),
+                "manufacturer": eq.get("manufacturer"),
+                "site_organization_id": eq.get("organization_id"),
+                "age_years": round(age_yrs, 1) if age_yrs is not None else None,
+                "faults_12mo": fc,
+                "replacement_cost": rep,
+                "reasons": reasons,
+                "priority": "high" if (age_yrs and age_yrs >= 10) or fc >= 6 else "medium",
+            })
+
+    recommendations.sort(key=lambda r: (0 if r["priority"] == "high" else 1, -r["replacement_cost"]))
+    return {
+        "scope": scope,
+        "total_equipment": len(items),
+        "age_buckets": age_buckets,
+        "fleet_replacement_cost_total": round(total_replacement_cost, 2),
+        "fleet_replacement_cost_flagged": round(flagged_replacement_cost, 2),
+        "recommendations": recommendations[:50],
+        "recommendation_total": len(recommendations),
+    }
+
+
+@router.get("/mod/reports/summary")
+async def mod_reports_summary(user: dict = Depends(get_current_user)):
+    """Service / availability / fault rollup for the caller's scope."""
+    org_ids, scope = await _resolve_org_scope(user)
+    now = datetime.now(timezone.utc)
+    thirty_ago = (now - timedelta(days=30)).isoformat()
+    ninety_ago = (now - timedelta(days=90)).isoformat()
+
+    eq_total = await db.equipment.count_documents({"organization_id": {"$in": org_ids}})
+    eq_oos   = await db.equipment.count_documents({"organization_id": {"$in": org_ids}, "status": "out_of_service"})
+    availability = round((eq_total - eq_oos) * 100 / eq_total, 1) if eq_total else 100.0
+
+    faults_30 = await db.issues.count_documents({"organization_id": {"$in": org_ids}, "created_at": {"$gte": thirty_ago}})
+    faults_90 = await db.issues.count_documents({"organization_id": {"$in": org_ids}, "created_at": {"$gte": ninety_ago}})
+    urgent_30 = await db.issues.count_documents({"organization_id": {"$in": org_ids}, "created_at": {"$gte": thirty_ago}, "priority": "urgent"})
+    open_now  = await db.issues.count_documents({"organization_id": {"$in": org_ids}, "status": {"$in": ["open", "in_progress", "assigned"]}})
+
+    by_type_cursor = db.issues.aggregate([
+        {"$match": {"organization_id": {"$in": org_ids}, "created_at": {"$gte": ninety_ago}}},
+        {"$group": {"_id": "$fault_type_mod", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+    ])
+    by_type = []
+    async for r in by_type_cursor:
+        by_type.append({"type": r["_id"] or "unspecified", "count": r["count"]})
+
+    return {
+        "scope": scope,
+        "kpis": {
+            "equipment_total": eq_total,
+            "out_of_service": eq_oos,
+            "availability_pct": availability,
+            "faults_30d": faults_30,
+            "faults_90d": faults_90,
+            "urgent_30d": urgent_30,
+            "open_now": open_now,
+        },
+        "fault_by_type_90d": by_type[:10],
+        "generated_at": now.isoformat(),
+    }
