@@ -138,12 +138,22 @@ function Header({ summary, statusFilter, setStatusFilter, onRefresh, loading }) 
               type="button"
               role="tab"
               onClick={() => setStatusFilter(s)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition whitespace-nowrap ${active ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-400'}`}
+              className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition whitespace-nowrap hover:border-zinc-400"
+              style={active
+                ? { background: '#0F172A', color: '#FFFFFF', borderColor: '#0F172A' }
+                : { background: '#FFFFFF', color: '#3F3F46', borderColor: '#E4E4E7' }
+              }
               data-testid={`comms-tab-${s}`}
             >
               <Icon size={12} />
               {meta.label}
-              <span className={`inline-flex items-center justify-center rounded-full min-w-[20px] px-1.5 text-[11px] font-bold ${active ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-700'}`}>{count}</span>
+              <span
+                className="inline-flex items-center justify-center rounded-full min-w-[20px] px-1.5 text-[11px] font-bold"
+                style={active
+                  ? { background: 'rgba(255,255,255,0.18)', color: '#FFFFFF' }
+                  : { background: '#F4F4F5', color: '#3F3F46' }
+                }
+              >{count}</span>
             </button>
           );
         })}
@@ -441,7 +451,8 @@ function ReplyComposer({ reply, setReply, sending, onSend }) {
             type="button"
             onClick={onSend}
             disabled={sending}
-            className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 text-white px-4 py-2 text-xs font-semibold hover:bg-zinc-800 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-50"
+            style={{ background: '#0F172A', color: '#FFFFFF' }}
             data-testid="comms-reply-send"
           >
             <Send size={12} /> {sending ? 'Sending…' : 'Send reply'}

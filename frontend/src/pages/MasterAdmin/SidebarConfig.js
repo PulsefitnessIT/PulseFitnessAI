@@ -96,11 +96,12 @@ export const SIDEBAR_ITEMS = [
       { id: 'capex-config',  label: 'CAPEX',          icon: TrendingUp },
     ],
   },
-  // 6. Growth — trials, marketing, sales insights
+  // 6. Growth — trials, marketing, sales insights, comms
   {
     id: 'growth', label: 'Growth', icon: Megaphone, group: 'main',
     subTabs: [
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
+      { id: 'emails',          label: 'Outbound emails',  icon: Mail },
       { id: 'trials',          label: 'Trials',           icon: Timer },
       { id: 'sales-insights',  label: 'Sales insights',   icon: Sparkles },
       { id: 'partners',        label: 'Partner Engineers', icon: BadgeCheck },
@@ -129,7 +130,6 @@ export const SIDEBAR_ITEMS = [
       // tooling), so it sits naturally alongside the audit log and
       // database tooling rather than the operator dashboard.
       { id: 'archive',            label: 'Archive',            icon: FolderArchive },
-      { id: 'emails',             label: 'Outbound emails',    icon: Mail },
       { id: 'ask-support',        label: 'Ask Support Desk',   icon: Sparkles },
       { id: 'support',            label: 'Support tools',      icon: Headphones },
       { id: 'db-viewer',          label: 'Database viewer',    icon: Database },
@@ -175,7 +175,6 @@ export const LEGACY_SECTION_REDIRECTS = {
   'login-events':       'settings-compliance',
   'documents':          'settings-compliance',
   'archive':            'settings-compliance',
-  'emails':             'settings-compliance',
   'ask-support':        'settings-compliance',
   'support':            'settings-compliance',
   'db-viewer':          'settings-compliance',
@@ -204,6 +203,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'analytics':          'growth',
   'marketing-suite':    'growth',
   'communications':     'growth',
+  'emails':             'growth',
   'trust':              'overview',
   'tasks':              'overview',
 };
