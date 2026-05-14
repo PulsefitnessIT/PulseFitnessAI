@@ -89,6 +89,12 @@ const LiteDashboardPage = () => {
   const [searchParams] = useSearchParams();
   const adminView = searchParams.get('view'); // 'lite' or 'pro' for admin preview
   const isAdmin = user?.is_master_admin || user?.account_type === 'full';
+  // Iter 216h113d — MOD users (Pulse Fitness customers inside the MOD
+  // estate) get the full operational toolkit: Dashboard, Equipment,
+  // Faults, Check Sheets, Documents, Staffing, and Reports. They are
+  // treated as "Pro" for tab visibility regardless of their underlying
+  // account_type (`mod_site` / `mod_branch` / `mod_org`).
+  const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
   // Iter 216o-11 — Free-trial users get the FULL Pro tab set so they
   // can evaluate everything (Reports, Suppliers, Staffing, Gym Layout,
   // Check Sheets, Documents) before deciding whether to upgrade. Once
@@ -98,7 +104,7 @@ const LiteDashboardPage = () => {
   const isTrialActive = user?.trial?.is_trial === true && user?.trial?.status !== 'expired' && user?.trial?.locked_out !== true;
   const isPro = adminView === 'lite'
     ? false
-    : (user?.account_type === 'pulse_pro' || isAdmin || isTrialActive);
+    : (user?.account_type === 'pulse_pro' || isAdmin || isTrialActive || isMOD);
   // Iter 216i — multi-site overview toggle. Owners/managers can flip the
   // dashboard into "All sites" mode via the site-switcher dropdown; the
   // choice is local to this tab and clears as soon as they pick a single
@@ -594,7 +600,21 @@ const LiteDashboardPage = () => {
         ? { id: 'staffing', label: 'Staffing',    icon: Users }
         : { id: 'staffing', label: 'Gym Floor',   icon: ClipboardList },
     ];
-    if (userRole === 'staff') return proBase;
+    if (userRole === 'staff') {
+      // MOD staff need Reports too (compliance/audit trail). Non-MOD
+      // staff stay on the base Pro tab set.
+      return isMOD
+        ? [...proBase, { id: 'reports', label: 'Reports', icon: BarChart3 }]
+        : proBase;
+    }
+    // Iter 216h113d — MOD managers/owners see Reports but NOT
+    // Suppliers or Gym Layout (HQ/procurement domains).
+    if (isMOD) {
+      return [
+        ...proBase,
+        { id: 'reports', label: 'Reports', icon: BarChart3 },
+      ];
+    }
     // Managers and Owners see everything (Weekly Digest lives inside Reports)
     return [
       ...proBase,
