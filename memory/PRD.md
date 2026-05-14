@@ -1,3 +1,57 @@
+## Iter 216h108 — Equipment Import + Onboarding fixes (Feb 14, 2026)
+
+Five-fold fix on the equipment-import + onboarding flow surfaced by
+a Pulse Fitness production user (Lee Somers, Carshalton iGym).
+
+### Backend
+- **NEW** `utils/spreadsheet_import.py` — shared helper:
+  - `iter_rows(content, filename)` — yields dict rows from CSV **or**
+    .xlsx (via openpyxl).
+  - `parse_date_cell(value)` — coerces Excel serial numbers
+    (`45979` → `2025-11-18`), `dd/mm/yyyy`, ISO, `15 Jan 2024`, etc.
+    to canonical `YYYY-MM-DD`.
+  - `HEADER_ALIASES` map so "Make" → manufacturer, "Install Date" →
+    purchase_date, "Warranty Expiry Date" → warranty_expiry, …
+- **NEW** customer-facing endpoints:
+  - `POST /api/account/import/equipment` — same parser + permissions
+    as master-admin endpoint but hard-pins `organization_id` to the
+    caller's own org.
+  - `GET /api/account/import/equipment/template` — unified template.
+- `master_admin_bulk_import.bulk_import_equipment` refactored into
+  `_do_bulk_import_equipment` so both endpoints share the core.
+- `ONBOARDING_STEPS` now includes `print_qr_codes` (cta_inline) and
+  `import_machines` switched from `cta_route` → `cta_inline`.
+- One-off MongoDB scrub ran against existing rows: 98 of 103
+  equipment documents had Excel-serial date strings rewritten to ISO.
+
+### Frontend
+- **NEW** `AccountSettings/EquipmentImportInline.js` — inline upload
+  + template download + result summary inside Account Settings.
+- **NEW** `AccountSettings/QrPrintInline.js` — inline bulk QR print
+  panel (search + select-all + print) restoring the feature that
+  went missing from the customer onboarding checklist.
+- `AccountSettings/onboarding.js` — `handleStep()` now branches on
+  `cta_inline` before falling through to route/section dispatch.
+- `LiteDashboard/LiteEquipmentTab.js` — `runBulkAutoLookup()`
+  rewritten: chunks of 8 items per request, sequential loop, live
+  progress text "Searching manufacturer websites… X/Y", and
+  surfaces the real backend error instead of "Network issue or
+  upstream timeout".
+- `OnboardingWizard.js` — CSV upload now hits the unified endpoint
+  and accepts .xlsx as well as .csv.
+
+### Verification
+- `testing_agent_v3_fork` iter 216h108: **18/18 backend tests pass**;
+  frontend code-review pass on all new components.
+- Manual E2E against the user's real Carshalton iGym.xlsx:
+  **111 rows imported, 0 errors, 0 skipped, every date stored as ISO**.
+
+> **Note**: Issue was reported on production (gymaxisai.com). Fixes
+> are in preview — user must redeploy to push them live.
+
+---
+
+
 ## Iter 216h107 — Per-tenant Tender PDF branding (Feb 14, 2026)
 
 Made the brand resolver from iter 216h106 fully configurable per
