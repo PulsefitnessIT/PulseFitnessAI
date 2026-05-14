@@ -123,6 +123,39 @@ async def _fetch_bytes(client: httpx.AsyncClient, url: str) -> Optional[bytes]:
         return None
 
 
+def _is_neutral_or_near_white(hex_str: str) -> bool:
+    """Filter helper — rejects pure white/black/near-grey colours that
+    sneak in via <meta name=theme-color> or hero-image palettes. Used
+    to keep `primary_color` from defaulting to `#ffffff` for sites
+    whose top palette entry is the page background."""
+    try:
+        h = hex_str.lstrip("#")
+        if len(h) != 6:
+            return False
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    except Exception:
+        return True
+    # Too close to grey — already filtered by `_extract_hex_colours`
+    # but theme-color path skips that filter.
+    if abs(r - g) < 12 and abs(g - b) < 12 and abs(r - b) < 12:
+        # Near-white (lum > 235) or near-black (lum < 20) → drop.
+        lum = (r + g + b) / 3
+        if lum > 235 or lum < 20:
+            return True
+        # Mid-grey also gets dropped — useless as a brand colour.
+        return True
+    return False
+
+
+def _pick_brand_primary(palette: list[str]) -> Optional[str]:
+    """Pick the most-likely brand colour from a palette, skipping
+    near-neutrals so #ffffff / #000000 / greys never get promoted."""
+    for c in palette or []:
+        if c and not _is_neutral_or_near_white(c):
+            return c
+    return palette[0] if palette else None
+
+
 def _extract_hex_colours(css_or_html: str) -> list[str]:
     """Pull #RGB / #RRGGBB tokens — counted and normalised to 6 digits."""
     seen: Counter[str] = Counter()
@@ -650,8 +683,11 @@ async def _run_discovery(org_id: str, website_url: str) -> None:
         if theme_color and theme_color not in colours:
             colours = [theme_color] + colours[:5]
         draft = {
-            "primary_color": colours[0] if colours else None,
-            "secondary_color": colours[1] if len(colours) > 1 else None,
+            "primary_color": _pick_brand_primary(colours),
+            "secondary_color": next(
+                (c for c in (colours[1:] if len(colours) > 1 else []) if c and not _is_neutral_or_near_white(c)),
+                colours[1] if len(colours) > 1 else None,
+            ),
             "colours": colours,
             "fonts": fonts,
             "logos": stored_logos,

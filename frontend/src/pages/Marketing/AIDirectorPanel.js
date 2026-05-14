@@ -80,6 +80,87 @@ const REFINE_QUICKACTIONS = [
   { label: 'Friendlier voice',   instr: 'Make the voice warmer and more conversational' },
 ];
 
+// ── Iter 216h113i — Pre-built campaign templates ───────────────────
+// One-click starter briefs that pre-fill the prompt + goal + tone +
+// audience hint, so a customer can hit "Generate Campaign" within
+// 5 seconds of opening the Director and get a poster using their
+// saved brand kit (logo, primary/secondary colours, heading & body
+// fonts). Tagline shown on hover.
+const QUICKSTART_TEMPLATES = [
+  {
+    id: 'join_now',
+    label: 'Join now',
+    tagline: 'Headline join offer — works year-round',
+    goal: 'new_member_welcome',
+    tone: 'high_energy',
+    audience: 'prospects',
+    prompt: 'Join now — flagship membership offer poster for prospects who have visited the website but not yet signed up. Lead with one bold benefit, finish with a strong CTA.',
+  },
+  {
+    id: 'refer_a_friend',
+    label: 'Refer a friend',
+    tagline: 'Member-get-member referral push',
+    goal: 'referral',
+    tone: 'community',
+    audience: 'active_regulars',
+    prompt: 'Refer a friend — share-worthy social poster for our active regulars. Both members get one free month when their friend joins.',
+  },
+  {
+    id: 'pt_kickstart',
+    label: 'PT kickstart',
+    tagline: 'Free intro PT session for engaged members',
+    goal: 'upgrade_pt',
+    tone: 'premium',
+    audience: 'pt_eligible',
+    prompt: 'PT kickstart — premium poster offering a free 1-on-1 PT intro session to members who have trained 8+ times in the last month but never booked PT.',
+  },
+  {
+    id: 'open_day',
+    label: 'Open day',
+    tagline: 'Free guest day to drive walk-ins',
+    goal: 'open_day',
+    tone: 'community',
+    audience: 'prospects',
+    prompt: 'Open day — bring-a-friend day at the club, free guest entry, complimentary class. Encourage walk-ins; lead with the date.',
+  },
+  {
+    id: 'winback',
+    label: 'Win-back lapsed',
+    tagline: 'Reactivate members inactive 30+ days',
+    goal: 'winback_lapsed',
+    tone: 'motivational',
+    audience: 'lapsed_30d',
+    prompt: 'Win-back poster for lapsed members — speak to the temporary nature of life getting in the way and offer 20% off the next month to come back.',
+  },
+  {
+    id: 'class_promo',
+    label: 'Class promo',
+    tagline: 'Fill an under-booked signature class',
+    goal: 'promote_class',
+    tone: 'high_energy',
+    audience: 'off_peak_visitors',
+    prompt: 'Class promo poster for our signature Saturday morning spin class. High energy, soundtrack-led, get on a bike with a friend.',
+  },
+  {
+    id: 'newsletter',
+    label: 'Monthly newsletter',
+    tagline: 'House-style monthly digest cover',
+    goal: 'newsletter',
+    tone: 'premium',
+    audience: 'active_regulars',
+    prompt: 'Monthly newsletter cover — premium magazine-style layout featuring this month\u2019s standout classes, member story, and recovery tip.',
+  },
+  {
+    id: 'challenge',
+    label: '30-day challenge',
+    tagline: 'Community fitness challenge launch',
+    goal: 'challenge',
+    tone: 'motivational',
+    audience: 'active_regulars',
+    prompt: '30-day challenge launch poster — community-driven, set a measurable goal (e.g. 20 sessions this month), prizes for top three.',
+  },
+];
+
 const AIDirectorPanel = ({ API, headers, entitlement, seedBriefId, onSeedConsumed }) => {
   const [presets, setPresets] = useState({ tones: FALLBACK_TONES, goals: FALLBACK_GOALS, channels: [] });
   const [recentBriefs, setRecentBriefs] = useState([]);
@@ -260,6 +341,35 @@ const AIDirectorPanel = ({ API, headers, entitlement, seedBriefId, onSeedConsume
           className="w-full px-3 py-2.5 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-lg text-sm focus:outline-none focus:border-[var(--color-brand-blue)] resize-none"
           data-testid="director-prompt-input"
         />
+
+        {/* ── Quick-start templates (Iter 216h113i) ──────────────────
+            Pre-built campaigns that customers can launch with one click.
+            They pre-fill the prompt + goal + tone so the AI generates a
+            poster using the customer's saved brand kit immediately. */}
+        <div className="mt-3">
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-semibold flex items-center gap-1">
+            <Sparkles size={10}/> Quick-start templates <span className="text-[9px] font-normal text-zinc-400">— one click, brand-kit applied</span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {QUICKSTART_TEMPLATES.map((qs) => (
+              <button
+                key={qs.id}
+                type="button"
+                onClick={() => {
+                  setPrompt(qs.prompt);
+                  setGoal(qs.goal);
+                  setTone(qs.tone);
+                  if (qs.audience) setAudienceHint(qs.audience);
+                }}
+                title={qs.tagline}
+                className="px-3 py-1.5 rounded-full text-[11px] font-semibold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-200 hover:border-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue)] transition"
+                data-testid={`director-quickstart-${qs.id}`}
+              >
+                {qs.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
           <Select label="Goal" value={goal} onChange={setGoal} testId="director-goal"

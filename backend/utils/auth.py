@@ -183,13 +183,15 @@ def apply_site_lock(user: dict, requested_site_id: str | None, base_filter: dict
     allowed = user.get("allowed_site_ids") or []
     if is_privileged or not allowed:
         # Privileged or unrestricted — caller's existing site_id handling stands.
+        # Iter 216h113i — when a specific site is requested, scope
+        # STRICTLY to that site. Previously we also matched records
+        # with no `site_id` (legacy data) which leaked aggregate
+        # numbers into per-site views. Multi-site orgs (Third Space,
+        # etc.) need clean per-site reporting; "All Operations Sites"
+        # is reached by clearing the requested_site_id, not by
+        # accidentally bleeding null-scope rows into one site's view.
         if requested_site_id:
-            out["$or"] = [
-                {"site_id": requested_site_id},
-                {"site_id": {"$exists": False}},
-                {"site_id": None},
-                {"site_id": ""},
-            ]
+            out["site_id"] = requested_site_id
         return out
 
     # Non-privileged + locked. Validate the requested site if any.
@@ -198,9 +200,14 @@ def apply_site_lock(user: dict, requested_site_id: str | None, base_filter: dict
             status_code=403,
             detail="You do not have access to that site",
         )
-    site_set = [requested_site_id] if requested_site_id else list(allowed)
+    if requested_site_id:
+        # Same strict scoping for locked-down staff users.
+        out["site_id"] = requested_site_id
+        return out
+    # No specific site requested — show all allowed sites + any
+    # legacy null-scoped records the user could previously see.
     out["$or"] = [
-        {"site_id": {"$in": site_set}},
+        {"site_id": {"$in": list(allowed)}},
         {"site_id": {"$exists": False}},
         {"site_id": None},
         {"site_id": ""},

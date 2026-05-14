@@ -141,6 +141,13 @@ def _system_prompt(brand_kit: dict, brand_lock: bool) -> str:
         f"primary {brand_kit.get('primary_color', '#0055FF')}, "
         f"secondary {brand_kit.get('secondary_color', '#66CCFF')}"
     )
+    if brand_kit.get("accent_color"):
+        palette += f", accent {brand_kit['accent_color']}"
+    fonts = ""
+    if brand_kit.get("font_heading") or brand_kit.get("font_body"):
+        fh = brand_kit.get("font_heading") or "the brand's display face"
+        fb = brand_kit.get("font_body") or "the brand's body face"
+        fonts = f"Headings should reference '{fh}' and body copy '{fb}'.  "
     voice_guard = brand_kit.get("voice") or "professional, energetic, gym-friendly"
     banned = brand_kit.get("banned_phrases") or []
     banned_str = (
@@ -156,7 +163,7 @@ def _system_prompt(brand_kit: dict, brand_lock: bool) -> str:
         "You are GymAxis AI Creative Director — a senior marketer, copywriter "
         "and creative strategist for fitness/leisure brands. You think like a "
         "marketer, designer, and strategist combined.\n\n"
-        f"Brand voice: {voice_guard}.  Brand palette: {palette}.  {lock_str}  "
+        f"Brand voice: {voice_guard}.  Brand palette: {palette}.  {fonts}{lock_str}  "
         f"{banned_str}\n\n"
         "When asked to plan a campaign you ALWAYS reply with a single JSON "
         "object that exactly matches this schema (no markdown fences, no "
@@ -439,10 +446,30 @@ async def director_build(body: dict = Body(...), user: dict = Depends(get_curren
             f"primary {brand_kit.get('primary_color', '#0055FF')}, "
             f"secondary {brand_kit.get('secondary_color', '#66CCFF')}"
         )
+        accent = brand_kit.get('accent_color')
+        if accent:
+            palette += f", accent {accent}"
+        # Iter 216h113i — feed the brand kit's fonts into the
+        # poster prompt so Gemini renders headline/body type in the
+        # customer's brand identity rather than a generic sans-serif.
+        font_heading = brand_kit.get('font_heading')
+        font_body = brand_kit.get('font_body')
+        type_hint = ""
+        if font_heading:
+            type_hint = (
+                f"Render the headline in '{font_heading}' (or a similar "
+                f"display face if not available). "
+            )
+        if font_body:
+            type_hint += (
+                f"Render body / supporting copy in '{font_body}' (or a "
+                f"similar neutral sans-serif if not available). "
+            )
         poster_prompt = (
             f"Design a high-impact gym/leisure marketing poster for: {prompt}. "
-            f"Render the headline '{head}' at the top in bold sans-serif, "
+            f"Render the headline '{head}' at the top in bold display type, "
             f"subheadline '{sub}' below, and CTA button text '{cta}'. "
+            f"{type_hint}"
             f"Use the brand palette ({palette}) for accents and overlays. "
             f"Cinematic lighting, sharp focus, premium fitness aesthetic. "
             f"{'Composite the supplied brand logo prominently in the bottom-right corner with a soft shadow.' if brand_lock else ''}"
