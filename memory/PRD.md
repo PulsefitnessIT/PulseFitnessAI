@@ -1,3 +1,53 @@
+## Iter 216h104 — Engineer Partner Network: header nav, public application form, fee-waiver copy fix (Feb 14, 2026)
+
+Three related pushes to grow the Partner Engineer Network funnel.
+
+### 1. "Engineers" added to marketing header
+`MarketingShell.NAV` now includes `{ to: '/partners/engineers', label: 'Engineers' }`
+so independent engineers can find the partner programme from any
+marketing surface in one click. Mobile drawer parity (
+`[data-testid=gx-nav-mobile-engineers]`).
+
+### 2. Public Engineer Application form
+**Previously**: clicking "Start application" bounced unauthenticated
+visitors to `/login?next=…` — a hard gate that killed conversions.
+
+**Now**: new public route `/partners/engineers/apply` →
+`PartnerApplyPublic.js` (no auth required). 5-step wizard:
+About you → Service area → Skills & insurance → CV & supporting → Review.
+Supports CV + certification uploads (PDF/DOC/DOCX/TXT/RTF/PNG/JPG,
+10 MB cap per file) stored via `utils.database.put_object()`.
+
+**Backend**:
+- `POST /api/partners/public-apply` — public, multipart, idempotent on
+  email (re-submit updates the pending row).
+- `GET  /api/partners/applications` — master-admin only, lists all
+  applications for review.
+- New collection `partner_applications` (distinct from
+  `partner_engineers` so spam can't collide with real engineer
+  profiles).
+
+Existing `/partner-engineer/apply` wizard (auth-gated) is preserved for
+already-onboarded engineers who need to resubmit / edit.
+
+### 3. Fee-waiver copy: 30 → 10
+Backend already waived the £30/mo Partner Plan fee at **10** active
+referrals (`_app_fee_tier`), but the marketing landing page and
+homepage said **30**. Updated copy on:
+- `PartnerEngineerLanding.js` — TIER_TABLE Founding tier, Hero,
+  HowItWorks step 3, FAQ, SEO description.
+- `MarketingHome.js` — Engineer banner.
+- All "Start application" CTAs now point to the public form.
+
+### Test status
+Testing agent (iter 216h104) — **100 % pass** on both backend
+(12/12 tests via pytest) and frontend (header nav, multi-step form,
+file upload, validation, terms gating, success screen, admin
+endpoint, copy audit).
+
+---
+
+
 ## Iter 216h103 — CRM Tender Engine v3 frontend + Inbox pill fix (Feb 14, 2026)
 
 Frontend completion of the v3 backend work shipped in iter 216h102 + a
