@@ -2419,6 +2419,308 @@ async def seed_bid_library_defaults(user=Depends(get_crm_user)):
 
 
 
+# ── Iter 216h102 — Tender Engine v3 ────────────────────────────────────
+
+
+# Vision OCR fallback for scanned PDF tender packs.
+@router.post("/tenders/{tender_id}/documents/{doc_id}/ocr")
+async def ocr_tender_doc(tender_id: str, doc_id: str, user=Depends(get_crm_user)):
+    """Re-extract text from a tender doc using a vision-capable LLM.
+
+    Used when ``extract_text`` returned <40 chars (typically scanned
+    PDFs). Sends the original PDF/image bytes to GPT-5.2 via the
+    Emergent universal key and persists the resulting text back on
+    the document record.
+    """
+    doc = await db.crm2_tender_docs.find_one({"id": doc_id, "tender_id": tender_id, **_of(user)})
+    if not doc:
+        raise HTTPException(404, "Tender document not found")
+    if not doc.get("data_b64"):
+        raise HTTPException(422, "No file bytes available for this document")
+
+    from emergentintegrations.llm.chat import FileContent
+    fc = FileContent(content_type=(doc.get("content_type") or "application/pdf"), file_content_base64=doc["data_b64"])
+    chat = LlmChat(
+        api_key=LLM_KEY,
+        session_id=f"ocr-{_id()[:8]}",
+        system_message=(
+            "You are a high-accuracy document OCR engine. Extract ALL "
+            "human-readable text from the attached file verbatim. "
+            "Preserve question numbering, bullets, and section headings. "
+            "Output the text only — no commentary."
+        ),
+    ).with_model("openai", "gpt-5.2")
+    try:
+        text = await chat.send_message(UserMessage(text="Extract the full text content of this document.", file_contents=[fc]))
+    except Exception as e:
+        raise HTTPException(502, f"Vision OCR failed: {e}")
+
+    text = (text or "").strip()
+    await db.crm2_tender_docs.update_one(
+        {"id": doc_id},
+        {"$set": {
+            "extracted_text": text,
+            "extracted_chars": len(text),
+            "ocr_applied_at": _now(),
+            "ocr_applied_by": user.get("full_name", ""),
+        }},
+    )
+    return {"ok": True, "extracted_chars": len(text)}
+
+
+# Pitch deck slide management with drag-and-drop reorder.
+
+class PitchSlideIn(BaseModel):
+    kicker: str | None = None
+    title: str
+    subtitle: str | None = None
+    bullets: list[str] | None = None
+    body: str | None = None
+
+
+@router.get("/tenders/{tender_id}/pitch-slides")
+async def get_pitch_slides(tender_id: str, user=Depends(get_crm_user)):
+    """Return the persisted slide overrides, or the default Pulse deck."""
+    tender = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)}, {"_id": 0})
+    if not tender:
+        raise HTTPException(404, "Tender not found")
+    slides = tender.get("pitch_slides")
+    if slides:
+        return {"slides": slides, "source": "custom"}
+    from utils.tender_pdf_exporter import _default_pitch_slides
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "name": 1}) or {}
+    return {
+        "slides": _default_pitch_slides(tender, org.get("name") or "Pulse Fitness"),
+        "source": "default",
+    }
+
+
+@router.put("/tenders/{tender_id}/pitch-slides")
+async def set_pitch_slides(tender_id: str, payload: list[PitchSlideIn], user=Depends(get_crm_user)):
+    """Persist the operator-edited slide list (after drag-and-drop)."""
+    if not payload:
+        raise HTTPException(400, "At least one slide is required")
+    if len(payload) > 24:
+        raise HTTPException(400, "Maximum 24 slides per pitch deck")
+    slides = [s.model_dump(exclude_none=True) for s in payload]
+    result = await db.crm2_tenders.update_one(
+        {"id": tender_id, **_of(user)},
+        {"$set": {"pitch_slides": slides, "updated_at": _now()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(404, "Tender not found")
+    return {"ok": True, "slide_count": len(slides)}
+
+
+# Replace the previous export_pitch_pdf so it honours stored slides.
+@router.get("/tenders/{tender_id}/export/pitch-v2")
+async def export_pitch_pdf_v2(tender_id: str, user=Depends(get_crm_user)):
+    """Iter 216h102 — pitch deck export using the persisted slide list."""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from utils.tender_pdf_exporter import build_pitch_deck_pdf
+
+    tender = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)}, {"_id": 0})
+    if not tender:
+        raise HTTPException(404, "Tender not found")
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "name": 1, "branding": 1}) or {}
+    brand = {
+        "company_name": org.get("name") or "Pulse Fitness",
+        "primary_color": (org.get("branding") or {}).get("primary_color") or "#19CDFF",
+    }
+    slides_override = tender.get("pitch_slides")
+    pdf = build_pitch_deck_pdf(tender, brand, slides_override=slides_override)
+    safe = (tender.get("title") or "tender-pitch").replace(" ", "_")[:60]
+    return StreamingResponse(
+        BytesIO(pdf),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe}-pitch.pdf"'},
+    )
+
+
+# Canned tender response templates.
+
+class TenderTemplatePayload(BaseModel):
+    label: str
+    category: str
+    body: str
+    word_limit: int | None = None
+
+
+@router.get("/tender-templates")
+async def list_tender_templates(category: str | None = None, user=Depends(get_crm_user)):
+    """List org-scoped tender response templates."""
+    q = {**_of(user)}
+    if category:
+        q["category"] = category.lower().strip()
+    cursor = db.crm2_tender_templates.find(q, {"_id": 0}).sort("label", 1)
+    items = await cursor.to_list(500)
+    return {"count": len(items), "items": items}
+
+
+@router.post("/tender-templates")
+async def create_tender_template(payload: TenderTemplatePayload, user=Depends(get_crm_user)):
+    record = {
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "label": payload.label.strip(),
+        "category": payload.category.strip().lower(),
+        "body": payload.body,
+        "word_limit": payload.word_limit,
+        "usage_count": 0,
+        "created_by": user.get("full_name", ""),
+        "created_at": _now(), "updated_at": _now(),
+    }
+    await db.crm2_tender_templates.insert_one(record)
+    record.pop("_id", None)
+    return {"ok": True, "item": record}
+
+
+@router.put("/tender-templates/{tpl_id}")
+async def update_tender_template(tpl_id: str, payload: TenderTemplatePayload, user=Depends(get_crm_user)):
+    res = await db.crm2_tender_templates.update_one(
+        {"id": tpl_id, **_of(user)},
+        {"$set": {
+            "label": payload.label.strip(),
+            "category": payload.category.strip().lower(),
+            "body": payload.body,
+            "word_limit": payload.word_limit,
+            "updated_at": _now(),
+        }},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Template not found")
+    return {"ok": True}
+
+
+@router.delete("/tender-templates/{tpl_id}")
+async def delete_tender_template(tpl_id: str, user=Depends(get_crm_user)):
+    res = await db.crm2_tender_templates.delete_one({"id": tpl_id, **_of(user)})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Template not found")
+    return {"ok": True}
+
+
+_PULSE_TENDER_TEMPLATE_SEEDS = [
+    {"label": "Pricing & commercial structure", "category": "pricing", "word_limit": 500,
+     "body": "Our pricing is built around three transparent layers: capital outlay, ongoing service, and consumable parts. Each line item is itemised with no hidden surcharges. Volume pricing tiers apply automatically once defined contract milestones are reached. Lease & finance options are available through accredited providers. We commit to fixed prices for the first 24 months, with subsequent indexation capped at CPI."},
+    {"label": "Mobilisation & implementation timeline", "category": "mobilisation", "word_limit": 600,
+     "body": "Our standard 90-day mobilisation: Week 1-2 contract sign-off, site surveys, RAMS. Week 3-6 equipment manufactured, delivered & installed (max 2 sites/week). Week 7-10 commissioning, CPD-accredited staff training, member orientation with on-site coach for opening weekend. Week 11-12 service handover, BAU reporting configured, first QBR scheduled."},
+    {"label": "Social value commitments (TOMs)", "category": "social_value", "word_limit": 500,
+     "body": "Aligned to the TOMs framework, we commit: 1 apprenticeship per £250k contract value; 35% local sub-contractor spend within 30 miles; quarterly equipment donations to local schools; free community open days at every site for the first 12 months. Reported quarterly via the GymAxis Social Value Dashboard with audit-grade evidence."},
+    {"label": "Sustainability & environmental impact", "category": "sustainability", "word_limit": 500,
+     "body": "ISO 14001 certified, with a closed-loop recycling programme (94% steel & aluminium recovery). Carbon emissions down 38% since 2019 against SBTi-aligned targets. End-of-life take-back at zero cost. Returnable steel shipping frames eliminate single-use packaging. Equipment refurbishment programme has prevented 412 tonnes of steel from secondary smelting (~620 tCO2e avoided)."},
+    {"label": "Information security & data protection", "category": "security", "word_limit": 400,
+     "body": "Our cloud platform is hosted on UK AWS regions with SOC2 Type II and Cyber Essentials Plus certification. All data in transit is TLS 1.3; at rest is AES-256. UK GDPR DPA available on request. Sub-processors are audited annually. Pen-tested twice yearly by an independent CHECK-accredited provider; reports available under NDA."},
+    {"label": "Governance & contract management", "category": "governance", "word_limit": 500,
+     "body": "Each client is assigned a named Account Director and Technical Service Lead. Monthly KPI reports cover uptime, first-time fix rate, parts consumption, attendance times, and warranty claims via the GymAxis client portal. Quarterly business reviews are in-person and include a 12-month forward capacity plan. Annual independent service-quality audit by an agreed third party at our cost."},
+    {"label": "Accreditations & certifications", "category": "accreditations", "word_limit": 350,
+     "body": "ISO 9001:2015 (Quality), ISO 14001:2015 (Environmental), ISO 45001:2018 (H&S), CHAS Premium Plus, SafeContractor (Achilles 98/100), Cyber Essentials Plus, SOC2 Type II. All certificates are issued by UKAS-accredited bodies and audited annually. Copies attached as supporting documentation."},
+    {"label": "Innovation & continuous improvement", "category": "innovation", "word_limit": 500,
+     "body": "We commit to two material innovations per contract year, decided jointly with the client during QBRs. Recent examples: predictive-maintenance via on-equipment sensors (reduced unplanned downtime by 31%); member-app integration showing live equipment availability; QR-code self-service fault reporting that feeds straight into the engineer rota."},
+]
+
+
+@router.post("/tender-templates/seed-pulse-defaults")
+async def seed_tender_templates(user=Depends(get_crm_user)):
+    """Idempotent seed of common Pulse Fitness response templates."""
+    org_id = user.get("organization_id")
+    seeded = 0
+    skipped = 0
+    for entry in _PULSE_TENDER_TEMPLATE_SEEDS:
+        exists = await db.crm2_tender_templates.find_one(
+            {"organization_id": org_id, "label": entry["label"]},
+            {"_id": 0, "id": 1},
+        )
+        if exists:
+            skipped += 1
+            continue
+        await db.crm2_tender_templates.insert_one({
+            "id": _id(), "organization_id": org_id,
+            "label": entry["label"], "category": entry["category"],
+            "body": entry["body"], "word_limit": entry.get("word_limit"),
+            "usage_count": 0, "created_by": "system",
+            "created_at": _now(), "updated_at": _now(),
+        })
+        seeded += 1
+    return {"seeded": seeded, "skipped": skipped}
+
+
+# Win/Loss analytics rollup.
+@router.get("/tenders/analytics/win-loss")
+async def tender_analytics(user=Depends(get_crm_user)):
+    """Aggregate closed tenders into a win/loss dashboard.
+
+    Returns: top-line win rate, value won/lost, win-rate by issuer,
+    win-rate by tender type, and avg cycle time (created → closed).
+    """
+    base = _of(user)
+    won = await db.crm2_tenders.count_documents({**base, "status": "won"})
+    lost = await db.crm2_tenders.count_documents({**base, "status": "lost"})
+    decided = won + lost
+    win_rate = round((won / decided) * 100, 1) if decided else 0.0
+    # Value rolls.
+    pipeline = [
+        {"$match": {**base, "status": {"$in": ["won", "lost"]}}},
+        {"$group": {"_id": "$status", "total_value": {"$sum": "$value"}, "n": {"$sum": 1}}},
+    ]
+    by_status: dict[str, dict] = {}
+    async for row in db.crm2_tenders.aggregate(pipeline):
+        by_status[row["_id"]] = {"total_value": row.get("total_value") or 0, "n": row.get("n", 0)}
+    # By issuer (top 8)
+    by_issuer_pipeline = [
+        {"$match": {**base, "status": {"$in": ["won", "lost"]}, "issuer": {"$ne": None}}},
+        {"$group": {"_id": {"issuer": "$issuer", "status": "$status"}, "n": {"$sum": 1}, "value": {"$sum": "$value"}}},
+    ]
+    issuer_buckets: dict[str, dict] = {}
+    async for row in db.crm2_tenders.aggregate(by_issuer_pipeline):
+        issuer = row["_id"].get("issuer") or "Unknown"
+        status = row["_id"]["status"]
+        b = issuer_buckets.setdefault(issuer, {"issuer": issuer, "won": 0, "lost": 0, "won_value": 0, "lost_value": 0})
+        if status == "won":
+            b["won"] += row["n"]
+            b["won_value"] += row.get("value") or 0
+        else:
+            b["lost"] += row["n"]
+            b["lost_value"] += row.get("value") or 0
+    issuer_rows = []
+    for b in issuer_buckets.values():
+        tot = b["won"] + b["lost"]
+        b["win_rate"] = round((b["won"] / tot) * 100, 1) if tot else 0.0
+        b["total"] = tot
+        issuer_rows.append(b)
+    issuer_rows.sort(key=lambda r: -r["total"])
+    issuer_rows = issuer_rows[:8]
+    # By type (ITT/RFP/PQQ/Framework).
+    type_buckets: dict[str, dict] = {}
+    async for t in db.crm2_tenders.find({**base, "status": {"$in": ["won", "lost"]}}, {"_id": 0, "type": 1, "status": 1, "value": 1}):
+        ttype = t.get("type") or "other"
+        b = type_buckets.setdefault(ttype, {"type": ttype, "won": 0, "lost": 0, "won_value": 0})
+        if t["status"] == "won":
+            b["won"] += 1
+            b["won_value"] += t.get("value") or 0
+        else:
+            b["lost"] += 1
+    type_rows = []
+    for b in type_buckets.values():
+        tot = b["won"] + b["lost"]
+        b["win_rate"] = round((b["won"] / tot) * 100, 1) if tot else 0.0
+        b["total"] = tot
+        type_rows.append(b)
+    type_rows.sort(key=lambda r: -r["total"])
+    return {
+        "won": won,
+        "lost": lost,
+        "decided": decided,
+        "win_rate_pct": win_rate,
+        "won_value": (by_status.get("won") or {}).get("total_value", 0),
+        "lost_value": (by_status.get("lost") or {}).get("total_value", 0),
+        "by_issuer": issuer_rows,
+        "by_type": type_rows,
+    }
+
+
+
+
 def _build_tender_prompt(action: str, question: dict, kb_context: str) -> str:
     """Build the appropriate AI prompt for a tender question action."""
     q_text = question["text"]

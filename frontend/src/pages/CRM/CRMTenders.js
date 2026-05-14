@@ -307,7 +307,9 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
   };
   const exportPdf = (kind) => {
     const token = localStorage.getItem('crm_token') || localStorage.getItem('token');
-    const url = `${API}/crm/v2/tenders/${tenderId}/export/${kind}?_t=${Date.now()}`;
+    // pitch → pitch-v2 (honours operator-edited slides)
+    const path = kind === 'pitch' ? 'pitch-v2' : kind;
+    const url = `${API}/crm/v2/tenders/${tenderId}/export/${path}?_t=${Date.now()}`;
     // Resend through fetch so we can set the Bearer header — browsers
     // can't attach Authorization to a plain anchor click.
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
@@ -327,6 +329,43 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
       load();
     } catch (e) { alert('Seed failed: ' + (e.response?.data?.detail || e.message)); }
   };
+
+  // Iter 216h102 — Tender Engine v3 frontend hooks
+  const [templates, setTemplates] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/crm/v2/tender-templates`, { headers: headers() });
+        setTemplates(r.data?.items || []);
+      } catch (_) { /* templates optional */ }
+    })();
+  }, [tenderId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const applyTemplate = (qId, tplId) => {
+    if (!tplId) return;
+    const tpl = templates.find((t) => t.id === tplId);
+    if (!tpl) return;
+    updateQuestion(qId, { response: tpl.body, status: 'draft' });
+  };
+  const seedTenderTemplates = async () => {
+    try {
+      const r = await axios.post(`${API}/crm/v2/tender-templates/seed-pulse-defaults`, {}, { headers: headers() });
+      const list = await axios.get(`${API}/crm/v2/tender-templates`, { headers: headers() });
+      setTemplates(list.data?.items || []);
+      alert(`Seeded ${r.data.seeded} tender response templates (${r.data.skipped} already existed).`);
+    } catch (e) { alert('Seed failed: ' + (e.response?.data?.detail || e.message)); }
+  };
+  const ocrDoc = async (docId) => {
+    setAiLoading(`ocr-${docId}`);
+    try {
+      await axios.post(`${API}/crm/v2/tenders/${tenderId}/documents/${docId}/ocr`, {}, { headers: headers() });
+      load();
+      alert('OCR extraction complete — try "Parse questions" now.');
+    } catch (e) {
+      alert('OCR failed: ' + (e.response?.data?.detail || e.message));
+    }
+    setAiLoading('');
+  };
+  const [showSlides, setShowSlides] = useState(false);
 
   if (!tender) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -383,7 +422,24 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
         >
           <Presentation size={12} /> Generate pitch deck
         </button>
+        <button
+          onClick={() => setShowSlides(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border"
+          style={{ borderColor: c.border, color: c.textMuted }}
+          data-testid="manage-slides-btn"
+        >
+          <Edit3 size={12} /> Manage slides
+        </button>
         <span className="flex-1" />
+        <button
+          onClick={seedTenderTemplates}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border"
+          style={{ borderColor: c.border, color: c.textMuted }}
+          data-testid="seed-tender-templates-btn"
+          title="Seed pre-approved Pulse Fitness tender response templates"
+        >
+          <Copy size={12} /> Seed response templates
+        </button>
         <button
           onClick={seedBidLibrary}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border"
@@ -546,7 +602,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
                             </div>
                           )}
                           <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div className="flex gap-1">
+                            <div className="flex items-center gap-1 flex-wrap">
                               {['not_started', 'draft', 'reviewed', 'final'].map(s => (
                                 <button key={s} onClick={() => updateQuestion(q.id, { status: s })}
                                   className={`px-2 py-1 text-[10px] rounded-md ${q.status === s ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
@@ -554,6 +610,21 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
                                   {s.replace('_', ' ')}
                                 </button>
                               ))}
+                              {templates.length > 0 && (
+                                <select
+                                  onChange={(e) => { applyTemplate(q.id, e.target.value); e.target.value = ''; }}
+                                  defaultValue=""
+                                  className="ml-1 px-2 py-1 text-[10px] rounded-md border"
+                                  style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-50)', color: c.textMuted, borderColor: c.border }}
+                                  data-testid={`template-picker-${q.id}`}
+                                  title="Insert a canned tender response"
+                                >
+                                  <option value="">Insert template…</option>
+                                  {templates.map((t) => (
+                                    <option key={t.id} value={t.id}>{t.label}</option>
+                                  ))}
+                                </select>
+                              )}
                             </div>
                             <div className="flex gap-1 flex-wrap">
                               <button onClick={() => fetchSnippets(q.id)} disabled={!!aiLoading || snippetCache[q.id]?.loading}
@@ -630,6 +701,18 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
                         data-testid={`parse-from-doc-${d.id}`}
                       >
                         {aiLoading === `parse-doc-${d.id}` ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} Parse questions from this doc
+                      </button>
+                    )}
+                    {typeof d.extracted_chars === 'number' && d.extracted_chars < 40 && (
+                      <button
+                        onClick={() => ocrDoc(d.id)}
+                        disabled={!!aiLoading}
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md disabled:opacity-50"
+                        style={{ background: 'var(--color-warning)15', color: 'var(--color-warning)' }}
+                        data-testid={`ocr-doc-${d.id}`}
+                        title="Re-extract using Vision OCR (works for scanned PDFs)"
+                      >
+                        {aiLoading === `ocr-${d.id}` ? <Loader2 size={10} className="animate-spin" /> : <Eye size={10} />} Run Vision OCR
                       </button>
                     )}
                   </div>
@@ -770,11 +853,133 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
           </div>
         </div>
       )}
+      {/* Slide manager modal (Iter 216h102) */}
+      {showSlides && (
+        <SlideManager
+          tenderId={tenderId}
+          headers={headers}
+          onClose={() => setShowSlides(false)}
+          c={c}
+          inputStyle={inputStyle}
+        />
+      )}
     </div>
   );
 }
 
-/* ═══ Live response editor with word counter (Iter 216h101) ═══ */
+/* ═══ Slide manager with drag-and-drop reorder (Iter 216h102) ═══ */
+function SlideManager({ tenderId, headers, onClose, c, inputStyle }) {
+  const [slides, setSlides] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [dragIdx, setDragIdx] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/crm/v2/tenders/${tenderId}/pitch-slides`, { headers: headers() });
+        setSlides(r.data?.slides || []);
+      } catch (_) { /* fall back to empty */ }
+      setLoading(false);
+    })();
+  }, [tenderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await axios.put(`${API}/crm/v2/tenders/${tenderId}/pitch-slides`, slides, { headers: headers() });
+      onClose();
+    } catch (e) {
+      alert('Save failed: ' + (e.response?.data?.detail || e.message));
+    }
+    setSaving(false);
+  };
+
+  const onDragStart = (idx) => setDragIdx(idx);
+  const onDragOver = (e) => e.preventDefault();
+  const onDrop = (idx) => {
+    if (dragIdx === null || dragIdx === idx) return;
+    const next = [...slides];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(idx, 0, moved);
+    setSlides(next);
+    setDragIdx(null);
+  };
+  const update = (idx, key, val) => {
+    const next = [...slides];
+    next[idx] = { ...next[idx], [key]: val };
+    setSlides(next);
+  };
+  const remove = (idx) => setSlides(slides.filter((_, i) => i !== idx));
+  const add = () => setSlides([...slides, { title: 'New slide', kicker: '', subtitle: '', bullets: [], body: '' }]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="slide-manager">
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" />
+      <div className="relative w-full max-w-3xl max-h-[88vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
+        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: c.border }}>
+          <h3 className="text-sm font-semibold" style={{ color: c.text }}>Pitch deck slides ({slides.length})</h3>
+          <button type="button" onClick={onClose} style={{ color: c.textMuted }}><X size={16} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {loading && <p className="text-xs text-center py-6" style={{ color: c.textDim }}>Loading slides…</p>}
+          {!loading && slides.map((s, i) => {
+            const isEditing = editingIdx === i;
+            return (
+              <div
+                key={i}
+                draggable
+                onDragStart={() => onDragStart(i)}
+                onDragOver={onDragOver}
+                onDrop={() => onDrop(i)}
+                className="p-3 rounded-lg border"
+                style={{ borderColor: c.border, background: dragIdx === i ? 'rgba(168,85,247,0.06)' : 'transparent' }}
+                data-testid={`slide-row-${i}`}
+              >
+                <div className="flex items-center gap-3 cursor-move">
+                  <span className="text-xs font-mono w-7 text-center" style={{ color: c.textDim }}>≡{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{s.title}</p>
+                    {s.subtitle && <p className="text-[11px] truncate" style={{ color: c.textMuted }}>{s.subtitle}</p>}
+                  </div>
+                  <button onClick={() => setEditingIdx(isEditing ? null : i)} className="p-1 rounded" style={{ color: 'var(--color-info-ios)' }}><Edit3 size={12} /></button>
+                  <button onClick={() => remove(i)} className="p-1 rounded" style={{ color: 'var(--color-danger-alt)' }}><X size={12} /></button>
+                </div>
+                {isEditing && (
+                  <div className="mt-3 grid grid-cols-1 gap-2">
+                    <input value={s.kicker || ''} onChange={(e) => update(i, 'kicker', e.target.value)} placeholder="Kicker (small uppercase label)" className="px-2 py-1.5 text-xs rounded" style={inputStyle} />
+                    <input value={s.title || ''} onChange={(e) => update(i, 'title', e.target.value)} placeholder="Slide title" className="px-2 py-1.5 text-sm font-semibold rounded" style={inputStyle} />
+                    <input value={s.subtitle || ''} onChange={(e) => update(i, 'subtitle', e.target.value)} placeholder="Subtitle" className="px-2 py-1.5 text-xs rounded" style={inputStyle} />
+                    <textarea value={(s.bullets || []).join('\n')} onChange={(e) => update(i, 'bullets', e.target.value.split('\n').filter(Boolean))} placeholder="Bullets — one per line" rows={4} className="px-2 py-1.5 text-xs rounded" style={inputStyle} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!loading && (
+            <button type="button" onClick={add} className="w-full px-3 py-2 text-xs font-semibold rounded-md border border-dashed" style={{ borderColor: c.border, color: c.textMuted }} data-testid="slide-add">
+              + Add slide
+            </button>
+          )}
+        </div>
+        <div className="px-6 py-3 border-t flex items-center justify-end gap-2" style={{ borderColor: c.border, background: c.bgPanel }}>
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded-md border" style={{ borderColor: c.border, color: c.textMuted }}>Cancel</button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving || slides.length === 0}
+            className="px-3 py-1.5 text-xs font-semibold rounded-md disabled:opacity-50"
+            style={{ background: 'var(--color-info-ios)', color: '#fff' }}
+            data-testid="slide-save"
+          >
+            {saving ? 'Saving…' : 'Save slide order'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function LiveResponseEditor({ initial, wordLimit, onSave, inputStyle, color, testid }) {
   const [value, setValue] = useState(initial || '');
   useEffect(() => { setValue(initial || ''); }, [initial]);
