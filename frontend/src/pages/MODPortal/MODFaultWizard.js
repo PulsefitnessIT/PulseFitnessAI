@@ -567,8 +567,13 @@ function StepGuided({ form, patch }) {
           className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
           data-testid="mod-field-description"
         />
-        <div className={`text-[10px] mt-1 font-bold ${form.description.length >= 40 ? 'text-emerald-400' : 'text-white/50'}`}>
-          {form.description.length} / 40 minimum
+        <div className="flex items-center justify-between mt-1 gap-3">
+          <div className={`text-[10px] font-bold ${form.description.length >= 40 ? 'text-emerald-400' : 'text-white/50'}`}>
+            {form.description.length} / 40 minimum
+          </div>
+          <div className="text-[10px] text-amber-300/80 font-semibold" data-testid="mod-field-classification-hint">
+            ◆ OFFICIAL only — do NOT include NSN, operation names, callsigns or anything above OFFICIAL.
+          </div>
         </div>
       </label>
 

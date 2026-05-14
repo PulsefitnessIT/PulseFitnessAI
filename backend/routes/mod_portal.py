@@ -147,16 +147,42 @@ async def _sites_in_scope(pro_org: dict) -> list[str]:
     return [s["id"] for s in sites]
 
 
-async def _audit(site_id: str, user_id: Optional[str], action: str, **kw) -> None:
+async def _audit(
+    site_id: str,
+    user_id: Optional[str],
+    action: str,
+    *,
+    request: Optional[Request] = None,
+    user: Optional[dict] = None,
+    target_type: Optional[str] = None,
+    target_id: Optional[str] = None,
+    **kw,
+) -> None:
+    """Iter 216h115 — delegates to the tamper-evident audit module.
+
+    Kept as a thin wrapper so existing call sites that pass positional
+    ``site_id, user_id, action`` continue to work. ``request`` and
+    ``user`` are optional for richer context.
+    """
     try:
-        await db.mod_audit_log.insert_one({
-            "id": str(uuid.uuid4()),
-            "site_id": site_id,
-            "user_id": user_id,
-            "action": action,
-            "payload": {k: v for k, v in kw.items() if k not in {"password", "password_hash"}},
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
+        from utils.mod_audit import audit_event
+        ip = None
+        user_agent = None
+        if request is not None:
+            try:
+                ip = request.client.host if request.client else None
+                user_agent = request.headers.get("user-agent")
+            except Exception:
+                pass
+        actor = user
+        if actor is None and user_id:
+            actor = {"id": user_id}
+        await audit_event(
+            site_id=site_id, action=action,
+            user=actor,
+            target_type=target_type, target_id=target_id,
+            payload=kw, ip=ip, user_agent=user_agent,
+        )
     except Exception as e:  # pragma: no cover
         logger.warning("MOD audit failed: %s", e)
 
@@ -1144,6 +1170,17 @@ async def mod_fault_submit(
     now = datetime.now(timezone.utc)
     ticket_ref = f"MOD-{now.year}-{str(uuid.uuid4().int)[:5].zfill(5)}"
     issue_id = str(uuid.uuid4())
+
+    # Iter 216h115 — Scan free-text inputs for OFFICIAL-SENSITIVE-or-
+    # higher markers. We DON'T block; instead we persist the flags
+    # and let HQ review the record. Caller is told via the response
+    # so the UI can prompt the reporter to redact if needed.
+    from utils.mod_classification import scan_many
+    classification_flags = scan_many([
+        payload.description, payload.onset,
+        payload.reporter_name, payload.reporter_phone,
+    ])
+
     doc = {
         "id": issue_id,
         "organization_id": site_id,
@@ -1168,9 +1205,26 @@ async def mod_fault_submit(
         "ai_triage": ai,
         "ai_triage_accepted": bool(payload.ai_triage_accepted),
         "priority": priority,
+        "classification_flags": classification_flags,
+        "classification_flagged": bool(classification_flags),
         "created_at": now.isoformat(),
     }
     await db.issues.insert_one(doc)
+
+    # Iter 216h115 — When a classification flag is raised, email HQ +
+    # the on-call mailbox so a human reviews the record.
+    if classification_flags:
+        try:
+            await _audit(
+                site_id, user.get("id"), "fault.classification_flag",
+                request=request, user=user,
+                target_type="issue", target_id=issue_id,
+                ticket_ref=ticket_ref,
+                flag_count=len(classification_flags),
+                flag_labels=sorted({f["label"] for f in classification_flags}),
+            )
+        except Exception:  # pragma: no cover
+            pass
 
     # Equipment state updates.
     eq_updates = {"last_fault_at": now.isoformat()}
@@ -1249,6 +1303,7 @@ async def mod_fault_submit(
         "priority": priority,
         "duplicate_of": dup.get("mod_ticket_ref") if dup else None,
         "ai_triage": ai,
+        "classification_flags": classification_flags,
     }
 
 
@@ -1261,6 +1316,223 @@ async def mod_fault_detail(issue_id: str, user: dict = Depends(get_current_user)
     if not doc:
         raise HTTPException(404, "Fault not found")
     return doc
+
+
+# Iter 216h115 — Acceptance / closure loop.
+# When a fault is marked resolved we email the original reporter a
+# secret token link. They tap "Confirm fix" (or "Still broken") which
+# hits a public endpoint that captures their verdict + a 1-5 rating.
+# Faults left unconfirmed after 48h get reopened by the daily cron in
+# ``utils/mod_acceptance.py`` and flagged ``awaiting_reporter_review``.
+
+import secrets as _secrets_acc
+
+
+class ResolveBody(BaseModel):
+    resolution_note: str = Field(default="", max_length=2000)
+
+
+def _confirm_fix_token() -> str:
+    return _secrets_acc.token_urlsafe(24)
+
+
+def _confirm_fix_email_html(site: dict, issue: dict, link: str) -> str:
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Confirm fix</div>
+    <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{issue.get('mod_ticket_ref','')} marked resolved</h1>
+  </div>
+  <div style="padding:22px 28px;">
+    <p>The fault you raised at <strong>{site.get('name','')}</strong> has been marked resolved.</p>
+    <p>Please confirm whether the machine is back in service. If we don't hear from you in 48 hours the ticket will auto-reopen.</p>
+    <div style="margin:18px 0;">
+      <a href="{link}" style="display:inline-block;background:#19CDFF;color:#0A0B10;padding:12px 18px;border-radius:8px;font-weight:800;text-decoration:none;">Confirm fix &amp; rate</a>
+    </div>
+    <p style="color:#6E7476;font-size:12px;">Link is single-use and expires in 14 days.</p>
+  </div>
+</div>"""
+
+
+@router.post("/mod/site/faults/{issue_id}/mark-resolved")
+async def mod_mark_fault_resolved(
+    issue_id: str,
+    body: ResolveBody,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Site user (PTI or shared kiosk) marks a fault resolved.
+
+    Triggers the acceptance email to the original reporter so they can
+    independently confirm the machine is back in service.
+    """
+    org = await _require_mod_site(user)
+    issue = await db.issues.find_one(
+        {"id": issue_id, "organization_id": org["id"]}, {"_id": 0},
+    )
+    if not issue:
+        raise HTTPException(404, "Fault not found")
+    if issue.get("status") == "resolved":
+        return {"ok": True, "already_resolved": True}
+
+    now = datetime.now(timezone.utc)
+    token = _confirm_fix_token()
+    await db.issues.update_one(
+        {"id": issue_id},
+        {"$set": {
+            "status": "resolved",
+            "resolved_at": now.isoformat(),
+            "resolved_by_user_id": user.get("id"),
+            "resolved_by_email": user.get("email"),
+            "resolution_note": (body.resolution_note or "").strip(),
+            "acceptance_token": token,
+            "acceptance_sent_at": now.isoformat(),
+            "acceptance_status": "pending",
+        }},
+    )
+
+    # Also bring the equipment back into service if it was isolated.
+    try:
+        await db.equipment.update_one(
+            {"id": issue.get("equipment_id"), "status": "out_of_service"},
+            {"$set": {"status": "active"}},
+        )
+    except Exception:
+        pass
+
+    # Email the reporter with the confirm-fix link.
+    base = (os.environ.get("FRONTEND_URL")
+            or os.environ.get("REACT_APP_BACKEND_URL", "")).replace("/api", "").rstrip("/")
+    link = f"{base}/mod/confirm-fix/{token}"
+    try:
+        if issue.get("reporter_email"):
+            asyncio.create_task(send_email(
+                issue["reporter_email"],
+                f"Confirm fix — {issue.get('mod_ticket_ref','')}",
+                _confirm_fix_email_html(org, issue, link),
+            ))
+    except Exception:  # pragma: no cover
+        pass
+
+    await _audit(
+        org["id"], user.get("id"), "fault.resolve",
+        request=request, user=user,
+        target_type="issue", target_id=issue_id,
+        ticket_ref=issue.get("mod_ticket_ref"),
+        resolution_note=(body.resolution_note or "")[:200],
+    )
+    return {"ok": True, "issue_id": issue_id, "acceptance_token_sent": True}
+
+
+class ConfirmFixBody(BaseModel):
+    confirmed: bool
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    comment: Optional[str] = Field(default=None, max_length=2000)
+
+
+@router.post("/public/mod-fault-confirm/{token}")
+async def public_confirm_fix(token: str, body: ConfirmFixBody):
+    """Public endpoint hit by the email-link. Records the reporter's
+    verdict. No auth required — the token IS the auth."""
+    issue = await db.issues.find_one(
+        {"acceptance_token": token},
+        {"_id": 0, "id": 1, "organization_id": 1, "mod_ticket_ref": 1,
+         "acceptance_status": 1, "acceptance_sent_at": 1,
+         "reporter_email": 1, "supplier_notified_email": 1,
+         "supplier_notified_name": 1},
+    )
+    if not issue:
+        raise HTTPException(404, "Invalid or expired link")
+    if issue.get("acceptance_status") == "confirmed":
+        return {"ok": True, "already_confirmed": True}
+
+    # Token expiry (14 days).
+    try:
+        sent_at = datetime.fromisoformat(issue.get("acceptance_sent_at"))
+        if sent_at.tzinfo is None:
+            sent_at = sent_at.replace(tzinfo=timezone.utc)
+        if (datetime.now(timezone.utc) - sent_at).days > 14:
+            raise HTTPException(410, "Link has expired")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update: dict = {
+        "acceptance_status": "confirmed" if body.confirmed else "rejected",
+        "acceptance_confirmed_at": now_iso,
+        "acceptance_rating": body.rating,
+        "acceptance_comment": (body.comment or "").strip()[:2000] or None,
+        # Invalidate the token so the link is single-use.
+        "acceptance_token": None,
+    }
+    if not body.confirmed:
+        # Reporter says still broken — auto-reopen.
+        update.update({
+            "status": "open",
+            "reopened_at": now_iso,
+            "reopened_reason": "reporter_rejected_fix",
+        })
+
+    await db.issues.update_one({"id": issue["id"]}, {"$set": update})
+
+    # Audit
+    await _audit(
+        issue["organization_id"], None,
+        "fault.confirm_fix" if body.confirmed else "fault.reopen",
+        target_type="issue", target_id=issue["id"],
+        ticket_ref=issue.get("mod_ticket_ref"),
+        confirmed=body.confirmed, rating=body.rating,
+    )
+
+    # If a supplier was on the ticket and the reporter rated us, mirror
+    # that onto a supplier-scorecard collection so HQ rollups can use it.
+    if body.rating is not None and issue.get("supplier_notified_name"):
+        try:
+            await db.mod_supplier_scorecard.insert_one({
+                "id": str(uuid.uuid4()),
+                "site_id": issue["organization_id"],
+                "issue_id": issue["id"],
+                "supplier_name": issue.get("supplier_notified_name"),
+                "supplier_email": issue.get("supplier_notified_email"),
+                "rating": body.rating,
+                "confirmed": body.confirmed,
+                "comment": (body.comment or "")[:500] or None,
+                "created_at": now_iso,
+            })
+        except Exception:  # pragma: no cover
+            pass
+
+    return {
+        "ok": True,
+        "ticket_ref": issue.get("mod_ticket_ref"),
+        "confirmed": body.confirmed,
+        "rating": body.rating,
+    }
+
+
+@router.get("/public/mod-fault-confirm/{token}")
+async def public_confirm_fix_lookup(token: str):
+    """Read-only lookup — lets the frontend confirm a token is still
+    valid before showing the rating form."""
+    issue = await db.issues.find_one(
+        {"acceptance_token": token},
+        {"_id": 0, "id": 1, "mod_ticket_ref": 1, "acceptance_sent_at": 1,
+         "acceptance_status": 1, "machine_type": 1, "serial_number": 1,
+         "organization_id": 1},
+    )
+    if not issue:
+        raise HTTPException(404, "Invalid or expired link")
+    site = await db.organizations.find_one(
+        {"id": issue["organization_id"]}, {"_id": 0, "name": 1},
+    )
+    return {
+        "ticket_ref": issue.get("mod_ticket_ref"),
+        "machine_type": issue.get("machine_type"),
+        "serial_number": issue.get("serial_number"),
+        "site_name": (site or {}).get("name"),
+        "acceptance_status": issue.get("acceptance_status"),
+    }
 
 
 # ── Phase 2: AI triage endpoint called from the wizard preview ─
@@ -1522,6 +1794,109 @@ async def mod_admin_audit_log(site_id: str, user: dict = Depends(get_current_use
         {"site_id": site_id}, {"_id": 0},
     ).sort("created_at", -1).limit(200).to_list(200)
     return {"log": rows}
+
+
+# Iter 216h115 — HQ-level audit visibility + verifiable export.
+# MOD HQ users (mod_org / mod_branch) can browse and export the audit
+# trail for any site within their scope. The export PDF/CSV walks the
+# tamper-evident hash chain and includes a chain-integrity verdict so
+# DIO / ISO 27001 auditors can trust the file at face value.
+
+@router.get("/mod/pro/audit-log/{site_id}")
+async def mod_hq_audit_log(
+    site_id: str,
+    limit: int = 500,
+    user: dict = Depends(get_current_user),
+):
+    """Return the most-recent audit rows for ``site_id``. Caller must
+    be a MOD HQ user with the target site in their scope."""
+    org = await _require_mod_pro(user)
+    site = await db.organizations.find_one(
+        {"id": site_id}, {"_id": 0, "mod_root_id": 1, "mod_branch": 1,
+                          "account_type": 1, "name": 1},
+    )
+    if not site:
+        raise HTTPException(404, "Site not found")
+    if site.get("mod_root_id") != org.get("mod_root_id"):
+        raise HTTPException(403, "Site is outside your MOD organisation scope")
+    if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
+        raise HTTPException(403, "Site is outside your branch scope")
+    from utils.mod_audit import list_audit_for_site, verify_audit_chain
+    rows = await list_audit_for_site(site_id, limit=max(1, min(int(limit), 2000)))
+    integrity = await verify_audit_chain(site_id)
+    return {
+        "site_id": site_id,
+        "site_name": site.get("name"),
+        "rows": rows,
+        "integrity": integrity,
+    }
+
+
+@router.get("/mod/pro/audit-log/{site_id}/export.csv")
+async def mod_hq_audit_export_csv(
+    site_id: str, user: dict = Depends(get_current_user),
+):
+    """Stream the entire site audit log as CSV with a footer line that
+    declares the chain-integrity result. Suitable for DIO inspection
+    packs and ISO 27001 evidence bundles."""
+    import csv as _csv
+    import io as _io
+    org = await _require_mod_pro(user)
+    site = await db.organizations.find_one(
+        {"id": site_id}, {"_id": 0, "mod_root_id": 1, "mod_branch": 1,
+                          "account_type": 1, "name": 1},
+    )
+    if not site:
+        raise HTTPException(404, "Site not found")
+    if site.get("mod_root_id") != org.get("mod_root_id"):
+        raise HTTPException(403, "Site is outside your MOD organisation scope")
+    if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
+        raise HTTPException(403, "Site is outside your branch scope")
+
+    from utils.mod_audit import verify_audit_chain
+    integrity = await verify_audit_chain(site_id)
+
+    buf = _io.StringIO()
+    writer = _csv.writer(buf)
+    writer.writerow([
+        "created_at", "action", "actor_email", "actor_role",
+        "target_type", "target_id", "payload_json", "ip",
+        "prev_hash", "row_hash",
+    ])
+    cursor = db.mod_audit_log.find(
+        {"site_id": site_id}, {"_id": 0},
+    ).sort("created_at", 1)
+    rows = 0
+    async for r in cursor:
+        rows += 1
+        import json as _json
+        writer.writerow([
+            r.get("created_at", ""),
+            r.get("action", ""),
+            r.get("actor_email", ""),
+            r.get("actor_role", ""),
+            r.get("target_type", ""),
+            r.get("target_id", ""),
+            _json.dumps(r.get("payload", {}), separators=(",", ":")),
+            r.get("ip", ""),
+            r.get("prev_hash", ""),
+            r.get("row_hash", ""),
+        ])
+    writer.writerow([])
+    writer.writerow([
+        f"# CHAIN INTEGRITY: {'VALID' if integrity['valid'] else 'BROKEN'} · "
+        f"rows={integrity['rows']} · "
+        f"first_break_at={integrity.get('first_break_at') or 'n/a'} · "
+        f"exported_at={datetime.now(timezone.utc).isoformat()} · "
+        f"exported_by={user.get('email','')}",
+    ])
+    csv_body = buf.getvalue()
+    filename = f"mod-audit-{site_id}-{datetime.now(timezone.utc).date().isoformat()}.csv"
+    return Response(
+        content=csv_body,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/master-admin/mod/sites/{site_id}/rotate-password")

@@ -15,6 +15,7 @@ import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { installAutoFlush, countPending, flushQueue } from '@/utils/offlineFaultQueue';
+import ClassificationBanner from '@/components/shared/ClassificationBanner';
 
 function DrillBanner({ drill, onAcknowledge, acked }) {
   if (!drill) return null;
@@ -142,6 +143,7 @@ export default function MODSiteDashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--color-ink-deep)] text-white pb-10" data-testid="mod-site-dashboard">
+      <ClassificationBanner level={user?.classification || 'OFFICIAL'} />
       {/* Branded header */}
       <header className="border-b border-white/10 bg-[var(--color-surface-darker)] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between gap-3">

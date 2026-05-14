@@ -193,5 +193,13 @@ async def run_proactive_nudges() -> dict:
             except Exception as exc:  # never break the poller
                 totals["errors"] += 1
                 logger.warning(f"[nudges] {scanner.__name__} failed for {org.get('id')}: {exc}")
+    # Iter 216h115 — sweep MOD fault acceptance timeouts (org-agnostic).
+    try:
+        from utils.mod_acceptance import sweep_pending_acceptances
+        sweep_result = await sweep_pending_acceptances()
+        totals["mod_acceptance"] = sweep_result
+    except Exception as exc:  # pragma: no cover
+        totals["errors"] += 1
+        logger.warning(f"[nudges] mod_acceptance sweep failed: {exc}")
     logger.info(f"[nudges] cycle complete {totals}")
     return totals

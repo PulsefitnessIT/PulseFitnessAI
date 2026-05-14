@@ -98,6 +98,7 @@ const ServiceOpsEngineerJob = lazy(() => import('@/pages/ServiceOps/Engineer/Eng
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
 const MODServiceLogin = lazy(() => import('@/pages/MODPortal/MODServiceLogin'));
+const MODConfirmFixPage = lazy(() => import('@/pages/MODPortal/MODConfirmFixPage'));
 const MembershipsConsole = lazy(() => import('@/pages/Memberships/MembershipsConsole'));
 const MemberPortal = lazy(() => import('@/pages/Memberships/MemberPortal'));
 const MemberClaimPage = lazy(() => import('@/pages/Memberships/MemberClaimPage'));
@@ -247,6 +248,7 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 216h109 — MOD Service portal (branded login). */}
       <Route path="/MODService" element={<MODServiceLogin />} />
       <Route path="/MODService/login" element={<MODServiceLogin />} />
+      <Route path="/mod/confirm-fix/:token" element={<MODConfirmFixPage />} />
       <Route path="/modservice" element={<Navigate to="/MODService" replace />} />
 
       {/* ─── Public utility ─── */}

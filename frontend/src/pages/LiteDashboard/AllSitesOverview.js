@@ -10,11 +10,12 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
-import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2, KeyRound, Copy, Check, Mail, X } from 'lucide-react';
+import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2, KeyRound, Copy, Check, Mail, X, FileSearch } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import KpiTile from '@/components/shared/KpiTile';
 import PageHeader from '@/components/shared/PageHeader';
+import MODAuditLogPanel from './MODAuditLogPanel';
 
 const scoreColor = (s) => {
   if (s >= 80) return { bg: 'bg-emerald-100 dark:bg-emerald-500/15', text: 'text-emerald-700 dark:text-emerald-300' };
@@ -31,6 +32,8 @@ const AllSitesOverview = ({ onPickSite }) => {
   // rotate the shared site login for each of their child sites.
   const isModHQ = ['mod_branch', 'mod_org'].includes(user?.account_type || '');
   const [siteLoginTarget, setSiteLoginTarget] = useState(null);
+  // Iter 216h115 — Audit log viewer for the same HQ users.
+  const [auditTarget, setAuditTarget] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -163,16 +166,28 @@ const AllSitesOverview = ({ onPickSite }) => {
                     <td className="px-3 py-2.5 text-right">
                       <div className="inline-flex items-center gap-1.5">
                         {isModHQ && s.is_mod_child && (
-                          <button
-                            type="button"
-                            onClick={() => setSiteLoginTarget(s)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]"
-                            style={{ color: 'var(--color-brand-cyan-hover)' }}
-                            data-testid={`leaderboard-site-login-${s.id}`}
-                            title="Generate / rotate this site's login"
-                          >
-                            <KeyRound size={11} /> Site login
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setAuditTarget(s)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]"
+                              style={{ color: 'var(--theme-text-muted)' }}
+                              data-testid={`leaderboard-audit-${s.id}`}
+                              title="View / export this site's audit log"
+                            >
+                              <FileSearch size={11} /> Audit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSiteLoginTarget(s)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]"
+                              style={{ color: 'var(--color-brand-cyan-hover)' }}
+                              data-testid={`leaderboard-site-login-${s.id}`}
+                              title="Generate / rotate this site's login"
+                            >
+                              <KeyRound size={11} /> Site login
+                            </button>
+                          </>
                         )}
                         <button
                           type="button"
@@ -202,6 +217,14 @@ const AllSitesOverview = ({ onPickSite }) => {
           site={siteLoginTarget}
           API={API}
           onClose={() => setSiteLoginTarget(null)}
+        />
+      )}
+      {/* Iter 216h115 — Audit log viewer (MOD HQ only) */}
+      {isModHQ && auditTarget && (
+        <MODAuditLogPanel
+          site={auditTarget}
+          API={API}
+          onClose={() => setAuditTarget(null)}
         />
       )}
     </div>

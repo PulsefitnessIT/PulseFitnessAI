@@ -1,0 +1,76 @@
+{
+  "summary": "Completed comprehensive testing of Iter 216h115 features: tamper-evident audit trail, OFFICIAL-SENSITIVE classification scanner, and acceptance/closure loop. All 8 backend pytest tests pass. Frontend testing verified Classification Banner, All Sites Overview with Audit/Site Login buttons, and public confirm-fix page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "MOD Fault Wizard",
+        "issues": ["The MOD-specific 6-step fault wizard with classification hint (mod-field-classification-hint) is defined in MODSiteDashboard but MOD users are routed to the standard Pulse dashboard (/pulse) which uses the standard fault form. The MOD Fault Wizard is not currently accessible via the main navigation flow."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h115_audit_classification_acceptance.py"
+  ],
+  "action_items": [
+    "Consider routing MOD site users to MODSiteDashboard or integrating the MOD Fault Wizard into the standard Pulse dashboard for MOD users to expose the classification hint feature"
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "95%"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "mod_hq": "catterick.demo.lead@army.mod.local / ArmyDemo2026! portal=mod",
+    "mod_site": "daniel.hayes@army.mod.local / ArmyDemo2026! portal=mod"
+  },
+  "seed_data_creation": "Called /api/mod/demo/seed-army-catterick to create Catterick Garrison hierarchy with 7 sub-sites",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All Iter 216h115 features are working: (1) Classification scanner detects NSN patterns and flags issues, (2) Audit log with tamper-evident hash chain is functional with CSV export including integrity footer, (3) Acceptance loop works - mark-resolved sends token, public confirm-fix page allows Y/N + rating, rejection reopens issue, 48h timeout sweep reopens pending acceptances. Classification Banner appears for MOD users only. All Sites Overview shows Audit and Site Login buttons per row.",
+  "features_tested": {
+    "classification_scanner": {
+      "status": "PASS",
+      "details": "scan_text correctly flags NSN patterns (1234-12-345-6789), Operation names, callsigns, and SECRET keywords. Fault submission with NSN returns classification_flags in response."
+    },
+    "audit_trail": {
+      "status": "PASS",
+      "details": "GET /api/mod/pro/audit-log/{site_id} returns rows with row_hash and prev_hash forming tamper-evident chain. integrity.valid=true when chain is intact. Legacy rows without hashes are tolerated."
+    },
+    "csv_export": {
+      "status": "PASS",
+      "details": "GET /api/mod/pro/audit-log/{site_id}/export.csv returns CSV with header, event rows, and footer line '# CHAIN INTEGRITY: VALID'"
+    },
+    "acceptance_loop_happy_path": {
+      "status": "PASS",
+      "details": "POST mark-resolved returns acceptance_token_sent=true. Public confirm-fix page shows ticket info, Yes/No buttons, 1-5 star rating. Submitting Yes closes ticket and shows success state. Token is single-use (subsequent GET returns 404)."
+    },
+    "acceptance_loop_rejection": {
+      "status": "PASS",
+      "details": "POST with confirmed=false reopens issue with status=open and reopened_reason=reporter_rejected_fix"
+    },
+    "48h_timeout_sweep": {
+      "status": "PASS",
+      "details": "sweep_pending_acceptances() finds acceptance_status=pending rows older than 48h and reopens them with reason=awaiting_reporter_review"
+    },
+    "classification_banner": {
+      "status": "PASS",
+      "details": "Banner with '◆OFFICIAL◆' appears for MOD users (mod_site, mod_branch, mod_org) but NOT for standard Pulse users"
+    },
+    "all_sites_overview": {
+      "status": "PASS",
+      "details": "Shows 7 Audit buttons and 7 Site Login buttons for MOD child sites. Clicking Audit opens panel with integrity indicator and CSV export button."
+    },
+    "public_confirm_fix_page": {
+      "status": "PASS",
+      "details": "Invalid token shows error message. Valid token shows ticket info, Yes/No buttons, star rating, and submit button. Success state shows confirmation message."
+    }
+  }
+}
