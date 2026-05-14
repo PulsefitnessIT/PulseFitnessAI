@@ -264,12 +264,25 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
                 },
             ).sort([("closed_at", -1), ("created_at", -1)]).limit(3).to_list(3)
         )
+    # Iter 216h89 — Pre-job H&S signoff state (so PWA gates on-site timer)
+    safety_signoff = await db.svc_case_safety_signoffs.find_one(
+        {"case_id": case_id, **of, "engineer_id": user["id"]},
+        {"_id": 0, "id": 1, "signed_at": 1, "ticked_item_ids": 1, "remarks": 1},
+        sort=[("signed_at", -1)],
+    )
+    safety_template = None
+    if not safety_signoff:
+        from routes.svc.safety import _resolve_template
+        tpl = await _resolve_template(of["organization_id"])
+        safety_template = {"id": tpl["id"], "items": tpl["items"]}
     return {
         **case,
         "events": events,
         "photos": photos,
         "time_entries": time_entries,
         "asset_history": asset_history,
+        "safety_signoff": safety_signoff,
+        "safety_template": safety_template,
     }
 
 
@@ -319,6 +332,17 @@ async def time_start(
     case = await db.svc_cases.find_one({"id": case_id, **of})
     if not case:
         raise HTTPException(404, "Case not found")
+    # Iter 216h89 — H&S gate. Engineers must complete the pre-job safety
+    # signoff before starting the on_site timer. Travel/admin timers are
+    # not gated (the gate fires when the engineer arrives on site).
+    if (data.get("category") or "on_site") == "on_site" and not case.get("safety_signoff_at"):
+        raise HTTPException(
+            status_code=412,
+            detail={
+                "code": "safety_signoff_required",
+                "message": "Complete the H&S checklist before starting the on-site timer.",
+            },
+        )
     # Stop any open timer on this engineer first — only one active at a time.
     await db.svc_time_entries.update_many(
         {**of, "engineer_id": user["id"], "end_at": None},

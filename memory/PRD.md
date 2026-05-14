@@ -1,3 +1,99 @@
+## Iter 216h89 — Pre-job H&S / RAMS sign-off (Feb 14, 2026)
+
+Field-service compliance feature now live. Engineers must complete a
+pre-job Health & Safety checklist before starting the on-site timer.
+Required for MOD, NHS and most commercial gym-chain contracts;
+material reducer of insurance premiums.
+
+### Backend
+- **NEW** `routes/svc/safety.py` (~220 LOC):
+  - `GET /svc/safety/template` — fetches the org's active checklist;
+    lazily seeds an 8-item industry-standard default on first call
+    (sign-in, PPE, isolation, cordoned area, RAMS reviewed, first
+    aid, phone charged, lone-working buddy).
+  - `PUT /svc/safety/template` — owner/manager-only. Validates that
+    items are dicts with at least a `label`; auto-generates `id` from
+    label slug; de-dupes ids; rejects empty arrays.
+  - `GET /svc/engineer/jobs/{id}/safety` — returns `{template, signoff,
+    completed}` for the engineer UI to decide whether to gate.
+  - `POST /svc/engineer/jobs/{id}/safety/signoff` — engineer submits
+    `{ticked_item_ids, signature_image, remarks}`. Validates: case
+    exists + engineer is assigned + all `required` items are ticked
+    + signature is non-empty. Persists to `svc_case_safety_signoffs`
+    collection and writes summary fields onto the case
+    (`safety_signoff_at`, `safety_signoff_by`, ticked/total counts).
+    Appends a timeline event with `kind=safety_signoff`.
+
+- **Gate** in `routes/svc/engineer.py::time_start`: a request to start
+  the **on_site** timer when `case.safety_signoff_at` is missing
+  returns **HTTP 412** with `detail.code = "safety_signoff_required"`
+  and a friendly message. Travel timers remain ungated.
+
+- **Engineer job detail** now includes `safety_signoff` (the latest
+  signed-off doc) and, when missing, `safety_template` (just `id` +
+  `items`) so the PWA can render the checklist with one round-trip.
+
+- **Service Report PDF** (h82) gains a new "HEALTH & SAFETY · PRE-JOB
+  SIGN-OFF" section with green ✓ ticked items, red ⚠ unticked-but-
+  required items, engineer name + sign-off timestamp + optional
+  remarks line.
+
+### Frontend (engineer mobile)
+- Amber **"Pre-job H&S required"** card sits above the time-tracking
+  block when no signoff exists. **On-site button is disabled** with a
+  tooltip "Complete H&S checklist first".
+- Clicking **Start checklist** expands the tick-boxes (with red `*`
+  for required items), free-text remarks textarea, and a touch-friendly
+  HTML5 canvas signature pad (mouse + touch events; Clear button).
+- **Sign off & continue** validates client-side (all required ticked +
+  signature non-empty) before POSTing. Errors surface via toast.
+- Once signed, the panel flips to a green **"H&S signed off · 5 min ago"**
+  card showing item count + optional remarks; on-site timer unlocks.
+
+### Testing
+- 8/8 backend pytest in `test_iter_216h89_safety_rams.py`:
+  - lazy-seeds default template on first GET
+  - PUT validates & persists
+  - PUT rejects empty
+  - GET safety state per case
+  - on-site timer 412s without signoff
+  - travel timer NOT gated
+  - signoff 400s when required items missing
+  - signoff 400s without signature
+  - service report PDF renders with safety section
+- **36/36 across the h82-h89 customer-happiness + safety suite passing**
+- 15/15 h77-h78 access guard + roster regressions still passing
+- Frontend lint clean
+- Frontend compiled cleanly (only standard webpack deprecation warnings)
+
+### Files touched
+**Backend**
+- `/app/backend/routes/svc/safety.py` (NEW · ~220 LOC)
+- `/app/backend/routes/svc/engineer.py` (+15 LOC — H&S gate on on_site,
+  +12 LOC — safety_template in job detail)
+- `/app/backend/routes/svc/service_report.py` (+30 LOC — H&S PDF section)
+- `/app/backend/route_registry/features.py` (+4 LOC — router register)
+- `/app/backend/tests/test_iter_216h89_safety_rams.py` (NEW · 8 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetail.js`
+  (+~165 LOC — safety gate state, canvas signature pad, checklist UI)
+
+### Strategic outcome
+- Tier-1 enterprise contracts (MOD, NHS, large gym chains) now have
+  the compliance evidence trail they require.
+- Insurance-friendly: every job carries a timestamped ticked-list +
+  engineer signature stored immutably.
+- Customer-visible: the service report PDF now shows the customer
+  exactly what safety checks were performed. Trust signal.
+- Phase 2 (parked): per-asset-type RAMS templates, photo-attached
+  toolbox-talk evidence, automatic RAMS PDF generation per job.
+
+---
+
+
+
+
 ## Iter 216h88 — Engineer Partner public marketing landing (Feb 14, 2026)
 
 Made the Partner Engineer Network discoverable to the open internet. The

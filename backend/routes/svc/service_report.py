@@ -93,6 +93,10 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         engineer = await db.svc_engineers.find_one(
             {"id": eng_id, **of}, {"_id": 0, "password": 0},
         ) or {}
+    # Iter 216h89 — H&S signoff
+    safety_signoff = await db.svc_case_safety_signoffs.find_one(
+        {"case_id": case_id, **of}, {"_id": 0}, sort=[("signed_at", -1)],
+    )
     # Get post-visit rating if captured (iter 216h81).
     rating = case.get("customer_rating")
     rating_comment = case.get("customer_rating_comment")
@@ -103,6 +107,7 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         "time_entries": time_entries,
         "org": org,
         "engineer": engineer,
+        "safety_signoff": safety_signoff,
         "rating": rating,
         "rating_comment": rating_comment,
     }
@@ -159,6 +164,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     time_entries = payload["time_entries"] or []
     rating = payload["rating"]
     rating_comment = payload["rating_comment"]
+    safety = payload.get("safety_signoff")
 
     brand_primary = _hex(
         org.get("brand_primary_color") or (org.get("brand_kit") or {}).get("primary_color"),
@@ -375,6 +381,33 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     ]))
     story.append(sign_table)
     story.append(Spacer(1, 3 * mm))
+
+    # ── H&S / RAMS signoff (iter 216h89) ──────────────────────────
+    if safety:
+        story.append(Paragraph("HEALTH &amp; SAFETY · PRE-JOB SIGN-OFF", h_section))
+        items_by_id = {i["id"]: i for i in (safety.get("template_snapshot") or [])}
+        ticked = set(safety.get("ticked_item_ids") or [])
+        # Render checklist with ticked items only (the ones the engineer confirmed)
+        lines: list = []
+        for tid in safety.get("ticked_item_ids") or []:
+            label = (items_by_id.get(tid, {}).get("label") or tid).replace("&", "&amp;")
+            lines.append(f"<font color='#10b981'>✓</font>&nbsp;{label}")
+        # Untickled but required items become a warning row
+        unticked_required = [
+            i for i in (safety.get("template_snapshot") or [])
+            if i.get("required") and i["id"] not in ticked
+        ]
+        for i in unticked_required:
+            lines.append(f"<font color='#dc2626'>⚠</font>&nbsp;{i['label'].replace('&', '&amp;')} (not ticked)")
+        story.append(Paragraph("<br/>".join(lines) or "No items recorded.", body))
+        meta = (
+            f"<font size='8.5' color='#64748B'>Signed by <b>{safety.get('engineer_name', 'Engineer')}</b>"
+            f" at {_fmt_date(safety.get('signed_at'))}"
+            + (f" · Remarks: <i>{safety['remarks']}</i>" if safety.get("remarks") else "")
+            + "</font>"
+        )
+        story.append(Paragraph(meta, muted))
+        story.append(Spacer(1, 3 * mm))
 
     # ── Customer rating (h81) ─────────────────────────────────────
     if rating:

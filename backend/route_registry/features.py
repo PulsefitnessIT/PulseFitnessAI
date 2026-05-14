@@ -102,6 +102,8 @@ from routes.svc.integrations.health import router as svc_integrations_health_rou
 from routes.svc.service_report import router as svc_service_report_router
 # Iter 216h83 — Public customer live-tracking
 from routes.svc.public_tracking import router as svc_public_tracking_router
+# Iter 216h89 — Pre-job H&S / RAMS signoff
+from routes.svc.safety import router as svc_safety_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -190,6 +192,8 @@ _UNGATED_ROUTERS = (
     svc_service_report_router,
     # Iter 216h83 — public live tracking
     svc_public_tracking_router,
+    # Iter 216h89 — Pre-job H&S signoff
+    svc_safety_router,
 )
 
 

@@ -126,6 +126,91 @@ export default function EngineerJobDetail() {
 
   const colour = PRIORITY_COLOUR[job?.priority] || '#6b7280';
 
+  // ── Pre-job H&S signoff (iter 216h89) ────────────────────────
+  const [safetyOpen, setSafetyOpen] = useState(false);
+  const [safetyTicked, setSafetyTicked] = useState(() => new Set());
+  const [safetyRemarks, setSafetyRemarks] = useState('');
+  const [safetySig, setSafetySig] = useState(''); // canvas → dataURL
+  const safetyCanvasRef = React.useRef(null);
+  const safetyDrawing = React.useRef(false);
+  const safetyDone = !!job?.safety_signoff;
+  const safetyItems = job?.safety_template?.items || [];
+
+  const toggleSafetyTick = (id) => {
+    setSafetyTicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const sigPointerDown = (e) => {
+    const c = safetyCanvasRef.current;
+    if (!c) return;
+    safetyDrawing.current = true;
+    const ctx = c.getContext('2d');
+    const r = c.getBoundingClientRect();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(((e.clientX || e.touches?.[0]?.clientX) - r.left), ((e.clientY || e.touches?.[0]?.clientY) - r.top));
+  };
+  const sigPointerMove = (e) => {
+    if (!safetyDrawing.current) return;
+    const c = safetyCanvasRef.current;
+    const ctx = c.getContext('2d');
+    const r = c.getBoundingClientRect();
+    ctx.lineTo(((e.clientX || e.touches?.[0]?.clientX) - r.left), ((e.clientY || e.touches?.[0]?.clientY) - r.top));
+    ctx.stroke();
+  };
+  const sigPointerUp = () => {
+    if (!safetyDrawing.current) return;
+    safetyDrawing.current = false;
+    const c = safetyCanvasRef.current;
+    if (c) setSafetySig(c.toDataURL('image/png'));
+  };
+  const sigClear = () => {
+    const c = safetyCanvasRef.current;
+    if (!c) return;
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    setSafetySig('');
+  };
+
+  const submitSafety = async () => {
+    if (!job || busy) return;
+    const requiredIds = safetyItems.filter((i) => i.required).map((i) => i.id);
+    const missing = requiredIds.filter((id) => !safetyTicked.has(id));
+    if (missing.length) {
+      notify.error('Missing required items', `Tick all required boxes to continue.`);
+      return;
+    }
+    if (!safetySig) {
+      notify.error('Signature required', 'Please sign in the box below.');
+      return;
+    }
+    setBusy('safety');
+    try {
+      await axios.post(
+        `${API}/svc/engineer/jobs/${job.id}/safety/signoff`,
+        {
+          ticked_item_ids: [...safetyTicked],
+          signature_image: safetySig,
+          remarks: safetyRemarks.trim(),
+        },
+        auth(),
+      );
+      notify.success('H&S signed off', 'You can now start the on-site timer.');
+      setSafetyOpen(false);
+      setSafetyTicked(new Set());
+      setSafetyRemarks('');
+      setSafetySig('');
+      await load();
+    } catch (e) {
+      notify.error('Could not save signoff', e?.response?.data?.detail || e.message);
+    } finally { setBusy(''); }
+  };
+
   // ── Time tracking ────────────────────────────────────────────
   const startTimer = async (category) => {
     if (busy || !job) return;
@@ -553,31 +638,167 @@ export default function EngineerJobDetail() {
             </button>
           </section>
         ) : !isClosed ? (
-          <section className="rounded-2xl border p-3 space-y-2" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-timer-actions">
-            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Time tracking</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => startTimer('travel')}
-                disabled={busy.startsWith('start')}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold border disabled:opacity-60"
-                style={{ borderColor: 'var(--theme-border)' }}
-                data-testid="job-start-travel"
+          <>
+            {/* Iter 216h89 — Pre-job H&S signoff section */}
+            {safetyDone ? (
+              <section
+                className="rounded-2xl border p-3"
+                style={{ borderColor: '#86efac', background: '#f0fdf4' }}
+                data-testid="job-safety-complete"
               >
-                <Play size={13} /> Travel
-              </button>
-              <button
-                type="button"
-                onClick={() => startTimer('on_site')}
-                disabled={busy.startsWith('start')}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-60"
-                style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
-                data-testid="job-start-onsite"
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={14} className="text-emerald-600" />
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                    H&S signed off · {fmtRelative(job.safety_signoff.signed_at)}
+                  </p>
+                  <span className="ml-auto text-[10px] opacity-60">
+                    {(job.safety_signoff.ticked_item_ids || []).length} items
+                  </span>
+                </div>
+                {job.safety_signoff.remarks ? (
+                  <p className="text-xs text-emerald-800 mt-1.5 italic">
+                    "{job.safety_signoff.remarks}"
+                  </p>
+                ) : null}
+              </section>
+            ) : (
+              <section
+                className="rounded-2xl border-2 p-3 space-y-2"
+                style={{ borderColor: '#f59e0b', background: '#fffbeb' }}
+                data-testid="job-safety-required"
               >
-                <Play size={13} /> On site
-              </button>
-            </div>
-          </section>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={14} className="text-amber-600" />
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                    Pre-job H&S required
+                  </p>
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  Complete the H&S checklist before starting the on-site timer.
+                </p>
+                {!safetyOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setSafetyOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold text-white"
+                    style={{ background: '#f59e0b' }}
+                    data-testid="job-safety-open"
+                  >
+                    Start checklist
+                  </button>
+                ) : (
+                  <div className="space-y-2 pt-1 border-t border-amber-200">
+                    <ul className="space-y-1.5">
+                      {safetyItems.map((item) => (
+                        <li key={item.id} className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            id={`safety-${item.id}`}
+                            checked={safetyTicked.has(item.id)}
+                            onChange={() => toggleSafetyTick(item.id)}
+                            className="mt-0.5"
+                            data-testid={`job-safety-tick-${item.id}`}
+                          />
+                          <label
+                            htmlFor={`safety-${item.id}`}
+                            className="text-xs flex-1 leading-relaxed cursor-pointer"
+                          >
+                            {item.label}
+                            {item.required ? (
+                              <span className="text-red-500 ml-1" title="Required">*</span>
+                            ) : null}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <textarea
+                      value={safetyRemarks}
+                      onChange={(e) => setSafetyRemarks(e.target.value)}
+                      placeholder="Remarks (optional) — any hazards spotted, deviations from RAMS, etc."
+                      rows={2}
+                      className="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                      style={{ borderColor: '#fcd34d' }}
+                      data-testid="job-safety-remarks"
+                    />
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1">
+                        Engineer signature *
+                      </p>
+                      <canvas
+                        ref={safetyCanvasRef}
+                        width={300}
+                        height={100}
+                        className="w-full rounded border bg-white touch-none"
+                        style={{ borderColor: '#fcd34d' }}
+                        onMouseDown={sigPointerDown}
+                        onMouseMove={sigPointerMove}
+                        onMouseUp={sigPointerUp}
+                        onMouseLeave={sigPointerUp}
+                        onTouchStart={sigPointerDown}
+                        onTouchMove={sigPointerMove}
+                        onTouchEnd={sigPointerUp}
+                        data-testid="job-safety-canvas"
+                      />
+                      <button
+                        type="button"
+                        onClick={sigClear}
+                        className="text-[10px] mt-1 underline opacity-60"
+                        data-testid="job-safety-sig-clear"
+                      >
+                        Clear signature
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSafetyOpen(false)}
+                        className="px-3 py-2 rounded-lg text-xs font-bold border"
+                        style={{ borderColor: '#fcd34d' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submitSafety}
+                        disabled={busy === 'safety'}
+                        className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+                        style={{ background: '#059669' }}
+                        data-testid="job-safety-submit"
+                      >
+                        {busy === 'safety' ? 'Saving…' : 'Sign off & continue'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+            <section className="rounded-2xl border p-3 space-y-2" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface, #fff)' }} data-testid="job-timer-actions">
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Time tracking</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => startTimer('travel')}
+                  disabled={busy.startsWith('start')}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold border disabled:opacity-60"
+                  style={{ borderColor: 'var(--theme-border)' }}
+                  data-testid="job-start-travel"
+                >
+                  <Play size={13} /> Travel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startTimer('on_site')}
+                  disabled={busy.startsWith('start') || !safetyDone}
+                  title={!safetyDone ? 'Complete H&S checklist first' : ''}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+                  data-testid="job-start-onsite"
+                >
+                  <Play size={13} /> On site
+                </button>
+              </div>
+            </section>
+          </>
         ) : null}
 
         {/* Free-text note with voice dictation */}
