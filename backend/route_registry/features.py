@@ -106,6 +106,8 @@ from routes.svc.public_tracking import router as svc_public_tracking_router
 from routes.svc.safety import router as svc_safety_router
 # Iter 216h91 — Engineer live location ping
 from routes.svc.engineer_location import router as svc_engineer_location_router
+# Iter 216h93 — Comprehensive platform vitals (master-admin only)
+from routes.health_full import router as health_full_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -198,6 +200,8 @@ _UNGATED_ROUTERS = (
     svc_safety_router,
     # Iter 216h91 — Engineer live location ping
     svc_engineer_location_router,
+    # Iter 216h93 — Platform vitals dashboard (master admin)
+    health_full_router,
 )
 
 

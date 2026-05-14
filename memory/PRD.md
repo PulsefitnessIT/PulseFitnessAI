@@ -1,3 +1,66 @@
+## Iter 216h93 — `/api/health/full` master-admin vitals (Feb 14, 2026)
+
+Tiny but high-impact: a one-stop platform health endpoint for the
+operator-in-a-hurry. Complements the public `/health/deep` (uptime
+probe) with business-counts + secret-presence flags + scheduled-job
+heartbeats — all in ~12 ms.
+
+### What it returns
+- `overall` rolls up to `ok` / `degraded` based on Mongo ping, sender
+  email quality, and JWT secret strength.
+- `mongo`, `integrations` (Stripe / Stripe webhook / Resend / Emergent
+  LLM / Sentry / Twilio / Sicon — booleans, never echoes values),
+  `partner_plan_prices` (p30, p15 — confirms the £30 + £15 Stripe
+  price IDs are set).
+- `business` — orgs total + active-in-30d, users + active-in-7d, members.
+- `service_desk` — cases total / open / closed-7d / awaiting-signoff,
+  active engineers, safety-signoffs-7d, ratings-captured-7d.
+- `partner_network` — total partners, approved, subscribed, pending,
+  active referrals, commissions-30d.
+- `sender_email` — flagged "weak" when on @resend.dev / @example.com.
+- `jwt` — flagged "weak" when <32 chars or contains stock phrases.
+- `recent_jobs` — last 10 scheduled-job runs with timestamp + status.
+- `latency_ms` — round-trip total.
+
+### Bug found by the dashboard on first run
+- **`jwt: weak`** — production JWT secret is 26 chars and contains the
+  stock phrase `gymaxis-ai-secret`. Surfaced clearly; rotation left
+  to the user (rotating logs out every session). Real security
+  finding from the very thing this endpoint is for.
+- Initial implementation checked the wrong env var names for the
+  Stripe partner price IDs (used `STRIPE_PRICE_PARTNER_30` instead of
+  the actual `STRIPE_PRICE_PARTNER_PLAN_30`). Fixed; dashboard now
+  correctly reports `p30: true, p15: true`.
+
+### Permissions
+- Master admin only (403 otherwise).
+- Never echoes any secret value — only presence booleans.
+- Unauthenticated → 401/403 (route-level auth).
+
+### Testing
+- 3/3 new pytest in `test_iter_216h93_health_full.py`:
+  master admin success + non-admin 403 + unauthenticated 401/403.
+- 52/52 across the full h82–h93 suite. Zero regressions.
+- Live curl: returns 12 ms, all blocks correctly populated, JWT
+  weakness genuinely caught.
+
+### Files touched
+**Backend**
+- `/app/backend/routes/health_full.py` (NEW · ~140 LOC)
+- `/app/backend/route_registry/features.py` (+4 LOC — router register)
+- `/app/backend/tests/test_iter_216h93_health_full.py` (NEW · 3 tests)
+
+### Strategic outcome
+- Single bookmark for "is everything OK?" after deploy.
+- Catches misconfigurations (e.g. weak JWT, missing Stripe price IDs,
+  unverified Resend sender) **before** customers do.
+- Foundation for a future Master Admin "platform vitals" UI tile.
+
+---
+
+
+
+
 ## Iter 216h90 + h91 + h92 — NPS · Live tracking · Editable H&S (Feb 14, 2026)
 
 Three customer- & operator-facing features shipped in one batch. Pushes
