@@ -157,19 +157,19 @@ function Header({ summary, statusFilter, setStatusFilter, onRefresh, loading }) 
               type="button"
               role="tab"
               onClick={() => setStatusFilter(s)}
-              className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition whitespace-nowrap hover:border-zinc-400"
+              className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition whitespace-nowrap"
               style={active
                 ? { background: '#0F172A', color: '#FFFFFF', borderColor: '#0F172A' }
                 : { background: '#FFFFFF', color: '#3F3F46', borderColor: '#E4E4E7' }
               }
               data-testid={`comms-tab-${s}`}
             >
-              <Icon size={12} />
-              {meta.label}
+              <Icon size={12} color={active ? '#FFFFFF' : '#3F3F46'} />
+              <span style={{ color: active ? '#FFFFFF' : '#3F3F46' }}>{meta.label}</span>
               <span
                 className="inline-flex items-center justify-center rounded-full min-w-[20px] px-1.5 text-[11px] font-bold"
                 style={active
-                  ? { background: 'rgba(255,255,255,0.18)', color: '#FFFFFF' }
+                  ? { background: 'rgba(255,255,255,0.20)', color: '#FFFFFF' }
                   : { background: '#F4F4F5', color: '#3F3F46' }
                 }
               >{count}</span>

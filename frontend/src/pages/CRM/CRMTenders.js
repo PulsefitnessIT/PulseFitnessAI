@@ -31,6 +31,7 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
   const [companies, setCompanies] = useState([]);
   const [form, setForm] = useState({ title: '', type: 'ITT', issuer: '', company_id: '', deadline: '', ai_mode: 'assist', tone: 'professional' });
   const [saving, setSaving] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +65,43 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
 
   return (
     <>
+      {/* Iter 216h102 — Analytics toggle */}
+      <div className="flex items-center justify-between mb-3" data-testid="tender-analytics-toggle-row">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAnalytics(false)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition ${
+              !showAnalytics
+                ? 'bg-[var(--color-info-ios)] text-white border-[var(--color-info-ios)]'
+                : 'bg-transparent'
+            }`}
+            style={showAnalytics ? { color: c.textMuted, borderColor: c.border } : undefined}
+            data-testid="tender-list-tab"
+          >
+            <FileText size={12} className="inline -mt-0.5 mr-1" /> All tenders
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAnalytics(true)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition ${
+              showAnalytics
+                ? 'bg-[var(--color-info-ios)] text-white border-[var(--color-info-ios)]'
+                : 'bg-transparent'
+            }`}
+            style={!showAnalytics ? { color: c.textMuted, borderColor: c.border } : undefined}
+            data-testid="tender-analytics-tab"
+          >
+            <TrendingUp size={12} className="inline -mt-0.5 mr-1" /> Win/Loss analytics
+          </button>
+        </div>
+      </div>
+
+      {showAnalytics && (
+        <TenderAnalyticsTab API={API} headers={headers} c={c} isDark={isDark} />
+      )}
+
+      {!showAnalytics && (
       <ListPanel
         data-testid="crm-tender-list"
         count={{ value: total, label: 'tender' }}
@@ -114,6 +152,7 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
           );
         })}
       </ListPanel>
+      )}
 
       {/* Create Tender Dialog */}
       {showCreate && (
@@ -857,6 +896,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
       {showSlides && (
         <SlideManager
           tenderId={tenderId}
+          API={API}
           headers={headers}
           onClose={() => setShowSlides(false)}
           c={c}
@@ -868,7 +908,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
 }
 
 /* ═══ Slide manager with drag-and-drop reorder (Iter 216h102) ═══ */
-function SlideManager({ tenderId, headers, onClose, c, inputStyle }) {
+function SlideManager({ tenderId, API, headers, onClose, c, inputStyle }) {
   const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1004,6 +1044,109 @@ function LiveResponseEditor({ initial, wordLimit, onSave, inputStyle, color, tes
           <strong>{words}</strong>{wordLimit ? ` / ${wordLimit}` : ''} words
           {overLimit && ` · ${words - wordLimit} over`}
         </span>
+      </div>
+    </div>
+  );
+}
+
+
+/* ═══ Win/Loss analytics rollup (Iter 216h102) ═══ */
+function TenderAnalyticsTab({ API, headers, c, isDark }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/crm/v2/tenders/analytics/win-loss`, { headers: headers() });
+        if (alive) { setData(r.data); setLoading(false); }
+      } catch (e) {
+        if (alive) { setError(e.response?.data?.detail || 'Failed to load analytics'); setLoading(false); }
+      }
+    })();
+    return () => { alive = false; };
+  }, [API, headers]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-32" data-testid="tender-analytics-loading"><Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-info-ios)' }} /></div>;
+  }
+  if (error) {
+    return <div className="p-4 rounded-lg text-center" style={{ background: 'var(--color-danger-alt)08', color: 'var(--color-danger-alt)' }}>{error}</div>;
+  }
+  if (!data) return null;
+
+  const fmt = (n) => `£${Math.round(n || 0).toLocaleString('en-GB')}`;
+  const decided = data.decided || 0;
+
+  if (decided === 0) {
+    return (
+      <div className="text-center py-12 rounded-lg border border-dashed" style={{ borderColor: c.border }} data-testid="tender-analytics-empty">
+        <TrendingUp size={36} className="mx-auto mb-2" style={{ color: c.textDim }} />
+        <p className="text-sm font-semibold mb-1" style={{ color: c.text }}>No closed tenders yet</p>
+        <p className="text-xs" style={{ color: c.textDim }}>Mark tenders as <strong>Won</strong> or <strong>Lost</strong> to populate this dashboard.</p>
+      </div>
+    );
+  }
+
+  const kpis = [
+    { l: 'Win rate', v: `${data.win_rate_pct}%`, col: data.win_rate_pct >= 50 ? 'var(--color-success-alt)' : 'var(--color-warning)' },
+    { l: 'Tenders decided', v: decided, col: 'var(--color-info-ios)' },
+    { l: 'Value won', v: fmt(data.won_value), col: 'var(--color-success-alt)' },
+    { l: 'Value lost', v: fmt(data.lost_value), col: 'var(--color-danger-alt)' },
+  ];
+
+  return (
+    <div className="space-y-4" data-testid="tender-analytics-panel">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {kpis.map((k) => (
+          <div key={k.l} className="p-3 rounded-lg border" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: c.border }}>
+            <p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>{k.l}</p>
+            <p className="text-lg font-bold" style={{ color: k.col }}>{k.v}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* By issuer */}
+      <div className="rounded-lg border p-4" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: c.border }} data-testid="tender-analytics-by-issuer">
+        <h3 className="text-sm font-semibold mb-3" style={{ color: c.text }}>Top issuers</h3>
+        {data.by_issuer?.length > 0 ? (
+          <div className="space-y-2">
+            {data.by_issuer.map((r, i) => (
+              <div key={i} className="flex items-center gap-3" data-testid={`issuer-row-${i}`}>
+                <span className="text-xs flex-1 truncate" style={{ color: c.text }}>{r.issuer}</span>
+                <span className="text-[10px] font-mono" style={{ color: c.textDim }}>{r.won}W / {r.lost}L</span>
+                <div className="w-32 h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-border-alt)' }}>
+                  <div className="h-full" style={{ width: `${r.win_rate}%`, background: r.win_rate >= 50 ? 'var(--color-success-alt)' : 'var(--color-warning)' }} />
+                </div>
+                <span className="text-[11px] font-bold w-12 text-right" style={{ color: r.win_rate >= 50 ? 'var(--color-success-alt)' : 'var(--color-warning)' }}>{r.win_rate}%</span>
+                <span className="text-[10px] w-20 text-right" style={{ color: c.textDim }}>{fmt(r.won_value)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs" style={{ color: c.textDim }}>No issuer data yet.</p>
+        )}
+      </div>
+
+      {/* By type */}
+      <div className="rounded-lg border p-4" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: c.border }} data-testid="tender-analytics-by-type">
+        <h3 className="text-sm font-semibold mb-3" style={{ color: c.text }}>By tender type</h3>
+        {data.by_type?.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {data.by_type.map((r, i) => (
+              <div key={i} className="p-3 rounded-md border" style={{ borderColor: c.border }} data-testid={`type-cell-${r.type}`}>
+                <p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>{r.type}</p>
+                <p className="text-base font-bold" style={{ color: r.win_rate >= 50 ? 'var(--color-success-alt)' : 'var(--color-warning)' }}>{r.win_rate}%</p>
+                <p className="text-[10px]" style={{ color: c.textDim }}>{r.won}W / {r.lost}L · {fmt(r.won_value)}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs" style={{ color: c.textDim }}>No type data yet.</p>
+        )}
       </div>
     </div>
   );
