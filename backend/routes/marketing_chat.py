@@ -15,14 +15,13 @@ Design choices:
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from utils.database import db

@@ -17,7 +17,6 @@ new GymAxis field added to a Pydantic model in `models/svc/*` must
 appear here OR be explicitly tagged `gymaxis_only` in the mapping doc.
 """
 from datetime import datetime, timezone
-from typing import Any
 import logging
 import uuid
 

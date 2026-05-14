@@ -28,7 +28,7 @@ import uuid
 from datetime import datetime, timedelta as _td, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import RedirectResponse
 from PIL import Image
 
 from utils.auth import get_current_user, hash_password, verify_password

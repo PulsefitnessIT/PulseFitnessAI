@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -61,7 +61,6 @@ from routes.staffing import (
     _now,
     _org,
     _require_manager,
-    _role,
     _shift_hours,
 )
 

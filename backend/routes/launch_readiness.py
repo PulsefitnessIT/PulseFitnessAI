@@ -12,11 +12,10 @@ Three small but launch-critical surfaces grouped here:
 from __future__ import annotations
 
 import logging
-import re
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from utils.auth import get_current_user

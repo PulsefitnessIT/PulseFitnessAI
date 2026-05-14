@@ -54,7 +54,7 @@ Compliance:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query

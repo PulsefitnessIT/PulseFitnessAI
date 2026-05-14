@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-from utils.database import db, SENDER_EMAIL
+from utils.database import db
 from utils.email import send_email
 from utils.notification_prefs_helper import can_send_lifecycle_email
 

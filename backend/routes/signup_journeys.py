@@ -42,7 +42,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from fastapi.responses import RedirectResponse
 
 from routes.auth import get_current_user

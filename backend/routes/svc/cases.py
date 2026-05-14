@@ -69,8 +69,6 @@ __integration_fields__ = {
 }
 
 from datetime import datetime, timezone, timedelta
-from typing import Optional
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -79,7 +77,7 @@ from utils.auth import get_current_user
 from utils.svc_state import (
     transition as state_transition,
     append_event,
-    NEW, OPEN_STATES, ALL_STATES, SLA_PAUSED_STATES,
+    OPEN_STATES, ALL_STATES,
 )
 from routes.svc.integrations import sicon_sync, sage_invoice
 

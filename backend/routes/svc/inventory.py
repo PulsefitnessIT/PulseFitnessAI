@@ -66,7 +66,6 @@ __integration_fields__ = {
 }
 
 from datetime import datetime, timezone
-from typing import Optional
 import logging
 import uuid
 

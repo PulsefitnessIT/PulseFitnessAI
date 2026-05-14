@@ -63,7 +63,6 @@ __integration_fields__ = {
 }
 
 from datetime import datetime, timezone
-from typing import Any
 import logging
 import uuid
 
@@ -71,7 +70,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from utils.database import db
 from utils.auth import get_current_user
-from routes.svc.integrations import sicon_sync, sage_invoice
+from routes.svc.integrations import sage_invoice
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc/billing", tags=["Service Ops · Billing"])

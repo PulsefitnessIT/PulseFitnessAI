@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Depends, Body, Request
 
 from utils.auth import get_current_user
 from utils.database import db
-from utils.module_access import crm_modes, has_crm_access
+from utils.module_access import crm_modes
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

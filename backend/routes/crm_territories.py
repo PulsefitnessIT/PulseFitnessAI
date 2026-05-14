@@ -31,7 +31,6 @@ Endpoints (all under `/api/crm/territories`):
 """
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
-from typing import Optional
 import uuid
 
 from utils.database import db

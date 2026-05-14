@@ -34,9 +34,9 @@ import logging
 import os
 import time
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from utils.auth import get_current_user
@@ -44,7 +44,6 @@ from utils.database import db
 
 from routes.staffing import (
     VALID_ROLES,
-    _is_manager,
     _now,
     _org,
     _require_manager,

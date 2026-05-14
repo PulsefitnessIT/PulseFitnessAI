@@ -44,7 +44,7 @@ import os
 from datetime import datetime, timezone
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user

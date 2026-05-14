@@ -17,7 +17,6 @@ import csv
 import io
 import logging
 import time
-import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
