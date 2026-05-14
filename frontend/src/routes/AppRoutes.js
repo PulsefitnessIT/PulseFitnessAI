@@ -124,9 +124,16 @@ function DashboardRoute({ user }) {
   const params = new URLSearchParams(window.location.search);
   const previewAsOperator = params.get('as') === 'operator';
   if (user.is_master_admin && !previewAsOperator) return <Navigate to="/master-admin" />;
-  if (user.account_type === 'mod_site') return <MODSiteDashboard />;
-  if (user.account_type === 'mod_branch' || user.account_type === 'mod_org') return <MODProDashboard />;
-  if (!previewAsOperator && (user.account_type === 'lite' || user.account_type === 'pulse_pro')) {
+  // Iter 216h113 — MOD users land in the standard Pulse Fitness
+  // dashboard like every other Pulse customer. Module-level gating
+  // (ModuleAccessGate) still hides any modules they're not entitled
+  // to. The portal must look identical for MOD users — they ARE
+  // Pulse Fitness customers, just inside a different tenant.
+  const at = user.account_type;
+  if (at === 'mod_site' || at === 'mod_branch' || at === 'mod_org') {
+    return <Navigate to="/pulse" />;
+  }
+  if (!previewAsOperator && (at === 'lite' || at === 'pulse_pro')) {
     return <Navigate to="/pulse" />;
   }
   return <DashboardPage />;
@@ -290,9 +297,9 @@ export default function AppRoutes({ user, login }) {
       <Route path="/staffing/kiosk" element={<StaffingKioskPage />} />
       <Route path="/instructor" element={<InstructorPortal />} />
 
-      {/* ─── Pulse (Iter 216h110 — MOD redirects to MOD dashboard) ─── */}
+      {/* ─── Pulse (Iter 216h113 — MOD users land here too) ─── */}
       <Route path="/pulse" element={
-        user ? <MODForbidden><LiteDashboardPage /></MODForbidden> : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
+        user ? <LiteDashboardPage /> : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
       } />
       <Route path="/pulse-pricing" element={<PulsePricingPage onLogin={(d) => login(d.token, d.user)} />} />
 
