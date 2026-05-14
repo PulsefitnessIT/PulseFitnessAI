@@ -96,16 +96,7 @@ export default function MODServiceLogin() {
         fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      {/* OFFICIAL-SENSITIVE classification stripe */}
-      <div
-        className="relative z-20 text-center text-[10px] uppercase font-bold py-1.5"
-        style={{ background: PULSE.black, color: PULSE.primary, letterSpacing: '0.32em' }}
-        data-testid="mod-classification-stripe"
-      >
-        UK OFFICIAL · SENSITIVE
-      </div>
-
-      {/* Top brand bar — MOD logo top-left, Pulse Fitness top-right */}
+      {/* Top brand bar — MOD logo top-left */}
       <header
         className="relative z-10 flex items-center justify-between px-5 sm:px-10 py-4 gap-4"
         style={{ background: PULSE.surface, borderBottom: `1px solid ${PULSE.border}` }}
@@ -117,22 +108,6 @@ export default function MODServiceLogin() {
             className="h-12 sm:h-14 w-auto object-contain"
             style={{ objectPosition: 'left center', maxWidth: '260px' }}
             data-testid="mod-logo-image"
-          />
-        </div>
-        <div className="flex items-center gap-3 shrink-0" data-testid="mod-brand-pulse">
-          <div className="hidden sm:block text-right">
-            <div className="text-[10px] uppercase font-bold" style={{ color: PULSE.greyDark, letterSpacing: '0.28em' }}>
-              Powered by
-            </div>
-            <div className="text-sm font-extrabold tracking-tight" style={{ color: PULSE.black }}>
-              Pulse Fitness
-            </div>
-          </div>
-          <img
-            src={PULSE_LOGO}
-            alt="Pulse Fitness"
-            className="h-11 w-auto rounded-lg object-contain"
-            style={{ background: PULSE.surface, padding: '4px', border: `1px solid ${PULSE.border}` }}
           />
         </div>
       </header>
@@ -366,22 +341,11 @@ export default function MODServiceLogin() {
 
       {/* Footer */}
       <footer
-        className="relative z-10 px-5 sm:px-10 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+        className="relative z-10 px-5 sm:px-10 py-5"
         style={{ background: PULSE.black, color: '#FFFFFF' }}
       >
-        <div className="flex items-center gap-3">
-          <img
-            src={PULSE_LOGO}
-            alt="Pulse Fitness"
-            className="h-7 w-auto rounded object-contain"
-            style={{ background: PULSE.surface, padding: '3px' }}
-          />
-          <div className="text-[10px] uppercase font-bold" style={{ letterSpacing: '0.28em', color: PULSE.greyLight }}>
-            © {new Date().getFullYear()} Pulse Fitness · MOD Service Portal
-          </div>
-        </div>
-        <div className="text-[10px] uppercase font-bold" style={{ color: PULSE.primary, letterSpacing: '0.28em' }}>
-          UK Official · Sensitive
+        <div className="text-[10px] uppercase font-bold" style={{ letterSpacing: '0.28em', color: PULSE.greyLight }}>
+          © {new Date().getFullYear()} MOD Service Portal
         </div>
       </footer>
     </div>
