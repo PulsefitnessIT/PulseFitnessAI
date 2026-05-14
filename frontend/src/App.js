@@ -141,6 +141,60 @@ export const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 function App() {
+ // ── Iter 216h111 — Custom-domain SPA gate ───────────────────────
+ // If the current window.location.host is NOT a recognised platform
+ // host, this hook hits the public host-config endpoint exactly
+ // once. When a verified custom domain is found AND the visitor
+ // landed on `/`, it does a single window.location.replace to the
+ // tenant's configured surface (/m/{slug}/join, /m/{slug}, etc.)
+ // so the SPA mounts BrandedMemberApp / JoinPage instead of the
+ // GymAxis marketing site. Idempotent — never loops because the
+ // redirect target path is never `/`.
+ const [hostCheckDone, setHostCheckDone] = useState(false);
+ const [customHostBranding, setCustomHostBranding] = useState(null);
+
+ useEffect(() => {
+   const PLATFORM_HOSTS = [
+     'gymaxisai.com', 'www.gymaxisai.com',
+     'pulsefitness.ai', 'www.pulsefitness.ai',
+     'localhost', '127.0.0.1',
+   ];
+   const isPlatformHost = (hn) => {
+     if (!hn) return true;
+     if (PLATFORM_HOSTS.includes(hn)) return true;
+     if (hn.endsWith('.preview.emergentagent.com')) return true;
+     if (hn.endsWith('.emergentagent.com')) return true;
+     return false;
+   };
+   const hostname = (typeof window !== 'undefined' && window.location.hostname) || '';
+   if (isPlatformHost(hostname)) {
+     setHostCheckDone(true);
+     return;
+   }
+   // Custom domain — ask the backend if it routes anywhere.
+   let cancelled = false;
+   (async () => {
+     try {
+       const r = await axios.get(`${API}/public/host-config`, { params: { host: hostname } });
+       if (cancelled) return;
+       const cfg = r?.data;
+       if (cfg?.matched && cfg.redirect_path) {
+         setCustomHostBranding(cfg.branding || null);
+         const here = window.location.pathname || '/';
+         // Only redirect when the visitor is on the bare root. Any
+         // explicit deep-link is preserved (lets a customer email
+         // people `/m/{slug}/join?invite=…` style links).
+         if (here === '/' || here === '') {
+           window.location.replace(cfg.redirect_path);
+           return; // Don't flip hostCheckDone — browser is navigating.
+         }
+       }
+     } catch { /* silent; fall back to marketing site */ }
+     if (!cancelled) setHostCheckDone(true);
+   })();
+   return () => { cancelled = true; };
+ }, []);
+
  const [user, setUser] = useState(null);
  const [loading, setLoading] = useState(true);
  const [branding, setBranding] = useState(null);
@@ -471,6 +525,23 @@ function App() {
  </div>
  );
  }
+ }
+
+ // Iter 216h111 — while the custom-domain host-check is in flight on a
+ // non-platform host, render a neutral splash so the visitor doesn't
+ // see a flash of the GymAxis marketing site before being redirected
+ // to the tenant's branded surface.
+ if (!hostCheckDone && typeof window !== 'undefined' && window.location.pathname === '/') {
+   const tint = customHostBranding?.primary_color || '#19CDFF';
+   return (
+     <div
+       className="min-h-screen flex items-center justify-center"
+       style={{ background: '#0A0C10' }}
+       data-testid="custom-domain-splash"
+     >
+       <div className="text-sm tracking-widest uppercase" style={{ color: tint }}>Loading…</div>
+     </div>
+   );
  }
 
  return (

@@ -52,6 +52,7 @@ import IntegrationsHub from './MasterAdmin/IntegrationsHub';
 import AdminCommunications from './MasterAdmin/AdminCommunications';
 import AdminCannedReplies from './MasterAdmin/AdminCannedReplies';
 import ThemeSettingsPanel from './MasterAdmin/ThemeSettingsPanel';
+import CustomDomainsPanel from './MasterAdmin/CustomDomainsPanel';
 
 import AdminSidebar from './MasterAdmin/AdminSidebar';
 import OverviewSection from './MasterAdmin/OverviewSection';
@@ -333,6 +334,8 @@ const MasterAdminPage = ({ onBack }) => {
         return <AdminCannedReplies />;
       case 'theme-settings':
         return <ThemeSettingsPanel />;
+      case 'custom-domains':
+        return <CustomDomainsPanel />;
       case 'trust':
         return <TrustDashboard refreshTick={refreshTick} />;
       case 'archive':

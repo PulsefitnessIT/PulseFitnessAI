@@ -1,3 +1,123 @@
+## Iter 216h111 — Per-tenant Custom-domain routing (Feb 14, 2026)
+
+P1 item from the upcoming backlog. Master Admin can now point a
+customer's own domain (e.g. `join.acmegym.com`) at a specific tenant
+member-facing surface — sign-up funnel, branded member app, brag
+page, or public timetable embed.
+
+### Backend
+- **NEW** `routes/master_admin_custom_domains.py` (~330 LOC):
+  - `GET    /api/master-admin/custom-domains/orgs/{org_id}` — list
+  - `POST   /api/master-admin/custom-domains/orgs/{org_id}` — create
+    (mints a random `dns_token`, sets `verified=false`)
+  - `PATCH  /api/master-admin/custom-domains/orgs/{org_id}/{id}` —
+    update `primary_route`
+  - `POST   /api/master-admin/custom-domains/orgs/{org_id}/{id}/verify` —
+    runs a TXT lookup at `_gymaxis-verify.{hostname}` and flips
+    `verified=true` if the token matches.
+  - `POST   /api/master-admin/custom-domains/orgs/{org_id}/{id}/force-verify` —
+    GymAxis platform-master-only bypass for staging/demo hosts.
+  - `DELETE /api/master-admin/custom-domains/orgs/{org_id}/{id}`
+- Hostname validation: RFC 1123 FQDN, lowercase, no scheme/port.
+  Subdomains of platform-owned hosts (`gymaxisai.com`,
+  `pulsefitness.ai`, `preview.emergentagent.com`, `localhost`) are
+  explicitly rejected — a customer cannot shadow the SaaS itself.
+- Cross-org uniqueness: a hostname can only ever route to one tenant
+  (409 with a clear message if it's already registered elsewhere).
+- **NEW** `routes/public_host_config.py` (~120 LOC):
+  - `GET /api/public/host-config?host={fqdn}` — public, unauthed.
+    Resolves a verified custom domain to `{org_id, org_slug,
+    primary_route, redirect_path, branding}`. Returns
+    `{matched: false}` on miss / unverified / invalid host. Never
+    leaks the verification token or any private fields.
+
+Storage on `organizations.custom_domains[]`:
+```
+{ id, hostname, primary_route, verified, dns_token, dns_method,
+  created_at, verified_at, created_by }
+```
+
+### Frontend
+- **NEW** `pages/MasterAdmin/CustomDomainsPanel.js` (~420 LOC):
+  - Org picker filtered to non-MOD orgs with a real name.
+  - Add-domain form with FQDN input + primary-route picker.
+  - Per-row controls: change route, Verify, Force, Delete.
+  - DNS-records callout per unverified domain — CNAME (host →
+    `platform.gymaxisai.com`) and TXT (`_gymaxis-verify.{host}` →
+    `{dns_token}`) with one-click copy buttons.
+- Wired into Master Admin sidebar:
+  - Group: **Settings & Compliance → Custom domains**.
+- **NEW** SPA host-detector in `App.js`:
+  - On boot, when `window.location.hostname` is NOT a recognised
+    platform host, calls the public host-config endpoint exactly
+    once.
+  - When the host matches a verified domain AND the visitor is on
+    `/`, does a single `window.location.replace` to the configured
+    `redirect_path`. Preserves explicit deep-links (no redirect
+    when the visitor already navigated into a sub-route).
+  - Neutral splash screen shown during the < 100 ms resolve so
+    custom-domain visitors don't see a flash of the GymAxis
+    marketing site.
+
+### Testing
+- 9/9 new pytest in `test_iter_216h111_custom_domains.py`:
+  - List endpoint returns the route catalogue + empty domains.
+  - Create rejects malformed hostnames, platform sub-domains,
+    invalid `primary_route` values.
+  - Full CRUD round-trip: create → force-verify → public host-config
+    matches → patch route → host-config follows → delete →
+    host-config falls back to no-match.
+  - Duplicate hostname returns 409.
+  - Both management endpoints require auth (401/403).
+  - Public host-config is reachable without auth and handles
+    bogus host strings gracefully (no 5xx).
+- 11/11 prior h93/h94 tests still pass — zero regressions.
+- Frontend lint clean on the new panel + App.js edits.
+- Live UI smoke verified end-to-end against the preview environment:
+  - Custom Domains tab opens under Settings & Compliance.
+  - Org dropdown lists named pulse_pro / GymAxis orgs.
+  - Adding `smoke.example.com` → success toast, row appears with
+    AWAITING DNS amber pill, CNAME + TXT records render with copy
+    buttons.
+  - Force-verify flips the pill to "Verified · live"; delete
+    removes the row cleanly.
+
+### Files touched
+**Backend**
+- `/app/backend/routes/master_admin_custom_domains.py` (NEW)
+- `/app/backend/routes/public_host_config.py` (NEW)
+- `/app/backend/route_registry/admin.py` (+4 LOC — 2 router registrations)
+- `/app/backend/tests/test_iter_216h111_custom_domains.py` (NEW — 9 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/MasterAdmin/CustomDomainsPanel.js` (NEW)
+- `/app/frontend/src/pages/MasterAdminPage.js` (+2 LOC — case wire-up)
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js` (+4 LOC — sidebar entry, title, description, icon import)
+- `/app/frontend/src/App.js` (+~55 LOC — host detector + splash)
+
+### Operator workflow
+1. Master Admin → Settings & Compliance → Custom domains.
+2. Pick org, enter hostname (e.g. `join.acmegym.com`), pick route
+   ("Public sign-up funnel"), click **Add**.
+3. Copy the two displayed DNS records (CNAME + TXT) to the
+   customer's DNS host.
+4. Click **Verify** — once DNS propagates the row flips to "Verified
+   · live" and the SPA redirector starts honouring it.
+5. Tenants whose customers land on the bare custom-host root get
+   pushed onto the configured branded surface (e.g. `/m/{slug}/join`).
+
+### Strategic outcome
+- Tier-1 enterprise gym chains can run their member sign-up on
+  their OWN domain without dropping out of the GymAxis platform —
+  removes a common objection in mid-market sales.
+- Foundation for white-label deployments: future iterations can
+  extend `primary_route` to additional surfaces and add per-domain
+  branding overrides.
+
+---
+
+
+
 ## Iter 216h110 — MOD module gating + Operations/CAPEX/Reports pillars (Feb 14, 2026)
 
 ### Frontend firewall

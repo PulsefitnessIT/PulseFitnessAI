@@ -5,7 +5,7 @@ import {
   Banknote, Rocket, ListChecks, Users, Palette, Tag, Receipt, ShieldAlert,
   Wallet, Megaphone, LifeBuoy, Lock, FolderArchive, AlertCircle, AlertOctagon,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
-  Plug, MapPin, Building, Settings, BadgeCheck, Inbox, FileText,
+  Plug, MapPin, Building, Settings, BadgeCheck, Inbox, FileText, Globe,
 } from 'lucide-react';
 
 /**
@@ -137,6 +137,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'backfills',          label: 'Maintenance jobs',   icon: RefreshCcw },
       { id: 'design-system',      label: 'Design system',      icon: Palette, gymaxisOnly: true },
       { id: 'theme-settings',     label: 'Theme settings',     icon: Palette },
+      { id: 'custom-domains',     label: 'Custom domains',     icon: Globe },
     ],
   },
 ];
@@ -182,6 +183,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'backfills':          'settings-compliance',
   'design-system':      'settings-compliance',
   'theme-settings':     'settings-compliance',
+  'custom-domains':     'settings-compliance',
   'locked-staff':       'roles',
   'staff-onboarding':   'roles',
   'onboarding':         'organizations',
@@ -246,6 +248,7 @@ export const sectionTitles = {
   'refunds': 'Refunds',
   'design-system': 'Design system',
   'theme-settings': 'Theme settings',
+  'custom-domains': 'Custom domains',
   'db-viewer': 'Database viewer',
   catalogue: 'Equipment catalogue & spec sheets',
   'all-sites': 'All sites',
@@ -293,6 +296,7 @@ export const sectionDescriptions = {
   'refunds': 'Issue and track Stripe refunds',
   'design-system': 'Living reference gallery — every button, tab pill, and input in one place',
   'theme-settings': 'GymAxis vs Pulse Fitness design-token isolation audit + per-tenant brand overrides.',
+  'custom-domains': 'Point a tenant\'s own domain (e.g. join.acmegym.com) at a specific member-facing surface — sign-up, branded app, brag page or public timetable.',
   'db-viewer': 'Read-only Mongo collection browser — search, paginate, and export.',
   catalogue: 'Manufacturer catalogue, spec sheets, equipment image library and brand assets — all the master data reused across every org and every site.',
   'all-sites': 'Every physical site across every organisation. Filter by brand, org, or site type. Click any row to drill into the parent organisation&apos;s Sites drawer.',
