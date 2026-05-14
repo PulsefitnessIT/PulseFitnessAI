@@ -162,7 +162,7 @@ const AllSitesOverview = ({ onPickSite }) => {
                     <td className="px-3 py-2.5 text-right hidden md:table-cell" style={{ color: 'var(--theme-text)' }}>{s.equipment_count}</td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="inline-flex items-center gap-1.5">
-                        {isModHQ && (
+                        {isModHQ && s.is_mod_child && (
                           <button
                             type="button"
                             onClick={() => setSiteLoginTarget(s)}
