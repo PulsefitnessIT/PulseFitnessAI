@@ -680,7 +680,10 @@ const LiteDashboardPage = () => {
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0">
                 <h1 className="text-3xl sm:text-4xl tracking-tight font-semibold mb-1 pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>
-                  Pulse Fitness {isPro && <span className="text-[var(--color-brand-cyan-hover)]">Pro</span>}
+                  Pulse Fitness {isMOD
+                    ? <span className="text-[var(--color-brand-cyan-hover)]">· MOD</span>
+                    : (isPro && <span className="text-[var(--color-brand-cyan-hover)]">Pro</span>)
+                  }
                   {user?.company_name && (
                     <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
                       · {allSitesActive ? 'All Operations Sites' : (activeSite?.name || user.company_name)}

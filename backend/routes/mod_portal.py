@@ -883,6 +883,19 @@ async def mod_staff_transfer(
         staff_id=staff["id"], from_site_id=source_site["id"], reason=transfer_record["reason"],
     )
 
+    # Email both unit PTIs (best-effort — never fail the transfer).
+    try:
+        await _send_transfer_emails(
+            staff=staff,
+            source_site=source_site,
+            dest_site=dest_site,
+            actor_email=user.get("email") or "MOD Service Portal",
+            reason=transfer_record["reason"],
+            transferred_at=now_iso,
+        )
+    except Exception:
+        logger.exception("transfer email dispatch failed staff=%s", staff.get("id"))
+
     return {
         "ok": True,
         "staff_id": staff["id"],
@@ -891,6 +904,160 @@ async def mod_staff_transfer(
         "to_site_name": dest_site.get("name"),
         "transferred_at": now_iso,
     }
+
+
+async def _site_pti_recipients(site_id: str) -> list[str]:
+    """Return the email addresses to notify for a MOD site — the
+    owners/managers (`role in ['owner','manager']`) of that site.
+    Falls back to the org's `primary_contact_email` if no users are
+    enrolled yet."""
+    users = await db.users.find(
+        {
+            "organization_id": site_id,
+            "is_mod_user": True,
+            "role": {"$in": ["owner", "manager"]},
+            "status": "active",
+        },
+        {"_id": 0, "email": 1},
+    ).to_list(20)
+    out = [u["email"] for u in users if u.get("email")]
+    if not out:
+        org = await db.organizations.find_one(
+            {"id": site_id}, {"_id": 0, "primary_contact_email": 1},
+        )
+        if org and org.get("primary_contact_email"):
+            out.append(org["primary_contact_email"])
+    # De-dupe while preserving order.
+    seen, dedup = set(), []
+    for e in out:
+        e_lc = e.lower()
+        if e_lc not in seen:
+            seen.add(e_lc)
+            dedup.append(e)
+    return dedup
+
+
+def _format_transfer_email(
+    *,
+    staff_name: str,
+    direction: str,            # "out" | "in"
+    counterpart_site: str,
+    own_site: str,
+    actor_email: str,
+    reason: Optional[str],
+    transferred_at: str,
+) -> tuple[str, str]:
+    """Return (subject, html) for the transfer email. Identical
+    structure for the source + destination side — the wording flips
+    on `direction`."""
+    if direction == "out":
+        verb = "transferred from your site"
+        prep = "to"
+        intro = (
+            f"<strong>{staff_name}</strong> has been transferred from "
+            f"<strong>{own_site}</strong> to <strong>{counterpart_site}</strong>."
+        )
+    else:
+        verb = "transferred to your site"
+        prep = "from"
+        intro = (
+            f"<strong>{staff_name}</strong> has been transferred from "
+            f"<strong>{counterpart_site}</strong> to <strong>{own_site}</strong>."
+        )
+    subject = f"MOD staff {verb}: {staff_name} {prep} {counterpart_site}"
+
+    reason_block = ""
+    if reason:
+        reason_block = (
+            f'<p style="margin:12px 0 0;color:#505759;"><strong>Reason:</strong> '
+            f'{reason}</p>'
+        )
+
+    html = f"""
+    <div style="font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#F8F9FA;padding:24px;">
+      <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border:1px solid #E4E4E7;border-radius:18px;overflow:hidden;">
+        <div style="background:#212721;padding:16px 24px;color:#66CCFF;font-size:11px;letter-spacing:0.28em;font-weight:700;text-transform:uppercase;">
+          MOD Service Portal · Staff Transfer
+        </div>
+        <div style="padding:24px;color:#212721;line-height:1.55;">
+          <h2 style="margin:0 0 12px;font-size:20px;font-weight:800;letter-spacing:-0.01em;">
+            {staff_name} {verb}
+          </h2>
+          <p style="margin:0;color:#505759;">{intro}</p>
+          {reason_block}
+          <table style="margin:18px 0 0;border-collapse:collapse;width:100%;font-size:13px;">
+            <tr>
+              <td style="padding:6px 0;color:#A2ACAB;width:40%;">Transferred at</td>
+              <td style="padding:6px 0;color:#212721;">{transferred_at}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;color:#A2ACAB;">Initiated by</td>
+              <td style="padding:6px 0;color:#212721;">{actor_email}</td>
+            </tr>
+          </table>
+          <p style="margin:20px 0 0;color:#A2ACAB;font-size:11px;line-height:1.6;">
+            This is an automated notification from the Pulse Fitness Service Portal for the
+            Ministry of Defence. Access is monitored and recorded.
+          </p>
+        </div>
+      </div>
+    </div>
+    """
+    return subject, html
+
+
+async def _send_transfer_emails(
+    *,
+    staff: dict,
+    source_site: dict,
+    dest_site: dict,
+    actor_email: str,
+    reason: Optional[str],
+    transferred_at: str,
+):
+    """Email the unit PTIs at BOTH the source and destination sites
+    so the in-bound + out-bound chains stay informed. Best-effort —
+    each recipient is sent in parallel; failures are logged but never
+    bubble back to the API caller."""
+    from utils.email import send_email
+
+    src_recipients = await _site_pti_recipients(source_site["id"])
+    dst_recipients = await _site_pti_recipients(dest_site["id"])
+    staff_name = staff.get("name") or "Staff member"
+
+    # Source side
+    if src_recipients:
+        subject, html = _format_transfer_email(
+            staff_name=staff_name,
+            direction="out",
+            counterpart_site=dest_site.get("name") or "destination site",
+            own_site=source_site.get("name") or "your site",
+            actor_email=actor_email,
+            reason=reason,
+            transferred_at=transferred_at,
+        )
+        for r in src_recipients:
+            try:
+                await send_email(to=r, subject=subject, html=html, organization_id=source_site["id"])
+            except Exception:
+                logger.warning("transfer email to %s failed", r)
+
+    # Destination side
+    if dst_recipients:
+        subject, html = _format_transfer_email(
+            staff_name=staff_name,
+            direction="in",
+            counterpart_site=source_site.get("name") or "source site",
+            own_site=dest_site.get("name") or "your site",
+            actor_email=actor_email,
+            reason=reason,
+            transferred_at=transferred_at,
+        )
+        for r in dst_recipients:
+            try:
+                await send_email(to=r, subject=subject, html=html, organization_id=dest_site["id"])
+            except Exception:
+                logger.warning("transfer email to %s failed", r)
 
 
 # ── Fault wizard submit ──────────────────────────────────────
