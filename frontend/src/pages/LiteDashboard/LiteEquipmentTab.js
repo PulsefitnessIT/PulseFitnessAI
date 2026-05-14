@@ -70,32 +70,65 @@ const LiteEquipmentTab = ({
     (eq) => !eq.photo_url && !eq.spec_sheet_id && !eq.auto_image_url
   ).length;
 
+  // Iter 216h108 — chunked auto-lookup. Previously we called the
+  // backend with limit=30 in one request — at ~3s/item that's ~90s,
+  // which routinely exceeds the proxy timeout and produces the
+  // generic "Network issue or upstream timeout" error users see.
+  // Now we chunk client-side: 8 items per request, sequential, with
+  // live progress. Total runs in the same wall-clock time but no
+  // single request lasts more than ~25s.
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, matched: 0 });
   const runBulkAutoLookup = async () => {
     if (bulkRunning) return;
     setBulkRunning(true);
+    setBulkProgress({ done: 0, total: missingImages, matched: 0 });
+    let totalMatched = 0;
+    let totalExamined = 0;
+    let totalSkipped = 0;
+    let lastError = '';
+    const CHUNK = 8;
     try {
-      const r = await axios.post(
-        `${API}/equipment/lookup-images/batch?limit=30`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const { matched, total_examined, skipped } = r.data;
+      while (true) {
+        const r = await axios.post(
+          `${API}/equipment/lookup-images/batch?limit=${CHUNK}`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 60000 },
+        );
+        const examined = r.data?.total_examined || 0;
+        totalExamined += examined;
+        totalMatched += r.data?.matched || 0;
+        totalSkipped += r.data?.skipped || 0;
+        setBulkProgress((p) => ({
+          done: p.done + examined,
+          total: Math.max(p.total, p.done + examined),
+          matched: totalMatched,
+        }));
+        // Stop when the backend returned fewer items than we asked
+        // for — means we've exhausted the missing-image queue.
+        if (examined < CHUNK) break;
+      }
       showBulkBanner({
-        tone: matched > 0 ? 'success' : 'info',
-        title: matched > 0 ? `Found ${matched} new product ${matched === 1 ? 'photo' : 'photos'}` : 'No matches this run',
-        detail: matched > 0
-          ? `Checked ${total_examined} machines · ${skipped} didn't match a known manufacturer. Photos with an "AI?" badge need review.`
-          : `Checked ${total_examined} machines. Try ensuring the manufacturer field is spelled correctly, or upload a photo manually.`,
+        tone: totalMatched > 0 ? 'success' : 'info',
+        title: totalMatched > 0
+          ? `Found ${totalMatched} new product ${totalMatched === 1 ? 'photo' : 'photos'}`
+          : 'No matches this run',
+        detail: totalMatched > 0
+          ? `Checked ${totalExamined} machines · ${totalSkipped} didn't match a known manufacturer. Photos with an "AI?" badge need review.`
+          : `Checked ${totalExamined} machines. Try ensuring the manufacturer field is spelled correctly, or upload a photo manually.`,
       });
       onEquipmentUpdated && onEquipmentUpdated();
-    } catch {
+    } catch (err) {
+      lastError = err?.response?.data?.detail || err?.message || '';
       showBulkBanner({
         tone: 'error',
         title: 'Auto-lookup failed',
-        detail: 'Network issue or upstream timeout. Please try again in a moment.',
+        detail: lastError
+          ? `${lastError}. Already matched ${totalMatched} of ${totalExamined} checked so far — click again to resume.`
+          : `Already matched ${totalMatched} of ${totalExamined} checked so far. Click again to resume, or check the manufacturer name spelling.`,
       });
     }
     setBulkRunning(false);
+    setBulkProgress({ done: 0, total: 0, matched: 0 });
   };
 
   return (
@@ -103,8 +136,8 @@ const LiteEquipmentTab = ({
       {bulkBanner && <div>{bulkBanner}</div>}
       {bulkRunning && (
         <InlineProgress
-          title="Searching manufacturer websites…"
-          detail="Checking each machine against known brands and verifying matches with AI. This takes ~3s per item."
+          title={`Searching manufacturer websites… ${bulkProgress.done}/${bulkProgress.total || missingImages}`}
+          detail={`Matched so far: ${bulkProgress.matched}. We process in chunks to avoid timeouts — leave the tab open while it runs.`}
         />
       )}
       <div className="flex flex-col sm:flex-row gap-2">

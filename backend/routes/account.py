@@ -759,8 +759,11 @@ ONBOARDING_STEPS = [
      "description": "Your logo brands every invoice, member-facing email, and case page.",
      "cta_label": "Upload logo", "cta_section": "organisation"},
     {"id": "import_machines", "label": "Import machines to site(s)",
-     "description": "Pull equipment from a supplier invoice (PDF) or upload a CSV.",
-     "cta_label": "Import equipment", "cta_route": "/dashboard?tab=equipment"},
+     "description": "Pull equipment from a supplier invoice (PDF), CSV, or Excel spreadsheet — uses the same template across the platform.",
+     "cta_label": "Import equipment", "cta_inline": "equipment_import"},
+    {"id": "print_qr_codes", "label": "Print QR codes",
+     "description": "Generate and bulk-print QR labels for every machine — members scan them to log a fault.",
+     "cta_label": "Print QR codes", "cta_inline": "qr_print"},
     {"id": "connect_stripe", "label": "Connect Stripe",
      "description": "Take memberships, classes, and product payments online.",
      "cta_label": "Connect Stripe", "cta_route": "/pricing"},
@@ -802,6 +805,7 @@ async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
         "set_roles": role_assigned >= 1,
         "upload_logo": bool(org.get("logo_url")),
         "import_machines": equipment_count >= 1,
+        "print_qr_codes": equipment_count >= 1,  # 216h108 — co-completes with import
         "connect_stripe": bool(has_stripe),
         "complete_profile": has_avatar_or_phone,
     }

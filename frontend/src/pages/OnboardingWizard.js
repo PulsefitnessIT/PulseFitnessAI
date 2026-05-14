@@ -37,14 +37,14 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
 
  const downloadCsvTemplate = () => {
  const token = localStorage.getItem('token');
- // Backend protects the route; open via fetch to include auth, then trigger download.
- fetch(`${API}/equipment/template/csv`, { headers: { Authorization: `Bearer ${token}` } })
+ // Iter 216h108 — unified template (same one Master Admin ships).
+ fetch(`${API}/account/import/equipment/template`, { headers: { Authorization: `Bearer ${token}` } })
  .then((r) => r.blob())
  .then((blob) => {
  const url = URL.createObjectURL(blob);
  const a = document.createElement('a');
  a.href = url;
- a.download = 'equipment_template.csv';
+ a.download = 'equipment-template.csv';
  a.click();
  URL.revokeObjectURL(url);
  })
@@ -117,13 +117,15 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
  try {
  const formData = new FormData();
  formData.append('file', file);
- const res = await axios.post(`${API}/equipment/import`, formData, {
+ // Iter 216h108 — use the unified bulk-import endpoint so CSV + XLSX
+ // both parse correctly (Excel-serial dates, header aliases, etc.).
+ const res = await axios.post(`${API}/account/import/equipment`, formData, {
  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
  });
- notify.success(`Imported ${res.data.imported || 0} items from CSV`);
+ notify.success(`Imported ${res.data.imported || 0} items`);
  setStep(3);
  } catch {
- notify.error('CSV import failed');
+ notify.error('Import failed');
  } finally {
  setCsvImporting(false);
  e.target.value = '';
@@ -223,7 +225,7 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
  <FileText size={14} className="mr-1" /> Import from Invoice
  </Button>
  <label className="cursor-pointer">
- <input type="file" accept=".csv" className="hidden" onChange={handleCSVImport} data-testid="onboard-csv-input" />
+ <input type="file" accept=".csv,.xlsx,.xlsm" className="hidden" onChange={handleCSVImport} data-testid="onboard-csv-input" />
  <Button size="sm" variant="outline" className="border-white/10 text-white pointer-events-none" data-testid="onboard-csv-btn">
  <FileSpreadsheet size={14} className="mr-1" /> {csvImporting ? 'Importing…' : 'Import CSV'}
  </Button>

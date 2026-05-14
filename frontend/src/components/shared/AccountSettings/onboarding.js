@@ -5,12 +5,24 @@ import { Check, Loader2 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { API, useAuthHeaders } from './shared';
 import { useNavigate } from 'react-router-dom';
+import EquipmentImportInline from './EquipmentImportInline';
+import QrPrintInline from './QrPrintInline';
 
 export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   const headers = useAuthHeaders();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Iter 216h108 — inline panel mode for steps that should open IN the
+  // settings modal rather than navigating away.
+  const [inlinePanel, setInlinePanel] = useState(null);  // 'equipment_import' | 'qr_print' | null
+
+  const reload = async () => {
+    try {
+      const { data } = await axios.get(`${API}/account/onboarding`, { headers: headers() });
+      setData(data);
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +71,11 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
   };
 
   const handleStep = (step) => {
+    // Iter 216h108 — inline panels open within the settings modal
+    if (step.cta_inline) {
+      setInlinePanel(step.cta_inline);
+      return;
+    }
     if (step.cta_section) {
       onJumpSection(step.cta_section);
     } else if (step.cta_route) {
@@ -69,6 +86,19 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
 
   if (loading) {
     return <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>Loading checklist…</div>;
+  }
+  // Iter 216h108 — inline mode renders the panel in place of the
+  // checklist so the user never bounces out of Account Settings.
+  if (inlinePanel === 'equipment_import') {
+    return (
+      <EquipmentImportInline
+        onClose={() => { setInlinePanel(null); reload(); }}
+        onImported={reload}
+      />
+    );
+  }
+  if (inlinePanel === 'qr_print') {
+    return <QrPrintInline onClose={() => setInlinePanel(null)} />;
   }
   const pct = data?.percent ?? 0;
   return (

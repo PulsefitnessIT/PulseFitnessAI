@@ -109,6 +109,40 @@ async def template_equipment(user: dict = Depends(get_current_user)) -> Response
     return _csv_response(_EQUIPMENT_HEADERS, _EQUIPMENT_EXAMPLE, "equipment-template.csv")
 
 
+# Iter 216h108 — customer-facing aliases. Pulse Pro operators (owners
+# & managers) need the SAME import flow as Master Admin without having
+# to flip portals. The endpoints below delegate to the same logic but:
+#   • require only `get_current_user` (not master-admin)
+#   • force `organization_id` to the caller's own org — they can NEVER
+#     write into another tenant
+#   • share the exact same template + parser
+@router.get("/account/import/equipment/template")
+async def customer_template_equipment(user: dict = Depends(get_current_user)) -> Response:
+    if not user.get("organization_id"):
+        raise HTTPException(status_code=403, detail="No tenant context")
+    return _csv_response(_EQUIPMENT_HEADERS, _EQUIPMENT_EXAMPLE, "equipment-template.csv")
+
+
+@router.post("/account/import/equipment")
+async def customer_bulk_import_equipment(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Pulse Pro customer-scoped bulk equipment import.
+
+    Same parser + template as the Master Admin endpoint — but the
+    target organisation is HARD-CODED to ``user.organization_id`` so
+    customers can never write into another tenant.
+    """
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=403, detail="No tenant context")
+    # Customer flow — bypass the master-admin permission check but
+    # hard-pin the target org so customers can never write into
+    # another tenant.
+    return await _do_bulk_import_equipment(file, org_id, user, validate_org=False)
+
+
 @router.get("/master-admin/bulk-import/templates/customers")
 async def template_customers(user: dict = Depends(get_current_user)) -> Response:
     _require_pulse_or_master(user)
@@ -336,8 +370,25 @@ async def bulk_import_equipment(
     user: dict = Depends(get_current_user),
 ) -> dict:
     _require_pulse_or_master(user)
-    # Validate the optional default if supplied; per-row resolver kicks in when None.
-    default_org = await _resolve_target_org(user, organization_id) if organization_id else None
+    return await _do_bulk_import_equipment(file, organization_id, user, validate_org=True)
+
+
+async def _do_bulk_import_equipment(
+    file: UploadFile,
+    organization_id: Optional[str],
+    user: dict,
+    validate_org: bool = True,
+) -> dict:
+    """Shared equipment-import core (Iter 216h108).
+
+    Used by both the master-admin endpoint (validate_org=True so the
+    operator can target any Pulse-visible customer) and the customer
+    endpoint (validate_org=False — the caller passes their own
+    organization_id so the Pulse-visibility check would always fail)."""
+    if validate_org:
+        default_org = await _resolve_target_org(user, organization_id) if organization_id else None
+    else:
+        default_org = organization_id
 
     contents = await file.read()
     # Iter 216h55 — Pulse Fitness onboards ~500k equipment pieces in one
@@ -345,8 +396,9 @@ async def bulk_import_equipment(
     # match that ceiling here. Smaller customers naturally pay nothing
     # extra — the cost is only on the actual byte size.
     validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=200 * 1024 * 1024)
-    text = contents.decode("utf-8-sig", errors="ignore")
-    reader = csv.DictReader(io.StringIO(text))
+    # Iter 216h108 — accept .xlsx as well as CSV via the shared helper.
+    from utils.spreadsheet_import import iter_rows, parse_date_cell, get_pick
+    rows_iter = iter_rows(contents, file.filename)
 
     imported, skipped, errors = 0, 0, []
     org_cache: dict = {}
@@ -389,7 +441,7 @@ async def bulk_import_equipment(
         serial_set_cache[target_org] = s
         return s
 
-    for i, row in enumerate(reader, start=2):  # +1 header, +1 1-indexed
+    for i, row in enumerate(rows_iter, start=2):  # +1 header, +1 1-indexed
         try:
             # Iter 216h56 — Excel/Sheets exports drag along millions of
             # empty trailing rows. Skip them silently so they don't
@@ -402,12 +454,12 @@ async def bulk_import_equipment(
                 if route_err:
                     errors.append(f"Row {i}: {route_err}")
                 continue
-            name = _normalize(row, "name", "Name")
+            name = _normalize(row, "name", "Name") or str(get_pick(row, "name", "")).strip()
             if not name:
                 skipped += 1
                 errors.append(f"Row {i}: missing required column 'name'")
                 continue
-            serial = _normalize(row, "serial_number", "Serial Number", "serial")
+            serial = _normalize(row, "serial_number", "Serial Number", "serial") or str(get_pick(row, "serial_number", "")).strip()
             if serial:
                 existing_serials = await _serial_set_for(target_org)
                 if serial in existing_serials:
@@ -420,11 +472,11 @@ async def bulk_import_equipment(
             # Sicon "Invoice Customer Ref" fallback). Sites import runs
             # first during onboarding so by the time equipment lands the
             # site rows already exist.
-            site_name = _normalize(row, "site_name", "Site Name", "site")
+            site_name = _normalize(row, "site_name", "Site Name", "site") or str(get_pick(row, "site_name", "")).strip()
             invoice_customer_ref = _normalize(
                 row, "invoice_customer_ref", "Invoice Customer Ref",
                 "sicon_customer_ref", "customer_ref",
-            )
+            ) or str(get_pick(row, "invoice_customer_ref", "")).strip()
             site_id, site_err = await _resolve_site_for_org(site_name, invoice_customer_ref, target_org, site_cache)
             if (site_name or invoice_customer_ref) and not site_id:
                 # The operator explicitly named a site that doesn't exist — surface
@@ -433,25 +485,45 @@ async def bulk_import_equipment(
                 if site_err:
                     errors.append(f"Row {i}: {site_err}")
                 continue
-            unit_price = _parse_decimal(_normalize(row, "unit_price", "Unit Price", "price", "Price"))
+            unit_price_raw = _normalize(row, "unit_price", "Unit Price", "price", "Price") or str(get_pick(row, "unit_price", "")).strip()
+            unit_price = _parse_decimal(unit_price_raw)
             # Iter 216h51 — resolve supplier so fault-emails route to
             # the right inbox. Falls back to the manufacturer column
             # when the supplier column is blank (common when the
             # supplier IS the manufacturer, e.g. Pulse Fitness).
-            supplier_input = _normalize(row, "supplier", "Supplier") or _normalize(row, "manufacturer")
+            supplier_input = (
+                _normalize(row, "supplier", "Supplier")
+                or str(get_pick(row, "supplier", "")).strip()
+                or _normalize(row, "manufacturer")
+                or str(get_pick(row, "manufacturer", "")).strip()
+            )
             supplier_match = await _resolve_supplier_for_org(supplier_input, target_org, supplier_cache)
+            # Iter 216h108 — robust date parsing. Excel serials (45979),
+            # dd/mm/yyyy, ISO etc. all coerce to YYYY-MM-DD before
+            # storage so downstream UIs render correctly.
+            purchase_date_iso = parse_date_cell(
+                get_pick(row, "purchase_date") or row.get("Purchase Date") or row.get("purchase_date") or row.get("Install Date") or row.get("install_date")
+            )
+            warranty_iso = parse_date_cell(
+                get_pick(row, "warranty_expiry") or row.get("Warranty Expiry") or row.get("warranty_expiry") or row.get("Warranty Expiry Date")
+            )
+            contract_start_iso = parse_date_cell(get_pick(row, "contract_start"))
+            contract_end_iso = parse_date_cell(get_pick(row, "contract_end"))
             doc = {
                 "id": str(uuid.uuid4()),
                 "organization_id": target_org,
                 "user_id": user["id"],
                 "name": name,
-                "equipment_type": _normalize(row, "equipment_type", "Type", "Equipment Type"),
-                "manufacturer": _normalize(row, "manufacturer", "Manufacturer"),
-                "model": _normalize(row, "model", "Model"),
+                "equipment_type": _normalize(row, "equipment_type", "Type", "Equipment Type") or str(get_pick(row, "equipment_type", "")).strip(),
+                "manufacturer": _normalize(row, "manufacturer", "Manufacturer") or str(get_pick(row, "manufacturer", "")).strip(),
+                "model": _normalize(row, "model", "Model") or str(get_pick(row, "model", "")).strip(),
                 "serial_number": serial,
-                "purchase_date": _normalize(row, "purchase_date", "Purchase Date") or None,
-                "warranty_expiry": _normalize(row, "warranty_expiry", "Warranty Expiry") or None,
-                "service_provider": _normalize(row, "service_provider", "Service Provider"),
+                "purchase_date": purchase_date_iso or None,
+                "warranty_expiry": warranty_iso or None,
+                "sla_start": contract_start_iso or None,
+                "sla_expiry": contract_end_iso or None,
+                "contract_number": str(get_pick(row, "contract_number", "")).strip() or None,
+                "service_provider": _normalize(row, "service_provider", "Service Provider") or str(get_pick(row, "service_provider", "")).strip(),
                 # Iter 216h51 — supplier resolved against suppliers col.
                 # Store the canonical supplier name on the equipment doc
                 # AND the supplier_id / supplier_email for fault routing.
@@ -461,11 +533,11 @@ async def bulk_import_equipment(
                     (supplier_match or {}).get("service_email")
                     or (supplier_match or {}).get("email")
                 ),
-                "location": _normalize(row, "location", "Location"),
-                "notes": _normalize(row, "notes", "Notes"),
-                "length": _parse_decimal(_normalize(row, "length", "Length")),
-                "width": _parse_decimal(_normalize(row, "width", "Width")),
-                "height": _parse_decimal(_normalize(row, "height", "Height")),
+                "location": _normalize(row, "location", "Location") or str(get_pick(row, "location", "")).strip(),
+                "notes": _normalize(row, "notes", "Notes") or str(get_pick(row, "notes", "")).strip(),
+                "length": _parse_decimal(_normalize(row, "length", "Length") or str(get_pick(row, "length", "")).strip()),
+                "width": _parse_decimal(_normalize(row, "width", "Width") or str(get_pick(row, "width", "")).strip()),
+                "height": _parse_decimal(_normalize(row, "height", "Height") or str(get_pick(row, "height", "")).strip()),
                 # Iter 216h50 — unit_price stored on both purchase_price
                 # (ledger) and replacement_cost (capex feeder). Capex
                 # falls back to the equipment-type profile when this is
