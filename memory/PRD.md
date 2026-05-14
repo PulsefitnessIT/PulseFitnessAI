@@ -1,3 +1,41 @@
+## Iter 216h103 — CRM Tender Engine v3 frontend + Inbox pill fix (Feb 14, 2026)
+
+Frontend completion of the v3 backend work shipped in iter 216h102 + a
+small visibility bug-fix on the Master Admin Communications inbox.
+
+### Tender Engine v3 frontend (`/app/frontend/src/pages/CRM/CRMTenders.js`)
+- Added `<TenderAnalyticsTab>` — calls `GET /api/crm/v2/tenders/analytics/win-loss`
+  and renders 4 KPI cards (win rate, decided count, value won, value lost),
+  a top-issuer table with win-rate progress bars and £ rolls, and a
+  by-type 4-cell breakdown (ITT/RFP/PQQ/Framework). Friendly empty
+  state for orgs that haven't closed any tenders yet.
+- New toggle row at top of the tender list lets operators flip between
+  `[data-testid=tender-list-tab]` (All tenders) and
+  `[data-testid=tender-analytics-tab]` (Win/Loss analytics).
+- Fixed a runtime crash in `<SlideManager>` (drag-and-drop pitch deck
+  reorder modal) — it was reading the `API` constant from outer scope,
+  which doesn't exist inside the component. The parent now passes
+  `API={API}` explicitly.
+- The pre-existing OCR button (`[data-testid=ocr-doc-{docId}]`) and
+  per-question Templates picker (`[data-testid=template-picker-{qid}]`)
+  are now end-to-end verified.
+
+### Master Admin Communications inbox — empty pill fix
+The active "New" status pill was rendering with no visible label/icon
+because the Tailwind `text-white` class was being overridden by a
+global CSS rule. Replaced with inline `style.color` on the icon and a
+wrapping `<span>` for the label so the white text + count badge is
+always visible on the dark navy active background.
+File: `/app/frontend/src/pages/MasterAdmin/AdminCommunications.js`.
+
+### Test status
+Testing agent (iter 216h103 report) — 100 % frontend pass:
+analytics tab, slide manager, OCR button, templates dropdown, and the
+inbox pill fix all verified.
+
+---
+
+
 ## Iter 216h94 + 216h95 — Communications Inbox + Theme Settings & Audit (Feb 14, 2026)
 
 Two paired upgrades that complete the marketing-funnel → master-admin
