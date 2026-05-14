@@ -56,7 +56,7 @@ const CRMUpgradeScreen = ({ modes, accountType, membershipsEnabled, onUpgraded }
           Two CRMs, one platform.
         </h1>
         <p className="text-base pulse-font-body max-w-2xl mx-auto" style={{ color: 'var(--theme-text-muted)' }}>
-          GymAxis CRM understands both <strong>members</strong> and <strong>corporate
+          Our CRM understands both <strong>members</strong> and <strong>corporate
           deals</strong>. Choose the one that matches how you sell — or get both.
         </p>
       </div>

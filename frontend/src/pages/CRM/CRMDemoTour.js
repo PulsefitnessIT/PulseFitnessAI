@@ -3,7 +3,7 @@ import { Users, Building2, GitBranch, Sparkles, Inbox, Zap, FileText, LayoutDash
 
 const TOUR_STEPS = [
   {
-    icon: Rocket, title: 'Welcome to GymAxis CRM',
+    icon: Rocket, title: 'Welcome to your CRM',
     desc: 'Your all-in-one platform for managing contacts, deals, and growing your business. Let us show you around.',
     tip: 'This quick tour takes about 60 seconds.',
     navTo: null,

@@ -53,6 +53,14 @@ export default function CRMLogin({ onLogin }) {
   const txtM = isDark ? 'var(--color-neutral-400)' : 'var(--color-text-faint-alt)';
   const inputBg = isDark ? 'var(--color-ink-alt)' : 'var(--color-white)';
 
+  // Iter 216h101 — branding leak fix. The CRM is shared across GymAxis
+  // and Pulse Fitness deployments. Default brand label tracks the host
+  // domain so a Pulse Fitness operator never sees "GymAxis CRM" on the
+  // login screen, and vice versa.
+  const isPulseHost = typeof window !== 'undefined' && /pulsefitness|pulse-fitness|pulse\.local/i.test(window.location.hostname || '');
+  const brandLabel = isPulseHost ? 'Pulse Fitness CRM' : 'GymAxis CRM';
+  const brandInitial = isPulseHost ? 'P' : 'G';
+
   const plan = PLANS[selectedPlan];
   const monthlyTotal = plan ? (plan.base + plan.perUser * teamSize).toFixed(2) : '0.00';
 
@@ -107,8 +115,8 @@ export default function CRMLogin({ onLogin }) {
         <div className="min-h-screen flex items-center justify-center px-4" style={{ background: bg }}>
           <div className="w-full max-w-sm" data-testid="crm-2fa-page">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-lg">G</div>
-              <span className="text-xl font-semibold tracking-tight" style={{ color: txt }}>GymAxis CRM</span>
+              <div className="w-10 h-10 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-lg">{brandInitial}</div>
+              <span className="text-xl font-semibold tracking-tight" style={{ color: txt }}>{brandLabel}</span>
             </div>
             <div className="w-12 h-12 rounded-full bg-[rgb(var(--rgb-info-ios)/0.1)] flex items-center justify-center mx-auto mb-4">
               <Shield size={24} style={{ color: 'var(--color-info-ios)' }} />
@@ -152,8 +160,8 @@ export default function CRMLogin({ onLogin }) {
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: bg }}>
         <div className="w-full max-w-sm" data-testid="crm-login-page">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-lg">G</div>
-            <span className="text-xl font-semibold tracking-tight" style={{ color: txt }}>GymAxis CRM</span>
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-lg">{brandInitial}</div>
+            <span className="text-xl font-semibold tracking-tight" style={{ color: txt }}>{brandLabel}</span>
           </div>
           <h2 className="text-2xl font-semibold mb-1" style={{ color: txt }}>Welcome back</h2>
           <p className="text-sm mb-6" style={{ color: txtM }}>Sign in to your CRM account</p>
@@ -189,8 +197,8 @@ export default function CRMLogin({ onLogin }) {
       {/* Header */}
       <div className="border-b px-6 py-4 flex items-center justify-between" style={{ borderColor: border, background: surface }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-sm">G</div>
-          <span className="text-lg font-semibold" style={{ color: txt }}>GymAxis CRM</span>
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-sm">{brandInitial}</div>
+          <span className="text-lg font-semibold" style={{ color: txt }}>{brandLabel}</span>
         </div>
         <button onClick={() => { setMode('login'); setError(''); }} className="text-sm font-medium text-[var(--color-info-ios)] hover:underline" data-testid="back-to-login">Already have an account? Sign in</button>
       </div>

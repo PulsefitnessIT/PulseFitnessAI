@@ -2033,6 +2033,11 @@ async def upload_tender_doc(
 ):
     content = await file.read()
     b64 = base64.b64encode(content).decode("utf-8")
+    # Iter 216h101 — extract searchable text up front so the AI parse +
+    # RAG generation surfaces can read what was uploaded without us
+    # storing yet-another column elsewhere.
+    from utils.document_extractor import extract_text
+    extracted = extract_text(file.filename or "", file.content_type or "", content)
     doc = {
         "id": _id(), "organization_id": user.get("organization_id"),
         "tender_id": tender_id,
@@ -2041,6 +2046,8 @@ async def upload_tender_doc(
         "content_type": file.content_type,
         "size": len(content),
         "data_b64": b64,
+        "extracted_text": extracted,
+        "extracted_chars": len(extracted),
         "uploaded_by": user.get("full_name", ""),
         "created_at": _now(),
     }
@@ -2048,7 +2055,7 @@ async def upload_tender_doc(
     await db.crm2_tenders.update_one(
         {"id": tender_id}, {"$inc": {"documents_uploaded": 1}, "$set": {"updated_at": _now()}}
     )
-    return {k: v for k, v in doc.items() if k not in ("_id", "data_b64")}
+    return {k: v for k, v in doc.items() if k not in ("_id", "data_b64", "extracted_text")}
 
 
 # Tender Questions
@@ -2135,12 +2142,16 @@ async def upload_kb_doc(
     content = await file.read()
     b64 = base64.b64encode(content).decode("utf-8")
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+    # Iter 216h101 — extract text up front so this snippet is usable
+    # by the RAG retrieval inside ai_generate_response.
+    from utils.document_extractor import extract_text
+    extracted = extract_text(file.filename or "", file.content_type or "", content)
     item = {
         "id": _id(), "organization_id": user.get("organization_id"),
         "title": file.filename,
         "category": category,
         "tags": tag_list,
-        "content": "",
+        "content": extracted or "",
         "content_b64": b64,
         "content_type": file.content_type,
         "size": len(content),
@@ -2171,13 +2182,27 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 
 
-async def _ai_call(system_msg, user_msg):
-    """Send a message to GPT-5.2 and return the response text."""
+async def _ai_call(system_msg, user_msg, model_pref: str = "gpt"):
+    """Send a message to the configured LLM and return the response text.
+
+    Iter 216h101 — model_pref:
+      * ``"gpt"``    → GPT-5.2 (default, used for parsing / strategy /
+                       JSON output where structured response matters).
+      * ``"claude"`` → Claude Sonnet 4.5 (used for response writing
+                       where rich, persuasive prose matters more than
+                       strict JSON).
+    Both use the Emergent universal key via the same emergentintegrations
+    interface.
+    """
     chat = LlmChat(
         api_key=LLM_KEY,
         session_id=f"tender-{_id()[:8]}",
         system_message=system_msg,
-    ).with_model("openai", "gpt-5.2")
+    )
+    if model_pref == "claude":
+        chat = chat.with_model("anthropic", "claude-sonnet-4-5")
+    else:
+        chat = chat.with_model("openai", "gpt-5.2")
     resp = await chat.send_message(UserMessage(text=user_msg))
     return resp
 
@@ -2232,6 +2257,166 @@ Example: [{"text":"Describe your approach to...","category":"technical","word_li
         return {"parsed": created, "questions": questions}
     except Exception as e:
         return {"parsed": 0, "error": str(e), "raw_response": resp[:500] if 'resp' in dir() else ""}
+
+
+
+@router.post("/tenders/{tender_id}/ai/parse-from-doc")
+async def ai_parse_from_doc(tender_id: str, data: dict, user=Depends(get_crm_user)):
+    """Iter 216h101 — parse questions directly from a previously uploaded tender doc."""
+    doc_id = (data or {}).get("doc_id")
+    if not doc_id:
+        raise HTTPException(400, "doc_id is required")
+    doc = await db.crm2_tender_docs.find_one(
+        {"id": doc_id, "tender_id": tender_id, **_of(user)}, {"_id": 0},
+    )
+    if not doc:
+        raise HTTPException(404, "Tender document not found")
+    text = (doc.get("extracted_text") or "").strip()
+    if len(text) < 40:
+        raise HTTPException(
+            422,
+            "Could not extract usable text from this document — likely scanned/image-only. Paste the questions manually or upload a text-searchable copy.",
+        )
+    return await ai_parse_tender(tender_id, {"text": text}, user)
+
+
+@router.post("/tenders/{tender_id}/questions/{q_id}/ai/suggest-snippets")
+async def ai_suggest_snippets(tender_id: str, q_id: str, user=Depends(get_crm_user)):
+    """Return the 3 most relevant bid-library snippets for a question."""
+    question = await db.crm2_tender_questions.find_one(
+        {"id": q_id, "tender_id": tender_id}, {"_id": 0},
+    )
+    if not question:
+        raise HTTPException(404, "Question not found")
+    kb_items = await db.crm2_knowledge_base.find(
+        {**_of(user)}, {"_id": 0, "content_b64": 0},
+    ).limit(50).to_list(50)
+    from utils.document_extractor import chunk_text, retrieve_relevant
+    candidates: list[dict] = []
+    for item in kb_items:
+        body = (item.get("content") or "").strip()
+        if not body:
+            continue
+        for ch_idx, ch in enumerate(chunk_text(body)):
+            candidates.append({
+                "kb_id": item.get("id"),
+                "title": item.get("title", ""),
+                "category": item.get("category", ""),
+                "chunk_index": ch_idx,
+                "text": ch,
+            })
+    top = retrieve_relevant(question.get("text", ""), candidates, top_k=3)
+    return {"suggestions": top, "candidate_count": len(candidates)}
+
+
+@router.get("/tenders/{tender_id}/export/submission")
+async def export_submission_pdf(tender_id: str, user=Depends(get_crm_user)):
+    """Generate the formal tender submission PDF."""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from utils.tender_pdf_exporter import build_submission_pdf
+
+    tender = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)}, {"_id": 0})
+    if not tender:
+        raise HTTPException(404, "Tender not found")
+    questions = await db.crm2_tender_questions.find(
+        {"tender_id": tender_id, **_of(user)}, {"_id": 0},
+    ).sort("order", 1).to_list(500)
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "name": 1, "branding": 1},
+    ) or {}
+    brand = {
+        "company_name": org.get("name") or "Pulse Fitness",
+        "primary_color": (org.get("branding") or {}).get("primary_color") or "#19CDFF",
+    }
+    pdf = build_submission_pdf(tender, questions, brand)
+    safe = (tender.get("title") or "tender-submission").replace(" ", "_")[:60]
+    return StreamingResponse(
+        BytesIO(pdf),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe}-submission.pdf"'},
+    )
+
+
+@router.get("/tenders/{tender_id}/export/pitch")
+async def export_pitch_pdf(tender_id: str, user=Depends(get_crm_user)):
+    """Generate the 8-slide pitch deck PDF."""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from utils.tender_pdf_exporter import build_pitch_deck_pdf
+
+    tender = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)}, {"_id": 0})
+    if not tender:
+        raise HTTPException(404, "Tender not found")
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "name": 1, "branding": 1},
+    ) or {}
+    brand = {
+        "company_name": org.get("name") or "Pulse Fitness",
+        "primary_color": (org.get("branding") or {}).get("primary_color") or "#19CDFF",
+    }
+    pdf = build_pitch_deck_pdf(tender, brand)
+    safe = (tender.get("title") or "tender-pitch").replace(" ", "_")[:60]
+    return StreamingResponse(
+        BytesIO(pdf),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe}-pitch.pdf"'},
+    )
+
+
+_PULSE_BID_LIBRARY_SEEDS = [
+    {"title": "Company Overview — Pulse Fitness", "category": "company", "tags": ["overview"], "win_score": 90,
+     "content": "Pulse Fitness has been designing, supplying and maintaining commercial gym and leisure facilities across the UK for over 30 years. We work with local authority leisure trusts, education, hotels, MOD, prisons and corporate wellness clients — handling everything from initial floor design through manufacture, installation, training and lifetime servicing. Directly-employed engineers, UK-stocked parts, and a 4-hour critical-response SLA mean our clients see uptime north of 99% across multi-site rollouts."},
+    {"title": "ISO 9001 Quality Management", "category": "accreditation", "tags": ["iso", "quality"], "win_score": 95,
+     "content": "Pulse Fitness operates a fully certified ISO 9001:2015 Quality Management System covering design, manufacture, supply, installation, and after-sales service of commercial fitness equipment. The certificate is independently audited annually by BSI and is supplied with every tender response. Internal NCR rates have run below 0.4% across the last three audit cycles."},
+    {"title": "ISO 14001 Environmental Management", "category": "accreditation", "tags": ["iso", "environment"], "win_score": 90,
+     "content": "Pulse Fitness is ISO 14001:2015 certified for environmental management. Our manufacturing facilities operate a closed-loop steel & aluminium recycling programme that recovers 94% of off-cuts. Carbon emissions have fallen 38% since 2019 against a Science-Based Target Initiative aligned reduction plan. Equipment is shipped in returnable steel frames to eliminate single-use packaging."},
+    {"title": "Health & Safety Policy", "category": "health_safety", "tags": ["hse", "compliance"], "win_score": 88,
+     "content": "All Pulse Fitness engineers operate to a CHAS Premium Plus accredited Health & Safety Management System. RAMS are issued for every site visit and countersigned on arrival. Engineers carry IPAF & PASMA tickets where powered access is involved. Zero RIDDOR-reportable incidents in the last 36 months. Annual independent audit by SafeContractor (Achilles) — score: 98/100."},
+    {"title": "Case Study — Local Authority Leisure Trust (12 sites)", "category": "case_study", "tags": ["leisure-trust", "multi-site"], "win_score": 92,
+     "content": "A north-of-England leisure trust (12 sites, 2,400 pieces of equipment) appointed Pulse Fitness in 2022 under a 5-year framework. Outcomes by year 2: first-time fix rate 98.7%, average response time 2h 14m, member NPS up from 31 to 58. Quarterly business reviews aligned the trust's capex schedule with our manufacturing slots, reducing site disruption windows by 41%."},
+    {"title": "Mobilisation Plan Template", "category": "mobilisation", "tags": ["delivery", "implementation"], "win_score": 85,
+     "content": "Standard 90-day mobilisation: Week 1-2 contract sign-off + RAMS + site surveys. Week 3-6 equipment manufactured, delivered, installed (max 2 sites/week). Week 7-10 commissioning, staff training (CPD-accredited), member orientation with on-site coach for the first opening weekend. Week 11-12 service handover, BAU reporting templates configured in the client portal, first quarterly review scheduled."},
+    {"title": "Service Desk SLA & Response Times", "category": "service", "tags": ["sla", "support"], "win_score": 89,
+     "content": "Pulse Fitness Service Desk operates 7am-7pm Mon-Sat with a 24/7 emergency line for safety-critical incidents. Standard SLAs (calendar hours): P1 critical 4h on-site, P2 high 24h, P3 medium 72h, P4 routine 5 working days. Average first-call resolution: 41%. Performance is reported monthly via the GymAxis Service Desk client portal with raw data exportable to CSV."},
+    {"title": "Sustainability & Circular Economy", "category": "sustainability", "tags": ["esg", "carbon"], "win_score": 87,
+     "content": "Pulse Fitness offers a take-back & refurbishment programme: redundant equipment is collected free of charge at end-of-life and either refurbished for the resale market or stripped to component level for recycling. Less than 3% of equipment by mass goes to landfill. The programme has prevented 412 tonnes of steel from secondary smelting since 2019 — equivalent to ~620 tCO2e of avoided emissions."},
+    {"title": "Social Value Commitments", "category": "social_value", "tags": ["toms", "community"], "win_score": 86,
+     "content": "Pulse Fitness offers tendered Social Value commitments aligned to the TOMs framework: apprenticeship roles created (target: 1 per £250k contract value), ring-fenced local sub-contractor spend (target: 35% within 30-mile radius), school equipment donation programme (recurring quarterly), and free community open days at every installed site for the first 12 months."},
+    {"title": "Account Management & Reporting Cadence", "category": "service", "tags": ["account", "kpi"], "win_score": 84,
+     "content": "Each client is assigned a named Account Director plus a Technical Service Lead. Monthly KPI reports cover uptime, first-time fix rate, parts consumption, engineer attendance times, and outstanding warranty claims — delivered via the GymAxis client portal and a PDF executive summary. Quarterly business reviews are held in-person and include a forward-look capacity plan for the next 12 months."},
+]
+
+
+@router.post("/knowledge-base/seed-pulse-defaults")
+async def seed_bid_library_defaults(user=Depends(get_crm_user)):
+    """Idempotent one-shot seed of pre-approved Pulse Fitness bid-library snippets."""
+    org_id = user.get("organization_id")
+    seeded = 0
+    skipped = 0
+    for entry in _PULSE_BID_LIBRARY_SEEDS:
+        exists = await db.crm2_knowledge_base.find_one(
+            {"organization_id": org_id, "title": entry["title"]},
+            {"_id": 0, "id": 1},
+        )
+        if exists:
+            skipped += 1
+            continue
+        await db.crm2_knowledge_base.insert_one({
+            "id": _id(), "organization_id": org_id,
+            "title": entry["title"],
+            "category": entry["category"],
+            "tags": entry.get("tags", []),
+            "content": entry["content"],
+            "source_type": "seed_pulse_default",
+            "win_score": entry.get("win_score"),
+            "usage_count": 0,
+            "uploaded_by": "system",
+            "created_at": _now(), "updated_at": _now(),
+        })
+        seeded += 1
+    return {"seeded": seeded, "skipped": skipped}
+
 
 
 def _build_tender_prompt(action: str, question: dict, kb_context: str) -> str:
@@ -2292,21 +2477,55 @@ async def ai_generate_response(tender_id: str, q_id: str, data: dict, user=Depen
     tone = data.get("tone") or tender.get("tone", "professional")
     action = data.get("action", "generate")
 
-    kb_items = await db.crm2_knowledge_base.find({**_of(user)}, {"_id": 0, "content_b64": 0}).limit(10).to_list(10)
-    kb_context = "\n".join([f"- {item.get('title','')}: {item.get('content','')[:300]}" for item in kb_items if item.get("content")])
+    kb_items = await db.crm2_knowledge_base.find({**_of(user)}, {"_id": 0, "content_b64": 0}).limit(50).to_list(50)
+    # Iter 216h101 — build chunked candidates and retrieve only the
+    # most relevant 5 for this question. Falls back to the original
+    # behaviour if nothing matches.
+    from utils.document_extractor import chunk_text, retrieve_relevant
+    candidates: list[dict] = []
+    for item in kb_items:
+        body = (item.get("content") or "").strip()
+        if not body:
+            continue
+        for ch_idx, ch in enumerate(chunk_text(body)):
+            candidates.append({
+                "kb_id": item.get("id"),
+                "title": item.get("title", ""),
+                "chunk_index": ch_idx,
+                "text": ch,
+            })
+    top = retrieve_relevant(question.get("text", ""), candidates, top_k=5)
+    if top:
+        kb_context = "\n\n".join(
+            [f"[CITE-{i + 1}] {t['title']}\n{t['text']}" for i, t in enumerate(top)]
+        )
+        citations = [{"index": i + 1, "kb_id": t["kb_id"], "title": t["title"], "score": t["score"]} for i, t in enumerate(top)]
+    else:
+        kb_context = "\n".join([f"- {item.get('title','')}: {item.get('content','')[:300]}" for item in kb_items[:5] if item.get("content")])
+        citations = []
 
     system = f"""You are a world-class Bid Writer for Pulse Fitness, a leading gym and fitness equipment company.
 Write {tone}, compelling tender responses that WIN contracts.
 Structure: Direct answer first → Evidence → Differentiation → Client benefit → Risk mitigation → Summary.
-Be specific, outcome-focused, and evidence-based. Never be generic."""
+Be specific, outcome-focused, and evidence-based. Never be generic.
+When you draw on the COMPANY KNOWLEDGE BASE, cite the relevant snippet by writing the matching [CITE-N] tag at the end of the supporting sentence — these citation markers will be rendered as references in the operator's review screen."""
 
     prompt = _build_tender_prompt(action, question, kb_context)
 
     try:
-        resp = await _ai_call(system, prompt)
+        # Iter 216h101 — Claude Sonnet 4.5 for response writing (richer
+        # prose). Parsing / JSON / strategy continues to use GPT-5.2.
+        resp = await _ai_call(system, prompt, model_pref="claude")
         word_count = len(resp.split())
-        await db.crm2_tender_questions.update_one({"id": q_id}, {"$set": {"ai_draft": resp, "updated_at": _now()}})
-        return {"response": resp, "word_count": word_count, "action": action}
+        await db.crm2_tender_questions.update_one(
+            {"id": q_id},
+            {"$set": {
+                "ai_draft": resp,
+                "ai_citations": citations,
+                "updated_at": _now(),
+            }},
+        )
+        return {"response": resp, "word_count": word_count, "action": action, "citations": citations}
     except Exception as e:
         raise HTTPException(500, f"AI generation failed: {str(e)}")
 

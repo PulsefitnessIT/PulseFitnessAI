@@ -4,7 +4,8 @@ import {
   Plus, Search, FileText, Upload, Trash2, ChevronRight, ArrowLeft,
   Target, AlertTriangle, CheckCircle, Clock, Award, Shield,
   Sparkles, BarChart3, Edit3, Eye, Send, Copy, BookOpen, Tag,
-  Building2, User, Calendar, Loader2, X, Zap, TrendingUp
+  Building2, User, Calendar, Loader2, X, Zap, TrendingUp,
+  Download, Presentation, Lightbulb
 } from 'lucide-react';
 import axios from 'axios';
 import Button from '@/components/shared/Button';
@@ -282,6 +283,51 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
     setAiLoading('');
   };
 
+  // Iter 216h101 — Tender Engine v2 additions
+  const aiParseFromDoc = async (docId) => {
+    setAiLoading(`parse-doc-${docId}`);
+    try {
+      await axios.post(`${API}/crm/v2/tenders/${tenderId}/ai/parse-from-doc`, { doc_id: docId }, { headers: headers() });
+      load();
+    } catch (e) {
+      const msg = e.response?.data?.detail || 'Parse from document failed';
+      alert(msg);
+    }
+    setAiLoading('');
+  };
+  const [snippetCache, setSnippetCache] = useState({}); // qId -> { loading, suggestions }
+  const fetchSnippets = async (qId) => {
+    setSnippetCache((c) => ({ ...c, [qId]: { ...(c[qId] || {}), loading: true } }));
+    try {
+      const r = await axios.post(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/ai/suggest-snippets`, {}, { headers: headers() });
+      setSnippetCache((c) => ({ ...c, [qId]: { loading: false, suggestions: r.data?.suggestions || [] } }));
+    } catch (e) {
+      setSnippetCache((c) => ({ ...c, [qId]: { loading: false, suggestions: [] } }));
+    }
+  };
+  const exportPdf = (kind) => {
+    const token = localStorage.getItem('crm_token') || localStorage.getItem('token');
+    const url = `${API}/crm/v2/tenders/${tenderId}/export/${kind}?_t=${Date.now()}`;
+    // Resend through fetch so we can set the Bearer header — browsers
+    // can't attach Authorization to a plain anchor click.
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => { if (!r.ok) throw new Error('Export failed'); return r.blob(); })
+      .then((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${(tender?.title || 'tender').replace(/[^a-z0-9]+/gi, '_')}-${kind}.pdf`;
+        document.body.appendChild(a); a.click(); a.remove();
+      })
+      .catch(() => alert('Failed to export PDF'));
+  };
+  const seedBidLibrary = async () => {
+    try {
+      const r = await axios.post(`${API}/crm/v2/knowledge-base/seed-pulse-defaults`, {}, { headers: headers() });
+      alert(`Seeded ${r.data.seeded} bid-library snippets (${r.data.skipped} already existed).`);
+      load();
+    } catch (e) { alert('Seed failed: ' + (e.response?.data?.detail || e.message)); }
+  };
+
   if (!tender) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
   const statusColor = STATUS_COLORS[tender.status] || 'var(--color-text-faint-alt)';
@@ -317,6 +363,36 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
           </div>
         </div>
         <button onClick={deleteTender} className="p-2 rounded-md" style={{ color: 'var(--color-danger-alt)' }} data-testid="delete-tender-btn"><Trash2 size={16} /></button>
+      </div>
+
+      {/* Iter 216h101 — Export bar */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap" data-testid="tender-export-bar">
+        <button
+          onClick={() => exportPdf('submission')}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md"
+          style={{ background: 'var(--color-info-ios)', color: '#fff' }}
+          data-testid="export-submission-btn"
+        >
+          <Download size={12} /> Export submission PDF
+        </button>
+        <button
+          onClick={() => exportPdf('pitch')}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border"
+          style={{ borderColor: 'var(--color-info-ios)', color: 'var(--color-info-ios)' }}
+          data-testid="export-pitch-btn"
+        >
+          <Presentation size={12} /> Generate pitch deck
+        </button>
+        <span className="flex-1" />
+        <button
+          onClick={seedBidLibrary}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border"
+          style={{ borderColor: c.border, color: c.textMuted }}
+          data-testid="seed-bid-library-btn"
+          title="Seed pre-approved Pulse Fitness bid-library snippets"
+        >
+          <BookOpen size={12} /> Seed bid library
+        </button>
       </div>
 
       {/* KPI Strip */}
@@ -434,9 +510,41 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
                               <button onClick={() => updateQuestion(q.id, { response: q.ai_draft, status: 'draft' })} className="text-[10px] text-[var(--color-info-ios)] mt-1 hover:underline">Use this draft</button>
                             </div>
                           )}
-                          <textarea defaultValue={q.response || q.ai_draft || ''} rows={5} placeholder="Write your response..."
-                            className="w-full px-3 py-2 text-sm rounded-md resize-none mb-2" style={inputStyle}
-                            onBlur={e => updateQuestion(q.id, { response: e.target.value, status: e.target.value.trim() ? 'draft' : 'not_started' })} />
+                          {/* Iter 216h101 — KB suggestions panel (top 3 RAG hits) */}
+                          {snippetCache[q.id]?.suggestions?.length > 0 && (
+                            <div className="mb-2 p-3 rounded-md" style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }} data-testid={`kb-suggest-${q.id}`}>
+                              <p className="text-[10px] uppercase tracking-wider mb-2 flex items-center gap-1" style={{ color: 'var(--color-accent-magenta)' }}>
+                                <Lightbulb size={10} /> Top {snippetCache[q.id].suggestions.length} from bid library
+                              </p>
+                              <div className="space-y-1.5">
+                                {snippetCache[q.id].suggestions.map((s, idx) => (
+                                  <div key={idx} className="p-2 rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'rgba(255,255,255,0.6)' }}>
+                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                      <span className="text-[10px] font-bold" style={{ color: c.text }}>{s.title}</span>
+                                      <span className="text-[9px] font-mono" style={{ color: c.textDim }}>match {s.score}</span>
+                                    </div>
+                                    <p className="text-[10px] line-clamp-2" style={{ color: c.textMuted }}>{s.text.substring(0, 220)}…</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <LiveResponseEditor
+                            initial={q.response || q.ai_draft || ''}
+                            wordLimit={q.word_limit}
+                            onSave={(value) => updateQuestion(q.id, { response: value, status: value.trim() ? 'draft' : 'not_started' })}
+                            inputStyle={inputStyle}
+                            color={c}
+                            testid={`response-${q.id}`}
+                          />
+                          {Array.isArray(q.ai_citations) && q.ai_citations.length > 0 && (
+                            <div className="mb-2 mt-1 text-[10px]" style={{ color: c.textMuted }} data-testid={`citations-${q.id}`}>
+                              <strong style={{ color: c.textMuted }}>Citations:</strong>{' '}
+                              {q.ai_citations.map((cit) => (
+                                <span key={cit.index} className="inline-block mr-2">[{cit.index}] {cit.title}</span>
+                              ))}
+                            </div>
+                          )}
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <div className="flex gap-1">
                               {['not_started', 'draft', 'reviewed', 'final'].map(s => (
@@ -447,7 +555,12 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
                                 </button>
                               ))}
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 flex-wrap">
+                              <button onClick={() => fetchSnippets(q.id)} disabled={!!aiLoading || snippetCache[q.id]?.loading}
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md" style={{ background: 'rgba(168,85,247,0.12)', color: 'var(--color-accent-magenta)' }}
+                                data-testid={`suggest-kb-${q.id}`}>
+                                {snippetCache[q.id]?.loading ? <Loader2 size={10} className="animate-spin" /> : <Lightbulb size={10} />} Suggest from KB
+                              </button>
                               <button onClick={() => aiGenerateResponse(q.id, 'generate')} disabled={!!aiLoading}
                                 className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md" style={{ background: 'var(--color-success-alt)15', color: 'var(--color-success-alt)' }}>
                                 {aiLoading === `gen-${q.id}` ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} Generate
@@ -464,7 +577,6 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
                               </>}
                             </div>
                           </div>
-                          {q.response && <span className="text-[10px] block mt-1 text-right" style={{ color: c.textDim }}>{q.response.split(/\s+/).length} words</span>}
                         </div>
                       )}
                     </div>
@@ -496,12 +608,30 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
             {docs.length > 0 ? (
               <div className="space-y-2">
                 {docs.map(d => (
-                  <div key={d.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+                  <div key={d.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`tender-doc-${d.id}`}>
                     <FileText size={16} style={{ color: 'var(--color-info-ios)' }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate" style={{ color: c.text }}>{d.original_filename}</p>
-                      <p className="text-[11px]" style={{ color: c.textDim }}>{d.uploaded_by} &middot; {new Date(d.created_at).toLocaleDateString('en-GB')}</p>
+                      <p className="text-[11px]" style={{ color: c.textDim }}>
+                        {d.uploaded_by} &middot; {new Date(d.created_at).toLocaleDateString('en-GB')}
+                        {typeof d.extracted_chars === 'number' && (
+                          <> &middot; <span style={{ color: d.extracted_chars >= 40 ? 'var(--color-success-alt)' : 'var(--color-warning)' }}>
+                            {d.extracted_chars >= 40 ? `${d.extracted_chars.toLocaleString()} chars extracted` : 'no text — likely scanned'}
+                          </span></>
+                        )}
+                      </p>
                     </div>
+                    {typeof d.extracted_chars === 'number' && d.extracted_chars >= 40 && (
+                      <button
+                        onClick={() => aiParseFromDoc(d.id)}
+                        disabled={!!aiLoading}
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md disabled:opacity-50"
+                        style={{ background: 'var(--color-success-alt)15', color: 'var(--color-success-alt)' }}
+                        data-testid={`parse-from-doc-${d.id}`}
+                      >
+                        {aiLoading === `parse-doc-${d.id}` ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} Parse questions from this doc
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -643,6 +773,37 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
     </div>
   );
 }
+
+/* ═══ Live response editor with word counter (Iter 216h101) ═══ */
+function LiveResponseEditor({ initial, wordLimit, onSave, inputStyle, color, testid }) {
+  const [value, setValue] = useState(initial || '');
+  useEffect(() => { setValue(initial || ''); }, [initial]);
+  const words = value.trim() ? value.trim().split(/\s+/).length : 0;
+  const overLimit = wordLimit && words > wordLimit;
+  const nearLimit = wordLimit && words > wordLimit * 0.9 && !overLimit;
+  return (
+    <div>
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => onSave(value)}
+        rows={7}
+        placeholder="Write your response — direct answer first, then evidence, differentiation, benefit, risk mitigation."
+        className="w-full px-3 py-2 text-sm rounded-md resize-y mb-1"
+        style={inputStyle}
+        data-testid={testid}
+      />
+      <div className="flex items-center justify-between text-[10px] mb-2" style={{ color: color.textDim }}>
+        <span>{wordLimit ? `Suggested ${wordLimit} words · evidence first` : 'No word limit set'}</span>
+        <span style={{ color: overLimit ? 'var(--color-danger-alt)' : nearLimit ? 'var(--color-warning)' : color.textDim }}>
+          <strong>{words}</strong>{wordLimit ? ` / ${wordLimit}` : ''} words
+          {overLimit && ` · ${words - wordLimit} over`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 
 /* ═══ MAIN COMPONENT ═══ */
 export default function CRMTenders() {
