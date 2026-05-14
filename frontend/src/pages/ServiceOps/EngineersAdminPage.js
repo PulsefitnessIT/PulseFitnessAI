@@ -10,7 +10,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { HardHat, Plus, Loader2, Trash2, Save } from 'lucide-react';
+import { HardHat, Plus, Loader2, Trash2, Save, BadgeCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ServiceOpsShell from './ServiceOpsShell';
 
@@ -20,6 +20,11 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 const SKILL_OPTIONS = [
   'cardio', 'strength', 'electrical', 'mechanical', 'hydraulic',
   'plate-loaded', 'cable', 'install', 'commissioning',
+];
+
+const QUAL_SUGGESTIONS = [
+  'IOSH Working Safely', 'PAT Tester', 'CSCS Card', 'NEBOSH',
+  '18th Edition', 'First Aid at Work', 'Working at Height', 'Confined Spaces',
 ];
 
 export default function EngineersAdminPage() {
@@ -66,7 +71,14 @@ export default function EngineersAdminPage() {
 
   const save = async (id) => {
     try {
-      await axios.patch(`${API}/svc/engineers/${id}`, editDraft, auth());
+      const payload = { ...editDraft };
+      // Coerce years_experience to int / null
+      if (payload.years_experience === '' || payload.years_experience == null) {
+        payload.years_experience = null;
+      } else {
+        payload.years_experience = Math.max(0, parseInt(payload.years_experience, 10) || 0);
+      }
+      await axios.patch(`${API}/svc/engineers/${id}`, payload, auth());
       toast.success('Saved');
       setEditingId(null);
       setEditDraft({});
@@ -95,7 +107,26 @@ export default function EngineersAdminPage() {
       sage_user_id: eng.sage_user_id || '',
       skills: eng.skills || [],
       active: eng.active !== false,
+      // Iter 216h87 — trust card fields
+      photo_url: eng.photo_url || '',
+      qualifications: eng.qualifications || [],
+      years_experience: eng.years_experience || '',
+      verified: !!eng.verified,
     });
+  };
+
+  const toggleQual = (qual) => {
+    const cur = new Set(editDraft.qualifications || []);
+    if (cur.has(qual)) cur.delete(qual); else cur.add(qual);
+    setEditDraft({ ...editDraft, qualifications: [...cur] });
+  };
+
+  const addCustomQual = (raw) => {
+    const q = (raw || '').trim();
+    if (!q) return;
+    const cur = new Set(editDraft.qualifications || []);
+    cur.add(q);
+    setEditDraft({ ...editDraft, qualifications: [...cur] });
   };
 
   const toggleSkill = (skill, target) => {
@@ -194,10 +225,34 @@ export default function EngineersAdminPage() {
             ) : engineers.map((e) => {
               const editing = editingId === e.id;
               return (
-                <tr key={e.id} data-testid={`engineer-row-${e.id}`}>
+                <React.Fragment key={e.id}>
+                <tr data-testid={`engineer-row-${e.id}`}>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{e.full_name}</div>
-                    <div className="text-xs svc-muted">{e.email}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {e.photo_url ? (
+                        <img
+                          src={e.photo_url}
+                          alt={e.full_name}
+                          style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+                          data-testid={`engineer-photo-${e.id}`}
+                        />
+                      ) : null}
+                      <div>
+                        <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {e.full_name}
+                          {e.verified ? (
+                            <BadgeCheck size={13} color="#10b981" data-testid={`engineer-verified-${e.id}`} title="Verified — shown on customer tracking page" />
+                          ) : null}
+                        </div>
+                        <div className="text-xs svc-muted">{e.email}</div>
+                        {(e.qualifications || []).length > 0 ? (
+                          <div className="text-xs svc-muted" style={{ marginTop: 2 }}>
+                            {e.qualifications.slice(0, 3).join(' · ')}
+                            {e.qualifications.length > 3 ? ` +${e.qualifications.length - 3}` : ''}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
                   </td>
                   <td>
                     {editing ? (
@@ -257,6 +312,118 @@ export default function EngineersAdminPage() {
                     )}
                   </td>
                 </tr>
+                {editing ? (
+                  <tr data-testid={`engineer-trust-row-${e.id}`} style={{ background: 'var(--theme-surface-soft, #f8fafc)' }}>
+                    <td colSpan={8} style={{ padding: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
+                        <div>
+                          <div className="svc-field-label">Photo URL</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {editDraft.photo_url ? (
+                              <img
+                                src={editDraft.photo_url}
+                                alt=""
+                                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--theme-border)' }}
+                                onError={(ev) => { ev.target.style.display = 'none'; }}
+                              />
+                            ) : null}
+                            <input
+                              className="svc-input svc-input-sm"
+                              placeholder="https://… (square image works best)"
+                              value={editDraft.photo_url || ''}
+                              onChange={(ev) => setEditDraft({ ...editDraft, photo_url: ev.target.value })}
+                              data-testid={`engineer-photo-input-${e.id}`}
+                              style={{ flex: 1 }}
+                            />
+                          </div>
+                          <div className="svc-field-label" style={{ marginTop: 10 }}>Years of experience</div>
+                          <input
+                            type="number"
+                            min={0}
+                            max={60}
+                            className="svc-input svc-input-sm"
+                            placeholder="e.g. 8"
+                            value={editDraft.years_experience}
+                            onChange={(ev) => setEditDraft({ ...editDraft, years_experience: ev.target.value })}
+                            data-testid={`engineer-years-input-${e.id}`}
+                            style={{ width: 100 }}
+                          />
+                          <label
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, cursor: 'pointer', fontSize: 13 }}
+                            data-testid={`engineer-verified-toggle-${e.id}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!!editDraft.verified}
+                              onChange={(ev) => setEditDraft({ ...editDraft, verified: ev.target.checked })}
+                              data-testid={`engineer-verified-checkbox-${e.id}`}
+                            />
+                            <BadgeCheck size={14} color={editDraft.verified ? '#10b981' : '#94a3b8'} />
+                            <span style={{ fontWeight: 600 }}>Verified engineer</span>
+                            <span className="svc-muted text-xs" style={{ marginLeft: 4 }}>
+                              shown to customers on the live-tracking page
+                            </span>
+                          </label>
+                        </div>
+                        <div>
+                          <div className="svc-field-label">Qualifications</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                            {(editDraft.qualifications || []).map((q) => (
+                              <span
+                                key={q}
+                                className="svc-pill svc-pill-success"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                data-testid={`engineer-qual-chip-${e.id}-${q.replace(/\W+/g, '_')}`}
+                              >
+                                ✓ {q}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleQual(q)}
+                                  style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+                                  aria-label={`Remove ${q}`}
+                                >
+                                  <X size={11} />
+                                </button>
+                              </span>
+                            ))}
+                            {(editDraft.qualifications || []).length === 0 ? (
+                              <span className="svc-muted text-xs">None — pick from below or type your own</span>
+                            ) : null}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                            {QUAL_SUGGESTIONS
+                              .filter((q) => !(editDraft.qualifications || []).includes(q))
+                              .map((q) => (
+                                <button
+                                  key={q}
+                                  type="button"
+                                  className="svc-pill svc-pill-soft"
+                                  onClick={() => toggleQual(q)}
+                                  style={{ cursor: 'pointer', border: 'none' }}
+                                  data-testid={`engineer-qual-suggest-${e.id}-${q.replace(/\W+/g, '_')}`}
+                                >
+                                  + {q}
+                                </button>
+                              ))}
+                          </div>
+                          <input
+                            className="svc-input svc-input-sm"
+                            placeholder="Add custom qualification & press Enter"
+                            data-testid={`engineer-qual-custom-${e.id}`}
+                            onKeyDown={(ev) => {
+                              if (ev.key === 'Enter') {
+                                ev.preventDefault();
+                                addCustomQual(ev.target.value);
+                                ev.target.value = '';
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+                </React.Fragment>
               );
             })}
           </tbody>

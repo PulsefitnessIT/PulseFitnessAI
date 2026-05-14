@@ -1,3 +1,57 @@
+## Iter 216h87 (UI follow-up) — Trust card fields in Engineer Admin (Feb 14, 2026)
+
+Surfaced the new public-tracking-card fields in the operator-side
+`EngineersAdminPage.js` so the trust card actually has data to display.
+
+### What's new
+- **Name cell** (view mode): tiny green ✓ BadgeCheck next to the name when
+  `verified === true`. Optional 28×28 avatar thumbnail (when `photo_url`
+  set). Qualifications summary line under the email (first 3 + "+N").
+- **Trust profile row** (edit mode): a full-width second `<tr>` appears
+  below the editing row, holding 4 new fields:
+  - **Photo URL** — free-text input + live 36×36 preview.
+  - **Years of experience** — number input (0–60).
+  - **Verified engineer** — checkbox with explanatory caption "shown to
+    customers on the live-tracking page".
+  - **Qualifications** — chip-based picker with 8 industry-standard
+    suggestions (IOSH, PAT Tester, CSCS, NEBOSH, 18th Edition, First
+    Aid at Work, Working at Height, Confined Spaces) + custom-entry
+    input (press Enter to add). Active chips have ✕ to remove.
+- **Save flow**: `years_experience` coerced to int or `null` (blank
+  clears). All 4 new fields sent in the existing PATCH payload — the
+  `ALLOWED_ENGINEER_FIELDS` whitelist already accepts them (h87 backend).
+- All elements have unique `data-testid`s for QA.
+
+### Testing
+- 2/2 new backend pytest (`test_iter_216h87_ui_trust_fields_patch.py`):
+  trust fields persist via PATCH, null years_experience clears.
+- **85/85 across the entire h75 → h87 suite** — zero regressions.
+- UI smoke screenshot confirmed: edit drawer opens with all 4 fields,
+  qualification chips move between suggestion ↔ active correctly,
+  verified checkbox toggles, photo URL preview works.
+
+### Files touched
+**Backend**
+- `/app/backend/tests/test_iter_216h87_ui_trust_fields_patch.py` (NEW · 2 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/ServiceOps/EngineersAdminPage.js`
+  (+~140 LOC — Trust profile row, qualifications chips, Verified
+  badge in view mode, photo thumbnail in name cell)
+
+### Operational notes
+- Operators (owner/manager/master admin) can now populate the trust
+  fields via Service Desk → Engineers → Edit. Changes propagate
+  immediately to the live `/track/<token>` card.
+- The tracking page degrades gracefully when fields are blank: avatar
+  falls back to the initial circle, no Verified pill, rating/job-count
+  rows hidden when stats are zero.
+
+---
+
+
+
+
 ## Iter 216h86 + h87 — Pulse engineer bypass + Engineer trust card (Feb 13, 2026)
 
 User raised a strategic question: "we don't want the partner program for
