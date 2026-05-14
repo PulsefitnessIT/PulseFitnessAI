@@ -40,6 +40,61 @@ def _of(user: dict) -> dict:
     return {"organization_id": user.get("organization_id")}
 
 
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance in km. Used for an Uber-style ETA estimate."""
+    import math
+    R = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+async def _engineer_live_location(case: dict) -> dict | None:
+    """Return the engineer's location ping if (a) the case is en_route/on_site,
+    (b) the ping is < 5 minutes old, and (c) the engineer is the assigned one.
+
+    NEVER returns the lat/lng to the public payload unless those checks pass.
+    """
+    if case.get("status") not in ("en_route", "on_site"):
+        return None
+    eng_id = case.get("assigned_engineer_id")
+    if not eng_id:
+        return None
+    doc = await db.svc_engineer_locations.find_one(
+        {"engineer_id": eng_id}, {"_id": 0, "lat": 1, "lng": 1, "recorded_at": 1, "accuracy_m": 1},
+    )
+    if not doc or not doc.get("recorded_at"):
+        return None
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    try:
+        recorded = _dt.fromisoformat(doc["recorded_at"].replace("Z", "+00:00"))
+    except Exception:
+        return None
+    if _dt.now(_tz.utc) - recorded > _td(minutes=5):
+        return None
+    return {
+        "lat": doc["lat"],
+        "lng": doc["lng"],
+        "recorded_at": doc["recorded_at"],
+        "accuracy_m": doc.get("accuracy_m"),
+    }
+
+
+def _eta_from_distance_km(km: float) -> dict:
+    """Convert km distance to friendly ETA string. 35 km/h urban avg."""
+    if km is None or km < 0:
+        return {"minutes": None, "label": None}
+    mins = max(1, int(round(km / 35.0 * 60)))
+    if mins < 60:
+        label = f"~{mins} min away"
+    else:
+        h, m = divmod(mins, 60)
+        label = f"~{h}h {m}m away"
+    return {"minutes": mins, "label": label, "distance_km": round(km, 1)}
+
+
 def _public_status_meta(status: str) -> dict:
     """Map the internal state machine to customer-friendly copy."""
     return {
@@ -163,6 +218,8 @@ async def public_track(token: str):
             "assigned_engineer_id": 1, "closed_at": 1, "updated_at": 1,
             "customer_rating": 1, "customer_name": 1, "organization_id": 1,
             "service_report_sent_at": 1,
+            "customer_feedback_at": 1,
+            "site_lat": 1, "site_lng": 1, "latitude": 1, "longitude": 1,
         },
     )
     if not case:
@@ -214,6 +271,18 @@ async def public_track(token: str):
     meta = _public_status_meta(status)
     customer_first = (case.get("customer_name") or "").split()[0] if case.get("customer_name") else ""
 
+    # Iter 216h91 — Live tracking position + ETA (en_route / on_site only).
+    eng_location = await _engineer_live_location(case)
+    eta = None
+    site_lat = case.get("site_lat") or case.get("latitude")
+    site_lng = case.get("site_lng") or case.get("longitude")
+    if eng_location and site_lat is not None and site_lng is not None:
+        try:
+            dist = _haversine_km(eng_location["lat"], eng_location["lng"], float(site_lat), float(site_lng))
+            eta = _eta_from_distance_km(dist)
+        except (TypeError, ValueError):
+            eta = None
+
     return {
         "reference": case.get("reference") or case["id"][:8],
         "title": case.get("title") or "Service visit",
@@ -234,8 +303,15 @@ async def public_track(token: str):
         "closed_at": case.get("closed_at"),
         "updated_at": case.get("updated_at"),
         "engineer": _engineer_card(engineer, engineer_stats),
+        "engineer_location": eng_location,
+        "site_location": (
+            {"lat": float(site_lat), "lng": float(site_lng)}
+            if site_lat is not None and site_lng is not None else None
+        ),
+        "eta": eta,
         "events": customer_safe_events,
         "rating_captured": bool(case.get("customer_rating")),
+        "feedback_captured": bool(case.get("customer_feedback_at")),
         "report_sent": bool(case.get("service_report_sent_at")),
         "customer_first_name": customer_first,
         "organization": {
@@ -280,6 +356,59 @@ async def regenerate_tracking_link(case_id: str, request: Request, user=Depends(
         {"$set": {"track_token": token, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
     return {"token": token, "url": f"{_origin(request)}/track/{token}"}
+
+
+@router.post("/svc/public/track/{token}/feedback")
+async def public_feedback(token: str, body: dict | None = None):
+    """Capture customer feedback from the public tracking page.
+
+    Body: {
+        rating: int (1-5, optional — re-confirm star rating),
+        nps_score: int (0-10, optional),
+        comment: str (free text, max 1500 chars, optional),
+    }
+
+    Idempotent: subsequent POSTs replace prior NPS/comment for the same
+    case. Stored on the case so the operator can see it on the drawer
+    and roll into reporting.
+    """
+    if not token or len(token) < 8:
+        raise HTTPException(404, "Tracking link not found")
+    case = await db.svc_cases.find_one(
+        {"track_token": token},
+        {"_id": 0, "id": 1, "organization_id": 1, "status": 1},
+    )
+    if not case:
+        raise HTTPException(404, "Tracking link not found")
+    body = body or {}
+
+    update: dict = {"customer_feedback_at": datetime.now(timezone.utc).isoformat()}
+    if (rating := body.get("rating")) is not None:
+        try:
+            rating = int(rating)
+            assert 1 <= rating <= 5
+            update["customer_rating"] = rating
+        except (TypeError, ValueError, AssertionError):
+            raise HTTPException(400, "rating must be an integer 1-5")
+    if (nps := body.get("nps_score")) is not None:
+        try:
+            nps = int(nps)
+            assert 0 <= nps <= 10
+            update["customer_nps"] = nps
+        except (TypeError, ValueError, AssertionError):
+            raise HTTPException(400, "nps_score must be an integer 0-10")
+    comment = (body.get("comment") or "").strip()
+    if comment:
+        update["customer_rating_comment"] = comment[:1500]
+
+    if len(update) == 1:
+        raise HTTPException(400, "Please leave a rating, NPS score or a comment.")
+
+    await db.svc_cases.update_one(
+        {"track_token": token},
+        {"$set": {**update, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "captured_at": update["customer_feedback_at"]}
 
 
 __all__ = ["router"]

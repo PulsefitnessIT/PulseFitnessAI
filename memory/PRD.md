@@ -1,3 +1,119 @@
+## Iter 216h90 + h91 + h92 — NPS · Live tracking · Editable H&S (Feb 14, 2026)
+
+Three customer- & operator-facing features shipped in one batch. Pushes
+the platform's competitive position from "best-in-class field service"
+to genuine differentiator territory (live ETA + customer NPS).
+
+### h90 — NPS / customer feedback on the public tracking page
+- **NEW** `POST /api/svc/public/track/{token}/feedback` — public,
+  no-auth. Accepts `{rating: 1-5, nps_score: 0-10, comment: str}` —
+  any/all optional but at least one is required. Validates ranges
+  (400 on out-of-range), persists to the case (`customer_rating`,
+  `customer_nps`, `customer_rating_comment`, `customer_feedback_at`).
+- Public tracking GET now returns `feedback_captured: bool` so the
+  UI can swap to a "Thank you" pill on subsequent reloads.
+- Frontend (`PublicTrackingPage.js`) — on completed cases the "All
+  done" emerald card now hosts a richer form: 5-star picker, 0–10 NPS
+  selector (11 mini-buttons), free-text 1500-char comment box, and a
+  Send button that disables until the customer picks at least one
+  field. Submitting flips the card to a "Thank you — your feedback
+  has been recorded" line.
+
+### h91 — Live tracking · location pings + ETA
+- **NEW** `routes/svc/engineer_location.py`:
+  - `POST /svc/engineer/location` — engineer mobile pings every 60 s
+    while en_route / on_site. Body: `{lat, lng, accuracy_m, case_id?}`.
+    Upserts a single per-engineer row in `svc_engineer_locations`
+    (only most-recent kept — no history bloat).
+  - `GET /svc/engineer/location/me` — debug / self-test.
+- `routes/svc/public_tracking.py` extended:
+  - Reads the engineer's latest location (only when (a) case is
+    en_route or on_site, (b) ping is < 5 min old, (c) engineer is
+    the assigned one).
+  - Adds a haversine ETA helper assuming 35 km/h urban average →
+    returns `eta: {minutes, label, distance_km}`.
+  - **Privacy guard**: location & ETA NEVER returned once status
+    progresses past on_site, even if a recent ping still exists.
+- Frontend (`PublicTrackingPage.js`):
+  - Live ETA pill on the status card ("~10 min away · 5.7 km").
+  - Live OpenStreetMap iframe (no API key required) showing the
+    engineer pin within a bounding box that also covers the site.
+    "● Live · Updates ~1 min" indicator + privacy footnote.
+- Frontend (`EngineerJobDetail.js`):
+  - `useEffect` watches `job.status`. When en_route/on_site,
+    `navigator.geolocation.getCurrentPosition` fires immediately +
+    every 60 s. POST failures are silent (offline-tolerant).
+
+### h92 — Engineer-editable + CSV-importable H&S questions
+- **NEW** endpoints on `routes/svc/safety.py`:
+  - `GET /svc/safety/template/export.csv` — downloads the current
+    checklist as `label,required,id` CSV (utf-8-sig).
+  - `POST /svc/safety/template/import-csv?replace={true|false}` —
+    multipart `file` upload. Validates utf-8 (falls back to latin-1
+    for sturdy operator usage), rejects empty files, rejects > 250 KB,
+    requires a `label` column header. Parses `required` with the
+    standard truthy set (`true/yes/1/y/required`). Generates a stable
+    `id` from a label slug when omitted. Append mode de-dupes by id
+    so re-importing the same CSV doesn't grow the list.
+- **NEW** Service Desk Insights tab **"H&S checklist"** at
+  `/service-desk` → sidebar Insights group:
+  - Editable table: drag-free reorder via ↑/↓ buttons, inline label
+    edits, required checkbox, per-row delete, single "Add item" link.
+  - **Export CSV** (one-click download).
+  - **Bulk Import (CSV)** card: file picker + Append + Replace
+    buttons (Replace prompts a `confirm()` first).
+- Both file-pick and CSV editing wired to existing PUT/POST endpoints;
+  operators see live changes in the table after import.
+
+### Testing
+- **13/13 new pytest** in `test_iter_216h90_91_92_nps_tracking_csv.py`:
+  - NPS: accepts rating+NPS+comment, rejects empty, validates ranges,
+    404 on bad token
+  - Location: persists, rejects bad coords, surfaces ETA when en_route,
+    hides ETA when closed (privacy guard)
+  - CSV: export shape, import append, import replace, missing-label
+    column rejected, empty file rejected
+- **49/49 across h82-h92 suite** — zero regressions
+- Frontend lint clean (4 files modified, 1 new)
+- Live UI smoke verified:
+  - Public tracking: "~10 min away · 5.7 km" pill renders, OSM iframe
+    embeds, NPS form (5 stars + 0-10 NPS + textarea) shows on closed
+    cases, success state flips correctly.
+  - Safety admin tab: 8 default items render with correct required
+    checkboxes, Export CSV button works, Bulk Import shows file
+    picker + Append + Replace.
+
+### Files touched
+**Backend**
+- `/app/backend/routes/svc/engineer_location.py` (NEW · ~75 LOC)
+- `/app/backend/routes/svc/public_tracking.py` (+~85 LOC — haversine,
+  ETA helper, location resolver, feedback endpoint)
+- `/app/backend/routes/svc/safety.py` (+~110 LOC — CSV export/import)
+- `/app/backend/route_registry/features.py` (+4 LOC — location router)
+- `/app/backend/tests/test_iter_216h90_91_92_nps_tracking_csv.py` (NEW · 13 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/PublicTracking/PublicTrackingPage.js`
+  (+~150 LOC — ETA pill, live OSM map, full NPS feedback form)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetail.js`
+  (+~30 LOC — geolocation ping useEffect)
+- `/app/frontend/src/pages/ServiceOps/SafetyTemplateAdmin.js` (NEW · ~220 LOC)
+- `/app/frontend/src/pages/ServiceDeskPage.js` (+~10 LOC — Safety tab)
+
+### Strategic outcome
+- **Customer NPS** captured automatically on every completed visit —
+  industry benchmark improvement source.
+- **Live tracking** matches ServiceTitan / Jobber feature parity — a
+  cited reason for losing tier-1 contracts.
+- **Editable + importable H&S** unlocks tier-1 enterprise sales: gym
+  chains often have a corporate-mandated RAMS template they want
+  imported on day one. Now we can onboard them in 5 minutes.
+
+---
+
+
+
+
 ## Iter 216h89 — Pre-job H&S / RAMS sign-off (Feb 14, 2026)
 
 Field-service compliance feature now live. Engineers must complete a

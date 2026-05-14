@@ -126,8 +126,36 @@ export default function EngineerJobDetail() {
 
   const colour = PRIORITY_COLOUR[job?.priority] || '#6b7280';
 
+  // ── Live location ping (iter 216h91) ─────────────────────────
+  // While the engineer is en_route or on_site, push a geolocation ping
+  // every 60s so the customer's live-tracking page shows a live ETA.
+  useEffect(() => {
+    if (!job) return undefined;
+    if (!['en_route', 'on_site'].includes(job.status)) return undefined;
+    if (!navigator.geolocation) return undefined;
+    let cancelled = false;
+    const ping = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return;
+          axios.post(`${API}/svc/engineer/location`, {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy_m: pos.coords.accuracy,
+            case_id: job.id,
+          }, auth()).catch(() => { /* silent — non-critical */ });
+        },
+        () => { /* user denied or unavailable — silent */ },
+        { enableHighAccuracy: false, maximumAge: 30_000, timeout: 8_000 },
+      );
+    };
+    ping();
+    const id = setInterval(ping, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [job?.id, job?.status]);
+
+
   // ── Pre-job H&S signoff (iter 216h89) ────────────────────────
-  const [safetyOpen, setSafetyOpen] = useState(false);
   const [safetyTicked, setSafetyTicked] = useState(() => new Set());
   const [safetyRemarks, setSafetyRemarks] = useState('');
   const [safetySig, setSafetySig] = useState(''); // canvas → dataURL

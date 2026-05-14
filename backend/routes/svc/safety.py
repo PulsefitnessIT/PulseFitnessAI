@@ -28,7 +28,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -239,6 +239,99 @@ async def engineer_safety_signoff(case_id: str, body: dict, user=Depends(get_cur
         logger.warning(f"safety: failed to append event: {e!r}")
     doc.pop("_id", None)
     return doc
+
+
+# ── CSV import / export (iter 216h92) ────────────────────────────
+
+@router.get("/svc/safety/template/export.csv")
+async def export_csv(user=Depends(get_current_user)):
+    """Download the org's active checklist as CSV (label, required, id)."""
+    import csv
+    import io
+    tpl = await _resolve_template(user.get("organization_id"))
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["label", "required", "id"])
+    for item in tpl["items"]:
+        w.writerow([
+            item.get("label", ""),
+            "true" if item.get("required") else "false",
+            item.get("id", ""),
+        ])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="hs-checklist.csv"'},
+    )
+
+
+@router.post("/svc/safety/template/import-csv")
+async def import_csv(
+    file: UploadFile = File(...),
+    replace: bool = False,
+    user=Depends(get_current_user),
+):
+    """Bulk-import checklist items from a CSV file.
+
+    The CSV MUST have a header row containing `label` (case-insensitive).
+    Optional columns: `required` (true/false, yes/no, 1/0), `id`.
+
+    `replace=true` query param wipes existing items and uses the import.
+    Default behaviour appends to the existing list.
+    """
+    _require_admin(user)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Uploaded file is empty")
+    if len(raw) > 256_000:
+        raise HTTPException(400, "CSV file too large (>250 KB)")
+    try:
+        text = raw.decode("utf-8-sig", errors="strict")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1", errors="replace")
+    import csv
+    import io
+    reader = csv.DictReader(io.StringIO(text))
+    fields = {(f or "").strip().lower() for f in (reader.fieldnames or [])}
+    if "label" not in fields:
+        raise HTTPException(
+            400,
+            "CSV must contain a `label` column (and optionally `required` and `id`).",
+        )
+    imported: list = []
+    for raw_row in reader:
+        row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items()}
+        label = row.get("label", "")
+        if not label:
+            continue
+        required_raw = row.get("required", "false").lower()
+        required = required_raw in ("true", "yes", "1", "y", "required")
+        item_id = row.get("id", "") or label.lower().replace(" ", "_")[:40]
+        imported.append({"id": item_id, "label": label, "required": required})
+    if not imported:
+        raise HTTPException(400, "No valid rows found. Each row needs a non-empty `label`.")
+
+    org_id = user.get("organization_id")
+    existing = await _resolve_template(org_id)
+    if replace:
+        items = imported
+    else:
+        # Append, de-dupe by id (existing wins for collisions to preserve
+        # operator-defined ordering of pre-existing items).
+        seen_ids = {i["id"] for i in existing["items"]}
+        items = list(existing["items"])
+        for it in imported:
+            if it["id"] in seen_ids:
+                continue
+            items.append(it)
+            seen_ids.add(it["id"])
+
+    now = _now()
+    await db.svc_safety_templates.update_one(
+        {"organization_id": org_id, "active": True},
+        {"$set": {"items": items, "updated_at": now}},
+    )
+    return {"ok": True, "imported_count": len(imported), "total_count": len(items)}
 
 
 __all__ = ["router"]

@@ -12,7 +12,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  MapPin, Clock, CheckCircle, Wrench, Loader2, Phone, Truck, Star, AlertCircle,
+  MapPin, Clock, CheckCircle, Wrench, Loader2, Phone, Truck, Star, AlertCircle, Send,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -57,6 +57,12 @@ export default function PublicTrackingPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Iter 216h90 — NPS feedback form state
+  const [fbStars, setFbStars] = useState(0);
+  const [fbNps, setFbNps] = useState(null);
+  const [fbComment, setFbComment] = useState('');
+  const [fbBusy, setFbBusy] = useState(false);
+  const [fbThanks, setFbThanks] = useState(false);
 
   const fetchTracking = useCallback(async () => {
     try {
@@ -85,6 +91,30 @@ export default function PublicTrackingPage() {
     const id = setInterval(fetchTracking, ms);
     return () => clearInterval(id);
   }, [data?.is_complete, fetchTracking]);
+
+  const submitFeedback = async () => {
+    if (fbBusy) return;
+    setFbBusy(true);
+    try {
+      const payload = {};
+      if (fbStars) payload.rating = fbStars;
+      if (fbNps !== null) payload.nps_score = fbNps;
+      if (fbComment.trim()) payload.comment = fbComment.trim();
+      if (Object.keys(payload).length === 0) {
+        setFbBusy(false);
+        return;
+      }
+      await axios.post(`${API}/svc/public/track/${encodeURIComponent(token)}/feedback`, payload);
+      setFbThanks(true);
+      // Refresh once after a small delay so the "Sent" badge appears
+      setTimeout(fetchTracking, 800);
+    } catch {
+      // Show inline only — no toast lib on a public page.
+      setFbThanks(false);
+    } finally {
+      setFbBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -164,6 +194,17 @@ export default function PublicTrackingPage() {
             ) : null}
           </div>
           <p className="text-base text-slate-800 mt-3" data-testid="track-status-blurb">{data.status_blurb}</p>
+
+          {/* Iter 216h91 — Live ETA when we have a position */}
+          {data.eta?.label ? (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl border border-blue-200 bg-blue-50" data-testid="track-eta">
+              <Truck size={14} className="text-blue-600" />
+              <p className="text-sm font-bold text-blue-900">{data.eta.label}</p>
+              {data.eta.distance_km ? (
+                <span className="text-xs text-blue-700">· {data.eta.distance_km} km</span>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Progress bar */}
           <div className="mt-5">
@@ -287,6 +328,34 @@ export default function PublicTrackingPage() {
           </section>
         ) : null}
 
+        {/* Iter 216h91 — Live tracking map (en_route / on_site only) */}
+        {data.engineer_location && data.site_location ? (
+          <section className="rounded-2xl bg-white shadow-sm border border-slate-200 overflow-hidden" data-testid="track-live-map">
+            <div className="px-5 pt-5 flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Live location</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live · updates ~1 min
+              </span>
+            </div>
+            <iframe
+              title="Engineer live location"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${
+                Math.min(data.engineer_location.lng, data.site_location.lng) - 0.02},${
+                Math.min(data.engineer_location.lat, data.site_location.lat) - 0.02},${
+                Math.max(data.engineer_location.lng, data.site_location.lng) + 0.02},${
+                Math.max(data.engineer_location.lat, data.site_location.lat) + 0.02}&layer=mapnik&marker=${
+                data.engineer_location.lat},${data.engineer_location.lng}`}
+              className="w-full mt-3"
+              style={{ height: 220, border: 0 }}
+              loading="lazy"
+            />
+            <p className="px-5 py-2.5 text-[10px] text-slate-400 leading-relaxed border-t border-slate-100">
+              Map shows your engineer's approximate position. Location refresh stops automatically once they arrive on site.
+            </p>
+          </section>
+        ) : null}
+
         {/* Site card */}
         {data.site?.name || data.site?.postcode ? (
           <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-5" data-testid="track-site-card">
@@ -328,24 +397,91 @@ export default function PublicTrackingPage() {
           </section>
         ) : null}
 
-        {/* Complete + rating reminder */}
+        {/* Iter 216h90 — Complete + NPS feedback */}
         {data.is_complete ? (
           <section className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5" data-testid="track-complete-card">
             <p className="text-emerald-900 font-extrabold flex items-center gap-2">
               <CheckCircle size={18} /> All done — thanks {customerName}.
             </p>
-            {data.rating_captured ? (
-              <p className="text-sm text-emerald-800 mt-2 flex items-center gap-1.5">
-                <Star size={14} fill="currentColor" /> You've rated this visit. Thank you!
-              </p>
-            ) : (
-              <p className="text-sm text-emerald-800 mt-2">
-                Your service team will be in touch shortly. If you'd like to leave feedback, reply to your service desk email.
-              </p>
-            )}
             {data.report_sent ? (
               <p className="text-xs text-emerald-700 mt-1">A copy of your service report has been emailed to you.</p>
             ) : null}
+            {data.feedback_captured || fbThanks ? (
+              <div className="mt-3 pt-3 border-t border-emerald-200 flex items-center gap-2 text-sm text-emerald-800" data-testid="track-feedback-thanks">
+                <Star size={14} fill="currentColor" className="text-amber-500" />
+                <span>Thank you — your feedback has been recorded.</span>
+              </div>
+            ) : (
+              <div className="mt-3 pt-3 border-t border-emerald-200 space-y-3" data-testid="track-feedback-form">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1.5">
+                    How was the visit?
+                  </p>
+                  <div className="flex items-center gap-1" data-testid="track-feedback-stars">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        type="button"
+                        key={n}
+                        onClick={() => setFbStars(n)}
+                        className="p-1"
+                        aria-label={`${n} star${n === 1 ? '' : 's'}`}
+                        data-testid={`track-feedback-star-${n}`}
+                      >
+                        <Star
+                          size={26}
+                          className={fbStars >= n ? 'text-amber-400' : 'text-slate-300'}
+                          fill={fbStars >= n ? 'currentColor' : 'none'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1.5">
+                    How likely are you to recommend us? <span className="text-slate-500 font-normal">(0–10)</span>
+                  </p>
+                  <div className="flex flex-wrap gap-1" data-testid="track-feedback-nps">
+                    {Array.from({ length: 11 }).map((_, n) => (
+                      <button
+                        type="button"
+                        key={n}
+                        onClick={() => setFbNps(n)}
+                        className={
+                          'w-8 h-8 rounded-md text-xs font-bold transition-colors ' +
+                          (fbNps === n
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-100')
+                        }
+                        data-testid={`track-feedback-nps-${n}`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <textarea
+                    value={fbComment}
+                    onChange={(e) => setFbComment(e.target.value)}
+                    placeholder="What stood out? Any suggestions? (optional)"
+                    rows={3}
+                    maxLength={1500}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-white border border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    data-testid="track-feedback-comment"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={submitFeedback}
+                  disabled={fbBusy || (fbStars === 0 && fbNps === null && !fbComment.trim())}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                  style={{ background: '#059669' }}
+                  data-testid="track-feedback-submit"
+                >
+                  <Send size={13} /> {fbBusy ? 'Sending…' : 'Send feedback'}
+                </button>
+              </div>
+            )}
           </section>
         ) : null}
 

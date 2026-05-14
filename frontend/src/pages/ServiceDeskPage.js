@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
   HardHat, LogOut, ArrowLeft, Wrench, TrendingDown, ScrollText, Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,7 @@ const OpsParts     = lazy(() => import('./ServiceOps/PartsInventoryPage'));
 const OpsBilling   = lazy(() => import('./ServiceOps/BillingPage'));
 const OpsEngineers = lazy(() => import('./ServiceOps/EngineersAdminPage'));
 const OpsReports   = lazy(() => import('./ServiceOps/ServiceOpsReportsPage'));
+const OpsSafety    = lazy(() => import('./ServiceOps/SafetyTemplateAdmin'));
 
 // Sidebar order — matches Lee's spec verbatim.
 const TABS = [
@@ -58,6 +60,7 @@ const TABS = [
 const INSIGHTS_TABS = [
   { id: 'suppliers',  label: 'Supplier health', icon: TrendingDown },
   { id: 'reports',    label: 'Reports',         icon: ScrollText },
+  { id: 'safety',     label: 'H&S checklist',   icon: ShieldCheck },
   { id: 'audit',      label: 'Audit log',       icon: ScrollText },
 ];
 
@@ -136,6 +139,12 @@ export default function ServiceDeskPage() {
         return (
           <ServiceOpsEmbeddedContext.Provider value={true}>
             <Suspense fallback={<EmbedFallback />}><OpsReports /></Suspense>
+          </ServiceOpsEmbeddedContext.Provider>
+        );
+      case 'safety':
+        return (
+          <ServiceOpsEmbeddedContext.Provider value={true}>
+            <Suspense fallback={<EmbedFallback />}><OpsSafety /></Suspense>
           </ServiceOpsEmbeddedContext.Provider>
         );
       default:
