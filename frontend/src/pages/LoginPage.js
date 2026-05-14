@@ -81,7 +81,8 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex flex-col"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex flex-col theme-gymaxis"
+      data-theme="light"
       data-testid="gx-login-page"
     >
       {/* Top bar */}
