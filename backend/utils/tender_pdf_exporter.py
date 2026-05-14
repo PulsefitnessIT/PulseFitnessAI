@@ -208,7 +208,7 @@ def _default_pitch_slides(tender: dict, company: str) -> list[dict]:
                 "Strategic floor design & equipment specification.",
                 "Project management & installation by directly employed engineers.",
                 "Ongoing servicing, parts supply, and on-site training.",
-                "Real-time asset health monitoring via GymAxis platform.",
+                "Real-time asset health monitoring via our digital service-management platform.",
             ],
         },
         {

@@ -1,3 +1,39 @@
+## Iter 216h106 — Tender PDFs: kill GymAxis bleed into Pulse Fitness (Feb 14, 2026)
+
+User reported the pitch-deck cover read "A pitch from GymAxis AI for
+Wolves" — the platform brand was bleeding into the tenant-facing
+tender output. Root cause: PDF export endpoints used
+`org.name` directly. For CRM operators whose organization happens to
+be the platform itself (the master GymAxis AI org), that returned
+"GymAxis AI" and we used it verbatim on the cover slide.
+
+### Fix
+- New helper `_resolve_crm_brand(user)` in `routes/crm_v2.py`:
+  1. `org.branding.company_name` (explicit operator override) →
+  2. `org.name` if it is NOT one of the platform-org names
+     (`{gymaxis ai, gymaxis, gymaxis ltd, gymaxis limited}`) →
+  3. **"Pulse Fitness"** (CRM is Pulse-only today).
+- All four PDF/slide endpoints now call the helper:
+  `/tenders/{id}/export/submission`, `/tenders/{id}/export/pitch`,
+  `/tenders/{id}/export/pitch-v2`, and the default-slide generator
+  used by `GET /tenders/{id}/pitch-slides`.
+- Default-slide bullet "Real-time asset health monitoring via
+  GymAxis platform" → "via our digital service-management platform".
+- Bid-library seed bodies that mentioned the GymAxis client portal /
+  Social Value Dashboard have been re-keyed to "Pulse Fitness …".
+- One-off migration ran against the live MongoDB to scrub existing
+  rows (2 documents updated) so previously seeded templates / tender
+  responses no longer leak GymAxis branding either.
+
+### Verification
+Live `build_pitch_deck_pdf` + `build_submission_pdf` re-rendered
+against a real tender — **0 GymAxis substrings** anywhere in the
+PDF byte stream. Cover reads "A pitch from Pulse Fitness for
+Trafford BC". Why-us slide reads "Why Pulse Fitness".
+
+---
+
+
 ## Iter 216h105 — Commission section, removed CSV mention (Feb 14, 2026)
 
 The Engineer landing page was under-selling the earning story — the

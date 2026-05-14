@@ -22,6 +22,42 @@ def _of(user: dict) -> dict:
     return {"organization_id": org_id} if org_id else {"organization_id": "__NONE__"}
 
 
+# Platform-org names that must NEVER bleed into tenant-facing PDFs.
+# When the logged-in user's organization happens to be the platform
+# itself ("GymAxis AI"), tender PDFs would otherwise read "A pitch
+# from GymAxis AI for X" — instead, fall back to the CRM tenant brand
+# (currently always Pulse Fitness).
+_PLATFORM_ORG_NAMES = {"gymaxis ai", "gymaxis", "gymaxis ltd", "gymaxis limited"}
+
+
+async def _resolve_crm_brand(user: dict) -> dict:
+    """Resolve the company brand used on tender PDFs / pitch decks.
+
+    Priority:
+      1. explicit `org.branding.company_name` (operator override)
+      2. `org.name` if it's a real tenant (not the platform org)
+      3. "Pulse Fitness" — CRM is Pulse-only today
+    """
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")},
+        {"_id": 0, "name": 1, "branding": 1},
+    ) or {}
+    branding = org.get("branding") or {}
+    explicit = (branding.get("company_name") or "").strip()
+    raw_name = (org.get("name") or "").strip()
+    if explicit:
+        company = explicit
+    elif raw_name and raw_name.lower() not in _PLATFORM_ORG_NAMES:
+        company = raw_name
+    else:
+        company = "Pulse Fitness"
+    return {
+        "company_name": company,
+        "primary_color": branding.get("primary_color") or "#19CDFF",
+        "logo_url": branding.get("logo_url"),
+    }
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -2322,13 +2358,7 @@ async def export_submission_pdf(tender_id: str, user=Depends(get_crm_user)):
     questions = await db.crm2_tender_questions.find(
         {"tender_id": tender_id, **_of(user)}, {"_id": 0},
     ).sort("order", 1).to_list(500)
-    org = await db.organizations.find_one(
-        {"id": user.get("organization_id")}, {"_id": 0, "name": 1, "branding": 1},
-    ) or {}
-    brand = {
-        "company_name": org.get("name") or "Pulse Fitness",
-        "primary_color": (org.get("branding") or {}).get("primary_color") or "#19CDFF",
-    }
+    brand = await _resolve_crm_brand(user)
     pdf = build_submission_pdf(tender, questions, brand)
     safe = (tender.get("title") or "tender-submission").replace(" ", "_")[:60]
     return StreamingResponse(
@@ -2348,13 +2378,7 @@ async def export_pitch_pdf(tender_id: str, user=Depends(get_crm_user)):
     tender = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)}, {"_id": 0})
     if not tender:
         raise HTTPException(404, "Tender not found")
-    org = await db.organizations.find_one(
-        {"id": user.get("organization_id")}, {"_id": 0, "name": 1, "branding": 1},
-    ) or {}
-    brand = {
-        "company_name": org.get("name") or "Pulse Fitness",
-        "primary_color": (org.get("branding") or {}).get("primary_color") or "#19CDFF",
-    }
+    brand = await _resolve_crm_brand(user)
     pdf = build_pitch_deck_pdf(tender, brand)
     safe = (tender.get("title") or "tender-pitch").replace(" ", "_")[:60]
     return StreamingResponse(
@@ -2384,7 +2408,7 @@ _PULSE_BID_LIBRARY_SEEDS = [
     {"title": "Social Value Commitments", "category": "social_value", "tags": ["toms", "community"], "win_score": 86,
      "content": "Pulse Fitness offers tendered Social Value commitments aligned to the TOMs framework: apprenticeship roles created (target: 1 per £250k contract value), ring-fenced local sub-contractor spend (target: 35% within 30-mile radius), school equipment donation programme (recurring quarterly), and free community open days at every installed site for the first 12 months."},
     {"title": "Account Management & Reporting Cadence", "category": "service", "tags": ["account", "kpi"], "win_score": 84,
-     "content": "Each client is assigned a named Account Director plus a Technical Service Lead. Monthly KPI reports cover uptime, first-time fix rate, parts consumption, engineer attendance times, and outstanding warranty claims — delivered via the GymAxis client portal and a PDF executive summary. Quarterly business reviews are held in-person and include a forward-look capacity plan for the next 12 months."},
+     "content": "Each client is assigned a named Account Director plus a Technical Service Lead. Monthly KPI reports cover uptime, first-time fix rate, parts consumption, engineer attendance times, and outstanding warranty claims — delivered via the Pulse Fitness client portal and a PDF executive summary. Quarterly business reviews are held in-person and include a forward-look capacity plan for the next 12 months."},
 ]
 
 
@@ -2488,9 +2512,9 @@ async def get_pitch_slides(tender_id: str, user=Depends(get_crm_user)):
     if slides:
         return {"slides": slides, "source": "custom"}
     from utils.tender_pdf_exporter import _default_pitch_slides
-    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "name": 1}) or {}
+    brand = await _resolve_crm_brand(user)
     return {
-        "slides": _default_pitch_slides(tender, org.get("name") or "Pulse Fitness"),
+        "slides": _default_pitch_slides(tender, brand["company_name"]),
         "source": "default",
     }
 
@@ -2523,11 +2547,7 @@ async def export_pitch_pdf_v2(tender_id: str, user=Depends(get_crm_user)):
     tender = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)}, {"_id": 0})
     if not tender:
         raise HTTPException(404, "Tender not found")
-    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "name": 1, "branding": 1}) or {}
-    brand = {
-        "company_name": org.get("name") or "Pulse Fitness",
-        "primary_color": (org.get("branding") or {}).get("primary_color") or "#19CDFF",
-    }
+    brand = await _resolve_crm_brand(user)
     slides_override = tender.get("pitch_slides")
     pdf = build_pitch_deck_pdf(tender, brand, slides_override=slides_override)
     safe = (tender.get("title") or "tender-pitch").replace(" ", "_")[:60]
@@ -2606,13 +2626,13 @@ _PULSE_TENDER_TEMPLATE_SEEDS = [
     {"label": "Mobilisation & implementation timeline", "category": "mobilisation", "word_limit": 600,
      "body": "Our standard 90-day mobilisation: Week 1-2 contract sign-off, site surveys, RAMS. Week 3-6 equipment manufactured, delivered & installed (max 2 sites/week). Week 7-10 commissioning, CPD-accredited staff training, member orientation with on-site coach for opening weekend. Week 11-12 service handover, BAU reporting configured, first QBR scheduled."},
     {"label": "Social value commitments (TOMs)", "category": "social_value", "word_limit": 500,
-     "body": "Aligned to the TOMs framework, we commit: 1 apprenticeship per £250k contract value; 35% local sub-contractor spend within 30 miles; quarterly equipment donations to local schools; free community open days at every site for the first 12 months. Reported quarterly via the GymAxis Social Value Dashboard with audit-grade evidence."},
+     "body": "Aligned to the TOMs framework, we commit: 1 apprenticeship per £250k contract value; 35% local sub-contractor spend within 30 miles; quarterly equipment donations to local schools; free community open days at every site for the first 12 months. Reported quarterly via the Pulse Fitness Social Value Dashboard with audit-grade evidence."},
     {"label": "Sustainability & environmental impact", "category": "sustainability", "word_limit": 500,
      "body": "ISO 14001 certified, with a closed-loop recycling programme (94% steel & aluminium recovery). Carbon emissions down 38% since 2019 against SBTi-aligned targets. End-of-life take-back at zero cost. Returnable steel shipping frames eliminate single-use packaging. Equipment refurbishment programme has prevented 412 tonnes of steel from secondary smelting (~620 tCO2e avoided)."},
     {"label": "Information security & data protection", "category": "security", "word_limit": 400,
      "body": "Our cloud platform is hosted on UK AWS regions with SOC2 Type II and Cyber Essentials Plus certification. All data in transit is TLS 1.3; at rest is AES-256. UK GDPR DPA available on request. Sub-processors are audited annually. Pen-tested twice yearly by an independent CHECK-accredited provider; reports available under NDA."},
     {"label": "Governance & contract management", "category": "governance", "word_limit": 500,
-     "body": "Each client is assigned a named Account Director and Technical Service Lead. Monthly KPI reports cover uptime, first-time fix rate, parts consumption, attendance times, and warranty claims via the GymAxis client portal. Quarterly business reviews are in-person and include a 12-month forward capacity plan. Annual independent service-quality audit by an agreed third party at our cost."},
+     "body": "Each client is assigned a named Account Director and Technical Service Lead. Monthly KPI reports cover uptime, first-time fix rate, parts consumption, attendance times, and warranty claims via the Pulse Fitness client portal. Quarterly business reviews are in-person and include a 12-month forward capacity plan. Annual independent service-quality audit by an agreed third party at our cost."},
     {"label": "Accreditations & certifications", "category": "accreditations", "word_limit": 350,
      "body": "ISO 9001:2015 (Quality), ISO 14001:2015 (Environmental), ISO 45001:2018 (H&S), CHAS Premium Plus, SafeContractor (Achilles 98/100), Cyber Essentials Plus, SOC2 Type II. All certificates are issued by UKAS-accredited bodies and audited annually. Copies attached as supporting documentation."},
     {"label": "Innovation & continuous improvement", "category": "innovation", "word_limit": 500,
