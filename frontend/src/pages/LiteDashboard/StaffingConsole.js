@@ -34,6 +34,7 @@ import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
+import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
 import ProductTour from '@/components/shared/ProductTour';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -78,7 +79,22 @@ export default function StaffingConsole() {
   const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
 
   const tabs = useMemo(
-    () => TABS_ALL.filter((t) => t.roles.includes(role) && (!t.modOnly || isMOD)),
+    () => {
+      // Iter 216h113h — MOD tenants ONLY see Staff + Transfers.
+      // Everything else (rota, timeclock, leave, payroll, etc.) is
+      // managed by MOD HR systems out-of-band, so we hide them
+      // entirely rather than showing irrelevant tools.
+      if (isMOD) {
+        // Staff + Transfers available to every MOD role (owner,
+        // manager, AND staff) — Service Personnel viewing the
+        // gym roster need read access regardless of role.
+        const ids = new Set(['staff', 'mod-transfer']);
+        return TABS_ALL
+          .filter((t) => ids.has(t.id))
+          .map((t) => ({ ...t, roles: ['owner', 'manager', 'master_admin', 'staff'] }));
+      }
+      return TABS_ALL.filter((t) => t.roles.includes(role) && !t.modOnly);
+    },
     [role, isMOD],
   );
   const [tab, setTab] = useState(tabs[0]?.id || 'leave');
@@ -133,7 +149,7 @@ export default function StaffingConsole() {
         {tab === 'templates'   && <ShiftTemplatesTab  headers={headers} isManager={isManager} />}
         {tab === 'timeclock'   && <TimeClockTab   headers={headers} />}
         {tab === 'myclock'     && <MyClockTab     headers={headers} />}
-        {tab === 'staff'       && <StaffTab       headers={headers} />}
+        {tab === 'staff'       && (isMOD ? <MODStaffTab headers={headers} /> : <StaffTab headers={headers} />)}
         {tab === 'leave'       && <LeaveTab       headers={headers} isManager={isManager} />}
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
         {tab === 'performance' && <PerformanceTab headers={headers} />}
@@ -146,6 +162,7 @@ export default function StaffingConsole() {
         {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
         {tab === 'ai-rota'     && <AIWorkforceTab  headers={headers} />}
         {tab === 'ai'          && <AIInsightsTab  headers={headers} />}
+        {tab === 'mod-transfer' && <MODStaffTransferTab headers={headers} />}
       </div>
     </div>
   );

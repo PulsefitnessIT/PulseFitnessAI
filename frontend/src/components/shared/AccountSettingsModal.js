@@ -36,7 +36,13 @@ export default function AccountSettingsModal({ open, onClose }) {
   const [profile, setProfile] = useState(null);
   const [billing, setBilling] = useState(null);
 
-  const sections = useMemo(() => SECTIONS, []);
+  const sections = useMemo(() => {
+    // Iter 216h113h — MOD tenants don't have Plan & Billing
+    // (centralised MOD procurement handles commercials), so the
+    // section is filtered out for users on MOD account types.
+    const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+    return SECTIONS.filter((s) => !(isMOD && s.id === 'billing'));
+  }, [user]);
 
   useEffect(() => {
     if (!open) return undefined;

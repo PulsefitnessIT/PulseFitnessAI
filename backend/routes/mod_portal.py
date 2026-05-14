@@ -49,6 +49,10 @@ FAULT_TYPE_LABELS = {
 # ══════════════════════════════════════════════════════════════════
 class StaffCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
+    # Iter 216h113h — MOD staff records have a `rank` field
+    # (Sgt, Cpl, LCpl, etc.). Stored alongside the historical `role`
+    # column (which now defaults to "PT Instructor" for MOD).
+    rank: Optional[str] = Field(default=None, max_length=40)
     role: Optional[str] = Field(default=None, max_length=120)
     email: EmailStr
     phone: str = Field(..., min_length=5, max_length=40)
@@ -56,6 +60,7 @@ class StaffCreate(BaseModel):
 
 class StaffUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=120)
+    rank: Optional[str] = Field(default=None, max_length=40)
     role: Optional[str] = Field(default=None, max_length=120)
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(default=None, min_length=5, max_length=40)
@@ -637,6 +642,7 @@ async def mod_staff_create(
         "id": staff_id,
         "site_id": org["id"],
         "name": sanitise_string(payload.name),
+        "rank": sanitise_string(payload.rank) if payload.rank else None,
         "role": sanitise_string(payload.role) if payload.role else None,
         "email": payload.email,
         "email_lc": email_lc,
@@ -665,6 +671,8 @@ async def mod_staff_update(
     updates = {}
     if payload.name is not None:
         updates["name"] = sanitise_string(payload.name)
+    if payload.rank is not None:
+        updates["rank"] = sanitise_string(payload.rank) if payload.rank else None
     if payload.role is not None:
         updates["role"] = sanitise_string(payload.role)
     if payload.email is not None:
@@ -735,7 +743,7 @@ async def mod_staff_search(
 
     rows = await db.mod_site_staff.find(
         staff_q,
-        {"_id": 0, "id": 1, "name": 1, "role": 1, "email": 1, "phone": 1, "site_id": 1, "last_reported_at": 1},
+        {"_id": 0, "id": 1, "name": 1, "rank": 1, "role": 1, "email": 1, "phone": 1, "site_id": 1, "last_reported_at": 1},
     ).sort("name", 1).limit(50).to_list(50)
 
     own_site_id = org["id"]
@@ -745,6 +753,7 @@ async def mod_staff_search(
         out.append({
             "id": r["id"],
             "name": r.get("name"),
+            "rank": r.get("rank"),
             "role": r.get("role"),
             "email": r.get("email"),
             "phone": r.get("phone"),
@@ -1983,13 +1992,32 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
         # Iter 216h113e — also seed a parallel `mod_site_staff` record so
         # the cross-site staff transfer feature can find these personnel
         # via search. Idempotent: upsert by (site_id, email_lc).
+        # Iter 216h113h — Force-reset the staff record's site_id to
+        # the canonical seed site so prior in-flight transfers don't
+        # leave demo personnel stuck at the wrong gym between runs.
+        # Deduplicate first (a previous bug could have created
+        # multiple staff rows with the same email at different sites
+        # — keep one canonical record).
         staff_email_lc = email.lower().strip()
+        dupes = await db.mod_site_staff.find(
+            {"email_lc": staff_email_lc}, {"_id": 0, "id": 1},
+        ).to_list(20)
+        if len(dupes) > 1:
+            keep_id = dupes[0]["id"]
+            await db.mod_site_staff.delete_many({
+                "email_lc": staff_email_lc, "id": {"$ne": keep_id},
+            })
+        await db.mod_site_staff.update_one(
+            {"email_lc": staff_email_lc},
+            {"$set": {"site_id": site_org_id, "is_active": True}},
+        )
         await db.mod_site_staff.update_one(
             {"site_id": site_org_id, "email_lc": staff_email_lc},
             {
                 "$set": {
                     "name": full_name,
-                    "role": f"{rank} — PT Instructor",
+                    "rank": rank,
+                    "role": "PT Instructor",
                     "email": email,
                     "email_lc": staff_email_lc,
                     "phone": mobile or "",

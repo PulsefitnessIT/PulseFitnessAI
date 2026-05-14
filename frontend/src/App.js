@@ -505,12 +505,19 @@ function App() {
  // before /api/sites resolves.
  localStorage.removeItem('sites_cache');
  localStorage.removeItem('active_site_cache');
+ // Iter 216h113h — preserve the MOD context on sign-out: visitors
+ // who came in via /MODService go back to the MOD login page,
+ // not the standard GymAxis marketing surface.
+ const wasMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
  setToken(null);
  setUser(null);
  setBranding(null);
  setSites([]);
  setActiveSite(null);
  document.documentElement.style.setProperty('--brand-color', 'var(--color-brand-blue)');
+ if (wasMOD && typeof window !== 'undefined') {
+   window.location.replace('/MODService');
+ }
  };
 
  if (loading) {

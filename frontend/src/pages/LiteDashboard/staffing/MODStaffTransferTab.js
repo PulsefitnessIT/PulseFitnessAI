@@ -55,6 +55,8 @@ export default function MODStaffTransferTab({ headers }) {
   useEffect(() => { loadTargets(); }, [loadTargets]);
 
   // ── Debounced search ───────────────────────────────────────────
+  // The first run (query='') is intentional — it loads the full
+  // force directory so the panel never renders empty.
   useEffect(() => {
     const handle = setTimeout(async () => {
       setSearching(true);
@@ -64,15 +66,15 @@ export default function MODStaffTransferTab({ headers }) {
           params: { q: query },
         });
         setResults(r.data?.results || []);
-        setForce(r.data?.force || force);
-      } catch (e) {
+        setForce((cur) => cur || r.data?.force || null);
+      } catch {
         setResults([]);
       } finally {
         setSearching(false);
       }
-    }, 220);
+    }, query ? 220 : 0);   // immediate first load, debounced for typing
     return () => clearTimeout(handle);
-  }, [query, headers, force]);
+  }, [query, headers]);
 
   // ── Submit transfer ────────────────────────────────────────────
   const submit = async () => {
@@ -178,7 +180,7 @@ export default function MODStaffTransferTab({ headers }) {
             <div className="text-center py-8 text-sm" style={{ color: 'var(--theme-text-muted)' }} data-testid="mod-transfer-empty">
               {query.trim()
                 ? `No staff matching “${query.trim()}” in the ${force || ''} force.`
-                : `Start typing to search the ${force || ''} force directory.`}
+                : `No active staff records found across the ${force || ''} force yet.`}
             </div>
           )}
           {results.map((r) => (
@@ -195,6 +197,11 @@ export default function MODStaffTransferTab({ headers }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {r.rank && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(102,204,255,0.12)', color: '#33B8FF' }}>
+                      {r.rank}
+                    </span>
+                  )}
                   <span className="font-semibold text-sm" style={{ color: 'var(--theme-text)' }}>{r.name}</span>
                   {r.is_own_site && (
                     <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#FEF3C7', color: '#92400E' }}>

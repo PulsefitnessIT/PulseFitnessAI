@@ -810,6 +810,12 @@ async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
         "complete_profile": has_avatar_or_phone,
     }
     steps = [{**s, "completed": flags.get(s["id"], False)} for s in ONBOARDING_STEPS]
+    # Iter 216h113h — MOD tenants don't onboard Stripe (procurement
+    # handled centrally by DIO / DEFCON), so the step is removed
+    # from the wizard entirely rather than shown as "incomplete".
+    at = (user.get("account_type") or "").lower()
+    if at.startswith("mod_"):
+        steps = [s for s in steps if s["id"] != "connect_stripe"]
     completed_count = sum(1 for s in steps if s["completed"])
     return {
         "steps": steps,
