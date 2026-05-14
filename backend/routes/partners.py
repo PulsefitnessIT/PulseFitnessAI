@@ -54,11 +54,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from utils.auth import get_current_user
-from utils.database import db
+from utils.database import db, put_object, APP_NAME
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -198,6 +198,162 @@ async def _audit(*, partner_id: str, actor_id: str, action: str, before=None, af
         "note": note,
         "at": _now(),
     })
+
+
+# ═════════════════════════════════════════════════════════════
+# PUBLIC APPLICATION (iter 216h104)
+#
+# Allows independent engineers to apply WITHOUT first creating an
+# account. CV / certification files are accepted. Master admin
+# reviews via the existing partners admin surface — when approved
+# they email the engineer a magic-link to claim the account.
+#
+# Stored separately in `partner_applications` (NOT partner_engineers)
+# so a future spammy applicant can never accidentally collide with a
+# real engineer profile.
+# ═════════════════════════════════════════════════════════════
+
+_CV_ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "txt", "rtf", "png", "jpg", "jpeg"}
+_CV_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def _split_csv(value: Optional[str]) -> list[str]:
+    if not value:
+        return []
+    return [s.strip() for s in str(value).split(",") if s and s.strip()][:25]
+
+
+async def _store_application_attachment(file: UploadFile, application_id: str) -> dict:
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "Uploaded file is empty")
+    if len(data) > _CV_MAX_BYTES:
+        raise HTTPException(400, "File too large — please keep CV/attachments under 10 MB")
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in (file.filename or "") else "bin").lower()
+    if ext not in _CV_ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"Unsupported file type .{ext} — accepted: pdf, doc, docx, txt, rtf, png, jpg")
+    path = f"{APP_NAME}/partner-applications/{application_id}/{uuid.uuid4()}.{ext}"
+    stored = put_object(path, data, file.content_type or "application/octet-stream")
+    return {
+        "id": _new_id(),
+        "original_filename": file.filename or f"attachment.{ext}",
+        "content_type": file.content_type or "application/octet-stream",
+        "size": len(data),
+        "storage_path": stored.get("path", path),
+        "download_url": stored.get("url", stored.get("path", path)),
+        "uploaded_at": _now(),
+    }
+
+
+@router.post("/partners/public-apply")
+async def public_apply_partner(
+    full_name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(""),
+    company_name: str = Form(""),
+    service_postcode: str = Form(""),
+    travel_radius_km: int = Form(25),
+    brands_supported: str = Form(""),
+    skills: str = Form(""),
+    qualifications: str = Form(""),
+    years_experience: str = Form(""),
+    has_insurance: str = Form("false"),
+    insurance_provider: str = Form(""),
+    referral_source: str = Form(""),
+    cover_letter: str = Form(""),
+    terms_accepted: str = Form("false"),
+    cv_file: Optional[UploadFile] = File(None),
+    cert_file: Optional[UploadFile] = File(None),
+):
+    """Public engineer application — no auth required. Stores into
+    `partner_applications` for master admin review. Idempotent on
+    `email` — a re-submission updates the pending application."""
+    full_name = (full_name or "").strip()
+    email = (email or "").strip().lower()
+    if not full_name:
+        raise HTTPException(400, "Full name is required")
+    if not email or "@" not in email or len(email) > 200:
+        raise HTTPException(400, "A valid email address is required")
+    if (terms_accepted or "").lower() not in ("true", "1", "on", "yes"):
+        raise HTTPException(400, "You must accept the Partner Engineer terms")
+    postcode = _validate_postcode(service_postcode or "TBD") if (service_postcode or "").strip() else ""
+
+    application_id = _new_id()
+
+    attachments: list[dict] = []
+    if cv_file is not None and getattr(cv_file, "filename", ""):
+        attachments.append({**(await _store_application_attachment(cv_file, application_id)), "kind": "cv"})
+    if cert_file is not None and getattr(cert_file, "filename", ""):
+        attachments.append({**(await _store_application_attachment(cert_file, application_id)), "kind": "certifications"})
+
+    base_doc = {
+        "full_name": full_name,
+        "email": email,
+        "phone": (phone or "").strip()[:40] or None,
+        "company_name": (company_name or "").strip()[:200] or None,
+        "service_postcode": postcode or None,
+        "travel_radius_km": max(1, min(int(travel_radius_km or 25), 500)),
+        "brands_supported": _split_csv(brands_supported),
+        "skills": _split_csv(skills),
+        "qualifications": _split_csv(qualifications),
+        "years_experience": (years_experience or "").strip()[:30] or None,
+        "has_insurance": (has_insurance or "").lower() in ("true", "1", "on", "yes"),
+        "insurance_provider": (insurance_provider or "").strip()[:200] or None,
+        "referral_source": (referral_source or "").strip()[:120] or None,
+        "cover_letter": (cover_letter or "").strip()[:4000] or None,
+        "terms_accepted_at": _now(),
+        "terms_version": TERMS_VERSION,
+        "updated_at": _now(),
+    }
+
+    existing = await db.partner_applications.find_one({"email": email, "status": {"$in": ["pending", "in_review"]}}, {"_id": 0})
+    if existing:
+        # Idempotent resubmit — keep existing attachments, append new ones
+        merged_attachments = (existing.get("attachments") or []) + attachments
+        await db.partner_applications.update_one(
+            {"id": existing["id"]},
+            {"$set": {**base_doc, "attachments": merged_attachments[:20]}},
+        )
+        return {
+            "ok": True,
+            "application_id": existing["id"],
+            "status": existing.get("status", "pending"),
+            "message": "Application updated — our team will be in touch within 2 working days.",
+            "resubmitted": True,
+        }
+
+    doc = {
+        "id": application_id,
+        "status": "pending",
+        "submitted_at": _now(),
+        "created_at": _now(),
+        "attachments": attachments,
+        "reviewer_notes": None,
+        "user_id": None,  # linked once the engineer claims an account
+        **base_doc,
+    }
+    await db.partner_applications.insert_one(doc)
+    return {
+        "ok": True,
+        "application_id": application_id,
+        "status": "pending",
+        "message": "Thanks — your application is in. We aim to respond within 2 working days.",
+        "resubmitted": False,
+    }
+
+
+@router.get("/partners/applications")
+async def list_partner_applications(
+    status: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user),
+):
+    """Master admin: list public partner applications."""
+    _require_master_admin(user)
+    q = {}
+    if status:
+        q["status"] = status
+    items = await db.partner_applications.find(q, {"_id": 0}).sort("submitted_at", -1).to_list(500)
+    return {"applications": items, "total": len(items)}
 
 
 async def _get_partner_by_user(user_id: str) -> Optional[dict]:

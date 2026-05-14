@@ -194,7 +194,7 @@ function EngineerBanner() {
               Run your own business — backed by the GymAxis network.
             </h2>
             <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-xl">
-              Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn £100–£400 per gym you refer. Monthly fee drops to <strong className="text-slate-800">free</strong> at 30 referrals.
+              Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn £100–£400 per gym you refer. Monthly fee drops to <strong className="text-slate-800">free</strong> at 10 referrals.
             </p>
             <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
               <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />£30 / £15 / free auto-tier</li>
@@ -205,7 +205,7 @@ function EngineerBanner() {
               <Link to="/partners/engineers" className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-engineer-banner-cta">
                 Learn more <ArrowRight size={15} />
               </Link>
-              <Link to="/partner-engineer/apply" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-testid="gx-engineer-banner-apply">
+              <Link to="/partners/engineers/apply" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-testid="gx-engineer-banner-apply">
                 Start application <ArrowRight size={15} />
               </Link>
             </div>

@@ -24,6 +24,7 @@ const NAV = [
   { to: '/platform/marketing',   label: 'Marketing' },
   { to: '/platform/staffing',    label: 'Staffing' },
   { to: '/platform/reporting',   label: 'Reporting' },
+  { to: '/partners/engineers',   label: 'Engineers' },
   { to: '/pricing',              label: 'Pricing' },
 ];
 

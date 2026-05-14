@@ -16,7 +16,7 @@ const REASON_CONFIG = {
     icon: ClipboardEdit, color: '#7c3aed',
     title: 'Apply to the Partner Engineer Network',
     sub:   'Take jobs through the Engineer App and earn commission on every gym you refer.',
-    cta:   { label: 'Apply now', to: '/partner-engineer/apply' },
+    cta:   { label: 'Apply now', to: '/partners/engineers/apply' },
   },
   application_pending: {
     icon: Clock, color: '#d97706',

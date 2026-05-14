@@ -5,7 +5,7 @@
  * through a clear, trustworthy story:
  *   1. What is the network?
  *   2. Why join? (real jobs, fair pricing, branded customer experience)
- *   3. How it works (apply → verify → £30/mo, drops to free at 30 referrals)
+ *   3. How it works (apply → verify → £30/mo, drops to free at 10 referrals)
  *   4. Built-in advantages (mobile PWA, AI photo triage, signature capture)
  *   5. Strong CTA → /partner-engineer/apply (login-gated; bounces to signup
  *      if not logged in).
@@ -27,7 +27,7 @@ import { useSeo } from '@/utils/seo';
 const TIER_TABLE = [
   { refs: '0',     fee: '£30',  badge: 'Starter',  hint: 'Standard tier — most new partners start here' },
   { refs: '5+',    fee: '£15',  badge: 'Active',   hint: 'Half-price as soon as you bring 5 active gym sites' },
-  { refs: '30+',   fee: 'Free', badge: 'Founding', hint: 'Founding Partner — your monthly fee is on us' },
+  { refs: '10+',   fee: 'Free', badge: 'Founding', hint: 'Founding Partner — your monthly fee is on us' },
 ];
 
 const PERKS = [
@@ -48,7 +48,7 @@ const PERKS = [
 const HOW_IT_WORKS = [
   { n: 1, title: 'Apply',          body: '5-minute application with your trades, certifications and coverage area.' },
   { n: 2, title: 'Get verified',    body: 'Our team reviews your details — usually within 2 working days.' },
-  { n: 3, title: 'Subscribe',      body: 'Start the Partner Plan (£30/mo). Auto-discounts to £15 at 5 referrals, free at 30.' },
+  { n: 3, title: 'Subscribe',      body: 'Start the Partner Plan (£30/mo). Auto-discounts to £15 at 5 referrals, free at 10.' },
   { n: 4, title: 'Receive jobs',   body: 'Gyms invite you directly, or you accept open jobs in your postcodes.' },
   { n: 5, title: 'Get paid',       body: 'Monthly CSV payouts cover referral commission. Customer invoices are handled by the gym.' },
 ];
@@ -70,7 +70,7 @@ const APP_BULLETS = [
 export default function PartnerEngineerLanding() {
   useSeo({
     title: 'Engineer Partner Network — GymAxis AI',
-    description: 'Join 100+ independent fitness engineers on the GymAxis Partner Network. £30/mo (drops to free at 30 referrals). Apply in 5 minutes.',
+    description: 'Join 100+ independent fitness engineers on the GymAxis Partner Network. £30/mo (drops to free at 10 referrals). Apply in 5 minutes.',
     canonical: 'https://www.gymaxisai.com/partners/engineers',
   });
   return (
@@ -101,11 +101,11 @@ function Hero() {
             <span className="gx-gradient-text">fitness engineers.</span>
           </h1>
           <p className="mt-5 text-base sm:text-lg md:text-xl text-slate-600 leading-relaxed max-w-xl" data-testid="pe-hero-sub">
-            Run your own business — but plug into the gym-operator network that already trusts GymAxis. Steady jobs, a powerful mobile app, and a fair monthly fee that drops to <strong className="text-slate-800">free</strong> once you refer 30 active gym sites.
+            Run your own business — but plug into the gym-operator network that already trusts GymAxis. Steady jobs, a powerful mobile app, and a fair monthly fee that drops to <strong className="text-slate-800">free</strong> once you refer 10 active gym sites.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
-              to="/partner-engineer/apply"
+              to="/partners/engineers/apply"
               className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap"
               data-testid="pe-hero-apply"
             >
@@ -352,7 +352,7 @@ function FAQ() {
     { q: 'Who handles invoicing customers?',
       a: 'The gym (our customer) bills the end customer. Your relationship is with the gym — they decide how to pay you per job. You can use Sage 200 integration for time-card reporting.' },
     { q: 'What are the £30/mo for?',
-      a: 'Access to the Engineer App (mobile PWA), the gym-operator network, customer-facing tracking & service-report tooling, and AI tools like photo triage. The fee drops to £15 once you bring 5 referrals and is waived at 30.' },
+      a: 'Access to the Engineer App (mobile PWA), the gym-operator network, customer-facing tracking & service-report tooling, and AI tools like photo triage. The fee drops to £15 once you bring 5 referrals and is waived at 10.' },
     { q: 'How fast does the fee tier update?',
       a: 'Automatically at each Stripe billing cycle. We re-count your active gym referrals at renewal and apply the lower tier.' },
     { q: 'Do I need my own insurance?',
@@ -401,7 +401,7 @@ function FinalCta() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link
-                to="/partner-engineer/apply"
+                to="/partners/engineers/apply"
                 className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow"
                 data-testid="pe-final-apply"
               >

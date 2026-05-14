@@ -88,6 +88,7 @@ const PartnerApplyWizard = lazy(() => import('@/pages/PartnerEngineer/PartnerApp
 const PartnerDashboard = lazy(() => import('@/pages/PartnerEngineer/PartnerDashboard'));
 // Iter 216h88 — public Partner Engineer landing page
 const PartnerEngineerLanding = lazy(() => import('@/pages/Marketing/PartnerEngineerLanding'));
+const PartnerApplyPublic = lazy(() => import('@/pages/Marketing/PartnerApplyPublic'));
 // Iter 216h83 — public customer live-tracking
 const PublicTrackingPage = lazy(() => import('@/pages/PublicTracking/PublicTrackingPage'));
 const ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
@@ -159,6 +160,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/track/:token" element={<PublicTrackingPage />} />
       {/* Iter 216h88 — public Engineer Partner marketing landing */}
       <Route path="/partners/engineers" element={<PartnerEngineerLanding />} />
+      {/* Iter 216h104 — public Engineer Partner application form (no login required) */}
+      <Route path="/partners/engineers/apply" element={<PartnerApplyPublic />} />
       <Route path="/legacy-home" element={<Navigate to="/" replace />} />
       <Route path="/platform/service"     element={<ModulePage module={moduleService} />} />
       <Route path="/platform/crm"         element={<ModulePage module={moduleCrm} />} />
