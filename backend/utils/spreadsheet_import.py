@@ -210,7 +210,30 @@ HEADER_ALIASES: dict[str, list[str]] = {
     "contract_start":    ["contract_start", "contract start", "contract start date"],
     "contract_end":      ["contract_end", "contract end", "contract end date"],
     "contract_number":   ["contract_number", "contract number", "contract code"],
+    # Iter 216h111 — MOD Force tag (Army / RAF / Navy)
+    "mod_force":         ["mod_force", "force", "service", "mod service", "mod_service", "command", "service branch", "branch of service"],
 }
+
+
+_FORCE_ALIASES = {
+    "army":   {"army", "british army", "land forces", "ba", "a"},
+    "raf":    {"raf", "royal air force", "air force", "r.a.f"},
+    "navy":   {"navy", "royal navy", "rn", "r.n", "sea"},
+}
+
+
+def parse_force(value) -> str:
+    """Coerce a free-text Force/Service value to one of
+    ``army`` / ``raf`` / ``navy`` (or ``""`` if blank/unknown)."""
+    if value is None:
+        return ""
+    v = str(value).strip().lower()
+    if not v:
+        return ""
+    for canonical, aliases in _FORCE_ALIASES.items():
+        if v in aliases:
+            return canonical
+    return ""
 
 
 def normalise_row(row: dict) -> dict:

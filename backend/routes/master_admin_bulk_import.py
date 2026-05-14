@@ -67,6 +67,11 @@ _EQUIPMENT_HEADERS = [
     "purchase_date", "warranty_expiry", "service_provider",
     "unit_price",
     "length", "width", "height", "location", "notes",
+    # Iter 216h111 — MOD Force tag. Accepts Army/RAF/Navy (case-insensitive;
+    # also accepts "British Army", "Royal Air Force", "Royal Navy" and the
+    # short tokens "army"/"raf"/"navy"). Ignored for non-MOD rows so a
+    # standard customer importing into a Pulse org can leave it blank.
+    "mod_force",
 ]
 _EQUIPMENT_EXAMPLE = [
     "Carshalton Sports Centre",
@@ -76,6 +81,7 @@ _EQUIPMENT_EXAMPLE = [
     "2024-01-15", "2027-01-15", "Pulse Fitness Service",
     "3450.00",
     "2.20", "0.95", "1.55", "Cardio Mezzanine", "Brand new — first install",
+    "",  # mod_force — leave blank for non-MOD customers
 ]
 
 _CUSTOMER_HEADERS = [
@@ -189,10 +195,18 @@ async def _resolve_target_org(user: dict, organization_id: Optional[str]) -> str
     """If the admin specified `organization_id`, validate it's a Pulse-visible
     customer. Otherwise default to the admin's own organization (only valid
     for the GymAxis Master Admin who isn't tenant-scoped — Pulse admins must
-    pick a target)."""
+    pick a target).
+
+    Iter 216h111 — Master admins can also target MOD orgs (mod_site /
+    mod_branch / mod_org), so a presenter can import equipment + sites
+    against the Catterick Garrison hierarchy from the Master Admin UI.
+    """
     if organization_id:
+        allowed_types = list(PULSE_VISIBLE_ACCOUNT_TYPES)
+        if user.get("is_master_admin"):
+            allowed_types += ["mod_site", "mod_branch", "mod_org"]
         org = await db.organizations.find_one(
-            {"id": organization_id, "account_type": {"$in": PULSE_VISIBLE_ACCOUNT_TYPES}},
+            {"id": organization_id, "account_type": {"$in": allowed_types}},
             {"_id": 0, "id": 1},
         )
         if not org:
@@ -397,11 +411,12 @@ async def _do_bulk_import_equipment(
     # extra — the cost is only on the actual byte size.
     validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=200 * 1024 * 1024)
     # Iter 216h108 — accept .xlsx as well as CSV via the shared helper.
-    from utils.spreadsheet_import import iter_rows, parse_date_cell, get_pick
+    from utils.spreadsheet_import import iter_rows, parse_date_cell, get_pick, parse_force
     rows_iter = iter_rows(contents, file.filename)
 
     imported, skipped, errors = 0, 0, []
     org_cache: dict = {}
+    org_doc_cache: dict = {}  # Iter 216h111 — cache org docs for force validation
     site_cache: dict = {}
     supplier_cache: dict = {}
     # Iter 216h55 — per-org cache of existing serial numbers. One bulk
@@ -509,6 +524,23 @@ async def _do_bulk_import_equipment(
             )
             contract_start_iso = parse_date_cell(get_pick(row, "contract_start"))
             contract_end_iso = parse_date_cell(get_pick(row, "contract_end"))
+            # Iter 216h111 — MOD Force tag. Parse the row's Force value
+            # (Army / RAF / Navy) and validate it against the target
+            # org's `mod_force` if the org is MOD-flagged.
+            row_force = parse_force(get_pick(row, "mod_force"))
+            if target_org not in org_doc_cache:
+                org_doc_cache[target_org] = await db.organizations.find_one(
+                    {"id": target_org}, {"_id": 0, "is_mod": 1, "mod_force": 1},
+                ) or {}
+            target_org_doc = org_doc_cache[target_org]
+            if target_org_doc.get("is_mod") and target_org_doc.get("mod_force"):
+                expected = (target_org_doc.get("mod_force") or "").lower()
+                if row_force and row_force != expected:
+                    skipped += 1
+                    errors.append(f"Row {i}: force '{row_force}' does not match the target org's force '{expected}'")
+                    continue
+                if not row_force:
+                    row_force = expected
             doc = {
                 "id": str(uuid.uuid4()),
                 "organization_id": target_org,
@@ -551,6 +583,8 @@ async def _do_bulk_import_equipment(
                 "created_at": now_iso,
                 "updated_at": now_iso,
                 "imported_via": "bulk_csv",
+                # Iter 216h111 — MOD Force tag (army/raf/navy or "")
+                "mod_force": row_force or None,
             }
             pending.append(doc)
             # Add serial to cache so a duplicate WITHIN the same CSV is also caught.

@@ -21,6 +21,7 @@ import io
 import logging
 
 from utils.auth import get_current_user
+from utils.spreadsheet_import import parse_force
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -58,6 +59,8 @@ _SITE_CSV_HEADERS = [
     "site_manager_email",
     "is_head_office",
     "default_location",
+    # Iter 216h111 — MOD Force (Army / RAF / Navy). Ignored for non-MOD orgs.
+    "mod_force",
 ]
 
 _SITE_CSV_EXAMPLE_ROWS = [
@@ -68,6 +71,7 @@ _SITE_CSV_EXAMPLE_ROWS = [
         "020 0000 0000", "site@example.com",
         "Jane Doe", "jane.doe@example.com",
         "", "Main Floor",
+        "",  # mod_force
     ],
 ]
 
@@ -154,6 +158,10 @@ async def preview_sites_csv(file: UploadFile = File(...), user: dict = Depends(g
             "site_manager_email": row.get("site_manager_email", "") or row.get("manager_email", ""),
             "is_head_office": _coerce_bool(row.get("is_head_office")),
             "default_location": row.get("default_location", "") or "Main Floor",
+            # Iter 216h111 — MOD Force tag.
+            "mod_force": parse_force(
+                row.get("mod_force", "") or row.get("force", "") or row.get("service", "")
+            ) or None,
         })
 
     if not rows:
