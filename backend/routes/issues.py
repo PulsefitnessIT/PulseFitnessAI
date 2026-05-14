@@ -84,6 +84,18 @@ def _build_issue_doc(issue: IssueCreate, user: dict) -> dict:
     from utils.security import sanitise_string
     status, fault_type, sla_category, resolved_by = _derive_issue_defaults(issue)
     now = datetime.now(timezone.utc).isoformat()
+    # Iter 216h115 — Classification scan. Runs for every tenant (cheap,
+    # pure-function regex). For MOD users we additionally surface the
+    # flags in the response and email HQ for review elsewhere. For
+    # non-MOD users it's defensive logging.
+    classification_flags: list[dict] = []
+    try:
+        from utils.mod_classification import scan_many
+        classification_flags = scan_many([
+            issue.issue_description, issue.steps_taken,
+        ])
+    except Exception:  # pragma: no cover
+        classification_flags = []
     return {
         "id": str(uuid.uuid4()),
         # Iter 216d — job_id groups sibling issues logged together. Falls
@@ -124,6 +136,9 @@ def _build_issue_doc(issue: IssueCreate, user: dict) -> dict:
         "parts_used": [],
         "engineer_notes": None,
         "safety_checks_passed": None,
+        # Iter 216h115 — classification scan persisted for audit.
+        "classification_flags": classification_flags,
+        "classification_flagged": bool(classification_flags),
         # Timeline
         "timeline": [{"event": "fault_logged", "timestamp": now, "by": user.get("full_name", "")}],
     }

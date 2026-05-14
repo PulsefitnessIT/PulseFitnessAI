@@ -960,6 +960,7 @@ const LiteDashboardPage = () => {
         isPro={isPro}
         headers={headers}
         userRole={userRole}
+        isMOD={isMOD}
         onSupplierChange={(equipmentId, supplierName, supplierId) => {
           setEquipment((list) => list.map((e) => (
             e.id === equipmentId ? { ...e, supplier: supplierName, supplier_id: supplierId } : e

@@ -576,6 +576,9 @@ const LiteDialogs = ({
   // Iter 216h114 — caller role + supplier-change callback used to
   // power the inline supplier editor in the equipment detail dialog.
   userRole = 'staff', onSupplierChange,
+  // Iter 216h115 — flag classification hint on free-text fields when
+  // the caller is on a MOD-scoped account.
+  isMOD = false,
 }) => {
   const [triageResult, setTriageResult] = useState(null);
   const [triaging, setTriaging] = useState(false);
@@ -730,6 +733,11 @@ const LiteDialogs = ({
             <div>
               <Label className="text-[var(--color-text-muted)] font-medium">Issue Description</Label>
               <Textarea value={faultForm.issue_description} onChange={e => setFaultForm({ ...faultForm, issue_description: e.target.value })} placeholder="Describe the fault..." className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[100px]" data-testid="lite-fault-description" />
+              {isMOD && (
+                <div className="text-[10px] text-amber-500 font-semibold mt-1" data-testid="lite-fault-classification-hint">
+                  ◆ OFFICIAL only — do NOT include NSN, operation names, callsigns or anything above OFFICIAL.
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-[var(--color-text-muted)] font-medium">Any Steps Already Taken?</Label>

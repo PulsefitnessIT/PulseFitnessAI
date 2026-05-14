@@ -1,3 +1,91 @@
+## Iter 216h115 — MOD P1 Process Hardening: Audit + Classification + Acceptance Loop (Feb 15, 2026)
+
+### Audit hardening (P1)
+* New module ``utils/mod_audit.py`` — tamper-evident append-only ledger.
+  Every audit row carries ``prev_hash`` + ``row_hash`` (sha256 of the
+  prior hash || canonical payload || created_at). The legacy ``_audit``
+  helper now delegates here, so existing call sites get hashed
+  retroactively with zero code changes.
+* New HQ endpoints:
+  * ``GET /api/mod/pro/audit-log/{site_id}`` — paginated rows + integrity
+    summary (``valid``, ``rows``, ``legacy_rows``, ``first_break_at``).
+  * ``GET /api/mod/pro/audit-log/{site_id}/export.csv`` — full CSV with
+    integrity verdict footer line, suitable for DIO/ISO inspection packs.
+* UI: ``MODAuditLogPanel`` opened from the All-Sites leaderboard via a
+  new "Audit" button per MOD-child row. Shows ShieldCheck/ShieldAlert
+  badge for chain validity + one-click CSV download.
+
+### OFFICIAL-SENSITIVE classification (P1)
+* New module ``utils/mod_classification.py`` — regex scanner for NSN,
+  Operation names, callsigns and explicit SECRET mentions.
+* Wired into:
+  * ``POST /api/mod/site/faults`` — flags persisted on the issue
+    (``classification_flagged`` + ``classification_flags``) and
+    surfaced in the response. Triggers a ``fault.classification_flag``
+    audit row.
+  * ``POST /api/issues`` (the standard route used by MOD on /pulse) —
+    same scan, same persistence, defence-in-depth.
+* UI:
+  * ``ClassificationBanner`` (◆ OFFICIAL ◆) mounted at the top of
+    ``LiteDashboardPage`` and ``MODSiteDashboard`` whenever the caller
+    is MOD-scoped.
+  * Amber classification hint on every free-text description field
+    (MOD fault wizard + standard Pulse fault dialog when ``isMOD``).
+
+### Acceptance / closure loop (P1)
+* New site-user endpoint ``POST /api/mod/site/faults/{id}/mark-resolved``
+  marks a fault resolved AND mints a single-use ``acceptance_token``
+  + emails the original reporter a confirm-fix link.
+* New public endpoint pair (no auth — token IS the auth):
+  * ``GET /api/public/mod-fault-confirm/{token}`` — read-only lookup.
+  * ``POST /api/public/mod-fault-confirm/{token}`` — captures
+    ``{confirmed, rating, comment}``. Rejection auto-reopens the issue
+    with ``reopened_reason=reporter_rejected_fix``.
+* New supplier scorecard collection ``mod_supplier_scorecard`` —
+  receives a row whenever a rating is captured for a supplier-routed
+  fix. Foundation for the supplier-SLA reporting (P2).
+* New 48h sweeper ``utils/mod_acceptance.sweep_pending_acceptances()``
+  registered inside ``run_proactive_nudges()``. Faults with
+  ``acceptance_status=pending`` past the grace window flip back to
+  ``status=open`` with ``reopened_reason=awaiting_reporter_review``.
+* UI: new public page ``MODConfirmFixPage`` at
+  ``/mod/confirm-fix/:token`` (lazy-loaded). Y/N + 1-5 star rating +
+  optional comment. Single-use, 14-day token expiry.
+
+### Files touched
+- ``/app/backend/utils/mod_audit.py`` (new)
+- ``/app/backend/utils/mod_classification.py`` (new)
+- ``/app/backend/utils/mod_acceptance.py`` (new)
+- ``/app/backend/routes/mod_portal.py`` (HQ audit + CSV export + mark-resolved + public confirm + classification scan in fault submit + delegating ``_audit``)
+- ``/app/backend/routes/issues.py`` (classification scan on standard issues)
+- ``/app/backend/utils/proactive_nudges.py`` (register acceptance sweep)
+- ``/app/frontend/src/components/shared/ClassificationBanner.js`` (new)
+- ``/app/frontend/src/pages/MODPortal/MODConfirmFixPage.js`` (new)
+- ``/app/frontend/src/pages/LiteDashboard/MODAuditLogPanel.js`` (new)
+- ``/app/frontend/src/pages/LiteDashboard/AllSitesOverview.js`` (Audit button per row)
+- ``/app/frontend/src/pages/LiteDashboardPage.js`` (banner + isMOD prop)
+- ``/app/frontend/src/pages/MODPortal/MODSiteDashboard.js`` (banner)
+- ``/app/frontend/src/pages/MODPortal/MODFaultWizard.js`` (classification hint)
+- ``/app/frontend/src/pages/LiteDashboard/LiteDialogs.js`` (isMOD prop + classification hint)
+- ``/app/frontend/src/routes/AppRoutes.js`` (public confirm-fix route)
+
+### Tests
+- 8/8 new in ``tests/test_iter_216h115_audit_classification_acceptance.py``
+- 31/31 cumulative MOD/portal tests passing
+- Testing agent run: 9/9 features PASS (100% backend, 95% frontend; only
+  design note was the MOD wizard not being on the main flow — addressed
+  by adding the classification hint to the standard Pulse fault form
+  AND scanning at ``/api/issues`` so MOD users on /pulse get the same
+  protection.)
+
+### Remaining P1 items (next chunk)
+- 🔴 **#3 RIDDOR / Safety-Critical Escalation Workflow** — H&S officer
+  routing, 7-day RIDDOR reminder, post-incident closure questionnaire.
+- 🔴 **#4 Offline-First Field Mode (PWA)** — full service worker with
+  queue/sync for faults + check-sheets + photos on poor-signal MOD
+  sites.
+
+
 ## Iter 216h114 — Per-machine supplier routing + HQ-provisioned MOD Site Login (Feb 15, 2026)
 
 ### What shipped
