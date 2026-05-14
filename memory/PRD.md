@@ -1,3 +1,75 @@
+## Iter 216h87 (UI follow-up #2) — Preview tracking + Trust fields on Add (Feb 14, 2026)
+
+Closed the loop on the trust card by:
+1. Making the trust fields settable at **creation time** (not just edit).
+2. Adding a **"Preview customer tracking"** button so operators can see
+   exactly what a customer sees with one click.
+
+### Backend changes
+- `POST /svc/engineers` now accepts `photo_url`, `qualifications`,
+  `years_experience`, `verified` in the body. Blank `years_experience`
+  is coerced to `None` (no field) so the public tracking card hides the
+  row cleanly.
+- **NEW** `GET /svc/engineers/{user_id}/preview-tracking-link` — picks
+  the engineer's most-recently-updated open case (or, failing that, the
+  most-recently-closed case), lazily mints a tracking token, and returns
+  `{url, token, case_id, case_status}`. Returns 404 with a friendly
+  "no jobs yet" message when the engineer has no assignments. Reuses
+  the public-tracking helpers (`_mint_or_get_token`, `_origin`) for
+  consistency.
+
+### Frontend changes (`EngineersAdminPage.js`)
+- **Add engineer form** gains a "Trust profile · shown to customers on
+  the live-tracking page" divider with the same 4 fields the edit row
+  has (photo URL + 32×32 preview, years of experience, verified
+  checkbox, qualifications chip picker + 8 suggestions + custom-entry
+  input).
+- **Each engineer row** gains a "Preview" button (ExternalLink icon)
+  next to Edit. Click → opens `/track/<token>` in a new tab. Errors
+  surface as a toast ("Cannot preview Sarah · This engineer has no jobs
+  yet — preview is available once a case is assigned").
+- `toggleQual` + `addCustomQual` extended with a `target` parameter
+  ('add' | 'edit') so the same chip logic powers both forms.
+- Save flow on Add coerces years_experience identically to Edit.
+
+### Testing
+- 6/6 new pytest in `test_iter_216h87_preview_and_add_trust.py`:
+  - POST accepts trust fields at creation
+  - Blank `years_experience` persists as `None`
+  - Preview returns open-case URL (newer beats older)
+  - Preview falls back to closed case when no open exists
+  - 404 when engineer has no jobs (with "no jobs" copy)
+  - 404 when engineer doesn't exist
+- 30/30 across the h77 + h83 + h86 + h87 sub-suites (zero regressions).
+- Frontend lint clean.
+- Live UI smoke verified: Add form shows trust panel with 8 suggestion
+  pills, chip clicks move qualifications between suggestion ↔ active,
+  Preview button opens the tracking page in a new tab.
+
+### Files touched
+**Backend**
+- `/app/backend/routes/svc/engineers_admin.py`
+  (+1 import — `Request`)
+  (+13 LOC — POST trust fields)
+  (+45 LOC — preview-tracking-link endpoint)
+- `/app/backend/tests/test_iter_216h87_preview_and_add_trust.py` (NEW · 6 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/ServiceOps/EngineersAdminPage.js`
+  (+~145 LOC — Add-form trust panel, Preview button, dual-form chip helpers)
+
+### Strategic outcome
+- Operators can onboard a new engineer with a complete trust profile in
+  a single dialog — no need to add, then edit, then save.
+- The **Preview** button doubles as a sales-demo lever: during a chain
+  onboarding, the operator can pull up the customer's view in 1 click
+  and walk the prospect through the experience their members will get.
+
+---
+
+
+
+
 ## Iter 216h87 (UI follow-up) — Trust card fields in Engineer Admin (Feb 14, 2026)
 
 Surfaced the new public-tracking-card fields in the operator-side

@@ -17,7 +17,7 @@ import io
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -104,6 +104,15 @@ async def create_engineer(body: dict, user=Depends(get_current_user)) -> dict:
         "vehicle_reg": (body.get("vehicle_reg") or "").strip(),
         "skills": list(body.get("skills") or []),
         "working_hours": dict(body.get("working_hours") or {}),
+        # Iter 216h87 — trust card fields (settable at creation time)
+        "photo_url": (body.get("photo_url") or "").strip(),
+        "qualifications": list(body.get("qualifications") or []),
+        "years_experience": (
+            int(body["years_experience"])
+            if body.get("years_experience") not in (None, "", 0, "0")
+            else None
+        ),
+        "verified": bool(body.get("verified")),
         "active": True,
         "created_at": now_iso,
         "updated_at": now_iso,
@@ -140,6 +149,51 @@ async def deactivate_engineer(user_id: str, user=Depends(get_current_user)) -> d
         {"$set": {"active": False, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
     return {"success": True}
+
+
+@router.get("/svc/engineers/{user_id}/preview-tracking-link")
+async def preview_engineer_tracking(user_id: str, request: Request,
+                                    user=Depends(get_current_user)) -> dict:
+    """Iter 216h87 follow-up — Operator "what does the customer see?" preview.
+
+    Picks the engineer's most recent active assignment (or, failing that,
+    the most recently closed case) and returns a tokenised tracking URL
+    operators can open to see the live customer view. Lazily mints a
+    token if one doesn't yet exist on the case.
+    """
+    of = _of(user)
+    target = await db.svc_engineers.find_one({"id": user_id, **of}, {"_id": 0, "id": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Engineer not found")
+
+    # Prefer an in-flight case, fall back to most recent closed.
+    case = await db.svc_cases.find_one(
+        {**of, "assigned_engineer_id": user_id,
+         "status": {"$nin": ["closed", "invoiced", "void", "cancelled"]}},
+        {"_id": 0, "id": 1, "track_token": 1, "status": 1},
+        sort=[("updated_at", -1)],
+    )
+    if not case:
+        case = await db.svc_cases.find_one(
+            {**of, "assigned_engineer_id": user_id},
+            {"_id": 0, "id": 1, "track_token": 1, "status": 1},
+            sort=[("closed_at", -1), ("updated_at", -1)],
+        )
+    if not case:
+        raise HTTPException(
+            status_code=404,
+            detail="This engineer has no jobs yet — preview is available once a case is assigned.",
+        )
+
+    # Reuse the public_tracking helpers to mint+resolve.
+    from routes.svc.public_tracking import _mint_or_get_token, _origin
+    token = await _mint_or_get_token(case["id"], of)
+    return {
+        "url": f"{_origin(request)}/track/{token}",
+        "token": token,
+        "case_id": case["id"],
+        "case_status": case.get("status"),
+    }
 
 
 # ── Reorder alerts ───────────────────────────────────────────────

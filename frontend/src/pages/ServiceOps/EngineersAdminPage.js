@@ -10,7 +10,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { HardHat, Plus, Loader2, Trash2, Save, BadgeCheck, X } from 'lucide-react';
+import { HardHat, Plus, Loader2, Trash2, Save, BadgeCheck, X, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import ServiceOpsShell from './ServiceOpsShell';
 
@@ -34,6 +34,8 @@ export default function EngineersAdminPage() {
   const [addBusy, setAddBusy] = useState(false);
   const [addForm, setAddForm] = useState({
     email: '', full_name: '', mobile: '', vehicle_reg: '', sage_user_id: '', skills: [],
+    // Iter 216h87 — trust fields settable at creation
+    photo_url: '', qualifications: [], years_experience: '', verified: false,
   });
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({});
@@ -58,10 +60,19 @@ export default function EngineersAdminPage() {
     }
     setAddBusy(true);
     try {
-      await axios.post(`${API}/svc/engineers`, addForm, auth());
+      const payload = { ...addForm };
+      if (payload.years_experience === '' || payload.years_experience == null) {
+        delete payload.years_experience;
+      } else {
+        payload.years_experience = Math.max(0, parseInt(payload.years_experience, 10) || 0);
+      }
+      await axios.post(`${API}/svc/engineers`, payload, auth());
       toast.success('Engineer added');
       setShowAdd(false);
-      setAddForm({ email: '', full_name: '', mobile: '', vehicle_reg: '', sage_user_id: '', skills: [] });
+      setAddForm({
+        email: '', full_name: '', mobile: '', vehicle_reg: '', sage_user_id: '', skills: [],
+        photo_url: '', qualifications: [], years_experience: '', verified: false,
+      });
       await load();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Could not add engineer');
@@ -115,18 +126,43 @@ export default function EngineersAdminPage() {
     });
   };
 
-  const toggleQual = (qual) => {
-    const cur = new Set(editDraft.qualifications || []);
-    if (cur.has(qual)) cur.delete(qual); else cur.add(qual);
-    setEditDraft({ ...editDraft, qualifications: [...cur] });
+  const toggleQual = (qual, target = 'edit') => {
+    if (target === 'add') {
+      const cur = new Set(addForm.qualifications || []);
+      if (cur.has(qual)) cur.delete(qual); else cur.add(qual);
+      setAddForm({ ...addForm, qualifications: [...cur] });
+    } else {
+      const cur = new Set(editDraft.qualifications || []);
+      if (cur.has(qual)) cur.delete(qual); else cur.add(qual);
+      setEditDraft({ ...editDraft, qualifications: [...cur] });
+    }
   };
 
-  const addCustomQual = (raw) => {
+  const addCustomQual = (raw, target = 'edit') => {
     const q = (raw || '').trim();
     if (!q) return;
-    const cur = new Set(editDraft.qualifications || []);
-    cur.add(q);
-    setEditDraft({ ...editDraft, qualifications: [...cur] });
+    if (target === 'add') {
+      const cur = new Set(addForm.qualifications || []);
+      cur.add(q);
+      setAddForm({ ...addForm, qualifications: [...cur] });
+    } else {
+      const cur = new Set(editDraft.qualifications || []);
+      cur.add(q);
+      setEditDraft({ ...editDraft, qualifications: [...cur] });
+    }
+  };
+
+  // Iter 216h87 follow-up — Preview public tracking page for any engineer.
+  const previewTracking = async (engineerId, engineerName) => {
+    try {
+      const r = await axios.get(`${API}/svc/engineers/${engineerId}/preview-tracking-link`, auth());
+      const url = r.data?.url;
+      if (!url) throw new Error('No URL returned');
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      const msg = e?.response?.data?.detail || e.message;
+      toast.error(`Cannot preview ${engineerName}`, { description: msg });
+    }
   };
 
   const toggleSkill = (skill, target) => {
@@ -194,6 +230,122 @@ export default function EngineersAdminPage() {
             </Field>
           </div>
           <SkillPicker selected={addForm.skills} onToggle={(s) => toggleSkill(s, 'add')} />
+
+          {/* Iter 216h87 — Trust card fields on the Add form */}
+          <div
+            className="mt-3 pt-3"
+            style={{ borderTop: '1px dashed var(--theme-border)' }}
+            data-testid="engineers-add-trust-panel"
+          >
+            <div className="text-xs svc-muted mb-2" style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Trust profile · shown to customers on the live-tracking page
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Field label="Photo URL (optional)">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {addForm.photo_url ? (
+                      <img
+                        src={addForm.photo_url}
+                        alt=""
+                        style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--theme-border)' }}
+                        onError={(ev) => { ev.target.style.display = 'none'; }}
+                      />
+                    ) : null}
+                    <input
+                      className="svc-input"
+                      placeholder="https://… (square image works best)"
+                      value={addForm.photo_url}
+                      onChange={(e) => setAddForm({ ...addForm, photo_url: e.target.value })}
+                      data-testid="engineers-add-photo"
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                </Field>
+                <Field label="Years of experience">
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    className="svc-input"
+                    placeholder="e.g. 8"
+                    value={addForm.years_experience}
+                    onChange={(e) => setAddForm({ ...addForm, years_experience: e.target.value })}
+                    data-testid="engineers-add-years"
+                    style={{ width: 120 }}
+                  />
+                </Field>
+                <label
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, cursor: 'pointer', fontSize: 13 }}
+                  data-testid="engineers-add-verified-toggle"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!addForm.verified}
+                    onChange={(e) => setAddForm({ ...addForm, verified: e.target.checked })}
+                    data-testid="engineers-add-verified-checkbox"
+                  />
+                  <BadgeCheck size={14} color={addForm.verified ? '#10b981' : '#94a3b8'} />
+                  <span style={{ fontWeight: 600 }}>Verified engineer</span>
+                </label>
+              </div>
+              <div>
+                <div className="svc-field-label">Qualifications</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                  {(addForm.qualifications || []).map((q) => (
+                    <span
+                      key={q}
+                      className="svc-pill svc-pill-success"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      data-testid={`engineers-add-qual-chip-${q.replace(/\W+/g, '_')}`}
+                    >
+                      ✓ {q}
+                      <button
+                        type="button"
+                        onClick={() => toggleQual(q, 'add')}
+                        style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+                        aria-label={`Remove ${q}`}
+                      >
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
+                  {(addForm.qualifications || []).length === 0 ? (
+                    <span className="svc-muted text-xs">Pick from below or type your own</span>
+                  ) : null}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                  {QUAL_SUGGESTIONS
+                    .filter((q) => !(addForm.qualifications || []).includes(q))
+                    .map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        className="svc-pill svc-pill-soft"
+                        onClick={() => toggleQual(q, 'add')}
+                        style={{ cursor: 'pointer', border: 'none' }}
+                        data-testid={`engineers-add-qual-suggest-${q.replace(/\W+/g, '_')}`}
+                      >
+                        + {q}
+                      </button>
+                    ))}
+                </div>
+                <input
+                  className="svc-input"
+                  placeholder="Add custom qualification & press Enter"
+                  data-testid="engineers-add-qual-custom"
+                  onKeyDown={(ev) => {
+                    if (ev.key === 'Enter') {
+                      ev.preventDefault();
+                      addCustomQual(ev.target.value, 'add');
+                      ev.target.value = '';
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-2 mt-3">
             <button type="button" className="svc-btn-primary" onClick={create} disabled={addBusy} data-testid="engineers-add-submit">
               {addBusy ? <Loader2 size={14} className="animate-spin" /> : null} Add engineer
@@ -300,6 +452,9 @@ export default function EngineersAdminPage() {
                       </>
                     ) : (
                       <>
+                        <button type="button" className="svc-btn-secondary svc-btn-sm" onClick={() => previewTracking(e.id, e.full_name)} data-testid={`engineer-preview-${e.id}`} title="Preview customer-facing tracking page">
+                          <ExternalLink size={11} /> Preview
+                        </button>
                         <button type="button" className="svc-btn-secondary svc-btn-sm" onClick={() => beginEdit(e)} data-testid={`engineer-edit-${e.id}`}>
                           Edit
                         </button>
