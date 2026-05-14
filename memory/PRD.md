@@ -1,3 +1,69 @@
+## Iter 216h109 — MOD Service Portal demo prep (Feb 14, 2026)
+
+User-driven for tomorrow's British Army presentation.
+
+### NEW
+1. **MOD branded login** at `/MODService` (and `/MODService/login`):
+   - Royal-navy radial-gradient background with a grid overlay
+   - UK MOD Crown Crest (inline SVG, royalty-free) + Pulse Fitness
+     logo side-by-side in the header
+   - Amber sign-in CTA, MOD-specific copy, three "service" tiles
+     at the foot (British Army · Royal Navy · Royal Air Force)
+   - On success the standard `/dashboard` resolver routes the user
+     to `MODSiteDashboard` or `MODProDashboard` based on
+     `user.account_type` (`mod_site` / `mod_branch` / `mod_org`)
+2. **Master Admin Org-create modal** (`AdminOrganizations.js`):
+   - Platform select now offers a third option: **MOD (Ministry
+     of Defence)**.
+   - Picking MOD reveals an MOD-specific Plan picker (MOD Site /
+     MOD Branch (Catterick-level) / MOD Head Office) and a new
+     **MOD service** select (Army / RAF / Navy) so an org can be
+     filed against the right Head Office for the Command-Centre
+     rollup.
+3. **Backend org schema** (`master_admin.create_organization` +
+   update endpoint):
+   - `is_mod`, `mod_force` (army|raf|navy), `parent_organization_id`
+     are now persisted alongside the existing
+     `account_type=mod_site|mod_branch|mod_org` fields.
+4. **Seed endpoint** `POST /api/mod/demo/seed-army-catterick`
+   (master-admin only, idempotent):
+   - British Army — Head Office (`account_type=mod_org`)
+   - Catterick Garrison (`mod_branch`)
+   - 7 real Catterick sub-site gyms (`mod_site`):
+     Vimy Lines, Helles Barracks, Bruneval Barracks, Cambrai Lines,
+     Marne Barracks, Le Cateau Barracks, Bourlon Barracks
+   - 7 personnel (one per gym, ranks Sgt → Maj), 1 Catterick HQ
+     owner (Col), 1 Army Land Command owner (Brig)
+   - All share the demo password **`ArmyDemo2026!`** for the
+     presenter
+5. **Roster endpoint** `GET /api/mod/site/users-roster` — populates
+   the fault-wizard reporter dropdown when a shared-kiosk login
+   needs to attribute a case to a named person.
+
+### Presenter cheat-sheet
+```
+URL:      /MODService
+Password: ArmyDemo2026!
+
+army.command@army.mod.local            → Command Centre rollup
+catterick.demo.lead@army.mod.local     → Catterick branch view
+daniel.hayes@army.mod.local            → Site view (Vimy Lines Gym)
+```
+
+### Verified
+- New /MODService route renders with both logos & inline crest
+- POST /mod/demo/seed-army-catterick → 9 orgs + 9 users
+- All three presenter accounts authenticate; `account_type`,
+  `mod_force`, `rank`, `site_number` all persist on the JWT user
+  payload
+
+> **Reminder**: build is in preview only. Deploy to push to the
+> live `gymaxisai.com/MODService` (and eventually
+> `pulsefitness.ai/MODService` once DNS transfers).
+
+---
+
+
 ## Iter 216h108 — Equipment Import + Onboarding fixes (Feb 14, 2026)
 
 Five-fold fix on the equipment-import + onboarding flow surfaced by

@@ -1519,17 +1519,19 @@ useEffect(() => {
  <div>
  <Label className="text-zinc-600 text-xs">Platform</Label>
  <Select
-   value={(orgForm.account_type === 'pulse_pro' || orgForm.account_type === 'lite') ? 'pulse' : 'gymaxis'}
+   value={
+     (orgForm.account_type === 'pulse_pro' || orgForm.account_type === 'lite') ? 'pulse'
+     : (['mod_site','mod_branch','mod_org'].includes(orgForm.account_type)) ? 'mod'
+     : 'gymaxis'
+   }
    onValueChange={v => {
-     // Iter 215eh — Platform is the brand (GymAxis vs Pulse Fitness).
-     // Plan is what's available on that platform. Switching platform
-     // resets the plan to that platform's default tier so the Plan
-     // select can never show a value that doesn't exist on the new
-     // platform's options.
+     // Iter 215eh / 216h109 — Platform is the brand. Pulse / GymAxis / MOD.
      if (v === 'pulse') {
-       setOrgForm({ ...orgForm, account_type: 'lite', subscription_tier: 'lite' });
+       setOrgForm({ ...orgForm, account_type: 'lite', subscription_tier: 'lite', is_mod: false, mod_force: '' });
+     } else if (v === 'mod') {
+       setOrgForm({ ...orgForm, account_type: 'mod_site', subscription_tier: 'mod_site', is_mod: true, mod_force: orgForm.mod_force || 'army' });
      } else {
-       setOrgForm({ ...orgForm, account_type: 'full', subscription_tier: 'starter' });
+       setOrgForm({ ...orgForm, account_type: 'full', subscription_tier: 'starter', is_mod: false, mod_force: '' });
      }
    }}
  >
@@ -1537,6 +1539,7 @@ useEffect(() => {
  <SelectContent className="bg-white border-zinc-200">
  <SelectItem value="gymaxis">GymAxis</SelectItem>
  <SelectItem value="pulse">Pulse Fitness</SelectItem>
+ <SelectItem value="mod">MOD (Ministry of Defence)</SelectItem>
  </SelectContent>
  </Select>
  </div>
@@ -1547,16 +1550,20 @@ useEffect(() => {
      // Map the form state into the plan-select value space.
      (orgForm.account_type === 'pulse_pro' || orgForm.account_type === 'lite')
        ? (orgForm.account_type === 'pulse_pro' ? 'pro' : 'lite')
-       : (orgForm.subscription_tier || 'starter')
+       : (['mod_site','mod_branch','mod_org'].includes(orgForm.account_type)
+           ? orgForm.account_type
+           : (orgForm.subscription_tier || 'starter'))
    }
    onValueChange={v => {
      // Plan changes also rewrite account_type when the platform is
-     // Pulse Fitness so the back-end keeps its existing
-     // `pulse_pro` / `lite` enum semantics.
+     // Pulse Fitness or MOD so the back-end keeps its existing enums.
      const isPulse = orgForm.account_type === 'pulse_pro' || orgForm.account_type === 'lite';
+     const isMod = ['mod_site','mod_branch','mod_org'].includes(orgForm.account_type);
      if (isPulse) {
        const at = v === 'pro' ? 'pulse_pro' : 'lite';
        setOrgForm({ ...orgForm, account_type: at, subscription_tier: at });
+     } else if (isMod || ['mod_site','mod_branch','mod_org'].includes(v)) {
+       setOrgForm({ ...orgForm, account_type: v, subscription_tier: v, is_mod: true });
      } else {
        setOrgForm({ ...orgForm, subscription_tier: v });
      }
@@ -1569,6 +1576,12 @@ useEffect(() => {
  <SelectItem value="lite">Lite</SelectItem>
  <SelectItem value="pro">Pro</SelectItem>
  </>
+ ) : ['mod_site','mod_branch','mod_org'].includes(orgForm.account_type) ? (
+ <>
+ <SelectItem value="mod_site">MOD Site</SelectItem>
+ <SelectItem value="mod_branch">MOD Branch (Catterick-level)</SelectItem>
+ <SelectItem value="mod_org">MOD Head Office (Army / RAF / Navy)</SelectItem>
+ </>
  ) : (
  <>
  <SelectItem value="starter">Starter</SelectItem>
@@ -1579,6 +1592,22 @@ useEffect(() => {
  </SelectContent>
  </Select>
  </div>
+
+ {/* Iter 216h109 — MOD Force selector. Only visible when Platform=MOD. */}
+ {['mod_site','mod_branch','mod_org'].includes(orgForm.account_type) && (
+   <div>
+     <Label className="text-zinc-600 text-xs">MOD service</Label>
+     <Select value={orgForm.mod_force || 'army'} onValueChange={v => setOrgForm({ ...orgForm, mod_force: v })}>
+       <SelectTrigger className="mt-1" data-testid="org-form-mod-force"><SelectValue /></SelectTrigger>
+       <SelectContent className="bg-white border-zinc-200">
+         <SelectItem value="army">British Army</SelectItem>
+         <SelectItem value="raf">Royal Air Force</SelectItem>
+         <SelectItem value="navy">Royal Navy</SelectItem>
+       </SelectContent>
+     </Select>
+     <p className="text-[10px] text-zinc-400 mt-1">Sites and branches roll up to the matching Head Office.</p>
+   </div>
+ )}
  <div>
  <Label className="text-zinc-600 text-xs">Industry</Label>
  <Select value={orgForm.industry || '_none'} onValueChange={v => setOrgForm({ ...orgForm, industry: v === '_none' ? '' : v })}>

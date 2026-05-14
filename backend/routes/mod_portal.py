@@ -1427,3 +1427,250 @@ def _confirmation_email_html(site: dict, eq: dict, doc: dict) -> str:
     <p style="color:#6E7476;font-size:13px;">Priority: <strong style="color:#1B1D1D;">{doc.get('priority','').upper()}</strong>. We'll be in touch on {doc.get('reporter_email')} or {doc.get('reporter_phone')} as the engineer is assigned.</p>
   </div>
 </div>"""
+
+
+
+# ══════════════════════════════════════════════════════════════════
+#         Iter 216h109 — Demo seed (Catterick Garrison) + dropdown
+# ══════════════════════════════════════════════════════════════════
+import secrets as _secrets
+import string as _string
+
+
+def _gen_pwd(n: int = 10) -> str:
+    return "".join(_secrets.choice(_string.ascii_letters + _string.digits) for _ in range(n))
+
+
+_CATTERICK_SUBSITES = [
+    ("Vimy Lines Gym",         "ARMY-CAT-VIM"),
+    ("Helles Barracks Gym",    "ARMY-CAT-HEL"),
+    ("Bruneval Barracks Gym",  "ARMY-CAT-BRU"),
+    ("Cambrai Lines Gym",      "ARMY-CAT-CAM"),
+    ("Marne Barracks Gym",     "ARMY-CAT-MAR"),
+    ("Le Cateau Barracks Gym", "ARMY-CAT-LEC"),
+    ("Bourlon Barracks Gym",   "ARMY-CAT-BOU"),
+]
+
+_DEMO_PERSONNEL_TEMPLATE = [
+    ("Sgt",  "Daniel Hayes",   "Vimy Lines Gym",          "+44 7700 900111"),
+    ("Cpl",  "Megan Allen",    "Helles Barracks Gym",     ""),
+    ("LCpl", "James OBrien",   "Bruneval Barracks Gym",   "+44 7700 900222"),
+    ("WO2",  "Sarah Mitchell", "Cambrai Lines Gym",       ""),
+    ("Capt", "Ben Foster",     "Marne Barracks Gym",      "+44 7700 900333"),
+    ("Maj",  "Olivia Carter",  "Le Cateau Barracks Gym",  ""),
+    ("Sgt",  "Tom Walker",     "Bourlon Barracks Gym",    "+44 7700 900444"),
+]
+
+
+@router.post("/mod/demo/seed-army-catterick")
+async def seed_army_catterick(user: dict = Depends(get_current_user)):
+    """Idempotent seed of the Army HQ → Catterick Garrison hierarchy.
+
+    Creates / refreshes:
+      • Army HQ                — account_type=mod_org, mod_force=army
+      • Catterick Garrison     — account_type=mod_branch, mod_root_id=Army HQ
+      • 7 Catterick sub-sites  — account_type=mod_site, mod_branch="Catterick Garrison"
+      • One demo user per site (rank/name/site_number/mobile)
+      • One owner-level demo login on Catterick Garrison
+
+    The single demo password is returned in the response so the
+    presenter has a fresh set of credentials.
+    """
+    require_master_admin(user)
+    from utils.auth import hash_password
+    now = datetime.now(timezone.utc).isoformat()
+    demo_password = "ArmyDemo2026!"
+    pwd_hash = hash_password(demo_password)
+    pwd_field = "password"  # auth uses bare `password` field for hashed pw
+    created = {"orgs": [], "users": []}
+
+    # ── Army HQ ─────────────────────────────────────────────────
+    army_hq = await db.organizations.find_one(
+        {"account_type": "mod_org", "mod_force": "army"}, {"_id": 0},
+    )
+    if not army_hq:
+        army_id = str(uuid.uuid4())
+        army_hq = {
+            "id": army_id,
+            "name": "British Army — Head Office",
+            "account_type": "mod_org",
+            "subscription_tier": "mod_org",
+            "portal_type": "service_portal",
+            "enabled_modules": ["service_portal"],
+            "status": "active", "created_at": now,
+            "is_mod": True, "mod_force": "army",
+            "mod_root_id": army_id,            # self
+            "company_code": "ARMY-HQ",
+            "primary_contact_name": "Army Land Forces — Health & Wellbeing",
+            "primary_contact_email": "armyhq.demo@army.mod.local",
+        }
+        await db.organizations.insert_one(army_hq)
+        created["orgs"].append({"name": army_hq["name"], "created": True})
+    else:
+        # Backfill missing flags so the dashboard rollup works.
+        await db.organizations.update_one(
+            {"id": army_hq["id"]},
+            {"$set": {"is_mod": True, "mod_force": "army", "mod_root_id": army_hq["id"]}},
+        )
+        created["orgs"].append({"name": army_hq["name"], "created": False})
+
+    # ── Catterick Garrison (mod_branch) ─────────────────────────
+    cat = await db.organizations.find_one(
+        {"account_type": "mod_branch", "name": "Catterick Garrison"}, {"_id": 0},
+    )
+    if not cat:
+        cat_id = str(uuid.uuid4())
+        cat = {
+            "id": cat_id,
+            "name": "Catterick Garrison",
+            "account_type": "mod_branch",
+            "subscription_tier": "mod_branch",
+            "portal_type": "service_portal",
+            "enabled_modules": ["service_portal"],
+            "status": "active", "created_at": now,
+            "is_mod": True, "mod_force": "army",
+            "mod_root_id": army_hq["id"],
+            "mod_branch": "Catterick Garrison",
+            "address_line1": "Catterick Garrison",
+            "city": "Catterick", "county": "North Yorkshire",
+            "postcode": "DL9 3PS", "country": "United Kingdom",
+            "address": "Catterick Garrison, Catterick, North Yorkshire DL9 3PS",
+            "company_code": "ARMY-CAT",
+            "primary_contact_name": "Catterick Garrison — Fitness HQ",
+            "primary_contact_email": "catterick.demo@army.mod.local",
+        }
+        await db.organizations.insert_one(cat)
+        created["orgs"].append({"name": cat["name"], "created": True})
+    else:
+        await db.organizations.update_one(
+            {"id": cat["id"]},
+            {"$set": {"is_mod": True, "mod_force": "army", "mod_root_id": army_hq["id"], "mod_branch": "Catterick Garrison"}},
+        )
+        created["orgs"].append({"name": cat["name"], "created": False})
+
+    # ── Sub-sites (mod_site, one org per gym) ───────────────────
+    site_org_map: dict[str, str] = {}
+    for site_name, site_code in _CATTERICK_SUBSITES:
+        existing = await db.organizations.find_one(
+            {"account_type": "mod_site", "mod_branch": "Catterick Garrison", "name": site_name},
+            {"_id": 0},
+        )
+        if existing:
+            site_org_map[site_name] = existing["id"]
+            await db.organizations.update_one(
+                {"id": existing["id"]},
+                {"$set": {"is_mod": True, "mod_force": "army", "mod_root_id": army_hq["id"], "mod_branch": "Catterick Garrison", "site_code": site_code}},
+            )
+            created["orgs"].append({"name": site_name, "created": False})
+            continue
+        oid = str(uuid.uuid4())
+        await db.organizations.insert_one({
+            "id": oid, "name": site_name,
+            "account_type": "mod_site", "subscription_tier": "mod_site",
+            "portal_type": "service_portal", "enabled_modules": ["service_portal"],
+            "status": "active", "created_at": now,
+            "is_mod": True, "mod_force": "army",
+            "mod_root_id": army_hq["id"], "mod_branch": "Catterick Garrison",
+            "site_code": site_code,
+            "company_code": site_code,
+        })
+        site_org_map[site_name] = oid
+        created["orgs"].append({"name": site_name, "created": True})
+
+    # ── Demo personnel (one per gym, plus the Catterick HQ owner) ─
+    for rank, full_name, site_name, mobile in _DEMO_PERSONNEL_TEMPLATE:
+        email = f"{full_name.lower().replace(' ', '.')}@army.mod.local"
+        site_org_id = site_org_map[site_name]
+        parts = full_name.split(maxsplit=1)
+        first_name, last_name = parts[0], (parts[1] if len(parts) > 1 else "")
+        body = {
+            "name": full_name, "full_name": full_name, "first_name": first_name, "last_name": last_name,
+            "rank": rank, "mobile": mobile or None,
+            "site_number": next((c for n, c in _CATTERICK_SUBSITES if n == site_name), None),
+            "role": "staff",
+            "organization_id": site_org_id,
+            "account_type": "mod_site",
+            "is_mod_user": True, "mod_force": "army",
+            "password": pwd_hash,
+            "status": "active",
+        }
+        existing = await db.users.find_one({"email": email}, {"_id": 0})
+        if existing:
+            await db.users.update_one({"email": email}, {"$set": body})
+            created["users"].append({"email": email, "rank": rank, "name": full_name, "created": False})
+        else:
+            uid = str(uuid.uuid4())
+            await db.users.insert_one({**body, "id": uid, "email": email, "created_at": now})
+            created["users"].append({"email": email, "rank": rank, "name": full_name, "created": True})
+
+    # Catterick Garrison HQ owner (demo presenter login)
+    hq_email = "catterick.demo.lead@army.mod.local"
+    hq_body = {
+        "name": "Col. Catterick Demo Lead", "full_name": "Col. Catterick Demo Lead",
+        "first_name": "Catterick", "last_name": "Demo Lead",
+        "rank": "Col", "mobile": "+44 7700 900555",
+        "site_number": "ARMY-CAT-HQ",
+        "role": "owner",
+        "organization_id": cat["id"],
+        "account_type": "mod_branch",
+        "is_mod_user": True, "mod_force": "army",
+        "password": pwd_hash,
+        "status": "active",
+    }
+    existing = await db.users.find_one({"email": hq_email}, {"_id": 0})
+    if existing:
+        await db.users.update_one({"email": hq_email}, {"$set": hq_body})
+    else:
+        await db.users.insert_one({**hq_body, "id": str(uuid.uuid4()), "email": hq_email, "created_at": now})
+
+    # Army HQ owner (mod_org) — useful for the Head-Office rollup demo
+    hq_org_email = "army.command@army.mod.local"
+    hq_org_body = {
+        "name": "Brig. Army Land Command", "full_name": "Brig. Army Land Command",
+        "first_name": "Army", "last_name": "Land Command",
+        "rank": "Brig",  "mobile": "+44 7700 900666",
+        "site_number": "ARMY-HQ-001",
+        "role": "owner",
+        "organization_id": army_hq["id"],
+        "account_type": "mod_org",
+        "is_mod_user": True, "mod_force": "army",
+        "password": pwd_hash, "status": "active",
+    }
+    existing = await db.users.find_one({"email": hq_org_email}, {"_id": 0})
+    if existing:
+        await db.users.update_one({"email": hq_org_email}, {"$set": hq_org_body})
+    else:
+        await db.users.insert_one({**hq_org_body, "id": str(uuid.uuid4()), "email": hq_org_email, "created_at": now})
+
+    return {
+        "ok": True,
+        "demo_password": demo_password,
+        "presenter_credentials": {
+            "url": "/MODService",
+            "logins": [
+                {"label": "Catterick Garrison (branch view)", "email": hq_email, "password": demo_password},
+                {"label": "Army Head Office (Command Centre rollup)", "email": hq_org_email, "password": demo_password},
+                {"label": "Site-level (Vimy Lines)", "email": "daniel.hayes@army.mod.local", "password": demo_password},
+            ],
+        },
+        "created": created,
+        "army_hq_org_id": army_hq["id"],
+        "catterick_org_id": cat["id"],
+        "site_org_ids": site_org_map,
+    }
+
+
+@router.get("/mod/site/users-roster")
+async def mod_site_users_roster(user: dict = Depends(get_current_user)):
+    """Iter 216h109 — dropdown source for the fault wizard. Lists every
+    real (non-shared) user assigned to the caller's site or org so that
+    a shared-kiosk login can still attribute the fault to a named
+    person."""
+    org = await _org_of(user)
+    q = {"organization_id": org["id"], "is_site_account": {"$ne": True}}
+    items = await db.users.find(
+        q,
+        {"_id": 0, "id": 1, "name": 1, "first_name": 1, "last_name": 1,
+         "rank": 1, "email": 1, "site_number": 1, "mobile": 1},
+    ).sort("name", 1).to_list(500)
+    return {"users": items, "total": len(items), "site_name": org.get("name")}

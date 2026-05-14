@@ -97,6 +97,7 @@ const ServiceOpsEngineerHome = lazy(() => import('@/pages/ServiceOps/Engineer/En
 const ServiceOpsEngineerJob = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerJobDetail'));
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
+const MODServiceLogin = lazy(() => import('@/pages/MODPortal/MODServiceLogin'));
 const MembershipsConsole = lazy(() => import('@/pages/Memberships/MembershipsConsole'));
 const MemberPortal = lazy(() => import('@/pages/Memberships/MemberPortal'));
 const MemberClaimPage = lazy(() => import('@/pages/Memberships/MemberClaimPage'));
@@ -209,6 +210,11 @@ export default function AppRoutes({ user, login }) {
       <Route path="/change-password" element={user ? <ForceChangePasswordPage /> : <Navigate to="/login" replace />} />
       <Route path="/onboarding/:token" element={<CustomerOnboardingForm />} />
       <Route path="/payment-success" element={<PaymentSuccessPage />} />
+
+      {/* Iter 216h109 — MOD Service portal (branded login). */}
+      <Route path="/MODService" element={<MODServiceLogin />} />
+      <Route path="/MODService/login" element={<MODServiceLogin />} />
+      <Route path="/modservice" element={<Navigate to="/MODService" replace />} />
 
       {/* ─── Public utility ─── */}
       <Route path="/supplier/case/:token" element={<SupplierCasePage />} />

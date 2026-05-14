@@ -897,6 +897,16 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
 
     org_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    # Iter 216h109 — MOD portal fields. `is_mod` flags the org for the
+    # MOD module-gating rules (no Memberships/CRM/Marketing/Staffing/
+    # Gym Layout). `mod_force` (army|raf|navy) groups sites under the
+    # right Command-Centre HQ. `parent_organization_id` chains a site
+    # under its service HQ.
+    is_mod = bool(body.get("is_mod") or False)
+    mod_force = (body.get("mod_force") or "").strip().lower() or None
+    if mod_force and mod_force not in {"army", "raf", "navy"}:
+        raise HTTPException(status_code=400, detail="mod_force must be army, raf, or navy")
+    parent_organization_id = body.get("parent_organization_id") or None
     org_doc = {
         "id": org_id, "name": name,
         "portal_type": portal_type,
@@ -909,6 +919,10 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
         "employee_count": body.get("employee_count", ""),
         "website": body.get("website", ""),
         "phone": body.get("phone", ""),
+        # MOD portal hierarchy + flagging.
+        "is_mod": is_mod,
+        "mod_force": mod_force,
+        "parent_organization_id": parent_organization_id,
         # Iter 215en — accept structured 8-field address. Legacy `address`
         # is retained for downstream Sage / Sicon outboxes; we auto-compose
         # it from the structured shape when only the structured fields are
@@ -972,6 +986,8 @@ async def update_org_details(org_id: str, body: dict = Body(...), user: dict = D
         "primary_contact_name", "primary_contact_email", "primary_contact_phone",
         "notes", "portal_type", "enabled_modules",
         "customer_account_number", "sage_customer_number", "sicon_customer_number",
+        # Iter 216h109 — MOD portal flags
+        "is_mod", "mod_force", "parent_organization_id",
     }
     updates = {k: v for k, v in body.items() if k in allowed}
     if not updates:
