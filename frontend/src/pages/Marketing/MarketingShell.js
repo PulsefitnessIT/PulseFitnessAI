@@ -172,6 +172,7 @@ export function MarketingFooter() {
             <li><Link to="/compare" className="hover:text-slate-900">Alternatives</Link></li>
             <li><Link to="/whats-new" className="hover:text-slate-900">What&apos;s new</Link></li>
             <li><Link to="/status" className="hover:text-slate-900">Status</Link></li>
+            <li><Link to="/partners/engineers" className="hover:text-slate-900" data-testid="gx-footer-engineers">For engineers</Link></li>
           </ul>
         </div>
         <div>

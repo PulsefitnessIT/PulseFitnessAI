@@ -6,7 +6,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Wrench, Users, Calendar, Megaphone, UserCog, BarChart3,
-  ClipboardCheck, Sparkles, Zap, CheckCircle2,
+  ClipboardCheck, Sparkles, Zap, CheckCircle2, HardHat, Star,
 } from 'lucide-react';
 
 import './marketing.css';
@@ -37,6 +37,7 @@ export default function MarketingHome() {
       <PlatformOverview />
       <ModuleGrid />
       <SocialProof />
+      <EngineerBanner />
       <FinalCta />
     </MarketingShell>
   );
@@ -176,6 +177,67 @@ function Stat({ value, label }) {
       <div className="text-4xl md:text-5xl font-black tracking-tighter gx-gradient-text">{value}</div>
       <p className="mt-2 text-sm text-slate-600 leading-snug">{label}</p>
     </div>
+  );
+}
+
+/* ── Engineer Partner banner (Iter 216h88) ─────────────── */
+function EngineerBanner() {
+  return (
+    <section className="py-16 md:py-20 bg-slate-50" data-testid="gx-engineer-banner">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="rounded-[36px] bg-white border border-slate-100 shadow-sm overflow-hidden grid lg:grid-cols-5">
+          <div className="lg:col-span-3 p-8 md:p-12">
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+              <HardHat size={12} /> Independent fitness engineer?
+            </span>
+            <h2 className="mt-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+              Run your own business — backed by the GymAxis network.
+            </h2>
+            <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-xl">
+              Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn £100–£400 per gym you refer. Monthly fee drops to <strong className="text-slate-800">free</strong> at 30 referrals.
+            </p>
+            <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
+              <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />£30 / £15 / free auto-tier</li>
+              <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />Cancel anytime</li>
+              <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />Decision in 2 working days</li>
+            </ul>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link to="/partners/engineers" className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-engineer-banner-cta">
+                Learn more <ArrowRight size={15} />
+              </Link>
+              <Link to="/partner-engineer/apply" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-testid="gx-engineer-banner-apply">
+                Start application <ArrowRight size={15} />
+              </Link>
+            </div>
+          </div>
+          <div className="lg:col-span-2 p-8 md:p-10 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%)' }}>
+            <div className="rounded-2xl bg-white shadow-lg border border-slate-100 p-5 max-w-xs">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your engineer</p>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-700">✓ Verified</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-extrabold text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>S</div>
+                <div>
+                  <p className="font-bold text-slate-800">Sarah</p>
+                  <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                    <Star size={11} className="text-amber-400" fill="currentColor" />
+                    <span className="font-bold text-slate-700">4.9</span>
+                    <span>· 52 jobs in 90d</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-3">
+                {['IOSH', 'PAT', 'CSCS'].map((q) => (
+                  <span key={q} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-emerald-200 bg-emerald-50 text-emerald-700">✓ {q}</span>
+                ))}
+              </div>
+              <p className="mt-3 text-[10px] text-slate-400 leading-relaxed">This is the profile customers see when you accept their job.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

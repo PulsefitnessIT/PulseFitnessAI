@@ -86,6 +86,8 @@ const ServiceOpsReports = lazy(() => import('@/pages/ServiceOps/ServiceOpsReport
 // Iter 216h75 — Partner Engineer Network (Phase 1)
 const PartnerApplyWizard = lazy(() => import('@/pages/PartnerEngineer/PartnerApplyWizard'));
 const PartnerDashboard = lazy(() => import('@/pages/PartnerEngineer/PartnerDashboard'));
+// Iter 216h88 — public Partner Engineer landing page
+const PartnerEngineerLanding = lazy(() => import('@/pages/Marketing/PartnerEngineerLanding'));
 // Iter 216h83 — public customer live-tracking
 const PublicTrackingPage = lazy(() => import('@/pages/PublicTracking/PublicTrackingPage'));
 const ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
@@ -155,6 +157,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/m/:slug/join/success" element={<JoinSuccess />} />
       {/* Iter 216h83 — public live tracking (no auth, token-gated) */}
       <Route path="/track/:token" element={<PublicTrackingPage />} />
+      {/* Iter 216h88 — public Engineer Partner marketing landing */}
+      <Route path="/partners/engineers" element={<PartnerEngineerLanding />} />
       <Route path="/legacy-home" element={<Navigate to="/" replace />} />
       <Route path="/platform/service"     element={<ModulePage module={moduleService} />} />
       <Route path="/platform/crm"         element={<ModulePage module={moduleCrm} />} />

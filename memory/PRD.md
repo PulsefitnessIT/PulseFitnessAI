@@ -1,3 +1,84 @@
+## Iter 216h88 — Engineer Partner public marketing landing (Feb 14, 2026)
+
+Made the Partner Engineer Network discoverable to the open internet. The
+program previously existed but was reachable only via direct link or
+login. Now it's surfaced from the main GymAxis marketing site so we
+can drive applicants from organic, paid, and word-of-mouth channels.
+
+### New public route
+- `/partners/engineers` — dedicated marketing landing, no auth.
+  - Hero with brand-gradient typography + sample engineer trust card
+    preview (Sarah · 4.9★ · 26 reviews · 52 jobs · IOSH/PAT/CSCS).
+  - **Perks grid** (6 cards): paid referrals, jobs routed to you,
+    verified profile, mobile-first PWA, AI photo triage, customer
+    rating system.
+  - **Auto-tiered pricing** (3 tiers): Starter £30 · Active £15 (5+
+    refs) · Founding "Free" (30+ refs, dark gradient elevated card).
+  - **How it works** (5 numbered steps): apply · verify · subscribe ·
+    receive jobs · get paid.
+  - **Engineer App showcase** with stylised phone mock showing Case
+    drawer, asset history alert, time / parts panels, View report +
+    Send to customer CTAs.
+  - **FAQ** (6 items, native `<details>` accordions): independence,
+    invoicing, fee rationale, tier cadence, insurance, per-case grants.
+  - **Final gradient CTA** → /partner-engineer/apply.
+
+### Discoverability surfaces
+- **MarketingHome.js** — new `EngineerBanner` section between
+  SocialProof and FinalCta. Two-column white-card with brand-gradient
+  panel; eyebrow "Independent fitness engineer?", dual CTAs:
+  Learn more → /partners/engineers, Start application → apply wizard.
+- **MarketingShell.js** footer — new "For engineers" link added to the
+  Resources column for site-wide discoverability.
+
+### SEO
+- `useSeo` hook on the landing page sets title + meta description for
+  search indexing:
+  > "Engineer Partner Network — GymAxis AI · Join 100+ independent
+  > fitness engineers on the GymAxis Partner Network. £30/mo (drops to
+  > free at 30 referrals). Apply in 5 minutes."
+- Canonical: `https://www.gymaxisai.com/partners/engineers`.
+
+### Cosmetic fix during build
+- Initial pricing render showed "Free/mo" on the Founding tier —
+  awkward. Conditional now hides the `/mo` suffix when fee is "Free"
+  so the card reads cleanly.
+
+### Testing
+- 2/2 new backend pytest confirming both `/partners/engineers` and
+  `/` return the SPA shell (no proxy/route regression).
+- Live UI smoke verified: hero card, perks grid, 3-tier pricing
+  (Founding correctly elevated), how-it-works steps, phone mock with
+  app preview, FAQ accordion opens, final CTA renders.
+- Frontend lint clean.
+
+### Files touched
+**Frontend**
+- `/app/frontend/src/pages/Marketing/PartnerEngineerLanding.js` (NEW · ~365 LOC)
+- `/app/frontend/src/pages/Marketing/MarketingHome.js`
+  (+~60 LOC — `EngineerBanner` section + icon imports)
+- `/app/frontend/src/pages/Marketing/MarketingShell.js`
+  (+1 LOC — footer "For engineers" link)
+- `/app/frontend/src/routes/AppRoutes.js`
+  (+1 import + 2 LOC — public `/partners/engineers` route)
+
+**Backend**
+- `/app/backend/tests/test_iter_216h88_partner_landing.py` (NEW · 2 tests)
+
+### Strategic outcome
+- Search engines + social shares now have a page to land on.
+- The home banner gives every gym-operator visitor a 1-click way to
+  refer their engineer (a real source of new partners).
+- Footer link makes the program findable from any marketing page.
+- The end-to-end funnel is now: organic discovery → /partners/engineers
+  landing → /partner-engineer/apply wizard → (login/signup if needed)
+  → Partner Dashboard → £30 subscription. Fully measurable.
+
+---
+
+
+
+
 ## Iter 216h87 (UI follow-up #2) — Preview tracking + Trust fields on Add (Feb 14, 2026)
 
 Closed the loop on the trust card by:
