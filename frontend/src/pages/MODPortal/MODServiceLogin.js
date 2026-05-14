@@ -25,7 +25,7 @@ import { useSeo } from '@/utils/seo';
 // ── Official artwork (user-supplied) ──────────────────────────────
 const PULSE_LOGO = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg';
 const MOD_LOGO   = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/t8x9pm0p_122237.png';
-const ARMY_LOGO  = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/oygnl6eo_122238.png';
+const ARMY_LOGO  = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/so1rjamy_122250.webp';
 const NAVY_LOGO  = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/72uz5alx_122239.png';
 const RAF_LOGO   = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/do80dken_122240.png';
 
@@ -47,7 +47,7 @@ const PULSE = {
 // official logo. Tile background matches the logo's native canvas
 // so the badge sits cleanly without a fake card.
 const SERVICES = [
-  { id: 'army', name: 'British Army',    logo: ARMY_LOGO, bg: '#FFFFFF' },
+  { id: 'army', name: 'British Army',    logo: ARMY_LOGO, bg: '#000000' },
   { id: 'navy', name: 'Royal Navy',      logo: NAVY_LOGO, bg: '#0A1F44' },
   { id: 'raf',  name: 'Royal Air Force', logo: RAF_LOGO,  bg: '#FFFFFF' },
 ];
@@ -96,24 +96,6 @@ export default function MODServiceLogin() {
         fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      {/* SVG filter — converts the Army logo's black canvas to
-          transparent so it can sit on the white tile. The last row
-          of the matrix derives alpha from luminance (R+G+B), so
-          bright pixels stay opaque and dark pixels go transparent. */}
-      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
-        <defs>
-          <filter id="mod-black-to-transparent" colorInterpolationFilters="sRGB">
-            <feColorMatrix
-              type="matrix"
-              values="1 0 0 0 0
-                      0 1 0 0 0
-                      0 0 1 0 0
-                      0.5 0.5 0.5 0 0"
-            />
-          </filter>
-        </defs>
-      </svg>
-
       {/* OFFICIAL-SENSITIVE classification stripe */}
       <div
         className="relative z-20 text-center text-[10px] uppercase font-bold py-1.5"
@@ -209,8 +191,7 @@ export default function MODServiceLogin() {
                   }}
                   data-testid={`mod-service-tile-${s.id}`}
                 >
-                  {/* Logo plate — uses the service's native canvas
-                      colour so the official badge sits correctly. */}
+                  {/* Logo plate */}
                   <div
                     className="flex items-center justify-center px-6 py-5"
                     style={{ background: s.bg, minHeight: 120 }}
@@ -219,18 +200,11 @@ export default function MODServiceLogin() {
                       src={s.logo}
                       alt={s.name}
                       className="max-h-20 w-auto object-contain"
-                      style={s.id === 'army' ? { filter: 'url(#mod-black-to-transparent)' } : undefined}
                       data-testid={`mod-service-logo-${s.id}`}
                     />
                   </div>
-                  {/* Service name only — no tagline */}
+                  {/* Service name */}
                   <div className="px-4 py-3">
-                    <div
-                      className="text-[10px] uppercase font-bold mb-0.5"
-                      style={{ color: PULSE.primaryDeep, letterSpacing: '0.22em' }}
-                    >
-                      Service
-                    </div>
                     <div className="text-sm font-extrabold leading-tight" style={{ color: PULSE.black }}>
                       {s.name}
                     </div>
