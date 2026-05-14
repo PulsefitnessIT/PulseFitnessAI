@@ -47,7 +47,7 @@ const PULSE = {
 // official logo. Tile background matches the logo's native canvas
 // so the badge sits cleanly without a fake card.
 const SERVICES = [
-  { id: 'army', name: 'British Army',    logo: ARMY_LOGO, bg: '#000000' },
+  { id: 'army', name: 'British Army',    logo: ARMY_LOGO, bg: '#FFFFFF' },
   { id: 'navy', name: 'Royal Navy',      logo: NAVY_LOGO, bg: '#0A1F44' },
   { id: 'raf',  name: 'Royal Air Force', logo: RAF_LOGO,  bg: '#FFFFFF' },
 ];
@@ -96,6 +96,24 @@ export default function MODServiceLogin() {
         fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
+      {/* SVG filter — converts the Army logo's black canvas to
+          transparent so it can sit on the white tile. The last row
+          of the matrix derives alpha from luminance (R+G+B), so
+          bright pixels stay opaque and dark pixels go transparent. */}
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+        <defs>
+          <filter id="mod-black-to-transparent" colorInterpolationFilters="sRGB">
+            <feColorMatrix
+              type="matrix"
+              values="1 0 0 0 0
+                      0 1 0 0 0
+                      0 0 1 0 0
+                      0.5 0.5 0.5 0 0"
+            />
+          </filter>
+        </defs>
+      </svg>
+
       {/* OFFICIAL-SENSITIVE classification stripe */}
       <div
         className="relative z-20 text-center text-[10px] uppercase font-bold py-1.5"
@@ -201,6 +219,7 @@ export default function MODServiceLogin() {
                       src={s.logo}
                       alt={s.name}
                       className="max-h-20 w-auto object-contain"
+                      style={s.id === 'army' ? { filter: 'url(#mod-black-to-transparent)' } : undefined}
                       data-testid={`mod-service-logo-${s.id}`}
                     />
                   </div>
