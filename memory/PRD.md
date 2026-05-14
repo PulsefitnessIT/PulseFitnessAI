@@ -1,3 +1,107 @@
+## Iter 216h94 + 216h95 — Communications Inbox + Theme Settings & Audit (Feb 14, 2026)
+
+Two paired upgrades that complete the marketing-funnel → master-admin
+loop and tighten the brand-isolation story.
+
+### Iter 216h94 — Master Admin Communications Inbox
+Every public sales enquiry now lands in a centralised, filterable
+inbox inside Master Admin. Sales ops triage, reply (via Resend), tag
+internal notes, and close — all without leaving the platform.
+
+- Public form (`/contact`) now captures:
+  name, email, company, phone, gym size, interest area, preferred
+  contact time, and "how did you hear about us". Backwards compatible
+  — older clients with just name/email/message still succeed (200).
+- New backend routes (`routes/master_admin_communications.py`):
+  - `GET    /api/master-admin/communications` — filter by status /
+    interest / free-text search.
+  - `GET    /api/master-admin/communications/summary` — tile counts.
+  - `GET    /api/master-admin/communications/{id}` — full detail
+    (auto-promotes `new` → `read`).
+  - `PATCH  /api/master-admin/communications/{id}` — status +
+    internal notes.
+  - `POST   /api/master-admin/communications/{id}/reply` — outbound
+    reply via Resend, appended to the timeline.
+- New Master Admin panel: **Growth → Communications inbox** with
+  status pills (new/read/replied/closed), search, detail drawer,
+  reply composer (subject + pre-filled greeting), reply timeline,
+  internal-notes section, and one-click close/re-open.
+- Marketing `/contact` "Talk to sales" card now scrolls to the
+  enhanced enquiry form (mailto path removed in favour of the inbox).
+
+### Iter 216h95 — Theme Settings & Isolation Audit
+A read-mostly Settings & Compliance surface that codifies the
+GymAxis vs Pulse design-token separation and lets Master Admin
+override per-tenant brand colours without a code deploy.
+
+- New backend routes (`routes/master_admin_theme.py`):
+  - `GET /api/master-admin/theme/audit` — design-system contract
+    + overlap detection. Returns `status: ok` because the two
+    namespaces (`--gx-*` for GymAxis marketing/admin, `--pulse-*`
+    for Pulse operator) share zero variable names by construction.
+  - `GET /api/master-admin/theme/orgs/{id}` — fetch a tenant's
+    `theme_overrides` (empty `{}` when not customised).
+  - `PUT /api/master-admin/theme/orgs/{id}` — save / clear
+    overrides. Hex-only validation; empty string clears that key.
+- New Master Admin panel: **Settings & Compliance → Theme settings**.
+  Left pane shows both namespaces with token swatches + role
+  descriptions + CSS source path. Right pane: org picker →
+  override editor (7 fields: primary, primary_hover, accent,
+  surface, text, text_muted, border) with live preview card.
+- Frontend `App.js` `applyBranding()` now also maps a tenant's
+  `theme_overrides` onto the active brand-namespace CSS variables
+  on login so existing surfaces (Pulse + GymAxis) pick them up
+  without per-component changes.
+
+### Testing
+- 8/8 new pytest in `test_iter_216h94_communications_inbox.py`
+  (contact form extended payload, inbox CRUD round-trip, status
+  validation, auth gates, audit endpoint, override round-trip,
+  hex validation, clear-by-empty-string).
+- All earlier iter 216h82–h93 tests still pass (no regressions).
+- Manual UI smoke tests pass for both `/contact` (new form fields
+  render + submit) and `/master-admin?section=communications` +
+  `…?section=theme-settings` (panels render, drawer opens, save
+  round-trip works against live preview environment).
+
+### Permissions / data
+- Inbox endpoints gated by `require_master_admin` (GymAxis MA +
+  delegated Pulse MA both pass).
+- Theme override write gated by `assert_org_in_pulse_scope` so a
+  Pulse MA cannot touch a GymAxis-internal org's theme.
+- Reply send never silently masquerades — sender stamp + email
+  events row both record `user.email`.
+
+### Files touched
+**Backend**
+- `routes/contact.py` (extended payload — backwards compatible)
+- `routes/master_admin_communications.py` (NEW · ~220 LOC)
+- `routes/master_admin_theme.py` (NEW · ~190 LOC)
+- `route_registry/admin.py` (+2 router registrations)
+- `tests/test_iter_216h94_communications_inbox.py` (NEW · 8 tests)
+
+**Frontend**
+- `pages/Marketing/ContactMarketingPage.js` (extended form + scroll-to-form CTA)
+- `pages/MasterAdmin/AdminCommunications.js` (NEW · ~390 LOC)
+- `pages/MasterAdmin/ThemeSettingsPanel.js` (NEW · ~260 LOC)
+- `pages/MasterAdminPage.js` (+2 section cases)
+- `pages/MasterAdmin/SidebarConfig.js` (+2 sub-tabs: Growth ·
+  Communications inbox; Settings & Compliance · Theme settings)
+- `App.js` (`applyBranding` extended to apply `theme_overrides`)
+
+### Strategic outcome
+- Marketing → CRM loop closed: every public enquiry now ends up in a
+  trackable timeline owned by the platform team rather than an
+  inbox-of-record on someone's personal email.
+- Brand isolation is now explicit + auditable: any future drift
+  surfaces as `status: conflict` in the audit endpoint, caught by
+  the regression suite.
+- Per-tenant theming unlocks Pulse-Pro customer-brand customisation
+  (cyan vs orange vs whatever) without touching CSS source files.
+
+---
+
+
 ## Iter 216h93 — `/api/health/full` master-admin vitals (Feb 14, 2026)
 
 Tiny but high-impact: a one-stop platform health endpoint for the

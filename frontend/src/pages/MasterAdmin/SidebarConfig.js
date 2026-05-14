@@ -5,7 +5,7 @@ import {
   Banknote, Rocket, ListChecks, Users, Palette, Tag, Receipt, ShieldAlert,
   Wallet, Megaphone, LifeBuoy, Lock, FolderArchive, AlertCircle, AlertOctagon,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
-  Plug, MapPin, Building, Settings, BadgeCheck,
+  Plug, MapPin, Building, Settings, BadgeCheck, Inbox,
 } from 'lucide-react';
 
 /**
@@ -100,6 +100,7 @@ export const SIDEBAR_ITEMS = [
   {
     id: 'growth', label: 'Growth', icon: Megaphone, group: 'main',
     subTabs: [
+      { id: 'communications',  label: 'Communications inbox', icon: Inbox },
       { id: 'trials',          label: 'Trials',           icon: Timer },
       { id: 'sales-insights',  label: 'Sales insights',   icon: Sparkles },
       { id: 'partners',        label: 'Partner Engineers', icon: BadgeCheck },
@@ -134,6 +135,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'db-viewer',          label: 'Database viewer',    icon: Database },
       { id: 'backfills',          label: 'Maintenance jobs',   icon: RefreshCcw },
       { id: 'design-system',      label: 'Design system',      icon: Palette, gymaxisOnly: true },
+      { id: 'theme-settings',     label: 'Theme settings',     icon: Palette },
     ],
   },
 ];
@@ -179,6 +181,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'db-viewer':          'settings-compliance',
   'backfills':          'settings-compliance',
   'design-system':      'settings-compliance',
+  'theme-settings':     'settings-compliance',
   'locked-staff':       'roles',
   'staff-onboarding':   'roles',
   'onboarding':         'organizations',
@@ -200,6 +203,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'sales-insights':     'growth',
   'analytics':          'growth',
   'marketing-suite':    'growth',
+  'communications':     'growth',
   'trust':              'overview',
   'tasks':              'overview',
 };
@@ -222,6 +226,7 @@ export const sectionTitles = {
   trials: 'Trials',
   'activation-funnel': 'Customer activation',   // Iter 216h17 — terminology cleanup
   'sales-insights': 'Sales insights',
+  communications: 'Communications inbox',
   analytics: 'Global analytics',
   'marketing-suite': 'Marketing suite',
   orbit4: 'Orbit 4',
@@ -237,6 +242,7 @@ export const sectionTitles = {
   'financial-ops': 'Financial operations',
   'refunds': 'Refunds',
   'design-system': 'Design system',
+  'theme-settings': 'Theme settings',
   'db-viewer': 'Database viewer',
   catalogue: 'Equipment catalogue & spec sheets',
   'all-sites': 'All sites',
@@ -271,6 +277,7 @@ export const sectionDescriptions = {
   trials: 'Track active trials, extend deadlines, convert to paid',
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',
   'sales-insights': 'Top sales objections + AI-spotted themes from the public marketing chat.',
+  communications: 'Every sales enquiry from the public marketing site — triage, reply via Resend, attach internal notes.',
   roles: 'Pulse Admins · Customer Owners · Customer Staff · CRM contacts — all in one directory.',
   'staff-onboarding': '5-step wizard to invite a new platform admin or org-scoped staff member. Generates a 72h invite link — the user sets their own password.',
   'stripe-connect': 'Connect Pulse Fitness to Stripe via OAuth, tune the platform fee, preview profit per customer',
@@ -281,6 +288,7 @@ export const sectionDescriptions = {
   'financial-ops': 'Revenue reserves, cost centres, and auto-top-up',
   'refunds': 'Issue and track Stripe refunds',
   'design-system': 'Living reference gallery — every button, tab pill, and input in one place',
+  'theme-settings': 'GymAxis vs Pulse Fitness design-token isolation audit + per-tenant brand overrides.',
   'db-viewer': 'Read-only Mongo collection browser — search, paginate, and export.',
   catalogue: 'Manufacturer catalogue, spec sheets, equipment image library and brand assets — all the master data reused across every org and every site.',
   'all-sites': 'Every physical site across every organisation. Filter by brand, org, or site type. Click any row to drill into the parent organisation&apos;s Sites drawer.',

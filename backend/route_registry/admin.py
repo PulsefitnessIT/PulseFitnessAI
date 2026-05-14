@@ -28,6 +28,8 @@ from routes.master_admin_pricing import router as master_admin_pricing_router
 from routes.master_admin_billing import router as master_admin_billing_router
 from routes.master_admin_login_events import router as master_admin_login_events_router
 from routes.master_admin_audit_log import router as master_admin_audit_log_router
+from routes.master_admin_communications import router as master_admin_communications_router
+from routes.master_admin_theme import router as master_admin_theme_router
 from routes.activation_events import router as activation_events_router
 from routes.master_admin_documents_lib import router as master_admin_documents_lib_router
 from routes.invoice_share import router as invoice_share_router
@@ -75,6 +77,8 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_pricing_router, master_admin_billing_router,
         master_admin_login_events_router,
         master_admin_audit_log_router,
+        master_admin_communications_router,
+        master_admin_theme_router,
         activation_events_router,
         master_admin_documents_lib_router,
         invoice_share_router,

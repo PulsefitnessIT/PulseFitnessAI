@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="8" time="3.784" timestamp="2026-05-14T07:33:10.511467+00:00" hostname="agent-env-285ce9b6-7b4e-46db-852f-bad30b58fc15"><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_contact_form_accepts_extended_payload" time="0.453"><failure message="AssertionError: {&quot;detail&quot;:&quot;Rate limit exceeded. Retry in 48s.&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">tests/test_iter_216h94_communications_inbox.py:56: in test_contact_form_accepts_extended_payload
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Rate limit exceeded. Retry in 48s."}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_communications_inbox_summary_requires_auth" time="0.129" /><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_communications_inbox_full_crud_happy_path" time="0.464"><failure message="AssertionError: {&quot;detail&quot;:&quot;Rate limit exceeded. Retry in 48s.&quot;}&#10;assert 429 == 200&#10; +  where 429 = &lt;Response [429]&gt;.status_code">tests/test_iter_216h94_communications_inbox.py:83: in test_communications_inbox_full_crud_happy_path
+    assert seed.status_code == 200, seed.text
+E   AssertionError: {"detail":"Rate limit exceeded. Retry in 48s."}
+E   assert 429 == 200
+E    +  where 429 = &lt;Response [429]&gt;.status_code</failure></testcase><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_communications_patch_rejects_unknown_status" time="0.483"><failure message="KeyError: 'id'">tests/test_iter_216h94_communications_inbox.py:133: in test_communications_patch_rejects_unknown_status
+    eid = seed.json()["id"]
+          ^^^^^^^^^^^^^^^^^
+E   KeyError: 'id'</failure></testcase><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_theme_audit_reports_isolation_ok" time="0.451" /><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_theme_per_tenant_override_round_trip" time="0.821" /><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_theme_override_rejects_non_hex" time="0.678" /><testcase classname="tests.test_iter_216h94_communications_inbox" name="test_theme_routes_require_auth" time="0.238" /></testsuite></testsuites>

@@ -243,7 +243,7 @@ function App() {
 
  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
- const applyBranding = (brandingData) => {
+ const applyBranding = (brandingData, themeOverrides) => {
  if (brandingData && brandingData.primary_color && brandingData.primary_color !== 'var(--color-brand-blue)') {
  document.documentElement.style.setProperty('--brand-color', brandingData.primary_color);
  setBranding(brandingData);
@@ -251,13 +251,33 @@ function App() {
  document.documentElement.style.setProperty('--brand-color', 'var(--color-brand-blue)');
  setBranding(brandingData || null);
  }
+ // Iter 216h95 — per-tenant theme overrides applied as CSS variables.
+ // Picked from Master Admin → Settings & Compliance → Theme settings.
+ const root = document.documentElement;
+ const TOKEN_MAP = {
+ primary:       ['--pulse-primary',       '--gx-brand-from'],
+ primary_hover: ['--pulse-primary-hover'],
+ surface:       ['--pulse-surface',       '--gx-bg-paper'],
+ text:          ['--pulse-text',          '--gx-text'],
+ text_muted:    ['--pulse-text-muted',    '--gx-text-muted'],
+ border:        ['--pulse-border'],
+ accent:        ['--gx-accent-memberships'],
+ };
+ const overrides = themeOverrides || {};
+ Object.entries(TOKEN_MAP).forEach(([key, vars]) => {
+ const v = overrides[key];
+ vars.forEach((cssVar) => {
+ if (v) root.style.setProperty(cssVar, v);
+ else   root.style.removeProperty(cssVar);
+ });
+ });
  };
 
  const loadBranding = async (token) => {
  try {
  const res = await axios.get(`${API}/organization`, { headers: { Authorization: `Bearer ${token}` } });
- if (res.data?.branding) {
- applyBranding(res.data.branding);
+ if (res.data?.branding || res.data?.theme_overrides) {
+ applyBranding(res.data.branding, res.data.theme_overrides);
  }
  } catch {}
  };
