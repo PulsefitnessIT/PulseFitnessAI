@@ -2155,8 +2155,13 @@ async def get_ai_usage(user: dict = Depends(get_current_user)):
     return {"usage": usage, "total_calls": sum(u["total_calls"] for u in usage)}
 
 
-@router.get("/master-admin/emails")
+@router.get("/master-admin/emails-legacy")
 async def get_email_log(user: dict = Depends(get_current_user)):
+    """Iter 216h99 — deprecated. The Outbound emails panel now reads
+    from ``email_send_events`` via ``email_health.list_outbound_emails``.
+    Kept here under a renamed path in case an old integration still
+    points at it; the modern endpoint is ``GET /master-admin/emails``.
+    """
     require_master_admin(user)
     # Pull from supplier cases which track email sends
     cases = await db.supplier_cases.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)

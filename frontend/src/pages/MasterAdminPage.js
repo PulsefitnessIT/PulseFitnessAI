@@ -348,7 +348,7 @@ const MasterAdminPage = ({ onBack }) => {
       case 'support':
         return <AdminSupport stats={stats} onGoUsers={() => setSection('organizations')} />;
       case 'emails':
-        return <AdminEmails emails={emails} />;
+        return <AdminEmails />;
       case 'capex-config':
         return (
           <AdminCapex

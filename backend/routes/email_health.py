@@ -124,6 +124,76 @@ async def email_health(user: dict = Depends(get_current_user)) -> dict:
     }
 
 
+@router.get("/master-admin/emails")
+async def list_outbound_emails(
+    user: dict = Depends(get_current_user),
+    status: str | None = None,
+    search: str | None = None,
+    limit: int = 100,
+):
+    """Iter 216h99 — full paginated feed for the Outbound emails panel.
+
+    Filters:
+      * ``status``: ``sent`` | ``failed`` (or unset for both)
+      * ``search``: case-insensitive substring over ``to`` / ``subject``
+                   / ``sender`` / ``error``
+      * ``limit``: 1-500 (default 100)
+    """
+    _require_master(user)
+    limit = max(1, min(int(limit or 100), 500))
+
+    q: dict = {}
+    if status == "sent":
+        q["status"] = "sent"
+    elif status == "failed":
+        q["status"] = {"$ne": "sent"}
+
+    if search:
+        s = search.strip()
+        q["$or"] = [
+            {"to":      {"$regex": s, "$options": "i"}},
+            {"subject": {"$regex": s, "$options": "i"}},
+            {"sender":  {"$regex": s, "$options": "i"}},
+            {"error":   {"$regex": s, "$options": "i"}},
+        ]
+
+    cursor = (
+        db.email_send_events.find(
+            q,
+            {"_id": 0, "to": 1, "subject": 1, "sender": 1, "status": 1, "error": 1, "created_at": 1},
+        )
+        .sort("created_at", -1)
+        .limit(limit)
+    )
+    rows: list[dict] = []
+    async for r in cursor:
+        r["created_at"] = _iso(r.get("created_at"))
+        rows.append(r)
+
+    # Cheap rolling counts (24h) so the panel header shows the same
+    # values as the global health pill.
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=WINDOW_HOURS)
+    sent_24h = await db.email_send_events.count_documents({
+        "status": "sent", "created_at": {"$gte": cutoff},
+    })
+    failed_24h = await db.email_send_events.count_documents({
+        "status": {"$ne": "sent"}, "created_at": {"$gte": cutoff},
+    })
+    total_all_time = await db.email_send_events.count_documents({})
+
+    return {
+        "sender": SENDER_EMAIL or "",
+        "window_hours": WINDOW_HOURS,
+        "sent_24h": sent_24h,
+        "failed_24h": failed_24h,
+        "total_all_time": total_all_time,
+        "count": len(rows),
+        "items": rows,
+    }
+
+
+
+
 def _iso(dt) -> str | None:
     if not dt:
         return None
