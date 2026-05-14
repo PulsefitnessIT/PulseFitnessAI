@@ -141,6 +141,32 @@ async def health_full(user=Depends(get_current_user)) -> dict:
     if weak_jwt:
         out["overall"] = "degraded"
 
+    # ── Email pacer / rate limiter (Iter 216h100) ───────────────────
+    try:
+        from utils.email_rate_limiter import stats as _rl_stats
+        rl = _rl_stats()
+        # 24h delivery success snapshot piggybacks the existing
+        # email_send_events index used by /master-admin/email-health.
+        cutoff = now - timedelta(hours=24)
+        sent_24h = await _safe_count("email_send_events", {"status": "sent", "created_at": {"$gte": cutoff}})
+        failed_24h = await _safe_count("email_send_events", {"status": {"$ne": "sent"}, "created_at": {"$gte": cutoff}})
+        out["email"] = {
+            "max_rps": rl["max_rps"],
+            "in_window": rl["in_window"],
+            "queue_depth": rl["queue_depth"],
+            "sent_24h": sent_24h,
+            "failed_24h": failed_24h,
+            "status": (
+                "backed_up" if rl["queue_depth"] >= 20
+                else ("amber" if failed_24h > sent_24h else "ok")
+            ),
+        }
+        if out["email"]["status"] == "backed_up":
+            out["overall"] = "degraded"
+    except Exception as e:  # pragma: no cover — never break health-full on stats
+        logger.warning(f"health-full: email stats failed: {e!r}")
+        out["email"] = {"status": "unknown"}
+
     out["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
     return out
 

@@ -20,6 +20,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Palette, ShieldCheck, AlertTriangle, RefreshCw, Save, Eye, Building2,
+  Inbox, Hourglass, Sparkles,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -33,6 +34,32 @@ const OVERRIDE_FIELDS = [
   { key: 'text_muted',    label: 'Muted text',      placeholder: '#52525B' },
   { key: 'border',        label: 'Border',          placeholder: '#E4E4E7' },
 ];
+
+// Iter 216h100 — preset palettes. Two presets: the platform's own
+// brand defaults so an operator can revert quickly without typing 7
+// hex codes by hand.
+const BRAND_PRESETS = {
+  pulse: {
+    label: 'Pulse Fitness',
+    primary:       '#66CCFF',
+    primary_hover: '#4DBFFF',
+    accent:        '#19CDFF',
+    surface:       '#FFFFFF',
+    text:          '#212721',
+    text_muted:    '#505759',
+    border:        '#E4E4E7',
+  },
+  gymaxis: {
+    label: 'GymAxis',
+    primary:       '#2563EB',
+    primary_hover: '#1D4ED8',
+    accent:        '#9D4CDD',
+    surface:       '#FFFFFF',
+    text:          '#0F172A',
+    text_muted:    '#475569',
+    border:        '#E2E8F0',
+  },
+};
 
 function authHeader() {
   const token = localStorage.getItem('token') || localStorage.getItem('gymaxis_token');
@@ -121,6 +148,7 @@ export default function ThemeSettingsPanel() {
   return (
     <div className="space-y-5" data-testid="theme-settings-panel">
       <Header audit={audit} onRefresh={loadAudit} loading={loading} />
+      <InboxSlaCard />
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           {audit?.namespaces?.map((ns) => (
@@ -140,6 +168,112 @@ export default function ThemeSettingsPanel() {
         />
       </div>
     </div>
+  );
+}
+
+function InboxSlaCard() {
+  const [settings, setSettings] = useState({ warning_hours: 4, breach_hours: 24 });
+  const [draft, setDraft] = useState({ warning_hours: 4, breach_hours: 24 });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/master-admin/communications/settings`, { headers: authHeader() });
+        const s = r.data?.settings || { warning_hours: 4, breach_hours: 24 };
+        setSettings(s);
+        setDraft(s);
+      } catch (e) {
+        // Endpoint may not be available yet — fall back to defaults.
+      }
+    })();
+  }, []);
+
+  const save = async () => {
+    if (draft.breach_hours <= draft.warning_hours) {
+      toast.error('Breach hours must be greater than warning hours.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const r = await axios.put(`${API}/master-admin/communications/settings`, draft, { headers: authHeader() });
+      setSettings(r.data?.settings || draft);
+      toast.success('SLA settings saved.');
+    } catch (e) {
+      const msg = e.response?.data?.detail || 'Save failed';
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dirty = draft.warning_hours !== settings.warning_hours || draft.breach_hours !== settings.breach_hours;
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl p-5" data-testid="inbox-sla-card">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-50">
+            <Hourglass size={18} className="text-amber-700" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+              <Inbox size={13} className="text-zinc-400" /> Communications inbox SLA
+            </h3>
+            <p className="text-xs text-zinc-500 mt-0.5">Sales-enquiry response thresholds. Open enquiries past these limits get warning / breach badges in the inbox.</p>
+          </div>
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-4 mt-3">
+        <SlaField
+          label="Warning after"
+          value={draft.warning_hours}
+          onChange={(v) => setDraft((d) => ({ ...d, warning_hours: v }))}
+          testid="sla-warning-hours"
+          tone="amber"
+        />
+        <SlaField
+          label="Breach after"
+          value={draft.breach_hours}
+          onChange={(v) => setDraft((d) => ({ ...d, breach_hours: v }))}
+          testid="sla-breach-hours"
+          tone="rose"
+        />
+      </div>
+      <div className="mt-4 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty || saving}
+          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-50"
+          style={{ background: '#0F172A', color: '#FFFFFF' }}
+          data-testid="sla-save"
+        >
+          <Save size={12} /> {saving ? 'Saving…' : 'Save SLA settings'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SlaField({ label, value, onChange, testid, tone }) {
+  const ring = tone === 'rose' ? 'border-rose-200 focus:border-rose-400' : 'border-amber-200 focus:border-amber-400';
+  return (
+    <label className="block">
+      <span className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wide">{label}</span>
+      <div className="mt-1 flex items-center gap-2">
+        <input
+          type="number"
+          min={1}
+          max={720}
+          value={value}
+          onChange={(e) => onChange(Math.max(1, Math.min(720, parseInt(e.target.value || '0', 10))))}
+          className={`w-24 rounded-lg border bg-white px-3 py-2 text-sm font-mono focus:outline-none ${ring}`}
+          data-testid={testid}
+        />
+        <span className="text-xs text-zinc-500">hours</span>
+      </div>
+    </label>
   );
 }
 
@@ -236,8 +370,25 @@ function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSav
 
       {orgId && orgTheme && (
         <>
-          <div className="mb-4 rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2 text-[11px] text-zinc-600">
+          <div className="mb-3 rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2 text-[11px] text-zinc-600">
             <strong className="text-zinc-800">{orgTheme.org_name}</strong> uses the <strong>{orgTheme.default_namespace}</strong> namespace by default.
+          </div>
+          <div className="mb-4 flex items-center gap-2 flex-wrap" data-testid="theme-presets">
+            <span className="text-[10px] uppercase tracking-[0.12em] font-bold text-zinc-400 mr-1 flex items-center gap-1">
+              <Sparkles size={10} /> Apply preset:
+            </span>
+            {Object.entries(BRAND_PRESETS).map(([id, preset]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setDraft({ ...preset })}
+                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-semibold text-zinc-700 hover:border-zinc-400"
+                data-testid={`theme-preset-${id}`}
+              >
+                <span className="w-3 h-3 rounded-full" style={{ background: preset.primary }} />
+                {preset.label}
+              </button>
+            ))}
           </div>
           <div className="space-y-3" data-testid="theme-override-fields">
             {OVERRIDE_FIELDS.map(({ key, label, placeholder }) => (

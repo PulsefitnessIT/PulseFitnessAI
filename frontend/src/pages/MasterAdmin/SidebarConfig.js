@@ -5,7 +5,7 @@ import {
   Banknote, Rocket, ListChecks, Users, Palette, Tag, Receipt, ShieldAlert,
   Wallet, Megaphone, LifeBuoy, Lock, FolderArchive, AlertCircle, AlertOctagon,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
-  Plug, MapPin, Building, Settings, BadgeCheck, Inbox,
+  Plug, MapPin, Building, Settings, BadgeCheck, Inbox, FileText,
 } from 'lucide-react';
 
 /**
@@ -101,6 +101,7 @@ export const SIDEBAR_ITEMS = [
     id: 'growth', label: 'Growth', icon: Megaphone, group: 'main',
     subTabs: [
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
+      { id: 'canned-replies',  label: 'Canned replies',   icon: FileText },
       { id: 'emails',          label: 'Outbound emails',  icon: Mail },
       { id: 'trials',          label: 'Trials',           icon: Timer },
       { id: 'sales-insights',  label: 'Sales insights',   icon: Sparkles },
@@ -203,6 +204,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'analytics':          'growth',
   'marketing-suite':    'growth',
   'communications':     'growth',
+  'canned-replies':     'growth',
   'emails':             'growth',
   'trust':              'overview',
   'tasks':              'overview',
@@ -227,6 +229,7 @@ export const sectionTitles = {
   'activation-funnel': 'Customer activation',   // Iter 216h17 — terminology cleanup
   'sales-insights': 'Sales insights',
   communications: 'Communications inbox',
+  'canned-replies': 'Canned replies',
   analytics: 'Global analytics',
   'marketing-suite': 'Marketing suite',
   orbit4: 'Orbit 4',
@@ -278,6 +281,7 @@ export const sectionDescriptions = {
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',
   'sales-insights': 'Top sales objections + AI-spotted themes from the public marketing chat.',
   communications: 'Every sales enquiry from the public marketing site — triage, reply via Resend, attach internal notes.',
+  'canned-replies': 'Manage the global library of reusable reply templates surfaced in the Communications inbox composer.',
   roles: 'Pulse Admins · Customer Owners · Customer Staff · CRM contacts — all in one directory.',
   'staff-onboarding': '5-step wizard to invite a new platform admin or org-scoped staff member. Generates a 72h invite link — the user sets their own password.',
   'stripe-connect': 'Connect Pulse Fitness to Stripe via OAuth, tune the platform fee, preview profit per customer',

@@ -268,6 +268,11 @@ async def send_email(
             params["reply_to"] = reply_to
         if attachments:
             params["attachments"] = attachments
+        # Iter 216h100 — gate the actual Resend HTTP call through the
+        # process-wide rate limiter so signup-journey + lifecycle email
+        # bursts can't overrun Resend's 5 req/s cap.
+        from utils.email_rate_limiter import acquire as _rl_acquire
+        await _rl_acquire()
         result = await asyncio.to_thread(resend.Emails.send, params)
         logger.info(f"Email sent to {to} (subject={subject!r}, resend_id={result.get('id') if isinstance(result, dict) else result})")
         await _record_email_event(to=to, subject=subject, status="sent", error=None)

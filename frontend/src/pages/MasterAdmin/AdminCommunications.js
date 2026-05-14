@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import {
   Inbox, RefreshCw, Search, Mail, MailOpen, Reply, CheckCircle2,
   ChevronRight, Send, X, Phone, Building2, Clock, Sparkles,
+  AlertTriangle, Hourglass, UserCircle2, FileText,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -104,6 +105,8 @@ export default function AdminCommunications() {
 }
 
 function Header({ summary, statusFilter, setStatusFilter, onRefresh, loading }) {
+  const slaWarn = summary?.sla?.warning || 0;
+  const slaBreach = summary?.sla?.breached || 0;
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm">
       <div className="flex items-center justify-between gap-4 mb-4">
@@ -116,15 +119,31 @@ function Header({ summary, statusFilter, setStatusFilter, onRefresh, loading }) 
             <p className="text-xs text-zinc-500">Every sales enquiry from the public marketing site lands here.</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 disabled:opacity-50"
-          data-testid="comms-refresh"
-        >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {(slaWarn > 0 || slaBreach > 0) && (
+            <div className="flex items-center gap-2 text-[11px] font-semibold" data-testid="comms-sla-roll-up">
+              {slaWarn > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5">
+                  <Hourglass size={10} /> {slaWarn} warning
+                </span>
+              )}
+              {slaBreach > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5">
+                  <AlertTriangle size={10} /> {slaBreach} breached
+                </span>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 disabled:opacity-50"
+            data-testid="comms-refresh"
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
       </div>
       <div className="flex flex-wrap gap-2" role="tablist">
         {STATUS_TABS.map((s) => {
@@ -210,9 +229,24 @@ function ListView({ items, loading, onPick }) {
                   )}
                 </div>
                 <p className="mt-1 text-sm text-zinc-600 line-clamp-2">{it.preview}</p>
-                <div className="mt-2 flex items-center gap-3 text-[11px] text-zinc-400">
+                <div className="mt-2 flex items-center gap-3 text-[11px] text-zinc-400 flex-wrap">
                   <span>{relativeTime(it.created_at)}</span>
                   {it.interest && <span className="rounded-full bg-zinc-50 px-2 py-0.5 text-zinc-600 border border-zinc-200">{INTEREST_LABELS[it.interest] || it.interest}</span>}
+                  {it.assigned_to && (
+                    <span className="inline-flex items-center gap-1 text-zinc-600 font-semibold">
+                      <UserCircle2 size={11} className="text-zinc-400" />{it.assigned_to.split('@')[0]}
+                    </span>
+                  )}
+                  {it.sla === 'warning' && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 font-semibold">
+                      <Hourglass size={10} /> SLA warning · {Math.floor(it.hours_open)}h
+                    </span>
+                  )}
+                  {it.sla === 'breached' && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 font-semibold">
+                      <AlertTriangle size={10} /> SLA breached · {Math.floor(it.hours_open)}h
+                    </span>
+                  )}
                   {it.reply_count > 0 && <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><Reply size={10} />{it.reply_count}</span>}
                 </div>
               </div>
@@ -237,16 +271,24 @@ function DetailDrawer({ enquiryId, onClose, onAfterMutate }) {
   const [sending, setSending] = useState(false);
   const [internalNotes, setInternalNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [admins, setAdmins] = useState([]);
+  const [canned, setCanned] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/master-admin/communications/${enquiryId}`, { headers: authHeader() });
-      setDoc(res.data);
-      setInternalNotes(res.data?.internal_notes || '');
+      const [docRes, settingsRes, cannedRes] = await Promise.all([
+        axios.get(`${API}/master-admin/communications/${enquiryId}`, { headers: authHeader() }),
+        axios.get(`${API}/master-admin/communications/settings`, { headers: authHeader() }),
+        axios.get(`${API}/master-admin/canned-replies`, { headers: authHeader() }),
+      ]);
+      setDoc(docRes.data);
+      setInternalNotes(docRes.data?.internal_notes || '');
+      setAdmins(settingsRes.data?.admins || []);
+      setCanned(cannedRes.data?.items || []);
       setReply({
-        subject: `Re: your enquiry${res.data?.company ? ' — ' + res.data.company : ''}`,
-        body: `Hi ${(res.data?.name || '').split(' ')[0] || 'there'},\n\nThanks for getting in touch with GymAxis.\n\n`,
+        subject: `Re: your enquiry${docRes.data?.company ? ' — ' + docRes.data.company : ''}`,
+        body: `Hi ${(docRes.data?.name || '').split(' ')[0] || 'there'},\n\nThanks for getting in touch with GymAxis.\n\n`,
       });
     } catch (e) {
       toast.error('Failed to load enquiry');
@@ -288,6 +330,26 @@ function DetailDrawer({ enquiryId, onClose, onAfterMutate }) {
     }
   };
 
+  const updateAssignee = async (email) => {
+    try {
+      await axios.patch(`${API}/master-admin/communications/${enquiryId}`, { assigned_to: email || '' }, { headers: authHeader() });
+      toast.success(email ? `Assigned to ${email}` : 'Unassigned');
+      await load();
+      onAfterMutate?.();
+    } catch (e) {
+      const msg = e.response?.data?.detail || 'Failed to update assignee';
+      toast.error(msg);
+    }
+  };
+
+  const applyTemplate = (tplId) => {
+    if (!tplId) return;
+    const tpl = canned.find((c) => c.id === tplId);
+    if (!tpl) return;
+    setReply({ subject: tpl.subject, body: tpl.body });
+    toast.success(`Loaded template: ${tpl.label}`);
+  };
+
   const saveNotes = async () => {
     setSavingNotes(true);
     try {
@@ -325,14 +387,35 @@ function DetailDrawer({ enquiryId, onClose, onAfterMutate }) {
         ) : (
           <div className="p-6 space-y-6">
             <EnquiryHeader doc={doc} updateStatus={updateStatus} />
+            <AssigneePicker admins={admins} value={doc.assigned_to || ''} onChange={updateAssignee} />
             <EnquiryMeta doc={doc} />
             <MessageBlock doc={doc} />
             <ReplyTimeline doc={doc} />
-            <ReplyComposer reply={reply} setReply={setReply} sending={sending} onSend={sendReply} />
+            <ReplyComposer reply={reply} setReply={setReply} sending={sending} onSend={sendReply} canned={canned} applyTemplate={applyTemplate} />
             <InternalNotes value={internalNotes} setValue={setInternalNotes} onSave={saveNotes} saving={savingNotes} />
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function AssigneePicker({ admins, value, onChange }) {
+  return (
+    <div className="rounded-xl border border-zinc-100 bg-white p-4" data-testid="comms-assignee">
+      <div className="text-[10px] uppercase tracking-[0.12em] font-bold text-zinc-400 mb-2 flex items-center gap-1"><UserCircle2 size={11} /> Assignee</div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-zinc-400"
+        data-testid="comms-assignee-select"
+      >
+        <option value="">Unassigned</option>
+        {admins.map((a) => (
+          <option key={a.email} value={a.email}>{a.name || a.email}</option>
+        ))}
+      </select>
+      <p className="text-[11px] text-zinc-400 mt-1">Only Master Admins appear here. Choose &quot;Unassigned&quot; to clear.</p>
     </div>
   );
 }
@@ -425,10 +508,28 @@ function ReplyTimeline({ doc }) {
   );
 }
 
-function ReplyComposer({ reply, setReply, sending, onSend }) {
+function ReplyComposer({ reply, setReply, sending, onSend, canned, applyTemplate }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-zinc-400 mb-2">Send a reply</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-zinc-400">Send a reply</p>
+        {canned && canned.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <FileText size={11} className="text-zinc-400" />
+            <select
+              onChange={(e) => { applyTemplate(e.target.value); e.target.value = ''; }}
+              defaultValue=""
+              className="text-[11px] rounded-md border border-zinc-200 bg-white px-2 py-1 focus:outline-none focus:border-zinc-400"
+              data-testid="comms-canned-picker"
+            >
+              <option value="">Load template…</option>
+              {canned.map((c) => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
       <div className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
         <input
           type="text"

@@ -50,6 +50,7 @@ import AdminAllSites from './MasterAdmin/AdminAllSites';
 import StaffOnboardingWizard from './MasterAdmin/StaffOnboardingWizard';
 import IntegrationsHub from './MasterAdmin/IntegrationsHub';
 import AdminCommunications from './MasterAdmin/AdminCommunications';
+import AdminCannedReplies from './MasterAdmin/AdminCannedReplies';
 import ThemeSettingsPanel from './MasterAdmin/ThemeSettingsPanel';
 
 import AdminSidebar from './MasterAdmin/AdminSidebar';
@@ -328,6 +329,8 @@ const MasterAdminPage = ({ onBack }) => {
         return <AdminPartners />;
       case 'communications':
         return <AdminCommunications />;
+      case 'canned-replies':
+        return <AdminCannedReplies />;
       case 'theme-settings':
         return <ThemeSettingsPanel />;
       case 'trust':
