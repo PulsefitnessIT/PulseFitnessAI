@@ -13,12 +13,12 @@ import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import {
  FileText, Upload, PoundSterling, Send, Plus, Trash2, X,
- Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Link2, Mail, Wrench, Loader2, CalendarDays
+ Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Link2, Mail, Wrench, Loader2, CalendarDays, ShieldCheck
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 
 const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
- const { API } = useAuth();
+ const { API, user } = useAuth();
  const { t } = useTranslation();
  const [issue, setIssue] = useState(issueProp);
  const [supplierRef, setSupplierRef] = useState(issueProp.supplier_ref || '');
@@ -831,7 +831,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
 
  {/* Status Actions */}
  {issue.status !== 'resolved' && (
- <div className="flex gap-2 pt-2 border-t border-[var(--theme-border)]">
+ <div className="flex gap-2 pt-2 border-t border-[var(--theme-border)] flex-wrap">
  {issue.status === 'open' && (
  <Button size="sm" onClick={() => onUpdate(issue.id, 'in_progress')} className="bg-yellow-500 hover:bg-yellow-600 text-white" data-testid={`detail-progress-btn-${issue.id}`}>
  Mark In Progress
@@ -840,6 +840,42 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  <Button size="sm" onClick={() => onUpdate(issue.id, 'resolved')} className="bg-green-500 hover:bg-green-600 text-white" data-testid={`detail-resolve-btn-${issue.id}`}>
  Mark Resolved
  </Button>
+ {/* Iter 216h117 — MOD site users can escalate to DIO. Hidden for non-MOD. */}
+ {user?.account_type === 'mod_site' && !issue.escalated_to_dio && (
+ <Button
+   size="sm"
+   variant="outline"
+   onClick={async () => {
+     const note = window.prompt('Optional escalation note (max 2000 chars):', '');
+     if (note === null) return;
+     try {
+       const r = await axios.post(
+         `${API}/mod/site/faults/${issue.id}/escalate-to-dio`,
+         { note: (note || '').slice(0, 2000) },
+         { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } },
+       );
+       setIssue({ ...issue, escalated_to_dio: true, dio_escalated_at: new Date().toISOString() });
+       notify.success('Escalated to DIO', `Sent to ${r.data.escalated_to}.`);
+       if (onUpdate) onUpdate();
+     } catch (e) {
+       notify.error('Escalation failed', e?.response?.data?.detail || 'Could not escalate');
+     }
+   }}
+   className="border-cyan-400/60 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
+   data-testid={`detail-escalate-dio-${issue.id}`}
+ >
+   <ShieldCheck size={12} className="mr-1" /> Report to DIO
+ </Button>
+ )}
+ {user?.account_type === 'mod_site' && issue.escalated_to_dio && (
+ <span
+   className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2 py-1 rounded border border-cyan-400/40 bg-cyan-50 text-cyan-800"
+   data-testid={`detail-dio-pill-${issue.id}`}
+   title={`Escalated ${issue.dio_escalated_at ? new Date(issue.dio_escalated_at).toLocaleString() : ''}`}
+ >
+   <ShieldCheck size={11} /> Escalated to DIO
+ </span>
+ )}
  </div>
  )}
 

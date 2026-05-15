@@ -1,3 +1,69 @@
+## Iter 216h117 — Close P1: DIO UI + MOD bulk-import (Feb 15, 2026)
+
+### What shipped
+
+**1. DIO contract — full UI loop**
+* HQ side: new `MODDIOContractModal` opened from a "DIO" button per
+  child site in the All-Sites leaderboard. Captures
+  `dio_contract_ref`, `dio_contact_name`, `dio_contact_email` against
+  the backend (`PUT /api/mod/pro/sites/{site_id}/dio-contract`).
+* Site side: `IssueDetailPanel` (Pulse Lite fault drawer used by MOD
+  sites) now shows a "Report to DIO" button for `mod_site` users.
+  Click → optional note prompt → calls
+  `POST /api/mod/site/faults/{id}/escalate-to-dio`. After success the
+  button is replaced by an "Escalated to DIO" pill with the timestamp.
+* Same button also added to the legacy `MODSiteDashboard.FaultCard`
+  for back-compat (visible on `/MODService` branded login route).
+* Backend endpoints unchanged (shipped in iter 216h116).
+
+**2. MOD bulk-import pipeline (P1 backlog)**
+* New module `routes/mod_bulk_import.py`:
+  - `GET  /api/master-admin/mod/bulk-import/template` — canonical CSV
+    (`site_name, mod_branch, mod_force, postcode,
+     primary_contact_email, address, site_code, primary_contact_name`)
+  - `POST /api/master-admin/mod/bulk-import?parent_org_id=&notify=` —
+    multipart CSV; creates one `mod_site` org + one shared kiosk login
+    per row, scoped to the chosen parent (`mod_org` or `mod_branch`).
+    HQ-tier parent accepts rows spanning multiple branches; branch-
+    tier parent overrides the CSV's branch column with its own.
+    Plaintext credentials returned ONCE; record cached for 10 minutes
+    in `db.mod_bulk_imports`.
+  - `GET  /api/master-admin/mod/bulk-import/export-credentials?import_id=` —
+    streams the credentials CSV within the 10-minute TTL.
+* New panel `MasterAdmin/MODBulkImport.js` mounted under Master Admin
+  → Onboarding → "MOD Sites (bulk)". Picks parent, toggles email-on-
+  import, uploads CSV, shows per-row credentials with copy-password
+  buttons + a download-credentials CSV button.
+
+### Files touched
+
+Backend
+- `/app/backend/routes/mod_bulk_import.py` (NEW — full module)
+- `/app/backend/route_registry/admin.py` (mount mod_bulk_import_router)
+- `/app/backend/tests/test_iter_216h117_mod_bulk_import.py` (NEW · 5 tests)
+
+Frontend
+- `/app/frontend/src/pages/LiteDashboard/MODDIOContractModal.js` (NEW)
+- `/app/frontend/src/pages/LiteDashboard/AllSitesOverview.js` (DIO button + modal mount)
+- `/app/frontend/src/pages/MODPortal/MODSiteDashboard.js` (Report-to-DIO on FaultCard)
+- `/app/frontend/src/pages/IssueDetailPanel.js` (Report-to-DIO on MOD fault drawer in Pulse Lite)
+- `/app/frontend/src/pages/MasterAdmin/MODBulkImport.js` (NEW master admin panel)
+- `/app/frontend/src/pages/MasterAdmin/AdminOnboardingHub.js` (add `mod-imports` sub-tab)
+
+### Verification
+- 5/5 new `tests/test_iter_216h117_mod_bulk_import.py` pass.
+- 32/32 cumulative MOD tests pass (h114 + h115 + h116 + h117_riddor + h117_bulk).
+- Testing agent run 216h117: backend 100% (32/32), MOD bulk import
+  panel + DIO modal both verified live in the preview env.
+
+### P1 status — CLOSED
+All P1 backlog items shipped:
+- ✅ Audit hardening · OFFICIAL-SENSITIVE · Acceptance loop (h115)
+- ✅ Posting out · Compliance calendar · MFA HQ · DIO stub (h116)
+- ✅ RIDDOR workflow · Offline PWA (h117_riddor)
+- ✅ DIO UI + MOD bulk-import pipeline (h117_bulk)
+
+
 ## Iter 216h116 — MOD Future-state: Posting-out · Compliance Calendar · MFA HQ · DIO stub (Feb 15, 2026)
 
 ### What shipped
