@@ -1,3 +1,49 @@
+## Iter 216h118 — MOD Service Portal hotfixes (Feb 15, 2026)
+
+User-reported critical regressions on `/MODService` for the MOD HQ tier.
+
+### 1. Session-expired toast immediately after sign-in (fixed)
+`MODServiceLogin.submit` called `login(data.token, data.user)` blindly,
+even when the backend returned the MFA-required shape
+(`{requires_mfa_enrolment: true, temp_token, ...}` — no `token` field).
+That stored the string "undefined" as the JWT in `localStorage.token`;
+the very next `/api/*` call returned 401, the silent-refresh failed,
+and `<SessionResumedBanner>` fired the "Your session has expired"
+toast within seconds of landing on the dashboard.
+
+Fix: `MODServiceLogin` now handles both `requires_mfa` (TOTP challenge
+for already-enrolled users) AND `requires_mfa_enrolment` (mandatory
+first-login enrolment for `mod_org` / `mod_branch`). Renders the QR +
+secret reveal + 6-digit code input inline, calls
+`/auth/mfa/enrol/setup`, `/auth/mfa/enrol/complete`, `/auth/mfa/verify`
+as appropriate. Only the canonical
+`completeLoginFromResponse(data)` path can call `login()` — it now
+refuses to proceed without a real `data.token`.
+
+### 2. GymAxis lockup leaking into MOD Service header (fixed)
+`Navbar.pulseAccount` was hard-coded to `pulse_pro / lite` only,
+which meant `mod_*` users fell through to the GymAxis brand path.
+Per iter 216h113: MOD users are Pulse Fitness customers.
+
+Fix: `pulseAccount` now includes `mod_site / mod_branch / mod_org`,
+and `showPulseBrand` simplified to `isOnPulse || pulseAccount` (i.e.
+Pulse users see Pulse branding on every surface). Verified with a
+live login as `daniel.hayes@army.mod.local` — `[data-testid=pulse-logo]`
+renders, `[data-testid=gymaxis-logo]` does not.
+
+### 3. Multi-site selector for Army HQ
+Already in place: `LiteDashboardPage.isPro = ... || isMOD`. The
+`SiteSwitcher` renders for owners/managers when sites.length >= 2.
+For `regional.command@mod.gov.uk` the existing
+`/api/sites/overview` already injects every `mod_site` org sharing
+the caller's `mod_root_id`, so the All-Sites view shows the entire
+Army estate as soon as bulk-imported sites populate.
+
+### Files touched
+- `/app/frontend/src/pages/MODPortal/MODServiceLogin.js` (MFA flow)
+- `/app/frontend/src/components/shared/Navbar.js` (pulseAccount + showPulseBrand)
+
+
 ## Iter 216h117 — Close P1: DIO UI + MOD bulk-import (Feb 15, 2026)
 
 ### What shipped

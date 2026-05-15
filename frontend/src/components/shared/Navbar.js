@@ -64,14 +64,16 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  // Pulse-branded users should see the Pulse Fitness logo across all their modules
  // (Operations, Memberships, Gym Floor) so the header stays visually stable when
  // switching between them.
- const pulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
- const showPulseBrand = isOnPulse || (pulseAccount && (
- location.pathname.startsWith('/memberships') ||
- location.pathname.startsWith('/marketing') ||
- location.pathname.startsWith('/crm') ||
- location.pathname.startsWith('/gym-floor') ||
- location.pathname.startsWith('/instructor')
- ));
+ //
+ // Iter 216h118 — MOD users (mod_site / mod_branch / mod_org) are
+ // Pulse Fitness customers per the iter 216h113 routing rule. They
+ // MUST see the Pulse Fitness logo, never the GymAxis lockup.
+ const pulseAccount = (
+   user?.account_type === 'pulse_pro' || user?.account_type === 'lite' ||
+   user?.account_type === 'mod_site' || user?.account_type === 'mod_branch' ||
+   user?.account_type === 'mod_org'
+ );
+ const showPulseBrand = isOnPulse || pulseAccount;
  const isAdmin = user?.is_master_admin || user?.account_type === 'full';
  const brandColor = branding?.primary_color || 'var(--color-brand-blue)';
 

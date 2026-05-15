@@ -67,22 +67,103 @@ export default function MODServiceLogin() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Iter 216h118 — Mandatory MFA flow handling for MOD HQ (mod_org /
+  // mod_branch) accounts. The /auth/login response either contains a
+  // direct ``token`` or one of:
+  //   • requires_mfa            (TOTP challenge, user already enrolled)
+  //   • requires_mfa_enrolment  (first login — show QR + verify)
+  // Without this we used to blindly call login(undefined, undefined),
+  // which stored "undefined" in localStorage.token and triggered the
+  // session-expired toast on the very next /api/* call.
+  const [mfaStage, setMfaStage] = useState(null); // null | 'verify' | 'enrol_setup' | 'enrol_confirm'
+  const [mfaTempToken, setMfaTempToken] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaSecret, setMfaSecret] = useState('');
+  const [mfaQrUrl, setMfaQrUrl] = useState('');
+  const [mfaProvisioningUri, setMfaProvisioningUri] = useState('');
+
+  const apiBase = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+  const completeLoginFromResponse = (data) => {
+    if (!data?.token) {
+      setError('Sign-in succeeded but no token was returned. Try again.');
+      return;
+    }
+    login(data.token, data.user, data.refresh_token);
+    navigate('/dashboard');
+  };
 
   const submit = async (e) => {
     e?.preventDefault?.();
     if (!email || !password) { setError('Email or site code and password required'); return; }
     setError(''); setBusy(true);
     try {
-      const r = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/login`, {
+      const r = await axios.post(`${apiBase}/auth/login`, {
         email: email.trim().toLowerCase(),
         password,
         portal: 'mod',
       });
       const data = r.data || {};
-      login(data.token, data.user, data.refresh_token);
-      navigate('/dashboard');
+      // ── MFA challenge (already enrolled) ──
+      if (data.requires_mfa && data.temp_token) {
+        setMfaTempToken(data.temp_token);
+        setMfaStage('verify');
+        return;
+      }
+      // ── Mandatory enrolment (MOD HQ first login) ──
+      if (data.requires_mfa_enrolment && data.temp_token) {
+        setMfaTempToken(data.temp_token);
+        setMfaStage('enrol_setup');
+        try {
+          const setup = await axios.post(`${apiBase}/auth/mfa/enrol/setup`, {
+            temp_token: data.temp_token,
+          });
+          setMfaSecret(setup.data?.secret || '');
+          setMfaQrUrl(setup.data?.qrcode_data_url || '');
+          setMfaProvisioningUri(setup.data?.provisioning_uri || '');
+          setMfaStage('enrol_confirm');
+        } catch (err) {
+          setError(err.response?.data?.detail || 'Failed to start MFA enrolment');
+        }
+        return;
+      }
+      completeLoginFromResponse(data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid credentials');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyMfaCode = async (e) => {
+    e?.preventDefault?.();
+    if (!mfaCode || mfaCode.length < 6) { setError('Enter the 6-digit code'); return; }
+    setError(''); setBusy(true);
+    try {
+      const r = await axios.post(`${apiBase}/auth/mfa/verify`, {
+        temp_token: mfaTempToken,
+        code: mfaCode.trim(),
+      });
+      completeLoginFromResponse(r.data || {});
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Invalid code');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const completeMfaEnrolment = async (e) => {
+    e?.preventDefault?.();
+    if (!mfaCode || mfaCode.length < 6) { setError('Enter the 6-digit code from your authenticator app'); return; }
+    setError(''); setBusy(true);
+    try {
+      const r = await axios.post(`${apiBase}/auth/mfa/enrol/complete`, {
+        temp_token: mfaTempToken,
+        code: mfaCode.trim(),
+      });
+      completeLoginFromResponse(r.data || {});
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Invalid code');
     } finally {
       setBusy(false);
     }
@@ -209,7 +290,7 @@ export default function MODServiceLogin() {
           {/* Right — sign-in card */}
           <section className="lg:col-span-5 order-1 lg:order-2 w-full">
             <form
-              onSubmit={submit}
+              onSubmit={mfaStage === 'verify' ? verifyMfaCode : (mfaStage === 'enrol_confirm' ? completeMfaEnrolment : submit)}
               className="relative rounded-3xl p-7 sm:p-8"
               style={{
                 background: PULSE.surface,
@@ -222,16 +303,79 @@ export default function MODServiceLogin() {
               <span aria-hidden="true" className="absolute right-0 top-0 w-[3px] h-10 rounded-b" style={{ background: PULSE.primary }} />
 
               <div className="text-[10px] uppercase font-bold mb-2" style={{ color: PULSE.primaryDeep, letterSpacing: '0.32em' }}>
-                Sign in
+                {mfaStage ? 'Multi-factor' : 'Sign in'}
               </div>
               <h2 className="text-2xl sm:text-[28px] font-extrabold tracking-tight leading-tight" style={{ color: PULSE.black, letterSpacing: '-0.01em' }}>
-                Service credentials
+                {mfaStage === 'verify' && 'Enter authenticator code'}
+                {mfaStage === 'enrol_confirm' && 'Enrol MFA'}
+                {mfaStage === 'enrol_setup' && 'Preparing MFA…'}
+                {!mfaStage && 'Service credentials'}
               </h2>
               <p className="mt-2 text-[13px] leading-relaxed" style={{ color: PULSE.greyDark }}>
-                Use the email issued by your unit, or the site code for shared
-                kiosk logins.
+                {mfaStage === 'verify' && 'Open your authenticator app and enter the 6-digit code for this account.'}
+                {mfaStage === 'enrol_confirm' && 'Scan the QR with Google Authenticator / Authy, then enter the 6-digit code.'}
+                {mfaStage === 'enrol_setup' && 'Generating QR code…'}
+                {!mfaStage && 'Use the email issued by your unit, or the site code for shared kiosk logins.'}
               </p>
 
+              {/* ── Stage: enrol_confirm — QR + secret + code input ── */}
+              {mfaStage === 'enrol_confirm' && (
+                <div className="mt-6 space-y-4">
+                  <div
+                    className="rounded-xl p-4 flex flex-col items-center gap-3"
+                    style={{ background: '#F8F9FA', border: `1px solid ${PULSE.border}` }}
+                    data-testid="mod-login-mfa-qr"
+                  >
+                    {mfaQrUrl ? (
+                      <img src={mfaQrUrl} alt="MFA QR" className="w-44 h-44" />
+                    ) : (
+                      <Loader2 size={24} className="animate-spin" style={{ color: PULSE.primary }} />
+                    )}
+                    {mfaSecret && (
+                      <div className="text-center">
+                        <div className="text-[10px] uppercase font-bold" style={{ color: PULSE.greyDark, letterSpacing: '0.16em' }}>
+                          Manual secret
+                        </div>
+                        <code className="text-[12px] font-mono break-all" style={{ color: PULSE.black }}>{mfaSecret}</code>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Stage: verify or enrol_confirm — 6-digit input ── */}
+              {(mfaStage === 'verify' || mfaStage === 'enrol_confirm') && (
+                <div className="mt-4">
+                  <label className="block">
+                    <span className="text-[10.5px] uppercase font-bold" style={{ color: PULSE.greyDark, letterSpacing: '0.18em' }}>
+                      6-digit code
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      autoFocus
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="123456"
+                      className="mt-1.5 w-full px-3 py-3 rounded-lg text-center text-xl font-mono tracking-[0.4em] focus:outline-none"
+                      style={{
+                        background: PULSE.surface,
+                        border: `1px solid ${PULSE.border}`,
+                        color: PULSE.black,
+                        caretColor: PULSE.primary,
+                      }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = PULSE.primary; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = PULSE.border; }}
+                      data-testid="mod-login-mfa-code"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {/* ── Stage: default — email + password ── */}
+              {!mfaStage && (
               <div className="mt-6 space-y-4">
                 <label className="block">
                   <span className="text-[10.5px] uppercase font-bold" style={{ color: PULSE.greyDark, letterSpacing: '0.18em' }}>
@@ -282,7 +426,10 @@ export default function MODServiceLogin() {
                     />
                   </div>
                 </label>
+              </div>
+              )}
 
+              <div className="mt-4 space-y-4">
                 {error && (
                   <div
                     className="rounded-lg text-xs px-3 py-2.5"
@@ -295,7 +442,7 @@ export default function MODServiceLogin() {
 
                 <button
                   type="submit"
-                  disabled={busy}
+                  disabled={busy || mfaStage === 'enrol_setup'}
                   className="w-full inline-flex items-center justify-center gap-2 rounded-lg font-extrabold py-3 text-[13px] uppercase transition-all disabled:opacity-60"
                   style={{
                     background: PULSE.primary,
@@ -308,8 +455,27 @@ export default function MODServiceLogin() {
                   data-testid="mod-login-submit"
                 >
                   {busy ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
-                  Sign in
+                  {mfaStage === 'verify' && 'Verify code'}
+                  {mfaStage === 'enrol_confirm' && 'Enrol & sign in'}
+                  {mfaStage === 'enrol_setup' && 'Preparing…'}
+                  {!mfaStage && 'Sign in'}
                 </button>
+
+                {mfaStage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMfaStage(null); setMfaCode(''); setMfaTempToken('');
+                      setMfaSecret(''); setMfaQrUrl(''); setMfaProvisioningUri('');
+                      setError('');
+                    }}
+                    className="w-full text-[11px] font-semibold underline-offset-2 hover:underline"
+                    style={{ color: PULSE.greyDark }}
+                    data-testid="mod-login-mfa-cancel"
+                  >
+                    Use a different account
+                  </button>
+                )}
 
                 <p className="text-[11px] leading-relaxed pt-1" style={{ color: PULSE.greyDark }}>
                   Trouble signing in? Contact your unit PTI or
