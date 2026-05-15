@@ -1,3 +1,63 @@
+## Iter 216h126 — Jack feedback batch (Feb 15, 2026)
+
+Six items from Jack Ottey's Third Space demo prep:
+
+### 1. 🐛 Mobile check-list not syncing to platform (regression)
+**Symptom:** member of floor staff scans a QR, completes a check, but
+the serial-number chip on the Check Sheets tab never turns green —
+required a full page reload.
+**Root cause:** `PulseCheckSheetsTab.loadHistory` was only called on
+mount. No focus listener, no polling.
+**Fix:** added `focus` listener + 30s polling interval. Refetches the
+history collection so `completedTodayNames` includes mobile
+submissions within ≤30s.
+
+### 2. ✅ Bulk check-off by group
+Already implemented (`CompleteSheetDialog.jsx` supports select-all /
+clear). Verified working post-fix in (1) — once history refreshes,
+every machine ticked in the bulk dialog turns green.
+
+### 3. ✅ Warranty / contract / chargeable pill on Equipment row
+New `[data-testid=lite-equip-pill-<id>]` badge on every row of
+`LiteEquipmentTab`. Precedence: service contract > warranty > Chargeable.
+Reads `service_contract_end` and `warranty_expiry` from the equipment
+record. Green pill when covered; amber "Chargeable" when not.
+
+### 4. ✅ Expiry digest cadence preference
+New `PUT /api/expiry-alerts/digest-frequency` (off / weekly / monthly)
+stored on `organizations.expiry_digest_frequency`. UI surfaced as a
+3-button toggle on `LifecycleAlertsTab` above the alerts list. Per
+Jack's request the cadence is user-selectable.
+
+### 5. ✅ Supplier machine-type breakdown on drill-in
+`_build_supplier_map` now also collects `type_counts` (e.g.
+`{Treadmill: 7, Bike: 4}`) and `model_counts` (e.g.
+`{Treadmill: {Integrity X: 7}, ...}`). The supplier drill-down panel
+renders an "Equipment by type" grid with top-5 models per type.
+
+### 6. ✅ Time-to-Fix KPI per supplier
+`_build_eq_suppliers` now computes `avg_time_to_fix_hours` from
+`created_at` → `resolved_at` across each supplier's resolved faults.
+Surfaced as a `TTF Xh` cyan chip in the drill-down.
+
+### Verified live (Jack's token, estate-wide):
+```
+Wattbike      — TTF 48.0h  · 1 resolved
+Life Fitness  — TTF 58.0h  · 1 resolved
+Technogym    — TTF 57.0h  · 3 resolved
+Pulse Fitness — TTF 51.6h  · 7 resolved
+```
+
+### Files touched
+- `/app/frontend/src/pages/PulseCheckSheetsTab.js`
+- `/app/frontend/src/pages/LiteDashboard/LiteEquipmentTab.js`
+- `/app/frontend/src/pages/LifecycleAlertsTab.js`
+- `/app/frontend/src/pages/SupplierDashboardTab.js`
+- `/app/backend/routes/supplier_portal.py`
+- `/app/backend/routes/expiry_alerts.py`
+
+
+
 ## Iter 216h124 — Global MOD-scope sweep via auth middleware (Feb 15, 2026)
 
 User asked for the batch sweep so we don't whack-a-mole. Rather than

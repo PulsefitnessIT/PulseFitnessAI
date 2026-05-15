@@ -73,6 +73,21 @@ const PulseCheckSheetsTab = ({ equipment }) => {
 
   useEffect(() => { loadHistory(); loadReport(); loadCustomTemplates(); }, [loadHistory, loadReport, loadCustomTemplates]);
 
+  // Iter 216h126 — refetch on window focus AND poll every 30s while
+  // the Check Sheets tab is open. Without this, a check completed on
+  // mobile (via the QR scan flow) doesn't turn the serial chip green
+  // on the desktop dashboard until the user reloads the page —
+  // exactly the regression Jack reported during the Third Space demo.
+  useEffect(() => {
+    const onFocus = () => loadHistory();
+    window.addEventListener('focus', onFocus);
+    const id = setInterval(loadHistory, 30000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      clearInterval(id);
+    };
+  }, [loadHistory]);
+
   const handleStartSheet = (group) => {
     const tasks = getTasksForType(group.equipment_type);
     setActiveSheet({

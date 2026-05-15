@@ -122,13 +122,44 @@ async def get_expiry_alerts(user: dict = Depends(get_current_user)):
 
     _annotate_alerts_with_history(alerts, _build_sent_map(sent_notifications))
 
+    # Iter 216h126 — surface the org's digest preference so the UI can
+    # render the current cadence + a switch.
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")},
+        {"_id": 0, "expiry_digest_frequency": 1, "expiry_digest_last_sent_at": 1},
+    ) or {}
+
     return {
         "alerts": alerts,
         "critical_count": len([a for a in alerts if a["urgency"] == "critical"]),
         "warning_count": len([a for a in alerts if a["urgency"] == "warning"]),
         "info_count": len([a for a in alerts if a["urgency"] == "info"]),
         "total": len(alerts),
+        "digest_frequency": org.get("expiry_digest_frequency", "off"),
+        "digest_last_sent_at": org.get("expiry_digest_last_sent_at"),
     }
+
+
+@router.put("/expiry-alerts/digest-frequency")
+async def set_expiry_digest_frequency(
+    body: dict, user: dict = Depends(get_current_user),
+) -> dict:
+    """Set the org's expiry-digest cadence — off / weekly / monthly
+    (Jack request #4)."""
+    freq = (body or {}).get("frequency", "off")
+    if freq not in {"off", "weekly", "monthly"}:
+        raise HTTPException(400, "frequency must be off / weekly / monthly")
+    if not user.get("organization_id"):
+        raise HTTPException(400, "User has no organisation")
+    await db.organizations.update_one(
+        {"id": user["organization_id"]},
+        {"$set": {
+            "expiry_digest_frequency": freq,
+            "expiry_digest_updated_at": datetime.now(timezone.utc).isoformat(),
+            "expiry_digest_updated_by": user.get("id"),
+        }},
+    )
+    return {"ok": True, "frequency": freq}
 
 
 def _build_email_row(alert: dict) -> str:

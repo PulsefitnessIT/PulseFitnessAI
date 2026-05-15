@@ -54,10 +54,37 @@ const LifecycleAlertsTab = () => {
  });
  setExpiryAlerts(response.data.alerts || []);
  setInfoCount(response.data.total || 0);
+ setDigestFrequency(response.data.digest_frequency || 'off');
+ setDigestLastSentAt(response.data.digest_last_sent_at || null);
  } catch (error) {
  console.error('Failed to load expiry alerts:', error);
  } finally {
  setExpiryLoading(false);
+ }
+ };
+
+ // Iter 216h126 — digest cadence preference (Jack request #4).
+ const [digestFrequency, setDigestFrequency] = useState('off');
+ const [digestLastSentAt, setDigestLastSentAt] = useState(null);
+ const [savingFreq, setSavingFreq] = useState(false);
+ const updateDigestFrequency = async (freq) => {
+ setSavingFreq(true);
+ try {
+ const token = localStorage.getItem('token');
+ await axios.put(`${API}/expiry-alerts/digest-frequency`, { frequency: freq }, {
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ setDigestFrequency(freq);
+ notify.success(
+   freq === 'off' ? 'Digest disabled' : `Digest set to ${freq}`,
+   freq === 'off'
+     ? 'You will no longer receive scheduled warranty / contract reminders.'
+     : `We'll email you a ${freq} summary of warranties and contracts expiring soon.`,
+ );
+ } catch {
+ notify.error('Could not update digest preference');
+ } finally {
+ setSavingFreq(false);
  }
  };
 
@@ -158,6 +185,46 @@ const LifecycleAlertsTab = () => {
  </div>
  </Card>
  </div>
+
+ {/* Iter 216h126 — Digest cadence preference (Jack request #4) */}
+ <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-5 mb-4" data-testid="expiry-digest-card">
+ <div className="flex items-start justify-between gap-4 flex-wrap">
+ <div className="flex items-start gap-3 min-w-0 flex-1">
+ <div className="w-10 h-10 rounded-xl bg-[rgb(var(--rgb-brand-blue)/0.15)] flex items-center justify-center shrink-0">
+   <Bell size={18} className="text-[var(--color-brand-blue)]" />
+ </div>
+ <div className="min-w-0">
+ <h3 className="text-white font-semibold text-sm">Scheduled expiry digest</h3>
+ <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
+   Get a recurring email summary of warranties and service contracts expiring soon. You can still send a manual reminder any time.
+ </p>
+ {digestLastSentAt && (
+ <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+   Last digest sent {new Date(digestLastSentAt).toLocaleString()}
+ </p>
+ )}
+ </div>
+ </div>
+ <div className="flex items-center gap-1.5">
+ {['off', 'weekly', 'monthly'].map(opt => (
+ <button
+ key={opt}
+ type="button"
+ onClick={() => updateDigestFrequency(opt)}
+ disabled={savingFreq || digestFrequency === opt}
+ className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors capitalize ${
+   digestFrequency === opt
+     ? 'bg-[var(--color-brand-blue)] text-white shadow-sm'
+     : 'bg-white/5 text-[var(--color-text-muted)] hover:bg-white/10'
+ }`}
+ data-testid={`expiry-digest-${opt}`}
+ >
+ {opt === 'off' ? 'Off' : opt}
+ </button>
+ ))}
+ </div>
+ </div>
+ </Card>
 
  {/* ── Warranty/Contract Expiry Section ── */}
  {expiryAlerts.length > 0 && (

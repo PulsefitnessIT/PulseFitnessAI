@@ -569,35 +569,74 @@ def _match_faults_to_suppliers(issues: list, equipment: list) -> dict[str, list]
             "description": (issue.get("issue_description") or "")[:120],
             "severity": issue.get("severity"), "status": issue.get("status"),
             "created_at": issue.get("created_at"),
+            # Iter 216h126 — also surface resolved_at so TTF calculation works.
+            "resolved_at": issue.get("resolved_at"),
+            "updated_at": issue.get("updated_at"),
         })
     return faults_by_supplier
 
 
 def _build_supplier_map(equipment: list) -> dict[str, dict]:
-    """Build a supplier → {name, equipment_count, types} map from equipment list."""
+    """Build a supplier → {name, equipment_count, types, machine_breakdown} map.
+
+    Iter 216h126 — `machine_breakdown` is a dict keyed by equipment_type
+    with `{count, model_breakdown}` so Jack can drill into "Life Fitness
+    → Treadmill 7, Upright bike 4". The model_breakdown sub-dict counts
+    each distinct model/name within that type.
+    """
     supplier_map: dict[str, dict] = {}
     for eq in equipment:
         sup = eq.get("supplier_name") or eq.get("manufacturer") or ""
         if not sup:
             continue
         if sup not in supplier_map:
-            supplier_map[sup] = {"name": sup, "equipment_count": 0, "types": set()}
-        supplier_map[sup]["equipment_count"] += 1
-        etype = eq.get("equipment_type") or ""
-        if etype:
-            supplier_map[sup]["types"].add(etype)
+            supplier_map[sup] = {
+                "name": sup, "equipment_count": 0,
+                "types": set(),
+                "type_counts": {},          # {Treadmill: 7, Bike: 4, ...}
+                "model_counts": {},         # {"Treadmill": {"Integrity X": 5, ...}}
+            }
+        bucket = supplier_map[sup]
+        bucket["equipment_count"] += 1
+        etype = eq.get("equipment_type") or "Unknown"
+        bucket["types"].add(etype)
+        bucket["type_counts"][etype] = bucket["type_counts"].get(etype, 0) + 1
+        bucket["model_counts"].setdefault(etype, {})
+        model_key = eq.get("model") or eq.get("name") or "Unspecified"
+        bucket["model_counts"][etype][model_key] = bucket["model_counts"][etype].get(model_key, 0) + 1
     return supplier_map
 
 
 def _build_eq_suppliers(supplier_map: dict, faults_by_supplier: dict) -> list:
-    """Build the final equipment_suppliers list with fault data."""
+    """Build the final equipment_suppliers list with fault data + drill-down breakdown."""
     eq_suppliers = []
     for s in supplier_map.values():
         faults = faults_by_supplier.get(s["name"], [])
+        # ── Compute average Time-to-Fix (TTF) across resolved faults ──
+        # Iter 216h126 (Jack's #6): Reports → Suppliers wants a TTF KPI.
+        # Hours from `created_at` to `resolved_at`.
+        ttf_hours: list[float] = []
+        for f in faults:
+            if f.get("status") != "resolved":
+                continue
+            try:
+                ca = datetime.fromisoformat(str(f.get("created_at")).replace("Z", "+00:00"))
+                ra = datetime.fromisoformat(str(f.get("resolved_at") or f.get("updated_at") or "").replace("Z", "+00:00"))
+                if ra > ca:
+                    ttf_hours.append((ra - ca).total_seconds() / 3600)
+            except (ValueError, TypeError):
+                continue
+        avg_ttf = round(sum(ttf_hours) / len(ttf_hours), 1) if ttf_hours else None
+
         eq_suppliers.append({
             "name": s["name"], "equipment_count": s["equipment_count"],
-            "equipment_types": sorted(s["types"]), "faults": faults,
+            "equipment_types": sorted(s["types"]),
+            "type_counts": s.get("type_counts", {}),
+            "model_counts": s.get("model_counts", {}),
+            "faults": faults,
             "open_faults": sum(1 for f in faults if f["status"] not in ("resolved", "closed")),
+            "avg_time_to_fix_hours": avg_ttf,
+            "resolved_faults": sum(1 for f in faults if f.get("status") == "resolved"),
         })
     eq_suppliers.sort(key=lambda x: -x["equipment_count"])
     return eq_suppliers

@@ -225,7 +225,34 @@ const LiteEquipmentTab = ({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {openFaults > 0 && <Badge className="bg-red-500/15 text-red-400 border-0 text-xs">{openFaults} fault{openFaults > 1 ? 's' : ''}</Badge>}
-                  {eq.warranty_expiry && new Date(eq.warranty_expiry) > new Date() && <Shield size={14} className="text-emerald-400" />}
+                  {/* Iter 216h126 — warranty / contract / chargeable pill (Jack feedback).
+                      Order of precedence: explicit service-contract → in-warranty → chargeable. */}
+                  {(() => {
+                    const today = new Date();
+                    const warrantyDate = eq.warranty_expiry ? new Date(eq.warranty_expiry) : null;
+                    const contractDate = eq.service_contract_end ? new Date(eq.service_contract_end) : null;
+                    const inContract = contractDate && contractDate > today;
+                    const inWarranty = warrantyDate && warrantyDate > today;
+                    if (inContract) {
+                      return (
+                        <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
+                          <Shield size={10} /> Under contract
+                        </Badge>
+                      );
+                    }
+                    if (inWarranty) {
+                      return (
+                        <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
+                          <Shield size={10} /> Under warranty
+                        </Badge>
+                      );
+                    }
+                    return (
+                      <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold" data-testid={`lite-equip-pill-${eq.id}`}>
+                        Chargeable
+                      </Badge>
+                    );
+                  })()}
                   {/* Iter 216h49 — owner/manager kit row actions. Stop
                       propagation so clicks don't drill into the detail view. */}
                   {canManageKit && realSites.length > 1 && (

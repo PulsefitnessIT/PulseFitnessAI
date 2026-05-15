@@ -363,6 +363,50 @@ const SupplierDashboardTab = () => {
  {/* Expanded: Faults and escalated cases */}
  {isExpanded && (
  <div className="border-t border-[var(--theme-border)] p-4 bg-[rgb(var(--rgb-ink-alt)/0.5)] space-y-4" data-testid={`supplier-detail-${supplier.name}`}>
+ {/* Iter 216h126 — Machine type + model breakdown (Jack request #5).
+     Drill in to see "Life Fitness · Treadmill 7 · Upright bike 4". */}
+ {supplier.type_counts && Object.keys(supplier.type_counts).length > 0 && (
+ <div data-testid={`supplier-${supplier.name}-machine-breakdown`}>
+ <p className="text-white font-semibold text-sm mb-2 inline-flex items-center gap-2">
+   Equipment by type
+   {supplier.avg_time_to_fix_hours != null && (
+     <span
+       className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 inline-flex items-center gap-1"
+       data-testid={`supplier-${supplier.name}-avg-ttf`}
+       title="Average open → resolved hours across this supplier's faults"
+     >
+       <Clock size={9} /> TTF {supplier.avg_time_to_fix_hours}h
+     </span>
+   )}
+ </p>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+ {Object.entries(supplier.type_counts)
+   .sort((a, b) => b[1] - a[1])
+   .map(([etype, count]) => (
+ <div key={etype} className="p-2.5 rounded-md bg-[var(--theme-surface)] border border-white/5">
+ <div className="flex items-center justify-between">
+ <span className="text-white text-sm font-semibold">{etype}</span>
+ <Badge className="bg-cyan-500/15 text-cyan-300 border-0 text-xs font-bold">{count}</Badge>
+ </div>
+ {supplier.model_counts && supplier.model_counts[etype] && (
+ <ul className="mt-1.5 space-y-0.5">
+ {Object.entries(supplier.model_counts[etype])
+   .sort((a, b) => b[1] - a[1])
+   .slice(0, 5)
+   .map(([model, n]) => (
+ <li key={model} className="flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
+ <span className="truncate mr-2">{model}</span>
+ <span className="font-mono">{n}</span>
+ </li>
+ ))}
+ </ul>
+ )}
+ </div>
+ ))}
+ </div>
+ </div>
+ )}
+
  {/* Fault Issues */}
  {faults.length > 0 && (
  <div>
