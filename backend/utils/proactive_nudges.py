@@ -214,5 +214,12 @@ async def run_proactive_nudges() -> dict:
     except Exception as exc:  # pragma: no cover
         totals["errors"] += 1
         logger.warning(f"[nudges] mod_compliance sweep failed: {exc}")
+    # Iter 216h117 — RIDDOR 7-day follow-up reminders.
+    try:
+        from routes.mod_incidents import sweep_riddor_followups
+        totals["mod_riddor"] = await sweep_riddor_followups()
+    except Exception as exc:  # pragma: no cover
+        totals["errors"] += 1
+        logger.warning(f"[nudges] mod_riddor sweep failed: {exc}")
     logger.info(f"[nudges] cycle complete {totals}")
     return totals

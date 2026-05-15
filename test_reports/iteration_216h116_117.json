@@ -1,0 +1,88 @@
+{
+  "summary": "Completed testing of Iter 216h116 + 216h117 features: Personnel-rotation posting-out, Compliance calendar, MFA mandatory for MOD HQ, DIO contract stub, RIDDOR personal-incident workflow, and PWA offline-status pill. All 15 backend pytest tests pass. Frontend testing verified Classification Banner with right slot, but identified that MOD site users are routed to standard Pulse dashboard instead of MODSiteDashboard, making the incident wizard inaccessible.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "MOD Incident Wizard Access",
+        "issue": "MOD site users (daniel.hayes) are routed to /pulse (LiteDashboardPage) per Iter 216h113, but the incident wizard (mod-incident-launch button) is only present in MODSiteDashboard which is not accessible. The incident wizard needs to be integrated into LiteDashboardPage for MOD users.",
+        "affected_selectors": ["[data-testid='mod-incident-launch']", "[data-testid='mod-incident-wizard']"],
+        "priority": "HIGH"
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h117_riddor.py",
+    "/app/backend/tests/test_iter_216h116_postings_compliance_mfa_dio.py"
+  ],
+  "action_items": [
+    "CRITICAL: Integrate MODIncidentWizard into LiteDashboardPage for MOD users (account_type in mod_site/mod_branch/mod_org) - currently the incident wizard is only in MODSiteDashboard which is not routed to",
+    "Add 'Report a personal incident' button (mod-incident-launch) to LiteDashboardPage when user is MOD type",
+    "Consider adding MFA enrolment UI flow for HQ users (currently no frontend UI exists - users must complete MFA via API)"
+  ],
+  "critical_code_review_comments": [
+    "MODSiteDashboard is imported in AppRoutes.js but never used in any route - MOD users are redirected to /pulse instead",
+    "The incident wizard component (MODIncidentWizard.js) is well-implemented with all required data-testids but unreachable from the current routing"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (15/15 tests pass)",
+    "frontend": "70% - Classification Banner works, but incident wizard inaccessible"
+  },
+  "test_credentials": {
+    "master_admin": "admin@gymaxisai.com / MasterAdmin123!",
+    "mod_hq": "catterick.demo.lead@army.mod.local / ArmyDemo2026! portal=mod (requires MFA enrolment)",
+    "mod_site": "daniel.hayes@army.mod.local / ArmyDemo2026! portal=mod"
+  },
+  "seed_data_creation": "Called /api/mod/demo/seed-army-catterick to create Catterick Garrison hierarchy",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All backend features work correctly: (1) Posting-out handover records date and returns open_fault_count, (2) Compliance calendar CRUD works with status buckets, (3) MFA mandatory for mod_branch users - returns requires_mfa_enrolment + temp_token, (4) DIO contract stub works - escalation returns 409 without contact, 200 with contact, (5) RIDDOR incidents auto-flag hospitalised severity, (6) RIDDOR sweeper sends reminders for overdue followups. Frontend: Classification Banner with right slot works, OfflineStatusPill correctly hidden when online. ISSUE: MOD incident wizard is in MODSiteDashboard but users are routed to LiteDashboardPage.",
+  "features_tested": {
+    "posting_out_handover": {
+      "status": "PASS",
+      "details": "POST /api/mod/site/staff/{id}/posting-out returns ok=true, posting_out_date, open_fault_count. Invalid dates rejected with 400. Sweeper auto-deactivates overdue postings."
+    },
+    "compliance_calendar": {
+      "status": "PASS",
+      "details": "POST/GET/PATCH/DELETE /api/mod/pro/compliance work correctly. Events have status buckets (overdue/critical/warning/soon/ok). Cross-scope access blocked with 403."
+    },
+    "mfa_mandatory": {
+      "status": "PASS",
+      "details": "MOD HQ login returns requires_mfa_enrolment + temp_token. /auth/mfa/enrol/setup returns provisioning_uri + secret + qrcode_data_url. /auth/mfa/enrol/complete with valid TOTP returns token + backup_codes."
+    },
+    "dio_contract": {
+      "status": "PASS",
+      "details": "PUT/GET /api/mod/pro/sites/{site_id}/dio-contract work. Escalation returns 409 without contact, 200 with escalated_to + contract_ref when set."
+    },
+    "riddor_incidents": {
+      "status": "PASS",
+      "details": "POST /api/mod/site/incidents with hospitalised severity auto-flags riddor_reportable=true, sets riddor_followup_at 7 days out. First-aid severity does NOT flag RIDDOR."
+    },
+    "riddor_sweeper": {
+      "status": "PASS",
+      "details": "Backdated riddor_followup_at triggers reminders_sent >= 1 and flips riddor_followup_sent=true."
+    },
+    "classification_banner": {
+      "status": "PASS",
+      "details": "Banner with '◆OFFICIAL◆' appears for MOD users. Right slot (mod-classification-right-slot) is present."
+    },
+    "offline_status_pill": {
+      "status": "PASS",
+      "details": "OfflineStatusPill correctly hidden when online with no pending items. Shows when offline or items queued."
+    },
+    "incident_wizard_ui": {
+      "status": "BLOCKED",
+      "details": "MODIncidentWizard component exists with all required data-testids but is not accessible because MOD users are routed to LiteDashboardPage instead of MODSiteDashboard."
+    },
+    "compliance_calendar_ui": {
+      "status": "NOT_TESTED",
+      "details": "Could not test because HQ user requires MFA enrolment which has no frontend UI. Backend API works correctly."
+    }
+  }
+}

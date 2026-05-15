@@ -9,13 +9,14 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   AlertTriangle, Wrench, Users, Shield, Gauge, ChevronRight,
-  Activity, Clock, Zap, LogOut, CheckCircle2, Plus, QrCode, CloudOff,
+  Activity, Clock, Zap, LogOut, CheckCircle2, Plus, QrCode, CloudOff, ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { installAutoFlush, countPending, flushQueue } from '@/utils/offlineFaultQueue';
 import ClassificationBanner from '@/components/shared/ClassificationBanner';
+import OfflineStatusPill from '@/components/shared/OfflineStatusPill';
 
 function DrillBanner({ drill, onAcknowledge, acked }) {
   if (!drill) return null;
@@ -57,6 +58,7 @@ function DrillBanner({ drill, onAcknowledge, acked }) {
   );
 }
 import MODFaultWizard from './MODFaultWizard';
+import MODIncidentWizard from './MODIncidentWizard';
 import MODStaffModal from './MODStaffModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -68,6 +70,7 @@ export default function MODSiteDashboard() {
   const [nudges, setNudges] = useState([]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
+  const [incidentOpen, setIncidentOpen] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
   const [activeDrill, setActiveDrill] = useState(null);
 
@@ -143,7 +146,7 @@ export default function MODSiteDashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--color-ink-deep)] text-white pb-10" data-testid="mod-site-dashboard">
-      <ClassificationBanner level={user?.classification || 'OFFICIAL'} />
+      <ClassificationBanner level={user?.classification || 'OFFICIAL'} rightSlot={<OfflineStatusPill />} />
       {/* Branded header */}
       <header className="border-b border-white/10 bg-[var(--color-surface-darker)] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
@@ -229,6 +232,27 @@ export default function MODSiteDashboard() {
           <ChevronRight size={22} />
         </button>
 
+        {/* Iter 216h117 — Personal-incident shortcut */}
+        <button
+          onClick={() => setIncidentOpen(true)}
+          className="w-full rounded-2xl p-4 text-left flex items-center gap-4 border transition-all hover:scale-[1.01]"
+          style={{
+            background: 'rgba(220, 38, 38, 0.08)',
+            borderColor: 'rgba(248, 113, 113, 0.4)',
+            color: '#fff',
+          }}
+          data-testid="mod-incident-launch"
+        >
+          <div className="w-11 h-11 rounded-lg bg-rose-500/20 flex items-center justify-center">
+            <ShieldAlert size={20} className="text-rose-300" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm sm:text-base font-extrabold tracking-tight">Report a personal incident</div>
+            <div className="text-xs font-semibold opacity-70">Injuries / RIDDOR — routes to base H&amp;S officer</div>
+          </div>
+          <ChevronRight size={18} className="text-rose-300" />
+        </button>
+
         {/* Proactive nudges */}
         {nudges.length > 0 && (
           <div className="space-y-2" data-testid="mod-nudges">
@@ -281,6 +305,12 @@ export default function MODSiteDashboard() {
         />
       )}
       {staffOpen && <MODStaffModal onClose={() => setStaffOpen(false)} />}
+      {incidentOpen && (
+        <MODIncidentWizard
+          onClose={() => setIncidentOpen(false)}
+          onSubmitted={() => { setIncidentOpen(false); load(); }}
+        />
+      )}
     </div>
   );
 }

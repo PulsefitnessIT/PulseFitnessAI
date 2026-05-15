@@ -284,7 +284,7 @@ async def sweep_compliance_reminders() -> dict:
                     if fallback:
                         recipients = [fallback]
                 if recipients:
-                    from utils.email_service import send_email
+                    from utils.email import send_email
                     subject = f"[Compliance · {label}] {ev['title']} — {(site or {}).get('name','')}"
                     html = _reminder_html(ev, site, label)
                     for rcpt in recipients:

@@ -10,16 +10,16 @@ import React from 'react';
  *
  * Renders nothing for non-MOD users.
  */
-export default function ClassificationBanner({ level = 'OFFICIAL', dense = false }) {
+export default function ClassificationBanner({ level = 'OFFICIAL', dense = false, rightSlot = null }) {
   const label = (level || 'OFFICIAL').toUpperCase();
   return (
     <div
       data-testid="mod-classification-banner"
       role="note"
       aria-label={`Classification: ${label}`}
-      className={`w-full text-center font-extrabold uppercase tracking-[0.3em] ${
+      className={`w-full font-extrabold uppercase tracking-[0.3em] ${
         dense ? 'text-[10px] py-1' : 'text-[11px] py-1.5'
-      }`}
+      } flex items-center justify-center gap-3 px-3 relative`}
       style={{
         background: '#0A0B10',
         color: '#19CDFF',
@@ -28,9 +28,14 @@ export default function ClassificationBanner({ level = 'OFFICIAL', dense = false
         letterSpacing: '0.3em',
       }}
     >
-      <span aria-hidden="true" style={{ marginRight: 8 }}>◆</span>
+      <span aria-hidden="true">◆</span>
       {label}
-      <span aria-hidden="true" style={{ marginLeft: 8 }}>◆</span>
+      <span aria-hidden="true">◆</span>
+      {rightSlot && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center" data-testid="mod-classification-right-slot">
+          {rightSlot}
+        </div>
+      )}
     </div>
   );
 }

@@ -2060,13 +2060,16 @@ async def mod_admin_sweep_now(user: dict = Depends(get_current_user)) -> dict:
     from utils.mod_postings import sweep_posting_outs
     from utils.mod_acceptance import sweep_pending_acceptances
     from routes.mod_compliance import sweep_compliance_reminders
+    from routes.mod_incidents import sweep_riddor_followups
     postings = await sweep_posting_outs()
     acceptances = await sweep_pending_acceptances()
     compliance = await sweep_compliance_reminders()
+    riddor = await sweep_riddor_followups()
     return {
         "postings": postings,
         "acceptances": acceptances,
         "compliance": compliance,
+        "riddor": riddor,
     }
 
 

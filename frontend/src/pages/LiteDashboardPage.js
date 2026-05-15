@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/App';
 import ClassificationBanner from '@/components/shared/ClassificationBanner';
+import OfflineStatusPill from '@/components/shared/OfflineStatusPill';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
@@ -650,7 +651,7 @@ const LiteDashboardPage = () => {
 
   return (
     <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--theme-bg)' }} data-testid="lite-dashboard" data-portal="pulse">
-      {isMOD && <ClassificationBanner level={user?.classification || 'OFFICIAL'} />}
+      {isMOD && <ClassificationBanner level={user?.classification || 'OFFICIAL'} rightSlot={<OfflineStatusPill />} />}
       <Navbar
         onOpenSettings={() => setShowSettingsDialog(true)}
         onOpenMasterAdmin={() => setShowMasterAdmin(true)}
