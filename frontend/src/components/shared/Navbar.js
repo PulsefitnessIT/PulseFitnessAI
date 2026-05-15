@@ -35,6 +35,10 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  const [systemChoice, setSystemChoice] = useState(null); // { portal: response, crm: response }
  const [captchaToken, setCaptchaToken] = useState('');
  const [mfaChallenge, setMfaChallenge] = useState(null); // { temp_token, email }
+ // Iter 216h117 — Mandatory MFA enrolment state (first-login flow for MOD HQ).
+ const [mfaEnrol, setMfaEnrol] = useState(null); // { temp_token, email, reason, secret?, provisioning_uri?, qrcode_data_url? }
+ const [mfaEnrolCode, setMfaEnrolCode] = useState('');
+ const [mfaEnrolBackupCodes, setMfaEnrolBackupCodes] = useState(null);
  const [mfaCode, setMfaCode] = useState('');
  const [mfaBusy, setMfaBusy] = useState(false);
  const [ssoStatus, setSsoStatus] = useState({ enabled: false });
@@ -222,6 +226,15 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  setMfaChallenge({
  temp_token: portalResult.value.data.temp_token,
  email: portalResult.value.data.user?.email || formData.email,
+ });
+ return;
+ }
+ // Iter 216h117 — Mandatory MFA enrolment (first login for MOD HQ).
+ if (portalOk && portalResult.value.data?.requires_mfa_enrolment) {
+ setMfaEnrol({
+ temp_token: portalResult.value.data.temp_token,
+ email: portalResult.value.data.user?.email || formData.email,
+ reason: portalResult.value.data.reason,
  });
  return;
  }
@@ -579,7 +592,21 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
 
  {authBanner && <div className="mb-3">{authBanner}</div>}
 
- {mfaChallenge ? (
+ {mfaEnrol ? (
+ <MfaEnrolPanel
+ enrol={mfaEnrol}
+ setEnrol={setMfaEnrol}
+ code={mfaEnrolCode}
+ setCode={setMfaEnrolCode}
+ backupCodes={mfaEnrolBackupCodes}
+ setBackupCodes={setMfaEnrolBackupCodes}
+ onComplete={(loginRes) => {
+ setMfaEnrol(null);
+ setMfaEnrolCode('');
+ loginToPortal({ data: loginRes });
+ }}
+ />
+ ) : mfaChallenge ? (
  <form onSubmit={handleMfaVerify} className="space-y-4" data-testid="mfa-challenge-form">
  <p className="text-sm text-[var(--color-text-muted)]">
  Enter the 6-digit code from your authenticator app for <span className="text-white">{mfaChallenge.email}</span>.

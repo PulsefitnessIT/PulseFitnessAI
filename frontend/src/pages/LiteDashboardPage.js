@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/App';
 import ClassificationBanner from '@/components/shared/ClassificationBanner';
 import OfflineStatusPill from '@/components/shared/OfflineStatusPill';
+import MODIncidentWizard from './MODPortal/MODIncidentWizard';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
@@ -97,6 +98,10 @@ const LiteDashboardPage = () => {
   // treated as "Pro" for tab visibility regardless of their underlying
   // account_type (`mod_site` / `mod_branch` / `mod_org`).
   const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+  const isMODSite = user?.account_type === 'mod_site';
+  // Iter 216h117 — MOD personal-incident wizard, accessible from any
+  // MOD-site view via a floating CTA.
+  const [incidentOpen, setIncidentOpen] = useState(false);
   // Iter 216o-11 — Free-trial users get the FULL Pro tab set so they
   // can evaluate everything (Reports, Suppliers, Staffing, Gym Layout,
   // Check Sheets, Documents) before deciding whether to upgrade. Once
@@ -983,6 +988,27 @@ const LiteDashboardPage = () => {
 
       {/* Floating Document Q&A for Pro users */}
       {isPro && activeTab !== 'documents' && <DocumentQA />}
+
+      {/* Iter 216h117 — MOD personal-incident floating CTA + wizard */}
+      {isMODSite && (
+        <button
+          type="button"
+          onClick={() => setIncidentOpen(true)}
+          className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 inline-flex items-center gap-2 px-4 py-3 rounded-full font-extrabold uppercase tracking-wider text-xs text-white shadow-lg shadow-rose-500/30"
+          style={{ background: '#dc2626' }}
+          data-testid="mod-incident-launch"
+          title="Report a personal incident (RIDDOR)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2L4 7v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V7l-8-5z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Report incident
+        </button>
+      )}
+      {isMODSite && incidentOpen && (
+        <MODIncidentWizard
+          onClose={() => setIncidentOpen(false)}
+          onSubmitted={() => setIncidentOpen(false)}
+        />
+      )}
 
       {/* Interactive Product Tour (Pro users only) */}
       {isPro && <ProductTour variant="pulse" ref={pulseTourRef} />}
