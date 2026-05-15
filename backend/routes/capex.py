@@ -231,19 +231,69 @@ def _accumulate_forecast(
     return cost
 
 
-def _build_capex_result_item(equip: dict, stats: dict, capex: dict) -> dict:
-    """Build a single result dict for the CAPEX response."""
+def _build_capex_result_item(equip: dict, stats: dict, capex: dict, faults_by_eq: dict | None = None,
+                             severity_counts: dict | None = None) -> dict:
+    """Build a single result dict for the CAPEX response.
+
+    Iter 216h127 — extended with the intelligence layer:
+    lifecycle_stage, condition_scores, fault_history, downtime,
+    ber_flag, safety_risk, roi_estimate, recommendation_detail.
+    """
+    from datetime import datetime, timezone
+    from utils.capex_intelligence import (
+        compute_lifecycle_stage, compute_condition_scores,
+        compute_fault_history_breakdown, compute_downtime_metrics,
+        compute_ber_flag, compute_safety_risk, compute_roi_estimate,
+        build_recommendation_detail,
+    )
+    now_dt = datetime.now(timezone.utc)
+    asset_faults = (faults_by_eq or {}).get(equip["id"], [])
+    severity_counts = severity_counts or {}
+
+    lifecycle = compute_lifecycle_stage(capex.get("age_years"), capex.get("expected_lifespan"))
+    fault_history = compute_fault_history_breakdown(asset_faults, now_dt)
+    downtime = compute_downtime_metrics(asset_faults, now_dt)
+    condition = compute_condition_scores(stats, severity_counts, capex.get("age_years"),
+                                          capex.get("expected_lifespan"))
+    ber = compute_ber_flag(capex.get("estimated_repair_spend", 0), capex.get("replacement_cost", 0))
+    safety = compute_safety_risk(severity_counts, fault_history)
+    roi = compute_roi_estimate(
+        capex.get("estimated_repair_spend", 0) or 0,
+        capex.get("replacement_cost", 0) or 0,
+        capex.get("expected_lifespan") or 8,
+        downtime.get("total_days_oos") or 0,
+    )
+    recommendation = build_recommendation_detail(
+        status=capex.get("status", "monitor"),
+        lifecycle_stage=lifecycle, safety_risk=safety,
+        ber_flag=ber, condition=condition,
+        age_years=capex.get("age_years"),
+        expected_lifespan_years=capex.get("expected_lifespan"),
+    )
+
     return {
         "id": equip["id"], "name": equip.get("name", "Unknown"),
         "equipment_type": equip.get("equipment_type", "Unknown"),
         "manufacturer": equip.get("manufacturer", ""), "model": equip.get("model", ""),
         "serial_number": equip.get("serial_number", ""),
         "location": equip.get("location", "Unassigned") or "Unassigned",
+        "site_id": equip.get("site_id"),
+        "organization_id": equip.get("organization_id"),
         "purchase_date": equip.get("purchase_date"), "warranty_expiry": equip.get("warranty_expiry"),
+        "service_contract_end": equip.get("service_contract_end"),
         "total_faults": stats.get("total_issues", 0), "open_faults": stats.get("open_issues", 0),
         "days_in_service": stats.get("days_in_service"),
         "warranty_active": stats.get("warranty_active", False),
         "capex": capex,
+        # ── New intelligence layer ──
+        "lifecycle_stage": lifecycle,
+        "condition_scores": condition,
+        "fault_history": fault_history,
+        "downtime": downtime,
+        "ber_flag": ber,
+        "safety_risk": safety,
+        "roi_estimate": roi,
+        "recommendation": recommendation,
     }
 
 
@@ -253,6 +303,7 @@ def _aggregate_capex_results(
     severity_lookup: dict,
     selffix_lookup: dict,
     thresholds: dict,
+    faults_by_eq: dict | None = None,
 ) -> tuple[list, dict, int, dict, dict, dict, dict]:
     """Score all equipment and aggregate summary, forecasts, and breakdowns."""
     results: list[dict] = []
@@ -277,7 +328,9 @@ def _aggregate_capex_results(
             capex, equip.get("equipment_type", "Unknown"), location,
             forecast, by_type, by_location, by_priority,
         )
-        results.append(_build_capex_result_item(equip, stats, capex))
+        results.append(_build_capex_result_item(equip, stats, capex,
+                                                faults_by_eq=faults_by_eq,
+                                                severity_counts=sev_data))
 
     results.sort(key=lambda x: x["capex"]["score"], reverse=True)
     return results, summary, total_replacement_cost, forecast, by_type, by_location, by_priority
@@ -302,11 +355,25 @@ async def get_capex_analysis(
         return {"equipment": [], "summary": {"total": 0}, "forecast": {}}
 
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
-    all_issues = await db.issues.find(org_filter, {"_id": 0, "serial_number": 1, "severity": 1, "resolution_type": 1, "resolved_by": 1, "organization_id": 1}).to_list(20000)
+    all_issues = await db.issues.find(
+        org_filter,
+        {"_id": 0, "id": 1, "serial_number": 1, "severity": 1, "resolution_type": 1,
+         "resolved_by": 1, "organization_id": 1, "equipment_id": 1,
+         "issue_description": 1, "status": 1, "created_at": 1, "resolved_at": 1,
+         "updated_at": 1},
+    ).to_list(20000)
 
     severity_lookup, selffix_lookup = _build_severity_lookup(all_issues)
+    # Iter 216h127 — also group full fault dicts by equipment_id so
+    # the intelligence layer (downtime + fault history breakdown) can
+    # compute time-based metrics per asset.
+    faults_by_eq: dict[str, list] = {}
+    for iss in all_issues:
+        eid = iss.get("equipment_id")
+        if eid:
+            faults_by_eq.setdefault(eid, []).append(iss)
     results, summary, total_cost, forecast, by_type, by_location, by_priority = _aggregate_capex_results(
-        equipment_list, bulk_stats, severity_lookup, selffix_lookup, thresholds
+        equipment_list, bulk_stats, severity_lookup, selffix_lookup, thresholds, faults_by_eq
     )
 
     priority_top5 = [r for r in results if r["capex"]["status"] in ("replace_now", "replace_soon", "at_risk")][:5]
