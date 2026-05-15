@@ -20,7 +20,7 @@ import KpiTile from '@/components/shared/KpiTile';
 
 const SupplierDashboardTab = () => {
  const { t } = useTranslation();
- const { API, user } = useAuth();
+ const { API, user, activeSite } = useAuth();
  const [cases, setCases] = useState([]);
  const [metrics, setMetrics] = useState(null);
  const [equipmentSuppliers, setEquipmentSuppliers] = useState([]);
@@ -35,12 +35,16 @@ const SupplierDashboardTab = () => {
  // Supplier CRUD is gated to Pulse Pro and GymAxis Full (Pulse Lite excluded).
  const canAddSuppliers = ['pulse_pro', 'full', undefined, null].includes(user?.account_type);
 
- useEffect(() => { loadDashboard(); }, [API]);
+ // Iter 216h121 — Re-fetch when the active site changes. MOD HQ users
+ // toggling between "All Operations Sites" and a single garrison get a
+ // fresh supplier league table for the chosen scope.
+ useEffect(() => { loadDashboard(); }, [API, activeSite?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
  const loadDashboard = async () => {
  const token = localStorage.getItem('token');
  try {
- const res = await axios.get(`${API}/supplier-dashboard`, {
+ const siteParam = (activeSite && !activeSite.is_default) ? `?site_id=${activeSite.id}` : '';
+ const res = await axios.get(`${API}/supplier-dashboard${siteParam}`, {
  headers: { Authorization: `Bearer ${token}` }
  });
  setCases(res.data.cases || []);
@@ -104,9 +108,16 @@ const SupplierDashboardTab = () => {
  return groups;
  }, [cases]);
 
- // Calculate supplier performance scores
+ // Calculate supplier performance scores.
+//
+// Iter 216h121 — The backend now ships an authoritative `score`,
+// `grade`, `rank`, `resolution_rate`, `avg_rating`, and
+// `avg_response_hours` on each supplier (utility-grade league
+// table). When those server-side fields are present we trust them;
+// otherwise we fall back to the legacy client-side maths so older
+// API versions still render something sensible.
  const scoredSuppliers = useMemo(() => {
- return equipmentSuppliers.map(supplier => {
+ const ranked = equipmentSuppliers.map(supplier => {
  const faults = supplier.faults || [];
  const total = faults.length;
  const resolved = faults.filter(f => f.status === 'resolved' || f.status === 'closed').length;
@@ -115,19 +126,34 @@ const SupplierDashboardTab = () => {
  const escalatedCases = caseGroup?.cases?.length || 0;
  const responded = caseGroup?.respondedCount || 0;
 
- // Score out of 100
- // 1. Fault Resolution Rate (40 pts): % of faults resolved
+ if (typeof supplier.score === 'number') {
+   // Server-side league table — use it directly. Synthesise a
+   // score breakdown for the rainbow bar (40 / 30 / 20 / 10 ratio).
+   return {
+     ...supplier,
+     score: supplier.score,
+     scoreBreakdown: {
+       resolution: Math.round((supplier.resolution_rate ?? 1) * 40),
+       openFault:  Math.max(0, 10 - Math.min(10, open * 2)),
+       response:   supplier.avg_response_hours == null
+         ? 12
+         : supplier.avg_response_hours <= 24 ? 20
+         : supplier.avg_response_hours <= 48 ? 10
+         : supplier.avg_response_hours <= 96 ? 5 : 0,
+     },
+   };
+ }
+
+ // Legacy fallback — pure client maths.
  const resolutionScore = total > 0 ? Math.round((resolved / total) * 40) : 40;
- // 2. Open Fault Ratio (30 pts): fewer open faults relative to equipment = better
  const faultRatio = supplier.equipment_count > 0 ? open / supplier.equipment_count : 0;
  const openFaultScore = Math.round(Math.max(0, 30 - (faultRatio * 300)));
- // 3. Response Rate on escalated cases (30 pts)
  const responseScore = escalatedCases > 0 ? Math.round((responded / escalatedCases) * 30) : 30;
-
  const score = Math.min(100, resolutionScore + openFaultScore + responseScore);
-
  return { ...supplier, score, scoreBreakdown: { resolution: resolutionScore, openFault: openFaultScore, response: responseScore } };
  }).sort((a, b) => b.score - a.score);
+ // Assign league rank after sorting so the badge is always 1, 2, 3…
+ return ranked.map((s, i) => ({ ...s, rank: s.rank ?? (i + 1) }));
  }, [equipmentSuppliers, supplierCaseGroups]);
 
  const getScoreColor = (score) => {
@@ -233,11 +259,41 @@ const SupplierDashboardTab = () => {
  <div className="p-5 cursor-pointer hover:bg-white/5 transition-colors dark:bg-zinc-900" onClick={() => setExpandedSupplier(isExpanded ? null : supplier.name)}>
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-4">
+ {/* Iter 216h121 — league rank medal. 1st/2nd/3rd get a podium colour. */}
+ <div
+   className={`w-10 h-10 rounded-full flex flex-col items-center justify-center flex-shrink-0 font-extrabold ${
+     supplier.rank === 1 ? 'bg-amber-400 text-amber-950'
+     : supplier.rank === 2 ? 'bg-zinc-300 text-zinc-800'
+     : supplier.rank === 3 ? 'bg-orange-300 text-orange-900'
+     : 'bg-white/5 text-[var(--color-text-muted)] border border-[var(--theme-border)]'
+   }`}
+   data-testid={`supplier-rank-${supplier.name}`}
+   title={`League rank #${supplier.rank}`}
+ >
+   <span className="text-[10px] leading-none uppercase opacity-80">#</span>
+   <span className="text-base leading-none">{supplier.rank}</span>
+ </div>
  <div className="w-12 h-12 rounded-xl bg-[rgb(var(--rgb-brand-blue)/0.1)] flex items-center justify-center flex-shrink-0">
  <Building size={24} className="text-[var(--color-brand-blue)]" />
  </div>
  <div>
+ <div className="flex items-center gap-2 flex-wrap">
  <p className="text-white font-bold text-lg">{supplier.name}</p>
+ {supplier.grade && (
+ <span
+   className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+     supplier.grade === 'A' ? 'bg-emerald-500/20 text-emerald-300'
+     : supplier.grade === 'B' ? 'bg-cyan-500/20 text-cyan-300'
+     : supplier.grade === 'C' ? 'bg-yellow-500/20 text-yellow-300'
+     : supplier.grade === 'D' ? 'bg-orange-500/20 text-orange-300'
+     : 'bg-red-500/20 text-red-300'
+   }`}
+   data-testid={`supplier-grade-${supplier.name}`}
+ >
+   Grade {supplier.grade}
+ </span>
+ )}
+ </div>
  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
  {supplier.equipment_types.map(t => (
  <Badge key={t} className="bg-white/5 text-[var(--color-text-muted)] border-0 text-[10px]">{t}</Badge>
@@ -272,6 +328,22 @@ const SupplierDashboardTab = () => {
  )}
  {caseGroup && (
  <span className="text-purple-400 text-sm">{caseGroup.cases.length} escalated case{caseGroup.cases.length !== 1 ? 's' : ''}</span>
+ )}
+ {/* Iter 216h121 — backend-supplied league stats */}
+ {supplier.resolution_rate != null && (
+ <span className="text-sm text-[var(--color-text-muted)]">
+   · Resolution {Math.round(supplier.resolution_rate * 100)}%
+ </span>
+ )}
+ {supplier.avg_rating != null && (
+ <span className="text-sm text-[var(--color-text-muted)] inline-flex items-center gap-1">
+   · <Star size={11} className="text-yellow-400" />{supplier.avg_rating.toFixed(1)}
+ </span>
+ )}
+ {supplier.avg_response_hours != null && (
+ <span className="text-sm text-[var(--color-text-muted)]">
+   · {supplier.avg_response_hours.toFixed(1)}h avg response
+ </span>
  )}
  </div>
 

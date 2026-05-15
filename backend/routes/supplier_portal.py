@@ -530,8 +530,16 @@ def _enrich_case(case: dict, issue: dict) -> tuple[dict, float | None]:
 
 
 def _match_faults_to_suppliers(issues: list, equipment: list) -> dict[str, list]:
-    """Match fault issues to equipment manufacturers. Returns {supplier_name: [fault_dicts]}."""
+    """Match fault issues to equipment manufacturers. Returns {supplier_name: [fault_dicts]}.
+
+    Iter 216h121 — also match by equipment_id (canonical FK on the
+    fault record). The legacy serial_number/name match misses demo-
+    seeded faults that only reference equipment_id, which surfaced as
+    "no faults" on the MOD supplier league table for every supplier
+    bar Wattbike (the one supplier with manual ARMY-TEST-001 faults).
+    """
     serial_to_eq = {}
+    id_to_eq: dict[str, dict] = {}
     for eq in equipment:
         sn = eq.get("serial_number", "")
         if sn:
@@ -539,18 +547,25 @@ def _match_faults_to_suppliers(issues: list, equipment: list) -> dict[str, list]
         name = eq.get("name", "")
         if name:
             serial_to_eq[name] = eq
+        eid = eq.get("id")
+        if eid:
+            id_to_eq[eid] = eq
 
     faults_by_supplier: dict[str, list] = {}
     for issue in issues:
-        matched = serial_to_eq.get(issue.get("serial_number", ""))
+        # Prefer the explicit FK; fall back to serial / name match.
+        eq_id = issue.get("equipment_id")
+        matched = id_to_eq.get(eq_id) if eq_id else None
+        if not matched:
+            matched = serial_to_eq.get(issue.get("serial_number", ""))
         if not matched:
             continue
         sup = matched.get("supplier_name") or matched.get("manufacturer") or ""
         if not sup:
             continue
         faults_by_supplier.setdefault(sup, []).append({
-            "id": issue.get("id"), "machine_type": issue.get("machine_type"),
-            "serial_number": issue.get("serial_number"),
+            "id": issue.get("id"), "machine_type": issue.get("machine_type") or matched.get("equipment_type"),
+            "serial_number": issue.get("serial_number") or matched.get("serial_number"),
             "description": (issue.get("issue_description") or "")[:120],
             "severity": issue.get("severity"), "status": issue.get("status"),
             "created_at": issue.get("created_at"),
@@ -588,31 +603,149 @@ def _build_eq_suppliers(supplier_map: dict, faults_by_supplier: dict) -> list:
     return eq_suppliers
 
 
+def _supplier_performance_index(supplier_records: list[dict], cases_by_supplier: dict) -> list[dict]:
+    """Iter 216h121 — compute a 0-100 performance score per supplier so
+    the Suppliers tab can render a league table.
+
+    Inputs:
+      supplier_records  — output of `_build_eq_suppliers`
+      cases_by_supplier — dict[supplier_name → list[supplier_case dict]]
+                          (case docs straight from db.supplier_cases)
+
+    Score breakdown (lower = worse, higher = better):
+      • Resolution rate     (40 pts)  closed/total faults
+      • Average rating      (30 pts)  cases.rating  (1-5 scale → 0-30)
+      • Response speed      (20 pts)  20pts ≤ 24h · 10pts ≤ 48h · 0 ≥ 96h
+      • Open-fault penalty  (10 pts)  -2 per open fault, capped to 10
+
+    A supplier with no cases at all gets a "neutral" 70 + (mini bonus
+    for healthy install base) — they're a known supplier we've not
+    yet had to call.
+    """
+    ranked = []
+    for sup in supplier_records:
+        name = sup["name"]
+        faults = sup.get("faults", [])
+        total_faults = len(faults)
+        closed_faults = sum(1 for f in faults if f.get("status") in ("resolved", "closed"))
+        open_faults = sup.get("open_faults", 0)
+
+        cases = cases_by_supplier.get(name, [])
+        ratings = [c.get("rating") for c in cases if isinstance(c.get("rating"), (int, float))]
+        avg_rating = (sum(ratings) / len(ratings)) if ratings else None
+
+        # Response speed across all cases that have a status_history entry.
+        resp_hours: list[float] = []
+        for c in cases:
+            hist = c.get("status_history") or []
+            if not hist or not c.get("created_at"):
+                continue
+            first = hist[0].get("updated_at")
+            if not first:
+                continue
+            try:
+                created = datetime.fromisoformat(str(c["created_at"]).replace("Z", "+00:00"))
+                responded = datetime.fromisoformat(str(first).replace("Z", "+00:00"))
+                resp_hours.append((responded - created).total_seconds() / 3600)
+            except (ValueError, TypeError):
+                continue
+        avg_response_h = (sum(resp_hours) / len(resp_hours)) if resp_hours else None
+
+        # ── score ──
+        if total_faults == 0 and not cases:
+            # Neutral starting score for unblooded suppliers, plus a
+            # small bonus for breadth of install (capped 10).
+            score = 70 + min(10, sup["equipment_count"])
+            resolution_rate = None
+        else:
+            resolution_rate = (closed_faults / total_faults) if total_faults else 1.0
+            score = 0.0
+            score += round(resolution_rate * 40, 1)
+            if avg_rating is not None:
+                score += round((avg_rating / 5.0) * 30, 1)
+            else:
+                # No ratings yet — neutral 18 pts.
+                score += 18
+            if avg_response_h is None:
+                score += 12
+            elif avg_response_h <= 24:
+                score += 20
+            elif avg_response_h <= 48:
+                score += 10
+            elif avg_response_h <= 96:
+                score += 5
+            score -= min(10, open_faults * 2)
+            score = max(0, min(100, score))
+
+        # League "grade" — A (>=85) · B · C · D · F (<40).
+        grade = (
+            "A" if score >= 85 else
+            "B" if score >= 70 else
+            "C" if score >= 55 else
+            "D" if score >= 40 else "F"
+        )
+
+        ranked.append({
+            **sup,
+            "score": round(score, 1),
+            "grade": grade,
+            "resolution_rate": (round(resolution_rate, 2) if resolution_rate is not None else None),
+            "avg_rating": round(avg_rating, 2) if avg_rating is not None else None,
+            "avg_response_hours": round(avg_response_h, 1) if avg_response_h is not None else None,
+            "cases_count": len(cases),
+        })
+    ranked.sort(key=lambda x: (-x["score"], -x["equipment_count"]))
+    for i, r in enumerate(ranked, 1):
+        r["rank"] = i
+    return ranked
+
+
 @router.get("/supplier-dashboard")
-async def get_supplier_dashboard(user: dict = Depends(get_current_user)):
-    """Get all supplier cases + equipment supplier summary for the organization."""
-    org_filter = get_organization_filter(user)
-    issues = await db.issues.find({**org_filter}, {"_id": 0}).to_list(1000)
+async def get_supplier_dashboard(
+    user: dict = Depends(get_current_user),
+    site_id: str | None = None,
+):
+    """Get all supplier cases + equipment supplier league table for the
+    organization (or one MOD child site when `site_id` is supplied).
+
+    Iter 216h121 — adds the league-table scoring + MOD HQ rollup. HQ
+    users with no `site_id` see the whole estate's suppliers; passing
+    a site_id drills into that base only.
+    """
+    # MOD-aware: lets HQ users roll up or drill into child orgs.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, site_id)
+
+    issues = await db.issues.find({**org_filter}, {"_id": 0}).to_list(5000)
     issue_map = {i["id"]: i for i in issues}
-    cases = await db.supplier_cases.find({"issue_id": {"$in": list(issue_map)}}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    cases = await db.supplier_cases.find(
+        {"issue_id": {"$in": list(issue_map)}}, {"_id": 0},
+    ).sort("created_at", -1).to_list(2000)
 
     enriched, total_hours, responded = [], 0.0, 0
+    cases_by_supplier: dict[str, list] = {}
     for case in cases:
         ec, hours = _enrich_case(case, issue_map.get(case.get("issue_id"), {}))
         enriched.append(ec)
         if hours is not None:
             total_hours += hours
             responded += 1
+        sup_name = (case.get("supplier_name") or "").strip()
+        if sup_name:
+            cases_by_supplier.setdefault(sup_name, []).append(case)
 
     status_counts: dict[str, int] = {}
     for c in enriched:
         status_counts[c["current_status"]] = status_counts.get(c["current_status"], 0) + 1
 
-    eq_fields = {"_id": 0, "supplier_name": 1, "manufacturer": 1, "equipment_type": 1, "name": 1, "serial_number": 1}
-    equipment = await db.equipment.find(org_filter, eq_fields).to_list(500)
+    eq_fields = {"_id": 0, "id": 1, "supplier_name": 1, "manufacturer": 1, "equipment_type": 1, "name": 1, "serial_number": 1}
+    equipment = await db.equipment.find(org_filter, eq_fields).to_list(5000)
     supplier_map = _build_supplier_map(equipment)
     faults_by_supplier = _match_faults_to_suppliers(issues, equipment)
     eq_suppliers = _build_eq_suppliers(supplier_map, faults_by_supplier)
+    # Iter 216h121 — league table scoring (computed after building the
+    # base supplier list so we re-use the fault counts already collected).
+    eq_suppliers = _supplier_performance_index(eq_suppliers, cases_by_supplier)
 
     return {
         "cases": enriched,
@@ -621,6 +754,8 @@ async def get_supplier_dashboard(user: dict = Depends(get_current_user)):
             "total_cases": len(enriched), "status_breakdown": status_counts,
             "avg_response_hours": round(total_hours / responded, 1) if responded else None,
             "responded_count": responded, "pending_count": status_counts.get("pending", 0),
+            "suppliers_total": len(eq_suppliers),
+            "scope": "site" if site_id else "estate",
         },
     }
 

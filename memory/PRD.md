@@ -1,3 +1,49 @@
+## Iter 216h121 — Supplier league table + MOD HQ scope fix (Feb 15, 2026)
+
+User-reported regression: the Suppliers tab pulled NO data through for
+the MOD HQ user, even after iter 216h120's equipment/CAPEX fix. Lee
+also asked for it to render as a league table.
+
+### Root causes
+1. `/supplier-dashboard` still used the legacy `get_organization_filter`
+   so MOD HQ users never saw any child-site equipment / faults.
+2. `_match_faults_to_suppliers` only matched issues to equipment by
+   `serial_number` or `name`. The demo seed creates issues with
+   `equipment_id` only (no serial), so every demo fault was orphaned
+   and the league table had 0 fault data per supplier.
+
+### Fix
+- Patched `/supplier-dashboard` to use `utils.mod_scope.resolve_mod_query_filter`
+  (with optional `site_id` query param for drilldown).
+- Extended `_match_faults_to_suppliers` to also key by `equipment_id`.
+- New helper `_supplier_performance_index` computes a 0-100 score per
+  supplier:
+    * 40 pts — resolution rate (closed faults / total faults)
+    * 30 pts — avg rating from supplier cases (1-5 → 0-30)
+    * 20 pts — avg first-response speed (≤24h=20, ≤48h=10, ≤96h=5)
+    * 10 pts penalty — 2 pts per open fault, capped at -10
+  Each row also gets a grade A-F and a rank (1-N). Ties broken by
+  install base.
+- Frontend (`SupplierDashboardTab`) now sends `site_id`, renders a rank
+  medal (gold/silver/bronze for top 3), a grade chip (`Grade A` etc.),
+  and inline resolution rate + avg rating + avg response on each row.
+
+### Verified live (army.command HQ token, estate-wide):
+```
+Rank | Supplier        | Score | Grade | Eq | Open | Res.
+#1   | Life Fitness    | 70.0  | B     | 27 | 0    | 100%
+#2   | Concept 2       | 70.0  | B     | 26 | 0    | 100%
+#3   | Pulse Fitness   | 70.0  | B     | 26 | 0    | 100%
+#4   | Technogym       | 70.0  | B     | 13 | 0    | 100%
+#5   | Wattbike        | 45.7  | D     | 14 | 49   | 44%
+```
+
+### Files touched
+- `/app/backend/routes/supplier_portal.py` (MOD scope · equipment_id match · scoring)
+- `/app/frontend/src/pages/SupplierDashboardTab.js` (site_id param · rank/grade UI)
+- `/app/backend/tests/test_iter_216h121_supplier_league.py` (NEW · 2 tests)
+
+
 ## Iter 216h120 — MOD HQ rollup + drilldown scope fix (Feb 15, 2026)
 
 User-reported regression: `regional.command@mod.gov.uk` sees "0 eq" on
