@@ -145,8 +145,14 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
             for c in child_orgs:
                 if c["id"] in existing_ids:
                     continue
-                eq_count = await db.equipment.count_documents({"site_id": c["id"]})
-                issue_count = await db.issues.count_documents({"site_id": c["id"]})
+                # Iter 216h120 — MOD child sites ARE their own organisation.
+                # Their equipment / issues are stored with
+                # organization_id = <child_org_id> and have NO site_id field
+                # (single-tenant inside the child). Counting by site_id
+                # returned 0 for every child gym and triggered the "0 eq"
+                # regression Lee reported during the demo.
+                eq_count = await db.equipment.count_documents({"organization_id": c["id"]})
+                issue_count = await db.issues.count_documents({"organization_id": c["id"]})
                 enriched.append({
                     "id": c["id"],
                     "organization_id": c["id"],

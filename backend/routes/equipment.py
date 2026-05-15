@@ -121,11 +121,15 @@ async def create_equipment(equipment: EquipmentCreate, user: dict = Depends(get_
 async def get_all_equipment(
     user: dict = Depends(get_current_user), site_id: str = None
 ) -> dict:
-    org_filter = get_organization_filter(user)
-    # Iter 216bl — site-locked staff are clamped to their allowed sites.
-    # apply_site_lock subsumes the legacy site_id $or branch.
-    org_filter = apply_site_lock(user, site_id, org_filter)
-    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(200)
+    # Iter 216h120 — MOD HQ tiers need to drill into a child site (each
+    # child is its own organisation, equipment lives under
+    # organization_id=child_id) or roll the entire estate up. The
+    # generic get_organization_filter / apply_site_lock pair only knows
+    # the user's own org and silently returned 0 rows for any HQ user
+    # — see the All Operations Sites "0 eq" regression.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, site_id)
+    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(2000)
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
     for equip in equipment_list:
         equip['stats'] = bulk_stats.get(equip['id'], {})

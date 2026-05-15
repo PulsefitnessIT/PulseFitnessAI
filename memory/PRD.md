@@ -1,3 +1,59 @@
+## Iter 216h120 — MOD HQ rollup + drilldown scope fix (Feb 15, 2026)
+
+User-reported regression: `regional.command@mod.gov.uk` sees "0 eq" on
+every Catterick child site in the site switcher, even though the demo
+seed populated 8 machines per site. Affected the headline KPIs (Total
+Machines, Open Faults, CAPEX) on the MOD demo.
+
+### Root cause
+MOD child gyms are *separate organisations* (`account_type=mod_site`).
+Their equipment / issues live under `organization_id = <child_org_id>`
+with **no** `site_id` field. The legacy `get_organization_filter` +
+`apply_site_lock` pair only knew about the HQ user's own org id, so:
+
+  • `/sites` counted child eq with `{"site_id": child_id}` → 0
+  • `/equipment` returned the HQ's own (empty) org → 0
+  • `/issues` same problem → 0 recent faults
+  • `/capex/analysis` same problem → empty report
+
+### Fix
+New helper `utils/mod_scope.py::resolve_mod_query_filter(user, site_id)`:
+
+  • Non-MOD users → existing `get_organization_filter` + `apply_site_lock`
+  • mod_org / mod_branch user, **no site_id** → returns
+    `{"organization_id": {"$in": [hq_id, *all_child_ids]}}` (collective)
+  • mod_org / mod_branch user, **child site_id** → returns
+    `{"organization_id": <child_id>}` (drilldown)
+  • mod_org / mod_branch user, **unrelated site_id** → raises 403
+    (cross-tenant block)
+
+Patched routes: `/equipment`, `/issues`, `/issues/{issue_id}`,
+`/capex/analysis` (CAPEX now scopes to a chosen site OR rolls the
+estate up). Also fixed `/sites` MOD child eq_count / issue_count to
+count by `organization_id`.
+
+Also hardened `_parse_ai_triage` to tolerate already-parsed dict
+triage payloads (was crashing the new collective `/issues` rollup).
+
+### Verification
+- 7/7 new `tests/test_iter_216h120_mod_scope_rollup.py` pass
+- 24/24 cumulative MOD tests pass (h114 + h115 + h117_riddor + h120)
+- Live API check as `army.command@army.mod.local` (MOD HQ):
+  - `/sites` → 7 children × 8 eq · 20 issues each
+  - `/equipment` → 58 (whole estate)
+  - `/equipment?site_id=<helles>` → 8 (drilldown)
+  - `/capex/analysis` → 58 machines aggregated, replacement spend forecast
+  - `/equipment?site_id=<unrelated>` → 403
+
+### Files touched
+- `/app/backend/utils/mod_scope.py` (NEW)
+- `/app/backend/routes/equipment.py` (`/equipment` rebind)
+- `/app/backend/routes/issues.py` (`/issues`, `/issues/{id}` rebind; ai_triage hardening)
+- `/app/backend/routes/capex.py` (`/capex/analysis` rebind, accept `site_id`)
+- `/app/backend/routes/sites.py` (`/sites` eq_count by organization_id)
+- `/app/backend/tests/test_iter_216h120_mod_scope_rollup.py` (NEW · 7 tests)
+
+
 ## Iter 216h118 — MOD Service Portal hotfixes (Feb 15, 2026)
 
 User-reported critical regressions on `/MODService` for the MOD HQ tier.

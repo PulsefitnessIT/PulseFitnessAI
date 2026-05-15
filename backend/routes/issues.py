@@ -459,14 +459,20 @@ def _parse_ai_triage(issue: dict):
     """Parse raw AI triage JSON into structured fields on the issue dict."""
     raw = issue.pop('ai_triage', None)
     if raw and not issue.get('ai_triage_parsed'):
-        try:
-            import json as json_mod
-            cleaned = raw.strip()
-            if cleaned.startswith('```'):
-                cleaned = cleaned.split('\n', 1)[1].rsplit('```', 1)[0]
-            issue['ai_triage_parsed'] = json_mod.loads(cleaned)
-        except Exception:
-            issue['ai_triage_summary'] = raw[:200] if raw else ''
+        # Iter 216h120 — `raw` may be a dict (already-parsed triage
+        # written by a previous request), a JSON string, or markdown
+        # wrapping JSON. Branch on type rather than blindly slicing.
+        if isinstance(raw, dict):
+            issue['ai_triage_parsed'] = raw
+        elif isinstance(raw, str):
+            try:
+                import json as json_mod
+                cleaned = raw.strip()
+                if cleaned.startswith('```'):
+                    cleaned = cleaned.split('\n', 1)[1].rsplit('```', 1)[0]
+                issue['ai_triage_parsed'] = json_mod.loads(cleaned)
+            except Exception:
+                issue['ai_triage_summary'] = raw[:200]
 
 
 async def _batch_enrich_supplier_cases(issues: list[dict]):
@@ -487,10 +493,10 @@ async def _batch_enrich_supplier_cases(issues: list[dict]):
 
 @router.get("/issues")
 async def get_issues(user: dict = Depends(get_current_user), site_id: str = None) -> dict:
-    org_filter = get_organization_filter(user)
-    # Iter 216bl — site-locked staff are clamped to their allowed sites.
-    org_filter = apply_site_lock(user, site_id, org_filter)
-    issues = await db.issues.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(500)
+    # Iter 216h120 — MOD HQ rebind. See utils.mod_scope.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, site_id)
+    issues = await db.issues.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(1000)
 
     await _batch_enrich_supplier_cases(issues)
 
@@ -504,7 +510,10 @@ async def get_issues(user: dict = Depends(get_current_user), site_id: str = None
 
 @router.get("/issues/{issue_id}")
 async def get_issue_detail(issue_id: str, user: dict = Depends(get_current_user)) -> dict:
-    org_filter = get_organization_filter(user)
+    # Iter 216h120 — MOD HQ users may open an issue belonging to any
+    # of their child gyms. Use the broad rollup filter.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, None)
     issue = await db.issues.find_one({"id": issue_id, **org_filter}, {"_id": 0})
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found")

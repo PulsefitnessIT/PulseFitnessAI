@@ -284,17 +284,25 @@ def _aggregate_capex_results(
 
 
 @router.get("/capex/analysis")
-async def get_capex_analysis(user: dict = Depends(get_current_user)):
+async def get_capex_analysis(
+    user: dict = Depends(get_current_user),
+    site_id: str | None = None,
+):
     _require_owner_or_manager(user)
-    org_filter = get_organization_filter(user)
+    # Iter 216h120 — MOD HQ rebind. CAPEX is a flagship report for
+    # Lee's MOD pitch; the HQ tier needs to see the whole estate's
+    # equipment in "All Operations Sites" mode AND drill into a single
+    # garrison gym to justify base-specific replacement spend.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, site_id)
     thresholds = await _get_thresholds(user.get("organization_id"))
 
-    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(500)
+    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(5000)
     if not equipment_list:
         return {"equipment": [], "summary": {"total": 0}, "forecast": {}}
 
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
-    all_issues = await db.issues.find(org_filter, {"_id": 0, "serial_number": 1, "severity": 1, "resolution_type": 1, "resolved_by": 1}).to_list(5000)
+    all_issues = await db.issues.find(org_filter, {"_id": 0, "serial_number": 1, "severity": 1, "resolution_type": 1, "resolved_by": 1, "organization_id": 1}).to_list(20000)
 
     severity_lookup, selffix_lookup = _build_severity_lookup(all_issues)
     results, summary, total_cost, forecast, by_type, by_location, by_priority = _aggregate_capex_results(
