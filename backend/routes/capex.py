@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from datetime import datetime, timezone
 from typing import Optional
 import json
@@ -250,17 +251,17 @@ def _build_capex_result_item(equip: dict, stats: dict, capex: dict, faults_by_eq
     asset_faults = (faults_by_eq or {}).get(equip["id"], [])
     severity_counts = severity_counts or {}
 
-    lifecycle = compute_lifecycle_stage(capex.get("age_years"), capex.get("expected_lifespan"))
+    lifecycle = compute_lifecycle_stage(capex.get("age_years"), capex.get("expected_lifespan_years"))
     fault_history = compute_fault_history_breakdown(asset_faults, now_dt)
     downtime = compute_downtime_metrics(asset_faults, now_dt)
     condition = compute_condition_scores(stats, severity_counts, capex.get("age_years"),
-                                          capex.get("expected_lifespan"))
+                                          capex.get("expected_lifespan_years"))
     ber = compute_ber_flag(capex.get("estimated_repair_spend", 0), capex.get("replacement_cost", 0))
     safety = compute_safety_risk(severity_counts, fault_history)
     roi = compute_roi_estimate(
         capex.get("estimated_repair_spend", 0) or 0,
         capex.get("replacement_cost", 0) or 0,
-        capex.get("expected_lifespan") or 8,
+        capex.get("expected_lifespan_years") or 8,
         downtime.get("total_days_oos") or 0,
     )
     recommendation = build_recommendation_detail(
@@ -268,7 +269,7 @@ def _build_capex_result_item(equip: dict, stats: dict, capex: dict, faults_by_eq
         lifecycle_stage=lifecycle, safety_risk=safety,
         ber_flag=ber, condition=condition,
         age_years=capex.get("age_years"),
-        expected_lifespan_years=capex.get("expected_lifespan"),
+        expected_lifespan_years=capex.get("expected_lifespan_years"),
     )
 
     return {
@@ -347,12 +348,16 @@ async def get_capex_analysis(
     # equipment in "All Operations Sites" mode AND drill into a single
     # garrison gym to justify base-specific replacement spend.
     from utils.mod_scope import resolve_mod_query_filter
+    from utils.capex_intelligence import aggregate_fleet_intelligence
     org_filter = await resolve_mod_query_filter(user, site_id)
     thresholds = await _get_thresholds(user.get("organization_id"))
 
     equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(5000)
     if not equipment_list:
-        return {"equipment": [], "summary": {"total": 0}, "forecast": {}}
+        return {
+            "equipment": [], "summary": {"total": 0}, "forecast": {},
+            "fleet_intelligence": aggregate_fleet_intelligence([]),
+        }
 
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
     all_issues = await db.issues.find(
@@ -377,6 +382,7 @@ async def get_capex_analysis(
     )
 
     priority_top5 = [r for r in results if r["capex"]["status"] in ("replace_now", "replace_soon", "at_risk")][:5]
+    fleet = aggregate_fleet_intelligence(results)
 
     return {
         "equipment": results,
@@ -392,6 +398,9 @@ async def get_capex_analysis(
             "cost": r["capex"]["replacement_cost"], "action": r["capex"]["suggested_action"],
         } for r in priority_top5],
         "thresholds": thresholds,
+        # Iter 216h127 — fleet-level board KPIs (lifecycle, condition,
+        # safety, BER, ROI, priority matrix).
+        "fleet_intelligence": fleet,
     }
 
 
@@ -589,3 +598,128 @@ async def master_admin_capex_overview(user: dict = Depends(get_current_user)) ->
             "total_faults": issue_count,
         })
     return {"organizations": overview}
+
+
+# ─────────────────────────── Board CAPEX Report ──────────────────
+
+_PLATFORM_ORG_NAMES = {"gymaxis ai", "gymaxis", "gymaxis ltd", "gymaxis limited"}
+
+
+async def _resolve_capex_brand(user: dict) -> dict:
+    """Resolve tenant brand for the CAPEX board PDF.
+
+    Priority for company name:
+      1. theme_overrides.tender_company_name (operator override)
+      2. branding.company_name (legacy override)
+      3. org.name (if not a platform org name)
+      4. "Pulse Fitness" (CAPEX is Pulse-only feature)
+
+    MOD HQ tenants (account_type mod_org/mod_branch/mod_site) get
+    "Ministry of Defence" + neutral navy palette so the report is
+    presentation-ready for DIO / Army review.
+    """
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")},
+        {"_id": 0, "name": 1, "branding": 1, "theme_overrides": 1, "account_type": 1,
+         "is_mod": 1, "mod_force": 1},
+    ) or {}
+    overrides = org.get("theme_overrides") or {}
+    branding = org.get("branding") or {}
+    is_mod = (
+        org.get("is_mod") is True
+        or (user.get("account_type") in ("mod_site", "mod_branch", "mod_org"))
+    )
+
+    if is_mod:
+        company = "Ministry of Defence"
+        primary = "#0F2D52"  # Defence navy
+    else:
+        tender_company = (overrides.get("tender_company_name") or "").strip()
+        legacy_company = (branding.get("company_name") or "").strip()
+        raw_name = (org.get("name") or "").strip()
+        if tender_company:
+            company = tender_company
+        elif legacy_company:
+            company = legacy_company
+        elif raw_name and raw_name.lower() not in _PLATFORM_ORG_NAMES:
+            company = raw_name
+        else:
+            company = "Pulse Fitness"
+        primary = (
+            (overrides.get("tender_primary_color") or "").strip()
+            or branding.get("primary_color")
+            or "#19CDFF"
+        )
+    return {
+        "company_name": company,
+        "primary_color": primary,
+        "logo_url": (
+            (overrides.get("tender_logo_url") or "").strip()
+            or branding.get("logo_url") or None
+        ),
+        "is_mod": is_mod,
+    }
+
+
+async def _build_board_report(user: dict, site_id: str | None) -> dict:
+    """Run the CAPEX analysis and decorate with exec summary + scope label."""
+    from utils.capex_intelligence import build_executive_summary
+    base = await get_capex_analysis(user=user, site_id=site_id)
+    fleet = base.get("fleet_intelligence") or {}
+    exec_block = build_executive_summary(
+        base.get("summary", {}), fleet,
+        base.get("forecast", {}).get("next_12_months", 0),
+    )
+    # Scope label — site name when drilled in, else "All sites"
+    scope_label = "All operations sites"
+    if site_id:
+        org = await db.organizations.find_one({"id": site_id}, {"_id": 0, "name": 1})
+        site = await db.sites.find_one({"id": site_id}, {"_id": 0, "name": 1})
+        scope_label = (org or site or {}).get("name") or "Selected site"
+    return {
+        **base,
+        "executive_summary": exec_block,
+        "scope_label": scope_label,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "prepared_by": user.get("full_name") or user.get("email") or "Platform",
+    }
+
+
+@router.get("/capex/board-report")
+async def get_capex_board_report(
+    user: dict = Depends(get_current_user),
+    site_id: str | None = None,
+) -> dict:
+    """Single endpoint returning the full board-ready CAPEX payload.
+
+    Includes the per-asset intelligence layer, fleet-wide rollups, the
+    priority matrix, exec summary + recommendations — all of which the
+    PDF endpoint + the front-end dashboard consume.
+    """
+    _require_owner_or_manager(user)
+    return await _build_board_report(user, site_id)
+
+
+@router.get("/capex/board-report.pdf")
+async def export_capex_board_pdf(
+    user: dict = Depends(get_current_user),
+    site_id: str | None = None,
+):
+    """Render the board CAPEX report as a tenant-branded PDF.
+
+    Brand-aware: Pulse Fitness defaults; switches to a Ministry of
+    Defence palette for MOD tenants; honours per-tenant
+    `theme_overrides` for everyone else.
+    """
+    _require_owner_or_manager(user)
+    from utils.capex_pdf_exporter import build_capex_board_pdf
+    report = await _build_board_report(user, site_id)
+    brand = await _resolve_capex_brand(user)
+    pdf_bytes = build_capex_board_pdf(report, brand=brand)
+    filename = f"capex-board-report-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+

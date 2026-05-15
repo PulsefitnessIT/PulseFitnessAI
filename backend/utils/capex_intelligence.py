@@ -301,6 +301,180 @@ def build_recommendation_detail(*, status: str, lifecycle_stage: dict, safety_ri
     }
 
 
+# ─────────────────────── Fleet-level aggregator ──────────────────
+
+LIFECYCLE_BUCKETS = ("New", "Mid-life", "Ageing", "End-of-life", "Unsupported", "Unknown")
+SAFETY_BUCKETS = ("low", "moderate", "elevated", "high")
+CONDITION_BUCKETS = ("1", "2", "3", "4", "5")
+BER_BUCKETS = ("ok", "monitor", "replacement_review", "recommend_replace", "unknown")
+
+
+def aggregate_fleet_intelligence(results: list[dict]) -> dict:
+    """Roll up per-asset intelligence into board-level KPIs.
+
+    Consumes the dicts produced by ``_build_capex_result_item``
+    (each carries lifecycle_stage, condition_scores, fault_history,
+    downtime, ber_flag, safety_risk, roi_estimate, recommendation).
+    Returns:
+      • lifecycle_distribution    {stage: count}
+      • condition_distribution    {"1": n, ..., "5": n} + average
+      • safety_distribution       {level: count}
+      • ber_distribution          {status: count}
+      • fleet_kpis (totals)       availability %, total OOS days,
+                                  immediate_action assets, beyond-economic-
+                                  repair count, est. lifetime saving.
+      • priority_matrix           per-asset (safety_score, lifecycle_pct,
+                                  replacement_cost, status) — for the
+                                  bubble-chart on the front-end.
+      • spend_forecast            cumulative spend in 3/6/12 month
+                                  buckets broken down by priority.
+    """
+    if not results:
+        return {
+            "lifecycle_distribution": {b: 0 for b in LIFECYCLE_BUCKETS},
+            "condition_distribution": {b: 0 for b in CONDITION_BUCKETS},
+            "condition_average": None,
+            "safety_distribution": {b: 0 for b in SAFETY_BUCKETS},
+            "ber_distribution": {b: 0 for b in BER_BUCKETS},
+            "fleet_kpis": {
+                "total_assets": 0, "immediate_action_assets": 0,
+                "beyond_economic_repair_count": 0,
+                "fleet_availability_pct": None,
+                "total_days_oos": 0, "total_downtime_hours": 0,
+                "estimated_lifetime_saving": 0,
+                "total_replacement_cost_full_fleet": 0,
+                "average_age_years": None,
+            },
+            "priority_matrix": [],
+        }
+
+    lifecycle = {b: 0 for b in LIFECYCLE_BUCKETS}
+    condition = {b: 0 for b in CONDITION_BUCKETS}
+    safety = {b: 0 for b in SAFETY_BUCKETS}
+    ber = {b: 0 for b in BER_BUCKETS}
+
+    immediate = 0
+    ber_count = 0
+    total_oos_days = 0.0
+    total_hours = 0.0
+    availability_weighted = 0.0  # sum of per-asset availability
+    availability_n = 0
+    lifetime_saving = 0.0
+    total_replacement = 0
+    condition_sum = 0
+    age_sum = 0.0
+    age_n = 0
+    matrix: list[dict] = []
+
+    for r in results:
+        ls = (r.get("lifecycle_stage") or {}).get("stage", "Unknown")
+        lifecycle[ls] = lifecycle.get(ls, 0) + 1
+
+        cond = (r.get("condition_scores") or {}).get("overall")
+        if cond:
+            condition[str(cond)] = condition.get(str(cond), 0) + 1
+            condition_sum += cond
+
+        sl = (r.get("safety_risk") or {}).get("level", "low")
+        safety[sl] = safety.get(sl, 0) + 1
+        if (r.get("safety_risk") or {}).get("immediate_action"):
+            immediate += 1
+
+        bs = (r.get("ber_flag") or {}).get("status", "unknown")
+        ber[bs] = ber.get(bs, 0) + 1
+        if bs == "recommend_replace":
+            ber_count += 1
+
+        dt = r.get("downtime") or {}
+        total_oos_days += dt.get("total_days_oos") or 0
+        total_hours += dt.get("total_hours") or 0
+        if dt.get("availability_pct") is not None:
+            availability_weighted += dt["availability_pct"]
+            availability_n += 1
+
+        roi = r.get("roi_estimate") or {}
+        lifetime_saving += roi.get("lifetime_saving") or 0
+
+        capex = r.get("capex") or {}
+        total_replacement += capex.get("replacement_cost") or 0
+
+        if capex.get("age_years") is not None:
+            age_sum += capex["age_years"]
+            age_n += 1
+
+        # Priority-matrix datapoint:
+        matrix.append({
+            "id": r.get("id"),
+            "name": r.get("name"),
+            "equipment_type": r.get("equipment_type"),
+            "location": r.get("location"),
+            "safety_score": (r.get("safety_risk") or {}).get("score", 1),
+            "lifecycle_pct": (r.get("lifecycle_stage") or {}).get("ratio_pct") or 0,
+            "condition_overall": cond,
+            "capex_score": capex.get("score", 0),
+            "replacement_cost": capex.get("replacement_cost", 0),
+            "status": capex.get("status", "monitor"),
+            "ber_status": bs,
+        })
+
+    fleet_availability = round(availability_weighted / availability_n, 2) if availability_n else None
+    cond_avg = round(condition_sum / max(1, sum(condition.values())), 2) if any(condition.values()) else None
+
+    return {
+        "lifecycle_distribution": lifecycle,
+        "condition_distribution": condition,
+        "condition_average": cond_avg,
+        "safety_distribution": safety,
+        "ber_distribution": ber,
+        "fleet_kpis": {
+            "total_assets": len(results),
+            "immediate_action_assets": immediate,
+            "beyond_economic_repair_count": ber_count,
+            "fleet_availability_pct": fleet_availability,
+            "total_days_oos": round(total_oos_days, 1),
+            "total_downtime_hours": round(total_hours, 1),
+            "estimated_lifetime_saving": round(lifetime_saving, 2),
+            "total_replacement_cost_full_fleet": total_replacement,
+            "average_age_years": round(age_sum / age_n, 1) if age_n else None,
+        },
+        "priority_matrix": matrix,
+    }
+
+
+def build_executive_summary(summary: dict, fleet: dict, forecast_12m: int) -> dict:
+    """Return a structured exec-summary block for the board report."""
+    total = summary.get("total", 0) or 1
+    flagged = (summary.get("replace_now", 0) + summary.get("replace_soon", 0)
+               + summary.get("at_risk", 0))
+    headline = (
+        f"{flagged} of {total} assets ({round(100 * flagged / total)}%) require attention. "
+        f"Estimated 12-month replacement spend: £{forecast_12m:,}."
+    )
+    kpis = fleet.get("fleet_kpis", {})
+    bullets = [
+        f"Fleet availability: {kpis.get('fleet_availability_pct') or '—'}%",
+        f"Assets needing immediate action: {kpis.get('immediate_action_assets', 0)}",
+        f"Beyond Economic Repair: {kpis.get('beyond_economic_repair_count', 0)} machines",
+        f"Avg condition score: {fleet.get('condition_average') or '—'}/5",
+        f"Total downtime (12m): {kpis.get('total_days_oos', 0)} days",
+    ]
+    return {
+        "headline": headline,
+        "bullets": bullets,
+        "recommended_action": _exec_action(flagged, kpis),
+    }
+
+
+def _exec_action(flagged: int, kpis: dict) -> str:
+    if kpis.get("immediate_action_assets", 0) > 0:
+        return "Authorise immediate withdrawal-from-service for safety-critical assets and approve emergency CAPEX release."
+    if kpis.get("beyond_economic_repair_count", 0) >= 3:
+        return "Approve replacement CAPEX for Beyond Economic Repair (BER) assets at next budget cycle."
+    if flagged >= 5:
+        return "Schedule replacement review for flagged machines within the next 6-12 month rolling budget."
+    return "Maintain current PPM cadence; no immediate CAPEX release required."
+
+
 __all__ = [
     "compute_lifecycle_stage",
     "compute_condition_scores",
@@ -310,4 +484,10 @@ __all__ = [
     "compute_safety_risk",
     "compute_roi_estimate",
     "build_recommendation_detail",
+    "aggregate_fleet_intelligence",
+    "build_executive_summary",
+    "LIFECYCLE_BUCKETS",
+    "CONDITION_BUCKETS",
+    "SAFETY_BUCKETS",
+    "BER_BUCKETS",
 ]

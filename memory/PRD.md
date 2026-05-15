@@ -1,3 +1,111 @@
+## Iter 216h127 — Best-in-Class CAPEX Board Report (Feb 15, 2026)
+
+Phase 1 of Jack's "best-in-class CAPEX intelligence" brief —
+backend rollups, board-ready endpoints, branded PDF export, and a
+fully visualised front-end dashboard.
+
+### Backend
+
+**1. Fleet-level intelligence aggregator** (`utils/capex_intelligence.py`)
+* New `aggregate_fleet_intelligence(results)` rolls per-asset
+  decorations into:
+  - `lifecycle_distribution` (New / Mid-life / Ageing / End-of-life /
+    Unsupported / Unknown)
+  - `condition_distribution` (1-5) + average
+  - `safety_distribution` (low / moderate / elevated / high)
+  - `ber_distribution` (ok / monitor / replacement_review /
+    recommend_replace / unknown)
+  - `fleet_kpis` — fleet availability %, total OOS days, total
+    downtime hours, immediate-action count, BER count, estimated
+    lifetime saving, full-fleet replacement cost, avg age (yrs)
+  - `priority_matrix` — per-asset {safety_score, lifecycle_pct,
+    replacement_cost, status} for the bubble-chart UI
+
+* `build_executive_summary(summary, fleet, forecast_12m)` returns
+  the headline + bullets + recommended-action block consumed by the
+  board PDF and the UI exec-summary card.
+
+**2. /api/capex/analysis upgrade**
+* Now includes the full `fleet_intelligence` block alongside the
+  existing per-asset `equipment` array, `summary`, `forecast`, and
+  `priority_replacements`.
+* Fixed a key-mismatch bug from iter 216h127's first cut: per-asset
+  decorators were reading `expected_lifespan` but the score dict
+  used `expected_lifespan_years` → caused 100% of assets to fall
+  back to "Unknown" lifecycle. Fixed; lifecycle distribution now
+  populated correctly.
+
+**3. New /api/capex/board-report** (JSON)
+* Returns the full board-ready payload: exec_summary + scope_label +
+  fleet_intelligence + equipment + forecast + recommendations.
+* Accepts optional `?site_id=` for drill-in (MOD HQ uses this).
+
+**4. New /api/capex/board-report.pdf** (8-section A4 PDF)
+* Cover (brand-coloured KPI strip)
+* Section 1 — Executive Summary
+* Section 2 — Fleet KPIs (2 rows of 4 cards)
+* Section 3 — Lifecycle + Condition distributions
+* Section 4 — Safety + BER distributions
+* Section 5 — CAPEX Forecast (3/6/12 month + priority split)
+* Section 6 — Replacement Recommendations (top 20 with reasons)
+* Section 7 — Asset Register (top 25 by urgency)
+* Section 8 — Sign-off footer (prepared / approved / date)
+* Brand-aware via `_resolve_capex_brand(user)`:
+  - MOD tenants → "Ministry of Defence" with navy palette (#0F2D52)
+  - Pulse Fitness Pro tenants → "Pulse Fitness" with cyan palette
+  - Honours `theme_overrides.tender_*` for fully white-labelled output
+* Built with reportlab — same toolchain as tender PDFs for
+  byte-stable output.
+* Test PDF for Jack Ottey: 111 assets, 6 pages, 10.8 KB.
+
+### Frontend
+
+`pages/CapexIntelligenceTab.js`:
+* Loads from new `/capex/board-report` endpoint (everything in
+  one round-trip — includes exec summary + scope label).
+* New **Executive Summary** card at the top with headline +
+  bullets + recommended action.
+* New **Fleet KPI Strip** — 8 board-ready KPIs in a 2×4 grid:
+  Availability % · Immediate Action · BER · Avg Condition ·
+  Days OOS · Avg Age · Lifetime Saving · Full-fleet Replacement.
+* New **Priority Matrix** scatter chart — Safety risk (y) ×
+  Lifecycle % (x), bubble size = replacement cost, coloured by
+  status. Top-right corner = highest replacement priority.
+* Four **Distribution bar charts** — Lifecycle, Condition (1-5),
+  Safety Risk, BER status with brand-consistent palettes.
+* New **"Board Report (PDF)"** button — downloads the
+  branded board PDF via `axios responseType:'blob'`. Existing
+  "Quick Print" (HTML/window.print) preserved as fallback.
+
+### Tests
+* `/app/backend/tests/test_iter_216h127_capex_board.py` — 6/6 pass:
+  - `fleet_intelligence` block present & well-formed
+  - lifecycle distribution actually populated (regression guard for
+    the key-mismatch bug)
+  - priority_matrix shape
+  - board-report JSON (exec_summary, bullets, scope_label)
+  - board-report.pdf returns valid PDF bytes (≥5KB, %PDF/%%EOF)
+  - RBAC: 200/403 split
+
+### Files touched
+**Backend**
+* `/app/backend/utils/capex_intelligence.py` (+ `aggregate_fleet_intelligence`, `build_executive_summary`)
+* `/app/backend/utils/capex_pdf_exporter.py` (NEW · reportlab board PDF builder)
+* `/app/backend/routes/capex.py` (fleet rollup wired into `/capex/analysis`; new `/capex/board-report` + `/capex/board-report.pdf`; key-mismatch bugfix)
+* `/app/backend/tests/test_iter_216h127_capex_board.py` (NEW · 6 tests)
+
+**Frontend**
+* `/app/frontend/src/pages/CapexIntelligenceTab.js` (Exec Summary, Fleet KPI strip, Priority Matrix, Distribution bars, Board PDF button)
+
+### Verified live (Jack's tenant — Third Space — Canary Wharf):
+* 111 assets · 99.84% availability · 2 assets needing immediate action
+* Lifecycle: 103 Mid-life · 3 Ageing · 3 New · 1 End-of-life · 1 Unknown
+* Condition avg 1.43/5 · 63.8 days total OOS
+* Est. lifetime saving £103,760 · Full-fleet replacement £414,091
+* Board PDF: 6 pages, 10.8 KB, "Pulse Fitness — Board CAPEX Report"
+
+
+
 ## Iter 216h126 — Jack feedback batch (Feb 15, 2026)
 
 Six items from Jack Ottey's Third Space demo prep:

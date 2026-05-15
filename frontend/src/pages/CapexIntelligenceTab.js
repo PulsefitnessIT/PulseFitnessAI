@@ -8,12 +8,13 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import {
- PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
+ PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+ ScatterChart, Scatter, ZAxis, CartesianGrid
 } from 'recharts';
 import {
  TrendingUp, AlertTriangle, Shield, Wrench, PoundSterling, Download,
  Brain, Loader2, ChevronDown, ChevronUp, Calendar, FileText,
- CheckCircle, Clock, XCircle, CircleAlert
+ CheckCircle, Clock, XCircle, CircleAlert, Activity, Gauge, Target
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -175,6 +176,172 @@ const ForecastSection = ({ forecast, byPriority }) => (
  </div>
  </Card>
 );
+
+/* ─── Fleet Intelligence (216h127) ─── */
+const LIFECYCLE_COLORS = {
+  'New': 'var(--color-success-alt-2)',
+  'Mid-life': 'var(--color-brand-blue)',
+  'Ageing': 'var(--color-yellow)',
+  'End-of-life': 'var(--color-orange)',
+  'Unsupported': 'var(--color-danger)',
+  'Unknown': 'var(--color-text-faint)',
+};
+const SAFETY_COLORS = {
+  low: 'var(--color-success-alt-2)',
+  moderate: 'var(--color-yellow)',
+  elevated: 'var(--color-orange)',
+  high: 'var(--color-danger)',
+};
+const CONDITION_COLORS = {
+  '1': 'var(--color-success-alt-2)',
+  '2': '#84cc16',
+  '3': 'var(--color-yellow)',
+  '4': 'var(--color-orange)',
+  '5': 'var(--color-danger)',
+};
+
+const FleetKPIStrip = ({ kpis, conditionAverage }) => (
+ <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="capex-fleet-kpis">
+  <div className="flex items-center gap-2 mb-4">
+    <Gauge size={18} className="text-[var(--color-brand-blue)]" />
+    <h3 className="text-lg font-semibold text-white">Fleet Intelligence — Headline KPIs</h3>
+  </div>
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    {[
+      { label: 'Fleet Availability', value: kpis.fleet_availability_pct != null ? `${kpis.fleet_availability_pct}%` : '—', color: 'text-green-400', test: 'kpi-availability' },
+      { label: 'Immediate Action', value: kpis.immediate_action_assets || 0, color: 'text-red-400', test: 'kpi-immediate' },
+      { label: 'Beyond Economic Repair', value: kpis.beyond_economic_repair_count || 0, color: 'text-orange-400', test: 'kpi-ber' },
+      { label: 'Avg Condition', value: conditionAverage != null ? `${conditionAverage}/5` : '—', color: 'text-cyan-400', test: 'kpi-condition' },
+      { label: 'Total Days OOS (12m)', value: kpis.total_days_oos || 0, color: 'text-white', test: 'kpi-days-oos' },
+      { label: 'Avg Age', value: kpis.average_age_years != null ? `${kpis.average_age_years} yr` : '—', color: 'text-white', test: 'kpi-avg-age' },
+      { label: 'Est. Lifetime Saving', value: fmt(kpis.estimated_lifetime_saving), color: 'text-green-400', test: 'kpi-lifetime-saving' },
+      { label: 'Full-Fleet Replacement', value: fmt(kpis.total_replacement_cost_full_fleet), color: 'text-white', test: 'kpi-full-replacement' },
+    ].map(k => (
+      <div key={k.label} className="bg-white/5 rounded-lg p-3" data-testid={k.test}>
+        <p className="text-[var(--color-text-muted)] text-[10px] uppercase tracking-wide mb-1">{k.label}</p>
+        <p className={`text-lg font-semibold ${k.color}`}>{k.value}</p>
+      </div>
+    ))}
+  </div>
+ </Card>
+);
+
+const DistributionBars = ({ title, dist, colorMap, testId }) => {
+  const entries = Object.entries(dist || {}).filter(([, v]) => v > 0);
+  if (!entries.length) return null;
+  const max = Math.max(...entries.map(([, v]) => v));
+  return (
+    <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid={testId}>
+      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+      <div className="space-y-2">
+        {entries.map(([k, v]) => (
+          <div key={k} className="flex items-center gap-3">
+            <span className="text-xs text-[var(--color-text-muted)] w-24 truncate">{k}</span>
+            <div className="flex-1 h-6 rounded bg-white/5 relative overflow-hidden">
+              <div
+                className="h-full rounded transition-all"
+                style={{ width: `${(v / max) * 100}%`, background: colorMap[k] || 'var(--color-brand-blue)' }}
+              />
+              <span className="absolute inset-0 flex items-center px-2 text-xs text-white font-medium">{v}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+};
+
+const PriorityMatrix = ({ matrix }) => {
+  if (!matrix || !matrix.length) return null;
+  // Group points by status for legend colour
+  const groups = {};
+  matrix.forEach(p => {
+    const k = p.status || 'monitor';
+    if (!groups[k]) groups[k] = [];
+    groups[k].push({
+      x: p.lifecycle_pct || 0,
+      y: p.safety_score || 1,
+      z: Math.max(20, Math.min(400, (p.replacement_cost || 500) / 20)),
+      name: p.name,
+      cost: p.replacement_cost,
+      capex_score: p.capex_score,
+    });
+  });
+  return (
+    <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="capex-priority-matrix">
+      <div className="flex items-center gap-2 mb-2">
+        <Target size={18} className="text-[var(--color-brand-blue)]" />
+        <h3 className="text-lg font-semibold text-white">Priority Matrix — Safety × Lifecycle (bubble = replacement cost)</h3>
+      </div>
+      <p className="text-[var(--color-text-muted)] text-xs mb-4">
+        Top-right corner (high safety risk + end-of-life) = highest replacement priority.
+      </p>
+      <ResponsiveContainer width="100%" height={320}>
+        <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+          <CartesianGrid stroke="#222" strokeDasharray="3 3" />
+          <XAxis
+            type="number" dataKey="x" name="Lifecycle %"
+            domain={[0, 150]} stroke="#666"
+            tick={{ fontSize: 11 }}
+            label={{ value: 'Lifecycle % consumed', position: 'insideBottom', offset: -8, fill: '#999', fontSize: 11 }}
+          />
+          <YAxis
+            type="number" dataKey="y" name="Safety risk"
+            domain={[0, 6]} ticks={[1, 2, 3, 4, 5]} stroke="#666"
+            tick={{ fontSize: 11 }}
+            label={{ value: 'Safety risk (1-5)', angle: -90, position: 'insideLeft', fill: '#999', fontSize: 11 }}
+          />
+          <ZAxis type="number" dataKey="z" range={[40, 400]} />
+          <Tooltip
+            cursor={{ strokeDasharray: '3 3' }}
+            contentStyle={{ background: 'var(--color-surface-dark-2)', border: '1px solid #333', borderRadius: 8, color: '#fff' }}
+            formatter={(v, k, p) => {
+              if (k === 'x') return [`${v}%`, 'Lifecycle'];
+              if (k === 'y') return [v, 'Safety risk'];
+              if (k === 'z') return [fmt(p.payload.cost), 'Replacement cost'];
+              return v;
+            }}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ''}
+          />
+          {Object.entries(groups).map(([status, pts]) => (
+            <Scatter
+              key={status}
+              name={status.replace(/_/g, ' ')}
+              data={pts}
+              fill={STATUS_CONFIG[status]?.color || 'var(--color-text-faint)'}
+            />
+          ))}
+          <Legend wrapperStyle={{ fontSize: 11, color: '#999' }} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    </Card>
+  );
+};
+
+const ExecutiveSummary = ({ exec }) => {
+  if (!exec) return null;
+  return (
+    <Card className="bg-[rgb(var(--rgb-brand-blue)/0.08)] border-[rgb(var(--rgb-brand-blue)/0.3)] p-6" data-testid="capex-exec-summary">
+      <div className="flex items-center gap-2 mb-2">
+        <FileText size={18} className="text-[var(--color-brand-blue)]" />
+        <h3 className="text-lg font-semibold text-white">Executive Summary</h3>
+      </div>
+      <p className="text-white text-base font-medium mb-3" data-testid="exec-headline">{exec.headline}</p>
+      <ul className="space-y-1 mb-3">
+        {(exec.bullets || []).map((b, i) => (
+          <li key={i} className="text-sm text-[#ccc] flex items-start gap-2">
+            <span className="text-[var(--color-brand-blue)] mt-0.5">•</span>
+            <span>{b}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 p-3 rounded bg-white/5 border border-white/10">
+        <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Recommended Action</p>
+        <p className="text-sm text-white">{exec.recommended_action}</p>
+      </div>
+    </Card>
+  );
+};
 
 /* ─── Equipment Detail Row ─── */
 const EquipmentRow = ({ item, justification, isExpanded, onToggle }) => {
@@ -396,6 +563,7 @@ const CapexIntelligenceTab = () => {
  const [loading, setLoading] = useState(true);
  const [justifications, setJustifications] = useState({});
  const [generatingAI, setGeneratingAI] = useState(false);
+ const [downloadingPdf, setDownloadingPdf] = useState(false);
  const [expanded, setExpanded] = useState({});
  const [filter, setFilter] = useState('all');
  const [justificationsLoaded, setJustificationsLoaded] = useState(false);
@@ -408,7 +576,7 @@ const CapexIntelligenceTab = () => {
  setLoading(true);
  try {
  const [analysisRes, justRes] = await Promise.all([
- axios.get(`${API}/capex/analysis`, { headers }),
+ axios.get(`${API}/capex/board-report`, { headers }),
  axios.get(`${API}/capex/justifications`, { headers }).catch(() => ({ data: { justifications: {} } })),
  ]);
  setData(analysisRes.data);
@@ -443,6 +611,29 @@ const CapexIntelligenceTab = () => {
  }
  };
 
+ const downloadBoardPdf = async () => {
+  setDownloadingPdf(true);
+  try {
+    const res = await axios.get(`${API}/capex/board-report.pdf`, {
+      headers, responseType: 'blob',
+    });
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `capex-board-report-${new Date().toISOString().slice(0,10)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    notify.success('Board CAPEX report downloaded');
+  } catch (err) {
+    notify.error('Failed to generate board PDF');
+  } finally {
+    setDownloadingPdf(false);
+  }
+ };
+
  if (isRestricted) {
  return (
  <div className="text-center py-16" data-testid="capex-restricted">
@@ -466,7 +657,7 @@ const CapexIntelligenceTab = () => {
  <h2 className="text-2xl font-semibold text-white">CAPEX Intelligence</h2>
  <p className="text-[var(--color-text-muted)] text-sm">Strategic equipment replacement analysis and budget forecasting</p>
  </div>
- <div className="flex items-center gap-2">
+ <div className="flex items-center gap-2 flex-wrap">
  <Button
  size="sm"
  onClick={generateJustifications}
@@ -479,18 +670,86 @@ const CapexIntelligenceTab = () => {
  </Button>
  <Button
  size="sm"
+ onClick={downloadBoardPdf}
+ disabled={downloadingPdf}
+ className="bg-[var(--theme-surface)] border border-[var(--color-brand-blue)] text-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue)] hover:text-white"
+ data-testid="capex-board-pdf-btn"
+ >
+ {downloadingPdf ? <Loader2 className="animate-spin mr-2" size={14} /> : <FileText size={14} className="mr-2" />}
+ Board Report (PDF)
+ </Button>
+ <Button
+ size="sm"
  variant="outline"
  onClick={() => generatePDF(data, justifications)}
  className="border-white/10 text-[var(--color-text-muted)] hover:text-white"
  data-testid="capex-export-pdf-btn"
  >
- <Download size={14} className="mr-2" /> Export PDF
+ <Download size={14} className="mr-2" /> Quick Print
  </Button>
  </div>
  </div>
 
+ {/* Executive Summary */}
+ <ExecutiveSummary exec={data.executive_summary} />
+
  {/* Summary */}
  <SummaryCards summary={data.summary} forecast={data.forecast} />
+
+ {/* Fleet Intelligence KPIs */}
+ {data.fleet_intelligence?.fleet_kpis && (
+  <FleetKPIStrip
+    kpis={data.fleet_intelligence.fleet_kpis}
+    conditionAverage={data.fleet_intelligence.condition_average}
+  />
+ )}
+
+ {/* Priority Matrix */}
+ {data.fleet_intelligence?.priority_matrix?.length > 0 && (
+  <PriorityMatrix matrix={data.fleet_intelligence.priority_matrix} />
+ )}
+
+ {/* Lifecycle + Condition Distributions */}
+ {data.fleet_intelligence && (
+  <div className="grid md:grid-cols-2 gap-6">
+    <DistributionBars
+      title="Lifecycle Stage Distribution"
+      dist={data.fleet_intelligence.lifecycle_distribution}
+      colorMap={LIFECYCLE_COLORS}
+      testId="capex-lifecycle-dist"
+    />
+    <DistributionBars
+      title="Condition Score Distribution (1–5)"
+      dist={data.fleet_intelligence.condition_distribution}
+      colorMap={CONDITION_COLORS}
+      testId="capex-condition-dist"
+    />
+  </div>
+ )}
+
+ {/* Safety + BER Distributions */}
+ {data.fleet_intelligence && (
+  <div className="grid md:grid-cols-2 gap-6">
+    <DistributionBars
+      title="Safety Risk Distribution"
+      dist={data.fleet_intelligence.safety_distribution}
+      colorMap={SAFETY_COLORS}
+      testId="capex-safety-dist"
+    />
+    <DistributionBars
+      title="Beyond Economic Repair (BER) Status"
+      dist={data.fleet_intelligence.ber_distribution}
+      colorMap={{
+        ok: 'var(--color-success-alt-2)',
+        monitor: 'var(--color-yellow)',
+        replacement_review: 'var(--color-orange)',
+        recommend_replace: 'var(--color-danger)',
+        unknown: 'var(--color-text-faint)',
+      }}
+      testId="capex-ber-dist"
+    />
+  </div>
+ )}
 
  {/* Priority Table */}
  <PriorityTable items={data.priority_replacements || []} />
