@@ -132,6 +132,33 @@ const MODBulkImport = ({ API }) => {
     }
   };
 
+  // Iter 216h119 — one-click demo equipment seeder. Populates 8
+  // machines + faults into every empty mod_site under the picked
+  // parent so the demo doesn't show a wall of "0 eq" pills.
+  const [seedingDemo, setSeedingDemo] = useState(false);
+  const seedDemoEquipment = async () => {
+    if (!parentId) {
+      notify.error('Pick a parent MOD HQ / branch first');
+      return;
+    }
+    setSeedingDemo(true);
+    try {
+      const { data } = await axios.post(
+        `${API}/master-admin/mod/populate-demo-equipment?parent_org_id=${encodeURIComponent(parentId)}&machines_per_site=8&include_faults=true`,
+        null,
+        { headers },
+      );
+      notify.success(
+        `Seeded ${data.seeded_sites} / ${data.scanned_sites} sites`,
+        `${data.equipment_created} machines + ${data.faults_created} historic faults · ${data.skipped_already_seeded} sites already had data and were skipped.`,
+      );
+    } catch (e) {
+      notify.error('Seed failed', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
+
   return (
     <div className="space-y-5" data-testid="mod-bulk-import">
       <Card className="p-5 rounded-xl border-zinc-200">
@@ -222,6 +249,18 @@ const MODBulkImport = ({ API }) => {
             onChange={onFile}
             data-testid="mod-bulk-file-input"
           />
+          <Button
+            variant="outline"
+            onClick={seedDemoEquipment}
+            disabled={!parentId || seedingDemo}
+            data-testid="mod-bulk-seed-demo-btn"
+            title="Populate 8 demo machines + faults into every empty MOD site under the picked parent"
+          >
+            {seedingDemo
+              ? <Loader2 size={14} className="animate-spin mr-1.5" />
+              : <KeyRound size={14} className="mr-1.5" />}
+            {seedingDemo ? 'Seeding equipment…' : 'Populate demo equipment'}
+          </Button>
         </div>
       </Card>
 
