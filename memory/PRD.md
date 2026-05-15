@@ -1,3 +1,89 @@
+## Iter 216h128 — Pulse Sales: CAPEX-sourced opportunity engine (Feb 15, 2026)
+
+P1 from the post-CAPEX backlog. Pulse Fitness internal sales now have
+a tenant-restricted pipeline view that auto-generates opportunities
+whenever any Pulse-customer asset hits a CAPEX `monitor` / `at_risk` /
+`replace_soon` / `replace_now` band. Strict tenant separation —
+customers can never see this view.
+
+### Backend
+* **NEW** `routes/pulse_sales.py` (~290 LOC):
+  - `sweep_capex_opportunities()` — scans every Pulse-target org
+    (`pulse_pro`, `mod_site`, `mod_branch`, `mod_org`), reuses the
+    CAPEX scoring engine, upserts an opportunity row per flagged asset.
+    Idempotent — re-running doesn't duplicate. Auto-dismisses any
+    row in `new/contacted/qualified` whose `last_activity_at` is
+    older than 60 days.
+  - `GET /api/pulse-sales/opportunities` — filterable by status,
+    severity, organization. Master-admin-gated (GymAxis MA + Pulse MA).
+  - `GET /api/pulse-sales/summary` — counts by status / severity,
+    active pipeline £ rollup, top-25 orgs by pipeline value.
+  - `PATCH /api/pulse-sales/opportunities/{id}` — change status,
+    set assignee, append a note. Closure stamps `closed_at`/`closed_by`.
+  - `POST /api/pulse-sales/sweep-capex` — manual sweep trigger
+    (master admin only).
+  - Daily sweep hooked into `utils.proactive_nudges.run_proactive_nudges()`.
+* New collection `db.pulse_sales_opportunities`. Source = `"capex.scan"`.
+
+### Frontend
+* **NEW** `pages/MasterAdmin/AdminPulseSales.js` — full pipeline UI:
+  - Amber "Internal-only view" separation banner explicitly stating
+    Third Space / MOD HQ / MOD sites cannot see this view.
+  - 6 KPI tiles (active pipeline £ + 5 status counts).
+  - "Top opportunity orgs" table with type pills (mod_site / pulse_pro).
+  - Status filter chips (active / new / contacted / qualified / won /
+    lost / dismissed).
+  - Opportunity list rows showing severity + status pills, CAPEX
+    score, replacement cost, auto-dismiss date.
+  - Side drawer with stage picker (6 pipeline statuses), note composer,
+    chronological note timeline with author + date.
+  - "Refresh CAPEX scan" button — manually triggers the backend
+    sweep and reloads the list.
+* Wired into Master Admin sidebar under **Growth → Pulse Sales (CAPEX)**.
+
+### Tenant isolation
+* Customer-tier users (Pulse Pro, MOD HQ, MOD site) → **403** on every
+  Pulse Sales endpoint. Confirmed via test using Jack Ottey
+  (Third Space) and via anonymous fetch.
+* `require_master_admin` allows the GymAxis platform admin AND
+  delegated Pulse Master Admins (e.g. craig.henshall+pulse@pulsefitness.com).
+* Scope limited to `account_type ∈ {pulse_pro, mod_site, mod_branch, mod_org}`
+  — generic GymAxis orgs are excluded (intentional for now; can be
+  toggled on later per user request).
+
+### Tests
+* `/app/backend/tests/test_iter_216h128_pulse_sales.py` — 8/8 pass:
+  - blocks customer tier (403)
+  - blocks anonymous
+  - sweep + list round-trip
+  - summary shape
+  - patch (status + assignee + note) persists
+  - invalid status rejected (400)
+  - sweep is idempotent (second pass = 0 created)
+  - scope verification — only Pulse Pro + MOD tenants in top-orgs
+
+### Files touched
+**Backend**
+- `/app/backend/routes/pulse_sales.py` (NEW)
+- `/app/backend/route_registry/admin.py` (+2 LOC — register router)
+- `/app/backend/utils/proactive_nudges.py` (+7 LOC — daily sweep hook)
+- `/app/backend/tests/test_iter_216h128_pulse_sales.py` (NEW · 8 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/MasterAdmin/AdminPulseSales.js` (NEW · ~360 LOC)
+- `/app/frontend/src/pages/MasterAdminPage.js` (+3 LOC — import + case)
+- `/app/frontend/src/pages/MasterAdmin/SidebarConfig.js` (+3 LOC — sidebar entry + section map + description)
+
+### Verified live (admin@gymaxisai.com — auto-sweep on startup):
+* 26 orgs scanned · 51 opportunities created
+* Active pipeline value: **£252,818.59**
+* Top orgs (by pipeline): Vimy Lines Gym (£16,900 · 4 opps),
+  Cambrai Lines, Bourlon Barracks, Marne Barracks, Bulk Test sites...
+* Third Space (pulse_pro) shows 2 active opps · £9,418
+* Jack Ottey (Third Space owner) → **403 Master admin access required**
+
+
+
 ## Iter 216h127 — Best-in-Class CAPEX Board Report (Feb 15, 2026)
 
 Phase 1 of Jack's "best-in-class CAPEX intelligence" brief —

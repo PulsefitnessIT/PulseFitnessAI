@@ -51,6 +51,7 @@ import StaffOnboardingWizard from './MasterAdmin/StaffOnboardingWizard';
 import IntegrationsHub from './MasterAdmin/IntegrationsHub';
 import AdminCommunications from './MasterAdmin/AdminCommunications';
 import AdminCannedReplies from './MasterAdmin/AdminCannedReplies';
+import AdminPulseSales from './MasterAdmin/AdminPulseSales';
 import ThemeSettingsPanel from './MasterAdmin/ThemeSettingsPanel';
 import CustomDomainsPanel from './MasterAdmin/CustomDomainsPanel';
 
@@ -332,6 +333,8 @@ const MasterAdminPage = ({ onBack }) => {
         return <AdminCommunications />;
       case 'canned-replies':
         return <AdminCannedReplies />;
+      case 'pulse-sales':
+        return <AdminPulseSales />;
       case 'theme-settings':
         return <ThemeSettingsPanel />;
       case 'custom-domains':

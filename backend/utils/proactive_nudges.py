@@ -221,5 +221,12 @@ async def run_proactive_nudges() -> dict:
     except Exception as exc:  # pragma: no cover
         totals["errors"] += 1
         logger.warning(f"[nudges] mod_riddor sweep failed: {exc}")
+    # Iter 216h128 — Pulse Sales CAPEX opportunity scan + 60d auto-dismiss.
+    try:
+        from routes.pulse_sales import sweep_capex_opportunities
+        totals["pulse_sales"] = await sweep_capex_opportunities()
+    except Exception as exc:  # pragma: no cover
+        totals["errors"] += 1
+        logger.warning(f"[nudges] pulse_sales sweep failed: {exc}")
     logger.info(f"[nudges] cycle complete {totals}")
     return totals
