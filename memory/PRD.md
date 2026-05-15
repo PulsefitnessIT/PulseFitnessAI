@@ -1,3 +1,57 @@
+## Iter 216h124 — Global MOD-scope sweep via auth middleware (Feb 15, 2026)
+
+User asked for the batch sweep so we don't whack-a-mole. Rather than
+patch 80 individual endpoint callsites, the fix lives at the
+foundation layer:
+
+### Change
+1. `get_current_user` now preloads `_mod_scope_ids` (`[HQ org id +
+   every child mod_site org id]`) onto the user dict for any
+   mod_org / mod_branch principal. Single DB query per request, cached
+   for the lifetime of the dependency.
+2. `get_organization_filter(user)` now expands automatically to
+   `{"organization_id": {"$in": user["_mod_scope_ids"]}}` whenever
+   that field is present.
+3. `apply_site_lock(user, requested_site_id, base)` now treats a
+   `requested_site_id` matching one of `_mod_scope_ids` as a REBIND:
+   `out["organization_id"] = requested_site_id`. (Because MOD child
+   gyms are full orgs with no `site_id` field on their data, the
+   legacy "add site_id constraint" path returned 0 rows.) Unrelated
+   site ids → 403.
+
+This means every existing endpoint that already used
+`get_organization_filter` + `apply_site_lock` is now MOD-aware for
+free — including PPM, expiry alerts, reports, KPI engine,
+suppliers, files, fault templates, check sheets, gym layouts,
+onboarding, AI diagnosis, sicon, digest, etc.
+
+### Verified live (army.command HQ token, no per-endpoint patches):
+| Endpoint                       | Before | After                |
+|--------------------------------|--------|----------------------|
+| `/reports/equipment-summary`   | 0 eq   | 106 eq · 63 issues   |
+| `/reports/operational`         | 0      | 63 faults            |
+| `/check-sheets/history`        | 0      | existing completions |
+| `/files/list`                  | empty  | 200 (works)          |
+| `/expiry-alerts`               | empty  | 200 (works)          |
+| `/fault-templates`             | empty  | 200 (works)          |
+| `/suppliers`                   | empty  | 200 (works)          |
+
+Non-MOD master admin still works as before (129 eq, no scope leak).
+
+### Verification
+- 44/44 cumulative MOD tests pass (h114 + h115 + h116 + h117 +
+  h120 + h121).
+- Master admin equipment list returns 129 (same as before).
+- All earlier per-endpoint patches in iter 216h120/121/122/123
+  remain in place — they're now no-ops because the underlying
+  helper produces the same filter, but the explicit `resolve_mod_query_filter`
+  call is harmless redundancy.
+
+### Files touched
+- `/app/backend/utils/auth.py` (preload MOD scope on get_current_user;
+  expand `get_organization_filter` and `apply_site_lock` for MOD HQ)
+
+
 ## Iter 216h123 — QR endpoints MOD HQ rebind (Feb 15, 2026)
 
 Lee screenshot: equipment detail dialog → QR Code area shows only the

@@ -106,6 +106,31 @@ async def get_current_user(
     # Stash jti on the user dict so routes can revoke the active token
     user["_jwt_jti"] = payload.get("jti")
     user["_jwt_exp"] = payload.get("exp")
+    # Iter 216h124 — MOD HQ users see their entire estate by default.
+    # Stash the child mod_site org ids on the user dict so the
+    # synchronous `get_organization_filter` can fan out queries
+    # without every route having to call mod_scope.resolve_…
+    # explicitly. The HQ's own org id is included so audit/staff
+    # records owned by HQ are still visible.
+    at = (user.get("account_type") or "").lower()
+    if at in ("mod_org", "mod_branch") and user.get("organization_id"):
+        hq = await db.organizations.find_one(
+            {"id": user["organization_id"]},
+            {"_id": 0, "mod_branch": 1, "mod_root_id": 1, "id": 1},
+        ) or {}
+        mod_root_id = hq.get("mod_root_id") or hq.get("id") or user["organization_id"]
+        cq: dict = {
+            "account_type": "mod_site", "is_mod": True,
+            "status": {"$ne": "archived"}, "mod_root_id": mod_root_id,
+        }
+        if at == "mod_branch" and hq.get("mod_branch"):
+            cq["mod_branch"] = hq["mod_branch"]
+        child_ids: list[str] = []
+        async for c in db.organizations.find(cq, {"_id": 0, "id": 1}):
+            if c.get("id"):
+                child_ids.append(c["id"])
+        user["_mod_child_org_ids"] = child_ids
+        user["_mod_scope_ids"] = [user["organization_id"], *child_ids]
     return user
 
 
@@ -151,7 +176,18 @@ def require_same_org(doc: Optional[dict], user: dict, resource: str = "resource"
 
 
 def get_organization_filter(user: dict) -> dict:
-    """Get filter for organization-scoped queries"""
+    """Get filter for organization-scoped queries.
+
+    Iter 216h124 — MOD HQ users (mod_org / mod_branch) have a
+    pre-loaded estate scope on the user dict (`_mod_scope_ids`,
+    populated by `get_current_user`). When present we expand the
+    filter to include every child mod_site so HQ queries see the
+    whole estate by default. Single-site drilldown is handled by
+    `apply_site_lock` which rebinds the filter to the chosen child
+    org id.
+    """
+    if user.get('_mod_scope_ids'):
+        return {"organization_id": {"$in": user['_mod_scope_ids']}}
     if user.get('organization_id'):
         return {"organization_id": user['organization_id']}
     else:
@@ -180,6 +216,21 @@ def apply_site_lock(user: dict, requested_site_id: str | None, base_filter: dict
         or bool(user.get("is_master_admin"))
     )
     out = dict(base_filter)
+
+    # Iter 216h124 — MOD HQ users (mod_org / mod_branch) treat each
+    # child site as its own organisation (no `site_id` field on
+    # equipment / issues). Drilling into a specific child must REBIND
+    # the organization_id filter to that child, not add a `site_id`.
+    mod_scope_ids = user.get("_mod_scope_ids")
+    if mod_scope_ids and requested_site_id:
+        if requested_site_id not in mod_scope_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have access to that site",
+            )
+        out["organization_id"] = requested_site_id
+        return out
+
     allowed = user.get("allowed_site_ids") or []
     if is_privileged or not allowed:
         # Privileged or unrestricted — caller's existing site_id handling stands.
