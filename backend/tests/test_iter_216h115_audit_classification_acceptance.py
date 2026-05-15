@@ -8,6 +8,7 @@ from __future__ import annotations
 import requests
 
 from tests.conftest import _test_backend_url
+from tests._mod_test_utils import hq_login_with_mfa
 
 API = _test_backend_url() + "/api"
 
@@ -99,7 +100,7 @@ def test_audit_endpoint_chain_grows_and_verifies() -> None:
     assert site_ids
     target = site_ids[0]
 
-    hq = _login("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
+    hq = hq_login_with_mfa("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
     headers = {"Authorization": f"Bearer {hq['token']}"}
 
     # Provision the site credentials twice — produces audit rows for
@@ -131,7 +132,7 @@ def test_audit_csv_export_includes_integrity_footer() -> None:
     seed = _seed_army_demo(master)
     target = list(seed["site_org_ids"].values())[0]
 
-    hq = _login("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
+    hq = hq_login_with_mfa("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
     headers = {"Authorization": f"Bearer {hq['token']}"}
 
     requests.post(
@@ -163,7 +164,7 @@ def test_audit_endpoint_refuses_cross_scope() -> None:
     if not others:
         return
 
-    hq = _login("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
+    hq = hq_login_with_mfa("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
     r = requests.get(
         f"{API}/mod/pro/audit-log/{others[0]['id']}",
         headers={"Authorization": f"Bearer {hq['token']}"},

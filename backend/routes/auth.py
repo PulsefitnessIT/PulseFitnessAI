@@ -251,15 +251,38 @@ async def _maybe_issue_mfa_step1(user: dict) -> dict | None:
 
     The full JWT is withheld; the caller must hit ``/auth/mfa/verify`` with
     the returned ``temp_token`` plus a TOTP code to complete login.
+
+    Iter 216h116 — when the user's role mandates MFA (e.g. MOD HQ) but
+    they have NOT enrolled yet, return an ``enrolment_required`` step
+    instead. The temp_token then only permits ``/auth/mfa/setup`` and
+    ``/auth/mfa/enable`` (gated via ``get_current_user_mfa_enrol``).
     """
     from utils.mfa import user_requires_mfa, user_mfa_state
-    if not user_requires_mfa(user):
+    requires = user_requires_mfa(user)
+    if not requires:
         return None
     state = await user_mfa_state(user["id"])
-    if not state["enabled"]:
-        return None
     import jwt as _jwt
     from utils.database import JWT_SECRET, JWT_ALGORITHM
+    if not state["enabled"]:
+        # Iter 216h116 — MFA mandatory but not enrolled. Only force the
+        # MOD HQ tier through the in-line enrolment flow (master admins
+        # retain the historical opt-in behaviour so as not to break
+        # existing dev/test logins).
+        if (user.get("account_type") or "").lower() not in ("mod_org", "mod_branch"):
+            return None
+        enrol_payload = {
+            "user_id": user["id"],
+            "type": "mfa_enrol",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+            "iat": datetime.now(timezone.utc),
+        }
+        return {
+            "requires_mfa_enrolment": True,
+            "temp_token": _jwt.encode(enrol_payload, JWT_SECRET, algorithm=JWT_ALGORITHM),
+            "user": {"email": user["email"], "full_name": user.get("full_name", "")},
+            "reason": "Two-factor authentication is mandatory for this account.",
+        }
     temp_payload = {
         "user_id": user["id"],
         "type": "mfa_temp",
@@ -682,6 +705,61 @@ async def mfa_enable(body: dict, user: dict = Depends(get_current_user)) -> dict
         "event": "mfa.enabled", "actor_id": user["id"], "actor_email": user.get("email"),
     })
     return {"success": True, "backup_codes": codes}
+
+
+# Iter 216h116 — login-flow endpoints used when MFA is MANDATORY and
+# the user hasn't enrolled yet. The frontend hits these with the
+# ``mfa_enrol`` temp token returned by /auth/login.
+
+@router.post("/auth/mfa/enrol/setup")
+async def mfa_enrol_setup(body: dict) -> dict:
+    import jwt as _jwt
+    from utils.database import JWT_SECRET, JWT_ALGORITHM
+    from utils.mfa import begin_enrollment
+    temp = (body or {}).get("temp_token", "")
+    try:
+        payload = _jwt.decode(temp, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired enrolment token")
+    if payload.get("type") != "mfa_enrol":
+        raise HTTPException(status_code=401, detail="Invalid enrolment token")
+    user_id = payload.get("user_id")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return await begin_enrollment(user_id, user.get("email", ""))
+
+
+@router.post("/auth/mfa/enrol/complete")
+async def mfa_enrol_complete(body: dict, request: Request, response: Response) -> dict:
+    """Step 2 of mandatory enrolment — confirm the first TOTP code and
+    issue the full JWT in one go (the user is mid-login). Returns the
+    backup codes ONCE so the user can print/save them."""
+    import jwt as _jwt
+    from utils.database import JWT_SECRET, JWT_ALGORITHM
+    from utils.mfa import confirm_enrollment
+    from utils.security_plus import audit_required
+    temp = (body or {}).get("temp_token", "")
+    code = (body or {}).get("code", "")
+    try:
+        payload = _jwt.decode(temp, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired enrolment token")
+    if payload.get("type") != "mfa_enrol":
+        raise HTTPException(status_code=401, detail="Invalid enrolment token")
+    user_id = payload.get("user_id")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    codes = await confirm_enrollment(user_id, code)
+    await audit_required("security_audit_log", {
+        "event": "mfa.enrolled_during_login",
+        "actor_id": user_id, "actor_email": user.get("email"),
+    })
+    finalised = await _finalise_successful_login(user, request, response)
+    finalised["backup_codes"] = codes
+    finalised["enrolment_complete"] = True
+    return finalised
 
 
 @router.post("/auth/mfa/verify")

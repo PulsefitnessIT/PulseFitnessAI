@@ -1,3 +1,89 @@
+## Iter 216h116 — MOD Future-state: Posting-out · Compliance Calendar · MFA HQ · DIO stub (Feb 15, 2026)
+
+### What shipped
+
+**1. Personnel rotation — "Posting out" handover**
+* New endpoint `POST /api/mod/site/staff/{id}/posting-out` records
+  posting date + optional successor + handover notes, returns the
+  count of open faults the departing staff member still owns.
+  Optional `notify_successor_email` sends a structured handover email.
+* New sweeper `utils/mod_postings.sweep_posting_outs()` auto-flips
+  `is_active=false` 14 days after the posting date and emits a
+  `staff.posting_out` audit event.
+
+**2. Compliance / inspection calendar**
+* New module `routes/mod_compliance.py` + collection
+  `mod_compliance_events` covering insurance, PAT, fixed-wiring,
+  load-test, weights cert, fire inspection, PPM and `other`.
+* HQ-scoped CRUD: `GET / POST / PATCH / DELETE /api/mod/pro/compliance`.
+  Each row exposes `days_until` + `status` (`overdue / critical /
+  warning / soon / ok / unknown`) for direct UI severity colouring.
+* `sweep_compliance_reminders()` fires 30/14/7/overdue emails via the
+  proactive-nudges cycle. Recipients = HQ users in the same branch
+  (mod_branch + mod_org), with `MOD_ONCALL_EMAIL` as a fallback.
+* UI: new `MODComplianceCalendar` modal opened from a "Compliance
+  calendar" button in the All-Sites overview header. Add / edit /
+  delete with severity-coloured buckets and optional evidence URL.
+
+**3. MFA mandatory on HQ tier**
+* `utils/mfa.user_requires_mfa()` now returns `True` for any user
+  whose `account_type` is `mod_org` or `mod_branch`.
+* `_maybe_issue_mfa_step1` extended: when MFA is mandatory **and** the
+  user has not enrolled, the `/auth/login` response is
+  `{requires_mfa_enrolment: true, temp_token, user, reason}` instead
+  of the full JWT.
+* Two new auth endpoints accept the enrolment temp_token (no JWT yet):
+  * `POST /auth/mfa/enrol/setup` — returns `{provisioning_uri, secret,
+    qrcode_data_url}` for the authenticator app.
+  * `POST /auth/mfa/enrol/complete` — verifies the first TOTP code,
+    issues the full JWT in one go, and returns the 10 backup codes
+    once.
+* Master admins retain their historical opt-in semantics (no breaking
+  changes for dev/test logins).
+
+**4. DIO contract stub**
+* `PUT/GET /api/mod/pro/sites/{site_id}/dio-contract` — capture
+  contract ref + escalation contact (name + email) on the site org.
+* `POST /api/mod/site/faults/{issue_id}/escalate-to-dio` —
+  stamps `escalated_to_dio=true` + `dio_escalated_at` on the issue
+  AND sends a structured email to the configured DIO contact. Refuses
+  (409) when no DIO contact has been set for the site.
+
+**5. Master-admin operations hook**
+* `POST /api/master-admin/mod/sweep-now` — manual one-shot trigger for
+  the posting-out, compliance and acceptance sweepers. Useful for
+  cron diagnostics + integration tests.
+
+### Files touched
+
+Backend
+- `/app/backend/routes/mod_portal.py` (posting-out · DIO contract +
+  escalation · sweep-now hook)
+- `/app/backend/routes/mod_compliance.py` (NEW — full module)
+- `/app/backend/utils/mod_postings.py` (NEW)
+- `/app/backend/utils/mfa.py` (mandate MOD HQ)
+- `/app/backend/utils/proactive_nudges.py` (register two new sweepers)
+- `/app/backend/routes/auth.py` (mandatory MFA enrolment flow)
+- `/app/backend/route_registry/features.py` (mount mod_compliance)
+
+Frontend
+- `/app/frontend/src/pages/LiteDashboard/MODComplianceCalendar.js` (NEW)
+- `/app/frontend/src/pages/LiteDashboard/AllSitesOverview.js`
+  (compliance button + modal wire-up)
+
+Tests
+- `/app/backend/tests/test_iter_216h116_postings_compliance_mfa_dio.py`
+  (10 new tests — 100% pass)
+- `/app/backend/tests/_mod_test_utils.py` (NEW shared
+  `hq_login_with_mfa()` helper, used by 216h114 and 216h115 tests so
+  the existing suites keep passing under the mandatory-MFA regime)
+
+### Cumulative results
+- 41/41 tests passing across iter 216h111, 216h113e, 216h113f,
+  216h114, 216h115 and 216h116.
+- All linters clean (ruff + eslint).
+
+
 ## Iter 216h115 — MOD P1 Process Hardening: Audit + Classification + Acceptance Loop (Feb 15, 2026)
 
 ### Audit hardening (P1)

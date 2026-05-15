@@ -726,6 +726,158 @@ async def mod_staff_delete(staff_id: str, user: dict = Depends(get_current_user)
     return {"ok": True}
 
 
+# ── Personnel rotation: "Posting out" handover (Iter 216h116) ──
+# Service personnel typically rotate every 2-3 years. Civilian PTI
+# also turn over. We let a site formally "post out" a staff member,
+# nominate a successor, and capture the open work they're leaving
+# behind. The record auto-deactivates 14 days after the posting_out
+# date via the proactive-nudges cron.
+
+class PostingOutPayload(BaseModel):
+    posting_out_date: str  # ISO date (yyyy-mm-dd)
+    successor_id: Optional[str] = None
+    handover_notes: Optional[str] = Field(default=None, max_length=2000)
+    notify_successor_email: Optional[EmailStr] = None
+
+
+@router.post("/mod/site/staff/{staff_id}/posting-out")
+async def mod_staff_posting_out(
+    staff_id: str,
+    payload: PostingOutPayload,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Record a posting-out for a staff member.
+
+    Captures the leave date, optional successor, and (if requested)
+    emails the successor a handover pack listing the items the
+    departing person still owns. Triggers a ``staff.posting_out``
+    audit event.
+    """
+    org = await _require_mod_site(user)
+    staff = await db.mod_site_staff.find_one(
+        {"id": staff_id, "site_id": org["id"]},
+        {"_id": 0},
+    )
+    if not staff:
+        raise HTTPException(404, "Staff not found")
+    try:
+        posting_date = datetime.fromisoformat(payload.posting_out_date).date()
+    except Exception:
+        raise HTTPException(400, "posting_out_date must be ISO yyyy-mm-dd")
+
+    successor_doc = None
+    if payload.successor_id:
+        successor_doc = await db.mod_site_staff.find_one(
+            {"id": payload.successor_id, "site_id": org["id"]},
+            {"_id": 0},
+        )
+        if not successor_doc:
+            raise HTTPException(404, "Successor not found within this site")
+
+    # Build a handover summary — open faults this person reported in
+    # the last 90 days serve as a proxy for "stuff they still own".
+    since = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    open_faults = await db.issues.find(
+        {
+            "organization_id": org["id"],
+            "status": {"$in": ["open", "in_progress", "awaiting_parts"]},
+            "$or": [
+                {"reporter_name": staff.get("name")},
+                {"reporter_staff_id": staff_id},
+            ],
+            "created_at": {"$gte": since},
+        },
+        {"_id": 0, "id": 1, "mod_ticket_ref": 1, "machine_type": 1, "priority": 1},
+    ).limit(100).to_list(100)
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.mod_site_staff.update_one(
+        {"id": staff_id},
+        {"$set": {
+            "posting_out_date": posting_date.isoformat(),
+            "successor_id": payload.successor_id,
+            "handover_notes": (payload.handover_notes or "").strip()[:2000] or None,
+            "posting_out_recorded_at": now_iso,
+            "posting_out_recorded_by": user.get("id"),
+        }},
+    )
+
+    # Optional handover email to the nominated successor.
+    if payload.notify_successor_email:
+        try:
+            html = _posting_out_email_html(staff, successor_doc, posting_date, open_faults, payload.handover_notes)
+            await send_email(
+                payload.notify_successor_email,
+                f"[Handover] {staff.get('name')} is posting out on {posting_date.isoformat()}",
+                html,
+            )
+        except Exception as e:  # pragma: no cover
+            logger.warning("Posting-out handover email failed: %s", e)
+
+    await _audit(
+        org["id"], user.get("id"), "staff.posting_out",
+        request=request, user=user,
+        target_type="staff", target_id=staff_id,
+        posting_out_date=posting_date.isoformat(),
+        successor_id=payload.successor_id,
+        open_fault_count=len(open_faults),
+    )
+    return {
+        "ok": True,
+        "staff_id": staff_id,
+        "posting_out_date": posting_date.isoformat(),
+        "open_fault_count": len(open_faults),
+        "open_faults": open_faults,
+        "successor": {"id": successor_doc["id"], "name": successor_doc["name"]} if successor_doc else None,
+    }
+
+
+def _posting_out_email_html(
+    staff: dict,
+    successor: Optional[dict],
+    posting_date,
+    open_faults: list,
+    notes: Optional[str],
+) -> str:
+    rows = "".join(
+        f"<tr><td style='padding:6px 10px;border-bottom:1px solid #eee;font-weight:700;'>{f.get('mod_ticket_ref','')}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #eee;'>{f.get('machine_type','')}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #eee;text-transform:uppercase;font-size:11px;'>{f.get('priority','')}</td></tr>"
+        for f in open_faults
+    ) or "<tr><td colspan='3' style='padding:10px;color:#6E7476;'>No outstanding open tickets — clean handover.</td></tr>"
+    note_block = (
+        f"<p style='margin:14px 0;padding:10px 14px;background:#F5F7F8;border-left:3px solid #19CDFF;'>{notes}</p>"
+        if notes else ""
+    )
+    successor_line = (
+        f"<p>You have been named the successor for <strong>{staff.get('name')}</strong> "
+        f"who is posting out on <strong>{posting_date.isoformat()}</strong>.</p>"
+        if successor else
+        f"<p><strong>{staff.get('name')}</strong> is posting out on "
+        f"<strong>{posting_date.isoformat()}</strong> — please brief in their successor.</p>"
+    )
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Posting-out handover</div>
+    <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{staff.get('name','')}</h1>
+  </div>
+  <div style="padding:22px 28px;">
+    {successor_line}
+    {note_block}
+    <h3 style="margin:16px 0 8px 0;font-size:14px;">Open tickets to take over</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #eee;">
+      <thead><tr style="background:#F5F7F8;">
+        <th style='text-align:left;padding:6px 10px;'>Ticket</th>
+        <th style='text-align:left;padding:6px 10px;'>Asset</th>
+        <th style='text-align:left;padding:6px 10px;'>Priority</th>
+      </tr></thead>
+      <tbody>{rows}</tbody>
+    </table>
+  </div>
+</div>"""
+
+
 # ── Force-scoped staff search + transfer (Iter 216h113e) ─────
 # Lets a MOD site move one of its staff to another site within the
 # SAME MOD force (Army↔Army, RAF↔RAF, Navy↔Navy). This is a Pulse
@@ -1899,6 +2051,25 @@ async def mod_hq_audit_export_csv(
     )
 
 
+@router.post("/master-admin/mod/sweep-now")
+async def mod_admin_sweep_now(user: dict = Depends(get_current_user)) -> dict:
+    """Manually trigger MOD background sweepers (posting-outs, compliance
+    reminders, acceptance timeouts). Master admin only — primarily a
+    test / ops hook."""
+    require_master_admin(user)
+    from utils.mod_postings import sweep_posting_outs
+    from utils.mod_acceptance import sweep_pending_acceptances
+    from routes.mod_compliance import sweep_compliance_reminders
+    postings = await sweep_posting_outs()
+    acceptances = await sweep_pending_acceptances()
+    compliance = await sweep_compliance_reminders()
+    return {
+        "postings": postings,
+        "acceptances": acceptances,
+        "compliance": compliance,
+    }
+
+
 @router.post("/master-admin/mod/sites/{site_id}/rotate-password")
 async def mod_admin_rotate_password(site_id: str, user: dict = Depends(get_current_user)):
     """Master-admin-only one-click rotation of a MOD site's shared login code.
@@ -1920,6 +2091,174 @@ async def mod_admin_rotate_password(site_id: str, user: dict = Depends(get_curre
         "new_password": result["new_password"],
         "note": "A copy has been emailed to the MOD rotation notify address.",
     }
+
+
+# ── DIO contract integration stub (Iter 216h116) ───────────────
+# Defence Infrastructure Organisation manages base maintenance
+# contracts. We can't talk to their API yet but we can capture the
+# contract reference + escalation contact per site, and selectively
+# route faults to DIO when they're command-significant.
+
+class DIOContractPayload(BaseModel):
+    dio_contract_ref: Optional[str] = Field(default=None, max_length=120)
+    dio_contact_email: Optional[EmailStr] = None
+    dio_contact_name: Optional[str] = Field(default=None, max_length=120)
+
+
+@router.put("/mod/pro/sites/{site_id}/dio-contract")
+async def mod_hq_set_dio_contract(
+    site_id: str,
+    payload: DIOContractPayload,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """HQ owner/manager records the DIO contract reference + the
+    nominated escalation contact for a child site."""
+    org = await _require_mod_pro(user)
+    site = await db.organizations.find_one(
+        {"id": site_id, "account_type": "mod_site"},
+        {"_id": 0, "mod_root_id": 1, "mod_branch": 1, "name": 1},
+    )
+    if not site:
+        raise HTTPException(404, "Site not found")
+    if site.get("mod_root_id") != org.get("mod_root_id"):
+        raise HTTPException(403, "Site is outside your MOD organisation scope")
+    if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
+        raise HTTPException(403, "Site is outside your branch scope")
+
+    updates = payload.model_dump(exclude_unset=True)
+    updates["dio_updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["dio_updated_by"] = user.get("id")
+    await db.organizations.update_one({"id": site_id}, {"$set": updates})
+    await _audit(
+        site_id, user.get("id"), "compliance.event",
+        request=request, user=user,
+        target_type="organization", target_id=site_id,
+        kind="dio_contract.set",
+        dio_contract_ref=updates.get("dio_contract_ref"),
+    )
+    return {"ok": True, **updates}
+
+
+@router.get("/mod/pro/sites/{site_id}/dio-contract")
+async def mod_hq_get_dio_contract(site_id: str, user: dict = Depends(get_current_user)):
+    org = await _require_mod_pro(user)
+    site = await db.organizations.find_one(
+        {"id": site_id, "account_type": "mod_site"},
+        {"_id": 0, "mod_root_id": 1, "mod_branch": 1, "name": 1,
+         "dio_contract_ref": 1, "dio_contact_email": 1, "dio_contact_name": 1,
+         "dio_updated_at": 1},
+    )
+    if not site:
+        raise HTTPException(404, "Site not found")
+    if site.get("mod_root_id") != org.get("mod_root_id"):
+        raise HTTPException(403, "Site is outside your MOD organisation scope")
+    if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
+        raise HTTPException(403, "Site is outside your branch scope")
+    return {
+        "site_id": site_id,
+        "site_name": site.get("name"),
+        "dio_contract_ref": site.get("dio_contract_ref"),
+        "dio_contact_email": site.get("dio_contact_email"),
+        "dio_contact_name": site.get("dio_contact_name"),
+        "dio_updated_at": site.get("dio_updated_at"),
+    }
+
+
+class DIOEscalateBody(BaseModel):
+    note: Optional[str] = Field(default=None, max_length=2000)
+
+
+@router.post("/mod/site/faults/{issue_id}/escalate-to-dio")
+async def mod_escalate_to_dio(
+    issue_id: str,
+    body: DIOEscalateBody,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Site user or HQ flags a fault for DIO. Sends a structured email
+    to the site's configured DIO contact (if one exists) and stamps
+    ``escalate_to_dio=true`` on the issue."""
+    org = await _require_mod_site(user)
+    issue = await db.issues.find_one(
+        {"id": issue_id, "organization_id": org["id"]}, {"_id": 0},
+    )
+    if not issue:
+        raise HTTPException(404, "Fault not found")
+    site = await db.organizations.find_one(
+        {"id": org["id"]},
+        {"_id": 0, "name": 1, "dio_contract_ref": 1,
+         "dio_contact_email": 1, "dio_contact_name": 1},
+    )
+    if not site or not site.get("dio_contact_email"):
+        raise HTTPException(
+            409,
+            "Site has no DIO contact configured. Ask HQ to set it in the site drawer.",
+        )
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.issues.update_one(
+        {"id": issue_id},
+        {"$set": {
+            "escalated_to_dio": True,
+            "dio_escalated_at": now_iso,
+            "dio_escalated_by": user.get("id"),
+            "dio_escalation_note": (body.note or "").strip()[:2000] or None,
+        }},
+    )
+
+    # Best-effort email.
+    try:
+        equipment = await db.equipment.find_one(
+            {"id": issue.get("equipment_id")},
+            {"_id": 0, "name": 1, "manufacturer": 1, "model": 1, "serial_number": 1},
+        ) or {}
+        html = _dio_escalation_email_html(site, issue, equipment, body.note)
+        await send_email(
+            site["dio_contact_email"],
+            f"[DIO Escalation] {issue.get('mod_ticket_ref')} — {site.get('name')}",
+            html,
+        )
+    except Exception as e:  # pragma: no cover
+        logger.warning("DIO escalation email failed: %s", e)
+
+    await _audit(
+        org["id"], user.get("id"), "compliance.event",
+        request=request, user=user,
+        target_type="issue", target_id=issue_id,
+        kind="dio.escalate",
+        ticket_ref=issue.get("mod_ticket_ref"),
+    )
+    return {
+        "ok": True,
+        "escalated_to": site["dio_contact_email"],
+        "contract_ref": site.get("dio_contract_ref"),
+    }
+
+
+def _dio_escalation_email_html(site: dict, issue: dict, eq: dict, note: Optional[str]) -> str:
+    note_block = (
+        f"<p style='margin:14px 0;padding:10px 14px;background:#F5F7F8;border-left:3px solid #19CDFF;'><strong>Escalation note:</strong><br>{note}</p>"
+        if note else ""
+    )
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  <div style="background:#0A2540;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · DIO Escalation</div>
+    <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{issue.get('mod_ticket_ref','')} — {site.get('name','')}</h1>
+  </div>
+  <div style="padding:22px 28px;">
+    <p>Dear {site.get('dio_contact_name','Team')},</p>
+    <p>This fault has been escalated to DIO under contract reference <strong>{site.get('dio_contract_ref','—')}</strong>.</p>
+    {note_block}
+    <table style="width:100%;font-size:13px;margin-top:10px;">
+      <tr><td style='padding:6px 0;color:#6E7476;'>Ticket</td><td style='font-weight:700;'>{issue.get('mod_ticket_ref','')}</td></tr>
+      <tr><td style='padding:6px 0;color:#6E7476;'>Priority</td><td style='font-weight:700;text-transform:uppercase;'>{issue.get('priority','')}</td></tr>
+      <tr><td style='padding:6px 0;color:#6E7476;'>Asset</td><td>{eq.get('name','')} · {eq.get('manufacturer','')} {eq.get('model','')}</td></tr>
+      <tr><td style='padding:6px 0;color:#6E7476;'>Serial</td><td style='font-family:ui-monospace,Menlo,monospace;'>{eq.get('serial_number','—')}</td></tr>
+      <tr><td style='padding:6px 0;color:#6E7476;vertical-align:top;'>Description</td><td>{issue.get('issue_description','')}</td></tr>
+    </table>
+  </div>
+</div>"""
 
 
 # ── HQ-level (mod_org / mod_branch) Site Login provisioning ───────

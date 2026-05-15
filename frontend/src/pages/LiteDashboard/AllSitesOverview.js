@@ -16,6 +16,7 @@ import { notify } from '@/components/notifications';
 import KpiTile from '@/components/shared/KpiTile';
 import PageHeader from '@/components/shared/PageHeader';
 import MODAuditLogPanel from './MODAuditLogPanel';
+import MODComplianceCalendar from './MODComplianceCalendar';
 
 const scoreColor = (s) => {
   if (s >= 80) return { bg: 'bg-emerald-100 dark:bg-emerald-500/15', text: 'text-emerald-700 dark:text-emerald-300' };
@@ -34,6 +35,8 @@ const AllSitesOverview = ({ onPickSite }) => {
   const [siteLoginTarget, setSiteLoginTarget] = useState(null);
   // Iter 216h115 — Audit log viewer for the same HQ users.
   const [auditTarget, setAuditTarget] = useState(null);
+  // Iter 216h116 — Compliance calendar (HQ-wide).
+  const [showCompliance, setShowCompliance] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -81,6 +84,17 @@ const AllSitesOverview = ({ onPickSite }) => {
         subtitle="Aggregated KPIs and per-site rankings across every Pulse site"
         icon={Globe2}
         testId="all-sites-header"
+        actions={isModHQ ? (
+          <button
+            type="button"
+            onClick={() => setShowCompliance(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border hover:bg-[var(--theme-hover-bg)]"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--color-brand-cyan-hover)' }}
+            data-testid="all-sites-compliance-btn"
+          >
+            <Trophy size={12} /> Compliance calendar
+          </button>
+        ) : null}
       />
 
       {/* Aggregate KPIs */}
@@ -225,6 +239,14 @@ const AllSitesOverview = ({ onPickSite }) => {
           site={auditTarget}
           API={API}
           onClose={() => setAuditTarget(null)}
+        />
+      )}
+      {/* Iter 216h116 — Compliance calendar (MOD HQ only) */}
+      {isModHQ && showCompliance && (
+        <MODComplianceCalendar
+          sites={data?.sites || []}
+          API={API}
+          onClose={() => setShowCompliance(false)}
         />
       )}
     </div>

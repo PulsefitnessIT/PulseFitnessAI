@@ -27,6 +27,7 @@ import time
 import requests
 
 from tests.conftest import _test_backend_url
+from tests._mod_test_utils import hq_login_with_mfa
 
 API = _test_backend_url() + "/api"
 
@@ -74,7 +75,7 @@ def test_hq_can_provision_site_credentials() -> None:
     target_site = site_ids[0]
 
     # Catterick HQ acts as a mod_branch user.
-    hq = _login("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
+    hq = hq_login_with_mfa("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
     hq_token = hq["token"]
 
     r = requests.post(
@@ -111,7 +112,7 @@ def test_hq_provision_refuses_cross_scope() -> None:
         return  # nothing to test against — env-dependent.
 
     target_site = non_army[0]["id"]
-    hq = _login("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
+    hq = hq_login_with_mfa("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
     hq_token = hq["token"]
     r = requests.post(
         f"{API}/mod/pro/sites/{target_site}/provision-credentials",

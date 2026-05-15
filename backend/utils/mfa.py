@@ -263,9 +263,12 @@ async def verify_login_code(user_id: str, code: str) -> bool:
 def user_requires_mfa(user: dict) -> bool:
     """Return True if the user's role/flag demands MFA on login.
 
-    Master admins ALWAYS require MFA once enabled. Other roles opt-in via
-    ``mfa_required: true`` on the user doc.
+    Master admins ALWAYS require MFA once enabled. MOD HQ users
+    (account_type=mod_org or mod_branch) are mandated to enrol —
+    iter 216h116. Other roles opt-in via ``mfa_required: true``.
     """
     if user.get("is_master_admin"):
+        return True
+    if (user.get("account_type") or "").lower() in ("mod_org", "mod_branch"):
         return True
     return bool(user.get("mfa_required"))

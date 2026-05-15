@@ -201,5 +201,18 @@ async def run_proactive_nudges() -> dict:
     except Exception as exc:  # pragma: no cover
         totals["errors"] += 1
         logger.warning(f"[nudges] mod_acceptance sweep failed: {exc}")
+    # Iter 216h116 — sweep posting-out deactivations + compliance reminders.
+    try:
+        from utils.mod_postings import sweep_posting_outs
+        totals["mod_postings"] = await sweep_posting_outs()
+    except Exception as exc:  # pragma: no cover
+        totals["errors"] += 1
+        logger.warning(f"[nudges] mod_postings sweep failed: {exc}")
+    try:
+        from routes.mod_compliance import sweep_compliance_reminders
+        totals["mod_compliance"] = await sweep_compliance_reminders()
+    except Exception as exc:  # pragma: no cover
+        totals["errors"] += 1
+        logger.warning(f"[nudges] mod_compliance sweep failed: {exc}")
     logger.info(f"[nudges] cycle complete {totals}")
     return totals
