@@ -1,3 +1,34 @@
+## Iter 216h123 — QR endpoints MOD HQ rebind (Feb 15, 2026)
+
+Lee screenshot: equipment detail dialog → QR Code area shows only the
+pulsefitness badge; the QR PNG itself never loads. Repro: any HQ user
+opening any child gym's equipment.
+
+### Root cause
+Same legacy-filter trap. `/api/equipment/{id}/qr-code` (and the
+`/qr-card`, `/qr-label` siblings) used `get_organization_filter(user)`,
+so the lookup `find_one({"id": equipment_id, **org_filter})` returned
+None for any equipment owned by a child `mod_site` org → 404 → broken
+img.
+
+### Fix
+All three endpoints now use
+`utils.mod_scope.resolve_mod_query_filter(user, None)` so they
+authorise against the HQ + any of its child orgs.
+
+### Verified live (army.command HQ token, Vimy Lines equipment):
+- `/qr-code` → 200 · image/png · 1284 bytes
+- `/qr-card?size=62x35` → 200 · image/png · 30329 bytes
+- `/qr-label` → 200 · JSON with name + serial
+
+### Tests
+- `test_qr_endpoints_serve_for_mod_hq_child_equipment` (new)
+- 10/10 cumulative MOD scope tests pass.
+
+### Files touched
+- `/app/backend/routes/qr_codes.py` (3 endpoints rebound)
+
+
 ## Iter 216h122 — Gym Health Score MOD HQ fix (Feb 15, 2026)
 
 Lee screenshot: Vimy Lines Gym dashboard scoped to that site shows

@@ -121,7 +121,10 @@ FRONTEND_URL = _hard_override_url() or _CONFIGURED_FRONTEND_URL or _PRODUCTION_F
 @router.get("/equipment/{equipment_id}/qr-code")
 async def generate_qr_code(equipment_id: str, request: Request, size: int = 300, user: dict = Depends(get_current_user)):
     """Generate a QR code PNG for a piece of equipment. Scan opens the public report page."""
-    org_filter = get_organization_filter(user)
+    # Iter 216h123 — MOD HQ users can fetch a QR for any equipment
+    # under any of their child gyms. See utils.mod_scope.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, None)
     equipment = await db.equipment.find_one({"id": equipment_id, **org_filter}, {"_id": 0})
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
@@ -314,7 +317,9 @@ async def generate_qr_card(
     """
     from PIL import Image, ImageDraw
 
-    org_filter = get_organization_filter(user)
+    # Iter 216h123 — MOD HQ rebind. See utils.mod_scope.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, None)
     equipment = await db.equipment.find_one({"id": equipment_id, **org_filter}, {"_id": 0})
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
@@ -356,7 +361,9 @@ async def generate_qr_card(
 @router.get("/equipment/{equipment_id}/qr-label")
 async def generate_qr_label(equipment_id: str, request: Request, user: dict = Depends(get_current_user)):
     """Return equipment metadata needed to render a printable QR label on the frontend."""
-    org_filter = get_organization_filter(user)
+    # Iter 216h123 — MOD HQ rebind.
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, None)
     equipment = await db.equipment.find_one({"id": equipment_id, **org_filter}, {"_id": 0})
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")

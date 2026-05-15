@@ -205,3 +205,48 @@ def test_drilldown_into_unrelated_site_is_403() -> None:
         timeout=10,
     )
     assert r.status_code == 403, r.status_code
+
+
+def test_qr_endpoints_serve_for_mod_hq_child_equipment() -> None:
+    """Iter 216h123 — MOD HQ user must be able to render the QR PNG,
+    QR card PNG, and QR label JSON for any equipment under their
+    estate. Lee screenshot showed the QR area rendering only the
+    pulsefitness badge (PNG was 404'd because the legacy filter
+    scoped to the HQ's own empty org)."""
+    tok, _, helles = _setup()
+    eq = requests.get(
+        f"{API}/equipment?site_id={helles['id']}",
+        headers={"Authorization": f"Bearer {tok}"},
+        timeout=15,
+    ).json()["equipment"]
+    assert eq, "Helles must have demo equipment seeded"
+    eid = eq[0]["id"]
+
+    # PNG endpoint
+    r = requests.get(
+        f"{API}/equipment/{eid}/qr-code",
+        headers={"Authorization": f"Bearer {tok}"},
+        timeout=15,
+    )
+    assert r.status_code == 200, r.status_code
+    assert r.headers.get("content-type", "").startswith("image/png")
+    assert len(r.content) > 200
+
+    # Branded card endpoint
+    r = requests.get(
+        f"{API}/equipment/{eid}/qr-card?size=62x35",
+        headers={"Authorization": f"Bearer {tok}"},
+        timeout=15,
+    )
+    assert r.status_code == 200
+    assert r.headers.get("content-type", "").startswith("image/png")
+
+    # Label metadata endpoint
+    r = requests.get(
+        f"{API}/equipment/{eid}/qr-label",
+        headers={"Authorization": f"Bearer {tok}"},
+        timeout=10,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("name") or body.get("equipment_name") or body.get("serial_number")
