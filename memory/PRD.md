@@ -1,3 +1,37 @@
+## Iter 216h122 — Gym Health Score MOD HQ fix (Feb 15, 2026)
+
+Lee screenshot: Vimy Lines Gym dashboard scoped to that site shows
+10 machines, 48 open faults, but the Gym Health Score panel still
+renders the empty-state copy ("calculated once you've added equipment").
+
+### Root cause
+`/api/gym-health-score` still used the legacy
+`get_organization_filter` + `apply_site_lock`. For a MOD HQ user
+drilling into a child gym this returned the HQ's own (empty) org
+filter clamped to a `site_id` field that doesn't exist on
+equipment / issues. Counts came back as 0 → `not_ready=true`.
+
+### Fix
+Use `utils.mod_scope.resolve_mod_query_filter(user, site_id)` so the
+endpoint resolves correctly to either:
+  • the child mod_site org's equipment / issues (drilldown), or
+  • the HQ + every child rollup (estate-wide).
+
+### Verified live
+- `/gym-health-score?site_id=<vimy>` → score 27 (Needs Attention),
+  10 equipment, 48 open / 13 resolved issues
+- `/gym-health-score` (no site) → score 41 (Fair), 106 equipment
+  across the whole British Army estate
+
+### Tests
+- `test_gym_health_score_drilldown_for_mod_hq` (new)
+- `test_gym_health_score_collective_rollup_for_mod_hq` (new)
+- 9/9 cumulative MOD scope tests pass.
+
+### Files touched
+- `/app/backend/routes/health_score.py` (`/gym-health-score` rebind)
+
+
 ## Iter 216h121 — Supplier league table + MOD HQ scope fix (Feb 15, 2026)
 
 User-reported regression: the Suppliers tab pulled NO data through for

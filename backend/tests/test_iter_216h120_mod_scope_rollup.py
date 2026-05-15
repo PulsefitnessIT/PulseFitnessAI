@@ -163,6 +163,38 @@ def test_capex_drilldown_returns_only_that_site() -> None:
     assert len(body.get("equipment", [])) == 8
 
 
+def test_gym_health_score_drilldown_for_mod_hq() -> None:
+    """The Gym Health Score for a MOD HQ user drilling into Vimy Lines
+    must not return `not_ready=true` — Lee's screenshot showed that
+    despite having 10 machines + 48 open faults the empty-state copy
+    kept rendering."""
+    tok, _, helles = _setup()
+    r = requests.get(
+        f"{API}/gym-health-score?site_id={helles['id']}",
+        headers={"Authorization": f"Bearer {tok}"},
+        timeout=15,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert not body.get("not_ready"), body
+    assert "score" in body and isinstance(body["score"], int), body
+    assert body["stats"]["total_equipment"] >= 8
+
+
+def test_gym_health_score_collective_rollup_for_mod_hq() -> None:
+    """No site_id → aggregate the whole estate. Must NOT be `not_ready`."""
+    tok, _, _ = _setup()
+    r = requests.get(
+        f"{API}/gym-health-score",
+        headers={"Authorization": f"Bearer {tok}"},
+        timeout=15,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert not body.get("not_ready"), body
+    assert body["stats"]["total_equipment"] >= 50
+
+
 def test_drilldown_into_unrelated_site_is_403() -> None:
     tok, _, _ = _setup()
     # Pick a non-MOD pulse pro org from the seed (the Third Space demo

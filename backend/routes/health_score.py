@@ -81,9 +81,16 @@ async def get_gym_health_score(
 ) -> dict:
     """Iter 216h65 — `site_id` query param scopes the score to a
     single site. Omitting it = aggregate across the org (used when
-    SiteSwitcher = All Operations Sites)."""
-    org_filter = get_organization_filter(user)
-    org_filter = apply_site_lock(user, site_id, org_filter)
+    SiteSwitcher = All Operations Sites).
+
+    Iter 216h122 — MOD HQ users had `not_ready=true` even when the
+    chosen child gym had 10 machines + 48 open faults, because the
+    legacy `get_organization_filter` only returned the HQ's own org
+    id (which has no equipment of its own). Now uses
+    `utils.mod_scope.resolve_mod_query_filter`.
+    """
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, site_id)
     c = await _fetch_health_counts(org_filter)
 
     # Not-ready state: no equipment onboarded AND no faults logged.
