@@ -62,6 +62,7 @@ from routes.signup_journeys import router as signup_journeys_router
 from routes.integration_health import router as integration_health_router
 from routes.companies_house import router as companies_house_router
 from routes.postcodes import router as postcodes_router
+from routes.mod_bulk_import import router as mod_bulk_import_router
 
 
 def register_admin(api_router: APIRouter) -> None:
@@ -69,6 +70,7 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_router, master_admin_memberships_router,
         pulse_master_admin_router, pulse_stripe_phase2_router,
         master_admin_bulk_import_router,
+        mod_bulk_import_router,
         equipment_image_admin_router,
         marketing_router,
         marketing_director_router,

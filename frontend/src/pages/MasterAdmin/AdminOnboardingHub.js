@@ -6,18 +6,20 @@
  * (shareable self-service links), Bulk Imports (CSV uploads).
  */
 import React, { useState } from 'react';
-import { Building2, Building, Clipboard, FileSpreadsheet } from 'lucide-react';
+import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 
 import PulseOnboardingWizard from '../PulseOnboardingWizard';
 import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
 import AdminOnboardingPackets from './AdminOnboardingPackets';
 import AdminBulkImports from './AdminBulkImports';
+import MODBulkImport from './MODBulkImport';
 
 const TABS = [
   { id: 'site',         label: 'Onboard Site',        icon: Building2,       description: 'Step-through wizard for a single brand-new customer site.' },
   { id: 'head-office',  label: 'Head Office (multi-site)', icon: Building,   description: 'Create a corporate Head Office and N sites under it in one pass — for chains and multi-location operators.' },
   { id: 'packets',      label: 'Onboarding Packets',  icon: Clipboard,       description: 'Shareable self-service forms for customers to complete themselves.' },
   { id: 'imports',      label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of equipment and customers.' },
+  { id: 'mod-imports',  label: 'MOD Sites (bulk)',    icon: ShieldCheck,     description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
 ];
 
 const AdminOnboardingHub = ({ API, onComplete }) => {
@@ -60,6 +62,7 @@ const AdminOnboardingHub = ({ API, onComplete }) => {
       {tab === 'head-office' && <HeadOfficeOnboardingWizard onComplete={onComplete} />}
       {tab === 'packets'     && <AdminOnboardingPackets />}
       {tab === 'imports'     && <AdminBulkImports API={API} />}
+      {tab === 'mod-imports' && <MODBulkImport API={API} />}
     </div>
   );
 };

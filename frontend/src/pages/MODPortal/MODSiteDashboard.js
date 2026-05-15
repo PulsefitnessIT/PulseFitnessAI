@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   AlertTriangle, Wrench, Users, Shield, Gauge, ChevronRight,
-  Activity, Clock, Zap, LogOut, CheckCircle2, Plus, QrCode, CloudOff, ShieldAlert,
+  Activity, Clock, Zap, LogOut, CheckCircle2, Plus, QrCode, CloudOff, ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
@@ -292,7 +292,7 @@ export default function MODSiteDashboard() {
             </div>
           ) : (
             <div className="space-y-2">
-              {dash.open_faults.map((f) => <FaultCard key={f.id} fault={f} />)}
+              {dash.open_faults.map((f) => <FaultCard key={f.id} fault={f} onChange={load} />)}
             </div>
           )}
         </section>
@@ -339,7 +339,7 @@ function Stat({ icon: Icon, label, value, tone = 'neutral' }) {
 }
 
 
-function FaultCard({ fault }) {
+function FaultCard({ fault, onChange }) {
   const { API } = useAuth();
   const severity = (fault.priority || fault.severity || '').toLowerCase();
   const toneMap = {
@@ -355,6 +355,35 @@ function FaultCard({ fault }) {
   const viewerUrl = (p) => `${API}/mod/site/attachments/serve?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`;
   const isVideo = (p = '') => /\.(mp4|mov|webm)$/i.test(p);
 
+  // Iter 216h117 — DIO escalation. Site users can flag a fault to the
+  // base's DIO (Defence Infrastructure Organisation) contact when HQ
+  // has configured one. Button hides once a fault has already been
+  // escalated.
+  const [escalating, setEscalating] = useState(false);
+  const alreadyEscalated = Boolean(fault.escalated_to_dio);
+  const escalateToDIO = async () => {
+    const note = window.prompt(
+      `Escalate ${fault.mod_ticket_ref || 'this fault'} to DIO?\n\nOptional escalation note (max 2000 chars):`,
+      '',
+    );
+    if (note === null) return; // cancelled
+    setEscalating(true);
+    try {
+      const r = await axios.post(
+        `${API}/mod/site/faults/${fault.id}/escalate-to-dio`,
+        { note: (note || '').slice(0, 2000) },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      notify.success('Escalated to DIO', `Sent to ${r.data.escalated_to}.`);
+      onChange?.();
+    } catch (e) {
+      const detail = e?.response?.data?.detail || 'Could not escalate fault';
+      notify.error('Escalation failed', detail);
+    } finally {
+      setEscalating(false);
+    }
+  };
+
   return (
     <div className={`rounded-xl border p-4 ${toneMap[severity] || 'border-white/10 bg-white/[0.03]'}`} data-testid={`mod-fault-${fault.id}`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -365,6 +394,15 @@ function FaultCard({ fault }) {
               {severity || 'pending'}
             </span>
             <span className="text-[10px] font-bold text-white/50">{fault.machine_type}</span>
+            {alreadyEscalated && (
+              <span
+                className="text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 inline-flex items-center gap-1"
+                data-testid={`mod-fault-${fault.id}-dio-pill`}
+                title={`Escalated ${fault.dio_escalated_at ? new Date(fault.dio_escalated_at).toLocaleString() : ''}`}
+              >
+                <ShieldCheck size={9} /> DIO
+              </span>
+            )}
           </div>
           <div className="text-sm text-white/80 truncate">{fault.issue_description}</div>
           {fault.reporter_name && (
@@ -373,6 +411,19 @@ function FaultCard({ fault }) {
             </div>
           )}
         </div>
+        {!alreadyEscalated && (
+          <button
+            type="button"
+            onClick={escalateToDIO}
+            disabled={escalating}
+            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-extrabold rounded-md border border-cyan-500/40 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-60"
+            data-testid={`mod-fault-${fault.id}-escalate-dio`}
+            title="Report to DIO (Defence Infrastructure Organisation)"
+          >
+            <ShieldCheck size={10} />
+            {escalating ? 'Sending…' : 'Report to DIO'}
+          </button>
+        )}
       </div>
       {attachments.length > 0 && (
         <div className="mt-3 flex gap-1.5 flex-wrap" data-testid={`mod-fault-attachments-${fault.id}`}>

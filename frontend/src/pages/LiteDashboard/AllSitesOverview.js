@@ -10,13 +10,14 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
-import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2, KeyRound, Copy, Check, Mail, X, FileSearch } from 'lucide-react';
+import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2, KeyRound, Copy, Check, Mail, X, FileSearch, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import KpiTile from '@/components/shared/KpiTile';
 import PageHeader from '@/components/shared/PageHeader';
 import MODAuditLogPanel from './MODAuditLogPanel';
 import MODComplianceCalendar from './MODComplianceCalendar';
+import MODDIOContractModal from './MODDIOContractModal';
 
 const scoreColor = (s) => {
   if (s >= 80) return { bg: 'bg-emerald-100 dark:bg-emerald-500/15', text: 'text-emerald-700 dark:text-emerald-300' };
@@ -37,6 +38,8 @@ const AllSitesOverview = ({ onPickSite }) => {
   const [auditTarget, setAuditTarget] = useState(null);
   // Iter 216h116 — Compliance calendar (HQ-wide).
   const [showCompliance, setShowCompliance] = useState(false);
+  // Iter 216h117 — DIO contract drawer per child site (HQ only).
+  const [dioTarget, setDioTarget] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -201,6 +204,16 @@ const AllSitesOverview = ({ onPickSite }) => {
                             >
                               <KeyRound size={11} /> Site login
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setDioTarget(s)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]"
+                              style={{ color: 'var(--theme-text-muted)' }}
+                              data-testid={`leaderboard-dio-${s.id}`}
+                              title="Set DIO contract reference + escalation contact"
+                            >
+                              <ShieldCheck size={11} /> DIO
+                            </button>
                           </>
                         )}
                         <button
@@ -247,6 +260,14 @@ const AllSitesOverview = ({ onPickSite }) => {
           sites={data?.sites || []}
           API={API}
           onClose={() => setShowCompliance(false)}
+        />
+      )}
+      {/* Iter 216h117 — DIO contract drawer (MOD HQ only) */}
+      {isModHQ && dioTarget && (
+        <MODDIOContractModal
+          site={dioTarget}
+          API={API}
+          onClose={() => setDioTarget(null)}
         />
       )}
     </div>
