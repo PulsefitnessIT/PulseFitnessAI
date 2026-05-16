@@ -39,10 +39,12 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from passlib.context import CryptContext
+from pydantic import BaseModel, Field
 
 from routes.master_admin import require_master_admin
 from utils.auth import get_current_user
 from utils.database import db
+from utils.email import send_email
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -446,7 +448,11 @@ async def mod_sites_bulk_import_status(
         {"id": batch_id},
         {"_id": 0, "credentials_csv_b64": 1, "status": 1, "total_rows": 1,
          "processed": 1, "created_count": 1, "skipped_count": 1, "errors": 1,
-         "error_count": 1, "created_at": 1, "updated_at": 1},
+         "error_count": 1, "created_at": 1, "updated_at": 1,
+         "delivery_status": 1, "delivery_total": 1,
+         "delivery_sent": 1, "delivery_failed": 1, "delivery_missing": 1,
+         "delivery_started_at": 1, "delivery_updated_at": 1,
+         "delivery_receipt_csv_b64": 1},
     )
     if not batch:
         raise HTTPException(404, "Import batch not found")
@@ -461,6 +467,15 @@ async def mod_sites_bulk_import_status(
         "credentials_csv_b64": batch.get("credentials_csv_b64"),
         "started_at": batch.get("created_at"),
         "updated_at": batch.get("updated_at"),
+        # Iter 216h139 — credentials-by-email dispatch
+        "delivery_status":   batch.get("delivery_status"),  # None | running | done
+        "delivery_total":    batch.get("delivery_total", 0),
+        "delivery_sent":     batch.get("delivery_sent", 0),
+        "delivery_failed":   batch.get("delivery_failed", 0),
+        "delivery_missing":  batch.get("delivery_missing", 0),
+        "delivery_started_at": batch.get("delivery_started_at"),
+        "delivery_updated_at": batch.get("delivery_updated_at"),
+        "delivery_receipt_available": bool(batch.get("delivery_receipt_csv_b64")),
     }
 
 
@@ -482,6 +497,236 @@ async def mod_sites_download_credentials(
         media_type="text/csv",
         headers={"Content-Disposition":
                   f'attachment; filename="gymaxis-mod-credentials-{batch_id[:8]}.csv"'},
+    )
+
+
+# ─────────────────────── credentials dispatch ───────────────────────
+
+
+CREDENTIALS_EMAIL_HTML = """<!DOCTYPE html><html><body style="font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #0f172a; line-height: 1.55;">
+<div style="max-width: 560px; margin: 0 auto; padding: 28px 24px;">
+  <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 8px;">Welcome to GymAxis — {site_name}</h1>
+  <p style="font-size: 14px; color: #334155; margin: 0 0 16px;">
+    Your base has been set up on the GymAxis Defence Estate Management platform.
+    Below are the credentials your team uses to log faults, view repair status,
+    and escalate to DIO.
+  </p>
+  <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin: 16px 0;">
+    <p style="margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 700;">Login</p>
+    <p style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 15px; font-weight: 600; color: #0f172a; margin: 6px 0 12px;">{username}</p>
+    <p style="margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 700;">Password</p>
+    <p style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 15px; font-weight: 600; color: #0f172a; margin: 6px 0 0;">{password}</p>
+  </div>
+  <p style="font-size: 13px; color: #334155;">Log in at:
+    <a href="{login_url}" style="color: #1d4ed8; font-weight: 700;">{login_url}</a>
+  </p>
+  <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px; margin: 18px 0;">
+    <p style="margin: 0; font-size: 12px; color: #9a3412;">
+      <strong>OFFICIAL — SECURITY</strong>: Please change your password on first login.
+      This message is the only record of the temporary password.
+    </p>
+  </div>
+  <p style="font-size: 12px; color: #64748b; margin-top: 24px;">— The GymAxis team</p>
+</div>
+</body></html>"""
+
+
+class SendCredentialsIn(BaseModel):
+    subject_override: str | None = Field(default=None, max_length=240)
+    test_only_email: str | None = Field(
+        default=None,
+        description="If set, send ONE test email to this address instead of "
+                     "the real recipients. Used to verify rendering before "
+                     "a full network blast.",
+    )
+
+
+@router.post("/master-admin/mod-sites/bulk-import/{batch_id}/send-credentials")
+async def mod_sites_send_credentials(
+    batch_id: str,
+    background_tasks: BackgroundTasks,
+    body: SendCredentialsIn | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """Email each base PTI their unique credentials.
+
+    Recipient resolution per site:
+      * If `site_manager_email` was supplied in the CSV → use that.
+      * Else fall back to the site's primary `email` column.
+      * If neither is set, the row is recorded as `missing_email`
+        in the delivery receipt — nothing is sent.
+
+    The dispatcher runs in a `BackgroundTask` because Resend's REST API
+    is sync per call and we don't want the K8s ingress to time out on
+    1000-recipient batches.
+    """
+    require_master_admin(user)
+    body = body or SendCredentialsIn()
+    batch = await db.mod_bulk_import_batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(404, "Import batch not found")
+    if not batch.get("credentials_csv_b64"):
+        raise HTTPException(409, "Batch has no credentials to send "
+                                   "(import may still be running)")
+    if batch.get("delivery_status") == "running":
+        raise HTTPException(409, "A previous send is already in progress")
+
+    # Decode credentials CSV
+    creds_csv = base64.b64decode(batch["credentials_csv_b64"]).decode("utf-8")
+    reader = csv.DictReader(io.StringIO(creds_csv))
+    creds = list(reader)
+    if not creds:
+        raise HTTPException(409, "No credential rows in this batch")
+
+    now = _now()
+    await db.mod_bulk_import_batches.update_one(
+        {"id": batch_id},
+        {"$set": {
+            "delivery_status":   "running",
+            "delivery_total":    len(creds),
+            "delivery_sent":     0,
+            "delivery_failed":   0,
+            "delivery_missing":  0,
+            "delivery_started_at": now,
+            "delivery_updated_at": now,
+            "delivery_receipt_csv_b64": None,
+        }},
+    )
+
+    background_tasks.add_task(
+        _run_credentials_dispatch,
+        batch_id, creds,
+        body.subject_override or "Your GymAxis login for {site_name}",
+        body.test_only_email,
+    )
+    return {
+        "batch_id": batch_id,
+        "delivery_status": "running",
+        "delivery_total": len(creds),
+        "test_only_email": body.test_only_email,
+    }
+
+
+async def _run_credentials_dispatch(
+    batch_id: str, creds: list[dict], subject_tpl: str,
+    test_only_email: str | None,
+) -> None:
+    """Per-row Resend send + delivery-receipt accumulation."""
+    receipt: list[dict] = []
+    sent = failed = missing = 0
+    # Cache recipient emails (one Mongo round-trip per site_code)
+    codes = [c["site_code"] for c in creds]
+    orgs: dict[str, dict] = {}
+    async for o in db.organizations.find(
+        {"site_code": {"$in": codes}, "account_type": "mod_site"},
+        {"_id": 0, "site_code": 1, "site_manager_email": 1, "email": 1,
+         "site_manager_name": 1, "id": 1},
+    ):
+        orgs[o["site_code"]] = o
+
+    for i, row in enumerate(creds):
+        org = orgs.get(row["site_code"]) or {}
+        target = test_only_email or (org.get("site_manager_email")
+                                       or org.get("email") or "")
+        if not target or "@" not in target:
+            missing += 1
+            receipt.append({
+                "site_code": row["site_code"],
+                "site_name": row["site_name"],
+                "username":  row["username"],
+                "recipient": "",
+                "status":    "missing_email",
+                "error":     "No site_manager_email or email on file",
+            })
+            continue
+        subject = subject_tpl.format(
+            site_name=row["site_name"], site_code=row["site_code"],
+            branch=row["branch"],
+        )
+        html = CREDENTIALS_EMAIL_HTML.format(
+            site_name=row["site_name"],
+            username=row["username"],
+            password=row["password"],
+            login_url=(row.get("login_url") or "https://gymaxis.com/login"),
+        )
+        try:
+            ok = await send_email(target, subject, html,
+                                    organization_id=org.get("id"))
+        except Exception as exc:
+            logger.warning("[mod_bulk_import] send_email errored for %s: %s",
+                            target, exc)
+            ok = False
+        if ok:
+            sent += 1
+            receipt.append({"site_code": row["site_code"],
+                             "site_name": row["site_name"],
+                             "username":  row["username"],
+                             "recipient": target,
+                             "status":    "sent",
+                             "error":     ""})
+        else:
+            failed += 1
+            receipt.append({"site_code": row["site_code"],
+                             "site_name": row["site_name"],
+                             "username":  row["username"],
+                             "recipient": target,
+                             "status":    "failed",
+                             "error":     "Resend rejected or unconfigured"})
+
+        # Heartbeat
+        if (i + 1) % 25 == 0 or (i + 1) == len(creds):
+            await db.mod_bulk_import_batches.update_one(
+                {"id": batch_id},
+                {"$set": {
+                    "delivery_sent":    sent,
+                    "delivery_failed":  failed,
+                    "delivery_missing": missing,
+                    "delivery_updated_at": _now(),
+                }},
+            )
+        if test_only_email:
+            break  # we only fire one test email and stop
+
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=[
+        "site_code", "site_name", "username", "recipient", "status", "error",
+    ])
+    w.writeheader()
+    for r in receipt:
+        w.writerow(r)
+    receipt_b64 = base64.b64encode(buf.getvalue().encode("utf-8")).decode("ascii")
+    await db.mod_bulk_import_batches.update_one(
+        {"id": batch_id},
+        {"$set": {
+            "delivery_status":  "done",
+            "delivery_sent":    sent,
+            "delivery_failed":  failed,
+            "delivery_missing": missing,
+            "delivery_receipt_csv_b64": receipt_b64,
+            "delivery_updated_at": _now(),
+        }},
+    )
+
+
+@router.get("/master-admin/mod-sites/bulk-import/{batch_id}/delivery-receipt.csv")
+async def mod_sites_download_delivery_receipt(
+    batch_id: str, user: dict = Depends(get_current_user),
+):
+    """Re-download the per-recipient delivery receipt for an earlier send."""
+    require_master_admin(user)
+    batch = await db.mod_bulk_import_batches.find_one(
+        {"id": batch_id}, {"_id": 0, "id": 1, "delivery_receipt_csv_b64": 1},
+    )
+    if not batch:
+        raise HTTPException(404, "Batch not found")
+    if not batch.get("delivery_receipt_csv_b64"):
+        raise HTTPException(409, "No delivery receipt yet — send first")
+    csv_text = base64.b64decode(batch["delivery_receipt_csv_b64"]).decode("utf-8")
+    return StreamingResponse(
+        iter([csv_text]),
+        media_type="text/csv",
+        headers={"Content-Disposition":
+                  f'attachment; filename="gymaxis-mod-delivery-{batch_id[:8]}.csv"'},
     )
 
 

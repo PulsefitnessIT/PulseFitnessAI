@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, FileUp, Download, ShieldCheck, AlertTriangle, Loader2,
   CheckCircle2, Upload, Crown, Building2, KeyRound, RotateCw,
+  Mail, Send, Inbox,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -142,6 +143,78 @@ export default function AdminMODSitesBulkImport() {
     a.download = `gymaxis-mod-credentials-${(result.batch_id || 'batch').slice(0, 8)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }, [result]);
+
+  // Iter 216h139 — Send credentials by email (background dispatcher)
+  const sendCredentialsByEmail = useCallback(async () => {
+    if (!result?.batch_id) return;
+    if (!testOnlyEmail) {
+      const ok = window.confirm(
+        `Email credentials to all ${result.created} sites? `
+        + 'Each base PTI gets their own login & password. '
+        + 'Use the test field if you want to preview the email first.',
+      );
+      if (!ok) return;
+    }
+    setEmailSending(true);
+    setDelivery(null);
+    try {
+      const r = await axios.post(
+        `${API}/master-admin/mod-sites/bulk-import/${result.batch_id}/send-credentials`,
+        { test_only_email: testOnlyEmail || null }, auth(),
+      );
+      const total = r.data.delivery_total;
+      // Poll status every 2s
+      let final = null;
+      for (let i = 0; i < 300; i += 1) {
+        await new Promise((res) => setTimeout(res, 2000));
+        try {
+          const s = await axios.get(
+            `${API}/master-admin/mod-sites/bulk-import/${result.batch_id}/status`,
+            auth(),
+          );
+          setDelivery({
+            status:  s.data.delivery_status,
+            total,
+            sent:    s.data.delivery_sent || 0,
+            failed:  s.data.delivery_failed || 0,
+            missing: s.data.delivery_missing || 0,
+            receiptAvailable: s.data.delivery_receipt_available,
+          });
+          if (s.data.delivery_status === 'done') {
+            final = s.data;
+            break;
+          }
+        } catch { /* keep polling */ }
+      }
+      if (final) {
+        notify.success(`Emailed ${final.delivery_sent}/${total} sites`);
+      } else {
+        notify.error('Email dispatch is taking longer than expected');
+      }
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Email dispatch failed');
+    } finally {
+      setEmailSending(false);
+    }
+  }, [result, testOnlyEmail]);
+
+  const downloadDeliveryReceipt = useCallback(async () => {
+    if (!result?.batch_id) return;
+    try {
+      const r = await axios.get(
+        `${API}/master-admin/mod-sites/bulk-import/${result.batch_id}/delivery-receipt.csv`,
+        { ...auth(), responseType: 'blob' },
+      );
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gymaxis-mod-delivery-${result.batch_id.slice(0, 8)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      notify.error('Could not download delivery receipt');
+    }
   }, [result]);
 
   const reset = () => {
@@ -371,16 +444,15 @@ export default function AdminMODSitesBulkImport() {
             )}
 
             {result.credentials_csv_b64 && (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 mb-3">
                 <p className="text-[11px] uppercase font-bold tracking-wide text-blue-700 mb-1 flex items-center gap-1">
-                  <KeyRound size={12} /> Credentials CSV
+                  <KeyRound size={12} /> Option A — Download CSV
                 </p>
                 <p className="text-xs text-blue-900 mb-3">
-                  Auto-generated login per site. <b>Download once</b> and distribute via your secure
-                  channel (DEFCONN, MS Teams, etc.) — passwords are hashed at rest after this batch
-                  document is purged. Each base PTI logs in at
+                  Distribute the credentials yourself via your secure channel
+                  (DEFCONN, MS Teams, etc.). Each base PTI logs in at
                   <code className="bg-white px-1 mx-1 rounded">https://gymaxis.com/login</code>
-                  using <code>site_code</code> + assigned password.
+                  with their <code>site_code</code> + password.
                 </p>
                 <button
                   type="button"
@@ -390,6 +462,77 @@ export default function AdminMODSitesBulkImport() {
                 >
                   <Download size={14} /> Download credentials.csv
                 </button>
+              </div>
+            )}
+
+            {/* Iter 216h139 — Email dispatcher */}
+            {result.credentials_csv_b64 && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4" data-testid="mod-bulk-email-card">
+                <p className="text-[11px] uppercase font-bold tracking-wide text-emerald-700 mb-1 flex items-center gap-1">
+                  <Mail size={12} /> Option B — Email each base direct
+                </p>
+                <p className="text-xs text-emerald-900 mb-3">
+                  GymAxis emails each site's <code>site_manager_email</code> their
+                  individual login + password via Resend. Then download the
+                  per-recipient delivery receipt for your audit trail —
+                  no manual CSV distribution required.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <label className="text-[11px] uppercase font-bold tracking-wide text-emerald-700 flex items-center gap-2">
+                    <Inbox size={12} /> Test send to (optional):
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="you@gymaxis.com"
+                    value={testOnlyEmail}
+                    onChange={(e) => setTestOnlyEmail(e.target.value)}
+                    className="text-sm border border-emerald-200 rounded-lg px-3 py-1.5 bg-white"
+                    data-testid="mod-bulk-test-email-input"
+                  />
+                  <span className="text-[11px] text-emerald-700">
+                    {testOnlyEmail
+                      ? 'Will email ONLY this address as a render preview.'
+                      : `Will email all ${result.created} bases.`}
+                  </span>
+                </div>
+
+                {delivery && (
+                  <div className="bg-white rounded-lg border border-emerald-200 p-3 mb-3 grid grid-cols-3 gap-3" data-testid="mod-bulk-delivery-stats">
+                    <Stat label="Sent"    value={delivery.sent}    color="#059669" testid="mod-bulk-delivery-sent" />
+                    <Stat label="Failed"  value={delivery.failed}  color="#dc2626" testid="mod-bulk-delivery-failed" />
+                    <Stat label="Missing" value={delivery.missing} color="#d97706" testid="mod-bulk-delivery-missing" />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={sendCredentialsByEmail}
+                    disabled={emailSending}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 hover:bg-emerald-700"
+                    data-testid="mod-bulk-send-email-btn"
+                  >
+                    {emailSending
+                      ? <><Loader2 size={14} className="animate-spin" />
+                          {delivery
+                            ? `Sending… ${delivery.sent + delivery.failed + delivery.missing}/${delivery.total}`
+                            : 'Sending…'}
+                        </>
+                      : <><Send size={14} />
+                          {testOnlyEmail ? 'Send test email' : `Email all ${result.created} bases`}
+                        </>}
+                  </button>
+                  {delivery?.receiptAvailable && (
+                    <button
+                      type="button"
+                      onClick={downloadDeliveryReceipt}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-emerald-200 text-emerald-700 text-sm font-bold hover:bg-emerald-100"
+                      data-testid="mod-bulk-delivery-receipt-btn"
+                    >
+                      <Download size={14} /> Download delivery receipt
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </Step>
