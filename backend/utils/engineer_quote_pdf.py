@@ -1,0 +1,264 @@
+"""Iter 216h129 — Branded engineer quote PDF (light-mode GymAxis).
+
+Renders an A4 portrait PDF with the GymAxis brand:
+  • White background
+  • Deep navy text (#0F172A)
+  • GymAxis blue accent (#1d4ed8 → #6366f1 gradient header)
+  • Clean tabular line-items
+  • Subtotal / VAT / Total stack
+  • Terms + validity footer
+  • Engineer + customer contact strip
+"""
+from __future__ import annotations
+
+from datetime import datetime
+from io import BytesIO
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    BaseDocTemplate, Frame, PageBreak, PageTemplate,
+    Paragraph, Spacer, Table, TableStyle,
+)
+
+GX_PRIMARY = colors.HexColor("#1d4ed8")
+GX_ACCENT = colors.HexColor("#6366f1")
+GX_NAVY = colors.HexColor("#0F172A")
+GX_MUTED = colors.HexColor("#64748B")
+GX_LIGHT = colors.HexColor("#F1F5F9")
+GX_BORDER = colors.HexColor("#E2E8F0")
+
+
+def _esc(text) -> str:
+    if text is None:
+        return ""
+    return (
+        str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    )
+
+
+def _styles() -> dict:
+    base = getSampleStyleSheet()
+    return {
+        "h1": ParagraphStyle("h1", parent=base["Title"], fontSize=22, leading=28,
+                             textColor=colors.white, alignment=TA_LEFT, spaceAfter=2),
+        "kicker": ParagraphStyle("kicker", parent=base["Normal"], fontSize=8.5, leading=10,
+                                  textColor=colors.white, alignment=TA_LEFT, spaceAfter=4),
+        "h2": ParagraphStyle("h2", parent=base["Heading2"], fontSize=12, leading=16,
+                             textColor=GX_NAVY, spaceBefore=10, spaceAfter=4),
+        "label": ParagraphStyle("label", parent=base["Normal"], fontSize=8, leading=10,
+                                 textColor=GX_MUTED, spaceAfter=2, alignment=TA_LEFT),
+        "value": ParagraphStyle("value", parent=base["Normal"], fontSize=10, leading=13,
+                                 textColor=GX_NAVY, spaceAfter=2, alignment=TA_LEFT),
+        "body": ParagraphStyle("body", parent=base["Normal"], fontSize=10, leading=14,
+                                textColor=GX_NAVY, alignment=TA_LEFT, spaceAfter=4),
+        "muted": ParagraphStyle("muted", parent=base["Normal"], fontSize=9, leading=12,
+                                 textColor=GX_MUTED, spaceAfter=3),
+        "total_label": ParagraphStyle("total_label", parent=base["Normal"], fontSize=10,
+                                       leading=14, textColor=GX_MUTED, alignment=TA_RIGHT),
+        "total_value": ParagraphStyle("total_value", parent=base["Normal"], fontSize=12,
+                                       leading=16, textColor=GX_NAVY,
+                                       alignment=TA_RIGHT, fontName="Helvetica-Bold"),
+        "grand_value": ParagraphStyle("grand_value", parent=base["Normal"], fontSize=16,
+                                       leading=20, textColor=GX_PRIMARY,
+                                       alignment=TA_RIGHT, fontName="Helvetica-Bold"),
+    }
+
+
+def _footer(canvas, doc):
+    canvas.saveState()
+    canvas.setFillColor(GX_MUTED)
+    canvas.setFont("Helvetica", 8)
+    canvas.drawString(20 * mm, 12 * mm, "GymAxis · Field Service for Fitness Equipment")
+    canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"Page {doc.page}")
+    canvas.setStrokeColor(GX_BORDER)
+    canvas.setLineWidth(0.5)
+    canvas.line(20 * mm, 16 * mm, A4[0] - 20 * mm, 16 * mm)
+    canvas.restoreState()
+
+
+def _header_block(s, quote: dict) -> Table:
+    qno = quote.get("quote_number") or "QUOTE"
+    issue_date = datetime.utcnow().strftime("%d %b %Y")
+    header_cell = Table(
+        [
+            [Paragraph("QUOTATION · GymAxis", s["kicker"])],
+            [Paragraph(_esc(qno), s["h1"])],
+            [Paragraph(f"Issued {issue_date} · Valid until {_esc(quote.get('valid_until'))}",
+                       s["kicker"])],
+        ],
+        colWidths=[170 * mm],
+    )
+    header_cell.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), GX_PRIMARY),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 16),
+        ("TOPPADDING", (0, 0), (-1, -1), 12),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+    ]))
+    return header_cell
+
+
+def _two_col_block(s, left_label: str, left_lines: list[str],
+                   right_label: str, right_lines: list[str]) -> Table:
+    def stack(label: str, lines: list[str]) -> Table:
+        rows = [[Paragraph(label, s["label"])]]
+        for ln in lines:
+            rows.append([Paragraph(_esc(ln), s["value"])])
+        inner = Table(rows, colWidths=[80 * mm])
+        inner.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ]))
+        return inner
+    return Table(
+        [[stack(left_label, left_lines), stack(right_label, right_lines)]],
+        colWidths=[85 * mm, 85 * mm],
+    )
+
+
+def _lines_table(s, quote: dict) -> Table:
+    header = ["Description", "Qty", "Unit £", "Total £"]
+    data = [header]
+    lines = quote.get("lines") or []
+    if not lines:
+        data.append(["No line items.", "", "", ""])
+    for ln in lines:
+        kind = (ln.get("kind") or "").title()
+        desc_lines = [ln.get("description") or "—"]
+        if ln.get("notes"):
+            desc_lines.append(f"<font color='#64748B' size='8'>{_esc(ln['notes'])}</font>")
+        prefix = f"<font color='#64748B' size='8'>{_esc(kind)} · </font>" if kind else ""
+        desc_html = prefix + "<br/>".join(_esc(x) if i == 0 else x for i, x in enumerate(desc_lines))
+        data.append([
+            Paragraph(desc_html, s["body"]),
+            Paragraph(f"{float(ln.get('quantity', 0)):g}", s["body"]),
+            Paragraph(f"{float(ln.get('unit_price', 0)):,.2f}", s["body"]),
+            Paragraph(f"{float(ln.get('line_total', 0)):,.2f}", s["body"]),
+        ])
+    t = Table(data, colWidths=[100 * mm, 18 * mm, 22 * mm, 30 * mm], repeatRows=1)
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), GX_PRIMARY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 10),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, GX_LIGHT]),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, GX_PRIMARY),
+        ("GRID", (0, 1), (-1, -1), 0.25, GX_BORDER),
+    ]))
+    return t
+
+
+def _totals_block(s, quote: dict) -> Table:
+    rows = [
+        [Paragraph("Subtotal", s["total_label"]),
+         Paragraph(f"£{float(quote.get('subtotal', 0)):,.2f}", s["total_value"])],
+    ]
+    if quote.get("discount_amount"):
+        rows.append([
+            Paragraph(f"Discount ({quote.get('discount_pct', 0):g}%)", s["total_label"]),
+            Paragraph(f"-£{float(quote['discount_amount']):,.2f}", s["total_value"]),
+        ])
+    rows.append([
+        Paragraph(f"VAT ({quote.get('vat_rate', 0):g}%)", s["total_label"]),
+        Paragraph(f"£{float(quote.get('vat_amount', 0)):,.2f}", s["total_value"]),
+    ])
+    rows.append([
+        Paragraph("<b>TOTAL DUE</b>", s["total_label"]),
+        Paragraph(f"£{float(quote.get('total', 0)):,.2f}", s["grand_value"]),
+    ])
+    table = Table(rows, colWidths=[60 * mm, 40 * mm], hAlign="RIGHT")
+    table.setStyle(TableStyle([
+        ("LINEBELOW", (0, -2), (-1, -2), 0.5, GX_BORDER),
+        ("LINEABOVE", (0, -1), (-1, -1), 1.5, GX_PRIMARY),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    return table
+
+
+def build_engineer_quote_pdf(quote: dict) -> bytes:
+    """Render the quote to bytes."""
+    s = _styles()
+    buf = BytesIO()
+    doc = BaseDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=20 * mm, rightMargin=20 * mm,
+        topMargin=18 * mm, bottomMargin=20 * mm,
+        title=f"Quote {quote.get('quote_number') or ''}",
+        author="GymAxis",
+    )
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
+                  id="normal", showBoundary=0)
+    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=_footer)])
+    flow = []
+
+    flow.append(_header_block(s, quote))
+    flow.append(Spacer(1, 8 * mm))
+
+    customer_lines = [
+        quote.get("customer_name") or "—",
+        quote.get("site_name") or "",
+        quote.get("site_address") or "",
+        quote.get("customer_email") or "",
+        quote.get("customer_phone") or "",
+    ]
+    engineer_lines = [
+        quote.get("engineer_name") or "GymAxis Engineer",
+        quote.get("engineer_email") or "",
+        quote.get("engineer_mobile") or "",
+        f"Case ref: {quote.get('case_reference') or '—'}",
+    ]
+    flow.append(_two_col_block(s,
+                               "BILL TO",  [ln for ln in customer_lines if ln is not None],
+                               "FROM",     [ln for ln in engineer_lines if ln is not None]))
+    flow.append(Spacer(1, 6 * mm))
+
+    if quote.get("asset_name") or quote.get("asset_serial"):
+        flow.append(Paragraph("ASSET", s["label"]))
+        flow.append(Paragraph(
+            f"{_esc(quote.get('asset_name') or '—')} · Serial {_esc(quote.get('asset_serial') or '—')}",
+            s["value"],
+        ))
+        flow.append(Spacer(1, 4 * mm))
+
+    if quote.get("description_of_work"):
+        flow.append(Paragraph("DESCRIPTION OF WORK", s["label"]))
+        flow.append(Paragraph(_esc(quote["description_of_work"]).replace("\n", "<br/>"),
+                              s["body"]))
+        flow.append(Spacer(1, 4 * mm))
+
+    flow.append(Paragraph("LINE ITEMS", s["label"]))
+    flow.append(_lines_table(s, quote))
+    flow.append(Spacer(1, 6 * mm))
+    flow.append(_totals_block(s, quote))
+    flow.append(Spacer(1, 10 * mm))
+
+    if quote.get("notes"):
+        flow.append(Paragraph("NOTES", s["label"]))
+        flow.append(Paragraph(_esc(quote["notes"]).replace("\n", "<br/>"), s["body"]))
+        flow.append(Spacer(1, 4 * mm))
+
+    if quote.get("terms"):
+        flow.append(Paragraph("TERMS &amp; CONDITIONS", s["label"]))
+        flow.append(Paragraph(_esc(quote["terms"]).replace("\n", "<br/>"), s["muted"]))
+
+    doc.build(flow)
+    return buf.getvalue()
+
+
+__all__ = ["build_engineer_quote_pdf"]

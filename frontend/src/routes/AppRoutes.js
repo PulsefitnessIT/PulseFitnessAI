@@ -93,8 +93,11 @@ const PartnerApplyPublic = lazy(() => import('@/pages/Marketing/PartnerApplyPubl
 const PublicTrackingPage = lazy(() => import('@/pages/PublicTracking/PublicTrackingPage'));
 const ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
 const IntegrationsConsole = lazy(() => import('@/pages/Admin/IntegrationsConsole'));
-const ServiceOpsEngineerHome = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHome'));
+const ServiceOpsEngineerHome = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHomeV2'));
+const ServiceOpsEngineerJobsList = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHome'));
 const ServiceOpsEngineerJob = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerJobDetail'));
+const ServiceOpsEngineerQuotes = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerQuotes'));
+const ServiceOpsEngineerQuoteBuilder = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerQuoteBuilder'));
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
 const MODServiceLogin = lazy(() => import('@/pages/MODPortal/MODServiceLogin'));
@@ -281,7 +284,11 @@ export default function AppRoutes({ user, login }) {
       <Route path="/service-ops/reports" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/comms" element={<Navigate to="/service-desk" replace />} />
       <Route path="/svc/engineer" element={user ? <ServiceOpsEngineerHome /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/jobs" element={user ? <ServiceOpsEngineerJobsList /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/jobs/:caseId" element={user ? <ServiceOpsEngineerJob /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/quotes" element={user ? <ServiceOpsEngineerQuotes /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/quotes/new" element={user ? <ServiceOpsEngineerQuoteBuilder /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/quotes/:id" element={user ? <ServiceOpsEngineerQuoteBuilder /> : <Navigate to="/login" replace />} />
 
       {/* Iter 216h75 — Partner Engineer Network (Phase 1) — Iter 216h110: MOD-blocked */}
       <Route path="/partner-engineer" element={user ? <MODForbidden><PartnerDashboard /></MODForbidden> : <Navigate to="/login?next=/partner-engineer" replace />} />

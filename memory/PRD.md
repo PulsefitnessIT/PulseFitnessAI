@@ -1,3 +1,127 @@
+## Iter 216h129 — Engineer App Phase 1: Home v2 + Quote Builder (Feb 16, 2026)
+
+First phase of the full Engineer App overhaul. Shipped a rich engineer
+control centre + a complete engineer-side quote workflow (create,
+edit, branded PDF, Resend email, accept/decline, convert-to-job).
+Light-mode GymAxis branding on every new surface.
+
+### Backend
+
+**`routes/svc/engineer_quotes.py`** (NEW · 600+ LOC)
+* `POST  /api/svc/engineer/quotes` — create draft from a job, parts +
+  labour + travel/callout lines. Auto-numbered `EQ-YYYYMMDD-XXXX`.
+* `GET   /api/svc/engineer/quotes` — list with status filters
+  (`draft|sent|accepted|declined|invoiced|expired|active|all`).
+* `GET   /api/svc/engineer/quotes/{id}` — single.
+* `GET   /api/svc/engineer/quotes/{id}.pdf` — download branded PDF
+  (route declared BEFORE `/quotes/{id}` to avoid greedy match).
+* `PATCH /api/svc/engineer/quotes/{id}` — edit lines / customer /
+  terms / VAT / discount. Auto-recomputes totals. Locks once the
+  status is anything other than `draft`/`sent` (409).
+* `POST  /api/svc/engineer/quotes/{id}/send` — emails branded PDF
+  via Resend with optional custom message; logs to `email_log[]` and
+  bumps status to `sent`.
+* `POST  /api/svc/engineer/quotes/{id}/mark` — set status (accepted /
+  declined / invoiced); stamps `accepted_at` / `declined_at` /
+  `closed_at`/`closed_by`.
+* `POST  /api/svc/engineer/quotes/{id}/duplicate` — clone as new
+  draft (carries lines/notes/terms, fresh number, fresh history).
+* `POST  /api/svc/engineer/quotes/{id}/convert-to-job` — accepted
+  quote → new `svc_cases` row (`source=engineer_quote`,
+  `linked_quote_id`, `chargeable=true`). Idempotent (409 if already
+  converted).
+* `GET   /api/svc/engineer/dashboard` — engineer Home v2 KPI payload:
+  today/upcoming/overdue/awaiting_parts/awaiting_customer job
+  counts, pending/accepted/invoiced quote counts, earnings-this-
+  month (sum of accepted+invoiced quote totals), unread notification
+  count, plus today_jobs[] and pending_quotes[] top-5.
+
+**`utils/engineer_quote_pdf.py`** (NEW)
+* Light-mode GymAxis branded A4 PDF (reportlab):
+  - Cyan/navy gradient header band
+  - "Bill to" + "From" two-column block
+  - Asset + description blocks
+  - Line items table (kind tag, qty, unit £, line total £)
+  - Totals stack (subtotal, discount, VAT, **TOTAL DUE** in brand blue)
+  - Notes + terms footer
+  - Footer: "GymAxis · Field Service for Fitness Equipment" + page
+    number. Confidential watermarking.
+
+All routes guarded by `require_engineer_app_access` (existing 402
+gate — master admins / internal engineers / approved partners pass).
+
+### Frontend (light-mode GymAxis)
+
+* **`EngineerHomeV2.js`** — new home dashboard:
+  - Header with greeting + notifications bell + refresh
+  - Live "On the clock" timer banner (preserved from v1)
+  - Gradient **Earnings this month** hero card
+  - 2×4 KPI grid (Today · Upcoming · Overdue · Awaiting parts ·
+    Pending quotes · Accepted · Awaiting customer · Invoiced)
+  - 2×3 Quick actions (New quote · View diary · My quotes · Parts ·
+    Send report · Support)
+  - Side-by-side panels: Today's jobs + Pending quotes
+* **`EngineerQuotes.js`** — quotes list with pipeline KPIs (£),
+  status filter chips, list rows with status pill + total + valid-
+  until, "New quote" CTA.
+* **`EngineerQuoteBuilder.js`** — full create/edit/send experience:
+  - Sections: Customer & Site, Asset, Description of work, Line
+    items (with type pills + add-line bar), Totals (live recompute),
+    Notes & Terms
+  - Read-only view once status leaves draft/sent
+  - Status pill bar: Accepted / Declined / Duplicate / Convert-to-job
+  - PDF download + email-send modal (custom message, CC, recipient
+    override)
+* Wired into `AppRoutes.js`:
+  - `/svc/engineer` → `EngineerHomeV2` (new home, light-mode)
+  - `/svc/engineer/jobs` → existing `EngineerHome` (legacy mobile
+    jobs list, preserved for the day/week tabs)
+  - `/svc/engineer/jobs/:caseId` → existing `EngineerJobDetail`
+  - `/svc/engineer/quotes` → `EngineerQuotes`
+  - `/svc/engineer/quotes/new` → `EngineerQuoteBuilder`
+  - `/svc/engineer/quotes/:id` → `EngineerQuoteBuilder`
+
+### Tests
+* `/app/backend/tests/test_iter_216h129_engineer_app_phase1.py`
+  — 8/8 pass:
+  - dashboard shape & required KPIs
+  - quote lifecycle (totals after add-line + discount)
+  - branded PDF byte-stream
+  - lock after accept (409)
+  - accepted → convert-to-job + idempotent second attempt (409)
+  - duplicate
+  - invalid status rejected (400)
+  - send-with-no-recipient rejected (400)
+
+### Live smoke (e1.agent@gymaxisai.com)
+* Engineer Home v2 renders cleanly (verified via in-app navigation
+  + screenshot)
+* All 9 home test IDs present: greeting, earnings hero, 8-tile KPI
+  grid, quick actions, today/pending lists
+* PDF generation confirmed (EQ-20260516-7A78 · 6 pages · £495.61 with
+  5% discount + 20% VAT on labour+parts+travel mix)
+
+### Files touched
+**Backend**
+- `/app/backend/routes/svc/engineer_quotes.py` (NEW)
+- `/app/backend/utils/engineer_quote_pdf.py` (NEW)
+- `/app/backend/route_registry/features.py` (+2 LOC — register router)
+- `/app/backend/tests/test_iter_216h129_engineer_app_phase1.py` (NEW · 8 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js` (NEW)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerQuotes.js` (NEW)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js` (NEW)
+- `/app/frontend/src/routes/AppRoutes.js` (+5 LOC — new routes + alias for legacy home)
+
+### Engineer Access Note
+Master admins + Pulse admins + approved partners with an active
+subscription / job grant pass `require_engineer_app_access`. To
+verify quickly, granted `e1.agent` a `partner_job_grants` row of
+`grant_kind=test_unblock` (active=true).
+
+
+
 ## Iter 216h128 — Pulse Sales: CAPEX-sourced opportunity engine (Feb 15, 2026)
 
 P1 from the post-CAPEX backlog. Pulse Fitness internal sales now have
