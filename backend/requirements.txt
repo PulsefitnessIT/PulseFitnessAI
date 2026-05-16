@@ -108,7 +108,7 @@ pip-api==0.0.34
 pip-requirements-parser==32.0.1
 pip_audit==2.10.0
 platformdirs==4.9.4
-playwright==1.58.0
+playwright==1.59.0
 pluggy==1.6.0
 pre_commit==4.6.0
 propcache==0.4.1
