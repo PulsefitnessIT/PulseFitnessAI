@@ -440,9 +440,16 @@ async def add_photo(
     user=Depends(get_current_user),
     idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
 ):
-    """Attach a photo (already uploaded via /api/files/upload) to a case.
+    """Attach a photo or short video (already uploaded via /api/files/upload)
+    to a case.
 
-    Body: {case_id, file_url, mime_type?, caption?, geo?: {lat,lng}, taken_at?}
+    Body: {case_id, file_url, mime_type?, caption?, geo?: {lat,lng},
+           taken_at?, duration_seconds?}
+
+    The `kind` field is derived from `mime_type`:
+      * `image/*` → kind="photo" (default)
+      * `video/*` → kind="video"
+    The frontend uses this to render a play overlay on video tiles.
     """
     of = _of(user)
     case_id = (data or {}).get("case_id")
@@ -452,13 +459,17 @@ async def add_photo(
     case = await db.svc_cases.find_one({"id": case_id, **of})
     if not case:
         raise HTTPException(404, "Case not found")
+    mime = (data.get("mime_type") or "image/jpeg").lower()
+    kind = "video" if mime.startswith("video/") else "photo"
     photo = {
         "id": str(uuid.uuid4()),
         "organization_id": of["organization_id"],
         "case_id": case_id,
         "case_reference": case.get("reference"),
         "file_url": file_url,
-        "mime_type": data.get("mime_type") or "image/jpeg",
+        "mime_type": mime,
+        "kind": kind,
+        "duration_seconds": data.get("duration_seconds"),
         "caption": (data.get("caption") or "").strip(),
         "geo": data.get("geo") or {},
         "taken_at": data.get("taken_at") or _now(),
@@ -469,9 +480,10 @@ async def add_photo(
     photo = await _idempotent_insert(db.svc_engineer_photos, photo, idempotency_key)
     await append_event(
         case_id=case_id, organization_id=of["organization_id"],
-        event_type="photo", actor=user,
-        body=photo.get("caption") or "Photo attached",
-        extra={"photo_id": photo["id"], "file_url": file_url},
+        event_type="photo" if kind == "photo" else "note",
+        actor=user,
+        body=photo.get("caption") or ("Video attached" if kind == "video" else "Photo attached"),
+        extra={"photo_id": photo["id"], "file_url": file_url, "kind": kind},
     )
     await sicon_sync.push_attachment(photo, case_reference=case.get("reference"))
     return photo

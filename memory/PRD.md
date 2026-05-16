@@ -1,3 +1,117 @@
+## Iter 216h136 — Engineer App Phase 3.5 (Feb 16, 2026)
+
+Three orthogonal sub-features that close out the engineer mobile
+workflow before Phase 4 (diary / push / offline).
+
+### Sub-feature 1 · Short videos on jobs
+
+* Backend: `routes/svc/engineer.py /photos` endpoint now stamps a
+  `kind: "video"` discriminator when the mime starts with `video/`
+  (else `"photo"`), and persists an optional `duration_seconds`.
+* Frontend: `PhotosTab` renamed (internally) Media tab — splits the
+  uploader into **Photo** and **Video (≤30s)** buttons. Client-side
+  guards reject videos >30 MB or >30 s before they hit the network.
+  Video tiles render with a `<video preload="metadata">` thumbnail,
+  white play-circle overlay, and a `0:18`-style duration badge.
+
+### Sub-feature 2 · Geo-auto mileage capture
+
+* Frontend-only addition to `TravelTab` — no backend change required.
+* New "Auto-track this trip" card with a single big **Start trip** /
+  **Stop trip** button.
+* Uses `navigator.geolocation.watchPosition` (high-accuracy mode, 10 s
+  refresh) and the Haversine formula to compute miles from sample to
+  sample. Filters out:
+    * GPS noise jitter (<5 m / 0.003 mi segments)
+    * Impossible jumps (>2 mi between pings ≈ 720 mph)
+* Live readout: elapsed seconds + sample count + running miles.
+* On Stop: rounds to 0.1 mi and pre-fills the existing `Miles *` field
+  in the manual entry form so the engineer can edit before saving.
+* Geolocation errors surface as an inline rose-coloured error message
+  without breaking the rest of the tab.
+
+### Sub-feature 3 · Parts-request workflow
+
+* Backend: `routes/svc/engineer_parts_requests.py` — new
+  `svc_parts_requests` collection.
+    * **Engineer endpoints** (gated by `require_engineer_app_access`):
+        * `POST   /api/svc/engineer/parts-requests`
+            `{case_id, part_sku, part_name?, qty, urgency, notes?}`
+            Auto-enriches from `svc_parts` catalogue when SKU matches.
+            Returns the doc with `status="pending"`.
+        * `GET    /api/svc/engineer/parts-requests` — filter by
+            `case_id` and/or `status`.
+        * `DELETE /api/svc/engineer/parts-requests/{id}` — cancel
+            pending (409 if already approved/rejected/cancelled).
+    * **Admin endpoints** (master/operator/manager):
+        * `GET  /api/admin/parts-requests` — paginated list +
+            `counts` map (pending/approved/rejected/cancelled).
+        * `POST /api/admin/parts-requests/{id}/approve`
+            `{ship_from: warehouse|supplier_direct, supplier_ref?, notes?}`
+            Allocates the part to the case **and** writes a
+            `svc_part_movements` row, plus tags the request with
+            `allocation_id` for traceability.
+        * `POST /api/admin/parts-requests/{id}/reject` `{reason}` —
+            reason persisted, surfaced to engineer.
+* Frontend (engineer): `PartsTab` now has:
+    * A **Request** button next to **Use** on every catalogue match.
+    * An empty-catalogue prompt ("'XYZ-1' isn't in the catalogue → Request it").
+    * A "Awaiting admin approval" amber card listing the engineer's
+      own pending requests, with cancel-X per row.
+    * A modal with qty / urgency (Normal · Urgent · Critical) / notes.
+* Frontend (admin): `pages/MasterAdmin/AdminPartsRequests.js`
+  (route `/admin/parts-requests`):
+    * Status tabs with badge counts (pending / approved / rejected / cancelled).
+    * Urgency filter pills.
+    * Request rows show SKU + qty + urgency chip + "not in catalogue"
+      tag + engineer + case ref + notes.
+    * Approve modal: ship-from (warehouse vs supplier_direct), supplier
+      ref (when supplier_direct), notes.
+    * Reject modal: free-text reason (persists and is shown to engineer).
+
+### Persistence
+
+New collection `svc_parts_requests`:
+```jsonc
+{
+  id, organization_id,
+  case_id, case_reference,
+  engineer_id, engineer_name,
+  part_sku, part_name, qty, list_price_gbp,
+  urgency: "normal" | "urgent" | "critical",
+  notes, in_catalogue,
+  status: "pending" | "approved" | "rejected" | "cancelled",
+  // approval fields
+  approved_at, approved_by_id, approved_by_name,
+  ship_from, supplier_ref, admin_notes, allocation_id,
+  // rejection fields
+  rejected_at, rejected_by_id, rejected_by_name, reject_reason,
+  // cancellation fields
+  cancelled_at,
+  created_at, updated_at
+}
+```
+
+### Tests (`tests/test_iter_216h136_engineer_phase35.py`)
+
+7 tests, all green:
+* `/photos` stamps `kind="video"` for `video/*` mime and `"photo"`
+  for `image/*`.
+* End-to-end parts request: engineer files → admin approves
+  (ship_from=warehouse) → allocation lands on the case with
+  `from_request_id` set, `fulfilled=false`, awaiting engineer to mark
+  used (which already flows through the Phase 3 consume endpoint).
+* Engineer can cancel pending request (200) but not approved (409).
+* Admin reject persists `reject_reason`; second reject returns 409.
+* Admin endpoints reject unauthenticated calls (401/403).
+* Urgency validation: `MEH` ⇒ 422.
+
+Cumulative pass rate: **39/39 across Iter 216h131-136** (one transient
+network flake on a re-run — passes 100% in isolation).
+
+---
+
+
 ## Iter 216h135 — Sicon Connect Panel (prep PR) (Feb 16, 2026)
 
 User asked to "ensure we are completely ready when we do get [Sicon

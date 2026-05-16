@@ -27,6 +27,7 @@ import {
   ArrowLeft, Clock, Camera, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
+  Video, MapPin, Send,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import SignatureCanvas from './SignatureCanvas';
@@ -284,6 +285,74 @@ function TravelTab({ job, mileage, onChange }) {
   const [form, setForm] = useState({ miles: '', from_postcode: '', to_postcode: '', notes: '', chargeable: true });
   const [adding, setAdding] = useState(false);
 
+  // Geolocation auto-trip tracker
+  const [trip, setTrip] = useState(null); // { startedAt, miles, watchId, samples }
+  const [geoError, setGeoError] = useState('');
+
+  const haversineMiles = (a, b) => {
+    const R = 3958.8; // Earth radius in miles
+    const toRad = (d) => d * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const x = Math.sin(dLat / 2) ** 2
+      + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+  };
+
+  const startTrip = useCallback(() => {
+    setGeoError('');
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoError('Geolocation not supported on this device.');
+      return;
+    }
+    let last = null;
+    let total = 0;
+    let samples = 0;
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        samples += 1;
+        if (last) {
+          const seg = haversineMiles(last, here);
+          // Ignore noisy GPS jitter (<5m ≈ 0.003 mi) and ignore impossible jumps (>2 mi between 10s pings = ~720 mph)
+          if (seg > 0.003 && seg < 2) total += seg;
+        }
+        last = here;
+        setTrip(t => t && ({ ...t, miles: total, samples, lastFix: here }));
+      },
+      (err) => {
+        setGeoError(err?.message || 'Geolocation error');
+        navigator.geolocation.clearWatch(id);
+        setTrip(null);
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+    );
+    setTrip({ startedAt: Date.now(), miles: 0, watchId: id, samples: 0, lastFix: null });
+  }, []);
+
+  const stopTrip = useCallback(() => {
+    if (trip?.watchId != null) {
+      try { navigator.geolocation.clearWatch(trip.watchId); } catch { /* noop */ }
+    }
+    if (trip) {
+      const rounded = Math.round(trip.miles * 10) / 10; // 0.1 mi precision
+      if (rounded > 0) {
+        setForm(f => ({ ...f, miles: String(rounded) }));
+        notify.success(`Trip captured: ${rounded.toFixed(1)} mi`);
+      } else {
+        notify.error('No mileage captured — check GPS signal.');
+      }
+    }
+    setTrip(null);
+  }, [trip]);
+
+  useEffect(() => () => {
+    // Cleanup the watcher on unmount or tab change
+    if (trip?.watchId != null) {
+      try { navigator.geolocation.clearWatch(trip.watchId); } catch { /* noop */ }
+    }
+  }, [trip?.watchId]);
+
   const submit = async () => {
     const miles = Number(form.miles);
     if (!(miles > 0)) { notify.error('Enter miles > 0'); return; }
@@ -317,6 +386,53 @@ function TravelTab({ job, mileage, onChange }) {
       <div className="grid grid-cols-2 gap-2">
         <Totals label="Miles"   value={mileage.total_miles?.toFixed(1) || '0.0'} color="#6366f1" />
         <Totals label="Billable" value={fmtGBP(mileage.total_amount_gbp)} color="#059669" />
+      </div>
+
+      {/* Geo-auto trip tracker */}
+      <div
+        className={`rounded-2xl border p-4 ${trip ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white'}`}
+        data-testid="mileage-trip-tracker"
+      >
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+          <MapPin size={11} /> Auto-track this trip
+        </p>
+        {trip ? (
+          <div className="flex items-center gap-3">
+            <span className="w-3 h-3 rounded-full bg-rose-500 animate-pulse shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-extrabold tabular-nums text-rose-700">
+                {trip.miles.toFixed(2)} mi
+              </p>
+              <p className="text-[11px] text-rose-700">
+                {Math.floor((Date.now() - trip.startedAt) / 1000)}s elapsed · {trip.samples} GPS samples
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={stopTrip}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-rose-600 text-white text-xs font-bold"
+              data-testid="mileage-trip-stop"
+            >
+              <Square size={12} /> Stop trip
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-slate-500 flex-1">
+              Tap to start GPS tracking — the captured distance auto-fills the form below.
+              You can edit before saving.
+            </p>
+            <button
+              type="button"
+              onClick={startTrip}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-xs font-bold"
+              data-testid="mileage-trip-start"
+            >
+              <Play size={12} /> Start trip
+            </button>
+          </div>
+        )}
+        {geoError && <p className="text-[11px] text-rose-600 mt-2" data-testid="mileage-trip-error">{geoError}</p>}
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="mileage-form">
@@ -374,13 +490,27 @@ const Input = ({ label, v, on, testid, type = 'text', fullWidth }) => (
   </div>
 );
 
-// ─────────────────────────── Photos tab ──────────────────────────────
+// ───────────────────────── Photos / Media tab ──────────────────────────
+
+const MAX_VIDEO_MB = 30;
+const MAX_VIDEO_SECONDS = 30;
+
+async function probeVideoDuration(file) {
+  return await new Promise((resolve) => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => resolve(Math.round(v.duration || 0));
+    v.onerror = () => resolve(0);
+    v.src = URL.createObjectURL(file);
+  });
+}
 
 function PhotosTab({ job, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState('');
   const [stage, setStage] = useState('progress'); // before / progress / after
-  const fileInput = useRef(null);
+  const photoInput = useRef(null);
+  const videoInput = useRef(null);
   const photos = job.photos || [];
 
   const grouped = useMemo(() => ({
@@ -389,36 +519,61 @@ function PhotosTab({ job, onChange }) {
     after:    photos.filter(p => (p.caption || '').toLowerCase().startsWith('[after]')),
   }), [photos]);
 
-  const onFile = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  const uploadFile = useCallback(async (file, kind) => {
+    if (!file) return;
+    // Video-specific validation: ≤30 MB, ≤30 s
+    if (kind === 'video') {
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > MAX_VIDEO_MB) {
+        notify.error(`Video too large (${sizeMb.toFixed(1)} MB > ${MAX_VIDEO_MB} MB)`);
+        return;
+      }
+      const dur = await probeVideoDuration(file);
+      if (dur > MAX_VIDEO_SECONDS) {
+        notify.error(`Video too long (${dur}s > ${MAX_VIDEO_SECONDS}s)`);
+        return;
+      }
+    }
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('file', f);
-      const u = await axios.post(`${API}/files/upload?category=photos`, fd, {
+      fd.append('file', file);
+      const category = kind === 'video' ? 'videos' : 'photos';
+      const u = await axios.post(`${API}/files/upload?category=${category}`, fd, {
         ...auth(),
         headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
       });
       const fileUrl = u.data?.download_url || u.data?.storage_path;
       const prefix = stage === 'before' ? '[BEFORE] ' : stage === 'after' ? '[AFTER] ' : '';
       await axios.post(`${API}/svc/engineer/photos`, {
-        case_id: job.id, file_url: fileUrl, mime_type: u.data?.content_type || 'image/jpeg',
+        case_id: job.id, file_url: fileUrl,
+        mime_type: u.data?.content_type || (kind === 'video' ? 'video/webm' : 'image/jpeg'),
         caption: (prefix + (caption || '')).trim(),
+        duration_seconds: kind === 'video' ? await probeVideoDuration(file) : null,
       }, auth());
-      notify.success('Photo attached');
+      notify.success(kind === 'video' ? 'Video attached' : 'Photo attached');
       setCaption('');
-      e.target.value = '';
       await onChange();
     } catch (err) {
       notify.error('Upload failed');
     } finally { setUploading(false); }
+  }, [stage, caption, job.id, onChange]);
+
+  const onPhoto = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    await uploadFile(f, 'photo');
+  };
+  const onVideo = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    await uploadFile(f, 'video');
   };
 
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="photos-uploader">
-        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Capture a photo</p>
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Capture media</p>
         <div className="flex gap-1 mb-3" data-testid="photo-stage-toggle">
           {['before', 'progress', 'after'].map(s => (
             <button key={s} type="button" onClick={() => setStage(s)}
@@ -429,31 +584,59 @@ function PhotosTab({ job, onChange }) {
           ))}
         </div>
         <input type="text" placeholder="Optional caption" value={caption} onChange={e => setCaption(e.target.value)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white mb-2" data-testid="photo-caption" />
-        <input ref={fileInput} type="file" accept="image/*" capture="environment" onChange={onFile} className="hidden" data-testid="photo-file-input" />
-        <button type="button" onClick={() => fileInput.current?.click()} disabled={uploading} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="photo-upload-btn">
-          {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-          Take / upload photo
-        </button>
+        <input ref={photoInput} type="file" accept="image/*" capture="environment" onChange={onPhoto} className="hidden" data-testid="photo-file-input" />
+        <input ref={videoInput} type="file" accept="video/*" capture="environment" onChange={onVideo} className="hidden" data-testid="video-file-input" />
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="photo-upload-btn">
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+            Photo
+          </button>
+          <button type="button" onClick={() => videoInput.current?.click()} disabled={uploading} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 disabled:opacity-50" data-testid="video-upload-btn">
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
+            Video (≤{MAX_VIDEO_SECONDS}s)
+          </button>
+        </div>
       </div>
 
       {(['before', 'progress', 'after']).map(stage => (
         <div key={stage} className="bg-white rounded-2xl border border-slate-200 p-4" data-testid={`photos-group-${stage}`}>
           <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2 capitalize">{stage} ({grouped[stage].length})</p>
           {grouped[stage].length === 0 ? (
-            <p className="text-center text-xs text-slate-400 py-4">No {stage} photos.</p>
+            <p className="text-center text-xs text-slate-400 py-4">No {stage} media.</p>
           ) : (
             <div className="grid grid-cols-3 gap-2">
-              {grouped[stage].map(p => (
-                <a key={p.id} href={p.file_url} target="_blank" rel="noopener" className="aspect-square rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-slate-300" data-testid={`photo-${p.id}`}>
-                  {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
-                  <img src={p.file_url} alt={p.caption || 'job photo'} className="w-full h-full object-cover" />
-                </a>
-              ))}
+              {grouped[stage].map(p => <MediaTile key={p.id} item={p} />)}
             </div>
           )}
         </div>
       ))}
     </div>
+  );
+}
+
+function MediaTile({ item }) {
+  const isVideo = item.kind === 'video' || (item.mime_type || '').startsWith('video/');
+  if (isVideo) {
+    return (
+      <a href={item.file_url} target="_blank" rel="noopener" className="relative aspect-square rounded-lg overflow-hidden bg-slate-900 border border-slate-200 group" data-testid={`video-${item.id}`}>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video src={item.file_url} className="w-full h-full object-cover" preload="metadata" muted />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+            <Play size={14} className="text-slate-900" style={{ marginLeft: 2 }} />
+          </span>
+        </span>
+        {item.duration_seconds ? (
+          <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">{item.duration_seconds}s</span>
+        ) : null}
+      </a>
+    );
+  }
+  return (
+    <a href={item.file_url} target="_blank" rel="noopener" className="aspect-square rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-slate-300" data-testid={`photo-${item.id}`}>
+      {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
+      <img src={item.file_url} alt={item.caption || 'job photo'} className="w-full h-full object-cover" />
+    </a>
   );
 }
 
@@ -465,6 +648,18 @@ function PartsTab({ job, onChange }) {
   const [searching, setSearching] = useState(false);
   const [adhoc, setAdhoc] = useState({ part_sku: '', qty: 1, notes: '' });
   const [busy, setBusy] = useState(false);
+  const [showRequest, setShowRequest] = useState(null); // {sku, name} or null
+  const [requests, setRequests] = useState([]);
+
+  const loadRequests = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/svc/engineer/parts-requests`, {
+        ...auth(), params: { case_id: job.id },
+      });
+      setRequests(r.data?.items || []);
+    } catch { /* noop */ }
+  }, [job.id]);
+  useEffect(() => { loadRequests(); }, [loadRequests]);
 
   const runSearch = useCallback(async (q) => {
     if (!q || q.length < 2) { setResults([]); return; }
@@ -506,9 +701,35 @@ function PartsTab({ job, onChange }) {
     } finally { setBusy(false); }
   };
 
+  const submitRequest = async (sku, name, qty, urgency, notes) => {
+    setBusy(true);
+    try {
+      await axios.post(`${API}/svc/engineer/parts-requests`, {
+        case_id: job.id, part_sku: sku, part_name: name,
+        qty, urgency, notes,
+      }, auth());
+      notify.success('Parts request sent to admin');
+      setShowRequest(null);
+      await loadRequests();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not send request');
+    } finally { setBusy(false); }
+  };
+
+  const cancelRequest = async (id) => {
+    try {
+      await axios.delete(`${API}/svc/engineer/parts-requests/${id}`, auth());
+      notify.success('Request cancelled');
+      await loadRequests();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not cancel');
+    }
+  };
+
   const allocated = job.allocated_parts || [];
   const open = allocated.filter(a => !a.fulfilled);
   const used = allocated.filter(a => a.fulfilled);
+  const pendingRequests = requests.filter(r => r.status === 'pending');
 
   return (
     <div className="space-y-4">
@@ -532,6 +753,30 @@ function PartsTab({ job, onChange }) {
         </div>
       )}
 
+      {pendingRequests.length > 0 && (
+        <div className="bg-white rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="parts-pending-requests">
+          <p className="text-[11px] uppercase font-bold tracking-wide text-amber-700 mb-2">
+            Awaiting admin approval ({pendingRequests.length})
+          </p>
+          <ul className="divide-y divide-amber-100">
+            {pendingRequests.map(r => (
+              <li key={r.id} className="py-2 flex items-center gap-3" data-testid={`parts-request-${r.id}`}>
+                <Send size={14} className="text-amber-600" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-900">{r.qty} × {r.part_sku}</p>
+                  <p className="text-[11px] text-amber-700 truncate">
+                    {r.part_name} · <span className="capitalize">{r.urgency}</span>
+                  </p>
+                </div>
+                <button onClick={() => cancelRequest(r.id)} className="p-1 text-amber-700 hover:text-rose-600" aria-label="Cancel" data-testid={`parts-request-cancel-${r.id}`}>
+                  <X size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="parts-adhoc-form">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Add a part you used</p>
         <div className="relative mb-2">
@@ -541,7 +786,7 @@ function PartsTab({ job, onChange }) {
         {results.length > 0 && (
           <ul className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-56 overflow-y-auto mb-2" data-testid="parts-search-results">
             {results.map(p => (
-              <li key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50" data-testid={`parts-result-${p.sku}`}>
+              <li key={p.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50" data-testid={`parts-result-${p.sku}`}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900">{p.sku}</p>
                   <p className="text-[11px] text-slate-500 truncate">{p.name} · {fmtGBP(p.list_price)}</p>
@@ -549,9 +794,26 @@ function PartsTab({ job, onChange }) {
                 <button onClick={() => usePart(p.sku, 1)} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`parts-use-${p.sku}`}>
                   <Plus size={12} /> Use
                 </button>
+                <button onClick={() => setShowRequest({ sku: p.sku, name: p.name })} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50" data-testid={`parts-request-${p.sku}`}>
+                  <Send size={12} /> Request
+                </button>
               </li>
             ))}
           </ul>
+        )}
+        {search.length >= 2 && !searching && results.length === 0 && (
+          <div className="rounded-lg border border-dashed border-slate-200 p-3 mb-2 flex items-center gap-2" data-testid="parts-empty-catalogue">
+            <AlertTriangle size={14} className="text-slate-400" />
+            <p className="text-xs text-slate-600 flex-1">"{search}" isn't in the catalogue.</p>
+            <button
+              type="button"
+              onClick={() => setShowRequest({ sku: search.toUpperCase(), name: '' })}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-600 text-white text-xs font-bold"
+              data-testid="parts-request-new-sku"
+            >
+              <Send size={12} /> Request it
+            </button>
+          </div>
         )}
         <div className="grid grid-cols-3 gap-2 mt-2">
           <Input label="SKU"   v={adhoc.part_sku} on={v => setAdhoc(f => ({ ...f, part_sku: v }))} testid="parts-adhoc-sku" />
@@ -581,6 +843,69 @@ function PartsTab({ job, onChange }) {
           </ul>
         </div>
       )}
+
+      {showRequest && (
+        <PartsRequestModal
+          sku={showRequest.sku}
+          name={showRequest.name}
+          onCancel={() => setShowRequest(null)}
+          onSubmit={(qty, urgency, notes) => submitRequest(showRequest.sku, showRequest.name, qty, urgency, notes)}
+          busy={busy}
+        />
+      )}
+    </div>
+  );
+}
+
+function PartsRequestModal({ sku, name, onCancel, onSubmit, busy }) {
+  const [qty, setQty] = useState(1);
+  const [urgency, setUrgency] = useState('normal');
+  const [notes, setNotes] = useState('');
+  return (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4" data-testid="parts-request-modal">
+      <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl border border-slate-200">
+        <div className="flex items-center gap-2 mb-3">
+          <Send size={16} className="text-blue-600" />
+          <h3 className="text-base font-bold text-slate-900">Request a part</h3>
+        </div>
+        <p className="text-xs text-slate-500 mb-3">
+          Admin will be notified instantly. On approval the part is allocated to your van and this job.
+        </p>
+        <div className="space-y-2">
+          <Input label="SKU" v={sku} on={() => {}} testid="parts-request-sku" fullWidth />
+          {name ? (
+            <Input label="Name" v={name} on={() => {}} testid="parts-request-name" fullWidth />
+          ) : null}
+          <Input label="Quantity" type="number" v={qty} on={v => setQty(Math.max(1, Number(v) || 1))} testid="parts-request-qty" fullWidth />
+          <div>
+            <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">Urgency</label>
+            <div className="flex gap-1">
+              {['normal', 'urgent', 'critical'].map(u => (
+                <button key={u} type="button" onClick={() => setUrgency(u)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize border ${urgency === u ? (
+                    u === 'critical' ? 'bg-rose-600 text-white border-rose-600'
+                    : u === 'urgent' ? 'bg-amber-500 text-white border-amber-500'
+                    : 'bg-blue-600 text-white border-blue-600'
+                  ) : 'bg-white text-slate-600 border-slate-200'}`}
+                  data-testid={`parts-request-urgency-${u}`}>
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">Notes</label>
+            <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" data-testid="parts-request-notes" placeholder="e.g. specific brand, customer in a hurry…" />
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-sm font-bold" data-testid="parts-request-cancel">Cancel</button>
+          <button onClick={() => onSubmit(qty, urgency, notes)} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-request-submit">
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            Send to admin
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
