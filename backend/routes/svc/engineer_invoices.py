@@ -410,6 +410,19 @@ async def send_invoice(invoice_id: str, body: InvoiceSend, user=Depends(get_curr
     to_addr = (body.to or inv.get("customer_email") or "").strip().lower()
     if not to_addr or "@" not in to_addr:
         raise HTTPException(400, "Recipient email required (customer_email empty)")
+    # Auto-generate a Stripe Payment Link before sending (best-effort —
+    # if Stripe isn't configured we just skip the CTA in the email).
+    payment_url = inv.get("stripe_payment_url")
+    if not payment_url and inv.get("status") != "paid":
+        try:
+            from routes.svc.engineer_invoice_payments import _ensure_payment_link
+            link = await _ensure_payment_link(inv)
+            payment_url = link["url"]
+            # Refresh local copy with the new URL
+            inv["stripe_payment_url"] = payment_url
+            inv["public_shortcode"] = link["shortcode"]
+        except HTTPException as exc:
+            logger.info("[invoice_send] payment link skipped: %s", exc.detail)
     from utils.engineer_invoice_pdf import build_engineer_invoice_pdf
     pdf_bytes = build_engineer_invoice_pdf(inv)
     attachment = {
@@ -492,6 +505,7 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
     total = invoice.get("total") or 0
     due_date = invoice.get("due_date") or ""
     description = invoice.get("description_of_work") or ""
+    pay_url = invoice.get("stripe_payment_url")
     custom_block = ""
     if custom_message:
         safe = (
@@ -502,6 +516,18 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
             f'<div style="background:#f8fafc;border-left:4px solid {primary};'
             f'padding:12px 16px;margin:20px 0;font-size:14px;line-height:1.6;'
             f'color:#1e293b;">{safe}</div>'
+        )
+    pay_block = ""
+    if pay_url:
+        pay_block = (
+            f'<div style="text-align:center;margin:24px 0;">'
+            f'<a href="{pay_url}" '
+            f'style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,{primary} 0%,{accent} 100%);'
+            f'color:white;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;'
+            f'box-shadow:0 6px 14px rgba(99,102,241,0.35);">'
+            f'Pay £{total:,.2f} now by card →</a>'
+            f'<p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">'
+            f'Secured by Stripe. Card payment marks this invoice paid automatically.</p></div>'
         )
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:0 auto;padding:24px;">
@@ -524,8 +550,9 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
           <tr><td>Due by</td><td style="text-align:right;">{due_date}</td></tr>
         </table>
       </div>
+      {pay_block}
       <p style="font-size:13px;line-height:1.6;color:#64748b;">
-        Payment instructions are on the attached PDF. Reply to this email with any questions.
+        Prefer BACS? Payment instructions are on the attached PDF.
       </p>
       <p style="font-size:14px;margin-top:24px;">Thanks,<br/><strong>{engineer}</strong></p>
       <p style="font-size:11px;color:#94a3b8;margin-top:30px;">

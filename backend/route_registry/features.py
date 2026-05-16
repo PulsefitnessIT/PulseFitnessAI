@@ -85,6 +85,10 @@ from routes.svc.engineer import router as svc_engineer_router
 from routes.svc.engineers_admin import router as svc_engineers_admin_router
 from routes.svc.engineer_quotes import router as svc_engineer_quotes_router
 from routes.svc.engineer_invoices import router as svc_engineer_invoices_router
+from routes.svc.engineer_invoice_payments import (
+    router as svc_engineer_invoice_payments_router,
+    public_router as svc_engineer_invoice_payments_public_router,
+)
 # Iter 215dq — Phase 3 Scheduler + Parts catalogue
 from routes.svc.parts import router as svc_parts_router
 from routes.svc.scheduler import router as svc_scheduler_router
@@ -184,6 +188,9 @@ _UNGATED_ROUTERS = (
     svc_engineer_quotes_router,
     # Iter 216h130 — Engineer Invoice Builder
     svc_engineer_invoices_router,
+    # Iter 216h131 — Stripe Payment Link on engineer invoices
+    svc_engineer_invoice_payments_router,
+    svc_engineer_invoice_payments_public_router,
     # Iter 215dq — Phase 3 Scheduler + Parts
     svc_parts_router, svc_scheduler_router,
     # Iter 215dr — Phase 4 Inventory deepening
