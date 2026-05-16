@@ -1,3 +1,43 @@
+## Iter 216h140 — Engineer App Phase 4 · Slice 1 of 4: Diary & Scheduling (Feb 17, 2026) ✅
+
+First slice of the Phase-4 plan (Diary → Notifications → Offline → Desktop polish).
+
+### Backend (NEW · `routes/svc/diary.py`)
+
+Two routers:
+* `/api/svc/engineer/diary/*` — gated behind `require_engineer_app_access`.
+  * `GET     /` — own slots (cases + ppm_tasks + blocks) in a range, normalised into one shape.
+  * `POST    /case/{id}/reschedule` — engineer self-reschedule own case (403 otherwise).
+  * `POST    /blocks` — create personal block (holiday/training/lunch/block).
+  * `DELETE  /blocks/{id}` — delete own block.
+* `/api/svc/admin/diary/*` — dispatcher (owner/manager/master-admin only).
+  * `GET     /` — any engineer's slots.
+  * `GET     /unassigned` — open cases without `scheduled_at` or `assigned_engineer_id`.
+  * `POST    /case/{id}/assign` — set engineer_id + scheduled_at + estimated_minutes.
+  * `POST    /ppm-task/{id}/assign` — assign PPM task to engineer.
+
+New Mongo collection `svc_diary_blocks` (indexed on `(organization_id, engineer_id, start_at)`).
+
+### Frontend (NEW)
+
+* `/svc/engineer/diary` — `EngineerDiary.js`. Week-grid + day-list view, prev/today/next nav, kind-coloured slot chips (job=blue, ppm=purple, block=slate, holiday=amber, training=emerald, lunch=orange), slot drawer with reschedule + delete-block, "+ Block" modal with mobile FAB.
+* `/service-desk/dispatch` — `AdminDispatchBoard.js`. Unassigned queue with priority dots & SLA timer, engineer columns showing today's load, "Assign" modal (engineer · time · estimated_minutes), live refresh after assign.
+* `EngineerHomeV2.js` — "View diary" QuickAction now routes to `/svc/engineer/diary` (was `/svc/engineer/jobs`).
+* `ServiceDeskPage.js` — new "Dispatch" hero action (testid `desk-dispatch-board`).
+
+### Testing
+* `pytest /app/backend/tests/test_iter_216h140_diary.py` → **5/5 passing**.
+* Testing agent end-to-end (backend + frontend) → **100% / 100%**, no open issues.
+  Report: `/app/test_reports/iteration_216h140.json`.
+
+### Remaining Phase 4 slices (in build order)
+* Notifications (in-app centre + Web Push)
+* Offline writes (time/mileage/photos queue + sync)
+* Desktop 3-column workspace polish
+
+---
+
+
 ## Iter 216h139 — MOD Sites Credentials-by-Email Dispatch (Feb 17, 2026) ✅ COMPLETE
 
 Closes the last in-progress P0 from the previous fork.
