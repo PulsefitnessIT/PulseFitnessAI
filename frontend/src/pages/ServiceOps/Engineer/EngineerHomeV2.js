@@ -24,6 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2,
   PoundSterling, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
+  CreditCard,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -162,16 +163,20 @@ export default function EngineerHomeV2() {
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [payouts, setPayouts] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [dRes, mRes] = await Promise.all([
+      const [dRes, mRes, pRes] = await Promise.all([
         axios.get(`${API}/svc/engineer/dashboard`, auth()),
         axios.get(`${API}/svc/engineer/me`, auth()),
+        axios.get(`${API}/svc/engineer/stripe/connect/status`, auth())
+          .catch(() => ({ data: null })),
       ]);
       setData(dRes.data);
       setMe(mRes.data);
+      setPayouts(pRes.data);
     } catch (e) {
       notify.error('Failed to load home', e?.response?.data?.detail || e.message);
     } finally {
@@ -242,6 +247,33 @@ export default function EngineerHomeV2() {
               />
             ) : null}
 
+            {/* Stripe Connect onboarding nudge — only shows until ready */}
+            {payouts && !payouts.ready ? (
+              <button
+                type="button"
+                onClick={() => navigate('/svc/engineer/payouts')}
+                className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3 hover:border-amber-300 transition-colors"
+                data-testid="engineer-home-connect-stripe-banner"
+              >
+                <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <CreditCard size={18} className="text-amber-700" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-amber-900">
+                    {payouts.connected
+                      ? 'Finish Stripe onboarding to take card payments'
+                      : 'Accept card payments on your invoices'}
+                  </p>
+                  <p className="text-xs text-amber-800">
+                    {payouts.connected
+                      ? "Stripe still needs a few details — usually ID or bank account."
+                      : 'Connect your Stripe (3 min) so customers can pay invoices by card.'}
+                  </p>
+                </div>
+                <ChevronRight size={18} className="text-amber-700" />
+              </button>
+            ) : null}
+
             {/* Earnings hero card */}
             <div
               className="rounded-2xl p-5 text-white shadow-md"
@@ -310,6 +342,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={MessageCircle} label="Support"
                              testid="qa-support"
                              onClick={() => navigate('/support')} />
+                <QuickAction icon={CreditCard} label={payouts?.ready ? 'Payouts' : 'Connect Stripe'}
+                             testid="qa-payouts"
+                             onClick={() => navigate('/svc/engineer/payouts')} />
               </div>
             </div>
 

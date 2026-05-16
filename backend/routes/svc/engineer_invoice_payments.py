@@ -76,9 +76,46 @@ def _origin() -> str:
             or "").rstrip("/")
 
 
+async def _resolve_engineer_account(invoice: dict) -> tuple[str, dict]:
+    """Look up the engineer's connected Stripe Express account.
+
+    Raises:
+      * 412 `engineer_not_connected`  — engineer has no Stripe Connect account yet.
+      * 412 `onboarding_incomplete`   — account exists but `charges_enabled=false`.
+    """
+    eng_user_id = invoice.get("engineer_id")
+    partner = None
+    if eng_user_id:
+        partner = await db.partner_engineers.find_one(
+            {"user_id": eng_user_id}, {"_id": 0},
+        )
+    if not partner:
+        raise HTTPException(412, {
+            "code": "engineer_not_connected",
+            "message": "Card payments require the engineer to connect a Stripe account.",
+        })
+    payout = partner.get("payout") or {}
+    account_id = payout.get("stripe_account_id")
+    flags = payout.get("stripe_connect") or {}
+    if not account_id:
+        raise HTTPException(412, {
+            "code": "engineer_not_connected",
+            "message": "Connect your Stripe account to accept card payments.",
+            "onboarding_required": True,
+        })
+    if not flags.get("charges_enabled"):
+        raise HTTPException(412, {
+            "code": "onboarding_incomplete",
+            "message": "Finish Stripe onboarding to start taking card payments.",
+            "onboarding_required": True,
+            "requirements": flags.get("requirements_currently_due") or [],
+        })
+    return account_id, partner
+
+
 async def _ensure_payment_link(invoice: dict) -> dict:
     """Return existing payment link or create a fresh Stripe Checkout
-    Session and persist it on the invoice."""
+    Session **on the engineer's connected account** (Direct Charge)."""
     if not stripe.api_key:
         raise HTTPException(500, "Stripe is not configured on this server")
     existing_url = invoice.get("stripe_payment_url")
@@ -87,17 +124,22 @@ async def _ensure_payment_link(invoice: dict) -> dict:
             "url": existing_url,
             "session_id": invoice.get("stripe_session_id"),
             "shortcode": invoice.get("public_shortcode"),
+            "account_id": invoice.get("stripe_account_id"),
         }
     if invoice.get("status") in ("paid", "void"):
         raise HTTPException(409, f"Invoice is {invoice['status']}; cannot pay.")
     total = float(invoice.get("total") or 0)
     if total <= 0:
         raise HTTPException(400, "Invoice total must be > 0 to take card payment.")
+
+    # Engineer must be onboarded — 412 if not.
+    account_id, _partner = await _resolve_engineer_account(invoice)
+
     # Public shortcode used by the success page
     shortcode = invoice.get("public_shortcode") or _new_short()
     origin = _origin()
-    success_url = f"{origin}/i/{shortcode}/paid" if origin else None
-    cancel_url = f"{origin}/i/{shortcode}/cancelled" if origin else None
+    success_url = f"{origin}/i/{shortcode}/paid" if origin else "https://gymaxis.com/payment-success"
+    cancel_url = f"{origin}/i/{shortcode}/cancelled" if origin else "https://gymaxis.com/payment-cancelled"
     customer_email = (invoice.get("customer_email") or "").strip() or None
 
     metadata = {
@@ -105,6 +147,7 @@ async def _ensure_payment_link(invoice: dict) -> dict:
         "invoice_number": invoice.get("invoice_number") or "",
         "engineer_id": invoice.get("engineer_id") or "",
         "organization_id": invoice.get("organization_id") or "",
+        "stripe_account_id": account_id,
         "tenant": "engineer_invoice",
     }
     try:
@@ -122,10 +165,11 @@ async def _ensure_payment_link(invoice: dict) -> dict:
                 "quantity": 1,
             }],
             customer_email=customer_email,
-            success_url=success_url or "https://gymaxis.com/payment-success",
-            cancel_url=cancel_url or "https://gymaxis.com/payment-cancelled",
+            success_url=success_url,
+            cancel_url=cancel_url,
             metadata=metadata,
             payment_intent_data={"metadata": metadata},
+            stripe_account=account_id,  # ← Direct Charge on engineer's account
         )
     except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
         logger.warning("[engineer_invoice_payment] stripe error: %s", exc)
@@ -137,11 +181,15 @@ async def _ensure_payment_link(invoice: dict) -> dict:
             "stripe_session_id": session.id,
             "stripe_payment_url": session.url,
             "stripe_session_created_at": _now(),
+            "stripe_account_id": account_id,
             "public_shortcode": shortcode,
             "updated_at": _now(),
         }},
     )
-    return {"url": session.url, "session_id": session.id, "shortcode": shortcode}
+    return {
+        "url": session.url, "session_id": session.id,
+        "shortcode": shortcode, "account_id": account_id,
+    }
 
 
 @router.post("/invoices/{invoice_id}/payment-link")
@@ -154,7 +202,8 @@ async def create_payment_link(invoice_id: str, user=Depends(get_current_user)):
 # ─────────────────────── Public webhook ───────────────────────────
 
 
-async def _mark_invoice_paid(invoice: dict, *, paid_via: str = "stripe") -> dict:
+async def _mark_invoice_paid(invoice: dict, *, paid_via: str = "stripe",
+                              stripe_account_id: str | None = None) -> dict:
     paid_at = _now()
     set_payload = {
         "status": "paid",
@@ -162,6 +211,8 @@ async def _mark_invoice_paid(invoice: dict, *, paid_via: str = "stripe") -> dict
         "paid_via": paid_via,
         "updated_at": paid_at,
     }
+    if stripe_account_id:
+        set_payload["stripe_account_id"] = stripe_account_id
     await db.svc_engineer_invoices.update_one(
         {"id": invoice["id"]},
         {"$set": set_payload,
@@ -231,8 +282,10 @@ def _receipt_html(invoice: dict) -> str:
 async def stripe_engineer_invoices_webhook(request: Request):
     """Stripe webhook for `checkout.session.completed`.
 
-    Only acts on sessions whose metadata says `tenant=engineer_invoice`.
-    Other tenants' webhooks are ignored.
+    Direct-charge events arrive on the **platform** webhook URL with a
+    top-level `account` field naming the connected account. We still
+    rely on `metadata.tenant == "engineer_invoice"` for routing within
+    the platform — other tenants' events are ignored.
     """
     payload = await request.body()
     sig = request.headers.get("stripe-signature")
@@ -255,13 +308,20 @@ async def stripe_engineer_invoices_webhook(request: Request):
     invoice_id = meta.get("invoice_id")
     if not invoice_id:
         return {"ok": False, "reason": "no invoice_id"}
+    # `account` on the top-level event is the connected account id for
+    # Direct-charge sessions; keep it for audit + reconciliation.
+    connected_account = event.get("account")
     inv = await db.svc_engineer_invoices.find_one({"id": invoice_id}, {"_id": 0})
     if not inv:
         return {"ok": False, "reason": "invoice not found"}
     if inv["status"] == "paid":
         return {"ok": True, "already_paid": True}
-    await _mark_invoice_paid(inv, paid_via="stripe_checkout")
-    return {"ok": True, "invoice_id": invoice_id, "status": "paid"}
+    await _mark_invoice_paid(
+        inv, paid_via="stripe_checkout",
+        stripe_account_id=connected_account or inv.get("stripe_account_id"),
+    )
+    return {"ok": True, "invoice_id": invoice_id, "status": "paid",
+            "account": connected_account}
 
 
 # Convenience: bypass for local/test fixtures — never expose this in prod

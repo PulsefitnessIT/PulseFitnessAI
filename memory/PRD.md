@@ -1,3 +1,124 @@
+## Iter 216h132 — Stripe Connect (Express) for Engineer Partners (Feb 16, 2026)
+
+Engineers now invoice **their own** customers and receive card payments
+directly into their **own** Stripe balance — the platform never touches
+the funds and takes no application fee (we already collect £30/mo
+subscription). This was previously routing payments to the **platform's**
+Stripe, which was the wrong revenue model.
+
+### Backend (NEW)
+
+* `routes/svc/engineer_stripe_connect.py` — auth'd, gated by
+  `require_engineer_app_access`:
+    * `GET  /api/svc/engineer/stripe/connect/status?refresh=bool` — returns
+      `{connected, ready, account_id, charges_enabled, payouts_enabled,
+       details_submitted, requirements_currently_due[], last_synced_at}`.
+    * `POST /api/svc/engineer/stripe/connect/onboarding` — create-or-fetch
+      Express account (`country=GB`, individual, MCC 7623), then return
+      a single-use `AccountLink` URL pointing back at
+      `/svc/engineer/payouts?onboarding=return`. Surfaces
+      `503 {code: stripe_connect_not_enabled}` when the platform Stripe
+      account itself hasn't activated Connect yet.
+    * `POST /api/svc/engineer/stripe/connect/refresh` — force re-sync
+      capabilities from Stripe.
+    * `POST /api/svc/engineer/stripe/connect/login-link` — issues an
+      Express Dashboard login link for the engineer.
+  Public webhook (no auth):
+    * `POST /api/webhooks/stripe/connect` — handles `account.updated`
+      and `account.application.deauthorized`, caches capability flags
+      onto `partner_engineers.payout.stripe_connect`.
+
+* `routes/svc/engineer_invoice_payments.py` (UPDATED — Direct Charges):
+    * `_resolve_engineer_account(inv)` now looks up the engineer's
+      `partner_engineers` doc and raises **412** with structured codes
+      `engineer_not_connected` or `onboarding_incomplete`
+      (`requirements` array surfaced) when the engineer hasn't onboarded
+      or hasn't completed KYC.
+    * `_ensure_payment_link(inv)` now passes
+      `stripe_account=acct_xxx` so the Checkout Session is created on
+      the **engineer's connected account** (Direct Charge). Money flows
+      direct into the engineer's Stripe balance, never the platform's.
+    * Invoice metadata carries `stripe_account_id` and is persisted on
+      the invoice for reconciliation.
+    * Webhook now extracts the top-level `account` field on the event
+      (set by Stripe for Direct-charge events) and stores it on the
+      invoice when marking it paid.
+
+### Persistence
+
+`partner_engineers.payout` now uses:
+```jsonc
+{
+  "method": "stripe_connect",      // or "stripe_connect_pending"
+  "stripe_account_id": "acct_xxx", // null until onboarded
+  "stripe_connect": {
+    "charges_enabled": true,
+    "payouts_enabled": true,
+    "details_submitted": true,
+    "requirements_currently_due": [],
+    "last_synced_at": "2026-05-16T10:33:33Z"
+  }
+}
+```
+`svc_engineer_invoices.stripe_account_id` is set once a payment session
+is generated, so paid-via-Stripe invoices reconcile to a specific
+connected account.
+
+### Frontend (NEW + UPDATED)
+
+* `pages/ServiceOps/Engineer/EngineerPayouts.js` (NEW) — light-mode
+  GymAxis-branded payouts settings page mounted at
+  `/svc/engineer/payouts`:
+    * Hero card: "Accept card payments on your invoices" — primary
+      "Connect Stripe" CTA.
+    * Incomplete state: amber card with `requirements_currently_due`
+      list + "Continue Stripe onboarding" CTA.
+    * Ready state: emerald card with "Open Stripe dashboard" + payouts
+      status badge.
+    * Auto-refreshes status on `?onboarding=return` redirect (after
+      Stripe sends the engineer back).
+    * Friendly fallback message when Stripe Connect itself isn't yet
+      activated on the platform (`stripe_connect_not_enabled`).
+* `pages/ServiceOps/Engineer/EngineerHomeV2.js` (UPDATED):
+    * Pulls connect status alongside dashboard + me.
+    * **Amber banner** appears above the earnings hero card until the
+      engineer's Stripe is fully onboarded — single-tap routes to the
+      payouts page.
+    * New "Payouts" / "Connect Stripe" quick action.
+* `pages/ServiceOps/Engineer/EngineerInvoiceBuilder.js` (UPDATED):
+    * Send-invoice modal now shows an inline amber warning + "Connect
+      Stripe" / "Continue onboarding" deep-link when the engineer
+      isn't ready — invoice is still emailed, just without a pay-now
+      link.
+* `routes/AppRoutes.js` — wired `/svc/engineer/payouts`.
+
+### Tests (NEW)
+
+* `tests/test_iter_216h132_engineer_stripe_connect.py` — 5 tests:
+    * default-state shape on the status endpoint.
+    * payment-link rejects unconnected engineer (412 +
+      `engineer_not_connected`).
+    * payment-link rejects partial onboarding (412 +
+      `onboarding_incomplete` + `requirements` surfaced).
+    * connect webhook caches `account.updated` flags onto the partner
+      doc.
+    * login-link requires a connected account.
+* `tests/test_iter_216h131_invoice_stripe_payment_link.py` (UPDATED) —
+  payment-link test now tolerates the new 412 path.
+* **All 11 tests pass** (`pytest` + `pytest_iter_216h131*` + `pytest_iter_216h132*`).
+
+### Known Platform Pre-requisite
+
+The platform's own Stripe account must be enrolled in Stripe Connect at
+https://dashboard.stripe.com/connect before engineer onboarding will
+succeed. Until then `POST /onboarding` returns a 503 with the actionable
+error code `stripe_connect_not_enabled` so the engineer sees a friendly
+"GymAxis hasn't enabled Stripe Connect yet — try again shortly" toast
+instead of a raw Stripe error.
+
+---
+
+
 ## Iter 216h130 — Engineer App Phase 2 + Public Quote Accept (Feb 16, 2026)
 
 Two shipments in one iteration:

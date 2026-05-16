@@ -328,6 +328,24 @@ export default function EngineerInvoiceBuilder() {
               <Mail size={18} className="text-blue-600" />
               <h3 className="text-base font-bold text-slate-900">Email this invoice</h3>
             </div>
+            {connect && !connect.ready ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-3 text-xs text-amber-900" data-testid="ib-email-no-card-warning">
+                <p className="font-bold mb-0.5">No "Pay by card" link will be attached</p>
+                <p>
+                  {connect.connected
+                    ? 'Finish Stripe onboarding to start taking card payments.'
+                    : 'Connect your Stripe account to add a secure pay-now link to every invoice.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/svc/engineer/payouts')}
+                  className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-600 text-white text-[11px] font-bold"
+                  data-testid="ib-email-go-payouts-btn"
+                >
+                  {connect.connected ? 'Continue onboarding' : 'Connect Stripe'}
+                </button>
+              </div>
+            ) : null}
             <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">To</label>
             <input type="email" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white mb-3" value={emailBody.to} onChange={e => setEmailBody(b => ({ ...b, to: e.target.value }))} data-testid="ib-email-to" />
             <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">Personal message (optional)</label>

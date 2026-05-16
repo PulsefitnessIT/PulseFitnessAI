@@ -43,28 +43,40 @@ def _create_invoice(tok: str, *, email: str | None = "card+test@example.com") ->
 
 
 def test_payment_link_endpoint_creates_session(monkeypatch=None):
-    """Hit /payment-link — the persisted URL should now be on the invoice."""
+    """Hit /payment-link — when no Stripe Connect account is connected
+    the endpoint must 412 (engineer_not_connected). With a connected
+    account, the URL is persisted on the invoice."""
     tok = _login("admin@gymaxisai.com", "MasterAdmin123!")
     inv = _create_invoice(tok)
     r = requests.post(
         f"{API}/api/svc/engineer/invoices/{inv['id']}/payment-link",
         headers=_hdr(tok), timeout=30,
     )
-    # If Stripe creds are wrong, we'll get a 502 — that's still
-    # informational. Be tolerant of network failures in CI, but if 200,
-    # validate shape.
+    # Direct-charge flow now requires the engineer to onboard via
+    # Stripe Connect Express. In test env without an onboarded acct
+    # we get 412. With a real onboarded acct we'd get 200 (real Stripe
+    # session) or 502 (Stripe error).
     if r.status_code == 200:
         data = r.json()
         assert data["ok"] is True
         assert data["url"]
         assert data["session_id"]
+        assert data.get("account_id"), "must include the connected account id"
         fresh = requests.get(f"{API}/api/svc/engineer/invoices/{inv['id']}",
                               headers=_hdr(tok), timeout=15).json()
         assert fresh.get("stripe_payment_url") == data["url"]
         assert fresh.get("public_shortcode")
+        assert fresh.get("stripe_account_id") == data["account_id"]
     else:
-        # Allow 502 (Stripe error reached) but never 500 or 4xx-other
-        assert r.status_code in (502,), r.text[:300]
+        # 412 = engineer not connected; 502 = stripe API error. Both
+        # are informational, but never 500 / other 4xx.
+        assert r.status_code in (412, 502), r.text[:300]
+        if r.status_code == 412:
+            detail = r.json().get("detail")
+            assert isinstance(detail, dict)
+            assert detail.get("code") in (
+                "engineer_not_connected", "onboarding_incomplete"
+            )
 
 
 def test_payment_link_rejects_paid_invoice():
