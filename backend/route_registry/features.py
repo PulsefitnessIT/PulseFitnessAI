@@ -96,6 +96,8 @@ from routes.svc.engineer_stripe_connect import (
 )
 # Iter 216h133 — Engineer App Phase 3 (mileage, parts-used, invoice-from-job)
 from routes.svc.engineer_phase3 import router as svc_engineer_phase3_router
+# Iter 216h134 — Engineer App AI Report Assistant (Whisper + GPT-5.2)
+from routes.svc.engineer_ai import router as svc_engineer_ai_router
 # Iter 215dq — Phase 3 Scheduler + Parts catalogue
 from routes.svc.parts import router as svc_parts_router
 from routes.svc.scheduler import router as svc_scheduler_router
@@ -203,6 +205,8 @@ _UNGATED_ROUTERS = (
     svc_engineer_stripe_connect_public_router,
     # Iter 216h133 — Engineer App Phase 3 (mileage, parts-used, invoice-from-job)
     svc_engineer_phase3_router,
+    # Iter 216h134 — Engineer App AI Report Assistant (Whisper + GPT-5.2)
+    svc_engineer_ai_router,
     # Iter 215dq — Phase 3 Scheduler + Parts
     svc_parts_router, svc_scheduler_router,
     # Iter 215dr — Phase 4 Inventory deepening

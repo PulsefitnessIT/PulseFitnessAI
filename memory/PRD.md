@@ -1,3 +1,81 @@
+## Iter 216h134 — Engineer AI Report Assistant (Feb 16, 2026)
+
+Voice-to-text dictation for the engineer's Complete-tab work summary,
+using **OpenAI Whisper** for transcription and **GPT-5.2** to rewrite
+the raw transcript into a professional UK-English service report
+fragment. Both go through the **Emergent LLM Key** via the
+`emergentintegrations` library — no raw OpenAI SDK.
+
+### Backend (NEW · `routes/svc/engineer_ai.py`)
+
+All gated by `require_engineer_app_access`. Usage is logged onto
+`svc_ai_calls` so the Master Admin AI Usage panel reflects engineer
+dictation activity.
+
+* `POST /api/svc/engineer/ai/transcribe` — multipart `audio` (≤20 MB,
+  audio/*) + optional `case_id`. Returns `{ transcript }`.
+* `POST /api/svc/engineer/ai/rewrite-summary` — JSON
+  `{ transcript, case_id?, hint? }`. Returns `{ summary, transcript }`.
+* `POST /api/svc/engineer/ai/dictate-summary` — single round-trip:
+  multipart `audio` in → polished `summary` + raw `transcript` out.
+
+Whisper config:
+```python
+from emergentintegrations.llm.openai import OpenAISpeechToText
+stt = OpenAISpeechToText(api_key=os.environ["EMERGENT_LLM_KEY"])
+await stt.transcribe(file=fh, model="whisper-1",
+                      response_format="json", language="en",
+                      prompt="…field service domain hints…")
+```
+Rewrite config (`gpt-5.2` per playbook default):
+```python
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+LlmChat(api_key=KEY, session_id="...", system_message=REWRITE_SYSTEM_PROMPT)
+   .with_model("openai", "gpt-5.2")
+   .send_message(UserMessage(text=transcript))
+```
+
+The rewrite system prompt enforces:
+* UK English; third-person voice; 60-150 words.
+* Diagnosis first → repair/replacement → follow-up advice.
+* SKUs/serial numbers preserved verbatim.
+* Compact "Replaced: 2 × drive belt (BELT-DRV-001)…" formatting.
+* Single trailing `Next steps:` line when relevant.
+
+### Frontend (NEW · `EngineerDictationButton.js`)
+
+Drop-in widget mounted under the Work-summary textarea on the new
+`EngineerJobDetailV2` Complete tab:
+
+* `MediaRecorder` capture, mic-permission flow, auto-stops at **60 s**.
+* Live elapsed counter, pulsing ring while recording.
+* Posts the audio blob to `/dictate-summary` and writes the polished
+  result back into the summary `<textarea>` via `onResult`.
+* "Processing…" state while Whisper + GPT-5.2 round-trip (typ. 5–15 s).
+* Friendly fallbacks for: unsupported browser, denied permission,
+  too-quiet recording, 502 from upstream.
+* Powered-by copy: `Powered by OpenAI Whisper + GPT-5.2`.
+
+### Tests (`tests/test_iter_216h134_engineer_ai.py`)
+
+8 tests, all green:
+* `/transcribe` validation: missing audio (400/422), bad mime (415),
+  oversize (413), tiny-silence ⇒ 422/502 envelope.
+* `/rewrite-summary` validation: empty transcript ⇒ 422; **live**
+  GPT-5.2 round-trip via the Emergent LLM Key produces non-empty
+  polished text and logs an `svc_ai_calls` row.
+* Auth gate: both endpoints 401/403 without a token.
+
+Cumulative pass rate: **26/26** across Iter 216h131-134.
+
+### Environment
+
+No new env vars. Uses existing `EMERGENT_LLM_KEY` already provisioned
+in `/app/backend/.env`.
+
+---
+
+
 ## Iter 216h133 — Engineer App Phase 3: Job Workflow (Feb 16, 2026)
 
 Light-mode redesign of the engineer's job-detail surface plus three new

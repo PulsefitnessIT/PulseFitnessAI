@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import SignatureCanvas from './SignatureCanvas';
+import EngineerDictationButton from './EngineerDictationButton';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -649,6 +650,16 @@ function CompleteTab({ job, locked, onChange, navigate }) {
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Work summary *</p>
         <textarea rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder="What was repaired / replaced / advised…" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" data-testid="complete-summary" />
       </div>
+
+      <EngineerDictationButton
+        caseId={job.id}
+        hint={`${job.title || ''} · ${job.asset_name || ''}`.trim()}
+        onResult={(data) => {
+          // Prefer the polished summary; fall back to raw transcript.
+          if (data?.summary) setSummary(data.summary);
+          else if (data?.transcript) setSummary(data.transcript);
+        }}
+      />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-signature-card">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Customer signature (optional)</p>
