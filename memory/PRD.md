@@ -1,3 +1,115 @@
+## Iter 216h138 — MOD Sites Bulk-Import Pipeline (Feb 16, 2026)
+
+The **last P1** from the original handoff backlog — onboarding 1000+
+MOD sites in a single CSV upload.
+
+### Backend (NEW · `routes/mod_sites_bulk_import.py`)
+
+All gated by `require_master_admin`.
+
+* `GET  /api/master-admin/mod-sites/template.csv` — canonical 16-column
+  template with one filled example row.
+* `POST /api/master-admin/mod-sites/preview-csv` (multipart) — dry-run
+  validation. Parses the CSV, checks duplicates and pre-existing
+  `site_code`s in Mongo, returns first 100 rows + counts so the
+  operator can review before committing.
+* `POST /api/master-admin/mod-sites/bulk-import` (multipart) —
+  **async by default**. Returns `{batch_id, status: "running"}` in
+  ~250 ms, kicks off a FastAPI `BackgroundTask` that:
+  * Resolves which `site_code`s already exist (skip set).
+  * Builds org + user docs, **bcrypt-hashes each generated password**.
+  * Inserts in **chunks of 200** via `insert_many` (memory-bounded).
+  * Updates the batch doc heartbeat every 50 rows so the UI can show
+    a real progress bar.
+  * Optional `?sync=true` for small CSVs (<50 rows) — tests use this.
+  * Optional `?mod_root_id=…` — defaults to `mod-root-uk`.
+* `GET  /api/master-admin/mod-sites/bulk-import/{batch_id}/status` —
+  poll endpoint: `{status, total_rows, processed, created, skipped,
+  errors, credentials_csv_b64, started_at, updated_at}`.
+* `GET  /api/master-admin/mod-sites/bulk-import/{batch_id}/credentials.csv`
+  — re-download the per-site username/password CSV. Generated
+  passwords live ONLY in this batch document (and bcrypt'd on the
+  user); the operator must distribute via their secure channel.
+
+### Persistence
+
+New collection `mod_bulk_import_batches`:
+```jsonc
+{
+  id, imported_by, mod_root_id, total_rows, processed,
+  created_count, skipped_count, error_count, errors[],
+  status: "running" | "done" | "failed",
+  credentials_csv_b64,  // null until done
+  created_at, updated_at
+}
+```
+Sites + users created this way carry `imported_via: "mod_bulk_import_csv"`
+and `import_batch_id` for audit.
+
+### Frontend (NEW · `pages/MasterAdmin/AdminMODSitesBulkImport.js`)
+
+Route: `/admin/mod-sites/bulk-import` (master admin only).
+
+Four-step wizard:
+1. **Download template** — one-click CSV download.
+2. **Upload** — file picker + MOD root ID input.
+3. **Review & commit** — stats tiles (Rows parsed / Will create /
+   Will skip), validation-error list, paginated preview table of the
+   first 100 rows with per-row `create` vs `skip · exists` status.
+4. **Distribute credentials** — emerald success card + credentials
+   CSV download button + copy explaining the secure-channel handling.
+
+UX scaling features:
+* Initial commit response in <1 s — UI shows
+  `Importing… {processed}/{total_rows}` and polls every 2 s for up to
+  10 min, surfacing live progress.
+* Credentials CSV decoded client-side from base64 → triggered as a
+  download in the browser (no server round-trip).
+
+### Validation rules
+
+* `site_name` required.
+* `branch` must normalise to Army / Navy / RAF (aliases handled).
+* `site_code` derived from name if missing (kebab-case).
+* Duplicate `site_code` within the same CSV → row dropped with error.
+* `country` defaults to "United Kingdom".
+* `password` blank → cryptographically-strong auto-generated
+  (14 chars, no 0/O/1/l ambiguity).
+* Auth: `username = site_code` (e.g. `raf-conningsby`); login email
+  is synthetic (`{site_code}@site.mod.local`) so the SSO/email flows
+  are bypassed.
+
+### Tests (`tests/test_iter_216h138_mod_bulk_import.py`)
+
+8 tests, all green:
+* Template download serves the 16-column CSV with browser-attachment
+  headers.
+* Preview validates rows, surfaces errors (missing branch),
+  computes `would_create` / `would_skip` correctly.
+* Sync bulk-import creates 2 sites + 2 users with bcrypt'd passwords
+  AND a custom-supplied password is respected (verified via the
+  credentials CSV round-trip).
+* Idempotent on `site_code` — re-running the same CSV creates 0 and
+  skips 1.
+* 400 when `mod_root_id` doesn't exist.
+* **Async flow**: initial POST returns `status="running"` instantly;
+  status poll loop transitions to `status="done"` with credentials
+  attached.
+* Credentials CSV re-download round-trip works.
+* Endpoints reject unauthenticated callers.
+
+Live scale validation: a **1000-row** async import completes in
+~3-4 min (bcrypt-bound), with the progress poll advancing every 2 s
+through chunks of 200. K8s 60 s ingress timeout is no longer a
+concern because the heavy lift runs in the background.
+
+Cumulative pass rate: **53/53 across Iter 216h131-138** ✅
+
+🎉 **All original-handoff P1s closed.**
+
+---
+
+
 ## Iter 216h137 — DIO Contract UI (HQ drawer + Fault detail) (Feb 16, 2026)
 
 Closes the last remaining P1 from the original handoff backlog:

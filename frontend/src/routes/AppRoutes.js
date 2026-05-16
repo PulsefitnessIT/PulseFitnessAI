@@ -76,6 +76,7 @@ const PaymentSuccessPage = lazy(() => import('@/pages/PaymentSuccessPage'));
 const MasterAdminPage = lazy(() => import('@/pages/MasterAdminPage'));
 const DesignSystemPage = lazy(() => import('@/pages/MasterAdmin/DesignSystemPage'));
 const AdminPartsRequests = lazy(() => import('@/pages/MasterAdmin/AdminPartsRequests'));
+const AdminMODSitesBulkImport = lazy(() => import('@/pages/MasterAdmin/AdminMODSitesBulkImport'));
 const MarketingSuite = lazy(() => import('@/pages/MarketingSuite'));
 const ServiceDeskPage = lazy(() => import('@/pages/ServiceDeskPage'));
 const ServiceOpsDeskPage = lazy(() => import('@/pages/ServiceOps/ServiceDeskPage'));
@@ -273,6 +274,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/admin/integrations" element={user?.is_master_admin ? <IntegrationsConsole /> : <Navigate to="/login" replace />} />
       <Route path="/admin/integrations/sicon" element={user?.is_master_admin ? <IntegrationsSiconConnect /> : <Navigate to="/login" replace />} />
       <Route path="/admin/parts-requests" element={user?.is_master_admin ? <AdminPartsRequests /> : <Navigate to="/login" replace />} />
+      <Route path="/admin/mod-sites/bulk-import" element={user?.is_master_admin ? <AdminMODSitesBulkImport /> : <Navigate to="/login" replace />} />
 
       {/* ─── Modules (Iter 216h110 — MOD users are firewalled out) ─── */}
       <Route path="/marketing" element={user ? <MODForbidden><ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />

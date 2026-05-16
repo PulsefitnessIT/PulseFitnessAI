@@ -27,6 +27,8 @@ from routes.capex import router as capex_router
 from routes.financial_ops import router as financial_ops_router
 from routes.equipment_import import router as equipment_import_router
 from routes.sites_import import router as sites_import_router
+# Iter 216h138 — MOD-specific bulk-import pipeline (1000+ sites)
+from routes.mod_sites_bulk_import import router as mod_sites_bulk_import_router
 from routes.invoice_wizard_parse import router as invoice_wizard_parse_router
 from routes.spec_sheets import router as spec_sheets_router
 from routes.compliance import router as compliance_router
@@ -152,7 +154,7 @@ _UNGATED_ROUTERS = (
     digest_router, onboarding_router, gym_layouts_router,
     health_score_router, supplier_portal_router, qr_codes_router,
     expiry_alerts_router, integrations_router,
-    capex_router, financial_ops_router, equipment_import_router, sites_import_router, invoice_wizard_parse_router,
+    capex_router, financial_ops_router, equipment_import_router, sites_import_router, mod_sites_bulk_import_router, invoice_wizard_parse_router,
     spec_sheets_router, compliance_router,
     pulse_upgrade_router, contact_router, mod_portal_router, mod_compliance_router, mod_incidents_router,
     # Iter 215bm — phase3 router MUST be registered BEFORE the main
