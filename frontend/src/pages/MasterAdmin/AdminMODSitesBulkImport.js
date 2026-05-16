@@ -39,6 +39,10 @@ export default function AdminMODSitesBulkImport() {
   const [previewing, setPreviewing] = useState(false);
   const [result, setResult] = useState(null);        // { batch_id, created, skipped, errors, credentials_csv_b64 }
   const [modRootId, setModRootId] = useState('mod-root-uk');
+  // Iter 216h139 — Email dispatch state
+  const [testOnlyEmail, setTestOnlyEmail] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [delivery, setDelivery] = useState(null);    // { status, total, sent, failed, missing, receiptAvailable }
 
   const downloadTemplate = useCallback(async () => {
     try {

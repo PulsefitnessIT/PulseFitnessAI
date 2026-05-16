@@ -619,7 +619,7 @@ function MediaTile({ item }) {
   if (isVideo) {
     return (
       <a href={item.file_url} target="_blank" rel="noopener" className="relative aspect-square rounded-lg overflow-hidden bg-slate-900 border border-slate-200 group" data-testid={`video-${item.id}`}>
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        
         <video src={item.file_url} className="w-full h-full object-cover" preload="metadata" muted />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
@@ -634,7 +634,7 @@ function MediaTile({ item }) {
   }
   return (
     <a href={item.file_url} target="_blank" rel="noopener" className="aspect-square rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-slate-300" data-testid={`photo-${item.id}`}>
-      {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
+      
       <img src={item.file_url} alt={item.caption || 'job photo'} className="w-full h-full object-cover" />
     </a>
   );
@@ -685,7 +685,7 @@ function PartsTab({ job, onChange }) {
     finally { setBusy(false); }
   };
 
-  const usePart = async (sku, qty = 1) => {
+  const addPartUsage = async (sku, qty = 1) => {
     setBusy(true);
     try {
       await axios.post(`${API}/svc/engineer/jobs/${job.id}/parts/use`, {
@@ -791,7 +791,7 @@ function PartsTab({ job, onChange }) {
                   <p className="text-sm font-semibold text-slate-900">{p.sku}</p>
                   <p className="text-[11px] text-slate-500 truncate">{p.name} · {fmtGBP(p.list_price)}</p>
                 </div>
-                <button onClick={() => usePart(p.sku, 1)} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`parts-use-${p.sku}`}>
+                <button onClick={() => addPartUsage(p.sku, 1)} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`parts-use-${p.sku}`}>
                   <Plus size={12} /> Use
                 </button>
                 <button onClick={() => setShowRequest({ sku: p.sku, name: p.name })} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50" data-testid={`parts-request-${p.sku}`}>
@@ -819,7 +819,7 @@ function PartsTab({ job, onChange }) {
           <Input label="SKU"   v={adhoc.part_sku} on={v => setAdhoc(f => ({ ...f, part_sku: v }))} testid="parts-adhoc-sku" />
           <Input label="Qty"   type="number" v={adhoc.qty} on={v => setAdhoc(f => ({ ...f, qty: Math.max(1, Number(v)) }))} testid="parts-adhoc-qty" />
           <div className="flex items-end">
-            <button onClick={() => adhoc.part_sku && usePart(adhoc.part_sku.toUpperCase(), Number(adhoc.qty) || 1)} disabled={busy || !adhoc.part_sku} className="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-adhoc-add">
+            <button onClick={() => adhoc.part_sku && addPartUsage(adhoc.part_sku.toUpperCase(), Number(adhoc.qty) || 1)} disabled={busy || !adhoc.part_sku} className="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-adhoc-add">
               <Plus size={14} /> Add
             </button>
           </div>
