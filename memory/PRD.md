@@ -1,3 +1,100 @@
+## Iter 216h133 — Engineer App Phase 3: Job Workflow (Feb 16, 2026)
+
+Light-mode redesign of the engineer's job-detail surface plus three new
+backend endpoints that compose existing primitives into the workflow an
+engineer needs in the field: clock on/off, log mileage, attach photos,
+record parts used, sign-off, and one-tap-generate an invoice draft.
+
+### Backend (NEW · `routes/svc/engineer_phase3.py`)
+
+All gated by `require_engineer_app_access`:
+
+* `POST /api/svc/engineer/jobs/{case_id}/mileage` (201) — capture a
+  mileage leg with `miles`, `from_postcode`, `to_postcode`, `notes`,
+  `chargeable`. Persists to `svc_engineer_mileage` and emits a case
+  event. Defaults to HMRC-aligned **£0.45/mile**. Idempotency-Key safe.
+* `GET    /api/svc/engineer/jobs/{case_id}/mileage` — list + totals.
+* `DELETE /api/svc/engineer/jobs/{case_id}/mileage/{id}` — remove a leg.
+* `POST /api/svc/engineer/jobs/{case_id}/parts/{allocation_id}/consume` —
+  flip a pre-allocated part to `fulfilled=true`, append a `consume`
+  movement to `svc_part_movements`. Idempotent (`already_consumed: true`).
+* `POST /api/svc/engineer/jobs/{case_id}/parts/use` (201) — engineer
+  reports an ad-hoc part used on the job. Decrements van stock if the
+  SKU exists in the engineer's van; otherwise records an `adhoc`
+  allocation already marked fulfilled. Catalogue list price is captured
+  so the invoice draft can use it.
+* `POST /api/svc/engineer/jobs/{case_id}/generate-invoice-draft` (201) —
+  composes a draft `svc_engineer_invoice` from:
+    • All closed `on_site` time entries × engineer labour rate
+      (default **£65/h**, or `partner_engineers.payout.labour_rate_gbp`).
+    • All chargeable mileage rows × their stored rate.
+    • All fulfilled parts × `list_price_gbp` (falls back to catalogue).
+  Delegates to `engineer_invoices.create_invoice` so totals, numbering
+  and status history stay consistent with manually-built invoices. Tags
+  the case with `invoice_drafted=true` + `invoice_draft_id` for UI hooks.
+
+### Persistence
+
+New collection `svc_engineer_mileage`:
+```jsonc
+{ id, organization_id, case_id, case_reference, engineer_id, miles,
+  rate_gbp_per_mile, amount_gbp, from_postcode, to_postcode,
+  notes, chargeable, logged_at, idempotency_key }
+```
+Case shape grew:
+```jsonc
+{
+  // existing fields…
+  "allocated_parts": [...],               // existing
+  "invoice_drafted": true,                // NEW
+  "invoice_draft_id": "<svc_engineer_invoice.id>",
+  "invoice_draft_number": "EI-..."
+}
+```
+
+### Frontend (NEW · `EngineerJobDetailV2.js`)
+
+Light-mode tabbed job page mounted at `/svc/engineer/jobs/:caseId`
+(legacy dark page preserved at `/svc/engineer/jobs/:caseId/legacy`):
+
+* **Sticky header** with case ref/title/site/status + back/refresh.
+* **Live timer bar** when a timer is running — emerald background, 1s
+  ticker, one-tap stop.
+* **Tabs**:
+    * **Time** — Totals tiles (on-site / travel / admin), 3-button start
+      bar (gated by H&S signoff for `on_site`), full history list with
+      duration + chargeable flag.
+    * **Travel** — Totals tiles (miles + £), mileage entry form with
+      postcodes/notes/chargeable toggle, delete-per-row history.
+    * **Photos** — Stage toggle (before / progress / after), file/camera
+      upload (uses `/api/files/upload?category=photos` then
+      `/api/svc/engineer/photos`), grouped grid display.
+    * **Parts** — Allocated list with one-tap "Mark used", catalogue
+      search (300ms-debounced against `/api/svc/parts`), ad-hoc SKU+qty
+      form, "Used on this job" list with running price totals.
+    * **Complete** — Work summary textarea, customer signature
+      (delegates to existing `SignatureCanvas` modal), outcome chips
+      (awaiting sign-off / repaired / closed), auto-generate-invoice
+      checkbox. On submit: posts signature → completes job → optionally
+      generates invoice draft → surfaces success banner with deep-link
+      to the new invoice.
+* When the job is already closed/repaired/invoiced the Complete tab
+  renders a locked confirmation card with a "Open invoice EI-..." CTA.
+
+### Tests (`tests/test_iter_216h133_engineer_phase3.py`)
+
+7 tests, all green:
+* Mileage create/list/delete; rejects miles=0; 404 unknown case.
+* Parts ad-hoc use creates a fulfilled allocation; consume flips an
+  existing allocation and is idempotent on replay.
+* Invoice draft composes labour + travel + parts and tags the case;
+  rejects an empty job with 400.
+
+Cumulative pass rate across Iter 216h131/132/133: **18/18**.
+
+---
+
+
 ## Iter 216h132 — Stripe Connect (Express) for Engineer Partners (Feb 16, 2026)
 
 Engineers now invoice **their own** customers and receive card payments
