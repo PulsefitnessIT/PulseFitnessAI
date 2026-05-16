@@ -93,6 +93,7 @@ const PartnerApplyPublic = lazy(() => import('@/pages/Marketing/PartnerApplyPubl
 const PublicTrackingPage = lazy(() => import('@/pages/PublicTracking/PublicTrackingPage'));
 const ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
 const IntegrationsConsole = lazy(() => import('@/pages/Admin/IntegrationsConsole'));
+const IntegrationsSiconConnect = lazy(() => import('@/pages/Admin/IntegrationsSiconConnect'));
 const ServiceOpsEngineerHome = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHomeV2'));
 const ServiceOpsEngineerJobsList = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHome'));
 const ServiceOpsEngineerJob = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerJobDetailV2'));
@@ -269,6 +270,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/master-admin" element={(user?.is_master_admin || user?.is_pulse_admin) ? <MasterAdminPage /> : <Navigate to="/login" replace />} />
       <Route path="/admin/design-system" element={user?.is_master_admin ? <DesignSystemPage /> : <Navigate to="/login" replace />} />
       <Route path="/admin/integrations" element={user?.is_master_admin ? <IntegrationsConsole /> : <Navigate to="/login" replace />} />
+      <Route path="/admin/integrations/sicon" element={user?.is_master_admin ? <IntegrationsSiconConnect /> : <Navigate to="/login" replace />} />
 
       {/* ─── Modules (Iter 216h110 — MOD users are firewalled out) ─── */}
       <Route path="/marketing" element={user ? <MODForbidden><ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />

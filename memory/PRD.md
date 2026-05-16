@@ -1,3 +1,80 @@
+## Iter 216h135 — Sicon Connect Panel (prep PR) (Feb 16, 2026)
+
+User asked to "ensure we are completely ready when we do get [Sicon
+credentials]". The backend infrastructure was already 90% complete
+(full `SiconClient` with ping/cases/notes/appointments/contracts,
+encrypted credential storage, outbox+poller workers, comprehensive
+field mappers). The missing piece was the **admin-facing UI** for the
+master admin to actually paste credentials and run a live ping.
+
+### Frontend (NEW · `pages/Admin/IntegrationsSiconConnect.js`)
+
+Light-mode, focused settings page mounted at `/admin/integrations/sicon`:
+
+* **Status hero** — gradient card that shifts emerald when the
+  integration is live, blue/purple otherwise. Pip badge in the header
+  shows `Dry-run` / `Configured · disabled` / `Live`.
+* **Credentials form** — Base URL, Username, Password, Sage 200 Company
+  ID inputs with hint copy. Password placeholder reads
+  `•••••••• (leave blank to keep)` once a password is saved.
+* **Three toggles** — Integration enabled · Auto-push faults ·
+  Auto-pull status (each maps directly to existing `sicon_config` flags
+  the workers already honour).
+* **Save / Test / Reload buttons** — Save is disabled until the form is
+  dirty; Test is disabled until the integration is configured.
+* **Test result panel** — green when `/api/SMConnectivity/Ping` returns
+  200; red with stack-trace when not, so the master admin can copy/paste
+  the error verbatim to Sicon support.
+* **Status read-out grid** — Configured / Enabled / Connection status
+  / Last tested / Last sync / Last poll, all formatted to local time.
+* **"When credentials land" checklist** — 4-step onboarding card so
+  the admin knows exactly what to do.
+
+Also added a **"Connect"** primary CTA to the existing
+`IntegrationsConsole` Sicon controls row, so the admin can jump
+straight from the outbox health overview into the credentials panel.
+
+### Backend (existing endpoints, surfaced by tests)
+
+No new endpoints required — the page consumes the long-existing:
+* `GET  /api/sicon/config`           — masks `username` to `••••••••`,
+  never echoes a password; surfaces `has_password`, `configured`,
+  `connection_status`, `last_test_at`, `last_sync_at`, `last_poll_at`.
+* `PUT  /api/sicon/config`           — Fernet-encrypts username +
+  password (key derived from `JWT_SECRET`). Blank password = preserve
+  prior; masked username (`••••••••`) = preserve prior.
+* `POST /api/sicon/test-connection`  — pings
+  `/api/SMConnectivity/Ping` using stored creds.
+
+### Tests (`tests/test_iter_216h135_sicon_connect.py`)
+
+6 tests, all green — they explicitly verify:
+* Dry-run config response shape when nothing is saved.
+* PUT then GET masks credentials AND the Mongo doc holds **only**
+  encrypted values (no plaintext leakage).
+* Blank password / masked username preserve prior encrypted values.
+* `test-connection` reports `connected:false` (not 500) for
+  unconfigured org and unreachable host.
+* Auth gate: both endpoints 401/403 without a token.
+
+Cumulative pass rate: **32/32 across Iter 216h131-135**.
+
+### When credentials arrive
+
+1. Master admin opens `/admin/integrations/sicon`.
+2. Pastes base URL + username + password + (optional) Sage company ID.
+3. Clicks **Save** → creds are encrypted at rest with Fernet.
+4. Clicks **Test connection** → calls Sicon `/SMConnectivity/Ping`.
+5. Flips **Integration enabled** ON.
+6. The outbox worker (`utils/sicon_outbox_worker.py`) automatically
+   starts draining `svc_sicon_outbox` rows — case payloads, tracking
+   notes, appointments, time bookings, part movements and contracts
+   that have been accumulating in dry-run mode go live with **zero
+   code changes**.
+
+---
+
+
 ## Iter 216h134 — Engineer AI Report Assistant (Feb 16, 2026)
 
 Voice-to-text dictation for the engineer's Complete-tab work summary,

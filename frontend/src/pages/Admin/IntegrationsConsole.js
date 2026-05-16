@@ -15,6 +15,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Cable, RefreshCw, AlertTriangle, CheckCircle2, Clock, Inbox,
   Database, Workflow, FileText, Zap, ZapOff, Cog, Play, FlaskConical, RotateCcw,
@@ -305,6 +306,7 @@ function stripFormatting(s) {
 }
 
 export default function IntegrationsConsole() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('overview');
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -361,7 +363,17 @@ export default function IntegrationsConsole() {
 
   const renderControls = (system) => (
     <div className="flex flex-wrap gap-1.5" data-testid={`${system}-controls`}>
-      <button
+      {system === 'sicon' && (
+        <button
+          type="button"
+          onClick={() => navigate('/admin/integrations/sicon')}
+          className="svc-btn svc-btn-primary svc-btn-sm"
+          data-testid="sicon-connect-cta"
+          title="Open the Sicon credentials & connection-test panel"
+        >
+          <Cog size={11} /> Connect
+        </button>
+      )}      <button
         type="button"
         onClick={() => drain(system, 'simulate')}
         disabled={!!busy}
