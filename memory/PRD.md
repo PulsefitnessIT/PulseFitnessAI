@@ -1,3 +1,131 @@
+## Iter 216h130 — Engineer App Phase 2 + Public Quote Accept (Feb 16, 2026)
+
+Two shipments in one iteration:
+1. **Public quote-accept flow** (the "1-iter add-on" from Phase 1 finish)
+2. **Engineer App Phase 2** — Invoice Builder + branded PDF + Resend
+   email send (Service Report PDF already existed via
+   `routes/svc/service_report.py`, surfaced from the existing
+   `EngineerJobDetail`).
+
+### Part A — Public Quote Accept Flow
+
+**Backend** — `routes/public_quote.py` (NEW · no-auth):
+* `POST /api/svc/engineer/quotes/{id}/send` now **auto-generates a
+  10-char URL-safe `public_shortcode`** the first time a quote is
+  sent. Email body now includes a branded "Review &amp; Accept Quote →"
+  CTA pointing to `/q/{shortcode}` on the public origin.
+* `GET  /api/public/quote/{shortcode}` — redacted public view of the
+  quote (customer/site/lines/totals/terms, with engineer name).
+  Never exposes customer_email/phone or engineer email.
+* `POST /api/public/quote/{shortcode}/accept` — captures `name`,
+  optional `signature_data_url`, optional `note`. Sets quote
+  `status=accepted`, stamps `accepted_at` and `accepted_via=public_link`.
+  Inserts a `svc_case_events` row of `kind=notification` so the
+  engineer's home unread badge ticks up.
+* `POST /api/public/quote/{shortcode}/decline` — same flow for
+  declines with a `reason` field.
+* Idempotency: re-accepting/re-declining returns **410 Gone** with
+  a friendly message.
+
+**Frontend** — `pages/PublicQuoteAcceptPage.js` (NEW):
+* Public route `/q/:shortcode` (no login).
+* Gradient header (cyan→indigo→violet) with quote number.
+* Customer/site/asset cards, line items table, totals stack,
+  terms block.
+* Built-in HTML canvas signature pad with clear-and-redraw.
+* "Accept &amp; sign quote" primary button OR "Decline" path with
+  reason field.
+* Friendly success/decline confirmation page after submission.
+* "Quote unavailable" error card for invalid/expired shortcodes.
+
+### Part B — Phase 2: Engineer Invoices
+
+**Backend** — `routes/svc/engineer_invoices.py` (NEW · 540 LOC):
+* `POST  /api/svc/engineer/invoices` — create draft (lines, VAT,
+  discount, payment_terms_days, bank details, payment_method).
+* `POST  /api/svc/engineer/invoices/from-quote/{quote_id}` — derives
+  invoice from an accepted/sent quote; **marks the source quote as
+  `invoiced` and bi-directionally links them** (linked_invoice_id /
+  linked_quote_id).
+* `GET   /api/svc/engineer/invoices` — list with status filter
+  including `unpaid` (= draft+sent+overdue).
+* `GET   /api/svc/engineer/invoices/{id}` — single.
+* `GET   /api/svc/engineer/invoices/{id}.pdf` — branded PDF download.
+* `PATCH /api/svc/engineer/invoices/{id}` — edit; auto-recomputes
+  totals; auto-recomputes due_date when payment_terms_days changes;
+  locks once status is `paid` or `void` (409).
+* `POST  /api/svc/engineer/invoices/{id}/send` — Resend email with
+  branded PDF attached.
+* `POST  /api/svc/engineer/invoices/{id}/mark` — set status
+  (paid/sent/overdue/void); stamps `paid_at` + `paid_recorded_by`.
+* `POST  /api/svc/engineer/invoices/{id}/duplicate` — clone with
+  fresh issue_date + due_date.
+* Auto-numbered `EI-YYYYMMDD-XXXX`.
+
+**Branded Invoice PDF** — `utils/engineer_invoice_pdf.py`:
+* Same GymAxis light-mode visual identity as the quote PDF
+  (gradient navy header, two-column bill-to/from, line items table,
+  totals stack with brand-blue grand total).
+* Adds a **PAYMENT INSTRUCTIONS** highlighted box with BACS/bank
+  details and payment_method.
+
+**Frontend**:
+* `EngineerInvoices.js` — list with Outstanding £ · Paid £ · Count
+  KPIs, status filter chips (All / Unpaid / Draft / Sent / Paid /
+  Overdue / Void), invoice rows with due-date.
+* `EngineerInvoiceBuilder.js` — Customer / Description / Lines /
+  Totals (VAT / Discount / Terms days) / **Payment instructions
+  block** (method, bank name, account name, sort code, account
+  number, reference notes) / Notes / Terms. Status pill bar with
+  Mark paid / Overdue / Void.
+* Routes:
+  - `/svc/engineer/invoices`
+  - `/svc/engineer/invoices/new`
+  - `/svc/engineer/invoices/:id`
+* `EngineerHomeV2.js` quick actions now include **New invoice** +
+  **My invoices** (2×4 grid).
+* `EngineerQuoteBuilder.js` accepted quotes show an
+  **"Invoice this quote"** button → calls
+  `/invoices/from-quote/{id}` and navigates to the new invoice.
+  Once invoiced, shows a "Invoiced as EI-XXXXXXX" pill.
+
+### Tests
+* `/app/backend/tests/test_iter_216h130_phase2_and_public_accept.py`
+  — **10/10 pass** (combined with phase 1 = 16/16):
+  - Public accept flow E2E (signature capture + idempotency)
+  - Public decline flow
+  - Public 404 for bad shortcode
+  - Invoice lifecycle (totals recompute + PDF + mark paid + lock)
+  - Invoice from accepted quote — bi-directional linking
+  - Invoice send-with-no-recipient rejected (400)
+  - Invoice list `unpaid` filter
+  - Invoice duplicate resets dates
+
+### Live smoke
+* Invoice Builder, Invoice List, and Public Quote 404 pages all
+  render cleanly in light-mode GymAxis brand (verified via in-app
+  navigation + screenshots — 13/13 data-testids found).
+
+### Files touched
+**Backend**
+- `/app/backend/routes/public_quote.py` (NEW · public accept/decline)
+- `/app/backend/routes/svc/engineer_quotes.py` (auto-generate shortcode on first send, branded "Accept Quote" CTA in the email)
+- `/app/backend/routes/svc/engineer_invoices.py` (NEW)
+- `/app/backend/utils/engineer_invoice_pdf.py` (NEW)
+- `/app/backend/route_registry/admin.py` (register public_quote router)
+- `/app/backend/route_registry/features.py` (register engineer_invoices router)
+- `/app/backend/tests/test_iter_216h130_phase2_and_public_accept.py` (NEW · 10 tests)
+
+**Frontend**
+- `/app/frontend/src/pages/PublicQuoteAcceptPage.js` (NEW · public no-auth)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerInvoices.js` (NEW)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerInvoiceBuilder.js` (NEW)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js` (+"Invoice this quote" button + "Invoiced as …" pill)
+- `/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js` (+New invoice + My invoices quick actions)
+- `/app/frontend/src/routes/AppRoutes.js` (+5 lazy imports + 4 routes)
+
+
+
 ## Iter 216h129 — Engineer App Phase 1: Home v2 + Quote Builder (Feb 16, 2026)
 
 First phase of the full Engineer App overhaul. Shipped a rich engineer

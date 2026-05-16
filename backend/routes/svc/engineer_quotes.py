@@ -341,6 +341,16 @@ async def send_quote(
     to_addr = (body.to or quote.get("customer_email") or "").strip().lower()
     if not to_addr or "@" not in to_addr:
         raise HTTPException(400, "Recipient email required (customer_email empty)")
+    # Ensure a public accept shortcode exists — generate on first send.
+    shortcode = quote.get("public_shortcode")
+    if not shortcode:
+        from routes.public_quote import generate_shortcode
+        shortcode = generate_shortcode()
+        await db.svc_engineer_quotes.update_one(
+            {"id": quote_id},
+            {"$set": {"public_shortcode": shortcode}},
+        )
+        quote["public_shortcode"] = shortcode
     from utils.engineer_quote_pdf import build_engineer_quote_pdf
     pdf_bytes = build_engineer_quote_pdf(quote)
     import base64
@@ -590,6 +600,11 @@ def _email_html(quote: dict, custom_message: str = "") -> str:
     total = quote.get("total") or 0
     valid_until = quote.get("valid_until") or ""
     description = quote.get("description_of_work") or ""
+    shortcode = quote.get("public_shortcode")
+    import os
+    accept_origin = (os.environ.get("PUBLIC_ORIGIN") or
+                      os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+    accept_url = f"{accept_origin}/q/{shortcode}" if shortcode and accept_origin else None
     custom_block = ""
     if custom_message:
         safe = (
@@ -600,6 +615,18 @@ def _email_html(quote: dict, custom_message: str = "") -> str:
             f'<div style="background:#f8fafc;border-left:4px solid {primary};'
             f'padding:12px 16px;margin:20px 0;font-size:14px;line-height:1.6;'
             f'color:#1e293b;">{safe}</div>'
+        )
+    accept_block = ""
+    if accept_url:
+        accept_block = (
+            f'<div style="text-align:center;margin:24px 0;">'
+            f'<a href="{accept_url}" '
+            f'style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,{primary} 0%,{accent} 100%);'
+            f'color:white;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;'
+            f'box-shadow:0 6px 14px rgba(99,102,241,0.35);">'
+            f'Review &amp; Accept Quote →</a>'
+            f'<p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">'
+            f'Or copy this link: <span style="color:#475569;">{accept_url}</span></p></div>'
         )
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:0 auto;padding:24px;">
@@ -622,8 +649,9 @@ def _email_html(quote: dict, custom_message: str = "") -> str:
           <tr><td>Valid until</td><td style="text-align:right;">{valid_until}</td></tr>
         </table>
       </div>
+      {accept_block}
       <p style="font-size:13px;line-height:1.6;color:#64748b;">
-        To accept this quote, reply to this email or contact the engineer directly.
+        Prefer to reply by email or phone? Reply to this email or contact the engineer directly.
       </p>
       <p style="font-size:14px;margin-top:24px;">Thanks,<br/><strong>{engineer}</strong></p>
       <p style="font-size:11px;color:#94a3b8;margin-top:30px;">

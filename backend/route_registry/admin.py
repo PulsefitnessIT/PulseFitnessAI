@@ -35,6 +35,7 @@ from routes.master_admin_communications import (
 from routes.master_admin_theme import router as master_admin_theme_router
 from routes.master_admin_custom_domains import router as master_admin_custom_domains_router
 from routes.public_host_config import router as public_host_config_router
+from routes.public_quote import router as public_quote_router
 from routes.activation_events import router as activation_events_router
 from routes.master_admin_documents_lib import router as master_admin_documents_lib_router
 from routes.invoice_share import router as invoice_share_router
@@ -119,6 +120,7 @@ def register_admin(api_router: APIRouter) -> None:
         companies_house_router,
         postcodes_router,
         pulse_sales_router,
+        public_quote_router,
     ):
         api_router.include_router(r)
     api_router.include_router(marketing_forms_router, prefix="/marketing")

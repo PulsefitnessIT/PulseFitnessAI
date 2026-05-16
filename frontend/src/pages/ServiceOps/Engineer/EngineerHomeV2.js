@@ -285,22 +285,28 @@ export default function EngineerHomeV2() {
             {/* Quick actions */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-quick-actions">
               <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-3">Quick actions</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <QuickAction icon={Plus} primary label="New quote"
                              testid="qa-new-quote"
                              onClick={() => navigate('/svc/engineer/quotes/new')} />
+                <QuickAction icon={Receipt} label="New invoice"
+                             testid="qa-new-invoice"
+                             onClick={() => navigate('/svc/engineer/invoices/new')} />
                 <QuickAction icon={Calendar} label="View diary"
                              testid="qa-diary"
-                             onClick={() => navigate('/svc/engineer')} />
+                             onClick={() => navigate('/svc/engineer/jobs')} />
                 <QuickAction icon={FileText} label="My quotes"
                              testid="qa-quotes"
                              onClick={() => navigate('/svc/engineer/quotes')} />
+                <QuickAction icon={Receipt} label="My invoices"
+                             testid="qa-invoices"
+                             onClick={() => navigate('/svc/engineer/invoices')} />
                 <QuickAction icon={Package} label="Parts"
                              testid="qa-parts"
                              onClick={() => navigate('/svc/engineer/parts')} />
                 <QuickAction icon={FileSignature} label="Send report"
                              testid="qa-report"
-                             onClick={() => navigate('/svc/engineer')} />
+                             onClick={() => navigate('/svc/engineer/jobs')} />
                 <QuickAction icon={MessageCircle} label="Support"
                              testid="qa-support"
                              onClick={() => navigate('/support')} />

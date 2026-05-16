@@ -231,6 +231,16 @@ export default function EngineerQuoteBuilder() {
     }
   };
 
+  const handleInvoiceFromQuote = async () => {
+    try {
+      const r = await axios.post(`${API}/svc/engineer/invoices/from-quote/${quoteId}`, {}, auth());
+      notify.success(`Invoice ${r.data.invoice_number} created`);
+      navigate(`/svc/engineer/invoices/${r.data.id}`);
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Invoice creation failed');
+    }
+  };
+
   const readOnly = !isNew && !['draft', 'sent'].includes(form.status);
 
   if (loading) {
@@ -345,6 +355,21 @@ export default function EngineerQuoteBuilder() {
               >
                 <Briefcase size={12} /> Convert to job
               </button>
+            )}
+            {form.status === 'accepted' && !form.linked_invoice_id && (
+              <button
+                type="button"
+                onClick={handleInvoiceFromQuote}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold"
+                data-testid="quote-builder-invoice-from-quote"
+              >
+                <CheckCircle2 size={12} /> Invoice this quote
+              </button>
+            )}
+            {form.linked_invoice_number && (
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold">
+                Invoiced as {form.linked_invoice_number}
+              </span>
             )}
             {form.converted_case_id && (
               <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-xs font-bold">
