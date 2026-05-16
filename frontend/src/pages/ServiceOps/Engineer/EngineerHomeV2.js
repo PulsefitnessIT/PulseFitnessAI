@@ -326,7 +326,7 @@ export default function EngineerHomeV2() {
                              onClick={() => navigate('/svc/engineer/invoices/new')} />
                 <QuickAction icon={Calendar} label="View diary"
                              testid="qa-diary"
-                             onClick={() => navigate('/svc/engineer/jobs')} />
+                             onClick={() => navigate('/svc/engineer/diary')} />
                 <QuickAction icon={FileText} label="My quotes"
                              testid="qa-quotes"
                              onClick={() => navigate('/svc/engineer/quotes')} />

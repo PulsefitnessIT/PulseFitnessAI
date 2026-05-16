@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Plus, Search, AlertTriangle, Clock, CircleAlert, RefreshCw, Phone, Filter,
-  Sparkles, Users, MapPin, CheckCircle2, Truck, Coffee, Target, Wrench,
+  Sparkles, Users, MapPin, CheckCircle2, Truck, Coffee, Target, Wrench, Calendar,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ServiceDeskIntakeForm from './ServiceDeskIntakeForm';
@@ -252,6 +252,13 @@ export default function ServiceDeskPage() {
     <>
       <SvcSecondaryButton icon={RefreshCw} onClick={load} data-testid="desk-refresh">
         Refresh
+      </SvcSecondaryButton>
+      <SvcSecondaryButton
+        icon={Calendar}
+        onClick={() => (window.location.href = '/service-desk/dispatch')}
+        data-testid="desk-dispatch-board"
+      >
+        Dispatch
       </SvcSecondaryButton>
       <SvcPrimaryButton icon={Plus} onClick={() => setIntakeOpen(true)} data-testid="desk-log-case">
         Log new case

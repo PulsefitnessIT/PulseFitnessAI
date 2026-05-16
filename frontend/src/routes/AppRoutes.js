@@ -105,6 +105,9 @@ const ServiceOpsEngineerQuoteBuilder = lazy(() => import('@/pages/ServiceOps/Eng
 const ServiceOpsEngineerInvoices = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerInvoices'));
 const ServiceOpsEngineerInvoiceBuilder = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerInvoiceBuilder'));
 const ServiceOpsEngineerPayouts = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerPayouts'));
+// Iter 216h140 — Engineer App Phase 4: Diary & Admin Dispatch
+const ServiceOpsEngineerDiary = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerDiary'));
+const ServiceOpsAdminDispatchBoard = lazy(() => import('@/pages/ServiceOps/AdminDispatchBoard'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
@@ -305,6 +308,9 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/invoices/new" element={user ? <ServiceOpsEngineerInvoiceBuilder /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/invoices/:id" element={user ? <ServiceOpsEngineerInvoiceBuilder /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/payouts" element={user ? <ServiceOpsEngineerPayouts /> : <Navigate to="/login" replace />} />
+      {/* Iter 216h140 — Engineer App Phase 4 */}
+      <Route path="/svc/engineer/diary" element={user ? <ServiceOpsEngineerDiary /> : <Navigate to="/login" replace />} />
+      <Route path="/service-desk/dispatch" element={user ? <ServiceOpsAdminDispatchBoard /> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />

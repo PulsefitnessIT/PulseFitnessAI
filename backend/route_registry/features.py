@@ -132,6 +132,11 @@ from routes.svc.safety import router as svc_safety_router
 from routes.svc.engineer_location import router as svc_engineer_location_router
 # Iter 216h93 — Comprehensive platform vitals (master-admin only)
 from routes.health_full import router as health_full_router
+# Iter 216h140 — Engineer Diary & Admin Dispatch (Phase 4)
+from routes.svc.diary import (
+    engineer_router as svc_diary_engineer_router,
+    admin_router as svc_diary_admin_router,
+)
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -243,6 +248,9 @@ _UNGATED_ROUTERS = (
     svc_engineer_location_router,
     # Iter 216h93 — Platform vitals dashboard (master admin)
     health_full_router,
+    # Iter 216h140 — Engineer Diary & Admin Dispatch (Phase 4)
+    svc_diary_engineer_router,
+    svc_diary_admin_router,
 )
 
 

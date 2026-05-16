@@ -472,6 +472,9 @@ async def _create_indexes() -> None:
     # Iter 216h75 — Partner Engineer Network indexes
     from routes.partners import ensure_partner_indexes
     await ensure_partner_indexes()
+    # Iter 216h140 — Engineer Diary indexes
+    from routes.svc.diary import ensure_diary_indexes
+    await ensure_diary_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()
