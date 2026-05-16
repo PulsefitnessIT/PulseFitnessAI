@@ -2115,19 +2115,23 @@ async def mod_hq_set_dio_contract(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """HQ owner/manager records the DIO contract reference + the
-    nominated escalation contact for a child site."""
-    org = await _require_mod_pro(user)
+    """HQ owner/manager (or GymAxis master admin) records the DIO
+    contract reference + the nominated escalation contact for a child
+    site."""
+    is_master = bool(user.get("is_master_admin")
+                      or user.get("account_type") == "gymaxis_admin")
     site = await db.organizations.find_one(
         {"id": site_id, "account_type": "mod_site"},
         {"_id": 0, "mod_root_id": 1, "mod_branch": 1, "name": 1},
     )
     if not site:
         raise HTTPException(404, "Site not found")
-    if site.get("mod_root_id") != org.get("mod_root_id"):
-        raise HTTPException(403, "Site is outside your MOD organisation scope")
-    if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
-        raise HTTPException(403, "Site is outside your branch scope")
+    if not is_master:
+        org = await _require_mod_pro(user)
+        if site.get("mod_root_id") != org.get("mod_root_id"):
+            raise HTTPException(403, "Site is outside your MOD organisation scope")
+        if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
+            raise HTTPException(403, "Site is outside your branch scope")
 
     updates = payload.model_dump(exclude_unset=True)
     updates["dio_updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -2145,7 +2149,10 @@ async def mod_hq_set_dio_contract(
 
 @router.get("/mod/pro/sites/{site_id}/dio-contract")
 async def mod_hq_get_dio_contract(site_id: str, user: dict = Depends(get_current_user)):
-    org = await _require_mod_pro(user)
+    # Master admins (GymAxis ops) can read any MOD site's DIO contract
+    # for support purposes.
+    is_master = bool(user.get("is_master_admin")
+                      or user.get("account_type") == "gymaxis_admin")
     site = await db.organizations.find_one(
         {"id": site_id, "account_type": "mod_site"},
         {"_id": 0, "mod_root_id": 1, "mod_branch": 1, "name": 1,
@@ -2154,10 +2161,12 @@ async def mod_hq_get_dio_contract(site_id: str, user: dict = Depends(get_current
     )
     if not site:
         raise HTTPException(404, "Site not found")
-    if site.get("mod_root_id") != org.get("mod_root_id"):
-        raise HTTPException(403, "Site is outside your MOD organisation scope")
-    if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
-        raise HTTPException(403, "Site is outside your branch scope")
+    if not is_master:
+        org = await _require_mod_pro(user)
+        if site.get("mod_root_id") != org.get("mod_root_id"):
+            raise HTTPException(403, "Site is outside your MOD organisation scope")
+        if org.get("account_type") == "mod_branch" and site.get("mod_branch") != org.get("mod_branch"):
+            raise HTTPException(403, "Site is outside your branch scope")
     return {
         "site_id": site_id,
         "site_name": site.get("name"),
@@ -2165,6 +2174,33 @@ async def mod_hq_get_dio_contract(site_id: str, user: dict = Depends(get_current
         "dio_contact_email": site.get("dio_contact_email"),
         "dio_contact_name": site.get("dio_contact_name"),
         "dio_updated_at": site.get("dio_updated_at"),
+        "configured": bool(site.get("dio_contract_ref")
+                            or site.get("dio_contact_email")),
+    }
+
+
+@router.get("/mod/site/dio-contract")
+async def mod_site_get_own_dio_contract(user: dict = Depends(get_current_user)):
+    """Read-only view of the DIO contract attached to the user's own
+    MOD site. Used by `IssueDetailPanel` to show the site user who
+    their escalation will go to **before** they press "Report to DIO".
+    """
+    org = await _require_mod_site(user)
+    site = await db.organizations.find_one(
+        {"id": org["id"]},
+        {"_id": 0, "name": 1,
+         "dio_contract_ref": 1, "dio_contact_email": 1, "dio_contact_name": 1,
+         "dio_updated_at": 1},
+    )
+    return {
+        "site_id": org["id"],
+        "site_name": (site or {}).get("name"),
+        "dio_contract_ref": (site or {}).get("dio_contract_ref"),
+        "dio_contact_email": (site or {}).get("dio_contact_email"),
+        "dio_contact_name": (site or {}).get("dio_contact_name"),
+        "dio_updated_at": (site or {}).get("dio_updated_at"),
+        "configured": bool((site or {}).get("dio_contract_ref")
+                            or (site or {}).get("dio_contact_email")),
     }
 
 

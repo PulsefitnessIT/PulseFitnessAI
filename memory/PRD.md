@@ -1,3 +1,68 @@
+## Iter 216h137 — DIO Contract UI (HQ drawer + Fault detail) (Feb 16, 2026)
+
+Closes the last remaining P1 from the original handoff backlog:
+**"Add missing DIO contract UI in the HQ site drawer."**
+
+After investigation, the actual gaps were:
+* MOD site users had no way to see *who* their fault escalation
+  would go to before clicking "Report to DIO".
+* GymAxis Master Admin support staff had no in-product way to view
+  or edit DIO contracts when assisting an HQ tenant.
+
+The `MODDIOContractModal` was already wired into the HQ user's
+`AllSitesOverview` table — that part was complete.
+
+### Backend (extended endpoints in `routes/mod_portal.py`)
+
+* `GET /api/mod/pro/sites/{site_id}/dio-contract` — now also callable
+  by **master admin** (`is_master_admin` or `account_type=gymaxis_admin`)
+  for cross-tenant support. Returns extended shape with new
+  `configured: bool` flag.
+* `PUT /api/mod/pro/sites/{site_id}/dio-contract` — same expansion.
+* **NEW** `GET /api/mod/site/dio-contract` — read-only endpoint scoped
+  to the caller's *own* MOD site (gated by `_require_mod_site`).
+  Returns `{site_id, site_name, dio_contract_ref, dio_contact_name,
+  dio_contact_email, dio_updated_at, configured}`. Used by the fault
+  detail panel to surface escalation context **before** the engineer
+  clicks the button.
+
+### Frontend (NEW + UPDATED)
+
+* `pages/IssueDetailPanel.js` (UPDATED):
+    * MOD site users now see a small contextual chip immediately above
+      the "Report to DIO" button:
+        * **Cyan**: "DIO contract on file · `GBC/0000-1234` · Lt Col J. Smith"
+        * **Amber**: "No DIO contract set · Escalation will go to HQ ops only."
+    * Chip only renders for `account_type=mod_site` users (one network
+      call on mount, non-fatal if it fails).
+* `pages/MasterAdmin/SiteDetailDrawer.js` (UPDATED):
+    * New **DIO Contract** tab — only renders when the site has
+      `account_type=mod_site` or `mod_root_id` set.
+    * `DIOContractForm` sub-component: loads existing contract via the
+      extended HQ endpoint, edits ref + contact name + contact email,
+      saves with success toast. Cyan info banner explains the impact.
+    * "Configured · last updated …" status line.
+
+### Tests (`tests/test_iter_216h137_dio_contract_ui.py`)
+
+6 tests, all green:
+* Master admin can PUT then GET; response shape has the new
+  `configured: true` and `dio_updated_at` fields.
+* Master admin GET returns `configured: false` when the contract is
+  unset, instead of confusing nulls.
+* PUT against a non-MOD site (`account_type=owner`) returns 404 so
+  ops can't accidentally attach a DIO contract to a regular tenant.
+* Master admin can clear a previously-set DIO contract by sending
+  nulls; `configured` flips back to false.
+* Both endpoints return 401/403 without auth.
+* The new site-scoped `GET /api/mod/site/dio-contract` rejects
+  non-`mod_site` callers (master admin gets 403).
+
+Cumulative pass rate: **45/45 across Iter 216h131-137** ✅
+
+---
+
+
 ## Iter 216h136 — Engineer App Phase 3.5 (Feb 16, 2026)
 
 Three orthogonal sub-features that close out the engineer mobile

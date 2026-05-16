@@ -13,6 +13,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
   X, Loader2, MapPin, Wrench, Save, Building2, Crown, Archive, Trash2, RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -22,6 +23,8 @@ const auth = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` }
 const TABS = [
   { id: 'details',   label: 'Site Details', icon: MapPin },
   { id: 'equipment', label: 'Equipment',    icon: Wrench },
+  // Iter 216h137 — DIO contract tab only renders for MOD sites
+  { id: 'dio',       label: 'DIO Contract', icon: ShieldCheck, mod_only: true },
 ];
 
 const FIELD_INPUT_CLS = 'w-full px-2.5 py-1.5 text-sm rounded-md border border-zinc-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none bg-white';
@@ -53,6 +56,8 @@ const SiteDetailDrawer = ({ orgId, site, onClose, onSaved }) => {
   // flip between Archive/Restore without a full reload.
   const [archived, setArchived] = useState(!!site.archived);
   const [busy, setBusy] = useState(false); // archive / delete in flight
+  // Iter 216h137 — show the DIO Contract tab only for MOD sites
+  const isModSite = (site.account_type === 'mod_site') || !!site.mod_root_id;
   const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setDirty(true); };
 
   const saveDetails = async () => {
@@ -169,7 +174,7 @@ const SiteDetailDrawer = ({ orgId, site, onClose, onSaved }) => {
 
         {/* Tab bar */}
         <div className="flex border-b border-zinc-200 px-4 shrink-0">
-          {TABS.map(({ id, label, icon: Icon }) => (
+          {TABS.filter(t => !t.mod_only || isModSite).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -189,6 +194,9 @@ const SiteDetailDrawer = ({ orgId, site, onClose, onSaved }) => {
           )}
           {tab === 'equipment' && (
             <EquipmentInlineList orgId={orgId} siteId={site.id} siteName={site.name} />
+          )}
+          {tab === 'dio' && isModSite && (
+            <DIOContractForm siteId={site.id} />
           )}
         </div>
       </div>
@@ -417,3 +425,131 @@ const EquipmentInlineList = ({ orgId, siteId, siteName }) => {
 };
 
 export default SiteDetailDrawer;
+
+/* ───────────────────── DIO Contract ─────────────────────
+ * Iter 216h137. Master Admin support tool — view & update the
+ * Defence Infrastructure Organisation contract attached to a MOD
+ * site. Mirrors the per-tenant `MODDIOContractModal` but available
+ * inside the master-admin site drawer for cross-tenant support.
+ */
+
+const DIOContractForm = ({ siteId }) => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    dio_contract_ref: '', dio_contact_name: '', dio_contact_email: '',
+  });
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [configured, setConfigured] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/mod/pro/sites/${siteId}/dio-contract`,
+                                    { headers: auth() });
+        if (!alive) return;
+        setForm({
+          dio_contract_ref: r.data.dio_contract_ref || '',
+          dio_contact_name: r.data.dio_contact_name || '',
+          dio_contact_email: r.data.dio_contact_email || '',
+        });
+        setUpdatedAt(r.data.dio_updated_at || null);
+        setConfigured(!!r.data.configured);
+      } catch (e) {
+        notify.error('Could not load DIO contract',
+                      e?.response?.data?.detail || 'Network error');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [siteId]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        dio_contract_ref: form.dio_contract_ref.trim() || null,
+        dio_contact_name: form.dio_contact_name.trim() || null,
+        dio_contact_email: form.dio_contact_email.trim() || null,
+      };
+      const r = await axios.put(`${API}/mod/pro/sites/${siteId}/dio-contract`,
+                                  payload, { headers: auth() });
+      setUpdatedAt(r.data.dio_updated_at);
+      setConfigured(!!(payload.dio_contract_ref || payload.dio_contact_email));
+      notify.success('DIO contract saved');
+    } catch (e) {
+      notify.error('Save failed',
+                    e?.response?.data?.detail || 'Could not save DIO contract');
+    } finally { setSaving(false); }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-zinc-400 text-sm">
+        <Loader2 size={14} className="animate-spin mr-2" /> Loading DIO contract…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4" data-testid="site-detail-dio">
+      <div className="rounded-md border border-cyan-200 bg-cyan-50 p-3 text-xs text-cyan-900">
+        <div className="flex items-start gap-2">
+          <ShieldCheck size={14} className="mt-0.5 text-cyan-700 shrink-0" />
+          <div>
+            <p className="font-bold">Defence Infrastructure Organisation contract</p>
+            <p className="leading-tight mt-0.5">
+              When configured, faults flagged on this site can be escalated
+              to the named DIO contact with one click from the engineer
+              fault detail panel.
+            </p>
+            {configured && (
+              <p className="mt-1 text-cyan-700">
+                <code className="font-mono">CONFIGURED</code>
+                {updatedAt ? ` · last updated ${new Date(updatedAt).toLocaleString()}` : ''}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Field
+        label="DIO contract reference"
+        value={form.dio_contract_ref}
+        onChange={(v) => setForm(f => ({ ...f, dio_contract_ref: v }))}
+        placeholder="e.g. GBC/0000-1234"
+        testId="site-detail-dio-ref"
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          label="Contact name"
+          value={form.dio_contact_name}
+          onChange={(v) => setForm(f => ({ ...f, dio_contact_name: v }))}
+          placeholder="Lt Col J. Smith"
+          testId="site-detail-dio-name"
+        />
+        <Field
+          label="Contact email"
+          value={form.dio_contact_email}
+          onChange={(v) => setForm(f => ({ ...f, dio_contact_email: v }))}
+          placeholder="j.smith@dio.mod.uk"
+          type="email"
+          testId="site-detail-dio-email"
+        />
+      </div>
+      <div className="sticky bottom-0 bg-white pt-3 pb-1 flex justify-end gap-2 border-t border-zinc-100">
+        <button
+          onClick={save}
+          disabled={saving}
+          className="text-sm px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+          data-testid="site-detail-dio-save"
+        >
+          {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+          {saving ? 'Saving…' : 'Save DIO contract'}
+        </button>
+      </div>
+    </div>
+  );
+};

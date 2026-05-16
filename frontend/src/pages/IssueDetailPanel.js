@@ -41,6 +41,9 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  const [showFullHistory, setShowFullHistory] = useState(false);
  const [equipmentDoc, setEquipmentDoc] = useState(null);
  const [engineerDir, setEngineerDir] = useState([]);
+ // Iter 216h137 — DIO contract context for MOD site users. Lets the
+ // engineer see who the escalation will go to *before* they click.
+ const [dioContract, setDioContract] = useState(null);
 
  // Iter 216k — replace the recurring `window.prompt()` toast for
  // missing supplier email with a proper styled dialog. Operators were
@@ -67,6 +70,19 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  };
  loadFull();
  }, [issueProp.id, API]);
+
+ // Iter 216h137 — Fetch DIO contract context for MOD site users.
+ // Endpoint is read-only and scoped to the user's own site.
+ useEffect(() => {
+ if (user?.account_type !== 'mod_site') return;
+ const token = localStorage.getItem('token');
+ let alive = true;
+ axios.get(`${API}/mod/site/dio-contract`,
+            { headers: { Authorization: `Bearer ${token}` } })
+   .then((r) => { if (alive) setDioContract(r.data); })
+   .catch(() => { /* non-fatal */ });
+ return () => { alive = false; };
+ }, [user?.account_type, API]);
 
  // Pull equipment lineage + engineer directory once per card, only if Sicon linked
  useEffect(() => {
@@ -841,32 +857,48 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  Mark Resolved
  </Button>
  {/* Iter 216h117 — MOD site users can escalate to DIO. Hidden for non-MOD. */}
- {user?.account_type === 'mod_site' && !issue.escalated_to_dio && (
- <Button
-   size="sm"
-   variant="outline"
-   onClick={async () => {
-     const note = window.prompt('Optional escalation note (max 2000 chars):', '');
-     if (note === null) return;
-     try {
-       const r = await axios.post(
-         `${API}/mod/site/faults/${issue.id}/escalate-to-dio`,
-         { note: (note || '').slice(0, 2000) },
-         { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } },
-       );
-       setIssue({ ...issue, escalated_to_dio: true, dio_escalated_at: new Date().toISOString() });
-       notify.success('Escalated to DIO', `Sent to ${r.data.escalated_to}.`);
-       if (onUpdate) onUpdate();
-     } catch (e) {
-       notify.error('Escalation failed', e?.response?.data?.detail || 'Could not escalate');
-     }
-   }}
-   className="border-cyan-400/60 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
-   data-testid={`detail-escalate-dio-${issue.id}`}
- >
-   <ShieldCheck size={12} className="mr-1" /> Report to DIO
- </Button>
- )}
+{/* Iter 216h137 — Surface the configured DIO contract context above the button so the engineer sees who escalation goes to. */}
+{user?.account_type === 'mod_site' && !issue.escalated_to_dio && (
+<div className="flex flex-col items-end gap-1" data-testid={`detail-dio-block-${issue.id}`}>
+{dioContract?.configured ? (
+<div className="text-[10.5px] text-cyan-800 bg-cyan-50/60 border border-cyan-200 rounded px-2 py-1 max-w-[280px]" data-testid={`detail-dio-ctx-${issue.id}`}>
+  <p className="font-bold leading-tight">DIO contract on file</p>
+  <p className="leading-tight truncate">
+    {dioContract.dio_contract_ref ? <code className="font-mono">{dioContract.dio_contract_ref}</code> : 'No ref'} · {dioContract.dio_contact_name || dioContract.dio_contact_email || 'HQ ops'}
+  </p>
+</div>
+) : dioContract && !dioContract.configured ? (
+<div className="text-[10.5px] text-amber-800 bg-amber-50/60 border border-amber-200 rounded px-2 py-1 max-w-[280px]" data-testid={`detail-dio-ctx-${issue.id}`}>
+  <p className="font-bold leading-tight">No DIO contract set</p>
+  <p className="leading-tight">Escalation will go to HQ ops only.</p>
+</div>
+) : null}
+<Button
+  size="sm"
+  variant="outline"
+  onClick={async () => {
+    const note = window.prompt('Optional escalation note (max 2000 chars):', '');
+    if (note === null) return;
+    try {
+      const r = await axios.post(
+        `${API}/mod/site/faults/${issue.id}/escalate-to-dio`,
+        { note: (note || '').slice(0, 2000) },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } },
+      );
+      setIssue({ ...issue, escalated_to_dio: true, dio_escalated_at: new Date().toISOString() });
+      notify.success('Escalated to DIO', `Sent to ${r.data.escalated_to}.`);
+      if (onUpdate) onUpdate();
+    } catch (e) {
+      notify.error('Escalation failed', e?.response?.data?.detail || 'Could not escalate');
+    }
+  }}
+  className="border-cyan-400/60 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
+  data-testid={`detail-escalate-dio-${issue.id}`}
+>
+  <ShieldCheck size={12} className="mr-1" /> Report to DIO
+</Button>
+</div>
+)}
  {user?.account_type === 'mod_site' && issue.escalated_to_dio && (
  <span
    className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2 py-1 rounded border border-cyan-400/40 bg-cyan-50 text-cyan-800"
