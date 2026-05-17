@@ -129,7 +129,8 @@ const ScreenJob = ({ onView, onSend }) => (
       type="button"
       onClick={onView}
       data-testid="pe-preview-view-report"
-      className="w-full mt-2 rounded-lg bg-blue-600 text-white font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition"
+      className="w-full mt-2 rounded-lg bg-blue-600 font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition"
+      style={{ color: '#fff' }}
     >
       View report
     </button>
@@ -137,7 +138,8 @@ const ScreenJob = ({ onView, onSend }) => (
       type="button"
       onClick={onSend}
       data-testid="pe-preview-send"
-      className="w-full rounded-lg border border-slate-200 text-slate-700 font-bold py-2.5 text-sm hover:bg-slate-50 active:scale-[0.98] transition"
+      className="w-full rounded-lg border border-slate-200 font-bold py-2.5 text-sm hover:bg-slate-50 active:scale-[0.98] transition bg-white"
+      style={{ color: '#334155' }}
     >
       Send to customer
     </button>
@@ -197,7 +199,8 @@ const ScreenReport = ({ onBack, onSend }) => (
       type="button"
       onClick={onSend}
       data-testid="pe-preview-report-send"
-      className="w-full rounded-lg bg-blue-600 text-white font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5"
+      className="w-full rounded-lg bg-blue-600 font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5"
+      style={{ color: '#fff' }}
     >
       Send branded PDF <ChevronRight size={14} />
     </button>
@@ -241,7 +244,8 @@ const ScreenSend = ({ sending, sent, onBack, onDone }) => (
             type="button"
             onClick={onDone}
             data-testid="pe-preview-restart-cta"
-            className="w-full rounded-lg bg-slate-900 text-white font-bold py-2.5 text-sm hover:bg-slate-800 active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5 mt-1"
+            className="gx-cta w-full rounded-lg font-bold py-2.5 text-sm shadow-lg active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5 mt-1"
+            style={{ color: '#fff' }}
           >
             <RotateCcw size={12} /> Try the flow again
           </button>

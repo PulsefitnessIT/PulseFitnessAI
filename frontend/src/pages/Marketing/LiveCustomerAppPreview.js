@@ -179,7 +179,8 @@ const ScreenTracker = ({ onNext }) => {
           type="button"
           onClick={onNext}
           data-testid="cust-preview-tracker-next"
-          className="w-full rounded-lg bg-blue-600 text-white font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5"
+          className="w-full rounded-lg bg-blue-600 font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5"
+          style={{ color: '#fff' }}
         >
           Engineer arrived <ChevronRight size={14} />
         </button>
@@ -228,7 +229,8 @@ const ScreenOnsite = ({ onBack, onComplete }) => (
       type="button"
       onClick={onComplete}
       data-testid="cust-preview-onsite-complete"
-      className="w-full rounded-lg bg-blue-600 text-white font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition mt-3 inline-flex items-center justify-center gap-1.5"
+      className="w-full rounded-lg bg-blue-600 font-bold py-2.5 text-sm hover:bg-blue-700 active:scale-[0.98] transition mt-3 inline-flex items-center justify-center gap-1.5"
+      style={{ color: '#fff' }}
     >
       Job complete <ChevronRight size={14} />
     </button>
@@ -317,7 +319,8 @@ const ScreenDone = ({ onBack, onRestart }) => {
         type="button"
         onClick={onRestart}
         data-testid="cust-preview-restart-cta"
-        className="w-full rounded-lg bg-slate-900 text-white font-bold py-2.5 text-sm hover:bg-slate-800 active:scale-[0.98] transition mt-auto inline-flex items-center justify-center gap-1.5"
+        className="gx-cta w-full rounded-lg font-bold py-2.5 text-sm shadow-lg active:scale-[0.98] transition mt-auto inline-flex items-center justify-center gap-1.5"
+        style={{ color: '#fff' }}
       >
         <RotateCcw size={12} /> See it again
       </button>
