@@ -7,6 +7,7 @@ from routes.master_admin_users import router as master_admin_users_router
 from routes.master_admin_pulse import router as master_admin_pulse_router
 from routes.master_admin_onboard import router as master_admin_onboard_router
 from routes.master_admin_crm_analytics import router as master_admin_crm_analytics_router
+from routes.master_admin_stats_audit import router as master_admin_stats_audit_router
 from routes.master_admin_trials import router as master_admin_trials_router
 from routes.master_admin_integrations import router as master_admin_integrations_router
 from routes.master_admin_analytics_panel import router as master_admin_analytics_panel_router
@@ -83,6 +84,7 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_pulse_router,
         master_admin_onboard_router,
         master_admin_crm_analytics_router,
+        master_admin_stats_audit_router,
         master_admin_trials_router,
         master_admin_integrations_router,
         master_admin_analytics_panel_router,

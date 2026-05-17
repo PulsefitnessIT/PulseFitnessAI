@@ -7305,3 +7305,40 @@ Remaining decomposition targets:
 - Ops & backfills (`test-data/purge` + equipment backfills +
   `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
 
+
+## Iter 216h182 — `master_admin.py` decomposition phase 6: platform stats + audit-log surface (17 Feb 2026)
+
+Extracted the compliance-adjacent surface (1 stats route + 3-route
+audit-log viewer for SOC2 / enterprise procurement) into the new
+`routes/master_admin_stats_audit.py` (274 LoC, 4 routes):
+
+- `GET /master-admin/stats`
+- `GET /master-admin/audit-logs`
+- `GET /master-admin/audit-logs/facets`
+- `GET /master-admin/audit-logs/export.csv`
+
+The 3 stats helpers travelled with the route; `_resolve_pulse_scope_org_ids`
+STAYS on the parent because `routes/sites.py` and `routes/assistant.py`
+import it directly (test pins this invariant).
+
+`master_admin.py` is now **1,434 LoC** (was 1,667 → -14% this phase; vs
+the original 4,283 → **-67% cumulative**).
+
+Tests: `test_iter_216h182_master_admin_stats_audit_split.py` (7 tests,
+all pass) plus live curl: stats=1,134 orgs MRR £841, audit-facets=14
+actions, audit-list=5,364 total rows.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_stats_audit.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h182_master_admin_stats_audit_split.py` (new).
+
+Remaining decomposition targets:
+- Org create + primary-contact reveal / send-creds (~280 LoC, 3 routes)
+- Org integration health (`verify-mappings`, `integration-health`,
+  `integrations-hub`) (~270 LoC, 3 routes)
+- Branding email previews (`organizations/{id}/test-flag`,
+  `test-email`, `account-type`) + helpers (~200 LoC, 3 routes)
+- Ops & backfills (`test-data/purge` + equipment backfills +
+  `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
+

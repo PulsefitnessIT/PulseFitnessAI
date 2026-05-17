@@ -756,7 +756,8 @@ mutate the test org and return `{"success": true}`.
 | `master_admin.py` decomposition phase 3 (users CRUD + impersonate + reset-password) | ✅ 216h179 |
 | `master_admin.py` decomposition phase 4 (pulse stats / equipment kits / onboard) | ✅ 216h180 |
 | `master_admin.py` decomposition phase 5 (CRM analytics + head-office onboard) | ✅ 216h181 |
-| `master_admin.py` decomposition phase 6 (audit-log / ops backfills / branding email previews) | ⏭ Next |
+| `master_admin.py` decomposition phase 6 (stats + audit-log surface) | ✅ 216h182 |
+| `master_admin.py` decomposition phase 7 (org create + primary contact) | ⏭ Next |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
 
@@ -943,4 +944,60 @@ Live verification:
 | Phase 3 | 216h179 | -627 | 2,621 | -39% |
 | Phase 4 | 216h180 | -309 | 2,312 | -46% |
 | Phase 5 | 216h181 | -645 | 1,667 | **-61%** |
+
+
+---
+
+## Iter 216h182 — `master_admin.py` decomposition phase 6: platform stats + audit-log surface (Feb 2026)
+
+**Goal**: Carve the compliance-adjacent surface (platform stats + the
+3-route audit-log viewer for SOC2 / enterprise procurement export) into
+its own sub-router.
+
+**Extracted to `master_admin_stats_audit.py`** (NEW, 274 LoC, 4 routes):
+
+```
+GET /master-admin/stats                  — global counts / MRR / 6-month growth
+GET /master-admin/audit-logs             — paginated search
+GET /master-admin/audit-logs/facets      — distinct values for filter dropdowns
+GET /master-admin/audit-logs/export.csv  — streamed CSV export
+```
+
+The 3 stats helpers (`_get_platform_counts`, `_get_subscription_stats`,
+`_get_growth_data`) travelled with their only consumer. The fourth
+helper `_resolve_pulse_scope_org_ids` STAYS on `routes.master_admin`
+because `routes/sites.py` and `routes/assistant.py` import it directly
+— the new module re-imports it as a regular dependency.
+
+| Module | Phase 5 LoC | Phase 6 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 1,667 | **1,434** | -233 (-14%) |
+| `master_admin_stats_audit.py` | — | **274** | NEW |
+
+**Tests** — `test_iter_216h182_master_admin_stats_audit_split.py`
+(7 tests):
+- module imports cleanly
+- (path, method) presence on the new router + absence on the parent
+- the 3 private stats helpers are gone from the parent
+- `_resolve_pulse_scope_org_ids` STAYS on the parent (test pins this
+  invariant so a future agent can't accidentally move it)
+- shared helpers still re-exported from parent
+- registry wiring
+- soft LoC guard (< 1,500)
+
+Live verification:
+- `GET /master-admin/stats` → 1,134 orgs, MRR £841, all 13 top-level keys
+- `GET /master-admin/audit-logs/facets` → 14 actions, 6 resource_types
+- `GET /master-admin/audit-logs?limit=2` → 5,364 total rows, 2 returned
+
+**Cumulative monolith progress**:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | -39% |
+| Phase 4 | 216h180 | -309 | 2,312 | -46% |
+| Phase 5 | 216h181 | -645 | 1,667 | -61% |
+| Phase 6 | 216h182 | -233 | 1,434 | **-67%** |
 
