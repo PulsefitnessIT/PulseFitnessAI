@@ -53,6 +53,7 @@ from pydantic import BaseModel, EmailStr, Field
 from routes.partners import require_engineer_app_access
 from utils.auth import get_current_user
 from utils.database import db
+from utils.svc_state import ASSIGNED, append_event
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ async def jobs_self_create(
         "title": body.title,
         "description": body.description,
         "priority": body.priority.upper(),
-        "status": "open",
+        "status": ASSIGNED,
         "scheduled_at": body.scheduled_at,
         "estimated_minutes": body.estimated_minutes,
         "assigned_engineer_id": user["id"],
@@ -198,6 +199,21 @@ async def jobs_self_create(
     }
     await db.svc_cases.insert_one(doc)
     doc.pop("_id", None)
+    # Iter 216h151 — record a `case_created` timeline event so the audit
+    # trail / dispatcher view shows where self-allocated cases came from.
+    try:
+        await append_event(
+            case_id=case_id,
+            organization_id=of["organization_id"],
+            event_type="case_created",
+            actor=user,
+            body=f"Self-allocated from {body.intake_channel or 'engineer'} "
+                 f"by {eng.get('full_name') or user.get('email')}",
+            extra={"intake_channel": body.intake_channel,
+                   "status": ASSIGNED, "self_allocated": True},
+        )
+    except Exception:
+        pass
     return {"case_id": case_id, "reference": reference, "case": doc}
 
 
@@ -367,7 +383,7 @@ async def accept_job_request(
         "title": body.title_override or req.get("title") or "Service request",
         "description": req.get("description"),
         "priority": (body.priority or req.get("priority") or "P3").upper(),
-        "status": "open",
+        "status": ASSIGNED,
         "scheduled_at": body.scheduled_at,
         "estimated_minutes": body.estimated_minutes or 60,
         "assigned_engineer_id": user["id"],
@@ -393,6 +409,22 @@ async def accept_job_request(
                    "case_id": case_id}},
     )
     case.pop("_id", None)
+    # Iter 216h151 — record a `case_created` event linking the job
+    # request to the new case (audit + analytics for "where did this
+    # case come from").
+    try:
+        await append_event(
+            case_id=case_id,
+            organization_id=of["organization_id"],
+            event_type="case_created",
+            actor=user,
+            body=f"Accepted from supplier-card job request {req_id}",
+            extra={"intake_channel": "supplier_card",
+                   "job_request_id": req_id, "status": ASSIGNED,
+                   "self_allocated": True},
+        )
+    except Exception:
+        pass
     return {"case_id": case_id, "reference": case["reference"]}
 
 

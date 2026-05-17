@@ -6840,6 +6840,14 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h151 (17 Feb 2026)** — Service Ops state-machine integrity (P0 fixes from process-analyst review).
+  - Added canonical `TERMINAL_STATES = {CLOSED, INVOICED, REJECTED}` to `utils/svc_state.py`.
+  - **Queue filter fix**: `engineer_queue.py` was filtering on non-existent states (`"cancelled"`, `"void"`) which let `rejected` cases leak into "Up for grabs". Now uses `OPEN_STATES`.
+  - **Claim → state machine**: self-claim now atomically promotes `NEW`/`TRIAGED` → `ASSIGNED` in one `find_one_and_update` aggregation pipeline, and appends a `state_change` (or `self_claim`) row to `svc_case_events` for audit.
+  - **Independence (self-allocate + accept_job_request)**: both inserted cases with `status="open"` — not in the state graph. Both now insert with canonical `ASSIGNED` and append a `case_created` timeline event tagged with `intake_channel`/`job_request_id`.
+  - **Diary schedule**: dispatcher scheduling now promotes `NEW`/`TRIAGED` → `ASSIGNED` and appends a `state_change` / `dispatch` event.
+  - Tests: `tests/test_iter_216h151_state_integrity.py` — 6/6 passing. Full regression on 216h140/142/144/147/150 — **35/35 passing**.
+
 - **Iter 216h150 + ETA chip (17 Feb 2026)** — "Nearest to me" haversine sort on self-claim queue, with drive-time ETA.
   - Backend: `GET /api/svc/engineer/queue/unassigned` now accepts `sort=nearest` plus `lat`+`lon` or `postcode`. Returns `distance_km` and `eta_minutes` (5-min rounded @ 50 km/h field-service avg) per job, plus `origin_source` (`geolocation` | `postcode` | null). Coords resolved from pre-cached `site_latitude/site_longitude` on the case, else via `postcodes.io` (24h cache). Jobs without coords sort last.
   - Frontend: `EngineerQueue.js` adds a "Nearest to me" toggle (Crosshair icon) — requests browser geolocation, falls back to engineer profile `home_address.postcode`. Per-row distance pill + grey ETA pill (`~Xm` / `~Xh Ym`), "Sorted: nearest" affordance, hint line explaining origin source + ETA assumption.

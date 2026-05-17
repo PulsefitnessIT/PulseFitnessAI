@@ -48,7 +48,7 @@ def _seed_unassigned(db, org_id, **overrides):
         "organization_id": org_id,
         "reference": f"QUE-{case_id[:5]}",
         "title": "Race test job",
-        "status": "open",
+        "status": "new",
         "priority": "P2",
         "site_name": "Test Site",
         "scheduled_at": None,

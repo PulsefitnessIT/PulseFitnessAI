@@ -28,6 +28,9 @@ from routes.partners import require_engineer_app_access
 from utils.auth import get_current_user
 from utils.database import db
 from utils.postcodes_client import lookup as postcode_lookup, normalise_postcode
+from utils.svc_state import (
+    ASSIGNED, OPEN_STATES, TERMINAL_STATES, NEW, TRIAGED, append_event,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -49,12 +52,15 @@ def _of(user: dict) -> dict:
 
 
 def _unassigned_query(org_id: str) -> dict:
-    """An 'unassigned' job is one that's still open and either has no
-    engineer set, or no scheduled time set, or has been explicitly
-    marked as needing pickup."""
+    """An 'unassigned' job is one that's still open (per the canonical
+    state machine — see `utils.svc_state.OPEN_STATES`) and has no
+    engineer assigned. Iter 216h151 — uses real state names instead of
+    the previous literal `["closed", "invoiced", "cancelled", "void"]`
+    which referenced states that don't exist in this state machine and
+    would let `rejected` cases leak into the queue."""
     return {
         "organization_id": org_id,
-        "status": {"$nin": ["closed", "invoiced", "cancelled", "void"]},
+        "status": {"$in": list(OPEN_STATES)},
         "$or": [
             {"assigned_engineer_id": {"$in": [None, ""]}},
             {"assigned_engineer_id": {"$exists": False}},
@@ -234,19 +240,36 @@ async def claim_case(
     if body.estimated_minutes:
         upd["estimated_minutes"] = body.estimated_minutes
 
-    # Race-safe: only assign if still unassigned.
+    # Race-safe: only assign if still unassigned **and** in an open state.
+    # Iter 216h151 — uses canonical OPEN_STATES + a Mongo aggregation
+    # pipeline update so we can transition status → ASSIGNED in the same
+    # atomic operation. NEW/TRIAGED → ASSIGNED; already-ASSIGNED stays
+    # ASSIGNED (state machine permits ASSIGNED→ASSIGNED for re-claim).
     result = await db.svc_cases.find_one_and_update(
         {
             "id": case_id, **of,
-            "status": {"$nin": ["closed", "invoiced", "cancelled", "void"]},
+            "status": {"$in": list(OPEN_STATES)},
             "$or": [
                 {"assigned_engineer_id": {"$in": [None, ""]}},
                 {"assigned_engineer_id": {"$exists": False}},
             ],
         },
-        {"$set": upd},
+        [
+            {"$set": {
+                **upd,
+                "prev_status": "$status",
+                "status": {
+                    "$cond": [
+                        {"$in": ["$status", [NEW, TRIAGED]]},
+                        ASSIGNED,
+                        "$status",
+                    ],
+                },
+            }},
+        ],
         projection={"_id": 0, "id": 1, "reference": 1, "title": 1,
-                    "site_name": 1, "scheduled_at": 1, "priority": 1},
+                    "site_name": 1, "scheduled_at": 1, "priority": 1,
+                    "status": 1, "prev_status": 1},
         return_document=True,  # equivalent of pymongo ReturnDocument.AFTER → True
     )
     if not result:
@@ -258,7 +281,7 @@ async def claim_case(
         )
         if not existing:
             raise HTTPException(404, "Job not found")
-        if existing.get("status") in ("closed", "invoiced", "cancelled", "void"):
+        if existing.get("status") in TERMINAL_STATES:
             raise HTTPException(409, {"code": "closed",
                                       "detail": f"Job is {existing['status']}"})
         raise HTTPException(409, {
@@ -266,6 +289,43 @@ async def claim_case(
             "detail": f"Already claimed by {existing.get('assigned_engineer_name') or 'another engineer'}",
             "reference": existing.get("reference"),
         })
+
+    # Strip the temporary `prev_status` field from the persisted doc and
+    # record a timeline event if we actually moved state. We unset
+    # `prev_status` *after* the read so the caller can see what happened.
+    prev = result.pop("prev_status", None)
+    if prev and prev != result.get("status"):
+        await db.svc_cases.update_one(
+            {"id": case_id, **of}, {"$unset": {"prev_status": ""}},
+        )
+        try:
+            await append_event(
+                case_id=case_id,
+                organization_id=of["organization_id"],
+                event_type="state_change",
+                actor=user,
+                body=f"Self-claimed by {eng.get('full_name') or user.get('email')}",
+                extra={"from_state": prev, "to_state": result.get("status"),
+                       "via": "self_claim"},
+            )
+        except Exception:
+            pass
+    else:
+        # Status was already ASSIGNED — still record the claim itself for audit.
+        await db.svc_cases.update_one(
+            {"id": case_id, **of}, {"$unset": {"prev_status": ""}},
+        )
+        try:
+            await append_event(
+                case_id=case_id,
+                organization_id=of["organization_id"],
+                event_type="self_claim",
+                actor=user,
+                body=f"Re-claimed by {eng.get('full_name') or user.get('email')}",
+                extra={"via": "self_claim"},
+            )
+        except Exception:
+            pass
 
     # Fire an in-app notification to the claimer themselves so it
     # surfaces in the bell badge ("you took job X"). Best-effort.

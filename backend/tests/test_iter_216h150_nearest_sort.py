@@ -56,7 +56,7 @@ def _seed(db, org_id, **overrides):
         "organization_id": org_id,
         "reference": f"NEAR-{case_id[:5]}",
         "title": "Nearest sort test",
-        "status": "open",
+        "status": "new",
         "priority": "P3",
         "site_name": "Test Site",
         "scheduled_at": None,

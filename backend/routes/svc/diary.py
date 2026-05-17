@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.svc_state import ASSIGNED, NEW, TRIAGED, append_event
 from routes.partners import require_engineer_app_access
 
 logger = logging.getLogger(__name__)
@@ -365,12 +366,13 @@ async def admin_assign_case(
     case = await db.svc_cases.find_one(
         {"id": case_id, **of},
         {"_id": 0, "id": 1, "reference": 1, "title": 1, "site_name": 1,
-         "assigned_engineer_id": 1, "scheduled_at": 1},
+         "assigned_engineer_id": 1, "scheduled_at": 1, "status": 1},
     )
     if not case:
         raise HTTPException(404, "Job not found")
     prev_engineer = case.get("assigned_engineer_id")
     prev_scheduled = case.get("scheduled_at")
+    prev_status = case.get("status")
     upd = {
         "assigned_engineer_id": body.engineer_id,
         "assigned_engineer_name": eng.get("full_name"),
@@ -379,7 +381,46 @@ async def admin_assign_case(
     }
     if body.estimated_minutes:
         upd["estimated_minutes"] = body.estimated_minutes
+    # Iter 216h151 — if the case is still in an "intake" state (NEW or
+    # TRIAGED), scheduling it to an engineer is the canonical
+    # transition to ASSIGNED. We do this inline rather than via
+    # `transition()` to avoid two writes — the state machine permits
+    # NEW→ASSIGNED and TRIAGED→ASSIGNED.
+    promoted_status = None
+    if prev_status in (NEW, TRIAGED):
+        upd["status"] = ASSIGNED
+        promoted_status = ASSIGNED
     await db.svc_cases.update_one({"id": case_id, **of}, {"$set": upd})
+
+    # Timeline event so the audit trail and case view reflect the
+    # dispatch. Best-effort — never blocks the response.
+    try:
+        if promoted_status:
+            await append_event(
+                case_id=case_id,
+                organization_id=of["organization_id"],
+                event_type="state_change",
+                actor=user,
+                body=f"Scheduled to {eng.get('full_name') or body.engineer_id}",
+                extra={"from_state": prev_status, "to_state": promoted_status,
+                       "via": "dispatch_schedule",
+                       "scheduled_at": body.scheduled_at,
+                       "prev_engineer": prev_engineer},
+            )
+        else:
+            await append_event(
+                case_id=case_id,
+                organization_id=of["organization_id"],
+                event_type="dispatch",
+                actor=user,
+                body=("Rescheduled" if prev_engineer == body.engineer_id else
+                      f"Reassigned to {eng.get('full_name') or body.engineer_id}"),
+                extra={"scheduled_at": body.scheduled_at,
+                       "prev_engineer": prev_engineer,
+                       "prev_scheduled_at": prev_scheduled},
+            )
+    except Exception:
+        pass
 
     # Iter 216h142 — fire a notification on assign / reassign / reschedule.
     try:

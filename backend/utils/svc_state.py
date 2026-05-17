@@ -63,6 +63,13 @@ SLA_PAUSED_STATES = {PAUSED_PARTS, PAUSED_CUSTOMER}
 # States the desk should treat as "open".
 OPEN_STATES = {NEW, TRIAGED, ASSIGNED, EN_ROUTE, ON_SITE, PAUSED_PARTS, PAUSED_CUSTOMER, REPAIRED, AWAITING_SIGN_OFF}
 
+# Terminal states — case is finished, no further engineer action expected.
+# Used by the queue, dispatch board and SLA reporting to exclude completed
+# work. Iter 216h151 — replaces ad-hoc string literals scattered around the
+# codebase (`["closed", "invoiced", "cancelled", "void"]`) which referenced
+# states that don't exist in this state machine.
+TERMINAL_STATES = {CLOSED, INVOICED, REJECTED}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
