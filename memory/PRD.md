@@ -7097,3 +7097,33 @@ Files: `/app/frontend/public/brand/*.webp` (new),
 `/app/frontend/src/pages/PublicSignup/JoinPage.js`,
 `/app/frontend/src/pages/PublicTracking/PublicTrackingPage.js`,
 `/app/backend/tests/test_iter_216h175_image_opt.py`.
+
+---
+
+## Iter 216h176 — Engineer App mobile tuning (17 Feb 2026)
+
+P1 perf-audit follow-on. Virtualised the engineer queue and added
+active-week service-worker pre-cache so field engineers stay productive
+on flaky 4G.
+
+- **Queue virtualisation**: Added `react-window@2.2.7`. EngineerQueue now
+  uses `<List rowComponent={Row} rowHeight=132 overscanCount=3 />` for
+  queues >30 jobs; keeps the static `<ul>` for short queues. With 200
+  jobs the visible scroll surface only mounts ~10 rows.
+- **Service-worker pre-cache**: New `swEngineerWarmer.js` silent-fetches
+  the next 7 days of diary + notifications + auth/activation on queue
+  load (throttled 5 min). `sw.js` now whitelists `/api/svc/engineer/*`,
+  `/api/svc/cases`, `/api/svc/dispatcher/diary` for offline cache.
+  Cache bumped to v13, MAX_ENTRIES 60 → 200 to fit the whole week.
+- **Frontend testing agent**: 100% pass (`iteration_216h176.json`).
+  Confirmed empty state renders, auto-refresh works, no react-window
+  or warmer errors, other engineer surfaces load cleanly.
+
+Tests: `test_iter_216h176_engineer_mobile.py` (7 tests). Combined
+perf suite **48/48 passing**.
+
+Files: `/app/frontend/package.json` (react-window dep),
+`/app/frontend/public/sw.js`,
+`/app/frontend/src/utils/swEngineerWarmer.js` (new),
+`/app/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js`,
+`/app/backend/tests/test_iter_216h176_engineer_mobile.py`.

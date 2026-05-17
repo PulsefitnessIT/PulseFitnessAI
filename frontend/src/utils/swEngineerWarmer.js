@@ -70,6 +70,6 @@ export function warmEngineerCache() {
 
   silentFetch(`${API_BASE}/svc/engineer/diary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, token);
   silentFetch(`${API_BASE}/svc/engineer/notifications`, token);
-  silentFetch(`${API_BASE}/me`, token);
-  silentFetch(`${API_BASE}/organizations/current`, token);
+  silentFetch(`${API_BASE}/auth/me`, token);
+  silentFetch(`${API_BASE}/activation/me`, token);
 }
