@@ -33,6 +33,7 @@ import PricingMarketingPage from '@/pages/Marketing/PricingMarketingPage';
 import ContactMarketingPage from '@/pages/Marketing/ContactMarketingPage';
 import TrustPage from '@/pages/TrustPage';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
+import EngineerOfflineIndicator from '@/components/engineer/EngineerOfflineIndicator';
 
 // Lazy-loaded authenticated app + secondary marketing pages.
 const FeaturesPage = lazy(() => import('@/pages/FeaturesPage'));
@@ -112,6 +113,8 @@ const ServiceOpsAdminDispatchBoard = lazy(() => import('@/pages/ServiceOps/Admin
 const ServiceOpsEngineerWorkspace = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerWorkspace'));
 // Iter 216h142 — Engineer Notifications (Phase 4 / Slice 2)
 const ServiceOpsEngineerNotifications = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerNotifications'));
+// Iter 216h143 — Engineer Sync Panel (Phase 4 / Slice 3 · offline writes)
+const ServiceOpsEngineerSyncPanel = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerSyncPanel'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
@@ -203,7 +206,10 @@ function CrmRouteElement({ user }) {
 }
 
 export default function AppRoutes({ user, login }) {
+  const isEngineerRoute = typeof window !== 'undefined' &&
+    /^\/svc\/engineer/.test(window.location.pathname);
   return (
+    <>
     <Routes>
       {/* ─── Marketing site ─── */}
       <Route path="/" element={<MarketingHome />} />
@@ -319,6 +325,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/workspace" element={user ? <ServiceOpsEngineerWorkspace /> : <Navigate to="/login" replace />} />
       {/* Iter 216h142 — Engineer Notifications */}
       <Route path="/svc/engineer/notifications" element={user ? <ServiceOpsEngineerNotifications /> : <Navigate to="/login" replace />} />
+      {/* Iter 216h143 — Engineer Sync queue (offline writes) */}
+      <Route path="/svc/engineer/sync" element={user ? <ServiceOpsEngineerSyncPanel /> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />
@@ -355,5 +363,7 @@ export default function AppRoutes({ user, login }) {
       {/* ─── 404 ─── */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    {user && isEngineerRoute ? <EngineerOfflineIndicator /> : null}
+    </>
   );
 }

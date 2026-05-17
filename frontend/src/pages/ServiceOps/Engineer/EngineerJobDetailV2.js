@@ -30,6 +30,7 @@ import {
   Video, MapPin, Send,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { engineerSendOrQueue } from '@/utils/engineerOfflineQueue';
 import SignatureCanvas from './SignatureCanvas';
 import EngineerDictationButton from './EngineerDictationButton';
 
@@ -117,8 +118,19 @@ export default function EngineerJobDetailV2() {
         <ActiveTimerBar timer={activeTimer} onStop={async () => {
           setBusy(true);
           try {
-            await axios.post(`${API}/svc/engineer/time/stop`, { entry_id: activeTimer.id }, auth());
-            notify.success('Timer stopped');
+            const r = await engineerSendOrQueue({
+              method: 'POST',
+              path: '/svc/engineer/time/stop',
+              body: { entry_id: activeTimer.id },
+              label: 'Stop timer',
+            });
+            if (r.ok) {
+              notify.success('Timer stopped');
+            } else if (r.offline) {
+              notify.success('Saved offline — will sync when you reconnect');
+            } else {
+              notify.error('Could not stop timer');
+            }
             await load();
           } catch (e) {
             notify.error('Could not stop timer');
@@ -193,9 +205,17 @@ function TimeTab({ job, busy, setBusy, onChange }) {
   const start = async (category) => {
     setBusy(true);
     try {
-      await axios.post(`${API}/svc/engineer/time/start`,
-        { case_id: job.id, category }, auth());
-      notify.success(`${category.replace('_', ' ')} timer started`);
+      const r = await engineerSendOrQueue({
+        method: 'POST',
+        path: '/svc/engineer/time/start',
+        body: { case_id: job.id, category },
+        label: `Start ${category.replace('_', ' ')} timer`,
+      });
+      if (r.ok) {
+        notify.success(`${category.replace('_', ' ')} timer started`);
+      } else if (r.offline) {
+        notify.success(`Timer start queued — will sync when you reconnect`);
+      }
       await onChange();
     } catch (e) {
       const d = e?.response?.data?.detail;
@@ -358,14 +378,23 @@ function TravelTab({ job, mileage, onChange }) {
     if (!(miles > 0)) { notify.error('Enter miles > 0'); return; }
     setAdding(true);
     try {
-      await axios.post(`${API}/svc/engineer/jobs/${job.id}/mileage`, {
-        miles,
-        from_postcode: form.from_postcode || null,
-        to_postcode: form.to_postcode || null,
-        notes: form.notes || null,
-        chargeable: form.chargeable,
-      }, auth());
-      notify.success('Mileage logged');
+      const r = await engineerSendOrQueue({
+        method: 'POST',
+        path: `/svc/engineer/jobs/${job.id}/mileage`,
+        body: {
+          miles,
+          from_postcode: form.from_postcode || null,
+          to_postcode: form.to_postcode || null,
+          notes: form.notes || null,
+          chargeable: form.chargeable,
+        },
+        label: `Log mileage: ${miles} mi`,
+      });
+      if (r.ok) {
+        notify.success('Mileage logged');
+      } else if (r.offline) {
+        notify.success('Mileage queued — will sync when you reconnect');
+      }
       setForm({ miles: '', from_postcode: '', to_postcode: '', notes: '', chargeable: true });
       await onChange();
     } catch (e) {
