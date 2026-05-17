@@ -754,8 +754,9 @@ mutate the test org and return `{"success": true}`.
 | `master_admin.py` decomposition phase 1 (trials/integrations/analytics) | ✅ 216h177 |
 | `master_admin.py` decomposition phase 2 (orgs CRUD + sites) | ✅ 216h178 |
 | `master_admin.py` decomposition phase 3 (users CRUD + impersonate + reset-password) | ✅ 216h179 |
-| `master_admin.py` decomposition phase 4 (pulse stats / equipment kits / onboard) | ⏭ Next |
-| `master_admin.py` decomposition phase 5 (billing / refunds / mod / health) | Backlog |
+| `master_admin.py` decomposition phase 4 (pulse stats / equipment kits / onboard) | ✅ 216h180 |
+| `master_admin.py` decomposition phase 5 (CRM analytics + head-office onboard) | ⏭ Next |
+| `master_admin.py` decomposition phase 6 (audit-log / ops backfills) | Backlog |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
 
@@ -819,4 +820,58 @@ proving zero behavioural change.
 | Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
 | Phase 2 | 216h178 | 0 (no net shrink, helpers moved out) | 3,248 | -24% |
 | Phase 3 | 216h179 | -627 | 2,621 | **-39%** |
+
+
+---
+
+## Iter 216h180 — `master_admin.py` decomposition phase 4: Pulse surface (Feb 2026)
+
+**Goal**: Carve the Pulse Fitness-specific surface (Pulse is the in-house
+GymAxis brand running ~200 sites + eating its own dog food) out of the
+monolith.
+
+**Extracted to `master_admin_pulse.py`** (NEW, 350 LoC, 3 routes):
+
+```
+GET    /master-admin/pulse-stats           — fleet-wide rollup across all Pulse sites
+GET    /master-admin/pulse-equipment-kits  — standard equipment kit catalogue
+POST   /master-admin/onboard-pulse-site    — full multi-step Pulse site onboarding
+```
+
+The static `PULSE_EQUIPMENT_KITS` catalogue and the 5-helper onboarding
+toolkit (`_create_onboard_users`, `_create_kit_equipment`,
+`_create_manual_equipment`, `_create_onboard_equipment`,
+`_validate_onboard_data`, `_collect_org_site_stats`,
+`_aggregate_pulse_totals`) travelled with their only consumers — verified
+via grep against the whole backend that no other module references them.
+
+| Module | Phase 3 LoC | Phase 4 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 2,621 | **2,312** | -309 (-12%) |
+| `master_admin_pulse.py` | — | **350** | NEW |
+
+Shared helpers (`merge_address`, `_parse_onboard_date`, `log_activity`,
+`require_master_admin`) are imported FROM `routes.master_admin` rather
+than duplicated — they're still used by ~12 other modules.
+
+**Tests** — `test_iter_216h180_master_admin_pulse_split.py` (6 tests):
+- module import sanity
+- (path, method) presence on the new router + absence on the parent
+- `PULSE_EQUIPMENT_KITS` lives on the new module only (no double export)
+- public helpers still re-exported from `routes.master_admin`
+- registry wiring in `route_registry/admin.py`
+- soft LoC guard (< 2,400) to prevent silent re-bloat
+
+Live verification:
+- `GET /master-admin/pulse-equipment-kits` → 5 kit ids returned.
+- `GET /master-admin/pulse-stats` → `total_sites=9, lite=0, pro=9, mrr=711`.
+
+**Cumulative monolith progress**:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | -39% |
+| Phase 4 | 216h180 | -309 | 2,312 | **-46%** |
 

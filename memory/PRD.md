@@ -7233,3 +7233,37 @@ Remaining decomposition targets:
   remaining block)
 - Ops & backfills (test-data/purge + equipment backfills, ~150 LoC, 3 routes)
 - Audit-log endpoints (~150 LoC, 3 routes)
+
+## Iter 216h180 — `master_admin.py` decomposition phase 4: Pulse surface (17 Feb 2026)
+
+Carved the Pulse Fitness surface (3 routes, 350 LoC) into the new
+`routes/master_admin_pulse.py`:
+
+- `GET  /master-admin/pulse-stats` — fleet rollup with per-site stats
+- `GET  /master-admin/pulse-equipment-kits` — kit catalogue
+- `POST /master-admin/onboard-pulse-site` — multi-step site onboarding
+
+The `PULSE_EQUIPMENT_KITS` catalogue + 7 private helpers travelled with
+the routes (no cross-module consumers — verified via grep).
+
+`master_admin.py` is now **2,312 LoC** (was 2,621 → -12% this phase; vs
+the original 4,283 → **-46% cumulative**).
+
+Tests: `test_iter_216h180_master_admin_pulse_split.py` (6 tests, all
+pass) plus live curl against both GET endpoints returned real data
+(`total_sites=9, lite=0, pro=9, mrr=£711`; 5 kit ids).
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_pulse.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h180_master_admin_pulse_split.py` (new).
+
+Remaining decomposition targets:
+- CRM analytics + head-office onboarding (~720 LoC, 2 routes — biggest
+  single remaining block at lines 1313–2272)
+- Audit-log surface (`audit-logs`, `audit-logs/facets`, `audit-logs/export.csv`)
+  (~150 LoC, 3 routes)
+- Ops & backfills (test-data/purge + equipment backfills + all-sites +
+  locked-sites + integration-health, ~400 LoC, 5 routes)
+- Stats / branding email previews (~270 LoC, 4 routes)
+
