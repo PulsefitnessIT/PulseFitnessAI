@@ -1,3 +1,38 @@
+## Iter 216h148 — Public Engineer Landing & Login (Feb 17, 2026) ✅
+
+Branded acquisition surface at **`/engineer`** for partner-engineer recruitment + a clean sign-in entry-point that lands engineers straight in the app.
+
+### Frontend (NEW · `pages/Public/EngineerLanding.js`)
+* Slim top bar with "Apply" + "Sign in" pills.
+* **Hero** — h1 "Run your own service business. Keep 100% of the invoice.", supporting copy, twin CTAs (Sign in / Apply to join), trust strip (no platform fee · Stripe Connect · works offline).
+* **Inline sign-in card** — POSTs `/api/auth/login`, stores token, full-page navigates to `/svc/engineer` so the global auth context picks up the new user immediately. Inline error display.
+* **Feature grid** — 9 cards: Diary, Queue, Supplier card, AI quotes/reports, Stripe payouts, Offline mode, Push notifications, Phase-3 workflow, Compliance.
+* **Closing CTA banner** + footer.
+* **Auto-redirect** — on mount, if `localStorage.token` resolves with `/api/auth/me`, the page deep-links straight into `/svc/engineer` (or `?next=`).
+* `data-testid`s — `engineer-landing`, `engineer-landing-login`, `engineer-landing-email/password/submit/error`, `engineer-landing-cta-apply/top/bottom`, `engineer-landing-bootcheck`, plus `feat-diary/queue/card/ai/stripe/offline/push/workflow/compliance`.
+
+### Routes
+* `GET /engineer`  — branded landing.
+* `GET /engineers` — redirects to `/engineer` (plural-tolerance).
+* "Apply" CTAs route to existing `/partners/engineers/apply` (no new flow needed).
+
+### Bugs caught & fixed by testing agent
+* `/api/auth/me` returns the user object directly (not nested under `user`). The auto-redirect now checks `r.data?.id || r.data?.user`.
+* `navigate('/svc/engineer')` after login was racing against `App.js` auth state. Switched to `window.location.href` so the post-login destination boots with the fresh token.
+
+### Testing
+* Testing agent end-to-end frontend → **100% pass** (14 scenarios). No regressions on `/login`, `/svc/engineer/queue`, `/svc/engineer/inbox`. Report: `/app/test_reports/iteration_216h148.json`.
+
+### Phase 5 status
+* ✅ 216h144 — Engineer independence
+* ✅ 216h145 — Supplier card QR + PDF
+* ⬜ 216h146 — Inbound email path (awaiting MX records)
+* ✅ 216h147 — Self-claim queue
+* ✅ 216h148 — Branded landing/login (this iter)
+
+---
+
+
 ## Iter 216h147 — "Allocate to me" Self-Claim Queue (Feb 17, 2026) ✅
 
 Engineers can now self-claim org-wide unassigned jobs without a dispatcher in the loop.
