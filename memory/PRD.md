@@ -7127,3 +7127,42 @@ Files: `/app/frontend/package.json` (react-window dep),
 `/app/frontend/src/utils/swEngineerWarmer.js` (new),
 `/app/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js`,
 `/app/backend/tests/test_iter_216h176_engineer_mobile.py`.
+
+---
+
+## Iter 216h177 — `master_admin.py` decomposition (phase 1) (17 Feb 2026)
+
+P1 perf-audit task. Decomposed the 4,283 LoC monolith into focused
+sub-routers. Phase 1 extracts 3 well-bounded modules; the pattern is
+now locked in for follow-on phases to extract the heavier blocks
+(orgs, users, pulse).
+
+- **`master_admin_trials.py`** (288 LoC, 5 routes): list / summary /
+  extend / convert / mark-converted.
+- **`master_admin_integrations.py`** (233 LoC, 7 routes): CRM users
+  CRUD + Sicon health/test-all/poll-all.
+- **`master_admin_analytics_panel.py`** (133 LoC, 3 routes): activity
+  log + AI usage + legacy emails.
+
+`master_admin.py`: 4,283 → 3,711 LoC (-13%). Helpers
+(`require_master_admin`, `log_activity`, `compose_legacy_address`,
+`PULSE_VISIBLE_ACCOUNT_TYPES`, etc.) still owned by the parent so the
+dozen cross-module imports keep working unchanged.
+
+Tests: `test_iter_216h177_master_admin_split.py` (7 tests).
+Combined perf-audit suite **55/55 passing**.
+End-to-end regression: `test_trial_tooling.py` 18/18 passes after
+extraction — proves the trials sub-router behaves identically.
+
+Files: `/app/backend/routes/master_admin.py` (shrunk),
+`/app/backend/routes/master_admin_trials.py` (new),
+`/app/backend/routes/master_admin_integrations.py` (new),
+`/app/backend/routes/master_admin_analytics_panel.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h177_master_admin_split.py`.
+
+Remaining decomposition targets (next iter):
+- Orgs CRUD + sites (~620 LoC, 10+ routes)
+- Users CRUD + impersonate + reset-password (~600 LoC, 8 routes)
+- Pulse stats + pulse-equipment-kits + onboard-pulse-site (~340 LoC, 3 routes)
+- Ops & backfills (test-data/purge + equipment backfills, ~150 LoC, 3 routes)

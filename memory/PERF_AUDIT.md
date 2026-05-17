@@ -586,3 +586,93 @@ Combined backend perf suite: **48/48 passing** (iter 216h170-216h176).
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero/feature images for mobile vs desktop | Backlog |
 
+
+---
+
+## Iter 216h177 — `master_admin.py` decomposition: 3 sub-routers extracted (Feb 2026)
+
+### Scope
+
+User-prioritized P1: "4,283 LoC → 5-6 focused routers (analytics /
+refunds / mod / billing / org / health)". This iter ships the first
+3 extractions (well-bounded, low-risk modules) and leaves the framework
+in place for the remaining heavy blocks (orgs, users, pulse) to follow
+in successor iters.
+
+### What changed
+
+**Extracted to focused sub-routers** (matches the existing
+`master_admin_billing.py` / `master_admin_pricing.py` pattern):
+
+| New module | LoC | Routes |
+|---|---:|---|
+| `master_admin_trials.py` | 288 | `/master-admin/trials`, `…/summary`, `…/{id}/extend`, `…/{id}/convert`, `…/{id}/mark-converted` |
+| `master_admin_integrations.py` | 233 | `/master-admin/crm-users` (×4 verbs), `/master-admin/sicon/health`, `…/test-all`, `…/poll-all` |
+| `master_admin_analytics_panel.py` | 133 | `/master-admin/activity-log`, `…/ai-usage`, `…/emails-legacy` |
+| **Total moved** | **654 LoC** | **13 routes** |
+
+`master_admin.py`: **4,283 → 3,711 LoC** (-572, -13%).
+
+The old file still owns:
+- All cross-module helpers (`require_master_admin`,
+  `require_gymaxis_master_only`, `_resolve_pulse_scope_org_ids`,
+  `compose_legacy_address`, `merge_address`, `log_activity`,
+  `ADDRESS_FIELDS`, `MASTER_ADMIN_EMAIL`, `PULSE_VISIBLE_ACCOUNT_TYPES`,
+  `is_pulse_only`).
+- The remaining 50+ routes (orgs, users, sites, audit logs, pulse,
+  ops/backfills, CRM analytics, integrations hub, locked-sites,
+  test-data/purge, etc.) — these are next-iter targets.
+
+### Tests
+
+`/app/backend/tests/test_iter_216h177_master_admin_split.py` (7 tests):
+- All 4 modules import cleanly
+- Each new sub-router declares the routes it owns
+- The parent `master_admin.py` no longer owns those route patterns
+  (no double-registration)
+- The 12 public helpers cross-module imports rely on are still
+  exported from `routes.master_admin`
+- `route_registry/admin.py` registers all 3 new routers
+- Soft guard prevents `master_admin.py` from re-bloating past 4,000 LoC
+
+**Combined perf-audit suite: 55/55 passing** (iter 216h170-177).
+**Existing trial_tooling integration tests: 18/18 passing** (proves
+the extracted trials sub-router preserves behaviour end-to-end).
+
+### Live verification
+
+All 8 representative endpoints return 200 against the live backend:
+`/trials`, `/trials/summary`, `/crm-users`, `/sicon/health`,
+`/activity-log`, `/ai-usage`, `/emails-legacy`, `/stats`,
+`/organizations`.
+
+### Refactor pattern locked in
+
+This iter cements the pattern future iters follow when carving out more
+sub-routers:
+
+1. Create `routes/master_admin_<concern>.py` with its own
+   `router = APIRouter()`, importing `require_master_admin` and
+   `log_activity` from `routes.master_admin`.
+2. Move the route handlers (and any local helpers) into the new file.
+3. Use `python3 -c` slice-delete to cleanly excise the block from
+   `master_admin.py` (insert a one-line marker comment so future
+   greppers can find where the extraction happened).
+4. Wire the new router into `route_registry/admin.py`.
+5. Smoke 3-5 endpoints via curl + run the focused integration tests.
+
+### Tier-2 backlog status
+
+| Item | Status |
+|---|---|
+| `aggregate_cache` | ✅ Iter 216h170 |
+| `safe_paginate` | ✅ Iter 216h171 |
+| Slow-request log + Master Admin tile | ✅ Iter 216h172 |
+| Frontend code-split (5 largest) | ✅ Iter 216h173 |
+| API payload size reduction (3 list endpoints) | ✅ Iter 216h174 |
+| Image optimisation | ✅ Iter 216h175 |
+| Engineer App mobile tuning | ✅ Iter 216h176 |
+| **`master_admin.py` decomposition** | 🟡 In progress — 3/6 sub-routers extracted (216h177). Remaining: orgs (~620 LoC), users (~600 LoC), pulse (~340 LoC), ops/backfills (~150 LoC). |
+| Per-endpoint payload-size telemetry | Backlog |
+| Responsive `srcset` on hero/feature images | Backlog |
+
