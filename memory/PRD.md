@@ -6840,10 +6840,10 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
-- **Iter 216h150 (17 Feb 2026)** — "Nearest to me" haversine sort on self-claim queue.
-  - Backend: `GET /api/svc/engineer/queue/unassigned` now accepts `sort=nearest` plus `lat`+`lon` or `postcode`. Returns `distance_km` per job and `origin_source` (`geolocation` | `postcode` | null). Coords resolved from pre-cached `site_latitude/site_longitude` on the case, else via `postcodes.io` (24h cache). Jobs without coords sort last.
-  - Frontend: `EngineerQueue.js` adds a "Nearest to me" toggle (Crosshair icon) — requests browser geolocation, falls back to engineer profile `home_address.postcode`. Per-row distance pill in km, "Sorted: nearest" affordance, hint line explaining origin source.
-  - Tests: `tests/test_iter_216h150_nearest_sort.py` — 5/5 passing. Regression on 216h147 — 7/7 passing.
+- **Iter 216h150 + ETA chip (17 Feb 2026)** — "Nearest to me" haversine sort on self-claim queue, with drive-time ETA.
+  - Backend: `GET /api/svc/engineer/queue/unassigned` now accepts `sort=nearest` plus `lat`+`lon` or `postcode`. Returns `distance_km` and `eta_minutes` (5-min rounded @ 50 km/h field-service avg) per job, plus `origin_source` (`geolocation` | `postcode` | null). Coords resolved from pre-cached `site_latitude/site_longitude` on the case, else via `postcodes.io` (24h cache). Jobs without coords sort last.
+  - Frontend: `EngineerQueue.js` adds a "Nearest to me" toggle (Crosshair icon) — requests browser geolocation, falls back to engineer profile `home_address.postcode`. Per-row distance pill + grey ETA pill (`~Xm` / `~Xh Ym`), "Sorted: nearest" affordance, hint line explaining origin source + ETA assumption.
+  - Tests: `tests/test_iter_216h150_nearest_sort.py` — 5/5 passing (incl. ETA assertions). Regression on 216h147 — 7/7 passing.
 
 ### P1 — Reported bugs (next)
 - **Carshalton invoice import**: missing details + supplier matching. **BLOCKED** awaiting user to upload an example PDF/image so the LLM extraction prompt can be tuned.

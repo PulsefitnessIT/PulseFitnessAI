@@ -73,6 +73,21 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * R * math.asin(math.sqrt(a))
 
 
+# Field-service mixed-route average for UK engineers (motorway + town
+# centre, depot stops, parking). Conservative on purpose — engineers
+# under-promise & over-deliver. Round ETA to 5-min increments so the
+# UI doesn't pretend to a precision haversine can't justify.
+ETA_AVG_KMH = 50.0
+
+
+def _eta_minutes_from_km(km: float | None) -> int | None:
+    if km is None:
+        return None
+    raw = (km / ETA_AVG_KMH) * 60.0
+    rounded = max(5, int(round(raw / 5.0)) * 5)  # never show < 5 min
+    return rounded
+
+
 async def _resolve_postcode_coords(postcode: str) -> tuple[float, float] | None:
     """postcodes.io → (lat, lon), or None. Cached upstream for 24h."""
     norm = normalise_postcode(postcode)
@@ -151,8 +166,10 @@ async def list_unassigned(
                 d = _haversine_km(ox, oy, coords[0], coords[1])
                 # round to 1 decimal — engineers don't care about 50m precision
                 r["distance_km"] = round(d, 1)
+                r["eta_minutes"] = _eta_minutes_from_km(d)
             else:
                 r["distance_km"] = None
+                r["eta_minutes"] = None
         # Sort by distance asc; jobs without coords go last while preserving
         # the original priority/SLA tiebreak.
         rows.sort(key=lambda j: (j.get("distance_km") is None,

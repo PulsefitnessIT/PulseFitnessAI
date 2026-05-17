@@ -172,12 +172,26 @@ const Row = ({ job, onClaim, showDistance }) => (
         </p>
         {fmtSLA(job.sla_resolve_at)}
         {showDistance ? (
-          <span
-            className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums bg-emerald-50 text-emerald-700"
-            data-testid={`queue-row-distance-${job.reference}`}
-          >
-            <Navigation size={10} />
-            {job.distance_km != null ? `${job.distance_km} km` : '—'}
+          <span className="ml-auto inline-flex items-center gap-1" data-testid={`queue-row-near-${job.reference}`}>
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums bg-emerald-50 text-emerald-700"
+              data-testid={`queue-row-distance-${job.reference}`}
+            >
+              <Navigation size={10} />
+              {job.distance_km != null ? `${job.distance_km} km` : '—'}
+            </span>
+            {job.eta_minutes != null ? (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums bg-slate-100 text-slate-700"
+                data-testid={`queue-row-eta-${job.reference}`}
+                title="Estimated drive time at 50 km/h average"
+              >
+                <Clock size={10} />
+                ~{job.eta_minutes < 60
+                  ? `${job.eta_minutes}m`
+                  : `${Math.floor(job.eta_minutes / 60)}h${job.eta_minutes % 60 ? ` ${job.eta_minutes % 60}m` : ''}`}
+              </span>
+            ) : null}
           </span>
         ) : (
           <span className="text-[10px] text-slate-400 ml-auto tabular-nums">
@@ -431,8 +445,8 @@ export default function EngineerQueue() {
         {sortMode === 'nearest' && originSource ? (
           <p className="text-[11px] text-slate-500 px-1" data-testid="queue-origin-source">
             Distances from your{' '}
-            {originSource === 'geolocation' ? 'current location' : 'home postcode'}.
-            Sites without a postcode appear last.
+            {originSource === 'geolocation' ? 'current location' : 'home postcode'};
+            ETA assumes a 50 km/h field-service average. Sites without a postcode appear last.
           </p>
         ) : null}
 

@@ -103,11 +103,19 @@ def test_nearest_sort_orders_by_distance(sess):
         dists = [j["distance_km"] for j in seeded]
         assert all(isinstance(d, (int, float)) for d in dists)
         assert dists == sorted(dists)
+        # ETA minutes — present, ascending, rounded to 5-min increments
+        etas = [j["eta_minutes"] for j in seeded]
+        assert all(isinstance(e, int) and e % 5 == 0 and e >= 5 for e in etas)
+        assert etas == sorted(etas)
         # Sanity check magnitudes (London->Birmingham ~ 160km, ->Manchester ~ 260km)
         by_ref = {j["reference"]: j["distance_km"] for j in seeded}
         assert by_ref["NEAR-LON"] < 5
         assert 130 < by_ref["NEAR-BIR"] < 200
         assert 230 < by_ref["NEAR-MAN"] < 300
+        # Birmingham ETA at 50km/h ≈ 190 min; Manchester ≈ 310 min (loose bounds)
+        eta_by_ref = {j["reference"]: j["eta_minutes"] for j in seeded}
+        assert 150 < eta_by_ref["NEAR-BIR"] < 240
+        assert 270 < eta_by_ref["NEAR-MAN"] < 360
     finally:
         db["svc_cases"].delete_many({"id": {"$in": list(ids.values())}})
 
@@ -132,6 +140,7 @@ def test_nearest_jobs_without_coords_appear_last(sess):
         assert order.index("NEAR-WITH") < order.index("NEAR-BLIND")
         blind = next(j for j in seeded if j["id"] == blind_id)
         assert blind["distance_km"] is None
+        assert blind["eta_minutes"] is None
     finally:
         db["svc_cases"].delete_many({"id": {"$in": [near_id, blind_id]}})
 
