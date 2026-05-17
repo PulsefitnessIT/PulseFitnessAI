@@ -6840,6 +6840,14 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h152 (17 Feb 2026)** — SVC → CRM activity emit + "Service Revenue YTD" tile.
+  - New `utils/svc_crm_sync.py` with `emit_case_close_activity` and `emit_invoice_activity`. Both upsert idempotently on `(case_id, type)` so re-emits don't duplicate. Best-effort match to `crm2_companies` by name → email → name+postcode.
+  - Hook: `cases.transition_case` on `status=closed` → `crm2_activities` row of `type=service_visit`.
+  - Hook: `billing.finalise_invoice` after quote flips to invoiced → `crm2_activities` row of `type=service_invoice` carrying `metadata.amount_net` + `amount_gross`.
+  - New endpoint: `GET /api/crm/v2/service-revenue/ytd` (optional `?company_id=`) returning `total_net`, `invoice_count`, `per_month` (12-bucket), and `top_companies` (top 5 by spend YTD).
+  - Frontend: new "Service Revenue YTD" KPI tile on the CRM dashboard (`SalesManagerDash`), data-testid `kpi-service-revenue-ytd`. Loads in parallel with `/crm/v2/dashboard`.
+  - Tests: `tests/test_iter_216h152_svc_crm_sync.py` — 6/6 passing (visit emit, no-match still emits, idempotent, invoice with amount, YTD aggregates, scoped to company). Full regression — 35/35 passing.
+
 - **Iter 216h151 (17 Feb 2026)** — Service Ops state-machine integrity (P0 fixes from process-analyst review).
   - Added canonical `TERMINAL_STATES = {CLOSED, INVOICED, REJECTED}` to `utils/svc_state.py`.
   - **Queue filter fix**: `engineer_queue.py` was filtering on non-existent states (`"cancelled"`, `"void"`) which let `rejected` cases leak into "Up for grabs". Now uses `OPEN_STATES`.

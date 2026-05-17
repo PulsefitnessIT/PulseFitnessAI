@@ -69,6 +69,7 @@ __integration_fields__ = {
 }
 
 from datetime import datetime, timezone, timedelta
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -81,6 +82,7 @@ from utils.svc_state import (
 )
 from routes.svc.integrations import sicon_sync, sage_invoice
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc", tags=["Service Ops · Cases"])
 
 
@@ -261,6 +263,15 @@ async def transition_case(case_id: str, data: dict, user=Depends(get_current_use
         await sicon_sync.push_event(last_event, case_reference=case.get("reference"))
     if case.get("status") == "closed":
         await sage_invoice.enqueue_invoice_for_case(case)
+    # Iter 216h152 — emit a CRM activity on close so the company timeline
+    # and "service revenue YTD" tile can see the service visit. Best-
+    # effort, swallowed errors — never blocks the response.
+    if case.get("status") == "closed":
+        try:
+            from utils.svc_crm_sync import emit_case_close_activity
+            await emit_case_close_activity(case, user)
+        except Exception as e:
+            logger.warning("[svc→crm] emit_case_close_activity failed: %s", e)
     return _strip(case)
 
 

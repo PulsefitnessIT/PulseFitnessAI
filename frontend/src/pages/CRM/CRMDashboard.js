@@ -243,13 +243,13 @@ function CasesBySeverity({ data, isDark, c }) {
    ═══════════════════════════════════ */
 
 /* ─── SALES MANAGER / DEFAULT ─── */
-function SalesManagerDash({ data, tasks, stagnating, wfRuns, isDark, c, navigateTo, setActiveTab }) {
+function SalesManagerDash({ data, serviceRevenue, tasks, stagnating, wfRuns, isDark, c, navigateTo, setActiveTab }) {
   const kpis = [
     { label: 'Pipeline Value', value: fmt(data.pipeline_value), icon: TrendingUp, color: 'var(--color-info-ios)', sub: `${data.active_opportunities} active`, click: () => setActiveTab('pipeline') },
     { label: 'Weighted Forecast', value: fmt(data.weighted_forecast), icon: Target, color: 'var(--color-success-alt)', sub: 'Probability-weighted' },
     { label: 'Won Revenue', value: fmt(data.won_revenue), icon: DollarSign, color: 'var(--color-success-ios)', sub: `${data.win_rate}% win rate` },
+    { label: 'Service Revenue YTD', value: fmt(serviceRevenue?.total_net), icon: Wrench, color: 'var(--color-accent-violet)', sub: `${serviceRevenue?.invoice_count || 0} invoices` },
     { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: data.open_cases > 0 ? 'var(--color-accent-amber)' : 'var(--color-success-alt)', sub: 'Service' },
-    { label: 'Contacts', value: data.total_contacts, icon: Users, color: 'var(--color-accent-indigo)', sub: 'Total', click: () => setActiveTab('contacts') },
     { label: 'Tasks Due', value: data.tasks_due, icon: CheckCircle, color: data.tasks_due > 0 ? 'var(--color-danger-alt)' : 'var(--color-success-alt)', sub: 'Incomplete', click: () => setActiveTab('inbox') },
   ];
   return (
@@ -355,14 +355,14 @@ function EngineerDash({ data, isDark, c, setActiveTab }) {
 }
 
 /* ─── DIRECTOR ─── */
-function DirectorDash({ data, stagnating, wfRuns, isDark, c, navigateTo, setActiveTab }) {
+function DirectorDash({ data, serviceRevenue, stagnating, wfRuns, isDark, c, navigateTo, setActiveTab }) {
   const kpis = [
     { label: 'Pipeline Value', value: fmt(data.pipeline_value), icon: TrendingUp, color: 'var(--color-info-ios)', sub: `${data.active_opportunities} deals`, click: () => setActiveTab('pipeline') },
     { label: 'Weighted Forecast', value: fmt(data.weighted_forecast), icon: Target, color: 'var(--color-success-alt)', sub: 'Expected revenue' },
     { label: 'Won Revenue', value: fmt(data.won_revenue), icon: DollarSign, color: 'var(--color-success-ios)', sub: `${data.won_count || 0} deals won` },
+    { label: 'Service Revenue YTD', value: fmt(serviceRevenue?.total_net), icon: Wrench, color: 'var(--color-accent-violet)', sub: `${serviceRevenue?.invoice_count || 0} invoices` },
     { label: 'Win Rate', value: `${data.win_rate}%`, icon: Award, color: data.win_rate >= 50 ? 'var(--color-success-alt)' : 'var(--color-accent-amber)', sub: `${data.lost_count || 0} lost` },
     { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: 'var(--color-accent-amber)', sub: 'Service backlog' },
-    { label: 'Companies', value: data.total_companies, icon: Building2, color: 'var(--color-accent-magenta)', sub: 'Accounts', click: () => setActiveTab('companies') },
   ];
   return (
     <div className="space-y-5">
@@ -409,6 +409,7 @@ export default function CRMDashboard() {
   const [tasks, setTasks] = useState([]);
   const [stagnating, setStagnating] = useState([]);
   const [wfRuns, setWfRuns] = useState([]);
+  const [serviceRevenue, setServiceRevenue] = useState(null);
   const [loading, setLoading] = useState(true);
   // Toolbar staff filter is the source of truth; the dashboard only needs
   // a setter to default managers/owners to "All Staff" on first mount.
@@ -426,6 +427,11 @@ export default function CRMDashboard() {
       setData(dashRes.data);
       setTasks(taskRes.data.activities.filter(t => !t.completed_at));
       setStagnating(dashRes.data.stagnating_deals || []);
+      // Iter 216h152 — service revenue YTD tile (best-effort).
+      try {
+        const srRes = await axios.get(`${API}/crm/v2/service-revenue/ytd`, { headers: headers() });
+        setServiceRevenue(srRes.data);
+      } catch (e) { /* non-critical */ }
       try {
         const wfRes = await axios.get(`${API}/crm/v2/workflows`, { headers: headers() });
         const allRuns = [];
@@ -453,7 +459,7 @@ export default function CRMDashboard() {
 
   return (
     <div data-testid="crm-v2-dashboard">
-      <SalesManagerDash data={data} tasks={tasks} stagnating={stagnating} wfRuns={wfRuns} isDark={isDark} c={c} navigateTo={navigateTo} setActiveTab={setActiveTab} />
+      <SalesManagerDash data={data} serviceRevenue={serviceRevenue} tasks={tasks} stagnating={stagnating} wfRuns={wfRuns} isDark={isDark} c={c} navigateTo={navigateTo} setActiveTab={setActiveTab} />
     </div>
   );
 }

@@ -467,6 +467,15 @@ async def finalise_invoice(case_id: str, user=Depends(get_current_user)):
         {"id": quote["id"]},
         {"$set": {"status": "invoiced", "invoiced_at": _now(), "updated_at": _now()}},
     )
+    # Iter 216h152 — emit CRM "service_invoice" activity carrying the
+    # net amount so the CRM company timeline and the "Service revenue
+    # YTD" tile both pick it up. Best-effort.
+    try:
+        from utils.svc_crm_sync import emit_invoice_activity
+        finalised_quote = await db.svc_quotes.find_one({"id": quote["id"]}, {"_id": 0})
+        await emit_invoice_activity(case, finalised_quote or quote, user)
+    except Exception as e:
+        logger.warning("[svc→crm] emit_invoice_activity failed: %s", e)
     # Echo the outbox row so the UI can confirm.
     outbox = await db.svc_sage_invoice_outbox.find_one({**of, "case_id": case_id}, {"_id": 0})
     return {"ok": True, "quote": _strip(await db.svc_quotes.find_one({"id": quote["id"]}, {"_id": 0})), "outbox": outbox}

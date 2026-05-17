@@ -1032,6 +1032,91 @@ async def dashboard(user=Depends(get_crm_user)):
 
 
 # ═══════════════════════════════════════════
+# SERVICE REVENUE YTD — Iter 216h152
+# Aggregates `crm2_activities` of type "service_invoice" emitted by
+# the Service Ops billing flow (see utils/svc_crm_sync.py). Keeps the
+# join one-way: CRM reads SVC, SVC does not import CRM.
+# ═══════════════════════════════════════════
+
+@router.get("/service-revenue/ytd")
+async def service_revenue_ytd(
+    company_id: str = "", user=Depends(get_crm_user),
+):
+    """Year-to-date service invoice revenue.
+
+    Returns a top-line `total_net` (£) plus per-month split and the
+    top-5 companies by service spend YTD. When `company_id` is set the
+    response is scoped to that company (drives the company drawer
+    tile).
+    """
+    of = _of(user)
+    year_start = datetime(
+        datetime.now(timezone.utc).year, 1, 1, tzinfo=timezone.utc,
+    ).isoformat()
+    q = {
+        **of,
+        "type": "service_invoice",
+        "created_at": {"$gte": year_start},
+    }
+    if company_id:
+        q["company_id"] = company_id
+    # Pull just the metadata we need; service_invoice volume is low
+    # (hundreds per org per year), no need for a Mongo $group pipeline.
+    rows = await db.crm2_activities.find(
+        q,
+        {"_id": 0, "company_id": 1, "created_at": 1, "metadata": 1,
+         "case_id": 1, "subject": 1},
+    ).to_list(5000)
+    total_net = 0.0
+    per_month: dict[int, float] = {m: 0.0 for m in range(1, 13)}
+    per_company: dict[str, float] = {}
+    case_count = 0
+    for r in rows:
+        meta = r.get("metadata") or {}
+        amt = float(meta.get("amount_net") or 0)
+        if amt <= 0:
+            continue
+        total_net += amt
+        case_count += 1
+        # Bucket by month from ISO created_at.
+        try:
+            m = int(r["created_at"][5:7])
+            per_month[m] = per_month.get(m, 0.0) + amt
+        except (KeyError, ValueError, TypeError):
+            pass
+        cid = r.get("company_id") or ""
+        if cid:
+            per_company[cid] = per_company.get(cid, 0.0) + amt
+    # Resolve top-5 company names (single batched read).
+    top_ids = sorted(per_company, key=per_company.get, reverse=True)[:5]
+    name_map: dict[str, str] = {}
+    if top_ids:
+        async for c in db.crm2_companies.find(
+            {**of, "id": {"$in": top_ids}},
+            {"_id": 0, "id": 1, "name": 1},
+        ):
+            name_map[c["id"]] = c.get("name") or "(unnamed)"
+    top_companies = [
+        {"company_id": cid,
+         "name": name_map.get(cid, "(deleted)"),
+         "revenue_net": round(per_company[cid], 2)}
+        for cid in top_ids
+    ]
+    return {
+        "year": datetime.now(timezone.utc).year,
+        "total_net": round(total_net, 2),
+        "invoice_count": case_count,
+        "currency": "GBP",
+        "per_month": [
+            {"month": m, "revenue_net": round(per_month[m], 2)}
+            for m in range(1, 13)
+        ],
+        "top_companies": top_companies,
+        "scope": "company" if company_id else "organization",
+    }
+
+
+# ═══════════════════════════════════════════
 # SERVICE CASES (linked to self-service)
 # ═══════════════════════════════════════════
 

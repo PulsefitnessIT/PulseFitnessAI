@@ -1,0 +1,207 @@
+"""
+GymAxis Service Ops ↔ CRM sync — Iter 216h152 (Feb 2026).
+
+Emits CRM2 activity rows when service cases close or invoices finalise,
+so the CRM company timeline and forecast can see service revenue
+alongside sales pipeline.
+
+This is the missing "SVC → CRM" leg identified in the Feb 2026 process
+audit. The reverse leg (CRM → SVC) already worked — `crm2_activities`
+already accepts `case_id` as a foreign key — but no service code was
+writing those rows.
+
+Design:
+  * Best-effort: never blocks the service flow. Wrapped in try/except
+    at the call site.
+  * Match by name (case-insensitive) then email — both fall back to
+    company name+postcode if the customer record is sparse.
+  * Idempotent on (case_id, kind) — re-running the close hook does
+    not duplicate the activity row.
+
+Activity kinds emitted:
+  * `service_visit`   — when a case transitions to `closed`.
+  * `service_invoice` — when a quote is finalised to invoiced.
+                        `metadata.amount_net` carries the net total
+                        for the YTD-revenue rollup tile.
+"""
+from __future__ import annotations
+
+import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from utils.database import db
+
+logger = logging.getLogger(__name__)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def _find_company(organization_id: str, *, name: str = "",
+                        email: str = "", postcode: str = "") -> Optional[dict]:
+    """Best-effort customer → CRM company match. Returns the lean
+    company doc `{id, name}` or None."""
+    if not (name or email):
+        return None
+    q_base = {"organization_id": organization_id}
+    # 1) Exact name match (case-insensitive).
+    if name:
+        co = await db.crm2_companies.find_one(
+            {**q_base, "name": {"$regex": f"^{_re_escape(name)}$", "$options": "i"}},
+            {"_id": 0, "id": 1, "name": 1},
+        )
+        if co:
+            return co
+    # 2) Exact email match.
+    if email:
+        co = await db.crm2_companies.find_one(
+            {**q_base, "email": {"$regex": f"^{_re_escape(email)}$", "$options": "i"}},
+            {"_id": 0, "id": 1, "name": 1},
+        )
+        if co:
+            return co
+    # 3) Name + postcode (handles "Tottenham Green LC" with two sites).
+    if name and postcode:
+        co = await db.crm2_companies.find_one(
+            {**q_base,
+             "name": {"$regex": _re_escape(name), "$options": "i"},
+             "postcode": {"$regex": f"^{_re_escape(postcode)}", "$options": "i"}},
+            {"_id": 0, "id": 1, "name": 1},
+        )
+        if co:
+            return co
+    return None
+
+
+def _re_escape(s: str) -> str:
+    """Minimal regex escape for the special characters we encounter in
+    customer names / emails. Avoids pulling in `re` just for this."""
+    return (s or "").replace("\\", "\\\\").replace(".", "\\.").replace(
+        "+", "\\+").replace("?", "\\?").replace("*", "\\*").replace(
+        "(", "\\(").replace(")", "\\)").replace("[", "\\[").replace(
+        "]", "\\]").replace("$", "\\$").replace("^", "\\^")
+
+
+async def _upsert_activity(
+    *, organization_id: str, case_id: str, kind: str, doc: dict,
+) -> dict:
+    """Idempotent insert keyed on (case_id, type=kind). If a row
+    already exists we update `metadata` + `updated_at` so re-emits are
+    not destructive (useful when the user re-closes after re-opening)."""
+    existing = await db.crm2_activities.find_one(
+        {"organization_id": organization_id, "case_id": case_id, "type": kind},
+        {"_id": 0, "id": 1},
+    )
+    if existing:
+        await db.crm2_activities.update_one(
+            {"id": existing["id"]},
+            {"$set": {**doc, "updated_at": _now()}},
+        )
+        out = {**doc, "id": existing["id"]}
+        return out
+    record = {
+        "id": str(uuid.uuid4()),
+        "organization_id": organization_id,
+        "type": kind,
+        "case_id": case_id,
+        "created_at": _now(),
+        "updated_at": _now(),
+        **doc,
+    }
+    await db.crm2_activities.insert_one(record)
+    record.pop("_id", None)
+    return record
+
+
+async def emit_case_close_activity(case: dict, actor: dict) -> Optional[dict]:
+    """Fire-and-forget — call from cases.transition_case when the
+    target state is `closed`. Returns the activity row or None when
+    no CRM match was found (still safe — the service flow continues)."""
+    org = case.get("organization_id")
+    if not org:
+        return None
+    company = await _find_company(
+        org,
+        name=case.get("customer_name") or "",
+        email=case.get("customer_email") or "",
+        postcode=case.get("site_postcode") or "",
+    )
+    body = (
+        f"Service case {case.get('reference') or case.get('id')} closed"
+        + (f" at {case['site_name']}" if case.get("site_name") else "")
+        + (f" — {case['title']}" if case.get("title") else "")
+    )
+    payload = {
+        "subject": f"Service visit closed: {case.get('reference') or ''}".strip(),
+        "body": body,
+        "company_id": (company or {}).get("id"),
+        "owner_id": (actor or {}).get("id") or case.get("assigned_engineer_id"),
+        "owner_name": (actor or {}).get("full_name", "") or case.get("assigned_engineer_name", ""),
+        "metadata": {
+            "site_name": case.get("site_name"),
+            "site_postcode": case.get("site_postcode"),
+            "priority": case.get("priority"),
+            "asset_id": case.get("asset_id"),
+            "asset_name": case.get("asset_name"),
+            "engineer_id": case.get("assigned_engineer_id"),
+            "engineer_name": case.get("assigned_engineer_name"),
+            "reference": case.get("reference"),
+        },
+    }
+    return await _upsert_activity(
+        organization_id=org, case_id=case["id"],
+        kind="service_visit", doc=payload,
+    )
+
+
+async def emit_invoice_activity(case: dict, quote: dict,
+                                actor: dict) -> Optional[dict]:
+    """Fire-and-forget — call from billing.finalise_invoice after the
+    quote is flipped to `invoiced`. Carries `amount_net` and
+    `amount_gross` in metadata so the `service-revenue-ytd` tile can
+    sum without re-joining svc_quotes."""
+    org = case.get("organization_id")
+    if not org:
+        return None
+    company = await _find_company(
+        org,
+        name=case.get("customer_name") or "",
+        email=case.get("customer_email") or "",
+        postcode=case.get("site_postcode") or "",
+    )
+    net = float(quote.get("net") or quote.get("subtotal") or 0)
+    gross = float(quote.get("gross") or quote.get("total") or net)
+    payload = {
+        "subject": f"Invoice raised: {case.get('reference') or ''} — £{net:,.2f}".strip(),
+        "body": (
+            f"Service invoice raised for {case.get('customer_name') or 'customer'}"
+            f" · case {case.get('reference') or case.get('id')}"
+            + (f" · {case.get('site_name')}" if case.get("site_name") else "")
+        ),
+        "company_id": (company or {}).get("id"),
+        "owner_id": (actor or {}).get("id") or case.get("assigned_engineer_id"),
+        "owner_name": (actor or {}).get("full_name", "") or case.get("assigned_engineer_name", ""),
+        "metadata": {
+            "amount_net": round(net, 2),
+            "amount_gross": round(gross, 2),
+            "currency": quote.get("currency") or "GBP",
+            "quote_id": quote.get("id"),
+            "quote_reference": quote.get("reference"),
+            "site_name": case.get("site_name"),
+            "site_postcode": case.get("site_postcode"),
+            "asset_id": case.get("asset_id"),
+            "engineer_id": case.get("assigned_engineer_id"),
+            "engineer_name": case.get("assigned_engineer_name"),
+            "reference": case.get("reference"),
+        },
+    }
+    return await _upsert_activity(
+        organization_id=org, case_id=case["id"],
+        kind="service_invoice", doc=payload,
+    )
+
+
+__all__ = ["emit_case_close_activity", "emit_invoice_activity"]
