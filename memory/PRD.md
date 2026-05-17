@@ -7267,3 +7267,41 @@ Remaining decomposition targets:
   locked-sites + integration-health, ~400 LoC, 5 routes)
 - Stats / branding email previews (~270 LoC, 4 routes)
 
+
+## Iter 216h181 — `master_admin.py` decomposition phase 5: head-office onboarding + CRM analytics (17 Feb 2026)
+
+Carved the two largest remaining contiguous blocks (lines 1313–1957) into
+TWO focused sub-routers:
+
+**`routes/master_admin_onboard.py`** (NEW, 364 LoC, 1 route):
+- `POST /master-admin/onboard-head-office` — multi-site customer onboard
+  with single-HQ invariant + per-site equipment ingestion
+
+**`routes/master_admin_crm_analytics.py`** (NEW, 358 LoC, 1 route):
+- `GET /master-admin/crm-analytics` — 15-panel CRM dashboard
+
+`master_admin.py` is now **1,667 LoC** (was 2,312 → -28% this phase; vs
+the original 4,283 → **-61% cumulative**). Past the half-way mark.
+
+Tests: `test_iter_216h181_master_admin_phase5_split.py` (7 tests, all
+pass) plus live curl `GET /master-admin/crm-analytics` returning all 15
+expected top-level keys.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_onboard.py` (new),
+`/app/backend/routes/master_admin_crm_analytics.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h181_master_admin_phase5_split.py` (new).
+
+Remaining decomposition targets:
+- `master-admin/stats` + audit-log surface (`audit-logs`,
+  `audit-logs/facets`, `audit-logs/export.csv`) (~250 LoC, 4 routes)
+- Branding email previews (`organizations/{id}/test-flag`,
+  `test-email`, `account-type`) + helpers (~200 LoC, 3 routes)
+- Org create + primary-contact (org POST + creds reveal + send creds)
+  (~280 LoC, 3 routes)
+- Org integration health (`verify-mappings`, `integration-health`,
+  `integrations-hub`) (~270 LoC, 3 routes)
+- Ops & backfills (`test-data/purge` + equipment backfills +
+  `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
+

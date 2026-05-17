@@ -755,8 +755,8 @@ mutate the test org and return `{"success": true}`.
 | `master_admin.py` decomposition phase 2 (orgs CRUD + sites) | ✅ 216h178 |
 | `master_admin.py` decomposition phase 3 (users CRUD + impersonate + reset-password) | ✅ 216h179 |
 | `master_admin.py` decomposition phase 4 (pulse stats / equipment kits / onboard) | ✅ 216h180 |
-| `master_admin.py` decomposition phase 5 (CRM analytics + head-office onboard) | ⏭ Next |
-| `master_admin.py` decomposition phase 6 (audit-log / ops backfills) | Backlog |
+| `master_admin.py` decomposition phase 5 (CRM analytics + head-office onboard) | ✅ 216h181 |
+| `master_admin.py` decomposition phase 6 (audit-log / ops backfills / branding email previews) | ⏭ Next |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
 
@@ -874,4 +874,73 @@ Live verification:
 | Phase 2 | 216h178 | 0 | 3,248 | -24% |
 | Phase 3 | 216h179 | -627 | 2,621 | -39% |
 | Phase 4 | 216h180 | -309 | 2,312 | **-46%** |
+
+
+---
+
+## Iter 216h181 — `master_admin.py` decomposition phase 5: head-office onboarding + CRM analytics (Feb 2026)
+
+**Goal**: Carve the two largest remaining contiguous blocks
+(lines 1313–1957 in the post-phase-4 file) into focused modules. These
+are conceptually independent — onboarding is a write-heavy single-action
+endpoint, CRM analytics is a read-heavy roll-up — so they get their own
+sub-routers rather than sharing one.
+
+**Extracted to `master_admin_onboard.py`** (NEW, 364 LoC, 1 route):
+
+```
+POST /master-admin/onboard-head-office
+```
+
+Travels with the single helper that owns all validation
+(`_validate_head_office_payload`): duplicate-org guard
+(case-insensitive name + company_number), tier whitelist,
+optional invite-mode owner credential fork, ≤50 sites cap,
+single-HQ invariant, per-site equipment ingestion.
+
+**Extracted to `master_admin_crm_analytics.py`** (NEW, 358 LoC, 1 route):
+
+```
+GET /master-admin/crm-analytics
+```
+
+Travels with 15 private analytic helpers — 8 v2 (active) +
+7 v1 (preserved verbatim as dead-code for backwards-compat):
+v2 splits the dashboard into `pipeline / entity counts / quotes /
+workflow / users+activities / deals-at-risk / renewals-due / ai-usage`.
+
+| Module | Phase 4 LoC | Phase 5 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 2,312 | **1,667** | -645 (-28%) |
+| `master_admin_onboard.py` | — | **364** | NEW |
+| `master_admin_crm_analytics.py` | — | **358** | NEW |
+
+Shared helpers (`merge_address`, `log_activity`, `require_master_admin`)
+remain in `routes.master_admin` because they're used by ~12 other
+modules. Grep against the whole backend confirmed zero cross-module
+references to any of the 16 extracted private helpers.
+
+**Tests** — `test_iter_216h181_master_admin_phase5_split.py` (7 tests):
+- both new modules import cleanly
+- each owns the right `(path, method)` pair, parent owns none
+- 9 extracted private helpers are gone from parent (drift guard)
+- shared helpers still re-exported from parent
+- both routers registered in `route_registry/admin.py`
+- soft LoC guard (< 1,800) to prevent silent re-bloat
+
+Live verification:
+- `GET /master-admin/crm-analytics` → returns all 15 expected top-level
+  keys (`overview, growth, pipeline, quotes, contacts, inbox, users,
+  workflows, integrations, activity_types, recent_deals,
+  recent_activities, deals_at_risk, renewals_due, ai_usage`).
+
+**Cumulative monolith progress** — past the half-way mark:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | -39% |
+| Phase 4 | 216h180 | -309 | 2,312 | -46% |
+| Phase 5 | 216h181 | -645 | 1,667 | **-61%** |
 
