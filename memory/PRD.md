@@ -6840,6 +6840,12 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h159 (17 Feb 2026)** — Engineer card-conversions dashboard (frontend surface for 216h158).
+  - New page `/svc/engineer/card-analytics` — KPI strip (requests / cases / revenue), "Your card" gradient spotlight panel for the current engineer, and a per-slug leaderboard table (sorted by revenue desc) with conversion-rate badges colour-coded by performance bucket (≥50% green, ≥25% amber, else slate).
+  - Window selector (30 / 90 / 180 / 365 days) passes through to the analytics API.
+  - QuickAction tile "Card stats" added to `EngineerHomeV2` for one-tap access. Testid `qa-card-analytics`.
+  - Lint clean (Python + JS). Verified end-to-end via smoke screenshot — KPI tiles populate, leaderboard renders with "You" badge on the current engineer's row, gradient panel correctly displays the personal stats from the same payload.
+
 - **Iter 216h158 (17 Feb 2026)** — Public-card slug attribution + conversion analytics.
   - Every case created via the supplier-card flow now carries `source_card_slug` + `source_engineer_id`. Three insert paths wired: `independence.accept_job_request` (manual accept), `independence.self_allocate` (engineer self-creates — slug null, engineer set), and `inbound_email._auto_create_case` (auto-accept — both populated).
   - New endpoint `GET /api/svc/engineer/independence/card-conversions?days={1..365}` — per-slug rollup with `requests_total/accepted/pending/rejected`, `cases_total/closed/supplier_card/inbound_email`, `revenue_total`, `conversion_rate`. Sorted by revenue desc. Joins `svc_quotes` for revenue (highest committed quote wins, matching CAPEX signal-layer convention).

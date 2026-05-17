@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2,
   PoundSterling, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
-  CreditCard, Inbox, Hand,
+  CreditCard, Inbox, Hand, QrCode,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -363,6 +363,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={CreditCard} label={payouts?.ready ? 'Payouts' : 'Connect Stripe'}
                              testid="qa-payouts"
                              onClick={() => navigate('/svc/engineer/payouts')} />
+                <QuickAction icon={QrCode} label="Card stats"
+                             testid="qa-card-analytics"
+                             onClick={() => navigate('/svc/engineer/card-analytics')} />
               </div>
             </div>
 
