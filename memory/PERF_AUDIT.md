@@ -757,7 +757,8 @@ mutate the test org and return `{"success": true}`.
 | `master_admin.py` decomposition phase 4 (pulse stats / equipment kits / onboard) | ✅ 216h180 |
 | `master_admin.py` decomposition phase 5 (CRM analytics + head-office onboard) | ✅ 216h181 |
 | `master_admin.py` decomposition phase 6 (stats + audit-log surface) | ✅ 216h182 |
-| `master_admin.py` decomposition phase 7 (org create + primary contact) | ⏭ Next |
+| `master_admin.py` decomposition phase 7 (org create + primary contact) | ✅ 216h183 |
+| `master_admin.py` decomposition phase 8 (org integration health / verify mappings / hub) | ⏭ Next |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
 
@@ -1000,4 +1001,66 @@ Live verification:
 | Phase 4 | 216h180 | -309 | 2,312 | -46% |
 | Phase 5 | 216h181 | -645 | 1,667 | -61% |
 | Phase 6 | 216h182 | -233 | 1,434 | **-67%** |
+
+
+---
+
+## Iter 216h183 — `master_admin.py` decomposition phase 7: org create + primary contact (Feb 2026)
+
+**Goal**: Carve the 3-route org-bootstrap surface (used every time a
+Master Admin spins up a new tenant) into its own sub-router.
+
+**Extracted to `master_admin_org_create.py`** (NEW, 240 LoC, 3 routes):
+
+```
+POST /master-admin/organizations
+GET  /master-admin/organizations/{org_id}/primary-contact-credentials
+POST /master-admin/organizations/{org_id}/send-primary-contact-credentials
+```
+
+**Helpers DELIBERATELY stay on the parent**. Six helpers
+(`_normalize_modules`, `_modules_from_portal_type`,
+`_derive_portal_type`, `_generate_initial_password`,
+`_mint_invite_link`, `_ensure_primary_contact_user`) were originally
+candidates to move, but `routes/master_admin_orgs.py` (iter 216h178)
+already imports 4 of them directly and `routes/master_admin_users.py`
+(iter 216h179) imports `_create_org_user`. Moving them now would break
+those earlier splits. The new sub-router re-imports them as regular
+dependencies. A pin-test asserts they stay put so a future agent
+can't accidentally regress this.
+
+| Module | Phase 6 LoC | Phase 7 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 1,434 | **1,239** | -195 (-14%) |
+| `master_admin_org_create.py` | — | **240** | NEW |
+
+**Tests** — `test_iter_216h183_master_admin_org_create_split.py`
+(6 tests):
+- module imports cleanly
+- (path, method) presence on the new router + absence on the parent
+- 7 helpers STAY on the parent (pin test — `_normalize_modules`,
+  `_modules_from_portal_type`, `_derive_portal_type`,
+  `_generate_initial_password`, `_mint_invite_link`,
+  `_ensure_primary_contact_user`, `_create_org_user`)
+- shared helpers still re-exported from parent
+- registry wiring
+- soft LoC guard (< 1,300)
+
+Live verification:
+- `POST /master-admin/organizations` (with primary_contact_email) → org
+  created, `invite_url` returned in payload.
+- `GET /organizations/{id}/primary-contact-credentials` → revealed the
+  auto-generated initial password (`available=True`, `has_pw=True`).
+
+**Cumulative monolith progress**:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | -39% |
+| Phase 4 | 216h180 | -309 | 2,312 | -46% |
+| Phase 5 | 216h181 | -645 | 1,667 | -61% |
+| Phase 6 | 216h182 | -233 | 1,434 | -67% |
+| Phase 7 | 216h183 | -195 | 1,239 | **-71%** |
 

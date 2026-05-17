@@ -7342,3 +7342,42 @@ Remaining decomposition targets:
 - Ops & backfills (`test-data/purge` + equipment backfills +
   `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
 
+
+## Iter 216h183 — `master_admin.py` decomposition phase 7: org create + primary contact (17 Feb 2026)
+
+Extracted the 3-route org-bootstrap surface into the new
+`routes/master_admin_org_create.py` (240 LoC):
+
+- `POST /master-admin/organizations`
+- `GET  /master-admin/organizations/{id}/primary-contact-credentials`
+- `POST /master-admin/organizations/{id}/send-primary-contact-credentials`
+
+**Helpers deliberately stay on parent**: `_normalize_modules`,
+`_modules_from_portal_type`, `_derive_portal_type`,
+`_generate_initial_password`, `_mint_invite_link`,
+`_ensure_primary_contact_user`, `_create_org_user` — because
+`master_admin_orgs.py` (216h178) and `master_admin_users.py` (216h179)
+already import them. A new pin-test asserts they stay put so a future
+agent can't accidentally regress these earlier splits.
+
+`master_admin.py` is now **1,239 LoC** (was 1,434 → -14% this phase; vs
+the original 4,283 → **-71% cumulative**).
+
+Tests: `test_iter_216h183_master_admin_org_create_split.py` (6 tests,
+all pass) plus 66 split-tests pass overall. Live curl:
+`POST /organizations` created an org with `invite_url`,
+`GET /primary-contact-credentials` revealed initial password.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_org_create.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h183_master_admin_org_create_split.py` (new).
+
+Remaining decomposition targets:
+- Org integration health (`verify-mappings`, `integration-health`,
+  `integrations-hub`) (~270 LoC, 3 routes)
+- Branding email previews (`organizations/{id}/test-flag`,
+  `test-email`, `account-type`) + helpers (~200 LoC, 3 routes)
+- Ops & backfills (`test-data/purge` + equipment backfills +
+  `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
+
