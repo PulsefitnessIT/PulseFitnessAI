@@ -12,6 +12,7 @@ import {
 import './marketing.css';
 import MarketingShell from './MarketingShell';
 import AxisOrbit from './AxisOrbit';
+import LiveCustomerAppPreview from './LiveCustomerAppPreview';
 import { openTrial } from './TrialSignupModal';
 import { openPreview } from './ProductPreviewModal';
 import { useSeo } from '@/utils/seo';
@@ -36,6 +37,7 @@ export default function MarketingHome() {
       <Hero />
       <PlatformOverview />
       <ModuleGrid />
+      <CustomerExperience />
       <SocialProof />
       <EngineerBanner />
       <FinalCta />
@@ -143,6 +145,36 @@ function ModuleCard({ m }) {
         Learn more <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
       </span>
     </Link>
+  );
+}
+
+function CustomerExperience() {
+  return (
+    <section className="py-20 md:py-28 bg-white" data-testid="gx-customer-xp">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">What your customer sees</p>
+          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">
+            Uber-clear service.<br />
+            <span className="gx-gradient-text">Branded as yours.</span>
+          </h2>
+          <p className="mt-5 text-base text-slate-600 leading-relaxed max-w-xl">
+            When a fault is logged in your gym, the manager sees a live tracker — engineer photo, rating, ETA, on-site progress, then a branded PDF receipt and a star rating they can leave for the engineer. Same craft Uber and Deliveroo gave their customers, now wired into your equipment.
+          </p>
+          <ul className="mt-6 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-slate-700">
+            <li className="flex items-start gap-2"><CheckCircle2 size={15} className="text-emerald-500 mt-0.5 flex-shrink-0" /><span>Live map + ETA countdown</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 size={15} className="text-emerald-500 mt-0.5 flex-shrink-0" /><span>One-tap call &amp; message the engineer</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 size={15} className="text-emerald-500 mt-0.5 flex-shrink-0" /><span>Step-by-step on-site timeline</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 size={15} className="text-emerald-500 mt-0.5 flex-shrink-0" /><span>Branded PDF + audit chain</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 size={15} className="text-emerald-500 mt-0.5 flex-shrink-0" /><span>5-star rating feeds engineer score</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 size={15} className="text-emerald-500 mt-0.5 flex-shrink-0" /><span>No app install — opens in any browser</span></li>
+          </ul>
+        </div>
+        <div className="relative" data-testid="gx-customer-xp-visual">
+          <LiveCustomerAppPreview />
+        </div>
+      </div>
+    </section>
   );
 }
 
