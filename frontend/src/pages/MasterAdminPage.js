@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { useNavigate } from 'react-router-dom';
@@ -8,58 +8,65 @@ import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Menu, ArrowLeftRight, Shield } from 'lucide-react';
 
-import IntegrationAdminPanel from './IntegrationAdminPanel';
-import SiconIntegrationPage from './MasterAdmin/SiconIntegrationPage';
-import FinancialOpsPanel from './FinancialOpsPanel';
-import AdminOnboardingHub from './MasterAdmin/AdminOnboardingHub';
-import AdminTrials from './MasterAdmin/AdminTrials';
-import AdminMarketingSuite from './MasterAdmin/AdminMarketingSuite';
-import AdminArchive from './MasterAdmin/AdminArchive';
-import AdminTasks from './MasterAdmin/AdminTasks';
-import AdminRoles from './MasterAdmin/AdminRoles';
-import AdminPayments from './MasterAdmin/AdminPayments';
-import AdminPartners from './MasterAdmin/AdminPartners';
-import AdminRefundsPanel from './MasterAdmin/AdminRefundsPanel';
-import AdminSupport from './MasterAdmin/AdminSupport';
-import AdminEmails from './MasterAdmin/AdminEmails';
-import AdminAuditLogs from './MasterAdmin/AdminAuditLogs';
-import AdminCapex from './MasterAdmin/AdminCapex';
+// Iter 216h173 — Per-section panels are lazy-loaded so the Master Admin
+// initial JS chunk no longer ships ~50 admin panels eagerly. Webpack
+// emits each panel as its own chunk and only fetches it the first time
+// the operator navigates to that section. Chrome (sidebar, dialogs,
+// overview, command palette, brand picker, group tabs) stays eager
+// because it renders on every section.
+const IntegrationAdminPanel = lazy(() => import('./IntegrationAdminPanel'));
+const SiconIntegrationPage = lazy(() => import('./MasterAdmin/SiconIntegrationPage'));
+const FinancialOpsPanel = lazy(() => import('./FinancialOpsPanel'));
+const AdminOnboardingHub = lazy(() => import('./MasterAdmin/AdminOnboardingHub'));
+const AdminTrials = lazy(() => import('./MasterAdmin/AdminTrials'));
+const AdminMarketingSuite = lazy(() => import('./MasterAdmin/AdminMarketingSuite'));
+const AdminArchive = lazy(() => import('./MasterAdmin/AdminArchive'));
+const AdminTasks = lazy(() => import('./MasterAdmin/AdminTasks'));
+const AdminRoles = lazy(() => import('./MasterAdmin/AdminRoles'));
+const AdminPayments = lazy(() => import('./MasterAdmin/AdminPayments'));
+const AdminPartners = lazy(() => import('./MasterAdmin/AdminPartners'));
+const AdminRefundsPanel = lazy(() => import('./MasterAdmin/AdminRefundsPanel'));
+const AdminSupport = lazy(() => import('./MasterAdmin/AdminSupport'));
+const AdminEmails = lazy(() => import('./MasterAdmin/AdminEmails'));
+const AdminAuditLogs = lazy(() => import('./MasterAdmin/AdminAuditLogs'));
+const AdminCapex = lazy(() => import('./MasterAdmin/AdminCapex'));
+const TrustDashboard = lazy(() => import('./MasterAdmin/TrustDashboard'));
+const AskSupportDesk = lazy(() => import('./MasterAdmin/AskSupportDesk'));
+const AdminStripeConnect = lazy(() => import('./MasterAdmin/AdminStripeConnect'));
+const DesignSystemPage = lazy(() => import('./MasterAdmin/DesignSystemPage'));
+const PricingPanel = lazy(() => import('./MasterAdmin/PricingPanel'));
+const OrgBillingPanel = lazy(() => import('./MasterAdmin/OrgBillingPanel'));
+const EstateRollupPanel = lazy(() => import('./MasterAdmin/EstateRollupPanel'));
+const SalesInsightsPanel = lazy(() => import('./MasterAdmin/SalesInsightsPanel'));
+const LoginEventsPanel = lazy(() => import('./MasterAdmin/LoginEventsPanel'));
+const AuditLogPanel = lazy(() => import('./MasterAdmin/AuditLogPanel'));
+const LockedStaffPanel = lazy(() => import('./MasterAdmin/LockedStaffPanel'));
+const BackfillsPanel = lazy(() => import('./MasterAdmin/BackfillsPanel'));
+const ActivationFunnelPanel = lazy(() => import('./MasterAdmin/ActivationFunnelPanel'));
+const DocumentsPanel = lazy(() => import('./MasterAdmin/DocumentsPanel'));
+const CollectionsDashboard = lazy(() => import('./MasterAdmin/CollectionsDashboard'));
+const DbViewerPanel = lazy(() => import('./MasterAdmin/DbViewerPanel'));
+const CataloguePanel = lazy(() => import('./MasterAdmin/CataloguePanel'));
+const CustomPropertiesPanel = lazy(() => import('./MasterAdmin/CustomPropertiesPanel'));
+const RecentErrorsPanel = lazy(() => import('./MasterAdmin/RecentErrorsPanel'));
+const IntegrationHealthPanel = lazy(() => import('./MasterAdmin/IntegrationHealthPanel'));
+const AdminOrganizations = lazy(() => import('./MasterAdmin/AdminOrganizations'));
+const AdminAllSites = lazy(() => import('./MasterAdmin/AdminAllSites'));
+const StaffOnboardingWizard = lazy(() => import('./MasterAdmin/StaffOnboardingWizard'));
+const IntegrationsHub = lazy(() => import('./MasterAdmin/IntegrationsHub'));
+const AdminCommunications = lazy(() => import('./MasterAdmin/AdminCommunications'));
+const AdminCannedReplies = lazy(() => import('./MasterAdmin/AdminCannedReplies'));
+const AdminPulseSales = lazy(() => import('./MasterAdmin/AdminPulseSales'));
+const ThemeSettingsPanel = lazy(() => import('./MasterAdmin/ThemeSettingsPanel'));
+const CustomDomainsPanel = lazy(() => import('./MasterAdmin/CustomDomainsPanel'));
+const AnalyticsSection = lazy(() => import('./MasterAdmin/AnalyticsSection'));
+
+// Chrome — rendered on every section, so kept eager.
 import AdminDialogs from './MasterAdmin/AdminDialogs';
-import TrustDashboard from './MasterAdmin/TrustDashboard';
-import AskSupportDesk from './MasterAdmin/AskSupportDesk';
-import AdminStripeConnect from './MasterAdmin/AdminStripeConnect';
-import DesignSystemPage from './MasterAdmin/DesignSystemPage';
-import PricingPanel from './MasterAdmin/PricingPanel';
-import OrgBillingPanel from './MasterAdmin/OrgBillingPanel';
-import EstateRollupPanel from './MasterAdmin/EstateRollupPanel';
-import SalesInsightsPanel from './MasterAdmin/SalesInsightsPanel';
-import LoginEventsPanel from './MasterAdmin/LoginEventsPanel';
-import AuditLogPanel from './MasterAdmin/AuditLogPanel';
-import LockedStaffPanel from './MasterAdmin/LockedStaffPanel';
-import BackfillsPanel from './MasterAdmin/BackfillsPanel';
-import ActivationFunnelPanel from './MasterAdmin/ActivationFunnelPanel';
-import DocumentsPanel from './MasterAdmin/DocumentsPanel';
-import CollectionsDashboard from './MasterAdmin/CollectionsDashboard';
-import DbViewerPanel from './MasterAdmin/DbViewerPanel';
-import CataloguePanel from './MasterAdmin/CataloguePanel';
-import CustomPropertiesPanel from './MasterAdmin/CustomPropertiesPanel';
-import RecentErrorsPanel from './MasterAdmin/RecentErrorsPanel';
-import IntegrationHealthPanel from './MasterAdmin/IntegrationHealthPanel';
 import EmailHealthPill from './MasterAdmin/EmailHealthPill';
 import CommandPalette from './MasterAdmin/CommandPalette';
-import AdminOrganizations from './MasterAdmin/AdminOrganizations';
-import AdminAllSites from './MasterAdmin/AdminAllSites';
-import StaffOnboardingWizard from './MasterAdmin/StaffOnboardingWizard';
-import IntegrationsHub from './MasterAdmin/IntegrationsHub';
-import AdminCommunications from './MasterAdmin/AdminCommunications';
-import AdminCannedReplies from './MasterAdmin/AdminCannedReplies';
-import AdminPulseSales from './MasterAdmin/AdminPulseSales';
-import ThemeSettingsPanel from './MasterAdmin/ThemeSettingsPanel';
-import CustomDomainsPanel from './MasterAdmin/CustomDomainsPanel';
-
 import AdminSidebar from './MasterAdmin/AdminSidebar';
 import OverviewSection from './MasterAdmin/OverviewSection';
-import AnalyticsSection from './MasterAdmin/AnalyticsSection';
 import { sectionTitles, sectionDescriptions, GROUP_SUBTABS, SECTION_TO_GROUP } from './MasterAdmin/SidebarConfig';
 import ConsolidatedTabsBar from './MasterAdmin/ConsolidatedTabsBar';
 import useMasterAdminActions from './MasterAdmin/hooks/useMasterAdminActions';
@@ -593,7 +600,13 @@ const MasterAdminPage = ({ onBack }) => {
                   />
                 );
               })()}
-              {renderSection()}
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-64" data-testid="master-admin-section-loading">
+                  <RefreshCw className="animate-spin text-zinc-400" size={20} />
+                </div>
+              }>
+                {renderSection()}
+              </Suspense>
             </>
           )}
         </div>

@@ -1,14 +1,25 @@
-import React, { useState } from 'react';
-import AdminOverview from './AdminOverview';
-import AdminPulse from './AdminPulse';
-import AdminOrganizations from './AdminOrganizations';
-import AdminAiUsage from './AdminAiUsage';
-import AdminActivity from './AdminActivity';
-import AdminCRMAnalytics from './AdminCRMAnalytics';
-import AdminMemberships from './AdminMemberships/AdminMemberships';
-import AdminMarketingSuite from './AdminMarketingSuite';
+import React, { Suspense, lazy, useState } from 'react';
 import { SubTabBar } from './SidebarConfig';
 import { useAuth } from '@/App';
+import { Loader2 } from 'lucide-react';
+
+// Iter 216h173 — Sub-panels lazy-loaded so the default Overview surface
+// only ships the active inner tab (Service Portal · Overview by default)
+// instead of dragging every cross-portal dashboard into the initial bundle.
+const AdminOverview = lazy(() => import('./AdminOverview'));
+const AdminPulse = lazy(() => import('./AdminPulse'));
+const AdminOrganizations = lazy(() => import('./AdminOrganizations'));
+const AdminAiUsage = lazy(() => import('./AdminAiUsage'));
+const AdminActivity = lazy(() => import('./AdminActivity'));
+const AdminCRMAnalytics = lazy(() => import('./AdminCRMAnalytics'));
+const AdminMemberships = lazy(() => import('./AdminMemberships/AdminMemberships'));
+const AdminMarketingSuite = lazy(() => import('./AdminMarketingSuite'));
+
+const InnerFallback = () => (
+  <div className="flex items-center justify-center py-12 text-zinc-400" data-testid="overview-inner-loading">
+    <Loader2 size={18} className="animate-spin" />
+  </div>
+);
 
 /**
  * Combined "Dashboard Overview" section — top-level toggle between
@@ -135,11 +146,13 @@ const OverviewSection = ({
  active={overviewActiveTab}
  onChange={setOverviewActiveTab}
  />
+ <Suspense fallback={<InnerFallback />}>
  {overviewActiveTab === 'service-portal' && renderServicePortal()}
  {overviewActiveTab === 'crm' && renderCRM()}
  {overviewActiveTab === 'memberships' && <AdminMemberships />}
  {overviewActiveTab === 'marketing' && <AdminMarketingSuite API={API} />}
  {overviewActiveTab === 'mod' && renderMoD()}
+ </Suspense>
  </div>
  );
 };

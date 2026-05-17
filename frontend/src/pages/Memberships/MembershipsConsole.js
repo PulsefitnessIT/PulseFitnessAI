@@ -8,7 +8,7 @@
  * Phase 1a scope: list + create + key actions. Deeper flows (sell plan,
  * refund, comms) land in Phase 1b.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -17,7 +17,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, Receipt, Wand2, HeartHandshake, ShieldCheck, Theater,
+  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -43,29 +43,40 @@ import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import HelpHint from '@/components/HelpHint';
 import TourConversionTile from '@/pages/Memberships/TourConversionTile';
 import ProductTour from '@/components/shared/ProductTour';
-import AnalyticsTab from '@/pages/Memberships/AnalyticsTab';
-import BookingRulesTab from '@/pages/Memberships/BookingRulesTab';
-import PromotionsTab from '@/pages/Memberships/PromotionsTab';
-import InstructorsTab from '@/pages/Memberships/InstructorsTab';
-import AIInsightsTab from '@/pages/Memberships/AIInsightsTab';
-import CheckinTab from '@/pages/Memberships/CheckinTab';
-import CRMLoopTab from '@/pages/Memberships/CRMLoopTab';
-import MembershipsStartTab from '@/pages/Memberships/MembershipsStartTab';
-import MobileAppBuilderTab from '@/pages/Memberships/MobileAppBuilderTab';
-import InvoicingTab from '@/pages/Memberships/InvoicingTab';
-import CoursesView from '@/pages/Memberships/CoursesView';
-import ClassActionDrawer from '@/pages/Memberships/ClassActionDrawer';
-import MemberEditDrawer from '@/pages/Memberships/MemberEditDrawer';
+
+// Iter 216h173 — Heavy operator tabs are lazy-loaded. Only one tab is
+// mounted at a time and the dashboard/start surface is the default, so
+// none of these need to be parsed on initial page load.
+const AnalyticsTab = lazy(() => import('@/pages/Memberships/AnalyticsTab'));
+const BookingRulesTab = lazy(() => import('@/pages/Memberships/BookingRulesTab'));
+const PromotionsTab = lazy(() => import('@/pages/Memberships/PromotionsTab'));
+const InstructorsTab = lazy(() => import('@/pages/Memberships/InstructorsTab'));
+const AIInsightsTab = lazy(() => import('@/pages/Memberships/AIInsightsTab'));
+const CheckinTab = lazy(() => import('@/pages/Memberships/CheckinTab'));
+const CRMLoopTab = lazy(() => import('@/pages/Memberships/CRMLoopTab'));
+const MembershipsStartTab = lazy(() => import('@/pages/Memberships/MembershipsStartTab'));
+const MobileAppBuilderTab = lazy(() => import('@/pages/Memberships/MobileAppBuilderTab'));
+const InvoicingTab = lazy(() => import('@/pages/Memberships/InvoicingTab'));
+const CoursesView = lazy(() => import('@/pages/Memberships/CoursesView'));
+const ClassActionDrawer = lazy(() => import('@/pages/Memberships/ClassActionDrawer'));
+const MemberEditDrawer = lazy(() => import('@/pages/Memberships/MemberEditDrawer'));
+const StudioBuilderTab = lazy(() => import('@/pages/Memberships/StudioBuilderTab'));
+const FamilyBillingTab = lazy(() => import('@/pages/Memberships/FamilyBillingTab'));
+const ParentPortalTab = lazy(() => import('@/pages/Memberships/ParentPortalTab'));
+const EventsTab = lazy(() => import('@/pages/Memberships/EventsTab'));
+const StudioBrainTab = lazy(() => import('@/pages/Memberships/StudioBrainTab'));
+
+const TabFallback = () => (
+  <div className="flex items-center justify-center py-16 text-zinc-400" data-testid="memberships-tab-loading">
+    <Loader2 size={18} className="animate-spin" />
+  </div>
+);
+
 import PillTabBar from '@/components/shared/PillTabBar';
 import { useUserPref } from '@/utils/userPrefs';
 import useStudioMode from '@/pages/Memberships/useStudioMode';
 import StudioModeToggle from '@/pages/Memberships/StudioModeToggle';
 import StudioQuickstart from '@/pages/Memberships/StudioQuickstart';
-import StudioBuilderTab from '@/pages/Memberships/StudioBuilderTab';
-import FamilyBillingTab from '@/pages/Memberships/FamilyBillingTab';
-import ParentPortalTab from '@/pages/Memberships/ParentPortalTab';
-import EventsTab from '@/pages/Memberships/EventsTab';
-import StudioBrainTab from '@/pages/Memberships/StudioBrainTab';
 
 export default function MembershipsConsole() {
   return (
@@ -296,6 +307,7 @@ function MembershipsConsoleInner() {
           }}
         >
 
+        <Suspense fallback={<TabFallback />}>
         {tab === 'start' && studio.studioMode && !studio.quickstartCompleted && (
           <StudioQuickstart onComplete={() => setTab('dashboard')} />
         )}
@@ -320,6 +332,7 @@ function MembershipsConsoleInner() {
         {tab === 'crm-loop'  && <CRMLoopTab    API={API} headers={headers} />}
         {tab === 'booking-rules' && <BookingRulesTab API={API} headers={headers} />}
         {tab === 'mobile-app' && <MobileAppBuilderTab API={API} headers={headers} />}
+        </Suspense>
         </PullToRefresh>
       </main>
 

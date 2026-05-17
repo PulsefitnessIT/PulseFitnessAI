@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { useAuth } from '@/App';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 import { useUserPref } from '@/utils/userPrefs';
 
@@ -15,36 +15,43 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
-import GymDesignTab from './GymDesignTab';
-import EquipmentInfoTab from './EquipmentInfoTab';
-// Iter 216o-8 — LifecycleAlertsTab moved to CAPEX Intelligence; no
-// longer rendered on the Equipment list page. Keep import slot empty
-// to avoid breaking lazy refs elsewhere.
-// import LifecycleAlertsTab from './LifecycleAlertsTab';
-import SettingsTab from './SettingsTab';
-import WeeklyDigest from './WeeklyDigest';
-import DocumentsTab from './DocumentsTab';
-import OnboardingWizard from './OnboardingWizard';
-import SupplierDashboardTab from './SupplierDashboardTab';
+// Iter 216h173 — Heavy per-tab dashboards (GymDesign 1,353 LoC, Settings
+// 1,198 LoC, etc.) are lazy-loaded. Operators land on Start/Overview;
+// every other tab fetches on first visit, shrinking the initial JS
+// bundle parsed during the operator's first login.
+const GymDesignTab = lazy(() => import('./GymDesignTab'));
+const EquipmentInfoTab = lazy(() => import('./EquipmentInfoTab'));
+const SettingsTab = lazy(() => import('./SettingsTab'));
+const WeeklyDigest = lazy(() => import('./WeeklyDigest'));
+const DocumentsTab = lazy(() => import('./DocumentsTab'));
+const SupplierDashboardTab = lazy(() => import('./SupplierDashboardTab'));
+const MasterAdminPage = lazy(() => import('./MasterAdminPage'));
+const FaultsTab = lazy(() => import('./Dashboard/FaultsTab'));
+const ReportsSection = lazy(() => import('./Dashboard/ReportsSection'));
+const MaintenanceTab = lazy(() => import('./Dashboard/MaintenanceTab'));
+const AdminDashboardTab = lazy(() => import('./Dashboard/AdminAnalytics/AdminDashboardTab'));
+const AdminEquipmentTab = lazy(() => import('./Dashboard/AdminAnalytics/AdminEquipmentTab'));
+const AdminFaultsTab = lazy(() => import('./Dashboard/AdminAnalytics/AdminFaultsTab'));
+const AdminCheckSheetsTab = lazy(() => import('./Dashboard/AdminAnalytics/AdminCheckSheetsTab'));
+const GlobalDocumentsTab = lazy(() => import('./Dashboard/AdminAnalytics/GlobalDocumentsTab'));
+const OperationsStartTab = lazy(() => import('./LiteDashboard/OperationsStartTab'));
+const StaffingConsole = lazy(() => import('./LiteDashboard/StaffingConsole'));
+const InvoiceImportWizard = lazy(() => import('./InvoiceImportWizard'));
+const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
+
+const DashboardTabFallback = () => (
+  <div className="flex items-center justify-center py-16 text-zinc-400" data-testid="dashboard-tab-loading">
+    <Loader2 size={18} className="animate-spin" />
+  </div>
+);
+
 import MobileBottomNav from '../components/shared/MobileBottomNav';
-import MasterAdminPage from './MasterAdminPage';
 import OverviewTab from './Dashboard/OverviewTab';
 import DashboardTabs from './Dashboard/DashboardTabs';
-import FaultsTab from './Dashboard/FaultsTab';
-import ReportsSection from './Dashboard/ReportsSection';
 import FaultDialogs from './Dashboard/FaultDialogs';
-import MaintenanceTab from './Dashboard/MaintenanceTab';
-import AdminDashboardTab from './Dashboard/AdminAnalytics/AdminDashboardTab';
-import AdminEquipmentTab from './Dashboard/AdminAnalytics/AdminEquipmentTab';
-import AdminFaultsTab from './Dashboard/AdminAnalytics/AdminFaultsTab';
-import AdminCheckSheetsTab from './Dashboard/AdminAnalytics/AdminCheckSheetsTab';
-import GlobalDocumentsTab from './Dashboard/AdminAnalytics/GlobalDocumentsTab';
-import OperationsStartTab from './LiteDashboard/OperationsStartTab';
-import StaffingConsole from './LiteDashboard/StaffingConsole';
 import DocumentQA from '../components/shared/DocumentQA';
 import PullToRefresh from '../components/shared/PullToRefresh';
 import ProductTour from '../components/shared/ProductTour';
-import InvoiceImportWizard from './InvoiceImportWizard';
 
 import useDashboardData from './Dashboard/hooks/useDashboardData';
 import useIssueWorkflow from './Dashboard/hooks/useIssueWorkflow';
@@ -169,7 +176,11 @@ const DashboardPage = () => {
   });
 
   if (showMasterAdmin && user?.is_master_admin) {
-    return <MasterAdminPage onBack={() => setShowMasterAdmin(false)} />;
+    return (
+      <Suspense fallback={<DashboardTabFallback />}>
+        <MasterAdminPage onBack={() => setShowMasterAdmin(false)} />
+      </Suspense>
+    );
   }
 
   const showSuppliersTab = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
@@ -238,6 +249,7 @@ const DashboardPage = () => {
             )}
 
             <TabsContent value="overview" data-testid="overview-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               {user?.is_master_admin ? (
                 <AdminDashboardTab />
               ) : (
@@ -254,27 +266,33 @@ const DashboardPage = () => {
                   t={t}
                 />
               )}
+              </Suspense>
             </TabsContent>
 
             {/* Iter 215d2 — Start tab mirrors Pulse Fitness Pro: guided onboarding
                 surface for first-time operators. Reuses OperationsStartTab so
                 both brands share one implementation. */}
             <TabsContent value="start" data-testid="start-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               <OperationsStartTab
                 setTab={setActiveTab}
                 onLogFault={() => wf.setShowIssueDialog(true)}
                 onOpenEquipmentImport={() => setShowOnboarding(true)}
               />
+              </Suspense>
             </TabsContent>
 
             {/* Iter 215d2 — Staffing tab matches Pulse Fitness Pro. StaffingConsole
                 is already brand-agnostic (reads the active org) so master admins
                 and operators see the right workforce data. */}
             <TabsContent value="staffing" data-testid="staffing-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               <StaffingConsole />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="issues" data-testid="issues-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               {user?.is_master_admin ? (
                 <AdminFaultsTab />
               ) : (
@@ -298,9 +316,11 @@ const DashboardPage = () => {
                   t={t}
                 />
               )}
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="maintenance" data-testid="maintenance-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               {user?.is_master_admin ? (
                 <AdminCheckSheetsTab />
               ) : (
@@ -311,21 +331,29 @@ const DashboardPage = () => {
                   t={t}
                 />
               )}
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="gym-design" data-testid="gym-design-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               <GymDesignTab allEquipment={allEquipment} />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="documents" data-testid="documents-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               {user?.is_master_admin ? <GlobalDocumentsTab /> : <DocumentsTab />}
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="suppliers" data-testid="suppliers-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               <SupplierDashboardTab />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="equipment" data-testid="equipment-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               {user?.is_master_admin ? (
                 <AdminEquipmentTab />
               ) : (
@@ -341,9 +369,12 @@ const DashboardPage = () => {
                   />
                 </>
               )}
+              </Suspense>
             </TabsContent>
 
+            <Suspense fallback={null}>
             <OnboardingWizard open={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={loadData} />
+            </Suspense>
 
             <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
               <DialogContent
@@ -354,15 +385,20 @@ const DashboardPage = () => {
                 <DialogHeader>
                   <DialogTitle className="text-xl" style={{ color: 'var(--theme-text)' }}>Settings</DialogTitle>
                 </DialogHeader>
+                <Suspense fallback={<DashboardTabFallback />}>
                 <SettingsTab />
+                </Suspense>
               </DialogContent>
             </Dialog>
 
             <TabsContent value="digest" data-testid="digest-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               <WeeklyDigest />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="reports" data-testid="reports-content">
+              <Suspense fallback={<DashboardTabFallback />}>
               <ReportsSection
                 reportSubTab={reportSubTab}
                 onSubTabChange={setReportSubTab}
@@ -372,6 +408,7 @@ const DashboardPage = () => {
                 user={user}
                 t={t}
               />
+              </Suspense>
             </TabsContent>
           </Tabs>
         </div>
@@ -465,10 +502,12 @@ const DashboardPage = () => {
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold" style={{ fontFamily: 'Outfit' }}>AI Equipment Import</DialogTitle>
             </DialogHeader>
+            <Suspense fallback={<DashboardTabFallback />}>
             <InvoiceImportWizard
               onComplete={() => { setShowInvoiceImport(false); window.location.reload(); }}
               onClose={() => setShowInvoiceImport(false)}
             />
+            </Suspense>
           </DialogContent>
         </Dialog>
       )}
