@@ -1,3 +1,46 @@
+## Iter 216h146 — Inbound Email Webhook (Feb 17, 2026) ✅
+
+Customers can now email an engineer directly and the request lands in the engineer's Inbox automatically. Single piece of code handles SendGrid Inbound Parse (multipart) and a JSON simulator format.
+
+### Backend (NEW · `routes/svc/inbound_email.py`)
+* **Engineer addressing**: each engineer's existing `intake_slug` doubles as their inbox local-part → `<slug>@in.gymaxis.com`.
+* `POST /api/inbound/email` — **production webhook** (public, secret-gated). Accepts `multipart/form-data` from SendGrid Inbound Parse (fields: `to, from, subject, text, html, headers, spam_score`) OR `application/json` with the same field names.
+* `POST /api/inbound/email/test` — JSON-only simulator with identical pipeline so QA / Mailgun / CloudMailin can exercise the flow without DNS.
+* `GET  /api/svc/engineer/inbound-address` — returns `{email, domain, slug, enabled}` for the engineer-facing UI.
+* **Pipeline**: `_verify_secret` (URL `?secret=…`) → `_verify_domain_allowed` (optional) → spam-score gate (≥ 5 dropped silently with 200) → `_resolve_engineer(slug)` (404 if unknown) → `_ai_extract` (best-effort GPT-5.2, reuses `routes.svc.independence.PARSE_SYSTEM_PROMPT`) → insert into `svc_job_requests` with `intake_channel="inbound_email"` → fire `create_notification(kind="job_request")` with Web Push → append audit row to `svc_inbound_email_log` (60-day TTL).
+* **Failure modes**: 503 if `INBOUND_EMAIL_WEBHOOK_SECRET` not configured (fail-fast on misconfig); 401 on bad secret; 400 on missing/malformed addresses; 404 on unknown slug; 200 with `outcome=rejected_spam` for spam (so SendGrid doesn't retry-storm).
+
+### Frontend (`EngineerInbox.js`)
+* New "Your inbound email" panel (`inbox-inbound-email`) right under the QR share card:
+  - Mono-font address (`inbox-inbound-email-address`).
+  - Copy button (`inbox-inbound-copy`).
+  - **`pending DNS`** chip when the server reports `enabled: false` (no secret configured).
+  - Helper copy: "Forward customer emails here and we'll auto-create a request in your inbox (AI pre-fills title and priority)."
+
+### Operator setup (DNS / SendGrid)
+1. Pick a subdomain you control (e.g. `in.gymaxis.com`).
+2. MX record: `in.gymaxis.com  IN  MX 10 mx.sendgrid.net.`
+3. In SendGrid → Settings → Inbound Parse, add hostname pointing at  
+   `https://<your-prod-host>/api/inbound/email?secret=<INBOUND_EMAIL_WEBHOOK_SECRET>`.
+4. Backend env:
+   * `INBOUND_EMAIL_WEBHOOK_SECRET` (required — auto-set in this preview).
+   * `INBOUND_EMAIL_DOMAIN=in.gymaxis.com` (optional but recommended for the recipient guard).
+
+### Testing
+* `pytest /app/backend/tests/test_iter_216h146_inbound_email.py` → **6/6 passing** (address lookup, missing secret 401, JSON ingest creates request, unknown slug 404, spam ≥ 5 silent drop, **multipart form-data** ingest — SendGrid format).
+* Regression on iters 216h142/144/145/147 → **23/23 still green**.
+* Testing agent end-to-end → **100% / 100%**. Report: `/app/test_reports/iteration_216h146.json`.
+
+### Phase 5 — COMPLETE
+* ✅ 216h144 — Engineer independence
+* ✅ 216h145 — Supplier card QR + PDF
+* ✅ 216h146 — Inbound email webhook (this iter)
+* ✅ 216h147 — Self-claim queue
+* ✅ 216h148 — Branded landing/login
+
+---
+
+
 ## Iter 216h148 — Public Engineer Landing & Login (Feb 17, 2026) ✅
 
 Branded acquisition surface at **`/engineer`** for partner-engineer recruitment + a clean sign-in entry-point that lands engineers straight in the app.
