@@ -266,7 +266,11 @@ PARSE_SYSTEM_PROMPT = (
     "membership-wide outage; P2 if a single line of equipment is down;\n"
     "  default P3),\n"
     "  scheduled_at_hint (ISO datetime if the customer specified a window; "
-    "else null).\n"
+    "else null),\n"
+    "  confidence (float 0.0–1.0 — your honest self-assessment of how "
+    "complete and unambiguous this extraction is; 0.9+ only when every "
+    "required field is explicitly present in the email and the fault is "
+    "described in operational detail).\n"
     "Output a SINGLE JSON object and nothing else — no markdown fences, "
     "no commentary."
 )

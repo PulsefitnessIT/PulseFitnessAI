@@ -6840,6 +6840,15 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h157 (17 Feb 2026)** — Inbound email auto-accept on high AI confidence.
+  - When the GPT-5.2 parser returns confidence ≥0.9 AND deterministic gates pass (customer + site + ≥12-char title), the inbound webhook skips the triage inbox and creates an `svc_cases` row directly in `ASSIGNED` state with `intake_subchannel="auto_accepted"` + `intake_confidence={0..1}`.
+  - **Defence-in-depth**: confidence is `min(ai_self_reported, deterministic_floor)` where the floor is computed from field-completeness — prevents a hallucinated `confidence: 0.99` from tripping the gate when site/title are missing.
+  - Threshold tunable via `INBOUND_EMAIL_AUTOACCEPT_THRESHOLD` env (default 0.9, clamped 0.0–1.0 at boot).
+  - Auto-accepted cases get the full downstream pipeline: timeline `case_created` event with `auto_accepted=true`, Sicon outbox push (case + tracking note), in-app + Web Push (gated by engineer prefs from 216h156), and an immutable audit row `svc.case.auto_accept_email` (216h155).
+  - Updated `PARSE_SYSTEM_PROMPT` to request a `confidence` field with explicit thresholds documented in-prompt.
+  - QA simulator now accepts `parsed_override` (deterministic test path behind the secret).
+  - Tests: `tests/test_iter_216h157_email_auto_accept.py` — 4/4 passing (high-confidence auto-creates, low-confidence falls back, hallucinated high-confidence with missing site falls back, short-title falls back). Full regression — **77/77 passing** across 13 SVC modules.
+
 - **Iter 216h156 (17 Feb 2026)** — Engineer push prefs + quiet hours (PECR-grade per-kind opt-out).
   - New collection `svc_engineer_push_prefs` — one doc per (user, org). Stores `timezone`, `quiet_hours_start/end` (HH:MM), `dnd_until` (one-tap snooze), and `kind_prefs` (per-kind opt-out, defaults to enabled).
   - Gate added to `_dispatch_push` — in-app notification row always lands (catch-up timeline); only the disruptive Web Push channel is suppressed. Matches ICO's "soft opt-in" expectation for transactional alerts.

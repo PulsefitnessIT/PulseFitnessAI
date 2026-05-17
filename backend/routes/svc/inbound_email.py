@@ -41,10 +41,20 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from routes.partners import require_engineer_app_access
+from utils.audit import audit_log
 from utils.auth import get_current_user
 from utils.database import db
 
 logger = logging.getLogger(__name__)
+
+# Iter 216h157 — high-confidence parses skip the triage inbox and
+# create the case directly. Tunable via env so ops can dial it back
+# during early rollout. Range checked at boot.
+try:
+    AUTOACCEPT_THRESHOLD = float(os.environ.get("INBOUND_EMAIL_AUTOACCEPT_THRESHOLD") or "0.9")
+except (TypeError, ValueError):
+    AUTOACCEPT_THRESHOLD = 0.9
+AUTOACCEPT_THRESHOLD = min(max(AUTOACCEPT_THRESHOLD, 0.0), 1.0)
 
 
 # ── public webhook router (no auth — secret-gated) ───────────────
@@ -204,10 +214,144 @@ async def _ai_extract(text: str, subject: Optional[str]) -> dict:
         return {}
 
 
+# ── auto-accept · Iter 216h157 ──────────────────────────────────
+
+async def _next_case_reference(organization_id: str) -> str:
+    """SVC-YYYY-MM-NNNNN — reuses the convention from cases.py without
+    importing the heavyweight `intake.create_case` flow."""
+    now = datetime.now(timezone.utc)
+    prefix = f"SVC-{now.year}-{now.month:02d}"
+    # Count existing cases this month for a stable serial.
+    seq = await db.svc_cases.count_documents({
+        "organization_id": organization_id,
+        "reference": {"$regex": f"^{prefix}-"},
+    })
+    return f"{prefix}-{seq + 1:05d}"
+
+
+async def _auto_create_case(
+    *, eng: dict, parsed: dict, payload: NormalisedEmail,
+    from_addr: str, to_addr: str,
+    title: str, description: Optional[str],
+    priority: str, confidence: float,
+) -> dict:
+    """High-confidence parse → skip the triage inbox and create the
+    svc_case directly. Mirrors `independence.self_allocate` semantics
+    (canonical ASSIGNED state, case_created timeline event, CRM/Sicon/
+    audit hooks fired) so downstream behaviour is identical to the
+    manual-accept path."""
+    from utils.svc_state import ASSIGNED, append_event
+    from routes.svc.integrations import sicon_sync
+
+    case_id = str(uuid.uuid4())
+    reference = await _next_case_reference(eng["organization_id"])
+    actor = {
+        "id": eng["id"],
+        "email": eng.get("email") or "",
+        "full_name": eng.get("full_name") or "",
+    }
+    case = {
+        "id": case_id,
+        "organization_id": eng["organization_id"],
+        "reference": reference,
+        "title": title,
+        "description": description,
+        "priority": priority,
+        "status": ASSIGNED,
+        "assigned_engineer_id": eng["id"],
+        "assigned_engineer_name": eng.get("full_name"),
+        "self_claimed_at": _now(),
+        "intake_channel": "inbound_email",
+        "intake_subchannel": "auto_accepted",
+        "intake_confidence": confidence,
+        "customer_name": parsed.get("customer_name") or _extract_name(payload.from_) or from_addr,
+        "customer_email": parsed.get("customer_email") or from_addr,
+        "customer_phone": parsed.get("customer_phone"),
+        "site_name": parsed.get("site_name"),
+        "site_address": parsed.get("site_address"),
+        "site_postcode": parsed.get("site_postcode"),
+        "scheduled_at": parsed.get("scheduled_at_hint"),
+        "estimated_minutes": 60,
+        "source": {
+            "type": "email",
+            "from": from_addr,
+            "to": to_addr,
+            "subject": payload.subject,
+        },
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    await db.svc_cases.insert_one(case)
+    case.pop("_id", None)
+    try:
+        await append_event(
+            case_id=case_id,
+            organization_id=eng["organization_id"],
+            event_type="case_created",
+            actor=actor,
+            body=f"Auto-accepted from inbound email (confidence {confidence:.2f})",
+            extra={"intake_channel": "inbound_email", "auto_accepted": True,
+                   "confidence": confidence, "status": ASSIGNED,
+                   "from": from_addr, "subject": payload.subject},
+        )
+    except Exception as e:
+        logger.warning("[inbound→timeline] append_event failed: %s", e)
+    # Mirror to Sicon (case + tracking note).
+    try:
+        await sicon_sync.push_case(case)
+        evt = await db.svc_case_events.find_one(
+            {"case_id": case_id, "type": "case_created"},
+            sort=[("at", -1)], projection={"_id": 0},
+        )
+        if evt:
+            await sicon_sync.push_event(evt, case_reference=reference)
+    except Exception as e:
+        logger.warning("[inbound→sicon] push failed: %s", e)
+    # In-app + Web Push (push gated by engineer prefs in iter 216h156).
+    try:
+        from routes.svc.notifications import create_notification
+        await create_notification(
+            user_id=eng["id"],
+            organization_id=eng["organization_id"],
+            kind="job_assigned",
+            title=f"Auto-created: {reference} · {title[:60]}",
+            body=(parsed.get("site_name")
+                  or parsed.get("customer_name")
+                  or "Inbound email")
+                + f" · confidence {int(confidence * 100)}%",
+            link=f"/svc/engineer/jobs/{case_id}",
+            source_type="case",
+            source_id=case_id,
+        )
+    except Exception:
+        pass
+    # Immutable audit row — compliance posture matches the manual
+    # accept path (iter 216h155).
+    try:
+        await audit_log(
+            action="svc.case.auto_accept_email",
+            user_id=eng["id"],
+            user_email=eng.get("email") or "",
+            resource_type="svc_case",
+            resource_id=case_id,
+            details=f"{reference} · from={from_addr} · "
+                    f"confidence={confidence:.2f} · "
+                    f"threshold={AUTOACCEPT_THRESHOLD:.2f}",
+        )
+    except Exception as e:
+        logger.warning("[audit] auto_accept_email failed: %s", e)
+    return case
+
+
 # ── core ingest pipeline ─────────────────────────────────────────
 
-async def _ingest(payload: NormalisedEmail) -> dict:
-    """Common path used by the live webhook and the simulator."""
+async def _ingest(payload: NormalisedEmail,
+                  *, parsed_override: Optional[dict] = None) -> dict:
+    """Common path used by the live webhook and the simulator.
+
+    `parsed_override` short-circuits the AI extraction step — used by
+    the QA simulator (iter 216h157) so tests can pin auto-accept
+    behaviour without racing a live model."""
     to_addr = _extract_email(payload.to)
     from_addr = _extract_email(payload.from_)
     if not to_addr:
@@ -238,9 +382,10 @@ async def _ingest(payload: NormalisedEmail) -> dict:
         })
         raise e
 
-    # AI extraction (best-effort)
+    # AI extraction (best-effort) — bypassed when the QA simulator
+    # passes `parsed_override` (iter 216h157).
     body_text = payload.text or ""
-    parsed = await _ai_extract(body_text, payload.subject)
+    parsed = parsed_override if isinstance(parsed_override, dict) else await _ai_extract(body_text, payload.subject)
 
     title = (parsed.get("title") or payload.subject or "Inbound service request")[:160]
     description = (parsed.get("description")
@@ -249,6 +394,64 @@ async def _ingest(payload: NormalisedEmail) -> dict:
     priority = (parsed.get("priority") or "P3").upper()
     if priority not in ("P1", "P2", "P3", "P4"):
         priority = "P3"
+
+    # Iter 216h157 — compute auto-accept eligibility. We combine the
+    # AI's self-reported confidence with a deterministic floor (fields
+    # present + non-trivial title) so a hallucinated `confidence: 0.95`
+    # alone can never trip the gate. min(ai, deterministic) wins.
+    site_known = bool(parsed.get("site_name") or parsed.get("site_postcode"))
+    customer_known = bool(parsed.get("customer_name"))
+    title_substantial = len(title) >= 12
+    deterministic_conf = (
+        0.7
+        + (0.1 if site_known else 0.0)
+        + (0.1 if customer_known else 0.0)
+        + (0.1 if title_substantial else 0.0)
+    )
+    try:
+        ai_conf = float(parsed.get("confidence") or 0)
+    except (TypeError, ValueError):
+        ai_conf = 0.0
+    confidence = round(min(ai_conf, deterministic_conf) if parsed else 0.0, 2)
+    auto_accept = (
+        confidence >= AUTOACCEPT_THRESHOLD
+        and customer_known and site_known and title_substantial
+    )
+
+    if auto_accept:
+        case_doc = await _auto_create_case(
+            eng=eng,
+            parsed=parsed,
+            payload=payload,
+            from_addr=from_addr,
+            to_addr=to_addr,
+            title=title,
+            description=description,
+            priority=priority,
+            confidence=confidence,
+        )
+        await db.svc_inbound_email_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "to": to_addr, "from": from_addr,
+            "subject": payload.subject,
+            "outcome": "case_auto_created",
+            "case_id": case_doc["id"],
+            "case_reference": case_doc.get("reference"),
+            "slug": slug,
+            "spam_score": payload.spam_score,
+            "ai_used": True,
+            "confidence": confidence,
+            "ai_confidence": ai_conf,
+            "deterministic_confidence": round(deterministic_conf, 2),
+            "created_at": _now(),
+        })
+        return {
+            "ok": True,
+            "outcome": "case_auto_created",
+            "case_id": case_doc["id"],
+            "case_reference": case_doc.get("reference"),
+            "confidence": confidence,
+        }
 
     req_id = str(uuid.uuid4())
     doc = {
@@ -268,6 +471,7 @@ async def _ingest(payload: NormalisedEmail) -> dict:
         "title": title,
         "description": description,
         "priority": priority,
+        "confidence": confidence,
         "source": {
             "type": "email",
             "from": from_addr,
@@ -330,6 +534,11 @@ class SimIn(BaseModel):
     subject: Optional[str] = None
     text: Optional[str] = None
     spam_score: Optional[float] = None
+    # Iter 216h157 — QA-only deterministic override: skip the LLM call
+    # and inject this dict as the parsed result. Used by test suites and
+    # the support team to reproduce auto-accept decisions without
+    # racing a live model. Still behind the webhook secret.
+    parsed_override: Optional[dict] = None
 
     class Config:
         populate_by_name = True
@@ -348,7 +557,7 @@ async def inbound_email_simulate(
         to=body.to, **{"from": body.from_}, subject=body.subject,
         text=body.text, spam_score=body.spam_score,
     )
-    return await _ingest(payload)
+    return await _ingest(payload, parsed_override=body.parsed_override)
 
 
 # ── engineer "what's my inbox address?" helper ──────────────────
