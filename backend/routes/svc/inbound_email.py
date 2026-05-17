@@ -264,6 +264,11 @@ async def _auto_create_case(
         "intake_channel": "inbound_email",
         "intake_subchannel": "auto_accepted",
         "intake_confidence": confidence,
+        # Iter 216h158 — slug attribution (every inbound email is
+        # routed via the engineer's intake_slug, so it counts as
+        # supplier-card traffic for marketing rollups).
+        "source_card_slug": eng.get("intake_slug"),
+        "source_engineer_id": eng["id"],
         "customer_name": parsed.get("customer_name") or _extract_name(payload.from_) or from_addr,
         "customer_email": parsed.get("customer_email") or from_addr,
         "customer_phone": parsed.get("customer_phone"),

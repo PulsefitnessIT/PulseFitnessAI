@@ -46,7 +46,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 
@@ -194,6 +194,11 @@ async def jobs_self_create(
         "intake_channel": body.intake_channel,
         "source_note": body.source_note,
         "self_allocated": True,
+        # Iter 216h158 — when the engineer self-creates from their own
+        # phone/walk-up, they are the source. Card slug is None unless
+        # the body explicitly references it (the supplier-card flow goes
+        # through `accept_job_request`, not this path).
+        "source_engineer_id": user["id"],
         "idempotency_key": idempotency_key,
         "created_by": user["id"],
         "created_at": _now(),
@@ -353,6 +358,141 @@ async def regenerate_intake_card(user=Depends(get_current_user)):
             "share_url": f"{base}/r/{slug}" if base else f"/r/{slug}"}
 
 
+# ── 3b. Card conversion analytics · Iter 216h158 ────────────────
+#
+# Marketing rollup: which engineer's QR card actually converted
+# requests → cases → invoiced revenue? Joins svc_cases (where
+# `source_card_slug` is now populated by accept_job_request and
+# the inbound-email auto-accept path) with svc_quotes for revenue.
+
+def _days_ago_iso(d: int) -> str:
+    from datetime import timedelta
+    return (datetime.now(timezone.utc) - timedelta(days=d)).isoformat()
+
+
+@engineer_router.get("/independence/card-conversions")
+async def card_conversions(
+    days: int = Query(90, ge=1, le=365),
+    user=Depends(get_current_user),
+):
+    """Returns per-slug conversion: requests, cases, revenue, rate.
+
+    Org-scoped — every engineer sees their own org's rollup. Returns
+    a row per `intake_slug`/`engineer` regardless of role; the UI
+    can filter to "mine only" if needed.
+    """
+    of = _of(user)
+    since = _days_ago_iso(days)
+
+    # 1) Job-request volume (top of funnel).
+    requests = await db.svc_job_requests.find(
+        {**of, "intake_channel": "supplier_card",
+         "created_at": {"$gte": since}},
+        {"_id": 0, "intake_slug": 1, "engineer_id": 1, "engineer_name": 1,
+         "status": 1},
+    ).to_list(20000)
+
+    # 2) Cases attributed to a card slug (covers both supplier_card +
+    #    inbound_email auto-accepted paths; both set source_card_slug).
+    cases = await db.svc_cases.find(
+        {**of, "source_card_slug": {"$ne": None, "$exists": True},
+         "created_at": {"$gte": since}},
+        {"_id": 0, "id": 1, "source_card_slug": 1, "source_engineer_id": 1,
+         "intake_channel": 1, "status": 1, "assigned_engineer_name": 1},
+    ).to_list(20000)
+    case_ids = [c["id"] for c in cases]
+
+    # 3) Invoiced revenue per case (single Mongo round-trip).
+    revenue_by_case: dict[str, float] = {}
+    if case_ids:
+        async for q in db.svc_quotes.find(
+            {**of, "case_id": {"$in": case_ids},
+             "status": {"$in": ["invoiced", "approved"]}},
+            {"_id": 0, "case_id": 1, "net": 1, "subtotal": 1, "status": 1},
+        ):
+            amt = float(q.get("net") or q.get("subtotal") or 0)
+            if amt > 0:
+                # Highest committed quote wins (matches CAPEX signal layer).
+                cur = revenue_by_case.get(q["case_id"])
+                if cur is None or amt > cur:
+                    revenue_by_case[q["case_id"]] = amt
+
+    # 4) Aggregate per slug.
+    by_slug: dict[str, dict] = {}
+
+    def _bucket(slug: str, eng_id: Optional[str] = None,
+                eng_name: Optional[str] = None) -> dict:
+        b = by_slug.setdefault(slug or "(none)", {
+            "slug": slug or "(none)",
+            "engineer_id": eng_id,
+            "engineer_name": eng_name,
+            "requests_total": 0,
+            "requests_accepted": 0,
+            "requests_pending": 0,
+            "requests_rejected": 0,
+            "cases_total": 0,
+            "cases_inbound_email": 0,
+            "cases_supplier_card": 0,
+            "cases_closed": 0,
+            "revenue_total": 0.0,
+        })
+        # Fill engineer info from whichever row carried it first.
+        if not b["engineer_id"] and eng_id:
+            b["engineer_id"] = eng_id
+        if not b["engineer_name"] and eng_name:
+            b["engineer_name"] = eng_name
+        return b
+
+    for r in requests:
+        b = _bucket(r.get("intake_slug"), r.get("engineer_id"),
+                    r.get("engineer_name"))
+        b["requests_total"] += 1
+        status = r.get("status") or "pending"
+        if status == "accepted":
+            b["requests_accepted"] += 1
+        elif status == "rejected":
+            b["requests_rejected"] += 1
+        else:
+            b["requests_pending"] += 1
+
+    for c in cases:
+        b = _bucket(c.get("source_card_slug"),
+                    c.get("source_engineer_id"),
+                    c.get("assigned_engineer_name"))
+        b["cases_total"] += 1
+        if c.get("intake_channel") == "inbound_email":
+            b["cases_inbound_email"] += 1
+        else:
+            b["cases_supplier_card"] += 1
+        if c.get("status") in ("closed", "invoiced"):
+            b["cases_closed"] += 1
+        rev = revenue_by_case.get(c["id"], 0.0)
+        if rev:
+            b["revenue_total"] += rev
+
+    # 5) Conversion rate + sort by revenue desc, then cases desc.
+    rows = []
+    for slug, b in by_slug.items():
+        req_total = b["requests_total"]
+        rate = (b["requests_accepted"] / req_total) if req_total else None
+        b["conversion_rate"] = round(rate, 3) if rate is not None else None
+        b["revenue_total"] = round(b["revenue_total"], 2)
+        rows.append(b)
+    rows.sort(key=lambda r: (-(r["revenue_total"] or 0),
+                              -(r["cases_total"] or 0),
+                              r["slug"]))
+
+    return {
+        "rows": rows,
+        "window_days": days,
+        "totals": {
+            "requests": sum(r["requests_total"] for r in rows),
+            "cases": sum(r["cases_total"] for r in rows),
+            "revenue": round(sum(r["revenue_total"] or 0 for r in rows), 2),
+        },
+    }
+
+
 # ── 4. Engineer inbox of incoming requests ───────────────────────
 
 @engineer_router.get("/job-requests")
@@ -431,6 +571,10 @@ async def accept_job_request(
         "source_note": f"Accepted from job request {req_id}",
         "self_allocated": True,
         "job_request_id": req_id,
+        # Iter 216h158 — slug attribution so marketing can see which
+        # engineer's QR card converted a public submission into a case.
+        "source_card_slug": req.get("intake_slug"),
+        "source_engineer_id": req.get("engineer_id"),
         "created_by": user["id"],
         "created_at": _now(),
         "updated_at": _now(),

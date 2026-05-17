@@ -6840,6 +6840,11 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h158 (17 Feb 2026)** — Public-card slug attribution + conversion analytics.
+  - Every case created via the supplier-card flow now carries `source_card_slug` + `source_engineer_id`. Three insert paths wired: `independence.accept_job_request` (manual accept), `independence.self_allocate` (engineer self-creates — slug null, engineer set), and `inbound_email._auto_create_case` (auto-accept — both populated).
+  - New endpoint `GET /api/svc/engineer/independence/card-conversions?days={1..365}` — per-slug rollup with `requests_total/accepted/pending/rejected`, `cases_total/closed/supplier_card/inbound_email`, `revenue_total`, `conversion_rate`. Sorted by revenue desc. Joins `svc_quotes` for revenue (highest committed quote wins, matching CAPEX signal-layer convention).
+  - Tests: `tests/test_iter_216h158_slug_attribution.py` — 5/5 passing (accept writes slug, self_allocate writes engineer only, conversion aggregation correct, days clamping, old-data exclusion). Full regression — **82/82 passing** across 14 SVC modules.
+
 - **Iter 216h157 (17 Feb 2026)** — Inbound email auto-accept on high AI confidence.
   - When the GPT-5.2 parser returns confidence ≥0.9 AND deterministic gates pass (customer + site + ≥12-char title), the inbound webhook skips the triage inbox and creates an `svc_cases` row directly in `ASSIGNED` state with `intake_subchannel="auto_accepted"` + `intake_confidence={0..1}`.
   - **Defence-in-depth**: confidence is `min(ai_self_reported, deterministic_floor)` where the floor is computed from field-completeness — prevents a hallucinated `confidence: 0.99` from tripping the gate when site/title are missing.
