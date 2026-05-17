@@ -137,6 +137,8 @@ from routes.svc.diary import (
     engineer_router as svc_diary_engineer_router,
     admin_router as svc_diary_admin_router,
 )
+# Iter 216h142 — Engineer Notifications + Web Push (Phase 4 / Slice 2)
+from routes.svc.notifications import router as svc_notifications_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -251,6 +253,8 @@ _UNGATED_ROUTERS = (
     # Iter 216h140 — Engineer Diary & Admin Dispatch (Phase 4)
     svc_diary_engineer_router,
     svc_diary_admin_router,
+    # Iter 216h142 — Notifications + Web Push (Phase 4 / Slice 2)
+    svc_notifications_router,
 )
 
 

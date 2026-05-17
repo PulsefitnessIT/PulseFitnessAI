@@ -362,9 +362,15 @@ async def admin_assign_case(
     )
     if not eng:
         raise HTTPException(404, "Engineer not found")
-    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0, "id": 1})
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of},
+        {"_id": 0, "id": 1, "reference": 1, "title": 1, "site_name": 1,
+         "assigned_engineer_id": 1, "scheduled_at": 1},
+    )
     if not case:
         raise HTTPException(404, "Job not found")
+    prev_engineer = case.get("assigned_engineer_id")
+    prev_scheduled = case.get("scheduled_at")
     upd = {
         "assigned_engineer_id": body.engineer_id,
         "assigned_engineer_name": eng.get("full_name"),
@@ -374,6 +380,55 @@ async def admin_assign_case(
     if body.estimated_minutes:
         upd["estimated_minutes"] = body.estimated_minutes
     await db.svc_cases.update_one({"id": case_id, **of}, {"$set": upd})
+
+    # Iter 216h142 — fire a notification on assign / reassign / reschedule.
+    try:
+        from routes.svc.notifications import create_notification
+        when_str = datetime.fromisoformat(
+            body.scheduled_at.replace("Z", "+00:00"),
+        ).strftime("%a %d %b · %H:%M")
+        ref = case.get("reference") or case_id[:8]
+        title = case.get("title") or "Service job"
+        site = case.get("site_name") or "Site"
+        if prev_engineer == body.engineer_id:
+            # Reschedule (same engineer, new time)
+            await create_notification(
+                user_id=body.engineer_id,
+                organization_id=of["organization_id"],
+                kind="job_rescheduled",
+                title=f"Rescheduled: {ref} · {title}",
+                body=f"{site} — new time {when_str}",
+                link=f"/svc/engineer/jobs/{case_id}",
+                source_type="case",
+                source_id=case_id,
+            )
+        else:
+            # New assignment
+            await create_notification(
+                user_id=body.engineer_id,
+                organization_id=of["organization_id"],
+                kind="job_assigned",
+                title=f"New job: {ref} · {title}",
+                body=f"{site} — scheduled {when_str}",
+                link=f"/svc/engineer/jobs/{case_id}",
+                source_type="case",
+                source_id=case_id,
+            )
+            # If we replaced a previous engineer, let them know it's gone.
+            if prev_engineer:
+                await create_notification(
+                    user_id=prev_engineer,
+                    organization_id=of["organization_id"],
+                    kind="job_unassigned",
+                    title=f"Reassigned: {ref}",
+                    body=f"{site} was passed to {eng.get('full_name') or 'another engineer'}.",
+                    link=f"/svc/engineer/jobs/{case_id}",
+                    source_type="case",
+                    source_id=case_id,
+                )
+    except Exception:
+        pass  # never let notifications break the dispatch flow.
+
     return {"ok": True, "case_id": case_id, **upd}
 
 

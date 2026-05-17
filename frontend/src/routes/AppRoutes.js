@@ -110,6 +110,8 @@ const ServiceOpsEngineerDiary = lazy(() => import('@/pages/ServiceOps/Engineer/E
 const ServiceOpsAdminDispatchBoard = lazy(() => import('@/pages/ServiceOps/AdminDispatchBoard'));
 // Iter 216h141 — Engineer Workspace (Phase 4 / Slice 4 · desktop 3-column)
 const ServiceOpsEngineerWorkspace = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerWorkspace'));
+// Iter 216h142 — Engineer Notifications (Phase 4 / Slice 2)
+const ServiceOpsEngineerNotifications = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerNotifications'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
@@ -315,6 +317,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/service-desk/dispatch" element={user ? <ServiceOpsAdminDispatchBoard /> : <Navigate to="/login" replace />} />
       {/* Iter 216h141 — Engineer Workspace (desktop 3-column) */}
       <Route path="/svc/engineer/workspace" element={user ? <ServiceOpsEngineerWorkspace /> : <Navigate to="/login" replace />} />
+      {/* Iter 216h142 — Engineer Notifications */}
+      <Route path="/svc/engineer/notifications" element={user ? <ServiceOpsEngineerNotifications /> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />

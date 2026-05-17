@@ -194,3 +194,36 @@ async function networkFirstWithCache(request) {
     throw _networkErr;
   }
 }
+
+// Iter 216h142 — Web Push handlers for the Engineer Notifications slice.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_e) {
+    try { data = { title: 'GymAxis', body: event.data ? event.data.text() : '' }; }
+    catch (_e2) { data = { title: 'GymAxis', body: '' }; }
+  }
+  const title = data.title || 'GymAxis';
+  const body  = data.body  || '';
+  const options = {
+    body,
+    icon: data.icon || '/manifest-icons/icon-192.png',
+    badge: data.badge || '/manifest-icons/icon-72.png',
+    tag: data.tag || 'gymaxis',
+    data: data.data || {},
+    requireInteraction: false,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/svc/engineer/notifications';
+  event.waitUntil((async () => {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientList) {
+      if (client.url.endsWith(url) && 'focus' in client) return client.focus();
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(url);
+  })());
+});
+

@@ -552,9 +552,9 @@ async def engineer_dashboard(user=Depends(get_current_user)):
     rows = await db.svc_engineer_quotes.aggregate(pipeline).to_list(1)
     earnings_month = round(rows[0]["total"], 2) if rows else 0.0
 
-    # ── Notifications (unread svc_case_events with kind=notification) ──
-    notif_count = await db.svc_case_events.count_documents(
-        {**of, "actor_id": user_id, "kind": "notification", "read_at": None},
+    # ── Notifications (unread svc_notifications) — iter 216h142 ──
+    notif_count = await db.svc_notifications.count_documents(
+        {**of, "user_id": user_id, "read_at": None},
     )
 
     # ── Top 5 lists ───────────────────────────────────────────────

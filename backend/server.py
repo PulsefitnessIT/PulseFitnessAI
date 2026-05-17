@@ -475,6 +475,9 @@ async def _create_indexes() -> None:
     # Iter 216h140 — Engineer Diary indexes
     from routes.svc.diary import ensure_diary_indexes
     await ensure_diary_indexes()
+    # Iter 216h142 — Notifications indexes
+    from routes.svc.notifications import ensure_notification_indexes
+    await ensure_notification_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()
