@@ -79,6 +79,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from utils.database import db
 from utils.auth import get_current_user
+from utils.audit import audit_log
 from utils.svc_state import (
     transition as state_transition,
     append_event,
@@ -532,6 +533,20 @@ async def add_signature(
         extra={"signature_id": sig["id"], "summary": sig["summary"]},
     )
     await sicon_sync.push_signature(sig, case_reference=case.get("reference"))
+    # Iter 216h155 — compliance audit. Customer signature is a legally
+    # binding sign-off — must be in the immutable audit ledger.
+    try:
+        await audit_log(
+            action="svc.case.signature_captured",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_signature",
+            resource_id=sig["id"],
+            details=f"case={case.get('reference', '')} · "
+                    f"signed_by={signed_by_name}",
+        )
+    except Exception as e:
+        logger.warning("[audit] signature failed: %s", e)
     return sig
 
 

@@ -70,6 +70,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from utils.database import db
 from utils.auth import get_current_user
+from utils.audit import audit_log
 from routes.svc.integrations import sage_invoice
 
 logger = logging.getLogger(__name__)
@@ -476,6 +477,21 @@ async def finalise_invoice(case_id: str, user=Depends(get_current_user)):
         await emit_invoice_activity(case, finalised_quote or quote, user)
     except Exception as e:
         logger.warning("[svc→crm] emit_invoice_activity failed: %s", e)
+    # Iter 216h155 — compliance audit. Invoice finalisation is the
+    # money-commit step — the strongest audit signal in the SVC module.
+    try:
+        await audit_log(
+            action="svc.invoice.finalise",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_invoice",
+            resource_id=quote["id"],
+            details=f"case={case.get('reference', '')} · "
+                    f"net=£{quote.get('net') or quote.get('subtotal') or 0} · "
+                    f"gross=£{quote.get('gross') or quote.get('total') or 0}",
+        )
+    except Exception as e:
+        logger.warning("[audit] invoice.finalise failed: %s", e)
     # Echo the outbox row so the UI can confirm.
     outbox = await db.svc_sage_invoice_outbox.find_one({**of, "case_id": case_id}, {"_id": 0})
     return {"ok": True, "quote": _strip(await db.svc_quotes.find_one({"id": quote["id"]}, {"_id": 0})), "outbox": outbox}

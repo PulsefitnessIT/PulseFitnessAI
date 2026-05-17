@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 
 from routes.partners import require_engineer_app_access
 from routes.svc.integrations import sicon_sync
+from utils.audit import audit_log
 from utils.auth import get_current_user
 from utils.database import db
 from utils.svc_state import append_event
@@ -293,6 +294,20 @@ async def admin_approve(request_id: str, body: ApproveIn,
         )
     except Exception as e:
         logger.warning("[svc→sicon] parts-request approve push failed: %s", e)
+    # Iter 216h155 — compliance audit (parts chain-of-custody).
+    try:
+        await audit_log(
+            action="svc.parts.approve",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_parts_request",
+            resource_id=request_id,
+            details=f"case={req.get('case_id', '')} · "
+                    f"sku={req.get('part_sku')} · qty={req.get('qty')} · "
+                    f"from={ship_from}",
+        )
+    except Exception as e:
+        logger.warning("[audit] parts.approve failed: %s", e)
     await db.svc_parts_requests.update_one(
         {"id": request_id, **of},
         {"$set": {

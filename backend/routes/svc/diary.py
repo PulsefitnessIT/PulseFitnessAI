@@ -34,6 +34,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from utils.audit import audit_log
 from utils.auth import get_current_user
 from utils.database import db
 from utils.svc_state import ASSIGNED, NEW, TRIAGED, append_event
@@ -489,6 +490,22 @@ async def admin_assign_case(
                     )
     except Exception as e:
         logger.warning("[svc→sicon] diary schedule push failed: %s", e)
+
+    # Iter 216h155 — audit dispatch decisions for compliance.
+    try:
+        await audit_log(
+            action="svc.case.dispatch",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_case",
+            resource_id=case_id,
+            details=f"{case.get('reference', '')} → eng={body.engineer_id}"
+                    + (f" @ {body.scheduled_at}" if body.scheduled_at else "")
+                    + (f" (status {prev_status}→{promoted_status})"
+                       if promoted_status else ""),
+        )
+    except Exception as e:
+        logger.warning("[audit] diary schedule failed: %s", e)
 
     return {"ok": True, "case_id": case_id, **upd}
 

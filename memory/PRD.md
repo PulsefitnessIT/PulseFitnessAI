@@ -6840,6 +6840,12 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h155 (17 Feb 2026)** — SVC compliance audit-log coverage (P1 from process-audit; SOC2 / GDPR / ISO 27001 enabler).
+  - Wired `utils.audit.audit_log()` into the 7 highest-risk SVC mutation sites: `cases.transition_case` (every state change), `engineer_queue.claim` (self-allocation), `independence.self_allocate` + `accept_job_request` (non-dispatch case creation), `diary.schedule_case` (admin dispatch), `billing.finalise_invoice` (money commit), `engineer.add_signature` (customer sign-off), `engineer_parts_requests.admin_approve` (chain-of-custody).
+  - Action namespace: `svc.case.transition.{state}`, `svc.case.self_claim`, `svc.case.self_allocate`, `svc.case.accept_job_request`, `svc.case.dispatch`, `svc.invoice.finalise`, `svc.case.signature_captured`, `svc.parts.approve`.
+  - Before this iter the entire SVC module had **zero** `audit_log()` calls while CRM/Master-Admin had dozens — a known gap from the Feb audit. Now matched.
+  - Tests: `tests/test_iter_216h155_audit_coverage.py` — 7/7 passing (one per mutation site, asserting `audit_logs` row exists with correct action + resource_type + details). Full regression — **58/58 passing total**.
+
 - **Iter 216h154 (17 Feb 2026)** — SVC → CAPEX signal layer (closes the loop for "Board-Ready CAPEX", the user's stated #1 product goal).
   - New `utils/svc_capex_signals.py` — aggregates 12-month service activity per asset: `service_visits_12mo`, `service_spend_12mo` (sum of approved/invoiced quote net), `downtime_hours_12mo`, `open_service_cases`, `last_service_at`. Matches by `asset_id` primary + `equipment_ids[]` secondary so PPM batch jobs don't inflate spend.
   - New `compute_repair_vs_replace()` — industry-standard BER ratio (spend ÷ replacement) with three-band recommendation: ≥0.50 = replace, 0.25–0.50 = watch, <0.25 = keep.

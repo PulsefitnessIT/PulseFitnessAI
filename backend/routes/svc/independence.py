@@ -52,6 +52,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from routes.partners import require_engineer_app_access
 from routes.svc.integrations import sicon_sync
+from utils.audit import audit_log
 from utils.auth import get_current_user
 from utils.database import db
 from utils.svc_state import ASSIGNED, append_event
@@ -229,6 +230,19 @@ async def jobs_self_create(
             )
     except Exception as e:
         logger.warning("[svc→sicon] self_allocate push failed: %s", e)
+    # Iter 216h155 — compliance audit (case creation outside the
+    # dispatch flow needs the strongest paper trail).
+    try:
+        await audit_log(
+            action="svc.case.self_allocate",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_case",
+            resource_id=case_id,
+            details=f"{reference} · channel={body.intake_channel or 'engineer'}",
+        )
+    except Exception as e:
+        logger.warning("[audit] self_allocate failed: %s", e)
     return {"case_id": case_id, "reference": reference, "case": doc}
 
 
@@ -453,6 +467,18 @@ async def accept_job_request(
             )
     except Exception as e:
         logger.warning("[svc→sicon] accept_job_request push failed: %s", e)
+    # Iter 216h155 — audit accept_job_request (parts of public intake).
+    try:
+        await audit_log(
+            action="svc.case.accept_job_request",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_case",
+            resource_id=case_id,
+            details=f"{case.get('reference', '')} · request_id={req_id}",
+        )
+    except Exception as e:
+        logger.warning("[audit] accept_job_request failed: %s", e)
     return {"case_id": case_id, "reference": case["reference"]}
 
 

@@ -73,6 +73,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from utils.audit import audit_log
 from utils.database import db
 from utils.auth import get_current_user
 from utils.svc_state import (
@@ -272,6 +273,22 @@ async def transition_case(case_id: str, data: dict, user=Depends(get_current_use
             await emit_case_close_activity(case, user)
         except Exception as e:
             logger.warning("[svc→crm] emit_case_close_activity failed: %s", e)
+    # Iter 216h155 — compliance audit. Records every state transition
+    # in the immutable `audit_logs` collection so the GDPR / SOC2 path
+    # has a tamper-evident answer to "who did what, when, to which
+    # service case".
+    try:
+        await audit_log(
+            action=f"svc.case.transition.{target}",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_case",
+            resource_id=case_id,
+            details=f"{case.get('reference', '')} → {target}"
+                    + (f" · {reason}" if reason else ""),
+        )
+    except Exception as e:
+        logger.warning("[audit] transition_case failed: %s", e)
     return _strip(case)
 
 

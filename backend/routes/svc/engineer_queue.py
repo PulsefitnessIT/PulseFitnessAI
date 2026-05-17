@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from routes.partners import require_engineer_app_access
 from routes.svc.integrations import sicon_sync
+from utils.audit import audit_log
 from utils.auth import get_current_user
 from utils.database import db
 from utils.postcodes_client import lookup as postcode_lookup, normalise_postcode
@@ -366,6 +367,21 @@ async def claim_case(
                     )
     except Exception as e:
         logger.warning("[svc→sicon] self-claim push failed: %s", e)
+
+    # Iter 216h155 — compliance audit for self-claim.
+    try:
+        await audit_log(
+            action="svc.case.self_claim",
+            user_id=user.get("id", ""),
+            user_email=user.get("email", ""),
+            resource_type="svc_case",
+            resource_id=case_id,
+            details=f"{result.get('reference', '')} claimed"
+                    + (f" (status {prev}→{result.get('status')})"
+                       if prev and prev != result.get("status") else ""),
+        )
+    except Exception as e:
+        logger.warning("[audit] self_claim failed: %s", e)
 
     return {"ok": True, "case_id": case_id, "reference": result.get("reference"),
             "scheduled_at": result.get("scheduled_at")}
