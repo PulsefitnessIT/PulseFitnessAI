@@ -144,6 +144,8 @@ from routes.svc.independence import (
     engineer_router as svc_independence_router,
     public_router as svc_intake_public_router,
 )
+# Iter 216h147 — Engineer self-claim queue
+from routes.svc.engineer_queue import router as svc_engineer_queue_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -263,6 +265,8 @@ _UNGATED_ROUTERS = (
     # Iter 216h144 — Engineer independence (self-create + supplier card)
     svc_independence_router,
     svc_intake_public_router,
+    # Iter 216h147 — Engineer self-claim queue
+    svc_engineer_queue_router,
 )
 
 

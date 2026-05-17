@@ -30,7 +30,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Home, Wrench, Calendar, FileText, Receipt, CreditCard, Search,
   RefreshCw, Loader2, ChevronRight, AlertTriangle, Clock, MapPin,
-  Keyboard, ExternalLink, X, PlayCircle, FilePlus, Inbox as InboxIcon,
+  Keyboard, ExternalLink, X, PlayCircle, FilePlus, Inbox as InboxIcon, Hand,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -108,6 +108,7 @@ const Sidebar = ({ onNav, onHelp }) => (
     </div>
     <NavBtn icon={Home}     label="Home"     shortcut="h" onClick={() => onNav('/svc/engineer')}            testid="ws-nav-home" />
     <NavBtn icon={Wrench}   label="Jobs"     active                                                        testid="ws-nav-jobs" />
+    <NavBtn icon={Hand}     label="Queue"    shortcut="q" onClick={() => onNav('/svc/engineer/queue')}     testid="ws-nav-queue" />
     <NavBtn icon={InboxIcon} label="Inbox"   shortcut="b" onClick={() => onNav('/svc/engineer/inbox')}     testid="ws-nav-inbox" />
     <NavBtn icon={Calendar} label="Diary"    shortcut="d" onClick={() => onNav('/svc/engineer/diary')}     testid="ws-nav-diary" />
     <NavBtn icon={FileText} label="Quotes"   shortcut="c" onClick={() => onNav('/svc/engineer/quotes')}    testid="ws-nav-quotes" />
@@ -415,6 +416,8 @@ const SHORTCUTS = [
   { k: 'o',      what: 'Open full view of selected job' },
   { k: 'c',      what: 'New quote' },
   { k: 'i',      what: 'New invoice' },
+  { k: 'q',      what: 'Org queue (up for grabs)' },
+  { k: 'b',      what: 'Incoming requests inbox' },
   { k: 'd',      what: 'Go to diary' },
   { k: 'h',      what: 'Go to home' },
   { k: 'Esc',    what: 'Close overlay / blur search' },
@@ -547,6 +550,7 @@ export default function EngineerWorkspace() {
       if (e.key === 'i') { e.preventDefault(); navigate('/svc/engineer/invoices/new'); return; }
       if (e.key === 'd') { e.preventDefault(); navigate('/svc/engineer/diary'); return; }
       if (e.key === 'b') { e.preventDefault(); navigate('/svc/engineer/inbox'); return; }
+      if (e.key === 'q') { e.preventDefault(); navigate('/svc/engineer/queue'); return; }
       if (e.key === 'h') { e.preventDefault(); navigate('/svc/engineer'); return; }
     };
     window.addEventListener('keydown', handler);

@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2,
   PoundSterling, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
-  CreditCard, Inbox,
+  CreditCard, Inbox, Hand,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -330,6 +330,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Wrench} primary label="New job"
                              testid="qa-new-job"
                              onClick={() => navigate('/svc/engineer/jobs/new')} />
+                <QuickAction icon={Hand} label="Up for grabs"
+                             testid="qa-queue"
+                             onClick={() => navigate('/svc/engineer/queue')} />
                 <QuickAction icon={Inbox} label="Inbox"
                              testid="qa-inbox"
                              onClick={() => navigate('/svc/engineer/inbox')} />
