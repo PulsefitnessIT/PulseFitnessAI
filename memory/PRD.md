@@ -1,3 +1,32 @@
+## Iter 216h141 — Engineer App Phase 4 · Slice 4 of 4: Desktop Workspace (Feb 17, 2026) ✅
+
+Linear/Superhuman-style 3-column workspace at `/svc/engineer/workspace`.
+
+### Frontend (NEW · `pages/ServiceOps/Engineer/EngineerWorkspace.js`)
+
+* **Sidebar (64px)** — icon-only nav (Home / Jobs / Diary / Quotes / Invoices / Payouts) + shortcuts help.
+* **Job list (360px)** — search box, three filter chips (All · Today · SLA risk), active-timer pill at top (green gradient), priority-coloured rows with SLA chip.
+* **Detail pane (flex)** — selected job's brief, 4-stat grid (Status · Scheduled · Asset · Fault), description, recent activity timeline (12 events), "Open job" CTA → existing V2 detail page.
+* **Keyboard shortcuts**:
+  * `j` / `↓` next · `k` / `↑` previous · `/` focus search · `r` refresh
+  * `o` open full job view · `c` new quote · `i` new invoice
+  * `d` diary · `h` home · `?` shortcuts overlay · `Esc` close / blur
+* **Mobile fallback**: `matchMedia('(max-width: 1023px)')` redirects to `/svc/engineer` so phones keep the mobile-first home.
+* **Entry point**: "Workspace" pill button added to `EngineerHomeV2` header (testid `engineer-home-open-workspace`), hidden on mobile.
+
+### Testing
+* Frontend testing agent → **100% pass**. All shortcuts verified, mobile auto-redirect works, no regressions.
+* Report: `/app/test_reports/iteration_216h141.json`.
+
+### Phase 4 status
+* ✅ Slice 1 — Diary & Scheduling (216h140)
+* ✅ Slice 4 — Desktop Workspace (216h141)
+* ⬜ Slice 2 — Notifications (in-app centre + Web Push)
+* ⬜ Slice 3 — Offline writes (IndexedDB queue + sync)
+
+---
+
+
 ## Iter 216h140 — Engineer App Phase 4 · Slice 1 of 4: Diary & Scheduling (Feb 17, 2026) ✅
 
 First slice of the Phase-4 plan (Diary → Notifications → Offline → Desktop polish).
