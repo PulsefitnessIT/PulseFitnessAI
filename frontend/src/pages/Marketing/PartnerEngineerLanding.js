@@ -22,6 +22,7 @@ import {
 
 import './marketing.css';
 import MarketingShell from './MarketingShell';
+import LiveEngineerAppPreview from './LiveEngineerAppPreview';
 import { useSeo } from '@/utils/seo';
 
 const TIER_TABLE = [
@@ -424,38 +425,7 @@ function EngineerApp() {
           </ul>
         </div>
         <div className="relative" data-testid="pe-app-visual">
-          {/* Stylised "phone" mock */}
-          <div className="mx-auto max-w-xs rounded-[40px] border-8 border-slate-900 bg-slate-900 shadow-2xl overflow-hidden">
-            <div className="bg-slate-100 px-4 py-3 flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-700">9:41</span>
-              <span className="font-bold text-slate-700">●●● ●●</span>
-            </div>
-            <div className="bg-white p-4 space-y-3 text-left text-xs h-[440px] overflow-hidden">
-              <div className="flex items-center justify-between">
-                <p className="font-extrabold text-slate-900 text-sm">Job · CASE-1287</p>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-blue-100 text-blue-700">On site</span>
-              </div>
-              <p className="text-slate-500">PureGym Birmingham · Treadmill #4 · belt slip at 12 km/h</p>
-              <div className="rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-amber-900">
-                <p className="text-[10px] font-bold uppercase tracking-wider">⚡ Asset history</p>
-                <p className="mt-1">3 prior visits in 90 days · last: BELT_SLIP · ★★★★★</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Time on site</p>
-                <p className="font-bold text-slate-800 mt-0.5">Travel 25m · On site 42m</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Parts (1)</p>
-                <p className="font-semibold text-slate-800 mt-0.5">1 × BELT-001 <span className="opacity-60">· from van</span></p>
-              </div>
-              <button type="button" className="w-full mt-2 rounded-lg bg-blue-600 text-white font-bold py-2.5 text-sm">
-                View report
-              </button>
-              <button type="button" className="w-full rounded-lg border border-slate-200 text-slate-700 font-bold py-2.5 text-sm">
-                Send to customer
-              </button>
-            </div>
-          </div>
+          <LiveEngineerAppPreview />
         </div>
       </div>
     </section>
