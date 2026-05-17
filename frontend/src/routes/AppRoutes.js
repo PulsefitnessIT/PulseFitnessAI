@@ -13,7 +13,7 @@
  * negotiate its own redirect.
  */
 import React, { lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
 // to avoid a Suspense fallback on landing.
@@ -206,8 +206,8 @@ function CrmRouteElement({ user }) {
 }
 
 export default function AppRoutes({ user, login }) {
-  const isEngineerRoute = typeof window !== 'undefined' &&
-    /^\/svc\/engineer/.test(window.location.pathname);
+  const location = useLocation();
+  const isEngineerRoute = /^\/svc\/engineer/.test(location.pathname);
   return (
     <>
     <Routes>

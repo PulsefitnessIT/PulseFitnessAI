@@ -1,3 +1,69 @@
+## Iter 216h143 — Engineer App Phase 4 · Slice 3 of 4: Offline Writes (Feb 17, 2026) ✅
+
+IndexedDB-backed write queue for field engineers — time entries, mileage,
+photos, signatures, parts-used all keep working without a signal and
+sync automatically on reconnect. **Phase 4 is now COMPLETE.**
+
+### Frontend (NEW)
+
+* **`utils/engineerOfflineQueue.js`** — purpose-built IndexedDB queue
+  (DB `gymaxis-engineer-offline`, store `engineer-ops`) separate from the
+  older platform-wide queue.
+  * `engineerSendOrQueue({ method, path, body, label, multipart })` — try
+    online first; on network error / `navigator.onLine === false` / 5xx,
+    queue the op with an `Idempotency-Key`. 4xx responses are dropped.
+  * `engineerFlushQueue()` — replays queued ops in FIFO order, exits on
+    the first network error to save battery.
+  * `useEngineerOfflineQueue()` — React hook exposing `{ online, pending }`.
+  * Auto-flush triggers on browser `online` event, 2s after boot, and
+    every 60s while the queue is non-empty.
+* **`components/engineer/EngineerOfflineIndicator.jsx`** — floating pill:
+  red `Offline · N` when offline, amber `Syncing N` while flushing,
+  hidden otherwise. Mounted in `AppRoutes` for any path starting with
+  `/svc/engineer`.
+* **`pages/ServiceOps/Engineer/EngineerSyncPanel.js`** — route `/svc/engineer/sync`
+  — full queue UI with per-op status, last error, manual Sync now,
+  per-op discard, and "Discard all" with confirm.
+
+### EngineerJobDetailV2 integration
+Three highest-frequency writes now route through `engineerSendOrQueue`:
+
+* `POST /svc/engineer/time/start`
+* `POST /svc/engineer/time/stop`
+* `POST /svc/engineer/jobs/{id}/mileage`
+
+When offline the engineer sees a friendly *"Saved offline — will sync
+when you reconnect"* toast; the op lands in IndexedDB and replays on the
+next `online` event. Photos & signatures use multipart so they need
+their own offline path — deferred to a follow-up (the queue supports
+multipart shape, just not wired into the upload UI yet).
+
+### Server-side
+No backend changes — every targeted endpoint already accepts an
+`Idempotency-Key` header (see `engineer.py:308–312`, `phase3.py:106–115`)
+so replays are guaranteed safe.
+
+### Testing
+* Frontend testing agent → **100% pass**. IndexedDB queue mechanics
+  verified, Sync Panel exercises (empty/populated, sync-now, per-op
+  discard, clear-all), offline indicator behaviour confirmed in code.
+* Backend regression: `test_iter_216h142_notifications.py +
+  test_iter_216h140_diary.py + test_iter_216h139_credentials_email.py` →
+  **17/17 still passing**.
+* Report: `/app/test_reports/iteration_216h143.json`.
+* Post-test fix applied: `AppRoutes.js` switched from
+  `window.location.pathname` to `useLocation()` so the offline indicator
+  reacts correctly to SPA navigation.
+
+### Phase 4 — COMPLETE
+* ✅ Slice 1 — Diary & Scheduling (216h140)
+* ✅ Slice 2 — Notifications + Web Push (216h142)
+* ✅ Slice 3 — Offline Writes (this iter)
+* ✅ Slice 4 — Desktop Workspace (216h141)
+
+---
+
+
 ## Iter 216h142 — Engineer App Phase 4 · Slice 2 of 4: Notifications + Web Push (Feb 17, 2026) ✅
 
 In-app notification centre + Web Push for the Engineer App.
