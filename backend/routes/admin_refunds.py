@@ -13,6 +13,12 @@ Why we log to `refund_events`:
 Why partial refunds are allowed:
     • Pro-rata refunds when operators cancel mid-cycle after a support
       escalation. Full refunds would over-compensate.
+
+Iter 216h164 — refactored: the previous `issue_refund` was a single
+function with cyclomatic complexity E/36. It's been split into small
+helpers (validation, Stripe call, org resolution, event persistence)
+that each do one job. Behaviour is unchanged; this is purely an
+ergonomics + maintainability fix.
 """
 from __future__ import annotations
 
@@ -31,6 +37,9 @@ stripe.api_key = STRIPE_API_KEY
 
 router = APIRouter(prefix="/admin/refunds", tags=["admin-refunds"])
 
+_STRIPE_REASONS = ("requested_by_customer", "duplicate", "fraudulent")
+_ALL_REASONS = (*_STRIPE_REASONS, "other")
+
 
 def _require_master_admin(user: dict) -> None:
     if not user.get("is_master_admin"):
@@ -39,6 +48,30 @@ def _require_master_admin(user: dict) -> None:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ── List ─────────────────────────────────────────────────────────
+
+async def _backfill_org_names(rows: list[dict]) -> None:
+    """Mutate `rows` in place to add `organization_name` for legacy entries.
+
+    Pre-iter 215d0 rows only carry `organization_id`; the UI wants a
+    human-readable name. One batched lookup serves the whole window.
+    """
+    missing = {
+        r["organization_id"] for r in rows
+        if r.get("organization_id") and not r.get("organization_name")
+    }
+    if not missing:
+        return
+    org_docs = await db.organizations.find(
+        {"id": {"$in": list(missing)}},
+        {"_id": 0, "id": 1, "name": 1},
+    ).to_list(len(missing) + 1)
+    id_to_name = {d["id"]: d.get("name") for d in org_docs}
+    for r in rows:
+        if r.get("organization_id") and not r.get("organization_name"):
+            r["organization_name"] = id_to_name.get(r["organization_id"])
 
 
 @router.get("")
@@ -55,27 +88,154 @@ async def list_refunds(
     if organization_id:
         q["organization_id"] = organization_id
     rows = await db.refund_events.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+    await _backfill_org_names(rows)
 
-    # Back-fill `organization_name` for rows that pre-date 215d0 (only
-    # have an org_id). One batched lookup across all distinct ids.
-    missing_ids = {r["organization_id"] for r in rows if r.get("organization_id") and not r.get("organization_name")}
-    if missing_ids:
-        org_docs = await db.organizations.find(
-            {"id": {"$in": list(missing_ids)}},
-            {"_id": 0, "id": 1, "name": 1},
-        ).to_list(len(missing_ids) + 1)
-        id_to_name = {d["id"]: d.get("name") for d in org_docs}
-        for r in rows:
-            if r.get("organization_id") and not r.get("organization_name"):
-                r["organization_name"] = id_to_name.get(r["organization_id"])
-
-    total_refunded_pence = sum(int(r.get("amount_pence", 0)) for r in rows if r.get("status") == "succeeded")
+    total_refunded_pence = sum(
+        int(r.get("amount_pence", 0)) for r in rows if r.get("status") == "succeeded"
+    )
     return {
         "window_days": days,
         "count": len(rows),
         "total_refunded_pence": total_refunded_pence,
         "total_refunded": round(total_refunded_pence / 100, 2),
         "items": rows,
+    }
+
+
+# ── Issue refund — helpers ───────────────────────────────────────
+
+def _validate_refund_payload(payload: dict) -> dict:
+    """Coerce and validate the inbound payload; return a tidy dict.
+    Raises HTTPException(400) on every validation failure."""
+    charge_id = (payload.get("charge_id") or "").strip()
+    if not charge_id:
+        raise HTTPException(status_code=400, detail="charge_id is required")
+
+    reason = (payload.get("reason") or "").strip().lower()
+    if reason not in _ALL_REASONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"reason must be one of {'|'.join(_ALL_REASONS)}",
+        )
+
+    raw_amount = payload.get("amount_pence")
+    amount_pence: int | None = None
+    if raw_amount is not None:
+        try:
+            amount_pence = int(raw_amount)
+            if amount_pence <= 0:
+                raise ValueError
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail="amount_pence must be a positive integer",
+            ) from exc
+
+    return {
+        "charge_id": charge_id,
+        "reason": reason,
+        "amount_pence": amount_pence,
+        "notes": (payload.get("notes") or "").strip()[:1000],
+        "organization_id": payload.get("organization_id"),
+    }
+
+
+def _build_refund_kwargs(charge_id: str, amount_pence: int | None, reason: str) -> dict:
+    """Stripe.Refund.create accepts `charge` OR `payment_intent`, not both.
+    `reason` is only valid when in Stripe's enum — `other` is ours."""
+    kwargs: dict = {}
+    if charge_id.startswith("pi_"):
+        kwargs["payment_intent"] = charge_id
+    else:
+        kwargs["charge"] = charge_id
+    if amount_pence is not None:
+        kwargs["amount"] = amount_pence
+    if reason in _STRIPE_REASONS:
+        kwargs["reason"] = reason
+    return kwargs
+
+
+def _create_stripe_refund(kwargs: dict):
+    """Wrap Stripe.Refund.create — map Stripe failures to clean HTTP errors."""
+    try:
+        return stripe.Refund.create(**kwargs)
+    except stripe.InvalidRequestError as exc:
+        logger.warning("[refunds] Stripe rejected refund: %s", exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Stripe: {exc.user_message or str(exc)}",
+        ) from exc
+    except Exception as exc:
+        logger.exception("[refunds] unexpected error issuing refund")
+        raise HTTPException(status_code=502, detail=f"Stripe error: {exc}") from exc
+
+
+def _fetch_charge_object(charge_id: str):
+    """Retrieve the underlying Charge for a charge_id OR payment_intent."""
+    if charge_id.startswith("pi_"):
+        pi = stripe.PaymentIntent.retrieve(charge_id, expand=["charges.data"])
+        items = getattr(pi, "charges", None)
+        return items.data[0] if items and items.data else None
+    return stripe.Charge.retrieve(charge_id)
+
+
+async def _find_org_by_field(field: str, value: str) -> tuple[str | None, str | None]:
+    """Look up an org by a single field and return (id, name) or (None, None)."""
+    org = await db.organizations.find_one(
+        {field: value}, {"_id": 0, "id": 1, "name": 1},
+    )
+    if not org:
+        return None, None
+    return org["id"], org.get("name")
+
+
+async def _resolve_org_link(
+    charge_id: str, organization_id: str | None,
+) -> tuple[str | None, str | None]:
+    """Best-effort: figure out which org issued this charge.
+    Tries stripe_customer_id, then billing email. Never raises."""
+    resolved_id, resolved_name = organization_id, None
+    try:
+        charge_obj = _fetch_charge_object(charge_id)
+        cust_id = getattr(charge_obj, "customer", None) if charge_obj else None
+        email = (
+            charge_obj.billing_details.email
+            if charge_obj and charge_obj.billing_details else None
+        )
+
+        if not resolved_id and cust_id:
+            resolved_id, resolved_name = await _find_org_by_field(
+                "stripe_customer_id", cust_id,
+            )
+        if not resolved_id and email:
+            resolved_id, resolved_name = await _find_org_by_field(
+                "primary_contact_email", email.lower(),
+            )
+        if resolved_id and not resolved_name:
+            _, resolved_name = await _find_org_by_field("id", resolved_id)
+    except Exception:
+        logger.debug("[refunds] could not resolve linked org (non-fatal)", exc_info=True)
+    return resolved_id, resolved_name
+
+
+def _build_refund_event(
+    refund, *, validated: dict, user: dict,
+    org_id: str | None, org_name: str | None,
+) -> dict:
+    return {
+        "id": refund.id,
+        "charge_id": refund.charge if hasattr(refund, "charge") else validated["charge_id"],
+        "payment_intent": getattr(refund, "payment_intent", None),
+        "status": refund.status,
+        "amount_pence": int(refund.amount or 0),
+        "currency": (refund.currency or "gbp").lower(),
+        "reason": validated["reason"],
+        "internal_notes": validated["notes"],
+        "organization_id": org_id,
+        "organization_name": org_name,
+        "issued_by_user_id": user["id"],
+        "issued_by_email": user.get("email"),
+        "created_at": _now(),
     }
 
 
@@ -95,115 +255,29 @@ async def issue_refund(
         organization_id (optional) — tag the refund to an org for analytics.
     """
     _require_master_admin(user)
-
-    charge_id = (payload.get("charge_id") or "").strip()
-    if not charge_id:
-        raise HTTPException(status_code=400, detail="charge_id is required")
-
-    reason = (payload.get("reason") or "").strip().lower()
-    if reason not in ("requested_by_customer", "duplicate", "fraudulent", "other"):
-        raise HTTPException(status_code=400, detail="reason must be one of requested_by_customer|duplicate|fraudulent|other")
-
-    amount_pence = payload.get("amount_pence")
-    if amount_pence is not None:
-        try:
-            amount_pence = int(amount_pence)
-            if amount_pence <= 0:
-                raise ValueError
-        except (ValueError, TypeError) as exc:
-            raise HTTPException(status_code=400, detail="amount_pence must be a positive integer") from exc
-
-    notes = (payload.get("notes") or "").strip()[:1000]
-    organization_id = payload.get("organization_id")
-
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=503, detail="Stripe not configured")
 
-    # Call Stripe — other=...refund-reason is rewritten to `other` which
-    # Stripe refuses; we only pass a reason when it's in Stripe's enum.
-    stripe_kwargs: dict = {}
-    if charge_id.startswith("pi_"):
-        stripe_kwargs["payment_intent"] = charge_id
-    else:
-        stripe_kwargs["charge"] = charge_id
-    if amount_pence is not None:
-        stripe_kwargs["amount"] = amount_pence
-    if reason in ("requested_by_customer", "duplicate", "fraudulent"):
-        stripe_kwargs["reason"] = reason
+    validated = _validate_refund_payload(payload)
+    refund = _create_stripe_refund(_build_refund_kwargs(
+        validated["charge_id"], validated["amount_pence"], validated["reason"],
+    ))
+    org_id, org_name = await _resolve_org_link(
+        validated["charge_id"], validated["organization_id"],
+    )
 
-    try:
-        refund = stripe.Refund.create(**stripe_kwargs)
-    except stripe.InvalidRequestError as exc:
-        logger.warning("[refunds] Stripe rejected refund: %s", exc)
-        raise HTTPException(status_code=400, detail=f"Stripe: {exc.user_message or str(exc)}") from exc
-    except Exception as exc:
-        logger.exception("[refunds] unexpected error issuing refund")
-        raise HTTPException(status_code=502, detail=f"Stripe error: {exc}") from exc
-
-    # Iter 215d0 — if no organization_id was supplied, try to resolve it
-    # from the charge's linked customer. Two heuristics, both cheap:
-    #   1) match by `stripe_customer_id` on the organization doc
-    #   2) fall back to the charge's billing email → primary_contact_email
-    # Either way this is best-effort; failure is silent.
-    resolved_org_id = organization_id
-    resolved_org_name = None
-    try:
-        charge_obj = None
-        if charge_id.startswith("pi_"):
-            pi = stripe.PaymentIntent.retrieve(charge_id, expand=["charges.data"])
-            items = getattr(pi, "charges", None)
-            charge_obj = items.data[0] if items and items.data else None
-        else:
-            charge_obj = stripe.Charge.retrieve(charge_id)
-        cust_id = getattr(charge_obj, "customer", None) if charge_obj else None
-        email = charge_obj.billing_details.email if charge_obj and charge_obj.billing_details else None
-        if not resolved_org_id and cust_id:
-            org = await db.organizations.find_one(
-                {"stripe_customer_id": cust_id},
-                {"_id": 0, "id": 1, "name": 1},
-            )
-            if org:
-                resolved_org_id = org["id"]
-                resolved_org_name = org.get("name")
-        if not resolved_org_id and email:
-            org = await db.organizations.find_one(
-                {"primary_contact_email": email.lower()},
-                {"_id": 0, "id": 1, "name": 1},
-            )
-            if org:
-                resolved_org_id = org["id"]
-                resolved_org_name = org.get("name")
-        if resolved_org_id and not resolved_org_name:
-            org = await db.organizations.find_one(
-                {"id": resolved_org_id}, {"_id": 0, "name": 1},
-            )
-            if org:
-                resolved_org_name = org.get("name")
-    except Exception:
-        logger.debug("[refunds] could not resolve linked org (non-fatal)", exc_info=True)
-
-    event = {
-        "id": refund.id,
-        "charge_id": refund.charge if hasattr(refund, "charge") else charge_id,
-        "payment_intent": getattr(refund, "payment_intent", None),
-        "status": refund.status,
-        "amount_pence": int(refund.amount or 0),
-        "currency": (refund.currency or "gbp").lower(),
-        "reason": reason,
-        "internal_notes": notes,
-        "organization_id": resolved_org_id,
-        "organization_name": resolved_org_name,
-        "issued_by_user_id": user["id"],
-        "issued_by_email": user.get("email"),
-        "created_at": _now(),
-    }
+    event = _build_refund_event(
+        refund, validated=validated, user=user,
+        org_id=org_id, org_name=org_name,
+    )
     await db.refund_events.insert_one(dict(event))
 
     ip = request.client.host if request.client else ""
     await audit_log(
         "refund_issued", user["id"], user.get("email", ""),
         "refund", refund.id,
-        f"{refund.amount/100:.2f} {refund.currency.upper()} on {charge_id} · reason={reason}",
+        f"{refund.amount/100:.2f} {refund.currency.upper()} on "
+        f"{validated['charge_id']} · reason={validated['reason']}",
         ip,
     )
 
@@ -212,16 +286,41 @@ async def issue_refund(
     return {"ok": True, "refund": event}
 
 
+# ── Lookup ───────────────────────────────────────────────────────
+
+def _lookup_by_id(query: str) -> list[dict]:
+    """Resolve a `ch_…` or `pi_…` directly."""
+    try:
+        if query.startswith("ch_"):
+            ch = stripe.Charge.retrieve(query)
+            return [_charge_to_dict(ch)]
+        if query.startswith("pi_"):
+            pi = stripe.PaymentIntent.retrieve(query, expand=["charges.data"])
+            items = getattr(pi, "charges", None)
+            ch = items.data[0] if items and items.data else None
+            return [_charge_to_dict(ch)] if ch else []
+    except stripe.InvalidRequestError:
+        return []
+    return []
+
+
+def _lookup_by_email(email: str) -> list[dict]:
+    customers = stripe.Customer.list(email=email, limit=3)
+    out: list[dict] = []
+    for cust in customers.data:
+        charges = stripe.Charge.list(customer=cust.id, limit=10)
+        out.extend(_charge_to_dict(c) for c in charges.data)
+    return out
+
+
 @router.get("/lookup")
 async def lookup_charge(
     query: str,
     user: dict = Depends(get_current_user),
 ) -> dict:
-    """Convenience endpoint: find a charge by customer email or last-4.
+    """Find a charge by customer email or charge/payment-intent id.
 
-    Query can be an email, `ch_xxx`, `pi_xxx`, or last-4 card digits.
-    Used by the admin refund UI to resolve a payment before refund.
-    """
+    Used by the admin refund UI to resolve a payment before refund."""
     _require_master_admin(user)
     query = (query or "").strip()
     if not query:
@@ -229,36 +328,25 @@ async def lookup_charge(
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=503, detail="Stripe not configured")
 
-    # Direct-lookup shortcuts.
-    try:
-        if query.startswith("ch_"):
-            ch = stripe.Charge.retrieve(query)
-            return {"matches": [_charge_to_dict(ch)]}
-        if query.startswith("pi_"):
-            pi = stripe.PaymentIntent.retrieve(query, expand=["charges.data"])
-            items = getattr(pi, "charges", None)
-            ch = (items.data[0] if items and items.data else None)
-            return {"matches": [_charge_to_dict(ch)] if ch else []}
-    except stripe.InvalidRequestError:
-        return {"matches": []}
-
-    # Email-based lookup via customers.
+    if query.startswith(("ch_", "pi_")):
+        return {"matches": _lookup_by_id(query)}
     if "@" in query:
-        customers = stripe.Customer.list(email=query, limit=3)
-        all_charges = []
-        for cust in customers.data:
-            charges = stripe.Charge.list(customer=cust.id, limit=10)
-            all_charges.extend(_charge_to_dict(c) for c in charges.data)
-        return {"matches": all_charges}
-
+        return {"matches": _lookup_by_email(query)}
     return {"matches": []}
+
+
+def _card_last4(charge) -> str | None:
+    pm = getattr(charge, "payment_method_details", None) or {}
+    card = getattr(pm, "card", None) or {}
+    if isinstance(card, dict):
+        return card.get("last4")
+    return getattr(card, "last4", None)
 
 
 def _charge_to_dict(charge) -> dict:
     if charge is None:
         return {}
-    pm = getattr(charge, "payment_method_details", None) or {}
-    card = getattr(pm, "card", None) or {}
+    billing = charge.billing_details
     return {
         "id": charge.id,
         "amount_pence": int(charge.amount or 0),
@@ -266,9 +354,12 @@ def _charge_to_dict(charge) -> dict:
         "status": charge.status,
         "refunded": bool(charge.refunded),
         "amount_refunded_pence": int(charge.amount_refunded or 0),
-        "customer_email": charge.billing_details.email if charge.billing_details else None,
-        "customer_name": charge.billing_details.name if charge.billing_details else None,
-        "last4": card.get("last4") if isinstance(card, dict) else getattr(card, "last4", None),
-        "created_at": datetime.fromtimestamp(charge.created, tz=timezone.utc).isoformat() if charge.created else None,
+        "customer_email": billing.email if billing else None,
+        "customer_name": billing.name if billing else None,
+        "last4": _card_last4(charge),
+        "created_at": (
+            datetime.fromtimestamp(charge.created, tz=timezone.utc).isoformat()
+            if charge.created else None
+        ),
         "description": charge.description,
     }

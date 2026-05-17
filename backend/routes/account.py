@@ -433,32 +433,48 @@ async def list_team(
     return {"members": members}
 
 
-@router.post("/account/team/invite")
-async def invite_team_member(body: dict, user: dict = Depends(get_current_user)) -> dict:
-    _require_team_admin(user)
-    email = (body or {}).get("email", "").strip().lower()
-    full_name = (body or {}).get("full_name", "").strip()
-    role = ((body or {}).get("role") or "staff").lower()
-    # Iter 216h15 — owners can now choose between (a) issuing a temp
-    # password they share inline OR (b) emailing the user a self-serve
-    # password reset link (matching Master Admin's existing UX).
-    delivery = ((body or {}).get("delivery") or "temp_password").lower()
+def _parse_invite_payload(body: dict) -> dict:
+    """Coerce the invite body into a validated, tidy dict.
+
+    Iter 216h15 introduced two extras: delivery method (temp_password
+    vs reset_link) and per-site allocation at invite time. Both default
+    to safe values so the legacy invite UI continues to work."""
+    body = body or {}
+    email = (body.get("email") or "").strip().lower()
+    full_name = (body.get("full_name") or "").strip()
+    role = (body.get("role") or "staff").lower()
+    delivery = (body.get("delivery") or "temp_password").lower()
     if delivery not in {"temp_password", "reset_link"}:
         delivery = "temp_password"
-    # Iter 216h15 — optional per-site allocation at invite time.
-    allowed_site_ids = list((body or {}).get("allowed_site_ids") or [])
-    if not isinstance(allowed_site_ids, list):
-        allowed_site_ids = []
-    allowed_site_ids = [str(s) for s in allowed_site_ids if s]
-
+    raw_sites = body.get("allowed_site_ids") or []
+    if not isinstance(raw_sites, list):
+        raw_sites = []
+    allowed_site_ids = [str(s) for s in raw_sites if s]
     if not email or not full_name:
         raise HTTPException(status_code=400, detail="Email and full name are required")
     if role not in ALLOWED_ROLES or role == "owner":
         role = "staff"
-    if (user.get("role") or "").lower() == "manager" and role != "staff":
+    return {
+        "email": email, "full_name": full_name, "role": role,
+        "delivery": delivery, "allowed_site_ids": allowed_site_ids,
+    }
+
+
+def _enforce_invite_role(actor: dict, target_role: str) -> None:
+    """Managers may only invite staff. Owners may invite anyone."""
+    if (actor.get("role") or "").lower() == "manager" and target_role != "staff":
         raise HTTPException(status_code=403, detail="Managers can only invite staff")
 
-    existing = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+
+@router.post("/account/team/invite")
+async def invite_team_member(body: dict, user: dict = Depends(get_current_user)) -> dict:
+    _require_team_admin(user)
+    parsed = _parse_invite_payload(body)
+    _enforce_invite_role(user, parsed["role"])
+
+    existing = await db.users.find_one(
+        {"email": parsed["email"]}, {"_id": 0, "id": 1},
+    )
     if existing:
         raise HTTPException(status_code=409, detail="A user with this email already exists")
 
@@ -470,26 +486,26 @@ async def invite_team_member(body: dict, user: dict = Depends(get_current_user))
     seed_password = f"Welcome{secrets.token_hex(3)}!"
     new_user = {
         "id": user_id,
-        "email": email,
-        "full_name": full_name,
+        "email": parsed["email"],
+        "full_name": parsed["full_name"],
         "password": hash_password(seed_password),
-        "role": role,
+        "role": parsed["role"],
         "status": "active",
         "avatar_url": None,
         "organization_id": user.get("organization_id"),
         "invited_by": user["id"],
         "must_change_password": True,
-        "allowed_site_ids": allowed_site_ids,
+        "allowed_site_ids": parsed["allowed_site_ids"],
         "created_at": now_iso,
     }
     await db.users.insert_one(new_user)
 
     response: dict = {
-        "id": user_id, "email": email, "full_name": full_name, "role": role,
-        "allowed_site_ids": allowed_site_ids,
-        "delivery": delivery,
+        "id": user_id, "email": parsed["email"], "full_name": parsed["full_name"],
+        "role": parsed["role"], "allowed_site_ids": parsed["allowed_site_ids"],
+        "delivery": parsed["delivery"],
     }
-    if delivery == "reset_link":
+    if parsed["delivery"] == "reset_link":
         link = await _issue_reset_token(new_user, user.get("email", ""))
         await db.users.update_one(
             {"id": user_id},
@@ -507,6 +523,32 @@ async def invite_team_member(body: dict, user: dict = Depends(get_current_user))
     return response
 
 
+def _team_member_role_update(actor: dict, target: dict, raw_role) -> str:
+    """Resolve and authorise a role change for a teammate."""
+    new_role = (raw_role or "staff").lower()
+    if new_role not in ALLOWED_ROLES or new_role == "owner":
+        new_role = "staff"
+    if (actor.get("role") or "").lower() == "manager" and new_role != "staff":
+        raise HTTPException(status_code=403, detail="Managers can only assign the staff role")
+    return new_role
+
+
+def _team_member_updates(actor: dict, target: dict, body: dict) -> dict:
+    """Build the `$set` document for a teammate PATCH. Empty dict means
+    "nothing to update". Each known field is sanitised independently
+    so a malformed value in one field doesn't corrupt the rest."""
+    body = body or {}
+    updates: dict = {}
+    if "role" in body:
+        updates["role"] = _team_member_role_update(actor, target, body["role"])
+    if "status" in body:
+        new_status = (body["status"] or "active").lower()
+        updates["status"] = new_status if new_status in ("active", "disabled") else "active"
+    if "full_name" in body:
+        updates["full_name"] = (body["full_name"] or "").strip() or target.get("full_name")
+    return updates
+
+
 @router.patch("/account/team/{user_id}")
 async def update_team_member(user_id: str, body: dict, user: dict = Depends(get_current_user)) -> dict:
     _require_team_admin(user)
@@ -518,21 +560,7 @@ async def update_team_member(user_id: str, body: dict, user: dict = Depends(get_
         raise HTTPException(status_code=404, detail="Team member not found")
     if target.get("role") == "owner" and (body or {}).get("role") not in (None, "owner"):
         raise HTTPException(status_code=403, detail="Cannot change the Owner's role")
-    updates: dict = {}
-    if "role" in (body or {}):
-        new_role = (body["role"] or "staff").lower()
-        if new_role not in ALLOWED_ROLES or new_role == "owner":
-            new_role = "staff"
-        if (user.get("role") or "").lower() == "manager" and new_role != "staff":
-            raise HTTPException(status_code=403, detail="Managers can only assign the staff role")
-        updates["role"] = new_role
-    if "status" in (body or {}):
-        new_status = (body["status"] or "active").lower()
-        if new_status not in ("active", "disabled"):
-            new_status = "active"
-        updates["status"] = new_status
-    if "full_name" in (body or {}):
-        updates["full_name"] = (body["full_name"] or "").strip() or target.get("full_name")
+    updates = _team_member_updates(user, target, body)
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.users.update_one({"id": user_id}, {"$set": updates})
@@ -647,14 +675,13 @@ ORG_ALLOWED_FIELDS = {
 }
 
 
-@router.get("/account/organisation")
-async def get_organisation(user: dict = Depends(get_current_user)) -> dict:
-    org_id = user.get("organization_id")
-    if not org_id:
-        raise HTTPException(status_code=404, detail="No organisation linked to this account")
-    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "password": 0})
-    if not org:
-        raise HTTPException(status_code=404, detail="Organisation not found")
+def _serialise_org(org: dict | None) -> dict:
+    """Build the canonical org payload returned by GET + PATCH organisation.
+
+    Mirrors every field the AccountSettings → Organisation panel expects,
+    including the iter 216h58 brand-palette and a resolved primary_color
+    that falls through three legacy fields for backward compatibility."""
+    org = org or {}
     payload = {k: org.get(k, "") for k in ORG_ALLOWED_FIELDS}
     payload["id"] = org.get("id", "")
     payload["name"] = org.get("name", "")
@@ -671,6 +698,17 @@ async def get_organisation(user: dict = Depends(get_current_user)) -> dict:
     return payload
 
 
+@router.get("/account/organisation")
+async def get_organisation(user: dict = Depends(get_current_user)) -> dict:
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=404, detail="No organisation linked to this account")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "password": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+    return _serialise_org(org)
+
+
 @router.patch("/account/organisation")
 async def update_organisation(body: dict, user: dict = Depends(get_current_user)) -> dict:
     if (user.get("role") or "").lower() != "owner" and not user.get("is_master_admin"):
@@ -684,19 +722,7 @@ async def update_organisation(body: dict, user: dict = Depends(get_current_user)
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.organizations.update_one({"id": org_id}, {"$set": updates})
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
-    payload = {k: (org or {}).get(k, "") for k in ORG_ALLOWED_FIELDS}
-    payload["id"] = (org or {}).get("id", "")
-    payload["name"] = (org or {}).get("name", "")
-    payload["company_code"] = (org or {}).get("company_code", "")
-    payload["logo_url"] = (org or {}).get("logo_url", "")
-    payload["brand_palette"] = (org or {}).get("brand_palette", []) or []
-    payload["primary_color"] = (
-        ((org or {}).get("branding") or {}).get("primary_color")
-        or (org or {}).get("primary_brand_colour")
-        or (org or {}).get("brand_color")
-        or ""
-    )
-    return payload
+    return _serialise_org(org)
 
 
 # ── Brand palette apply (iter 216h58) ────────────────────────────
@@ -773,15 +799,18 @@ ONBOARDING_STEPS = [
 ]
 
 
-@router.get("/account/onboarding")
-async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
-    org_id = user.get("organization_id")
-    if not org_id:
-        return {"steps": [{**s, "completed": False} for s in ONBOARDING_STEPS], "percent": 0}
+async def _gather_onboarding_signals(user: dict, org_id: str) -> dict:
+    """Collect every signal the onboarding checklist derives from.
 
+    Each DB read is independent — kept inline rather than parallel because
+    the call counts are tiny (≤6 small lookups) and onboarding is hit
+    rarely. Cache locality wins over async-gather overhead here."""
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
     sites_count = await db.sites.count_documents({"organization_id": org_id})
-    primary_site = await db.sites.find_one({"organization_id": org_id}, {"_id": 0, "address": 1, "address_line1": 1, "name": 1})
+    primary_site = await db.sites.find_one(
+        {"organization_id": org_id},
+        {"_id": 0, "address": 1, "address_line1": 1, "name": 1},
+    )
     teammate_count = await db.users.count_documents({
         "organization_id": org_id, "id": {"$ne": user["id"]},
     })
@@ -791,15 +820,22 @@ async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
     })
     equipment_count = await db.equipment.count_documents({"organization_id": org_id})
     paid_payment = await db.payment_transactions.find_one(
-        {"user_email": user.get("email"), "payment_status": "paid"}, {"_id": 0, "id": 1},
+        {"user_email": user.get("email"), "payment_status": "paid"},
+        {"_id": 0, "id": 1},
     )
-    has_stripe = bool(paid_payment) or (org.get("subscription_tier") and org.get("subscription_tier") != "none")
-
+    has_stripe = bool(paid_payment) or (
+        org.get("subscription_tier") and org.get("subscription_tier") != "none"
+    )
     has_avatar_or_phone = bool(user.get("avatar_url") or user.get("phone"))
-
-    # Derived completion flags.
-    flags = {
-        "site_details": bool(primary_site and (primary_site.get("name") or primary_site.get("address") or primary_site.get("address_line1"))),
+    has_site_details = bool(
+        primary_site and (
+            primary_site.get("name")
+            or primary_site.get("address")
+            or primary_site.get("address_line1")
+        ),
+    )
+    return {
+        "site_details": has_site_details,
         "extra_sites": sites_count >= 2,
         "invite_staff": teammate_count >= 1,
         "set_roles": role_assigned >= 1,
@@ -809,12 +845,20 @@ async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
         "connect_stripe": bool(has_stripe),
         "complete_profile": has_avatar_or_phone,
     }
+
+
+@router.get("/account/onboarding")
+async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
+    org_id = user.get("organization_id")
+    if not org_id:
+        return {"steps": [{**s, "completed": False} for s in ONBOARDING_STEPS], "percent": 0}
+
+    flags = await _gather_onboarding_signals(user, org_id)
     steps = [{**s, "completed": flags.get(s["id"], False)} for s in ONBOARDING_STEPS]
     # Iter 216h113h — MOD tenants don't onboard Stripe (procurement
     # handled centrally by DIO / DEFCON), so the step is removed
     # from the wizard entirely rather than shown as "incomplete".
-    at = (user.get("account_type") or "").lower()
-    if at.startswith("mod_"):
+    if (user.get("account_type") or "").lower().startswith("mod_"):
         steps = [s for s in steps if s["id"] != "connect_stripe"]
     completed_count = sum(1 for s in steps if s["completed"])
     return {

@@ -6840,6 +6840,11 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h164 (17 Feb 2026)** — Cyclomatic-complexity refactor of `routes/admin_refunds.py` and `routes/account.py` (P2 task complete).
+  - `admin_refunds.issue_refund` E(36) → A(3) by extracting `_validate_refund_payload`, `_build_refund_kwargs`, `_create_stripe_refund`, `_fetch_charge_object`, `_resolve_org_link`, `_find_org_by_field`, `_build_refund_event`. `list_refunds` C(13) → A(5) via `_backfill_org_names`. `lookup_charge` C(13) → B(6) via `_lookup_by_id` + `_lookup_by_email`. `_charge_to_dict` C(11) → B(8) by hoisting card-last4 lookup.
+  - `account.update_organisation` D(25) → B(10) and `get_organisation` B(9) → A both now share `_serialise_org()` (de-dupes 14 lines of repeated payload assembly). `update_team_member` D(23) → B(7) via `_team_member_updates` + `_team_member_role_update`. `invite_team_member` D(22) → top-level body now ~30 lines (parsing extracted to `_parse_invite_payload` + role gate to `_enforce_invite_role`). `onboarding_status` C(18) → C(11) via `_gather_onboarding_signals`.
+  - Behaviour-preservation strategy: every refactored endpoint smoke-tested via curl (GET/PATCH /account/organisation, GET /account/team, GET /account/onboarding — all return identical shape & status). 21 new pure-unit tests in `test_iter_216h164_refactor_helpers.py` lock in helper behaviour. All 17 prior backend tests still pass.
+
 - **Iter 216h163 (17 Feb 2026)** — Self-service per-site data export for HQ owners (P3 task complete).
   - 3 new endpoints under `/api/account/data-export/*`: `GET /sites` (list of sites the caller may export), `GET /site/{id}.json` (full JSON dump), `GET /site/{id}.zip` (manifest.json + one CSV per collection + full_export.json archive copy).
   - Scope: equipment, issues, svc_cases, svc_quotes, svc_invoices, svc_case_events, svc_visit_notes, audit_logs (last 365d, joined via users.organization_id since `audit_logs` doesn't store organization_id directly), plus members/invoices/suppliers when the "site" is an entire MOD child org.
