@@ -12,9 +12,9 @@ import {
  ScatterChart, Scatter, ZAxis, CartesianGrid
 } from 'recharts';
 import {
- TrendingUp, AlertTriangle, Shield, Wrench, PoundSterling, Download,
+ TrendingUp, TrendingDown, AlertTriangle, Shield, Wrench, PoundSterling, Download,
  Brain, Loader2, ChevronDown, ChevronUp, Calendar, FileText,
- CheckCircle, Clock, XCircle, CircleAlert, Activity, Gauge, Target
+ CheckCircle, Clock, XCircle, CircleAlert, Activity, Gauge, Target, ArrowRight
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -343,6 +343,185 @@ const ExecutiveSummary = ({ exec }) => {
   );
 };
 
+/* ─── BER Trend (Iter 216h162) — 6mo vs 12mo ─── */
+const BUCKET_COLORS = {
+  replace: 'var(--color-danger)',
+  watch: 'var(--color-orange)',
+  keep: 'var(--color-success-alt-2)',
+  insufficient_data: 'var(--color-text-faint)',
+};
+const BUCKET_LABELS = {
+  replace: 'Replace',
+  watch: 'Watch',
+  keep: 'Keep',
+  insufficient_data: 'Insufficient data',
+};
+
+const BerTrendSection = ({ trend }) => {
+  if (!trend) return null;
+  const win = trend.windows || {};
+  const buckets = ['replace', 'watch', 'keep', 'insufficient_data'];
+  // Grouped bar: each bucket has 12mo bar + 6mo (annualised) bar.
+  const chartData = buckets.map(b => ({
+    name: BUCKET_LABELS[b],
+    bucket: b,
+    '12mo': win['12mo']?.[b] || 0,
+    '6mo': win['6mo']?.[b] || 0,
+  }));
+  const movers = trend.movers || [];
+  const worsening = movers.filter(m => m.direction === 'worsening').length;
+  const improving = movers.filter(m => m.direction === 'improving').length;
+
+  return (
+    <Card
+      className="bg-[var(--theme-surface)] border-white/10 p-6"
+      data-testid="capex-ber-trend"
+    >
+      <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp size={18} className="text-[var(--color-brand-blue)]" />
+            <h3 className="text-lg font-semibold text-white">
+              BER Trend — 6 month vs 12 month
+            </h3>
+          </div>
+          <p className="text-[var(--color-text-muted)] text-xs max-w-2xl">
+            6-month spend is annualised (×2) so it can be compared directly with
+            the 12-month BER ratio. Bars rising on the left mean recent spend is
+            outpacing historical spend — a leading indicator of fleet degradation.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge
+            className="bg-red-500/15 text-red-400 border-red-500/30"
+            data-testid="capex-ber-trend-worsening"
+          >
+            <TrendingUp size={12} className="mr-1" />
+            {worsening} worsening
+          </Badge>
+          <Badge
+            className="bg-green-500/15 text-green-400 border-green-500/30"
+            data-testid="capex-ber-trend-improving"
+          >
+            <TrendingDown size={12} className="mr-1" />
+            {improving} improving
+          </Badge>
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height={260}>
+        <BarChart data={chartData} margin={{ top: 16, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke="#222" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="name" stroke="#999" tick={{ fontSize: 12 }} />
+          <YAxis stroke="#666" tick={{ fontSize: 11 }} allowDecimals={false} />
+          <Tooltip
+            contentStyle={{
+              background: 'var(--color-surface-dark-2)',
+              border: '1px solid #333',
+              borderRadius: 8,
+              color: '#fff',
+            }}
+          />
+          <Legend wrapperStyle={{ fontSize: 12, color: '#999' }} />
+          <Bar
+            dataKey="12mo"
+            name="12-month"
+            fill="var(--color-brand-blue)"
+            radius={[4, 4, 0, 0]}
+          />
+          <Bar
+            dataKey="6mo"
+            name="6-month (annualised)"
+            fill="var(--color-orange)"
+            radius={[4, 4, 0, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+
+      {movers.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)] mb-2">
+            Assets that moved bucket or jumped ≥10% in BER ratio
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" data-testid="capex-ber-trend-movers">
+              <thead>
+                <tr className="border-b border-white/10 text-[var(--color-text-muted)] text-xs">
+                  <th className="text-left py-2 pr-4">Asset</th>
+                  <th className="text-left py-2 pr-4 hidden md:table-cell">Location</th>
+                  <th className="text-center py-2 px-2">12mo</th>
+                  <th className="text-center py-2 px-2"></th>
+                  <th className="text-center py-2 px-2">6mo (annualised)</th>
+                  <th className="text-right py-2 pr-2">Δ ratio</th>
+                  <th className="text-right py-2">Direction</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movers.slice(0, 12).map(m => {
+                  const dirCfg = m.direction === 'worsening'
+                    ? { color: 'text-red-400', bg: 'bg-red-500/15', icon: TrendingUp }
+                    : { color: 'text-green-400', bg: 'bg-green-500/15', icon: TrendingDown };
+                  const DirIcon = dirCfg.icon;
+                  return (
+                    <tr
+                      key={m.id}
+                      className="border-b border-white/5"
+                      data-testid={`capex-ber-mover-${m.id}`}
+                    >
+                      <td className="py-2 pr-4 text-white font-medium">{m.name}</td>
+                      <td className="py-2 pr-4 text-[var(--color-text-muted)] hidden md:table-cell">{m.location}</td>
+                      <td className="py-2 px-2 text-center">
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                          style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            color: BUCKET_COLORS[m.from_recommendation] || '#999',
+                          }}
+                        >
+                          {BUCKET_LABELS[m.from_recommendation]} · {Math.round((m.ratio_12mo || 0) * 100)}%
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-center text-[var(--color-text-muted)]">
+                        <ArrowRight size={14} className="inline" />
+                      </td>
+                      <td className="py-2 px-2 text-center">
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                          style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            color: BUCKET_COLORS[m.to_recommendation] || '#999',
+                          }}
+                        >
+                          {BUCKET_LABELS[m.to_recommendation]} · {Math.round((m.ratio_6mo || 0) * 100)}%
+                        </span>
+                      </td>
+                      <td className={`py-2 pr-2 text-right font-mono tabular-nums ${m.ratio_delta >= 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {m.ratio_delta >= 0 ? '+' : ''}{Math.round((m.ratio_delta || 0) * 100)}%
+                      </td>
+                      <td className="py-2 text-right">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${dirCfg.bg} ${dirCfg.color}`}>
+                          <DirIcon size={11} />
+                          {m.direction}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {movers.length > 12 && (
+            <p className="text-[10px] text-[var(--color-text-muted)] mt-2">
+              + {movers.length - 12} more movers in the full export.
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+};
+
+
 /* ─── Equipment Detail Row ─── */
 const EquipmentRow = ({ item, justification, isExpanded, onToggle }) => {
  const cfg = STATUS_CONFIG[item.capex.status] || STATUS_CONFIG.monitor;
@@ -597,6 +776,7 @@ const generatePDF = (data, justifications) => {
 const CapexIntelligenceTab = () => {
  const { API, user } = useAuth();
  const [data, setData] = useState(null);
+ const [berTrend, setBerTrend] = useState(null);
  const [loading, setLoading] = useState(true);
  const [justifications, setJustifications] = useState({});
  const [generatingAI, setGeneratingAI] = useState(false);
@@ -612,11 +792,13 @@ const CapexIntelligenceTab = () => {
  const loadData = useCallback(async () => {
  setLoading(true);
  try {
- const [analysisRes, justRes] = await Promise.all([
+ const [analysisRes, justRes, trendRes] = await Promise.all([
  axios.get(`${API}/capex/board-report`, { headers }),
  axios.get(`${API}/capex/justifications`, { headers }).catch(() => ({ data: { justifications: {} } })),
+ axios.get(`${API}/capex/ber-trend`, { headers }).catch(() => ({ data: null })),
  ]);
  setData(analysisRes.data);
+ setBerTrend(trendRes.data);
  if (justRes.data?.justifications) {
  setJustifications(justRes.data.justifications);
  setJustificationsLoaded(true);
@@ -787,6 +969,9 @@ const CapexIntelligenceTab = () => {
     />
   </div>
  )}
+
+ {/* BER Trend — 6mo vs 12mo (Iter 216h162) */}
+ <BerTrendSection trend={berTrend} />
 
  {/* Priority Table */}
  <PriorityTable items={data.priority_replacements || []} />

@@ -6840,6 +6840,13 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h162 (17 Feb 2026)** — BER trend chart (6-month vs 12-month longitudinal view) on CAPEX Intelligence tab.
+  - New endpoint `GET /api/capex/ber-trend` returns fleet-wide bucket distribution at both window horizons, plus a "movers" list of assets that have changed BER bucket OR jumped ≥10 percentage points in BER ratio between the two windows.
+  - 6-month spend is annualised (×2) so the ratio is directly comparable with the 12-month ratio — otherwise a 6mo sample would always look healthier.
+  - Movers are tagged `worsening` or `improving` based on bucket rank delta + ratio delta sign; sorted worst-first, capped at 30 (UI shows top 12).
+  - New `BerTrendSection` component in `CapexIntelligenceTab.js`: grouped bar chart (12mo blue vs 6mo orange annualised), worsening/improving count badges, and movers table with bucket transition + ratio delta.
+  - Tests: `tests/test_iter_216h162_ber_trend.py` — 4/4 passing (shape, worsening detection, stable-asset exclusion, improving detection).
+
 - **Iter 216h161 (17 Feb 2026)** — Master Admin "Compliance trail" viewer (UI surface for the rich `audit_logs` collection populated by iter 216h155).
   - 3 new endpoints: `GET /api/master-admin/audit-logs` (paginated list with filters), `/audit-logs/facets` (distinct actions + resource_types for dropdowns), `/audit-logs/export.csv` (streamed CSV up to 50k rows).
   - Filter dimensions: free-text (regex across action/email/details/resource_id), action dropdown, resource_type dropdown, user_email contains, date window (since/until), pagination (50/page).
