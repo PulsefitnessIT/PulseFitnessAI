@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2,
   PoundSterling, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
-  CreditCard,
+  CreditCard, Inbox,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -327,7 +327,13 @@ export default function EngineerHomeV2() {
             <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-quick-actions">
               <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-3">Quick actions</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <QuickAction icon={Plus} primary label="New quote"
+                <QuickAction icon={Wrench} primary label="New job"
+                             testid="qa-new-job"
+                             onClick={() => navigate('/svc/engineer/jobs/new')} />
+                <QuickAction icon={Inbox} label="Inbox"
+                             testid="qa-inbox"
+                             onClick={() => navigate('/svc/engineer/inbox')} />
+                <QuickAction icon={Plus} label="New quote"
                              testid="qa-new-quote"
                              onClick={() => navigate('/svc/engineer/quotes/new')} />
                 <QuickAction icon={Receipt} label="New invoice"

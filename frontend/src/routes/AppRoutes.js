@@ -115,6 +115,10 @@ const ServiceOpsEngineerWorkspace = lazy(() => import('@/pages/ServiceOps/Engine
 const ServiceOpsEngineerNotifications = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerNotifications'));
 // Iter 216h143 — Engineer Sync Panel (Phase 4 / Slice 3 · offline writes)
 const ServiceOpsEngineerSyncPanel = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerSyncPanel'));
+// Iter 216h144 — Engineer Independence (self-create, AI parse, supplier card)
+const ServiceOpsEngineerNewJob = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerNewJob'));
+const ServiceOpsEngineerInbox  = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerInbox'));
+const PublicEngineerCard       = lazy(() => import('@/pages/Public/PublicEngineerCard'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
@@ -327,6 +331,10 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/notifications" element={user ? <ServiceOpsEngineerNotifications /> : <Navigate to="/login" replace />} />
       {/* Iter 216h143 — Engineer Sync queue (offline writes) */}
       <Route path="/svc/engineer/sync" element={user ? <ServiceOpsEngineerSyncPanel /> : <Navigate to="/login" replace />} />
+      {/* Iter 216h144 — Engineer independence */}
+      <Route path="/svc/engineer/jobs/new" element={user ? <ServiceOpsEngineerNewJob /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/inbox"    element={user ? <ServiceOpsEngineerInbox /> : <Navigate to="/login" replace />} />
+      <Route path="/r/:slug"               element={<PublicEngineerCard />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />

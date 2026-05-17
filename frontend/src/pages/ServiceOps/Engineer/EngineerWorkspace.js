@@ -30,7 +30,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Home, Wrench, Calendar, FileText, Receipt, CreditCard, Search,
   RefreshCw, Loader2, ChevronRight, AlertTriangle, Clock, MapPin,
-  Keyboard, ExternalLink, X, PlayCircle, FilePlus,
+  Keyboard, ExternalLink, X, PlayCircle, FilePlus, Inbox as InboxIcon,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -108,6 +108,7 @@ const Sidebar = ({ onNav, onHelp }) => (
     </div>
     <NavBtn icon={Home}     label="Home"     shortcut="h" onClick={() => onNav('/svc/engineer')}            testid="ws-nav-home" />
     <NavBtn icon={Wrench}   label="Jobs"     active                                                        testid="ws-nav-jobs" />
+    <NavBtn icon={InboxIcon} label="Inbox"   shortcut="b" onClick={() => onNav('/svc/engineer/inbox')}     testid="ws-nav-inbox" />
     <NavBtn icon={Calendar} label="Diary"    shortcut="d" onClick={() => onNav('/svc/engineer/diary')}     testid="ws-nav-diary" />
     <NavBtn icon={FileText} label="Quotes"   shortcut="c" onClick={() => onNav('/svc/engineer/quotes')}    testid="ws-nav-quotes" />
     <NavBtn icon={Receipt}  label="Invoices" shortcut="i" onClick={() => onNav('/svc/engineer/invoices')}  testid="ws-nav-invoices" />
@@ -545,6 +546,7 @@ export default function EngineerWorkspace() {
       if (e.key === 'c') { e.preventDefault(); navigate('/svc/engineer/quotes/new'); return; }
       if (e.key === 'i') { e.preventDefault(); navigate('/svc/engineer/invoices/new'); return; }
       if (e.key === 'd') { e.preventDefault(); navigate('/svc/engineer/diary'); return; }
+      if (e.key === 'b') { e.preventDefault(); navigate('/svc/engineer/inbox'); return; }
       if (e.key === 'h') { e.preventDefault(); navigate('/svc/engineer'); return; }
     };
     window.addEventListener('keydown', handler);

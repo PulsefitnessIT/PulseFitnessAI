@@ -139,6 +139,11 @@ from routes.svc.diary import (
 )
 # Iter 216h142 — Engineer Notifications + Web Push (Phase 4 / Slice 2)
 from routes.svc.notifications import router as svc_notifications_router
+# Iter 216h144 — Engineer independence (self-create + supplier card)
+from routes.svc.independence import (
+    engineer_router as svc_independence_router,
+    public_router as svc_intake_public_router,
+)
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -255,6 +260,9 @@ _UNGATED_ROUTERS = (
     svc_diary_admin_router,
     # Iter 216h142 — Notifications + Web Push (Phase 4 / Slice 2)
     svc_notifications_router,
+    # Iter 216h144 — Engineer independence (self-create + supplier card)
+    svc_independence_router,
+    svc_intake_public_router,
 )
 
 
