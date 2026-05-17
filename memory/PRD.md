@@ -7381,3 +7381,40 @@ Remaining decomposition targets:
 - Ops & backfills (`test-data/purge` + equipment backfills +
   `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
 
+
+## Iter 216h184 — `master_admin.py` decomposition phase 8: integration health (17 Feb 2026)
+
+Extracted the 3-route integration-health surface (powers the
+Organisations drawer Integrations tab + the platform-wide Integrations
+Hub) into `routes/master_admin_integration_health.py` (376 LoC):
+
+- `POST /master-admin/organizations/{id}/verify-mappings`
+- `GET  /master-admin/organizations/{id}/integration-health`
+- `GET  /master-admin/integrations-hub`
+
+Two private helpers (`_check_code_collision`, `_integration_status`)
+moved with the routes. Surgical deletion: routes sit either side of
+`_create_org_user` (which `master_admin_users.py` imports), used two
+non-contiguous slice ops to preserve it. New pin-test enforces that
+invariant.
+
+`master_admin.py` is now **905 LoC** (was 1,239 → -27% this phase; vs
+the original 4,283 → **-79% cumulative**). Under 1,000 LoC for the
+first time.
+
+Tests: `test_iter_216h184_master_admin_integration_health_split.py`
+(7 tests, all pass). Live curl: `/integrations-hub` returned 4
+integrations + summary; `/integration-health` returned 5 top-level
+keys; `/verify-mappings` returned all 3 field results.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_integration_health.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h184_master_admin_integration_health_split.py` (new).
+
+Remaining decomposition targets:
+- Branding email previews (`organizations/{id}/test-flag`,
+  `test-email`, `account-type`) + helpers (~200 LoC, 3 routes)
+- Ops & backfills (`test-data/purge` + equipment backfills +
+  `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
+

@@ -758,7 +758,8 @@ mutate the test org and return `{"success": true}`.
 | `master_admin.py` decomposition phase 5 (CRM analytics + head-office onboard) | ✅ 216h181 |
 | `master_admin.py` decomposition phase 6 (stats + audit-log surface) | ✅ 216h182 |
 | `master_admin.py` decomposition phase 7 (org create + primary contact) | ✅ 216h183 |
-| `master_admin.py` decomposition phase 8 (org integration health / verify mappings / hub) | ⏭ Next |
+| `master_admin.py` decomposition phase 8 (integration health / verify mappings / hub) | ✅ 216h184 |
+| `master_admin.py` decomposition phase 9 (branding email previews / test-flag / account-type) | ⏭ Next |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
 
@@ -1063,4 +1064,66 @@ Live verification:
 | Phase 5 | 216h181 | -645 | 1,667 | -61% |
 | Phase 6 | 216h182 | -233 | 1,434 | -67% |
 | Phase 7 | 216h183 | -195 | 1,239 | **-71%** |
+
+
+---
+
+## Iter 216h184 — `master_admin.py` decomposition phase 8: integration health (Feb 2026)
+
+**Goal**: Carve the 3-route integration-health surface (powers the
+Organisations drawer Integrations tab + the platform-wide Integrations
+Hub page) into its own sub-router.
+
+**Extracted to `master_admin_integration_health.py`** (NEW, 376 LoC, 3 routes):
+
+```
+POST /master-admin/organizations/{org_id}/verify-mappings
+GET  /master-admin/organizations/{org_id}/integration-health
+GET  /master-admin/integrations-hub
+```
+
+Two private helpers (`_check_code_collision`, `_integration_status`)
+travel with the routes — confirmed unused outside this surface by grep.
+
+**Surgical deletion**: the routes sit on EITHER side of
+`_create_org_user`, which `routes/master_admin_users.py` (iter 216h179)
+imports. Used two non-contiguous slice operations (lines 488–603 and
+645–862) to preserve `_create_org_user` in place. New pin-test asserts
+it survives.
+
+| Module | Phase 7 LoC | Phase 8 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 1,239 | **905** | -334 (-27%) |
+| `master_admin_integration_health.py` | — | **376** | NEW |
+
+**Tests** — `test_iter_216h184_master_admin_integration_health_split.py`
+(7 tests):
+- module imports cleanly
+- (path, method) presence on the new router + absence on the parent
+- both private helpers are gone from the parent
+- `_create_org_user` STAYS on the parent (surgical-deletion pin)
+- shared helpers still re-exported from parent
+- registry wiring
+- soft LoC guard (< 1,000)
+
+Live verification:
+- `GET /integrations-hub` → 4 integrations, summary
+  `{connected:0, degraded:1, not_configured:3, total:4}`.
+- `GET /organizations/{id}/integration-health` → 5 top-level keys
+  (`org_id, stripe_connect, sicon, orbit4, sage200`).
+- `POST /organizations/{id}/verify-mappings` (empty body) →
+  `ok=True, all_green=False` with all 3 mapping field keys present.
+
+**Cumulative monolith progress** — under 1,000 LoC for the first time:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | -39% |
+| Phase 4 | 216h180 | -309 | 2,312 | -46% |
+| Phase 5 | 216h181 | -645 | 1,667 | -61% |
+| Phase 6 | 216h182 | -233 | 1,434 | -67% |
+| Phase 7 | 216h183 | -195 | 1,239 | -71% |
+| Phase 8 | 216h184 | -334 | 905 | **-79%** |
 
