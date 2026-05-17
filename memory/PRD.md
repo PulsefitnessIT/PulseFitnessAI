@@ -7166,3 +7166,34 @@ Remaining decomposition targets (next iter):
 - Users CRUD + impersonate + reset-password (~600 LoC, 8 routes)
 - Pulse stats + pulse-equipment-kits + onboard-pulse-site (~340 LoC, 3 routes)
 - Ops & backfills (test-data/purge + equipment backfills, ~150 LoC, 3 routes)
+
+---
+
+## Iter 216h178 — `master_admin.py` decomposition phase 2: orgs CRUD + sites (17 Feb 2026)
+
+P1 perf-audit task continuation. Extracted the orgs CRUD surface
+(search, list, status, subscription, features, details) plus the
+sites POST + bulk endpoints from the monolith into a new
+`master_admin_orgs.py` sub-router.
+
+- **New module** `master_admin_orgs.py` (514 LoC, 8 routes).
+- **`master_admin.py`**: 3,711 → **3,248 LoC** (-463 LoC this phase,
+  -24 % cumulative from the 4,283 LoC baseline).
+- 11 shared helpers (`require_master_admin`, `assert_org_in_pulse_scope`,
+  `merge_address`, `_modules_from_portal_type`, `_ensure_primary_contact_user`,
+  etc.) still owned by the parent.
+
+Tests: 8 split-regression tests, **56/56 perf suite passing**, **18/18
+trial_tooling end-to-end tests pass**. Live curl verified all 8 new
+routes return 200 with real auth + real mutation payloads.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_orgs.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h177_master_admin_split.py`,
+`/app/backend/tests/test_iter_216h174_payload_size.py` (updated path).
+
+Remaining decomposition targets:
+- Users CRUD + impersonate + reset-password (~600 LoC, 8 routes)
+- Pulse stats + pulse-equipment-kits + onboard-pulse-site (~340 LoC, 3 routes)
+- Ops & backfills (test-data/purge + equipment backfills, ~150 LoC, 3 routes)

@@ -676,3 +676,85 @@ sub-routers:
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero/feature images | Backlog |
 
+
+---
+
+## Iter 216h178 — `master_admin.py` decomposition phase 2: orgs CRUD + sites (Feb 2026)
+
+### Scope
+
+Phase 2 of the master_admin.py decomposition. User-prioritized P1:
+extract orgs CRUD + sites endpoints into a focused sub-router.
+
+### What changed
+
+**Extracted to `master_admin_orgs.py`** (NEW, 514 LoC, 8 routes):
+
+| Route | Method | Original LoC |
+|---|---|---:|
+| `/organizations/search` | GET | 58 |
+| `/organizations` (list) | GET | 124 |
+| `/organizations/{id}/status` | PUT | 28 |
+| `/organizations/{id}/subscription` | PUT | 26 |
+| `/organizations/{id}/features` | PUT | 71 |
+| `/organizations/{id}/details` | PUT | 56 |
+| `/organizations/{id}/sites` | POST | 47 |
+| `/organizations/{id}/sites/bulk` | POST | 58 |
+| **Total** | — | **468 LoC** |
+
+The new module imports 11 shared helpers from `routes.master_admin`
+(including the private `_PULSE_TIER_TO_ACCOUNT_TYPE`, `_modules_from_portal_type`,
+`_ensure_primary_contact_user` — Python allows underscore-prefix imports).
+
+### Cumulative decomposition impact
+
+| Module | Phase 1 (216h177) | Phase 2 (216h178) | Delta |
+|---|---:|---:|---:|
+| `master_admin.py` | 3,711 | **3,248** | **-463 LoC** |
+| `master_admin_orgs.py` | — | **514** | NEW |
+| `master_admin_trials.py` | 288 | 288 | — |
+| `master_admin_integrations.py` | 233 | 233 | — |
+| `master_admin_analytics_panel.py` | 133 | 133 | — |
+
+`master_admin.py` is now **4,283 → 3,248 LoC (-24 %)** from the
+pre-decomposition baseline, with 21 routes extracted into 4 focused
+sub-routers.
+
+### Live verification
+
+All 12 endpoints tested via curl with real master admin token return
+200 (search, list, status, subscription, features, details, sites POST,
+trials, crm-users, sicon/health, activity-log, stats). PUT routes
+mutate the test org and return `{"success": true}`.
+
+### Tests
+
+- `test_iter_216h178_master_admin_split.py` (now 8 tests, was 7):
+  added a `test_orgs_routes_moved_to_orgs_module` that asserts both the
+  paths AND HTTP methods for the 6 extracted org routes are gone from
+  the parent. Soft-bloat guard tightened from 4,000 → 3,600 LoC.
+- `test_iter_216h174_payload_size.py`: updated to look for
+  `_ORG_LIST_EXCLUDE` in `master_admin_orgs.py` (it travelled with its
+  route handler).
+- **Combined perf suite: 56/56 passing** (iter 216h170-178).
+- **End-to-end regression: `test_trial_tooling.py` 18/18 passes** —
+  proves the extracted sub-routers behave identically to the monolith.
+
+### Tier-2 backlog status
+
+| Item | Status |
+|---|---|
+| `aggregate_cache` | ✅ 216h170 |
+| `safe_paginate` | ✅ 216h171 |
+| Slow-request log | ✅ 216h172 |
+| Frontend code-split | ✅ 216h173 |
+| API payload size reduction | ✅ 216h174 |
+| Image optimisation | ✅ 216h175 |
+| Engineer mobile tuning | ✅ 216h176 |
+| `master_admin.py` decomposition phase 1 (trials/integrations/analytics) | ✅ 216h177 |
+| `master_admin.py` decomposition phase 2 (orgs CRUD + sites) | ✅ 216h178 |
+| `master_admin.py` decomposition phase 3 (users CRUD + impersonate) | ⏭ Next |
+| `master_admin.py` decomposition phase 4 (pulse stats / equipment kits) | Backlog |
+| Per-endpoint payload-size telemetry | Backlog |
+| Responsive `srcset` on hero images | Backlog |
+

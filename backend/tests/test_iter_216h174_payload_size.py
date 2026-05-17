@@ -69,10 +69,12 @@ def test_master_admin_orgs_list_excludes_features_audit():
     """The org list endpoint must never spread features_audit into the
     list response. We verify by inspecting the source for the
     projection literal (full integration coverage would need an in-mem
-    Mongo which is overkill for a projection regression)."""
-    src = open('/app/backend/routes/master_admin.py').read()
-    # Locate the _ORG_LIST_EXCLUDE projection and confirm features_audit
-    # sits inside it.
+    Mongo which is overkill for a projection regression).
+
+    Iter 216h178 — the orgs list route was moved to master_admin_orgs.py
+    as part of the master_admin decomposition. The projection still
+    lives next to its route handler."""
+    src = open('/app/backend/routes/master_admin_orgs.py').read()
     assert '_ORG_LIST_EXCLUDE' in src, "expected named projection constant"
     block_start = src.index('_ORG_LIST_EXCLUDE')
     block = src[block_start:block_start + 400]

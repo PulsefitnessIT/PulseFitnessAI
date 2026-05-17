@@ -1,21 +1,22 @@
 """
-Iter 216h177 — master_admin.py decomposition regression test.
+Iter 216h177 + 216h178 — master_admin.py decomposition regression test.
 
-The 4,283 LoC monolith was decomposed into 4 focused routers:
-    routes/master_admin.py                    (3,711 LoC, was 4,283)
+After iter 216h177 (trials, integrations, analytics) and iter 216h178
+(orgs + sites), the 4,283 LoC monolith has been split as:
+    routes/master_admin.py                    (3,248 LoC, was 4,283 → -24%)
     routes/master_admin_trials.py             (NEW, 288 LoC)
     routes/master_admin_integrations.py       (NEW, 233 LoC — CRM users + Sicon)
-    routes/master_admin_analytics_panel.py    (NEW, 133 LoC — activity log + AI usage + emails-legacy)
+    routes/master_admin_analytics_panel.py    (NEW, 133 LoC — activity / AI usage / emails)
+    routes/master_admin_orgs.py               (NEW, 460 LoC — orgs CRUD + sites)
 
-This test verifies:
+Tests verify:
   1. All new modules import without error.
   2. Each new sub-router declares the routes it owns.
   3. The parent `master_admin.py` no longer owns those route patterns.
   4. All shared public helpers (`require_master_admin`, etc.) still live
      in `routes.master_admin` so the dozen-or-so cross-module imports
      keep working.
-  5. The combined router (after `register_admin` runs) exposes every
-     route the monolith used to.
+  5. The combined router exposes every route the monolith used to.
 """
 import importlib
 import os
@@ -30,12 +31,49 @@ def test_new_subrouter_modules_import_cleanly():
         'routes.master_admin_trials',
         'routes.master_admin_integrations',
         'routes.master_admin_analytics_panel',
+        'routes.master_admin_orgs',
     ):
         importlib.import_module(mod)
 
 
 def _route_paths(router) -> set:
     return {getattr(r, 'path', None) for r in router.routes}
+
+
+def test_orgs_routes_moved_to_orgs_module():
+    """Iter 216h178 — verify the orgs CRUD + sites extraction."""
+    from routes.master_admin_orgs import router as orgs_router
+    from routes.master_admin import router as parent_router
+    paths = _route_paths(orgs_router)
+    expected = {
+        '/master-admin/organizations/search',
+        '/master-admin/organizations',
+        '/master-admin/organizations/{org_id}/status',
+        '/master-admin/organizations/{org_id}/subscription',
+        '/master-admin/organizations/{org_id}/features',
+        '/master-admin/organizations/{org_id}/details',
+        '/master-admin/organizations/{org_id}/sites',
+        '/master-admin/organizations/{org_id}/sites/bulk',
+    }
+    assert expected <= paths, f"orgs router missing: {expected - paths}"
+    # The parent still owns OTHER /organizations routes (test-flag, account-type,
+    # POST, verify-mappings, integration-health, users). We only assert that
+    # the EXTRACTED methods are gone — by checking (path, method) tuples.
+    moved_pairs = {
+        ('/master-admin/organizations/search', 'GET'),
+        ('/master-admin/organizations', 'GET'),
+        ('/master-admin/organizations/{org_id}/status', 'PUT'),
+        ('/master-admin/organizations/{org_id}/subscription', 'PUT'),
+        ('/master-admin/organizations/{org_id}/features', 'PUT'),
+        ('/master-admin/organizations/{org_id}/details', 'PUT'),
+    }
+    parent_pairs = {
+        (r.path, m)
+        for r in parent_router.routes
+        for m in (getattr(r, 'methods', None) or ())
+    }
+    leaked = moved_pairs & parent_pairs
+    assert not leaked, f"orgs routes still in master_admin.py: {leaked}"
 
 
 def test_trials_routes_moved_to_trials_module():
@@ -114,6 +152,7 @@ def test_admin_registry_registers_all_new_routers():
         'master_admin_trials_router',
         'master_admin_integrations_router',
         'master_admin_analytics_panel_router',
+        'master_admin_orgs_router',
     ):
         assert name in body, f"{name} not registered in route_registry/admin.py"
 
@@ -122,7 +161,7 @@ def test_master_admin_shrunk():
     """Soft guard: prevent silent re-bloat of master_admin.py."""
     with open(os.path.join(BACKEND, 'routes/master_admin.py')) as f:
         loc = sum(1 for _ in f)
-    # Pre-decomposition: 4,283 LoC. Post-decomposition: 3,711 LoC.
+    # Pre-decomposition: 4,283 LoC. After iter 216h178: 3,248 LoC.
     # If a future agent stuffs new endpoints back in here without
     # following the sub-router pattern, this guard trips.
-    assert loc < 4000, f"master_admin.py grew back to {loc} LoC — extract new endpoints into a focused sub-router"
+    assert loc < 3600, f"master_admin.py grew back to {loc} LoC — extract new endpoints into a focused sub-router"
