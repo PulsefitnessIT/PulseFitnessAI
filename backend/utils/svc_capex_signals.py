@@ -33,8 +33,14 @@ from typing import Optional
 from utils.database import db
 
 
+def _iso_days_ago(days: int = 365) -> str:
+    return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+
+# Backwards-compat alias kept for any external callers; new code should
+# pass `window_days` to `aggregate_service_signals` directly.
 def _iso_12mo_ago() -> str:
-    return (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
+    return _iso_days_ago(365)
 
 
 def _safe_minutes(case: dict) -> int:
@@ -47,17 +53,22 @@ def _safe_minutes(case: dict) -> int:
 async def aggregate_service_signals(
     org_filter: dict, *,
     asset_ids: Optional[list[str]] = None,
+    window_days: int = 365,
 ) -> dict[str, dict]:
-    """Build per-asset 12-month service signals.
+    """Build per-asset service signals over `window_days` (default 365).
 
-    Returns `{asset_id: {service_visits_12mo, service_spend_12mo,
-    last_service_at, open_service_cases, downtime_hours_12mo}}`.
+    Iter 216h162 — window is now configurable so callers can compare
+    6-month vs 12-month BER trends. Returns the same shape regardless
+    of window: `{asset_id: {service_visits_Nmo, service_spend_Nmo,
+    last_service_at, open_service_cases, downtime_hours_Nmo}}`. Keys
+    keep the `_12mo` suffix for backwards compatibility — the CAPEX
+    scorer and PDF exporter both read those exact keys.
 
     `asset_ids` is an optional prefilter for the equipment we're
     actually interested in — saves a full collection scan for orgs
     with thousands of legacy cases linked to retired equipment.
     """
-    since = _iso_12mo_ago()
+    since = _iso_days_ago(window_days)
     case_query: dict = {
         **org_filter,
         # Either closed/invoiced last 12mo, or currently open (counts

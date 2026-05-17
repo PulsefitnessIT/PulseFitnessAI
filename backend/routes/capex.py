@@ -508,6 +508,120 @@ async def get_asset_service_signals(
     }
 
 
+@router.get("/capex/ber-trend")
+async def capex_ber_trend(
+    user: dict = Depends(get_current_user),
+    site_id: str = "",
+):
+    """Iter 216h162 — 6-month vs 12-month BER comparison.
+
+    Returns fleet-level BER bucket distribution at both window
+    horizons + a list of assets whose BER bucket has **moved**
+    (improved or worsened) between the two windows. Used by the
+    CAPEX dashboard to show longitudinal trend.
+
+    Both windows share the same denominator (replacement cost), so
+    the 6-month ratio is annualised (×2) to make them directly
+    comparable — otherwise a 6-month sample would always look
+    healthier just by virtue of having half the time to accumulate
+    spend.
+    """
+    _require_owner_or_manager(user)
+    from utils.mod_scope import resolve_mod_query_filter
+    from utils.svc_capex_signals import (
+        aggregate_service_signals, compute_repair_vs_replace,
+    )
+    org_filter = await resolve_mod_query_filter(user, site_id or None)
+    equipment_list = await db.equipment.find(
+        org_filter,
+        {"_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+         "replacement_cost": 1, "location": 1},
+    ).to_list(5000)
+    if not equipment_list:
+        return {
+            "windows": {"6mo": {}, "12mo": {}},
+            "movers": [], "totals": {"6mo": 0, "12mo": 0},
+        }
+
+    asset_ids = [e["id"] for e in equipment_list]
+    # Parallel? not worth the orchestration cost — these are two short
+    # Mongo finds against the same indexes.
+    sigs_12 = await aggregate_service_signals(
+        org_filter, asset_ids=asset_ids, window_days=365,
+    )
+    sigs_06 = await aggregate_service_signals(
+        org_filter, asset_ids=asset_ids, window_days=180,
+    )
+
+    def _bucket_for(eid: str, sig_map: dict, *, annualise: bool) -> dict:
+        equip = next((e for e in equipment_list if e["id"] == eid), {})
+        replacement_cost = equip.get("replacement_cost") or 0
+        sig = sig_map.get(eid) or {}
+        spend = float(sig.get("service_spend_12mo") or 0)
+        # Annualise 6-month spend so the BER ratio is comparable.
+        eff_spend = spend * 2 if annualise else spend
+        ber = compute_repair_vs_replace(
+            service_spend_12mo=eff_spend,
+            replacement_cost=replacement_cost,
+        )
+        return {
+            "spend": spend, "annualised_spend": eff_spend,
+            "ratio": ber["service_to_replacement_ratio"],
+            "recommendation": ber["ber_recommendation"],
+            "label": ber["ber_label"],
+            "name": equip.get("name") or "(unnamed)",
+            "location": equip.get("location") or "—",
+            "equipment_type": equip.get("equipment_type") or "—",
+            "replacement_cost": replacement_cost,
+        }
+
+    fleet = {"6mo": {"replace": 0, "watch": 0, "keep": 0, "insufficient_data": 0},
+             "12mo": {"replace": 0, "watch": 0, "keep": 0, "insufficient_data": 0}}
+    movers: list[dict] = []
+    for eid in asset_ids:
+        b12 = _bucket_for(eid, sigs_12, annualise=False)
+        b06 = _bucket_for(eid, sigs_06, annualise=True)
+        fleet["12mo"][b12["recommendation"]] = fleet["12mo"].get(b12["recommendation"], 0) + 1
+        fleet["6mo"][b06["recommendation"]] = fleet["6mo"].get(b06["recommendation"], 0) + 1
+        # A "mover" is an asset that has changed bucket OR that has
+        # increased its BER ratio by at least 10 percentage points in
+        # the 6m window (early warning signal).
+        rank = {"keep": 0, "watch": 1, "replace": 2, "insufficient_data": -1}
+        bucket_changed = rank[b06["recommendation"]] != rank[b12["recommendation"]]
+        ratio_delta = (b06["ratio"] or 0) - (b12["ratio"] or 0)
+        if bucket_changed or ratio_delta >= 0.10:
+            movers.append({
+                "id": eid,
+                "name": b12["name"],
+                "location": b12["location"],
+                "equipment_type": b12["equipment_type"],
+                "replacement_cost": b12["replacement_cost"],
+                "from_recommendation": b12["recommendation"],
+                "to_recommendation": b06["recommendation"],
+                "ratio_12mo": b12["ratio"],
+                "ratio_6mo": b06["ratio"],
+                "ratio_delta": round(ratio_delta, 3),
+                "spend_12mo": b12["spend"],
+                "spend_6mo": b06["spend"],
+                "direction": (
+                    "worsening" if rank[b06["recommendation"]] > rank[b12["recommendation"]]
+                    or ratio_delta > 0
+                    else "improving"
+                ),
+            })
+
+    # Sort movers — worst first.
+    movers.sort(key=lambda m: (
+        -(1 if m["direction"] == "worsening" else 0),
+        -(m["ratio_delta"] or 0),
+    ))
+    return {
+        "windows": fleet,
+        "movers": movers[:30],
+        "totals": {"6mo": len(asset_ids), "12mo": len(asset_ids)},
+    }
+
+
 def _build_flagged_equipment(
     equipment_list: list[dict],
     bulk_stats: dict,
