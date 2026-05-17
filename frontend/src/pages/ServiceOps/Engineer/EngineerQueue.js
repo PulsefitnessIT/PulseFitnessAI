@@ -18,7 +18,9 @@ import {
   ChevronLeft, RefreshCw, Loader2, AlertTriangle, Clock, MapPin,
   Hand, CheckCircle2, X, ShieldCheck, Inbox, Navigation, Crosshair,
 } from 'lucide-react';
+import { List } from 'react-window';
 import { notify } from '@/components/notifications';
+import { warmEngineerCache } from '@/utils/swEngineerWarmer';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -156,8 +158,21 @@ const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
 };
 
 // ── Row ──────────────────────────────────────────────────────
-const Row = ({ job, onClaim, showDistance }) => (
-  <li className="p-3 sm:p-4 flex items-start gap-3" data-testid={`queue-row-${job.reference}`}>
+// Iter 216h176 — Row signature adapted for react-window v2.
+// react-window calls `rowComponent({ index, style, ariaAttributes, ...rowProps })`
+// for each visible row; we accept the full props bag, look up the
+// job by index from the `jobs` array, and apply the absolute-positioned
+// `style` the windowing engine hands us.
+const Row = ({ index, style, ariaAttributes, jobs, onClaim, showDistance }) => {
+  const job = jobs[index];
+  if (!job) return null;
+  return (
+  <div
+    style={style}
+    {...ariaAttributes}
+    className="p-3 sm:p-4 flex items-start gap-3 border-b border-slate-100 bg-white"
+    data-testid={`queue-row-${job.reference}`}
+  >
     <span
       className={`w-1.5 self-stretch rounded-full ${PRIO[job.priority] || PRIO.P3} flex-shrink-0`}
       aria-hidden
@@ -217,8 +232,9 @@ const Row = ({ job, onClaim, showDistance }) => (
     >
       <Hand size={12} /> Allocate to me
     </button>
-  </li>
-);
+  </div>
+  );
+};
 
 // ── Main page ──────────────────────────────────────────────
 export default function EngineerQueue() {
@@ -256,6 +272,10 @@ export default function EngineerQueue() {
       setJobs(j.data?.jobs || []);
       setOriginSource(j.data?.origin_source || null);
       setStats(s.data || stats);
+      // Iter 216h176 — Warm the engineer's "active week" cache so the
+      // diary + notifications survive going offline. Throttled to once
+      // every 5 minutes; no-op if the SW isn't installed.
+      warmEngineerCache();
     } catch (e) {
       notify.error('Failed to load queue', e?.response?.data?.detail || e.message);
     } finally {
@@ -460,11 +480,44 @@ export default function EngineerQueue() {
             </p>
           </div>
         ) : (
-          <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-            {filtered.map((j) => (
-              <Row key={j.id} job={j} onClaim={setClaimFor} showDistance={sortMode === 'nearest'} />
-            ))}
-          </ul>
+          // Iter 216h176 — Virtualised list. For ≤30 jobs we fall back
+          // to the static <ul> so very short queues don't pay the
+          // windowing overhead. Above that, react-window only mounts
+          // ~10 rows at a time which keeps scroll smooth at 60 fps
+          // even with 200+ jobs in the engineer's region.
+          filtered.length <= 30 ? (
+            <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+              {filtered.map((j, idx) => (
+                <Row
+                  key={j.id}
+                  index={idx}
+                  style={{ position: 'relative' }}
+                  ariaAttributes={{}}
+                  jobs={filtered}
+                  onClaim={setClaimFor}
+                  showDistance={sortMode === 'nearest'}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div
+              className="bg-white border border-slate-200 rounded-2xl overflow-hidden"
+              data-testid="queue-virtualised"
+              style={{ height: 'calc(100vh - 320px)', minHeight: 360 }}
+            >
+              <List
+                rowCount={filtered.length}
+                rowHeight={132}
+                rowComponent={Row}
+                rowProps={{
+                  jobs: filtered,
+                  onClaim: setClaimFor,
+                  showDistance: sortMode === 'nearest',
+                }}
+                overscanCount={3}
+              />
+            </div>
+          )
         )}
 
         {/* Footer hint */}

@@ -11,14 +11,15 @@
  * cache. They simply fail with the browser's default offline error,
  * and the app layer is expected to surface a toast.
  */
-const CACHE_NAME = 'gymaxis-v12';
-const API_CACHE  = 'gymaxis-api-v12';
+const CACHE_NAME = 'gymaxis-v13';
+const API_CACHE  = 'gymaxis-api-v13';
 const STATIC_ASSETS = [
   '/',
   '/crm',
   '/manifest.json',
   '/pulse-photos/carshalton-igym.webp',
   '/pulse-photos/strength-accessories.webp',
+  '/brand/gymaxis-mark-tight.webp',
 ];
 
 // Paths that must NEVER be served from cache — public token-based URLs
@@ -47,6 +48,16 @@ const OFFLINE_API_PATTERNS = [
   '/api/auth/me',
   '/api/activation/me',
   '/api/organizations/current',
+  // Iter 216h176 — Engineer mobile app offline whitelist. These keep
+  // a field engineer productive on flaky 4G in basement gyms: the
+  // active week of jobs, diary, dispatcher diary, notifications and
+  // job detail all survive going offline.
+  '/api/svc/engineer/queue',
+  '/api/svc/engineer/diary',
+  '/api/svc/engineer/notifications',
+  '/api/svc/engineer/inbox',
+  '/api/svc/cases',  // covers both list and /cases/{id}
+  '/api/svc/dispatcher/diary',
 ];
 
 // How long a cached API response stays considered "fresh". After this
@@ -55,7 +66,10 @@ const OFFLINE_API_PATTERNS = [
 const API_MAX_AGE_MS = 1000 * 60 * 60 * 6; // 6 hours
 
 // Hard cap so the cache never balloons — oldest entries are evicted.
-const API_MAX_ENTRIES = 60;
+// Iter 216h176 — Bumped from 60 → 200 to fit the engineer's full
+// week of cases + diary + notifications. Each cached blob is small
+// (≤30 KB) so 200 entries ≈ 6 MB on disk — well below quota.
+const API_MAX_ENTRIES = 200;
 
 function isPublicTokenUrl(url) {
   return PUBLIC_TOKEN_PATHS.some((p) => url.pathname.startsWith(p));
