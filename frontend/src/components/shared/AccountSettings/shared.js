@@ -9,7 +9,7 @@
  */
 import React, { useCallback } from 'react';
 import {
-  User, ShieldCheck, Sliders, CreditCard, Building2, Users, ListChecks, Truck,
+  User, ShieldCheck, Sliders, CreditCard, Building2, Users, ListChecks, Truck, Database,
 } from 'lucide-react';
 
 export const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -23,6 +23,7 @@ export const SECTIONS = [
   { id: 'organisation', label: 'Organisation',    icon: Building2 },
   { id: 'suppliers',    label: 'Suppliers',       icon: Truck },
   { id: 'team',         label: 'Team & Roles',    icon: Users },
+  { id: 'data-export',  label: 'Data export',     icon: Database },
 ];
 
 export const useAuthHeaders = () =>

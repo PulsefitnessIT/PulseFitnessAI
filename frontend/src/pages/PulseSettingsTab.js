@@ -19,6 +19,7 @@ import FaultTemplatesManager from './Dashboard/FaultTemplatesManager';
 import SiteModulesOverride from '@/components/sites/SiteModulesOverride';
 import SiteBrandingOverride from '@/components/sites/SiteBrandingOverride';
 import LaunchReadinessPanel from '@/components/shared/LaunchReadinessPanel';
+import SiteDataExportPanel from './SiteDataExportPanel';
 
 const PulseSettingsTab = () => {
   const { user, API, sites: globalSites, setActiveSite, refreshSites } = useAuth();
@@ -200,10 +201,10 @@ const PulseSettingsTab = () => {
     return 'bg-gray-500/20 text-gray-400';
   };
 
-  const sections = user.role === 'staff' ? ['org-details', 'templates'] : ['team', 'sites', 'org-details', 'qr-codes', 'templates', 'launch'];
+  const sections = user.role === 'staff' ? ['org-details', 'templates'] : ['team', 'sites', 'org-details', 'qr-codes', 'templates', 'data-export', 'launch'];
 
   const sectionLabels = {
-    team: 'Team & Organisation', sites: 'Sites', 'org-details': 'Organisation Details', 'qr-codes': 'QR Codes', templates: 'Fault Templates', launch: 'Launch readiness',
+    team: 'Team & Organisation', sites: 'Sites', 'org-details': 'Organisation Details', 'qr-codes': 'QR Codes', templates: 'Fault Templates', 'data-export': 'Data export', launch: 'Launch readiness',
   };
 
   return (
@@ -234,6 +235,12 @@ const PulseSettingsTab = () => {
       {settingsSection === 'launch' && user.role !== 'staff' && (
         <div data-testid="pulse-settings-launch">
           <LaunchReadinessPanel />
+        </div>
+      )}
+
+      {settingsSection === 'data-export' && user.role !== 'staff' && (
+        <div data-testid="pulse-settings-data-export">
+          <SiteDataExportPanel />
         </div>
       )}
 

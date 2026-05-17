@@ -6840,6 +6840,13 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h163 (17 Feb 2026)** — Self-service per-site data export for HQ owners (P3 task complete).
+  - 3 new endpoints under `/api/account/data-export/*`: `GET /sites` (list of sites the caller may export), `GET /site/{id}.json` (full JSON dump), `GET /site/{id}.zip` (manifest.json + one CSV per collection + full_export.json archive copy).
+  - Scope: equipment, issues, svc_cases, svc_quotes, svc_invoices, svc_case_events, svc_visit_notes, audit_logs (last 365d, joined via users.organization_id since `audit_logs` doesn't store organization_id directly), plus members/invoices/suppliers when the "site" is an entire MOD child org.
+  - Authorization: owner/manager/master_admin role + site-ownership check. Cross-tenant UUIDs → 403. Every download writes a `site_data_export` audit entry surfaced by the iter 216h161 Compliance trail viewer.
+  - Two surface drops on the frontend: new "Data export" section in the Account Settings modal (lives next to Team & Roles) via `SiteDataExportPanel.js`, plus mirrored entries in legacy `SettingsTab.js` + `PulseSettingsTab.js` for the dashboard sub-nav route. Picker shows Head Office / MOD-child / Internal-site badges and disables both download buttons during in-flight requests.
+  - Tests: `tests/test_iter_216h163_site_data_export.py` — 6/6 passing (sites shape, unauthenticated 401, JSON shape + exporter field, cross-tenant 403, ZIP manifest+CSVs structure, audit log side-effect).
+
 - **Iter 216h162 (17 Feb 2026)** — BER trend chart (6-month vs 12-month longitudinal view) on CAPEX Intelligence tab.
   - New endpoint `GET /api/capex/ber-trend` returns fleet-wide bucket distribution at both window horizons, plus a "movers" list of assets that have changed BER bucket OR jumped ≥10 percentage points in BER ratio between the two windows.
   - 6-month spend is annualised (×2) so the ratio is directly comparable with the 12-month ratio — otherwise a 6mo sample would always look healthier.

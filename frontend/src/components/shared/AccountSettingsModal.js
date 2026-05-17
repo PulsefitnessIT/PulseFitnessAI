@@ -29,6 +29,7 @@ import BillingSection from './AccountSettings/billing';
 import OrganisationSection from './AccountSettings/organisation';
 import SuppliersSection from './AccountSettings/suppliers';
 import TeamSection from './AccountSettings/team';
+import DataExportSection from './AccountSettings/data_export';
 
 export default function AccountSettingsModal({ open, onClose }) {
   const { user, API: ctxAPI } = useAuth();
@@ -196,6 +197,7 @@ export default function AccountSettingsModal({ open, onClose }) {
             {section === 'organisation' && <OrganisationSection billing={billing} profile={profile} />}
             {section === 'suppliers' && <SuppliersSection />}
             {section === 'team' && <TeamSection profile={profile} inviteCode={billing?.organization_code} />}
+            {section === 'data-export' && <DataExportSection />}
           </div>
         </div>
       </div>

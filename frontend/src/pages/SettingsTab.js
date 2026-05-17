@@ -19,6 +19,7 @@ import SupplierEquipmentWizard from './SupplierEquipmentWizard';
 import SiconIntegrationTab from './SiconIntegrationTab';
 import FaultTemplatesManager from './Dashboard/FaultTemplatesManager';
 import LaunchReadinessPanel from '@/components/shared/LaunchReadinessPanel';
+import SiteDataExportPanel from './SiteDataExportPanel';
 
 const SettingsTab = () => {
  const { user, API, applyBranding } = useAuth();
@@ -247,7 +248,7 @@ const SettingsTab = () => {
 
  {/* Section Navigation */}
  <div className="flex items-center gap-2 border-b border-white/10 pb-4 overflow-x-auto">
- {['team', 'suppliers', 'branding', 'templates', 'sicon', 'onboarding', 'launch'].map(s => {
+ {['team', 'suppliers', 'branding', 'templates', 'sicon', 'data-export', 'onboarding', 'launch'].map(s => {
  const active = settingsSection === s;
  return (
  <Button key={s} size="sm" variant="outline"
@@ -259,6 +260,7 @@ const SettingsTab = () => {
  : s === 'branding' ? t('settings.white_label')
  : s === 'templates' ? 'Fault Templates'
  : s === 'sicon' ? 'Sicon'
+ : s === 'data-export' ? 'Data export'
  : s === 'launch' ? 'Launch readiness'
  : t('settings.onboarding')}
  </Button>
@@ -274,6 +276,12 @@ const SettingsTab = () => {
  {settingsSection === 'launch' && (
  <div data-testid="settings-launch">
  <LaunchReadinessPanel />
+ </div>
+ )}
+
+ {settingsSection === 'data-export' && (
+ <div data-testid="settings-data-export">
+ <SiteDataExportPanel />
  </div>
  )}
 
