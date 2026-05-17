@@ -662,32 +662,69 @@ async def performance_summary(
     dt_to = datetime.fromisoformat(date_to) if date_to else _now()
     dt_from = datetime.fromisoformat(date_from) if date_from else (dt_to - timedelta(days=30))
     staff = await db.staff_members.find({"organization_id": org_id, "active": True}, {"_id": 0}).to_list(1000)
+    if not staff:
+        return {"window": {"from": dt_from.isoformat(), "to": dt_to.isoformat()}, "staff": []}
+
+    staff_ids = [s["id"] for s in staff]
+    user_ids = [s.get("user_id") for s in staff if s.get("user_id")]
+    names = [s.get("full_name") for s in staff if s.get("full_name")]
+
+    # Batch — one query per collection instead of 3 per staff.
+    # Iter 216h170 — was 3*N round-trips, now 3 total.
+    shifts_q = {
+        "organization_id": org_id,
+        "staff_id": {"$in": staff_ids},
+        "date": {"$gte": dt_from.date().isoformat(), "$lte": dt_to.date().isoformat()},
+    }
+    shifts = await db.staff_shifts.find(
+        shifts_q,
+        {"_id": 0, "staff_id": 1, "start_time": 1, "end_time": 1, "break_minutes": 1},
+    ).to_list(50_000)
+    shifts_by_staff: dict = {}
+    for sh in shifts:
+        shifts_by_staff.setdefault(sh["staff_id"], []).append(sh)
+
+    # Aggregated counts for classes + attendees by instructor.
+    classes_by_user_id: dict = {}
+    classes_by_name: dict = {}
+    attendees_by_name: dict = {}
+    try:
+        # Classes by instructor_id
+        cur = db.memberships_classes.aggregate([
+            {"$match": {"organization_id": org_id, "instructor_id": {"$in": user_ids}}},
+            {"$group": {"_id": "$instructor_id", "n": {"$sum": 1}}},
+        ])
+        classes_by_user_id = {r["_id"]: r["n"] async for r in cur}
+        # Classes by instructor_name (covers staff without user_id link)
+        cur2 = db.memberships_classes.aggregate([
+            {"$match": {"organization_id": org_id, "instructor_name": {"$in": names}}},
+            {"$group": {"_id": "$instructor_name", "n": {"$sum": 1}}},
+        ])
+        classes_by_name = {r["_id"]: r["n"] async for r in cur2}
+        # Attended bookings by instructor_name
+        cur3 = db.memberships_bookings.aggregate([
+            {"$match": {
+                "organization_id": org_id,
+                "instructor_name": {"$in": names},
+                "status": "attended",
+            }},
+            {"$group": {"_id": "$instructor_name", "n": {"$sum": 1}}},
+        ])
+        attendees_by_name = {r["_id"]: r["n"] async for r in cur3}
+    except Exception:
+        # Collections may not exist on fresh orgs — keep empty defaults.
+        pass
+
     summary = []
     for s in staff:
         sid = s["id"]
-        # Scheduled hours in window.
-        shifts = await db.staff_shifts.find(
-            {"organization_id": org_id, "staff_id": sid, "date": {"$gte": dt_from.date().isoformat(), "$lte": dt_to.date().isoformat()}},
-            {"_id": 0, "start_time": 1, "end_time": 1, "break_minutes": 1},
-        ).to_list(5000)
-        hours = sum(_shift_hours(x) for x in shifts)
-        # Instructor linkage — classes where instructor_id == user_id OR instructor_name == full_name.
         linked_name = s.get("full_name")
-        classes_count = 0
-        attendance_count = 0
-        try:
-            classes_count = await db.memberships_classes.count_documents({
-                "organization_id": org_id,
-                "$or": [{"instructor_id": s.get("user_id") or "__none__"}, {"instructor_name": linked_name}],
-            })
-            attendance_count = await db.memberships_bookings.count_documents({
-                "organization_id": org_id,
-                "instructor_name": linked_name,
-                "status": "attended",
-            })
-        except Exception:  # collections may not exist on fresh orgs
-            classes_count = 0
-            attendance_count = 0
+        hours = sum(_shift_hours(x) for x in shifts_by_staff.get(sid, []))
+        classes_count = (
+            classes_by_user_id.get(s.get("user_id"), 0)
+            + classes_by_name.get(linked_name, 0)
+        )
+        attendance_count = attendees_by_name.get(linked_name, 0)
         summary.append({
             "staff_id": sid,
             "full_name": linked_name,

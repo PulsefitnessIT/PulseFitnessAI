@@ -26,6 +26,7 @@ from pydantic import BaseModel, EmailStr, Field
 from routes.master_admin import require_master_admin
 from utils.auth import get_current_user, verify_token
 from utils.database import db, APP_NAME, put_object, get_object
+from utils.aggregate_cache import cache_aggregate
 from utils.email import send_email
 from utils.security import sanitise_string
 
@@ -1913,29 +1914,64 @@ async def mod_proactive_nudges(user: dict = Depends(get_current_user)):
 # ── Master Admin — MOD console (Phase 4) ──────────────────────
 @router.get("/master-admin/mod/sites")
 async def mod_admin_list_sites(user: dict = Depends(get_current_user)):
+    """List every MOD site with rotation status + activity counts.
+
+    Iter 216h170 — replaced 4 awaits-per-site with batched aggregates +
+    wrapped the whole thing in a 30s TTL cache (the list refreshes on
+    the dashboard auto-poll; we'd otherwise re-run the aggregates every
+    poll cycle even when nothing has changed)."""
     require_master_admin(user)
+    return await _mod_admin_sites_cached()
+
+
+@cache_aggregate(ttl=30, key_args=(), prefix="mod_admin_sites")
+async def _mod_admin_sites_cached() -> dict:
     from utils.mod_password_rotation import _days_until_expiry
+
     sites = await db.organizations.find(
         {"account_type": "mod_site"}, {"_id": 0},
     ).sort("name", 1).to_list(500)
-    # Annotate each site with basic counts + password rotation status.
+    if not sites:
+        return {"sites": sites}
+
+    site_ids = [s["id"] for s in sites]
+
+    async def _count_by_org(coll, extra_match: dict):
+        pipeline = [
+            {"$match": {"organization_id": {"$in": site_ids}, **extra_match}},
+            {"$group": {"_id": "$organization_id", "n": {"$sum": 1}}},
+        ]
+        return {r["_id"]: r["n"] async for r in coll.aggregate(pipeline)}
+
+    async def _count_staff():
+        pipeline = [
+            {"$match": {"site_id": {"$in": site_ids}, "is_active": {"$ne": False}}},
+            {"$group": {"_id": "$site_id", "n": {"$sum": 1}}},
+        ]
+        return {r["_id"]: r["n"] async for r in db.mod_site_staff.aggregate(pipeline)}
+
+    equipment_counts = await _count_by_org(db.equipment, {})
+    open_fault_counts = await _count_by_org(
+        db.issues, {"status": {"$ne": "resolved"}, "is_drill": {"$ne": True}},
+    )
+    staff_counts = await _count_staff()
+
+    site_users = await db.users.find(
+        {"organization_id": {"$in": site_ids}, "account_type": "mod_site"},
+        {"_id": 0, "organization_id": 1, "username": 1, "password_updated_at": 1},
+    ).to_list(len(site_ids) + 1)
+    user_by_org = {u["organization_id"]: u for u in site_users}
+
     for s in sites:
-        s["equipment_count"] = await db.equipment.count_documents({"organization_id": s["id"]})
-        s["staff_count"] = await db.mod_site_staff.count_documents({
-            "site_id": s["id"], "is_active": {"$ne": False},
-        })
-        s["open_faults"] = await db.issues.count_documents({
-            "organization_id": s["id"], "status": {"$ne": "resolved"},
-            "is_drill": {"$ne": True},
-        })
-        site_user = await db.users.find_one(
-            {"organization_id": s["id"], "account_type": "mod_site"},
-            {"_id": 0, "username": 1, "password_updated_at": 1},
-        )
-        if site_user:
-            s["username"] = site_user.get("username")
-            s["password_updated_at"] = site_user.get("password_updated_at")
-            s["password_days_until_expiry"] = _days_until_expiry(site_user.get("password_updated_at"))
+        sid = s["id"]
+        s["equipment_count"] = equipment_counts.get(sid, 0)
+        s["staff_count"] = staff_counts.get(sid, 0)
+        s["open_faults"] = open_fault_counts.get(sid, 0)
+        u = user_by_org.get(sid)
+        if u:
+            s["username"] = u.get("username")
+            s["password_updated_at"] = u.get("password_updated_at")
+            s["password_days_until_expiry"] = _days_until_expiry(u.get("password_updated_at"))
     return {"sites": sites}
 
 

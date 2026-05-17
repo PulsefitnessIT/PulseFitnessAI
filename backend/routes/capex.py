@@ -9,6 +9,7 @@ import logging
 from utils.database import db, EMERGENT_LLM_KEY
 from utils.auth import get_current_user, get_organization_filter
 from utils.helpers import get_bulk_equipment_stats
+from utils.aggregate_cache import cache_aggregate
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
@@ -881,6 +882,24 @@ async def _resolve_capex_brand(user: dict) -> dict:
 
 async def _build_board_report(user: dict, site_id: str | None) -> dict:
     """Run the CAPEX analysis and decorate with exec summary + scope label."""
+    from utils.capex_intelligence import build_executive_summary
+    org_id = user.get("organization_id")
+    # Iter 216h170 — cache the heavy aggregate per (org, site) for 60s.
+    # Behaviour: a tab auto-refresh, the PDF download, and the live UI
+    # share one materialised payload during the burst window. Cache is
+    # invalidated automatically by TTL — no manual bust needed.
+    return await _build_board_report_cached(org_id, site_id, user)
+
+
+@cache_aggregate(ttl=60, key_args=("org_id", "site_id"), prefix="capex_board")
+async def _build_board_report_cached(
+    org_id: str | None, site_id: str | None, user: dict,
+) -> dict:
+    """The actual heavy computation — wrapped by the TTL cache.
+
+    Note: `user` is passed only for `full_name`/`email` decoration; it
+    is NOT part of the cache key because the report content is org-scoped
+    and identical for every user inside the same org."""
     from utils.capex_intelligence import build_executive_summary
     base = await get_capex_analysis(user=user, site_id=site_id)
     fleet = base.get("fleet_intelligence") or {}

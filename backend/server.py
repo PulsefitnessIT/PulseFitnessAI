@@ -588,6 +588,109 @@ async def _create_indexes() -> None:
         )
     except Exception as _e:  # pragma: no cover
         logger.warning(f"tier-3 index creation warning: {_e}")
+
+    # ───────────────────────────────────────────────────────────────
+    # Tier-4 performance indexes (added iter 216h170 — Feb 2026)
+    # Filled gaps surfaced by the structured query-pattern audit:
+    # every collection in the top-30 by query volume that lacked a
+    # covering index on its hottest filter pair. Each is idempotent.
+    # ───────────────────────────────────────────────────────────────
+    try:
+        # Engineer Service hub — id, case_id and timeline lookups
+        # `id` lookups are by far the hottest path (36 sites) but
+        # we kept the existing organization_id+created_at index too.
+        await db.svc_cases.create_index([("id", 1)], unique=True)
+        await db.svc_cases.create_index(
+            [("organization_id", 1), ("status", 1), ("created_at", -1)],
+        )
+        await db.svc_cases.create_index([("assigned_engineer_id", 1), ("status", 1)])
+        await db.svc_cases.create_index([("track_token", 1)], sparse=True)
+
+        # Engineer quotes — id + case_id + status views
+        await db.svc_quotes.create_index([("id", 1)], unique=True)
+        await db.svc_quotes.create_index([("case_id", 1), ("created_at", -1)])
+        await db.svc_quotes.create_index(
+            [("organization_id", 1), ("status", 1), ("created_at", -1)],
+        )
+
+        # Engineer invoices — id + case_id + organization
+        await db.svc_invoices.create_index([("id", 1)], unique=True)
+        await db.svc_invoices.create_index([("case_id", 1), ("created_at", -1)])
+        await db.svc_invoices.create_index(
+            [("organization_id", 1), ("status", 1), ("created_at", -1)],
+        )
+        # Case timeline events (sub-doc per case)
+        await db.svc_case_events.create_index([("case_id", 1), ("created_at", 1)])
+        # Visit notes per case
+        await db.svc_visit_notes.create_index([("case_id", 1), ("created_at", -1)])
+
+        # Sites: every dashboard hits this by id + by org+name search
+        await db.sites.create_index([("id", 1)], unique=True)
+        await db.sites.create_index([("organization_id", 1), ("name", 1)])
+
+        # Payment transactions — Stripe session lookups are the hottest
+        # path (webhook + session-status polling). User_id + status used
+        # by the onboarding dashboard.
+        await db.payment_transactions.create_index([("session_id", 1)], sparse=True)
+        await db.payment_transactions.create_index(
+            [("user_email", 1), ("payment_status", 1)],
+        )
+        await db.payment_transactions.create_index(
+            [("stripe_event_id", 1)], unique=True, sparse=True,
+        )
+
+        # Staff: org + active for rota board; id lookups
+        await db.staff_members.create_index([("id", 1)], unique=True)
+        await db.staff_members.create_index([("organization_id", 1), ("active", 1)])
+        await db.staff_shifts.create_index([("id", 1)], unique=True)
+        await db.staff_shifts.create_index(
+            [("organization_id", 1), ("starts_at", 1)],
+        )
+        await db.staff_shifts.create_index([("staff_id", 1), ("starts_at", 1)])
+
+        # Memberships sub-tables (the consoles join these heavily)
+        await db.membership_class_invoices.create_index(
+            [("organization_id", 1), ("created_at", -1)],
+        )
+        await db.membership_class_invoices.create_index([("instructor_id", 1)])
+        await db.membership_instructors.create_index([("id", 1)], unique=True)
+        await db.membership_instructors.create_index([("organization_id", 1)])
+
+        # Audit logs — the Compliance trail viewer (iter 216h161) reads
+        # by user_id + by resource pair, both with time sort.
+        await db.audit_logs.create_index([("timestamp", -1)])
+        await db.audit_logs.create_index(
+            [("resource_type", 1), ("resource_id", 1), ("timestamp", 1)],
+        )
+        await db.audit_logs.create_index([("user_id", 1), ("timestamp", -1)])
+        await db.audit_logs.create_index([("action", 1), ("timestamp", -1)])
+
+        # Refund events (iter 215c9 + iter 216h165 detail viewer)
+        await db.refund_events.create_index([("id", 1)], unique=True)
+        await db.refund_events.create_index(
+            [("organization_id", 1), ("created_at", -1)],
+        )
+
+        # CRM v2 contacts / companies — hot lookup paths
+        await db.crm_v2_contacts.create_index([("id", 1)], unique=True, sparse=True)
+        await db.crm_v2_contacts.create_index(
+            [("organization_id", 1), ("created_at", -1)],
+        )
+        await db.crm_v2_companies.create_index([("id", 1)], unique=True, sparse=True)
+        await db.crm_v2_companies.create_index(
+            [("organization_id", 1), ("created_at", -1)],
+        )
+
+        # Engineers (legacy svc_engineers collection)
+        await db.svc_engineers.create_index([("organization_id", 1), ("active", 1)])
+
+        # Supplier cases (extra index — existing one only covered timestamp)
+        await db.supplier_cases.create_index(
+            [("organization_id", 1), ("created_at", -1)],
+        )
+        await db.supplier_cases.create_index([("supplier_id", 1), ("status", 1)])
+    except Exception as _e:  # pragma: no cover
+        logger.warning(f"tier-4 index creation warning: {_e}")
     logger.info("MongoDB indexes created/verified")
 
 
