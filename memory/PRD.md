@@ -1,3 +1,52 @@
+## Iter 216h144 — Phase 5: Engineer Independence (Feb 17, 2026) ✅
+
+Engineers can now run their own pipeline end-to-end without a dispatcher.
+
+### Three ingestion paths (user-approved: "B + ii")
+1. **Manual self-create** — `+ New job` quick action → form → auto-assigned.
+2. **AI email parse** — paste an email body, GPT-5.2 extracts customer/site/fault into a pre-fill draft.
+3. **Public supplier card** — public `/r/<slug>` URL anyone can fill;
+   request lands in the engineer's Inbox for triage (Accept → creates &
+   auto-assigns case; Decline → marked declined with optional reason).
+
+### Backend (NEW · `routes/svc/independence.py`)
+* `POST /api/svc/engineer/jobs/self-create` — engineer-initiated case with full customer/site/scheduling. Supports `Idempotency-Key`; SELF-prefixed reference; sets `self_allocated=true`, `intake_channel`.
+* `POST /api/svc/engineer/jobs/parse-email` — Emergent LLM key + GPT-5.2 extracts a structured `{ customer_name, customer_email, customer_phone, site_name, site_address, site_postcode, title, description, priority, scheduled_at_hint }`.
+* `GET  /api/svc/engineer/intake-card` — returns engineer's public slug + share URL (auto-generated on first call, persisted to `svc_engineers.intake_slug` with a unique index).
+* `POST /api/svc/engineer/intake-card/regenerate` — rotate slug.
+* `GET  /api/svc/engineer/job-requests?status=pending|accepted|declined|all` — engineer inbox.
+* `GET  /api/svc/engineer/job-requests/{id}` — single request.
+* `POST /api/svc/engineer/job-requests/{id}/accept` — creates `svc_case` (assigned to engineer, `intake_channel="supplier_card"`, `job_request_id` back-link), marks request `accepted`.
+* `POST /api/svc/engineer/job-requests/{id}/decline` — marks request declined with optional reason.
+* `GET  /api/r/{slug}` (PUBLIC) — engineer profile (name, photo, bio, qualifications) + organisation branding (name, logo, brand colour).
+* `POST /api/r/{slug}/request` (PUBLIC) — customer submits; requires `consent=true` (else 400). Stores in `svc_job_requests` and **fires a Web Push + in-app notification** to the engineer via the existing `create_notification()` helper.
+
+New collection: `svc_job_requests {id, engineer_id, organization_id, intake_slug, intake_channel, status, customer_*, site_*, title, description, priority, created_at}`. Indexes on `(org, engineer, status, created_at)` + unique `id`. New unique sparse index on `svc_engineers.intake_slug`.
+
+### Frontend (NEW)
+* `/svc/engineer/jobs/new` · `EngineerNewJob.js` — two-pane on desktop: left = full form (title, priority, source, description, customer, site, scheduled time, estimated minutes); right = AI helper (subject + body → "Extract with AI" → pre-fills the form). Submit → POST self-create with browser-generated `Idempotency-Key` → land on new job detail.
+* `/svc/engineer/inbox` · `EngineerInbox.js` — share-card panel at top (copy/share/regen the public link) + filter chips (pending/accepted/declined/all) + rows with priority badge, customer/site/contact, accept (with scheduling modal) and decline (with reason prompt). Pending count badge on the header.
+* `/r/<slug>` · `PublicEngineerCard.js` — branded landing page (no auth), engineer profile card, customer form with consent checkbox, success state on submit. Uses organisation logo/brand colour from the public endpoint.
+
+### Wiring
+* New QuickActions on `EngineerHomeV2`: `qa-new-job` and `qa-inbox` (top of the grid, with "+ New job" as the primary CTA).
+* Desktop workspace `EngineerWorkspace.js`: new `ws-nav-inbox` in the sidebar, plus a `b` keyboard shortcut for the inbox.
+* `AppRoutes.js` registers `/svc/engineer/jobs/new`, `/svc/engineer/inbox`, and the public `/r/:slug`.
+
+### Testing
+* `pytest /app/backend/tests/test_iter_216h144_independence.py` → **6/6 passing**.
+* Regression on previous slices → **17/17 still green**.
+* Testing agent end-to-end frontend → **8/8 features verified** (100%). Backend APIs verified live.
+* No new mocked dependencies.
+
+### What's left for the next sliceability (Iter 216h145)
+* Inbound email path (Resend/SendGrid inbound webhook → auto-create request) — needs MX records on `in.gymaxis.com`.
+* QR-code SVG generation endpoint (for printing the supplier card).
+* "Allocate this job to me" button on existing org-wide unscheduled queue (so engineers can self-claim dispatcher-routed jobs).
+
+---
+
+
 ## Iter 216h143 — Engineer App Phase 4 · Slice 3 of 4: Offline Writes (Feb 17, 2026) ✅
 
 IndexedDB-backed write queue for field engineers — time entries, mileage,
