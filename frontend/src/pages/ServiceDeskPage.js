@@ -159,7 +159,7 @@ export default function ServiceDeskPage() {
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center overflow-hidden gx-grad-ring shadow-sm">
-              <img src="/brand/gymaxis-mark-tight.png" alt="GymAxis" className="w-6 h-6 object-contain" draggable={false} />
+              <img src="/brand/gymaxis-mark-tight.webp" alt="GymAxis" className="w-6 h-6 object-contain" draggable={false} loading="eager" decoding="async" />
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900 tracking-tight">Service Desk</div>

@@ -155,7 +155,7 @@ export default function PublicTrackingPage() {
       <header className="text-white pt-8 pb-6 px-5" style={{ background: brand }} data-testid="track-header">
         <div className="max-w-2xl mx-auto">
           {data.organization?.logo_url ? (
-            <img src={data.organization.logo_url} alt={data.organization.name} className="h-8 mb-4 opacity-95" />
+            <img src={data.organization.logo_url} alt={data.organization.name} className="h-8 mb-4 opacity-95" loading="eager" decoding="async" />
           ) : (
             <p className="text-xs uppercase tracking-wider opacity-80 mb-1 font-bold">{data.organization?.name}</p>
           )}
@@ -264,6 +264,8 @@ export default function PublicTrackingPage() {
                   className="w-14 h-14 rounded-full object-cover border-2"
                   style={{ borderColor: brand }}
                   data-testid="track-engineer-photo"
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div

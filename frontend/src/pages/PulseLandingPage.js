@@ -37,7 +37,7 @@ const HERO_BG = '/pulse-photos/carshalton-igym.webp';
 const GYM_INTERIOR = '/pulse-photos/carshalton-igym.webp';
 const GYM_EQUIPMENT = '/pulse-photos/strength-accessories.webp';
 const GYM_ACTION = '/pulse-photos/strength-accessories.webp';
-const MOBILE_BG = 'https://images.pexels.com/photos/4162581/pexels-photo-4162581.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940';
+const MOBILE_BG = 'https://images.pexels.com/photos/4162581/pexels-photo-4162581.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940&fm=webp';
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -592,7 +592,7 @@ const STEPS = [
     icon: Trophy,
     title: 'Stay operational',
     desc: 'Zero downtime drama. Clean audits. Happy members.',
-    img: 'https://images.pexels.com/photos/6922153/pexels-photo-6922153.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
+    img: 'https://images.pexels.com/photos/6922153/pexels-photo-6922153.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940&fm=webp',
   },
 ];
 

@@ -45,7 +45,7 @@ export default function BrandedBragPage() {
         <div className="px-6 py-7 border-b border-white/5" style={{ background: `linear-gradient(135deg, ${color}22 0%, transparent 60%)` }}>
           <div className="flex items-center gap-3">
             {data.organization.logo_url ? (
-              <img src={data.organization.logo_url} alt="" className="w-12 h-12 rounded-xl" />
+              <img src={data.organization.logo_url} alt="" className="w-12 h-12 rounded-xl" loading="eager" decoding="async" />
             ) : (
               <div className="w-12 h-12 rounded-xl grid place-items-center" style={{ background: `${color}1F`, color }}>
                 <Sparkles size={22} />

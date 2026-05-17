@@ -463,7 +463,7 @@ function AuthGate({ onAuthed, branding, slug }) {
     <div className="min-h-screen bg-[var(--color-surface-darker)] text-white flex flex-col" data-testid="member-auth-gate">
       <header className="px-6 pt-10 pb-6 text-center">
         {branding?.logo_url ? (
-          <img src={branding.logo_url} alt={gymName} className="mx-auto h-12 mb-4 rounded" />
+          <img src={branding.logo_url} alt={gymName} className="mx-auto h-12 mb-4 rounded" loading="eager" decoding="async" />
         ) : (
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6" style={{ background: `${accent}1a`, border: `1px solid ${accent}33` }}>
             <Sparkles size={12} style={{ color: accent }} />
@@ -612,7 +612,7 @@ function TopBar({ member, branding, onSignOut }) {
   return (
     <header className="sticky top-0 z-30 bg-[var(--color-surface-darker)]/90 backdrop-blur border-b border-white/10 px-5 py-3 flex items-center justify-between">
       <div className="flex items-center gap-3 min-w-0">
-        {branding?.logo_url && <img src={branding.logo_url} alt={gymLabel} className="h-7 w-7 rounded" />}
+        {branding?.logo_url && <img src={branding.logo_url} alt={gymLabel} className="h-7 w-7 rounded" loading="eager" decoding="async" />}
         <div className="min-w-0">
           <div className="text-[9px] font-bold uppercase tracking-[0.25em] truncate" style={{ color: accent }}>{gymLabel}</div>
           <div className="text-sm font-extrabold truncate">Hello, {member.first_name}</div>

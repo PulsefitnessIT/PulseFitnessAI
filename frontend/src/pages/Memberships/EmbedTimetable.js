@@ -48,7 +48,7 @@ export default function EmbedTimetable() {
   return (
     <div className="min-h-screen bg-white text-zinc-900 p-4 sm:p-6 font-sans dark:bg-zinc-900 dark:text-zinc-100" data-testid="embed-timetable">
       <header className="mb-6 flex items-center gap-3">
-        {org.logo_url && <img src={org.logo_url} alt={org.name} className="h-9 max-w-[120px] object-contain" />}
+        {org.logo_url && <img src={org.logo_url} alt={org.name} className="h-9 max-w-[120px] object-contain" loading="eager" decoding="async" />}
         <div>
           <h1 className="text-lg sm:text-xl font-extrabold tracking-tight" style={{ color: org.primary_color }}>{org.name}</h1>
           <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Class timetable</p>

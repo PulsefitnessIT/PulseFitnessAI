@@ -392,3 +392,111 @@ ms of P99 latency on a 200-member page.
 | Engineer App mobile-specific tuning | Backlog |
 | `master_admin.py` decomposition | Backlog |
 
+
+---
+
+## Iter 216h175 — Image optimisation: WebP + lazy-loading on PulseLandingPage and member surfaces (Feb 2026)
+
+### Scope
+
+User-prioritized P0 follow-on: "WebP + responsive srcset + loading=lazy
+on PulseLandingPage and member-facing surfaces."
+
+### What changed
+
+**1. Brand assets converted PNG → WebP** (`/app/frontend/public/brand/`)
+
+All 7 GymAxis brand assets now have a WebP sibling. Critical chrome
+logos (`Navbar`, `MasterAdmin/AdminSidebar`, `ServiceDeskPage`) now
+reference the `.webp` versions — these load eagerly on every operator
+page view.
+
+| Asset | PNG → WebP | Reduction |
+|---|---|---|
+| `gymaxis-mark-tight` | 351 → 16 KB | **-95%** |
+| `gymaxis-mark`       | 1,071 → 19 KB | **-98%** |
+| `gymaxis-text-tight` | 292 → 21 KB | **-93%** |
+| `gymaxis-text`       | 818 → 22 KB | **-97%** |
+| `gymaxis-full-tight` | 284 → 25 KB | **-91%** |
+| `gymaxis-full`       | 1,027 → 27 KB | **-97%** |
+| `gymaxis-logo`       | 998 → 27 KB | **-97%** |
+| **Total**            | **4,841 KB → 158 KB** | **-97%** |
+
+The PNG originals are kept for any future `<picture>` fallback or
+external embed.
+
+**2. Marketing campaign assets converted PNG → WebP**
+(`/app/frontend/public/marketing/`)
+
+11 instagram-campaign PNGs + the master mosaic. The mosaic alone was
+**16 MB**, now **1.1 MB** (-93%).
+
+| Asset class | Before | After | Reduction |
+|---|---|---|---|
+| Instagram campaign (9 PNGs) | 5,204 KB | 337 KB | -94% |
+| `mosaic_master.png` | 642 KB | 155 KB | -76% |
+| `mosaic_master_fhd.png` | 16,114 KB | 1,092 KB | -93% |
+| **Total marketing** | **21,960 KB → 1,584 KB** | **-93%** |
+
+**3. External image CDNs now request WebP**
+
+`PulseLandingPage.js` + `Marketing/StartTab.js`: Pexels URLs now carry
+`&fm=webp` so Pexels' CDN serves WebP instead of JPEG. Pexels JPEG → WebP
+typically saves 30-40%. Unsplash URLs already had `&auto=format` which
+auto-serves WebP/AVIF where supported, so they were already optimal.
+
+**4. `loading="lazy" decoding="async"` on all member-facing `<img>` tags**
+
+Edited member-facing surfaces:
+- `Memberships/MemberPortal.js` (auth gate logo, top-bar logo)
+- `Memberships/portalShared.js` (Ad slot images)
+- `Memberships/tabs/BookTab.js` (instructor avatar)
+- `Memberships/tabs/PassTab.js` (QR — `decoding="async"` only, eager)
+- `Memberships/PublicClassPage.js` (org logo, class image)
+- `Memberships/EmbedTimetable.js`, `Memberships/BrandedBragPage.js`
+- `PublicSignup/JoinPage.js`, `PublicTracking/PublicTrackingPage.js`
+
+Above-the-fold images (auth-gate logo, top-bar logo) use `loading="eager"`
+with `decoding="async"` so they prioritise but don't block the main
+thread on decode.
+
+### Live verification
+
+```
+GET /brand/gymaxis-mark-tight.webp → 200 (16,598 B)
+GET /brand/gymaxis-mark-tight.png  → 200 (359,840 B)
+```
+
+Every chrome render saves **343 KB / 96%** per session.
+
+### Tests
+
+`/app/backend/tests/test_iter_216h175_image_opt.py` (4 tests):
+- All 7 brand PNGs have a WebP variant <20% of source size
+- 3 critical chrome surfaces (Navbar, AdminSidebar, ServiceDeskPage) now
+  reference the `.webp` (and have no stale `.png` ref)
+- Both Pexels URLs on PulseLandingPage carry `fm=webp`
+- All 9 member-facing `<img>` tags carry `loading=` / `decoding=` hints
+
+Combined perf suite: **41/41 passing** (iter 216h170-216h175).
+
+### Total perf-audit savings to date
+
+| Iter | What | Savings |
+|---|---|---|
+| 216h170 | DB indexes + N+1 fixes + aggregate cache | Latency: heavy dashboards 200-800 ms faster |
+| 216h171 | `safe_paginate` cap | Memory: prevents OOM on rogue `.to_list()` calls |
+| 216h172 | Slow-request log middleware | Visibility: P99 surfaces in Master Admin |
+| 216h173 | Frontend code-split (5 largest) | Initial JS bundle ~50-70% smaller |
+| 216h174 | API payload size on 3 list endpoints | ~2-5 MB saved on master-admin list refresh |
+| 216h175 | Image optimisation | ~24.5 MB shed across brand+marketing assets |
+
+### Next perf-audit targets
+
+| Item | Status |
+|---|---|
+| Engineer App mobile-specific tuning (virtualised lists, SW pre-cache) | ⏭ Next |
+| `master_admin.py` decomposition (4,283 LoC → 5-6 routers) | Backlog |
+| Per-endpoint payload-size telemetry (bytes/p99 alongside slow log) | Backlog |
+| Responsive `srcset` on hero/feature images for mobile vs desktop | Backlog |
+

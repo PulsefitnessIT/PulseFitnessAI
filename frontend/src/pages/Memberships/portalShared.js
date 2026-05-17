@@ -139,7 +139,7 @@ export function AdSlot({ slug, placement }) {
       className={`rounded-xl p-4 mb-4 cursor-pointer transition hover:scale-[1.01]`}
       style={{ background: `linear-gradient(135deg, ${bg}22, transparent)`, border: `1px solid ${bg}44` }}>
       <div className="flex items-center gap-3">
-        {ad.image_url && <img src={ad.image_url} alt="" className="h-12 w-12 rounded-lg object-cover" />}
+        {ad.image_url && <img src={ad.image_url} alt="" className="h-12 w-12 rounded-lg object-cover" loading="lazy" decoding="async" />}
         <div className="flex-1 min-w-0">
           <div className="font-extrabold text-sm text-white truncate">{ad.headline}</div>
           {ad.body && <div className="text-xs text-white/70 truncate">{ad.body}</div>}

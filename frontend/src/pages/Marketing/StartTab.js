@@ -58,7 +58,7 @@ const TEMPLATES = [
     id: 'promote-class',
     title: 'Promote a new class',
     desc: 'Announce a new class to members most likely to attend based on history.',
-    cover: 'https://images.pexels.com/photos/9404662/pexels-photo-9404662.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=450&w=800',
+    cover: 'https://images.pexels.com/photos/9404662/pexels-photo-9404662.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=450&w=800&fm=webp',
     accent: 'from-[rgb(var(--rgb-success)/0.2)] to-transparent',
     icon: PartyPopper,
   },

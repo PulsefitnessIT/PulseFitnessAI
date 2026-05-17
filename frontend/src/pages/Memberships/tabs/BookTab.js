@@ -265,7 +265,7 @@ function ClassCard({ occ, busy, onBook, onCancel, studioSlug }) {
                className="flex items-center gap-1.5 hover:text-white transition"
                data-testid={`member-class-instructor-${occ.id}`}>
               {instructor.photo_url && (
-                <img src={instructor.photo_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                <img src={instructor.photo_url} alt="" className="w-4 h-4 rounded-full object-cover" loading="lazy" decoding="async" />
               )}
               <span>· {instructor.name} →</span>
             </a>

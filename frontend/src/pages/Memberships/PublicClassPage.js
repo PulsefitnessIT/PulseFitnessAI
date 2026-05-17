@@ -61,7 +61,7 @@ export default function PublicClassPage() {
           <ArrowLeft size={12} /> All classes
         </button>
         {org.logo_url ? (
-          <img src={org.logo_url} alt={org.name} className="h-8 max-w-[160px] object-contain" />
+          <img src={org.logo_url} alt={org.name} className="h-8 max-w-[160px] object-contain" loading="eager" decoding="async" />
         ) : (
           <p className="text-xs font-extrabold tracking-wider text-white/70 uppercase">{org.name}</p>
         )}
@@ -70,7 +70,7 @@ export default function PublicClassPage() {
       <main className="max-w-3xl mx-auto px-4 pb-12">
         {cls.image_url && (
           <div className="w-full aspect-video rounded-2xl overflow-hidden mb-5 ring-1 ring-white/10">
-            <img src={cls.image_url} alt={cls.name} className="w-full h-full object-cover" />
+            <img src={cls.image_url} alt={cls.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           </div>
         )}
 

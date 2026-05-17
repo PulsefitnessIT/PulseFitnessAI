@@ -7061,3 +7061,39 @@ Files: `/app/backend/routes/master_admin.py`,
 `/app/backend/routes/memberships/members.py`,
 `/app/backend/tests/test_iter_216h174_payload_size.py`,
 `/app/memory/PERF_AUDIT.md`.
+
+---
+
+## Iter 216h175 — Image optimisation (17 Feb 2026)
+
+P0 follow-on to the perf audit. WebP conversion + lazy-loading hints on
+PulseLandingPage and every member-facing surface.
+
+- **Brand chrome PNGs → WebP**: 4,841 → 158 KB (-97%). Navbar, AdminSidebar,
+  ServiceDeskPage now serve the `.webp` chrome logo — saves 343 KB per
+  page view × ~50 page navigations a day per operator.
+- **Marketing assets → WebP**: 22 MB → 1.6 MB (-93%) — the 16 MB
+  `mosaic_master_fhd.png` is now 1.1 MB.
+- **External image CDNs**: Pexels URLs on PulseLandingPage + Marketing
+  StartTab now carry `&fm=webp` so the CDN serves WebP instead of JPEG.
+- **`loading="lazy" decoding="async"`** added to all 9 member-facing
+  `<img>` tags (member portal, public-tracking page, public-signup
+  join page, embed timetable, public class page, branded brag page).
+
+Tests: `test_iter_216h175_image_opt.py` (4 tests). Combined perf suite
+**41/41 passing**. Live curl: `gymaxis-mark-tight.webp` serves 16.6 KB
+vs 359.8 KB PNG.
+
+Files: `/app/frontend/public/brand/*.webp` (new),
+`/app/frontend/public/marketing/**/*.webp` (new),
+`/app/frontend/src/components/shared/Navbar.js`,
+`/app/frontend/src/pages/MasterAdmin/AdminSidebar.js`,
+`/app/frontend/src/pages/ServiceDeskPage.js`,
+`/app/frontend/src/pages/PulseLandingPage.js`,
+`/app/frontend/src/pages/Marketing/StartTab.js`,
+`/app/frontend/src/pages/Memberships/{MemberPortal,portalShared}.js`,
+`/app/frontend/src/pages/Memberships/tabs/{BookTab,PassTab}.js`,
+`/app/frontend/src/pages/Memberships/{PublicClassPage,EmbedTimetable,BrandedBragPage}.js`,
+`/app/frontend/src/pages/PublicSignup/JoinPage.js`,
+`/app/frontend/src/pages/PublicTracking/PublicTrackingPage.js`,
+`/app/backend/tests/test_iter_216h175_image_opt.py`.

@@ -63,7 +63,7 @@ const AdminSidebar = ({
  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
  <div className="flex items-center gap-3">
  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden gx-grad-ring shadow-sm" data-testid="admin-sidebar-logo">
-            <img src="/brand/gymaxis-mark-tight.png" alt="GymAxis" className="w-7 h-7 object-contain" draggable={false} />
+            <img src="/brand/gymaxis-mark-tight.webp" alt="GymAxis" className="w-7 h-7 object-contain" draggable={false} loading="eager" decoding="async" />
           </div>
  <div>
  <p className="font-bold text-slate-900 text-sm tracking-tight">{isPulseAdmin ? 'Pulse Fitness' : 'GymAxis'}</p>

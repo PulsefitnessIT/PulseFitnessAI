@@ -196,7 +196,7 @@ export default function JoinPage() {
       <header className="bg-white border-b border-zinc-200">
         <div className="max-w-4xl mx-auto px-5 py-4 flex items-center gap-3">
           {gym.logo_url ? (
-            <img src={gym.logo_url} alt={gym.name} className="h-10" />
+            <img src={gym.logo_url} alt={gym.name} className="h-10" loading="eager" decoding="async" />
           ) : (
             <div className="h-10 w-10 rounded-md flex items-center justify-center text-white font-bold text-sm" style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})` }}>
               {(gym.name || '').charAt(0)}

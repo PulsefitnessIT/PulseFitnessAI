@@ -312,7 +312,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  ) : showPulseBrand ? (
  <img src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg" alt="Pulse Fitness" className="h-10 rounded-md object-cover" style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }} data-testid="pulse-logo" />
  ) : shouldShowGymAxisLockup ? (
- <img src="/brand/gymaxis-mark-tight.png" alt="GymAxis" className="h-10 w-10 object-contain" data-testid="gymaxis-logo" draggable={false} />
+ <img src="/brand/gymaxis-mark-tight.webp" alt="GymAxis" className="h-10 w-10 object-contain" data-testid="gymaxis-logo" draggable={false} loading="eager" decoding="async" />
  ) : (
  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: brandColor }}>
  <span className="text-white font-bold text-xl">{branding?.company_name?.charAt(0) || 'G'}</span>
