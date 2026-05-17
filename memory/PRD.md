@@ -1,3 +1,65 @@
+## Iter 216h142 — Engineer App Phase 4 · Slice 2 of 4: Notifications + Web Push (Feb 17, 2026) ✅
+
+In-app notification centre + Web Push for the Engineer App.
+
+### Backend (NEW · `routes/svc/notifications.py`)
+Collections:
+* `svc_notifications` — `{id, user_id, organization_id, kind, title, body, link, read_at, source_type, source_id, created_at}`. Indexes on `(org, user, created_at)`, `(org, user, read_at)`, unique `id`.
+* `svc_push_subscriptions` — `{id (= endpoint sha256[:24]), user_id, organization_id, subscription, user_agent, active, created_at, updated_at}`.
+* `svc_vapid_keys` — singleton `{id:"singleton", public, private, subject}`, auto-generated on first boot via `cryptography.ec.SECP256R1` if `.env` doesn't supply VAPID keys.
+
+Endpoints (gated by `require_engineer_app_access`):
+* `GET    /api/svc/engineer/notifications[?unread=true]` — list.
+* `GET    /api/svc/engineer/notifications/unread-count` — `{unread: N}`.
+* `POST   /api/svc/engineer/notifications/{id}/read` and `/read-all`.
+* `DELETE /api/svc/engineer/notifications/{id}`.
+* `GET    /api/svc/engineer/push/vapid-key` — public key for browser subscribe.
+* `POST   /api/svc/engineer/push/subscribe` — store PushSubscription.
+* `DELETE /api/svc/engineer/push/subscriptions/{endpoint_hash}` — unsubscribe.
+* `POST   /api/svc/engineer/push/test` — fires a self-test notification.
+
+Public helper: `await create_notification(user_id, organization_id, kind, title, body, link=, source_type=, source_id=, fire_push=True)`. The helper sends a Web Push via `pywebpush` to every active subscription and auto-deactivates any subscription returning 404/410 (browser uninstalled).
+
+### Diary integration
+`POST /api/svc/admin/diary/case/{id}/assign` now auto-fires a notification:
+* **`job_assigned`** when assigning a new engineer.
+* **`job_rescheduled`** when reassigning to the same engineer (new time).
+* **`job_unassigned`** sent to the previous engineer when the case is reassigned away from them.
+Each notification carries `source_type="case"`, `source_id=<case_id>`, and a `link` to `/svc/engineer/jobs/{id}`.
+
+### Engineer dashboard
+`/api/svc/engineer/dashboard` `notifications_unread` count now reads from `svc_notifications` (was `svc_case_events`), so the bell badge on EngineerHomeV2 reflects real notifications.
+
+### Frontend (NEW · `pages/ServiceOps/Engineer/EngineerNotifications.js`)
+Route: `/svc/engineer/notifications` (master gated by login). Features:
+* List with kind-coloured icons (Wrench / Calendar / ShieldCheck / Bell), relative timestamps.
+* Filter chips (All · Unread N).
+* Per-row mark-read + delete buttons. Click anywhere on body marks-read and follows `link`.
+* Top-right "Mark all read" pill (only when unread > 0).
+* **Push subscribe panel**: detects browser support, asks `Notification.requestPermission()`, registers `/sw.js`, calls `pushManager.subscribe()` with the VAPID `applicationServerKey`, then POSTs the subscription to the backend. When already subscribed: shows a "Send test push" button.
+
+### Service Worker (UPDATED · `public/sw.js`)
+* New `push` handler — parses the JSON payload, shows a native browser notification with icon/badge/tag/data.
+* New `notificationclick` handler — focuses the existing tab if open, otherwise opens the deep-link.
+
+### Dependencies
+`pywebpush==2.3.0` (+ `py-vapid==1.9.4`, `http_ece==1.2.1`) added to `requirements.txt`.
+
+### Testing
+* `pytest /app/backend/tests/test_iter_216h142_notifications.py` → **6/6 passing**.
+* Regression: `test_iter_216h140_diary.py` + `test_iter_216h139_credentials_email.py` → **11/11 still passing**.
+* Testing agent end-to-end → **100% / 100%**.
+* Report: `/app/test_reports/iteration_216h142.json`.
+
+### Phase 4 status
+* ✅ Slice 1 — Diary & Scheduling (216h140)
+* ✅ Slice 2 — Notifications + Web Push (216h142)
+* ✅ Slice 4 — Desktop Workspace (216h141)
+* ⬜ Slice 3 — Offline writes (IndexedDB queue + sync)
+
+---
+
+
 ## Iter 216h141 — Engineer App Phase 4 · Slice 4 of 4: Desktop Workspace (Feb 17, 2026) ✅
 
 Linear/Superhuman-style 3-column workspace at `/svc/engineer/workspace`.
