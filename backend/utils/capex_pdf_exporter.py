@@ -216,6 +216,126 @@ def _recommendations_table(s, items: list[dict]) -> Table:
     return t
 
 
+def _service_signals_section(s, equipment: list[dict]) -> list:
+    """Iter 216h160 — Live Service Spend & BER summary.
+
+    Aggregates the per-asset `service_signals` block (added in iter
+    216h154) into a fleet-level rollup + a top-10 BER offenders
+    table. Renders nothing when no asset has service_signals (e.g.
+    cold-start orgs) so the rest of the report degrades gracefully.
+    """
+    flow: list = []
+    with_signals = [
+        e for e in (equipment or [])
+        if isinstance(e.get("service_signals"), dict)
+    ]
+    if not with_signals:
+        return flow
+
+    total_visits = 0
+    total_spend = 0.0
+    total_downtime = 0.0
+    open_cases = 0
+    replace = watch = keep = 0
+    for e in with_signals:
+        sig = e["service_signals"]
+        total_visits += int(sig.get("service_visits_12mo") or 0)
+        total_spend += float(sig.get("service_spend_12mo") or 0)
+        total_downtime += float(sig.get("downtime_hours_12mo") or 0)
+        open_cases += int(sig.get("open_service_cases") or 0)
+        rec = sig.get("ber_recommendation")
+        if rec == "replace":
+            replace += 1
+        elif rec == "watch":
+            watch += 1
+        elif rec == "keep":
+            keep += 1
+
+    flow.append(Paragraph("5. Live Service Spend &amp; Repair-vs-Replace", s["h1"]))
+    flow.append(Paragraph(
+        "Twelve-month engineer service spend and the BER (Beyond "
+        "Economic Repair) ratio for every asset. Replace = spend ≥ "
+        "50% of replacement cost; Watch = 25–50%; Keep = below 25%. "
+        "Sourced from the live Engineer App job + invoice history.",
+        s["muted"],
+    ))
+    flow.append(Spacer(1, 3 * mm))
+    flow.append(_kpi_row(s, [
+        ("Service visits", str(total_visits)),
+        ("Spend (12m)", f"£{total_spend:,.0f}"),
+        ("Open cases", str(open_cases)),
+        ("Downtime (hrs)", f"{total_downtime:,.0f}"),
+    ]))
+    flow.append(Spacer(1, 3 * mm))
+    flow.append(_kpi_row(s, [
+        ("BER Replace", str(replace)),
+        ("BER Watch",   str(watch)),
+        ("BER Keep",    str(keep)),
+        ("Avg spend / asset", f"£{(total_spend / max(len(with_signals), 1)):,.0f}"),
+    ]))
+    flow.append(Spacer(1, 4 * mm))
+
+    # Top 10 BER offenders by ratio (only those above keep threshold).
+    flagged = []
+    for e in with_signals:
+        sig = e["service_signals"]
+        ratio = sig.get("service_to_replacement_ratio")
+        if ratio is None or ratio < 0.25:
+            continue
+        flagged.append({
+            "name": e.get("name") or "(unnamed)",
+            "location": e.get("location") or "—",
+            "type": e.get("equipment_type") or "—",
+            "spend": sig.get("service_spend_12mo") or 0.0,
+            "replacement_cost": (e.get("capex") or {}).get("replacement_cost") or 0,
+            "ratio": ratio,
+            "rec": sig.get("ber_recommendation") or "—",
+        })
+    flagged.sort(key=lambda r: r["ratio"], reverse=True)
+    flagged = flagged[:10]
+
+    if flagged:
+        rows = [[
+            Paragraph("<b>Asset</b>", s["body"]),
+            Paragraph("<b>Location</b>", s["body"]),
+            Paragraph("<b>12m spend</b>", s["body"]),
+            Paragraph("<b>Replacement</b>", s["body"]),
+            Paragraph("<b>BER %</b>", s["body"]),
+            Paragraph("<b>Action</b>", s["body"]),
+        ]]
+        for r in flagged:
+            rows.append([
+                Paragraph(_esc(r["name"]), s["body"]),
+                Paragraph(_esc(r["location"]), s["body"]),
+                f"£{r['spend']:,.0f}",
+                f"£{r['replacement_cost']:,.0f}",
+                f"{int(r['ratio'] * 100)}%",
+                r["rec"].title(),
+            ])
+        tbl = Table(rows, colWidths=[50 * mm, 35 * mm, 22 * mm,
+                                       25 * mm, 18 * mm, 20 * mm])
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), PULSE_LIGHT),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PULSE_LIGHT]),
+            ("LINEBELOW", (0, 0), (-1, 0), 1, PULSE_MUTED),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        flow.append(Paragraph("<b>Top BER offenders (12-month basis)</b>", s["body"]))
+        flow.append(Spacer(1, 2 * mm))
+        flow.append(tbl)
+    else:
+        flow.append(Paragraph(
+            "No asset has crossed the 25% BER watch threshold in the "
+            "last 12 months. Fleet is economic to repair.", s["muted"]))
+    flow.append(Spacer(1, 6 * mm))
+    return flow
+
+
 def build_capex_board_pdf(report: dict, brand: dict | None = None) -> bytes:
     """Render the full Board CAPEX PDF and return raw bytes.
 
@@ -316,8 +436,11 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None) -> bytes:
     flow.append(dist_row2)
     flow.append(PageBreak())
 
-    # ─── 5. CAPEX Forecast ──────────────────────────────────
-    flow.append(Paragraph("5. CAPEX Spend Forecast", s["h1"]))
+    # ─── 5. Live Service Spend & BER (iter 216h160) ─────────
+    flow.extend(_service_signals_section(s, report.get("equipment") or []))
+
+    # ─── 6. CAPEX Forecast ──────────────────────────────────
+    flow.append(Paragraph("6. CAPEX Spend Forecast", s["h1"]))
     forecast_table = Table(
         [
             [Paragraph("<b>Window</b>", s["body"]), Paragraph("<b>£</b>", s["body"])],
@@ -349,8 +472,8 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None) -> bytes:
     ))
     flow.append(Spacer(1, 6 * mm))
 
-    # ─── 6. Recommendations ─────────────────────────────────
-    flow.append(Paragraph("6. Replacement Recommendations (Top 20)", s["h1"]))
+    # ─── 7. Recommendations ─────────────────────────────────
+    flow.append(Paragraph("7. Replacement Recommendations (Top 20)", s["h1"]))
     flagged = [
         e for e in (report.get("equipment") or [])
         if (e.get("capex") or {}).get("status") in ("replace_now", "replace_soon", "at_risk")
@@ -361,8 +484,8 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None) -> bytes:
         flow.append(Paragraph("No assets flagged for replacement.", s["muted"]))
     flow.append(PageBreak())
 
-    # ─── 7. Asset Register ──────────────────────────────────
-    flow.append(Paragraph("7. Asset Register — Detailed", s["h1"]))
+    # ─── 8. Asset Register ──────────────────────────────────
+    flow.append(Paragraph("8. Asset Register — Detailed", s["h1"]))
     flow.append(Paragraph(
         f"Top {min(25, len(report.get('equipment') or []))} assets by CAPEX urgency. "
         "Full register available in the platform.", s["muted"]))
@@ -370,8 +493,8 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None) -> bytes:
     flow.append(_equipment_table(s, report.get("equipment") or [], limit=25))
     flow.append(Spacer(1, 8 * mm))
 
-    # ─── 8. Sign-off footer ────────────────────────────────
-    flow.append(Paragraph("8. Sign-off", s["h1"]))
+    # ─── 9. Sign-off footer ────────────────────────────────
+    flow.append(Paragraph("9. Sign-off", s["h1"]))
     sign_table = Table(
         [
             [Paragraph("<b>Prepared by</b>", s["body"]), Paragraph(_esc(report.get("prepared_by", brand_name)), s["body"])],

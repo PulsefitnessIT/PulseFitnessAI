@@ -6840,6 +6840,13 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h160 (17 Feb 2026)** — BER service-spend section on the CAPEX board-report PDF.
+  - New section 5 "Live Service Spend & Repair-vs-Replace" added to `utils/capex_pdf_exporter.py` between condition analysis and forecast. KPI strip: visits, spend, open cases, downtime — plus a second strip with BER bucket counts (Replace / Watch / Keep) and avg spend per asset.
+  - Top-10 BER offenders table sorted by ratio desc — shows asset, location, 12m spend, replacement cost, BER %, recommended action. Renders only assets above the 25% watch threshold (less noise on healthy fleets).
+  - Section renders empty (graceful skip) for orgs with no service signals yet — cold-start safe.
+  - Section numbers in the rest of the PDF bumped (Forecast → 6, Recommendations → 7, Asset Register → 8, Sign-off → 9).
+  - Tests: `tests/test_iter_216h160_capex_pdf_signals.py` — 3/3 passing (renders with signals + offenders table, omits cleanly without signals, caps offenders at 10). Uses `pypdf` to extract decoded text instead of grepping the compressed stream. Full regression — **85/85 passing** across 15 SVC+CAPEX modules.
+
 - **Iter 216h159 (17 Feb 2026)** — Engineer card-conversions dashboard (frontend surface for 216h158).
   - New page `/svc/engineer/card-analytics` — KPI strip (requests / cases / revenue), "Your card" gradient spotlight panel for the current engineer, and a per-slug leaderboard table (sorted by revenue desc) with conversion-rate badges colour-coded by performance bucket (≥50% green, ≥25% amber, else slate).
   - Window selector (30 / 90 / 180 / 365 days) passes through to the analytics API.
