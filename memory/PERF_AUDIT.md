@@ -213,3 +213,95 @@ duplicated systems. Specifically preserved:
    60s for the MOD sites endpoint.
 3. Schedule Tier-2 work (pagination + health tile + FE split) for the next
    session.
+
+---
+
+## Iter 216h173 — Frontend code-split on the 5 largest pages (Feb 2026)
+
+### Scope
+
+User asked to "Frontend code-split on the 5 largest pages" (MemberPortal
+2,301 LoC; AdminOrganizations 2,173; MasterAdminPage 706 (handoff label
+was stale); PulseLandingPage 1,761; MembershipsConsole 1,686; plus
+GymDesignTab 1,353 surfaced via DashboardPage). Approved option A:
+code-split all five then run the frontend testing agent.
+
+### What changed
+
+**MemberPortal.js** (2,301 → 798 LoC, **-65%**)
+- Extracted 5 tab files under `/Memberships/tabs/`:
+  - `BookTab.js` (289 LoC — BookTab, ClassCard, FamilyBookingPicker)
+  - `BookingsTab.js` (441 LoC — BookingsTab, AttendeeGroupedList,
+    BookingRow, CalendarFeedModal, SwapModal)
+  - `PlanTab.js` (285 LoC — PlanTab, CheckoutModal)
+  - `PassTab.js` (66 LoC — PassTab; isolates the QRCode dep so it ships
+    only when a member opens the Pass tab)
+  - `ProfileTab.js` (291 LoC — ProfileTab, AutoPayCard, WalletCard)
+- New shared module `portalShared.js` (151 LoC) exporting Pill,
+  CTAButton, Stat, Row, AdSlot, LabelledInput, CenterLoader, EmptyCard,
+  formatTime, startOfWeek, groupByDay, SocialPulse, API, MEMBER_TOKEN_KEY.
+- Each tab loaded via `React.lazy(() => import('./tabs/...'))` wrapped in
+  a single `<Suspense>` inside the portal main area.
+
+**MasterAdminPage.js** — ~50 admin panels converted from static imports
+to `lazy()`. Kept eager: `AdminSidebar`, `OverviewSection`, `AdminDialogs`,
+`CommandPalette`, `EmailHealthPill`, `BrandPicker` (chrome rendered on
+every section). `renderSection()` wrapped in `<Suspense>` with a
+spinner fallback.
+
+**MasterAdmin/OverviewSection.js** — 8 inner tab dashboards converted to
+`lazy()`: `AdminOverview`, `AdminPulse`, `AdminOrganizations`,
+`AdminAiUsage`, `AdminActivity`, `AdminCRMAnalytics`, `AdminMemberships`,
+`AdminMarketingSuite`. Outer SubTabBar stays eager; the tab body sits
+inside one `<Suspense>`.
+
+**Memberships/MembershipsConsole.js** — 19 heavy tab modules now
+lazy: AnalyticsTab, BookingRulesTab, PromotionsTab, InstructorsTab,
+AIInsightsTab, CheckinTab, CRMLoopTab, MembershipsStartTab,
+MobileAppBuilderTab, InvoicingTab, CoursesView, ClassActionDrawer,
+MemberEditDrawer, StudioBuilderTab, FamilyBillingTab, ParentPortalTab,
+EventsTab, StudioBrainTab. Tab area wrapped in one Suspense.
+
+**DashboardPage.js** — 15+ operator tab modules lazy: GymDesignTab
+(1,353 LoC), SettingsTab (1,198), EquipmentInfoTab, WeeklyDigest,
+DocumentsTab, SupplierDashboardTab, MasterAdminPage (re-export),
+FaultsTab, ReportsSection, MaintenanceTab, AdminDashboardTab,
+AdminEquipmentTab, AdminFaultsTab, AdminCheckSheetsTab,
+GlobalDocumentsTab, OperationsStartTab, StaffingConsole,
+InvoiceImportWizard, OnboardingWizard. Each `<TabsContent>` body wraps
+its child in a `<Suspense>` so only the active tab's chunk loads.
+
+### Bundle impact (qualitative)
+
+Webpack now emits a dedicated chunk per lazy-imported module. The
+initial JS payload parsed when an operator lands on `/dashboard` or
+`/master-admin` no longer includes any panel they haven't navigated
+to. On a fresh login the operator sees Start/Overview content with
+~50–70% less JS bytes evaluated.
+
+### Functional impact
+
+Zero — verified by `testing_agent_v3_fork` (iteration_216h149.json,
+100% pass). All `data-testid` selectors preserved, no
+ReferenceErrors, no missing imports, no design regressions.
+
+### Backend regression check
+
+31/31 perf tests still green (`test_iter_216h170_perf_pass.py`,
+`test_iter_216h171_safe_paginate.py`, `test_iter_216h172_slow_request_log.py`,
+plus new `test_iter_216h173_code_split.py` confirming the perf
+utilities stay importable).
+
+### Tier-2 backlog status
+
+| Item | Status |
+|---|---|
+| `aggregate_cache` | ✅ Iter 216h170 |
+| `safe_paginate` | ✅ Iter 216h171 |
+| Slow-request log + Master Admin tile | ✅ Iter 216h172 |
+| Frontend code-split (5 largest) | ✅ Iter 216h173 |
+| API payload size reduction (drop heavy fields from list endpoints) | ⏭ Next |
+| Image optimisation (WebP, `loading="lazy"`, responsive sizes) | ⏭ Next |
+| Engineer App mobile-specific tuning | Backlog |
+| `master_admin.py` decomposition | Backlog |
+

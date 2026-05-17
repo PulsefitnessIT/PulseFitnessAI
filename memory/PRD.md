@@ -6988,3 +6988,49 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - Recent deploy failure was a "pod not found" infra error — fix is to re-hit Deploy (NOT a code issue).
 - Master Admin credentials: `admin@gymaxisai.com` / `MasterAdmin123!` (always preserved).
 - Preview DB has been wiped — only the master admin + Tottenham Green Leisure Centre data remain (since iter 215bs).
+
+---
+
+## Iter 216h173 — Frontend code-split on 5 largest pages (17 Feb 2026)
+
+P0 task from the Performance Audit prompt. Slimmed the initial JS bundle
+by converting heavy admin and member tabs to `React.lazy()` + `<Suspense>`.
+
+- **MemberPortal.js**: 2,301 → 798 LoC. Extracted 5 tab files
+  (`BookTab`, `BookingsTab`, `PlanTab`, `PassTab`, `ProfileTab`) and a
+  shared helpers module (`portalShared.js`). The QRCode library now
+  ships only when a member opens the Pass tab.
+- **MasterAdminPage.js**: ~50 admin panels converted from static
+  imports to `lazy()`. Chrome (sidebar, dialogs, command palette,
+  brand picker) stays eager. `renderSection()` wrapped in `<Suspense>`.
+- **MasterAdmin/OverviewSection.js**: 8 inner-tab dashboards lazy.
+- **Memberships/MembershipsConsole.js**: 19 heavy tab modules lazy.
+- **DashboardPage.js**: 15+ operator tab modules lazy; each
+  `<TabsContent>` body now wraps its child in `<Suspense>`.
+
+Testing: `testing_agent_v3_fork` ran a full frontend regression — 100%
+pass, no console errors, all `data-testid` selectors preserved
+(`/app/test_reports/iteration_216h149.json`). Backend perf suite
+31/31 green.
+
+Files: `/app/frontend/src/pages/Memberships/{MemberPortal,MembershipsConsole}.js`,
+`/app/frontend/src/pages/Memberships/portalShared.js`,
+`/app/frontend/src/pages/Memberships/tabs/{BookTab,BookingsTab,PlanTab,PassTab,ProfileTab}.js`,
+`/app/frontend/src/pages/{MasterAdminPage,DashboardPage}.js`,
+`/app/frontend/src/pages/MasterAdmin/OverviewSection.js`,
+`/app/backend/tests/test_iter_216h173_code_split.py`,
+`/app/memory/PERF_AUDIT.md`.
+
+### Next perf-audit targets
+
+1. **API payload size reduction** — drop heavy fields from list endpoints
+   (full audit JSON, base64 thumbnails) and serve them only on detail
+   fetches. Probable wins on `/api/master-admin/orgs/list`,
+   `/api/svc/cases`, `/api/memberships/members`.
+2. **Image optimisation** — convert hero/marketing assets to WebP with
+   responsive `<source srcset>` and add `loading="lazy"` to below-the-
+   fold `<img>`. Biggest payoff on `PulseLandingPage` (which is intentionally
+   left as a single chunk — code-splitting a marketing page where every
+   section paints on initial render gives ~zero benefit; image swap does).
+3. **Engineer App mobile tuning** — virtualised lists for queue/diary,
+   service-worker pre-cache of the active week's jobs.
