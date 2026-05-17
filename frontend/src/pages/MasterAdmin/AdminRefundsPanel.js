@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
-import { RotateCcw, Search, Loader2, AlertTriangle, CheckCircle2, PoundSterling } from 'lucide-react';
+import { RotateCcw, Search, Loader2, AlertTriangle, CheckCircle2, PoundSterling, Clock, X, Activity } from 'lucide-react';
 
 /**
  * AdminRefundsPanel (iter 215c9)
@@ -19,6 +19,23 @@ const AdminRefundsPanel = () => {
   const [form, setForm] = useState({ amount_pence: '', reason: 'requested_by_customer', notes: '' });
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [detail, setDetail] = useState(null); // {refund, audit, live} | null
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openDetail = async (id) => {
+    setDetail({ loading: true });
+    setDetailLoading(true);
+    try {
+      const res = await axios.get(`${API}/admin/refunds/${id}`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      setDetail(res.data);
+    } catch (err) {
+      setDetail({ error: err?.response?.data?.detail || 'Failed to load refund detail' });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const token = () => localStorage.getItem('token');
 
@@ -255,7 +272,8 @@ const AdminRefundsPanel = () => {
                   <th className="pb-2 pr-4">Charge</th>
                   <th className="pb-2 pr-4">Reason</th>
                   <th className="pb-2 pr-4">By</th>
-                  <th className="pb-2">Status</th>
+                  <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--theme-border)]">
@@ -273,8 +291,19 @@ const AdminRefundsPanel = () => {
                     <td className="py-2 pr-4 text-[var(--color-text-muted)] font-mono text-[11px]">{r.charge_id?.slice(0, 20)}…</td>
                     <td className="py-2 pr-4 capitalize">{(r.reason || '').replace(/_/g, ' ')}</td>
                     <td className="py-2 pr-4 text-[var(--color-text-muted)]">{r.issued_by_email}</td>
-                    <td className="py-2">
+                    <td className="py-2 pr-4">
                       <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded ${r.status === 'succeeded' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{r.status}</span>
+                    </td>
+                    <td className="py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => openDetail(r.id)}
+                        data-testid={`refund-view-${r.id}`}
+                        className="text-xs text-[var(--color-brand-blue)] hover:underline inline-flex items-center gap-1"
+                      >
+                        <Activity className="w-3 h-3" />
+                        Timeline
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -282,6 +311,163 @@ const AdminRefundsPanel = () => {
             </table>
           </div>
         )}
+      </div>
+
+      <RefundDetailDialog detail={detail} loading={detailLoading} onClose={() => setDetail(null)} />
+    </div>
+  );
+};
+
+// ── Refund detail dialog (iter 216h165) ──────────────────────────
+
+const _fmtTs = (s) => {
+  if (!s) return '—';
+  try {
+    return new Date(s).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  } catch {
+    return s;
+  }
+};
+
+const ActionPill = ({ action }) => {
+  const colour =
+    action === 'refund_issued' ? 'bg-blue-100 text-blue-800'
+    : action.includes('delete') ? 'bg-red-100 text-red-800'
+    : 'bg-slate-100 text-slate-800';
+  return (
+    <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded font-medium ${colour}`}>
+      {action.replace(/_/g, ' ')}
+    </span>
+  );
+};
+
+const RefundDetailDialog = ({ detail, loading, onClose }) => {
+  if (!detail) return null;
+  const r = detail.refund;
+  const audit = detail.audit || [];
+  const live = detail.live;
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+      data-testid="refund-detail-overlay"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl shadow-2xl w-[640px] max-w-full max-h-[88vh] overflow-y-auto"
+        data-testid="refund-detail-dialog"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--theme-border)]">
+          <div>
+            <h3 className="text-base font-semibold text-[var(--theme-text)]">Refund timeline</h3>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+              {r ? <span className="font-mono">{r.id}</span> : 'Loading…'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-[var(--theme-text)]"
+            data-testid="refund-detail-close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {loading && (
+            <div className="flex items-center gap-2 text-[var(--color-text-muted)] text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading refund detail…
+            </div>
+          )}
+          {detail.error && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-md text-xs bg-red-50 text-red-900 border border-red-200" data-testid="refund-detail-error">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {detail.error}
+            </div>
+          )}
+
+          {r && (
+            <div className="grid grid-cols-2 gap-3 text-sm" data-testid="refund-detail-facts">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Amount</p>
+                <p className="text-lg font-semibold text-[var(--theme-text)] tabular-nums">
+                  £{(r.amount_pence / 100).toFixed(2)} <span className="text-xs text-[var(--color-text-muted)]">{(r.currency || 'gbp').toUpperCase()}</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Status</p>
+                <p className="text-sm">
+                  <span className={`inline-block text-[10px] uppercase px-1.5 py-0.5 rounded ${r.status === 'succeeded' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {r.status}
+                  </span>
+                  {live && live.status !== r.status && (
+                    <span className="ml-2 text-[10px] text-[var(--color-brand-blue)]" data-testid="refund-detail-live-diff">
+                      Stripe now reports {live.status}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Reason</p>
+                <p className="capitalize">{(r.reason || '').replace(/_/g, ' ') || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Organisation</p>
+                <p>{r.organization_name || <span className="text-[var(--color-text-muted)]">—</span>}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Charge</p>
+                <p className="font-mono text-[11px] break-all">{r.charge_id}</p>
+              </div>
+              {r.internal_notes && (
+                <div className="col-span-2">
+                  <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Internal notes</p>
+                  <p className="text-[var(--theme-text)] whitespace-pre-wrap text-xs">{r.internal_notes}</p>
+                </div>
+              )}
+              {live?.failure_reason && (
+                <div className="col-span-2">
+                  <p className="text-[10px] uppercase tracking-wide text-red-500">Stripe failure reason</p>
+                  <p className="text-red-700 text-xs" data-testid="refund-detail-failure">{live.failure_reason}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {audit.length > 0 && (
+            <div data-testid="refund-detail-audit">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock size={14} className="text-[var(--color-brand-blue)]" />
+                <p className="text-xs uppercase tracking-wide font-semibold text-[var(--theme-text)]">Audit trail · {audit.length} entries</p>
+              </div>
+              <ol className="relative border-l border-[var(--theme-border)] ml-2 space-y-3">
+                {audit.map((a, i) => (
+                  <li key={i} className="ml-4">
+                    <span className="absolute -left-[5px] mt-1.5 w-2.5 h-2.5 rounded-full bg-[var(--color-brand-blue)]" />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <ActionPill action={a.action || 'event'} />
+                      <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">{_fmtTs(a.timestamp)}</span>
+                    </div>
+                    <p className="text-[var(--theme-text)] text-xs mt-1">{a.details || <span className="text-[var(--color-text-muted)] italic">no details</span>}</p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                      {a.user_email || '—'}{a.ip_address ? ` · ${a.ip_address}` : ''}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {r && audit.length === 0 && !loading && (
+            <p className="text-xs text-[var(--color-text-muted)] italic" data-testid="refund-detail-no-audit">
+              No audit-log entries recorded for this refund.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

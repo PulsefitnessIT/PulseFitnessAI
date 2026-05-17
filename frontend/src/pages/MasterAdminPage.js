@@ -19,6 +19,7 @@ import AdminTasks from './MasterAdmin/AdminTasks';
 import AdminRoles from './MasterAdmin/AdminRoles';
 import AdminPayments from './MasterAdmin/AdminPayments';
 import AdminPartners from './MasterAdmin/AdminPartners';
+import AdminRefundsPanel from './MasterAdmin/AdminRefundsPanel';
 import AdminSupport from './MasterAdmin/AdminSupport';
 import AdminEmails from './MasterAdmin/AdminEmails';
 import AdminAuditLogs from './MasterAdmin/AdminAuditLogs';

@@ -288,6 +288,22 @@ async def issue_refund(
 
 # ── Lookup ───────────────────────────────────────────────────────
 
+def _refund_destination(refund) -> dict | None:
+    """Surface the bank/card destination, if Stripe exposes it."""
+    dd = getattr(refund, "destination_details", None)
+    if not dd:
+        return None
+    if isinstance(dd, dict):
+        return dd
+    # Stripe SDK objects support .to_dict_recursive() but we keep it simple.
+    out: dict = {}
+    for k in ("type", "card", "bank_transfer"):
+        v = getattr(dd, k, None)
+        if v is not None:
+            out[k] = v if isinstance(v, (str, dict)) else str(v)
+    return out or None
+
+
 def _lookup_by_id(query: str) -> list[dict]:
     """Resolve a `ch_…` or `pi_…` directly."""
     try:
@@ -363,3 +379,59 @@ def _charge_to_dict(charge) -> dict:
         ),
         "description": charge.description,
     }
+
+
+# ── Detail (iter 216h165) ─────────────────────────────────────────
+# NOTE: must be declared AFTER `/lookup` so FastAPI doesn't route
+# `/admin/refunds/lookup` to this handler with refund_id="lookup".
+
+@router.get("/{refund_id}")
+async def get_refund_detail(
+    refund_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Single-refund detail view with audit timeline.
+
+    Returns the persisted `refund_events` row, every `audit_logs` entry
+    that references this refund id, and (when Stripe is configured) a
+    live snapshot of the Stripe Refund object so support staff can see
+    the most recent status without leaving the platform — e.g. a
+    `pending → succeeded` transition after the bank settled.
+    """
+    _require_master_admin(user)
+    event = await db.refund_events.find_one({"id": refund_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Refund not found")
+
+    # Backfill the org name in case the row pre-dates iter 215d0.
+    if event.get("organization_id") and not event.get("organization_name"):
+        org = await db.organizations.find_one(
+            {"id": event["organization_id"]},
+            {"_id": 0, "name": 1},
+        )
+        if org:
+            event["organization_name"] = org.get("name")
+
+    # Audit timeline — every entry that points at this refund id.
+    audit = await db.audit_logs.find(
+        {"resource_type": "refund", "resource_id": refund_id},
+        {"_id": 0},
+    ).sort("timestamp", 1).to_list(200)
+
+    # Live Stripe snapshot is best-effort; never block on it.
+    live = None
+    if STRIPE_API_KEY:
+        try:
+            r = stripe.Refund.retrieve(refund_id)
+            live = {
+                "id": r.id,
+                "status": r.status,
+                "amount_pence": int(r.amount or 0),
+                "currency": (r.currency or "gbp").lower(),
+                "failure_reason": getattr(r, "failure_reason", None),
+                "destination_details": _refund_destination(r),
+            }
+        except Exception:
+            logger.debug("[refunds] live snapshot failed for %s", refund_id, exc_info=True)
+
+    return {"refund": event, "audit": audit, "live": live}
