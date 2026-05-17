@@ -7418,3 +7418,32 @@ Remaining decomposition targets:
 - Ops & backfills (`test-data/purge` + equipment backfills +
   `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
 
+
+## Iter 216h185 — `master_admin.py` decomposition phase 9: org branding / test-flag / account-type (17 Feb 2026)
+
+Extracted 3 small but mutually-related per-org admin endpoints into
+`routes/master_admin_org_branding.py` (214 LoC):
+
+- `PUT /master-admin/organizations/{id}/test-flag`
+- `POST /master-admin/organizations/{id}/test-email`
+- `PUT /master-admin/organizations/{id}/account-type`
+
+Two preview-email helpers travelled with the routes.
+
+`master_admin.py` is now **732 LoC** (was 905 → -19% this phase; vs
+the original 4,283 → **-83% cumulative**).
+
+Tests: `test_iter_216h185_master_admin_org_branding_split.py` (6 tests,
+all pass) + 10/10 live `test_master_admin_archive_account_type.py`
+tests (which exercise `/account-type` end-to-end). 78/78 directly-
+related pytest pass overall.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_org_branding.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h185_master_admin_org_branding_split.py` (new).
+
+Remaining decomposition target:
+- Ops & backfills (`test-data/purge` + equipment backfills +
+  `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
+

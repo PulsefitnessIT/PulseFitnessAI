@@ -759,7 +759,8 @@ mutate the test org and return `{"success": true}`.
 | `master_admin.py` decomposition phase 6 (stats + audit-log surface) | ✅ 216h182 |
 | `master_admin.py` decomposition phase 7 (org create + primary contact) | ✅ 216h183 |
 | `master_admin.py` decomposition phase 8 (integration health / verify mappings / hub) | ✅ 216h184 |
-| `master_admin.py` decomposition phase 9 (branding email previews / test-flag / account-type) | ⏭ Next |
+| `master_admin.py` decomposition phase 9 (branding email previews / test-flag / account-type) | ✅ 216h185 |
+| `master_admin.py` decomposition phase 10 (ops + backfills) | ⏭ Next |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
 
@@ -1126,4 +1127,55 @@ Live verification:
 | Phase 6 | 216h182 | -233 | 1,434 | -67% |
 | Phase 7 | 216h183 | -195 | 1,239 | -71% |
 | Phase 8 | 216h184 | -334 | 905 | **-79%** |
+
+
+---
+
+## Iter 216h185 — `master_admin.py` decomposition phase 9: org branding/test-flag/account-type (Feb 2026)
+
+**Goal**: Carve the three small but mutually-related per-org admin
+endpoints (toggle "is_test" seed flag, send branded preview emails,
+change account_type/tier) into a focused sub-router.
+
+**Extracted to `master_admin_org_branding.py`** (NEW, 214 LoC, 3 routes):
+
+```
+PUT  /master-admin/organizations/{org_id}/test-flag
+POST /master-admin/organizations/{org_id}/test-email
+PUT  /master-admin/organizations/{org_id}/account-type
+```
+
+Two private helpers (`_build_preview_comment_email`,
+`_build_preview_engineer_email`) travel with the routes — confirmed
+unused outside this surface by grep.
+
+| Module | Phase 8 LoC | Phase 9 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 905 | **732** | -173 (-19%) |
+| `master_admin_org_branding.py` | — | **214** | NEW |
+
+**Tests** — `test_iter_216h185_master_admin_org_branding_split.py`
+(6 tests, all pass) PLUS the pre-existing live
+`test_master_admin_archive_account_type.py` (10 tests) which exercise
+the moved `/account-type` endpoint end-to-end against the running
+server — all 10 pass against the new module without any test changes.
+
+Live verification:
+- `PUT /test-flag` (is_test=false) → `{"success":true}`
+- `PUT /account-type` (account_type="bogus") → HTTP 400 (validation
+  preserved)
+
+**Cumulative monolith progress**:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | -39% |
+| Phase 4 | 216h180 | -309 | 2,312 | -46% |
+| Phase 5 | 216h181 | -645 | 1,667 | -61% |
+| Phase 6 | 216h182 | -233 | 1,434 | -67% |
+| Phase 7 | 216h183 | -195 | 1,239 | -71% |
+| Phase 8 | 216h184 | -334 | 905 | -79% |
+| Phase 9 | 216h185 | -173 | 732 | **-83%** |
 
