@@ -1,3 +1,33 @@
+## Iter 216h145 — Supplier Card v2: QR SVG + Printable PDF (Feb 17, 2026) ✅
+
+Adds tangible deliverables to the supplier-card flow so engineers can hand out a physical card.
+
+### Backend (added to `routes/svc/independence.py`)
+* `GET /api/svc/engineer/intake-card.svg` — raw QR-code SVG of the engineer's public `/r/<slug>` URL. `image/svg+xml`, ~11 KB. Uses `qrcode` with `SvgPathImage` factory + ERROR_CORRECT_M.
+* `GET /api/svc/engineer/intake-card.pdf` — printable A6 (105×148 mm) card. Branded header band (organisation brand colour), engineer name + bio, qualification chips, centred high-error-correction QR, share URL caption, GymAxis footer. Returns `application/pdf` with `Content-Disposition: attachment; filename="gymaxis-card-<slug>.pdf"`. Uses reportlab + qrcode.
+
+### Frontend (`EngineerInbox.js`)
+* Replaced flat share-card row with a two-column panel: 100×100 live QR preview (fetched via authenticated `fetch` → blob URL because `<img>` can't send Bearer headers) + a flex row of buttons.
+* New buttons: **inbox-download-svg** (QR vector) and **inbox-download-pdf** (printable A6 card). Each fetches with auth, creates a blob URL, programmatically clicks a temporary `<a download>`, then revokes the URL.
+* Preserved buttons: copy link, share (Web Share API), regenerate slug.
+
+### Login-page recommendation (no code change yet)
+User asked whether engineers need a dedicated login. Keep `/login` as the universal entry — `require_engineer_app_access` already gates `/svc/engineer/*` per-role. Future `/engineer` landing page would be value-add for (a) marketing acquisition (partner-engineer signup) and (b) field devices ("Add to home screen", magic-link auth). Deferred to a later iter once you have engineer onboarding traffic.
+
+### Testing
+* `pytest /app/backend/tests/test_iter_216h145_card_assets.py` → **4/4 passing**.
+* Regression iter 216h144 → **6/6 still green**.
+* Testing agent → **100% / 100%** (backend + frontend). Report: `/app/test_reports/iteration_216h145.json`.
+
+### Phase 5 status
+* ✅ Iter 216h144 — Engineer independence (self-create, AI email parse, public supplier card)
+* ✅ Iter 216h145 — Supplier card QR SVG + printable A6 PDF (this iter)
+* ⬜ Iter 216h146 — Inbound email path (Resend/SendGrid inbound webhook, needs MX records)
+* ⬜ Iter 216h147 — "Allocate to me" on dispatcher queue (engineer self-claims unassigned org-wide jobs)
+
+---
+
+
 ## Iter 216h144 — Phase 5: Engineer Independence (Feb 17, 2026) ✅
 
 Engineers can now run their own pipeline end-to-end without a dispatcher.
