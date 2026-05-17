@@ -55,16 +55,14 @@ def _styles(brand: dict) -> dict:
     }
 
 
-def _footer(canvas, doc, brand_name: str):
-    canvas.saveState()
-    canvas.setFillColor(PULSE_MUTED)
-    canvas.setFont("Helvetica", 8)
-    canvas.drawString(20 * mm, 12 * mm, f"{brand_name} — Tender response")
-    canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"Page {doc.page}")
-    canvas.setStrokeColor(PULSE_LIGHT)
-    canvas.setLineWidth(0.5)
-    canvas.line(20 * mm, 16 * mm, A4[0] - 20 * mm, 16 * mm)
-    canvas.restoreState()
+def _footer(canvas, doc, brand_name: str, is_mod: bool = False):
+    from utils.pdf_footer import draw_pdf_footer
+    draw_pdf_footer(
+        canvas, doc,
+        primary_line=f"{brand_name} — Tender response",
+        is_mod=is_mod,
+        muted_colour=PULSE_MUTED, line_colour=PULSE_LIGHT,
+    )
 
 
 def _esc(text: str) -> str:
@@ -76,8 +74,9 @@ def _esc(text: str) -> str:
     )
 
 
-def build_submission_pdf(tender: dict, questions: list[dict], brand: dict | None = None) -> bytes:
-    """Render the formal tender submission as a multi-page PDF."""
+def build_submission_pdf(tender: dict, questions: list[dict], brand: dict | None = None, *, is_mod: bool = False) -> bytes:
+    """Render the formal tender submission as a multi-page PDF.
+    `is_mod=True` adds the Crown copyright footer line (iter 216h166)."""
     s = _styles(brand or {})
     buf = BytesIO()
 
@@ -85,7 +84,7 @@ def build_submission_pdf(tender: dict, questions: list[dict], brand: dict | None
         20 * mm, 20 * mm, A4[0] - 40 * mm, A4[1] - 40 * mm,
         showBoundary=0, leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
     )
-    page = PageTemplate(id="main", frames=[frame], onPage=lambda c, d: _footer(c, d, s["company"]))
+    page = PageTemplate(id="main", frames=[frame], onPage=lambda c, d: _footer(c, d, s["company"], is_mod))
     doc = BaseDocTemplate(buf, pagesize=A4, pageTemplates=[page])
 
     story: list = []
@@ -143,12 +142,13 @@ def build_submission_pdf(tender: dict, questions: list[dict], brand: dict | None
     return pdf
 
 
-def build_pitch_deck_pdf(tender: dict, brand: dict | None = None, slides_override: list[dict] | None = None) -> bytes:
+def build_pitch_deck_pdf(tender: dict, brand: dict | None = None, slides_override: list[dict] | None = None, *, is_mod: bool = False) -> bytes:
     """Render an 8-slide pitch deck (landscape A4 PDF).
 
     ``slides_override`` lets the operator pass in custom slide copy
     (e.g. AI-generated). Default content is editorial Pulse Fitness
     boilerplate so the deck never ships empty.
+    `is_mod=True` adds the Crown copyright footer line (iter 216h166).
     """
     s = _styles(brand or {})
     company = s["company"]
@@ -156,7 +156,7 @@ def build_pitch_deck_pdf(tender: dict, brand: dict | None = None, slides_overrid
 
     page_size = landscape(A4)
     frame = Frame(15 * mm, 15 * mm, page_size[0] - 30 * mm, page_size[1] - 30 * mm)
-    tmpl = PageTemplate(id="slide", frames=[frame], onPage=lambda c, d: _footer(c, d, company), pagesize=page_size)
+    tmpl = PageTemplate(id="slide", frames=[frame], onPage=lambda c, d: _footer(c, d, company, is_mod), pagesize=page_size)
     doc = BaseDocTemplate(buf, pageTemplates=[tmpl], pagesize=page_size)
 
     slides = slides_override or _default_pitch_slides(tender, company)

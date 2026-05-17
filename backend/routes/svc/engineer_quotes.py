@@ -269,7 +269,9 @@ async def _get_quote_or_404(quote_id: str, user: dict) -> dict:
 async def download_quote_pdf(quote_id: str, user=Depends(get_current_user)):
     quote = await _get_quote_or_404(quote_id, user)
     from utils.engineer_quote_pdf import build_engineer_quote_pdf
-    pdf_bytes = build_engineer_quote_pdf(quote)
+    from utils.pdf_footer import is_mod_for_case
+    is_mod = await is_mod_for_case(db, quote.get("case_id"))
+    pdf_bytes = build_engineer_quote_pdf(quote, is_mod=is_mod)
     filename = f"{quote['quote_number']}.pdf"
     return Response(
         content=pdf_bytes,
@@ -352,7 +354,9 @@ async def send_quote(
         )
         quote["public_shortcode"] = shortcode
     from utils.engineer_quote_pdf import build_engineer_quote_pdf
-    pdf_bytes = build_engineer_quote_pdf(quote)
+    from utils.pdf_footer import is_mod_for_case
+    is_mod = await is_mod_for_case(db, quote.get("case_id"))
+    pdf_bytes = build_engineer_quote_pdf(quote, is_mod=is_mod)
     import base64
     attachment = {
         "filename": f"{quote['quote_number']}.pdf",

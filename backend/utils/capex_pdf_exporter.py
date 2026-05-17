@@ -81,17 +81,16 @@ def _styles(brand: dict) -> dict:
     }
 
 
-def _footer_factory(brand_name: str):
+def _footer_factory(brand_name: str, is_mod: bool = False):
+    from utils.pdf_footer import draw_pdf_footer
+
     def _footer(canvas, doc):
-        canvas.saveState()
-        canvas.setFillColor(PULSE_MUTED)
-        canvas.setFont("Helvetica", 8)
-        canvas.drawString(20 * mm, 12 * mm, f"{brand_name} — Board CAPEX Report · CONFIDENTIAL")
-        canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"Page {doc.page}")
-        canvas.setStrokeColor(PULSE_LIGHT)
-        canvas.setLineWidth(0.5)
-        canvas.line(20 * mm, 16 * mm, A4[0] - 20 * mm, 16 * mm)
-        canvas.restoreState()
+        draw_pdf_footer(
+            canvas, doc,
+            primary_line=f"{brand_name} — Board CAPEX Report · CONFIDENTIAL",
+            is_mod=is_mod,
+            muted_colour=PULSE_MUTED, line_colour=PULSE_LIGHT,
+        )
     return _footer
 
 
@@ -336,10 +335,11 @@ def _service_signals_section(s, equipment: list[dict]) -> list:
     return flow
 
 
-def build_capex_board_pdf(report: dict, brand: dict | None = None) -> bytes:
+def build_capex_board_pdf(report: dict, brand: dict | None = None, *, is_mod: bool = False) -> bytes:
     """Render the full Board CAPEX PDF and return raw bytes.
 
     Expects the payload shape produced by ``GET /capex/board-report``.
+    `is_mod=True` adds the Crown copyright footer line (iter 216h166).
     """
     s = _styles(brand or {})
     brand_name = s["company"]
@@ -354,7 +354,7 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None) -> bytes:
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="normal", showBoundary=0)
     doc.addPageTemplates([
-        PageTemplate(id="default", frames=[frame], onPage=_footer_factory(brand_name))
+        PageTemplate(id="default", frames=[frame], onPage=_footer_factory(brand_name, is_mod))
     ])
 
     flow = []

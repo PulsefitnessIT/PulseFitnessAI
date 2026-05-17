@@ -343,7 +343,9 @@ async def list_invoices(
 async def download_invoice_pdf(invoice_id: str, user=Depends(get_current_user)):
     inv = await _get_invoice_or_404(invoice_id, user)
     from utils.engineer_invoice_pdf import build_engineer_invoice_pdf
-    pdf_bytes = build_engineer_invoice_pdf(inv)
+    from utils.pdf_footer import is_mod_for_case
+    is_mod = await is_mod_for_case(db, inv.get("case_id"))
+    pdf_bytes = build_engineer_invoice_pdf(inv, is_mod=is_mod)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -424,7 +426,9 @@ async def send_invoice(invoice_id: str, body: InvoiceSend, user=Depends(get_curr
         except HTTPException as exc:
             logger.info("[invoice_send] payment link skipped: %s", exc.detail)
     from utils.engineer_invoice_pdf import build_engineer_invoice_pdf
-    pdf_bytes = build_engineer_invoice_pdf(inv)
+    from utils.pdf_footer import is_mod_for_case
+    is_mod = await is_mod_for_case(db, inv.get("case_id"))
+    pdf_bytes = build_engineer_invoice_pdf(inv, is_mod=is_mod)
     attachment = {
         "filename": f"{inv['invoice_number']}.pdf",
         "content": base64.b64encode(pdf_bytes).decode("ascii"),

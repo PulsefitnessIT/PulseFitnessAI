@@ -931,9 +931,11 @@ async def export_capex_board_pdf(
     """
     _require_owner_or_manager(user)
     from utils.capex_pdf_exporter import build_capex_board_pdf
+    from utils.pdf_footer import is_mod_account_type
     report = await _build_board_report(user, site_id)
     brand = await _resolve_capex_brand(user)
-    pdf_bytes = build_capex_board_pdf(report, brand=brand)
+    is_mod = is_mod_account_type(user.get("account_type"))
+    pdf_bytes = build_capex_board_pdf(report, brand=brand, is_mod=is_mod)
     filename = f"capex-board-report-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
     return Response(
         content=pdf_bytes,

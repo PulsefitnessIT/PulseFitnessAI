@@ -54,16 +54,19 @@ def _styles() -> dict:
     }
 
 
-def _footer(canvas, doc):
-    canvas.saveState()
-    canvas.setFillColor(GX_MUTED)
-    canvas.setFont("Helvetica", 8)
-    canvas.drawString(20 * mm, 12 * mm, "GymAxis · Field Service for Fitness Equipment")
-    canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"Page {doc.page}")
-    canvas.setStrokeColor(GX_BORDER)
-    canvas.setLineWidth(0.5)
-    canvas.line(20 * mm, 16 * mm, A4[0] - 20 * mm, 16 * mm)
-    canvas.restoreState()
+def _footer_factory(is_mod: bool):
+    """Iter 216h166 — close over `is_mod` so MOD tenants get the
+    Crown copyright bar without changing the call site of `_footer`."""
+    from utils.pdf_footer import draw_pdf_footer
+
+    def _footer(canvas, doc):
+        draw_pdf_footer(
+            canvas, doc,
+            primary_line="GymAxis · Field Service for Fitness Equipment",
+            is_mod=is_mod,
+            muted_colour=GX_MUTED, line_colour=GX_BORDER,
+        )
+    return _footer
 
 
 def _header_block(s, inv: dict) -> Table:
@@ -190,7 +193,7 @@ def _payment_block(s, inv):
     return box
 
 
-def build_engineer_invoice_pdf(inv: dict) -> bytes:
+def build_engineer_invoice_pdf(inv: dict, *, is_mod: bool = False) -> bytes:
     s = _styles()
     buf = BytesIO()
     doc = BaseDocTemplate(
@@ -202,7 +205,7 @@ def build_engineer_invoice_pdf(inv: dict) -> bytes:
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="normal", showBoundary=0)
-    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=_footer)])
+    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=_footer_factory(is_mod))])
     flow = [_header_block(s, inv), Spacer(1, 8 * mm)]
     customer_lines = [inv.get("customer_name"), inv.get("site_name"),
                       inv.get("site_address"), inv.get("customer_email"),

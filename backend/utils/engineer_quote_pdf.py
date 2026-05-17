@@ -68,16 +68,18 @@ def _styles() -> dict:
     }
 
 
-def _footer(canvas, doc):
-    canvas.saveState()
-    canvas.setFillColor(GX_MUTED)
-    canvas.setFont("Helvetica", 8)
-    canvas.drawString(20 * mm, 12 * mm, "GymAxis · Field Service for Fitness Equipment")
-    canvas.drawRightString(A4[0] - 20 * mm, 12 * mm, f"Page {doc.page}")
-    canvas.setStrokeColor(GX_BORDER)
-    canvas.setLineWidth(0.5)
-    canvas.line(20 * mm, 16 * mm, A4[0] - 20 * mm, 16 * mm)
-    canvas.restoreState()
+def _footer_factory(is_mod: bool):
+    """Iter 216h166 — Crown copyright line for MOD tenants."""
+    from utils.pdf_footer import draw_pdf_footer
+
+    def _footer(canvas, doc):
+        draw_pdf_footer(
+            canvas, doc,
+            primary_line="GymAxis · Field Service for Fitness Equipment",
+            is_mod=is_mod,
+            muted_colour=GX_MUTED, line_colour=GX_BORDER,
+        )
+    return _footer
 
 
 def _header_block(s, quote: dict) -> Table:
@@ -191,7 +193,7 @@ def _totals_block(s, quote: dict) -> Table:
     return table
 
 
-def build_engineer_quote_pdf(quote: dict) -> bytes:
+def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False) -> bytes:
     """Render the quote to bytes."""
     s = _styles()
     buf = BytesIO()
@@ -204,7 +206,7 @@ def build_engineer_quote_pdf(quote: dict) -> bytes:
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="normal", showBoundary=0)
-    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=_footer)])
+    doc.addPageTemplates([PageTemplate(id="default", frames=[frame], onPage=_footer_factory(is_mod))])
     flow = []
 
     flow.append(_header_block(s, quote))
