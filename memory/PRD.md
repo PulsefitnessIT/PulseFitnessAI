@@ -7197,3 +7197,39 @@ Remaining decomposition targets:
 - Users CRUD + impersonate + reset-password (~600 LoC, 8 routes)
 - Pulse stats + pulse-equipment-kits + onboard-pulse-site (~340 LoC, 3 routes)
 - Ops & backfills (test-data/purge + equipment backfills, ~150 LoC, 3 routes)
+
+
+## Iter 216h179 — `master_admin.py` decomposition phase 3: Users CRUD + impersonate (17 Feb 2026)
+
+Carved the biggest remaining well-bounded block out of the monolith.
+The platform-wide user lifecycle surface (9 routes, 655 LoC) now lives
+in a dedicated `routes/master_admin_users.py`:
+
+- `POST /master-admin/users/{user_id}/invite-link`
+- `POST /master-admin/organizations/{org_id}/users`
+- `GET  /master-admin/users` — list with merge/fan-out/enrichment
+- `PUT  /master-admin/users/{user_id}/edit`
+- `PUT  /master-admin/users/{user_id}/disable`
+- `PUT  /master-admin/users/{user_id}/archive`
+- `DELETE /master-admin/users/{user_id}` — hard-delete + 17-collection cascade
+- `PUT  /master-admin/users/{user_id}/reset-password`
+- `POST /master-admin/impersonate/{user_id}`
+
+`master_admin.py` is now **2,621 LoC** (was 3,248 → -19%; vs the original
+4,283 → **-39% cumulative**).
+
+Tests: `test_iter_216h179_master_admin_users_split.py` (5 tests, all pass)
+plus the full pre-existing `test_master_admin_tier_user_edit.py` suite
+(16 tests, all pass against the live moved endpoints).
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_users.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h179_master_admin_users_split.py` (new).
+
+Remaining decomposition targets:
+- Pulse stats + pulse-equipment-kits + onboard-pulse-site (~340 LoC, 3 routes)
+- CRM analytics & onboard-head-office (~570 LoC, 2 routes — biggest single
+  remaining block)
+- Ops & backfills (test-data/purge + equipment backfills, ~150 LoC, 3 routes)
+- Audit-log endpoints (~150 LoC, 3 routes)

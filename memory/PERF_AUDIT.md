@@ -753,8 +753,70 @@ mutate the test org and return `{"success": true}`.
 | Engineer mobile tuning | ✅ 216h176 |
 | `master_admin.py` decomposition phase 1 (trials/integrations/analytics) | ✅ 216h177 |
 | `master_admin.py` decomposition phase 2 (orgs CRUD + sites) | ✅ 216h178 |
-| `master_admin.py` decomposition phase 3 (users CRUD + impersonate) | ⏭ Next |
-| `master_admin.py` decomposition phase 4 (pulse stats / equipment kits) | Backlog |
+| `master_admin.py` decomposition phase 3 (users CRUD + impersonate + reset-password) | ✅ 216h179 |
+| `master_admin.py` decomposition phase 4 (pulse stats / equipment kits / onboard) | ⏭ Next |
+| `master_admin.py` decomposition phase 5 (billing / refunds / mod / health) | Backlog |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
+
+
+---
+
+## Iter 216h179 — `master_admin.py` decomposition phase 3: Users CRUD + impersonate (Feb 2026)
+
+**Goal**: Continue carving the 3,248-LoC monolith. Phase 3 moves the
+biggest remaining well-bounded block — the platform-wide user lifecycle
+surface — into a dedicated sub-router.
+
+**Extracted to `master_admin_users.py`** (NEW, 655 LoC, 9 routes):
+
+```
+POST   /master-admin/users/{user_id}/invite-link
+POST   /master-admin/organizations/{org_id}/users
+GET    /master-admin/users
+PUT    /master-admin/users/{user_id}/edit
+PUT    /master-admin/users/{user_id}/disable
+PUT    /master-admin/users/{user_id}/archive
+DELETE /master-admin/users/{user_id}        (hard-delete + cascade)
+PUT    /master-admin/users/{user_id}/reset-password
+POST   /master-admin/impersonate/{user_id}
+```
+
+Cohesion gains: the user-list endpoint was 220+ LoC of merge / fan-out /
+enrichment logic mixed in with everything else. It now lives next to
+its private helpers (`_scope_user_filter`, `_merge_users_by_email`,
+`_fan_pulse_platform_admins`, `_enrich_with_orgs`, `_enrich_with_invited_role`,
+`_enrich_with_pending_invite`) and the cascade-delete table
+(`_DELETE_CASCADE_SPECS`, `_build_cascade_query`) without polluting the
+parent module.
+
+| Module | Phase 2 LoC | Phase 3 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 3,248 | **2,621** | -627 (-19%) |
+| `master_admin_users.py` | — | **655** | NEW |
+
+Shared helpers (`assert_user_in_pulse_scope`, `_create_org_user`,
+`PULSE_VISIBLE_ACCOUNT_TYPES`, `is_pulse_only`, `log_activity`,
+`require_master_admin`) are imported FROM `routes.master_admin` rather
+than duplicated — they're still used by ~12 other modules so they must
+stay there.
+
+**Tests** — `test_iter_216h179_master_admin_users_split.py` (5 tests):
+- module import sanity
+- (path, method) presence on the new router + absence on the parent
+- public helpers still re-exported from `routes.master_admin`
+- registry wiring in `route_registry/admin.py`
+- soft LoC guard (< 2,700) to prevent silent re-bloat
+
+Plus the pre-existing `test_master_admin_tier_user_edit.py` (16 tests)
+re-run end-to-end against the LIVE moved endpoints — all 16 pass,
+proving zero behavioural change.
+
+**Cumulative monolith progress**:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 (no net shrink, helpers moved out) | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | **-39%** |
 

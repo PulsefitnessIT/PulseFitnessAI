@@ -3,6 +3,7 @@ from fastapi import APIRouter
 
 from routes.master_admin import router as master_admin_router
 from routes.master_admin_orgs import router as master_admin_orgs_router
+from routes.master_admin_users import router as master_admin_users_router
 from routes.master_admin_trials import router as master_admin_trials_router
 from routes.master_admin_integrations import router as master_admin_integrations_router
 from routes.master_admin_analytics_panel import router as master_admin_analytics_panel_router
@@ -75,6 +76,7 @@ from routes.pulse_sales import router as pulse_sales_router
 def register_admin(api_router: APIRouter) -> None:
     for r in (
         master_admin_router, master_admin_orgs_router,
+        master_admin_users_router,
         master_admin_trials_router,
         master_admin_integrations_router,
         master_admin_analytics_panel_router,
