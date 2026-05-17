@@ -537,7 +537,12 @@ function App() {
  // Only show loading for protected routes that need auth
  // Public routes (/, /crm, /pulse, /features, etc.) render immediately
  const protectedRoutes = ['/dashboard', '/master-admin', '/service-desk', '/memberships', '/marketing'];
- const isProtectedRoute = typeof window !== 'undefined' && protectedRoutes.includes(window.location.pathname);
+ const protectedPrefixes = ['/svc/engineer', '/admin'];
+ const path = typeof window !== 'undefined' ? window.location.pathname : '';
+ const isProtectedRoute = !!path && (
+   protectedRoutes.includes(path) ||
+   protectedPrefixes.some((p) => path.startsWith(p))
+ );
  if (isProtectedRoute) {
  return (
  <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--theme-bg)' }}>

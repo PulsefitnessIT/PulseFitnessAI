@@ -1,3 +1,42 @@
+## Iter 216h147 — "Allocate to me" Self-Claim Queue (Feb 17, 2026) ✅
+
+Engineers can now self-claim org-wide unassigned jobs without a dispatcher in the loop.
+
+### Backend (NEW · `routes/svc/engineer_queue.py`)
+* `GET  /api/svc/engineer/queue/unassigned` — open svc_cases where `assigned_engineer_id` is null/missing OR `scheduled_at` is null/missing, sorted by priority + SLA + age. Optional `?priority=P1`.
+* `GET  /api/svc/engineer/queue/stats` — `{ total, p1, sla_breached_or_due, date }` for the header strip.
+* `POST /api/svc/engineer/queue/{case_id}/claim` — **race-safe** atomic claim via `find_one_and_update` with `assigned_engineer_id null` precondition. Optional `scheduled_at` + `estimated_minutes`. Returns 200 on success, 409 `{code:"already_claimed"}` if another engineer raced, 409 if case is closed, 404 if unknown. Fires a `job_self_claimed` in-app notification (no Web Push — engineer already saw the result).
+
+### Frontend (NEW · `pages/ServiceOps/Engineer/EngineerQueue.js`)
+Route `/svc/engineer/queue` ("Up for grabs"):
+* Top stat strip (`queue-stats`) — Open · P1 · SLA risk.
+* Filter chips (`queue-filter-all|p1|risk`).
+* Rows with priority pill, reference, SLA chip, site / postcode / intake-channel + a prominent `Allocate to me` CTA.
+* `ClaimModal` — optional schedule + estimated minutes, then submit → engineer is redirected to the freshly-claimed job's detail page. On 409 the toast cleanly explains "already claimed by …".
+* Auto-refresh every 30 s so two engineers don't stare at the same stale list.
+
+### Wiring
+* `EngineerHomeV2` — new `qa-queue` quick action ("Up for grabs") in the primary row.
+* `EngineerWorkspace` — sidebar `ws-nav-queue` + keyboard shortcut **q**; shortcuts overlay updated to list it.
+* `AppRoutes.js` — registers `/svc/engineer/queue`.
+
+### Bonus housekeeping
+Fixed a long-standing direct-URL routing regression: `/svc/engineer/*` and `/admin/*` paths were redirecting to `/dashboard` on a hard reload because `App.js`'s `protectedRoutes` allow-list was an exact-match. Now uses a prefix list (`protectedPrefixes`) too, so a deep link survives a refresh.
+
+### Testing
+* `pytest /app/backend/tests/test_iter_216h147_queue.py` → **7/7 passing** (list, stats, atomic claim, double-claim 409, closed-case 409, unknown 404, list-no-longer-contains-claimed, unauth).
+* Regression: diary + notifications + independence + card-assets → **21/21 still green**.
+* Testing agent end-to-end → **100% / 100%**. Report: `/app/test_reports/iteration_216h147.json`.
+
+### Phase 5 status
+* ✅ 216h144 — Engineer independence (self-create + AI parse + supplier card)
+* ✅ 216h145 — Supplier card QR SVG + printable A6 PDF
+* ⬜ 216h146 — Inbound email path (needs your MX records)
+* ✅ 216h147 — Self-claim queue (this iter)
+
+---
+
+
 ## Iter 216h145 — Supplier Card v2: QR SVG + Printable PDF (Feb 17, 2026) ✅
 
 Adds tangible deliverables to the supplier-card flow so engineers can hand out a physical card.
