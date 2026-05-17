@@ -428,6 +428,43 @@ const EquipmentRow = ({ item, justification, isExpanded, onToggle }) => {
  <p className="text-white font-semibold">{fmt(item.capex.estimated_repair_spend)}</p>
  </div>
  </div>
+ {/* Iter 216h154 — SVC → CAPEX signal row. Shows live 12-month service
+     spend + visits + BER ratio so the board PDF reflects engineer
+     callouts, not just self-service issues. */}
+ {item.service_signals && (
+ <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid={`capex-svc-signals-${item.id}`}>
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">Service Visits (12mo)</p>
+ <p className="text-white font-semibold tabular-nums">{item.service_signals.service_visits_12mo}</p>
+ {item.service_signals.open_service_cases > 0 && (
+ <p className="text-amber-400 text-[10px] mt-0.5">{item.service_signals.open_service_cases} open</p>
+ )}
+ </div>
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">Service Spend (12mo)</p>
+ <p className="text-white font-semibold tabular-nums">{fmt(item.service_signals.service_spend_12mo)}</p>
+ </div>
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">Downtime (12mo)</p>
+ <p className="text-white font-semibold tabular-nums">{item.service_signals.downtime_hours_12mo}h</p>
+ </div>
+ <div className="bg-white/5 rounded-lg p-3">
+ <p className="text-[var(--color-text-muted)] text-[10px]">BER Ratio</p>
+ <p className={`font-semibold tabular-nums ${
+   item.service_signals.ber_recommendation === 'replace' ? 'text-red-400'
+   : item.service_signals.ber_recommendation === 'watch' ? 'text-amber-400'
+   : 'text-emerald-400'
+ }`}>
+   {item.service_signals.service_to_replacement_ratio != null
+     ? `${Math.round(item.service_signals.service_to_replacement_ratio * 100)}%`
+     : '—'}
+ </p>
+ <p className="text-[var(--color-text-muted)] text-[10px] mt-0.5 truncate" title={item.service_signals.ber_label}>
+   {item.service_signals.ber_label}
+ </p>
+ </div>
+ </div>
+ )}
  {/* Suggested Action */}
  <div className={`rounded-lg p-4 ${cfg.bg}`}>
  <p className={`font-semibold text-sm ${cfg.text}`}>{item.capex.suggested_action}</p>

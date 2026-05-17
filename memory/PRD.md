@@ -6840,6 +6840,14 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h154 (17 Feb 2026)** — SVC → CAPEX signal layer (closes the loop for "Board-Ready CAPEX", the user's stated #1 product goal).
+  - New `utils/svc_capex_signals.py` — aggregates 12-month service activity per asset: `service_visits_12mo`, `service_spend_12mo` (sum of approved/invoiced quote net), `downtime_hours_12mo`, `open_service_cases`, `last_service_at`. Matches by `asset_id` primary + `equipment_ids[]` secondary so PPM batch jobs don't inflate spend.
+  - New `compute_repair_vs_replace()` — industry-standard BER ratio (spend ÷ replacement) with three-band recommendation: ≥0.50 = replace, 0.25–0.50 = watch, <0.25 = keep.
+  - `GET /api/capex/analysis` now blends service visits into `total_issues`/`open_issues` so the existing scorer recognises engineer callouts, and emits `service_signals` on every equipment item with the full BER payload.
+  - New `GET /api/capex/service-signals/{asset_id}` drill-down — returns matching `case_ids` so the board PDF can link straight to the source jobs.
+  - Frontend: new 4-tile row on `CapexIntelligenceTab.js` showing visits, spend, downtime, BER ratio (colour-coded red/amber/emerald). testid `capex-svc-signals-{id}`.
+  - Tests: `tests/test_iter_216h154_capex_signals.py` — 6/6 passing (zero-state quiet asset, replace threshold, watch threshold, drill-down with case_ids, 404 for unknown asset, open cases count but no speculative spend). Full regression — **51/51 passing total**.
+
 - **Iter 216h153 (17 Feb 2026)** — Sicon outbox producer coverage on Phase 5 paths (from process-audit P1).
   - Wired `sicon_sync.push_case` + `push_event` into the 4 Phase-5 mutation paths missing them: `engineer_queue.claim` (post state-change), `independence.self_allocate` (case_created), `independence.accept_job_request` (case_created), `diary.schedule_case` (case + state_change on NEW/TRIAGED promotion).
   - Wired `sicon_sync.push_part_movement` into `engineer_parts_requests.admin_approve` (allocate-to-call) and `inventory.receive_po` (goods-receipt-from-PO).

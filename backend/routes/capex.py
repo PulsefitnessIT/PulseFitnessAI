@@ -349,6 +349,9 @@ async def get_capex_analysis(
     # garrison gym to justify base-specific replacement spend.
     from utils.mod_scope import resolve_mod_query_filter
     from utils.capex_intelligence import aggregate_fleet_intelligence
+    from utils.svc_capex_signals import (
+        aggregate_service_signals, compute_repair_vs_replace,
+    )
     org_filter = await resolve_mod_query_filter(user, site_id)
     thresholds = await _get_thresholds(user.get("organization_id"))
 
@@ -377,9 +380,52 @@ async def get_capex_analysis(
         eid = iss.get("equipment_id")
         if eid:
             faults_by_eq.setdefault(eid, []).append(iss)
+
+    # Iter 216h154 — SVC → CAPEX signal layer. Aggregate the last 12
+    # months of service cases per asset and blend the visit count into
+    # `total_issues` so the existing scorer recognises engineer
+    # callouts (not just self-service issues). Spend + BER ratio are
+    # exposed under `service_signals` on each result item.
+    asset_ids = [e["id"] for e in equipment_list]
+    svc_signals = await aggregate_service_signals(org_filter, asset_ids=asset_ids)
+    for eid, sig in svc_signals.items():
+        bs = bulk_stats.setdefault(eid, {})
+        bs["total_issues"] = (bs.get("total_issues") or 0) + sig["service_visits_12mo"]
+        bs["open_issues"] = (bs.get("open_issues") or 0) + sig["open_service_cases"]
+
     results, summary, total_cost, forecast, by_type, by_location, by_priority = _aggregate_capex_results(
         equipment_list, bulk_stats, severity_lookup, selffix_lookup, thresholds, faults_by_eq
     )
+
+    # Attach the SVC signal payload (+ BER computation) to each
+    # equipment item. Done post-aggregation so we have the resolved
+    # replacement_cost from `_compute_capex_score`.
+    for item in results:
+        sig = svc_signals.get(item["id"])
+        if not sig:
+            item["service_signals"] = {
+                "service_visits_12mo": 0,
+                "open_service_cases": 0,
+                "service_spend_12mo": 0.0,
+                "downtime_hours_12mo": 0.0,
+                "last_service_at": None,
+                **compute_repair_vs_replace(
+                    service_spend_12mo=0.0,
+                    replacement_cost=item.get("capex", {}).get("replacement_cost", 0),
+                ),
+            }
+        else:
+            item["service_signals"] = {
+                "service_visits_12mo": sig["service_visits_12mo"],
+                "open_service_cases": sig["open_service_cases"],
+                "service_spend_12mo": sig["service_spend_12mo"],
+                "downtime_hours_12mo": sig["downtime_hours_12mo"],
+                "last_service_at": sig["last_service_at"],
+                **compute_repair_vs_replace(
+                    service_spend_12mo=sig["service_spend_12mo"],
+                    replacement_cost=item.get("capex", {}).get("replacement_cost", 0),
+                ),
+            }
 
     priority_top5 = [r for r in results if r["capex"]["status"] in ("replace_now", "replace_soon", "at_risk")][:5]
     fleet = aggregate_fleet_intelligence(results)
@@ -401,6 +447,64 @@ async def get_capex_analysis(
         # Iter 216h127 — fleet-level board KPIs (lifecycle, condition,
         # safety, BER, ROI, priority matrix).
         "fleet_intelligence": fleet,
+    }
+
+
+@router.get("/capex/service-signals/{asset_id}")
+async def get_asset_service_signals(
+    asset_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 216h154 — drill-down for a single asset.
+
+    Returns the 12-month service signals (visits, spend, downtime,
+    BER ratio) plus a list of contributing case IDs so the asset
+    detail drawer / board PDF can link straight to the source jobs.
+    """
+    _require_owner_or_manager(user)
+    from utils.mod_scope import resolve_mod_query_filter
+    from utils.svc_capex_signals import (
+        aggregate_service_signals, compute_repair_vs_replace,
+    )
+    org_filter = await resolve_mod_query_filter(user, None)
+    equip = await db.equipment.find_one(
+        {**org_filter, "id": asset_id},
+        {"_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+         "manufacturer": 1, "model": 1, "serial_number": 1,
+         "replacement_cost": 1, "expected_lifespan_years": 1,
+         "location": 1, "site_id": 1, "organization_id": 1},
+    )
+    if not equip:
+        raise HTTPException(404, "Asset not found")
+    profile = _get_profile(equip.get("equipment_type", ""))
+    replacement_cost = equip.get("replacement_cost") or profile["cost"]
+    signals_map = await aggregate_service_signals(
+        org_filter, asset_ids=[asset_id],
+    )
+    sig = signals_map.get(asset_id, {
+        "service_visits_12mo": 0,
+        "open_service_cases": 0,
+        "service_spend_12mo": 0.0,
+        "downtime_hours_12mo": 0.0,
+        "last_service_at": None,
+        "case_ids": [],
+    })
+    ber = compute_repair_vs_replace(
+        service_spend_12mo=sig["service_spend_12mo"],
+        replacement_cost=replacement_cost,
+    )
+    return {
+        "asset": equip,
+        "replacement_cost": replacement_cost,
+        "service_signals": {
+            "service_visits_12mo": sig["service_visits_12mo"],
+            "open_service_cases": sig["open_service_cases"],
+            "service_spend_12mo": sig["service_spend_12mo"],
+            "downtime_hours_12mo": sig["downtime_hours_12mo"],
+            "last_service_at": sig["last_service_at"],
+            **ber,
+        },
+        "case_ids": sig.get("case_ids", []),
     }
 
 
