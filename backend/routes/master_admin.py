@@ -480,7 +480,19 @@ async def get_all_organizations(
     # customer list isn't silently truncated in the onboarding picker.
     # 2k is comfortably above any realistic operator's customer count
     # while still capped for safety.
-    orgs = await db.organizations.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    # Iter 216h174 — Payload-size pass. Exclude heavy detail-only fields
+    # from the list response. `features_audit` is an append-only history
+    # of every feature-flag flip on the org (≈3.7-5.3 KB per org, capped
+    # at 50 entries by /master-admin/organizations/{id}/features audit).
+    # On a Master Admin with 500 orgs that's ~2.5 MB of audit history
+    # shipped on every refresh — and the frontend never reads it from
+    # this list (it's lazy-fetched via the dedicated /features-audit
+    # endpoint when an admin opens the audit drawer).
+    _ORG_LIST_EXCLUDE = {
+        "_id": 0,
+        "features_audit": 0,
+    }
+    orgs = await db.organizations.find(org_filter, _ORG_LIST_EXCLUDE).sort("created_at", -1).to_list(2000)
     if not orgs:
         return {"organizations": []}
 

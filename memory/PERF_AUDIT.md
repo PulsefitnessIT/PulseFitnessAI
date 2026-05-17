@@ -305,3 +305,90 @@ utilities stay importable).
 | Engineer App mobile-specific tuning | Backlog |
 | `master_admin.py` decomposition | Backlog |
 
+
+---
+
+## Iter 216h174 — API payload-size reduction on the 3 heaviest list endpoints (Feb 2026)
+
+### Scope
+
+User-prioritized P0 follow-on: "drop heavy fields from list endpoints
+and serve them only on detail fetches" — targets
+`/api/master-admin/organizations`, `/api/svc/cases`,
+`/api/memberships/members`.
+
+### What changed
+
+**`/api/master-admin/organizations`** (`routes/master_admin.py`)
+- New `_ORG_LIST_EXCLUDE` projection strips `features_audit` from the
+  list response.
+- `features_audit` is an append-only feature-flag history capped at 50
+  entries — in production it is **3.7-5.3 KB per org**. On a master
+  admin with 500 orgs that's ~2 MB of unused audit data shipped on every
+  /master-admin home refresh. The frontend never reads it from this
+  endpoint — there's a dedicated `/master-admin/organizations/{id}/features-audit`
+  route that the audit drawer lazy-fetches.
+- Live verification: 1,124 orgs returned, 0 leaking `features_audit`.
+
+**`/api/svc/cases`** (`routes/svc/cases.py`)
+- New `_CASE_LIST_EXCLUDE` projection strips **17 detail-only fields**:
+  `ai_triage`, `ai_summary`, `ai_triage_history`,
+  `triage_history`, `state_change_history`, `dispatch_history`,
+  `customer_signature`, `engineer_signature`,
+  `media`, `photos`, `attachments`,
+  `safety_responses`,
+  `notes_internal`, `notes_customer`,
+  `resolution_note`, `cover_audit`,
+  `quote_lines`, `parts_requested`.
+- `description` deliberately kept — engineer queue / workspace render a
+  2-line preview from it.
+- `/svc/cases/{case_id}` detail endpoint untouched; operators still
+  see every field when the drawer opens.
+- Live verification: 20 cases returned, 0 leaking heavy fields.
+
+**`/api/memberships/members`** (`routes/memberships/members.py`)
+- Eliminated N+1 lookup: replaced the per-row
+  `member_memberships.find_one` + `membership_plans.find_one` (up to
+  **400 sequential round-trips for 200 members**) with two bulk
+  `find({"_id": {"$in": ...}})` queries.
+- Embedded `active_membership` now projected to just
+  `{status, credits_remaining, plan_id, plan.{name, kind, colour}}`
+  — previously spread the FULL membership doc which on long-running
+  members balloons via `freeze_history`, `pause_log`, `cancel_history`,
+  `metadata`.
+- Live verification: 200 OK, 6 members, password still excluded.
+
+### Tests
+
+`/app/backend/tests/test_iter_216h174_payload_size.py` (6 tests):
+- features_audit excluded from org list projection
+- 17 heavy fields excluded from case list projection
+- Case detail endpoint NOT inheriting list projection
+- members_list bulk-loads memberships via `$in` (N+1 gone)
+- members_list still excludes `password`
+- All three modules still import cleanly
+
+Combined backend perf suite: **37/37 passing** (iter 216h170-216h174).
+
+### Bundle impact (qualitative)
+
+Master Admin landing: shrunk by **~features_audit_size × org_count**
+(estimated 2-5 MB savings on a 500-org tenant). Service desk page:
+strips potentially **dozens of KB per case** in production once AI
+triage and signatures accumulate. Memberships dashboard: **2× fewer DB
+round-trips** per refresh — the N+1 fix alone is worth several hundred
+ms of P99 latency on a 200-member page.
+
+### Tier-2 backlog status
+
+| Item | Status |
+|---|---|
+| `aggregate_cache` | ✅ Iter 216h170 |
+| `safe_paginate` | ✅ Iter 216h171 |
+| Slow-request log + Master Admin tile | ✅ Iter 216h172 |
+| Frontend code-split (5 largest) | ✅ Iter 216h173 |
+| API payload size reduction (3 list endpoints) | ✅ Iter 216h174 |
+| Image optimisation (WebP, `loading="lazy"`, responsive `srcset`) | ⏭ Next |
+| Engineer App mobile-specific tuning | Backlog |
+| `master_admin.py` decomposition | Backlog |
+

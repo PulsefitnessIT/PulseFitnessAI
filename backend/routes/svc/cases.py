@@ -150,10 +150,37 @@ async def list_cases(
             {"customer_name": {"$regex": search, "$options": "i"}},
             {"site_name": {"$regex": search, "$options": "i"}},
         ]
+    # Iter 216h174 — Payload-size pass. Exclude heavy detail-only fields
+    # from the case list response. The desk-page list only needs ~15
+    # summary fields (reference, title, status, priority, SLA, assigned
+    # engineer name, fault code/category, site name, customer name).
+    # `events` lives in svc_case_events (already excluded) but the case
+    # doc itself can accumulate large embedded blobs:
+    #   • `ai_triage`, `ai_summary`, `ai_triage_history`  — Claude outputs
+    #   • `triage_history`, `state_change_history`, `dispatch_history`
+    #   • `customer_signature`, `engineer_signature`     — base64 PNG
+    #   • `media`, `photos`, `attachments`               — file blobs
+    #   • `safety_responses`                              — checklist payload
+    #   • `notes_internal`, `notes_customer`             — long text
+    #   • `resolution_note`, `cover_audit`               — append-only
+    #   • `quote_lines`, `parts_requested`               — embedded arrays
+    # These are still served on /cases/{id} (detail) — only stripped
+    # from the list response.
+    _CASE_LIST_EXCLUDE = {
+        "_id": 0,
+        "ai_triage": 0, "ai_summary": 0, "ai_triage_history": 0,
+        "triage_history": 0, "state_change_history": 0, "dispatch_history": 0,
+        "customer_signature": 0, "engineer_signature": 0,
+        "media": 0, "photos": 0, "attachments": 0,
+        "safety_responses": 0,
+        "notes_internal": 0, "notes_customer": 0,
+        "resolution_note": 0, "cover_audit": 0,
+        "quote_lines": 0, "parts_requested": 0,
+    }
     total = await db.svc_cases.count_documents(q)
     items = (
         await db.svc_cases
-        .find(q, {"_id": 0})
+        .find(q, _CASE_LIST_EXCLUDE)
         .sort([("sla_resolve_at", 1), ("created_at", -1)])
         .skip(skip).limit(limit)
         .to_list(limit)

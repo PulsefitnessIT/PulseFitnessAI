@@ -7034,3 +7034,30 @@ Files: `/app/frontend/src/pages/Memberships/{MemberPortal,MembershipsConsole}.js
    section paints on initial render gives ~zero benefit; image swap does).
 3. **Engineer App mobile tuning** — virtualised lists for queue/diary,
    service-worker pre-cache of the active week's jobs.
+
+---
+
+## Iter 216h174 — API payload-size reduction (17 Feb 2026)
+
+P0 follow-on to the perf audit. Stripped heavy detail-only fields from
+the 3 list endpoints the user flagged as the biggest payload offenders.
+
+- **`/api/master-admin/organizations`**: drop `features_audit`
+  (3.7-5.3 KB per org). Still served on the dedicated
+  `/master-admin/organizations/{id}/features-audit` route.
+- **`/api/svc/cases`**: drop 17 detail-only fields (AI triage blobs,
+  signatures, media arrays, embedded notes/quote-lines/state-change
+  history). Detail endpoint untouched.
+- **`/api/memberships/members`**: eliminated N+1 (200 members × 2
+  sequential finds → 2 bulk `$in` finds) and projected `active_membership`
+  to the 4 fields the table actually reads.
+
+Tests: `test_iter_216h174_payload_size.py` (6 tests). Combined perf
+suite **37/37 passing**. Live curl smoke verified zero heavy-field
+leaks across all three endpoints.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/svc/cases.py`,
+`/app/backend/routes/memberships/members.py`,
+`/app/backend/tests/test_iter_216h174_payload_size.py`,
+`/app/memory/PERF_AUDIT.md`.

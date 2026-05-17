@@ -83,15 +83,34 @@ async def members_list(
             {"phone": {"$regex": ql, "$options": "i"}},
         ]
     rows = await db.members.find(query, {"_id": 0, "password": 0}).sort("created_at", -1).limit(200).to_list(200)
-    # Decorate with active membership
-    for r in rows:
-        mm = await db.member_memberships.find_one(
-            {"member_id": r["id"], "status": {"$in": ["active", "frozen"]}},
-            {"_id": 0},
-        )
-        if mm:
-            plan = await db.membership_plans.find_one({"id": mm["plan_id"]}, {"_id": 0, "name": 1, "kind": 1, "colour": 1})
-            r["active_membership"] = {**mm, "plan": plan}
+    # Iter 216h174 — Payload-size + N+1 pass. Previously we shipped the
+    # full member_membership doc per member (freeze_history, pause_log,
+    # cancel_history, metadata can balloon over a member's lifetime) and
+    # ran 2 sequential lookups per row (200 members → 400 round-trips).
+    # The members table only reads .status, .credits_remaining,
+    # .plan.{name, colour} — project to just those and bulk-load in two
+    # round-trips total.
+    _MM_LIST_PROJ = {"_id": 0, "status": 1, "credits_remaining": 1, "plan_id": 1, "member_id": 1}
+    _PLAN_LIST_PROJ = {"_id": 0, "id": 1, "name": 1, "kind": 1, "colour": 1}
+    member_ids = [r["id"] for r in rows]
+    if member_ids:
+        mms = await db.member_memberships.find(
+            {"member_id": {"$in": member_ids}, "status": {"$in": ["active", "frozen"]}},
+            _MM_LIST_PROJ,
+        ).to_list(len(member_ids) * 2)
+        mm_by_member = {mm["member_id"]: mm for mm in mms}
+        plan_ids = list({mm["plan_id"] for mm in mms if mm.get("plan_id")})
+        plan_by_id: dict = {}
+        if plan_ids:
+            plans = await db.membership_plans.find(
+                {"id": {"$in": plan_ids}}, _PLAN_LIST_PROJ,
+            ).to_list(len(plan_ids))
+            plan_by_id = {p["id"]: p for p in plans if p.get("id")}
+        for r in rows:
+            mm = mm_by_member.get(r["id"])
+            if mm:
+                plan = plan_by_id.get(mm.get("plan_id"))
+                r["active_membership"] = {**mm, "plan": plan}
     return {"members": rows}
 
 
