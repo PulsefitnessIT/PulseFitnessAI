@@ -108,6 +108,8 @@ const ServiceOpsEngineerPayouts = lazy(() => import('@/pages/ServiceOps/Engineer
 // Iter 216h140 — Engineer App Phase 4: Diary & Admin Dispatch
 const ServiceOpsEngineerDiary = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerDiary'));
 const ServiceOpsAdminDispatchBoard = lazy(() => import('@/pages/ServiceOps/AdminDispatchBoard'));
+// Iter 216h141 — Engineer Workspace (Phase 4 / Slice 4 · desktop 3-column)
+const ServiceOpsEngineerWorkspace = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerWorkspace'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
@@ -311,6 +313,8 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 216h140 — Engineer App Phase 4 */}
       <Route path="/svc/engineer/diary" element={user ? <ServiceOpsEngineerDiary /> : <Navigate to="/login" replace />} />
       <Route path="/service-desk/dispatch" element={user ? <ServiceOpsAdminDispatchBoard /> : <Navigate to="/login" replace />} />
+      {/* Iter 216h141 — Engineer Workspace (desktop 3-column) */}
+      <Route path="/svc/engineer/workspace" element={user ? <ServiceOpsEngineerWorkspace /> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />

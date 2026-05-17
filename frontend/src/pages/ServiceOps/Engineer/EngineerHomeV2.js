@@ -207,6 +207,15 @@ export default function EngineerHomeV2() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => navigate('/svc/engineer/workspace')}
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700"
+              data-testid="engineer-home-open-workspace"
+              title="Open desktop workspace"
+            >
+              <PlayCircle size={14} className="text-blue-600" /> Workspace
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/svc/engineer/notifications')}
               className="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
               data-testid="engineer-home-notifications-btn"
