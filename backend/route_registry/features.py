@@ -146,6 +146,11 @@ from routes.svc.independence import (
 )
 # Iter 216h147 — Engineer self-claim queue
 from routes.svc.engineer_queue import router as svc_engineer_queue_router
+# Iter 216h146 — Inbound email webhook
+from routes.svc.inbound_email import (
+    public_router as svc_inbound_email_public_router,
+    engineer_router as svc_inbound_email_engineer_router,
+)
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -267,6 +272,9 @@ _UNGATED_ROUTERS = (
     svc_intake_public_router,
     # Iter 216h147 — Engineer self-claim queue
     svc_engineer_queue_router,
+    # Iter 216h146 — Inbound email webhook
+    svc_inbound_email_public_router,
+    svc_inbound_email_engineer_router,
 )
 
 

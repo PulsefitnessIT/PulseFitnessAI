@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Inbox as InboxIcon, RefreshCw, Loader2, MapPin, Phone, Mail,
   CheckCircle2, X, QrCode, Share2, Clipboard, ShieldAlert, Download, Printer,
+  Mail as MailIcon,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -120,6 +121,7 @@ const AcceptModal = ({ req, onClose, onAccept }) => {
 const CardShareBox = () => {
   const [info, setInfo] = useState(null);
   const [qrPreview, setQrPreview] = useState(null);
+  const [inbound, setInbound] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -129,6 +131,10 @@ const CardShareBox = () => {
     } catch {
       /* swallow — endpoint exists but engineer profile may be missing */
     }
+    try {
+      const r = await axios.get(`${API}/svc/engineer/inbound-address`, auth());
+      setInbound(r.data);
+    } catch { /* inbound module optional */ }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -280,6 +286,49 @@ const CardShareBox = () => {
           </button>
         </div>
       </div>
+
+      {/* Inbound email address — iter 216h146 */}
+      {inbound?.email ? (
+        <div
+          className="mt-4 border-t border-slate-100 pt-4 flex items-start gap-3"
+          data-testid="inbox-inbound-email"
+        >
+          <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            inbound.enabled ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'
+          }`}>
+            <MailIcon size={18} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900">
+              Your inbound email
+              {!inbound.enabled ? (
+                <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                  pending DNS
+                </span>
+              ) : null}
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5 truncate font-mono" data-testid="inbox-inbound-email-address">
+              {inbound.email}
+            </p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Forward customer emails here and we'll auto-create a request in your inbox (AI pre-fills title and priority).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(inbound.email);
+                notify.success('Email copied');
+              } catch { notify.error('Clipboard unavailable'); }
+            }}
+            className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1.5 flex-shrink-0"
+            data-testid="inbox-inbound-copy"
+          >
+            <Clipboard size={12} /> Copy
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 };

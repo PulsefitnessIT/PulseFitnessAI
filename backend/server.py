@@ -481,6 +481,9 @@ async def _create_indexes() -> None:
     # Iter 216h144 — Engineer independence indexes
     from routes.svc.independence import ensure_independence_indexes
     await ensure_independence_indexes()
+    # Iter 216h146 — Inbound email log indexes
+    from routes.svc.inbound_email import ensure_inbound_email_indexes
+    await ensure_inbound_email_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()
