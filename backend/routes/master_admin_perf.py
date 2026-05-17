@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from utils.aggregate_cache import CACHE
 from utils.auth import get_current_user
 from utils.safe_paginate import TRUNCATION
+from utils.slow_request_log import SLOW_REQUESTS
 
 router = APIRouter(prefix="/master-admin/perf", tags=["master-admin-perf"])
 
@@ -28,16 +29,29 @@ def _require_master_admin(user: dict) -> None:
 
 @router.get("/cache")
 async def cache_stats(user: dict = Depends(get_current_user)) -> dict:
-    """Lightweight observability for the in-process aggregate cache.
+    """Aggregate observability for the in-process cache + truncation
+    telemetry + slow-request log.
 
-    Useful before/after a deploy to confirm the cache is actually
-    serving hits (good rule of thumb: hit_ratio should climb above
-    0.6 within a couple of minutes of normal traffic on a multi-tab
-    operator session). Iter 216h171 — now also surfaces pagination
-    truncation events so operators can spot tenants whose dashboards
-    are silently dropping tail rows."""
+    Iter 216h170 added cache stats; iter 216h171 added truncation
+    events; iter 216h172 added slow-request telemetry. The Master
+    Admin Integration Health panel polls this single endpoint and
+    renders all three sections — keeps the wire surface tight and
+    the panel discovery story consistent."""
     _require_master_admin(user)
-    return {**CACHE.stats(), **TRUNCATION.snapshot()}
+    return {
+        **CACHE.stats(),
+        **TRUNCATION.snapshot(),
+        "slow_requests": SLOW_REQUESTS.snapshot(),
+    }
+
+
+@router.post("/slow-requests/clear")
+async def slow_requests_clear(user: dict = Depends(get_current_user)) -> dict:
+    """Drop the slow-request ring so the panel starts from a clean
+    baseline (used after a fix has shipped + been deployed)."""
+    _require_master_admin(user)
+    cleared = SLOW_REQUESTS.reset()
+    return {"cleared": cleared}
 
 
 @router.post("/cache/clear")

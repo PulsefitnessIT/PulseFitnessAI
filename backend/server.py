@@ -57,6 +57,12 @@ app.middleware("http")(body_size_guard)
 from utils.hardening import master_admin_ip_allowlist
 app.middleware("http")(master_admin_ip_allowlist)
 
+# Iter 216h172 — slow-request telemetry feeding the Master Admin
+# Integration Health panel. Records requests > SLOW_THRESHOLD_MS in
+# a fixed-size in-process ring; never persisted to disk.
+from utils.slow_request_log import SlowRequestLogMiddleware
+app.add_middleware(SlowRequestLogMiddleware)
+
 
 # Security headers middleware
 @app.middleware("http")

@@ -114,10 +114,11 @@ export const SIDEBAR_ITEMS = [
   {
     id: 'integrations-hub', label: 'Integrations', icon: Plug, group: 'main',
     subTabs: [
-      { id: 'integrations-hub',  label: 'Hub',           icon: Plug },
-      { id: 'orbit4',            label: 'Orbit 4',       icon: ArrowLeftRight },
-      { id: 'sicon-integration', label: 'Sicon Service', icon: ArrowLeftRight },
-      { id: 'stripe-connect',    label: 'Stripe Connect', icon: Banknote },
+      { id: 'integrations-hub',    label: 'Hub',           icon: Plug },
+      { id: 'integration-health',  label: 'Health',        icon: Activity },
+      { id: 'orbit4',              label: 'Orbit 4',       icon: ArrowLeftRight },
+      { id: 'sicon-integration',   label: 'Sicon Service', icon: ArrowLeftRight },
+      { id: 'stripe-connect',      label: 'Stripe Connect', icon: Banknote },
     ],
   },
   // 8. Settings & Compliance — audit log, login events, database, backfills
@@ -194,6 +195,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'catalogue':          'catalogue',
   'custom-properties':  'catalogue',
   'orbit4':             'integrations-hub',
+  'integration-health': 'integrations-hub',
   'sicon-integration':  'integrations-hub',
   'stripe-connect':     'integrations-hub',
   'pricing':            'finance',
