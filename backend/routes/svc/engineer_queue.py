@@ -2,6 +2,7 @@
 GymAxis Service Operations — Engineer Self-Allocation Queue.
 
 Iter 216h147 (Phase 5 follow-on).
+Iter 216h150 — "Nearest to me" haversine sort (Feb 2026).
 
 Lets a field engineer see all unassigned org-wide jobs and atomically
 self-claim one without a dispatcher. Race-safe via Mongo
@@ -16,6 +17,7 @@ Endpoints (gated by `require_engineer_app_access`):
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -25,6 +27,7 @@ from pydantic import BaseModel, Field
 from routes.partners import require_engineer_app_access
 from utils.auth import get_current_user
 from utils.database import db
+from utils.postcodes_client import lookup as postcode_lookup, normalise_postcode
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -59,10 +62,60 @@ def _unassigned_query(org_id: str) -> dict:
     }
 
 
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance between two WGS-84 points, in kilometres."""
+    R = 6371.0088  # mean Earth radius (km)
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+async def _resolve_postcode_coords(postcode: str) -> tuple[float, float] | None:
+    """postcodes.io → (lat, lon), or None. Cached upstream for 24h."""
+    norm = normalise_postcode(postcode)
+    if not norm:
+        return None
+    result = await postcode_lookup(norm)
+    if not result:
+        return None
+    lat = result.get("latitude")
+    lon = result.get("longitude")
+    if lat is None or lon is None:
+        return None
+    return float(lat), float(lon)
+
+
+async def _job_coords(job: dict) -> tuple[float, float] | None:
+    """Best-effort coords for a case: prefer cached lat/lon on the doc,
+    else resolve from `site_postcode` via postcodes.io."""
+    lat = job.get("site_latitude")
+    lon = job.get("site_longitude")
+    if lat is not None and lon is not None:
+        try:
+            return float(lat), float(lon)
+        except (TypeError, ValueError):
+            pass
+    pc = job.get("site_postcode")
+    if pc:
+        return await _resolve_postcode_coords(pc)
+    return None
+
+
 @router.get("/unassigned")
 async def list_unassigned(
     priority: Optional[str] = Query(None, description="P1|P2|P3|P4 — optional filter"),
     limit: int = Query(100, ge=1, le=500),
+    sort: Optional[str] = Query(
+        None, description="If 'nearest', sort by haversine distance "
+                          "(requires lat+lon or postcode).",
+    ),
+    lat: Optional[float] = Query(None, ge=-90, le=90),
+    lon: Optional[float] = Query(None, ge=-180, le=180),
+    postcode: Optional[str] = Query(None, max_length=16,
+                                    description="Fallback UK postcode for distance origin"),
     user=Depends(get_current_user),
 ):
     of = _of(user)
@@ -72,12 +125,45 @@ async def list_unassigned(
     rows = await db.svc_cases.find(
         q,
         {"_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1,
-         "status": 1, "site_name": 1, "site_postcode": 1, "customer_name": 1,
+         "status": 1, "site_name": 1, "site_postcode": 1,
+         "site_latitude": 1, "site_longitude": 1, "customer_name": 1,
          "scheduled_at": 1, "sla_resolve_at": 1, "estimated_minutes": 1,
          "intake_channel": 1, "description": 1, "created_at": 1},
     ).sort([("priority", 1), ("sla_resolve_at", 1), ("created_at", -1)]) \
      .limit(limit).to_list(limit)
-    return {"jobs": rows, "count": len(rows)}
+
+    origin: tuple[float, float] | None = None
+    origin_source: Optional[str] = None
+    if sort == "nearest":
+        if lat is not None and lon is not None:
+            origin = (float(lat), float(lon))
+            origin_source = "geolocation"
+        elif postcode:
+            origin = await _resolve_postcode_coords(postcode)
+            if origin:
+                origin_source = "postcode"
+
+    if origin:
+        ox, oy = origin
+        for r in rows:
+            coords = await _job_coords(r)
+            if coords:
+                d = _haversine_km(ox, oy, coords[0], coords[1])
+                # round to 1 decimal — engineers don't care about 50m precision
+                r["distance_km"] = round(d, 1)
+            else:
+                r["distance_km"] = None
+        # Sort by distance asc; jobs without coords go last while preserving
+        # the original priority/SLA tiebreak.
+        rows.sort(key=lambda j: (j.get("distance_km") is None,
+                                 j.get("distance_km") if j.get("distance_km") is not None else 0))
+
+    return {
+        "jobs": rows,
+        "count": len(rows),
+        "sort": "nearest" if origin else "default",
+        "origin_source": origin_source,
+    }
 
 
 @router.get("/stats")

@@ -16,7 +16,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, RefreshCw, Loader2, AlertTriangle, Clock, MapPin,
-  Hand, CheckCircle2, X, ShieldCheck, Inbox,
+  Hand, CheckCircle2, X, ShieldCheck, Inbox, Navigation, Crosshair,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -156,7 +156,7 @@ const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
 };
 
 // ── Row ──────────────────────────────────────────────────────
-const Row = ({ job, onClaim }) => (
+const Row = ({ job, onClaim, showDistance }) => (
   <li className="p-3 sm:p-4 flex items-start gap-3" data-testid={`queue-row-${job.reference}`}>
     <span
       className={`w-1.5 self-stretch rounded-full ${PRIO[job.priority] || PRIO.P3} flex-shrink-0`}
@@ -171,9 +171,19 @@ const Row = ({ job, onClaim }) => (
           {job.reference}
         </p>
         {fmtSLA(job.sla_resolve_at)}
-        <span className="text-[10px] text-slate-400 ml-auto tabular-nums">
-          {fmtRelative(job.created_at)} ago
-        </span>
+        {showDistance ? (
+          <span
+            className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums bg-emerald-50 text-emerald-700"
+            data-testid={`queue-row-distance-${job.reference}`}
+          >
+            <Navigation size={10} />
+            {job.distance_km != null ? `${job.distance_km} km` : '—'}
+          </span>
+        ) : (
+          <span className="text-[10px] text-slate-400 ml-auto tabular-nums">
+            {fmtRelative(job.created_at)} ago
+          </span>
+        )}
       </div>
       <p className="text-sm font-semibold text-slate-900 truncate">{job.title}</p>
       <p className="text-xs text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
@@ -205,30 +215,92 @@ export default function EngineerQueue() {
   const [filter, setFilter] = useState('all');
   const [claimFor, setClaimFor] = useState(null);
   const [claimBusy, setClaimBusy] = useState(false);
+  const [sortMode, setSortMode] = useState('default');   // 'default' | 'nearest'
+  const [origin, setOrigin] = useState(null);            // { lat, lon } | { postcode }
+  const [originSource, setOriginSource] = useState(null); // 'geolocation' | 'postcode' | null
+  const [locating, setLocating] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (sortOverride, originOverride) => {
     setLoading(true);
     try {
+      const effectiveSort = sortOverride ?? sortMode;
+      const effectiveOrigin = originOverride !== undefined ? originOverride : origin;
+      const params = {};
+      if (effectiveSort === 'nearest' && effectiveOrigin) {
+        params.sort = 'nearest';
+        if (effectiveOrigin.lat != null && effectiveOrigin.lon != null) {
+          params.lat = effectiveOrigin.lat;
+          params.lon = effectiveOrigin.lon;
+        } else if (effectiveOrigin.postcode) {
+          params.postcode = effectiveOrigin.postcode;
+        }
+      }
       const [j, s] = await Promise.all([
-        axios.get(`${API}/svc/engineer/queue/unassigned`, auth()),
+        axios.get(`${API}/svc/engineer/queue/unassigned`, { ...auth(), params }),
         axios.get(`${API}/svc/engineer/queue/stats`, auth()),
       ]);
       setJobs(j.data?.jobs || []);
+      setOriginSource(j.data?.origin_source || null);
       setStats(s.data || stats);
     } catch (e) {
       notify.error('Failed to load queue', e?.response?.data?.detail || e.message);
     } finally {
       setLoading(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sortMode, origin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 
   // Auto-refresh every 30s so race-with-other-engineers doesn't show stale jobs.
   useEffect(() => {
-    const t = setInterval(load, 30000);
+    const t = setInterval(() => load(), 30000);
     return () => clearInterval(t);
   }, [load]);
+
+  // ── Nearest-to-me handler ────────────────────────────────
+  const enableNearest = useCallback(async () => {
+    if (sortMode === 'nearest') {
+      // Toggle off
+      setSortMode('default');
+      setOrigin(null);
+      setOriginSource(null);
+      load('default', null);
+      return;
+    }
+    setLocating(true);
+    // Try browser geolocation first
+    const tryGeo = () => new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 },
+      );
+    });
+    let coords = await tryGeo();
+    let nextOrigin = null;
+    if (coords) {
+      nextOrigin = { lat: coords.lat, lon: coords.lon };
+    } else {
+      // Fallback: fetch engineer profile postcode
+      try {
+        const me = await axios.get(`${API}/svc/engineer/me`, auth());
+        const pc = me.data?.engineer?.home_address?.postcode
+                || me.data?.home_address?.postcode
+                || me.data?.postcode;
+        if (pc) nextOrigin = { postcode: pc };
+      } catch (_) { /* ignore */ }
+    }
+    setLocating(false);
+    if (!nextOrigin) {
+      notify.error('Location unavailable',
+        'Grant location access or set a postcode on your engineer profile to sort by distance.');
+      return;
+    }
+    setSortMode('nearest');
+    setOrigin(nextOrigin);
+    load('nearest', nextOrigin);
+  }, [sortMode, load]);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return jobs;
@@ -320,7 +392,7 @@ export default function EngineerQueue() {
         </section>
 
         {/* Filters */}
-        <div className="bg-white border border-slate-200 rounded-2xl px-3 py-2 flex items-center gap-1">
+        <div className="bg-white border border-slate-200 rounded-2xl px-3 py-2 flex items-center gap-1 flex-wrap">
           {[
             { k: 'all',  label: `All${jobs.length ? ` · ${jobs.length}` : ''}` },
             { k: 'p1',   label: `P1${stats.p1 ? ` · ${stats.p1}` : ''}` },
@@ -338,7 +410,31 @@ export default function EngineerQueue() {
               {opt.label}
             </button>
           ))}
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={enableNearest}
+            disabled={locating}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 ${
+              sortMode === 'nearest'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-700 border border-slate-300 hover:bg-slate-50'
+            }`}
+            data-testid="queue-sort-nearest"
+            title="Sort jobs by distance from your current location"
+          >
+            {locating ? <Loader2 size={12} className="animate-spin" /> : <Crosshair size={12} />}
+            {sortMode === 'nearest' ? 'Sorted: nearest' : 'Nearest to me'}
+          </button>
         </div>
+
+        {sortMode === 'nearest' && originSource ? (
+          <p className="text-[11px] text-slate-500 px-1" data-testid="queue-origin-source">
+            Distances from your{' '}
+            {originSource === 'geolocation' ? 'current location' : 'home postcode'}.
+            Sites without a postcode appear last.
+          </p>
+        ) : null}
 
         {/* List */}
         {!loading && filtered.length === 0 ? (
@@ -352,7 +448,7 @@ export default function EngineerQueue() {
         ) : (
           <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
             {filtered.map((j) => (
-              <Row key={j.id} job={j} onClaim={setClaimFor} />
+              <Row key={j.id} job={j} onClaim={setClaimFor} showDistance={sortMode === 'nearest'} />
             ))}
           </ul>
         )}
