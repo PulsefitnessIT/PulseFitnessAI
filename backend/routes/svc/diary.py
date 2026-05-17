@@ -38,6 +38,7 @@ from utils.auth import get_current_user
 from utils.database import db
 from utils.svc_state import ASSIGNED, NEW, TRIAGED, append_event
 from routes.partners import require_engineer_app_access
+from routes.svc.integrations import sicon_sync
 
 logger = logging.getLogger(__name__)
 
@@ -469,6 +470,25 @@ async def admin_assign_case(
                 )
     except Exception:
         pass  # never let notifications break the dispatch flow.
+
+    # Iter 216h153 — Sicon outbox: dispatch updates the upstream call
+    # with the new engineer/time and (when promoted) records the
+    # state change as a tracking note.
+    try:
+        full_case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
+        if full_case:
+            await sicon_sync.push_case(full_case)
+            if promoted_status:
+                last_evt = await db.svc_case_events.find_one(
+                    {"case_id": case_id, "type": "state_change"},
+                    sort=[("at", -1)], projection={"_id": 0},
+                )
+                if last_evt:
+                    await sicon_sync.push_event(
+                        last_evt, case_reference=full_case.get("reference"),
+                    )
+    except Exception as e:
+        logger.warning("[svc→sicon] diary schedule push failed: %s", e)
 
     return {"ok": True, "case_id": case_id, **upd}
 

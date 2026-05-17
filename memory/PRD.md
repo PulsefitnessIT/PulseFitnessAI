@@ -6840,6 +6840,13 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h153 (17 Feb 2026)** — Sicon outbox producer coverage on Phase 5 paths (from process-audit P1).
+  - Wired `sicon_sync.push_case` + `push_event` into the 4 Phase-5 mutation paths missing them: `engineer_queue.claim` (post state-change), `independence.self_allocate` (case_created), `independence.accept_job_request` (case_created), `diary.schedule_case` (case + state_change on NEW/TRIAGED promotion).
+  - Wired `sicon_sync.push_part_movement` into `engineer_parts_requests.admin_approve` (allocate-to-call) and `inventory.receive_po` (goods-receipt-from-PO).
+  - Added `"po_receipt"` alias to `PART_MOVEMENT_CROSSWALK` so inventory's movement_type maps cleanly to Sicon's `GoodsReceiptFromPO`.
+  - Note: `push_quote` was already covered — `billing.finalise_invoice` calls `sage_invoice.enqueue_invoice_for_case(case, quote=quote)` which serialises the quote lines as the invoice payload.
+  - Tests: `tests/test_iter_216h153_sicon_producers.py` — 4/4 passing (self-claim case+note, self-allocate case+created note, dispatcher diary case+state-change, parts approval part_movement with `AllocateToCall`). Full regression — **45/45 passing total**.
+
 - **Iter 216h152 (17 Feb 2026)** — SVC → CRM activity emit + "Service Revenue YTD" tile.
   - New `utils/svc_crm_sync.py` with `emit_case_close_activity` and `emit_invoice_activity`. Both upsert idempotently on `(case_id, type)` so re-emits don't duplicate. Best-effort match to `crm2_companies` by name → email → name+postcode.
   - Hook: `cases.transition_case` on `status=closed` → `crm2_activities` row of `type=service_visit`.

@@ -25,6 +25,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from routes.partners import require_engineer_app_access
+from routes.svc.integrations import sicon_sync
 from utils.auth import get_current_user
 from utils.database import db
 from utils.postcodes_client import lookup as postcode_lookup, normalise_postcode
@@ -345,6 +346,26 @@ async def claim_case(
         )
     except Exception:
         pass
+
+    # Iter 216h153 — Sicon outbox push so the upstream service-call
+    # record reflects the new engineer + status. Re-read the full doc
+    # so the payload mapper has every field (the `result` projection
+    # is intentionally lean for the API response).
+    try:
+        full_case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
+        if full_case:
+            await sicon_sync.push_case(full_case)
+            if prev and prev != result.get("status"):
+                last_evt = await db.svc_case_events.find_one(
+                    {"case_id": case_id, "type": "state_change"},
+                    sort=[("at", -1)], projection={"_id": 0},
+                )
+                if last_evt:
+                    await sicon_sync.push_event(
+                        last_evt, case_reference=full_case.get("reference"),
+                    )
+    except Exception as e:
+        logger.warning("[svc→sicon] self-claim push failed: %s", e)
 
     return {"ok": True, "case_id": case_id, "reference": result.get("reference"),
             "scheduled_at": result.get("scheduled_at")}

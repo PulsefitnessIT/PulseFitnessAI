@@ -73,6 +73,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from utils.database import db
 from utils.auth import get_current_user
+from routes.svc.integrations import sicon_sync
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc/inventory", tags=["Service Ops · Inventory"])
@@ -572,6 +573,25 @@ async def receive_po(po_id: str, data: dict, user=Depends(get_current_user)):
                 "actor_name": user.get("full_name") or "",
                 "at": _now(),
             })
+            # Iter 216h153 — push the goods-receipt to Sicon so its
+            # stock ledger stays in sync with our warehouse.
+            try:
+                await sicon_sync.push_part_movement({
+                    "id": str(uuid.uuid4()),
+                    "organization_id": of["organization_id"],
+                    "movement_type": "po_receipt",
+                    "po_id": po_id,
+                    "po_reference": po.get("reference"),
+                    "part_sku": line["part_sku"],
+                    "qty": recv,
+                    "from_location": "supplier",
+                    "to_location": "warehouse",
+                    "actor_id": user["id"],
+                    "actor_name": user.get("full_name") or "",
+                    "at": _now(),
+                })
+            except Exception as e:
+                logger.warning("[svc→sicon] po_receipt push failed: %s", e)
         line["received_qty"] = int(line.get("received_qty") or 0) + recv
         new_lines.append(line)
     fully_received = all(int(line.get("received_qty") or 0) >= int(line.get("qty") or 0) for line in new_lines)

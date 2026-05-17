@@ -192,6 +192,7 @@ PART_MOVEMENT_CROSSWALK: dict[str, str] = {
     "transfer":   "TransferBetweenLocations",
     "return":     "ReturnToWarehouse",
     "receive":    "GoodsReceiptFromPO",
+    "po_receipt": "GoodsReceiptFromPO",   # alias used by inventory.receive_po
 }
 
 

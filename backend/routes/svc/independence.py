@@ -51,6 +51,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 
 from routes.partners import require_engineer_app_access
+from routes.svc.integrations import sicon_sync
 from utils.auth import get_current_user
 from utils.database import db
 from utils.svc_state import ASSIGNED, append_event
@@ -214,6 +215,20 @@ async def jobs_self_create(
         )
     except Exception:
         pass
+    # Iter 216h153 — Sicon outbox: register the new service call and
+    # mirror the case_created event as a tracking note.
+    try:
+        await sicon_sync.push_case(doc)
+        last_evt = await db.svc_case_events.find_one(
+            {"case_id": case_id, "type": "case_created"},
+            sort=[("at", -1)], projection={"_id": 0},
+        )
+        if last_evt:
+            await sicon_sync.push_event(
+                last_evt, case_reference=doc.get("reference"),
+            )
+    except Exception as e:
+        logger.warning("[svc→sicon] self_allocate push failed: %s", e)
     return {"case_id": case_id, "reference": reference, "case": doc}
 
 
@@ -425,6 +440,19 @@ async def accept_job_request(
         )
     except Exception:
         pass
+    # Iter 216h153 — Sicon outbox push for the accepted case.
+    try:
+        await sicon_sync.push_case(case)
+        last_evt = await db.svc_case_events.find_one(
+            {"case_id": case_id, "type": "case_created"},
+            sort=[("at", -1)], projection={"_id": 0},
+        )
+        if last_evt:
+            await sicon_sync.push_event(
+                last_evt, case_reference=case.get("reference"),
+            )
+    except Exception as e:
+        logger.warning("[svc→sicon] accept_job_request push failed: %s", e)
     return {"case_id": case_id, "reference": case["reference"]}
 
 

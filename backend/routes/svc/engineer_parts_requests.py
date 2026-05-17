@@ -32,6 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from routes.partners import require_engineer_app_access
+from routes.svc.integrations import sicon_sync
 from utils.auth import get_current_user
 from utils.database import db
 from utils.svc_state import append_event
@@ -267,6 +268,31 @@ async def admin_approve(request_id: str, body: ApproveIn,
         "at": _now(),
         "from_request_id": request_id,
     })
+    # Iter 216h153 — Sicon outbox push so the upstream stock-movement
+    # ledger reflects the allocation (parts-request approval path was
+    # missing this hook in the original Phase 8A wiring).
+    try:
+        case_doc = await db.svc_cases.find_one(
+            {"id": req["case_id"], **of},
+            {"_id": 0, "reference": 1},
+        )
+        await sicon_sync.push_part_movement(
+            {
+                **allocation,
+                "case_id": req["case_id"],
+                "movement_type": "allocate",
+                "from_location": ship_from,
+                "to_location": "case",
+                "actor_id": user["id"],
+                "actor_name": user.get("full_name") or user.get("email") or "",
+                "at": _now(),
+                "part_sku": req["part_sku"],
+                "qty": req["qty"],
+            },
+            case_reference=(case_doc or {}).get("reference"),
+        )
+    except Exception as e:
+        logger.warning("[svc→sicon] parts-request approve push failed: %s", e)
     await db.svc_parts_requests.update_one(
         {"id": request_id, **of},
         {"$set": {
