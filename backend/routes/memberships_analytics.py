@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from routes.memberships import _require_operator_org
 from utils.auth import get_current_user
 from utils.database import db
+from utils.safe_paginate import safe_to_list, BULK_CAP
 from utils.memberships_ai_insights import (
     generate_executive_brief,
     rank_at_risk_members,
@@ -138,10 +139,14 @@ async def analytics_overview(
     net_growth = new_members - cancellations
 
     # -- Revenue rollup
-    paid_rows = await db.payment_transactions.find(
-        {**pay_q, "payment_status": "paid", "created_at": {"$gte": _iso(start), "$lte": _iso(end)}},
-        {"_id": 0, "amount_pence": 1, "created_at": 1, "plan_id": 1, "method": 1, "mode": 1},
-    ).to_list(10000)
+    paid_rows = await safe_to_list(
+        db.payment_transactions.find(
+            {**pay_q, "payment_status": "paid", "created_at": {"$gte": _iso(start), "$lte": _iso(end)}},
+            {"_id": 0, "amount_pence": 1, "created_at": 1, "plan_id": 1, "method": 1, "mode": 1},
+        ),
+        cap=BULK_CAP,
+        name="memberships_analytics.paid_rows",
+    )
     revenue_pence = sum(int(r.get("amount_pence") or 0) for r in paid_rows)
     revenue_gbp = _pence_to_gbp(revenue_pence)
     failed_rows = await db.payment_transactions.count_documents(
@@ -153,10 +158,14 @@ async def analytics_overview(
     )
 
     # -- MRR (active recurring memberships × monthly equivalent)
-    active_mms = await db.member_memberships.find(
-        {**mm_q, "status": {"$in": ["active", "frozen"]}},
-        {"_id": 0, "plan_id": 1},
-    ).to_list(10000)
+    active_mms = await safe_to_list(
+        db.member_memberships.find(
+            {**mm_q, "status": {"$in": ["active", "frozen"]}},
+            {"_id": 0, "plan_id": 1},
+        ),
+        cap=BULK_CAP,
+        name="memberships_analytics.active_mms",
+    )
     plan_ids = list({m["plan_id"] for m in active_mms if m.get("plan_id")})
     plans = {p["id"]: p for p in await db.membership_plans.find(
         {"id": {"$in": plan_ids}}, {"_id": 0}).to_list(len(plan_ids) or 1)}

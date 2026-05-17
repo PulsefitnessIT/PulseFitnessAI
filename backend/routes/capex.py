@@ -10,6 +10,7 @@ from utils.database import db, EMERGENT_LLM_KEY
 from utils.auth import get_current_user, get_organization_filter
 from utils.helpers import get_bulk_equipment_stats
 from utils.aggregate_cache import cache_aggregate
+from utils.safe_paginate import safe_to_list, BULK_CAP
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
@@ -364,13 +365,17 @@ async def get_capex_analysis(
         }
 
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
-    all_issues = await db.issues.find(
-        org_filter,
-        {"_id": 0, "id": 1, "serial_number": 1, "severity": 1, "resolution_type": 1,
-         "resolved_by": 1, "organization_id": 1, "equipment_id": 1,
-         "issue_description": 1, "status": 1, "created_at": 1, "resolved_at": 1,
-         "updated_at": 1},
-    ).to_list(20000)
+    all_issues = await safe_to_list(
+        db.issues.find(
+            org_filter,
+            {"_id": 0, "id": 1, "serial_number": 1, "severity": 1, "resolution_type": 1,
+             "resolved_by": 1, "organization_id": 1, "equipment_id": 1,
+             "issue_description": 1, "status": 1, "created_at": 1, "resolved_at": 1,
+             "updated_at": 1},
+        ),
+        cap=BULK_CAP * 2,  # 20k — capex analysis spans deep history
+        name="capex.analysis.all_issues",
+    )
 
     severity_lookup, selffix_lookup = _build_severity_lookup(all_issues)
     # Iter 216h127 — also group full fault dicts by equipment_id so

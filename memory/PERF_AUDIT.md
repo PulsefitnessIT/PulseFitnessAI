@@ -1,3 +1,63 @@
+## Iter 216h171 — Safe pagination + truncation telemetry (Feb 2026)
+
+### Audit reality check
+The Tier-2 brief flagged "~40 unbounded `.to_list()` candidates" — the real
+distribution after measurement was:
+
+| Band | Sites |
+|---|---|
+| `< 100`     | 169 |
+| `100-500`   | 119 |
+| `500-1k`    | 150 |
+| `1k-5k`     | 69  |
+| `5k-10k`    | 44  |
+| `10k-50k`   | 20  |
+| `50k+`      | 10  |
+| **Unbounded** (`to_list(None)` or `to_list()`) | **0** |
+
+The platform was already disciplined about caps. The real risk is **silent
+truncation** at the 10k–50k bands — a dashboard says "20,000 rows" when the
+tenant actually has 20,001 and the tail is invisible.
+
+### What changed
+
+- **New `utils/safe_paginate.py`** (115 lines):
+  - Three documented band constants — `LIST_CAP = 500`, `BULK_CAP = 10_000`,
+    `EXPORT_CAP = 50_000` — so every call site declares its intent.
+  - `safe_to_list(cursor, cap, name)` async wrapper that runs `to_list(cap)`
+    and records a structured truncation event when the result hits the cap.
+  - `TRUNCATION` singleton tracking `{name → {hits, last_cap, last_at}}`.
+
+- **Wired to 5 highest-risk dashboard aggregate sites** (the rest are either
+  small lists or intentional user-triggered exports, where the big cap is the
+  design intent — leaving those alone is correct):
+  - `capex.analysis.all_issues` (20k cap)
+  - `svc_capex_signals.cases` (20k cap)
+  - `svc_capex_signals.quotes` (20k cap)
+  - `memberships_analytics.paid_rows` (10k cap)
+  - `memberships_analytics.active_mms` (10k cap)
+
+- **Telemetry surfaced** on the existing `/master-admin/perf/cache` endpoint —
+  alongside the iter 216h170 cache stats. Operators see hottest offenders
+  ranked first.
+
+### What was deliberately NOT changed
+
+- CSV export endpoints (50k caps) — the cap *is* the design (one-shot file
+  download). Documented in code comments.
+- Service-desk recent-cases endpoints (50k caps) — already paginated at the
+  UI layer.
+
+### Regression coverage
+
+`tests/test_iter_216h171_safe_paginate.py` — 9/9 passing (under-cap,
+at-cap-records-event, hits-counter-increments, empty-cursor-records-nothing,
+band-constants, perf-endpoint includes truncation events, role-gate, CAPEX
+board-report behaviour preserved, memberships analytics endpoint smoke).
+All 92 recent iter tests green.
+
+---
+
 # GymAxis Performance Audit — Iter 216h170 (Feb 2026)
 
 ## Codebase scale (as audited)

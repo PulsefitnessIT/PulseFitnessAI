@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from utils.aggregate_cache import CACHE
 from utils.auth import get_current_user
+from utils.safe_paginate import TRUNCATION
 
 router = APIRouter(prefix="/master-admin/perf", tags=["master-admin-perf"])
 
@@ -32,9 +33,11 @@ async def cache_stats(user: dict = Depends(get_current_user)) -> dict:
     Useful before/after a deploy to confirm the cache is actually
     serving hits (good rule of thumb: hit_ratio should climb above
     0.6 within a couple of minutes of normal traffic on a multi-tab
-    operator session)."""
+    operator session). Iter 216h171 — now also surfaces pagination
+    truncation events so operators can spot tenants whose dashboards
+    are silently dropping tail rows."""
     _require_master_admin(user)
-    return CACHE.stats()
+    return {**CACHE.stats(), **TRUNCATION.snapshot()}
 
 
 @router.post("/cache/clear")

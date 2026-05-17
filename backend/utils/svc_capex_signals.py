@@ -31,6 +31,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from utils.database import db
+from utils.safe_paginate import safe_to_list, BULK_CAP
 
 
 def _iso_days_ago(days: int = 365) -> str:
@@ -86,14 +87,19 @@ async def aggregate_service_signals(
             ]},
         ]
 
-    cases = await db.svc_cases.find(
-        case_query,
-        {"_id": 0, "id": 1, "organization_id": 1, "status": 1,
-         "asset_id": 1, "equipment_ids": 1,
-         "created_at": 1, "updated_at": 1,
-         "closed_at": 1, "invoiced_at": 1,
-         "on_site_minutes": 1, "actual_minutes": 1, "estimated_minutes": 1},
-    ).to_list(20000)
+    # Iter 216h171 — wrapped with safe_to_list for truncation telemetry.
+    cases = await safe_to_list(
+        db.svc_cases.find(
+            case_query,
+            {"_id": 0, "id": 1, "organization_id": 1, "status": 1,
+             "asset_id": 1, "equipment_ids": 1,
+             "created_at": 1, "updated_at": 1,
+             "closed_at": 1, "invoiced_at": 1,
+             "on_site_minutes": 1, "actual_minutes": 1, "estimated_minutes": 1},
+        ),
+        cap=BULK_CAP * 2,  # 20k — fleet-wide BER analysis spans deep history
+        name="svc_capex_signals.cases",
+    )
 
     if not cases:
         return {}
@@ -102,11 +108,15 @@ async def aggregate_service_signals(
     # Pull all quotes that point at these cases. We don't trust the
     # status alone — `invoiced` is the strongest signal, but `approved`
     # quotes also indicate committed service spend.
-    quotes = await db.svc_quotes.find(
-        {**org_filter, "case_id": {"$in": case_ids},
-         "status": {"$in": ["invoiced", "approved"]}},
-        {"_id": 0, "case_id": 1, "net": 1, "subtotal": 1, "status": 1},
-    ).to_list(20000)
+    quotes = await safe_to_list(
+        db.svc_quotes.find(
+            {**org_filter, "case_id": {"$in": case_ids},
+             "status": {"$in": ["invoiced", "approved"]}},
+            {"_id": 0, "case_id": 1, "net": 1, "subtotal": 1, "status": 1},
+        ),
+        cap=BULK_CAP * 2,
+        name="svc_capex_signals.quotes",
+    )
 
     spend_by_case: dict[str, float] = {}
     for q in quotes:
