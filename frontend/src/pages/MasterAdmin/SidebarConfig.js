@@ -125,6 +125,7 @@ export const SIDEBAR_ITEMS = [
     id: 'settings-compliance', label: 'Settings & Compliance', icon: Settings, group: 'main',
     subTabs: [
       { id: 'audit-log',          label: 'Audit log',          icon: ScrollText },
+      { id: 'audit-logs',         label: 'Compliance trail',   icon: ScrollText },
       { id: 'login-events',       label: 'Login events',       icon: ShieldAlert },
       { id: 'documents',          label: 'Documents',          icon: FolderArchive },
       // Iter 216h59 — relocated from Overview. Archive is a data-

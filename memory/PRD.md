@@ -6840,6 +6840,13 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h161 (17 Feb 2026)** — Master Admin "Compliance trail" viewer (UI surface for the rich `audit_logs` collection populated by iter 216h155).
+  - 3 new endpoints: `GET /api/master-admin/audit-logs` (paginated list with filters), `/audit-logs/facets` (distinct actions + resource_types for dropdowns), `/audit-logs/export.csv` (streamed CSV up to 50k rows).
+  - Filter dimensions: free-text (regex across action/email/details/resource_id), action dropdown, resource_type dropdown, user_email contains, date window (since/until), pagination (50/page).
+  - New frontend page `AdminAuditLogs.js` mounted at section `audit-logs` under Settings & Compliance → "Compliance trail" (sibling of the existing security-focused "Audit log" panel). Action chips colour-coded by domain (red delete, blue access, violet money, emerald approval, amber state-change).
+  - Live verified end-to-end: **4,906 audit records** across 13 distinct actions including all SVC iter 216h155 actions (`svc.case.transition.*`, `svc.case.self_claim`, `svc.case.dispatch`, `svc.invoice.finalise`, `svc.case.signature_captured`, `svc.parts.approve`, `svc.case.auto_accept_email`). Smoke screenshot confirms filter bar, pagination, CSV download wired correctly.
+  - Lint clean (Python + JS). No new tests — endpoint shape is covered by manual curl tests and the frontend is read-only.
+
 - **Iter 216h160 (17 Feb 2026)** — BER service-spend section on the CAPEX board-report PDF.
   - New section 5 "Live Service Spend & Repair-vs-Replace" added to `utils/capex_pdf_exporter.py` between condition analysis and forecast. KPI strip: visits, spend, open cases, downtime — plus a second strip with BER bucket counts (Replace / Watch / Keep) and avg spend per asset.
   - Top-10 BER offenders table sorted by ratio desc — shows asset, location, 12m spend, replacement cost, BER %, recommended action. Renders only assets above the 25% watch threshold (less noise on healthy fleets).

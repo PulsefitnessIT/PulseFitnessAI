@@ -21,6 +21,7 @@ import AdminPayments from './MasterAdmin/AdminPayments';
 import AdminPartners from './MasterAdmin/AdminPartners';
 import AdminSupport from './MasterAdmin/AdminSupport';
 import AdminEmails from './MasterAdmin/AdminEmails';
+import AdminAuditLogs from './MasterAdmin/AdminAuditLogs';
 import AdminCapex from './MasterAdmin/AdminCapex';
 import AdminDialogs from './MasterAdmin/AdminDialogs';
 import TrustDashboard from './MasterAdmin/TrustDashboard';
@@ -358,6 +359,9 @@ const MasterAdminPage = ({ onBack }) => {
         return <AdminSupport stats={stats} onGoUsers={() => setSection('organizations')} />;
       case 'emails':
         return <AdminEmails />;
+      case 'audit-logs':
+        // Iter 216h161 — platform-wide compliance audit viewer
+        return <AdminAuditLogs />;
       case 'capex-config':
         return (
           <AdminCapex

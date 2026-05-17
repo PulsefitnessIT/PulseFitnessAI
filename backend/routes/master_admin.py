@@ -266,6 +266,142 @@ async def get_master_stats(user: dict = Depends(get_current_user)):
     }
 
 
+# ── Audit-log viewer · Iter 216h161 ─────────────────────────────
+#
+# Compliance surface over the `audit_logs` collection populated by
+# `utils.audit.audit_log()`. Filterable + paginated + CSV export so
+# enterprise procurement / SOC2 auditors can pull "every action by
+# this user in 2026" in one click.
+
+@router.get("/master-admin/audit-logs")
+async def list_audit_logs(
+    user: dict = Depends(get_current_user),
+    q: str = "",
+    action: str = "",
+    user_id: str = "",
+    user_email: str = "",
+    resource_type: str = "",
+    resource_id: str = "",
+    since: str = "",   # ISO date or datetime
+    until: str = "",
+    skip: int = 0,
+    limit: int = 50,
+):
+    """Paginated audit-log search. Master-admin only."""
+    require_master_admin(user)
+    limit = max(1, min(limit, 500))
+    skip = max(skip, 0)
+    query: dict = {}
+    if action:
+        query["action"] = {"$regex": action, "$options": "i"}
+    if user_id:
+        query["user_id"] = user_id
+    if user_email:
+        query["user_email"] = {"$regex": user_email, "$options": "i"}
+    if resource_type:
+        query["resource_type"] = resource_type
+    if resource_id:
+        query["resource_id"] = resource_id
+    if since or until:
+        ts: dict = {}
+        if since:
+            ts["$gte"] = since
+        if until:
+            ts["$lte"] = until
+        query["timestamp"] = ts
+    if q:
+        # Free-text — search across action, email, details, resource id.
+        query.setdefault("$or", []).extend([
+            {"action": {"$regex": q, "$options": "i"}},
+            {"user_email": {"$regex": q, "$options": "i"}},
+            {"details": {"$regex": q, "$options": "i"}},
+            {"resource_id": {"$regex": q, "$options": "i"}},
+        ])
+    cursor = db.audit_logs.find(
+        query, {"_id": 0},
+    ).sort([("timestamp", -1)]).skip(skip).limit(limit)
+    rows = await cursor.to_list(limit)
+    total = await db.audit_logs.count_documents(query)
+    return {"rows": rows, "total": total, "skip": skip, "limit": limit}
+
+
+@router.get("/master-admin/audit-logs/facets")
+async def list_audit_facets(user: dict = Depends(get_current_user)):
+    """Distinct actions + resource_types so the UI can render filter
+    dropdowns without scanning the full collection."""
+    require_master_admin(user)
+    actions = await db.audit_logs.distinct("action")
+    resource_types = await db.audit_logs.distinct("resource_type")
+    return {
+        "actions": sorted([a for a in actions if a])[:500],
+        "resource_types": sorted([r for r in resource_types if r])[:200],
+    }
+
+
+@router.get("/master-admin/audit-logs/export.csv")
+async def export_audit_logs_csv(
+    user: dict = Depends(get_current_user),
+    q: str = "",
+    action: str = "",
+    user_email: str = "",
+    resource_type: str = "",
+    since: str = "",
+    until: str = "",
+    limit: int = 10000,
+):
+    """Stream a filtered audit-log slice as CSV. Same query semantics
+    as the JSON list endpoint, but capped at 10k rows by default to
+    keep response time bounded."""
+    require_master_admin(user)
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    limit = max(1, min(limit, 50000))
+    query: dict = {}
+    if action:
+        query["action"] = {"$regex": action, "$options": "i"}
+    if user_email:
+        query["user_email"] = {"$regex": user_email, "$options": "i"}
+    if resource_type:
+        query["resource_type"] = resource_type
+    if since or until:
+        ts: dict = {}
+        if since:
+            ts["$gte"] = since
+        if until:
+            ts["$lte"] = until
+        query["timestamp"] = ts
+    if q:
+        query.setdefault("$or", []).extend([
+            {"action": {"$regex": q, "$options": "i"}},
+            {"user_email": {"$regex": q, "$options": "i"}},
+            {"details": {"$regex": q, "$options": "i"}},
+            {"resource_id": {"$regex": q, "$options": "i"}},
+        ])
+    rows = await db.audit_logs.find(
+        query, {"_id": 0},
+    ).sort([("timestamp", -1)]).limit(limit).to_list(limit)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["timestamp", "action", "user_email", "user_id",
+                     "resource_type", "resource_id", "details", "ip_address"])
+    for r in rows:
+        writer.writerow([
+            r.get("timestamp", ""), r.get("action", ""), r.get("user_email", ""),
+            r.get("user_id", ""), r.get("resource_type", ""), r.get("resource_id", ""),
+            (r.get("details", "") or "").replace("\n", " ").replace("\r", " "),
+            r.get("ip_address", ""),
+        ])
+    buf.seek(0)
+    fname = f"audit-logs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}.csv"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
 @router.get("/master-admin/organizations/search")
 async def search_organizations(
     q: str = "",
