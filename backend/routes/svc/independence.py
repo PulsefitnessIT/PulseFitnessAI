@@ -43,9 +43,11 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
+from io import BytesIO
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 
 from routes.partners import require_engineer_app_access
@@ -512,6 +514,158 @@ async def public_card_submit(slug: str, body: PublicRequestIn):
         pass  # never block the public flow on notification failure.
 
     return {"request_id": rid, "status": "pending"}
+
+
+# ── 6. QR code SVG + printable card PDF ──────────────────────────
+
+async def _resolve_card(user: dict) -> tuple[dict, str, dict]:
+    """Return (engineer_doc, share_url, org_doc)."""
+    of = _of(user)
+    slug = await _ensure_intake_slug(user)
+    eng = await db.svc_engineers.find_one(
+        {"id": user["id"], **of},
+        {"_id": 0, "id": 1, "full_name": 1, "intake_slug": 1,
+         "photo_url": 1, "bio": 1, "qualifications": 1},
+    ) or {}
+    org = await db.organizations.find_one(
+        {"id": user["organization_id"]},
+        {"_id": 0, "name": 1, "brand_color": 1, "logo_url": 1},
+    ) or {}
+    base = (os.environ.get("PUBLIC_APP_URL")
+            or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+    share_url = f"{base}/r/{slug}" if base else f"/r/{slug}"
+    return eng, share_url, org
+
+
+@engineer_router.get("/intake-card.svg")
+async def intake_card_svg(user=Depends(get_current_user)):
+    """Raw QR code SVG of the engineer's public supplier-card URL.
+    Returned as `image/svg+xml` so it can be embedded directly or
+    downloaded as a vector asset."""
+    _eng, share_url, _org = await _resolve_card(user)
+    try:
+        import qrcode
+        import qrcode.image.svg as qrsvg
+    except ImportError:
+        raise HTTPException(503, "QR generator unavailable")
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10, border=2,
+    )
+    qr.add_data(share_url)
+    qr.make(fit=True)
+    img = qr.make_image(image_factory=qrsvg.SvgPathImage)
+    buf = BytesIO()
+    img.save(buf)
+    return Response(
+        content=buf.getvalue(),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=60"},
+    )
+
+
+@engineer_router.get("/intake-card.pdf")
+async def intake_card_pdf(user=Depends(get_current_user)):
+    """Printable A6 supplier card (105 × 148 mm) with engineer name,
+    organisation logo, QR code + share URL. Designed for handing out
+    on customer visits."""
+    eng, share_url, org = await _resolve_card(user)
+    try:
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import A6
+        from reportlab.lib.units import mm
+        from reportlab.lib.colors import HexColor, black, white
+        from reportlab.lib.utils import ImageReader
+        import qrcode
+    except ImportError:
+        raise HTTPException(503, "PDF generator unavailable")
+
+    page_w, page_h = A6  # 105 × 148 mm in pts
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A6)
+
+    # Brand colour (default GymAxis blue)
+    brand = org.get("brand_color") or "#1E40AF"
+    try:
+        accent = HexColor(brand)
+    except Exception:
+        accent = HexColor("#1E40AF")
+
+    # ── header band (top 30 mm) ──
+    c.setFillColor(accent)
+    c.rect(0, page_h - 30 * mm, page_w, 30 * mm, fill=True, stroke=False)
+    c.setFillColor(white)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(10 * mm, page_h - 12 * mm, (org.get("name") or "GymAxis Service").upper())
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(10 * mm, page_h - 22 * mm, "Request service")
+
+    # ── engineer name & bio ──
+    c.setFillColor(black)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(10 * mm, page_h - 42 * mm, eng.get("full_name") or "Your engineer")
+    bio = eng.get("bio") or "Field service engineer"
+    c.setFont("Helvetica", 9)
+    c.drawString(10 * mm, page_h - 48 * mm, bio[:60])
+
+    # Qualifications chips
+    quals = (eng.get("qualifications") or [])[:3]
+    if quals:
+        c.setFont("Helvetica-Bold", 7)
+        x = 10 * mm
+        for q in quals:
+            txt = str(q)[:18]
+            w = c.stringWidth(txt, "Helvetica-Bold", 7) + 6
+            c.setFillColor(HexColor("#ecfdf5"))
+            c.roundRect(x, page_h - 56 * mm, w, 4 * mm, 1, fill=True, stroke=False)
+            c.setFillColor(HexColor("#047857"))
+            c.drawString(x + 3, page_h - 53.5 * mm, txt)
+            x += w + 3
+
+    # ── QR code (centred lower half) ──
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10, border=1,
+    )
+    qr.add_data(share_url)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+    qr_buf = BytesIO()
+    qr_img.save(qr_buf, "PNG")
+    qr_buf.seek(0)
+
+    qr_size = 55 * mm
+    qr_x = (page_w - qr_size) / 2
+    qr_y = 30 * mm
+    c.drawImage(ImageReader(qr_buf), qr_x, qr_y, width=qr_size, height=qr_size)
+
+    # Caption under QR
+    c.setFillColor(black)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawCentredString(page_w / 2, qr_y - 6 * mm, "Scan to request service")
+    c.setFont("Helvetica", 7)
+    c.drawCentredString(page_w / 2, qr_y - 10 * mm, share_url[:70])
+
+    # Footer
+    c.setFillColor(HexColor("#94a3b8"))
+    c.setFont("Helvetica", 6)
+    c.drawCentredString(page_w / 2, 8 * mm,
+                        "Powered by GymAxis · " + datetime.now(timezone.utc).strftime("%b %Y"))
+
+    c.showPage()
+    c.save()
+    pdf_bytes = buf.getvalue()
+    slug = eng.get("intake_slug") or "card"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="gymaxis-card-{slug}.pdf"',
+            "Cache-Control": "private, max-age=60",
+        },
+    )
 
 
 # ── Index setup ──────────────────────────────────────────────────

@@ -12,7 +12,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Inbox as InboxIcon, RefreshCw, Loader2, MapPin, Phone, Mail,
-  CheckCircle2, X, QrCode, Share2, Clipboard, ShieldAlert,
+  CheckCircle2, X, QrCode, Share2, Clipboard, ShieldAlert, Download, Printer,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -119,7 +119,9 @@ const AcceptModal = ({ req, onClose, onAccept }) => {
 // ── Card share box ─────────────────────────────────────────────
 const CardShareBox = () => {
   const [info, setInfo] = useState(null);
+  const [qrPreview, setQrPreview] = useState(null);
   const [busy, setBusy] = useState(false);
+
   const load = useCallback(async () => {
     try {
       const r = await axios.get(`${API}/svc/engineer/intake-card`, auth());
@@ -129,6 +131,25 @@ const CardShareBox = () => {
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Fetch the SVG with auth and turn it into a data URL for the <img>.
+  useEffect(() => {
+    if (!info?.share_url) return;
+    let revoked = null;
+    (async () => {
+      try {
+        const tok = localStorage.getItem('token') || '';
+        const res = await fetch(`${API}/svc/engineer/intake-card.svg`,
+          { headers: { Authorization: `Bearer ${tok}` } });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setQrPreview(url);
+        revoked = url;
+      } catch { /* ignore */ }
+    })();
+    return () => { if (revoked) URL.revokeObjectURL(revoked); };
+  }, [info?.share_url]);
 
   const copy = async () => {
     if (!info?.share_url) return;
@@ -162,46 +183,102 @@ const CardShareBox = () => {
   };
 
   if (!info?.share_url) return null;
+  const tok = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : '';
+  const svgUrl = `${API}/svc/engineer/intake-card.svg`;
+  const pdfUrl = `${API}/svc/engineer/intake-card.pdf`;
+
+  const downloadAsset = async (url, filename) => {
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${tok}` } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 1500);
+      notify.success(`Downloaded ${filename}`);
+    } catch (e) {
+      notify.error('Download failed', e?.message || String(e));
+    }
+  };
+
   return (
     <div
-      className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+      className="bg-white border border-slate-200 rounded-2xl p-4"
       data-testid="inbox-share-card"
     >
-      <span className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
-        <QrCode size={18} />
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-slate-900">Your supplier card link</p>
-        <p className="text-xs text-slate-500 mt-0.5 truncate font-mono" data-testid="inbox-share-url">
-          {info.share_url}
-        </p>
+      <div className="flex items-start gap-3">
+        <span className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+          <QrCode size={18} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-slate-900">Your supplier card link</p>
+          <p className="text-xs text-slate-500 mt-0.5 truncate font-mono" data-testid="inbox-share-url">
+            {info.share_url}
+          </p>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={copy}
-          className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1.5"
-          data-testid="inbox-share-copy"
-        >
-          <Clipboard size={12} /> Copy
-        </button>
-        <button
-          type="button"
-          onClick={share}
-          className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5"
-          data-testid="inbox-share-share"
-        >
-          <Share2 size={12} /> Share
-        </button>
-        <button
-          type="button"
-          onClick={regenerate}
-          disabled={busy}
-          className="px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-          data-testid="inbox-share-regenerate"
-        >
-          {busy ? <Loader2 size={12} className="animate-spin" /> : 'Regen'}
-        </button>
+
+      <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-4 mt-4 items-center">
+        {/* Live QR preview */}
+        <div className="bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center">
+          {qrPreview ? (
+            <img
+              src={qrPreview}
+              alt="QR code"
+              className="w-24 h-24"
+              data-testid="inbox-qr-preview"
+            />
+          ) : (
+            <div className="w-24 h-24 flex items-center justify-center text-slate-300">
+              <Loader2 size={20} className="animate-spin" />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={copy}
+            className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1.5"
+            data-testid="inbox-share-copy"
+          >
+            <Clipboard size={12} /> Copy link
+          </button>
+          <button
+            type="button"
+            onClick={share}
+            className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5"
+            data-testid="inbox-share-share"
+          >
+            <Share2 size={12} /> Share
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadAsset(svgUrl, `gymaxis-qr-${info.slug}.svg`)}
+            className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1.5"
+            data-testid="inbox-download-svg"
+          >
+            <Download size={12} /> QR (SVG)
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadAsset(pdfUrl, `gymaxis-card-${info.slug}.pdf`)}
+            className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5"
+            data-testid="inbox-download-pdf"
+          >
+            <Printer size={12} /> Printable card
+          </button>
+          <button
+            type="button"
+            onClick={regenerate}
+            disabled={busy}
+            className="px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            data-testid="inbox-share-regenerate"
+          >
+            {busy ? <Loader2 size={12} className="animate-spin" /> : 'Regen link'}
+          </button>
+        </div>
       </div>
     </div>
   );
