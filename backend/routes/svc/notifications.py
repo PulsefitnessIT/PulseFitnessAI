@@ -32,7 +32,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, time as _time, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -151,11 +151,205 @@ async def create_notification(
     return doc
 
 
+# ── Engineer push prefs · Iter 216h156 ───────────────────────────
+#
+# Per-engineer opt-out for Web Push, with three knobs:
+#   • `kind_prefs[kind]` — boolean per notification kind. Defaults to True
+#     when missing (opt-out, not opt-in — the engineer can choose to
+#     silence categories like "attachment" without losing job assignments).
+#   • `quiet_hours_start` / `quiet_hours_end` — HH:MM strings interpreted
+#     in the engineer's `timezone`. The window can cross midnight (e.g.
+#     22:00 → 07:00) — handled by `_in_quiet_hours`.
+#   • `dnd_until` — ISO timestamp. One-tap "snooze all" beats kind prefs.
+#
+# PECR / GDPR posture: in-app inserts always happen (catch-up timeline);
+# only the disruptive Web Push channel is gated, matching the ICO's
+# expectation for "soft opt-in" on transactional alerts.
+
+_DEFAULT_PREFS: dict = {
+    "timezone": "Europe/London",
+    "quiet_hours_start": None,
+    "quiet_hours_end": None,
+    "dnd_until": None,
+    "kind_prefs": {},  # empty == all enabled
+}
+
+# Kinds the engineer can toggle individually (sourced from the live
+# producers in cases/diary/independence/etc — see the audit). Keep
+# stable; clients rely on this list for the toggles UI.
+TOGGLEABLE_PUSH_KINDS = [
+    "job_assigned",
+    "job_rescheduled",
+    "job_request",
+    "job_self_claimed",
+    "appointment",
+    "attachment",
+    "note",
+    "parts_approved",
+    "parts_rejected",
+    "ppm_due",
+    "sla_warning",
+    "test",
+]
+
+
+async def _load_push_prefs(user_id: str, organization_id: str) -> dict:
+    doc = await db.svc_engineer_push_prefs.find_one(
+        {"user_id": user_id, "organization_id": organization_id},
+        {"_id": 0},
+    ) or {}
+    return {**_DEFAULT_PREFS, **doc}
+
+
+def _parse_hhmm(s: Optional[str]) -> Optional[_time]:
+    if not s or not isinstance(s, str) or ":" not in s:
+        return None
+    try:
+        h, m = s.split(":", 1)
+        return _time(hour=int(h), minute=int(m))
+    except (ValueError, TypeError):
+        return None
+
+
+def _in_quiet_hours(prefs: dict, *, now: Optional[datetime] = None) -> bool:
+    start = _parse_hhmm(prefs.get("quiet_hours_start"))
+    end = _parse_hhmm(prefs.get("quiet_hours_end"))
+    if not start or not end or start == end:
+        return False
+    tz = prefs.get("timezone") or "Europe/London"
+    try:
+        from zoneinfo import ZoneInfo
+        zone = ZoneInfo(tz)
+    except Exception:
+        zone = timezone.utc
+    n = (now or datetime.now(timezone.utc)).astimezone(zone).time()
+    if start <= end:
+        # Normal same-day window — e.g. 13:00 → 14:00.
+        return start <= n < end
+    # Window crosses midnight — e.g. 22:00 → 07:00.
+    return n >= start or n < end
+
+
+def _in_dnd(prefs: dict, *, now: Optional[datetime] = None) -> bool:
+    until = prefs.get("dnd_until")
+    if not until:
+        return False
+    try:
+        # Both strings ISO 8601; trailing 'Z' acceptable.
+        u = datetime.fromisoformat(until.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return False
+    n = now or datetime.now(timezone.utc)
+    if u.tzinfo is None:
+        u = u.replace(tzinfo=timezone.utc)
+    return u > n
+
+
+def _push_allowed(prefs: dict, kind: str) -> bool:
+    if _in_dnd(prefs):
+        return False
+    if _in_quiet_hours(prefs):
+        return False
+    kp = prefs.get("kind_prefs") or {}
+    # Missing key → enabled by default. False is the only suppress signal.
+    if kind in kp and kp[kind] is False:
+        return False
+    return True
+
+
+class PushPrefsIn(BaseModel):
+    timezone: Optional[str] = Field(None, max_length=64)
+    quiet_hours_start: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    quiet_hours_end: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    kind_prefs: Optional[dict] = None
+
+
+class SnoozeIn(BaseModel):
+    minutes: int = Field(..., ge=5, le=24 * 60)
+
+
+@router.get("/notification-prefs")
+async def get_push_prefs(user=Depends(get_current_user)):
+    of = _of(user)
+    prefs = await _load_push_prefs(user["id"], of["organization_id"])
+    return {
+        "prefs": {
+            "timezone": prefs.get("timezone"),
+            "quiet_hours_start": prefs.get("quiet_hours_start"),
+            "quiet_hours_end": prefs.get("quiet_hours_end"),
+            "dnd_until": prefs.get("dnd_until"),
+            "kind_prefs": prefs.get("kind_prefs") or {},
+        },
+        "kinds": TOGGLEABLE_PUSH_KINDS,
+        "currently_in_quiet_hours": _in_quiet_hours(prefs),
+        "currently_in_dnd": _in_dnd(prefs),
+    }
+
+
+@router.put("/notification-prefs")
+async def update_push_prefs(body: PushPrefsIn, user=Depends(get_current_user)):
+    of = _of(user)
+    upd: dict = {}
+    if body.timezone is not None:
+        upd["timezone"] = body.timezone or "Europe/London"
+    if body.quiet_hours_start is not None:
+        upd["quiet_hours_start"] = body.quiet_hours_start or None
+    if body.quiet_hours_end is not None:
+        upd["quiet_hours_end"] = body.quiet_hours_end or None
+    if body.kind_prefs is not None:
+        # Whitelist to known kinds — defensive against typos & abuse.
+        whitelist = set(TOGGLEABLE_PUSH_KINDS)
+        upd["kind_prefs"] = {
+            k: bool(v) for k, v in body.kind_prefs.items()
+            if k in whitelist
+        }
+    upd["updated_at"] = _now()
+    await db.svc_engineer_push_prefs.update_one(
+        {"user_id": user["id"], **of},
+        {"$set": upd, "$setOnInsert": {"created_at": _now()}},
+        upsert=True,
+    )
+    prefs = await _load_push_prefs(user["id"], of["organization_id"])
+    return {"ok": True, "prefs": prefs}
+
+
+@router.post("/notification-prefs/snooze")
+async def snooze_push(body: SnoozeIn, user=Depends(get_current_user)):
+    """One-tap "snooze all push for N minutes" — beats kind prefs."""
+    of = _of(user)
+    from datetime import timedelta
+    until = (datetime.now(timezone.utc) + timedelta(minutes=body.minutes)).isoformat()
+    await db.svc_engineer_push_prefs.update_one(
+        {"user_id": user["id"], **of},
+        {"$set": {"dnd_until": until, "updated_at": _now()},
+         "$setOnInsert": {"created_at": _now()}},
+        upsert=True,
+    )
+    return {"ok": True, "dnd_until": until, "minutes": body.minutes}
+
+
+@router.delete("/notification-prefs/snooze")
+async def clear_snooze(user=Depends(get_current_user)):
+    of = _of(user)
+    await db.svc_engineer_push_prefs.update_one(
+        {"user_id": user["id"], **of},
+        {"$set": {"dnd_until": None, "updated_at": _now()}},
+    )
+    return {"ok": True}
+
+
 async def _dispatch_push(
     user_id: str, organization_id: str, title: str, body: str,
     link: Optional[str], kind: str,
 ) -> None:
     """Send a Web Push to every active subscription for this user."""
+    # Iter 216h156 — respect the engineer's per-kind opt-out, quiet
+    # hours and snooze-DND window. The in-app row is always written
+    # (audit / catch-up) — only the disruptive Web Push is gated.
+    prefs = await _load_push_prefs(user_id, organization_id)
+    if not _push_allowed(prefs, kind):
+        logger.info("push suppressed by prefs (user=%s kind=%s)", user_id, kind)
+        return
     keys = await _ensure_vapid_in_mongo()
     if not keys.get("private"):
         return
@@ -345,8 +539,15 @@ async def ensure_notification_indexes() -> None:
             [("organization_id", 1), ("user_id", 1)],
         )
         await db.svc_push_subscriptions.create_index([("id", 1)], unique=True)
+        # Iter 216h156 — engineer push prefs (one doc per (user, org)).
+        await db.svc_engineer_push_prefs.create_index(
+            [("organization_id", 1), ("user_id", 1)], unique=True,
+        )
     except Exception as e:
         logger.warning("notification index warning: %s", e)
 
 
-__all__ = ["router", "create_notification", "ensure_notification_indexes"]
+__all__ = [
+    "router", "create_notification", "ensure_notification_indexes",
+    "TOGGLEABLE_PUSH_KINDS",
+]

@@ -6840,6 +6840,15 @@ If the stored email has a hidden character, weird whitespace, or unexpected form
 - None — iter 216h150 ("Nearest to me" sort) just landed.
 
 ### Recently shipped
+- **Iter 216h156 (17 Feb 2026)** — Engineer push prefs + quiet hours (PECR-grade per-kind opt-out).
+  - New collection `svc_engineer_push_prefs` — one doc per (user, org). Stores `timezone`, `quiet_hours_start/end` (HH:MM), `dnd_until` (one-tap snooze), and `kind_prefs` (per-kind opt-out, defaults to enabled).
+  - Gate added to `_dispatch_push` — in-app notification row always lands (catch-up timeline); only the disruptive Web Push channel is suppressed. Matches ICO's "soft opt-in" expectation for transactional alerts.
+  - New endpoints: `GET/PUT /api/svc/engineer/notification-prefs`, `POST/DELETE /api/svc/engineer/notification-prefs/snooze`.
+  - Quiet hours support midnight-crossing windows (e.g. 22:00 → 07:00); respects engineer's timezone via stdlib `zoneinfo`.
+  - 12 toggleable kinds whitelisted: `job_assigned`, `job_rescheduled`, `job_request`, `job_self_claimed`, `appointment`, `attachment`, `note`, `parts_approved`, `parts_rejected`, `ppm_due`, `sla_warning`, `test`. Unknown keys silently dropped on PUT.
+  - Frontend: collapsible `NotificationPrefsPanel` inside `EngineerNotifications.js` triggered by a new gear icon. Three sections: DND snooze chips (30m / 1h / 4h / EOD), quiet-hours time pickers, per-kind toggles (emerald-green switches). testids: `notif-prefs-toggle`, `notif-prefs-snooze-{m}`, `notif-prefs-quiet-start/end`, `notif-prefs-toggle-{kind}`.
+  - Tests: `tests/test_iter_216h156_push_prefs.py` — 9/9 passing (defaults, PUT validation, snooze lifecycle, midnight-crossing quiet hours, same-day window, in-app row lands when push gated). Full regression — **67/67 passing total**.
+
 - **Iter 216h155 (17 Feb 2026)** — SVC compliance audit-log coverage (P1 from process-audit; SOC2 / GDPR / ISO 27001 enabler).
   - Wired `utils.audit.audit_log()` into the 7 highest-risk SVC mutation sites: `cases.transition_case` (every state change), `engineer_queue.claim` (self-allocation), `independence.self_allocate` + `accept_job_request` (non-dispatch case creation), `diary.schedule_case` (admin dispatch), `billing.finalise_invoice` (money commit), `engineer.add_signature` (customer sign-off), `engineer_parts_requests.admin_approve` (chain-of-custody).
   - Action namespace: `svc.case.transition.{state}`, `svc.case.self_claim`, `svc.case.self_allocate`, `svc.case.accept_job_request`, `svc.case.dispatch`, `svc.invoice.finalise`, `svc.case.signature_captured`, `svc.parts.approve`.

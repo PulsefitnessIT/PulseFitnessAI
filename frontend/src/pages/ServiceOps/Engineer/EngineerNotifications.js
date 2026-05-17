@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bell, BellOff, ChevronLeft, CheckCheck, Wrench, Calendar, Trash2,
   Loader2, RefreshCw, ChevronRight, AlertTriangle, ShieldCheck, Inbox,
+  Settings, MoonStar, Clock,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -223,12 +224,253 @@ const Row = ({ n, onOpen, onRead, onDelete }) => {
   );
 };
 
+// ── Notification prefs panel · Iter 216h156 ─────────────────
+//
+// Per-engineer push prefs: quiet hours, per-kind opt-out, snooze.
+// Surfaced inline above the list so engineers find it next to the
+// alerts that are bothering them.
+
+const KIND_LABELS = {
+  job_assigned:     'New job assigned',
+  job_rescheduled:  'Job rescheduled',
+  job_request:      'Inbox: new request',
+  job_self_claimed: 'Self-claim confirmations',
+  appointment:      'Appointment reminders',
+  attachment:       'New attachment',
+  note:             'Case notes',
+  parts_approved:   'Parts approved',
+  parts_rejected:   'Parts rejected',
+  ppm_due:          'PPM due',
+  sla_warning:      'SLA at-risk',
+  test:             'Test notification',
+};
+
+const NotificationPrefsPanel = ({ open, onClose }) => {
+  const [data, setData] = useState(null);
+  const [savingKind, setSavingKind] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/svc/engineer/notification-prefs`, auth());
+      setData(r.data);
+    } catch (e) {
+      notify.error('Failed to load prefs', e?.response?.data?.detail || e.message);
+    }
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  if (!open) return null;
+  if (!data) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center text-xs text-slate-500"
+           data-testid="notif-prefs-panel">
+        <Loader2 size={16} className="animate-spin mx-auto" />
+      </div>
+    );
+  }
+
+  const { prefs, kinds, currently_in_dnd, currently_in_quiet_hours } = data;
+
+  const saveQuiet = async (next) => {
+    setSaving(true);
+    try {
+      const r = await axios.put(
+        `${API}/svc/engineer/notification-prefs`,
+        next, auth(),
+      );
+      setData((d) => ({ ...d, prefs: r.data.prefs }));
+    } catch (e) {
+      notify.error('Save failed', e?.response?.data?.detail || e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleKind = async (kind) => {
+    const current = prefs.kind_prefs?.[kind];
+    const nextVal = current === false ? true : false; // missing == enabled
+    setSavingKind(kind);
+    try {
+      const r = await axios.put(
+        `${API}/svc/engineer/notification-prefs`,
+        { kind_prefs: { ...(prefs.kind_prefs || {}), [kind]: nextVal } },
+        auth(),
+      );
+      setData((d) => ({ ...d, prefs: r.data.prefs }));
+    } catch (e) {
+      notify.error('Save failed', e?.response?.data?.detail || e.message);
+    } finally {
+      setSavingKind(null);
+    }
+  };
+
+  const snooze = async (minutes) => {
+    try {
+      await axios.post(`${API}/svc/engineer/notification-prefs/snooze`,
+                       { minutes }, auth());
+      await load();
+    } catch (e) {
+      notify.error('Snooze failed', e?.response?.data?.detail || e.message);
+    }
+  };
+
+  const clearSnooze = async () => {
+    try {
+      await axios.delete(`${API}/svc/engineer/notification-prefs/snooze`, auth());
+      await load();
+    } catch (e) {
+      notify.error('Clear failed', e?.response?.data?.detail || e.message);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4"
+         data-testid="notif-prefs-panel">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Settings size={14} /> Notification preferences
+          </p>
+          <p className="text-xs text-slate-500">
+            In-app alerts always land. These switches gate the disruptive
+            phone-buzz push only.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-400 hover:text-slate-700 text-xs"
+          data-testid="notif-prefs-close"
+        >
+          Done
+        </button>
+      </div>
+
+      {/* Snooze row */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+        <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <MoonStar size={12} /> Do Not Disturb
+        </p>
+        {currently_in_dnd ? (
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-amber-700">
+              Snoozed until {new Date(prefs.dnd_until).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <button
+              type="button"
+              onClick={clearSnooze}
+              className="text-xs font-semibold text-blue-600 hover:underline"
+              data-testid="notif-prefs-clear-snooze"
+            >
+              Clear
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: '30 min', m: 30 },
+              { label: '1 hr',   m: 60 },
+              { label: '4 hr',   m: 240 },
+              { label: 'Till end of day', m: 480 },
+            ].map((opt) => (
+              <button
+                key={opt.m}
+                type="button"
+                onClick={() => snooze(opt.m)}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100"
+                data-testid={`notif-prefs-snooze-${opt.m}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quiet hours */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+        <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <Clock size={12} /> Quiet hours
+          {currently_in_quiet_hours ? (
+            <span className="ml-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+              Active now
+            </span>
+          ) : null}
+        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="text-xs text-slate-500">Start</label>
+          <input
+            type="time"
+            value={prefs.quiet_hours_start || ''}
+            onChange={(e) => saveQuiet({ quiet_hours_start: e.target.value })}
+            disabled={saving}
+            className="text-xs px-2 py-1 border border-slate-300 rounded font-mono"
+            data-testid="notif-prefs-quiet-start"
+          />
+          <label className="text-xs text-slate-500">End</label>
+          <input
+            type="time"
+            value={prefs.quiet_hours_end || ''}
+            onChange={(e) => saveQuiet({ quiet_hours_end: e.target.value })}
+            disabled={saving}
+            className="text-xs px-2 py-1 border border-slate-300 rounded font-mono"
+            data-testid="notif-prefs-quiet-end"
+          />
+          {(prefs.quiet_hours_start || prefs.quiet_hours_end) ? (
+            <button
+              type="button"
+              onClick={() => saveQuiet({ quiet_hours_start: '', quiet_hours_end: '' })}
+              className="text-xs text-slate-500 hover:underline"
+              data-testid="notif-prefs-quiet-clear"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <p className="text-[10px] text-slate-400">
+          Crosses midnight automatically — e.g. 22:00 → 07:00 silences overnight.
+        </p>
+      </div>
+
+      {/* Per-kind toggles */}
+      <div className="space-y-1">
+        <p className="text-xs font-bold text-slate-700">Per-alert push toggles</p>
+        <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+          {kinds.map((k) => {
+            const enabled = prefs.kind_prefs?.[k] !== false;
+            const busy = savingKind === k;
+            return (
+              <li key={k} className="flex items-center justify-between px-3 py-2">
+                <span className="text-xs text-slate-700">{KIND_LABELS[k] || k}</span>
+                <button
+                  type="button"
+                  onClick={() => toggleKind(k)}
+                  disabled={busy}
+                  className={`relative inline-flex h-5 w-9 rounded-full transition ${
+                    enabled ? 'bg-emerald-500' : 'bg-slate-300'
+                  }`}
+                  data-testid={`notif-prefs-toggle-${k}`}
+                >
+                  <span className={`absolute top-0.5 ${enabled ? 'left-[18px]' : 'left-0.5'} h-4 w-4 rounded-full bg-white transition shadow`} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
 // ── Main page ──────────────────────────────────────────────
 export default function EngineerNotifications() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // 'all' | 'unread'
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -318,6 +560,16 @@ export default function EngineerNotifications() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setPrefsOpen((v) => !v)}
+              className={`p-2 rounded-lg ${prefsOpen ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-100 text-slate-500'}`}
+              data-testid="notif-prefs-toggle"
+              aria-label="Preferences"
+              title="Notification preferences"
+            >
+              <Settings size={18} />
+            </button>
+            <button
+              type="button"
               onClick={load}
               className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
               data-testid="notif-refresh"
@@ -340,6 +592,9 @@ export default function EngineerNotifications() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-3">
+        {/* Iter 216h156 — collapsible prefs panel (quiet hours / kinds / snooze). */}
+        <NotificationPrefsPanel open={prefsOpen} onClose={() => setPrefsOpen(false)} />
+
         {/* Push subscribe panel */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">
