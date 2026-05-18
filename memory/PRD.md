@@ -1,3 +1,36 @@
+## Iter 216h201 — Memberships UX Sweep (May 18, 2026) ✅ P0×6
+
+Lee/Craig screenshots reported 6 issues — all fixed and verified.
+
+### Issues fixed
+1. **Cursor loss in Add Instructor form**: `Field` component was defined inline inside `EditorDrawer`, so every keystroke rebuilt the reference → React unmounted the input → focus lost. Hoisted to module scope.
+2. **Email + Phone mandatory for instructors**: Backend `POST /api/memberships/instructors` now returns 400 on missing/blank email or phone, plus regex format validation on email. Frontend form adds `*` asterisks + client-side validation toast.
+3. **"Age 2006" bug**: `calcAge` now requires strict `YYYY-MM-DD`, uses year/month/day diff (not ms approximation), and clamps to 0-120. A corrupt value like a year-only string returns `null` → no "Age 2006" rendering.
+4. **Open Wizard logout flicker**: `<a href="/memberships/setup">` was triggering a full page reload → SPA reboot → auth flicker. Swapped to React Router `<Link to>` so SPA state survives.
+5. **Light-mode leakage on dark member portal**: `bg-white dark:bg-zinc-900/X` classes never activated the `dark:` variant because the portal root lacked `data-theme="dark"`. Added `data-theme="dark" class="dark"` to the root + AuthGate, mounted a local `<SonnerToaster theme="dark">` so toasts inherit the right theme. Testing agent additionally swept and replaced ALL the broken `bg-white dark:bg-zinc-900/X` patterns with explicit dark colours in MemberPortal.js (portal is dark-only — no theme switching needed).
+6. **`$` → `£` in Invoicing nav**: Lucide `Receipt` icon glyph happens to look like `$`. Swapped to `ReceiptPoundSterling` (proper £ icon) for UK default.
+
+### Tests
+- `backend/tests/test_iter_216h201_instructor_validation.py` — **6/6** ✅
+- `backend/tests/test_iter_216h201_api_instructor.py` (testing agent) — **5/5** ✅ (live HTTP)
+- Combined regression: **77/77** pass across iters 192-201.
+- Testing agent reports 100% on backend + frontend, all 6 issues verified.
+
+### Files
+* `backend/routes/memberships/instructors.py` (email+phone validation in `create_instructor`)
+* `frontend/src/pages/Memberships/InstructorRosterView.js` (hoisted `Field`, hardened `calcAge`, save() validation, asterisks)
+* `frontend/src/pages/Memberships/MembershipsConsole.js` (`ReceiptPoundSterling` icon, `<Link>` for Open Wizard)
+* `frontend/src/pages/Memberships/MemberPortal.js` (dark theme attrs, local Toaster, swept `bg-white dark:bg-zinc-900/X` → `bg-zinc-900/X`)
+* `backend/tests/test_iter_216h201_instructor_validation.py` (NEW, 6 pytests)
+* `backend/tests/test_iter_216h201_api_instructor.py` (NEW by testing agent, 5 live HTTP tests)
+
+### Action required
+**Redeploy** preview → production. Lee/Craig should re-test the 6 reported flows.
+
+---
+
+
+
 ## Iter 216h200 — Memberships Add Member + Plan-Assignment Fixes (May 18, 2026) ✅ P0
 
 Two related Craig-reported bugs on the Memberships console, both fixed.
