@@ -39,7 +39,15 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from pydantic import BaseModel
 
 from utils.database import db, STRIPE_API_KEY
-from routes.memberships.helpers import _now_iso, _require_current_member, _uuid
+from routes.memberships.helpers import (
+    _now_iso,
+    _require_current_member,
+    _require_operator_org,
+    _uuid,
+)
+from utils.auth import get_current_user
+from utils.module_guard import require_module
+from fastapi import Depends
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["memberships-credit-packs"])
@@ -298,4 +306,174 @@ async def credit_pack_status(session_id: str, request: Request):
         "status": txn.get("status"),
         "amount_pence": txn.get("amount_pence"),
         "plan_id": txn.get("plan_id"),
+    }
+
+
+# ═══════════════════════ Operator desk-sale endpoint ═══════════════════════
+
+
+class DeskSaleBody(BaseModel):
+    plan_id: str
+    method: str = "cash"  # cash | card_terminal | bank_transfer | comp | other
+    reference: str | None = None
+    note: str | None = None
+
+
+@router.post(
+    "/memberships/members/{member_id}/sell-pack-at-desk",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def sell_pack_at_desk(
+    member_id: str,
+    body: DeskSaleBody = Body(...),
+    user: dict = Depends(get_current_user),
+):
+    """Iter 216h203 — One-click operator workflow: "Sold a pack at the
+    desk".
+
+    Unlike `record_payment` (which retires every open membership when
+    activating a plan), this endpoint:
+
+      * Only accepts ``kind == "class_pack"`` plans.
+      * COEXISTS with existing recurring / fixed_term memberships
+        (no retirement) — so a member on a Gold subscription can buy
+        a 5-pack at the desk without losing their subscription.
+      * Tops up the member's existing active pack of the SAME plan
+        instead of spawning a duplicate row (matches the self-serve
+        webhook in `complete_credit_pack_purchase`).
+      * Records a `payment_transactions` row with ``kind="credit_pack_desk"``
+        and ``mode="manual"`` so the operator's books stay in sync.
+      * Bumps the member's lifetime_value_pence.
+
+    Allowed payment methods: cash, card_terminal, bank_transfer, comp,
+    other. "comp" is the special path for staff/influencer free packs
+    — still records a row (with amount_pence=0 audit) but doesn't bump
+    lifetime value.
+    """
+    ALLOWED_METHODS = {"cash", "card_terminal", "bank_transfer", "comp", "other"}
+    if body.method not in ALLOWED_METHODS:
+        raise HTTPException(400, f"method must be one of {sorted(ALLOWED_METHODS)}")
+    org_id = await _require_operator_org(user)
+    member = await db.members.find_one(
+        {"id": member_id, "organization_id": org_id},
+        {"_id": 0, "password": 0},
+    )
+    if not member:
+        raise HTTPException(404, "Member not found")
+    plan = await db.membership_plans.find_one(
+        {"id": body.plan_id, "organization_id": org_id,
+         "archived": {"$ne": True}},
+        {"_id": 0},
+    )
+    if not plan:
+        raise HTTPException(404, "Plan not found")
+    if plan.get("kind") != "class_pack":
+        raise HTTPException(
+            400,
+            "Desk sale is for class packs only — use 'Record payment' for "
+            "subscription / fixed-term plans.",
+        )
+    credits = int(plan.get("credits_count") or 0)
+    if credits <= 0:
+        raise HTTPException(400, "Pack has no credits configured — fix the plan first.")
+
+    # Compute expiry.
+    expires_at = None
+    expiry_days = plan.get("pack_expiry_days")
+    if expiry_days:
+        from datetime import datetime as _dt
+        expires_at = (
+            _dt.now(timezone.utc) + timedelta(days=int(expiry_days))
+        ).isoformat()
+
+    # Top up an existing active pack of the SAME plan, otherwise create.
+    existing = await db.member_memberships.find_one(
+        {"member_id": member_id, "plan_id": body.plan_id, "status": "active"},
+        {"_id": 0},
+    )
+    mm_id: str
+    if existing:
+        new_credits = int(existing.get("credits_remaining") or 0) + credits
+        update_doc: dict = {
+            "$set": {
+                "credits_remaining": new_credits,
+                "last_topup_at": _now_iso(),
+                "last_topup_method": body.method,
+            },
+            "$push": {
+                "audit_log": {
+                    "at": _now_iso(),
+                    "actor_id": user["id"],
+                    "action": f"desk_sale_topup:{body.method}",
+                    "credits_added": credits,
+                    "note": body.note,
+                },
+            },
+        }
+        if expires_at:
+            update_doc["$set"]["credits_expires_at"] = expires_at
+        await db.member_memberships.update_one({"id": existing["id"]}, update_doc)
+        mm_id = existing["id"]
+        topped_up = True
+    else:
+        mm_id = _uuid()
+        await db.member_memberships.insert_one({
+            "id": mm_id,
+            "member_id": member_id,
+            "organization_id": org_id,
+            "plan_id": body.plan_id,
+            "status": "active",
+            "credits_remaining": credits,
+            "credits_expires_at": expires_at,
+            "joined_at": _now_iso(),
+            "purchased_via": "desk_sale",
+            "desk_sale_method": body.method,
+            "audit_log": [{
+                "at": _now_iso(),
+                "actor_id": user["id"],
+                "action": f"desk_sale_new:{body.method}",
+                "credits_added": credits,
+                "note": body.note,
+            }],
+        })
+        topped_up = False
+
+    # Payment ledger row — comp sales record £0.
+    amount_pence = 0 if body.method == "comp" else int(plan.get("price_pence") or 0)
+    org_doc = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "currency": 1},
+    ) or {}
+    await db.payment_transactions.insert_one({
+        "id": _uuid(),
+        "member_id": member_id,
+        "membership_id": mm_id,
+        "plan_id": body.plan_id,
+        "organization_id": org_id,
+        "amount_pence": amount_pence,
+        "currency": org_doc.get("currency") or "GBP",
+        "kind": "credit_pack_desk",
+        "mode": "manual",
+        "method": body.method,
+        "status": "complete",
+        "payment_status": "paid" if body.method != "comp" else "comp",
+        "reference": body.reference,
+        "note": body.note,
+        "recorded_by": user["id"],
+        "created_at": _now_iso(),
+    })
+
+    # Bump lifetime value (skip for comp).
+    if amount_pence > 0:
+        await db.members.update_one(
+            {"id": member_id},
+            {"$inc": {"lifetime_value_pence": amount_pence}},
+        )
+
+    return {
+        "ok": True,
+        "membership_id": mm_id,
+        "topped_up": topped_up,
+        "credits_added": credits,
+        "amount_pence": amount_pence,
+        "method": body.method,
     }

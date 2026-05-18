@@ -60,6 +60,7 @@ const InvoicingTab = lazy(() => import('@/pages/Memberships/InvoicingTab'));
 const CoursesView = lazy(() => import('@/pages/Memberships/CoursesView'));
 const ClassActionDrawer = lazy(() => import('@/pages/Memberships/ClassActionDrawer'));
 const MemberEditDrawer = lazy(() => import('@/pages/Memberships/MemberEditDrawer'));
+const SellPackAtDeskModal = lazy(() => import('@/pages/Memberships/modals/SellPackAtDeskModal'));
 const StudioBuilderTab = lazy(() => import('@/pages/Memberships/StudioBuilderTab'));
 const FamilyBillingTab = lazy(() => import('@/pages/Memberships/FamilyBillingTab'));
 const ParentPortalTab = lazy(() => import('@/pages/Memberships/ParentPortalTab'));
@@ -788,7 +789,21 @@ function MembersTab({ API, headers }) {
 function MemberDetailDrawer({ API, headers, memberId, onClose }) {
   const confirm = useConfirm();
   const [recordingPlan, setRecordingPlan] = useState(null);
+  const [sellPackOpen, setSellPackOpen] = useState(false);
+  const [plans, setPlans] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Load plans once so the Sell-at-desk modal can filter by kind=class_pack.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/memberships/plans`, { headers });
+        if (!cancelled) setPlans(r.data?.plans || []);
+      } catch { /* surfaced in the modal as "no packs" */ }
+    })();
+    return () => { cancelled = true; };
+  }, [API, headers]);
 
   const assign = async (plan_id) => {
     try {
@@ -836,6 +851,7 @@ function MemberDetailDrawer({ API, headers, memberId, onClose }) {
         onFreeze={freeze}
         onCancel={cancel}
         onRecord={(plan) => setRecordingPlan(plan)}
+        onSellPackAtDesk={() => setSellPackOpen(true)}
       />
       {recordingPlan && (
         <RecordPaymentModal
@@ -845,6 +861,17 @@ function MemberDetailDrawer({ API, headers, memberId, onClose }) {
           plan={recordingPlan}
           onClose={(refresh) => { setRecordingPlan(null); if (refresh) setReloadKey((k) => k + 1); }}
         />
+      )}
+      {sellPackOpen && (
+        <Suspense fallback={null}>
+          <SellPackAtDeskModal
+            API={API}
+            headers={headers}
+            memberId={memberId}
+            plans={plans}
+            onClose={(refresh) => { setSellPackOpen(false); if (refresh) setReloadKey((k) => k + 1); }}
+          />
+        </Suspense>
       )}
     </>
   );

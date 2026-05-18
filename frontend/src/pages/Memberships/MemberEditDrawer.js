@@ -242,7 +242,7 @@ function ClassesTab({ bookings }) {
 }
 
 // ── Payments tab ───────────────────────────────────────────────
-function PaymentsTab({ memberId, API, headers, memberships, plans, onAssignPlan, onFreeze, onCancel, onRecord }) {
+function PaymentsTab({ memberId, API, headers, memberships, plans, onAssignPlan, onFreeze, onCancel, onRecord, onSellPackAtDesk }) {
   const [pay, setPay] = useState({ payments: [], invoices: [], totals: { paid_pence: 0, outstanding_pence: 0 } });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -264,6 +264,25 @@ function PaymentsTab({ memberId, API, headers, memberships, plans, onAssignPlan,
 
   return (
     <div className="space-y-5" data-testid="member-drawer-payments">
+      {/* Iter 216h203 — One-click desk-sale CTA for cash buyers. Sits
+         at the top of the tab so the front-desk operator doesn't have
+         to scroll past subscription controls. Only enabled when the
+         org has at least one class_pack plan configured. */}
+      {(plans || []).some((p) => p.kind === 'class_pack' && !p.archived) && (
+        <button
+          type="button"
+          onClick={onSellPackAtDesk}
+          className="w-full rounded-lg border border-[var(--color-brand-cyan)]/40 bg-[var(--color-brand-cyan)]/10 hover:bg-[var(--color-brand-cyan)]/20 text-[var(--color-brand-cyan)] p-3 flex items-center justify-between gap-3 transition"
+          data-testid="member-drawer-sell-pack-cta"
+        >
+          <span className="text-left">
+            <p className="text-[11px] font-extrabold uppercase tracking-wider">Sold a pack at the desk</p>
+            <p className="text-[10px] mt-0.5 opacity-80">One-click cash sale · keeps subscription intact</p>
+          </span>
+          <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-[var(--color-brand-cyan)]/20">↗</span>
+        </button>
+      )}
+
       {/* Plan controls */}
       <section>
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-2">Current plan</p>
@@ -511,7 +530,7 @@ function FamilyTab({ memberId, member, API, headers, age, onSavedParent }) {
 }
 
 // ── Drawer ─────────────────────────────────────────────────────
-export default function MemberEditDrawer({ API, headers, memberId, onClose, onAssignPlan, onFreeze, onCancel, onRecord }) {
+export default function MemberEditDrawer({ API, headers, memberId, onClose, onAssignPlan, onFreeze, onCancel, onRecord, onSellPackAtDesk }) {
   const [data, setData] = useState(null);
   const [plans, setPlans] = useState([]);
   const [tab, setTab] = useState('profile');
@@ -645,6 +664,7 @@ export default function MemberEditDrawer({ API, headers, memberId, onClose, onAs
               onFreeze={onFreeze}
               onCancel={onCancel}
               onRecord={onRecord}
+              onSellPackAtDesk={onSellPackAtDesk}
             />
           )}
           {tab === 'activity' && (
