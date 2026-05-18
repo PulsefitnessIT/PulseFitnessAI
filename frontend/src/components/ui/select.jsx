@@ -51,6 +51,11 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
+      // Iter 216h205 — Prevent Dialog from closing when clicking Select options
+      // The Select content is portaled outside the Dialog, so clicks are treated
+      // as "outside" the Dialog. We stop propagation to prevent the Dialog's
+      // dismissable layer from detecting the click.
+      onPointerDownCapture={(e) => e.stopPropagation()}
       className={cn(
         "relative z-50 max-h-[--radix-select-content-available-height] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-select-content-transform-origin]",
         position === "popper" &&

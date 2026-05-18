@@ -37,6 +37,11 @@ const FaultDialogs = ({
  // Fault templates + codes
  API, canManageOrgTemplates,
 }) => {
+ // Iter 216h205 — Track if any Select dropdown is open to prevent Dialog close
+ // Use a ref so the value is immediately available in the onOpenChange callback
+ const selectOpenRef = React.useRef(false);
+ const [, forceUpdate] = useState(0);
+ 
  // Iter 216f — back-gesture close on the main "Log a Fault" dialog so
  // mobile operators can swipe back to dismiss the modal instead of
  // accidentally exiting the dashboard. See `lib/useBackGestureClose.js`.
@@ -46,8 +51,23 @@ const FaultDialogs = ({
  return (
  <>
  {/* Log Issue Dialog - Multi-step: Form → Triage → Resolution */}
- <Dialog open={showIssueDialog} onOpenChange={(open) => { if (!open) onResetDialog(); }}>
- <DialogContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="issue-dialog">
+ {/* Iter 216h205 — intercept clicks on Radix popper content
+    (Select dropdowns, Popovers) so the Dialog doesn't close when a
+    serial number is picked. */}
+ <Dialog open={showIssueDialog} onOpenChange={(open) => { 
+   // Iter 216h205 — Don't close if a Select is open (Radix portal issue)
+   // The Select's onOpenChange fires AFTER the Dialog's, so we use a ref
+   console.log('[FaultDialogs] Dialog onOpenChange:', open, 'selectOpenRef:', selectOpenRef.current);
+   if (!open && selectOpenRef.current) {
+     console.log('[FaultDialogs] Blocking dialog close - select is open');
+     return;
+   }
+   if (!open) onResetDialog(); 
+ }}>
+ <DialogContent
+ className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto"
+ data-testid="issue-dialog"
+ >
  <DialogHeader>
  <DialogTitle className="text-[var(--theme-text)]" data-testid="issue-dialog-title">
  {issueStep === 'form' && t('faults.log_fault')}
@@ -119,17 +139,29 @@ const FaultDialogs = ({
      surfaces only treadmill serials. */}
  <div>
  <Label className="text-[var(--theme-text)]">{t('faults.serial_number')}</Label>
- <Select value={issueForm.serial_number} onValueChange={(val) => {
- const equip = allEquipment.find(e => (e.serial_number || e.id) === val);
- if (equip) {
- setIssueForm({ ...issueForm, serial_number: equip.serial_number || equip.name, machine_type: selectedMachineType || equip.equipment_type || equip.name, supplier: equip.manufacturer || '' });
- fetchCoverage(equip.id);
- const serialKey = equip.serial_number || equip.name;
- const openFaults = issues.filter(i => i.status === 'open' && (i.serial_number === serialKey || i.serial_number === equip.name));
- if (openFaults.length > 0) setExistingFaultWarning({ faults: openFaults, machineName: equip.name || serialKey });
- else setExistingFaultWarning(null);
- }
- }}>
+ <Select 
+   value={issueForm.serial_number} 
+   onValueChange={(val) => {
+     const equip = allEquipment.find(e => (e.serial_number || e.id) === val);
+     if (equip) {
+       setIssueForm({ ...issueForm, serial_number: equip.serial_number || equip.name, machine_type: selectedMachineType || equip.equipment_type || equip.name, supplier: equip.manufacturer || '' });
+       fetchCoverage(equip.id);
+       const serialKey = equip.serial_number || equip.name;
+       const openFaults = issues.filter(i => i.status === 'open' && (i.serial_number === serialKey || i.serial_number === equip.name));
+       if (openFaults.length > 0) setExistingFaultWarning({ faults: openFaults, machineName: equip.name || serialKey });
+       else setExistingFaultWarning(null);
+     }
+   }}
+   onOpenChange={(open) => {
+     console.log('[FaultDialogs] Serial Select onOpenChange:', open);
+     if (open) {
+       selectOpenRef.current = true;
+     } else {
+       // Delay setting to false so the Dialog's onOpenChange check happens first
+       setTimeout(() => { selectOpenRef.current = false; }, 100);
+     }
+   }}
+ >
  <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-2" data-testid="issue-serial-select">
  <SelectValue placeholder={selectedMachineType ? t('faults.select_serial') : t('faults.select_type_first')} />
  </SelectTrigger>

@@ -23,11 +23,65 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
+const DialogContent = React.forwardRef(({ className, children, onPointerDownOutside: _onPointerDownOutside, onInteractOutside: _onInteractOutside, onFocusOutside: _onFocusOutside, ...props }, ref) => {
+  // Iter 216h205 — Radix Select/Popover inside Dialog fix.
+  // When a Select dropdown is open inside a Dialog, clicking on an option
+  // fires onPointerDownOutside/onInteractOutside because the Select content
+  // is portaled outside the Dialog. We intercept these events and check if
+  // the click target is inside a Radix popper/select/popover element.
+  const isRadixPopperElement = (target) => {
+    if (!target || !target.closest) return false;
+    return !!(
+      target.closest('[data-radix-popper-content-wrapper]') ||
+      target.closest('[data-radix-select-content]') ||
+      target.closest('[data-radix-select-viewport]') ||
+      target.closest('[data-radix-popover-content]') ||
+      target.closest('[role="listbox"]') ||
+      target.closest('[role="option"]')
+    );
+  };
+
+  const handlePointerDownOutside = React.useCallback((e) => {
+    const target = e.target;
+    console.log('[Dialog] onPointerDownOutside target:', target?.tagName, target?.className?.substring?.(0, 50), target?.getAttribute?.('role'));
+    if (isRadixPopperElement(target)) {
+      console.log('[Dialog] Preventing dialog close - click was inside Radix popper');
+      e.preventDefault();
+      return;
+    }
+    _onPointerDownOutside?.(e);
+  }, [_onPointerDownOutside]);
+
+  const handleInteractOutside = React.useCallback((e) => {
+    const target = e.target;
+    console.log('[Dialog] onInteractOutside target:', target?.tagName, target?.className?.substring?.(0, 50), target?.getAttribute?.('role'));
+    if (isRadixPopperElement(target)) {
+      console.log('[Dialog] Preventing dialog close - interaction was inside Radix popper');
+      e.preventDefault();
+      return;
+    }
+    _onInteractOutside?.(e);
+  }, [_onInteractOutside]);
+
+  const handleFocusOutside = React.useCallback((e) => {
+    const target = e.target;
+    console.log('[Dialog] onFocusOutside target:', target?.tagName, target?.className?.substring?.(0, 50), target?.getAttribute?.('role'));
+    if (isRadixPopperElement(target)) {
+      console.log('[Dialog] Preventing dialog close - focus was inside Radix popper');
+      e.preventDefault();
+      return;
+    }
+    _onFocusOutside?.(e);
+  }, [_onFocusOutside]);
+
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      onPointerDownOutside={handlePointerDownOutside}
+      onInteractOutside={handleInteractOutside}
+      onFocusOutside={handleFocusOutside}
       className={cn(
         // Iter 215d6 — mobile: dialog centres inside the safe zone
         // (top-16 to bottom-16) so its close button and any footer
@@ -52,7 +106,8 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
       {children}
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+);
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({
