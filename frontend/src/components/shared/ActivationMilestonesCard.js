@@ -17,6 +17,7 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Circle, Sparkles, ArrowRight, X } from 'lucide-react';
 import { useAuth } from '@/App';
 import { useUserPref } from '@/utils/userPrefs';
@@ -25,21 +26,38 @@ const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND
 const DISMISS_KEY = 'gymaxis:activation_milestones_dismissed';
 
 // Map each milestone event_type to a concrete UI action hint so users
-// know exactly where to go next. Unknown events fall back to a blank
-// hint (safer than guessing).
+// know exactly where to go next. Iter 216h193 — paths are now resolved
+// at click-time so Pulse Pro orgs (account_type === 'pulse_pro' / 'lite')
+// land on `/pulse?…` and full GymAxis orgs land on `/dashboard?…`. The
+// `equipment` CTA also passes `onboarding=1` so the operations dashboard
+// auto-opens the OnboardingWizard (Step 1: Add Your Equipment) rather
+// than just switching tab — which was Craig's bug report.
 const ACTION_HINTS = {
-  first_login:             { hint: 'Welcome aboard — you\'re here.', path: null },
-  first_equipment_added:   { hint: 'Add your first piece of equipment', path: '/dashboard?tab=equipment' },
-  first_member_added:      { hint: 'Add a member to Memberships',      path: '/memberships' },
-  first_booking_taken:     { hint: 'Take your first class booking',    path: '/memberships' },
-  first_invoice_generated: { hint: 'Generate your first invoice',      path: '/memberships' },
-  first_staff_invited:     { hint: 'Invite a teammate',                path: '/dashboard?tab=staffing' },
-  first_class_scheduled:   { hint: 'Schedule a class template',        path: '/memberships' },
-  module_activated:        { hint: 'Switch on another module',         path: '/account' },
+  first_login:             { hint: 'Welcome aboard — you\'re here.',  ops: false, suffix: null },
+  first_equipment_added:   { hint: 'Add your first piece of equipment', ops: true,  suffix: '?tab=equipment&onboarding=1' },
+  first_member_added:      { hint: 'Add a member to Memberships',     ops: false, suffix: '/memberships?tab=members&add=1' },
+  first_booking_taken:     { hint: 'Take your first class booking',   ops: false, suffix: '/memberships?tab=schedule' },
+  first_invoice_generated: { hint: 'Generate your first invoice',     ops: false, suffix: '/memberships?tab=billing' },
+  first_staff_invited:     { hint: 'Invite a teammate',               ops: true,  suffix: '?tab=staffing' },
+  first_class_scheduled:   { hint: 'Schedule a class template',       ops: false, suffix: '/memberships?tab=schedule' },
+  module_activated:        { hint: 'Switch on another module',        ops: false, suffix: '/account?tab=modules' },
 };
 
 export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  // Iter 216h193 — Operations base path swings between brands:
+  //   • Pulse Fitness Pro / Lite orgs       → /pulse
+  //   • Full GymAxis Pro / everything else  → /dashboard
+  // Picking the right one here means the equipment CTA opens the
+  // OnboardingWizard on the user's actual operations page rather than
+  // a stale /dashboard route that 404s for Pulse customers.
+  const opsBase = (user?.account_type === 'pulse_pro' || user?.account_type === 'lite') ? '/pulse' : '/dashboard';
+  const handleGo = (hint) => {
+    if (!hint?.suffix && hint?.suffix !== '') return;
+    const target = hint.ops ? `${opsBase}${hint.suffix}` : hint.suffix;
+    navigate(target);
+  };
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(() => {
@@ -191,16 +209,17 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
                 >
                   {m.label}
                 </span>
-                {!m.fired && hint.path && (
-                  <a
-                    href={hint.path}
-                    className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold hover:underline"
+                {!m.fired && hint.suffix && (
+                  <button
+                    type="button"
+                    onClick={() => handleGo(hint)}
+                    className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold hover:underline cursor-pointer bg-transparent border-0 p-0"
                     style={{ color: 'var(--color-brand-blue)' }}
                     data-testid={`activation-cta-${m.event_type}`}
                   >
                     {hint.hint}
                     <ArrowRight size={12} />
-                  </a>
+                  </button>
                 )}
               </li>
             );

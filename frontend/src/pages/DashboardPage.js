@@ -115,6 +115,14 @@ const DashboardPage = () => {
   React.useEffect(() => {
     const sessionId = searchParams.get('session_id');
     if (sessionId) checkPaymentStatus(sessionId, t('dashboard.payment_success'));
+    // Iter 216h193 — handle deep-link query params from the "Your first wins"
+    // CTA on the Start tab.
+    //   ?tab=…           → switch the active tab (equipment / staffing / …)
+    //   ?onboarding=1    → open the equipment OnboardingWizard immediately
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+    const onboarding = searchParams.get('onboarding');
+    if (onboarding === '1') setShowOnboarding(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

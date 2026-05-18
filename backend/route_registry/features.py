@@ -13,6 +13,7 @@ from routes.ai_diagnosis import router as ai_diagnosis_router
 from routes.risk_assessments import router as risk_assessments_router
 from routes.purchase_orders import router as purchase_orders_router
 from routes.suppliers import router as suppliers_router
+from routes.suppliers_catalogue import router as suppliers_catalogue_router
 from routes.digest import router as digest_router
 from routes.onboarding import router as onboarding_router
 from routes.gym_layouts import router as gym_layouts_router
@@ -170,6 +171,7 @@ _PER_ORG_GATED_ROUTERS = (
 _UNGATED_ROUTERS = (
     check_sheets_router, reports_router, ai_diagnosis_router,
     risk_assessments_router, purchase_orders_router, suppliers_router,
+    suppliers_catalogue_router,
     digest_router, onboarding_router, gym_layouts_router,
     health_score_router, supplier_portal_router, qr_codes_router,
     expiry_alerts_router, integrations_router,

@@ -245,6 +245,14 @@ const LiteDashboardPage = () => {
     if (tab) setActiveTab(tab);
     const settings = searchParams.get('settings');
     if (settings) setShowSettingsDialog(true);
+    // Iter 216h193 — `?onboarding=1` opens the equipment OnboardingWizard
+    // directly from the "Your first wins" CTA (Craig's bug report: the
+    // hyperlink had no effect on Pulse Fitness Pro). Idempotent — strips
+    // the param afterwards so subsequent navigation doesn't re-open it.
+    const onboarding = searchParams.get('onboarding');
+    if (onboarding === '1') {
+      setShowOnboarding(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 

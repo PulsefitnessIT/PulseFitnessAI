@@ -21,10 +21,11 @@ import AuditDetailPanel from './AuditDetailPanel';
 import { EquipmentCardSkeleton } from '@/components/shared/Skeleton';
 import ManufacturerCombobox from '@/components/equipment/ManufacturerCombobox';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
+import DatePicker from '@/components/shared/DatePicker';
+import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
 const SLA_RESPONSE_OPTIONS = [
-  { value: '48h', label: '48 hours' },
-  { value: '72h', label: '72 hours' },
+  ...SLA_RESPONSE_TIME_OPTIONS.filter((o) => o.value !== 'custom'),
   { value: '__other__', label: 'Other (enter manually)' },
 ];
 
@@ -808,23 +809,41 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  { key: 'equipment_type', label: 'Type', placeholder: 'e.g. Treadmill' },
  { key: 'model', label: 'Model', placeholder: 'Model' },
  { key: 'serial_number', label: 'Serial Number', placeholder: 'Serial number' },
- { key: 'location', label: 'Location', placeholder: 'e.g. Main cardio floor, Row 2' },
- { key: 'purchase_date', label: 'Purchase Date', placeholder: 'YYYY-MM-DD', type: 'date' },
- { key: 'warranty_expiry', label: 'Warranty Expiry', placeholder: 'YYYY-MM-DD', type: 'date' },
+ { key: 'location', label: 'Location', placeholder: 'e.g. Cardio Zone', datalist: 'edit-location-presets' },
+ { key: 'purchase_date', label: 'Purchase Date', type: 'date' },
+ { key: 'warranty_expiry', label: 'Warranty Expiry', type: 'date' },
  { key: 'sla_contract_ref', label: 'SLA Contract Reference', placeholder: 'Contract reference number' },
- { key: 'sla_expiry', label: 'SLA Expiry Date', placeholder: 'YYYY-MM-DD', type: 'date' },
+ { key: 'sla_expiry', label: 'SLA Expiry Date', type: 'date' },
  { key: 'notes', label: 'Notes', placeholder: 'Additional notes' },
  ].map(field => (
  <div key={field.key}>
  <label className="text-[var(--color-text-muted)] text-sm">{field.label}</label>
- <Input
- type={field.type || 'text'}
- value={editForm[field.key] || ''}
- onChange={e => setEditForm({...editForm, [field.key]: e.target.value})}
- placeholder={field.placeholder}
- className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
- data-testid={`edit-${field.key}`}
- />
+ {field.type === 'date' ? (
+   <DatePicker
+     value={editForm[field.key] || ''}
+     onChange={(iso) => setEditForm({ ...editForm, [field.key]: iso })}
+     placeholder="DD/MM/YYYY"
+     inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+     testid={`edit-${field.key}`}
+   />
+ ) : (
+   <>
+     <Input
+       type="text"
+       value={editForm[field.key] || ''}
+       onChange={e => setEditForm({...editForm, [field.key]: e.target.value})}
+       placeholder={field.placeholder}
+       list={field.datalist}
+       className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+       data-testid={`edit-${field.key}`}
+     />
+     {field.datalist === 'edit-location-presets' && (
+       <datalist id="edit-location-presets">
+         {EQUIPMENT_LOCATION_PRESETS.map((loc) => <option key={loc} value={loc} />)}
+       </datalist>
+     )}
+   </>
+ )}
  </div>
  ))}
 

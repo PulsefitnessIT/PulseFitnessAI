@@ -15,6 +15,12 @@ import {
  FileSpreadsheet, FileText, Download,
 } from 'lucide-react';
 import InvoiceImportWizard from './InvoiceImportWizard';
+import DatePicker from '@/components/shared/DatePicker';
+import SupplierAutocomplete from '@/components/shared/SupplierAutocomplete';
+import {
+  SLA_RESPONSE_TIME_OPTIONS,
+  EQUIPMENT_LOCATION_PRESETS,
+} from '@/utils/operationsDropdowns';
 
 const EQUIPMENT_TYPES = [
  'Treadmill', 'Exercise Bike', 'Cross Trainer', 'Rower', 'Stair Climber',
@@ -265,13 +271,71 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
  <SelectTrigger className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-type-${idx}`}><SelectValue placeholder="Type" /></SelectTrigger>
  <SelectContent className="bg-[var(--theme-surface)] border-white/10 text-white">{EQUIPMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
  </Select>
- <Input value={eq.manufacturer} onChange={e => updateEquipment(idx, 'manufacturer', e.target.value)} placeholder="Manufacturer" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-mfr-${idx}`} />
+ {/* Iter 216h193 — Supplier autocomplete (curated UK list + org's
+     own suppliers). Triggers a photo-lookup on selection so newly
+     onboarded equipment gets the right product image automatically. */}
+ <SupplierAutocomplete
+   value={eq.manufacturer}
+   onChange={(v) => updateEquipment(idx, 'manufacturer', v)}
+   onSelectSupplier={async (s) => {
+     if (!s) return;
+     try {
+       const token = localStorage.getItem('token');
+       const r = await axios.get(`${API}/suppliers/catalogue/photo-lookup`, {
+         params: { supplier: s.name, model: eq.model || '' },
+         headers: { Authorization: `Bearer ${token}` },
+       });
+       if (r.data?.photo_url && !eq.photo_url) {
+         updateEquipment(idx, 'photo_url', r.data.photo_url);
+       }
+     } catch { /* photo lookup is best-effort */ }
+   }}
+   placeholder="Supplier / Manufacturer"
+   inputClassName="bg-[var(--theme-surface)] border-white/10 text-white text-sm"
+   testid={`equip-mfr-${idx}`}
+ />
  <Input value={eq.model} onChange={e => updateEquipment(idx, 'model', e.target.value)} placeholder="Model" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-model-${idx}`} />
  <Input value={eq.serial_number} onChange={e => updateEquipment(idx, 'serial_number', e.target.value)} placeholder="Serial Number" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-sn-${idx}`} />
- <Input value={eq.location} onChange={e => updateEquipment(idx, 'location', e.target.value)} placeholder="Location (e.g., Floor 1)" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-loc-${idx}`} />
- <Input value={eq.sla_response_time || ''} onChange={e => updateEquipment(idx, 'sla_response_time', e.target.value)} placeholder="SLA Response Time" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-sla-${idx}`} />
+ {/* Iter 216h193 — Location now offers a suggestion list (Cardio Zone,
+     Studio 1, Free Weights, …) via a native datalist while still
+     allowing free-text for bespoke layouts. */}
+ <span className="block">
+   <Input
+     value={eq.location}
+     onChange={e => updateEquipment(idx, 'location', e.target.value)}
+     placeholder="Location (e.g., Cardio Zone)"
+     list={`equip-loc-list-${idx}`}
+     className="bg-[var(--theme-surface)] border-white/10 text-white text-sm"
+     data-testid={`equip-loc-${idx}`}
+   />
+   <datalist id={`equip-loc-list-${idx}`}>
+     {EQUIPMENT_LOCATION_PRESETS.map((loc) => <option key={loc} value={loc} />)}
+   </datalist>
+ </span>
+ {/* Iter 216h193 — SLA Response Time is now an enum dropdown (2h /
+     4h / next business day / 5d / custom) so reports can compare
+     SLA breach rates apples-to-apples across the estate. */}
+ <Select value={eq.sla_response_time || ''} onValueChange={v => updateEquipment(idx, 'sla_response_time', v)}>
+   <SelectTrigger className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-sla-${idx}`}>
+     <SelectValue placeholder="SLA Response Time" />
+   </SelectTrigger>
+   <SelectContent className="bg-[var(--theme-surface)] border-white/10 text-white">
+     {SLA_RESPONSE_TIME_OPTIONS.map((opt) => (
+       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+     ))}
+   </SelectContent>
+ </Select>
  <Input value={eq.sla_contract_ref || ''} onChange={e => updateEquipment(idx, 'sla_contract_ref', e.target.value)} placeholder="SLA Contract Ref" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-sla-ref-${idx}`} />
- <Input value={eq.sla_expiry || ''} onChange={e => updateEquipment(idx, 'sla_expiry', e.target.value)} placeholder="SLA Expiry Date" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-sla-exp-${idx}`} />
+ {/* Iter 216h193 — SLA Expiry Date now uses the platform-wide
+     DD/MM/YYYY DatePicker (Shadcn calendar) so dates stay consistent
+     across reports and exports. */}
+ <DatePicker
+   value={eq.sla_expiry || ''}
+   onChange={(iso) => updateEquipment(idx, 'sla_expiry', iso)}
+   placeholder="SLA Expiry Date"
+   inputClassName="bg-[var(--theme-surface)] border-white/10 text-white text-sm"
+   testid={`equip-sla-exp-${idx}`}
+ />
  </div>
 
  {equipment.length > 1 && (

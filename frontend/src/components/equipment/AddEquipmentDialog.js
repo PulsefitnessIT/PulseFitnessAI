@@ -8,10 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Camera, X } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ManufacturerCombobox from './ManufacturerCombobox';
+import DatePicker from '@/components/shared/DatePicker';
+import SupplierAutocomplete from '@/components/shared/SupplierAutocomplete';
+import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
+// Iter 216h193 — use the platform-wide SLA enum so reports compare
+// across the estate. Kept the "Other" escape hatch for bespoke
+// contracts that don't fit a standard tier.
 const SLA_RESPONSE_OPTIONS = [
-  { value: '48h', label: '48 hours' },
-  { value: '72h', label: '72 hours' },
+  ...SLA_RESPONSE_TIME_OPTIONS.filter((o) => o.value !== 'custom'),
   { value: '__other__', label: 'Other (enter manually)' },
 ];
 
@@ -218,43 +223,47 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
               <Input
                 value={form.location}
                 onChange={(e) => setField('location', e.target.value)}
-                placeholder="e.g. Main cardio floor"
+                placeholder="e.g. Cardio Zone"
+                list="add-equip-location-presets"
                 className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
                 data-testid="add-equip-location"
               />
+              <datalist id="add-equip-location-presets">
+                {EQUIPMENT_LOCATION_PRESETS.map((loc) => <option key={loc} value={loc} />)}
+              </datalist>
             </div>
           </div>
 
-          {/* Date pickers */}
+          {/* Date pickers — DD/MM/YYYY platform-standard */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <Label className="text-[var(--color-text-muted)] text-sm">Purchase Date</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={form.purchase_date}
-                onChange={(e) => setField('purchase_date', e.target.value)}
-                className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
-                data-testid="add-equip-purchase-date"
+                onChange={(iso) => setField('purchase_date', iso)}
+                placeholder="DD/MM/YYYY"
+                inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                testid="add-equip-purchase-date"
               />
             </div>
             <div>
               <Label className="text-[var(--color-text-muted)] text-sm">Warranty Expiry</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={form.warranty_expiry}
-                onChange={(e) => setField('warranty_expiry', e.target.value)}
-                className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
-                data-testid="add-equip-warranty-expiry"
+                onChange={(iso) => setField('warranty_expiry', iso)}
+                placeholder="DD/MM/YYYY"
+                inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                testid="add-equip-warranty-expiry"
               />
             </div>
             <div>
               <Label className="text-[var(--color-text-muted)] text-sm">SLA Expiry</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={form.sla_expiry}
-                onChange={(e) => setField('sla_expiry', e.target.value)}
-                className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
-                data-testid="add-equip-sla-expiry"
+                onChange={(iso) => setField('sla_expiry', iso)}
+                placeholder="DD/MM/YYYY"
+                inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                testid="add-equip-sla-expiry"
               />
             </div>
           </div>
