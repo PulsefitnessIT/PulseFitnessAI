@@ -129,6 +129,27 @@ async def get_all_equipment(
     # — see the All Operations Sites "0 eq" regression.
     from utils.mod_scope import resolve_mod_query_filter
     org_filter = await resolve_mod_query_filter(user, site_id)
+
+    # Iter 216h194 — Craig's regression: equipment added via the
+    # OnboardingWizard pre-216h194 had no `site_id`, so the per-site
+    # filter excluded it and the list showed "No equipment found"
+    # immediately after onboarding. Lazily backfill: if the active
+    # filter asks for `site_id=<X>` AND there are rows in the same org
+    # with no site_id AND the org has exactly one active site, tag
+    # those legacy rows with that single site. Idempotent — once a
+    # row carries `site_id`, subsequent loads skip the heal.
+    org_id = user.get("organization_id")
+    if site_id and org_id and not user.get("_mod_scope_ids"):
+        org_sites = await db.sites.find(
+            {"organization_id": org_id, "status": {"$ne": "archived"}},
+            {"_id": 0, "id": 1},
+        ).to_list(2)
+        if len(org_sites) == 1 and org_sites[0].get("id") == site_id:
+            await db.equipment.update_many(
+                {"organization_id": org_id, "site_id": {"$exists": False}},
+                {"$set": {"site_id": site_id, "site_id_backfilled_at": datetime.now(timezone.utc).isoformat()}},
+            )
+
     equipment_list = await db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(2000)
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
     for equip in equipment_list:

@@ -29,7 +29,7 @@ const EQUIPMENT_TYPES = [
 ];
 
 const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
- const { API } = useAuth();
+ const { API, activeSite } = useAuth();
  const [step, setStep] = useState(skipLogo ? 2 : 1);
  const [logoFile, setLogoFile] = useState(null);
  const [logoPreview, setLogoPreview] = useState(null);
@@ -147,7 +147,13 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
  setSubmitting(true);
  const token = localStorage.getItem('token');
  try {
- const res = await axios.post(`${API}/onboarding/equipment`, { items: valid }, {
+ // Iter 216h194 — pass the user's active site_id so the new rows
+ // immediately match the per-site filter that drives the Equipment
+ // list. Backend infers the site for single-site orgs too, but
+ // sending it explicitly avoids any ambiguity.
+ const payload = { items: valid };
+ if (activeSite?.id) payload.site_id = activeSite.id;
+ const res = await axios.post(`${API}/onboarding/equipment`, payload, {
  headers: { Authorization: `Bearer ${token}` }
  });
  notify.success(`${res.data.count} machines onboarded`);

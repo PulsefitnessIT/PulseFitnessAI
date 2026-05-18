@@ -1,0 +1,97 @@
+{
+  "summary": "Iter 216h194 — Craig's bug fix verified: Equipment added via OnboardingWizard now correctly includes site_id and appears in the Equipment list. All 5 unit tests pass (5/5), all 17 regression tests pass (17/17), and all E2E backend tests pass. Frontend OnboardingWizard opens via ?onboarding=1 deep link.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h194_equipment_site_id.py",
+    "/app/backend/tests/test_iter_216h193_supplier_catalogue.py",
+    "/app/backend/tests/test_iter_216h192_prod_fixes.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (5/5 unit tests, 17/17 regression tests, 4/4 E2E tests)",
+    "frontend": "100% (OnboardingWizard opens via deep link, equipment tab shows data)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!, e1.agent@gymaxisai.com / E1Agent123!",
+  "seed_data_creation": "Created test equipment via POST /api/onboarding/equipment with various site_id configurations",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h194 fixes Craig's bug where equipment added via OnboardingWizard didn't show in Equipment list. Fix has two layers: (1) Forward fix - onboarding/import now writes site_id correctly from payload or infers for single-site orgs, (2) Heal fix - equipment GET lazily backfills site_id on legacy rows for single-site orgs. Per-item site_id override also works for bulk imports.",
+  "test_results": {
+    "pytest_unit_tests": {
+      "test_iter_216h194_equipment_site_id.py": {
+        "status": "PASS",
+        "tests_passed": 5,
+        "tests_total": 5,
+        "test_cases": [
+          "test_onboarding_uses_explicit_site_id_from_payload",
+          "test_onboarding_infers_site_id_for_single_site_org",
+          "test_onboarding_leaves_site_id_blank_for_multi_site_no_hint",
+          "test_onboarding_per_item_site_id_overrides_org_inference",
+          "test_onboarding_persists_iter_216h193_date_and_sla_fields"
+        ]
+      },
+      "regression_tests": {
+        "status": "PASS",
+        "tests_passed": 17,
+        "tests_total": 17,
+        "files": [
+          "test_iter_216h194_equipment_site_id.py (5)",
+          "test_iter_216h193_supplier_catalogue.py (6)",
+          "test_iter_216h192_prod_fixes.py (6)"
+        ]
+      }
+    },
+    "e2e_backend_tests": {
+      "test_1_explicit_site_id": {
+        "status": "PASS",
+        "description": "POST /api/onboarding/equipment with site_id='test-site-A'",
+        "result": "Response contains site_id='test-site-A' and onboarded[0].site_id='test-site-A'"
+      },
+      "test_2_get_equipment_with_site_filter": {
+        "status": "PASS",
+        "description": "GET /api/equipment?site_id=test-site-A returns newly onboarded equipment",
+        "result": "Equipment with serial_number='SN-1' found in response (Craig's exact failure path)"
+      },
+      "test_3_per_item_site_id_override": {
+        "status": "PASS",
+        "description": "POST with site_id='site-default' and items with per-item site_id override",
+        "result": "E1 goes to site-A (per-item), E2 goes to site-default (payload-level)"
+      },
+      "test_4_multi_site_safety": {
+        "status": "PASS",
+        "description": "POST without site_id for org with 2+ sites",
+        "result": "Response site_id=null, equipment row has no site_id (doesn't guess)"
+      },
+      "test_5_lazy_backfill": {
+        "status": "PASS",
+        "description": "GET /api/equipment?site_id=X triggers backfill for single-site org",
+        "result": "Legacy equipment without site_id now has site_id backfilled"
+      }
+    },
+    "frontend_tests": {
+      "onboarding_wizard_deep_link": {
+        "status": "PASS",
+        "url": "/dashboard?tab=equipment&onboarding=1",
+        "result": "OnboardingWizard opens automatically, shows Step 1 (Logo branding)"
+      },
+      "equipment_tab": {
+        "status": "PASS",
+        "result": "Equipment tab shows existing equipment with correct data"
+      },
+      "activation_milestones": {
+        "status": "PASS",
+        "result": "'Your first wins' card visible with 'Add your first piece of equipment' CTA"
+      }
+    }
+  }
+}

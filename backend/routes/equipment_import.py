@@ -682,6 +682,18 @@ async def confirm_import(import_id: str, body: dict = None, user: dict = Depends
     body = body or {}
     target_org_id, target_user_id = await _resolve_target_user(body, user)
 
+    # Iter 216h194 — tag imported equipment with active site so per-site
+    # filters surface it immediately. Body can override; else infer for
+    # single-site orgs.
+    target_site_id = (body.get("site_id") or "").strip() or None
+    if not target_site_id and target_org_id:
+        org_sites = await db.sites.find(
+            {"organization_id": target_org_id, "status": {"$ne": "archived"}},
+            {"_id": 0, "id": 1},
+        ).to_list(2)
+        if len(org_sites) == 1:
+            target_site_id = org_sites[0].get("id")
+
     extracted = imp.get("extracted_data", {})
     supplier = extracted.get("supplier_name", "")
     site_name = extracted.get("site_name", "")
@@ -695,6 +707,7 @@ async def confirm_import(import_id: str, body: dict = None, user: dict = Depends
         "supplier": supplier, "account_ref": account_ref,
         "invoice_number": invoice_number, "default_location": default_location,
         "import_id": import_id, "site_name": site_name,
+        "site_id": target_site_id,
     }
     for eq in extracted.get("equipment", []):
         doc = _build_equipment_doc(eq, import_ctx)
@@ -861,6 +874,19 @@ async def confirm_bulk_import(batch_id: str, body: dict = None, user: dict = Dep
     body = body or {}
     target_org_id, target_user_id = await _resolve_target_user(body, user)
 
+    # Iter 216h194 — same fix as the single-confirm and onboarding wizard:
+    # tag imported equipment with the active site so per-site filters
+    # pick it up immediately. Body can override; else infer if the
+    # target org has exactly one active site.
+    target_site_id = (body.get("site_id") or "").strip() or None
+    if not target_site_id and target_org_id:
+        org_sites = await db.sites.find(
+            {"organization_id": target_org_id, "status": {"$ne": "archived"}},
+            {"_id": 0, "id": 1},
+        ).to_list(2)
+        if len(org_sites) == 1:
+            target_site_id = org_sites[0].get("id")
+
     total_created = 0
     for import_id in batch.get("import_ids", []):
         imp = await db.equipment_imports.find_one({"id": import_id, "user_id": user["id"]})
@@ -880,6 +906,7 @@ async def confirm_bulk_import(batch_id: str, body: dict = None, user: dict = Dep
                 "supplier": supplier, "account_ref": account_ref,
                 "invoice_number": invoice_number, "default_location": default_location,
                 "import_id": import_id, "batch_id": batch_id, "site_name": site_name,
+                "site_id": target_site_id,
             }
             doc = _build_equipment_doc(eq, bulk_ctx)
             await db.equipment.insert_one(doc)
@@ -1098,6 +1125,7 @@ def _build_equipment_doc(eq: dict, ctx: dict) -> dict:
         "description": description,
         "import_id": ctx["import_id"],
         **({"batch_id": ctx["batch_id"]} if ctx.get("batch_id") else {}),
+        **({"site_id": ctx["site_id"]} if ctx.get("site_id") else {}),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 

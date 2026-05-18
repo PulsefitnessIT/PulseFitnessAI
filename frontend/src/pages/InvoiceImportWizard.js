@@ -18,7 +18,7 @@ const CATEGORIES = ['Cardiovascular', 'Strength', 'Free Weights', 'Functional', 
 const LEGACY_TYPES = ['Treadmill', 'Cycle', 'Cross-Trainer', 'Rower', 'Stepper', 'Strength', 'Functional', 'Multi-Station', 'Other'];
 
 export default function InvoiceImportWizard({ onComplete, onClose }) {
- const { token } = useAuth();
+ const { token, activeSite } = useAuth();
  const headers = { Authorization: `Bearer ${token}` };
  const fileRef = useRef(null);
 
@@ -123,8 +123,13 @@ export default function InvoiceImportWizard({ onComplete, onClose }) {
  warranty_code: importData.warranty_code,
  }, { headers });
 
- // Confirm import
- const res = await axios.post(`${API}/api/equipment-import/confirm/${importId}`, {}, { headers });
+ // Confirm import — Iter 216h194 — pass active site so imported
+ // equipment matches the per-site filter on the Equipment list.
+ const res = await axios.post(
+   `${API}/api/equipment-import/confirm/${importId}`,
+   activeSite?.id ? { site_id: activeSite.id } : {},
+   { headers },
+ );
  notify.success(res.data.message);
  setConfirmed(true);
  } catch (err) {

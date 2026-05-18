@@ -90,6 +90,26 @@ async def upload_po_template(file: UploadFile = File(...), user: dict = Depends(
 @router.post("/onboarding/equipment")
 async def onboard_equipment(data: dict, user: dict = Depends(get_current_user)):
     items = data.get("items", [])
+    # Iter 216h194 — Craig's regression: equipment added via the
+    # onboarding wizard didn't show up in the Equipment tab because the
+    # per-site filter (`site_id=<active>`) excluded rows with no site
+    # attached. The wizard now sends an explicit `site_id`; for older
+    # callers that didn't, infer it: if the caller passed a top-level
+    # `site_id` in the payload we use that, else if the org has exactly
+    # one site we tag every row with it, else we leave it blank (legacy
+    # behaviour). This guarantees the rows immediately match the
+    # active-site filter that drives the Equipment list.
+    payload_site_id = (data.get("site_id") or "").strip() or None
+    inferred_site_id = payload_site_id
+    if not inferred_site_id:
+        org_id = user.get("organization_id")
+        if org_id:
+            org_sites = await db.sites.find(
+                {"organization_id": org_id, "status": {"$ne": "archived"}},
+                {"_id": 0, "id": 1},
+            ).to_list(2)
+            if len(org_sites) == 1:
+                inferred_site_id = org_sites[0].get("id")
     onboarded = []
     for item in items:
         equip = {
@@ -102,15 +122,25 @@ async def onboard_equipment(data: dict, user: dict = Depends(get_current_user)):
             "supplier": item.get("manufacturer", ""),
             "location": item.get("location", ""),
             "photo_url": item.get("photo_url"),
+            "purchase_date": item.get("purchase_date", ""),
+            "warranty_expiry": item.get("warranty_expiry", ""),
+            "sla_response_time": item.get("sla_response_time", ""),
+            "sla_contract_ref": item.get("sla_contract_ref", ""),
+            "sla_expiry": item.get("sla_expiry", ""),
             "status": "operational",
             "organization_id": user.get('organization_id'),
             "created_at": datetime.now(timezone.utc).isoformat(),
             "created_by": user.get('full_name', user.get('email')),
         }
+        # Per-item site_id overrides the inferred one (lets bulk import
+        # tools spread one onboarding call across multiple sites).
+        item_site_id = (item.get("site_id") or "").strip() or inferred_site_id
+        if item_site_id:
+            equip["site_id"] = item_site_id
         await db.equipment.insert_one(equip)
         equip.pop('_id', None)
         onboarded.append(equip)
-    return {"onboarded": onboarded, "count": len(onboarded)}
+    return {"onboarded": onboarded, "count": len(onboarded), "site_id": inferred_site_id}
 
 
 @router.get("/api-keys")
