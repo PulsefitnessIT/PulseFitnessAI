@@ -760,7 +760,7 @@ mutate the test org and return `{"success": true}`.
 | `master_admin.py` decomposition phase 7 (org create + primary contact) | ✅ 216h183 |
 | `master_admin.py` decomposition phase 8 (integration health / verify mappings / hub) | ✅ 216h184 |
 | `master_admin.py` decomposition phase 9 (branding email previews / test-flag / account-type) | ✅ 216h185 |
-| `master_admin.py` decomposition phase 10 (ops + backfills) | ⏭ Next |
+| `master_admin.py` decomposition phase 10 (ops + backfills — FINAL) | ✅ 216h186 |
 | Per-endpoint payload-size telemetry | Backlog |
 | Responsive `srcset` on hero images | Backlog |
 
@@ -1178,4 +1178,86 @@ Live verification:
 | Phase 7 | 216h183 | -195 | 1,239 | -71% |
 | Phase 8 | 216h184 | -334 | 905 | -79% |
 | Phase 9 | 216h185 | -173 | 732 | **-83%** |
+
+
+---
+
+## Iter 216h186 — `master_admin.py` decomposition phase 10 (FINAL): ops + backfills (Feb 2026)
+
+**Goal**: Final carve. Move the 5 remaining ops/admin housekeeping
+endpoints into their own sub-router so `master_admin.py` becomes a
+**pure helper module** with zero routes — the cross-module helper
+surface (`require_master_admin`, `assert_org_in_pulse_scope`,
+`_create_org_user`, `merge_address`, `log_activity`, etc.) that
+every other sub-router imports from.
+
+**Extracted to `master_admin_ops.py`** (NEW, 385 LoC, 5 routes):
+
+```
+POST /master-admin/test-data/purge                      — seeded/demo data wipe
+GET  /master-admin/all-sites                            — cross-org site rollup
+GET  /master-admin/users/locked-sites                   — locked-staff compliance audit
+POST /master-admin/equipment/backfill-pulse-supplier    — Pulse supplier backfill
+POST /master-admin/equipment/backfill-spec-sheets       — spec-sheet auto-match backfill
+```
+
+| Module | Phase 9 LoC | Phase 10 LoC | Delta |
+|---|---|---|---|
+| `master_admin.py` | 732 | **386** | -346 (-47%) |
+| `master_admin_ops.py` | — | **385** | NEW |
+
+**Tests** — `test_iter_216h186_master_admin_ops_split.py` (6 tests):
+- module imports cleanly
+- (path, method) presence on the new router
+- **`master_admin.py` owns ZERO routes** (final-phase pin test)
+- All 20 cross-module helpers still re-exported from the parent
+  (`require_master_admin`, `assert_org_in_pulse_scope`,
+  `_create_org_user`, `_mint_invite_link`, `merge_address`,
+  `log_activity`, `_normalize_modules`, `PULSE_VISIBLE_ACCOUNT_TYPES`,
+  `MASTER_ADMIN_EMAIL`, etc.) — pinned in one big assertion list so
+  a future agent can't accidentally break ~20 downstream importers.
+- Registry wiring
+- Soft LoC guard (< 500)
+
+Live verification:
+- `GET /master-admin/all-sites?limit=3` → 3 sites, totals
+  `{sites:3, head_offices:3, branches:0, equipment:36}`.
+- `GET /master-admin/users/locked-sites?limit=3` → total=1, full row shape.
+- `POST /master-admin/equipment/backfill-pulse-supplier?dry_run=true` →
+  `{orgs:9, equipment_to_update:117, dry_run:true}`.
+
+**Final monolith progress — the journey**:
+
+| Phase | Iter | Reduction | Total LoC | % vs original (4,283) |
+|---|---|---|---|---|
+| Phase 1 | 216h177 | -1,035 | 3,248 | -24% |
+| Phase 2 | 216h178 | 0 | 3,248 | -24% |
+| Phase 3 | 216h179 | -627 | 2,621 | -39% |
+| Phase 4 | 216h180 | -309 | 2,312 | -46% |
+| Phase 5 | 216h181 | -645 | 1,667 | -61% |
+| Phase 6 | 216h182 | -233 | 1,434 | -67% |
+| Phase 7 | 216h183 | -195 | 1,239 | -71% |
+| Phase 8 | 216h184 | -334 | 905 | -79% |
+| Phase 9 | 216h185 | -173 | 732 | -83% |
+| **Phase 10 (final)** | **216h186** | **-346** | **386** | **-91%** |
+
+Original monolith: 4,283 LoC, 40+ routes. After 10 phases:
+386 LoC, 0 routes, 20+ shared helpers. Distributed across:
+
+```
+master_admin.py                       (386)  helpers only
+master_admin_users.py                 (654)  9 routes — user lifecycle
+master_admin_orgs.py                  (514)  10 routes — orgs CRUD + sites
+master_admin_ops.py                   (385)  5 routes — ops/backfills
+master_admin_integration_health.py    (376)  3 routes — verify mappings + hub
+master_admin_onboard.py               (364)  1 route — head-office onboard
+master_admin_crm_analytics.py         (358)  1 route — CRM dashboard
+master_admin_pulse.py                 (350)  3 routes — Pulse Fitness
+master_admin_trials.py                (288)  5 routes — trials
+master_admin_stats_audit.py           (274)  4 routes — platform stats + audit-log
+master_admin_org_create.py            (240)  3 routes — org create + primary contact
+master_admin_org_branding.py          (214)  3 routes — test-flag/email/account-type
+master_admin_integrations.py          (~233) — Sicon health + CRM users
+master_admin_analytics_panel.py       (~133) — activity / AI usage / emails
+```
 

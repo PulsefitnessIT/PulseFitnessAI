@@ -7447,3 +7447,40 @@ Remaining decomposition target:
 - Ops & backfills (`test-data/purge` + equipment backfills +
   `all-sites` + `users/locked-sites`) (~400 LoC, 5 routes)
 
+
+## Iter 216h186 — `master_admin.py` decomposition phase 10 (FINAL): ops + backfills (17 Feb 2026)
+
+Final carve. Extracted the 5 remaining ops/admin housekeeping
+endpoints into `routes/master_admin_ops.py` (385 LoC):
+
+- `POST /master-admin/test-data/purge`
+- `GET  /master-admin/all-sites`
+- `GET  /master-admin/users/locked-sites`
+- `POST /master-admin/equipment/backfill-pulse-supplier`
+- `POST /master-admin/equipment/backfill-spec-sheets`
+
+After this, `master_admin.py` is a **pure helper module** with zero
+routes — owning only the 20+ cross-module helpers
+(`require_master_admin`, `assert_org_in_pulse_scope`,
+`_create_org_user`, `_mint_invite_link`, `merge_address`,
+`log_activity`, etc.) that every sub-router imports.
+
+`master_admin.py` is now **386 LoC** (was 732 → -47% this phase; vs
+the original 4,283 → **-91% cumulative**). The original monolith had
+40+ routes; after 10 phases the routes are distributed across 14
+focused sub-routers + a thin helper module.
+
+Tests: `test_iter_216h186_master_admin_ops_split.py` (6 tests, all
+pass) including a **`master_admin.py` owns ZERO routes** pin-test +
+a 20-helper "shared API surface" pin-test so a future agent can't
+accidentally regress any of the ~20 downstream importers. 84/84
+directly-related pytest pass overall. Live curl: all 3 read endpoints
+return real data.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/routes/master_admin_ops.py` (new),
+`/app/backend/route_registry/admin.py`,
+`/app/backend/tests/test_iter_216h186_master_admin_ops_split.py` (new).
+
+🎉 `master_admin.py` decomposition COMPLETE.
+
