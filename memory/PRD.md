@@ -1,3 +1,32 @@
+## Iter 216h208 — Fault logged but not visible on fault screen (Feb 18, 2026) ✅ P0 BUG FIX
+
+User report (admin@gymaxisai.com): "I logged a fault on Preview — fault logged successfully but the fault didn't show on the fault screen."
+
+### Root cause
+`POST /api/issues` stamped `organization_id` on the new issue doc but NEVER stamped `site_id` (the IssueCreate Pydantic model doesn't even carry it as input). The Pulse Pro dashboard (`LiteDashboardPage`) — which the admin reaches via `/pulse` with a SiteSwitcher selection — fetches `/api/issues?site_id={activeSite.id}` when a non-default site is active. The backend filter then becomes `{organization_id: X, site_id: Y}`, so the just-logged fault (with NO site_id) was invisible.
+
+Confirmed in MongoDB: 9 / 9 of admin's recent issues + 255 / 255 cross-org issues had no `site_id`. The gym_floor.py POST already inherited `site_id` from equipment (line 545), so this was an Operations Portal-only blind spot.
+
+### Fix (backend only)
+- **`_resolve_coverage_for_issue`** in `routes/issues.py` now also surfaces `equipment_site_id` in the returned meta dict (the equipment row is already fetched here for warranty resolution).
+- **`create_issue`** (single) and **`create_issues_batch`** stamp `issue_doc["site_id"] = coverage_meta["equipment_site_id"]` when present.
+- **One-time backfill**: ran a script that looked up each existing issue's equipment row by `organization_id + serial_number/name` and patched `issue.site_id` from `equipment.site_id` (3/255 patched — the rest have equipment without a site_id; they remain unaffected since they belong to single-site orgs).
+
+### Tests
+- 4 new unit tests in `/app/backend/tests/test_iter_216h208_issue_site_inherit.py` (all pass):
+  1. Coverage helper surfaces `equipment_site_id`.
+  2. Coverage helper handles equipment without `site_id` (returns None).
+  3. POST /issues stamps `site_id` from equipment.
+  4. POST /issues omits `site_id` cleanly when equipment has none.
+- Live API verification: posted as admin@gymaxisai.com against `TEST-QR-3cfcbd96` → response carries `site_id: 1ae950b4-…`, and the subsequent `GET /api/issues?site_id=1ae950b4-…` returns the new fault.
+
+### Files
+* `backend/routes/issues.py` (3 surgical edits)
+* `backend/tests/test_iter_216h208_issue_site_inherit.py` (NEW)
+
+---
+
+
 ## Iter 216h207 — Edit Member/Instructor drawer GDPR + Email/Phone parity (Feb 18, 2026) ✅ P1
 
 Closed the parity gap surfaced by Craig: the Add Member modal and Create Instructor flow already enforced email format, mandatory phone, mandatory emergency phone, and GDPR consent (h200/h201). The Edit drawers (MemberEditDrawer and InstructorRosterView EditorDrawer) had none of those — so an operator could silently break a member record post-creation.

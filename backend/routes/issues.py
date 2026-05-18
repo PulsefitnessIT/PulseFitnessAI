@@ -228,6 +228,11 @@ async def _resolve_coverage_for_issue(serial_number: Optional[str],
         # Stamp the resolved equipment id too, so downstream code doesn't
         # have to re-resolve.
         meta["equipment_id"] = equip.get("id") or ""
+        # Iter 216h208 — stamp equipment's site_id so the issue can
+        # inherit it. Without this the new fault is invisible to a
+        # dashboard filtered to that site (e.g. admin viewing /pulse
+        # with a SiteSwitcher selection).
+        meta["equipment_site_id"] = equip.get("site_id") or None
         return meta
     except Exception as e:  # pragma: no cover — defensive only
         logger.warning(f"_resolve_coverage_for_issue failed: {e}")
@@ -478,6 +483,13 @@ async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user
         issue.serial_number, user.get("organization_id"),
     )
     issue_doc["coverage_meta"] = coverage_meta
+    # Iter 216h208 — inherit site_id from the matched equipment so the
+    # fault is visible to a dashboard scoped to that site. Was silently
+    # missing on every new issue, so operators with an active site
+    # selected reported "fault logged but not on the screen".
+    site_id_from_equip = coverage_meta.get("equipment_site_id") if isinstance(coverage_meta, dict) else None
+    if site_id_from_equip:
+        issue_doc["site_id"] = site_id_from_equip
     await db.issues.insert_one(issue_doc)
     issue_doc.pop('_id', None)
 
@@ -521,9 +533,15 @@ async def create_issues_batch(
         # frontend from accidentally splitting siblings across jobs.
         machine.job_id = job_id
         doc = _build_issue_doc(machine, user)
-        doc["coverage_meta"] = await _resolve_coverage_for_issue(
+        cov = await _resolve_coverage_for_issue(
             machine.serial_number, user.get("organization_id"),
         )
+        doc["coverage_meta"] = cov
+        # Iter 216h208 — inherit site_id from equipment (same fix as
+        # the single-issue path).
+        site_from_equip = cov.get("equipment_site_id") if isinstance(cov, dict) else None
+        if site_from_equip:
+            doc["site_id"] = site_from_equip
         await db.issues.insert_one(doc)
         doc.pop("_id", None)
         await store_fix_history(machine, doc["id"], user)
