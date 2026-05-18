@@ -226,7 +226,7 @@ function EngineerBanner() {
               Run your own business — backed by the GymAxis network.
             </h2>
             <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-xl">
-              Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn a one-off signup reward of 50% of the gym's first cleared Operations payment (released after the gym stays on the platform for 3 months). Monthly fee drops to <strong className="text-slate-800">free</strong> at 10 referrals.
+              Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn a one-off signup reward (50% of the gym's first cleared Operations payment) plus £3/site/mo recurring for as long as the gym stays on the platform. Both released after the gym stays on the platform for 3 months. Monthly fee drops to <strong className="text-slate-800">free</strong> at 10 referrals.
             </p>
             <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
               <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />£30 / £15 / free auto-tier</li>

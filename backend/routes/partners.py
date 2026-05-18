@@ -945,16 +945,18 @@ async def accrue_commission_on_invoice_paid(invoice_data: dict) -> Optional[dict
     """Hook called from `routes.payments._handle_invoice_paid`. Idempotent
     by Stripe invoice id — second webhook delivery is a no-op.
 
-    Iter 216h193 — Policy change. Engineers now only receive a one-off
-    signup reward (50% of the referred gym's first cleared Operations
-    invoice). The historic £3/site/mo recurring share is REMOVED — any
-    invoice beyond the first one accrues nothing. Existing
-    `kind='recurring'` ledger rows are left untouched for audit /
-    finance reconciliation.
+    Iter 216h194 — Policy: engineers receive TWO commissions per referred
+    gym: (a) a one-off signup reward of 50% of the first cleared
+    Operations invoice, and (b) £3/site/mo recurring for every
+    subsequent cleared Operations invoice. Both are accrued here; the
+    qualifying-period gate (3 months on platform) is enforced at
+    APPROVAL time in `admin_approve_commission`, not at accrual time —
+    so finance can see the running total even before it's payable.
+
+    Iter 216h193 removed the £100–£400 premium-plan bonus tier.
 
     Returns the ledger row created, or None when the invoice is irrelevant
-    (no referral, not Operations, not the first invoice, or already-
-    processed)."""
+    (no referral, not Operations, or already-processed)."""
     customer_id = invoice_data.get("customer") or ""
     if not customer_id:
         return None
@@ -992,21 +994,24 @@ async def accrue_commission_on_invoice_paid(invoice_data: dict) -> Optional[dict
 
     amount_paid = _invoice_amount_paid_gbp(invoice_data)
     is_first = ref.get("first_paid_at") is None
-    # Iter 216h193 — only the first cleared Operations invoice triggers
-    # a commission accrual. Subsequent invoices are now no-ops (the
-    # legacy £3 recurring share has been retired).
-    if not is_first:
-        return None
-    kind = "signup_reward"
-    commission = round(amount_paid * SIGNUP_REWARD_PCT, 2)
-    await db.partner_referrals.update_one(
-        {"id": ref["id"]},
-        {"$set": {
-            "first_paid_at": _now(),
-            "status": "active",
-            "signup_reward_amount_gbp": commission,
-        }},
-    )
+    kind = "signup_reward" if is_first else "recurring"
+    if kind == "signup_reward":
+        commission = round(amount_paid * SIGNUP_REWARD_PCT, 2)
+        await db.partner_referrals.update_one(
+            {"id": ref["id"]},
+            {"$set": {
+                "first_paid_at": _now(),
+                "status": "active",
+                "signup_reward_amount_gbp": commission,
+            }},
+        )
+    else:
+        commission = float(RECURRING_GBP)
+        await db.partner_referrals.update_one(
+            {"id": ref["id"]},
+            {"$set": {"last_recurring_at": _now(), "status": "active"},
+             "$inc": {"recurring_total_paid_gbp": commission}},
+        )
 
     ledger_doc = {
         "id": _new_id(),

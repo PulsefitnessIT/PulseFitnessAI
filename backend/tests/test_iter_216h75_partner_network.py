@@ -229,9 +229,11 @@ class TestCommissionAccrual:
         assert row["amount_gbp"] == 34.5  # 50% of £69
         assert row["status"] == "accrued"
         assert replay is None  # idempotent
-        # Iter 216h193 — recurring £3/site/mo policy retired. Subsequent
-        # invoices for the same referred org no longer accrue a commission.
-        assert row2 is None, "post-216h193: 2nd invoice must not accrue a commission"
+        # Iter 216h194 — £3/site/mo recurring restored after iter
+        # 216h193's over-aggressive removal. Subsequent invoices accrue
+        # a £3 recurring ledger row again.
+        assert row2 and row2["kind"] == "recurring"
+        assert row2["amount_gbp"] == 3.0
 
     def test_partner_cannot_refer_own_org(self, db_client, applied_partner):
         from routes.partners import attach_referral_to_org

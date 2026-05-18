@@ -342,7 +342,7 @@ export default function PartnerApplyPublic() {
                 <div className="rounded-2xl border border-slate-200 p-4 text-xs leading-relaxed text-slate-600 space-y-2 max-h-48 overflow-auto bg-white">
                   <p><strong>Eligibility</strong>: You must be a qualified fitness equipment engineer. Public liability insurance is required before you accept a job (we can help you get covered).</p>
                   <p><strong>Job access</strong>: You'll be granted job-specific access only — no full-platform visibility, no cross-customer data leakage.</p>
-                  <p><strong>Commission</strong>: 50% of the first cleared Operations payment per referred gym, paid as a one-off lump sum once the referred gym has been active on the platform for 3 months. Subject to Master Admin approval and refundable claw-back.</p>
+                  <p><strong>Commission</strong>: 50% of the referred gym's first cleared Operations payment (one-off) + £3/site per month recurring for as long as the gym stays on the platform. Both released after the referred gym has been active for 3 months. Subject to Master Admin approval and refundable claw-back.</p>
                   <p><strong>App fee</strong>: £30/mo with automatic discounts (£15 at 5+ active referrals · free at 10+). Billed monthly via Stripe.</p>
                   <p><strong>Termination</strong>: Either side can terminate with 14 days' notice. Master Admin may suspend on safety, fraud, or compliance grounds with immediate effect.</p>
                 </div>
