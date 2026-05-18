@@ -1,3 +1,56 @@
+## Iter 216h199 — Phase 3: Service Desk Auto-Warranty-Check (May 18, 2026) ✅
+
+Phase 3 of the Ops↔CRM↔ServiceDesk link. When an Operations fault is logged and escalated to engineer, the system now AUTO-warranty-checks the equipment and routes the bridged Service Desk case correctly (contract / warranty / chargeable) instead of the legacy hardcoded `cover_type: "contract"`.
+
+### Backend
+- **New shared utility** `utils/coverage.py` — single source of truth for coverage resolution:
+  - `resolve_equipment_coverage(equipment, db)` returns `{has_crm_contract, warranty_active, warranty_expiry, warranty_days_remaining, best, all_contracts, cover_type}`. Contract beats warranty for the cover_type flag (operators normally invoke the contract since it covers labour; warranty is usually parts-only).
+  - `coverage_to_case_meta(coverage)` flattens the resolved state into the keys stamped on `db.issues.coverage_meta` and `db.svc_cases.source_meta.coverage_*`.
+- **Refactor**: `GET /api/equipment/{id}/coverage` now delegates to the shared utility — legacy response shape preserved (h198 tests still pass 9/9).
+- **NEW pre-flight endpoint**: `GET /api/issues/coverage-lookup?serial_number=X` returns the case-meta shape so the fault-log UI can show "✓ Under GOLD contract until 31/12/2027" before submission. 400 on empty serial, uncovered shape for unknown serial.
+- **Issue intake** (`POST /api/issues` + `POST /api/issues/batch`) — every issue row now gets a `coverage_meta` block stamped at intake time (cover_type, coverage_status, contract_id/number/title/tier, end_date, expiring_soon flag, warranty fields).
+- **svc_case mirror** — `_mirror_issue_to_svc_case` and `_mirror_job_to_svc_case` now read `coverage_meta` and propagate:
+  - `cover_type` on the svc_case (auto-resolved, not hardcoded)
+  - `contract_id` populated when under contract
+  - `source_meta.coverage_status` + `contract_number` + `contract_tier` + `contract_end_date` + `warranty_*` so the Service Desk UI can render the contract reference inline
+- **Batch logic**: when N machines are logged in one job, the bundled svc_case elects the strongest coverage across siblings (contract > warranty > chargeable) and inherits the contract_id from the contract-covered sibling. One mixed job on a Gold contract won't get billed.
+
+### Tests
+- `backend/tests/test_iter_216h199_auto_warranty_check.py` — **15/15** ✅ (unit + integration)
+  - Coverage utility shape conversions (uncovered / contract / warranty)
+  - `resolve_equipment_coverage` picks contract over warranty when both active
+  - Empty/missing equipment returns chargeable shape
+  - `_resolve_coverage_for_issue` with no serial / no org / missing equipment all return uncovered
+  - Contract found via serial → coverage_status=covered_contract
+  - Mirror routes case to contract / warranty / chargeable correctly
+  - Self-fix issues NOT mirrored to svc_case (regression preserved)
+  - Batch mirror picks strongest coverage across siblings + most-severe priority
+- `backend/tests/test_iter_216h199_api_coverage_lookup.py` (testing agent) — **11/11** ✅ (live HTTP)
+  - coverage-lookup empty / missing / unknown serial / full meta shape
+  - equipment/{id}/coverage regression (crm_coverage dict)
+  - POST /issues stamps coverage_meta (engineer + self_fix paths)
+  - POST /issues/batch stamps coverage_meta on every machine
+  - CRM auth regressions (h197 fallback + cross-login) still pass
+- Combined regression: **60/60** pass across iters 192-198 + 199 unit suite.
+- Testing agent (iter 216h199): 100% pass on backend (26/26 tests + curl smokes).
+
+### Frontend
+- **Not delivered this iteration** — backend-only. The fault-log UI can now call `GET /api/issues/coverage-lookup` to render a pre-submission badge ("✓ Under GOLD contract"), but the actual UI wiring is deferred to a follow-up iteration so Lee can confirm Phase 3 backend behaviour first.
+
+### Files
+* `backend/utils/coverage.py` (NEW shared utility)
+* `backend/routes/equipment.py` (`get_equipment_coverage` refactored to use shared util)
+* `backend/routes/issues.py` (new `/api/issues/coverage-lookup` endpoint + `_resolve_coverage_for_issue` helper + intake stamps coverage_meta + mirror reads it)
+* `backend/tests/test_iter_216h199_auto_warranty_check.py` (NEW, 15 unit pytests)
+* `backend/tests/test_iter_216h199_api_coverage_lookup.py` (NEW, 11 live HTTP tests)
+
+### Action required
+**Redeploy** preview → production. Frontend pre-submission badge follow-up pending Lee's go-ahead.
+
+---
+
+
+
 ## Iter 216h198 — Phase 2: Ops Equipment Coverage Panel (May 18, 2026) ✅
 
 Phase 2 of the Ops↔CRM↔ServiceDesk link. CRM contract data is now surfaced INSIDE the Operations Equipment Detail dialog so engineers know warranty/aftersales status before they pick up tools — the symmetric counterpart to the Sites & Equipment tab shipped in h196.
