@@ -1199,6 +1199,10 @@ function TimetableTab({ API, headers }) {
 /* ─────────────────── Plans ─────────────────── */
 
 function PlansTab({ API, headers }) {
+  // Iter 216h209 — Craig's feedback ("no credits package in memberships"):
+  // class_pack plans were a hidden `kind` toggle inside "+ New plan".
+  // Now they get a dedicated "Credit Packs" subtab — discoverable,
+  // labelled, and pre-selects kind=class_pack on create.
   const [view, setView] = useState('plans');
   return (
     <div>
@@ -1209,6 +1213,11 @@ function PlansTab({ API, headers }) {
             data-testid="mbr-plans-tab-plans">
             <PackageOpen size={12} /> Plans
           </button>
+          <button type="button" onClick={() => setView('credit_packs')}
+            className={`subtab-pill ${view === 'credit_packs' ? 'is-active' : ''}`}
+            data-testid="mbr-plans-tab-credit-packs">
+            <Wallet size={12} /> Credit Packs
+          </button>
           <button type="button" onClick={() => setView('courses')}
             className={`subtab-pill ${view === 'courses' ? 'is-active' : ''}`}
             data-testid="mbr-plans-tab-courses">
@@ -1216,17 +1225,25 @@ function PlansTab({ API, headers }) {
           </button>
         </div>
       </div>
-      {view === 'plans'   && <PlansInnerView   API={API} headers={headers} />}
-      {view === 'courses' && <CoursesView      API={API} headers={headers} />}
+      {view === 'plans'         && <PlansInnerView API={API} headers={headers} variant="subscription" />}
+      {view === 'credit_packs'  && <PlansInnerView API={API} headers={headers} variant="credit_pack" />}
+      {view === 'courses'       && <CoursesView    API={API} headers={headers} />}
     </div>
   );
 }
 
-function PlansInnerView({ API, headers }) {
+function PlansInnerView({ API, headers, variant = 'subscription' }) {
   const confirm = useConfirm();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);  // null | 'new' | <plan object>
+
+  // Iter 216h209 — Subscription view excludes class_pack (& vice-versa)
+  // so each subtab tells a clean story instead of mixing concepts.
+  const isCreditPack = variant === 'credit_pack';
+  const visiblePlans = isCreditPack
+    ? plans.filter((p) => (p.kind || '') === 'class_pack')
+    : plans.filter((p) => (p.kind || '') !== 'class_pack');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1244,29 +1261,39 @@ function PlansInnerView({ API, headers }) {
     catch (e) { notifyApiError(notify, e, 'Failed'); }
   };
 
+  const title = isCreditPack ? 'Credit Packs' : 'Membership plans';
+  const subtitle = isCreditPack
+    ? 'Sell a bundle of class credits up-front. Members redeem them per booking.'
+    : 'The shelves you sell from.';
+  const ctaLabel = isCreditPack ? 'New credit pack' : 'New plan';
+  const ctaTestId = isCreditPack ? 'mbr-credit-pack-add' : 'mbr-plan-add';
+  const emptyHint = isCreditPack
+    ? 'No credit packs yet. Build a 5-class, 10-class or corporate pack — members can buy it from their portal or you can sell at the desk for cash.'
+    : 'Create your first product — a monthly unlimited, a class pack, or a fixed-term course. Plans appear in member sign-up the moment you publish.';
+
   return (
-    <div data-testid="mbr-plans">
+    <div data-testid={isCreditPack ? 'mbr-credit-packs' : 'mbr-plans'}>
       <ListPanel
-        data-testid="mbr-plans-list"
-        title="Membership plans"
-        subtitle="The shelves you sell from."
-        count={{ value: plans.length, label: 'plan' }}
+        data-testid={isCreditPack ? 'mbr-credit-packs-list' : 'mbr-plans-list'}
+        title={title}
+        subtitle={subtitle}
+        count={{ value: visiblePlans.length, label: isCreditPack ? 'pack' : 'plan' }}
         secondaryActions={[
           <HelpHint key="help" guideId="mbr-first-plan" testId="help-hint-plans" />,
         ]}
-        primaryAction={{ label: 'New plan', icon: Plus, onClick: () => setEditing('new'), testId: 'mbr-plan-add' }}
+        primaryAction={{ label: ctaLabel, icon: Plus, onClick: () => setEditing('new'), testId: ctaTestId }}
         loading={loading}
         empty={{
-          when: plans.length === 0,
-          icon: PackageOpen,
-          title: 'No plans yet',
-          hint: 'Create your first product — a monthly unlimited, a class pack, or a fixed-term course. Plans appear in member sign-up the moment you publish.',
-          primaryAction: { label: 'Create your first plan', onClick: () => setEditing('new'), testId: 'mbr-plan-empty-create' },
-          testId: 'mbr-plans-empty',
+          when: visiblePlans.length === 0,
+          icon: isCreditPack ? Wallet : PackageOpen,
+          title: isCreditPack ? 'No credit packs yet' : 'No plans yet',
+          hint: emptyHint,
+          primaryAction: { label: isCreditPack ? 'Create your first credit pack' : 'Create your first plan', onClick: () => setEditing('new'), testId: isCreditPack ? 'mbr-credit-pack-empty-create' : 'mbr-plan-empty-create' },
+          testId: isCreditPack ? 'mbr-credit-packs-empty' : 'mbr-plans-empty',
         }}
         bodyClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
       >
-        {plans.map((p) => (
+        {visiblePlans.map((p) => (
           <div key={p.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-4 group" data-testid={`mbr-plan-${p.id}`}>
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -1295,6 +1322,7 @@ function PlansInnerView({ API, headers }) {
         ))}
       </ListPanel>
       {editing && <PlanEditorModal API={API} headers={headers} plan={editing === 'new' ? null : editing}
+        defaultKind={isCreditPack ? 'class_pack' : undefined}
         onClose={(refresh) => { setEditing(null); if (refresh) load(); }} />}
     </div>
   );

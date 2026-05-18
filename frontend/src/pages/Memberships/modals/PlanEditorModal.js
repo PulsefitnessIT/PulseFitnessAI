@@ -33,11 +33,14 @@ export const INCLUDED_OPTIONS = [
   { value: 'credits_only', label: 'Credits only' },
 ];
 
-export default function PlanEditorModal({ API, headers, plan, onClose }) {
+export default function PlanEditorModal({ API, headers, plan, defaultKind, onClose }) {
   const isNew = !plan;
   const [f, setF] = useState(() => ({
     name: plan?.name || '',
-    kind: plan?.kind || 'recurring',
+    // Iter 216h209 — `defaultKind` lets the caller (Credit Packs subtab)
+    // pre-select kind=class_pack so operators don't have to discover
+    // the dropdown to create a credit/class-pack product.
+    kind: plan?.kind || defaultKind || 'recurring',
     billing_cycle: plan?.billing_cycle || 'monthly',
     price_pounds: plan ? (plan.price_pence / 100).toFixed(2) : '',
     upfront_fee_pounds: plan ? ((plan.upfront_fee_pence || 0) / 100).toFixed(2) : '0.00',
