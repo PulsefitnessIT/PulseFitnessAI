@@ -67,6 +67,16 @@ async def list_login_events(
     cursor = db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit_i)
     rows = await cursor.to_list(length=limit_i)
 
+    # Iter 216h210 — surface the structured failure reason on each row.
+    # Details is stored as e.g. ``reason=wrong_password; ua=...``. The
+    # frontend renders a colour-coded badge per reason.
+    import re as _re
+    _REASON_RE = _re.compile(r"reason=([a-z_]+)")
+    for r in rows:
+        d = r.get("details") or ""
+        m = _REASON_RE.search(d) if isinstance(d, str) else None
+        r["failure_reason"] = m.group(1) if m else None
+
     # Also pull recent brute-force trust events so the timeline reflects
     # high-severity attempts even if the audit action varies by version.
     trust_query: dict[str, Any] = {"type": {"$in": ["security.brute_force"]}}

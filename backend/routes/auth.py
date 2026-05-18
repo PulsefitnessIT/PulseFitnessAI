@@ -197,21 +197,53 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
     }
 
 
-async def _record_failed_login_with_trust(email: str, request: Request) -> None:
-    """Increment lockout counter and emit a trust event if the user is being
-    brute-forced. Best-effort: never raises — login already returned 401."""
+async def _record_failed_login_with_trust(
+    email: str,
+    request: Request,
+    reason: str = "wrong_password",
+    user_id: str = "",
+) -> None:
+    """Increment lockout counter, write an audit row with the failure
+    reason, and emit a trust event if the user is being brute-forced.
+
+    Iter 216h210 — Craig flagged that the audit log showed "3 failed
+    logins" with no details. We now record:
+      • ``reason`` (one of: ``user_not_found``, ``wrong_password``,
+        ``account_disabled``, ``temp_password_expired``,
+        ``portal_mismatch``, ``mfa_failed``, ``rate_limited``,
+        ``account_locked``).
+      • ``user_id`` (if the account existed — empty string otherwise).
+
+    Best-effort: never raises — the auth endpoint already returned 401.
+    """
     record_failed_login(email)
+    ip = request.client.host if request.client else ""
+    ua = request.headers.get("User-Agent", "")[:300]
+    # Audit row — Craig's "no details" gap. `details` is human-readable
+    # so the timeline doesn't need a join to be useful.
+    try:
+        from utils.audit import audit_log
+        await audit_log(
+            "login_failed",
+            user_id or "",
+            email,
+            "user",
+            user_id or "",
+            f"reason={reason}; ua={ua[:120]}",
+            ip,
+        )
+    except Exception:
+        pass
     try:
         from utils.trust_events import record_trust_event
         from utils.security import get_failed_login_count
         attempts = get_failed_login_count(email)
         if attempts >= 3:
-            ip = request.client.host if request.client else ""
             sev = "high" if attempts >= 5 else "med"
             await record_trust_event(
                 type="security.brute_force", severity=sev,
                 summary=f"{attempts} failed logins for {email}",
-                payload={"email": email, "attempts": attempts, "ip": ip},
+                payload={"email": email, "attempts": attempts, "ip": ip, "reason": reason},
                 dedupe_key=f"security.brute_force:{email.lower()}",
             )
     except Exception:
@@ -333,22 +365,63 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
 @router.post("/auth/login")
 async def login(credentials: UserLogin, request: Request, response: Response) -> dict:
     """Login orchestrator — see helpers above for each phase."""
-    # 1. Anti-abuse gates.
-    rate_limit_login(request)
-    check_account_lockout(credentials.email)
+    # 1. Anti-abuse gates. Wrap both so a thrown lockout/rate-limit is
+    # itself an auditable event (Iter 216h210 — Craig saw "3 failed
+    # logins" but no rows when the account had hit the lockout).
+    try:
+        rate_limit_login(request)
+    except HTTPException:
+        await _record_failed_login_with_trust(
+            credentials.email, request, reason="rate_limited",
+        )
+        raise
+    try:
+        check_account_lockout(credentials.email)
+    except HTTPException:
+        await _record_failed_login_with_trust(
+            credentials.email, request, reason="account_locked",
+        )
+        raise
     from utils.captcha import verify_captcha
     await verify_captcha(request.headers.get("x-captcha-token"), action="login")
 
     # 2. Identify + authenticate.
     identifier = credentials.email.strip().lower()
     user = await _lookup_user_by_identifier(identifier)
-    if not user or not verify_password(credentials.password, user["password"]):
-        if user:
-            await _record_failed_login_with_trust(credentials.email, request)
+    if not user:
+        # Iter 216h210 — record the attempt even when the account
+        # doesn't exist. Operators investigating "3 failed logins"
+        # need to know if the username was wrong vs the password.
+        await _record_failed_login_with_trust(
+            credentials.email, request,
+            reason="user_not_found",
+        )
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not verify_password(credentials.password, user["password"]):
+        await _record_failed_login_with_trust(
+            credentials.email, request,
+            reason="wrong_password",
+            user_id=user.get("id", ""),
+        )
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # 3. Account-state checks.
-    _enforce_account_status(user)
+    try:
+        _enforce_account_status(user)
+    except HTTPException as exc:
+        # Surface the *reason* (disabled vs temp-expired) into the audit
+        # trail so the security team can answer "why is Craig locked out?"
+        # in one glance.
+        sub_reason = (
+            "account_disabled" if exc.status_code == 403
+            else "temp_password_expired"
+        )
+        await _record_failed_login_with_trust(
+            credentials.email, request,
+            reason=sub_reason,
+            user_id=user.get("id", ""),
+        )
+        raise
 
     # 3b. Portal-scope enforcement (Iter 216h113f).
     # MODService is its own entity — visitors signing in on
@@ -361,6 +434,11 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
     user_at = (user.get("account_type") or "").lower()
     is_mod_user = user_at.startswith("mod_")
     if requested_portal == "mod" and not is_mod_user:
+        await _record_failed_login_with_trust(
+            credentials.email, request,
+            reason="portal_mismatch_not_mod",
+            user_id=user.get("id", ""),
+        )
         raise HTTPException(
             status_code=403,
             detail=(
@@ -369,6 +447,11 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
             ),
         )
     if requested_portal in ("", "pulse", "standard") and is_mod_user:
+        await _record_failed_login_with_trust(
+            credentials.email, request,
+            reason="portal_mismatch_mod_user_on_pulse",
+            user_id=user.get("id", ""),
+        )
         raise HTTPException(
             status_code=403,
             detail=(

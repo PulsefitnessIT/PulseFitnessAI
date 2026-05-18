@@ -39,6 +39,7 @@ const OrgBillingPanel = lazy(() => import('./MasterAdmin/OrgBillingPanel'));
 const EstateRollupPanel = lazy(() => import('./MasterAdmin/EstateRollupPanel'));
 const SalesInsightsPanel = lazy(() => import('./MasterAdmin/SalesInsightsPanel'));
 const LoginEventsPanel = lazy(() => import('./MasterAdmin/LoginEventsPanel'));
+const ClientErrorsPanel = lazy(() => import('./MasterAdmin/ClientErrorsPanel'));
 const AuditLogPanel = lazy(() => import('./MasterAdmin/AuditLogPanel'));
 const LockedStaffPanel = lazy(() => import('./MasterAdmin/LockedStaffPanel'));
 const BackfillsPanel = lazy(() => import('./MasterAdmin/BackfillsPanel'));
@@ -475,6 +476,8 @@ const MasterAdminPage = ({ onBack }) => {
       }
       case 'login-events':
         return <LoginEventsPanel />;
+      case 'client-errors':
+        return <ClientErrorsPanel />;
       case 'audit-log':
         return <AuditLogPanel />;
       case 'locked-staff':

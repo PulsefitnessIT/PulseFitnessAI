@@ -25,6 +25,21 @@ const ACTION_META = {
   password_reset:  { label: 'Password reset', icon: KeyRound,    tone: 'neutral' },
 };
 
+// Iter 216h210 — Craig's ask: "I could see failed logins but no details.
+// Was it the password or the username?" Each backend-emitted reason now
+// maps to a human-friendly label so the operator can tell at a glance.
+const REASON_META = {
+  user_not_found:                    { label: 'Unknown user',         tone: 'bad',  hint: 'No account matched that email/username.' },
+  wrong_password:                    { label: 'Wrong password',       tone: 'bad',  hint: 'Email matched but the password was incorrect.' },
+  account_disabled:                  { label: 'Account disabled',     tone: 'bad',  hint: 'The account was deactivated by an admin.' },
+  temp_password_expired:             { label: 'Temp password expired', tone: 'bad', hint: 'Reissue a temp password to unblock.' },
+  account_locked:                    { label: 'Account locked',       tone: 'bad',  hint: 'Too many failed attempts — auto-unlocks after 15 min.' },
+  rate_limited:                      { label: 'Rate-limited',         tone: 'bad',  hint: 'Too many login requests from this IP.' },
+  portal_mismatch_not_mod:           { label: 'Wrong portal (Pulse user on MOD)', tone: 'bad', hint: 'Account is not registered for the MOD portal.' },
+  portal_mismatch_mod_user_on_pulse: { label: 'Wrong portal (MOD user on Pulse)', tone: 'bad', hint: 'MOD account must sign in via /MODService.' },
+  mfa_failed:                        { label: 'MFA code wrong',       tone: 'bad',  hint: 'TOTP code did not match.' },
+};
+
 const TONE_CLASSES = {
   ok:      'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
   bad:     'bg-rose-500/10 text-rose-600 border-rose-500/30',
@@ -196,20 +211,40 @@ function EventRow({ event }) {
   const meta = ACTION_META[event.action] || { label: event.action, icon: KeyRound, tone: 'neutral' };
   const Icon = meta.icon;
   const tone = TONE_CLASSES[meta.tone] || TONE_CLASSES.neutral;
+  // Iter 216h210 — surface structured failure reason
+  const reason = event.failure_reason;
+  const reasonMeta = reason ? REASON_META[reason] : null;
   return (
     <li className="flex items-center gap-3 px-4 py-3" data-testid={`lev-event-row-${event.action}`}>
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 border ${tone}`}>
         <Icon size={14} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-zinc-900">
-          {meta.label}
+        <div className="text-sm font-semibold text-zinc-900 flex items-center gap-2 flex-wrap">
+          <span>{meta.label}</span>
+          {reasonMeta && (
+            <span
+              className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${TONE_CLASSES[reasonMeta.tone] || TONE_CLASSES.neutral}`}
+              title={reasonMeta.hint}
+              data-testid={`lev-reason-${reason}`}
+            >
+              {reasonMeta.label}
+            </span>
+          )}
+          {reason && !reasonMeta && (
+            <span
+              className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border bg-zinc-500/10 text-zinc-600 border-zinc-500/30"
+              title={`Backend reason code: ${reason}`}
+            >
+              {reason.replace(/_/g, ' ')}
+            </span>
+          )}
           {event.user_email && (
-            <span className="ml-2 text-xs font-normal text-zinc-500 truncate">· {event.user_email}</span>
+            <span className="text-xs font-normal text-zinc-500 truncate">· {event.user_email}</span>
           )}
         </div>
         <div className="text-xs text-zinc-500 mt-0.5 truncate">
-          {event.details || ''}
+          {reasonMeta?.hint || event.details || ''}
           {event.ip_address && <span className="ml-2 font-mono">{event.ip_address}</span>}
         </div>
       </div>

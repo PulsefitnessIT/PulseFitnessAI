@@ -128,6 +128,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'audit-log',          label: 'Audit log',          icon: ScrollText },
       { id: 'audit-logs',         label: 'Compliance trail',   icon: ScrollText },
       { id: 'login-events',       label: 'Login events',       icon: ShieldAlert },
+      { id: 'client-errors',      label: 'Client crashes',     icon: ShieldAlert },
       { id: 'documents',          label: 'Documents',          icon: FolderArchive },
       // Iter 216h59 — relocated from Overview. Archive is a data-
       // lifecycle / compliance concern (soft-deleted orgs, restore
@@ -178,6 +179,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   // consolidations explicit and reviewable.
   'audit-log':          'settings-compliance',
   'login-events':       'settings-compliance',
+  'client-errors':      'settings-compliance',
   'documents':          'settings-compliance',
   'archive':            'settings-compliance',
   'ask-support':        'settings-compliance',
@@ -225,6 +227,7 @@ export const sectionTitles = {
   'estate-rollup': 'Module subscriptions',      // Iter 216h17 — clearer than "Estate Rollup"
   collections: 'Collections',
   'login-events': 'Login events',
+  'client-errors': 'Client crashes',
   'audit-log': 'Audit log',
   'locked-staff': 'Site-locked users',          // Iter 216h17 — terminology cleanup
   trust: 'System health',                       // Iter 216h17 — was "Trust & Reliability Engine"
@@ -277,6 +280,7 @@ export const sectionDescriptions = {
   'estate-rollup': 'Module entitlements across every org — license audit, trial expiry, orphan accounts.',
   collections: 'Aging buckets, top overdue accounts and dunning telemetry — your AR control room.',
   'login-events': 'Security timeline — every login, MFA challenge, failed attempt and brute-force signal.',
+  'client-errors': 'Front-end render crashes captured by ModalErrorBoundary — see the stack & component-stack to debug what broke for a user.',
   'audit-log': 'Unified timeline of every platform-wide security event — logins, wallet activity, Auto-Bill charges, retry-ladder escalations. CSV export for SOC 2 / pentest evidence packets.',
   'locked-staff': 'Read-only audit view of every user with a per-site restriction set. Joins org name + site names + last-changed timestamp.',
   trust: 'Platform health, security events, and integration status — detect before customers do',

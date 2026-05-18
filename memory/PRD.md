@@ -1,3 +1,54 @@
+## Iter 216h210 — Login-failure reason + Master Admin diagnostics (Feb 18, 2026) ✅ P1
+
+User feedback: "Craig had 3 failed logins — I could see the failed logins but no details. Was it the password or the username?" Plus continuation of h209 trust-recovery: build the diagnostics page that surfaces both feeds.
+
+### Root cause (the audit gap)
+`POST /api/auth/login` only invoked `record_failed_login(email)` (an in-memory lockout counter) on failure. It never wrote a `login_failed` row to `audit_logs`. The Master Admin Login Events panel pulled from `audit_logs`, so it only saw successful logins + a separate stream of `trust_events` summaries — no per-attempt classification.
+
+### Fix — backend
+- `routes/auth.py::_record_failed_login_with_trust(...)` now takes a structured `reason` and `user_id`. Writes an `audit_logs` row with `action="login_failed"` and `details="reason=<code>; ua=<short-ua>"`.
+- The login orchestrator calls it with the right code for **every** failure path:
+  - `user_not_found` — identifier didn't match any account
+  - `wrong_password` — identifier matched, password didn't
+  - `account_disabled` — `active=False` user tried to sign in
+  - `temp_password_expired` — `must_change_password` + expired temp pw
+  - `account_locked` — rolling 5-in-15min lockout hit
+  - `rate_limited` — per-IP limit hit (we now wrap `rate_limit_login` so the audit fires even though the function pre-empts the rest)
+  - `portal_mismatch_not_mod` / `portal_mismatch_mod_user_on_pulse` — wrong portal for the account type
+- `routes/master_admin_login_events.py` regex-extracts `reason=<code>` from the audit row's `details` and surfaces it as `failure_reason` per row. Backward-compatible (rows without reason show `null`).
+- `routes/client_errors.py` extended with `GET /api/master-admin/client-errors` (master-admin only) — returns recent client-side crashes + a grouped `by_label` summary.
+
+### Fix — frontend
+- `pages/MasterAdmin/LoginEventsPanel.js`:
+  - Added `REASON_META` map (9 reason codes → human-friendly label + tooltip hint + tone).
+  - `EventRow` renders a coloured badge per reason next to the action label. Unknown reasons fall through to a neutral "snake_case" badge so we never lose data.
+- NEW `pages/MasterAdmin/ClientErrorsPanel.js` — grouped-by-dialog tiles at the top + expandable rows showing message + JS stack + React component stack + URL + user agent.
+- `SidebarConfig.js` adds the `client-errors` sub-tab under Settings & Compliance.
+- `MasterAdminPage.js` switch-routes `case 'client-errors'` to the new lazy panel.
+
+### Verification
+- Live curl against the preview:
+  - `POST /api/auth/login` with unknown email → 401 + audit row `reason=user_not_found`.
+  - `POST /api/auth/login` with correct email + wrong password → 401 + audit row `reason=wrong_password`.
+  - Master admin `GET /api/master-admin/login-events` returns those two rows with `failure_reason` populated.
+  - Master admin `GET /api/master-admin/client-errors` returns the boundary-captured rows grouped by label.
+- 6 new pytest cases in `tests/test_iter_216h210_login_failure_reason.py` (all pass): user_not_found / wrong_password / account_locked audit shape, login-events regex extraction, client-errors auth gate, client-errors grouped counts.
+- Regression suite `tests/regression/` now contains 25 tests (was 19) — all green. `test_critical_auth.py` added to lock in the h210 guarantees.
+
+### Files
+- UPDATED: `backend/routes/auth.py` (audit-trail with reason on every failure path)
+- UPDATED: `backend/routes/master_admin_login_events.py` (surface failure_reason)
+- UPDATED: `backend/routes/client_errors.py` (master-admin list endpoint)
+- UPDATED: `frontend/src/pages/MasterAdmin/LoginEventsPanel.js` (reason badges)
+- UPDATED: `frontend/src/pages/MasterAdmin/SidebarConfig.js` (client-errors sub-tab)
+- UPDATED: `frontend/src/pages/MasterAdminPage.js` (lazy import + route case)
+- NEW: `frontend/src/pages/MasterAdmin/ClientErrorsPanel.js`
+- NEW: `backend/tests/test_iter_216h210_login_failure_reason.py`
+- NEW: `backend/tests/regression/test_critical_auth.py`
+
+---
+
+
 ## Iter 216h209 — Trust-recovery audit + durable infrastructure (Feb 18, 2026) ✅ P0 / Process
 
 User feedback: Craig (stakeholder) spent 30 mins on the platform and gave up — reported "no credits package in memberships" and "Class Builder crashed". This session prioritised **rebuilding trust** with three parallel workstreams:
