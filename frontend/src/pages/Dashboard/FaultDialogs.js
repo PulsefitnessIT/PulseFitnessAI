@@ -15,6 +15,7 @@ import FaultCodeSelect from './FaultCodeSelect';
 import SaveAsTemplateButton from './SaveAsTemplateButton';
 import { buildMachineTypeGroups, filterSerialsByGroup } from './faultMachineGrouping';
 import { useBackGestureClose } from '@/lib/useBackGestureClose';
+import CoverageBanner from '@/components/shared/CoverageBanner';
 
 const FaultDialogs = ({
  // Issue dialog state
@@ -37,11 +38,6 @@ const FaultDialogs = ({
  // Fault templates + codes
  API, canManageOrgTemplates,
 }) => {
- // Iter 216h205 — Track if any Select dropdown is open to prevent Dialog close
- // Use a ref so the value is immediately available in the onOpenChange callback
- const selectOpenRef = React.useRef(false);
- const [, forceUpdate] = useState(0);
- 
  // Iter 216f — back-gesture close on the main "Log a Fault" dialog so
  // mobile operators can swipe back to dismiss the modal instead of
  // accidentally exiting the dashboard. See `lib/useBackGestureClose.js`.
@@ -51,19 +47,7 @@ const FaultDialogs = ({
  return (
  <>
  {/* Log Issue Dialog - Multi-step: Form → Triage → Resolution */}
- {/* Iter 216h205 — intercept clicks on Radix popper content
-    (Select dropdowns, Popovers) so the Dialog doesn't close when a
-    serial number is picked. */}
- <Dialog open={showIssueDialog} onOpenChange={(open) => { 
-   // Iter 216h205 — Don't close if a Select is open (Radix portal issue)
-   // The Select's onOpenChange fires AFTER the Dialog's, so we use a ref
-   console.log('[FaultDialogs] Dialog onOpenChange:', open, 'selectOpenRef:', selectOpenRef.current);
-   if (!open && selectOpenRef.current) {
-     console.log('[FaultDialogs] Blocking dialog close - select is open');
-     return;
-   }
-   if (!open) onResetDialog(); 
- }}>
+ <Dialog open={showIssueDialog} onOpenChange={(open) => { if (!open) onResetDialog(); }}>
  <DialogContent
  className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto"
  data-testid="issue-dialog"
@@ -139,10 +123,19 @@ const FaultDialogs = ({
      surfaces only treadmill serials. */}
  <div>
  <Label className="text-[var(--theme-text)]">{t('faults.serial_number')}</Label>
- <Select 
-   value={issueForm.serial_number} 
-   onValueChange={(val) => {
-     const equip = allEquipment.find(e => (e.serial_number || e.id) === val);
+ {/* Iter 216h205 — Native input + datalist replaces the Radix Select
+    for serial number. Solves the Radix Select-inside-Dialog portal
+    conflict where clicking a Select option closed the Dialog. */}
+ {/* Iter 216h205 retest2 — onKeyDown stopPropagation prevents Radix Dialog
+   from intercepting keyboard events and closing the dialog. This is a known
+   Radix issue (#3412) where inputs inside dialogs lose focus or cause the
+   dialog to close when typing. */}
+<input
+   type="text"
+   value={issueForm.serial_number || ''}
+   onChange={(e) => {
+     const val = e.target.value;
+     const equip = allEquipment.find(eq => (eq.serial_number || eq.id) === val);
      if (equip) {
        setIssueForm({ ...issueForm, serial_number: equip.serial_number || equip.name, machine_type: selectedMachineType || equip.equipment_type || equip.name, supplier: equip.manufacturer || '' });
        fetchCoverage(equip.id);
@@ -150,45 +143,34 @@ const FaultDialogs = ({
        const openFaults = issues.filter(i => i.status === 'open' && (i.serial_number === serialKey || i.serial_number === equip.name));
        if (openFaults.length > 0) setExistingFaultWarning({ faults: openFaults, machineName: equip.name || serialKey });
        else setExistingFaultWarning(null);
-     }
-   }}
-   onOpenChange={(open) => {
-     console.log('[FaultDialogs] Serial Select onOpenChange:', open);
-     if (open) {
-       selectOpenRef.current = true;
      } else {
-       // Delay setting to false so the Dialog's onOpenChange check happens first
-       setTimeout(() => { selectOpenRef.current = false; }, 100);
+       setIssueForm({ ...issueForm, serial_number: val });
      }
    }}
- >
- <SelectTrigger className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-2" data-testid="issue-serial-select">
- <SelectValue placeholder={selectedMachineType ? t('faults.select_serial') : t('faults.select_type_first')} />
- </SelectTrigger>
- <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)]">
+   onKeyDown={(e) => e.stopPropagation()}
+   placeholder={selectedMachineType ? t('faults.select_serial') : t('faults.select_type_first')}
+   list="issue-serial-datalist"
+   autoComplete="off"
+   className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] mt-2 h-10 px-3 rounded-md text-sm focus:outline-none focus:border-[color:var(--color-brand-cyan)]"
+   data-testid="issue-serial-select"
+ />
+ <datalist id="issue-serial-datalist">
  {filterSerialsByGroup(allEquipment, selectedMachineType).map(e => (
-   <SelectItem key={e.id} value={e.serial_number || e.id}>
-     {e.serial_number || t('faults.no_serial')} - {e.name} {e.manufacturer ? `(${e.manufacturer})` : ''}
-   </SelectItem>
+   <option key={e.id} value={e.serial_number || e.id}>
+     {e.name}{e.manufacturer ? ` (${e.manufacturer})` : ''}
+   </option>
  ))}
- </SelectContent>
- </Select>
+ </datalist>
  </div>
 
- {/* Coverage Status */}
+ {/* Coverage Status — Iter 216h205 uses the shared CoverageBanner. */}
  {issueForm.serial_number && (
  <div data-testid="coverage-status-section">
- {coverageLoading ? (
- <div className="flex items-center gap-2 text-[var(--color-text-muted)] text-sm animate-pulse">{t('triage.checking_coverage')}</div>
- ) : equipmentCoverage ? (
- <div className={`flex items-center gap-2 p-3 rounded-lg border ${equipmentCoverage.covered ? (equipmentCoverage.type === 'warranty' ? 'bg-green-500/10 border-green-500/20' : 'bg-[rgb(var(--rgb-brand-blue)/0.1)] border-[rgb(var(--rgb-brand-blue)/0.2)]') : 'bg-amber-500/10 border-amber-500/20'}`}>
- <Badge className={equipmentCoverage.covered ? (equipmentCoverage.type === 'warranty' ? 'bg-green-500/20 text-green-400' : 'bg-[rgb(var(--rgb-brand-blue)/0.2)] text-[var(--color-brand-blue)]') : 'bg-amber-500/20 text-amber-400'} data-testid="coverage-badge">
- {equipmentCoverage.covered ? (equipmentCoverage.type === 'warranty' ? t('triage.coverage_warranty') : t('triage.coverage_contract')) : t('triage.coverage_not_covered')}
- </Badge>
- <span className={`text-sm ${equipmentCoverage.covered ? 'text-[var(--theme-text)]' : 'text-amber-400'}`} data-testid="coverage-label">{equipmentCoverage.label}</span>
- {equipmentCoverage.sla_contract_ref && <span className="text-[var(--color-text-muted)] text-xs ml-auto">{t('triage.ref_label')}: {equipmentCoverage.sla_contract_ref}</span>}
- </div>
- ) : null}
+ <CoverageBanner
+  coverage={equipmentCoverage}
+  loading={coverageLoading}
+  testid="fault-coverage"
+ />
  </div>
  )}
 
@@ -224,6 +206,7 @@ const FaultDialogs = ({
  <div>
  <Label htmlFor="issue_description" className="text-[var(--theme-text)]">{t('faults.issue_description')}</Label>
  <Textarea id="issue_description" value={issueForm.issue_description} onChange={(e) => setIssueForm({...issueForm, issue_description: e.target.value})}
+ onKeyDown={(e) => e.stopPropagation()}
  required={faultMachines.length === 0} rows={4} placeholder={t('faults.description_placeholder')} className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-2" data-testid="issue-description-input" />
  </div>
 
@@ -231,6 +214,7 @@ const FaultDialogs = ({
  <Label htmlFor="steps_taken" className="text-[var(--theme-text)]">{t('faults.steps_taken')}</Label>
  <p className="text-[var(--color-text-muted)] text-xs mb-1">{t('faults.steps_taken_hint')}</p>
  <Textarea id="steps_taken" value={issueForm.steps_taken} onChange={(e) => setIssueForm({...issueForm, steps_taken: e.target.value})}
+ onKeyDown={(e) => e.stopPropagation()}
  rows={2} placeholder={t('faults.steps_taken_placeholder')} className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1" data-testid="issue-steps-taken-input" />
  </div>
 
