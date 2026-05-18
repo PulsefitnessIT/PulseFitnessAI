@@ -137,6 +137,27 @@ export default function MemberPortal({ slug }) {
     const params = new URLSearchParams(window.location.search);
     const result = params.get('checkout');
     const sessionId = params.get('session_id');
+    // Iter 216h202 — credit-pack purchase redirect handler.
+    const creditsResult = params.get('credits');
+    if (creditsResult) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      if (creditsResult === 'purchased') {
+        showPayment({
+          tone: 'success',
+          title: 'Credits added!',
+          detail: 'Your new class pack is live — refresh to see your balance.',
+        });
+        setTab('book');
+      } else if (creditsResult === 'cancelled') {
+        showPayment({
+          tone: 'info',
+          title: 'Pack purchase cancelled',
+          detail: 'No charge taken — buy a pack any time from the Book tab.',
+        });
+      }
+      return;
+    }
     if (!result) return;
     const cleanUrl = window.location.pathname;
     window.history.replaceState({}, '', cleanUrl);

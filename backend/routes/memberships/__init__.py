@@ -36,6 +36,7 @@ from routes.memberships import (
     booking_rules,
     bookings,
     classes,
+    credit_packs,
     dashboard,
     events,
     family_autopay,
@@ -106,6 +107,7 @@ for sub in (
     payment_risk,
     parent_portal,
     wallet,
+    credit_packs,
 ):
     router.include_router(sub.router)
 

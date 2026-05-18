@@ -605,6 +605,13 @@ async def stripe_webhook(request: Request, background: BackgroundTasks):
                     complete_wallet_topup,
                 )
                 await complete_wallet_topup(meta, session)
+            elif meta.get("gymaxis_kind") == "credit_pack":
+                # Iter 216h202 — member self-serve class-pack purchase.
+                # See routes/memberships/credit_packs.py.
+                from routes.memberships.credit_packs import (
+                    complete_credit_pack_purchase,
+                )
+                await complete_credit_pack_purchase(meta, session)
             else:
                 await _mark_membership_paid(meta, session)
             await db.payment_transactions.update_one(

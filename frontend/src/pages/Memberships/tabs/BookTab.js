@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  ChevronLeft, ChevronRight, Clock, MapPin, Users as UsersIcon, X,
+  ChevronLeft, ChevronRight, Clock, MapPin, Users as UsersIcon, X, CreditCard,
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -18,6 +18,7 @@ import {
   API, AdSlot, CenterLoader, CTAButton, EmptyCard, Pill, SocialPulse,
   formatTime, groupByDay, startOfWeek,
 } from '../portalShared';
+import BuyCreditPackModal from '../modals/BuyCreditPackModal';
 
 export default function BookTab({ headers, slug }) {
   const vocab = useStudioVocab();
@@ -27,6 +28,10 @@ export default function BookTab({ headers, slug }) {
   const [actingId, setActingId] = useState(null);
   const [familyPickerOcc, setFamilyPickerOcc] = useState(null);
   const [subProfiles, setSubProfiles] = useState([]);
+  // Iter 216h202 — Lee's ask: when the booking 402s with "Need 1
+  // credit", auto-open the buy-pack modal with a contextual prompt.
+  const [buyPackOpen, setBuyPackOpen] = useState(false);
+  const [buyPackPrompt, setBuyPackPrompt] = useState('');
   const confirmFn = useConfirm();
 
   const load = useCallback(async () => {
@@ -45,6 +50,17 @@ export default function BookTab({ headers, slug }) {
   }, [headers, weekStart]);
   useEffect(() => { load(); }, [load]);
 
+  // Iter 216h202 — centralised 402 handler. Opens the buy-pack modal
+  // with the server's "Need N credits…" message as a prompt.
+  const handleBookingError = (err, fallback) => {
+    if (err?.response?.status === 402) {
+      setBuyPackPrompt(err?.response?.data?.detail || 'Need credits to book this class');
+      setBuyPackOpen(true);
+      return;
+    }
+    notifyApiError(notify, err, fallback);
+  };
+
   const book = async (occ) => {
     if (subProfiles.length > 0) {
       setFamilyPickerOcc(occ);
@@ -55,7 +71,7 @@ export default function BookTab({ headers, slug }) {
       await axios.post(`${API}/member/bookings`, { occurrence_id: occ.id }, { headers });
       notify.success(`Booked · ${occ.name}`);
       load();
-    } catch (err) { notifyApiError(notify, err, 'Failed to book'); }
+    } catch (err) { handleBookingError(err, 'Failed to book'); }
     finally { setActingId(null); }
   };
 
@@ -78,7 +94,7 @@ export default function BookTab({ headers, slug }) {
           : `Booked · ${occ.name}`,
       );
       load();
-    } catch (err) { notifyApiError(notify, err, 'Failed to book'); }
+    } catch (err) { handleBookingError(err, 'Failed to book'); }
     finally { setActingId(null); }
   };
 
@@ -108,8 +124,17 @@ export default function BookTab({ headers, slug }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.02em' }}>Book a class</h2>
         <div className="flex items-center gap-1">
-          <button onClick={() => setWeekStart(new Date(weekStart.getTime() - 7 * 86400000))} className="p-1.5 rounded-lg border border-white/10 hover:bg-white dark:bg-zinc-900/5" data-testid="member-book-prev-week"><ChevronLeft size={14} /></button>
-          <button onClick={() => setWeekStart(new Date(weekStart.getTime() + 7 * 86400000))} className="p-1.5 rounded-lg border border-white/10 hover:bg-white dark:bg-zinc-900/5" data-testid="member-book-next-week"><ChevronRight size={14} /></button>
+          {/* Iter 216h202 — permanent "Buy credits" entry point so
+             members can top up before they need to. */}
+          <button
+            onClick={() => { setBuyPackPrompt(''); setBuyPackOpen(true); }}
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--color-brand-cyan)]/40 bg-[var(--color-brand-cyan)]/10 text-[var(--color-brand-cyan)] text-[11px] font-extrabold uppercase tracking-wider hover:bg-[var(--color-brand-cyan)]/20"
+            data-testid="member-book-buy-credits"
+          >
+            <CreditCard size={12} /> Buy credits
+          </button>
+          <button onClick={() => setWeekStart(new Date(weekStart.getTime() - 7 * 86400000))} className="p-1.5 rounded-lg border border-white/10 hover:bg-white/5" data-testid="member-book-prev-week"><ChevronLeft size={14} /></button>
+          <button onClick={() => setWeekStart(new Date(weekStart.getTime() + 7 * 86400000))} className="p-1.5 rounded-lg border border-white/10 hover:bg-white/5" data-testid="member-book-next-week"><ChevronRight size={14} /></button>
         </div>
       </div>
       <div className="text-xs text-white/50 mb-3">{weekStart.toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(weekStart.getTime() + 6 * 86400000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</div>
@@ -144,6 +169,12 @@ export default function BookTab({ headers, slug }) {
           onConfirm={confirmFamilyBooking}
         />
       )}
+      <BuyCreditPackModal
+        headers={headers}
+        open={buyPackOpen}
+        onClose={() => setBuyPackOpen(false)}
+        prompt={buyPackPrompt}
+      />
     </div>
   );
 }
