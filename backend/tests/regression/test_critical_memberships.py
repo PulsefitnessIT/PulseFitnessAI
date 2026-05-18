@@ -33,3 +33,9 @@ from tests.test_iter_216h207_edit_drawer_gdpr import (  # noqa: F401
 from tests.test_iter_216h216_activation_module_filter import (  # noqa: F401
     test_memberships_only_org_hides_equipment_milestone,
 )
+
+# h217 — Public supplier catalogue (engineer apply wizard dropdown)
+from tests.test_iter_216h217_suppliers_public_catalogue import (  # noqa: F401
+    test_public_catalogue_returns_curated_only,
+    test_public_catalogue_contains_known_uk_suppliers,
+)

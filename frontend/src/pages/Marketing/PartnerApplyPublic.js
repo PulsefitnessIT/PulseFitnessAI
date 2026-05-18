@@ -17,6 +17,10 @@ import {
   ShieldCheck, FileText, Sparkles, Upload, Trash2, FileUp, Mail,
   HardHat,
 } from 'lucide-react';
+// Iter 216h217 — Craig's audit: dropdown for suppliers w/ "add new"
+// button. Public catalogue endpoint (`?publicCatalogue`) returns the
+// curated UK fitness supplier list with no auth required.
+import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';
 
 import MarketingShell from './MarketingShell';
 import { useSeo } from '@/utils/seo';
@@ -294,9 +298,23 @@ export default function PartnerApplyPublic() {
             {step.id === 'skills' && (
               <div className="space-y-4">
                 <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck size={16} /> Skills & insurance</h2>
-                <Field label="Brands supported (comma-separated)" placeholder="Life Fitness, Technogym, Matrix, Precor"
-                  testId="pe-apply-brands"
-                  value={profile.brands_supported} onChange={setField('brands_supported')} />
+                <label className="block">
+                  <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
+                    Brands you service
+                  </span>
+                  <div className="mt-1.5">
+                    <SupplierMultiPicker
+                      value={profile.brands_supported}
+                      onChange={(arr) => setField('brands_supported')(arr.join(', '))}
+                      publicCatalogue
+                      placeholder="Type a brand, or pick from the list…"
+                      testid="pe-apply-brands"
+                    />
+                  </div>
+                  <span className="block text-[11px] text-slate-400 mt-1">
+                    Pick from the curated list (Technogym, Life Fitness, Pulse, etc.) or add bespoke brands.
+                  </span>
+                </label>
                 <Field label="Skills (comma-separated)" placeholder="Cardio, strength, electrical, plumbing, plate-loaded"
                   testId="pe-apply-skills"
                   value={profile.skills} onChange={setField('skills')} />

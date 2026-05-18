@@ -1,3 +1,38 @@
+## Iter 216h217 — Supplier dropdown standardisation (Feb 18, 2026) ✅ P2
+
+Closes Craig's "drop-down boxes where possible, if need be add a plus button to add more suppliers" feedback.
+
+### What changed
+- **NEW component `SupplierMultiPicker.jsx`** — chip-pill multi-select with curated-catalogue typeahead and explicit "Add new" footer button. Loads the catalogue lazily on focus. Public-or-auth toggle via `publicCatalogue` prop.
+- **NEW backend route `GET /api/suppliers/catalogue/public`** — returns the 25-supplier curated UK list (Pulse Fitness, Technogym, Life Fitness, Precor, Matrix, etc.) with no auth required so the public engineer-apply wizard can serve a real dropdown.
+- **Public engineer apply wizard** (`/partners/engineers/apply`) — replaced the free-text "brands_supported" input with `SupplierMultiPicker publicCatalogue`.
+- **Operator engineer apply wizard** (`/partner-engineer/apply` — internal) — same component without `publicCatalogue` (uses auth endpoint, so per-org custom suppliers also surface).
+
+### UX
+- Chip-pills for selected brands. Click ✕ to remove. Backspace at empty input removes the last chip.
+- Type to filter. Enter on a filtered hit adds it. Enter on no match adds the typed value as a custom brand.
+- Footer "Add &quot;{query}&quot; as a new supplier" button surfaces only when the query has no match in curated nor in selected — exactly the "+ button to add more suppliers" Craig asked for.
+- Open via click on the input or any selected chip area; auto-closes on outside click.
+
+### Verification
+- Live curl `GET /api/suppliers/catalogue/public` → 25 curated rows, `source=curated`, no auth needed.
+- 2 new pytest cases (`test_iter_216h217_suppliers_public_catalogue.py`) — both pass. Wired into regression suite (96/96 green, was 94).
+- Frontend lint clean.
+
+### Files
+- NEW: `frontend/src/components/shared/SupplierMultiPicker.jsx`
+- NEW: `backend/tests/test_iter_216h217_suppliers_public_catalogue.py`
+- UPDATED: `backend/routes/suppliers_catalogue.py` (public route)
+- UPDATED: `frontend/src/pages/Marketing/PartnerApplyPublic.js` (dropdown replaces free text)
+- UPDATED: `frontend/src/pages/PartnerEngineer/PartnerApplyWizard.js` (operator-side same swap)
+- UPDATED: `backend/tests/regression/test_critical_memberships.py` (2 h217 imports)
+
+### Future opportunities
+The same `SupplierMultiPicker` can now replace free-text supplier inputs on Operations (`EquipmentDetailDrawer`), Service Desk (`PartsCatalogue`), and any other surface that asks "which brand/supplier?". Tracked in backlog as a sweep.
+
+---
+
+
 ## Iter 216h216 — Craig's screenshot batch: engineer apply + NPS gate + module-aware onboarding (Feb 18, 2026) ✅ P0/P1
 
 Three screenshots from Craig surfaced **7 distinct bugs** across the public Engineer Apply wizard, homepage NPS prompt, and trial onboarding. All fixed in one batch.

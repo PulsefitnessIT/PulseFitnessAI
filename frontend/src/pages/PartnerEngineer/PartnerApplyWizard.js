@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';
 
 const STEPS = [
   { id: 'intro',    label: 'Welcome' },
@@ -174,9 +175,19 @@ export default function PartnerApplyWizard() {
           {step.id === 'skills' && (
             <div className="space-y-3">
               <h2 className="text-lg font-bold mb-2 flex items-center gap-2"><ShieldCheck size={16} /> Skills & brands</h2>
-              <Field label="Brands supported (comma-separated)" placeholder="Life Fitness, Technogym, Matrix"
-                value={profile.brands_supported}
-                onChange={(v) => setProfile((p) => ({ ...p, brands_supported: v }))} testId="partner-field-brands" />
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                  Brands you service
+                </span>
+                <div className="mt-1.5">
+                  <SupplierMultiPicker
+                    value={profile.brands_supported}
+                    onChange={(arr) => setProfile((p) => ({ ...p, brands_supported: arr.join(', ') }))}
+                    placeholder="Type a brand, or pick from the list…"
+                    testid="partner-field-brands"
+                  />
+                </div>
+              </label>
               <Field label="Skills (comma-separated)" placeholder="Cardio, strength, electrical, plumbing"
                 value={profile.skills}
                 onChange={(v) => setProfile((p) => ({ ...p, skills: v }))} testId="partner-field-skills" />

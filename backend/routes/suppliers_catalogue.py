@@ -134,6 +134,25 @@ def _curated_dict() -> dict[str, dict]:
     return {s["name"].lower(): s for s in CURATED_SUPPLIERS}
 
 
+@router.get("/suppliers/catalogue/public")
+async def suppliers_catalogue_public() -> dict:
+    """Public, curated-only catalogue for unauth surfaces.
+
+    Iter 216h217 — Craig's audit: the public engineer-apply wizard
+    ("which brands do you service?") still used a free-text input.
+    Frontends serving anonymous users now drop the same
+    `SupplierAutocomplete` component pointed at this endpoint; the
+    component multi-select works against the same shape.
+    """
+    items = [{**s, "source": "curated"} for s in CURATED_SUPPLIERS]
+    return {
+        "curated": items,
+        "custom": [],
+        "all": items,
+        "total": len(items),
+    }
+
+
 @router.get("/suppliers/catalogue")
 async def suppliers_catalogue(user: dict = Depends(get_current_user)):
     """Merged supplier list for autocomplete:
