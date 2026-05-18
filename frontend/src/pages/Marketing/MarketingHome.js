@@ -18,12 +18,12 @@ import { openPreview } from './ProductPreviewModal';
 import { useSeo } from '@/utils/seo';
 
 const MODULES = [
-  { id: 'service',     icon: Wrench,    color: '#06B6D4', to: '/platform/service',     name: 'Operations',  tagline: 'Stop equipment downtime.', body: 'Asset register, fault triage, parts ordering, risk assessments and full lifecycle costs — every machine on the floor accounted for.' },
-  { id: 'crm',         icon: Users,     color: '#6366F1', to: '/platform/crm',         name: 'CRM',         tagline: 'Turn leads into members.', body: 'Pipeline view, AI-prioritised follow-ups, revenue forecasting and a unified contact timeline.' },
-  { id: 'memberships', icon: Calendar,  color: '#8B5CF6', to: '/platform/memberships', name: 'Memberships', tagline: 'Classes, plans, walk-ins.', body: 'Bookings, family sub-profiles, monthly invoicing with sibling discounts, Auto-Bill, and embeddable booking widgets.' },
-  { id: 'marketing',   icon: Megaphone, color: '#D946EF', to: '/platform/marketing',   name: 'Marketing',   tagline: 'Campaigns that convert.',   body: 'AI-written sequences, win-back, referral campaigns, and shareable Instagram-ready class links.' },
-  { id: 'staffing',    icon: UserCog,   color: '#A855F7', to: '/platform/staffing',    name: 'Staffing',    tagline: 'Run the gym floor.',        body: 'Rota optimisation, instructor profiles, attendance, performance KPIs.' },
-  { id: 'reporting',   icon: BarChart3, color: '#2563EB', to: '/platform/reporting',   name: 'Reporting',   tagline: 'See the whole business.',   body: 'Cohort retention, LTV, revenue, and an audit log built for SOC 2 evidence and operator transparency.' },
+  { id: 'service',     icon: Wrench,    color: '#06B6D4', to: '/platform/service',     name: 'Operations',  tagline: 'Stop equipment downtime.', body: 'Asset register, AI fault triage, supplier auto-routing, scheduled risk assessments, warranty tracking and full lifecycle cost — every machine on the floor accounted for.' },
+  { id: 'crm',         icon: Users,     color: '#6366F1', to: '/platform/crm',         name: 'CRM',         tagline: 'Turn leads into members.', body: 'Pipeline view, AI lead scoring + reply assistant, churn early-warning, revenue forecasting and a unified contact timeline.' },
+  { id: 'memberships', icon: Calendar,  color: '#8B5CF6', to: '/platform/memberships', name: 'Memberships', tagline: 'Classes, plans, walk-ins.', body: 'Six selling models (recurring, fixed-term, class packs, courses, PAYG, bundles), family Auto-Bill with sibling discounts, embeddable booking widgets, and Studio Mode for solo operators.' },
+  { id: 'marketing',   icon: Megaphone, color: '#D946EF', to: '/platform/marketing',   name: 'Marketing',   tagline: 'Campaigns that convert.',   body: 'AI-written email + SMS sequences, win-back, referral campaigns, Instagram-ready class previews, and a Marketing Director that grades every send.' },
+  { id: 'staffing',    icon: UserCog,   color: '#A855F7', to: '/platform/staffing',    name: 'Staffing',    tagline: 'Run the gym floor.',        body: 'Rota + swap marketplace, time-off, mobile clock-in, live floor view, instructor performance KPIs and a one-click payroll export.' },
+  { id: 'reporting',   icon: BarChart3, color: '#2563EB', to: '/platform/reporting',   name: 'Reporting',   tagline: 'See the whole business.',   body: 'Cohort retention, LTV, capex pipeline, wage ratio, NPS, lead-source ROI and a tamper-evident audit log built for SOC 2 evidence.' },
 ];
 
 export default function MarketingHome() {
@@ -187,10 +187,10 @@ function SocialProof() {
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">What the platform delivers on day one</h2>
         </div>
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <Stat value="One screen" label="Members, classes, equipment & finance" />
-          <Stat value="AI-first" label="Brand auto-discovery, marketing co-pilot, fault triage" />
-          <Stat value="500k rows" label="Bulk imports tested for multi-site rollouts" />
-          <Stat value="GDPR-ready" label="UK GDPR DPA + UK-only data residency" />
+          <Stat value="6 modules" label="Operations · CRM · Memberships · Marketing · Staffing · Reporting" />
+          <Stat value="AI-first" label="Lead scoring, churn prediction, copywriter, fault triage — all built in" />
+          <Stat value="Multi-site" label="Head-office onboarding wizard handles unlimited child sites in one pass" />
+          <Stat value="GDPR-ready" label="UK GDPR DPA, UK-only data residency, tamper-evident audit log" />
         </div>
         <blockquote className="mt-16 max-w-3xl mx-auto text-center">
           <p className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 leading-snug">
@@ -226,7 +226,7 @@ function EngineerBanner() {
               Run your own business — backed by the GymAxis network.
             </h2>
             <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-xl">
-              Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn £100–£400 per gym you refer. Monthly fee drops to <strong className="text-slate-800">free</strong> at 10 referrals.
+              Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn up to £450 per gym you refer (released after the gym stays on the platform for 3 months) plus £3/site/mo recurring. Monthly fee drops to <strong className="text-slate-800">free</strong> at 10 referrals.
             </p>
             <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
               <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />£30 / £15 / free auto-tier</li>

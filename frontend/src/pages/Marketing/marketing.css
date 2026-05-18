@@ -50,16 +50,42 @@
 
 /* ── Iter 215be — pricing-page site slider ──
    Custom range input styled with the GymAxis brand gradient — used on
-   /pricing for the multi-site slider. WebKit + Firefox track + thumb. */
+   /pricing for the multi-site slider. WebKit + Firefox track + thumb.
+
+   Iter 216h192 — make the FILLED portion of the track react to the
+   slider value. The original CSS painted the whole track with a static
+   gradient, so the thumb moved but the bar always *looked* completely
+   filled. We now expose a `--fill-pct` CSS variable that callers set
+   (e.g. `style={{ '--fill-pct': pct + '%' }}`) and paint two stops:
+     [0%, fill-pct]   → brand gradient (the "filled" portion)
+     [fill-pct, 100%] → cool slate (the "empty" portion)
+   If `--fill-pct` is missing we fall back to 100% so unmodified callers
+   keep their original visual. */
 .gx-pricing-range {
   -webkit-appearance: none;
      -moz-appearance: none;
           appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(90deg, var(--gx-brand-from) 0%, var(--gx-brand-to) 100%);
+  background:
+    linear-gradient(90deg,
+      var(--gx-brand-from) 0%,
+      var(--gx-brand-to)   var(--fill-pct, 100%),
+      #e2e8f0              var(--fill-pct, 100%),
+      #e2e8f0              100%);
   outline: none;
   cursor: pointer;
+}
+/* Dark-mode variant used inside SiteCalculatorUpsell's slate-900 card
+   AND the pricing-page bundle card (which has a purple gradient
+   background — slate-200 wouldn't be visible against it). */
+.gx-pricing-range--dark {
+  background:
+    linear-gradient(90deg,
+      #ffffff             0%,
+      #f1f5f9             var(--fill-pct, 100%),
+      rgba(255,255,255,0.25) var(--fill-pct, 100%),
+      rgba(255,255,255,0.25) 100%);
 }
 .gx-pricing-range::-webkit-slider-thumb {
   -webkit-appearance: none;

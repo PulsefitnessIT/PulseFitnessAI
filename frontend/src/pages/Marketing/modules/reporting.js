@@ -84,7 +84,7 @@ export default {
   integrations: [
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class fills, retention, no-shows and Auto-Bill recovery flow in live.' },
     { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'Lead-source ROI, conversion funnels, NPS by segment.' },
-    { icon: Wrench,    name: 'Service',     color: '#06B6D4', to: '/platform/service',     body: 'Fault density, MTTR, capex pipeline and supplier scorecards.' },
+    { icon: Wrench,    name: 'Operations',     color: '#06B6D4', to: '/platform/service',     body: 'Fault density, MTTR, capex pipeline and supplier scorecards.' },
     { icon: Megaphone, name: 'Marketing',   color: '#D946EF', to: '/platform/marketing',   body: 'Campaign ROI rolled into the same revenue dashboard as plan upgrades.' },
   ],
 

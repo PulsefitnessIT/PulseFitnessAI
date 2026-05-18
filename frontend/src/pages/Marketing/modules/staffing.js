@@ -84,7 +84,7 @@ export default {
   integrations: [
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class instructors auto-publish to the rota. PT sessions take qualified staff out of the open pool.' },
     { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'Member-instructor ratings feed CRM and shape staffing decisions for VIP members.' },
-    { icon: Wrench,    name: 'Service',     color: '#06B6D4', to: '/platform/service',     body: 'Engineers visiting the site appear on the live floor view alongside your staff.' },
+    { icon: Wrench,    name: 'Operations',     color: '#06B6D4', to: '/platform/service',     body: 'Engineers visiting the site appear on the live floor view alongside your staff.' },
     { icon: Megaphone, name: 'Marketing',   color: '#D946EF', to: '/platform/marketing',   body: 'Instructor profiles power class previews and public booking pages.' },
   ],
 

@@ -7624,3 +7624,48 @@ Files: `/app/backend/scripts/purge_test_data_216h191.py` (new),
 
 `/app/backend/tests/test_iter_216h189_orgs_q_filter.py`.
 
+
+## Iter 216h192 — Pre-deploy marketing audit (17 Feb 2026)
+
+Full content audit + bug fix pass on the marketing surface before
+production deploy. Three concerns addressed:
+
+### 1. Pricing slider visual bug (FIXED)
+The pricing-page + upsell sliders had a static brand-gradient track:
+the thumb moved, but the bar always *looked* completely filled. CSS
+fix uses a new `--fill-pct` variable set inline per value — two-stop
+hard-edge gradient so the filled portion visibly grows / shrinks.
+Bundle-card slider switched to the `--dark` variant for contrast.
+
+### 2. Engineer sign-up bonus rule (CORRECTED)
+**Rule fixed**: engineers receive every commission AFTER the
+referred gym has stayed on the platform for **3 months** — NOT
+immediately on first payment. Threaded through 17 references in
+`PartnerEngineerLanding.js` (commission cards, stats strip, hero
+micro-bullets, worked example, FAQ — added a new dedicated entry
+"Why the 3 months qualifying period?" + cancellation/claw-back
+rules) + the homepage engineer card. Centralised in a single
+`QUALIFYING_PERIOD = '3 months'` constant.
+
+### 3. Content / feature accuracy audit
+- Homepage module cards now describe what each module actually does
+  (Operations: AI fault triage + supplier auto-routing; Memberships:
+  six selling models + family Auto-Bill + Studio Mode; Staffing:
+  rota + swap marketplace + payroll export; Reporting: tamper-
+  evident audit log for SOC 2 evidence).
+- Homepage stats strip dropped unverifiable "500k rows" claim,
+  replaced with "6 modules · AI-first · Multi-site · GDPR-ready".
+- Pricing bundle perks previously listed only 4 of 6 modules. Now
+  correctly lists all 6 + Sage 200 / Sicon bridge.
+- All 5 cross-module integration cards used `name: 'Service'` —
+  renamed to `'Operations'` for nav-consistency.
+
+Files touched:
+`marketing.css`, `PricingMarketingPage.js`, `SiteCalculatorUpsell.js`,
+`PartnerEngineerLanding.js`, `MarketingHome.js`, `modules/{crm,
+marketing,memberships,reporting,staffing}.js`.
+
+Lint clean. Pricing page renders with new copy (verified via
+screenshot tool). 17 references to `QUALIFYING_PERIOD` across the
+engineer page.
+

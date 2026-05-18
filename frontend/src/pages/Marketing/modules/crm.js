@@ -84,7 +84,7 @@ export default {
   integrations: [
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Bookings, freezes, family invoices feed the contact timeline automatically.' },
     { icon: Megaphone, name: 'Marketing',   color: '#D946EF', to: '/platform/marketing',   body: 'Pipeline segments are valid audiences. Send a campaign to "Tour booked, no follow-up" in one click.' },
-    { icon: Wrench,    name: 'Service',     color: '#06B6D4', to: '/platform/service',     body: 'Member-reported faults appear in their CRM timeline and trigger automatic apologies.' },
+    { icon: Wrench,    name: 'Operations',     color: '#06B6D4', to: '/platform/service',     body: 'Member-reported faults appear in their CRM timeline and trigger automatic apologies.' },
     { icon: BarChart3, name: 'Reporting',   color: '#2563EB', to: '/platform/reporting',   body: 'Cohort retention, lead-source ROI, LTV by segment — all in one dashboard.' },
   ],
 

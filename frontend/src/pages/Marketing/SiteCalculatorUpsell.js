@@ -132,7 +132,10 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
                     className="gx-pricing-range gx-pricing-range--dark flex-1"
                     aria-label="Number of sites"
                     data-testid="upsell-site-range"
-                    style={{ accentColor: accent }}
+                    style={{
+                      accentColor: accent,
+                      '--fill-pct': `${((sites - 1) / (MAX_SITES - 1)) * 100}%`,
+                    }}
                   />
                   <button
                     type="button"

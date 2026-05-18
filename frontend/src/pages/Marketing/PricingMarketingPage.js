@@ -36,14 +36,14 @@ const BUNDLE = {
   perSite: 50,
   highlight: true,
   perks: [
-    'Memberships, CRM, Marketing & Operations — all unlocked',
-    'AI Triage, AI Director, RA generator, smart audits',
-    'Stripe + Mailchimp + Twilio + open API integrations',
-    'Master Admin multi-site console + role-based access',
-    'Real-time KPIs across every site',
+    'All six modules unlocked — Operations, CRM, Memberships, Marketing, Staffing & Reporting',
+    'AI built into every module — fault triage, lead scoring, churn early-warning, campaign autopilot, RA generator',
+    'Stripe + Mailchimp + Twilio + Sage 200 / Sicon bridge + open API',
+    'Master Admin multi-site console with head-office onboarding wizard',
+    'Real-time KPIs and tamper-evident audit log across every site',
     'Family Auto-Bill, Family Wallet, sibling discounts',
-    'Tamper-evident audit log + GDPR retention controls',
-    'Priority support + onboarding',
+    'Six selling models, six payroll exports, six reporting cohorts — one platform',
+    'Priority support + white-glove onboarding',
   ],
 };
 
@@ -159,7 +159,8 @@ function SiteSlider({ value, onChange }) {
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="gx-pricing-range w-full"
+        className="gx-pricing-range gx-pricing-range--dark w-full"
+        style={{ '--fill-pct': `${((value - min) / (max - min)) * 100}%` }}
         data-testid="gx-site-range"
         aria-label="Number of sites"
       />

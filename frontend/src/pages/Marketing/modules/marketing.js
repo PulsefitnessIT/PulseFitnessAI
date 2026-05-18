@@ -84,7 +84,7 @@ export default {
   integrations: [
     { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'CRM segments are your live audiences. No CSV exports, no list rot.' },
     { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class data + capacity + bookings power the auto-generated campaign creative.' },
-    { icon: Wrench,    name: 'Service',     color: '#06B6D4', to: '/platform/service',     body: 'Resolved equipment fault triggers a "we listened" social post automatically.' },
+    { icon: Wrench,    name: 'Operations',     color: '#06B6D4', to: '/platform/service',     body: 'Resolved equipment fault triggers a "we listened" social post automatically.' },
     { icon: BarChart3, name: 'Reporting',   color: '#2563EB', to: '/platform/reporting',   body: 'Campaign ROI rolled into the platform-wide revenue dashboard.' },
   ],
 
