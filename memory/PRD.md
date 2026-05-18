@@ -1,3 +1,55 @@
+## Iter 216h202 — Buy Credits Self-Service Feature (May 18, 2026) ✅ P1
+
+Closes the credit-loop Lee flagged: the 402 "Need 1 credit — purchase a pack" error now has a buy-flow.
+
+### Backend
+- **`GET /api/member/credit-packs`** — lists active `class_pack` plans for the member's org. Filters out packs flagged `visible_for_self_purchase: false`. Returns each pack with `value_per_credit_pence` so the UI can show "£10 per class".
+- **`POST /api/member/credit-pack-checkout`** — body `{plan_id}`. Reads price/credits from the server-side plan (NEVER trusts the frontend — security check confirmed in API tests). Creates a Stripe Checkout session with `metadata.gymaxis_kind="credit_pack"`. Inserts a pending row in `payment_transactions`. Returns `{checkout_url, session_id}`. Rate-limited 10/min/member. 503 when Stripe not configured, 404 on unknown plan, 400 on misconfigured pack (no price or no credits).
+- **`GET /api/member/credit-pack-status/{session_id}`** — member-scoped polling endpoint for the success page.
+- **Webhook**: `complete_credit_pack_purchase` registered in the central `/memberships/webhook/stripe` dispatcher for `gymaxis_kind=="credit_pack"`. Idempotent on `session_id`. Either tops up an existing active pack on the same plan (sum `credits_remaining`, extend `credits_expires_at`) OR creates a fresh `member_memberships` row with `purchased_via="member_self_serve"`.
+
+### Frontend
+- **New `BuyCreditPackModal.js`** (`data-testid="buy-credits-modal"`) — fetches `/credit-packs`, renders one button per pack with price, credits, expiry, value-per-class, then redirects to Stripe Checkout on click.
+- **BookTab.js**:
+  - Persistent "Buy credits" CTA (`data-testid="member-book-buy-credits"`) at top right of the timetable.
+  - Centralised `handleBookingError` — on 402, auto-opens the modal with the server's prompt (e.g. "Need 1 credit — purchase a pack") visible at `data-testid="buy-credits-prompt"`.
+- **MemberPortal.js** — handles `?credits=purchased` and `?credits=cancelled` redirect URLs with success/info banners.
+
+### Staff override (already shipped pre-h202, verified)
+Lee's second ask — "staff should be able to allocate members without credits or for free with a membership" — is **already implemented**:
+- `POST /api/memberships/occurrences/{id}/bookings` with `bypass_credits:true` (default) bypasses credit check + unlimited-plan check.
+- `included_classes: "unlimited"` recurring plans already give free booking via the member portal too (credits_charged=0 path in bookings.py).
+- Operator UI: Memberships → Classes → click class → "Add member" (`ClassActionDrawer.js:481`) already sends `bypass_credits:true`. Confirmed in regression tests.
+
+### Tests
+- `backend/tests/test_iter_216h202_credit_packs.py` — **11/11** ✅ (unit)
+- `backend/tests/test_iter_216h202_api_credit_packs.py` (testing agent) — **9/9** ✅ (live HTTP, incl. security check that the request body's `price_pence` is ignored)
+- Frontend Playwright — modal opens, packs render, hidden pack excluded, close works.
+- Combined regression: **88/88** pass across iters 192-202.
+- Testing agent: 100% on both backend and frontend.
+
+### Files
+* `backend/routes/memberships/credit_packs.py` (NEW)
+* `backend/routes/memberships/__init__.py` (registered)
+* `backend/routes/memberships_payments.py` (webhook dispatch for `credit_pack` kind)
+* `frontend/src/pages/Memberships/modals/BuyCreditPackModal.js` (NEW)
+* `frontend/src/pages/Memberships/tabs/BookTab.js` (Buy credits CTA + 402 auto-open)
+* `frontend/src/pages/Memberships/MemberPortal.js` (`?credits=` redirect handling)
+* `backend/tests/test_iter_216h202_credit_packs.py` (NEW, 11 unit pytests)
+* `backend/tests/test_iter_216h202_api_credit_packs.py` (NEW by testing agent, 9 live HTTP tests)
+
+### Test seed
+- Member: `creditpack.test@example.com` / `Test123!`
+- Org: "Credit Pack Test Studio" (slug: `credit-pack-test`) with 3 packs configured
+- Portal: `/m/credit-pack-test`
+
+### Action required
+**Redeploy** preview → production. Lee should test the buy-flow with Stripe test card `4242 4242 4242 4242` (any future expiry / any CVC).
+
+---
+
+
+
 ## Iter 216h201 — Memberships UX Sweep (May 18, 2026) ✅ P0×6
 
 Lee/Craig screenshots reported 6 issues — all fixed and verified.
