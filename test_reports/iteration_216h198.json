@@ -1,0 +1,96 @@
+{
+  "summary": "Iter 216h198 — Phase 2 Ops↔CRM↔ServiceDesk link verified. Backend: GET /api/equipment/{id}/coverage returns enriched `crm_coverage` dict with has_coverage, best, all_contracts keys. Legacy keys (warranty_active, contract_active, covered, type, label, supplier) preserved. Frontend: EquipmentCoveragePanel renders correctly in equipment detail dialog with proper variant (red for no coverage). ModuleSwitcher CRM cross-login (SSO bridge) works without login loops. All 25 pytest tests pass (9 new + 16 regression).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h198_equipment_crm_coverage.py",
+    "/app/backend/tests/test_iter_216h197_crm_auth_and_pills.py",
+    "/app/backend/tests/test_iter_216h196_sites_and_equipment.py",
+    "/app/test_reports/pytest/pytest_results_216h198.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (25/25 pytest tests passed, API endpoints verified via curl)",
+    "frontend": "100% (EquipmentCoveragePanel renders, ModuleSwitcher CRM cross-login works)"
+  },
+  "test_credentials": "e1.agent@gymaxisai.com / E1Agent123!, admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h198 adds Phase 2 of Ops↔CRM↔ServiceDesk link: (1) GET /api/equipment/{id}/coverage now returns `crm_coverage` dict with CRM aftersales contract data (has_coverage, best, all_contracts), (2) EquipmentCoveragePanel component renders at top of equipment detail dialog showing coverage status (green=covered, amber=expiring<90d, red=no coverage), (3) ModuleSwitcher CRM cross-login via POST /api/crm/auth/cross-login exchanges main JWT for CRM token without re-prompting credentials. Legacy keys preserved for backward compatibility.",
+  "test_results": {
+    "backend_api": {
+      "equipment_coverage_endpoint": {
+        "status": "PASS",
+        "endpoint": "GET /api/equipment/{id}/coverage",
+        "response_keys": ["equipment_id", "equipment_name", "covered", "type", "label", "warranty_active", "warranty_days_remaining", "warranty_expiry", "contract_active", "contract_days_remaining", "sla_contract_ref", "sla_expiry", "supplier", "crm_coverage"],
+        "crm_coverage_keys": ["has_coverage", "best", "all_contracts"],
+        "404_on_missing": true
+      },
+      "crm_cross_login": {
+        "status": "PASS",
+        "endpoint": "POST /api/crm/auth/cross-login",
+        "returns_token": true
+      },
+      "crm_sites_and_equipment_regression": {
+        "status": "PASS",
+        "endpoint": "GET /api/crm/v2/companies/{id}/sites-and-equipment",
+        "response_keys": ["linked_organization_id", "linked_via", "sites", "totals"]
+      }
+    },
+    "pytest": {
+      "test_iter_216h198_equipment_crm_coverage.py": {
+        "status": "PASS",
+        "tests_passed": 9,
+        "tests_total": 9,
+        "test_cases": [
+          "test_no_warranty_no_contract_returns_no_coverage",
+          "test_active_gold_contract_returned_as_best",
+          "test_higher_tier_wins_over_lower_tier_when_both_active",
+          "test_expired_contract_is_excluded_from_coverage",
+          "test_cancelled_status_contract_is_excluded",
+          "test_contract_expiring_within_90d_flagged_as_expiring_soon",
+          "test_manufacturer_warranty_still_surfaces_independently_of_crm",
+          "test_returns_404_when_equipment_not_found",
+          "test_orphan_contract_asset_without_matching_contract_is_skipped"
+        ]
+      },
+      "regression_tests": {
+        "status": "PASS",
+        "tests_passed": 16,
+        "tests_total": 16,
+        "files": [
+          "test_iter_216h197_crm_auth_and_pills.py (8)",
+          "test_iter_216h196_sites_and_equipment.py (8)"
+        ]
+      }
+    },
+    "frontend_ui": {
+      "equipment_coverage_panel": {
+        "status": "PASS",
+        "data_testid": "equipment-coverage-panel",
+        "loading_state_testid": "equipment-coverage-loading",
+        "renders_in_dialog": true,
+        "shows_no_coverage_variant": true,
+        "panel_text": "No active coverage - This equipment isn't covered by a manufacturer warranty or an active aftersales contract. Any callouts will be billable."
+      },
+      "module_switcher": {
+        "status": "PASS",
+        "data_testid": "module-switcher",
+        "crm_pill_testid": "module-switcher-crm",
+        "operations_pill_testid": "module-switcher-operations",
+        "crm_cross_login_works": true,
+        "navigates_to_crm_without_login_prompt": true
+      }
+    }
+  }
+}
