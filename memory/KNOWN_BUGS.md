@@ -77,6 +77,7 @@ _Last refreshed: Iter 216h209 · Feb 18 2026_
 
 | Iter | Fix |
 |------|-----|
+| h211 | Regression suite extended Service Desk (20) + MOD (19) + CRM (20). Total now 84 isolated tests, ~2 min runtime, pre-deployment gate. |
 | h210 | Login-failure reason classification + Master Admin diagnostics (`/master-admin?section=login-events` shows colour-coded reason badges; `?section=client-errors` shows React render crashes from ModalErrorBoundary) |
 | h209 | Credit Packs subtab discoverability + full audit passed |
 | h208 | Issues inherit site_id from equipment |

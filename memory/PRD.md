@@ -1,3 +1,36 @@
+## Iter 216h211 — Regression suite extended to Service Desk + MOD + CRM (Feb 18, 2026) ✅ P1
+
+Brought the pre-deployment regression suite from 25 tests (Auth + Memberships + Operations) up to **84 tests** spanning every critical module.
+
+### What's in `tests/regression/`
+
+| Suite | Tests | Lines protected |
+|-------|------:|-----------------|
+| `test_critical_auth.py`           | 6  | Login-failure reason classification (h210), login-events + client-errors diagnostics endpoints |
+| `test_critical_memberships.py`    | 15 | Instructor create+edit validation, member edit drawer parity, GDPR consent audit (h201/h207) |
+| `test_critical_operations.py`     | 4  | Issues inherit site_id from equipment (h208) |
+| `test_critical_service_desk.py`   | 20 | Auto-warranty resolver + issue→svc_case mirror routing (h199), engineer phase-3 mileage/parts/invoice (h133) |
+| `test_critical_mod.py`            | 19 | MOD portal isolation (h113f), HQ rollup contract (h120), bulk-import contract (h117) |
+| `test_critical_crm.py`            | 20 | Coverage resolver (h198), portal pills entitlement (h197), CRM↔platform cross-credential auth (h197), tags aggregation (h195) |
+| **TOTAL**                         | **84** | |
+
+### Selection criteria
+Only **isolated unit-style tests** were included — no live-server fixtures required (`admin_sess`, `crm_sess`, `mod_user_token`, `admin_headers`). The suite runs anywhere: laptop, CI, deployment pipeline. Runtime ~2 min.
+
+### Files
+- NEW: `backend/tests/regression/test_critical_service_desk.py`
+- NEW: `backend/tests/regression/test_critical_mod.py`
+- NEW: `backend/tests/regression/test_critical_crm.py`
+- UPDATED: `backend/tests/regression/README.md` (coverage table + selection criteria)
+
+### Why this matters
+The 84-test suite is the **single command** before any deployment:
+`pytest backend/tests/regression -q`. Every PR-shaped change should run it.
+If it stays green, none of the trust-recovery work (Craig's reported bugs, GDPR parity, site_id inheritance, login-reason audit, coverage resolver, MOD scope rollup) silently regresses.
+
+---
+
+
 ## Iter 216h210 — Login-failure reason + Master Admin diagnostics (Feb 18, 2026) ✅ P1
 
 User feedback: "Craig had 3 failed logins — I could see the failed logins but no details. Was it the password or the username?" Plus continuation of h209 trust-recovery: build the diagnostics page that surfaces both feeds.
