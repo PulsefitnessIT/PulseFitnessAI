@@ -485,7 +485,7 @@ async def forgot_password(body: dict, request: Request) -> dict:
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
 
-    user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "email": 1, "full_name": 1})
+    user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1})
 
     # Always return success to prevent email enumeration
     if not user:
@@ -502,8 +502,14 @@ async def forgot_password(body: dict, request: Request) -> dict:
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
-    import os
-    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    # Iter 216h192 — password-reset links must use the brand-aware app URL
+    # so production emails point at gymaxisai.com / pulsefitness.ai instead
+    # of the preview deployment (which was the cause of "Invalid Reset Link"
+    # in production: clicking the preview-domain link hit a different DB
+    # than the one that issued the token).
+    from utils.brand_urls import app_url_for_org
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "account_type": 1}) if user.get("organization_id") else None
+    frontend_url = app_url_for_org(org)
     reset_url = f"{frontend_url}/reset-password?token={token}"
     logger.info(f"[PASSWORD RESET] Reset link for {email}: {reset_url}")
 

@@ -5,6 +5,21 @@ import Button from '@/components/shared/Button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, MessageSquare, Upload, Shield } from 'lucide-react';
 
+// Iter 216h192 — Concrete, in-product next steps surfaced when the
+// Gym Health Score is dragged down by one of these sub-categories.
+const HEALTH_IMPROVE_TIPS = {
+  fault_management:
+    'Close out any open faults from the Faults tab — each fix lifts this score, and resolved faults stay on record for trend reporting.',
+  self_fix_rate:
+    'When a fault has a recommended self-fix, log the outcome via "Resolve → I fixed it myself". The AI learns from each one and your score rises.',
+  audit_coverage:
+    'Run a quick audit on each piece of equipment from the Equipment tab. Audit Coverage = audits / total equipment, so a single sweep tops it up.',
+  warranty_health:
+    'Open the Equipment tab and add or extend warranty dates. Expired warranties drag this score; keeping cover live keeps you near 15/15.',
+  ai_knowledge:
+    'Every time you (or your team) log a successful fix, the platform stores it in your Knowledge Base. After ~5 logged fixes you hit the max 15 pts.',
+};
+
 const OverviewTab = ({
  healthScore, issues, auditHistory, maintenanceTasks,
  urgentExpiryAlerts, onLogIssue, onNavigateTab, onViewExpiryAlerts,
@@ -86,18 +101,44 @@ const OverviewTab = ({
  </div>
  </div>
  <div className="space-y-2">
- {Object.entries(healthScore.breakdown || {}).map(([key, val]) => (
- <div key={key}>
- <div className="flex justify-between text-xs mb-0.5">
- <span className="text-[var(--color-text-muted)] capitalize">{key.replace(/_/g, ' ')}</span>
- <span className="text-white">{val.score}/{val.max}</span>
+ {Object.entries(healthScore.breakdown || {}).map(([key, val]) => {
+   const tip = HEALTH_IMPROVE_TIPS[key] || '';
+   const title = `${val.detail || ''}${tip ? ` — ${tip}` : ''}`;
+   return (
+     <div key={key} title={title}>
+       <div className="flex justify-between text-xs mb-0.5">
+         <span className="text-[var(--color-text-muted)] capitalize">{key.replace(/_/g, ' ')}</span>
+         <span className="text-white">{val.score}<span className="opacity-60">/{val.max} pts</span></span>
+       </div>
+       <div className="w-full bg-[var(--theme-surface)] rounded-full h-1.5">
+         <div className="h-1.5 rounded-full transition-all" style={{ width: `${(val.score / val.max) * 100}%`, backgroundColor: healthScore.color }} />
+       </div>
+     </div>
+   );
+ })}
  </div>
- <div className="w-full bg-[var(--theme-surface)] rounded-full h-1.5">
- <div className="h-1.5 rounded-full transition-all" style={{ width: `${(val.score / val.max) * 100}%`, backgroundColor: healthScore.color }} />
- </div>
- </div>
- ))}
- </div>
+ {/* Iter 216h192 — "How to improve" tip surfaces the lowest-scoring
+     sub-category's next step so customers know what to act on. */}
+ {(() => {
+   const entries = Object.entries(healthScore.breakdown || {});
+   if (!entries.length) return null;
+   const worst = entries
+     .map(([k, v]) => ({ k, ratio: v.max ? v.score / v.max : 1 }))
+     .filter(x => x.ratio < 1)
+     .sort((a, b) => a.ratio - b.ratio)[0];
+   if (!worst) return null;
+   const tip = HEALTH_IMPROVE_TIPS[worst.k];
+   if (!tip) return null;
+   return (
+     <p
+       className="mt-3 text-[11px] leading-snug text-[var(--color-text-muted)]"
+       data-testid="health-improve-tip"
+     >
+       <span className="font-semibold text-white">How to improve:</span>{' '}
+       {tip}
+     </p>
+   );
+ })()}
  </Card>
  )}
 

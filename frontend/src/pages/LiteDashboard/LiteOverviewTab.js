@@ -20,6 +20,23 @@ import {
 import KpiTile from '../../components/shared/KpiTile';
 import { useAuth } from '@/App';
 
+// Iter 216h192 — Lee's ask: when the Gym Health Score is "Fair" or
+// lower, surface a concrete next step per sub-category. The score
+// label "30/30 pts" is also clearer than the bare "30/30" which the
+// user read as "30 open faults out of 30".
+const HEALTH_IMPROVE_TIPS = {
+  fault_management:
+    'Close out any open faults from the Faults tab — each fix lifts this score, and resolved faults stay on record for trend reporting.',
+  self_fix_rate:
+    'When a fault has a recommended self-fix, log the outcome via "Resolve → I fixed it myself". The AI learns from each one and your score rises.',
+  audit_coverage:
+    'Run a quick audit on each piece of equipment from the Equipment tab. Audit Coverage = audits / total equipment, so a single sweep tops it up.',
+  warranty_health:
+    'Open the Equipment tab and add or extend warranty dates. Expired warranties drag this score; keeping cover live keeps you near 15/15.',
+  ai_knowledge:
+    'Every time you (or your team) log a successful fix, the platform stores it in your Knowledge Base. After ~5 logged fixes you hit the max 15 pts.',
+};
+
 const LiteOverviewTab = ({
   equipment, openFaults, operational, outOfOrder,
   onLogFault, onViewFault,
@@ -141,13 +158,51 @@ const LiteOverviewTab = ({
             )}
           </div>
           {health && !health.not_ready && (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] flex-1 max-w-md">
-              {Object.entries(health.breakdown || {}).map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-2 border-b border-[var(--theme-border)]/30 py-1" data-testid={`health-breakdown-${k}`}>
-                  <span className="text-[var(--color-text-muted)] capitalize truncate">{k.replace(/_/g, ' ')}</span>
-                  <span className="font-mono text-[var(--theme-text)] shrink-0">{v.score}<span className="opacity-50">/{v.max}</span></span>
-                </div>
-              ))}
+            <div className="flex-1 max-w-md w-full">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]" data-testid="health-breakdown">
+                {Object.entries(health.breakdown || {}).map(([k, v]) => {
+                  const tip = HEALTH_IMPROVE_TIPS[k] || '';
+                  const title = `${v.detail || ''}${tip ? ` — ${tip}` : ''}`;
+                  return (
+                    <div
+                      key={k}
+                      className="flex justify-between gap-2 border-b border-[var(--theme-border)]/30 py-1"
+                      data-testid={`health-breakdown-${k}`}
+                      title={title}
+                    >
+                      <span className="text-[var(--color-text-muted)] capitalize truncate">{k.replace(/_/g, ' ')}</span>
+                      <span className="font-mono text-[var(--theme-text)] shrink-0">
+                        {v.score}<span className="opacity-50">/{v.max} pts</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Iter 216h192 — Lee's Feb 2026 ask: surface a "How to
+                  improve" tip directly under the breakdown so customers
+                  with a "Fair" or lower rating know exactly what to do
+                  next. We pick the lowest-scoring sub-category whose
+                  improvement is actionable from inside the platform. */}
+              {(() => {
+                const entries = Object.entries(health.breakdown || {});
+                if (!entries.length) return null;
+                const worst = entries
+                  .map(([k, v]) => ({ k, ratio: v.max ? v.score / v.max : 1 }))
+                  .filter(x => x.ratio < 1)
+                  .sort((a, b) => a.ratio - b.ratio)[0];
+                if (!worst) return null;
+                const tip = HEALTH_IMPROVE_TIPS[worst.k];
+                if (!tip) return null;
+                return (
+                  <p
+                    className="mt-2 text-[11px] leading-snug text-[var(--color-text-muted)]"
+                    data-testid="health-improve-tip"
+                  >
+                    <span className="font-semibold text-[var(--theme-text)]">How to improve:</span>{' '}
+                    {tip}
+                  </p>
+                );
+              })()}
             </div>
           )}
         </div>

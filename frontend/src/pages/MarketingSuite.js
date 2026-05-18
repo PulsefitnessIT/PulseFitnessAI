@@ -173,7 +173,18 @@ const MarketingSuite = () => {
 
   const isLocked = (feature) => feature && entitlement && !entitlement.features?.[feature];
   const planName = entitlement?.plan?.name || 'Loading…';
-  const isTrial = entitlement?.subscription?.status === 'trial';
+  // Iter 216h192 — Lee's Feb 2026 fix: a paid platform plan (Pulse Pro,
+  // GymAxis Full, Lite) bundles Marketing. Don't tease "Free trial" at
+  // those users — it implies billing will start, which is misleading.
+  // We still honour the actual marketing-subscription status so true
+  // self-service trials keep showing the pill.
+  const isOnPaidPlatformPlan = (
+    user?.account_type === 'pulse_pro' ||
+    user?.account_type === 'full' ||
+    user?.account_type === 'lite' ||
+    !!user?.is_master_admin
+  );
+  const isTrial = entitlement?.subscription?.status === 'trial' && !isOnPaidPlatformPlan;
 
   const ActiveTab = () => {
     switch (tab) {

@@ -461,7 +461,19 @@ export default function CRMApp() {
   // Iter 215ax (Phase 3) — for GymAxis-branded CRM users, the active-tab
   // accent is the brand gradient (navy → purple); Pulse-branded users
   // keep the legacy cyan to preserve their visual identity.
-  const isPulseBrandedCRM = user?.crm_brand === 'pulse';
+  // Iter 216h192 — Pulse-branded orgs (account_type === 'pulse_pro' or
+  // 'lite') were showing "GymAxis Pro" in the CRM header because the
+  // legacy resolver only checked `crm_brand`. Now align with the rest
+  // of the platform: any Pulse account_type forces Pulse branding.
+  // Note: platformUser is derived from mainAuth.user || user (defined later
+  // in the render flow), so we use mainAuth?.user here for the check.
+  const isPulseAccount = (
+    mainAuth?.user?.account_type === 'pulse_pro' ||
+    mainAuth?.user?.account_type === 'lite' ||
+    user?.account_type === 'pulse_pro' ||
+    user?.account_type === 'lite'
+  );
+  const isPulseBrandedCRM = user?.crm_brand === 'pulse' || isPulseAccount;
   const brandCfg = useMemo(() => {
     if (isPulseBrandedCRM) {
       return { label: 'Pulse Fitness CRM', initial: 'P', accent: 'var(--color-brand-cyan)' };

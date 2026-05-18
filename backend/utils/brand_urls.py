@@ -12,8 +12,8 @@ Resolution order (first hit wins)
        - GymAxis orgs  → ``BRAND_URL_GYMAXIS``
        - Pulse orgs    → ``BRAND_URL_PULSE``
     2. Production defaults (post-DNS cutover):
-       - GymAxis orgs  → ``https://app.gymaxisai.com``
-       - Pulse orgs    → ``https://app.pulsefitness.ai``
+       - GymAxis orgs  → ``https://gymaxisai.com``
+       - Pulse orgs    → ``https://pulsefitness.ai``
     3. Last-resort fallback: ``FRONTEND_URL``. Used during preview /
        staging where DNS isn't live yet.
 
@@ -34,8 +34,8 @@ import os
 from typing import Optional
 
 
-_DEFAULT_GYMAXIS = "https://app.gymaxisai.com"
-_DEFAULT_PULSE = "https://app.pulsefitness.ai"
+_DEFAULT_GYMAXIS = "https://gymaxisai.com"
+_DEFAULT_PULSE = "https://pulsefitness.ai"
 
 
 def _is_pulse(account_type: Optional[str]) -> bool:

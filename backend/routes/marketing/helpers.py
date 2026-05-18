@@ -89,20 +89,58 @@ async def _get_plan(plan_id: str) -> Optional[dict]:
 
 async def _get_org_subscription(organization_id: str) -> dict:
     """Return the org's marketing subscription, defaulting to a 14-day free
-    Pro trial on first call so the user can immediately try premium features."""
+    Pro trial on first call so the user can immediately try premium features.
+
+    Iter 216h192 — Orgs that already pay for a Pulse Pro / GymAxis Full / Lite
+    platform plan get Marketing bundled. Seeding them as a 14-day "trial"
+    surfaced a misleading "Free trial" pill in the Marketing header even
+    after they had been customers for months. For those orgs we seed an
+    ``active`` subscription instead so the entitlement reflects reality.
+    """
     sub = await db.marketing_subscriptions.find_one({"organization_id": organization_id}, {"_id": 0})
     if sub:
+        # Iter 216h192 — Heal stale 'trial' subs for orgs that have since
+        # been switched onto a paid platform plan. Without this they keep
+        # showing the misleading "Free trial" pill forever.
+        if sub.get("status") == "trial":
+            org = await db.organizations.find_one(
+                {"id": organization_id}, {"_id": 0, "account_type": 1}
+            ) or {}
+            if (org.get("account_type") or "").lower() in {"pulse_pro", "full", "lite"}:
+                await db.marketing_subscriptions.update_one(
+                    {"organization_id": organization_id},
+                    {"$set": {"status": "active", "comp_seats": True, "trial_ends_at": None,
+                              "healed_at": _now_iso(), "healed_reason": "bundled_with_platform_plan"}},
+                )
+                sub["status"] = "active"
+                sub["comp_seats"] = True
+                sub["trial_ends_at"] = None
         return sub
-    trial = {
-        "organization_id": organization_id, "plan_id": "pro",
-        "status": "trial",
-        "trial_ends_at": (datetime.now(timezone.utc) + timedelta(days=14)).isoformat(),
-        "current_period_end": None, "stripe_subscription_id": None,
-        "usage_this_period": {"emails_sent": 0, "sms_sent": 0, "ai_generations": 0, "contacts_count": 0},
-        "comp_seats": False,
-        "created_at": _now_iso(),
-    }
-    await db.marketing_subscriptions.insert_one(trial)
+    org = await db.organizations.find_one(
+        {"id": organization_id}, {"_id": 0, "account_type": 1}
+    ) or {}
+    paid_platform_plan = (org.get("account_type") or "").lower() in {"pulse_pro", "full", "lite"}
+    if paid_platform_plan:
+        seed = {
+            "organization_id": organization_id, "plan_id": "pro",
+            "status": "active",
+            "trial_ends_at": None,
+            "current_period_end": None, "stripe_subscription_id": None,
+            "usage_this_period": {"emails_sent": 0, "sms_sent": 0, "ai_generations": 0, "contacts_count": 0},
+            "comp_seats": True,
+            "created_at": _now_iso(),
+        }
+    else:
+        seed = {
+            "organization_id": organization_id, "plan_id": "pro",
+            "status": "trial",
+            "trial_ends_at": (datetime.now(timezone.utc) + timedelta(days=14)).isoformat(),
+            "current_period_end": None, "stripe_subscription_id": None,
+            "usage_this_period": {"emails_sent": 0, "sms_sent": 0, "ai_generations": 0, "contacts_count": 0},
+            "comp_seats": False,
+            "created_at": _now_iso(),
+        }
+    await db.marketing_subscriptions.insert_one(seed)
     return await db.marketing_subscriptions.find_one(
         {"organization_id": organization_id}, {"_id": 0},
     )
