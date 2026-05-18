@@ -1,3 +1,25 @@
+## Iter 216h206 — Dark-mode sweep: fractional-opacity surface fix (Feb 18, 2026) ✅ P1
+
+Closed the dark-mode leak first reported in h201 across the remaining ~31 files.
+
+### Root cause
+A prior blind sweep replaced bare `bg-white/X` (translucent white overlay) with `bg-white dark:bg-zinc-900/X` across the codebase. Tailwind parses this as `bg-white` (SOLID white, no opacity) PLUS `dark:bg-zinc-900/X` (fractional dark overlay). Two failure modes:
+- On forced-dark surfaces (`/instructor`, `/members`, `/m/:slug`, MOD kiosks, branded brag pages) the parent DOM never sets `.dark`, so the solid `bg-white` rendered — visible white cards/buttons on dark backgrounds.
+- On themed admin surfaces in dark mode, `dark:bg-zinc-900/X` rendered a near-invisible dark overlay on dark — losing the intended elevation accent.
+
+### Fix
+Surgical sed pass across 31 files: `bg-white dark:bg-zinc-900/<opacity>` → `bg-white/<opacity>`. Only fractional-opacity occurrences were rewritten (121 instances eliminated). The 116 instances of `bg-white dark:bg-zinc-900` WITHOUT opacity were intentionally left untouched — those are legitimate themed solid-surface cards.
+
+### Verification
+- ESLint clean across all 31 modified files.
+- Testing agent (iter 216h206) verified forced-dark routes `/instructor`, `/members`, `/m/credit-pack-test` render with `rgb(5,7,10)` background, no white leakage. Themed `/dashboard` still toggles light/dark correctly via Navbar moon/sun. 100% frontend pass.
+
+### Files touched (31)
+Memberships portal: InstructorPortal.js, tabs/{PassTab,ProfileTab,PlanTab,BookingsTab,BookTab}.js, BrandedBragPage.js, AIInsightsTab.js, AnalyticsTab.js, ClassActionDrawer.js, CheckinTab.js, PromotionsTab.js, MembershipsConsole.js, SetupWizard.js, modals/ClassEditorModal.js, _shared.js, portalShared.js, InstructorsTab.js, StudioQuickstart.js · Shared: Navbar.js, ModuleSwitcher.js, FeedbackWidget.js, MFASetupCard.js, NudgeBanner.js, AuthImage.js, Skeleton.js, CrossModuleTipsBanner.js, LaunchReadinessPanel.js, ModuleAccessGate.js, DigestPreferencesCard.js · MasterAdmin: EstateRollupPanel.js, SalesInsightsPanel.js, AdminPartners.js, AdminMemberships/{shared.js, OrgLinkedSitesTab.js}, FinancialOpsPanel.js · Marketing (15 files in Marketing/) · ServiceOps: EngineerRosterPanel.js, ServiceCaseDrawer.js, FindEngineerPanel.js, Engineer/EngineerAccessGate.js · CRM/CRMSetupWizard.js · PartnerEngineer/PartnerApplyWizard.js, PartnerDashboard.js · Misc: NotFoundPage.js, WhatsNewPage.js, StatusPage.js, IntegrationAdminPanel.js, ServiceDesk/DeskCustomers.js, components/sites/SiteModulesOverride.js, CommandPalette.js.
+
+---
+
+
 ## Iter 216h205 — Phase 3 UI: Shared CoverageBanner (May 18, 2026) ✅ P1
 
 Closes the Phase 3 loop opened in h198/h199. Backend has resolved coverage end-to-end since h199; this iteration surfaces it to operators on BOTH sides of the bridge.
