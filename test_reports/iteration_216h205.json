@@ -1,0 +1,71 @@
+{
+  "summary": "Iter 216h205 CoverageBanner testing BLOCKED by critical UI bug - Dialog closes when selecting serial number from dropdown. The CoverageBanner component exists and is wired correctly, but cannot be visually tested because the fault dialog closes immediately when clicking on a serial number option in the Select dropdown.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FaultDialogs.js - Serial Number Select",
+        "issue": "Dialog closes when clicking on serial number dropdown option. This is a Radix UI issue where Select inside Dialog causes the dialog to close when selecting an option because the Select dropdown renders via Portal outside the Dialog.",
+        "selector": "[data-testid='issue-serial-select']",
+        "priority": "CRITICAL",
+        "reproduction_steps": [
+          "1. Login as engineer (e1.agent@gymaxisai.com)",
+          "2. Go to Faults tab",
+          "3. Click 'Log New Fault'",
+          "4. Select a machine type from dropdown (works fine)",
+          "5. Click on Serial Number dropdown",
+          "6. Click on any serial option",
+          "7. RESULT: Dialog closes instead of selecting the serial"
+        ],
+        "attempted_fixes": [
+          "onInteractOutside/onPointerDownOutside handlers on DialogContent",
+          "selectOpenRef to track Select open state",
+          "modal={false} on Dialog"
+        ],
+        "recommended_fix": "Use controlled Select components with open/onOpenChange state, and prevent Dialog dismiss while Select is open. See Radix UI GitHub issues #2450, #2961, #3119 for solutions."
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "CoverageBanner in fault dialog",
+        "issue": "Cannot test CoverageBanner because serial number selection is broken. The coverage API is called successfully (200 response) but the banner never renders because issueForm.serial_number is never set.",
+        "affected_selectors": ["[data-testid='coverage-status-section']", "[data-testid='fault-coverage']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX CRITICAL: Dialog closes when selecting serial number - this blocks all CoverageBanner testing",
+    "After fix: Test CoverageBanner 4 variants (covered_contract, expiring_soon, covered_warranty, uncovered)",
+    "After fix: Test CoverageBanner in Service Desk case drawer",
+    "Recommended approach: Use controlled Select with open state and prevent Dialog dismiss while Select is open"
+  ],
+  "critical_code_review_comments": [
+    "CoverageBanner component at /app/frontend/src/components/shared/CoverageBanner.jsx looks correctly implemented with _normalise function handling both equipment and case shapes",
+    "FaultDialogs.js correctly imports and renders CoverageBanner when issueForm.serial_number is set",
+    "The coverage API endpoint /api/equipment/{id}/coverage returns correct data (verified with curl)",
+    "The issue is purely UI interaction - Radix Select inside Dialog conflict"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only iteration)",
+    "frontend": "0% (blocked by critical bug)"
+  },
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The CoverageBanner component is implemented but cannot be tested due to a Radix UI bug where the fault dialog closes when selecting a serial number. The coverage API works correctly. Once the dialog/select interaction is fixed, test all 4 banner variants and the Service Desk drawer integration.",
+  "rca_of_the_issue": {
+    "root_cause": "Radix UI Select component renders its dropdown via Portal outside the Dialog. When clicking on a Select option, the Dialog's default behavior treats this as an 'outside click' and closes the dialog.",
+    "technical_details": "The Select dropdown is portaled to document.body, which is outside the Dialog's content area. Radix Dialog's default onInteractOutside behavior closes the dialog when clicking outside its content.",
+    "references": [
+      "https://github.com/radix-ui/primitives/issues/2450",
+      "https://github.com/radix-ui/primitives/issues/2961",
+      "https://github.com/radix-ui/primitives/issues/3119"
+    ]
+  }
+}

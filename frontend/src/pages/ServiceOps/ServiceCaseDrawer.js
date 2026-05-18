@@ -25,6 +25,7 @@ import {
   FileText, Link as LinkIcon, RefreshCw,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import CoverageBanner from '@/components/shared/CoverageBanner';
 import './_serviceops.css';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -562,20 +563,39 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               </ol>
             </>
           ) : tab === 'details' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Title">
-                <input value={merged.title || ''} onChange={(e) => setEdit('title', e.target.value)} className="svc-input" data-testid="drawer-edit-title" />
-              </Field>
-              <Field label="Priority">
-                <select value={merged.priority || 'p3'} onChange={(e) => setEdit('priority', e.target.value)} className="svc-select" data-testid="drawer-edit-priority">
-                  <option value="p1">P1 — Critical</option>
-                  <option value="p2">P2 — High</option>
-                  <option value="p3">P3 — Standard</option>
-                  <option value="p4">P4 — Low</option>
-                </select>
-              </Field>
-              <Field label="Site">
-                <input value={merged.site_name || ''} onChange={(e) => setEdit('site_name', e.target.value)} className="svc-input" data-testid="drawer-edit-site" />
+            <>
+              {/* Iter 216h205 — coverage banner derived from
+                 source_meta.coverage_* stamped by the issue intake
+                 (iter h199). Tells the operator at a glance whether
+                 this case is under contract, in warranty or
+                 chargeable, BEFORE they edit cover_type below. */}
+              {(merged.source_meta?.coverage_status || merged.cover_type) && (
+                <div className="mb-3" data-testid="case-coverage-section">
+                  <CoverageBanner
+                    coverage={merged.source_meta || {
+                      coverage_status:
+                        merged.cover_type === 'contract' ? 'covered_contract'
+                        : merged.cover_type === 'warranty' ? 'covered_warranty'
+                        : 'uncovered',
+                    }}
+                    testid="case-coverage"
+                  />
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Title">
+                  <input value={merged.title || ''} onChange={(e) => setEdit('title', e.target.value)} className="svc-input" data-testid="drawer-edit-title" />
+                </Field>
+                <Field label="Priority">
+                  <select value={merged.priority || 'p3'} onChange={(e) => setEdit('priority', e.target.value)} className="svc-select" data-testid="drawer-edit-priority">
+                    <option value="p1">P1 — Critical</option>
+                    <option value="p2">P2 — High</option>
+                    <option value="p3">P3 — Standard</option>
+                    <option value="p4">P4 — Low</option>
+                  </select>
+                </Field>
+                <Field label="Site">
+                  <input value={merged.site_name || ''} onChange={(e) => setEdit('site_name', e.target.value)} className="svc-input" data-testid="drawer-edit-site" />
               </Field>
               <Field label="Asset">
                 <input value={merged.asset_name || ''} onChange={(e) => setEdit('asset_name', e.target.value)} className="svc-input" data-testid="drawer-edit-asset" />
@@ -636,6 +656,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 <p>SLA resolve by: {fmtDate(doc?.sla_resolve_at)}</p>
               </div>
             </div>
+            </>
           ) : tab === 'customer' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Customer name">
