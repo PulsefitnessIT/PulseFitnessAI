@@ -24,7 +24,7 @@ _Last refreshed: Iter 216h209 · Feb 18 2026_
 | Engineer App         | `/svc/engineer/*`            | `/r/:slug`, `/engineer`              | `/api/svc/engineer/*`         | 🟡 |
 | Gym Floor            | `/gym-floor`                 | n/a                                  | `/api/gym-floor/*`            | ✅ |
 | Partner Engineers    | `/partner-engineer`          | `/partners/engineers`                | `/api/partners/*`             | 🟡 |
-| **Diagnostics**      | `/master-admin?section=login-events` & `?section=client-errors` | n/a | `/api/master-admin/{login-events,client-errors}` | ✅ NEW h210 |
+| **Diagnostics**      | `/master-admin?section=login-events` & `?section=client-errors` · Home tile (h215): 24h platform-issues aggregator at `/master-admin?section=overview` | n/a | `/api/master-admin/{login-events,client-errors,platform-issues-24h}` | ✅ NEW h210/h215 |
 
 ---
 

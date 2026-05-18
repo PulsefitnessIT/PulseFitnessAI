@@ -87,6 +87,7 @@ const OverviewSection = ({
  onGoOnboardingPackets={() => setSection('onboarding')}
  onGoTrials={() => setSection('trials')}
  onGoArchive={() => setSection('archive')}
+ onGoSection={setSection}
  />
  {pulseData && (
  <AdminPulse

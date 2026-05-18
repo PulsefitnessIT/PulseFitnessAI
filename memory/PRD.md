@@ -1,3 +1,38 @@
+## Iter 216h215 — Platform Issues (24h) Master Admin home tile (Feb 18, 2026) ✅ P2
+
+Passive trust signal on the Master Admin home — surfaces three feeds at a glance so an issue is visible *before* a stakeholder reports it.
+
+### Backend — `GET /api/master-admin/platform-issues-24h`
+Aggregates over a rolling 24h window:
+- **Failed logins** from `audit_logs` where `action='login_failed'` (h210 reason classifications)
+- **Client crashes** from `client_errors` (h209 ModalErrorBoundary)
+- **Trust events** from `trust_events` filtered to `severity in ['high','critical']`
+
+Returns: `{ total, tone: green|amber|red, breakdown: [{key,label,count,panel,hint}], window_hours: 24, as_of }`. Tone thresholds: ≤5 green / 6–20 amber / >20 red.
+
+### Frontend — `PlatformIssuesTile`
+- Mounted into `AdminOverview.js` between Platform Growth chart and Subscriptions pie. Grid restructured from `8+4` to `6+3+3` so the tile is always visible above the fold.
+- Renders the count, a coloured status dot (green/amber/red), and a 3-row breakdown. Each row is a button that switches the Master Admin section to the relevant detail panel (login-events / client-errors / trust) via `onGoSection={setSection}`.
+- Auto-refreshes every 60s via `setInterval`. Manual refresh button included.
+
+### Verification
+- Live curl: `total=52, tone=red, 35 failed logins + 1 client crash + 16 trust events`.
+- 5 new pytest cases in `tests/test_iter_216h215_platform_issues_24h.py` — all pass (master-admin gate, green/amber/red thresholds, breakdown contract).
+- Regression suite now **89/89 green** (was 84) — h215 wired into `tests/regression/test_critical_auth.py`.
+- Frontend lint clean.
+
+### Files
+- NEW: `backend/routes/platform_issues.py`
+- NEW: `frontend/src/pages/MasterAdmin/PlatformIssuesTile.js`
+- NEW: `backend/tests/test_iter_216h215_platform_issues_24h.py`
+- UPDATED: `backend/route_registry/core.py` (register platform_issues_router)
+- UPDATED: `frontend/src/pages/MasterAdmin/AdminOverview.js` (tile import + grid restructure)
+- UPDATED: `frontend/src/pages/MasterAdmin/OverviewSection.js` (pass `onGoSection`)
+- UPDATED: `backend/tests/regression/test_critical_auth.py` (5 new h215 imports)
+
+---
+
+
 ## Iter 216h214 — Polish: silence h212 P2 cosmetic findings (Feb 18, 2026) ✅ P1
 
 All three P2s flagged in the h212 stakeholder audit are now silenced.

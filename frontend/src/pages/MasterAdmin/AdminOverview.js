@@ -13,6 +13,7 @@ import TrialFunnelStrip from './TrialFunnelStrip';
 import PulseUpgradeRequestsStrip from './PulseUpgradeRequestsStrip';
 import ArchiveAlertsStrip from './ArchiveAlertsStrip';
 import AdminNpsPanel from './AdminNpsPanel';
+import PlatformIssuesTile from './PlatformIssuesTile';
 
 /**
  * Master Admin → Dashboard Overview.
@@ -40,7 +41,7 @@ const Panel = ({ children, className = '', ...rest }) => (
   </div>
 );
 
-const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPackets, onGoTrials, onGoArchive }) => {
+const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPackets, onGoTrials, onGoArchive, onGoSection }) => {
   if (!stats) return <div className="flex items-center justify-center h-64"><RefreshCw className="animate-spin text-slate-400" size={24} /></div>;
 
   const kpiCards = [
@@ -100,9 +101,10 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
       {/* Archive Alerts Strip — GDPR retention warnings */}
       <ArchiveAlertsStrip onOpen={onGoArchive} />
 
-      {/* Charts Row — stacked on mobile */}
+      {/* Charts Row — stacked on mobile. Iter 216h215 — Platform Issues
+          tile (24h passive trust signal) sits beside Subscriptions. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
-        <Panel className="lg:col-span-8 p-5 lg:p-6">
+        <Panel className="lg:col-span-6 p-5 lg:p-6">
           <h3 className="text-base lg:text-lg font-bold text-slate-900 tracking-tight mb-4">Platform Growth</h3>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={stats.growth_data}>
@@ -116,7 +118,11 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
           </ResponsiveContainer>
         </Panel>
 
-        <Panel className="lg:col-span-4 p-5 lg:p-6">
+        <div className="lg:col-span-3">
+          <PlatformIssuesTile onGoSection={onGoSection} />
+        </div>
+
+        <Panel className="lg:col-span-3 p-5 lg:p-6">
           <h3 className="text-base lg:text-lg font-bold text-slate-900 tracking-tight mb-4">Subscriptions</h3>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
