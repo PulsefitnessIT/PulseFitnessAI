@@ -1,3 +1,30 @@
+## Iter 216h192 — Post-Production Bug Bash #1 (May 18, 2026) ✅
+
+Four user-reported bugs from gymaxisai.com production, all fixed and tested in preview.
+
+### Fixes
+1. **Password reset broken in production** (`Invalid Reset Link`) — `routes/auth.py:forgot_password` now resolves the reset URL via `utils/brand_urls.app_url_for_org(user_org)` instead of the bare `FRONTEND_URL` env var. Production emails now point at `https://gymaxisai.com` / `https://pulsefitness.ai` rather than the preview host (which caused token-domain mismatch).
+2. **CRM header showed "GymAxis Pro" for Pulse Fitness org** — `pages/CRM/CRMApp.js:isPulseBrandedCRM` now also detects Pulse via `mainAuth.user.account_type === 'pulse_pro' | 'lite'`, not just the legacy `crm_brand` flag. Runtime-order bug (use-before-init) was caught by the testing agent and fixed by switching from `platformUser?.account_type` to `mainAuth?.user?.account_type`.
+3. **"Free trial" pill showed for paid platform plans** — `MarketingSuite.js:isTrial` is now gated by `!isOnPaidPlatformPlan` (full / pulse_pro / lite / master admin), and the backend `_get_org_subscription` now (a) seeds new subs as `status='active'` for paid platform plans and (b) heals stale `'trial'` rows the next time the entitlement is fetched.
+4. **Gym Health Score confusing labels + no improvement guidance** — Score per category now renders as `X/Y pts` (clarifies it's points, not faults), and a "How to improve:" tip surfaces the lowest-scoring sub-category's next step (Faults / Audits / Warranty / Knowledge Base). Applied to both `LiteDashboard/LiteOverviewTab.js` and `Dashboard/OverviewTab.js`.
+5. **brand_urls defaults switched to apex** — `https://gymaxisai.com` and `https://pulsefitness.ai` (matches the production deployment that uses the apex domain).
+
+### Tests
+* `backend/tests/test_iter_216h192_prod_fixes.py` — 6/6 ✅ (apex defaults, env override priority, app_url_for_org behaviour, password reset link construction, marketing sub heal, marketing sub keep-trial).
+* `backend/tests/test_xss_and_brand_urls.py` — 22/22 ✅ (regression).
+* Testing agent E2E — backend 28/28 ✅, frontend 90% (only minor visual quirks; all 4 issues verified fixed).
+
+### Files touched
+* `backend/routes/auth.py`, `backend/utils/brand_urls.py`, `backend/routes/marketing/helpers.py`, `backend/routes/security_checks.py`
+* `frontend/src/pages/CRM/CRMApp.js`, `frontend/src/pages/MarketingSuite.js`
+* `frontend/src/pages/LiteDashboard/LiteOverviewTab.js`, `frontend/src/pages/Dashboard/OverviewTab.js`
+
+### Production note
+The user must **redeploy** the preview to push these fixes to `gymaxisai.com`. Production env may need `BRAND_URL_GYMAXIS=https://gymaxisai.com` and `BRAND_URL_PULSE=https://pulsefitness.ai` set explicitly if the apex defaults are not desired (the new code falls back to them automatically).
+
+---
+
+
 ## Iter 216h146 — Inbound Email Webhook (Feb 17, 2026) ✅
 
 Customers can now email an engineer directly and the request lands in the engineer's Inbox automatically. Single piece of code handles SendGrid Inbound Parse (multipart) and a JSON simulator format.
