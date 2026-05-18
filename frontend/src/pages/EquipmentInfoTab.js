@@ -21,6 +21,7 @@ import AuditDetailPanel from './AuditDetailPanel';
 import { EquipmentCardSkeleton } from '@/components/shared/Skeleton';
 import ManufacturerCombobox from '@/components/equipment/ManufacturerCombobox';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
+import EquipmentCoveragePanel from '@/components/equipment/EquipmentCoveragePanel';
 import DatePicker from '@/components/shared/DatePicker';
 import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
@@ -750,6 +751,11 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
 
  {selectedEquipment && (
  <div data-testid="equipment-detail-body">
+ {/* Iter 216h198 — Phase 2 Coverage Panel: contract status at the
+    top of the modal so engineers see warranty/aftersales coverage
+    before they pick up tools. */}
+ <EquipmentCoveragePanel equipmentId={selectedEquipment.id} />
+
   {/* Iter 216o-9 — Equipment detail uses ONLY the shared
      EquipmentDetailContent (the same component Pulse Fitness uses).
      This gives us 2 tabs ("Details" + "Spec Sheet") — identical to

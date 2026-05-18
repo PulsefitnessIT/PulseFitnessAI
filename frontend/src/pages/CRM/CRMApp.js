@@ -574,6 +574,21 @@ export default function CRMApp() {
     // is mid-flight. Give it a beat before falling back to login.
     const hasMain = !!unifiedAuth.tokens.main;
     if (!hasMain && !unifiedAuth.tokens.crm) {
+      // Iter 216h198 — Lee's "no one should ever have to log into CRM"
+      // ask. If we have neither a main nor a CRM token the user came
+      // here directly (bookmark, shared link). Punt them through the
+      // main platform login with a return-to-CRM hint — this avoids
+      // the unguessable "CRM standalone password" trap that Craig hit.
+      // The main login then auto-cross-logs them into CRM via the
+      // UnifiedAuthProvider effect chain and React Router lands them
+      // back on /crm without ever seeing the standalone form.
+      const here = (typeof window !== 'undefined' && window.location)
+        ? window.location.pathname + window.location.search
+        : '/crm';
+      if (typeof window !== 'undefined' && !here.startsWith('/login')) {
+        window.location.replace(`/login?next=${encodeURIComponent(here)}`);
+        return;
+      }
       setLoading(false);
       return;
     }
