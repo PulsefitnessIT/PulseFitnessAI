@@ -1,3 +1,49 @@
+## Iter 216h193 — Operations Standardisation Pass (May 18, 2026) ✅
+
+Lee's Feb 2026 audit ask: stop dirty data caused by free-text fields. Four
+parts shipped:
+
+### What changed
+1. **First Wins hyperlinks fixed** (Craig's report — "Add your first piece of equipment" did nothing).
+   * `ActivationMilestonesCard` now uses `useNavigate` (client-side, no full reload) and resolves the operations base route from `user.account_type` — Pulse Fitness Pro lands on `/pulse`, GymAxis Pro on `/dashboard`.
+   * The equipment CTA now passes `?tab=equipment&onboarding=1` so the OnboardingWizard auto-opens (was just switching tabs before).
+   * `LiteDashboardPage` and `DashboardPage` both honour the new `?onboarding=1` query.
+2. **DD/MM/YYYY calendar picker (new `DatePicker` component).**
+   * Shared component wraps Shadcn Calendar + Popover. Displays DD/MM/YYYY, stores ISO `YYYY-MM-DD` internally.
+   * Wired into: OnboardingWizard (SLA Expiry), AddEquipmentDialog (Purchase / Warranty / SLA Expiry), EquipmentInfoTab edit panel.
+3. **Curated supplier catalogue + autocomplete.**
+   * Backend: `GET /api/suppliers/catalogue` returns 25 curated UK fitness brands (Pulse Fitness, Technogym, Life Fitness, Precor, Matrix, Cybex, Star Trac, Hoist, Concept2, Wattbike, Keiser, TRX, Eleiko, Hammer Strength, Origin, Escape, Physical Company, Fitness Superstore, Sole, NordicTrack, ProForm, Schwinn, StairMaster, Power Plate, Jordan Fitness) merged with the org's own custom suppliers, deduped.
+   * Backend: `GET /api/suppliers/catalogue/photo-lookup?supplier=…&model=…` returns the best photo URL from the spec-sheet library so newly-onboarded equipment auto-gets the right product image.
+   * Frontend: `SupplierAutocomplete` shows two groups ("Curated" / "Yours"), supports free-text fallback via "Add new…", and fires the photo-lookup on select.
+4. **Operations enum standardisation.**
+   * `SLA_RESPONSE_TIME_OPTIONS` — 2h / 4h / Same-day / Next BD / 48h / 5d / 10d / Custom. Applied to OnboardingWizard, AddEquipmentDialog, EquipmentInfoTab.
+   * `EQUIPMENT_LOCATION_PRESETS` — 16-item datalist (Cardio Zone, Studio 1, Free Weights, …). Datalist preserves free-text capability.
+   * Other enums (`EQUIPMENT_CATEGORY_OPTIONS`, `FAULT_SEVERITY_OPTIONS`, `RESOLUTION_TYPE_OPTIONS`) shipped for future reuse.
+
+### Tests
+* `backend/tests/test_iter_216h193_supplier_catalogue.py` — **6/6** ✅
+  - curated list contains all 21+ brands Lee called out
+  - catalogue merges curated + custom, deduped, alphabetically sorted
+  - photo-lookup exact-match, supplier-level fallback, miss, empty input cases
+* Testing agent E2E — backend 100%, frontend 95% (only LOW-pri observation: wizard doesn't re-open on second navigation; expected, not a bug)
+
+### Files
+* `backend/routes/suppliers_catalogue.py` (NEW)
+* `backend/route_registry/features.py` (registers new router)
+* `backend/tests/test_iter_216h193_supplier_catalogue.py` (NEW, 6 tests)
+* `frontend/src/components/shared/DatePicker.jsx` (NEW)
+* `frontend/src/components/shared/SupplierAutocomplete.jsx` (NEW)
+* `frontend/src/utils/operationsDropdowns.js` (NEW)
+* `frontend/src/components/shared/ActivationMilestonesCard.js` (brand-aware routing)
+* `frontend/src/pages/LiteDashboardPage.js`, `frontend/src/pages/DashboardPage.js` (deep-link handler)
+* `frontend/src/pages/OnboardingWizard.js`, `frontend/src/components/equipment/AddEquipmentDialog.js`, `frontend/src/pages/EquipmentInfoTab.js` (all wired up)
+
+### Action required
+**Redeploy** preview → production so Craig + the Pulse Fitness team see the fixes on gymaxisai.com.
+
+---
+
+
 ## Iter 216h192 — Post-Production Bug Bash #1 (May 18, 2026) ✅
 
 Four user-reported bugs from gymaxisai.com production, all fixed and tested in preview.
