@@ -33,55 +33,38 @@ const TIER_TABLE = [
 
 /* Iter 216h105 — Commission detail, surfaced front-and-centre on the
    page so engineers see the earnings story before pricing or
-   pre-requisites. The first card is a one-off signup reward, the
-   second is the per-site monthly recurring split, and the third is
-   the headline tiered bonus for premium gym plans.
+   pre-requisites. The single commission is a one-off signup reward
+   per gym the engineer brings on.
 
-   Iter 216h192 — Qualifying period: every per-gym commission is paid
-   out only after the referred gym has been ACTIVE on the platform for
-   3 consecutive months (no missed payments, no cancellation). This
-   protects engineers from "trial-and-cancel" referrals and protects
-   GymAxis from claw-back churn. The 3-month rule is spelled out on
-   every commission card, the stats strip, the worked example, and the
-   FAQ — change it in ONE place and update everywhere. */
+   Iter 216h193 — Removed the £100-£400 premium-plan bonus card AND
+   the £3/site/mo recurring share. Engineers now ONLY receive 50% of
+   the referred gym's first cleared Operations module payment. Paid
+   once the referred gym has been ACTIVE on the platform for 3
+   consecutive months (no missed payments, no cancellation).
+   Threading is centralised in a single QUALIFYING_PERIOD constant
+   so future edits change one place. */
 const QUALIFYING_PERIOD = '3 months';
 const COMMISSION_PLANS = [
   {
     kicker: 'SIGNUP REWARD',
     headline: '50%',
     sub: 'of the gym\'s first cleared Operations module payment',
-    detail: `Paid once the referred gym has been active on the platform for ${QUALIFYING_PERIOD} (no cancellation, no missed payments). Stacks with the recurring share below.`,
+    detail: `Paid as a one-off lump sum once the referred gym has been active on the platform for ${QUALIFYING_PERIOD} (no cancellation, no missed payments). One commission per gym, no cap on the number of gyms you can refer.`,
     cta: 'One-off · per gym',
     accent: 'from-violet-500 to-purple-600',
-  },
-  {
-    kicker: 'MONTHLY RECURRING',
-    headline: '£3 / site / mo',
-    sub: 'for every active gym site you brought on, every month they stay',
-    detail: `Starts paying from month 4 once the referred gym has cleared the ${QUALIFYING_PERIOD} qualifying period. Refer 10 active sites → £30/mo · 30 sites → £90/mo · 100 sites → £300/mo. Paid for as long as the gym stays on the platform.`,
-    cta: 'Recurring · per gym',
-    accent: 'from-blue-500 to-indigo-600',
-  },
-  {
-    kicker: 'PREMIUM-PLAN BONUS',
-    headline: '£100 – £400',
-    sub: 'per active gym site you introduce, tiered by their plan',
-    detail: `Higher-revenue plans (Pro, Enterprise) trigger a larger one-off bonus on top of the signup reward — paid out together at the end of the ${QUALIFYING_PERIOD} qualifying period.`,
-    cta: 'Bonus · tiered by plan',
-    accent: 'from-emerald-500 to-teal-600',
   },
 ];
 
 const COMMISSION_STATS = [
-  { stat: 'Up to £450', label: `per referred gym (paid after ${QUALIFYING_PERIOD} on the platform)` },
-  { stat: '£3 / mo',    label: 'recurring per active site — from month 4 onward' },
+  { stat: '50%',        label: `of the gym\'s first cleared Operations payment` },
+  { stat: 'One-off',    label: `paid after the gym stays ${QUALIFYING_PERIOD} on the platform` },
   { stat: 'Monthly',    label: 'payouts · direct to your account' },
   { stat: 'No cap',     label: 'on how many sites you can refer' },
 ];
 
 const PERKS = [
   { icon: PoundSterling, title: 'Get paid for referrals',
-    body: `£100 / £200 / £400 per active gym site you introduce — tiered by their plan. Paid once they\'ve been on GymAxis for ${QUALIFYING_PERIOD}.` },
+    body: `50% of the first cleared Operations module payment for every gym you bring on — paid once they\'ve been on GymAxis for ${QUALIFYING_PERIOD}.` },
   { icon: MapPin, title: 'Jobs routed to you',
     body: 'Customers in your area can request you specifically. We surface skill + postcode matches first.' },
   { icon: BadgeCheck, title: 'Verified profile',
@@ -99,7 +82,7 @@ const HOW_IT_WORKS = [
   { n: 2, title: 'Get verified',    body: 'Our team reviews your details — usually within 2 working days.' },
   { n: 3, title: 'Subscribe',      body: 'Start the Partner Plan (£30/mo). Auto-discounts to £15 at 5 referrals, free at 10.' },
   { n: 4, title: 'Receive jobs',   body: 'Gyms invite you directly, or you accept open jobs in your postcodes.' },
-  { n: 5, title: 'Get paid',       body: `Once each referred gym has been active for ${QUALIFYING_PERIOD}, we release the signup reward + premium bonus and start the £3/site/mo recurring share. Paid monthly, straight to your account.` },
+  { n: 5, title: 'Get paid',       body: `Once each referred gym has been active for ${QUALIFYING_PERIOD}, we release the signup reward (50% of their first cleared Operations payment). Paid as a one-off lump sum, straight to your account.` },
 ];
 
 const APP_BULLETS = [
@@ -170,7 +153,7 @@ function Hero() {
             </a>
           </div>
           <ul className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-semibold text-slate-500">
-            <li className="inline-flex items-center gap-1.5"><PoundSterling size={13} className="text-emerald-500" />Up to £450 per gym (after {QUALIFYING_PERIOD} on platform) + £3/site/mo recurring</li>
+            <li className="inline-flex items-center gap-1.5"><PoundSterling size={13} className="text-emerald-500" />50% of first cleared payment per gym (after {QUALIFYING_PERIOD} on platform)</li>
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />£30/mo · drops automatically</li>
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />Cancel anytime</li>
           </ul>
@@ -266,10 +249,10 @@ function Commission() {
           <div className="lg:sticky lg:top-28">
             <p className="text-xs uppercase tracking-[0.2em] font-bold text-emerald-600">Earnings</p>
             <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">
-              Three ways<br /> you get <span className="gx-gradient-text">paid.</span>
+              Refer once, <span className="gx-gradient-text">get paid.</span>
             </h2>
             <p className="mt-4 text-base text-slate-600 leading-relaxed">
-              Every gym you bring to GymAxis pays you back three different ways — a signup reward, a recurring monthly share that grows as the network grows, and a premium bonus on bigger plans. All commissions are released after the referred gym has stayed on the platform for {QUALIFYING_PERIOD} (protects everyone from trial-and-cancel churn). No cap. No exclusivity. No volume targets.
+              Every gym you bring to GymAxis earns you a one-off signup reward — 50% of their first cleared Operations module payment. Paid as a lump sum once the referred gym has stayed on the platform for {QUALIFYING_PERIOD} (protects everyone from trial-and-cancel churn). No cap on the number of gyms you can refer.
             </p>
             <div className="mt-7 grid grid-cols-2 gap-3" data-testid="pe-commission-stats">
               {COMMISSION_STATS.map((s) => (
@@ -279,7 +262,7 @@ function Commission() {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-xs text-slate-500">Monthly payouts straight to your bank account. We handle the reconciliation — you just refer.</p>
+            <p className="mt-6 text-xs text-slate-500">Paid straight to your bank account. We handle the reconciliation — you just refer.</p>
           </div>
 
           {/* Right plan cards */}
@@ -307,14 +290,14 @@ function Commission() {
 
             {/* Worked example */}
             <div className="rounded-3xl bg-slate-900 text-white p-6 md:p-7 mt-2" data-testid="pe-commission-example">
-              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-emerald-300">A worked example · 10 gyms in your area · year-1 earnings</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-emerald-300">A worked example · 10 gyms in your area</p>
               <div className="mt-4 grid sm:grid-cols-3 gap-4">
                 <ExampleStat label={`Signup rewards × 10 (paid after ${QUALIFYING_PERIOD})`} value="~£345" />
-                <ExampleStat label="Recurring (10 sites × £3 × 9 mo)" value="£270 / yr-1" />
+                <ExampleStat label="One-off per gym" value="No recurring share" />
                 <ExampleStat label="Engineer App fee" value="£0 (waived at 10+)" highlight />
               </div>
               <p className="mt-5 text-xs text-slate-300 leading-relaxed">
-                Months 1–3 are the qualifying period — commissions accrue but aren\'t released until each gym crosses month 3. Year-2+ recurring runs the full 12 months (£360/yr). Premium-plan bonuses (£100–£400 / site) sit on top of these. Numbers shown ex-VAT — see FAQ for claw-back rules if a gym cancels inside the qualifying window.
+                Months 1–3 are the qualifying period — commissions accrue but aren\'t released until each gym crosses month 3. Numbers shown ex-VAT and assume gyms pay roughly £69/mo for the Operations module. See the FAQ for claw-back rules if a gym cancels inside the qualifying window.
               </p>
             </div>
           </div>
@@ -446,15 +429,15 @@ function EngineerApp() {
 function FAQ() {
   const items = [
     { q: 'How much can I actually earn?',
-      a: `Three stacking commissions per gym you bring on: a one-off signup reward (50% of their first cleared Operations payment), a £3/month recurring share for as long as the gym stays active, and a premium-plan bonus of £100–£400 per site for gyms on bigger plans. All three are released after the referred gym has been active on the platform for ${QUALIFYING_PERIOD} — see the next FAQ. There\'s no cap on the number of gyms you can refer.` },
+      a: `A one-off signup reward of 50% of the referred gym\'s first cleared Operations module payment. Released after the gym has been active on the platform for ${QUALIFYING_PERIOD} (see next FAQ). No cap on the number of gyms you can refer — every gym you bring on triggers its own signup reward.` },
     { q: `Why the ${QUALIFYING_PERIOD} qualifying period?`,
-      a: `It protects everyone — engineers and GymAxis — from trial-and-cancel referrals where a gym signs up, takes a free quarter, and leaves. Commissions accrue from day one but are released once the referred gym has paid for ${QUALIFYING_PERIOD} of active service. If a gym cancels inside the window, no commission is paid (no claw-back from you either). Once they cross month 3, everything releases together and the £3/site/mo recurring kicks in from month 4.` },
+      a: `It protects everyone — engineers and GymAxis — from trial-and-cancel referrals where a gym signs up, takes a free quarter, and leaves. The commission accrues from day one but is released once the referred gym has paid for ${QUALIFYING_PERIOD} of active service. If a gym cancels inside the window, no commission is paid (and there\'s no claw-back from you either). Once the gym crosses month 3, the signup reward releases in the next payout.` },
     { q: 'Do I work for GymAxis?',
       a: 'No — you stay completely independent. Gyms invoice their customers directly, and you run your own business. We connect you, equip you with the app, and pay your referral commissions monthly.' },
     { q: 'Who handles invoicing customers?',
       a: 'The gym (our customer) bills the end customer. Your relationship is with the gym — they decide how to pay you per job. We only handle your referral commissions.' },
     { q: 'How and when do commissions get paid?',
-      a: `Monthly, straight to your bank account. Once a referred gym crosses the ${QUALIFYING_PERIOD} qualifying period, the signup reward + any premium-plan bonus are released in the next payout, and the £3/site/mo recurring share starts from month 4 onward. Recurring shares roll up at the end of each calendar month.` },
+      a: `Monthly, straight to your bank account. Once a referred gym crosses the ${QUALIFYING_PERIOD} qualifying period, the signup reward (50% of their first cleared Operations payment) is released in the next monthly payout.` },
     { q: 'What are the £30/mo for?',
       a: 'Access to the Engineer App (mobile PWA), the gym-operator network, customer-facing tracking & service-report tooling, and AI tools like photo triage. The fee drops to £15 once you bring 5 referrals (verified active) and is waived at 10.' },
     { q: 'How fast does the fee tier update?',

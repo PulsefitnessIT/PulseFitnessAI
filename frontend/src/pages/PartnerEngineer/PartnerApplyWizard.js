@@ -136,7 +136,7 @@ export default function PartnerApplyWizard() {
               </p>
               <ul className="text-sm text-zinc-700 dark:text-zinc-300 space-y-2 mt-3">
                 <li className="flex gap-2"><CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" /> 50% one-off reward on your referred customer's first Operations payment.</li>
-                <li className="flex gap-2"><CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" /> £3/month recurring per active referred site.</li>
+                <li className="flex gap-2"><CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" /> Released once the referred gym has stayed on the platform for 3 months.</li>
                 <li className="flex gap-2"><CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" /> Partner App access: £30/mo → £15/mo at 5 active → free at 10+.</li>
                 <li className="flex gap-2"><CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" /> Job-specific access only — no full-platform exposure.</li>
               </ul>
@@ -191,7 +191,7 @@ export default function PartnerApplyWizard() {
               <div className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-300 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 max-h-44 overflow-auto bg-zinc-50 dark:bg-zinc-900/40 space-y-2">
                 <p><strong>Eligibility</strong>: You must be a qualified fitness equipment engineer carrying suitable public liability insurance. GymAxis may request copies for verification.</p>
                 <p><strong>Job access</strong>: You'll be granted job-specific access only — no full-platform visibility, no cross-customer data leakage.</p>
-                <p><strong>Commission</strong>: Signup reward (50% of first cleared Operations payment) and recurring £3/month per active referred site. Both subject to Master Admin approval and refundable claw-back if the referred customer churns, is refunded, or was already in our pipeline.</p>
+                <p><strong>Commission</strong>: A one-off signup reward of 50% of the referred gym's first cleared Operations payment, paid as a lump sum once the referred gym has been active on the platform for 3 months. Subject to Master Admin approval and refundable claw-back if the referred customer churns, is refunded, or was already in our pipeline.</p>
                 <p><strong>App fee</strong>: £30/mo with automatic discounts (£15 at 5+ active referrals · free at 10+). Billed monthly via Stripe.</p>
                 <p><strong>Termination</strong>: Either side can terminate with 14 days' notice. Master Admin may suspend on safety, fraud, or compliance grounds with immediate effect.</p>
               </div>

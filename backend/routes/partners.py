@@ -945,13 +945,16 @@ async def accrue_commission_on_invoice_paid(invoice_data: dict) -> Optional[dict
     """Hook called from `routes.payments._handle_invoice_paid`. Idempotent
     by Stripe invoice id — second webhook delivery is a no-op.
 
-    Accrues:
-      • signup_reward (once per referral) on the first cleared Operations
-        invoice for that org;
-      • recurring £3 per subsequent month's cleared Operations invoice.
+    Iter 216h193 — Policy change. Engineers now only receive a one-off
+    signup reward (50% of the referred gym's first cleared Operations
+    invoice). The historic £3/site/mo recurring share is REMOVED — any
+    invoice beyond the first one accrues nothing. Existing
+    `kind='recurring'` ledger rows are left untouched for audit /
+    finance reconciliation.
 
     Returns the ledger row created, or None when the invoice is irrelevant
-    (no referral, not Operations, or already-processed)."""
+    (no referral, not Operations, not the first invoice, or already-
+    processed)."""
     customer_id = invoice_data.get("customer") or ""
     if not customer_id:
         return None
@@ -989,24 +992,21 @@ async def accrue_commission_on_invoice_paid(invoice_data: dict) -> Optional[dict
 
     amount_paid = _invoice_amount_paid_gbp(invoice_data)
     is_first = ref.get("first_paid_at") is None
-    kind = "signup_reward" if is_first else "recurring"
-    if kind == "signup_reward":
-        commission = round(amount_paid * SIGNUP_REWARD_PCT, 2)
-        await db.partner_referrals.update_one(
-            {"id": ref["id"]},
-            {"$set": {
-                "first_paid_at": _now(),
-                "status": "active",
-                "signup_reward_amount_gbp": commission,
-            }},
-        )
-    else:
-        commission = float(RECURRING_GBP)
-        await db.partner_referrals.update_one(
-            {"id": ref["id"]},
-            {"$set": {"last_recurring_at": _now(), "status": "active"},
-             "$inc": {"recurring_total_paid_gbp": commission}},
-        )
+    # Iter 216h193 — only the first cleared Operations invoice triggers
+    # a commission accrual. Subsequent invoices are now no-ops (the
+    # legacy £3 recurring share has been retired).
+    if not is_first:
+        return None
+    kind = "signup_reward"
+    commission = round(amount_paid * SIGNUP_REWARD_PCT, 2)
+    await db.partner_referrals.update_one(
+        {"id": ref["id"]},
+        {"$set": {
+            "first_paid_at": _now(),
+            "status": "active",
+            "signup_reward_amount_gbp": commission,
+        }},
+    )
 
     ledger_doc = {
         "id": _new_id(),
@@ -1194,19 +1194,61 @@ async def admin_commission_queue(user: dict = Depends(get_current_user)):
 
 
 @router.post("/master-admin/partners/commission/{ledger_id}/approve")
-async def admin_approve_commission(ledger_id: str, user: dict = Depends(get_current_user)):
+async def admin_approve_commission(
+    ledger_id: str,
+    user: dict = Depends(get_current_user),
+    body: dict = Body(default_factory=dict),
+):
     _require_master_admin(user)
     row = await db.partner_commission_ledger.find_one({"id": ledger_id}, {"_id": 0})
     if not row:
         raise HTTPException(404, "Ledger row not found")
     if row["status"] != "accrued":
         raise HTTPException(400, f"Cannot approve — current status is '{row['status']}'")
+    # Iter 216h193 — 3-month qualifying-period guard. A signup reward
+    # is only released once the referred gym has been active on the
+    # platform for >= 3 months. Master admin can override by passing
+    # `force=true` (e.g. for legacy / exception cases) — the override
+    # is audited.
+    qualifying_ok = True
+    days_on_platform: Optional[int] = None
+    referred_org = await db.organizations.find_one(
+        {"id": row["referred_organization_id"]},
+        {"_id": 0, "created_at": 1, "status": 1},
+    )
+    if referred_org:
+        try:
+            created_at = referred_org.get("created_at") or ""
+            if created_at:
+                # `created_at` is an ISO string in this codebase.
+                dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                days_on_platform = (datetime.now(timezone.utc) - dt).days
+                qualifying_ok = days_on_platform >= 90
+        except Exception:
+            qualifying_ok = True  # parse failure → don't block (audited)
+    if not qualifying_ok and not bool(body.get("force")):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Referred gym has only been on the platform for "
+                f"{days_on_platform} day(s). The 3-month qualifying period "
+                "has not elapsed. Pass force=true to override (audited)."
+            ),
+        )
     await db.partner_commission_ledger.update_one(
         {"id": ledger_id},
         {"$set": {"status": "approved", "approved_at": _now(), "approved_by": user["id"]}},
     )
-    await _audit(partner_id=row["partner_id"], actor_id=user["id"], action="approve_commission",
-                 before={"status": "accrued"}, after={"status": "approved", "ledger_id": ledger_id})
+    await _audit(
+        partner_id=row["partner_id"], actor_id=user["id"], action="approve_commission",
+        before={"status": "accrued"},
+        after={
+            "status": "approved",
+            "ledger_id": ledger_id,
+            "days_on_platform": days_on_platform,
+            "forced": bool(body.get("force")) and not qualifying_ok,
+        },
+    )
     return {"ok": True}
 
 

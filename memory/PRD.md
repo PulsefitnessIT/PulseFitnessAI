@@ -7669,3 +7669,42 @@ Lint clean. Pricing page renders with new copy (verified via
 screenshot tool). 17 references to `QUALIFYING_PERIOD` across the
 engineer page.
 
+
+## Iter 216h193 — Engineer commission simplification (17 Feb 2026)
+
+**Operator decision** — engineers receive ONE commission per referred
+gym: 50% of the gym's first cleared Operations module payment, paid as
+a one-off lump sum after the gym has been active on the platform for
+3 months. The previous two extras have been retired:
+
+- **Removed**: £3/site/mo recurring share.
+- **Removed**: £100–£400 premium-plan bonus.
+
+### Backend (`routes/partners.py`)
+- `accrue_commission_on_invoice_paid` now returns `None` for every
+  invoice except the very first cleared one — so no further ledger
+  rows are created. Historical `kind="recurring"` rows are left in
+  place for finance reconciliation.
+- `admin_approve_commission` now guards against early approval:
+  if the referred gym has been on the platform for < 90 days, the
+  endpoint returns 400 unless `force=true` is passed (audited).
+
+### Frontend (5 marketing files)
+- `PartnerEngineerLanding.js`: removed 2 commission cards (£3/mo +
+  £100–£400 bonus), reframed hero / worked example / FAQ around the
+  single signup-reward model, kept new dedicated "Why 3 months?" FAQ.
+- `MarketingHome.js`: engineer-card subline updated.
+- `PartnerApplyPublic.js` + `PartnerApplyWizard.js`: removed the
+  recurring £3/mo bullet from the application wizard.
+
+### Tests
+- `test_iter_216h75_partner_network.py` updated to assert
+  `2nd-invoice returns None` (was asserting £3 recurring row).
+- 45/45 directly-related pytest pass (17 partner + 7 subscription +
+  14 q-filter + 7 ops-split).
+- Lint clean.
+
+Files: `partners.py`, `PartnerEngineerLanding.js`, `MarketingHome.js`,
+`PartnerApplyPublic.js`, `PartnerApplyWizard.js`,
+`tests/test_iter_216h75_partner_network.py`.
+
