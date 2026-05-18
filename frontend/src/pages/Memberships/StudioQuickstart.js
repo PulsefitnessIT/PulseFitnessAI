@@ -279,7 +279,7 @@ function StepReview({ form, onBack, onSubmit, saving }) {
       <p className="text-sm text-[color:var(--theme-text-muted)]">
         We'll create everything below in one go. Nothing is permanent — edit or delete any time.
       </p>
-      <dl className="space-y-2 rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.04] p-4 text-sm">
+      <dl className="space-y-2 rounded-lg border border-[color:var(--theme-border)] bg-white/[0.04] p-4 text-sm">
         <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">Class</dt><dd className="font-semibold">{form.class_name} · {form.duration_minutes} min · cap {form.class_capacity}</dd></div>
         <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">Drop-in</dt><dd className="font-semibold">£{(form.class_price_pence / 100).toFixed(0)}</dd></div>
         <div className="flex justify-between"><dt className="text-[color:var(--theme-text-muted)]">Monthly unlimited</dt><dd className="font-semibold">£{(form.monthly_price_pence / 100).toFixed(0)} / mo</dd></div>

@@ -118,7 +118,7 @@ export default function DigestPreferencesCard() {
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/5 p-5" data-testid="digest-card">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-5" data-testid="digest-card">
       <div className="flex items-start gap-3 mb-4">
         <Mail className="text-sky-400 flex-shrink-0 mt-0.5" size={20} />
         <div className="flex-1">
@@ -201,7 +201,7 @@ export default function DigestPreferencesCard() {
               {CHANNELS.map((ch) => (
                 <label
                   key={ch.key}
-                  className="flex items-start gap-3 rounded p-2 hover:bg-white dark:bg-zinc-900/5 cursor-pointer"
+                  className="flex items-start gap-3 rounded p-2 hover:bg-white/5 cursor-pointer"
                   data-testid={`digest-channel-${ch.key}`}
                 >
                   <Checkbox

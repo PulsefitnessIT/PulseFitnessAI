@@ -92,7 +92,7 @@ const RevenueFlowDiagram = ({ config }) => (
  <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="finops-revenue-flow">
  <h3 className="text-lg font-semibold text-white mb-4">Revenue Flow Model</h3>
  <div className="flex flex-col md:flex-row items-stretch gap-3">
- <div className="flex-1 bg-white dark:bg-zinc-900/5 rounded-xl p-4 text-center border border-white/10">
+ <div className="flex-1 bg-white/5 rounded-xl p-4 text-center border border-white/10">
  <CreditCard size={24} className="text-[var(--color-brand-blue)] mx-auto mb-2" />
  <p className="text-white font-semibold text-sm">Customer Payment</p>
  <p className="text-[var(--color-text-muted)] text-xs mt-1">Subscription or one-off</p>
@@ -115,21 +115,21 @@ const RevenueFlowDiagram = ({ config }) => (
  </div>
  </div>
  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
- <div className="bg-white dark:bg-zinc-900/5 rounded-lg p-3 flex items-center gap-3">
+ <div className="bg-white/5 rounded-lg p-3 flex items-center gap-3">
  <Brain size={16} className="text-purple-400 flex-shrink-0" />
  <div>
  <p className="text-white text-xs font-medium">LLM Credits</p>
  <p className="text-[var(--color-text-muted)] text-[10px]">Auto-topped from reserve</p>
  </div>
  </div>
- <div className="bg-white dark:bg-zinc-900/5 rounded-lg p-3 flex items-center gap-3">
+ <div className="bg-white/5 rounded-lg p-3 flex items-center gap-3">
  <Server size={16} className="text-blue-400 flex-shrink-0" />
  <div>
  <p className="text-white text-xs font-medium">Infrastructure</p>
  <p className="text-[var(--color-text-muted)] text-[10px]">Hosting & database</p>
  </div>
  </div>
- <div className="bg-white dark:bg-zinc-900/5 rounded-lg p-3 flex items-center gap-3">
+ <div className="bg-white/5 rounded-lg p-3 flex items-center gap-3">
  <Zap size={16} className="text-amber-400 flex-shrink-0" />
  <div>
  <p className="text-white text-xs font-medium">Email & APIs</p>
@@ -148,7 +148,7 @@ const CostCentres = ({ config, onUpdate, saving }) => {
  <h3 className="text-lg font-semibold text-white mb-4">Cost Centres</h3>
  <div className="grid md:grid-cols-2 gap-4">
  {Object.entries(centres).map(([key, centre]) => (
- <div key={key} className="bg-white dark:bg-zinc-900/5 rounded-xl p-5 border border-white/10">
+ <div key={key} className="bg-white/5 rounded-xl p-5 border border-white/10">
  <div className="flex items-center justify-between mb-3">
  <div className="flex items-center gap-2">
  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${key === 'gymaxis' ? 'bg-[rgb(var(--rgb-brand-blue)/0.2)]' : 'bg-[rgb(var(--rgb-brand-cyan-hover)/0.2)]'}`}>
@@ -258,7 +258,7 @@ const ConfigPanel = ({ config, onConfigChange, onSave, saving }) => (
  />
  </div>
  </div>
- <div className="flex items-center gap-3 mt-4 p-3 bg-white dark:bg-zinc-900/5 rounded-lg">
+ <div className="flex items-center gap-3 mt-4 p-3 bg-white/5 rounded-lg">
  <Switch
  checked={config?.auto_top_up_enabled ?? true}
  onCheckedChange={v => onConfigChange('auto_top_up_enabled', v)}
@@ -279,7 +279,7 @@ const AlertsPanel = ({ alerts, onDismiss }) => (
  {alerts.length > 0 ? (
  <div className="space-y-2 max-h-64 overflow-y-auto">
  {alerts.map(a => (
- <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg ${a.read ? 'bg-white dark:bg-zinc-900/5' : 'bg-orange-500/10 border border-orange-500/20'}`}>
+ <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg ${a.read ? 'bg-white/5' : 'bg-orange-500/10 border border-orange-500/20'}`}>
  <AlertTriangle size={16} className={a.severity === 'critical' ? 'text-red-400' : 'text-orange-400'} />
  <div className="flex-1 min-w-0">
  <p className="text-white text-sm font-medium">{a.title}</p>

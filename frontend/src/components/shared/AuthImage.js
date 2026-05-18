@@ -61,7 +61,7 @@ export default function AuthImage({ src, alt = '', className = '', onError, fall
   }
 
   if (!objectUrl) {
-    return <div className={`${className} animate-pulse bg-white dark:bg-zinc-900/5`} aria-hidden data-testid="auth-image-loading" />;
+    return <div className={`${className} animate-pulse bg-white/5`} aria-hidden data-testid="auth-image-loading" />;
   }
 
   return <img src={objectUrl} alt={alt} className={className} onError={onError} {...rest} />;

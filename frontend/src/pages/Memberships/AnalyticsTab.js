@@ -112,7 +112,7 @@ function DigestButton({ API, headers }) {
   };
   return (
     <button onClick={onClick} disabled={busy}
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white dark:bg-zinc-900/5 hover:bg-white dark:bg-zinc-900/10 text-xs font-bold disabled:opacity-40"
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold disabled:opacity-40"
       data-testid="mbr-send-digest">
       <Mail size={13} /> {busy ? 'Sending…' : 'Send weekly digest'}
     </button>
@@ -145,7 +145,7 @@ function DrillDrawer({ API, headers, range, drill, onClose }) {
             <div className="text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--color-brand-cyan)]">Drill-down</div>
             <h2 className="text-xl font-extrabold mt-0.5">{drill.title}</h2>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-white/60 hover:bg-white dark:bg-zinc-900/10 hover:text-white" data-testid="mbr-drill-close">
+          <button onClick={onClose} className="p-2 rounded-lg text-white/60 hover:bg-white/10 hover:text-white" data-testid="mbr-drill-close">
             <X size={16} />
           </button>
         </div>
@@ -305,7 +305,7 @@ function OverviewSection({ API, headers, range, openDrill }) {
                     <span className="text-white/80 font-semibold">{m.plan}</span>
                     <span className="text-white/50">{m.count} · {pct}%</span>
                   </div>
-                  <div className="h-2 rounded bg-white dark:bg-zinc-900/5 overflow-hidden">
+                  <div className="h-2 rounded bg-white/5 overflow-hidden">
                     <div className="h-full rounded" style={{ width: `${pct}%`, background: PIE_PALETTE[idx % PIE_PALETTE.length] }} />
                   </div>
                 </div>
@@ -363,7 +363,7 @@ function RetentionSection({ API, headers, range }) {
             };
             const l = labels[key];
             return (
-              <div key={key} className="p-4 rounded-xl border border-white/10 bg-white dark:bg-zinc-900/5" data-testid={`mbr-segment-${key}`}>
+              <div key={key} className="p-4 rounded-xl border border-white/10 bg-white/5" data-testid={`mbr-segment-${key}`}>
                 <div className="text-[10px] font-bold tracking-wider uppercase" style={{ color: l.color }}>{l.label}</div>
                 <div className="text-3xl font-extrabold mt-1">{count}</div>
                 <div className="text-[11px] text-white/50 mt-1">{data.segment_members[key]?.length || 0} members shown</div>
@@ -421,7 +421,7 @@ function RetentionSection({ API, headers, range }) {
         <ChartCard title="At-risk member preview">
           <div className="space-y-1.5 pt-2 max-h-[220px] overflow-y-auto">
             {(data.segment_members.at_risk || []).slice(0, 10).map((m, idx) => (
-              <div key={m.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-zinc-900/5 text-xs" data-testid={`mbr-at-risk-preview-${idx}`}>
+              <div key={m.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 text-xs" data-testid={`mbr-at-risk-preview-${idx}`}>
                 <span className="font-semibold">{m.name}</span>
                 <span className="text-white/50">{m.visits_60d} visits · £{m.lifetime_value_gbp}</span>
               </div>
@@ -614,12 +614,12 @@ function ClassesSection({ API, headers, range }) {
 function ClassRow({ c, idx, tone }) {
   const barColor = tone === 'rose' ? 'var(--color-rose)' : c.occupancy_pct >= 70 ? 'var(--color-success-light)' : CYAN;
   return (
-    <div className="p-3 rounded-lg bg-white dark:bg-zinc-900/5" data-testid={`mbr-class-row-${c.template_id}`}>
+    <div className="p-3 rounded-lg bg-white/5" data-testid={`mbr-class-row-${c.template_id}`}>
       <div className="flex items-center justify-between text-xs mb-1">
         <span className="font-semibold">{c.name}</span>
         <span className="text-white/50">{c.sessions} sessions · {c.booked}/{c.capacity}</span>
       </div>
-      <div className="h-1.5 rounded bg-white dark:bg-zinc-900/5 overflow-hidden">
+      <div className="h-1.5 rounded bg-white/5 overflow-hidden">
         <div className="h-full rounded" style={{ width: `${c.occupancy_pct}%`, background: barColor }} />
       </div>
       <div className="flex items-center justify-between text-[10px] text-white/40 mt-1">
@@ -1002,7 +1002,7 @@ function ExportButton({ API, headers, report, range, label, pdf = false }) {
   const Icon = pdf ? FileText : Download;
   return (
     <button onClick={onClick} disabled={busy}
-      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white dark:bg-zinc-900/5 hover:bg-white dark:bg-zinc-900/10 text-xs font-bold disabled:opacity-40"
+      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold disabled:opacity-40"
       data-testid={`mbr-export-${report}${pdf ? '-pdf' : ''}`}>
       <Icon size={13} /> {busy ? 'Working…' : label}
     </button>

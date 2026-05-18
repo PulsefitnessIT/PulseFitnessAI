@@ -89,7 +89,7 @@ export default function BrandedBragPage() {
             Book a class <ArrowRight size={16} />
           </a>
           <a href={`${API}/api/m/${data.organization.slug}/poster.png`} target="_blank" rel="noreferrer" download={`${data.organization.slug}-poster.png`}
-             className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-xs border border-white/15 text-white/70 hover:bg-white dark:bg-zinc-900/5 transition"
+             className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-xs border border-white/15 text-white/70 hover:bg-white/5 transition"
              data-testid="brag-poster-download">
             Download QR poster
           </a>
@@ -104,7 +104,7 @@ export default function BrandedBragPage() {
 
 function Stat({ icon: Icon, label, value, color }) {
   return (
-    <div className="p-4 rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03]">
+    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03]">
       <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-white/50">
         <Icon size={11} style={{ color }} /> {label}
       </div>

@@ -190,7 +190,7 @@ export default function ModuleSwitcher({ user, current }) {
  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider transition-all duration-300 ease-out ${
  on
  ? 'bg-[var(--color-brand-cyan)] text-[var(--color-surface-darker)] shadow-md scale-[1.02]'
- : 'text-[color:var(--theme-text-muted,rgba(255,255,255,0.6))] hover:text-[color:var(--theme-text,#fff)] hover:bg-black/5 dark:hover:bg-white dark:bg-zinc-900/5'
+ : 'text-[color:var(--theme-text-muted,rgba(255,255,255,0.6))] hover:text-[color:var(--theme-text,#fff)] hover:bg-black/5 dark:hover:bg-white/5'
  }`}
  >
  <Icon size={12} />

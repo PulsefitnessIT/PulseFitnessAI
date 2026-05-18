@@ -21,7 +21,7 @@ const TONE = {
   high: 'border-red-500/40 bg-red-500/10 text-red-100',
   med: 'border-amber-500/40 bg-amber-500/10 text-amber-100',
   low: 'border-sky-500/40 bg-sky-500/10 text-sky-100',
-  info: 'border-white/10 bg-white dark:bg-zinc-900/5 text-white/80',
+  info: 'border-white/10 bg-white/5 text-white/80',
 };
 
 export default function NudgeBanner({ canDismiss = true }) {
@@ -104,7 +104,7 @@ export default function NudgeBanner({ canDismiss = true }) {
               <button
                 type="button"
                 onClick={() => dismiss(n.id)}
-                className="flex-shrink-0 rounded-full p-1 hover:bg-white dark:bg-zinc-900/10"
+                className="flex-shrink-0 rounded-full p-1 hover:bg-white/10"
                 aria-label="Dismiss"
                 data-testid={`nudge-dismiss-${n.id}`}
               >

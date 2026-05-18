@@ -536,7 +536,7 @@ function ShareClassDialog({ API, occ, onClose }) {
             Preview loading…
           </div>
         )}
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/5 p-2">
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-[color:var(--theme-border)] bg-white/5 p-2">
           <input readOnly value={shareUrl}
             className="flex-1 bg-transparent text-xs font-mono min-w-0"
             data-testid="share-url" />

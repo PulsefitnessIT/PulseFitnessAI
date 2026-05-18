@@ -102,7 +102,7 @@ const StatusPage = () => {
             return (
               <div
                 key={key}
-                className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50"
+                className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/50"
                 data-testid={`status-row-${key}`}
               >
                 <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{SERVICE_LABELS[key] || key}</p>

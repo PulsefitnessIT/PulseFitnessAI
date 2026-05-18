@@ -54,7 +54,7 @@ export default function ProfileTab({ member, onSignOut, slug }) {
   return (
     <div data-testid="member-profile">
       <h2 className="text-xl font-extrabold tracking-tight mb-4" style={{ letterSpacing: '-0.02em' }}>Profile</h2>
-      <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-5 space-y-3">
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
         <Row label="Name" value={`${member.first_name} ${member.last_name || ''}`} />
         <Row label="Email" value={member.email} />
         <Row label="Phone" value={member.phone || '—'} />
@@ -62,7 +62,7 @@ export default function ProfileTab({ member, onSignOut, slug }) {
         <Row label="Member since" value={member.created_at ? new Date(member.created_at).toLocaleDateString() : '—'} />
       </div>
 
-      <section className="mt-5 rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-4" data-testid="member-dropin-card">
+      <section className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-4" data-testid="member-dropin-card">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-extrabold">Drop-in invites</p>
@@ -89,7 +89,7 @@ export default function ProfileTab({ member, onSignOut, slug }) {
                 <div className="text-2xl font-extrabold tracking-tight mt-0.5" data-testid="member-referral-code">{ref.code}</div>
               </div>
               <div className="flex gap-2">
-                <button onClick={copyCode} className="px-3 py-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border border-white/15 text-white/80 hover:bg-white dark:bg-zinc-900/5" data-testid="member-referral-copy">Copy</button>
+                <button onClick={copyCode} className="px-3 py-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border border-white/15 text-white/80 hover:bg-white/5" data-testid="member-referral-copy">Copy</button>
                 <button onClick={shareLink} className="px-3 py-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="member-referral-share">Share</button>
               </div>
             </div>
@@ -255,7 +255,7 @@ function AutoPayCard() {
   const enabled = !!status?.enabled;
 
   return (
-    <section className="mt-5 rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-4" data-testid="member-autopay-card">
+    <section className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-4" data-testid="member-autopay-card">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-extrabold flex items-center gap-2">

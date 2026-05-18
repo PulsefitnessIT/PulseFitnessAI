@@ -129,7 +129,7 @@ export default function ClassEditorModal({ API, headers, template, onClose }) {
             const on = f.recurs_days.includes(d.value);
             return (
               <button key={d.value} type="button" onClick={() => toggleDay(d.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider transition border ${on ? 'bg-[var(--color-brand-cyan)] text-[var(--color-surface-darker)] border-[var(--color-brand-cyan)]' : 'bg-transparent text-[color:var(--theme-text-muted)] border-[color:var(--theme-border)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider transition border ${on ? 'bg-[var(--color-brand-cyan)] text-[var(--color-surface-darker)] border-[var(--color-brand-cyan)]' : 'bg-transparent text-[color:var(--theme-text-muted)] border-[color:var(--theme-border)] hover:bg-black/[0.04] dark:hover:bg-white/5'}`}
                 data-testid={`mbr-class-day-${d.value}`}>
                 {d.label}
               </button>

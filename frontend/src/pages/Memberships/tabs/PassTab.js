@@ -53,7 +53,7 @@ export default function PassTab({ headers, member }) {
           <div className="inline-block p-4 rounded-2xl bg-white dark:bg-zinc-900" data-testid="member-qr-image">
             <img src={dataUrl} alt="Member QR pass" className="w-64 h-64" decoding="async" />
           </div>
-        ) : <div className="w-64 h-64 mx-auto bg-white dark:bg-zinc-900/5 rounded-2xl grid place-items-center"><Loader2 className="animate-spin" /></div>}
+        ) : <div className="w-64 h-64 mx-auto bg-white/5 rounded-2xl grid place-items-center"><Loader2 className="animate-spin" /></div>}
         <div className="mt-4 text-[36px] font-extrabold tracking-[0.4em]" style={{ color: 'var(--color-brand-cyan)' }} data-testid="member-qr-code">{qr?.code || '––––––'}</div>
         <div className="mt-2 text-xs text-white/50">Refreshes in <span className="font-extrabold text-white">{expiresIn}s</span></div>
         <div className="mt-1 text-[10px] text-white/40 tracking-wider uppercase">{member.first_name} {member.last_name}</div>

@@ -240,7 +240,7 @@ function BookingRow({ b, past, onSwap, onAddToCalendar, onRebook }) {
   }[b.status] || 'amber';
   const canManage = !past && (b.status === 'booked' || b.status === 'waitlist');
   return (
-    <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-3.5"
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5"
       data-testid={`member-booking-${b.id}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -280,7 +280,7 @@ function BookingRow({ b, past, onSwap, onAddToCalendar, onRebook }) {
       {canManage && (
         <div className="flex gap-2 mt-3 -mx-1">
           <button onClick={onAddToCalendar}
-            className="flex-1 px-2 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-white/10 text-white/80 hover:bg-white dark:bg-zinc-900/5 hover:text-white flex items-center justify-center gap-1"
+            className="flex-1 px-2 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-white/10 text-white/80 hover:bg-white/5 hover:text-white flex items-center justify-center gap-1"
             data-testid={`member-booking-cal-${b.id}`}>
             <Download size={10} /> .ics
           </button>
@@ -323,7 +323,7 @@ function CalendarFeedModal({ feed, onClose, onRotate }) {
             <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">Auto-syncing calendar</p>
             <h3 className="text-lg font-extrabold text-white mt-1">Subscribe — never miss a class</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-white dark:bg-zinc-900/10 text-white/60"><X size={14} /></button>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-white/10 text-white/60"><X size={14} /></button>
         </div>
 
         <p className="text-xs text-white/60 mb-3">{feed.instructions}</p>
@@ -332,7 +332,7 @@ function CalendarFeedModal({ feed, onClose, onRotate }) {
           <div>
             <p className="text-[10px] uppercase tracking-wider font-bold text-white/50 mb-1">Apple / iOS</p>
             <button onClick={() => copy(feed.webcal_url)}
-              className="w-full text-left px-3 py-2 rounded-md border border-white/10 bg-white dark:bg-zinc-900/5 text-xs font-mono text-[var(--color-brand-cyan)] hover:bg-white dark:bg-zinc-900/10 truncate"
+              className="w-full text-left px-3 py-2 rounded-md border border-white/10 bg-white/5 text-xs font-mono text-[var(--color-brand-cyan)] hover:bg-white/10 truncate"
               data-testid="member-calendar-feed-webcal">
               <LinkIcon size={10} className="inline mr-1" /> {feed.webcal_url}
             </button>
@@ -340,7 +340,7 @@ function CalendarFeedModal({ feed, onClose, onRotate }) {
           <div>
             <p className="text-[10px] uppercase tracking-wider font-bold text-white/50 mb-1">Google / Outlook (paste as URL)</p>
             <button onClick={() => copy(feed.https_url)}
-              className="w-full text-left px-3 py-2 rounded-md border border-white/10 bg-white dark:bg-zinc-900/5 text-xs font-mono text-[var(--color-brand-cyan)] hover:bg-white dark:bg-zinc-900/10 truncate"
+              className="w-full text-left px-3 py-2 rounded-md border border-white/10 bg-white/5 text-xs font-mono text-[var(--color-brand-cyan)] hover:bg-white/10 truncate"
               data-testid="member-calendar-feed-https">
               <LinkIcon size={10} className="inline mr-1" /> {feed.https_url}
             </button>
@@ -410,7 +410,7 @@ function SwapModal({ headers, booking, onClose }) {
               From {new Date(booking.occurrence?.starts_at).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
-          <button onClick={() => onClose(false)} className="p-1.5 rounded hover:bg-white dark:bg-zinc-900/10 text-white/60"><X size={14} /></button>
+          <button onClick={() => onClose(false)} className="p-1.5 rounded hover:bg-white/10 text-white/60"><X size={14} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {loading ? <CenterLoader /> : occs.length === 0 ? (
@@ -422,7 +422,7 @@ function SwapModal({ headers, booking, onClose }) {
               {occs.map((o) => (
                 <button key={o.id} onClick={() => swap(o)}
                   disabled={!!swapping}
-                  className="w-full text-left rounded-lg border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-3 hover:border-blue-400/50 hover:bg-blue-500/5 disabled:opacity-50 transition"
+                  className="w-full text-left rounded-lg border border-white/10 bg-white/[0.03] p-3 hover:border-blue-400/50 hover:bg-blue-500/5 disabled:opacity-50 transition"
                   data-testid={`member-swap-target-${o.id}`}>
                   <div className="font-bold text-white text-sm">
                     {new Date(o.starts_at).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}

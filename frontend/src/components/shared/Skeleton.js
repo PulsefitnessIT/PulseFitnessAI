@@ -6,14 +6,14 @@ import React from 'react';
  */
 export const SkeletonLine = ({ className = '', width = '100%' }) => (
   <div
-    className={`h-3 rounded-md bg-zinc-200/70 dark:bg-white dark:bg-zinc-900/5 animate-pulse ${className}`}
+    className={`h-3 rounded-md bg-zinc-200/70 dark:bg-white/5 animate-pulse ${className}`}
     style={{ width }}
   />
 );
 
 export const SkeletonCircle = ({ size = 36, className = '' }) => (
   <div
-    className={`rounded-full bg-zinc-200/70 dark:bg-white dark:bg-zinc-900/5 animate-pulse ${className}`}
+    className={`rounded-full bg-zinc-200/70 dark:bg-white/5 animate-pulse ${className}`}
     style={{ width: size, height: size }}
   />
 );

@@ -120,7 +120,7 @@ function PromoCard({ promo, plans, onArchive }) {
     : false;
 
   return (
-    <div className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4 group"
+    <div className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-4 group"
       data-testid={`mbr-promo-${promo.id}`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
@@ -170,7 +170,7 @@ function PromoCard({ promo, plans, onArchive }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-        <div className="rounded bg-white dark:bg-zinc-900/[0.04] p-2 border border-[color:var(--theme-border)]">
+        <div className="rounded bg-white/[0.04] p-2 border border-[color:var(--theme-border)]">
           <div className="text-[10px] uppercase tracking-wider text-[color:var(--theme-text-muted)] flex items-center gap-1">
             <BadgeCheck size={9} /> Redemptions
           </div>
@@ -184,7 +184,7 @@ function PromoCard({ promo, plans, onArchive }) {
             <p className="text-[10px] text-amber-500 mt-0.5">Only {remaining} left</p>
           )}
         </div>
-        <div className="rounded bg-white dark:bg-zinc-900/[0.04] p-2 border border-[color:var(--theme-border)]">
+        <div className="rounded bg-white/[0.04] p-2 border border-[color:var(--theme-border)]">
           <div className="text-[10px] uppercase tracking-wider text-[color:var(--theme-text-muted)] flex items-center gap-1">
             <Calendar size={9} /> Expires
           </div>

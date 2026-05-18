@@ -484,7 +484,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  if (onOpenMasterAdmin) onOpenMasterAdmin();
  setShowUserMenu(false);
  }}
- className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-orange-400 hover:text-orange-300 hover:bg-white dark:bg-zinc-900/5 transition-colors"
+ className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-orange-400 hover:text-orange-300 hover:bg-white/5 transition-colors"
  data-testid="nav-master-admin-btn"
  >
  <Crown size={16} /> {t('nav.master_admin')}
@@ -494,7 +494,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  <div className="py-1" style={{ borderTop: '1px solid var(--theme-border)' }}>
  <button
  onClick={() => { logout(); setShowUserMenu(false); }}
- className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white dark:bg-zinc-900/5 transition-colors"
+ className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors"
  data-testid="nav-logout-btn"
  >
  <LogOut size={16} /> {t('nav.logout')}
@@ -804,15 +804,15 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  {isLogin && ssoStatus.enabled && (
  <>
  <div className="flex items-center gap-3 my-1">
- <div className="flex-1 h-px bg-white dark:bg-zinc-900/10" />
+ <div className="flex-1 h-px bg-white/10" />
  <span className="text-xs text-white/40">or</span>
- <div className="flex-1 h-px bg-white dark:bg-zinc-900/10" />
+ <div className="flex-1 h-px bg-white/10" />
  </div>
  <Button
  type="button"
  onClick={() => { window.location.href = `${API}/auth/sso/start`; }}
  variant="outline"
- className="w-full border-white/20 text-white hover:bg-white dark:bg-zinc-900/5"
+ className="w-full border-white/20 text-white hover:bg-white/5"
  data-testid="sso-login-btn"
  >
  Sign in with SSO

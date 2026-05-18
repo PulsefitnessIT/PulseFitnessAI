@@ -33,7 +33,7 @@ export default function PlanTab({ headers, member }) {
   return (
     <div data-testid="member-plan">
       <h2 className="text-xl font-extrabold tracking-tight mb-4" style={{ letterSpacing: '-0.02em' }}>Your plan</h2>
-      <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-4 mb-6" data-testid="member-plan-current">
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-6" data-testid="member-plan-current">
         <div className="text-[10px] uppercase tracking-[0.25em] font-extrabold text-white/50 mb-2">Current status</div>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
@@ -47,7 +47,7 @@ export default function PlanTab({ headers, member }) {
       {loading ? <CenterLoader /> : plans.length === 0 ? <EmptyCard text="No plans available yet." /> : (
         <div className="space-y-2">
           {plans.map((p) => (
-            <div key={p.id} className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-4" data-testid={`member-plan-${p.id}`}
+            <div key={p.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4" data-testid={`member-plan-${p.id}`}
               style={{ borderLeft: `3px solid ${p.colour || 'var(--color-brand-cyan)'}` }}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -189,7 +189,7 @@ function CheckoutModal({ API, headers, plan, member, onClose }) {
             <h3 className="text-xl font-extrabold tracking-tight text-white mt-1">{plan.name}</h3>
             <p className="text-xs text-white/50 mt-0.5 capitalize">{plan.kind.replace('_', ' ')} · {plan.billing_cycle}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-white dark:bg-zinc-900/10 text-white/60" data-testid="member-checkout-close">✕</button>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-white/10 text-white/60" data-testid="member-checkout-close">✕</button>
         </div>
 
         {plan.trial_days > 0 && (
@@ -208,10 +208,10 @@ function CheckoutModal({ API, headers, plan, member, onClose }) {
                 onBlur={validate}
                 onKeyDown={(e) => e.key === 'Enter' && validate()}
                 placeholder="SUMMER25"
-                className="flex-1 px-3 py-2 rounded-md text-sm font-mono uppercase border border-white/10 bg-white dark:bg-zinc-900/5 text-white focus:outline-none focus:border-[var(--color-brand-cyan)]"
+                className="flex-1 px-3 py-2 rounded-md text-sm font-mono uppercase border border-white/10 bg-white/5 text-white focus:outline-none focus:border-[var(--color-brand-cyan)]"
                 data-testid="member-checkout-promo-input" />
               <button onClick={validate} disabled={validating || !code.trim()}
-                className="px-3 py-2 rounded-md text-xs font-bold border border-white/15 text-white/80 hover:bg-white dark:bg-zinc-900/10 disabled:opacity-50"
+                className="px-3 py-2 rounded-md text-xs font-bold border border-white/15 text-white/80 hover:bg-white/10 disabled:opacity-50"
                 data-testid="member-checkout-promo-apply">
                 {validating ? '…' : 'Apply'}
               </button>
@@ -225,7 +225,7 @@ function CheckoutModal({ API, headers, plan, member, onClose }) {
           )}
         </div>
 
-        <div className="mt-4 rounded-lg bg-white dark:bg-zinc-900/5 border border-white/10 p-3">
+        <div className="mt-4 rounded-lg bg-white/5 border border-white/10 p-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-white/60">Plan price</span>
             <span className={savingsPence > 0 ? 'line-through text-white/40' : 'text-white font-bold'}>
@@ -249,7 +249,7 @@ function CheckoutModal({ API, headers, plan, member, onClose }) {
         {waiverDue ? (
           <div className="mt-4 space-y-2" data-testid="member-waiver-gate">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-400">Waiver required</p>
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-white/10 bg-white dark:bg-zinc-900/5 p-2.5 text-xs text-white/80 whitespace-pre-wrap" data-testid="member-waiver-text">
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-2.5 text-xs text-white/80 whitespace-pre-wrap" data-testid="member-waiver-text">
               {plan.waiver_text || 'By signing, you acknowledge the risks of participating in this class and confirm you are medically fit to take part.'}
             </div>
             <input type="text" placeholder="Type your full name to sign"

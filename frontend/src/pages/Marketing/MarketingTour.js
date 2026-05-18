@@ -332,7 +332,7 @@ const MarketingTour = ({ API, headers, onJumpToTab, onComplete }) => {
             <div className="relative px-6 pt-6 pb-4 flex-shrink-0" style={{ background: `linear-gradient(135deg, ${step.accent}15, transparent)` }}>
               <button
                 onClick={skip}
-                className="absolute top-4 right-4 p-1 rounded-md hover:bg-black/10 dark:hover:bg-white dark:bg-zinc-900/10 transition"
+                className="absolute top-4 right-4 p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition"
                 data-testid="marketing-tour-close"
                 aria-label="Skip tour"
               >

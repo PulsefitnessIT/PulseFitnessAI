@@ -127,7 +127,7 @@ function PerformanceRow({ row, rank }) {
   const attRate = row.attendance_rate_pct;
   const noShow = row.no_show_rate_pct;
   return (
-    <div className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3 sm:p-4"
+    <div className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-3 sm:p-4"
       data-testid={`mbr-instructor-${row.instructor_user_id}`}>
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 w-9 h-9 rounded-full overflow-hidden bg-[rgb(var(--rgb-brand-cyan)/0.15)] grid place-items-center text-[var(--color-brand-cyan)] font-extrabold text-sm">
@@ -194,7 +194,7 @@ function Metric({ label, primary, subtitle, bar, tone = 'emerald' }) {
 
 function SummaryStat({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-2.5">
+    <div className="rounded-lg border border-[color:var(--theme-border)] bg-white/[0.03] p-2.5">
       <p className="text-[9px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)] flex items-center gap-1">
         {Icon && <Icon size={9} />} {label}
       </p>
@@ -261,7 +261,7 @@ function CoverBoardView({ API, headers }) {
 function CoverRow({ req, onAssign }) {
   const isOpen = req.status === 'open' || req.status === 'open_to_all';
   return (
-    <div className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3 sm:p-4 flex items-start gap-3"
+    <div className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-3 sm:p-4 flex items-start gap-3"
       data-testid={`mbr-cover-${req.id}`}>
       <div className="flex-shrink-0 w-9 h-9 rounded-md bg-amber-500/15 grid place-items-center">
         <AlertTriangle size={14} className="text-amber-500" />

@@ -108,12 +108,12 @@ function StepBar({ stepIdx, setStepIdx }) {
               <button onClick={() => setStepIdx(i)} data-testid={`mbr-setup-step-${s.id}`}
                 className={`flex items-center gap-2 transition ${done || active ? 'opacity-100' : 'opacity-40'}`}
                 disabled={!done}>
-                <span className={`w-6 h-6 rounded-full grid place-items-center text-[10px] font-extrabold ${done ? 'bg-emerald-500 text-black' : active ? 'bg-[var(--color-brand-cyan)] text-black' : 'bg-white dark:bg-zinc-900/10'}`}>
+                <span className={`w-6 h-6 rounded-full grid place-items-center text-[10px] font-extrabold ${done ? 'bg-emerald-500 text-black' : active ? 'bg-[var(--color-brand-cyan)] text-black' : 'bg-white/10'}`}>
                   {done ? <Check size={12} /> : i + 1}
                 </span>
                 <span className={`text-[10px] font-extrabold uppercase tracking-wider ${active ? 'text-white' : 'text-white/60'}`}>{s.label}</span>
               </button>
-              {i < STEPS.length - 1 && <div className="h-px flex-1 bg-white dark:bg-zinc-900/10" />}
+              {i < STEPS.length - 1 && <div className="h-px flex-1 bg-white/10" />}
             </li>
           );
         })}
@@ -197,7 +197,7 @@ function PaymentMethod({ headers, status, onNext, onBack }) {
       <div className="space-y-2" data-testid="mbr-setup-payment">
         {options.map((o) => (
           <button key={o.id} onClick={() => setChoice(o.id)} data-testid={`mbr-setup-pay-${o.id}`}
-            className={`w-full text-left rounded-xl border p-4 transition flex items-start gap-3 ${choice === o.id ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]' : 'border-white/10 bg-white dark:bg-zinc-900/[0.02] hover:border-white/20'}`}>
+            className={`w-full text-left rounded-xl border p-4 transition flex items-start gap-3 ${choice === o.id ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]' : 'border-white/10 bg-white/[0.02] hover:border-white/20'}`}>
             <o.icon size={18} className={choice === o.id ? 'text-[var(--color-brand-cyan)]' : 'text-white/60'} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ function StarterPlans({ headers, status, onNext, onBack }) {
           const on = selected.includes(i);
           return (
             <div key={i} onClick={() => toggle(i)} data-testid={`mbr-setup-plan-${i}`}
-              className={`rounded-xl border p-3.5 cursor-pointer transition ${on ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]' : 'border-white/10 bg-white dark:bg-zinc-900/[0.02]'}`}>
+              className={`rounded-xl border p-3.5 cursor-pointer transition ${on ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]' : 'border-white/10 bg-white/[0.02]'}`}>
               <div className="flex items-center gap-3">
                 <div className={`w-5 h-5 rounded grid place-items-center shrink-0 ${on ? 'bg-[var(--color-brand-cyan)]' : 'border border-white/20'}`}>
                   {on && <Check size={12} className="text-black" />}
@@ -345,7 +345,7 @@ function FirstClass({ headers, status, onNext, onBack }) {
       <div className="flex items-center justify-between gap-3 mt-6">
         <button onClick={onBack} className="text-xs font-bold text-white/60 hover:text-white"><ChevronLeft size={12} className="inline" /> Back</button>
         <div className="flex gap-2">
-          <button onClick={skip} className="rounded-lg px-3 py-2 text-xs font-bold border border-white/15 text-white/80 hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-setup-class-skip">Skip</button>
+          <button onClick={skip} className="rounded-lg px-3 py-2 text-xs font-bold border border-white/15 text-white/80 hover:bg-white/5" data-testid="mbr-setup-class-skip">Skip</button>
           <button onClick={save} disabled={saving} className="rounded-lg px-4 py-2 text-xs font-extrabold uppercase tracking-wider disabled:opacity-50"
             style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="mbr-setup-class-next">
             {saving ? '…' : 'Save & continue'} <ChevronRight size={12} className="inline ml-1" />
@@ -365,7 +365,7 @@ function InviteTeam({ headers: _h, status: _s, onNext, onBack }) {
   // /memberships Team tab (future).
   return (
     <StepShell title="Invite your instructors" subtitle="(Coming soon — for now, add instructor users from the admin console.)">
-      <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.02] p-5 text-center text-white/60">
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center text-white/60">
         <Sparkles size={20} className="mx-auto text-[var(--color-brand-cyan)] mb-3" />
         <p className="text-sm">The instructor inviter email flow lands in the next release.</p>
         <p className="text-xs text-white/40 mt-1">In the meantime, your demo instructor (Jake Ellis) is ready to test the instructor portal at <code>/instructor</code>.</p>
@@ -403,7 +403,7 @@ function AllDone({ headers, status, onFinish }) {
           <div className="text-[10px] uppercase tracking-[0.25em] font-extrabold text-[var(--color-brand-cyan)] mb-1">Your app URL</div>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-left text-sm text-white font-mono truncate" data-testid="mbr-setup-app-url">{appUrl}</code>
-            <button onClick={copy} className="p-2 rounded-lg hover:bg-white dark:bg-zinc-900/10 text-white/70" data-testid="mbr-setup-copy"><Copy size={14} /></button>
+            <button onClick={copy} className="p-2 rounded-lg hover:bg-white/10 text-white/70" data-testid="mbr-setup-copy"><Copy size={14} /></button>
           </div>
         </div>
       </div>

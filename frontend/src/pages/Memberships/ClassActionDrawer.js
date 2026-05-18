@@ -382,7 +382,7 @@ function AttendanceView({ API, headers, occurrence, onSaved }) {
           const memberName = b.member?.name || b.attendee_name || b.member_name || '—';
           return (
             <div key={b.id}
-              className="rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-2.5 flex items-center gap-2"
+              className="rounded-lg border border-[color:var(--theme-border)] bg-white/[0.03] p-2.5 flex items-center gap-2"
               data-testid={`mbr-cad-att-row-${b.id}`}>
               <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[rgb(var(--rgb-brand-cyan)/0.15)] grid place-items-center text-[var(--color-brand-cyan)] font-extrabold text-[11px]">
                 {(memberName || '?').slice(0, 1).toUpperCase()}

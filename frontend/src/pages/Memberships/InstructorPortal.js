@@ -240,7 +240,7 @@ function ClassesView({ scope, headers, onPick }) {
             const isCompleted = o.status === 'completed';
             return (
               <button key={o.id} onClick={() => onPick(o.id)} data-testid={`instructor-occ-${o.id}`}
-                className="w-full text-left rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-3.5 hover:border-[rgb(var(--rgb-brand-cyan)/0.4)] transition"
+                className="w-full text-left rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:border-[rgb(var(--rgb-brand-cyan)/0.4)] transition"
                 style={{ borderLeft: `3px solid ${o.colour || 'var(--color-brand-cyan)'}` }}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -253,7 +253,7 @@ function ClassesView({ scope, headers, onPick }) {
                       {o.room_name && <span className="flex items-center gap-1"><MapPin size={10} />{o.room_name}</span>}
                     </div>
                     <div className="mt-2 flex items-center gap-2">
-                      <div className="w-24 h-1 rounded bg-white dark:bg-zinc-900/10 overflow-hidden"><div className="h-full" style={{ width: `${pct}%`, background: color }} /></div>
+                      <div className="w-24 h-1 rounded bg-white/10 overflow-hidden"><div className="h-full" style={{ width: `${pct}%`, background: color }} /></div>
                       <span className="text-[10px] text-white/50 flex items-center gap-1"><UsersIcon size={9} />{o.bookings_count || 0}/{o.capacity}</span>
                     </div>
                   </div>
@@ -337,7 +337,7 @@ function RosterView({ occId, headers, onBack }) {
       <button onClick={onBack} className="text-xs text-white/60 hover:text-white flex items-center gap-1 mb-4" data-testid="instructor-roster-back">
         <ArrowLeft size={12} /> Back to classes
       </button>
-      <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-4 mb-4" style={{ borderLeft: `3px solid ${occ.colour || 'var(--color-brand-cyan)'}` }}>
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-4" style={{ borderLeft: `3px solid ${occ.colour || 'var(--color-brand-cyan)'}` }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-extrabold text-lg">{occ.name}</div>
@@ -363,18 +363,18 @@ function RosterView({ occId, headers, onBack }) {
           {data.roster.map((b) => {
             const mark = marks[b.id];
             return (
-              <div key={b.id} className="rounded-lg border border-white/10 bg-white dark:bg-zinc-900/[0.02] p-3 flex items-center justify-between gap-3" data-testid={`instructor-roster-${b.id}`}>
+              <div key={b.id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3 flex items-center justify-between gap-3" data-testid={`instructor-roster-${b.id}`}>
                 <div className="min-w-0">
                   <div className="font-bold text-white text-sm truncate">{b.member.name}</div>
                   <div className="text-[11px] text-white/50 truncate">{b.member.email}</div>
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button onClick={() => markOne(b.id, 'attended')} data-testid={`instructor-mark-attended-${b.id}`}
-                    className={`w-9 h-9 rounded-lg grid place-items-center transition ${mark === 'attended' ? 'bg-emerald-500 text-black' : 'bg-white dark:bg-zinc-900/5 text-white/50 hover:bg-white dark:bg-zinc-900/10'}`}>
+                    className={`w-9 h-9 rounded-lg grid place-items-center transition ${mark === 'attended' ? 'bg-emerald-500 text-black' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
                     <CheckCircle2 size={15} />
                   </button>
                   <button onClick={() => markOne(b.id, 'no_show')} data-testid={`instructor-mark-noshow-${b.id}`}
-                    className={`w-9 h-9 rounded-lg grid place-items-center transition ${mark === 'no_show' ? 'bg-red-500 text-white' : 'bg-white dark:bg-zinc-900/5 text-white/50 hover:bg-white dark:bg-zinc-900/10'}`}>
+                    className={`w-9 h-9 rounded-lg grid place-items-center transition ${mark === 'no_show' ? 'bg-red-500 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
                     <XCircle size={15} />
                   </button>
                 </div>
@@ -420,9 +420,9 @@ function PayView({ headers, me }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.02em' }}>This month</h2>
         <div className="flex items-center gap-1">
-          <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-lg border border-white/10 hover:bg-white dark:bg-zinc-900/5" data-testid="instructor-pay-prev"><ChevronLeft size={14} /></button>
+          <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-lg border border-white/10 hover:bg-white/5" data-testid="instructor-pay-prev"><ChevronLeft size={14} /></button>
           <span className="text-xs font-extrabold uppercase tracking-wider text-white/70 px-3">{month}</span>
-          <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-lg border border-white/10 hover:bg-white dark:bg-zinc-900/5 rotate-180" data-testid="instructor-pay-next"><ChevronLeft size={14} /></button>
+          <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-lg border border-white/10 hover:bg-white/5 rotate-180" data-testid="instructor-pay-next"><ChevronLeft size={14} /></button>
         </div>
       </div>
       {loading ? <Loader /> : !data ? <Empty text="Nothing yet." /> : (
@@ -443,14 +443,14 @@ function PayView({ headers, me }) {
           {(data.occurrences || []).length === 0 ? <Empty text="No classes this month." /> : (
             <div className="space-y-1.5">
               {data.occurrences.map((o) => (
-                <div key={o.id} className="rounded-lg border border-white/10 bg-white dark:bg-zinc-900/[0.02] p-3 flex items-center justify-between gap-3" data-testid={`instructor-pay-${o.id}`}>
+                <div key={o.id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3 flex items-center justify-between gap-3" data-testid={`instructor-pay-${o.id}`}>
                   <div className="min-w-0">
                     <div className="font-bold text-white text-sm truncate">{o.name}</div>
                     <div className="text-[11px] text-white/50">{new Date(o.starts_at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] font-bold text-white/60">{o.attended_count || 0} there</span>
-                    <span className={`text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded ${o.status === 'completed' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white dark:bg-zinc-900/5 text-white/60'}`}>
+                    <span className={`text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded ${o.status === 'completed' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-white/60'}`}>
                       {o.status}
                     </span>
                   </div>
@@ -491,7 +491,7 @@ function LabelledInput({ label, value, onChange, type = 'text', required, testid
 }
 
 function Loader() { return <div className="py-12 grid place-items-center text-white/40"><Loader2 className="animate-spin" /></div>; }
-function Empty({ text }) { return <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.02] p-5 text-center text-white/50 text-sm">{text}</div>; }
+function Empty({ text }) { return <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center text-white/50 text-sm">{text}</div>; }
 
 
 /* ─────────────────── Instructor self-edit profile (iter 215w) ─────────────────── */
@@ -562,7 +562,7 @@ function ProfileView({ headers }) {
 
   return (
     <div className="space-y-4" data-testid="instructor-profile-editor">
-      <div className="rounded-2xl border border-white/10 p-4 bg-white dark:bg-zinc-900/[0.02]">
+      <div className="rounded-2xl border border-white/10 p-4 bg-white/[0.02]">
         <div className="flex items-center gap-3 mb-4">
           {draft.photo_url ? (
             <img src={draft.photo_url} alt={profile.name}

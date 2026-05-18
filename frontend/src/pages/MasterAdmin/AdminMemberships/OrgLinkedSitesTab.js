@@ -101,7 +101,7 @@ const OrgLinkedSitesTab = ({ orgId, orgName }) => {
           {sites.map((s) => (
             <div
               key={s.id}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900/50 p-3"
+              className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/50 p-3"
               data-testid={`org-linked-site-${s.id}`}
             >
               <div className="flex items-start justify-between gap-3">

@@ -393,7 +393,7 @@ function DashboardTab({ API, headers }) {
         ) : (
           <div className="space-y-2">
             {data.today_occurrences.map((o) => (
-              <div key={o.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3.5 flex items-center gap-3">
+              <div key={o.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-3.5 flex items-center gap-3">
                 <div className="w-1 h-10 rounded" style={{ background: o.colour || 'var(--color-brand-cyan)' }} />
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-white text-sm truncate">{o.name}</div>
@@ -452,7 +452,7 @@ function CommissionSection({ API, headers }) {
       <div className="rounded-xl border border-[color:var(--theme-border)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[480px]">
-            <thead className="bg-white dark:bg-zinc-900/[0.03] text-xs uppercase tracking-wider text-[color:var(--theme-text-muted)]">
+            <thead className="bg-white/[0.03] text-xs uppercase tracking-wider text-[color:var(--theme-text-muted)]">
               <tr>
                 <th className="px-4 py-3 text-left font-bold">Instructor</th>
                 <th className="px-4 py-3 text-right font-bold">Rate</th>
@@ -663,7 +663,7 @@ function MembersTab({ API, headers }) {
         {/* Desktop table */}
         <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-sm min-w-[560px]">
-            <thead className="bg-white dark:bg-zinc-900/[0.03] text-xs uppercase tracking-wider text-[color:var(--theme-text-muted)]">
+            <thead className="bg-white/[0.03] text-xs uppercase tracking-wider text-[color:var(--theme-text-muted)]">
               <tr>
                 <th className="px-3 py-3 w-10">
                   <input
@@ -689,7 +689,7 @@ function MembersTab({ API, headers }) {
             {members.map((m) => {
               const checked = selectedIds.includes(m.id);
               return (
-              <tr key={m.id} onClick={() => setDetail(m.id)} className={`border-t border-[color:var(--theme-border)] hover:bg-white dark:bg-zinc-900/[0.03] cursor-pointer ${checked ? 'bg-[color:var(--color-brand-cyan)]/5' : ''}`} data-testid={`mbr-row-${m.id}`}>
+              <tr key={m.id} onClick={() => setDetail(m.id)} className={`border-t border-[color:var(--theme-border)] hover:bg-white/[0.03] cursor-pointer ${checked ? 'bg-[color:var(--color-brand-cyan)]/5' : ''}`} data-testid={`mbr-row-${m.id}`}>
                 <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
@@ -945,7 +945,7 @@ function LegacyMemberDetailDrawer({ API, headers, memberId, onClose }) {
           <section>
             <div className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-2">Current plan</div>
             {active ? (
-              <div className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4">
+              <div className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     <div className="font-bold text-white text-sm">{active.plan?.name}</div>
@@ -964,7 +964,7 @@ function LegacyMemberDetailDrawer({ API, headers, memberId, onClose }) {
             <div className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-2">{active ? 'Top-up or change plan' : 'Assign / sell a plan'}</div>
             <div className="space-y-2">
               {plans.map((p) => (
-                <div key={p.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3" data-testid={`mbr-plan-option-${p.id}`}>
+                <div key={p.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-3" data-testid={`mbr-plan-option-${p.id}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-1 h-7 rounded" style={{ background: p.colour }} />
                     <div className="flex-1 min-w-0">
@@ -989,7 +989,7 @@ function LegacyMemberDetailDrawer({ API, headers, memberId, onClose }) {
             {(data.recent_bookings || []).length === 0 ? <Empty text="No bookings yet." /> : (
               <div className="space-y-1.5">
                 {data.recent_bookings.map((b) => (
-                  <div key={b.id} className="rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-2.5 text-xs flex items-center justify-between">
+                  <div key={b.id} className="rounded-lg border border-[color:var(--theme-border)] bg-white/[0.03] p-2.5 text-xs flex items-center justify-between">
                     <div>
                       <div className="font-bold text-white">{b.occurrence?.name || '—'}</div>
                       <div className="text-[color:var(--theme-text-muted)]">{b.occurrence?.starts_at && new Date(b.occurrence.starts_at).toLocaleString()}</div>
@@ -1152,7 +1152,7 @@ function TimetableTab({ API, headers }) {
       {/* Mobile: stacked day list. Desktop: 7-col grid. */}
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-7 gap-2">
         {days.map((d, i) => (
-          <div key={i} className="bg-white dark:bg-zinc-900/[0.02] rounded-xl border border-[color:var(--theme-border)] p-2 min-h-[120px] sm:min-h-[300px]" data-testid={`mbr-tt-day-${i}`}>
+          <div key={i} className="bg-white/[0.02] rounded-xl border border-[color:var(--theme-border)] p-2 min-h-[120px] sm:min-h-[300px]" data-testid={`mbr-tt-day-${i}`}>
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-2">{d.toLocaleDateString([], { weekday: 'short', day: 'numeric' })}</div>
             <div className="space-y-1.5">
               {byDay[i].length === 0 && <div className="text-xs text-zinc-500/40 italic">—</div>}
@@ -1267,7 +1267,7 @@ function PlansInnerView({ API, headers }) {
         bodyClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
       >
         {plans.map((p) => (
-          <div key={p.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4 group" data-testid={`mbr-plan-${p.id}`}>
+          <div key={p.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-4 group" data-testid={`mbr-plan-${p.id}`}>
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-1.5 h-8 rounded shrink-0" style={{ background: p.colour }} />
@@ -1287,8 +1287,8 @@ function PlansInnerView({ API, headers }) {
                p.credits_count ? `${p.credits_count} credits` : 'Credits only'}
             </div>
             <div className="flex gap-1.5 mt-3 flex-wrap">
-              {p.freeze_allowed && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/5 rounded px-1.5 py-0.5">Freezable</span>}
-              {p.cancel_notice_days > 0 && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/5 rounded px-1.5 py-0.5">{p.cancel_notice_days}d notice</span>}
+              {p.freeze_allowed && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white/5 rounded px-1.5 py-0.5">Freezable</span>}
+              {p.cancel_notice_days > 0 && <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] bg-white/5 rounded px-1.5 py-0.5">{p.cancel_notice_days}d notice</span>}
               {p.upfront_fee_pence > 0 && <span className="text-[10px] font-bold text-amber-200 bg-amber-500/10 rounded px-1.5 py-0.5">£{(p.upfront_fee_pence/100).toFixed(0)} joining</span>}
             </div>
           </div>
@@ -1350,7 +1350,7 @@ function ClassesTab({ API, headers }) {
         }}
       >
         {templates.map((t) => (
-          <div key={t.id} onClick={() => setEditing(t)} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3.5 flex items-center gap-3 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan)/0.4)] transition group" data-testid={`mbr-class-${t.id}`}>
+          <div key={t.id} onClick={() => setEditing(t)} className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-3.5 flex items-center gap-3 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan)/0.4)] transition group" data-testid={`mbr-class-${t.id}`}>
             <div className="w-1 h-12 rounded shrink-0" style={{ background: t.colour || 'var(--color-brand-cyan)' }} />
             <div className="flex-1 min-w-0">
               <div className="font-bold text-white text-sm truncate">{t.name} <span className="text-[10px] font-bold text-[color:var(--theme-text-muted)] uppercase ml-1">· {t.category}</span></div>
@@ -1437,11 +1437,11 @@ function AppUrlCard({ org }) {
           data-testid="mbr-launch-kit-send" title="Email the launch kit (poster + socials + templates)">
           {sendingKit ? 'Sending' : 'Launch kit'}
         </Button>
-        <a href={bragUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-app-brag-open" title="Shareable live-stats card">Brag</a>
+        <a href={bragUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white/5" data-testid="mbr-app-brag-open" title="Shareable live-stats card">Brag</a>
         <a href={posterUrl} target="_blank" rel="noreferrer" download={`${org.slug}-reception-poster.png`} className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[rgb(var(--rgb-brand-cyan)/0.4)] text-[var(--color-brand-cyan)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.1)]" data-testid="mbr-app-poster-download" title="Download A4 reception poster">
           <Printer size={11} /> Poster
         </a>
-        <a href={appUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5" data-testid="mbr-app-url-open">Open</a>
+        <a href={appUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white/5" data-testid="mbr-app-url-open">Open</a>
         <Button variant="ghost" size="icon" onClick={copy} icon={Copy} title="Copy URL" data-testid="mbr-app-url-copy" />
       </div>
       <BrandPreview org={org} appUrl={appUrl} />
@@ -1530,7 +1530,7 @@ function BrandPreview({ org, appUrl }) {
                 {/* Body — faux timetable */}
                 <div className="px-3 py-3 space-y-2">
                   {['HIIT Blast · 06:30', 'Rhythm Ride · 09:00', 'Strength · 18:00'].map((t, i) => (
-                    <div key={i} className="rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-2 flex items-center justify-between" style={{ borderLeft: `3px solid ${accent}` }}>
+                    <div key={i} className="rounded-lg border border-[color:var(--theme-border)] bg-white/[0.03] p-2 flex items-center justify-between" style={{ borderLeft: `3px solid ${accent}` }}>
                       <div>
                         <div className="text-[10px] font-bold text-white truncate">{t.split(' · ')[0]}</div>
                         <div className="text-[8px] text-[color:var(--theme-text-muted)]">{t.split(' · ')[1]}</div>
@@ -1628,13 +1628,13 @@ function AdsTab({ API, headers }) {
         }}
       >
         {ads.map((a) => (
-          <div key={a.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-4 group" data-testid={`mbr-ad-${a.id}`}
+          <div key={a.id} className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-4 group" data-testid={`mbr-ad-${a.id}`}
                style={{ borderLeft: `3px solid ${a.background_colour || 'var(--color-brand-cyan)'}` }}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-white text-sm truncate">{a.headline}</span>
-                  {!a.active && <span className="text-[9px] font-extrabold uppercase text-[color:var(--theme-text-muted)] bg-white dark:bg-zinc-900/10 px-1.5 py-0.5 rounded">Paused</span>}
+                  {!a.active && <span className="text-[9px] font-extrabold uppercase text-[color:var(--theme-text-muted)] bg-white/10 px-1.5 py-0.5 rounded">Paused</span>}
                 </div>
                 {a.body && <div className="text-xs text-[color:var(--theme-text-muted)] mt-0.5 truncate">{a.body}</div>}
                 <div className="text-[10px] text-[color:var(--theme-text-muted)] mt-1 uppercase tracking-wider">

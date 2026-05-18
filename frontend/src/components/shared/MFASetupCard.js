@@ -92,7 +92,7 @@ export default function MFASetupCard() {
   const enabled = status.enabled;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/5 p-5" data-testid="mfa-card">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-5" data-testid="mfa-card">
       <div className="flex items-center gap-3 mb-3">
         {enabled ? <ShieldCheck className="text-emerald-400" size={22} /> : <Shield className="text-white/60" size={22} />}
         <div>

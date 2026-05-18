@@ -574,7 +574,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                     {a.source === 'fallback_svg' && (
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/80 text-white">Preview</span>
                     )}
-                    <a href={v.url} download className="ml-auto p-1 rounded hover:bg-white dark:bg-zinc-900/20 text-white" title="Download" onClick={(e) => e.stopPropagation()}>
+                    <a href={v.url} download className="ml-auto p-1 rounded hover:bg-white/20 text-white" title="Download" onClick={(e) => e.stopPropagation()}>
                       <Upload size={11} className="rotate-180" />
                     </a>
                     <button onClick={async (e) => {
@@ -591,10 +591,10 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                       } catch (e2) {
                         notifyApiError(notify, e2, 'Expand failed');
                       }
-                    }} className="p-1 rounded hover:bg-white dark:bg-zinc-900/20 text-white" title="Expand to full campaign" data-testid={`creative-expand-${a.id}`}>
+                    }} className="p-1 rounded hover:bg-white/20 text-white" title="Expand to full campaign" data-testid={`creative-expand-${a.id}`}>
                       <Wand2 size={11} />
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); remove(a.id, a.headline || a.prompt); }} className="p-1 rounded hover:bg-white dark:bg-zinc-900/20 text-white" data-testid={`creative-delete-${a.id}`} aria-label="Delete">
+                    <button onClick={(e) => { e.stopPropagation(); remove(a.id, a.headline || a.prompt); }} className="p-1 rounded hover:bg-white/20 text-white" data-testid={`creative-delete-${a.id}`} aria-label="Delete">
                       <Trash2 size={11} />
                     </button>
                   </div>
@@ -613,7 +613,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
         >
           <button
             onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white dark:bg-zinc-900/10 hover:bg-white/20 text-white grid place-items-center"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white grid place-items-center"
             aria-label="Close"
             data-testid="creative-lightbox-close"
           >
@@ -633,7 +633,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
               <a
                 href={lightbox.url}
                 download
-                className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-md bg-white dark:bg-zinc-900/10 hover:bg-white/20 text-white text-xs font-bold"
+                className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white text-xs font-bold"
                 onClick={(e) => e.stopPropagation()}
               >
                 <Upload size={11} className="rotate-180"/> Download

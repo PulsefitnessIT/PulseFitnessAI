@@ -106,7 +106,7 @@ function DemandView({ API, headers }) {
         </Section>
       )}
 
-      <details className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3">
+      <details className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-3">
         <summary className="cursor-pointer text-xs font-bold text-[color:var(--theme-text-muted)]">
           See all {data.count} predictions
         </summary>
@@ -133,7 +133,7 @@ function ForecastRow({ r }) {
   };
   const start = r.starts_at ? new Date(r.starts_at) : null;
   return (
-    <div className="rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3 flex items-start gap-3"
+    <div className="rounded-lg border border-[color:var(--theme-border)] bg-white/[0.03] p-3 flex items-start gap-3"
       data-testid={`mbr-ai-forecast-${r.occurrence_id}`}>
       <div className={`flex-shrink-0 w-12 text-center px-2 py-1 rounded-md ${tones[tone]} font-extrabold`}>
         <p className="text-base">{Math.round(r.predicted_fill_pct)}%</p>
@@ -405,7 +405,7 @@ function ClassesView({ API, headers }) {
       </div>
       {sugs.map((s, i) => (
         <div key={i}
-          className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3 sm:p-4"
+          className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.03] p-3 sm:p-4"
           data-testid={`mbr-ai-class-sug-${i}`}>
           <div className="flex items-start gap-3 flex-wrap">
             <div className="flex-shrink-0 w-10 h-10 rounded-md bg-fuchsia-500/15 grid place-items-center text-fuchsia-500">
@@ -449,7 +449,7 @@ function Stat({ label, value, tone = 'emerald', icon: Icon }) {
     violet:  'text-violet-400',
   };
   return (
-    <div className="rounded-lg border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.03] p-3">
+    <div className="rounded-lg border border-[color:var(--theme-border)] bg-white/[0.03] p-3">
       <p className="text-[9px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)] flex items-center gap-1">
         {Icon && <Icon size={9} />} {label}
       </p>
@@ -461,7 +461,7 @@ function Stat({ label, value, tone = 'emerald', icon: Icon }) {
 
 function Mini({ label, value }) {
   return (
-    <div className="rounded bg-white dark:bg-zinc-900/[0.04] p-1.5 text-center border border-[color:var(--theme-border)]">
+    <div className="rounded bg-white/[0.04] p-1.5 text-center border border-[color:var(--theme-border)]">
       <p className="text-[9px] uppercase tracking-wider font-bold text-[color:var(--theme-text-muted)]">{label}</p>
       <p className="text-sm font-extrabold mt-0.5">{value}</p>
     </div>

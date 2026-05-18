@@ -277,7 +277,7 @@ function ClassCard({ occ, busy, onBook, onCancel, studioSlug }) {
   const instructor = occ.instructor;  // { id, name, slug, photo_url } — iter 215w
   const instructorHref = instructor && studioSlug ? `/m/${studioSlug}/i/${instructor.slug}` : null;
   return (
-    <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.03] p-3.5 flex items-stretch gap-3" data-testid={`member-class-${occ.id}`}
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 flex items-stretch gap-3" data-testid={`member-class-${occ.id}`}
          style={{ borderLeft: `3px solid ${occ.colour || 'var(--color-brand-cyan)'}` }}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
@@ -309,7 +309,7 @@ function ClassCard({ occ, busy, onBook, onCancel, studioSlug }) {
           )}
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <div className="w-24 h-1 rounded bg-white dark:bg-zinc-900/10 overflow-hidden"><div className="h-full" style={{ width: `${pct}%`, background: barColor }} /></div>
+          <div className="w-24 h-1 rounded bg-white/10 overflow-hidden"><div className="h-full" style={{ width: `${pct}%`, background: barColor }} /></div>
           <span className="text-[10px] text-white/50 flex items-center gap-1"><UsersIcon size={9} />{occ.bookings_count || 0}/{occ.capacity}</span>
         </div>
         <SocialPulse occId={occ.id} />

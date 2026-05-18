@@ -50,7 +50,7 @@ export function StatusPill({ status }) {
     attended: 'bg-emerald-500/15 text-emerald-300',
     no_show: 'bg-red-500/15 text-red-300',
     late_cancel: 'bg-orange-500/15 text-orange-300',
-  }[status] || 'bg-white dark:bg-zinc-900/10 text-[color:var(--theme-text-muted)]';
+  }[status] || 'bg-white/10 text-[color:var(--theme-text-muted)]';
   return <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${tone}`}>{(status || '—').replace('_', ' ')}</span>;
 }
 
@@ -59,7 +59,7 @@ export function CapacityBar({ bookings, capacity }) {
   const colour = pct >= 90 ? 'var(--color-danger)' : pct >= 60 ? 'var(--color-warning)' : 'var(--color-success)';
   return (
     <div className="flex items-center gap-2 shrink-0">
-      <div className="w-20 h-1.5 bg-white dark:bg-zinc-900/10 rounded overflow-hidden">
+      <div className="w-20 h-1.5 bg-white/10 rounded overflow-hidden">
         <div className="h-full" style={{ width: `${pct}%`, background: colour }} />
       </div>
       <div className="text-xs text-[color:var(--theme-text-muted)] font-bold w-10 text-right">{bookings}/{capacity}</div>
@@ -72,7 +72,7 @@ export function Loading() {
 }
 
 export function Empty({ text }) {
-  return <div className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.02] p-5 text-center text-[color:var(--theme-text-muted)] text-sm">{text}</div>;
+  return <div className="rounded-xl border border-[color:var(--theme-border)] bg-white/[0.02] p-5 text-center text-[color:var(--theme-text-muted)] text-sm">{text}</div>;
 }
 
 export function Input({ label, value, onChange, onBlur, type = 'text', required, testid, hint, placeholder, list }) {
@@ -171,7 +171,7 @@ export function ModalActions({ onCancel, onSave, saving, testId }) {
       <button onClick={onSave} disabled={saving} className="flex-1 rounded-lg py-2.5 text-sm font-extrabold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid={testId}>
         {saving ? 'Saving…' : 'Save'}
       </button>
-      <button onClick={onCancel} className="rounded-lg px-4 py-2.5 text-sm font-bold border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white dark:bg-zinc-900/5">Cancel</button>
+      <button onClick={onCancel} className="rounded-lg px-4 py-2.5 text-sm font-bold border border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)] hover:bg-black/[0.04] dark:hover:bg-white/5">Cancel</button>
     </div>
   );
 }

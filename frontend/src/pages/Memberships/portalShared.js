@@ -17,7 +17,7 @@ export function CTAButton({ tone, onClick, busy, children, testid }) {
   const styles = {
     book:     'bg-[var(--color-brand-cyan)] text-[var(--color-surface-darker)] hover:brightness-110',
     waitlist: 'bg-violet-500/20 text-violet-200 border border-violet-400/40',
-    cancel:   'bg-transparent text-white/70 border border-white/20 hover:bg-white dark:bg-zinc-900/5',
+    cancel:   'bg-transparent text-white/70 border border-white/20 hover:bg-white/5',
   };
   return (
     <button onClick={onClick} disabled={busy} data-testid={testid}
@@ -72,7 +72,7 @@ export function CenterLoader() {
 }
 
 export function EmptyCard({ text }) {
-  return <div className="rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.02] p-5 text-center text-white/50 text-sm">{text}</div>;
+  return <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center text-white/50 text-sm">{text}</div>;
 }
 
 export function formatTime(iso) {
