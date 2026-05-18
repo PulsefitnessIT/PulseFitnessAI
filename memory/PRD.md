@@ -7583,5 +7583,44 @@ Tests: 7 new pagination tests added to
 pytest pass.
 
 Files: `/app/backend/routes/master_admin_orgs.py`,
+
+## Iter 216h191 — Test-data purge (17 Feb 2026)
+
+One-off purge requested by the operator: keep only the 4 manually-
+onboarded orgs + the Master Admin's home org, nuke everything else.
+
+**Keep set**:
+- Third Space (pulse_pro) — 6 sites, 111 equipment
+- British Army — Head Office (mod_org)
+- Catterick Garrison (mod_branch, child of Army HQ)
+- Pulse Fitness (host of `e1.agent@gymaxisai.com`)
+- GymAxis AI (auto-created on Master Admin login)
+
+**Before → After**:
+| Metric | Before | After |
+|---|---|---|
+| Organizations | 1,144 | **5** |
+| Users         | 1,067 | **11** |
+| Equipment     | 378   | **113** |
+| Issues        | 421   | **10** |
+
+3,619 child docs deleted across 97 collection/field pairs (svc_cases,
+issues, equipment, CRM activities, audit events scoped per-org, etc.).
+Auth/audit/platform-config collections preserved per allowlist
+(`password_reset_tokens`, `audit_log[s]`, `admin_activity_log`,
+`integrations`, `app_config`, `stripe_webhook_events`).
+
+**Bug fix as a byproduct (iter 216h190 regression)**: while running
+the post-purge regression suite, `test_q_composes_with_brand` caught
+a $or-overwrite bug in iter 216h189. The `q` filter was destructively
+replacing the `$or` clause that `merge_brand_filter` set when both
+`brand=pulse` and `q=…` were present (a Pulse admin searching for any
+text would silently see non-Pulse orgs). Fixed by promoting both
+`$or`s into an `$and` (same pattern `merge_brand_filter` already uses
+internally). 21/21 tests pass.
+
+Files: `/app/backend/scripts/purge_test_data_216h191.py` (new),
+`/app/backend/routes/master_admin_orgs.py` (bug fix).
+
 `/app/backend/tests/test_iter_216h189_orgs_q_filter.py`.
 

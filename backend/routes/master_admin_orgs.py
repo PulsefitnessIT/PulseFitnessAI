@@ -150,13 +150,26 @@ async def get_all_organizations(
         # keystrokes don't trigger a near-table-scan.
         import re
         esc = re.escape(qs)
-        org_filter["$or"] = [
+        q_or = [
             {"name": {"$regex": esc, "$options": "i"}},
             {"email": {"$regex": esc, "$options": "i"}},
             {"primary_contact_email": {"$regex": esc, "$options": "i"}},
             {"primary_contact_name": {"$regex": esc, "$options": "i"}},
             {"company_code": {"$regex": esc, "$options": "i"}},
         ]
+        # Iter 216h190 bug-fix — `merge_brand_filter` may have already
+        # set `$or` for the brand scope. Naively assigning `$or = q_or`
+        # would silently wipe the brand filter (verified live: a Pulse
+        # admin searching for "fitness" would otherwise see "full"-tier
+        # orgs the brand filter intended to hide). Promote both into
+        # `$and` so neither is lost — same pattern as merge_brand_filter.
+        if "$or" in org_filter:
+            existing_or = org_filter.pop("$or")
+            existing_and = list(org_filter.get("$and") or [])
+            existing_and.extend([{"$or": existing_or}, {"$or": q_or}])
+            org_filter["$and"] = existing_and
+        else:
+            org_filter["$or"] = q_or
 
     # Iter 216h190 — server-side pagination. Existing callers that don't
     # pass `skip` keep the old behaviour (one big page up to limit=2000),
