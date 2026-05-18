@@ -29,10 +29,38 @@ const empty = () => ({
 });
 
 function calcAge(dob) {
-  if (!dob) return null;
-  const d = new Date(dob);
-  if (Number.isNaN(d.getTime())) return null;
-  return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+  if (!dob || typeof dob !== 'string') return null;
+  // Iter 216h201 — Craig's screenshot showed "Age 2006" when the dob
+  // field had been saved as just a year. Require a strict YYYY-MM-DD
+  // (or longer ISO) string, compute age via year/month/day diff (more
+  // accurate than the ms-division approximation), and clamp to a sane
+  // human range so a corrupt value can never render as "Age 2006".
+  const m = dob.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]);
+  if (y < 1900 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  const bdayThisYear = new Date(now.getFullYear(), mo - 1, d);
+  if (now < bdayThisYear) age -= 1;
+  if (age < 0 || age > 120) return null;
+  return age;
+}
+
+// Iter 216h201 — Craig's bug: typing a letter in any Add-Instructor
+// field lost the cursor. Root cause: `Field` was defined INSIDE
+// `EditorDrawer`, so every keystroke re-rendered `EditorDrawer` →
+// rebuilt the `Field` function reference → React saw a new component
+// type → unmounted + remounted the input → cursor lost. Hoisting
+// `Field` to module scope keeps the reference stable.
+function Field({ label, hint, children, span = 1 }) {
+  return (
+    <label className={`block ${span === 2 ? 'col-span-2' : ''}`}>
+      <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-1">{label}</span>
+      {children}
+      {hint && <span className="block text-[11px] text-[color:var(--theme-text-muted)] mt-1">{hint}</span>}
+    </label>
+  );
 }
 
 async function fileToDataUrl(file) {
@@ -427,6 +455,12 @@ function EditorDrawer({ API, headers, initial, onClose }) {
 
   const save = async () => {
     if (!f.name?.trim()) { notify.error('Name is required'); return; }
+    // Iter 216h201 — Craig's ask: email + phone are mandatory for
+    // instructors (payroll, class-substitute SMS, public bio).
+    if (!f.email?.trim()) { notify.error('Email is required'); return; }
+    const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (!EMAIL_RE.test(f.email.trim())) { notify.error('Enter a valid email address'); return; }
+    if (!f.phone?.trim()) { notify.error('Phone number is required'); return; }
     setSaving(true);
     try {
       const payload = {
@@ -482,14 +516,6 @@ function EditorDrawer({ API, headers, initial, onClose }) {
     { id: 'social',   label: 'Social' },
     { id: 'safeguarding', label: 'Compliance & pay' },
   ];
-
-  const Field = ({ label, hint, children, span = 1 }) => (
-    <label className={`block ${span === 2 ? 'col-span-2' : ''}`}>
-      <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-1">{label}</span>
-      {children}
-      {hint && <span className="block text-[11px] text-[color:var(--theme-text-muted)] mt-1">{hint}</span>}
-    </label>
-  );
 
   const inputClass = "w-full h-10 px-3 rounded-lg bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] text-sm text-[color:var(--theme-text)] placeholder-[color:var(--theme-text-muted)] focus:outline-none focus:border-[color:var(--color-brand-cyan)]";
 
@@ -555,8 +581,8 @@ function EditorDrawer({ API, headers, initial, onClose }) {
                 <Field label="Headline">
                   <input type="text" value={f.headline} onChange={(e) => up('headline')(e.target.value)} placeholder="RYT-500 · Vinyasa & Pre-natal · 8 yrs" className={inputClass} data-testid="mbr-instructor-headline" />
                 </Field>
-                <Field label="Email"><input type="email" value={f.email || ''} onChange={(e) => up('email')(e.target.value)} className={inputClass} data-testid="mbr-instructor-email" /></Field>
-                <Field label="Phone"><input type="tel" value={f.phone || ''} onChange={(e) => up('phone')(e.target.value)} className={inputClass} data-testid="mbr-instructor-phone" /></Field>
+                <Field label="Email *"><input type="email" required value={f.email || ''} onChange={(e) => up('email')(e.target.value)} className={inputClass} data-testid="mbr-instructor-email" /></Field>
+                <Field label="Phone *"><input type="tel" required value={f.phone || ''} onChange={(e) => up('phone')(e.target.value)} className={inputClass} data-testid="mbr-instructor-phone" /></Field>
               </div>
 
               <Field label="Date of birth" hint={age !== null ? `Age ${age}` : undefined}>

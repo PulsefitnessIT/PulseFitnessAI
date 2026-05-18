@@ -9,7 +9,7 @@
  * refund, comms) land in Phase 1b.
  */
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { notify, useConfirm } from '@/components/notifications';
@@ -17,7 +17,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2,
+  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -1358,9 +1358,15 @@ function SetupNudge() {
         <div className="text-[10px] uppercase tracking-[0.25em] font-extrabold text-amber-200">Finish setup</div>
         <div className="text-sm font-bold text-white mt-0.5">Configure your studio basics, plans and app URL.</div>
       </div>
-      <a href="/memberships/setup" className="rounded-lg px-3 py-2 text-xs font-extrabold uppercase tracking-wider bg-amber-400 text-black hover:brightness-110" data-testid="mbr-setup-nudge-cta">
+      {/* Iter 216h201 — Lee reported "Open Wizard" logged him out then
+         back in. Root cause: a plain `<a href>` triggers a full page
+         reload which the SPA auth bootstrap interprets as a fresh
+         session. <Link> performs SPA navigation, preserving the
+         in-memory auth state and dropping the user straight on the
+         wizard. */}
+      <Link to="/memberships/setup" className="rounded-lg px-3 py-2 text-xs font-extrabold uppercase tracking-wider bg-amber-400 text-black hover:brightness-110" data-testid="mbr-setup-nudge-cta">
         Open wizard
-      </a>
+      </Link>
     </div>
   );
 }

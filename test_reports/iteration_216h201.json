@@ -1,0 +1,37 @@
+{
+  "summary": "Iter 216h201 testing complete. All 6 reported issues verified fixed. Backend instructor validation (email+phone required) working. Frontend: cursor retention in Add Instructor form PASS, Email*/Phone* asterisks present, client-side validation shows toast on empty fields. Member portal dark mode fix applied (removed bg-white dark: patterns that were being overridden by HTML data-theme='light'). Open Wizard uses React Router Link. Invoicing tab uses ReceiptPoundSterling icon.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h201_instructor_validation.py",
+    "/app/backend/tests/test_iter_216h201_api_instructor.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fixed: MemberPortal.js AuthGate was missing data-theme='dark' class='dark' - added to line 470",
+    "Fixed: MemberPortal.js had bg-white dark:bg-zinc-900/X patterns that were being overridden by HTML data-theme='light' - replaced with explicit dark colors (bg-zinc-900/X) since this is a dark-only portal"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/Memberships/MemberPortal.js"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "e1.agent@gymaxisai.com / E1Agent123!",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 6 issues from iter 216h201 verified fixed: (1) cursor retention in instructor form - PASS, (2) email+phone mandatory with asterisks - PASS, (3) calcAge hardened to require YYYY-MM-DD and clamp 0-120 - code verified, (4) Open Wizard uses <Link> not <a href> - code verified, (5) member portal dark mode - fixed by removing bg-white dark: patterns and adding data-theme='dark' to AuthGate, (6) Invoicing icon uses ReceiptPoundSterling - code verified. 11/11 backend tests pass.",
+  "fixes_applied_by_testing_agent": [
+    "MemberPortal.js line 470: Added data-theme='dark' className='dark' to AuthGate root div",
+    "MemberPortal.js: Replaced all bg-white dark:bg-zinc-900/X patterns with explicit bg-zinc-900/X since the portal is dark-only and the HTML element has data-theme='light' which was overriding the dark variants"
+  ]
+}

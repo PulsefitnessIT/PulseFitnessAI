@@ -23,6 +23,7 @@
  */
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Toaster as SonnerToaster } from 'sonner';
 import {
   Calendar, Ticket, QrCode, User, LogOut, Users as UsersIcon, Users, Sparkles,
   CheckCircle2, X, Loader2, CreditCard, Activity, Home, MoreHorizontal,
@@ -164,13 +165,19 @@ export default function MemberPortal({ slug }) {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-[var(--color-surface-darker)] text-white grid place-items-center"><Loader2 className="animate-spin text-[var(--color-brand-cyan)]" /></div>;
+    return <div data-theme="dark" className="dark min-h-screen bg-[var(--color-surface-darker)] text-white grid place-items-center"><Loader2 className="animate-spin text-[var(--color-brand-cyan)]" /></div>;
   }
   if (!member) return <AuthGate onAuthed={handleAuthed} branding={branding} slug={slug} />;
 
   return (
     <StudioVocabProvider vocab={vocab}>
-    <div className="min-h-screen bg-[var(--color-surface-darker)] text-white pb-24" data-testid="member-portal">
+    <div data-theme="dark" className="dark min-h-screen bg-[var(--color-surface-darker)] text-white pb-24" data-testid="member-portal">
+      {/* Iter 216h201 — Lee reported the "Failed to book" toast renders
+         on a white card. Root cause: the global <Toaster> in App.js
+         inherits the operator's `theme` localStorage value (default
+         'light'). For the public member portal we MUST render a local
+         dark-themed Toaster so it doesn't fall back to white. */}
+      <SonnerToaster position="top-right" theme="dark" richColors closeButton />
       <TopBar member={member} branding={branding} onSignOut={signOut} />
       <main className="max-w-2xl mx-auto px-4 py-6">
         {paymentBanner && <div className="mb-4">{paymentBanner}</div>}
@@ -228,7 +235,7 @@ function StreakCard({ headers }) {
     : `${weekly_count}/${weekly_goal} this week · you got this.`;
 
   return (
-    <section className="mb-5 rounded-xl border border-white/10 bg-white dark:bg-zinc-900/[0.04] p-4 sm:p-5" data-testid="member-streak-card">
+    <section className="mb-5 rounded-xl border border-white/10 bg-zinc-900/[0.04] p-4 sm:p-5" data-testid="member-streak-card">
       <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.25em] text-[var(--color-brand-cyan)]">
         <Activity size={12} /> Attendance streak
       </div>
@@ -243,7 +250,7 @@ function StreakCard({ headers }) {
           <div className="text-2xl font-extrabold" data-testid="member-streak-weekly">{weekly_count}<span className="text-white/40 text-base font-bold"> / {weekly_goal}</span></div>
         </div>
       </div>
-      <div className="mt-3 h-1.5 rounded bg-white dark:bg-zinc-900/5 overflow-hidden" aria-hidden>
+      <div className="mt-3 h-1.5 rounded bg-zinc-900/5 overflow-hidden" aria-hidden>
         <div className="h-full rounded transition-all" style={{ width: `${goalPct}%`, background: goalHit ? 'var(--color-success-light)' : 'var(--color-brand-cyan)' }} />
       </div>
       {goalHit && (
@@ -425,7 +432,7 @@ function ReferralCampaignBanner({ headers, slug, onCta }) {
   return (
     <section className="mb-5 rounded-xl border border-[rgb(var(--rgb-brand-cyan)/0.3)] bg-gradient-to-br from-[rgb(var(--rgb-brand-cyan)/0.15)] via-[rgb(var(--rgb-brand-cyan)/0.05)] to-transparent p-4 sm:p-5 relative" data-testid="member-referral-campaign">
       <button onClick={dismiss}
-        className="absolute top-2 right-2 p-1.5 rounded text-white/40 hover:text-white hover:bg-white dark:bg-zinc-900/5"
+        className="absolute top-2 right-2 p-1.5 rounded text-white/40 hover:text-white hover:bg-zinc-900/5"
         data-testid="member-referral-campaign-dismiss" aria-label="Dismiss">
         <X size={14} />
       </button>
@@ -433,13 +440,13 @@ function ReferralCampaignBanner({ headers, slug, onCta }) {
         <Sparkles size={12} /> Refer &amp; earn
       </div>
       <div className="mt-1.5 text-base sm:text-lg font-extrabold leading-tight tracking-tight pr-6">{headline}</div>
-      <div className="mt-3 h-1.5 rounded bg-white dark:bg-zinc-900/10 overflow-hidden" aria-hidden>
+      <div className="mt-3 h-1.5 rounded bg-zinc-900/10 overflow-hidden" aria-hidden>
         <div className="h-full rounded bg-[var(--color-brand-cyan)] transition-all" style={{ width: `${percent}%` }} />
       </div>
       <div className="flex items-center justify-between mt-2 gap-3">
         <div className="text-[11px] text-white/60">{earned} / {next_goal.threshold} friends joined</div>
         <div className="flex items-center gap-2">
-          <button onClick={onCta} className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1.5 rounded border border-white/15 text-white/80 hover:bg-white dark:bg-zinc-900/5" data-testid="member-referral-campaign-cta">
+          <button onClick={onCta} className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1.5 rounded border border-white/15 text-white/80 hover:bg-zinc-900/5" data-testid="member-referral-campaign-cta">
             My code
           </button>
           <button onClick={share} className="text-[10px] font-extrabold uppercase tracking-wider px-3 py-1.5 rounded bg-[var(--color-brand-cyan)] text-black" data-testid="member-referral-campaign-share">
@@ -460,7 +467,7 @@ function AuthGate({ onAuthed, branding, slug }) {
   const accent = branding?.primary_brand_colour || 'var(--color-brand-cyan)';
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-darker)] text-white flex flex-col" data-testid="member-auth-gate">
+    <div data-theme="dark" className="dark min-h-screen bg-[var(--color-surface-darker)] text-white flex flex-col" data-testid="member-auth-gate">
       <header className="px-6 pt-10 pb-6 text-center">
         {branding?.logo_url ? (
           <img src={branding.logo_url} alt={gymName} className="mx-auto h-12 mb-4 rounded" loading="eager" decoding="async" />
@@ -478,7 +485,7 @@ function AuthGate({ onAuthed, branding, slug }) {
 
       <div className="flex-1 flex items-start justify-center px-4 pb-10">
         <div className="w-full max-w-sm">
-          <div className="flex gap-1 p-1 rounded-xl bg-white dark:bg-zinc-900/5 border border-white/10 mb-5">
+          <div className="flex gap-1 p-1 rounded-xl bg-zinc-900/5 border border-white/10 mb-5">
             <TabPill active={mode === 'login'}    onClick={() => setMode('login')}    testid="member-auth-tab-login" accent={accent}>Sign in</TabPill>
             <TabPill active={mode === 'register'} onClick={() => setMode('register')} testid="member-auth-tab-register" accent={accent}>Join</TabPill>
           </div>
@@ -618,7 +625,7 @@ function TopBar({ member, branding, onSignOut }) {
           <div className="text-sm font-extrabold truncate">Hello, {member.first_name}</div>
         </div>
       </div>
-      <button onClick={onSignOut} className="p-2 rounded-lg text-white/50 hover:bg-white dark:bg-zinc-900/5" data-testid="member-signout"><LogOut size={15} /></button>
+      <button onClick={onSignOut} className="p-2 rounded-lg text-white/50 hover:bg-zinc-900/5" data-testid="member-signout"><LogOut size={15} /></button>
     </header>
   );
 }
@@ -783,7 +790,7 @@ function MoreSheet({ open, currentTab, onSelect, onClose }) {
               <button
                 key={item.id}
                 onClick={() => onSelect(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition ${active ? 'bg-[rgb(var(--rgb-brand-cyan)/0.1)] text-[var(--color-brand-cyan)]' : 'text-white hover:bg-white/5 dark:bg-zinc-900'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition ${active ? 'bg-[rgb(var(--rgb-brand-cyan)/0.1)] text-[var(--color-brand-cyan)]' : 'text-white hover:bg-white/5'}`}
                 data-testid={`member-more-item-${item.id}`}
               >
                 <Icon size={20} />

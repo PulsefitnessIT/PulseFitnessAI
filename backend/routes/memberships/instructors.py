@@ -459,6 +459,19 @@ async def payroll_csv(
 )
 async def create_instructor(body: InstructorIn, user: dict = Depends(get_current_user)):
     org_id = await _require_operator_org(user)
+    # Iter 216h201 — Craig's ask: email + phone are now mandatory.
+    # Pydantic models accept Optional for legacy callers (CSV bulk
+    # import etc.); we enforce required-on-create here so the
+    # operator-facing form can't post a half-built record.
+    import re as _re
+    email = (body.email or "").strip()
+    phone = (body.phone or "").strip()
+    if not email:
+        raise HTTPException(400, "email required")
+    if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(400, "Invalid email format")
+    if not phone:
+        raise HTTPException(400, "phone required")
     base = _slugify(body.name)
     slug = await _unique_slug(org_id, base)
     doc = {
@@ -466,6 +479,8 @@ async def create_instructor(body: InstructorIn, user: dict = Depends(get_current
         "organization_id": org_id,
         "slug": slug,
         **body.model_dump(),
+        "email": email,
+        "phone": phone,
         "created_by": user.get("id"),
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
