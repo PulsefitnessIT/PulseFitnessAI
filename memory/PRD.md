@@ -1,3 +1,51 @@
+## Iter 216h203 — "Sold a pack at the desk" Operator CTA (May 18, 2026) ✅ P1
+
+Closes Lee's follow-up: cash-buying members previously forced the operator through Plans → "Record payment" which retired any existing recurring subscription. Now one-click on the member detail page.
+
+### Backend
+- **`POST /api/memberships/members/{member_id}/sell-pack-at-desk`** (operator scope, org-scoped).
+  - Body: `{plan_id, method: cash|card_terminal|bank_transfer|comp|other, reference?, note?}`.
+  - Only accepts `kind="class_pack"` plans (400 on subscriptions with clear message).
+  - **COEXISTS with existing recurring/active memberships** — never retires them (the headline fix vs legacy `record_payment`).
+  - Tops up an existing active pack on the SAME plan instead of duplicating; otherwise creates a fresh `member_memberships` row with `purchased_via="desk_sale"`.
+  - Records a `payment_transactions` row with `kind="credit_pack_desk"`, `mode="manual"`, `status="complete"`, `method` + `reference` + `note`.
+  - Bumps `members.lifetime_value_pence` by the pack price (skipped for `method="comp"` — that path records £0 + `payment_status="comp"`).
+  - Audit log entry pushed to the membership doc.
+
+### Frontend
+- **New `SellPackAtDeskModal.js`** (`data-testid="mbr-sell-pack-modal"`):
+  - Pack picker filtered to `kind=class_pack` only — coloured stripe, name, credits count, expiry, price.
+  - 5 payment-method buttons (`mbr-sell-pack-method-{cash|card_terminal|bank_transfer|comp|other}`).
+  - Optional reference + note fields.
+  - Confirm button shows the £ amount inline (or "Comp pack" for comp). Toast on success.
+- **Member Edit Drawer Payments tab** gets a prominent CTA at the top (`data-testid="member-drawer-sell-pack-cta"`) — only rendered when ≥1 class_pack plan exists. Tagline: "One-click cash sale · keeps subscription intact".
+- Drawer re-mounts (`reloadKey++`) on success so the new pack is visible immediately.
+
+### Tests
+- `backend/tests/test_iter_216h203_desk_sale.py` — **9/9** ✅ (unit, including the critical regression: existing recurring membership is NOT retired).
+- `backend/tests/test_iter_216h203_api_desk_sale.py` (testing agent) — live HTTP coverage including the multi-membership coexistence test.
+- Combined regression: **132/132** pass across iters 192-203.
+- Testing agent: 100% on both backend and frontend; key regression verified (Gold subscription stayed active when a Corporate Pack was sold at the desk).
+
+### Files
+* `backend/routes/memberships/credit_packs.py` (`DeskSaleBody` + `sell_pack_at_desk` endpoint)
+* `frontend/src/pages/Memberships/modals/SellPackAtDeskModal.js` (NEW)
+* `frontend/src/pages/Memberships/MembershipsConsole.js` (`MemberDetailDrawer` mounts the modal + fetches plans for filtering)
+* `frontend/src/pages/Memberships/MemberEditDrawer.js` (PaymentsTab CTA at top)
+* `backend/tests/test_iter_216h203_desk_sale.py` (NEW, 9 unit pytests)
+* `backend/tests/test_iter_216h203_api_desk_sale.py` (NEW by testing agent, live HTTP tests)
+
+### Test seed
+- Operator: `creditpack.operator@example.com` / `Test123!` (added to org `credit-pack-test`).
+- Same org as iter h202 — 3 class_pack plans + member with an active Gold subscription for the regression test.
+
+### Action required
+**Redeploy** preview → production. Lee should test the cash-sale flow end-to-end at the desk.
+
+---
+
+
+
 ## Iter 216h202 — Buy Credits Self-Service Feature (May 18, 2026) ✅ P1
 
 Closes the credit-loop Lee flagged: the 402 "Need 1 credit — purchase a pack" error now has a buy-flow.
