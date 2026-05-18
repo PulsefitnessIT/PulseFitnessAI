@@ -1,3 +1,61 @@
+## Iter 216h200 — Memberships Add Member + Plan-Assignment Fixes (May 18, 2026) ✅ P0
+
+Two related Craig-reported bugs on the Memberships console, both fixed.
+
+### Bug 1 — Plan shows "No plan" despite activity feed saying assigned
+**Symptom**: Activity feed shows "Assigned plan 'Gym Membership'" (×3) + "Payment recorded:cash", but the Members list column shows "No plan".
+
+**Root cause (three compounding issues)**:
+1. `assign-plan` wasn't idempotent — clicking it twice on the same plan created two `member_memberships` rows. For **recurring** plans these landed as `status="pending_payment"`.
+2. The list join (`GET /memberships/members`) only matched `status ∈ {active, frozen}` so pending_payment rows showed as "No plan".
+3. When multiple rows existed for the same member, the dict comprehension kept whatever Mongo returned last — could've been a stale pending_payment masking the actual active row.
+
+**Fix**:
+- `assign-plan` is now idempotent on the same `plan_id` (returns `{idempotent: true}` + existing row, no insert).
+- `assign-plan` and `record-payment` both retire `pending_payment` rows now (was only `active`/`frozen`).
+- List join surfaces `pending_payment` rows with the right `StatusPill` ("Pending payment", amber) so the column never lies again.
+- When multiple rows exist, prioritisation: `active > frozen > pending_payment`.
+- Activity feed at `GET /memberships/members/{id}/activity` now suppresses cancelled+`replaced_by_new_plan` and all `replaced` rows so the 3 ghost "Assigned plan" entries Craig saw won't appear for new members.
+
+### Bug 2 — Add Member form UX (Craig's red annotations)
+**Backend** `POST /api/memberships/members` now validates:
+- Email matches `^[^@\s]+@[^@\s]+\.[^@\s]+$` (400 on malformed).
+- `phone` non-empty after strip (400 if empty — was optional).
+- `emergency_contact_phone` non-empty after strip (400 — duty of care).
+- `gdpr_consent: true` required (T&Cs acceptance). Persists `gdpr_consent_at` + `gdpr_consent_actor_id`.
+- `marketing_consent` separate opt-in, defaults to **False** (never opt people in by accident). Persists `marketing_consent_at` only when true.
+- `postcode` auto-uppercased server-side for search/report consistency.
+
+**Frontend** `AddMemberModal.js` fully rewritten:
+- Email: inline format error (`data-testid="mbr-new-email-error"`) on blur or submit.
+- Phone: mandatory + visible asterisk + form-level guard.
+- DOB: shared `DatePicker` component (DD/MM/YYYY, same as CRM/Ops) replacing the "clunky" native `<input type="date">`. `maxDate=today`.
+- Postcode: auto-uppercases on every keystroke; postcode-blur lookup fills city + country.
+- Emergency contact phone: mandatory + asterisk.
+- Notes (operator-only): collapsed behind a "+ Add an operator-only note" toggle (`mbr-new-notes-toggle`) — hidden when not relevant.
+- Two GDPR checkboxes at the bottom: T&Cs (required, `mbr-new-gdpr-consent`) + Marketing (opt-in, `mbr-new-marketing-consent`).
+
+### Tests
+- `backend/tests/test_iter_216h200_membership_assign_and_add.py` — **11/11** ✅ (unit)
+- `backend/tests/test_iter_216h200_api_memberships.py` (testing agent) — **10/10** ✅ (live HTTP)
+- Combined regression: **71/71** pass across iters 192-200.
+- Testing agent reports 100% on backend + frontend.
+
+### Files
+* `backend/routes/memberships/members.py` (idempotent assign-plan, list-join pending_payment + prioritisation, members_create validation + GDPR persistence)
+* `backend/routes/memberships/members_ops.py` (members-filtered same prioritisation, activity-feed superseded-row suppression)
+* `backend/routes/memberships_ops.py` (record-payment also retires pending_payment)
+* `frontend/src/pages/Memberships/modals/AddMemberModal.js` (full rewrite — validation, DatePicker, GDPR, collapsible notes)
+* `backend/tests/test_iter_216h200_membership_assign_and_add.py` (NEW, 11 unit pytests)
+* `backend/tests/test_iter_216h200_api_memberships.py` (NEW by testing agent, 10 live HTTP tests)
+
+### Action required
+**Redeploy** preview → production. Craig should re-run his Add Member test to confirm the bug is gone.
+
+---
+
+
+
 ## Iter 216h199 — Phase 3: Service Desk Auto-Warranty-Check (May 18, 2026) ✅
 
 Phase 3 of the Ops↔CRM↔ServiceDesk link. When an Operations fault is logged and escalated to engineer, the system now AUTO-warranty-checks the equipment and routes the bridged Service Desk case correctly (contract / warranty / chargeable) instead of the legacy hardcoded `cover_type: "contract"`.
