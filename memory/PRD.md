@@ -1,3 +1,39 @@
+## Iter 216h194 — Craig's Equipment-Disappears Bug (May 18, 2026) ✅ P0
+
+Critical regression Craig reported during stress-testing: equipment added via the OnboardingWizard didn't appear in the Equipment list afterwards.
+
+### Root cause
+The onboarding endpoint wrote equipment with `organization_id` only. The `GET /api/equipment?site_id=<active>` filter (added in iter 216h120 for multi-site / MOD HQ orgs) excluded any rows that didn't carry a `site_id`. New wizard rows ⇒ no `site_id` ⇒ invisible immediately after submit.
+
+### Fix (3 layers)
+1. **Frontend (OnboardingWizard + InvoiceImportWizard)** — now read `activeSite.id` from `useAuth()` and pass it in the payload (`site_id` top-level + per-item override available).
+2. **Backend (`/api/onboarding/equipment` + `/api/equipment-import/confirm` + bulk-confirm)** — accept `site_id` from payload, fall back to per-item `site_id`, then infer when the org has exactly one active site (legacy callers + invoice import paths heal automatically).
+3. **Backend (`GET /api/equipment`)** — lazy backfill: when a site_id filter is requested AND the org has exactly one active site matching that id, untagged legacy rows are tagged on-the-fly. Heals Craig's pre-fix data without a migration script. Idempotent.
+
+### Tests
+* `backend/tests/test_iter_216h194_equipment_site_id.py` — **5/5** ✅
+  - explicit payload site_id flows through
+  - inference for single-site orgs
+  - multi-site safety (no guess)
+  - per-item site_id override
+  - regression: iter 216h193 SLA / warranty / purchase fields persist
+* **17/17** regression across 192/193/194 still green
+* Testing agent E2E: backend 100% (5/5 E2E paths including Craig's exact flow); frontend 100% smoke
+
+### Files
+* `backend/routes/onboarding.py` (site_id resolution)
+* `backend/routes/equipment.py` (lazy backfill)
+* `backend/routes/equipment_import.py` (single-confirm + bulk-confirm site_id wiring)
+* `frontend/src/pages/OnboardingWizard.js` (passes activeSite.id)
+* `frontend/src/pages/InvoiceImportWizard.js` (passes activeSite.id)
+* `backend/tests/test_iter_216h194_equipment_site_id.py` (5 new tests)
+
+### Action required
+**Redeploy** preview → production so Craig sees onboarding + equipment list working correctly on gymaxisai.com. The lazy backfill will heal his existing untagged data automatically on the next equipment-tab load (provided his org has a single site, which is typical for Pulse Fitness HQ).
+
+---
+
+
 ## Iter 216h193 — Operations Standardisation Pass (May 18, 2026) ✅
 
 Lee's Feb 2026 audit ask: stop dirty data caused by free-text fields. Four
