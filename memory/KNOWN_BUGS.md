@@ -3,7 +3,7 @@
 > Read this **first** when picking up work. Re-introducing one of these
 > wastes a session. Update on every fix / new finding.
 
-_Last refreshed: Iter 216h209 · Feb 18 2026_
+_Last refreshed: Iter 216h212 · May 18 2026_
 
 ---
 
@@ -77,6 +77,7 @@ _Last refreshed: Iter 216h209 · Feb 18 2026_
 
 | Iter | Fix |
 |------|-----|
+| h212 | Service Desk + CRM + MOD audit — no P0s, 0 P1s, 3 P2s (NPS popup frequency, PWA prompt frequency, CSP violations for external scripts). Cross-portal isolation guards verified working. MFA enrolment for MOD PRO users verified. |
 | h211 | Regression suite extended Service Desk (20) + MOD (19) + CRM (20). Total now 84 isolated tests, ~2 min runtime, pre-deployment gate. |
 | h210 | Login-failure reason classification + Master Admin diagnostics (`/master-admin?section=login-events` shows colour-coded reason badges; `?section=client-errors` shows React render crashes from ModalErrorBoundary) |
 | h209 | Credit Packs subtab discoverability + full audit passed |

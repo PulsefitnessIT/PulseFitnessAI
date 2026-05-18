@@ -1,0 +1,72 @@
+{
+  "summary": "Comprehensive trust-recovery audit of Service Desk, CRM, and MOD Portal modules. All three modules are functioning correctly with no P0 or P1 bugs found. Cross-portal isolation guards working as expected. MFA enrolment for MOD PRO users is enforced correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All pages", "issues": ["P2: NPS survey popup ('How likely are you to recommend GymAxis?') appears on every page - may be annoying for users"]},
+      {"screen": "All pages", "issues": ["P2: 'Install App' PWA prompt appears frequently - consider showing less often"]},
+      {"screen": "Console", "issues": ["P2: CSP violations for external scripts (emergent-main.js, posthog, cloudflare) - not blocking functionality but should be addressed"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_216h212.json"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created MOD users (raf-brizenorton, army-catterick, navy-raleigh, raf@mod.gov.uk, army@mod.gov.uk, navy@mod.gov.uk, modestates@mod.gov.uk) and Service Desk/CRM users (desk@pulsefitness.com, craig.henshall@pulsefitness.com) in test_database",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All three modules (Service Desk, CRM, MOD Portal) are working correctly. Test credentials created: desk@pulsefitness.com/DeskAgent123!, craig.henshall@pulsefitness.com/Test123!, MOD LITE users (raf-brizenorton/BrizeNorton2026!, army-catterick/Catterick2026!, navy-raleigh/Raleigh2026!), MOD PRO users (raf@mod.gov.uk/RafEstates2026!, etc.). Cross-portal isolation guards are working. MFA enrolment is enforced for MOD PRO users.",
+  "audit_results": {
+    "service_desk": {
+      "status": "PASS",
+      "tabs_tested": ["Dashboard", "Cases", "Scheduler", "Equipment", "Parts", "Billing", "Engineers", "Reports", "Customers"],
+      "features_verified": [
+        "Dashboard shows stats (138 customers, 120 active)",
+        "Cases tab shows 107 open cases with SLA tracking",
+        "Scheduler shows calendar view with unassigned cases",
+        "Parts catalogue with SKUs and costs",
+        "Billing shows quotes ready to send",
+        "Engineers roster with job assignments"
+      ],
+      "bugs_found": []
+    },
+    "crm": {
+      "status": "PASS",
+      "tabs_tested": ["Dashboard", "Contacts", "Companies", "Pipeline", "Activity Feed", "Calendar", "Workflows"],
+      "features_verified": [
+        "CRM Dashboard with 'Your CRM Command Center'",
+        "Quick Start actions (Add contact, Start deal, Automate follow-up)",
+        "5-step onboarding guide"
+      ],
+      "bugs_found": []
+    },
+    "mod_portal": {
+      "status": "PASS",
+      "lite_tier_tested": true,
+      "pro_tier_tested": true,
+      "tabs_tested": ["Start", "Dashboard", "Equipment", "Faults", "Check Sheets", "Documents", "Staffing", "Reports", "Suppliers"],
+      "features_verified": [
+        "MOD Login page with Army/Navy/RAF branding",
+        "MOD LITE dashboard for site-level users",
+        "Equipment list with 'Add equipment' and 'Auto-find 12 images'",
+        "Faults tab with 'Log New Fault' button",
+        "Check Sheets with equipment categories and 'Start Check' buttons",
+        "Documents with AI-powered 'Ask Your Documents' feature",
+        "Staffing with staff list and 'Add staff' button"
+      ],
+      "security_verified": [
+        "Cross-portal isolation: MOD user blocked from standard /login with clear error message",
+        "Cross-portal isolation: Non-MOD user blocked from /MODService with clear error message",
+        "MFA enrolment enforced for MOD PRO users (mod_branch, mod_org account types)"
+      ],
+      "bugs_found": []
+    }
+  },
+  "mocked_apis_note": "Twilio SMS, Sage 200, Sicon, and Resend email are MOCKED as per KNOWN_BUGS.md"
+}
