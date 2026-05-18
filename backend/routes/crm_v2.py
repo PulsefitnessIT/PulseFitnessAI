@@ -720,6 +720,36 @@ async def get_stages(user=Depends(get_crm_user)):
     return {"stages": OPPORTUNITY_STAGES}
 
 
+@router.get("/tags")
+async def list_crm_tags(user=Depends(get_crm_user)):
+    """Aggregated tag vocabulary used by the workflow builder + tag
+    autocomplete. Iter 216h195 — distinct tag values across contacts,
+    companies, and deals so operators can pick from what they've
+    already typed rather than coining "VIP" / "vip" / "Vip" copies.
+    """
+    org_filter = await compute_visibility(user, "contact")
+    org_filter.pop("$or", None)  # don't drag the user-visibility OR clause; tags are public
+
+    pipelines = [
+        ("crm_contacts", {"_id": 0, "tags": 1}),
+        ("crm_companies", {"_id": 0, "tags": 1}),
+        ("crm_deals", {"_id": 0, "tags": 1}),
+    ]
+    seen: dict[str, int] = {}
+    for coll_name, proj in pipelines:
+        coll = getattr(db, coll_name)
+        async for doc in coll.find(org_filter, proj).limit(5000):
+            for t in (doc.get("tags") or []):
+                if not t:
+                    continue
+                key = str(t).strip()
+                if not key:
+                    continue
+                seen[key] = seen.get(key, 0) + 1
+    tags = [{"name": k, "count": v} for k, v in sorted(seen.items(), key=lambda kv: (-kv[1], kv[0].lower()))]
+    return {"tags": tags, "total": len(tags)}
+
+
 @router.get("/opportunities")
 async def list_opportunities(
     stage: str = "", company_id: str = "", owner_id: str = "",

@@ -28,6 +28,7 @@ import CRMPermissions from './CRMPermissions';
 import CRMModeSwitcher from './CRMModeSwitcher';
 import CRMUpgradeScreen from './CRMUpgradeScreen';
 import { useCRMModes, getStoredCrmMode, setStoredCrmMode } from './useCRMModes';
+import { LEAD_SOURCE_OPTIONS, CRM_TASK_TYPE_OPTIONS, CRM_TASK_PRIORITY_OPTIONS } from '@/utils/crmDropdowns';
 import PillTabBar from '@/components/shared/PillTabBar';
 import ProductTour from '@/components/shared/ProductTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
@@ -162,6 +163,13 @@ function QuickCreateButton({ API, headers, c, isDark, onCreated }) {
             {activeType === 'deal' && <>
               <input value={form.title || ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Deal title *" className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} />
               <input type="number" value={form.value || ''} onChange={e => setForm({ ...form, value: e.target.value })} placeholder="Value (£)" className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} />
+              {/* Iter 216h195 — Lead source dropdown so reports can show
+                  conversion by source instead of free-text mess. */}
+              <select value={form.source || ''} onChange={e => setForm({ ...form, source: e.target.value })}
+                className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} data-testid="quick-deal-source">
+                <option value="">Lead source…</option>
+                {LEAD_SOURCE_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
             </>}
             {activeType === 'case' && <>
               <input value={form.subject || ''} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Case subject *" className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} />
@@ -173,6 +181,16 @@ function QuickCreateButton({ API, headers, c, isDark, onCreated }) {
             </>}
             {activeType === 'task' && <>
               <input value={form.subject || ''} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Task subject *" className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} />
+              {/* Iter 216h195 — Task Type + Priority dropdowns. */}
+              <select value={form.task_type || ''} onChange={e => setForm({ ...form, task_type: e.target.value })}
+                className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} data-testid="quick-task-type">
+                <option value="">Type…</option>
+                {CRM_TASK_TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <select value={form.priority || 'medium'} onChange={e => setForm({ ...form, priority: e.target.value })}
+                className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} data-testid="quick-task-priority">
+                {CRM_TASK_PRIORITY_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
               <input type="date" value={form.due_date || ''} onChange={e => setForm({ ...form, due_date: e.target.value })} className="w-full px-3 py-1.5 text-sm rounded-md" style={inputStyle} />
             </>}
           </div>

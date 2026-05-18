@@ -12,6 +12,7 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { ModalShell, Input, ModalActions } from '@/pages/Memberships/_shared';
+import { COUNTRIES } from '@/utils/crmDropdowns';
 
 const POSTCODE_API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -83,8 +84,11 @@ export default function AddMemberModal({ API, headers, onClose }) {
           <div className="grid grid-cols-3 gap-2">
             <Input label={null} value={f.city}     onChange={(v) => setF({ ...f, city: v })}     placeholder="City" testid="mbr-new-city" />
             <Input label={null} value={f.postcode} onChange={(v) => setF({ ...f, postcode: v })} onBlur={(e) => lookupPostcode(e.target.value)} placeholder="Postcode" testid="mbr-new-postcode" />
-            <Input label={null} value={f.country}  onChange={(v) => setF({ ...f, country: v })}  placeholder="Country" testid="mbr-new-country" />
+            <Input label={null} value={f.country}  onChange={(v) => setF({ ...f, country: v })}  placeholder="Country" list="mbr-new-country-list" testid="mbr-new-country" />
           </div>
+          <datalist id="mbr-new-country-list">
+            {COUNTRIES.map((c) => <option key={c} value={c} />)}
+          </datalist>
         </div>
       </div>
 

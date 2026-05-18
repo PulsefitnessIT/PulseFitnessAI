@@ -11,6 +11,11 @@ import CRMAuditTrail from './CRMAuditTrail';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
+import {
+  FITNESS_SECTOR_OPTIONS,
+  UK_COUNTIES,
+  COUNTRIES,
+} from '@/utils/crmDropdowns';
 
 const TYPES = ['all', 'prospect', 'customer', 'partner', 'former'];
 const TYPE_COLORS = { prospect: 'var(--color-warning)', customer: 'var(--color-success-alt)', partner: 'var(--color-info-ios)', former: 'var(--color-text-faint-alt)' };
@@ -192,7 +197,11 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
               </div>
               {[
                 { key: 'company_number', label: 'Company Number', readOnly: true },
-                { key: 'sector', label: 'Sector / Industry' },
+                // Iter 216h195 — Wave 2 dropdown audit: sector is now a
+                // curated UK fitness-industry taxonomy (Gym Chain,
+                // Boutique Studio, Hotel Health Club, etc.) so reports
+                // can slice the pipeline by segment without dirty data.
+                { key: 'sector', label: 'Sector / Industry', type: 'select', options: FITNESS_SECTOR_OPTIONS },
                 { key: 'type', label: 'Type', type: 'select', options: ['prospect', 'customer', 'partner'] },
                 { key: 'phone', label: 'Phone' },
                 { key: 'email', label: 'Email' },
@@ -202,8 +211,11 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                 { key: 'address_line3', label: 'Address 3', span: 2 },
                 { key: 'postcode', label: 'Post code', lookupPostcode: true },
                 { key: 'city', label: 'City' },
-                { key: 'county', label: 'County' },
-                { key: 'country', label: 'Country' },
+                // County / Country use datalist so users get a typeahead
+                // list yet can still enter bespoke values (overseas
+                // territories, edge cases) without being blocked.
+                { key: 'county', label: 'County', datalist: 'crm-county-presets' },
+                { key: 'country', label: 'Country', datalist: 'crm-country-presets' },
               ].map(f => (
                 <div key={f.key} className={f.span === 2 ? 'col-span-2' : ''}>
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>{f.label}</label>
@@ -215,6 +227,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                     <input
                       value={form[f.key] || ''}
                       readOnly={f.readOnly}
+                      list={f.datalist}
                       onChange={e => setForm({...form, [f.key]: e.target.value})}
                       onBlur={f.lookupPostcode ? async (e) => {
                         // Iter 215eq — auto-fill city/county/country from
@@ -242,6 +255,15 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                   )}
                 </div>
               ))}
+              {/* Iter 216h195 — shared datalists for County / Country
+                  on this form. Rendered once, referenced by `list=` on
+                  individual inputs above. */}
+              <datalist id="crm-county-presets">
+                {UK_COUNTIES.map((c) => <option key={c} value={c} />)}
+              </datalist>
+              <datalist id="crm-country-presets">
+                {COUNTRIES.map((c) => <option key={c} value={c} />)}
+              </datalist>
               {form.directors?.length > 0 && (
                 <div className="col-span-2">
                   <label className="text-[10px] uppercase tracking-wider font-medium flex items-center gap-1" style={{ color: c.textDim }}>
@@ -860,7 +882,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
             <div className="grid grid-cols-2 gap-3">
               {[
                 { key: 'name', label: 'Company Name', span: 2 },
-                { key: 'sector', label: 'Sector / Industry' },
+                { key: 'sector', label: 'Sector / Industry', type: 'select', options: FITNESS_SECTOR_OPTIONS },
                 { key: 'type', label: 'Type', type: 'select', options: ['prospect', 'customer', 'partner', 'former'] },
                 { key: 'phone', label: 'Phone' },
                 { key: 'email', label: 'Email' },
@@ -870,8 +892,8 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
                 { key: 'address_line3', label: 'Address 3', span: 2 },
                 { key: 'postcode', label: 'Post code', lookupPostcode: true },
                 { key: 'city', label: 'City' },
-                { key: 'county', label: 'County' },
-                { key: 'country', label: 'Country' },
+                { key: 'county', label: 'County', datalist: 'crm-edit-county-presets' },
+                { key: 'country', label: 'Country', datalist: 'crm-edit-country-presets' },
                 { key: 'sla_tier', label: 'SLA Tier', type: 'select', options: ['standard', 'premium', 'enterprise'] },
               ].map(f => (
                 <div key={f.key} className={f.span === 2 ? 'col-span-2' : ''}>
@@ -883,6 +905,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
                   ) : (
                     <input
                       value={editForm[f.key] || ''}
+                      list={f.datalist}
                       onChange={e => setEditForm({...editForm, [f.key]: e.target.value})}
                       onBlur={f.lookupPostcode ? async (e) => {
                         const pc = (e.target.value || '').trim();
@@ -907,6 +930,12 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
                   )}
                 </div>
               ))}
+              <datalist id="crm-edit-county-presets">
+                {UK_COUNTIES.map((c) => <option key={c} value={c} />)}
+              </datalist>
+              <datalist id="crm-edit-country-presets">
+                {COUNTRIES.map((c) => <option key={c} value={c} />)}
+              </datalist>
               <div className="col-span-2">
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Notes</label>
                 <textarea value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} rows={3} className="w-full mt-1 px-3 py-2 text-sm rounded-md resize-none" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />

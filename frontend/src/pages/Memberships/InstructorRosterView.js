@@ -8,6 +8,7 @@ import axios from 'axios';
 import { Plus, Edit3, Image as ImageIcon, ExternalLink, Copy, X, Eye, EyeOff, Trash2, Upload, Link as LinkIcon, Mail, AlertTriangle, MapPin, ShieldCheck, PoundSterling, Download, CalendarDays } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { COUNTRIES } from '@/utils/crmDropdowns';
 
 const empty = () => ({
   name: '', email: '', phone: '', headline: '', bio: '',
@@ -570,8 +571,11 @@ function EditorDrawer({ API, headers, initial, onClose }) {
                   <div className="grid grid-cols-3 gap-2">
                     <input type="text" placeholder="City" value={f.city || ''} onChange={(e) => up('city')(e.target.value)} className={inputClass} data-testid="mbr-instructor-city" />
                     <input type="text" placeholder="Postcode" value={f.postcode || ''} onChange={(e) => up('postcode')(e.target.value)} className={inputClass} data-testid="mbr-instructor-postcode" />
-                    <input type="text" placeholder="Country" value={f.country || ''} onChange={(e) => up('country')(e.target.value)} className={inputClass} data-testid="mbr-instructor-country" />
+                    <input type="text" placeholder="Country" value={f.country || ''} onChange={(e) => up('country')(e.target.value)} list="mbr-instructor-country-list" className={inputClass} data-testid="mbr-instructor-country" />
                   </div>
+                  <datalist id="mbr-instructor-country-list">
+                    {COUNTRIES.map((c) => <option key={c} value={c} />)}
+                  </datalist>
                 </div>
               </div>
 

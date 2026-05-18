@@ -11,6 +11,7 @@ import HelpHint from '@/components/HelpHint';
 import EmptyState from '@/components/shared/EmptyState';
 import Button from '@/components/shared/Button';
 import CRMAuditTrail from './CRMAuditTrail';
+import { MEETING_LOCATION_PRESETS } from '@/utils/crmDropdowns';
 
 const STAGE_COLORS = {
   lead: 'var(--color-text-faint-alt)', qualified: 'var(--color-accent-violet)', discovery: 'var(--color-info)', solution: 'var(--color-cyan-500)',
@@ -316,7 +317,12 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, setActiveTa
             )}
             {noteForm.type === 'meeting' && (
               <div className="grid grid-cols-2 gap-2 mb-2">
-                <input value={noteForm.meeting_location||''} onChange={e => setNoteForm({...noteForm, meeting_location: e.target.value})} placeholder="Location" className="px-3 py-2 text-sm rounded-md" style={{ background: isDark?'var(--color-ink-alt)':'#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                <input value={noteForm.meeting_location||''} onChange={e => setNoteForm({...noteForm, meeting_location: e.target.value})} placeholder="Location"
+                  list="crm-meeting-location-presets"
+                  className="px-3 py-2 text-sm rounded-md" style={{ background: isDark?'var(--color-ink-alt)':'#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                <datalist id="crm-meeting-location-presets">
+                  {MEETING_LOCATION_PRESETS.map((l) => <option key={l} value={l} />)}
+                </datalist>
                 <input type="number" value={noteForm.meeting_duration||''} onChange={e => setNoteForm({...noteForm, meeting_duration: e.target.value})} placeholder="Duration (mins)" className="px-3 py-2 text-sm rounded-md" style={{ background: isDark?'var(--color-ink-alt)':'#fff', border: `1px solid ${c.border}`, color: c.text }} />
                 <input value={noteForm.attendees||''} onChange={e => setNoteForm({...noteForm, attendees: e.target.value})} placeholder="Attendees" className="col-span-2 px-3 py-2 text-sm rounded-md" style={{ background: isDark?'var(--color-ink-alt)':'#fff', border: `1px solid ${c.border}`, color: c.text }} />
               </div>

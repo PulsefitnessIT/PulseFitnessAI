@@ -19,6 +19,12 @@ export default function CRMWorkflows() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState({ triggers: [], actions: [], templates: [] });
+  // Iter 216h195 — load the org's real pipeline stages + existing tag
+  // vocabulary so the workflow builder offers a dropdown instead of
+  // free text. Falls back to the legacy free-text input if either
+  // endpoint fails (worst case = unchanged behaviour).
+  const [stages, setStages] = useState([]);
+  const [tags, setTags] = useState([]);
   const [showBuilder, setShowBuilder] = useState(false);
   const [showDetail, setShowDetail] = useState(null);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -32,13 +38,17 @@ export default function CRMWorkflows() {
 
   const load = useCallback(async () => {
     try {
-      const [wfRes, metaRes] = await Promise.all([
+      const [wfRes, metaRes, stagesRes, tagsRes] = await Promise.all([
         axios.get(`${API}/crm/v2/workflows`, { headers: headers() }),
         axios.get(`${API}/crm/v2/workflows/meta`, { headers: headers() }),
+        axios.get(`${API}/crm/v2/opportunities/stages`, { headers: headers() }).catch(() => ({ data: { stages: [] } })),
+        axios.get(`${API}/crm/v2/tags`, { headers: headers() }).catch(() => ({ data: { tags: [] } })),
       ]);
       setWorkflows(wfRes.data.workflows);
       setTotal(wfRes.data.total);
       setMeta(metaRes.data);
+      setStages(stagesRes.data?.stages || stagesRes.data || []);
+      setTags(tagsRes.data?.tags || tagsRes.data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [API, headers]);
@@ -364,16 +374,30 @@ export default function CRMWorkflows() {
                 {form.conditions.map((cond, i) => (
                   <div key={i} className="flex items-center gap-2 mb-2">
                     <input value={cond.field} onChange={e => updateCondition(i, 'field', e.target.value)} placeholder="Field (e.g. stage)"
+                      list="wf-condition-fields"
                       className="flex-1 px-3 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
                     <select value={cond.operator} onChange={e => updateCondition(i, 'operator', e.target.value)}
                       className="px-2 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}>
                       {CONDITION_OPS.map(op => <option key={op.id} value={op.id}>{op.label}</option>)}
                     </select>
                     <input value={cond.value} onChange={e => updateCondition(i, 'value', e.target.value)} placeholder="Value"
+                      list={cond.field === 'stage' ? 'wf-condition-stage-values' : (cond.field === 'tag' ? 'wf-condition-tag-values' : undefined)}
                       className="flex-1 px-3 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
                     <button onClick={() => removeCondition(i)} style={{ color: 'var(--color-danger-alt)' }}><X size={14} /></button>
                   </div>
                 ))}
+                {/* Iter 216h195 — shared datalists fed by the org's
+                    pipeline stages + tag vocabulary. Empty fields keep
+                    the inputs working as free text for power users. */}
+                <datalist id="wf-condition-fields">
+                  {['stage','tag','value','owner','company','source','priority'].map((f) => <option key={f} value={f} />)}
+                </datalist>
+                <datalist id="wf-condition-stage-values">
+                  {stages.map((s) => <option key={s.id || s.name} value={s.name || s.id} />)}
+                </datalist>
+                <datalist id="wf-condition-tag-values">
+                  {tags.map((t) => <option key={t.id || t.name || t} value={t.name || t} />)}
+                </datalist>
                 {form.conditions.length === 0 && <p className="text-xs" style={{ color: c.textDim }}>No conditions — workflow fires on every trigger</p>}
               </div>
 
@@ -420,12 +444,24 @@ export default function CRMWorkflows() {
                           className="w-full px-3 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
                       )}
                       {action.type === 'move_deal_stage' && (
-                        <input value={action.config?.target_stage || ''} onChange={e => updateAction(i, 'target_stage', e.target.value)} placeholder="Target stage (e.g. qualified)"
-                          className="w-full px-3 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                        <>
+                          <input value={action.config?.target_stage || ''} onChange={e => updateAction(i, 'target_stage', e.target.value)} placeholder="Target stage"
+                            list={`wf-stages-${i}`}
+                            className="w-full px-3 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                          <datalist id={`wf-stages-${i}`}>
+                            {stages.map((s) => <option key={s.id || s.name} value={s.name || s.id} />)}
+                          </datalist>
+                        </>
                       )}
                       {action.type === 'add_tag' && (
-                        <input value={action.config?.tag || ''} onChange={e => updateAction(i, 'tag', e.target.value)} placeholder="Tag name"
-                          className="w-full px-3 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                        <>
+                          <input value={action.config?.tag || ''} onChange={e => updateAction(i, 'tag', e.target.value)} placeholder="Tag name"
+                            list={`wf-tags-${i}`}
+                            className="w-full px-3 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                          <datalist id={`wf-tags-${i}`}>
+                            {tags.map((t) => <option key={t.id || t.name || t} value={t.name || t} />)}
+                          </datalist>
+                        </>
                       )}
                     </div>
                   ))}

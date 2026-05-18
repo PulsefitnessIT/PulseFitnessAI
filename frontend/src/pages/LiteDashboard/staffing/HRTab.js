@@ -18,6 +18,7 @@ import {
   Trash2, X, Check, Search, Calendar as CalIcon, Phone, MapPin, AlertTriangle,
   ExternalLink,
 } from 'lucide-react';
+import { RELATIONSHIP_OPTIONS, COUNTRIES, UK_COUNTIES } from '@/utils/crmDropdowns';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -90,13 +91,14 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
     return <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading…</div>;
   }
 
-  const Field = ({ label, k, type = 'text' }) => (
+  const Field = ({ label, k, type = 'text', list }) => (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{label}</span>
       {editing ? (
         <input type={type}
           value={form[k] || ''}
           onChange={(e) => set(k, e.target.value)}
+          list={list}
           className="h-8 rounded-md bg-transparent border px-2 text-sm"
           style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
           data-testid={`hr-field-${k}`} />
@@ -146,7 +148,11 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Emergency contact</p>
         <Field label="Name"        k="emergency_contact_name" />
         <Field label="Phone"       k="emergency_contact_phone" type="tel" />
-        <Field label="Relationship" k="emergency_contact_relationship" />
+        {/* Iter 216h195 — Relationship dropdown for reporting consistency. */}
+        <Field label="Relationship" k="emergency_contact_relationship" list="hr-relationship-list" />
+        <datalist id="hr-relationship-list">
+          {RELATIONSHIP_OPTIONS.map((r) => <option key={r} value={r} />)}
+        </datalist>
 
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Employment</p>
         <div className="flex flex-col gap-1">

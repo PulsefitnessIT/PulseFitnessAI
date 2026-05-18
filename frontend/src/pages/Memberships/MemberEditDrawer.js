@@ -29,6 +29,7 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import ActivityTimelineTab from '@/pages/Memberships/ActivityTimelineTab';
 import Button from '@/components/shared/Button';
+import { COUNTRIES, RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 
 const TABS = [
   { id: 'profile',  label: 'Profile',  icon: User },
@@ -139,8 +140,11 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
           <div className="grid grid-cols-3 gap-2">
             <Input value={form.city} onChange={(v) => setForm({ ...form, city: v })} placeholder="City" testid="member-drawer-city" />
             <Input value={form.postcode} onChange={(v) => setForm({ ...form, postcode: v })} placeholder="Postcode" testid="member-drawer-postcode" />
-            <Input value={form.country} onChange={(v) => setForm({ ...form, country: v })} placeholder="Country" testid="member-drawer-country" />
+            <Input value={form.country} onChange={(v) => setForm({ ...form, country: v })} placeholder="Country" list="member-drawer-country-list" testid="member-drawer-country" />
           </div>
+          <datalist id="member-drawer-country-list">
+            {COUNTRIES.map((c) => <option key={c} value={c} />)}
+          </datalist>
         </div>
       </div>
 
@@ -149,6 +153,22 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Name"><Input value={form.emergency_contact_name} onChange={(v) => setForm({ ...form, emergency_contact_name: v })} testid="member-drawer-eg-name" /></Field>
           <Field label="Phone"><Input value={form.emergency_contact_phone} onChange={(v) => setForm({ ...form, emergency_contact_phone: v })} testid="member-drawer-eg-phone" /></Field>
+        </div>
+        {/* Iter 216h195 — Relationship is now a curated dropdown so
+            reports can aggregate "who's listed as Parent vs Spouse". */}
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <Field label="Relationship">
+            <Input
+              value={form.emergency_contact_relationship || ''}
+              onChange={(v) => setForm({ ...form, emergency_contact_relationship: v })}
+              list="member-drawer-relationship-list"
+              placeholder="Select…"
+              testid="member-drawer-eg-rel"
+            />
+            <datalist id="member-drawer-relationship-list">
+              {RELATIONSHIP_OPTIONS.map((r) => <option key={r} value={r} />)}
+            </datalist>
+          </Field>
         </div>
       </div>
 

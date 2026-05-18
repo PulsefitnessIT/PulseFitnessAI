@@ -1,3 +1,55 @@
+## Iter 216h195 — Wave 2 Dropdown Audit (May 18, 2026) ✅
+
+User chose option C — ship all three tiers from the dropdown audit. Eleven free-text fields across CRM / Memberships / Marketing / Staffing now offer dropdowns or datalist suggestions (with free-text fallback preserved everywhere).
+
+### What changed
+**Tier A** (high-impact, reporting-critical)
+1. CRM Companies → **Sector / Industry** is now a `<select>` with 17 UK fitness-industry segments (Gym Chain, Boutique Studio, Hotel Health Club, Council Leisure Centre, Corporate Wellness, etc.).
+2. CRM Companies → **County** datalist with all 94 UK counties.
+3. CRM Companies → **Country** datalist (~165 countries; UK + primary markets pinned to the top).
+4. Memberships Add/Edit Member → **Country** datalist (same as #3); applied across `AddMemberModal`, `MemberEditDrawer`, and `InstructorRosterView`.
+5. CRM Workflows builder → **Target stage** + **condition values** now pull live pipeline stages via `/api/crm/v2/opportunities/stages`.
+6. CRM Quick-Create → New Deal form gets a **Lead Source** `<select>` (Website / Referral / Cold Outreach / Trade Show / Partner / LinkedIn / Inbound Call / Email Campaign / Walk-in / Existing Customer / Other).
+7. HR profile + Memberships → **Emergency Contact Relationship** datalist (Spouse / Partner / Parent / Sibling / Child / Friend / Guardian / Carer / Other).
+
+**Tier B** (medium impact)
+8. CRM Quick-Create → New Task form gets **Type** (9 options) + **Priority** (Low / Medium / High / Urgent) selects.
+9. CRM Workflows → **Tag picker** now auto-completes from the org's existing tag vocabulary (new `/api/crm/v2/tags` endpoint that aggregates contacts / companies / deals by frequency).
+10. Memberships Tags — handled via the same `/tags` endpoint reuse pattern (existing field already lived in `MemberEditDrawer`; left free-text + already supports comma split).
+11. **Currency** option list shipped in `crmDropdowns.js` for future reuse (no current call-site uses it; on standby for the upcoming Stripe multi-currency work).
+
+**Tier C** (nice to have)
+12. CRM Pipeline → **Meeting Location** datalist (Microsoft Teams / Zoom / Google Meet / Phone / On-site at customer / On-site at our office / Trade show stand / Other).
+13. Notes / Description / Address Lines — intentionally left as free text (no value in constraining creative input).
+
+### Architecture
+- `frontend/src/utils/crmDropdowns.js` — single source of truth: `FITNESS_SECTOR_OPTIONS`, `UK_COUNTIES`, `COUNTRIES`, `LEAD_SOURCE_OPTIONS`, `RELATIONSHIP_OPTIONS`, `CRM_TASK_TYPE_OPTIONS`, `CRM_TASK_PRIORITY_OPTIONS`, `CURRENCY_OPTIONS`, `MEETING_LOCATION_PRESETS`, `CONTRACT_TYPE_OPTIONS`.
+- `_shared.js` (Memberships) Input atom now supports a `list` prop so any field can opt into datalist suggestions without a custom wrapper.
+- `HRTab.js` Field atom similarly gained a `list` prop.
+- `backend/routes/crm_v2.py` — new `GET /api/crm/v2/tags` aggregator that ranks tag vocabulary by frequency.
+
+### Tests
+- `backend/tests/test_iter_216h195_crm_tags.py` — **3/3** ✅
+  - aggregates by frequency
+  - skips blanks / None / whitespace
+  - empty-collection handling
+- **20/20** regression suite across iters 192/193/194/195 pass.
+- Live endpoints return 401 (not 404) confirming registration; `/api/suppliers/catalogue` still returns 25 curated entries; onboarding equipment with `site_id` round-trip still works.
+
+### Files
+* **NEW** `frontend/src/utils/crmDropdowns.js`
+* **NEW** `backend/tests/test_iter_216h195_crm_tags.py` (3 pytests)
+* `backend/routes/crm_v2.py` (tags aggregator)
+* `frontend/src/pages/CRM/CRMCompanies.js`, `CRMApp.js`, `CRMPipeline.js`, `CRMWorkflows.js`
+* `frontend/src/pages/Memberships/_shared.js`, `modals/AddMemberModal.js`, `MemberEditDrawer.js`, `InstructorRosterView.js`
+* `frontend/src/pages/LiteDashboard/staffing/HRTab.js`
+
+### Action required
+**Redeploy** preview → production. All changes are additive — no DB migrations, no breaking changes to existing payloads (datalists preserve free-text submission).
+
+---
+
+
 ## Iter 216h194 — Craig's Equipment-Disappears Bug (May 18, 2026) ✅ P0
 
 Critical regression Craig reported during stress-testing: equipment added via the OnboardingWizard didn't appear in the Equipment list afterwards.

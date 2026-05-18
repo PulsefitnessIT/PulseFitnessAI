@@ -75,13 +75,14 @@ export function Empty({ text }) {
   return <div className="rounded-xl border border-[color:var(--theme-border)] bg-white dark:bg-zinc-900/[0.02] p-5 text-center text-[color:var(--theme-text-muted)] text-sm">{text}</div>;
 }
 
-export function Input({ label, value, onChange, onBlur, type = 'text', required, testid, hint, placeholder }) {
+export function Input({ label, value, onChange, onBlur, type = 'text', required, testid, hint, placeholder, list }) {
   return (
     <label className="block">
       {label !== null && label !== undefined && (
         <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">{label}{required ? ' *' : ''}</span>
       )}
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur} placeholder={placeholder}
+        list={list}
         className={`${label !== null && label !== undefined ? 'mt-1 ' : ''}w-full rounded-lg bg-[color:var(--theme-surface-hover)] border border-[color:var(--theme-border)] px-3 py-2 text-sm text-[color:var(--theme-text)] placeholder-[color:var(--theme-text-muted)] focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]`}
         required={required} data-testid={testid} />
       {hint && <span className="block mt-1 text-[10px] text-[color:var(--theme-text-muted)]">{hint}</span>}
