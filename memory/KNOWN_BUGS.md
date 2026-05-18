@@ -11,6 +11,12 @@ _Last refreshed: Iter 216h212 · May 18 2026_
 
 ### P0 — None currently open. (h208 site_id fix shipped.)
 
+### P2 — UX polish from h212 audit (no functional impact)
+- **NPS survey popup** appears on every page — too frequent. Rate-limit per user-session (e.g. once per 7 days).
+- **PWA "Install App" prompt** appears frequently — consider once-per-session at most, or trigger on engagement signal (3+ navigations).
+- **CSP violations in console** for external scripts (`emergent-main.js`, PostHog, Cloudflare). Functionality unaffected, but noisy console undermines trust during stakeholder demos. Add hosts to CSP or conditionally load on the routes that need them.
+- **Status**: defer to a polish iteration.
+
 ### P1 — Class Builder reported "crash" (Iter 216h209 — COULD NOT REPRODUCE)
 - **Reporter**: Craig (live preview).
 - **Testing result (h209 audit)**: ClassEditorModal opens cleanly on `e1.agent@gymaxisai.com` tenant. All form fields render correctly: Class Name, Category, Colour picker, Instructor dropdown, Room/Studio, Days of Week, Start Time, Duration, Capacity, Booking Opens, Cancel Cutoff, Credits to Book, Max Waitlist, Waitlist enabled. No JavaScript errors observed in Playwright with capture_logs=true.

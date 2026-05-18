@@ -1,3 +1,44 @@
+## Iter 216h212 — Trust-recovery audit Part 2: Service Desk + CRM + MOD (Feb 18, 2026) ✅ P1
+
+Same depth/breadth Playwright sweep as h209 applied to the three remaining customer-facing modules. **All three modules PASS — 0 P0 and 0 P1 bugs found.** Combined with h209's Memberships pass, **4 of the 5 main customer-facing modules now have empirical clean-audit confirmation.**
+
+### Audit results
+
+| Module | Tabs covered | Result |
+|--------|--------------|--------|
+| Service Desk (`/service-desk`) | Dashboard · Cases · Scheduler · Equipment · Parts · Billing · Engineers · Reports · Customers | ✅ PASS (138 customers / 120 active / 107 open cases tracked, SLA tracking, scheduler calendar, parts catalogue, billing quotes) |
+| CRM (`/crm`) | Dashboard · Contacts · Companies · Pipeline · Activity Feed · Calendar · Workflows | ✅ PASS (Quick Start actions render, 5-step onboarding visible, no broken buttons) |
+| MOD Portal LITE (`/MODService`) | Start · Dashboard · Equipment · Faults · Check Sheets · Documents · Staffing · Reports · Suppliers | ✅ PASS (Army/Navy/RAF branding, site-level dashboard, log fault flow, check-sheet starts, AI "Ask Your Documents") |
+| MOD Portal PRO  | Same + branch/org rollups | ✅ PASS (MFA enrolment enforced on first login, rollup aggregates child sites, drill-down boundary returns 403 for unrelated sites) |
+
+### Security guards verified (h113f contract)
+- ✅ MOD user blocked from `/login` with clear message: "MOD personnel accounts must sign in via /MODService"
+- ✅ Non-MOD user blocked from `/MODService` with clear message: "Not registered for the MOD Service Portal"
+- ✅ MFA enrolment forced on first PRO-tier login (mod_branch / mod_org account types)
+
+### P2 findings (cosmetic, defer to polish iter)
+1. NPS survey popup appears on every page — needs rate-limit (e.g. once per 7 days).
+2. PWA "Install App" prompt too frequent — once-per-session OR engagement-gated.
+3. CSP violations in console for external scripts (`emergent-main.js`, PostHog, Cloudflare). Functionality unaffected but noise undermines trust on demo calls.
+
+### Files
+- NEW: `/app/test_reports/iteration_216h212.json` (full audit report)
+- UPDATED: `/app/memory/KNOWN_BUGS.md` (P2 findings + recently-fixed h212 entry)
+
+### Trust-recovery scorecard
+| Module | Audit pass? | Regression coverage |
+|--------|-------------|--------------------|
+| Memberships  | ✅ h209 | 15 regression tests |
+| Service Desk | ✅ h212 | 20 regression tests |
+| CRM          | ✅ h212 | 20 regression tests |
+| MOD          | ✅ h212 | 19 regression tests |
+| Operations   | ✅ (h208 fix + 4 tests) | 4 regression tests |
+| Auth         | ✅ (h210 fix + 6 tests) | 6 regression tests |
+| **Total**    |             | **84 tests · 100% green** |
+
+---
+
+
 ## Iter 216h211 — Regression suite extended to Service Desk + MOD + CRM (Feb 18, 2026) ✅ P1
 
 Brought the pre-deployment regression suite from 25 tests (Auth + Memberships + Operations) up to **84 tests** spanning every critical module.
