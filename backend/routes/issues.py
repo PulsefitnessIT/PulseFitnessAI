@@ -25,6 +25,27 @@ except ImportError:
     resend = None
 
 
+@router.get("/issues/coverage-lookup")
+async def coverage_lookup(
+    serial_number: str = "",
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h199 — Phase 3 pre-flight coverage check.
+
+    Frontend calls this just before showing the "Log fault" CTA so the
+    user sees "✓ Under GOLD contract until 31/12/2027" inline. Backend
+    intake also re-resolves the same data, so this is purely a UX hint —
+    no security implications.
+    """
+    if not serial_number or not serial_number.strip():
+        raise HTTPException(status_code=400, detail="serial_number required")
+    meta = await _resolve_coverage_for_issue(
+        serial_number=serial_number, organization_id=user.get("organization_id"),
+    )
+    return meta
+
+
+
 @router.post("/issues/triage")
 async def triage_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
     try:
@@ -177,6 +198,42 @@ def _severity_to_priority(severity: Optional[str]) -> str:
     return "p4"
 
 
+async def _resolve_coverage_for_issue(serial_number: Optional[str],
+                                      organization_id: Optional[str]) -> dict:
+    """Iter 216h199 — Phase 3 auto-warranty-check.
+
+    Resolves the manufacturer warranty + CRM aftersales contract coverage
+    for the equipment matching `serial_number` in `organization_id`, so the
+    Service Desk case (and the underlying issue row) get auto-flagged with
+    cover_type + contract reference at intake time.
+
+    Returns `coverage_to_case_meta` flat dict shape — caller can spread
+    it directly into the issue / svc_case docs. Defensive: never raises;
+    on lookup miss returns an "uncovered" meta block.
+    """
+    from utils.coverage import resolve_equipment_coverage, coverage_to_case_meta
+    serial = (serial_number or "").strip()
+    if not serial or not organization_id:
+        return coverage_to_case_meta({})  # uncovered shape
+    try:
+        equip = await db.equipment.find_one(
+            {"organization_id": organization_id,
+             "$or": [{"serial_number": serial}, {"name": serial}]},
+            {"_id": 0},
+        )
+        if not equip:
+            return coverage_to_case_meta({})
+        cov = await resolve_equipment_coverage(equip, db)
+        meta = coverage_to_case_meta(cov)
+        # Stamp the resolved equipment id too, so downstream code doesn't
+        # have to re-resolve.
+        meta["equipment_id"] = equip.get("id") or ""
+        return meta
+    except Exception as e:  # pragma: no cover — defensive only
+        logger.warning(f"_resolve_coverage_for_issue failed: {e}")
+        return coverage_to_case_meta({})
+
+
 async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
     """Bridge: when an Operations Portal fault is escalated to engineer
     (resolution_type='engineer'), materialise an `svc_cases` row so the
@@ -222,11 +279,16 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
         # Build the bridged intake payload and reuse the canonical creator.
         from routes.svc.intake import _create_case as _svc_create_case
         priority = _severity_to_priority(issue_doc.get("severity"))
+        # Iter 216h199 — auto-routed cover_type + contract reference,
+        # resolved at issue intake. Falls back to "contract" (the pre-h199
+        # default) only when nothing was stamped (legacy issues).
+        cov_meta = issue_doc.get("coverage_meta") or {}
+        resolved_cover = cov_meta.get("cover_type") or "contract"
         payload = {
             "title": issue_doc.get("machine_type") or "Operations Portal fault",
             "description": issue_doc.get("issue_description") or "",
             "priority": priority,
-            "cover_type": "contract",
+            "cover_type": resolved_cover,
             "site_id": site_id,
             "site_name": site_name,
             "site_postcode": site_postcode,
@@ -235,6 +297,7 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
             "equipment_ids": [equipment_id] if equipment_id else [],
             "equipment_serials": [issue_doc.get("serial_number") or ""] if issue_doc.get("serial_number") else [],
             "fault_code": issue_doc.get("fault_code") or "",
+            "contract_id": cov_meta.get("contract_id") or "",
             "customer_name": user.get("full_name") or "",
             "customer_email": user.get("email") or "",
             "customer_phone": user.get("phone") or "",
@@ -242,6 +305,18 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
                 "issue_id": issue_doc["id"],
                 "channel": "operations_portal",
                 "severity": issue_doc.get("severity"),
+                # Iter 216h199 — full coverage snapshot so the Service
+                # Desk UI can render "✓ Under GOLD contract until
+                # 31/12/2027" badges without a second round-trip.
+                "coverage_status": cov_meta.get("coverage_status", "uncovered"),
+                "contract_number": cov_meta.get("contract_number", ""),
+                "contract_title": cov_meta.get("contract_title", ""),
+                "contract_tier": cov_meta.get("contract_tier", ""),
+                "contract_end_date": cov_meta.get("contract_end_date", ""),
+                "contract_coverage_type": cov_meta.get("contract_coverage_type", ""),
+                "contract_expiring_soon": cov_meta.get("contract_expiring_soon", False),
+                "warranty_active": cov_meta.get("warranty_active", False),
+                "warranty_expiry": cov_meta.get("warranty_expiry"),
             },
         }
         await _svc_create_case(payload=payload, source="portal", user=user)
@@ -334,6 +409,23 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
         priority = min(priorities) if priorities else "p4"
 
         from routes.svc.intake import _create_case as _svc_create_case
+        # Iter 216h199 — pick the strongest coverage across siblings.
+        # If ANY machine on the job has a CRM contract, route the case as
+        # "contract". Else if ANY is in warranty, "warranty". Else
+        # "chargeable". This matches operator intuition — one mixed job
+        # on a Gold contract shouldn't get billed.
+        sibling_metas = [d.get("coverage_meta") or {} for d in engineer_docs]
+        statuses = [m.get("coverage_status", "uncovered") for m in sibling_metas]
+        if "covered_contract" in statuses:
+            bundled_cover = "contract"
+            primary = next(m for m in sibling_metas if m.get("coverage_status") == "covered_contract")
+        elif "covered_warranty" in statuses:
+            bundled_cover = "warranty"
+            primary = next(m for m in sibling_metas if m.get("coverage_status") == "covered_warranty")
+        else:
+            bundled_cover = "chargeable"
+            primary = sibling_metas[0] if sibling_metas else {}
+
         payload = {
             "title": (
                 f"{first.get('machine_type') or 'Operations Portal fault'}"
@@ -341,7 +433,7 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
             ),
             "description": rolled_up,
             "priority": priority,
-            "cover_type": "contract",
+            "cover_type": bundled_cover,
             "site_id": site_id,
             "site_name": site_name,
             "site_postcode": site_postcode,
@@ -350,6 +442,7 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
             "equipment_ids": equipment_ids,
             "equipment_serials": equipment_serials,
             "fault_code": first.get("fault_code") or "",
+            "contract_id": primary.get("contract_id") or "",
             "customer_name": user.get("full_name") or "",
             "customer_email": user.get("email") or "",
             "customer_phone": user.get("phone") or "",
@@ -359,6 +452,15 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
                 "channel": "operations_portal",
                 "severity": first.get("severity"),
                 "machine_count": len(engineer_docs),
+                "coverage_status": primary.get("coverage_status", "uncovered"),
+                "contract_number": primary.get("contract_number", ""),
+                "contract_title": primary.get("contract_title", ""),
+                "contract_tier": primary.get("contract_tier", ""),
+                "contract_end_date": primary.get("contract_end_date", ""),
+                "contract_coverage_type": primary.get("contract_coverage_type", ""),
+                "contract_expiring_soon": primary.get("contract_expiring_soon", False),
+                "warranty_active": primary.get("warranty_active", False),
+                "warranty_expiry": primary.get("warranty_expiry"),
             },
         }
         await _svc_create_case(payload=payload, source="portal", user=user)
@@ -369,6 +471,13 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
 @router.post("/issues")
 async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
     issue_doc = _build_issue_doc(issue, user)
+    # Iter 216h199 — Phase 3 auto-warranty-check: stamp coverage meta on
+    # the issue row at intake. The downstream svc_case mirror reuses
+    # the same meta so the Service Desk case is pre-routed correctly.
+    coverage_meta = await _resolve_coverage_for_issue(
+        issue.serial_number, user.get("organization_id"),
+    )
+    issue_doc["coverage_meta"] = coverage_meta
     await db.issues.insert_one(issue_doc)
     issue_doc.pop('_id', None)
 
@@ -412,6 +521,9 @@ async def create_issues_batch(
         # frontend from accidentally splitting siblings across jobs.
         machine.job_id = job_id
         doc = _build_issue_doc(machine, user)
+        doc["coverage_meta"] = await _resolve_coverage_for_issue(
+            machine.serial_number, user.get("organization_id"),
+        )
         await db.issues.insert_one(doc)
         doc.pop("_id", None)
         await store_fix_history(machine, doc["id"], user)

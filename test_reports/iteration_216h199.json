@@ -1,0 +1,109 @@
+{
+  "summary": "Iter 216h199 — Phase 3 Ops↔CRM↔ServiceDesk auto-warranty-check verified. All 26 tests pass (15 unit + 11 API). GET /api/issues/coverage-lookup returns coverage_to_case_meta shape correctly (400 on empty serial, uncovered for unknown serial). POST /api/issues and POST /api/issues/batch stamp coverage_meta on every issue row. Mirrored svc_cases get auto-resolved cover_type (contract/warranty/chargeable) + contract_id. GET /api/equipment/{id}/coverage regression passes (crm_coverage dict preserved).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h199_auto_warranty_check.py",
+    "/app/backend/tests/test_iter_216h199_api_coverage_lookup.py",
+    "/app/test_reports/pytest/pytest_results_216h199.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h199_api_coverage_lookup.py"
+  ],
+  "success_rate": {
+    "backend": "100% (26/26 tests passed: 15 unit + 11 API)"
+  },
+  "test_credentials": "e1.agent@gymaxisai.com / E1Agent123!, admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h199 adds Phase 3 of Ops↔CRM↔ServiceDesk link: (1) GET /api/issues/coverage-lookup?serial_number=X returns coverage_to_case_meta shape for pre-flight UI badge, (2) POST /api/issues and POST /api/issues/batch stamp coverage_meta on every issue row at intake, (3) _mirror_issue_to_svc_case reads coverage_meta and propagates cover_type + contract_id + source_meta.coverage_* to the bridged svc_case, (4) _mirror_job_to_svc_case picks strongest coverage across siblings (contract > warranty > chargeable). Shared utility at utils/coverage.py (resolve_equipment_coverage + coverage_to_case_meta). GET /api/equipment/{id}/coverage refactored to use shared util but legacy payload shape preserved.",
+  "test_results": {
+    "unit_tests": {
+      "file": "test_iter_216h199_auto_warranty_check.py",
+      "tests_passed": 15,
+      "tests_total": 15,
+      "test_cases": [
+        "test_coverage_to_case_meta_uncovered",
+        "test_coverage_to_case_meta_under_contract",
+        "test_coverage_to_case_meta_warranty_only",
+        "test_resolve_equipment_coverage_picks_contract_over_warranty",
+        "test_resolve_equipment_coverage_returns_chargeable_when_uncovered",
+        "test_resolve_equipment_coverage_handles_empty_input",
+        "test_resolve_coverage_for_issue_with_no_serial_returns_uncovered",
+        "test_resolve_coverage_for_issue_with_no_org_returns_uncovered",
+        "test_resolve_coverage_for_issue_finds_contract_via_serial",
+        "test_resolve_coverage_for_issue_missing_equipment_returns_uncovered",
+        "test_mirror_issue_routes_contract_case_when_under_gold",
+        "test_mirror_issue_routes_chargeable_when_uncovered",
+        "test_mirror_issue_routes_warranty_only_case",
+        "test_mirror_issue_only_runs_when_escalated_to_engineer",
+        "test_batch_mirror_picks_strongest_coverage_across_siblings"
+      ]
+    },
+    "api_tests": {
+      "file": "test_iter_216h199_api_coverage_lookup.py",
+      "tests_passed": 11,
+      "tests_total": 11,
+      "test_cases": [
+        "test_coverage_lookup_returns_400_when_serial_empty",
+        "test_coverage_lookup_returns_400_when_serial_missing",
+        "test_coverage_lookup_unknown_serial_returns_uncovered",
+        "test_coverage_lookup_returns_full_meta_shape",
+        "test_equipment_coverage_returns_crm_coverage_dict",
+        "test_equipment_coverage_returns_404_for_missing",
+        "test_create_issue_stamps_coverage_meta",
+        "test_create_issue_self_fix_also_has_coverage_meta",
+        "test_batch_issues_each_has_coverage_meta",
+        "test_crm_login_fallback_works",
+        "test_crm_cross_login_works"
+      ]
+    },
+    "regression_tests": {
+      "status": "PASS",
+      "tests_passed": 25,
+      "tests_total": 25,
+      "files": [
+        "test_iter_216h196_sites_and_equipment.py (8)",
+        "test_iter_216h197_crm_auth_and_pills.py (8)",
+        "test_iter_216h198_equipment_crm_coverage.py (9)"
+      ]
+    },
+    "curl_smoke_tests": {
+      "coverage_lookup_empty_serial": {
+        "status": "PASS",
+        "expected": "400 with 'serial_number required'",
+        "actual": "400 with 'serial_number required'"
+      },
+      "coverage_lookup_unknown_serial": {
+        "status": "PASS",
+        "expected": "200 with coverage_status='uncovered', cover_type='chargeable'",
+        "actual": "200 with coverage_status='uncovered', cover_type='chargeable'"
+      },
+      "equipment_coverage_regression": {
+        "status": "PASS",
+        "expected": "200 with crm_coverage dict",
+        "actual": "200 with crm_coverage dict (has_coverage, best, all_contracts)"
+      }
+    }
+  },
+  "features_verified": [
+    "GET /api/issues/coverage-lookup?serial_number=X returns coverage_to_case_meta shape",
+    "GET /api/issues/coverage-lookup returns 400 when serial_number is empty",
+    "GET /api/issues/coverage-lookup with unknown serial returns coverage_status='uncovered' + cover_type='chargeable'",
+    "POST /api/issues stamps coverage_meta on issue row",
+    "POST /api/issues/batch stamps coverage_meta on each issue row",
+    "Mirrored svc_case gets auto-resolved cover_type (not hardcoded 'contract')",
+    "Batch mirror picks strongest coverage across siblings (contract > warranty > chargeable)",
+    "GET /api/equipment/{id}/coverage still returns crm_coverage dict (regression)"
+  ]
+}

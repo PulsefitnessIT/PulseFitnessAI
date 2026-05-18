@@ -937,67 +937,15 @@ async def get_equipment_coverage(equipment_id: str, user: dict = Depends(get_cur
         warranty_active, warranty_days, contract_active, contract_days,
     )
 
-    # CRM aftersales contract layer.
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    from datetime import timedelta as _td
-    cutoff_90d = (datetime.now(timezone.utc) + _td(days=90)).strftime("%Y-%m-%d")
-    assets = await db.crm2_contract_assets.find({"asset_id": equipment_id}, {"_id": 0}).to_list(200)
-    contract_ids = list({a.get("contract_id") for a in assets if a.get("contract_id")})
-    contracts = await db.crm2_contracts.find(
-        {"id": {"$in": contract_ids}}, {"_id": 0},
-    ).to_list(200) if contract_ids else []
-    contracts_by_id = {c.get("id"): c for c in contracts}
-
-    crm_rows = []
-    try:
-        from routes.crm_contracts import CONTRACT_TIERS as _TIERS
-        tier_order = {t["id"]: i for i, t in enumerate(_TIERS)}
-    except Exception:
-        tier_order = {}
-
-    def _days_until(date_str: str):
-        if not date_str:
-            return None
-        try:
-            d = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            return max(0, (d - datetime.now(timezone.utc)).days)
-        except ValueError:
-            return None
-
-    for a in assets:
-        contract = contracts_by_id.get(a.get("contract_id"))
-        if not contract:
-            continue
-        end = contract.get("end_date", "")
-        if end and end < today:
-            continue
-        if contract.get("status") not in {"active", "signed", "expiring"}:
-            continue
-        crm_rows.append({
-            "contract_id": contract.get("id"),
-            "contract_number": contract.get("contract_number"),
-            "contract_title": contract.get("title"),
-            "tier": contract.get("tier"),
-            "coverage_type": a.get("coverage_type", "full"),
-            "start_date": contract.get("start_date"),
-            "end_date": end,
-            "exclusions": a.get("exclusions", ""),
-            "expiring_soon": bool(end and end <= cutoff_90d),
-            "days_until_expiry": _days_until(end),
-            "_rank": tier_order.get(contract.get("tier", ""), -1),
-        })
-
-    crm_rows.sort(key=lambda r: (r["_rank"], r.get("end_date") or ""), reverse=True)
-    best = dict(crm_rows[0]) if crm_rows else None
-    if best:
-        best.pop("_rank", None)
-    for r in crm_rows:
-        r.pop("_rank", None)
+    # CRM aftersales contract layer — resolved via shared utility so
+    # Operations + Service Desk never disagree about coverage state.
+    from utils.coverage import resolve_equipment_coverage
+    cov = await resolve_equipment_coverage(equipment, db)
 
     return {
         "equipment_id": equipment_id,
         "equipment_name": equipment.get("name", ""),
-        "covered": covered or bool(best),
+        "covered": covered or cov["has_crm_contract"],
         "type": coverage_type,
         "label": coverage_label,
         "warranty_active": warranty_active,
@@ -1010,9 +958,9 @@ async def get_equipment_coverage(equipment_id: str, user: dict = Depends(get_cur
         "supplier": equipment.get("manufacturer", ""),
         # Iter 216h198 — CRM aftersales contract layer.
         "crm_coverage": {
-            "has_coverage": bool(best),
-            "best": best,
-            "all_contracts": crm_rows,
+            "has_coverage": cov["has_crm_contract"],
+            "best": cov["best"],
+            "all_contracts": cov["all_contracts"],
         },
     }
 
