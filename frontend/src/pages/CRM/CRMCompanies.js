@@ -413,6 +413,303 @@ function PortalEquipmentTab({ companyId, API, headers, c, isDark }) {
   );
 }
 
+
+/* ═══ SITES & EQUIPMENT TAB (Phase 1 of Ops↔CRM↔ServiceDesk link) ═══
+   Iter 216h196 — Lee's ask: Pulse Fitness HQ wants its child sites
+   (iGym Carshalton, iGym Congleton) surfaced inside CRM with each
+   piece of equipment showing its live contract-coverage badge, plus a
+   one-click "Add coverage" action to attach equipment to a new or
+   existing aftersales contract. Backend endpoint:
+     GET  /api/crm/v2/companies/{id}/sites-and-equipment
+     POST /api/crm/v2/companies/{id}/equipment-coverage
+     POST /api/crm/v2/companies/{id}/link-organization
+   The link-organization endpoint is used when the company isn't
+   auto-linked by name (returns linked_via='unlinked' from the GET). */
+function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState({});
+  const [coverageModal, setCoverageModal] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/crm/v2/companies/${companyId}/sites-and-equipment`, { headers: headers() });
+      setData(r.data);
+      if (r.data?.sites?.length) {
+        setExpanded((prev) => ({ ...prev, [r.data.sites[0].id]: true }));
+      }
+    } catch {
+      setData({ sites: [], totals: {}, linked_via: 'error' });
+    }
+    setLoading(false);
+  }, [API, headers, companyId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const linkSelf = async () => {
+    try {
+      const meRes = await axios.get(`${API}/auth/me`, { headers: headers() }).catch(() => null);
+      const orgId = meRes?.data?.organization_id || meRes?.data?.user?.organization_id;
+      if (!orgId) {
+        window.alert('Could not detect your organisation id — please contact support.');
+        return;
+      }
+      await axios.post(`${API}/crm/v2/companies/${companyId}/link-organization`,
+        { organization_id: orgId }, { headers: headers() });
+      load();
+    } catch (e) {
+      window.alert(e?.response?.data?.detail || 'Link failed');
+    }
+  };
+
+  if (loading) {
+    return <div className="py-10 text-center text-xs" style={{ color: c.textDim }}>Loading sites & equipment…</div>;
+  }
+
+  if (!data || data.linked_via === 'unlinked') {
+    return (
+      <div className="rounded-xl p-8 text-center" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-50)', border: `1px dashed ${c.border}` }} data-testid="sites-equipment-unlinked">
+        <MapPin size={32} className="mx-auto mb-2" style={{ color: c.textDim }} />
+        <p className="text-sm font-semibold mb-1" style={{ color: c.text }}>This company isn't linked to an operations estate yet</p>
+        <p className="text-xs mb-4" style={{ color: c.textDim }}>
+          Link "{companyName}" to your own organisation to surface its sites + equipment + active contract coverage here.
+        </p>
+        <button onClick={linkSelf}
+          className="px-4 py-2 text-xs font-semibold rounded-md bg-[var(--color-info-ios)] text-white hover:bg-[var(--color-brand-blue-deep)]"
+          data-testid="sites-equipment-link-self">
+          Link to my organisation
+        </button>
+      </div>
+    );
+  }
+
+  const { sites, totals, linked_via } = data;
+  return (
+    <div className="space-y-3" data-testid="sites-equipment-panel">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {[
+          { label: 'Sites', value: totals?.sites ?? 0, tint: 'var(--color-info-ios)' },
+          { label: 'Equipment', value: totals?.equipment ?? 0, tint: 'var(--color-text-muted)' },
+          { label: 'Covered', value: totals?.covered ?? 0, tint: 'var(--color-success-alt)' },
+          { label: 'Expiring < 90d', value: totals?.expiring_soon ?? 0, tint: 'var(--color-warning)' },
+        ].map((k) => (
+          <div key={k.label} className="rounded-lg p-3 border" style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: c.border }}>
+            <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: c.textDim }}>{k.label}</p>
+            <p className="text-xl font-bold mt-0.5" style={{ color: k.tint }}>{k.value}</p>
+          </div>
+        ))}
+      </div>
+      {linked_via === 'name_match' && (
+        <p className="text-[10px] italic" style={{ color: c.textDim }} data-testid="sites-equipment-linked-by-name">
+          Auto-linked to your organisation by name match.
+        </p>
+      )}
+      {sites.length === 0 && (
+        <div className="rounded-xl p-6 text-center" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-50)', border: `1px dashed ${c.border}` }}>
+          <p className="text-sm" style={{ color: c.textDim }}>No sites yet — onboard a site in Operations to see it here.</p>
+        </div>
+      )}
+      {sites.map((s) => (
+        <div key={s.id} className="rounded-lg border" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: c.border }} data-testid={`sites-equipment-site-${s.id}`}>
+          <button type="button" onClick={() => setExpanded((p) => ({ ...p, [s.id]: !p[s.id] }))}
+            className="w-full px-3 py-2 flex items-center justify-between text-left">
+            <div className="flex items-center gap-2">
+              <ChevronRight size={14} style={{ color: c.textDim, transform: expanded[s.id] ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+              <MapPin size={13} style={{ color: 'var(--color-info-ios)' }} />
+              <span className="text-sm font-semibold" style={{ color: c.text }}>{s.name}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-3)' : 'var(--color-neutral-100)', color: c.textDim }}>
+                {s.equipment_count} eq
+              </span>
+            </div>
+          </button>
+          {expanded[s.id] && (
+            <div className="border-t" style={{ borderColor: c.border }}>
+              {s.equipment.length === 0 && (
+                <p className="px-3 py-3 text-xs" style={{ color: c.textDim }}>No equipment at this site yet.</p>
+              )}
+              {s.equipment.map((eq) => (
+                <div key={eq.id} className="px-3 py-2 flex items-center justify-between gap-3 border-b last:border-b-0" style={{ borderColor: c.border }} data-testid={`sites-equipment-eq-${eq.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: c.text }}>{eq.name || '(unnamed)'}</p>
+                    <p className="text-[11px] truncate" style={{ color: c.textDim }}>
+                      {[eq.manufacturer, eq.model, eq.serial_number && `S/N ${eq.serial_number}`].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <CoverageBadge coverage={eq.coverage} isDark={isDark} />
+                  <button type="button"
+                    onClick={() => setCoverageModal({ equipment_id: eq.id, equipment_name: eq.name, site_id: s.id === '__unassigned__' ? '' : s.id, current_coverage: eq.coverage })}
+                    className="text-[11px] px-2 py-1 rounded font-semibold"
+                    style={{ background: eq.coverage.has_coverage ? 'transparent' : 'var(--color-info-ios)',
+                             color: eq.coverage.has_coverage ? 'var(--color-info-ios)' : '#fff',
+                             border: eq.coverage.has_coverage ? `1px solid var(--color-info-ios)` : 'none' }}
+                    data-testid={`sites-equipment-add-cover-${eq.id}`}>
+                    {eq.coverage.has_coverage ? 'Manage' : '+ Add coverage'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {coverageModal && (
+        <AddCoverageModal
+          companyId={companyId} state={coverageModal}
+          onClose={() => setCoverageModal(null)} onSaved={() => { setCoverageModal(null); load(); }}
+          API={API} headers={headers} c={c} isDark={isDark}
+        />
+      )}
+    </div>
+  );
+}
+
+function CoverageBadge({ coverage, isDark }) {
+  if (!coverage?.has_coverage) {
+    return (
+      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" data-testid="coverage-badge-none"
+        style={{ background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2', color: '#DC2626' }}>
+        Not covered
+      </span>
+    );
+  }
+  const tier = coverage.tier || 'covered';
+  const end = coverage.end_date || '';
+  const endFmt = end ? end.split('-').reverse().join('/') : '';
+  const today = new Date();
+  const cutoff = new Date(today.getTime() + 90 * 86400000);
+  const endDate = end ? new Date(end + 'T00:00:00Z') : null;
+  const expiringSoon = endDate && endDate <= cutoff;
+  const bg = expiringSoon ? (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7') : (isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7');
+  const fg = expiringSoon ? '#D97706' : '#16A34A';
+  return (
+    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" data-testid="coverage-badge-active"
+      style={{ background: bg, color: fg }} title={`${coverage.contract_title || ''} — ${coverage.coverage_type || ''}`}>
+      {tier} · {endFmt || '—'}
+    </span>
+  );
+}
+
+function AddCoverageModal({ companyId, state, onClose, onSaved, API, headers, c, isDark }) {
+  const [contracts, setContracts] = useState([]);
+  const [form, setForm] = useState({
+    contract_id: '',
+    coverage_type: 'full',
+    warranty_end: '',
+    contract_title: `Aftersales — ${state.equipment_name || 'equipment'}`,
+    tier: 'bronze',
+    start_date: new Date().toISOString().slice(0, 10),
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${API}/crm/v2/contracts?company_id=${companyId}&status=active`, { headers: headers() })
+      .then((r) => setContracts(r.data?.contracts || r.data || []))
+      .catch(() => setContracts([]));
+  }, [API, headers, companyId]);
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        equipment_id: state.equipment_id,
+        site_id: state.site_id,
+        contract_id: form.contract_id || '',
+        coverage_type: form.coverage_type,
+        warranty_end: form.warranty_end || '',
+      };
+      if (!form.contract_id) {
+        payload.contract_title = form.contract_title;
+        payload.tier = form.tier;
+        payload.start_date = form.start_date;
+        payload.end_date = form.warranty_end || '';
+      }
+      await axios.post(`${API}/crm/v2/companies/${companyId}/equipment-coverage`, payload, { headers: headers() });
+      onSaved();
+    } catch (e) {
+      window.alert(e?.response?.data?.detail || 'Save failed');
+    }
+    setSaving(false);
+  };
+
+  const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md mx-4 rounded-xl p-5 shadow-2xl"
+        style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="add-coverage-modal">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold" style={{ color: c.text }}>Add coverage — {state.equipment_name}</h3>
+          <button onClick={onClose} style={{ color: c.textDim }}><X size={14} /></button>
+        </div>
+        <div className="space-y-2">
+          <label className="block">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.textDim }}>Contract</span>
+            <select value={form.contract_id} onChange={(e) => setForm({ ...form, contract_id: e.target.value })}
+              className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="add-coverage-contract">
+              <option value="">+ Create a new aftersales contract</option>
+              {contracts.map((ct) => (
+                <option key={ct.id} value={ct.id}>{ct.contract_number || ct.title} — {ct.tier} {ct.end_date ? `(until ${ct.end_date})` : ''}</option>
+              ))}
+            </select>
+          </label>
+          {!form.contract_id && (
+            <>
+              <label className="block">
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.textDim }}>New contract title</span>
+                <input value={form.contract_title} onChange={(e) => setForm({ ...form, contract_title: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="add-coverage-title" />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.textDim }}>Tier</span>
+                  <select value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="add-coverage-tier">
+                    {['warranty', 'bronze', 'silver', 'gold', 'platinum', 'bespoke'].map((t) => (
+                      <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.textDim }}>Start date</span>
+                  <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="add-coverage-start" />
+                </label>
+              </div>
+            </>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.textDim }}>Coverage type</span>
+              <select value={form.coverage_type} onChange={(e) => setForm({ ...form, coverage_type: e.target.value })}
+                className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="add-coverage-type">
+                <option value="full">Full (parts + labour)</option>
+                <option value="parts_only">Parts only</option>
+                <option value="labour_only">Labour only</option>
+                <option value="inspection">Inspection only</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.textDim }}>Cover until</span>
+              <input type="date" value={form.warranty_end} onChange={(e) => setForm({ ...form, warranty_end: e.target.value })}
+                className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="add-coverage-end" />
+            </label>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-3 py-1.5 text-xs" style={{ color: c.textMuted }}>Cancel</button>
+          <button onClick={submit} disabled={saving}
+            className="px-4 py-1.5 bg-[var(--color-info-ios)] text-white text-xs font-semibold rounded-md disabled:opacity-50"
+            data-testid="add-coverage-save">
+            {saving ? 'Saving…' : 'Add coverage'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══ COMPANY DETAIL ═══ */
 function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTab, navigateTo }) {
   const [company, setCompany] = useState(null);
@@ -578,6 +875,11 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
     { id: 'contacts', label: `Contacts (${company.contacts?.length || 0})` },
     { id: 'opportunities', label: `Deals (${company.opportunities?.length || 0})` },
     { id: 'cases', label: `Cases (${company.cases?.length || 0})` },
+    // Iter 216h196 — Phase 1 of the Ops↔CRM↔ServiceDesk linkage:
+    // surfaces the company's linked-org sites + machines with live
+    // contract-coverage badges, and lets operators attach aftersales
+    // contracts directly from this view.
+    { id: 'sites_equipment', label: 'Sites & Equipment' },
     { id: 'assets', label: `Assets (${company.assets?.length || 0})` },
     { id: 'quotes', label: `Quotes (${company.quotes?.length || 0})` },
     { id: 'drawings', label: 'Drawings' },
@@ -836,6 +1138,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
         )}
 
         {/* Equipment from Portal */}
+        {activeSection === 'sites_equipment' && (
+          <SitesAndEquipmentTab companyId={companyId} companyName={company.name} API={API} headers={headers} c={c} isDark={isDark} />
+        )}
+
         {activeSection === 'equipment' && (
           <PortalEquipmentTab companyId={companyId} API={API} headers={headers} c={c} isDark={isDark} />
         )}

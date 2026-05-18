@@ -731,9 +731,9 @@ async def list_crm_tags(user=Depends(get_crm_user)):
     org_filter.pop("$or", None)  # don't drag the user-visibility OR clause; tags are public
 
     pipelines = [
-        ("crm_contacts", {"_id": 0, "tags": 1}),
-        ("crm_companies", {"_id": 0, "tags": 1}),
-        ("crm_deals", {"_id": 0, "tags": 1}),
+        ("crm2_contacts", {"_id": 0, "tags": 1}),
+        ("crm2_companies", {"_id": 0, "tags": 1}),
+        ("crm2_opportunities", {"_id": 0, "tags": 1}),
     ]
     seen: dict[str, int] = {}
     for coll_name, proj in pipelines:

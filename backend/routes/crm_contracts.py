@@ -643,3 +643,291 @@ async def sync_to_sage(contract_id: str, user=Depends(get_crm_user)):
         "updated_at": _now(),
     }})
     return {"success": True, "sage_reference": sage_ref}
+
+
+
+# ── PHASE 1: SITES & EQUIPMENT TAB ─────────────────────────────────
+#
+# Iter 216h196 — Lee's ask: CRM Company → Sites & Equipment tab. For
+# the Company in CRM, surface the org's sites + their equipment with
+# real-time contract-coverage badges so the Pulse Fitness team can
+# attach aftersales contracts to specific machines and (via Phase 2)
+# the Operations app sees that coverage too.
+#
+# Linking strategy (least-friction):
+#   1. If `crm_companies.linked_organization_id` is set explicitly,
+#      use that org's sites/equipment.
+#   2. Else if the company name case-insensitively matches the user's
+#      own org name, treat this CRM company as the self-record and
+#      return the user's own org's data. (This is how Pulse Fitness
+#      naturally ends up with "Pulse Fitness Limited" in CRM that
+#      maps to their own HQ org.)
+#   3. Else return empty — future phases will let the operator pick
+#      an organisation to link.
+
+
+def _coverage_for_equipment(equipment_id: str, contract_assets: list[dict],
+                            contracts_by_id: dict, today: str) -> dict:
+    """Resolve the best active coverage for one piece of equipment.
+
+    Walks every ``crm2_contract_assets`` row whose ``asset_id`` matches
+    and picks the highest-tier active contract. ``best_tier`` ordering
+    mirrors ``CONTRACT_TIERS`` (warranty < bronze < silver < gold <
+    platinum < bespoke).
+    """
+    tier_order = {t["id"]: i for i, t in enumerate(CONTRACT_TIERS)}
+    matches = [a for a in contract_assets if a.get("asset_id") == equipment_id]
+    best = None
+    for a in matches:
+        contract = contracts_by_id.get(a.get("contract_id"))
+        if not contract or contract.get("status") not in {"active", "signed", "expiring"}:
+            continue
+        end = contract.get("end_date", "")
+        if end and end < today:
+            continue
+        rank = tier_order.get(contract.get("tier", ""), -1)
+        if not best or rank > best["_rank"]:
+            best = {
+                "_rank": rank,
+                "has_coverage": True,
+                "contract_id": contract.get("id"),
+                "contract_number": contract.get("contract_number"),
+                "contract_title": contract.get("title"),
+                "tier": contract.get("tier"),
+                "coverage_type": a.get("coverage_type", "full"),
+                "start_date": contract.get("start_date"),
+                "end_date": end,
+                "exclusions": a.get("exclusions", ""),
+            }
+    if not best:
+        return {"has_coverage": False, "contract_id": None}
+    # Drop the internal rank field from the response.
+    best.pop("_rank", None)
+    return best
+
+
+@router.get("/companies/{company_id}/sites-and-equipment")
+async def company_sites_and_equipment(company_id: str, user=Depends(get_crm_user)):
+    """Returns the linked-organisation's sites + equipment with
+    contract-coverage badges. Phase 1 of the Operations ↔ CRM ↔ Service
+    Desk linkage.
+
+    Response shape:
+        {
+          "linked_organization_id": "<org_id or null>",
+          "linked_via": "explicit_link" | "name_match" | "unlinked",
+          "sites": [
+            {
+              "id": "...", "name": "...",
+              "equipment": [
+                {
+                  "id": "...", "name": "...", "model": "...",
+                  "serial_number": "...", "manufacturer": "...",
+                  "warranty_expiry": "YYYY-MM-DD",
+                  "coverage": { "has_coverage": bool, ...best tier },
+                },
+              ],
+            },
+          ],
+          "totals": {"sites": N, "equipment": N, "covered": N, "expiring_soon": N},
+        }
+    """
+    of = _of(user)
+    company = await db.crm2_companies.find_one({"id": company_id, **of}, {"_id": 0})
+    if not company:
+        raise HTTPException(404, "Company not found")
+
+    # Step 1 — resolve linked organization id.
+    linked_org_id = company.get("linked_organization_id") or ""
+    linked_via = "explicit_link" if linked_org_id else None
+    if not linked_org_id:
+        user_org_id = user.get("organization_id") or ""
+        if user_org_id:
+            user_org = await db.organizations.find_one(
+                {"id": user_org_id}, {"_id": 0, "name": 1}
+            ) or {}
+            user_org_name = (user_org.get("name") or "").strip().lower()
+            company_name = (company.get("name") or "").strip().lower()
+            if user_org_name and user_org_name == company_name:
+                linked_org_id = user_org_id
+                linked_via = "name_match"
+    if not linked_org_id:
+        return {
+            "linked_organization_id": None, "linked_via": "unlinked",
+            "sites": [], "totals": {"sites": 0, "equipment": 0, "covered": 0, "expiring_soon": 0},
+        }
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    expiring_cutoff = (datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
+
+    # Step 2 — sites for the linked org.
+    sites = await db.sites.find(
+        {"organization_id": linked_org_id, "status": {"$ne": "archived"}},
+        {"_id": 0, "id": 1, "name": 1, "status": 1, "city": 1, "postcode": 1},
+    ).sort("name", 1).to_list(500)
+
+    # Step 3 — equipment for the linked org (filtered to known sites).
+    equipment = await db.equipment.find(
+        {"organization_id": linked_org_id},
+        {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "manufacturer": 1,
+         "supplier": 1, "serial_number": 1, "site_id": 1, "location": 1,
+         "warranty_expiry": 1, "sla_expiry": 1, "sla_contract_ref": 1,
+         "sla_response_time": 1, "status": 1, "photo_url": 1},
+    ).sort("name", 1).to_list(5000)
+
+    # Step 4 — preload contract assets + contracts to resolve coverage.
+    eq_ids = [e["id"] for e in equipment if e.get("id")]
+    contract_assets = await db.crm2_contract_assets.find(
+        {"asset_id": {"$in": eq_ids}, **of}, {"_id": 0},
+    ).to_list(5000) if eq_ids else []
+    contract_ids = list({a.get("contract_id") for a in contract_assets if a.get("contract_id")})
+    contracts = await db.crm2_contracts.find(
+        {"id": {"$in": contract_ids}, **of}, {"_id": 0},
+    ).to_list(2000) if contract_ids else []
+    contracts_by_id = {c.get("id"): c for c in contracts}
+
+    # Step 5 — bucket equipment by site, resolve coverage, count totals.
+    by_site: dict[str, list[dict]] = {}
+    for eq in equipment:
+        sid = eq.get("site_id") or "__unassigned__"
+        coverage = _coverage_for_equipment(eq["id"], contract_assets, contracts_by_id, today)
+        eq_out = {
+            "id": eq.get("id"),
+            "name": eq.get("name"),
+            "model": eq.get("model") or eq.get("model_code") or "",
+            "manufacturer": eq.get("manufacturer") or eq.get("supplier") or "",
+            "serial_number": eq.get("serial_number", ""),
+            "location": eq.get("location", ""),
+            "warranty_expiry": eq.get("warranty_expiry", ""),
+            "sla_expiry": eq.get("sla_expiry", ""),
+            "sla_response_time": eq.get("sla_response_time", ""),
+            "sla_contract_ref": eq.get("sla_contract_ref", ""),
+            "status": eq.get("status", "operational"),
+            "photo_url": eq.get("photo_url"),
+            "coverage": coverage,
+        }
+        by_site.setdefault(sid, []).append(eq_out)
+
+    site_rows = []
+    for s in sites:
+        eqs = by_site.get(s["id"], [])
+        site_rows.append({**s, "equipment": eqs, "equipment_count": len(eqs)})
+
+    # If there's equipment on no recognised site, surface it under
+    # "Unassigned" so the operator notices the orphan and tags a site.
+    unassigned = by_site.get("__unassigned__", [])
+    if unassigned:
+        site_rows.append({
+            "id": "__unassigned__", "name": "Unassigned (no site tagged)",
+            "equipment": unassigned, "equipment_count": len(unassigned),
+        })
+
+    # Totals.
+    flat = [e for s in site_rows for e in s["equipment"]]
+    covered_count = sum(1 for e in flat if e["coverage"]["has_coverage"])
+    expiring_count = sum(
+        1 for e in flat
+        if e["coverage"]["has_coverage"] and (e["coverage"].get("end_date") or "") <= expiring_cutoff
+    )
+
+    return {
+        "linked_organization_id": linked_org_id,
+        "linked_via": linked_via,
+        "sites": site_rows,
+        "totals": {
+            "sites": len(site_rows),
+            "equipment": len(flat),
+            "covered": covered_count,
+            "uncovered": len(flat) - covered_count,
+            "expiring_soon": expiring_count,
+        },
+    }
+
+
+@router.post("/companies/{company_id}/link-organization")
+async def link_company_to_organization(company_id: str, data: dict,
+                                       user=Depends(get_crm_user)):
+    """Explicitly link a CRM Company to an Operations Organisation.
+    Sets ``linked_organization_id`` on ``crm_companies`` so the Sites &
+    Equipment tab returns that org's estate even when names don't match.
+    """
+    of = _of(user)
+    company = await db.crm2_companies.find_one({"id": company_id, **of}, {"_id": 0, "id": 1})
+    if not company:
+        raise HTTPException(404, "Company not found")
+    org_id = (data.get("organization_id") or "").strip()
+    if not org_id:
+        raise HTTPException(400, "organization_id is required")
+    # Only let users link to their own organisation for now (multi-tenant
+    # safety: don't let CRM-Pro orgs reach into someone else's data).
+    if org_id != user.get("organization_id"):
+        raise HTTPException(403, "Can only link a company to your own organisation")
+    await db.crm2_companies.update_one(
+        {"id": company_id, **of},
+        {"$set": {"linked_organization_id": org_id, "linked_at": _now()}},
+    )
+    return {"success": True, "linked_organization_id": org_id}
+
+
+@router.post("/companies/{company_id}/equipment-coverage")
+async def attach_equipment_to_contract(company_id: str, data: dict,
+                                       user=Depends(get_crm_user)):
+    """Convenience wrapper for the "Add coverage" modal on the Sites &
+    Equipment tab. Either attaches an equipment to an existing contract
+    OR creates a brand-new contract + attaches in one call.
+    """
+    equipment_id = (data.get("equipment_id") or "").strip()
+    if not equipment_id:
+        raise HTTPException(400, "equipment_id is required")
+    contract_id = (data.get("contract_id") or "").strip()
+    coverage_type = data.get("coverage_type", "full")
+    site_id = data.get("site_id", "")
+    warranty_end = data.get("warranty_end", "")
+
+    if not contract_id:
+        # Create a fresh contract on the fly using the data the modal
+        # collected. The CRM contract list view exposes the rest of
+        # the contract editing surface (renewal, signatures, etc.).
+        new_contract = {
+            "id": _id(), "organization_id": user.get("organization_id"),
+            "contract_number": f"GAX-{datetime.now(timezone.utc).strftime('%Y%m')}-{_id()[:6].upper()}",
+            "company_id": company_id,
+            "title": data.get("contract_title") or "Aftersales coverage",
+            "tier": data.get("tier", "bronze"),
+            "type": data.get("type", "aftersales"),
+            "status": "active",
+            "start_date": data.get("start_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "end_date": warranty_end or data.get("end_date") or "",
+            "annual_value": data.get("annual_value", 0),
+            "currency": data.get("currency", "GBP"),
+            "auto_renew": bool(data.get("auto_renew", False)),
+            "created_by": user.get("id"),
+            "created_at": _now(),
+            "updated_at": _now(),
+        }
+        await db.crm2_contracts.insert_one(new_contract)
+        contract_id = new_contract["id"]
+        await record_audit(entity_type="contract", entity_id=contract_id, action="create",
+                           user=user, after={k: v for k, v in new_contract.items() if k != "_id"})
+
+    # Resolve / look up equipment metadata to copy onto the asset row.
+    eq = await db.equipment.find_one(
+        {"id": equipment_id}, {"_id": 0, "name": 1, "model": 1, "serial_number": 1, "site_id": 1},
+    ) or {}
+
+    asset = {
+        "id": _id(), "contract_id": contract_id,
+        "organization_id": user.get("organization_id"),
+        "site_id": site_id or eq.get("site_id", ""),
+        "asset_id": equipment_id,
+        "asset_name": eq.get("name", ""),
+        "model_code": eq.get("model", ""),
+        "serial_number": eq.get("serial_number", ""),
+        "warranty_end": warranty_end,
+        "coverage_type": coverage_type,
+        "exclusions": data.get("exclusions", ""),
+        "created_at": _now(),
+    }
+    await db.crm2_contract_assets.insert_one(asset)
+    asset.pop("_id", None)
+    return {"success": True, "contract_id": contract_id, "asset": asset}

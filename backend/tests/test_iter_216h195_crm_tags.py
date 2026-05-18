@@ -65,9 +65,9 @@ def test_tags_endpoint_aggregates_by_frequency() -> None:
     deals = [{"tags": ["newsletter"]}, {"tags": None}]
 
     fake_db = MagicMock()
-    fake_db.crm_contacts = _make_async_iter(contacts)
-    fake_db.crm_companies = _make_async_iter(companies)
-    fake_db.crm_deals = _make_async_iter(deals)
+    fake_db.crm2_contacts = _make_async_iter(contacts)
+    fake_db.crm2_companies = _make_async_iter(companies)
+    fake_db.crm2_opportunities = _make_async_iter(deals)
 
     with patch.object(cv, "compute_visibility", side_effect=fake_visibility), \
          patch.object(cv, "db", fake_db):
@@ -96,9 +96,9 @@ def test_tags_endpoint_skips_blanks_and_none() -> None:
     deals = []
 
     fake_db = MagicMock()
-    fake_db.crm_contacts = _make_async_iter(contacts)
-    fake_db.crm_companies = _make_async_iter(companies)
-    fake_db.crm_deals = _make_async_iter(deals)
+    fake_db.crm2_contacts = _make_async_iter(contacts)
+    fake_db.crm2_companies = _make_async_iter(companies)
+    fake_db.crm2_opportunities = _make_async_iter(deals)
 
     with patch.object(cv, "compute_visibility", side_effect=fake_visibility), \
          patch.object(cv, "db", fake_db):
@@ -117,9 +117,9 @@ def test_tags_endpoint_handles_empty_collections() -> None:
         return {"organization_id": "org-1"}
 
     fake_db = MagicMock()
-    fake_db.crm_contacts = _make_async_iter([])
-    fake_db.crm_companies = _make_async_iter([])
-    fake_db.crm_deals = _make_async_iter([])
+    fake_db.crm2_contacts = _make_async_iter([])
+    fake_db.crm2_companies = _make_async_iter([])
+    fake_db.crm2_opportunities = _make_async_iter([])
 
     with patch.object(cv, "compute_visibility", side_effect=fake_visibility), \
          patch.object(cv, "db", fake_db):

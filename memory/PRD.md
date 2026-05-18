@@ -1,3 +1,52 @@
+## Iter 216h196 — Phase 1: Ops↔CRM↔ServiceDesk Link (May 18, 2026) ✅
+
+Lee's ask: Pulse Fitness HQ wants its child sites (iGym Carshalton, iGym Congleton) surfaced inside CRM so aftersales contracts can be attached to specific machines. User chose **Phase 1 only** for now (Sites & Equipment tab in CRM + Add Coverage modal). Phases 2 (Operations coverage panel) and 3 (Service Desk auto-warranty-check) deferred for next iteration.
+
+### Backend (new endpoints, all prefixed `/api/crm/v2`)
+1. **`GET /companies/{id}/sites-and-equipment`** — joins Operations sites + equipment with CRM contract coverage. Resolves coverage by walking `crm2_contract_assets` → `crm2_contracts`, picks the highest-tier active contract per equipment.
+   - Auto-link resolution: (1) explicit `linked_organization_id`, (2) case-insensitive name match between the CRM company and the user's own organisation, (3) `unlinked` (user must link manually).
+   - Response includes per-site equipment list with coverage badge + totals (sites / equipment / covered / uncovered / expiring < 90d).
+   - Orphan equipment (no site_id) bucketed under "Unassigned (no site tagged)" so operators notice and fix.
+2. **`POST /companies/{id}/link-organization`** — explicitly links a CRM Company to an Operations Org. Multi-tenant safe: only allows linking to user's own org (HTTP 403 otherwise).
+3. **`POST /companies/{id}/equipment-coverage`** — convenience wrapper: either attach equipment to an existing contract OR create a new contract + attach in one call.
+
+### Frontend
+- **New tab in CRM Company Detail** ("Sites & Equipment"). KPI strip at top (Sites / Equipment / Covered / Expiring < 90d), then per-site cards with expandable equipment lists.
+- Per-equipment **coverage badge**: 🔴 "Not covered" / 🟢 "GOLD · 31/12/2027" / 🟡 "BRONZE · 15/02/2026" (auto-amber if < 90 days to expiry).
+- **"+ Add coverage"** button per equipment opens `AddCoverageModal` which lets operators (a) pick from existing active contracts, or (b) create a fresh contract inline with title/tier/dates.
+- **"Manage"** label replaces "+ Add coverage" once coverage is active (Phase 2 will hook this into the contract detail view).
+- **Auto-link helper**: if the company isn't linked, shows a clean empty state with one-click "Link to my organisation" CTA.
+
+### Bug fixed in passing
+- **Iter h195 tags endpoint** was reading `crm_contacts` / `crm_companies` / `crm_deals` (CRM v1 collection names); fixed to `crm2_contacts` / `crm2_companies` / `crm2_opportunities` so the workflow builder tag autocomplete works against real data.
+
+### Tests
+- `backend/tests/test_iter_216h196_sites_and_equipment.py` — **8/8** ✅
+  - unlinked path
+  - explicit `linked_organization_id` priority
+  - case-insensitive name-match auto-link
+  - coverage tier selection (gold beats bronze)
+  - expired contracts excluded from coverage
+  - orphan equipment surfaces under "Unassigned"
+  - link-org multi-tenant safety (403 on other-org id)
+  - link-org happy path
+- **28/28** regression suite across iters 192/193/194/195/196 passes
+- Backend lint clean
+
+### Files
+* `backend/routes/crm_contracts.py` (3 new endpoints + helper `_coverage_for_equipment`)
+* `backend/routes/crm_v2.py` (tags endpoint collection-name fix)
+* `backend/tests/test_iter_216h196_sites_and_equipment.py` (NEW, 8 pytests)
+* `backend/tests/test_iter_216h195_crm_tags.py` (updated for crm2_* collection names)
+* `frontend/src/pages/CRM/CRMCompanies.js` (Sites & Equipment tab + AddCoverageModal + CoverageBadge components)
+
+### Next phases (deferred per user)
+- **Phase 2** — Operations Equipment Detail: "Coverage" panel + click-through to CRM contract
+- **Phase 3** — Service Desk: auto-warranty-check on fault log + `billable` flag
+
+---
+
+
 ## Iter 216h195 — Wave 2 Dropdown Audit (May 18, 2026) ✅
 
 User chose option C — ship all three tiers from the dropdown audit. Eleven free-text fields across CRM / Memberships / Marketing / Staffing now offer dropdowns or datalist suggestions (with free-text fallback preserved everywhere).
