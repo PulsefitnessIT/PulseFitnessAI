@@ -1,0 +1,99 @@
+{
+  "summary": "Iter 216h200 — Craig's Memberships Add Member + Plan-assignment bug fixes verified. All 21 backend tests pass (11 unit + 10 API). Frontend Add Member modal tested: all data-testids found, Notes toggle works, DOB uses custom DatePicker (DD/MM/YYYY), GDPR consent checkbox present, required field indicators (asterisks) shown.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h200_membership_assign_and_add.py",
+    "/app/backend/tests/test_iter_216h200_api_memberships.py",
+    "/app/test_reports/pytest/pytest_results_216h200.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h200_api_memberships.py"
+  ],
+  "success_rate": {
+    "backend": "100% (21/21 tests passed: 11 unit + 10 API)",
+    "frontend": "100% (all data-testids found, modal features working)"
+  },
+  "test_credentials": "e1.agent@gymaxisai.com / E1Agent123!",
+  "seed_data_creation": "Created TEST_Gym_Membership plan (id: 732ada75-511b-4184-9711-ce02f42dcc53) for testing",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h200 fixes Craig's reported bugs: (A) POST /api/memberships/members/{id}/assign-plan is now idempotent - clicking twice returns {idempotent: true}, no duplicate rows. (B) GET /api/memberships/members now surfaces pending_payment status with plan info (was showing 'No plan'). (C) POST /api/memberships/members validates: email format, phone required, emergency_contact_phone required, gdpr_consent required. Postcode auto-uppercased. (D) Frontend AddMemberModal.js has all new data-testids: mbr-new-email, mbr-new-phone, mbr-new-dob, mbr-new-eg-phone, mbr-new-notes-toggle, mbr-new-notes, mbr-new-gdpr-consent, mbr-new-marketing-consent, mbr-new-save. Notes is collapsed by default with '+ Add an operator-only note' toggle. DOB uses shared DatePicker (DD/MM/YYYY), not native browser input.",
+  "test_results": {
+    "unit_tests": {
+      "file": "test_iter_216h200_membership_assign_and_add.py",
+      "tests_passed": 11,
+      "tests_total": 11,
+      "test_cases": [
+        "test_assign_plan_is_idempotent_on_same_plan",
+        "test_assign_plan_creates_row_when_no_open_membership",
+        "test_assign_plan_retires_pending_payment_rows_when_switching_plans",
+        "test_members_list_surfaces_pending_payment_in_active_membership",
+        "test_members_list_prefers_active_over_pending_when_both_exist",
+        "test_create_member_rejects_invalid_email",
+        "test_create_member_rejects_empty_phone",
+        "test_create_member_rejects_empty_emergency_phone",
+        "test_create_member_rejects_missing_gdpr_consent",
+        "test_create_member_happy_path_persists_consent_and_uppercases_postcode",
+        "test_create_member_marketing_consent_defaults_false_when_omitted"
+      ]
+    },
+    "api_tests": {
+      "file": "test_iter_216h200_api_memberships.py",
+      "tests_passed": 10,
+      "tests_total": 10,
+      "test_cases": [
+        "test_rejects_malformed_email",
+        "test_rejects_empty_phone",
+        "test_rejects_empty_emergency_phone",
+        "test_rejects_missing_gdpr_consent",
+        "test_happy_path_uppercases_postcode",
+        "test_assign_plan_twice_returns_idempotent",
+        "test_members_list_shows_pending_payment_member",
+        "test_activity_feed_no_replaced_entries",
+        "test_record_payment_activates_membership",
+        "test_members_filtered_includes_pending_payment"
+      ]
+    },
+    "frontend_tests": {
+      "status": "PASS",
+      "tests": [
+        "Add Member modal opens with all data-testids present",
+        "Notes toggle shows '+ Add an operator-only note' and reveals input on click",
+        "DOB uses custom DatePicker (DD/MM/YYYY), not native browser input",
+        "GDPR consent checkbox found",
+        "Marketing consent checkbox found",
+        "Required field indicators (asterisks) on FIRST NAME*, EMAIL*, PHONE*",
+        "Emergency Contact section with NAME and PHONE* fields"
+      ]
+    }
+  },
+  "features_verified": [
+    "POST /api/memberships/members/{id}/assign-plan idempotency - second call returns {idempotent: true}",
+    "POST /api/memberships/members/{id}/assign-plan retires pending_payment rows when switching plans",
+    "GET /api/memberships/members surfaces pending_payment status with plan info",
+    "GET /api/memberships/members prefers active > frozen > pending_payment when multiple rows exist",
+    "POST /api/memberships/members rejects malformed email (400)",
+    "POST /api/memberships/members rejects empty phone (400)",
+    "POST /api/memberships/members rejects empty emergency_contact_phone (400)",
+    "POST /api/memberships/members rejects gdpr_consent=false (400)",
+    "POST /api/memberships/members uppercases postcode",
+    "POST /api/memberships/members persists gdpr_consent_at and marketing_consent_at timestamps",
+    "POST /api/memberships/members/{id}/record-payment retires pending_payment rows",
+    "GET /api/memberships/members/{id}/activity suppresses cancelled+replaced_by_new_plan entries",
+    "GET /api/memberships/members-filtered includes pending_payment status",
+    "Frontend: Add Member modal has all required data-testids",
+    "Frontend: Notes collapsed by default with toggle",
+    "Frontend: DOB uses shared DatePicker (DD/MM/YYYY)",
+    "Frontend: GDPR and marketing consent checkboxes present"
+  ]
+}

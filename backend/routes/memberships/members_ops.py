@@ -258,12 +258,19 @@ async def members_list_filtered(
     rows = await db.members.find(query, {"_id": 0, "password": 0})\
         .sort("created_at", -1).limit(500).to_list(500)
 
-    # Decorate with active membership (same shape as core endpoint)
+    # Decorate with active membership (same shape as core endpoint).
+    # Iter 216h200 — include pending_payment so the column matches the
+    # main /memberships/members endpoint. Prefer active > frozen >
+    # pending_payment if multiple rows exist.
     for r in rows:
-        mm = await db.member_memberships.find_one(
-            {"member_id": r["id"], "status": {"$in": ["active", "frozen"]}},
-            {"_id": 0},
-        )
+        mm = None
+        for st in ("active", "frozen", "pending_payment"):
+            mm = await db.member_memberships.find_one(
+                {"member_id": r["id"], "status": st},
+                {"_id": 0},
+            )
+            if mm:
+                break
         if mm:
             plan = await db.membership_plans.find_one(
                 {"id": mm["plan_id"]},
@@ -565,12 +572,27 @@ async def member_activity_timeline(
                 "at": m.get("portal_invited_at"),
             })
 
-    # Membership audit entries
+    # Membership audit entries.
+    # Iter 216h200 — skip rows that were auto-superseded (Craig's
+    # screenshot showed 3x "Assigned plan" because the assign endpoint
+    # used to spawn duplicate rows; the new endpoint is idempotent but
+    # there's already noise in the wild — filter it out of the feed).
     memberships = await db.member_memberships.find(
         {"member_id": member_id, "organization_id": org_id},
         {"_id": 0},
     ).to_list(50)
+    SUPERSEDED_REASONS = {"replaced_by_new_plan"}
     for mm in memberships:
+        if (mm.get("status") in {"cancelled", "replaced"}
+            and mm.get("cancel_reason") in SUPERSEDED_REASONS):
+            # Auto-superseded by a subsequent assign — internal tidy-up,
+            # not a real customer-facing event.
+            continue
+        if mm.get("status") == "replaced":
+            # `replaced` rows always come from record-payment / assign
+            # superseding an earlier pending row; suppress to avoid the
+            # ghost-assignment chatter.
+            continue
         plan = await db.membership_plans.find_one(
             {"id": mm.get("plan_id")},
             {"_id": 0, "name": 1},

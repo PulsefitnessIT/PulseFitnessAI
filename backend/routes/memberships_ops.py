@@ -209,9 +209,12 @@ async def record_payment(
     if not member:
         raise HTTPException(404, "Member not found")
 
-    # Retire any existing active membership
+    # Retire any existing open membership (Iter 216h200 — previously
+    # only retired `active`, leaving `pending_payment` rows orphaned
+    # in the audit feed).
     await db.member_memberships.update_many(
-        {"member_id": member_id, "status": "active"},
+        {"member_id": member_id,
+         "status": {"$in": ["active", "frozen", "pending_payment"]}},
         {"$set": {"status": "replaced", "replaced_at": _now_iso()}},
     )
 

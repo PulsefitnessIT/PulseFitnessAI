@@ -94,11 +94,33 @@ async def members_list(
     _PLAN_LIST_PROJ = {"_id": 0, "id": 1, "name": 1, "kind": 1, "colour": 1}
     member_ids = [r["id"] for r in rows]
     if member_ids:
+        # Iter 216h200 — Craig's bug: "Assigned plan" appears in activity
+        # but the list column showed "No plan". Root cause: recurring
+        # plans land as `pending_payment` until a payment is recorded,
+        # and the list join only matched `active`/`frozen`. Now we also
+        # surface pending_payment so the column never lies — the
+        # StatusPill ("Pending payment", amber) cues the operator to
+        # finish the payment step.
         mms = await db.member_memberships.find(
-            {"member_id": {"$in": member_ids}, "status": {"$in": ["active", "frozen"]}},
+            {"member_id": {"$in": member_ids},
+             "status": {"$in": ["active", "frozen", "pending_payment"]}},
             _MM_LIST_PROJ,
         ).to_list(len(member_ids) * 2)
-        mm_by_member = {mm["member_id"]: mm for mm in mms}
+        # Iter 216h200 — Prioritise active > frozen > pending_payment
+        # when a member has multiple rows (Craig's screenshot showed
+        # 3 pending_payment + 1 active for the same member). Without
+        # this the dict comprehension kept whichever row Mongo returned
+        # last → could've been a stale pending_payment masking the
+        # actual active membership.
+        _MM_STATUS_RANK = {"active": 0, "frozen": 1, "pending_payment": 2}
+        mm_by_member: dict = {}
+        for mm in mms:
+            mid = mm["member_id"]
+            current = mm_by_member.get(mid)
+            if (current is None
+                or _MM_STATUS_RANK.get(mm.get("status"), 99)
+                   < _MM_STATUS_RANK.get(current.get("status"), 99)):
+                mm_by_member[mid] = mm
         plan_ids = list({mm["plan_id"] for mm in mms if mm.get("plan_id")})
         plan_by_id: dict = {}
         if plan_ids:
@@ -255,6 +277,28 @@ async def members_create(body: dict = Body(...), user: dict = Depends(get_curren
     email = (body.get("email") or "").lower().strip()
     if not email:
         raise HTTPException(400, "email required")
+    # Iter 216h200 — Craig's screenshot called out missing format
+    # validation. Enforce a basic RFC-5322-ish email pattern server-side
+    # so a typo'd address doesn't silently land in the DB.
+    import re as _re
+    if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(400, "Invalid email format")
+    # Iter 216h200 — phone is now mandatory (PT visit, fault alerts,
+    # SOS calls all rely on it). Strip whitespace before validating.
+    phone = (body.get("phone") or "").strip()
+    if not phone:
+        raise HTTPException(400, "phone required")
+    # Iter 216h200 — emergency contact phone is now mandatory on create
+    # (gym duty-of-care: a member can't sign up without an in-case-of-
+    # accident number on file).
+    eg_phone = (body.get("emergency_contact_phone") or "").strip()
+    if not eg_phone:
+        raise HTTPException(400, "emergency_contact_phone required")
+    # Iter 216h200 — GDPR consent. Must explicitly accept T&Cs.
+    # Marketing consent stored separately so we can honour opt-outs
+    # (defaults to False if absent — never opt people in by accident).
+    if not bool(body.get("gdpr_consent")):
+        raise HTTPException(400, "GDPR consent (T&Cs acceptance) required")
     if await db.members.find_one({"email": email}):
         raise HTTPException(409, "Email already registered")
 
@@ -282,7 +326,7 @@ async def members_create(body: dict = Body(...), user: dict = Depends(get_curren
         "password": pwd_ctx.hash(secrets.token_urlsafe(16)),  # placeholder — member sets via magic link
         "first_name": sanitise_string(body.get("first_name") or "—"),
         "last_name": sanitise_string(body.get("last_name") or ""),
-        "phone": body.get("phone"),
+        "phone": phone,
         "organization_id": org_id,
         "site_id": body.get("site_id"),
         "account_type": "member",
@@ -297,12 +341,18 @@ async def members_create(body: dict = Body(...), user: dict = Depends(get_curren
         "address_line1": sanitise_string(body.get("address_line1") or ""),
         "address_line2": sanitise_string(body.get("address_line2") or ""),
         "city": sanitise_string(body.get("city") or ""),
-        "postcode": sanitise_string(body.get("postcode") or ""),
+        "postcode": sanitise_string(body.get("postcode") or "").upper(),
         "country": sanitise_string(body.get("country") or ""),
         "emergency_contact_name": sanitise_string(body.get("emergency_contact_name") or ""),
-        "emergency_contact_phone": sanitise_string(body.get("emergency_contact_phone") or ""),
+        "emergency_contact_phone": eg_phone,
         "notes": sanitise_string(body.get("notes") or ""),
         "parent_member_id": parent_member_id or None,
+        # Iter 216h200 — GDPR consent (T&Cs is mandatory, marketing is opt-in).
+        "gdpr_consent": True,
+        "gdpr_consent_at": _now_iso(),
+        "gdpr_consent_actor_id": user.get("id"),
+        "marketing_consent": bool(body.get("marketing_consent")),
+        "marketing_consent_at": _now_iso() if body.get("marketing_consent") else None,
     }
     await db.members.insert_one(member)
     await db.qr_rotation_secret.insert_one({
@@ -491,9 +541,29 @@ async def members_assign_plan(member_id: str, body: dict = Body(...), user: dict
     plan = await db.membership_plans.find_one({"id": plan_id, "organization_id": org_id}, {"_id": 0})
     if not plan:
         raise HTTPException(404, "Plan not found")
-    # Cancel any currently-active membership (one active at a time for MVP)
+    # Iter 216h200 — Idempotency fix (Craig's screenshot showed 3x
+    # "Assigned plan 'Gym Membership'" in the activity feed). Clicking
+    # the assign button twice on the same plan previously created two
+    # rows + two audit-log entries. Now we no-op when an open (active /
+    # frozen / pending_payment) row already exists for this plan.
+    existing = await db.member_memberships.find_one(
+        {"member_id": member_id,
+         "plan_id": plan_id,
+         "status": {"$in": ["active", "frozen", "pending_payment"]}},
+        {"_id": 0},
+    )
+    if existing:
+        return {
+            "membership": existing,
+            "requires_payment": existing.get("status") == "pending_payment",
+            "idempotent": True,
+        }
+    # Cancel any currently-open membership on a DIFFERENT plan. Now
+    # also retires pending_payment rows (previously left orphaned, which
+    # caused the audit-log to accumulate stale "Assigned" entries).
     await db.member_memberships.update_many(
-        {"member_id": member_id, "status": {"$in": ["active", "frozen"]}},
+        {"member_id": member_id,
+         "status": {"$in": ["active", "frozen", "pending_payment"]}},
         {"$set": {"status": "cancelled", "cancel_effective_date": _now_iso(),
                   "cancel_reason": "replaced_by_new_plan"}},
     )
