@@ -11,11 +11,10 @@ _Last refreshed: Iter 216h212 · May 18 2026_
 
 ### P0 — None currently open. (h208 site_id fix shipped.)
 
-### P2 — UX polish from h212 audit (no functional impact)
-- **NPS survey popup** appears on every page — too frequent. Rate-limit per user-session (e.g. once per 7 days).
-- **PWA "Install App" prompt** appears frequently — consider once-per-session at most, or trigger on engagement signal (3+ navigations).
-- **CSP violations in console** for external scripts (`emergent-main.js`, PostHog, Cloudflare). Functionality unaffected, but noisy console undermines trust during stakeholder demos. Add hosts to CSP or conditionally load on the routes that need them.
-- **Status**: defer to a polish iteration.
+### P2 — UX polish (h212 audit findings — ALL RESOLVED in h214)
+- ~~NPS popup appears on every page~~ → **FIXED h214**: `localStorage`-persisted dismissal + 7-day client-side "last shown" cooldown.
+- ~~PWA "Install App" prompt too frequent~~ → **FIXED h214**: once-per-session via `sessionStorage` + 7-day cross-session throttle + delay raised 3s → 30s (engagement signal).
+- ~~CSP violations for emergent-main.js / PostHog / Cloudflare~~ → **FIXED h214**: added `https://assets.emergent.sh`, `https://*.posthog.com`, `https://*.i.posthog.com`, `https://static.cloudflareinsights.com` to `script-src`.
 
 ### P1 — Class Builder reported "crash" (Iter 216h209 — COULD NOT REPRODUCE)
 - **Reporter**: Craig (live preview).
@@ -83,7 +82,9 @@ _Last refreshed: Iter 216h212 · May 18 2026_
 
 | Iter | Fix |
 |------|-----|
-| h212 | Service Desk + CRM + MOD audit — no P0s, 0 P1s, 3 P2s (NPS popup frequency, PWA prompt frequency, CSP violations for external scripts). Cross-portal isolation guards verified working. MFA enrolment for MOD PRO users verified. |
+| h214 | UX polish — NPS localStorage + 7d cooldown, PWA prompt session-throttled + 30s delay, CSP whitelisted emergent/posthog/cloudflare hosts (closes h212 P2s) |
+| h213 | Regression suite wired into pre-deploy.sh + GitHub Quality Gate + `make regression-full` |
+| h212 | Service Desk + CRM + MOD audit — no P0s, 0 P1s, 3 P2s now fixed in h214. Cross-portal isolation + MFA enrolment verified. |
 | h211 | Regression suite extended Service Desk (20) + MOD (19) + CRM (20). Total now 84 isolated tests, ~2 min runtime, pre-deployment gate. |
 | h210 | Login-failure reason classification + Master Admin diagnostics (`/master-admin?section=login-events` shows colour-coded reason badges; `?section=client-errors` shows React render crashes from ModalErrorBoundary) |
 | h209 | Credit Packs subtab discoverability + full audit passed |

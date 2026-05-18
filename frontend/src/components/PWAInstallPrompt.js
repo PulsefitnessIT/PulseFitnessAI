@@ -34,11 +34,29 @@ export default function PWAInstallPrompt() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  // Show banner after user logs in (delayed to not disrupt flow)
+  // Show banner after user logs in — Iter 216h214: stakeholder audit
+  // (h212) flagged "PWA prompt too frequent". Two cooldowns:
+  //   1. SessionStorage flag — show at most once per browser session.
+  //   2. localStorage timestamp — even across sessions, throttle to once
+  //      per 7 days unless user actively dismisses (which uses a
+  //      separate persistent flag below).
+  //   3. Delay raised from 3s → 30s so we wait for engagement signals
+  //      (the user is actually using the app, not just navigating away).
   const triggerShow = useCallback(() => {
     if (isStandalone() || dismissed) return;
     if (localStorage.getItem('pwa_install_dismissed')) return;
-    setTimeout(() => setShowBanner(true), 3000);
+    if (sessionStorage.getItem('pwa_prompt_shown_session') === '1') return;
+    const lastShown = Number(localStorage.getItem('pwa_prompt_last_shown') || 0);
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    if (lastShown && Date.now() - lastShown < SEVEN_DAYS_MS) return;
+    setTimeout(() => {
+      if (isStandalone() || dismissed) return;
+      if (localStorage.getItem('pwa_install_dismissed')) return;
+      if (sessionStorage.getItem('pwa_prompt_shown_session') === '1') return;
+      setShowBanner(true);
+      sessionStorage.setItem('pwa_prompt_shown_session', '1');
+      localStorage.setItem('pwa_prompt_last_shown', String(Date.now()));
+    }, 30000);
   }, [dismissed]);
 
   useEffect(() => {

@@ -83,17 +83,29 @@ async def security_headers_middleware(request, call_next):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-site"
-    # P3.20 — tightened content policy. Drops `unsafe-eval` (RCE surface); keeps
-    # `unsafe-inline` for style-src (Tailwind/emotion runtime) and script-src
-    # (third-party SDKs like Turnstile/hCaptcha inject inline bootstrap code).
-    # Swagger UI at /docs + /redoc is exempt because fastapi-swagger needs eval.
+    # P3.20 / 216h214 — tightened content policy. Drops `unsafe-eval` (RCE
+    # surface); keeps `unsafe-inline` for style-src (Tailwind/emotion runtime)
+    # and script-src (third-party SDKs like Turnstile/hCaptcha inject inline
+    # bootstrap code). Swagger UI at /docs + /redoc is exempt because
+    # fastapi-swagger needs eval.
+    #
+    # h214 — Craig stakeholder audit (h212) flagged CSP console violations
+    # for assets.emergent.sh / PostHog / Cloudflare-insights. These scripts
+    # are intentionally embedded in /frontend/public/index.html (Emergent
+    # platform telemetry + PostHog product analytics) so they SHOULD be on
+    # the allowlist. Adding them silences the demo-time console noise that
+    # was undermining stakeholder trust.
     path = str(request.url.path)
     if not (path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi.json")):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "img-src 'self' data: blob: https:; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://challenges.cloudflare.com https://js.hcaptcha.com; "
-            "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://js.hcaptcha.com https://js.stripe.com; "
+            "script-src 'self' 'unsafe-inline' "
+            "https://challenges.cloudflare.com https://js.hcaptcha.com https://js.stripe.com "
+            "https://assets.emergent.sh "
+            "https://*.posthog.com https://*.i.posthog.com "
+            "https://static.cloudflareinsights.com; "
             "font-src 'self' data: https://fonts.gstatic.com https://cdn.fontshare.com; "
             "connect-src 'self' https: wss:; "
             "frame-src 'self' https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com; "

@@ -19,12 +19,28 @@ const NPSWidget = () => {
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [open, setOpen] = useState(false);
+  // Iter 216h214 — Craig's audit (h212) flagged "NPS popup on every page".
+  // Two fixes:
+  //   1. Persist closure in localStorage (not sessionStorage) so a refresh
+  //      or new tab respects the dismissal until the server-side cooldown
+  //      lifts naturally.
+  //   2. Add a client-side "last-shown" cooldown of 7 days so even if the
+  //      user just *ignores* the widget (doesn't click X), it doesn't
+  //      ambush them on every page nav within the cooldown window.
   const [closedLocally, setClosedLocally] = useState(
-    () => sessionStorage.getItem('nps_widget_closed') === '1'
+    () => localStorage.getItem('nps_widget_closed') === '1'
+          || sessionStorage.getItem('nps_widget_closed') === '1',
   );
 
   useEffect(() => {
     if (!user || closedLocally) return;
+    // Client-side 7-day "shown recently" cooldown — silent backstop in
+    // case the server's 90-day rule races a page nav.
+    const lastShown = Number(localStorage.getItem('nps_widget_last_shown') || 0);
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    if (lastShown && Date.now() - lastShown < SEVEN_DAYS_MS) {
+      return;
+    }
     let cancel = false;
     const run = async () => {
       const token = localStorage.getItem('token');
@@ -35,7 +51,12 @@ const NPSWidget = () => {
         if (!cancel && res.data?.should_prompt) {
           setEligible(true);
           // Lazy reveal after 8s so we don't ambush a user mid-task.
-          setTimeout(() => { if (!cancel) setOpen(true); }, 8000);
+          setTimeout(() => {
+            if (!cancel) {
+              setOpen(true);
+              localStorage.setItem('nps_widget_last_shown', String(Date.now()));
+            }
+          }, 8000);
         }
       } catch { /* silently skip */ }
     };
@@ -57,6 +78,8 @@ const NPSWidget = () => {
 
   const dismiss = async () => {
     setOpen(false);
+    // Iter 216h214 — persist across reloads + tabs (was sessionStorage).
+    localStorage.setItem('nps_widget_closed', '1');
     sessionStorage.setItem('nps_widget_closed', '1');
     setClosedLocally(true);
     try {

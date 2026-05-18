@@ -1,3 +1,44 @@
+## Iter 216h214 — Polish: silence h212 P2 cosmetic findings (Feb 18, 2026) ✅ P1
+
+All three P2s flagged in the h212 stakeholder audit are now silenced.
+
+### Fix 1 — NPS popup ("appears on every page")
+- **Root cause**: dismissal was stored in `sessionStorage`, so closing in one tab didn't carry across reloads. Backend `should-prompt` returns `true` for any user not recently asked → widget fires the 8s reveal timer on every page where backend is reachable.
+- **Fix** (`components/shared/NPSWidget.js`):
+  - Dismissal persisted to BOTH `localStorage` + `sessionStorage` (was sessionStorage only).
+  - Added client-side `nps_widget_last_shown` localStorage timestamp; widget skips show if shown in the last 7 days (silent backstop in case the server's 90-day rule races a page nav).
+
+### Fix 2 — PWA "Install App" prompt ("too frequent")
+- **Root cause**: 3-second timer fired after every login or refresh on every authenticated route. No per-session throttle.
+- **Fix** (`components/PWAInstallPrompt.js`):
+  - Per-session guard via `pwa_prompt_shown_session` (sessionStorage) — at most once per browser session.
+  - Cross-session throttle via `pwa_prompt_last_shown` localStorage timestamp — 7-day cooldown even across sessions.
+  - Delay raised 3s → 30s (engagement signal — only ask after the user has actually been using the app).
+  - Re-checks all three guards INSIDE the setTimeout in case state changed during the 30s wait.
+
+### Fix 3 — CSP console violations (`emergent-main.js`, PostHog, Cloudflare)
+- **Root cause**: scripts intentionally embedded in `/frontend/public/index.html` (Emergent platform telemetry + PostHog analytics + Cloudflare insights from the edge) but their hosts weren't on `script-src` allowlist → noisy console + "AI demo looks broken" perception during stakeholder demos.
+- **Fix** (`backend/server.py` CSP middleware): added to `script-src`:
+  - `https://assets.emergent.sh` (emergent-main.js)
+  - `https://*.posthog.com https://*.i.posthog.com` (PostHog SDK + ingestion)
+  - `https://static.cloudflareinsights.com` (Cloudflare Web Analytics beacon)
+- Verified: `curl -sI /api/health` returns the new CSP header. The 5 existing CSP tests still pass.
+
+### Verification
+- Frontend lint clean.
+- `test_csp_headers.py` → 5/5 pass.
+- Full regression suite `tests/regression/` → 84/84 pass.
+- CSP header on live preview now includes the 3 new hosts.
+
+### Files
+- UPDATED: `frontend/src/components/shared/NPSWidget.js`
+- UPDATED: `frontend/src/components/PWAInstallPrompt.js`
+- UPDATED: `backend/server.py` (CSP middleware)
+- UPDATED: `memory/KNOWN_BUGS.md` (P2s moved to resolved)
+
+---
+
+
 ## Iter 216h213 — Regression suite wired into pre-deploy gate (Feb 18, 2026) ✅ P1
 
 The 84-test trust-recovery regression suite (h211) is now **mandatory** on every code path that ships:
