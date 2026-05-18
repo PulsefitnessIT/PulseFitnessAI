@@ -1,3 +1,52 @@
+## Iter 216h198 — Phase 2: Ops Equipment Coverage Panel (May 18, 2026) ✅
+
+Phase 2 of the Ops↔CRM↔ServiceDesk link. CRM contract data is now surfaced INSIDE the Operations Equipment Detail dialog so engineers know warranty/aftersales status before they pick up tools — the symmetric counterpart to the Sites & Equipment tab shipped in h196.
+
+### Backend
+- `GET /api/equipment/{equipment_id}/coverage` enriched with a new `crm_coverage` block: `{has_coverage, best, all_contracts}`.
+  - Walks `crm2_contract_assets` → `crm2_contracts`, filters out expired (`end_date < today`) and non-active statuses (`status` must be `active`/`signed`/`expiring`).
+  - Ranks by `CONTRACT_TIERS` order so platinum beats gold beats silver beats bronze.
+  - Flags `expiring_soon=true` when `end_date` is within 90 days, returns `days_until_expiry`.
+  - Legacy keys (`warranty_active`, `contract_active`, `covered`, `type`, `label`, `supplier`) preserved for back-compat with existing audit reports.
+  - 404 when equipment doesn't exist; multi-tenant filter on `organization_id` (master admin bypass).
+
+### Frontend
+- New `EquipmentCoveragePanel.jsx` injected at the top of the Equipment Detail dialog (`EquipmentInfoTab.js:757`).
+  - Three visual variants: green (covered), amber (expiring <90d, with Clock badge), red (no coverage).
+  - Shows tier name + contract number + coverage type + end date (DD/MM/YYYY) + exclusions.
+  - "View in CRM" deep-link button when a CRM contract is attached.
+  - Falls back to manufacturer-warranty state when no CRM contract, then to "No active coverage — any callouts will be billable" red state.
+- `ModuleSwitcher.js` CRM SSO bridge verified: exchanges main JWT for CRM token via `/api/crm/auth/cross-login` BEFORE navigating to `/crm`, no login loops.
+
+### Tests
+- `backend/tests/test_iter_216h198_equipment_crm_coverage.py` — **9/9** ✅
+  - No warranty + no contract = no coverage
+  - Active gold contract surfaced as `best`
+  - Higher tier wins (gold beats bronze when both active)
+  - Expired contract excluded
+  - Cancelled status excluded
+  - Expiring <90d flagged with `expiring_soon=true` and correct `days_until_expiry`
+  - Manufacturer warranty surfaces independently of CRM
+  - 404 on missing equipment
+  - Orphan contract_asset (contract_id with no matching contract row) is skipped, not crashed
+- **45/45** regression suite across iters 192/193/194/195/196/197/198 passes.
+- Testing agent (iter 216h198): 100% pass on both backend and frontend; `equipment-coverage-panel` renders correctly in the dialog; ModuleSwitcher CRM cross-login works without login loops.
+- Curl-verified live: master admin → `GET /api/equipment/{id}/coverage` returns the enriched `crm_coverage` shape.
+
+### Files
+* `backend/routes/equipment.py` (`get_equipment_coverage` enriched with CRM contract layer)
+* `frontend/src/components/equipment/EquipmentCoveragePanel.jsx` (new)
+* `frontend/src/pages/EquipmentInfoTab.js` (panel injected at top of dialog)
+* `frontend/src/components/shared/ModuleSwitcher.js` (CRM SSO bridge already in place — verified)
+* `backend/tests/test_iter_216h198_equipment_crm_coverage.py` (NEW, 9 pytests)
+
+### Action required
+**Redeploy** preview → production. Phase 3 (Service Desk auto-warranty-check at ticket creation) is the next obvious step but deferred until Lee confirms Phase 2 in production.
+
+---
+
+
+
 ## Iter 216h197 — Craig's CRM Login + Portal Pills Fix (May 18, 2026) ✅ P0
 
 Two production bugs Lee reported, both fixed.
