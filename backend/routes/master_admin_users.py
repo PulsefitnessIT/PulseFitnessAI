@@ -275,13 +275,41 @@ async def _enrich_with_orgs(all_users: list) -> None:
     org_ids = {u.get("organization_id") for u in all_users if u.get("organization_id")}
     orgs = await db.organizations.find(
         {"id": {"$in": list(org_ids)}},
-        {"_id": 0, "id": 1, "name": 1, "status": 1},
+        {"_id": 0, "id": 1, "name": 1, "status": 1, "enabled_modules": 1, "account_type": 1},
     ).to_list(length=None)
     org_map = {o["id"]: o for o in orgs}
     for u in all_users:
         org = org_map.get(u.get("organization_id"))
         u["organization_name"] = org.get("name", "") if org else "N/A"
         u["org_status"] = org.get("status", "active") if org else "N/A"
+        # Iter 216h197 — Portal pills used to be derived from the existence
+        # of a `crm_users` row, which only exists after the user has first
+        # cross-logged-in. That broke Lee's pills the moment we purged test
+        # data: the OWNER showed only "Service Portal" even though his org
+        # has CRM enabled. Recompute pills from actual module access:
+        #   • service_portal  → everyone who has a `users` row
+        #   • crm             → org has `crm` in enabled_modules OR
+        #                        legacy account_type='full' OR
+        #                        user is master_admin / pulse_master_admin
+        #   • pulse_platform  → user is pulse_master_admin
+        enabled_modules = (org or {}).get("enabled_modules") or []
+        account_type = (org or {}).get("account_type") or u.get("account_type") or ""
+        is_master = bool(u.get("is_master_admin")) or u.get("role") == "pulse_master_admin"
+        portals = list(u.get("portals") or [])
+        if "service_portal" not in portals and u.get("user_type") != "crm":
+            portals.append("service_portal")
+        crm_enabled = (
+            "crm" in enabled_modules
+            or account_type == "full"
+            or account_type == "pulse_pro"
+            or account_type == "lite"
+            or is_master
+        )
+        if crm_enabled and "crm" not in portals:
+            portals.append("crm")
+        if is_master and "pulse_platform" not in portals:
+            portals.append("pulse_platform")
+        u["portals"] = portals
 
 
 async def _enrich_with_invited_role(all_users: list) -> None:

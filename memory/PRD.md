@@ -1,3 +1,50 @@
+## Iter 216h197 — Craig's CRM Login + Portal Pills Fix (May 18, 2026) ✅ P0
+
+Two production bugs Lee reported, both fixed.
+
+### Bug 1 — Craig "Invalid credentials" on CRM login
+**Root cause**: When a user lands on `/crm` without an active main-platform session, the standalone CRM login form authenticates against `crm_users.password`. For users whose `crm_users` row was auto-created by the cross-login flow (the common case), that password is a random hex string they couldn't possibly guess.
+
+**Fix**: `/api/crm/auth/login` now has a fallback path:
+1. Try the `crm_users.password` hash as before.
+2. If the user record is `cross_login_provisioned: true` (or has no `crm_users` row), validate the password against the main platform's `users.password_hash` via `utils.auth.verify_password`.
+3. On success, auto-create / heal the `crm_users` row and mint the CRM JWT normally.
+4. Also hardened `crm_verify_password` to return `False` (not throw `ValueError: Invalid salt`) when the stored hash isn't a valid bcrypt string — so the fallback path can take over cleanly.
+
+Net effect: any platform user with CRM module access can sign into the standalone `/crm` page using their **GymAxis password** — no more "type the password you don't know" trap.
+
+### Bug 2 — Portal pills wrong on People Directory
+**Root cause**: The "Service Portal" / "CRM" / "Pulse Platform" pills on the user detail panel were derived from the **existence of a `crm_users` row**. That row is only created on first cross-login, so a brand-new OWNER who hasn't yet visited CRM (Lee's screenshot) showed only "Service Portal" even though their org has CRM enabled.
+
+**Fix**: Pills are now recomputed in `_enrich_with_orgs` from the org's actual module access:
+- `service_portal` — always for users in `db.users`
+- `crm` — org has `crm` in `enabled_modules` OR `account_type` is `full`/`pulse_pro`/`lite` OR user is master/Pulse admin
+- `pulse_platform` — user is `pulse_master_admin`
+
+### Tests
+- `backend/tests/test_iter_216h197_crm_auth_and_pills.py` — **8/8** ✅
+  - Owner with CRM in `enabled_modules` gets CRM pill
+  - `account_type='full'` implies CRM pill (legacy)
+  - Basic org (no CRM module) does NOT get CRM pill
+  - Master admin always has CRM + pulse_platform pills
+  - Cross-provisioned user logs in via platform password
+  - Missing `crm_users` row creates one on-the-fly
+  - Wrong password rejected (security preserved)
+  - Native CRM password (legacy non-cross-provisioned) still works
+- **36/36** total regression tests (h192 + h193 + h194 + h195 + h196 + h197) pass
+- E2E curl: master admin's GymAxis password now succeeds on `/api/crm/auth/login` (Craig's exact failure path)
+
+### Files
+* `backend/routes/crm_auth.py` (login fallback to platform creds + defensive `crm_verify_password`)
+* `backend/routes/master_admin_users.py` (`_enrich_with_orgs` derives pills from module access)
+* `backend/tests/test_iter_216h197_crm_auth_and_pills.py` (NEW, 8 pytests)
+
+### Action required
+**Redeploy** preview → production so Craig can log into CRM with his GymAxis password and Lee's pills render correctly.
+
+---
+
+
 ## Iter 216h196 — Phase 1: Ops↔CRM↔ServiceDesk Link (May 18, 2026) ✅
 
 Lee's ask: Pulse Fitness HQ wants its child sites (iGym Carshalton, iGym Congleton) surfaced inside CRM so aftersales contracts can be attached to specific machines. User chose **Phase 1 only** for now (Sites & Equipment tab in CRM + Add Coverage modal). Phases 2 (Operations coverage panel) and 3 (Service Desk auto-warranty-check) deferred for next iteration.

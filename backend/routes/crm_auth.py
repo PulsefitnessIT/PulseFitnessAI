@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 import jwt
 import bcrypt
 import uuid
+import secrets
 
 from utils.database import db, JWT_SECRET, JWT_ALGORITHM
 
@@ -16,7 +17,15 @@ def crm_hash_password(password: str) -> str:
 
 
 def crm_verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    # Iter 216h197 — be defensive: bcrypt raises ``ValueError("Invalid
+    # salt")`` for non-bcrypt strings. We want a clean False return so
+    # the cross-login-provisioned fallback path in /login can take over.
+    if not hashed:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    except (ValueError, TypeError):
+        return False
 
 
 def crm_create_token(user_id: str) -> str:
@@ -156,7 +165,49 @@ async def crm_login(data: dict):
         raise HTTPException(status_code=400, detail="Email and password required")
 
     user = await db.crm_users.find_one({"email": email}, {"_id": 0})
-    if not user or not crm_verify_password(password, user["password"]):
+    # Iter 216h197 — Craig's "Invalid credentials" bug. CRM users that
+    # were auto-created by the cross-login flow have a random uuid hex
+    # stored as their crm password (they don't know it). When such a
+    # user lands on /crm without a main session and types their actual
+    # GymAxis password, the standalone /crm/auth/login rejected them.
+    #
+    # Fall back: if the user record is flagged ``cross_login_provisioned``
+    # (or simply no crm_users row exists), validate the password against
+    # the main `users` collection's hash. On success, we mint the CRM
+    # token exactly as before and auto-provision a crm_users row.
+    cross_provisioned = bool(user and user.get("cross_login_provisioned"))
+    crm_password_match = user and crm_verify_password(password, user.get("password", ""))
+    if not user or (not crm_password_match and cross_provisioned):
+        platform_user = await db.users.find_one({"email": email}, {"_id": 0})
+        if not platform_user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        # Validate against the main platform's bcrypt hash.
+        from utils.auth import verify_password as platform_verify_password
+        platform_hash = platform_user.get("password_hash") or platform_user.get("password") or ""
+        if not platform_verify_password(password, platform_hash):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        # Reuse / create a crm_users row for this account so subsequent
+        # CRM flows have something to attach to.
+        if not user:
+            user = {
+                "id": platform_user.get("id"),
+                "email": email,
+                "full_name": platform_user.get("full_name") or platform_user.get("name") or email.split("@")[0],
+                "role": "admin" if platform_user.get("is_master_admin") else "manager",
+                "organization_id": platform_user.get("organization_id"),
+                "avatar_url": platform_user.get("avatar_url", ""),
+                "password": crm_hash_password(secrets.token_hex(32)),
+                "cross_login_provisioned": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.crm_users.insert_one(dict(user))
+        # Flag that this CRM record now also matches the platform pwd so
+        # future logins don't have to re-verify cross-platform.
+        await db.crm_users.update_one(
+            {"id": user["id"]},
+            {"$set": {"cross_login_provisioned": True, "last_platform_login": datetime.now(timezone.utc).isoformat()}},
+        )
+    elif not crm_password_match:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     org_name = ""
@@ -496,7 +547,6 @@ import pyotp
 import qrcode
 import io
 import base64
-import secrets
 
 
 @router.post("/2fa/setup")
