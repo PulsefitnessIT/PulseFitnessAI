@@ -7484,3 +7484,26 @@ Files: `/app/backend/routes/master_admin.py`,
 
 🎉 `master_admin.py` decomposition COMPLETE.
 
+
+## Iter 216h187 — `master_admin.py` formalised public API via `__all__` (17 Feb 2026)
+
+After the 10-phase decomposition (216h177 → 216h186), formalised the
+cross-module helper surface that 14 sub-routers + ~6 other downstream
+modules depend on. Added:
+
+- 14-line module docstring explaining the post-decomposition role.
+- `__all__` listing the 20-name public API (role guards, scope guards,
+  audit logger, address helpers, org-bootstrap helpers, constants).
+- A canonical-API regression test that asserts BOTH directions: every
+  `__all__` entry exists, and every cross-module-imported helper is
+  in `__all__`.
+
+This adds IDE autocomplete, linter coverage, and an explicit "this is
+the public surface" signal that catches accidental renames / deletions
+at lint/import time instead of runtime.
+
+Tests: 85/85 directly-related pytest pass (84 prior + 1 new).
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/tests/test_iter_216h186_master_admin_ops_split.py`.
+

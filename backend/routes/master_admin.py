@@ -1,5 +1,20 @@
 """
-Master Admin Routes — Full platform control centre.
+Master Admin · shared helper module.
+
+Iter 216h187 — After the 10-phase decomposition (216h177 → 216h186)
+this module owns **zero routes**. It exists to provide the shared
+helper surface that every `routes/master_admin_*.py` sub-router and
+~6 other downstream modules (`routes/sites.py`, `routes/assistant.py`,
+`routes/companies_house.py`, `routes/data_wipe.py`,
+`routes/mod_portal.py`, `routes/pulse_sales.py`) import.
+
+The `__all__` list below is the canonical public API. Pin-tests in
+`tests/test_iter_216h186_master_admin_ops_split.py` assert that every
+name here still exists; renaming or deleting any of them silently
+breaks ~20 importers, so changes must be deliberate.
+
+Routes used to live here (4,283 LoC, 40+ routes). They now live in 14
+focused sub-routers — see `route_registry/admin.py` for the full list.
 """
 from fastapi import APIRouter, HTTPException, Depends, Body
 from datetime import datetime, timezone, timedelta
@@ -15,6 +30,42 @@ from utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+# ─── Public helper API (consumed by 14 sub-routers + ~6 other modules) ───
+__all__ = [
+    # FastAPI router — kept for backwards-compat with anything that imports
+    # `from routes.master_admin import router`. Owns zero routes post-iter
+    # 216h186; included so callers that include() it don't crash.
+    "router",
+    # role / scope guards
+    "require_master_admin",
+    "require_gymaxis_master_only",
+    "assert_org_in_pulse_scope",
+    "assert_user_in_pulse_scope",
+    "is_pulse_only",
+    "_resolve_pulse_scope_org_ids",
+    # constants
+    "PULSE_VISIBLE_ACCOUNT_TYPES",
+    "MASTER_ADMIN_EMAIL",
+    "ADDRESS_FIELDS",
+    "ALL_MODULE_IDS",
+    # audit + activity logging
+    "log_activity",
+    # address shape helpers
+    "compose_legacy_address",
+    "merge_address",
+    # primary-contact / org bootstrap helpers
+    "_normalize_modules",
+    "_modules_from_portal_type",
+    "_derive_portal_type",
+    "_generate_initial_password",
+    "_mint_invite_link",
+    "_ensure_primary_contact_user",
+    "_create_org_user",
+    # misc parsers
+    "_parse_onboard_date",
+]
 
 
 def _parse_onboard_date(date_str: str) -> str:
@@ -225,7 +276,6 @@ def _derive_portal_type(modules: List[str]) -> str:
 def _generate_initial_password(length: int = 14) -> str:
     """Generate a friendly, copy-able initial password: 4 lowercase + 4 digits + 4 lowercase + 2 symbols.
     Avoids ambiguous characters (no l/1/O/0)."""
-    import secrets
     alphabet = "abcdefghijkmnpqrstuvwxyz"
     digits   = "23456789"
     symbols  = "!@#%&*"

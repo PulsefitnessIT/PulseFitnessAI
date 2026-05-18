@@ -1261,3 +1261,53 @@ master_admin_integrations.py          (~233) — Sicon health + CRM users
 master_admin_analytics_panel.py       (~133) — activity / AI usage / emails
 ```
 
+
+---
+
+## Iter 216h187 — `master_admin.py` formalised public API via `__all__` (Feb 2026)
+
+**Goal**: With the 10-phase decomposition done and `master_admin.py`
+reduced to a pure helper module, formalise the cross-module helper
+surface so accidental renames / deletions fail loudly at import time
+instead of silently breaking ~20 downstream importers at runtime.
+
+**Changes**:
+- Replaced the 1-line module docstring with a 14-line one explaining
+  the post-decomposition role of the file.
+- Declared `__all__` listing the 20-name public API surface:
+  `router`, `require_master_admin`, `require_gymaxis_master_only`,
+  `assert_org_in_pulse_scope`, `assert_user_in_pulse_scope`,
+  `is_pulse_only`, `_resolve_pulse_scope_org_ids`,
+  `PULSE_VISIBLE_ACCOUNT_TYPES`, `MASTER_ADMIN_EMAIL`,
+  `ADDRESS_FIELDS`, `ALL_MODULE_IDS`, `log_activity`,
+  `compose_legacy_address`, `merge_address`, `_normalize_modules`,
+  `_modules_from_portal_type`, `_derive_portal_type`,
+  `_generate_initial_password`, `_mint_invite_link`,
+  `_ensure_primary_contact_user`, `_create_org_user`,
+  `_parse_onboard_date`.
+- Cleaned up a `secrets` re-import inside `_generate_initial_password`
+  that ruff flagged.
+
+**Tests** — added `test_master_admin_all_is_canonical` to
+`test_iter_216h186_master_admin_ops_split.py`. The new test
+checks BOTH directions:
+- Every name in `__all__` actually exists on the module (no broken
+  exports).
+- The 20-member public API surface is IN `__all__` (a future agent
+  can't silently drop a helper without tripping it).
+
+85/85 directly-related pytest pass (84 prior + 1 new). Live backend
+restarted and login round-tripped successfully.
+
+**Why this matters**: the pin-tests already catch helper deletions,
+but `__all__` adds three things they don't:
+- IDE autocomplete on the helper module surfaces the 20 names.
+- Linters that respect `__all__` (ruff, pyright) flag accidental
+  unused imports / removed names.
+- The docstring at the top of the file now explicitly documents the
+  module's role post-decomposition, so the next agent reading it
+  understands immediately why a 386-LoC file owns zero routes.
+
+Files: `/app/backend/routes/master_admin.py`,
+`/app/backend/tests/test_iter_216h186_master_admin_ops_split.py`.
+

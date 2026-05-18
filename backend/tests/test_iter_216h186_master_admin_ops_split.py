@@ -115,3 +115,35 @@ def test_master_admin_shrunk_below_500():
     assert loc < 500, (
         f"master_admin.py is {loc} LoC — it should be a pure helper module now"
     )
+
+
+def test_master_admin_all_is_canonical():
+    """Iter 216h187 — `__all__` must declare every name the sub-routers
+    actually import. Pinning this catches both directions of drift:
+      • Symbol deleted from the file but still in `__all__` (broken export).
+      • Symbol added to `__all__` but the actual name doesn't exist.
+    """
+    import routes.master_admin as m
+    declared = getattr(m, '__all__', None)
+    assert declared, "routes.master_admin must declare __all__"
+    # Every declared name must actually exist on the module.
+    for name in declared:
+        assert hasattr(m, name), (
+            f"__all__ references missing symbol: {name}"
+        )
+    # And the helper API surface the sub-routers depend on must be
+    # IN `__all__` (so future linters that respect __all__ see it).
+    for name in (
+        'require_master_admin', 'assert_org_in_pulse_scope',
+        'assert_user_in_pulse_scope', 'is_pulse_only',
+        '_resolve_pulse_scope_org_ids', 'PULSE_VISIBLE_ACCOUNT_TYPES',
+        'log_activity', 'merge_address', 'compose_legacy_address',
+        'ADDRESS_FIELDS', '_normalize_modules', '_modules_from_portal_type',
+        '_derive_portal_type', '_generate_initial_password',
+        '_mint_invite_link', '_ensure_primary_contact_user',
+        '_create_org_user', '_parse_onboard_date', 'MASTER_ADMIN_EMAIL',
+        'router',
+    ):
+        assert name in declared, (
+            f"__all__ is missing public-API symbol: {name}"
+        )
