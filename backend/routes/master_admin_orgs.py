@@ -117,6 +117,8 @@ _ORG_LIST_EXCLUDE = {"_id": 0, "features_audit": 0}
 async def get_all_organizations(
     user: dict = Depends(get_current_user),
     brand: str = "all",
+    q: str = "",
+    limit: int = 2000,
 ):
     require_master_admin(user)
     org_filter: dict = {}
@@ -127,7 +129,37 @@ async def get_all_organizations(
     # picker to "GymAxis" still sees nothing (their permission gate
     # always wins).
     org_filter = merge_brand_filter(org_filter, brand, collection="organizations")
-    orgs = await db.organizations.find(org_filter, _ORG_LIST_EXCLUDE).sort("created_at", -1).to_list(2000)
+
+    # Iter 216h189 — server-side `q` filter. The Master Admin Orgs page
+    # used to fetch ALL orgs (up to 2000) and filter client-side by name
+    # + owner_email. With 1000+ orgs this shipped ~3-5 MB on every
+    # refresh / keystroke-debounce. We now push the text-match into
+    # Mongo when `q` is non-empty — the org index on `name` makes this
+    # cheap, and the frontend client-side filter stays as a safety net
+    # for the few result rows that come back.
+    #
+    # Matched fields: `name`, `email`, `primary_contact_email`,
+    # `primary_contact_name`, `company_code`. We deliberately do NOT
+    # join against `users` to filter by `owner_email` — the latency hit
+    # would dwarf the saved payload bytes and the rarer use-case is
+    # better served by the dedicated `/users` endpoint anyway.
+    qs = (q or "").strip()
+    if qs:
+        # Case-insensitive substring search. Anchor to len ≥ 2 so single
+        # keystrokes don't trigger a near-table-scan.
+        if len(qs) >= 2:
+            import re
+            esc = re.escape(qs)
+            org_filter["$or"] = [
+                {"name": {"$regex": esc, "$options": "i"}},
+                {"email": {"$regex": esc, "$options": "i"}},
+                {"primary_contact_email": {"$regex": esc, "$options": "i"}},
+                {"primary_contact_name": {"$regex": esc, "$options": "i"}},
+                {"company_code": {"$regex": esc, "$options": "i"}},
+            ]
+
+    capped = max(1, min(int(limit or 2000), 2000))
+    orgs = await db.organizations.find(org_filter, _ORG_LIST_EXCLUDE).sort("created_at", -1).to_list(capped)
     if not orgs:
         return {"organizations": []}
 

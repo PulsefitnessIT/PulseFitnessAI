@@ -270,6 +270,45 @@ const MasterAdminPage = ({ onBack }) => {
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadSectionData(section); }, [section, loadSectionData]);
 
+  // Iter 216h189 — server-side `q` filter on `/master-admin/organizations`.
+  // We previously shipped the entire org list (up to 2000) on every load
+  // and filtered client-side. With ~1k orgs that's ~3-5 MB on every
+  // refresh / keystroke. Now we debounce the search box (300 ms) and
+  // re-fetch only the orgs slice with a `?q=…` query param when the
+  // operator pauses typing. The first mount loader (`loadData`) still
+  // primes the list with everything when search is empty, so navigating
+  // between sub-tabs with no search active is unchanged.
+  useEffect(() => {
+    const term = (search || '').trim();
+    // When the operator clears the search, re-prime the full list so
+    // they don't get stuck looking at the last search-narrowed slice.
+    if (term.length === 0) {
+      // Only re-prime if the list is small (signals a previous narrow
+      // search). Saves a redundant round-trip on the initial mount,
+      // where `loadData` has already populated the list.
+      if (organizations.length > 0 && organizations.length < 50) {
+        const t = setTimeout(() => { loadData(); }, 50);
+        return () => clearTimeout(t);
+      }
+      return undefined;
+    }
+    if (term.length < 2) return undefined; // 1-char queries hit the backend's own guard, skip
+    const t = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams();
+        if (_brandCtx && _brandCtx !== 'all') params.set('brand', _brandCtx);
+        params.set('q', term);
+        const r = await axios.get(
+          `${API}/master-admin/organizations?${params.toString()}`,
+          { headers },
+        );
+        setOrganizations(r.data.organizations || []);
+      } catch { /* keep previous list on transient failure */ }
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, _brandQS]);
+
   const actions = useMasterAdminActions({ API, headers, loadData, loadSectionData });
 
   const saveCapexThresholds = async () => {

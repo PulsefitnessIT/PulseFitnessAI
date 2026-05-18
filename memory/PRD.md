@@ -7532,3 +7532,36 @@ Files: `/app/backend/routes/master_admin.py`.
 
 `/app/backend/tests/test_iter_216h186_master_admin_ops_split.py`.
 
+
+## Iter 216h189 — Server-side `q` filter on `/master-admin/organizations` (17 Feb 2026)
+
+The Master Admin Orgs page used to fetch ALL orgs (capped at 2000)
+and filter client-side. With 1,144 orgs in test env that's ~3-5 MB on
+every refresh / keystroke debounce.
+
+**Backend**: added `?q=` param to `GET /master-admin/organizations`.
+When `len(q.strip()) >= 2`, server-side regex match (case-insensitive)
+against `name`, `email`, `primary_contact_email`,
+`primary_contact_name`, `company_code`. Composes with the existing
+`?brand=` filter (AND semantics).
+
+**Frontend**: 300 ms debounce on the search box; only the org slice
+re-fetches with `?q=…`. Clearing the search re-primes the full list
+only if the current list is small (avoids redundant round-trip on
+initial mount).
+
+Live numbers (1,144-org test env):
+- `?q=pulse` → 6 rows (**99.5% wire saving**)
+- `?q=PULSE` → identical count (case-insensitive ✓)
+- `?q=a` (1 char) → 1,144 (guard skips filter ✓)
+- `?brand=pulse&q=fitness` → composes ✓
+- Enrichment shape (`user_count`, `owner_email`, `enabled_modules` …)
+  preserved on filtered rows.
+
+Tests: `test_iter_216h189_orgs_q_filter.py` (7 live integration tests,
+all pass). 48/48 directly-related pytest pass overall.
+
+Files: `/app/backend/routes/master_admin_orgs.py`,
+`/app/frontend/src/pages/MasterAdminPage.js`,
+`/app/backend/tests/test_iter_216h189_orgs_q_filter.py` (new).
+

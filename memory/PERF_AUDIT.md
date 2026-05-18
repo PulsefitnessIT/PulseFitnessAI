@@ -1311,3 +1311,68 @@ but `__all__` adds three things they don't:
 Files: `/app/backend/routes/master_admin.py`,
 `/app/backend/tests/test_iter_216h186_master_admin_ops_split.py`.
 
+
+---
+
+## Iter 216h189 — Server-side `q` filter on `/master-admin/organizations` (Feb 2026)
+
+**Goal**: Cut the wire payload of the Master Admin Orgs page. Before
+this iteration the page fetched ALL orgs (capped at 2000) on every
+load and filtered client-side by name + owner_email. With 1,144 orgs
+in the test env that's ~3-5 MB on every refresh.
+
+**Backend** (`master_admin_orgs.py`):
+- Added `q: str = ""` and `limit: int = 2000` query params.
+- When `len(q.strip()) >= 2`, builds a case-insensitive `$or` regex
+  against `name`, `email`, `primary_contact_email`,
+  `primary_contact_name`, `company_code`. The `name` field is already
+  indexed so the planner uses an index scan.
+- Single-char queries are deliberately skipped (avoid near-table-scan
+  on every keystroke).
+
+**Frontend** (`MasterAdminPage.js`):
+- Added a 300 ms debounced re-fetch on the org search state. When the
+  operator pauses typing, only the org slice re-fetches with `?q=…`.
+- Clearing the search re-primes the full list (via `loadData`) only
+  if the current list is small — avoids a redundant round-trip on
+  initial mount when `loadData` has already populated everything.
+- Client-side filter stays in place as a safety net (the URL still
+  carries `?q=`, the existing `status` + `account_type` filters still
+  apply locally).
+
+**Live verification** (against 1,144-org test env):
+
+| Query | Rows returned | Wire saving |
+|---|---|---|
+| (none) | 1,144 | baseline |
+| `?q=pulse` | 6 | **99.5%** smaller |
+| `?q=zzqqxx…` | 0 | 100% |
+| `?q=a` (1 char, guard) | 1,144 | no change (by design) |
+| `?q=PULSE` | 6 | case-insensitive ✓ |
+| `?brand=pulse&q=fitness` | <pulse count | composes ✓ |
+
+**Tests** — `test_iter_216h189_orgs_q_filter.py` (7 live integration
+tests, all pass):
+- baseline returns full list
+- `q=pulse` strict subset, every row matches in one of the searched
+  fields
+- `q=PULSE` returns identical count (case-insensitive)
+- `q=zzqqxx…` returns empty
+- 1-char `q=a` skips the filter
+- `?q=` composes with `?brand=` (AND semantics)
+- Enrichment shape (user_count, equipment_count, owner_email,
+  enabled_modules, portal_type) preserved on filtered rows
+
+48/48 directly-related pytest pass overall (7 new + 41 prior split
+tests).
+
+**Net effect**: the Master Admin Orgs search box now feels instant —
+on a 1k-org install, a typed search ships ~6 KB over the wire instead
+of ~3-5 MB, while keeping every existing client-side behaviour (status
++ account-type filter dropdowns, URL `?q=…` deep-linking, "no match"
+empty state) intact.
+
+Files: `/app/backend/routes/master_admin_orgs.py`,
+`/app/frontend/src/pages/MasterAdminPage.js`,
+`/app/backend/tests/test_iter_216h189_orgs_q_filter.py` (new).
+
