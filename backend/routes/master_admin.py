@@ -16,6 +16,8 @@ breaks ~20 importers, so changes must be deliberate.
 Routes used to live here (4,283 LoC, 40+ routes). They now live in 14
 focused sub-routers — see `route_registry/admin.py` for the full list.
 """
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException, Depends, Body
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
@@ -140,7 +142,7 @@ def is_pulse_only(user: dict) -> bool:
     return bool(user.get("is_pulse_admin") or user.get("role") == "pulse_master_admin")
 
 
-def require_master_admin(user: dict):
+def require_master_admin(user: dict) -> None:
     """Either the GymAxis Master Admin OR a delegated Pulse Master Admin is
     allowed past this gate. Endpoints that need to lock out Pulse admins
     explicitly should call ``require_gymaxis_master_only(user)`` instead.
@@ -152,7 +154,7 @@ def require_master_admin(user: dict):
     raise HTTPException(status_code=403, detail="Master admin access required")
 
 
-def require_gymaxis_master_only(user: dict):
+def require_gymaxis_master_only(user: dict) -> None:
     """Strict gate — only the GymAxis platform Master Admin (not Pulse admins)."""
     if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
         return
@@ -190,7 +192,7 @@ async def assert_user_in_pulse_scope(user: dict, target_user_id: str) -> None:
         raise HTTPException(status_code=404, detail="User not found")
 
 
-async def log_activity(action: str, details: str, admin_email: str, target_type: str = "", target_id: str = ""):
+async def log_activity(action: str, details: str, admin_email: str, target_type: str = "", target_id: str = "") -> None:
     await db.admin_activity_log.insert_one({
         "id": str(uuid.uuid4()),
         "action": action,
@@ -218,24 +220,14 @@ async def _resolve_pulse_scope_org_ids(user: dict) -> Optional[list[str]]:
     return [o["id"] for o in pulse_orgs]
 
 
-
-
-# ── /organizations/search — extracted to master_admin_orgs.py (iter 216h178) ──
-
-
-# ── /organizations (list) — extracted to master_admin_orgs.py (iter 216h178) ──
-
-# ── /organizations/{id}/status — extracted to master_admin_orgs.py (iter 216h178) ──
+# Derivation tables for tier ↔ account_type. Used by the orgs sub-router
+# when promoting a Pulse Lite site to Pro (or vice-versa). Kept here as
+# constants so the mapping doesn't drift between modules.
 _PULSE_TIER_TO_ACCOUNT_TYPE = {"lite": "lite", "pulse_pro": "pulse_pro"}
 _GYMAXIS_TIERS = {"free", "pro", "premium", "enterprise", "starter", "professional"}
 
 
-# ── /organizations/{id}/subscription + /features — extracted to master_admin_orgs.py (iter 216h178) ──
-
-
-
-# ── Iter 215ar — Modules + Primary-contact auto-provisioning ───────
-
+# ─── Iter 215ar — Modules + Primary-contact auto-provisioning ───
 # Canonical module ids exposed to the master-admin UI (checkbox grid).
 ALL_MODULE_IDS = ["operations", "crm", "memberships", "marketing", "staffing", "reporting"]
 
@@ -367,7 +359,7 @@ async def _ensure_primary_contact_user(org: dict, actor: dict) -> Optional[str]:
 
 
 
-async def _create_org_user(org: dict, email: str, full_name: str, password: str, role: str, user_id: str):
+async def _create_org_user(org: dict, email: str, full_name: str, password: str, role: str, user_id: str) -> str:
     """Create a user in the appropriate collection(s) based on org portal type.
 
     Iter 215ev — when portal_type == 'both' we write to both collections
@@ -402,35 +394,5 @@ async def _create_org_user(org: dict, email: str, full_name: str, password: str,
         })
 
     return "CRM" if is_crm else "Service Portal"
-
-
-
-
-
-
-
-
-
-
-
-
-# ─────────────────────────────────────────────────────────────────
-# Iter 216d — Master-admin per-org site CRUD.
-# Lets master admins add or bulk-add sites to an existing org without
-# impersonating the owner. The owner-scoped endpoints in routes/sites.py
-# require role=owner|manager, which master admins are NOT (they have a
-# separate is_master_admin flag).
-# ─────────────────────────────────────────────────────────────────
-
-# ── /organizations/{id}/sites + /sites/bulk — extracted to master_admin_orgs.py (iter 216h178) ──
-
-
-
-
-
-# ── CRM Users + Sicon health — extracted to master_admin_integrations.py (iter 216h177) ──
-
-# ── Trial Management — extracted to master_admin_trials.py (iter 216h177) ──
-
 
 

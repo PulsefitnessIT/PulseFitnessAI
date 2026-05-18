@@ -7505,5 +7505,30 @@ at lint/import time instead of runtime.
 Tests: 85/85 directly-related pytest pass (84 prior + 1 new).
 
 Files: `/app/backend/routes/master_admin.py`,
+
+## Iter 216h188 — Type stubs + dead-comment cleanup on `master_admin.py` (17 Feb 2026)
+
+Tightened the helper module post-`__all__` formalisation:
+
+- Added `from __future__ import annotations` so the file uses PEP-604
+  `X | None` syntax everywhere without runtime cost.
+- Added explicit `-> None` / `-> str` return annotations to the 4
+  helpers that still inferred them (`require_master_admin`,
+  `require_gymaxis_master_only`, `log_activity`, `_create_org_user`).
+- Cleaned up 39 LoC of orphan `# ── extracted to … ──` comment markers
+  and excess blank lines that the 10-phase carve left behind. The
+  intent of those markers is now documented in the file-level docstring
+  + the `__all__` block + `route_registry/admin.py`, so they no longer
+  add value inline.
+
+`master_admin.py` is now **398 LoC** (was 437 → -9% this iteration; vs
+the original 4,283 → **-91% cumulative**, unchanged headline but a
+cleaner file body).
+
+Tests: 85/85 directly-related pytest pass. Backend live, login
+round-trip works.
+
+Files: `/app/backend/routes/master_admin.py`.
+
 `/app/backend/tests/test_iter_216h186_master_admin_ops_split.py`.
 
