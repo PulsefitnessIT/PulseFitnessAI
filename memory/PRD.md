@@ -1,3 +1,44 @@
+## Iter 216h204 — Front-Desk Daily Reconciliation Report (May 18, 2026) ✅ P1
+
+Closes Lee's cash-handling audit loop opened by iter h203. Operators tick off the cash drawer vs the system at end-of-day and hand a CSV to the bookkeeper.
+
+### Backend
+- **`GET /api/memberships/reports/desk-sales`** — date-range / method / operator filtered report. Returns `{rows[], summary{count, total_pence, by_method, top_operators}, filters}`. Default range = today (UTC). Validation: 400 on `from > to`, malformed dates, or invalid method. Whitelist methods: cash / card_terminal / bank_transfer / comp / other.
+- **`GET /api/memberships/reports/desk-sales/export.csv`** — same filters → streaming CSV with `Content-Disposition: attachment; filename="desk-sales-{from}-{to}.csv"`. Columns: Date, Time, Member, Member email, Plan, Credits added, Method, Amount (£X.XX), Reference, Note, Operator, Transaction ID.
+- Hydration: rows decorated with member_name, member_email, plan_name, operator_name, credits_added. Missing references (deleted member/plan/operator) hydrate as empty strings (no crash).
+- Summary aggregates: `by_method` (count + total per method), `top_operators` (max 5, sorted by £ desc).
+- Multi-tenant: filter scoped by `organization_id` from `_require_operator_org`.
+
+### Frontend
+- **New `DeskSalesReportTab.js`** rendered under a new "Desk sales" tab (Wallet icon) in the Memberships console, inserted right after Invoicing.
+- **DatePicker** (DD/MM/YYYY) for from/to + Today / Last 7 days / This month preset buttons.
+- **Filters**: method dropdown, operator_id input.
+- **3 summary cards**: Total taken (£ + sale count), By method (colour-coded pills + count + £), Top operators leaderboard (max 5).
+- **Transactions table** with method pills (cash=emerald, card_terminal=sky, bank_transfer=violet, comp=zinc, other=amber), datetime, member name+email, pack name+credits, operator, amount.
+- **Export CSV** button — disabled at 0 rows; triggers browser download with the correct filename. Refresh button.
+- Empty state with hint when range is empty.
+
+### Tests
+- `backend/tests/test_iter_216h204_desk_sales_report.py` — **10/10** ✅ (unit: parse_iso_date, filter validation, hydration, by_method/top_operators aggregation, CSV streaming).
+- `backend/tests/test_iter_216h204_api_desk_sales_report.py` (testing agent) — **15/15** ✅ (live HTTP: full endpoint shape, auth, CSV headers, amount formatting).
+- Combined regression: **145/145** pass across iters 192-204 (10 conditional skips for h203 seed-dependent tests).
+- Testing agent: 100% on both backend and frontend, with live-data verification (£300 / 4 sales / all 4 methods visible in the table).
+
+### Files
+* `backend/routes/memberships/reports.py` (NEW — JSON + CSV endpoints)
+* `backend/routes/memberships/__init__.py` (registered)
+* `frontend/src/pages/Memberships/DeskSalesReportTab.js` (NEW)
+* `frontend/src/pages/Memberships/MembershipsConsole.js` (Wallet icon import, new tab, dispatcher wiring)
+* `backend/tests/test_iter_216h204_desk_sales_report.py` (NEW, 10 unit pytests)
+* `backend/tests/test_iter_216h204_api_desk_sales_report.py` (NEW by testing agent, 15 live HTTP tests)
+
+### Action required
+**Redeploy** preview → production. Lee can immediately tick off today's desk sales from h203 testing and try the CSV export.
+
+---
+
+
+
 ## Iter 216h203 — "Sold a pack at the desk" Operator CTA (May 18, 2026) ✅ P1
 
 Closes Lee's follow-up: cash-buying members previously forced the operator through Plans → "Record payment" which retired any existing recurring subscription. Now one-click on the member detail page.
