@@ -17,7 +17,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2,
+  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2, Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -57,6 +57,7 @@ const CRMLoopTab = lazy(() => import('@/pages/Memberships/CRMLoopTab'));
 const MembershipsStartTab = lazy(() => import('@/pages/Memberships/MembershipsStartTab'));
 const MobileAppBuilderTab = lazy(() => import('@/pages/Memberships/MobileAppBuilderTab'));
 const InvoicingTab = lazy(() => import('@/pages/Memberships/InvoicingTab'));
+const DeskSalesReportTab = lazy(() => import('@/pages/Memberships/DeskSalesReportTab'));
 const CoursesView = lazy(() => import('@/pages/Memberships/CoursesView'));
 const ClassActionDrawer = lazy(() => import('@/pages/Memberships/ClassActionDrawer'));
 const MemberEditDrawer = lazy(() => import('@/pages/Memberships/MemberEditDrawer'));
@@ -140,6 +141,7 @@ function MembershipsConsoleInner() {
     { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'checkin', label: 'Check-in', icon: ClipboardCheck },
     { id: 'invoicing', label: 'Invoicing', icon: Receipt },
+    { id: 'desk-sales', label: 'Desk sales', icon: Wallet },
     { id: 'ads',       label: t('memberships_console.tab_ads'),       icon: Megaphone },
     { id: 'analytics', label: t('memberships_console.tab_analytics'), icon: BarChart3 },
     { id: 'ai-insights', label: 'AI Insights', icon: Brain },
@@ -327,6 +329,7 @@ function MembershipsConsoleInner() {
         {tab === 'promotions' && <PromotionsTab key={`pro-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'checkin'    && <CheckinTab    key={`chk-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'invoicing'  && <InvoicingTab  key={`inv-${reloadKey}`} API={API} headers={headers} />}
+        {tab === 'desk-sales' && <DeskSalesReportTab key={`ds-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'ads'       && <AdsTab       API={API} headers={headers} />}
         {tab === 'analytics' && <AnalyticsTab key={`ana-${reloadKey}`} API={API} headers={headers} />}
         {tab === 'ai-insights' && <AIInsightsTab API={API} headers={headers} />}

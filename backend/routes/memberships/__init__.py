@@ -51,6 +51,7 @@ from routes.memberships import (
     payment_risk,
     plans,
     qr_checkin,
+    reports,
     studio,
     studio_billing,
     studio_brain,
@@ -106,6 +107,7 @@ for sub in (
     payment_plans,
     payment_risk,
     parent_portal,
+    reports,
     wallet,
     credit_packs,
 ):
