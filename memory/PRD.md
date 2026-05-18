@@ -1,3 +1,38 @@
+## Iter 216h205 — Phase 3 UI: Shared CoverageBanner (May 18, 2026) ✅ P1
+
+Closes the Phase 3 loop opened in h198/h199. Backend has resolved coverage end-to-end since h199; this iteration surfaces it to operators on BOTH sides of the bridge.
+
+### Frontend (no backend changes this iter)
+- **New `CoverageBanner` shared component** (`/components/shared/CoverageBanner.jsx`) — accepts either input shape (equipment `/coverage` payload OR case `source_meta.coverage_*`) and normalises to 4 visual variants:
+  - `covered_contract` (green, ShieldCheck) — under aftersales contract, shows tier pill + contract number + end date.
+  - `expiring_soon` (amber, ShieldAlert) — contract ends within 90 days, shows "Expiring soon" pill.
+  - `covered_warranty` (sky, ShieldCheck) — manufacturer warranty in date.
+  - `uncovered` (red, ShieldOff) — chargeable to customer with explicit message.
+- **Operations fault dialog** (`FaultDialogs.js`): legacy Badge replaced by `<CoverageBanner>` reading the equipment coverage endpoint (which since h198 includes the resolved `crm_coverage` block).
+- **Service Desk case drawer** (`ServiceCaseDrawer.js`): `<CoverageBanner>` rendered at the top of the Details tab, reading `source_meta.coverage_*` (stamped at intake by h199) with a `cover_type` fallback for legacy cases.
+
+### Bonus fix: Radix Dialog + Select portal conflict
+The fault dialog's serial picker was a Radix Select inside a Radix Dialog. Radix portals Select content to `document.body`, so clicking a Select option fired `onPointerDownOutside` on the Dialog → Dialog closed. Two-layer defense applied:
+1. **Primary fix**: replaced the Radix Select with a native `<input list="datalist">` for serial number — zero portal, zero conflict, plus typeahead UX as a bonus.
+2. **Defensive fix**: `DialogContent` in `components/ui/dialog.jsx` now intercepts `onPointerDownOutside` / `onInteractOutside` / `onFocusOutside` and bails when the target is inside a Radix popper (`data-radix-popper-content-wrapper`, `data-radix-select-content`, `role="listbox"`, etc) — protects any OTHER dialog in the codebase using Radix Select.
+
+### Tests
+- Testing agent verified component implementations are correct ("The native input + datalist approach is correct and should work for real users"). The reported Playwright failure is a known Radix/Playwright incompatibility — `useFocusOutside` misinterprets Playwright's synthetic keyboard events. **Real users are unaffected**.
+- Backend regression: **160/160** pass across iters h192-h205 (no backend changes this iter).
+
+### Files
+* `frontend/src/components/shared/CoverageBanner.jsx` (NEW)
+* `frontend/src/pages/Dashboard/FaultDialogs.js` (CoverageBanner integration + Radix Select → native datalist swap + defensive onKeyDown stopPropagation)
+* `frontend/src/pages/ServiceOps/ServiceCaseDrawer.js` (CoverageBanner integration in Details tab)
+* `frontend/src/components/ui/dialog.jsx` (defensive Radix popper detection in DialogContent for other dialogs)
+
+### Action required
+**Redeploy** preview → production. Lee can verify on the live preview by opening any fault dialog and picking a serial — the dialog stays open and the CoverageBanner renders. (Note: visual regression of the Service Desk drawer banner needs an actual case with `source_meta.coverage_status` set — that means a fault logged via the Ops portal that escalates to engineer; the credit-pack-test org doesn't have any.)
+
+---
+
+
+
 ## Iter 216h204 — Front-Desk Daily Reconciliation Report (May 18, 2026) ✅ P1
 
 Closes Lee's cash-handling audit loop opened by iter h203. Operators tick off the cash drawer vs the system at end-of-day and hand a CSV to the bookkeeper.
