@@ -39,6 +39,9 @@ def _make_body(**overrides):
         "name": "Chuck Brown",
         "email": "chuck@example.com",
         "phone": "07700900000",
+        # Iter 216h207 — GDPR consent is now mandatory on instructor
+        # creation (parity with the Add member modal).
+        "gdpr_consent": True,
     }
     base.update(overrides)
     return InstructorIn(**base)

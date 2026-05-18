@@ -430,7 +430,12 @@ _MEMBER_PATCH_ALLOWED = {
     "first_name", "last_name", "phone", "email",
     "address_line1", "address_line2", "city", "postcode", "country",
     "dob", "emergency_contact_name", "emergency_contact_phone",
+    "emergency_contact_relationship",
     "parent_member_id", "notes", "tags",
+    # Iter 216h207 — GDPR/marketing consent parity with Create flow.
+    # Operators editing an existing member can now record / withdraw
+    # consent from the drawer. Server stamps timestamps + actor.
+    "gdpr_consent", "marketing_consent",
 }
 
 
@@ -444,8 +449,13 @@ async def members_patch(
     new MemberDetailDrawer (iter 215bk) can edit Profile / Family fields without
     needing a per-field endpoint per attribute."""
     org_id = await _require_operator_org(user)
-    await _load_member(member_id, org_id)  # 404 if not in this org
+    existing = await _load_member(member_id, org_id)  # 404 if not in this org
     updates: dict = {}
+    # Iter 216h207 — parity with Create: validate email format on
+    # change, refuse to clear mandatory phone / emergency_contact_phone,
+    # and stamp GDPR / marketing consent timestamps + actor on change.
+    import re as _re
+    _EMAIL_RE = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
     for key, val in (body or {}).items():
         if key not in _MEMBER_PATCH_ALLOWED:
             continue
@@ -453,6 +463,8 @@ async def members_patch(
             new_email = (val or "").strip().lower()
             if not new_email:
                 continue
+            if not _re.match(_EMAIL_RE, new_email):
+                raise HTTPException(400, "Invalid email format")
             # No clash with another member of any org
             clash = await db.members.find_one(
                 {"email": new_email, "id": {"$ne": member_id}},
@@ -461,6 +473,27 @@ async def members_patch(
             if clash:
                 raise HTTPException(409, "Email already registered to another member")
             updates["email"] = new_email
+        elif key == "phone":
+            cleaned = (val or "").strip() if isinstance(val, str) else val
+            if isinstance(cleaned, str) and not cleaned:
+                raise HTTPException(400, "phone cannot be empty")
+            updates["phone"] = sanitise_string(cleaned) if isinstance(cleaned, str) else cleaned
+        elif key == "emergency_contact_phone":
+            cleaned = (val or "").strip() if isinstance(val, str) else val
+            if isinstance(cleaned, str) and not cleaned:
+                raise HTTPException(400, "emergency_contact_phone cannot be empty")
+            updates["emergency_contact_phone"] = sanitise_string(cleaned) if isinstance(cleaned, str) else cleaned
+        elif key == "gdpr_consent":
+            new_val = bool(val)
+            if new_val != bool(existing.get("gdpr_consent")):
+                updates["gdpr_consent"] = new_val
+                updates["gdpr_consent_at"] = _now_iso() if new_val else None
+                updates["gdpr_consent_actor_id"] = user.get("id") if new_val else None
+        elif key == "marketing_consent":
+            new_val = bool(val)
+            if new_val != bool(existing.get("marketing_consent")):
+                updates["marketing_consent"] = new_val
+                updates["marketing_consent_at"] = _now_iso() if new_val else None
         elif key == "parent_member_id" and val:
             # Ensure parent exists and belongs to the same org
             parent = await db.members.find_one(
@@ -477,9 +510,10 @@ async def members_patch(
         elif key == "dob" and val:
             # Accept ISO date string; store as-is, frontend formats it.
             updates["dob"] = val
-        elif key in {"first_name", "last_name", "phone",
+        elif key in {"first_name", "last_name",
                      "address_line1", "address_line2", "city", "postcode",
-                     "country", "emergency_contact_name", "emergency_contact_phone",
+                     "country", "emergency_contact_name",
+                     "emergency_contact_relationship",
                      "notes"}:
             updates[key] = sanitise_string(val) if isinstance(val, str) else val
     # Allow explicit null clears for parent_member_id and dob

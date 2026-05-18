@@ -112,6 +112,11 @@ class InstructorIn(BaseModel):
     first_aid_expires_on: Optional[str] = None
     hourly_rate_pence: Optional[int] = Field(default=None, ge=0, le=100_000)
     substitute_available: bool = True
+    # Iter 216h207 — GDPR/marketing consent parity with member flow.
+    # Operators are required to record the instructor's acceptance of
+    # the data-processing T&Cs (payroll, public bio, marketing list).
+    gdpr_consent: bool = False
+    marketing_consent: bool = False
 
 
 class InstructorPatch(BaseModel):
@@ -149,6 +154,9 @@ class InstructorPatch(BaseModel):
     first_aid_expires_on: Optional[str] = None
     hourly_rate_pence: Optional[int] = None
     substitute_available: Optional[bool] = None
+    # Iter 216h207 — GDPR/marketing consent parity (Edit drawer).
+    gdpr_consent: Optional[bool] = None
+    marketing_consent: Optional[bool] = None
 
 
 # ═══════════════════════════════ Helpers ═══════════════════════════════
@@ -472,8 +480,13 @@ async def create_instructor(body: InstructorIn, user: dict = Depends(get_current
         raise HTTPException(400, "Invalid email format")
     if not phone:
         raise HTTPException(400, "phone required")
+    # Iter 216h207 — GDPR T&Cs acceptance mandatory on create (parity
+    # with member flow). Marketing consent is opt-in (stored as-is).
+    if not bool(body.gdpr_consent):
+        raise HTTPException(400, "GDPR consent (T&Cs acceptance) required")
     base = _slugify(body.name)
     slug = await _unique_slug(org_id, base)
+    now_iso = _now_iso()
     doc = {
         "id": _uuid(),
         "organization_id": org_id,
@@ -482,8 +495,14 @@ async def create_instructor(body: InstructorIn, user: dict = Depends(get_current
         "email": email,
         "phone": phone,
         "created_by": user.get("id"),
-        "created_at": _now_iso(),
-        "updated_at": _now_iso(),
+        "created_at": now_iso,
+        "updated_at": now_iso,
+        # Iter 216h207 — stamp consent audit trail.
+        "gdpr_consent": True,
+        "gdpr_consent_at": now_iso,
+        "gdpr_consent_actor_id": user.get("id"),
+        "marketing_consent": bool(body.marketing_consent),
+        "marketing_consent_at": now_iso if body.marketing_consent else None,
     }
     await db.membership_instructors.insert_one({**doc})
     return {"instructor": {k: v for k, v in doc.items() if k != "_id"}}
@@ -517,6 +536,37 @@ async def patch_instructor(
     if not inst:
         raise HTTPException(404, "Instructor not found")
     updates = {k: v for k, v in body.model_dump(exclude_none=True).items()}
+    # Iter 216h207 — parity with Create: validate email format on
+    # change, reject empty phone, stamp GDPR/marketing consent audit.
+    import re as _re
+    _EMAIL_RE = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    if "email" in updates:
+        em = (updates["email"] or "").strip()
+        if not em:
+            raise HTTPException(400, "email required")
+        if not _re.match(_EMAIL_RE, em):
+            raise HTTPException(400, "Invalid email format")
+        updates["email"] = em
+    if "phone" in updates:
+        ph = (updates["phone"] or "").strip() if isinstance(updates["phone"], str) else updates["phone"]
+        if isinstance(ph, str) and not ph:
+            raise HTTPException(400, "phone cannot be empty")
+        updates["phone"] = ph
+    if "gdpr_consent" in updates:
+        new_val = bool(updates["gdpr_consent"])
+        if new_val != bool(inst.get("gdpr_consent")):
+            updates["gdpr_consent"] = new_val
+            updates["gdpr_consent_at"] = _now_iso() if new_val else None
+            updates["gdpr_consent_actor_id"] = user.get("id") if new_val else None
+        else:
+            updates.pop("gdpr_consent", None)
+    if "marketing_consent" in updates:
+        new_val = bool(updates["marketing_consent"])
+        if new_val != bool(inst.get("marketing_consent")):
+            updates["marketing_consent"] = new_val
+            updates["marketing_consent_at"] = _now_iso() if new_val else None
+        else:
+            updates.pop("marketing_consent", None)
     if "social" in updates and isinstance(updates["social"], dict):
         # Pydantic has already validated the sub-model shape.
         pass

@@ -51,19 +51,23 @@ function calcAge(dob) {
   return Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
 }
 
-const Field = ({ label, hint, children }) => (
+const Field = ({ label, hint, required, children }) => (
   <label className="block">
-    <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-1">{label}</span>
+    <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-1">
+      {label}
+      {required && <span className="text-rose-500 ml-0.5" aria-hidden="true">*</span>}
+    </span>
     {children}
     {hint && <span className="block text-[11px] text-[color:var(--theme-text-muted)] mt-1">{hint}</span>}
   </label>
 );
 
-const Input = ({ value, onChange, type = 'text', placeholder, testid }) => (
+const Input = ({ value, onChange, onBlur, type = 'text', placeholder, testid }) => (
   <input
     type={type}
     value={value ?? ''}
     onChange={(e) => onChange(e.target.value)}
+    onBlur={onBlur}
     placeholder={placeholder}
     className="w-full h-10 px-3 rounded-lg bg-[color:var(--theme-surface)] border border-[color:var(--theme-border)] text-sm text-[color:var(--theme-text)] placeholder-[color:var(--theme-text-muted)] focus:outline-none focus:border-[color:var(--color-brand-cyan)]"
     data-testid={testid}
@@ -109,8 +113,20 @@ const StatusBadge = ({ status }) => {
 };
 
 // ── Profile tab ────────────────────────────────────────────────
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 function ProfileTab({ form, setForm, member, age, onSave, saving }) {
   const isMinor = age !== null && age < 18;
+  const [emailErr, setEmailErr] = useState('');
+  // Iter 216h207 — surface the consent audit trail (timestamp + actor)
+  // so operators know WHEN the member ticked the box. Stamped server-
+  // side, format here.
+  const consentAt = member.gdpr_consent_at;
+  const consentDate = consentAt ? new Date(consentAt) : null;
+  const consentText = consentDate && !Number.isNaN(consentDate.getTime())
+    ? consentDate.toLocaleString()
+    : null;
+
   return (
     <div className="space-y-5" data-testid="member-drawer-profile">
       {isMinor && (
@@ -121,12 +137,30 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="First name"><Input value={form.first_name} onChange={(v) => setForm({ ...form, first_name: v })} testid="member-drawer-first-name" /></Field>
+        <Field label="First name" required><Input value={form.first_name} onChange={(v) => setForm({ ...form, first_name: v })} testid="member-drawer-first-name" /></Field>
         <Field label="Last name"><Input value={form.last_name} onChange={(v) => setForm({ ...form, last_name: v })} testid="member-drawer-last-name" /></Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Email"><Input type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} testid="member-drawer-email" /></Field>
-        <Field label="Phone"><Input value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} testid="member-drawer-phone" /></Field>
+        <div>
+          <Field label="Email" required>
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(v) => { setForm({ ...form, email: v }); if (emailErr) setEmailErr(''); }}
+              onBlur={(e) => {
+                const v = (e?.target?.value || '').trim();
+                if (v && !EMAIL_RE.test(v)) setEmailErr('Enter a valid email address');
+              }}
+              testid="member-drawer-email"
+            />
+          </Field>
+          {emailErr && (
+            <p data-testid="member-drawer-email-error" className="text-[11px] mt-1 text-rose-500 font-semibold">
+              {emailErr}
+            </p>
+          )}
+        </div>
+        <Field label="Phone" required><Input value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} testid="member-drawer-phone" /></Field>
       </div>
       <Field label="Date of birth" hint={age !== null ? `Age ${age}` : undefined}>
         <Input type="date" value={(form.dob || '').slice(0, 10)} onChange={(v) => setForm({ ...form, dob: v })} testid="member-drawer-dob" />
@@ -139,8 +173,8 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
           <Input value={form.address_line2} onChange={(v) => setForm({ ...form, address_line2: v })} placeholder="Address line 2 (optional)" testid="member-drawer-addr2" />
           <div className="grid grid-cols-3 gap-2">
             <Input value={form.city} onChange={(v) => setForm({ ...form, city: v })} placeholder="City" testid="member-drawer-city" />
-            <Input value={form.postcode} onChange={(v) => setForm({ ...form, postcode: v })} placeholder="Postcode" testid="member-drawer-postcode" />
-            <Input value={form.country} onChange={(v) => setForm({ ...form, country: v })} placeholder="Country" list="member-drawer-country-list" testid="member-drawer-country" />
+            <Input value={form.postcode} onChange={(v) => setForm({ ...form, postcode: v.toUpperCase() })} placeholder="Postcode" testid="member-drawer-postcode" />
+            <Input value={form.country} onChange={(v) => setForm({ ...form, country: v })} placeholder="Country" testid="member-drawer-country" />
           </div>
           <datalist id="member-drawer-country-list">
             {COUNTRIES.map((c) => <option key={c} value={c} />)}
@@ -152,7 +186,7 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-2 flex items-center gap-1.5"><ShieldAlert size={11} /> Emergency contact</p>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Name"><Input value={form.emergency_contact_name} onChange={(v) => setForm({ ...form, emergency_contact_name: v })} testid="member-drawer-eg-name" /></Field>
-          <Field label="Phone"><Input value={form.emergency_contact_phone} onChange={(v) => setForm({ ...form, emergency_contact_phone: v })} testid="member-drawer-eg-phone" /></Field>
+          <Field label="Phone" required><Input value={form.emergency_contact_phone} onChange={(v) => setForm({ ...form, emergency_contact_phone: v })} testid="member-drawer-eg-phone" /></Field>
         </div>
         {/* Iter 216h195 — Relationship is now a curated dropdown so
             reports can aggregate "who's listed as Parent vs Spouse". */}
@@ -161,7 +195,6 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
             <Input
               value={form.emergency_contact_relationship || ''}
               onChange={(v) => setForm({ ...form, emergency_contact_relationship: v })}
-              list="member-drawer-relationship-list"
               placeholder="Select…"
               testid="member-drawer-eg-rel"
             />
@@ -185,6 +218,45 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
         />
       </Field>
 
+      {/* Iter 216h207 — GDPR / marketing consent parity with Add member.
+          T&Cs are required; marketing is opt-in. When the member's record
+          already has consent recorded, the audit timestamp is shown. */}
+      <div className="pt-1 border-t border-[color:var(--theme-border)] mt-2">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-2 mt-2">Consent</p>
+        <label className="flex items-start gap-2 text-xs leading-snug cursor-pointer mb-2" data-testid="member-drawer-gdpr-label">
+          <input
+            type="checkbox"
+            checked={!!form.gdpr_consent}
+            onChange={(e) => setForm({ ...form, gdpr_consent: e.target.checked })}
+            className="mt-0.5"
+            data-testid="member-drawer-gdpr-consent"
+            aria-required
+          />
+          <span>
+            <span className="font-semibold text-[color:var(--theme-text)]">Member accepts the Terms &amp; Conditions and Privacy Policy.</span>
+            {' '}<span className="text-[color:var(--theme-text-muted)]">Required.</span>
+            {consentText && (
+              <span className="block text-[11px] text-[color:var(--theme-text-muted)] mt-0.5" data-testid="member-drawer-gdpr-recorded">
+                Recorded {consentText}.
+              </span>
+            )}
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-xs leading-snug cursor-pointer" data-testid="member-drawer-marketing-label">
+          <input
+            type="checkbox"
+            checked={!!form.marketing_consent}
+            onChange={(e) => setForm({ ...form, marketing_consent: e.target.checked })}
+            className="mt-0.5"
+            data-testid="member-drawer-marketing-consent"
+          />
+          <span>
+            <span className="font-semibold text-[color:var(--theme-text)]">Member opts in to marketing communications.</span>
+            {' '}<span className="text-[color:var(--theme-text-muted)]">Optional. Member can revoke from the portal.</span>
+          </span>
+        </label>
+      </div>
+
       <div className="rounded-lg border border-[color:var(--theme-border)] bg-[color:var(--theme-surface-hover)] px-3 py-2 text-[11px] text-[color:var(--theme-text-muted)] flex items-center gap-1.5">
         <Cake size={11} /> Member since {member.created_at ? new Date(member.created_at).toLocaleDateString() : '—'}
         {member.no_show_count > 0 && <span className="ml-auto text-rose-600 font-bold">{member.no_show_count} no-show{member.no_show_count === 1 ? '' : 's'}</span>}
@@ -192,7 +264,26 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
 
       <button
         type="button"
-        onClick={onSave}
+        onClick={() => {
+          // Iter 216h207 — local form gate at parity with Add member.
+          const e = (form.email || '').trim();
+          if (!form.first_name?.trim()) { notify.error('First name required'); return; }
+          if (!e) { notify.error('Email required'); return; }
+          if (!EMAIL_RE.test(e)) {
+            setEmailErr('Enter a valid email address (e.g. name@example.com)');
+            notify.error('Invalid email format');
+            return;
+          }
+          if (!form.phone?.trim()) { notify.error('Phone number required'); return; }
+          if (!form.emergency_contact_phone?.trim()) {
+            notify.error('Emergency contact phone required'); return;
+          }
+          if (!form.gdpr_consent) {
+            notify.error('Member must accept T&Cs (GDPR) before saving'); return;
+          }
+          setEmailErr('');
+          onSave();
+        }}
         disabled={saving}
         className="gx-btn-primary w-full h-10 rounded-lg text-sm font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
         data-testid="member-drawer-save"
@@ -558,8 +649,12 @@ export default function MemberEditDrawer({ API, headers, memberId, onClose, onAs
         dob:        a.data.member.dob        || '',
         emergency_contact_name:  a.data.member.emergency_contact_name  || '',
         emergency_contact_phone: a.data.member.emergency_contact_phone || '',
+        emergency_contact_relationship: a.data.member.emergency_contact_relationship || '',
         notes:      a.data.member.notes      || '',
         tags:       Array.isArray(a.data.member.tags) ? a.data.member.tags : [],
+        // Iter 216h207 — GDPR/marketing consent parity (Edit drawer).
+        gdpr_consent: !!a.data.member.gdpr_consent,
+        marketing_consent: !!a.data.member.marketing_consent,
       });
     } catch { notify.error('Failed to load member'); onClose(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps

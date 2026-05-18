@@ -1,0 +1,52 @@
+{
+  "summary": "Iter 216h207 — Edit Member/Instructor drawer GDPR + Email/Phone validation parity testing completed. All backend integration tests pass (9/9). Frontend validation working correctly for both MemberEditDrawer and InstructorRosterView.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h207_edit_drawer_gdpr.py",
+    "/app/backend/tests/test_iter_216h207_integration.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h207_integration.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "Owner: e1.agent@gymaxisai.com / E1Agent123!",
+  "seed_data_creation": "Created TEST_ prefixed members and instructors for validation testing",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 216h207 brings Edit drawer validation parity with Create flows. Backend tests at /app/backend/tests/test_iter_216h207_edit_drawer_gdpr.py (9 unit tests) and /app/backend/tests/test_iter_216h207_integration.py (9 integration tests) all pass. Frontend MemberEditDrawer shows: (1) CONSENT section with GDPR and marketing checkboxes, (2) email validation on blur with red error message, (3) GDPR validation toast on save. InstructorRosterView shows: (1) CONSENT section with T&Cs checkbox, (2) validation toast 'Instructor must accept the data-processing T&Cs before saving' when GDPR unchecked.",
+  "verified_features": {
+    "backend": [
+      "PATCH /api/memberships/members/{id} with invalid email returns 400 'Invalid email format'",
+      "PATCH /api/memberships/members/{id} with empty phone returns 400",
+      "PATCH /api/memberships/members/{id} with empty emergency_contact_phone returns 400",
+      "PATCH /api/memberships/members/{id} with gdpr_consent=true stamps audit fields (gdpr_consent_at, gdpr_consent_actor_id)",
+      "PATCH /api/memberships/members/{id} with gdpr_consent=true when already true does NOT re-stamp timestamp",
+      "POST /api/memberships/instructors without gdpr_consent returns 400 'GDPR consent required'",
+      "POST /api/memberships/instructors with gdpr_consent=true stamps audit fields",
+      "PATCH /api/memberships/instructors/{id} with invalid email returns 400",
+      "PATCH /api/memberships/instructors/{id} with gdpr_consent=true stamps audit fields"
+    ],
+    "frontend": [
+      "MemberEditDrawer Profile tab shows CONSENT section with GDPR and marketing checkboxes",
+      "MemberEditDrawer shows required asterisks on First Name, Email, Phone, Emergency Phone fields",
+      "MemberEditDrawer email validation on blur shows red error message 'Enter a valid email address'",
+      "MemberEditDrawer Save with invalid email shows toast 'Invalid email format'",
+      "MemberEditDrawer Save with GDPR unchecked shows validation error",
+      "InstructorRosterView Profile tab shows CONSENT section with T&Cs checkbox",
+      "InstructorRosterView Save with GDPR unchecked shows toast 'Instructor must accept the data-processing T&Cs before saving'"
+    ]
+  }
+}

@@ -461,6 +461,12 @@ function EditorDrawer({ API, headers, initial, onClose }) {
     const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
     if (!EMAIL_RE.test(f.email.trim())) { notify.error('Enter a valid email address'); return; }
     if (!f.phone?.trim()) { notify.error('Phone number is required'); return; }
+    // Iter 216h207 — GDPR T&Cs acceptance required on save (parity
+    // with the Add member modal). Marketing consent stays opt-in.
+    if (!f.gdpr_consent) {
+      notify.error('Instructor must accept the data-processing T&Cs before saving');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -620,6 +626,46 @@ function EditorDrawer({ API, headers, initial, onClose }) {
               <Field label="Tags (comma-separated)">
                 <input type="text" value={(f.tags || []).join(', ')} onChange={(e) => up('tags')(e.target.value.split(',').map((t) => t.trim()).filter(Boolean))} placeholder="e.g. yoga, pilates, full-time" className={inputClass} data-testid="mbr-instructor-tags" />
               </Field>
+
+              {/* Iter 216h207 — GDPR / marketing consent parity with the
+                  Add member modal. T&Cs are required (cannot save without);
+                  marketing opt-in is optional. Shows audit timestamp when
+                  already recorded. */}
+              <div className="border-t border-[color:var(--theme-border)] pt-3 mt-1">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-2">Consent</p>
+                <label className="flex items-start gap-2 text-xs leading-snug cursor-pointer mb-2" data-testid="mbr-instructor-gdpr-label">
+                  <input
+                    type="checkbox"
+                    checked={!!f.gdpr_consent}
+                    onChange={(e) => up('gdpr_consent')(e.target.checked)}
+                    className="mt-0.5"
+                    data-testid="mbr-instructor-gdpr-consent"
+                    aria-required
+                  />
+                  <span>
+                    <span className="font-semibold text-[color:var(--theme-text)]">Instructor accepts the data-processing T&amp;Cs (payroll, public bio, marketing list).</span>
+                    {' '}<span className="text-[color:var(--theme-text-muted)]">Required.</span>
+                    {!isNew && initial.gdpr_consent_at && (
+                      <span className="block text-[11px] text-[color:var(--theme-text-muted)] mt-0.5" data-testid="mbr-instructor-gdpr-recorded">
+                        Recorded {new Date(initial.gdpr_consent_at).toLocaleString()}.
+                      </span>
+                    )}
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-xs leading-snug cursor-pointer" data-testid="mbr-instructor-marketing-label">
+                  <input
+                    type="checkbox"
+                    checked={!!f.marketing_consent}
+                    onChange={(e) => up('marketing_consent')(e.target.checked)}
+                    className="mt-0.5"
+                    data-testid="mbr-instructor-marketing-consent"
+                  />
+                  <span>
+                    <span className="font-semibold text-[color:var(--theme-text)]">Instructor opts in to marketing communications.</span>
+                    {' '}<span className="text-[color:var(--theme-text-muted)]">Optional.</span>
+                  </span>
+                </label>
+              </div>
             </>
           )}
 
