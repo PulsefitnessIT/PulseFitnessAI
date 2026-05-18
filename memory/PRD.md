@@ -7565,3 +7565,23 @@ Files: `/app/backend/routes/master_admin_orgs.py`,
 `/app/frontend/src/pages/MasterAdminPage.js`,
 `/app/backend/tests/test_iter_216h189_orgs_q_filter.py` (new).
 
+
+## Iter 216h190 — Server-side pagination on `/master-admin/organizations` (17 Feb 2026)
+
+Added `skip: int = 0` query param to `GET /master-admin/organizations`.
+Response shape extended (additive): now returns
+`{organizations, total, skip, limit, has_more}`. Existing callers
+that read only `organizations` keep working unchanged.
+
+Live (1,144-org env):
+- `?skip=5&limit=5` returns page 2 with `total=1144, has_more=true`
+- `?skip=10000` returns empty list, `has_more=false`
+- Page 0 vs page 1 — **zero overlapping ids** (sort is stable)
+
+Tests: 7 new pagination tests added to
+`test_iter_216h189_orgs_q_filter.py`, all pass. 47/47 directly-related
+pytest pass.
+
+Files: `/app/backend/routes/master_admin_orgs.py`,
+`/app/backend/tests/test_iter_216h189_orgs_q_filter.py`.
+

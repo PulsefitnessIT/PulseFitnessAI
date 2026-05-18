@@ -118,6 +118,7 @@ async def get_all_organizations(
     user: dict = Depends(get_current_user),
     brand: str = "all",
     q: str = "",
+    skip: int = 0,
     limit: int = 2000,
 ):
     require_master_admin(user)
@@ -144,24 +145,42 @@ async def get_all_organizations(
     # would dwarf the saved payload bytes and the rarer use-case is
     # better served by the dedicated `/users` endpoint anyway.
     qs = (q or "").strip()
-    if qs:
+    if qs and len(qs) >= 2:
         # Case-insensitive substring search. Anchor to len ≥ 2 so single
         # keystrokes don't trigger a near-table-scan.
-        if len(qs) >= 2:
-            import re
-            esc = re.escape(qs)
-            org_filter["$or"] = [
-                {"name": {"$regex": esc, "$options": "i"}},
-                {"email": {"$regex": esc, "$options": "i"}},
-                {"primary_contact_email": {"$regex": esc, "$options": "i"}},
-                {"primary_contact_name": {"$regex": esc, "$options": "i"}},
-                {"company_code": {"$regex": esc, "$options": "i"}},
-            ]
+        import re
+        esc = re.escape(qs)
+        org_filter["$or"] = [
+            {"name": {"$regex": esc, "$options": "i"}},
+            {"email": {"$regex": esc, "$options": "i"}},
+            {"primary_contact_email": {"$regex": esc, "$options": "i"}},
+            {"primary_contact_name": {"$regex": esc, "$options": "i"}},
+            {"company_code": {"$regex": esc, "$options": "i"}},
+        ]
 
-    capped = max(1, min(int(limit or 2000), 2000))
-    orgs = await db.organizations.find(org_filter, _ORG_LIST_EXCLUDE).sort("created_at", -1).to_list(capped)
+    # Iter 216h190 — server-side pagination. Existing callers that don't
+    # pass `skip` keep the old behaviour (one big page up to limit=2000),
+    # but new callers can page through the result set with `?skip=N`.
+    # We always return `total` so callers can render "X of Y" badges
+    # without a second round-trip.
+    capped_limit = max(1, min(int(limit or 2000), 2000))
+    capped_skip = max(0, int(skip or 0))
+    total = await db.organizations.count_documents(org_filter)
+    orgs = await (
+        db.organizations.find(org_filter, _ORG_LIST_EXCLUDE)
+        .sort("created_at", -1)
+        .skip(capped_skip)
+        .limit(capped_limit)
+        .to_list(capped_limit)
+    )
     if not orgs:
-        return {"organizations": []}
+        return {
+            "organizations": [],
+            "total": total,
+            "skip": capped_skip,
+            "limit": capped_limit,
+            "has_more": False,
+        }
 
     org_ids = [o["id"] for o in orgs]
 
@@ -248,7 +267,13 @@ async def get_all_organizations(
             "notes": org.get("notes", ""),
         })
 
-    return {"organizations": enriched}
+    return {
+        "organizations": enriched,
+        "total": total,
+        "skip": capped_skip,
+        "limit": capped_limit,
+        "has_more": (capped_skip + len(enriched)) < total,
+    }
 
 
 # ───────────── /organizations/{id}/status ─────────────

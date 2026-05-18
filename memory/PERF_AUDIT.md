@@ -1376,3 +1376,59 @@ Files: `/app/backend/routes/master_admin_orgs.py`,
 `/app/frontend/src/pages/MasterAdminPage.js`,
 `/app/backend/tests/test_iter_216h189_orgs_q_filter.py` (new).
 
+
+---
+
+## Iter 216h190 — Server-side pagination on `/master-admin/organizations` (Feb 2026)
+
+**Goal**: Unlock pagination of the org list endpoint without breaking
+the existing Master Admin Orgs page (which relies on receiving the
+full list to apply client-side `status` / `account_type` filters).
+
+**Backend** (`master_admin_orgs.py`):
+- Added `skip: int = 0` query parameter.
+- Response shape extended (additive): every response now returns
+  `{organizations, total, skip, limit, has_more}` instead of just
+  `{organizations}`. Existing callers that read only the `organizations`
+  key keep working unchanged.
+- The pipeline is `find(filter).sort.skip.limit.to_list(limit)` —
+  same `created_at` sort, just paginated. The enrichment fan-out
+  (8 batched aggregates) only runs over the current page's `org_ids`,
+  so paginating one page is now ~8 small queries vs ~8 large queries.
+- `total = count_documents(filter)` runs in parallel-conceptually-but-
+  serial-in-code so the operator can render "X of Y" badges without
+  a second round-trip.
+
+**Frontend**: no changes — the existing `MasterAdminPage.js` reads
+only the `organizations` key, so the additive metadata is silently
+ignored. Future admin pages (or a "Load more" affordance on this one)
+can adopt pagination by passing `?skip=`.
+
+**Live verification** (1,144-org test env):
+
+| Call | total | skip | limit | rows | has_more |
+|---|---|---|---|---|---|
+| `?limit=5` | 1,144 | 0 | 5 | 5 | true |
+| `?skip=5&limit=5` | 1,144 | 5 | 5 | 5 | true |
+| `?skip=10000&limit=5` | 1,144 | 10000 | 5 | 0 | **false** |
+| `?q=pulse&limit=2` | 6 | 0 | 2 | 2 | true |
+
+**Page-overlap audit**: page 0 (limit=10) and page 1 (skip=10, limit=10)
+returned **zero overlapping ids** — sorting is stable.
+
+**Tests** — extended `test_iter_216h189_orgs_q_filter.py` with 7
+new pagination tests:
+- `test_pagination_metadata_present` — all 4 new keys present, typed
+- `test_pagination_pages_do_not_overlap` — disjoint id sets across pages
+- `test_pagination_total_is_stable_across_pages` — total invariant
+- `test_pagination_skip_beyond_total_returns_empty` — graceful end-of-list
+- `test_pagination_composes_with_q` — `?q=` + `?skip=` AND cleanly
+- `test_pagination_has_more_flag_is_correct` — boundary conditions
+- `test_pagination_backwards_compat` — default `limit=2000` preserved
+
+47/47 directly-related pytest pass overall (14 in the q-filter +
+pagination file, 33 prior split tests).
+
+Files: `/app/backend/routes/master_admin_orgs.py`,
+`/app/backend/tests/test_iter_216h189_orgs_q_filter.py`.
+

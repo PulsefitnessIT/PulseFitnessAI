@@ -130,3 +130,102 @@ def test_enriched_shape_preserved():
     for f in ("user_count", "equipment_count", "issue_count", "open_issues",
               "owner_email", "enabled_modules", "portal_type"):
         assert f in o, f"enrichment field missing from q-filtered row: {f}"
+
+
+# ─── Iter 216h190 — server-side pagination ────────────────────────────
+
+def _orgs_full(token: str, **params) -> dict:
+    """Return the full response envelope (organizations + pagination meta)."""
+    r = requests.get(
+        f"{BASE_URL}/api/master-admin/organizations",
+        params=params,
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def test_pagination_metadata_present():
+    """Every response includes `total`, `skip`, `limit`, `has_more`."""
+    tok = _token()
+    resp = _orgs_full(tok, limit=5)
+    for key in ("organizations", "total", "skip", "limit", "has_more"):
+        assert key in resp, f"missing pagination key: {key}"
+    assert isinstance(resp["total"], int) and resp["total"] >= 0
+    assert resp["skip"] == 0
+    assert resp["limit"] == 5
+    assert isinstance(resp["has_more"], bool)
+
+
+def test_pagination_pages_do_not_overlap():
+    """Page 0 and page 1 of identical size must return disjoint id sets."""
+    tok = _token()
+    p0 = _orgs_full(tok, skip=0, limit=10)
+    p1 = _orgs_full(tok, skip=10, limit=10)
+    ids0 = {o["id"] for o in p0["organizations"]}
+    ids1 = {o["id"] for o in p1["organizations"]}
+    # Both pages should be full unless the env has fewer than 20 orgs.
+    if p0["total"] >= 20:
+        assert len(ids0) == 10 and len(ids1) == 10
+    overlap = ids0 & ids1
+    assert not overlap, f"pages overlap: {overlap}"
+
+
+def test_pagination_total_is_stable_across_pages():
+    """`total` reflects the filtered set and should be identical across
+    consecutive page calls (modulo creation drift, which we ignore for
+    the millisecond-scale gap between two requests)."""
+    tok = _token()
+    p0 = _orgs_full(tok, skip=0, limit=10)
+    p1 = _orgs_full(tok, skip=10, limit=10)
+    # Allow ±2 drift if test data is being seeded concurrently.
+    assert abs(p0["total"] - p1["total"]) <= 2
+
+
+def test_pagination_skip_beyond_total_returns_empty():
+    """`skip > total` is a valid query — returns empty list with the
+    correct pagination meta."""
+    tok = _token()
+    resp = _orgs_full(tok, skip=100000, limit=10)
+    assert resp["organizations"] == []
+    assert resp["has_more"] is False
+    assert resp["skip"] == 100000
+
+
+def test_pagination_composes_with_q():
+    """`?q=` narrows the pool; `total` reflects the narrowed pool."""
+    tok = _token()
+    full = _orgs_full(tok)
+    narrow = _orgs_full(tok, q="pulse")
+    assert narrow["total"] <= full["total"], (
+        f"q-filtered total ({narrow['total']}) should be ≤ baseline ({full['total']})"
+    )
+    # And paginating WITHIN the narrowed pool works.
+    page = _orgs_full(tok, q="pulse", skip=0, limit=2)
+    assert page["total"] == narrow["total"]
+    assert len(page["organizations"]) <= 2
+
+
+def test_pagination_has_more_flag_is_correct():
+    """When skip + page size < total → has_more=True; else False."""
+    tok = _token()
+    full = _orgs_full(tok, limit=1)  # smallest page to maximise likelihood of has_more=True
+    if full["total"] > 1:
+        assert full["has_more"] is True, (
+            f"has_more should be True when total ({full['total']}) > limit (1)"
+        )
+    last = _orgs_full(tok, skip=full["total"], limit=10)
+    assert last["has_more"] is False, "has_more should be False at end of list"
+    assert last["organizations"] == []
+
+
+def test_pagination_backwards_compat():
+    """Existing callers that don't pass `skip` / `limit` get the old
+    behaviour: a single page of up to 2000 orgs."""
+    tok = _token()
+    resp = _orgs_full(tok)
+    assert resp["limit"] == 2000
+    assert resp["skip"] == 0
+    # The org list field is still where it always was.
+    assert isinstance(resp["organizations"], list)
