@@ -28,3 +28,8 @@ from tests.test_iter_216h207_edit_drawer_gdpr import (  # noqa: F401
     test_patch_instructor_stamps_consent_on_change,
     test_patch_instructor_rejects_invalid_email,
 )
+
+# h216 — Memberships module gate: orgs without operations don't see "Add equipment"
+from tests.test_iter_216h216_activation_module_filter import (  # noqa: F401
+    test_memberships_only_org_hides_equipment_milestone,
+)

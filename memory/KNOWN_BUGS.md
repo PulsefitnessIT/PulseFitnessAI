@@ -82,6 +82,8 @@ _Last refreshed: Iter 216h212 · May 18 2026_
 
 | Iter | Fix |
 |------|-----|
+| h216 | Craig's 7-bug screenshot batch — engineer apply (mandatory mobile, radius min 5km, mobile-friendly stepper, gradient button), NPS gated to 5+ logins, activation timeline module-aware (no "add equipment" prompt for Memberships-only orgs), login counter wired |
+| h215 | Platform Issues (24h) Master Admin home tile + auto-refresh + deep-link rows |
 | h214 | UX polish — NPS localStorage + 7d cooldown, PWA prompt session-throttled + 30s delay, CSP whitelisted emergent/posthog/cloudflare hosts (closes h212 P2s) |
 | h213 | Regression suite wired into pre-deploy.sh + GitHub Quality Gate + `make regression-full` |
 | h212 | Service Desk + CRM + MOD audit — no P0s, 0 P1s, 3 P2s now fixed in h214. Cross-portal isolation + MFA enrolment verified. |

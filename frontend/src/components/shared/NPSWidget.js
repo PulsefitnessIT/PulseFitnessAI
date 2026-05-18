@@ -34,6 +34,13 @@ const NPSWidget = () => {
 
   useEffect(() => {
     if (!user || closedLocally) return;
+    // Iter 216h216 — Craig's audit: NPS should NEVER appear until the
+    // user has actually used the platform — minimum 5 lifetime logins
+    // (asking a brand-new trial user "how would I rate GymAxis" is
+    // meaningless and reads as desperate). The login counter is
+    // incremented in App.js on successful auth.
+    const loginCount = Number(localStorage.getItem('login_count') || 0);
+    if (loginCount < 5) return;
     // Client-side 7-day "shown recently" cooldown — silent backstop in
     // case the server's 90-day rule races a page nav.
     const lastShown = Number(localStorage.getItem('nps_widget_last_shown') || 0);

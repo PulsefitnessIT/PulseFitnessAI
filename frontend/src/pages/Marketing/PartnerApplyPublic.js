@@ -102,11 +102,20 @@ export default function PartnerApplyPublic() {
     if (step.id === 'profile') {
       if (!profile.full_name.trim()) er.full_name = 'Required';
       if (!isValidEmail(profile.email)) er.email = 'Enter a valid email so we can contact you';
+      // Iter 216h216 — Craig's audit: mobile must be mandatory.
+      // Engineers without phones can't be dispatched to urgent jobs.
+      const p = (profile.phone || '').trim();
+      if (!p) er.phone = 'Required — we need to reach you for urgent jobs';
+      else if (p.replace(/\D/g, '').length < 7) er.phone = 'Looks too short — full mobile number please';
     }
     if (step.id === 'area') {
       if (profile.service_postcode && !isValidUkPostcode(profile.service_postcode)) {
         er.service_postcode = 'Looks like an invalid UK postcode';
       }
+      // Iter 216h216 — Craig's audit: 2km is unworkable. Set min 5km.
+      const r = Number(profile.travel_radius_km || 0);
+      if (!r || r < 5) er.travel_radius_km = 'Set a sensible travel radius — minimum 5 km';
+      if (r > 500) er.travel_radius_km = 'Cap your radius at 500 km';
     }
     if (step.id === 'terms' && !profile.terms_accepted) {
       er.terms_accepted = 'Please accept the Partner Engineer terms';
@@ -160,7 +169,13 @@ export default function PartnerApplyPublic() {
               </p>
               <p className="mt-3 text-xs text-slate-500">Reference: <span className="font-mono">{submitted.application_id}</span></p>
               <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-                <Link to="/partners/engineers" className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-6 py-3 text-sm font-bold" data-testid="pe-apply-back-network">
+                {/* Iter 216h216 — was bg-slate-900 (black-on-black look on
+                    iOS Safari where the label rendered against dark area
+                    of the gradient bg). Switched to the brand gradient
+                    button class with explicit white text. */}
+                <Link to="/partners/engineers"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white px-6 py-3 text-sm font-bold shadow-sm transition"
+                  data-testid="pe-apply-back-network">
                   Back to network <ArrowRight size={14} />
                 </Link>
                 <Link to="/" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100">
@@ -191,19 +206,30 @@ export default function PartnerApplyPublic() {
             </p>
           </div>
 
-          {/* Stepper */}
-          <div className="flex items-center justify-between mb-6 gap-2 overflow-x-auto pb-2" data-testid="partner-apply-stepper">
+          {/* Stepper — Iter 216h216: Craig's audit flagged steps cut off
+              on mobile. Refactored:
+                • Mobile: pill row scrolls horizontally with snap, AND a
+                  "Step X of N" label appears above so context is never lost.
+                • Desktop: full inline stepper with connecting lines as before. */}
+          <div className="mb-3 sm:hidden text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500"
+               data-testid="partner-apply-stepper-mobile-label">
+            Step {stepIdx + 1} of {STEPS.length} · <span className="text-slate-900">{step.label}</span>
+          </div>
+          <div className="flex items-center mb-6 gap-2 overflow-x-auto pb-2 snap-x snap-mandatory"
+               data-testid="partner-apply-stepper">
             {STEPS.map((s, i) => {
               const Icon = s.icon;
               const reached = i <= completedSteps;
               return (
-                <div key={s.id} className="flex items-center gap-2 min-w-0 flex-1" data-testid={`partner-apply-step-${s.id}`}>
+                <div key={s.id}
+                  className="flex items-center gap-2 shrink-0 snap-start sm:min-w-0 sm:flex-1"
+                  data-testid={`partner-apply-step-${s.id}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                     reached ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'
                   }`}>
                     {i < stepIdx ? <CheckCircle2 size={14} /> : <Icon size={14} />}
                   </div>
-                  <div className={`text-[11px] font-bold uppercase tracking-wider truncate ${
+                  <div className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
                     reached ? 'text-slate-800' : 'text-slate-400'
                   }`}>{s.label}</div>
                   {i < STEPS.length - 1 && (
@@ -223,7 +249,9 @@ export default function PartnerApplyPublic() {
                   value={profile.full_name} onChange={setField('full_name')} />
                 <Field label="Email" required type="email" error={errors.email} testId="pe-apply-email"
                   placeholder="you@example.com" value={profile.email} onChange={setField('email')} />
-                <Field label="Mobile (optional)" testId="pe-apply-phone"
+                <Field label="Mobile" required type="tel" testId="pe-apply-phone"
+                  placeholder="07700 900000"
+                  error={errors.phone}
                   value={profile.phone} onChange={setField('phone')} />
                 <Field label="Company / trading name (optional)" testId="pe-apply-company"
                   value={profile.company_name} onChange={setField('company_name')} />
@@ -239,11 +267,25 @@ export default function PartnerApplyPublic() {
                   value={profile.service_postcode}
                   onChange={(e) => setField('service_postcode')({ target: { value: (e?.target?.value || '').toUpperCase() } })} />
                 <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Travel radius (km)</span>
-                  <input type="number" min={1} max={500} value={profile.travel_radius_km}
-                    onChange={(e) => setProfile((p) => ({ ...p, travel_radius_km: Number(e.target.value || 25) }))}
-                    className="mt-1.5 w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-900"
+                  <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">
+                    Travel radius (km) <span className="text-rose-500" aria-hidden>*</span>
+                  </span>
+                  <input type="number" min={5} max={500} value={profile.travel_radius_km}
+                    onChange={(e) => {
+                      const n = Number(e.target.value || 25);
+                      setProfile((p) => ({ ...p, travel_radius_km: n }));
+                      if (errors.travel_radius_km) setErrors((er) => ({ ...er, travel_radius_km: null }));
+                    }}
+                    className={`mt-1.5 w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-slate-900 ${
+                      errors.travel_radius_km ? 'border-rose-400' : 'border-slate-200'
+                    }`}
                     data-testid="pe-apply-radius" />
+                  <span className="block text-[11px] text-slate-400 mt-1">Minimum 5 km — covers your home patch + a couple of clusters.</span>
+                  {errors.travel_radius_km && (
+                    <span className="block text-[11px] font-semibold text-rose-500 mt-1" data-testid="pe-apply-radius-error">
+                      {errors.travel_radius_km}
+                    </span>
+                  )}
                 </label>
               </div>
             )}

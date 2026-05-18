@@ -49,6 +49,11 @@ export default function LoginPage() {
       const { data } = await axios.post(`${API}/auth/login`, { email, password });
       if (!data?.token) throw new Error('No token returned');
       login(data.token, data.user);
+      // Iter 216h216 — track lifetime login count for NPS trust-gating.
+      try {
+        const n = Number(localStorage.getItem('login_count') || 0);
+        localStorage.setItem('login_count', String(n + 1));
+      } catch (_) { /* private-mode storage failure — non-blocking */ }
       const u = data.user || {};
       if (u.must_change_password) {
         navigate('/change-password', { replace: true });

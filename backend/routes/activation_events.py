@@ -57,6 +57,44 @@ EVENT_TYPES = (
     "module_activated",
 )
 
+# Iter 216h216 — Craig's audit: "why do I need to add equipment if I
+# chose the Memberships module?" The activation checklist now filters
+# by what the org has actually switched on. Each event belongs to a
+# module key (or "any" / "always" when it's universal).
+EVENT_MODULES: dict[str, str] = {
+    "first_login":             "always",
+    "first_equipment_added":   "operations",
+    "first_member_added":      "memberships",
+    "first_booking_taken":     "memberships",
+    "first_invoice_generated": "memberships",  # invoices today live in memberships
+    "first_class_scheduled":   "memberships",
+    "first_staff_invited":     "always",
+    "module_activated":        "always",
+}
+
+
+def _modules_enabled_for(user_or_org: dict) -> set[str]:
+    """Return the set of module keys the org has enabled.
+
+    Accepts either a `users` row (which carries the cached module_access)
+    or an `organizations` row (which has the canonical `modules` map).
+    Falls back to "all modules enabled" when no data is available so we
+    don't accidentally hide milestones from legacy accounts.
+    """
+    enabled: set[str] = set()
+    # users row stores it as `module_access` (cached on login)
+    mods = user_or_org.get("module_access") or user_or_org.get("modules") or {}
+    if isinstance(mods, dict):
+        for k, v in mods.items():
+            if v:
+                enabled.add(k)
+    # Full account types (account_type='full' / 'pulse_pro' / 'pro') have
+    # everything enabled by default.
+    acc = (user_or_org.get("account_type") or "").lower()
+    if acc in {"full", "pro", "pulse_pro"}:
+        enabled.update({"operations", "memberships", "service_desk", "crm", "marketing"})
+    return enabled
+
 # Friendly labels surfaced in the UI funnel.
 EVENT_LABELS: dict[str, str] = {
     "first_login":             "First login",
@@ -150,26 +188,52 @@ async def activation_for_me(user: dict = Depends(get_current_user)) -> dict:
     """Operator-facing timeline — returns which milestones the caller's
     organisation has achieved. Master admins without an org return an
     empty timeline (they use `/master-admin/activation/funnel` instead).
+
+    Iter 216h216 — filters the milestones to the modules the org has
+    enabled. A Memberships-only org no longer sees "Add equipment" and
+    a Operations-only org no longer sees "First class scheduled".
     """
     org_id = user.get("organization_id")
     if not org_id:
-        return {"timeline": [], "fired_count": 0, "total": len(EVENT_TYPES), "as_of": _iso_now()}
+        return {"timeline": [], "fired_count": 0, "total": 0, "as_of": _iso_now()}
+
+    # Resolve enabled modules from the user row first (cheap), fall
+    # back to the org doc if missing.
+    enabled = _modules_enabled_for(user)
+    if not enabled:
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "modules": 1, "account_type": 1})
+        if org:
+            enabled = _modules_enabled_for(org)
+
+    def _is_relevant(et: str) -> bool:
+        mod = EVENT_MODULES.get(et, "always")
+        if mod == "always":
+            return True
+        # No module info → show all (legacy).
+        if not enabled:
+            return True
+        return mod in enabled
+
+    relevant = tuple(et for et in EVENT_TYPES if _is_relevant(et))
+
     rows = await db.activation_events.find(
-        {"organization_id": org_id}, {"_id": 0},
+        {"organization_id": org_id, "event_type": {"$in": list(relevant)}}, {"_id": 0},
     ).sort("occurred_at", 1).to_list(length=50)
     fired_set = {r["event_type"]: r["occurred_at"] for r in rows}
     timeline: list[dict[str, Any]] = []
-    for et in EVENT_TYPES:
+    for et in relevant:
         timeline.append({
             "event_type": et,
             "label": EVENT_LABELS.get(et, et),
             "fired": et in fired_set,
             "occurred_at": fired_set.get(et),
+            "module": EVENT_MODULES.get(et, "always"),
         })
     return {
         "timeline": timeline,
         "fired_count": len(fired_set),
-        "total": len(EVENT_TYPES),
+        "total": len(relevant),
+        "modules_enabled": sorted(enabled),
         "as_of": _iso_now(),
     }
 

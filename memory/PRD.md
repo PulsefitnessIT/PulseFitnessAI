@@ -1,3 +1,43 @@
+## Iter 216h216 — Craig's screenshot batch: engineer apply + NPS gate + module-aware onboarding (Feb 18, 2026) ✅ P0/P1
+
+Three screenshots from Craig surfaced **7 distinct bugs** across the public Engineer Apply wizard, homepage NPS prompt, and trial onboarding. All fixed in one batch.
+
+### Public Engineer Apply Wizard (`/partners/engineers/apply`)
+- **Mobile field was OPTIONAL** → now mandatory with red asterisk + validation ("Required — we need to reach you for urgent jobs" / "Looks too short"). Without a phone, engineers can't be dispatched to urgent jobs.
+- **Travel radius accepted "2 km"** → now min 5 / max 500 with inline red error, helper text ("Minimum 5 km — covers your home patch + a couple of clusters").
+- **Stepper cut off on mobile** → refactored: above the pill row, a sticky "Step X of N · {label}" indicator always shows context. Pill row uses `overflow-x-auto snap-x snap-mandatory` for swipe-through with no truncation.
+- **"Back to network" button was black-on-black after submit** → swapped to brand gradient (`from-blue-600 to-violet-600`) with explicit white text. Always readable on the success state's gradient background.
+
+### Homepage NPS Widget
+- **"How would I rate GymAxis" box shouldn't pop up before signup** → already gated by `user &&`, but Craig saw it for new trial users. Added a **5-lifetime-login minimum** gate — widget never appears for first 5 logins. `LoginPage.js` now increments a `login_count` localStorage counter on successful auth.
+
+### Module-aware Trial Onboarding (Backend)
+- **"Why do I need to add equipment if I chose Memberships?"** — the activation checklist (`ActivationMilestonesCard` → `GET /api/activation/me`) returned all 8 milestones regardless of enabled modules.
+- Added `EVENT_MODULES` map (each event → its owning module key). Added `_modules_enabled_for(user_or_org)` helper that reads `module_access` cache (users) or `modules` dict (orgs) and treats `account_type ∈ {full, pro, pulse_pro}` as "all enabled".
+- `GET /api/activation/me` now filters the timeline by enabled modules. Legacy fallback: if no module data, show all milestones (so existing accounts don't regress).
+- Memberships-only orgs no longer see "First piece of equipment added". Operations-only orgs no longer see "First booking taken" / "First class scheduled" / "First invoice generated". Universal milestones (`first_login`, `first_staff_invited`, `module_activated`) always show.
+
+### Verification
+- Live curl `/api/activation/me` for owner with all 5 modules → 8/8 milestones returned with `module` tag on each row.
+- 5 new pytest cases in `tests/test_iter_216h216_activation_module_filter.py` — all pass (memberships-only, operations-only, full account, legacy fallback, no-org).
+- Regression suite **94/94 green** (was 89; h216 wired into `test_critical_operations.py` + `test_critical_memberships.py`).
+- Frontend lint clean.
+
+### Files
+- UPDATED: `frontend/src/pages/Marketing/PartnerApplyPublic.js` (mandatory mobile, radius validation, stepper, button)
+- UPDATED: `frontend/src/components/shared/NPSWidget.js` (5-login minimum gate)
+- UPDATED: `frontend/src/pages/LoginPage.js` (login_count tracking)
+- UPDATED: `backend/routes/activation_events.py` (EVENT_MODULES map + filter)
+- NEW: `backend/tests/test_iter_216h216_activation_module_filter.py` (5 tests)
+- UPDATED: `backend/tests/regression/test_critical_operations.py` (4 tests added)
+- UPDATED: `backend/tests/regression/test_critical_memberships.py` (1 test added)
+
+### Deferred to a future iter
+- **Suppliers field as dropdown + "Add new" button** (Craig's P2). The current free-text input is functional; a curated dropdown is a 30-min polish item we'll batch with other dropdown standardisation.
+
+---
+
+
 ## Iter 216h215 — Platform Issues (24h) Master Admin home tile (Feb 18, 2026) ✅ P2
 
 Passive trust signal on the Master Admin home — surfaces three feeds at a glance so an issue is visible *before* a stakeholder reports it.
