@@ -73,6 +73,22 @@ jobs:
             tests/test_p3_hardening.py \
             -q --maxfail=3 || echo "NOTE: some tests need live backend; CI will gate once ephemeral stack is wired"
 
+      - name: Pytest — trust-recovery regression suite (84 tests, mandatory)
+        # Iter 216h213 — wired the curated tests/regression/ directory
+        # into the PR gate. These 84 tests cover the critical paths of
+        # Auth, Memberships, Operations, Service Desk, MOD, CRM. They
+        # are isolated unit-style (no live server, no admin tokens) so
+        # they run in any environment in ~2 minutes. A red test here
+        # means a previously-fixed bug has regressed — DO NOT MERGE.
+        # See /app/backend/tests/regression/README.md for module map.
+        working-directory: backend
+        env:
+          MONGO_URL: mongodb://localhost:27017
+          DB_NAME: gymaxis_ci_regression
+          LOGIN_RATE_LIMIT_MAX: "500"
+          LOGIN_RATE_LIMIT_WINDOW: "60"
+        run: pytest tests/regression -q --tb=short --maxfail=10
+
   # ────────────────────────────────────────────────────────────
   # Secret scanner — catches accidental API-key / private-key commits.
   # Runs against the full git history on every PR.

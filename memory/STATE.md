@@ -130,3 +130,13 @@ When you change a module, edit THIS file in the same iteration:
 1. Move the affected line in the Quick Map row if state changed.
 2. Add a one-liner under the module section: `_h{iter}: <what changed>_`
 3. If you mocked something, add it to `/app/memory/KNOWN_BUGS.md`.
+
+## Pre-deployment gate (Iter 216h213)
+
+Before every deploy, run **one of these**:
+- `make pre-deploy` — full gate (regression + security + Stripe + lint)
+- `make regression-full` — just the 84-test trust-recovery suite (~1 min)
+- `bash /app/scripts/pre-deploy.sh` — same as `make pre-deploy`
+
+On GitHub: the `Quality Gate` workflow runs the regression suite automatically
+on every PR + push to `main`. Red = merge blocked.

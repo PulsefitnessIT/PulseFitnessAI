@@ -65,6 +65,22 @@ python3 -m pytest "${REGRESSION_SUITE[@]}" -q --tb=line --no-header \
 ok 'Iter-216 regressions pinned (branding sync, site-lock, brand inheritance)'
 
 # ---------------------------------------------------------------------------
+# 0a) Trust-recovery regression suite (Iter 216h211+) — 84 curated tests
+# ---------------------------------------------------------------------------
+# Single command pre-deployment gate covering 6 modules:
+#   • Auth         (h210) — login-failure reason classification
+#   • Memberships  (h201/h207) — instructor/member validation + GDPR audit
+#   • Operations   (h208) — issues inherit site_id from equipment
+#   • Service Desk (h199/h133) — coverage routing + engineer mileage/parts/invoice
+#   • MOD          (h113f/h117/h120) — portal isolation + HQ rollup + bulk import
+#   • CRM          (h195/h197/h198) — coverage resolver + auth fallback + tags
+# Runtime ~2 min, isolated (no live server, no admin tokens).
+note 'Trust-recovery regression suite — tests/regression (84 isolated tests across 6 modules)'
+python3 -m pytest tests/regression -q --tb=line --no-header \
+  || fail 'Trust-recovery regression suite failed — see /app/backend/tests/regression/README.md for the affected module. A previously-protected critical path has broken; fix BEFORE deploying.'
+ok 'Trust-recovery regressions all green (84/84 across Auth, Memberships, Operations, Service Desk, MOD, CRM)'
+
+# ---------------------------------------------------------------------------
 # 0b) Security + lint baseline (ruff + bandit)
 # ---------------------------------------------------------------------------
 if [[ "${SKIP_SECURITY_SCAN:-0}" == 1 ]]; then

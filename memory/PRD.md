@@ -1,3 +1,33 @@
+## Iter 216h213 — Regression suite wired into pre-deploy gate (Feb 18, 2026) ✅ P1
+
+The 84-test trust-recovery regression suite (h211) is now **mandatory** on every code path that ships:
+
+### Three wiring points
+
+1. **Local pre-deploy script** — `/app/scripts/pre-deploy.sh` Step 0a: runs `pytest tests/regression -q --tb=line --no-header`. Failure exits with status 1 → halts the rest of the deploy gate. This is what `make pre-deploy` invokes.
+2. **GitHub Actions Quality Gate** — `/app/.github/workflows/quality-gate.yml`: new step "Pytest — trust-recovery regression suite (84 tests, mandatory)" added to the `python-quality` job. Runs on every PR + push to `main`. Red = merge blocked.
+3. **Convenience target** — `make regression-full` (Makefile target) is the one-liner for anyone (agent, dev, demo) to run locally. ~1 min runtime.
+
+### Verification
+- `bash -n /app/scripts/pre-deploy.sh` → syntax ok.
+- `make regression-full` → 84/84 passed in 60s.
+- `pytest tests/regression -q` directly → 84/84 in 60s.
+
+### Why both pre-deploy.sh and Quality Gate?
+- **pre-deploy.sh** runs in the pod (where the agent / Emergent deployment lives). Catches the failure BEFORE a Stripe-live-mode deploy is attempted.
+- **Quality Gate** runs in GitHub Actions (where customer pushes via "Save to Github" land). Catches the failure on the PR before merge, so the developer sees a red ❌ on their pull request page.
+
+Two independent paths = belt + braces. A single red regression test in `tests/regression/` now blocks BOTH a direct pod deploy AND a GitHub-flow merge.
+
+### Files
+- UPDATED: `/app/scripts/pre-deploy.sh` (Step 0a added)
+- UPDATED: `/app/.github/workflows/quality-gate.yml` (new pytest step)
+- UPDATED: `/app/Makefile` (`make regression-full` target)
+- UPDATED: `/app/memory/STATE.md` (pre-deployment gate documentation)
+
+---
+
+
 ## Iter 216h212 — Trust-recovery audit Part 2: Service Desk + CRM + MOD (Feb 18, 2026) ✅ P1
 
 Same depth/breadth Playwright sweep as h209 applied to the three remaining customer-facing modules. **All three modules PASS — 0 P0 and 0 P1 bugs found.** Combined with h209's Memberships pass, **4 of the 5 main customer-facing modules now have empirical clean-audit confirmation.**
