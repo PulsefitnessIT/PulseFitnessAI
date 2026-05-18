@@ -1,3 +1,46 @@
+## Iter 216h207 — Edit Member/Instructor drawer GDPR + Email/Phone parity (Feb 18, 2026) ✅ P1
+
+Closed the parity gap surfaced by Craig: the Add Member modal and Create Instructor flow already enforced email format, mandatory phone, mandatory emergency phone, and GDPR consent (h200/h201). The Edit drawers (MemberEditDrawer and InstructorRosterView EditorDrawer) had none of those — so an operator could silently break a member record post-creation.
+
+### Backend
+- **`/app/backend/routes/memberships/members.py`** — PATCH endpoint:
+  - Added `gdpr_consent`, `marketing_consent`, `emergency_contact_relationship` to `_MEMBER_PATCH_ALLOWED`.
+  - Email change validates against `EMAIL_RE` → 400 on bad format.
+  - Empty `phone` / `emergency_contact_phone` → 400 (so the field can't be silently cleared).
+  - `gdpr_consent` flip stamps `gdpr_consent_at` + `gdpr_consent_actor_id` (idempotent — no re-stamp if already in that state).
+  - `marketing_consent` flip stamps `marketing_consent_at`.
+- **`/app/backend/routes/memberships/instructors.py`**:
+  - Added `gdpr_consent: bool = False` + `marketing_consent: bool = False` to `InstructorIn`, Optional variants on `InstructorPatch`.
+  - POST requires `gdpr_consent=true` → 400 otherwise; stamps audit fields on create.
+  - PATCH validates email format on change, rejects empty phone, stamps consent audit on change (idempotent).
+
+### Frontend
+- **`MemberEditDrawer.js`** (ProfileTab):
+  - Required asterisks on First name, Email, Phone, Emergency contact Phone.
+  - EMAIL_RE on-blur validation surfaces `member-drawer-email-error` under the field.
+  - New Consent section: `gdpr_consent` (required) + `marketing_consent` (opt-in) checkboxes with audit-timestamp display.
+  - Save handler validates locally (first name, email format, phone, emergency phone, gdpr) BEFORE calling `onSave`. Toast errors surface the failing branch.
+  - `reload` hydrates `gdpr_consent`, `marketing_consent`, `emergency_contact_relationship` from the API.
+- **`InstructorRosterView.js`** (EditorDrawer Profile tab):
+  - New Consent section after Tags: gdpr_consent + marketing_consent checkboxes + audit timestamp.
+  - `save()` blocks save when `!f.gdpr_consent` with toast 'Instructor must accept the data-processing T&Cs before saving'.
+
+### Tests
+- **`/app/backend/tests/test_iter_216h207_edit_drawer_gdpr.py`** — 9 unit tests (member invalid email, member empty phone, member empty emergency phone, member gdpr stamp, member gdpr idempotent, instructor POST requires gdpr, instructor POST stamps audit, instructor PATCH stamps on change, instructor PATCH invalid email).
+- **`/app/backend/tests/test_iter_216h201_instructor_validation.py`** updated to include `gdpr_consent: True` in the happy-path body.
+- Testing agent (iter 216h207) — 100% pass: 9/9 backend integration + 7/7 frontend flows.
+
+### Files
+* `backend/routes/memberships/members.py` (PATCH validation + consent stamping)
+* `backend/routes/memberships/instructors.py` (Pydantic models + POST/PATCH validation + consent stamping)
+* `frontend/src/pages/Memberships/MemberEditDrawer.js` (Profile tab parity)
+* `frontend/src/pages/Memberships/InstructorRosterView.js` (EditorDrawer parity)
+* `backend/tests/test_iter_216h207_edit_drawer_gdpr.py` (NEW)
+* `backend/tests/test_iter_216h201_instructor_validation.py` (updated)
+
+---
+
+
 ## Iter 216h206 — Dark-mode sweep: fractional-opacity surface fix (Feb 18, 2026) ✅ P1
 
 Closed the dark-mode leak first reported in h201 across the remaining ~31 files.
