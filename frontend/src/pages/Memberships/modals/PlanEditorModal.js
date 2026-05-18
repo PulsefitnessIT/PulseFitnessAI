@@ -11,6 +11,7 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { ModalShell, Input, Select, ModalActions } from '@/pages/Memberships/_shared';
+import { ModalErrorBoundary } from '@/components/shared/ModalErrorBoundary';
 
 export const PLAN_KINDS = [
   { value: 'recurring',   label: 'Recurring (subscription)' },
@@ -34,6 +35,14 @@ export const INCLUDED_OPTIONS = [
 ];
 
 export default function PlanEditorModal({ API, headers, plan, defaultKind, onClose }) {
+  return (
+    <ModalErrorBoundary label="Plan Editor" onClose={() => onClose?.(false)}>
+      <PlanEditorModalInner API={API} headers={headers} plan={plan} defaultKind={defaultKind} onClose={onClose} />
+    </ModalErrorBoundary>
+  );
+}
+
+function PlanEditorModalInner({ API, headers, plan, defaultKind, onClose }) {
   const isNew = !plan;
   const [f, setF] = useState(() => ({
     name: plan?.name || '',

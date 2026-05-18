@@ -17,6 +17,9 @@ _Last refreshed: Iter 216h209 · Feb 18 2026_
 - **Possible causes**: (1) Tenant-specific data issue, (2) Browser-specific, (3) Network timeout perceived as crash.
 - **Repro steps needed**: Craig to provide exact tenant/org, browser + version, console screenshot at time of crash.
 - **Status**: Downgraded to P2 pending reproduction evidence.
+- **Defensive measures shipped in h209**:
+  - `ModalErrorBoundary` (`/app/frontend/src/components/shared/ModalErrorBoundary.jsx`) wraps Class Builder, Plan Editor, Add Member. Any future render crash → readable fallback ("Couldn't render this dialog — Retry / Close") + auto-POST to `/api/client-errors` with full stack + component_stack + URL + user-agent.
+  - Backend `POST /api/client-errors` stores to `client_errors` collection. Grep this when a stakeholder reports a future "crash" without details.
 
 ### P1 — Discoverability of class_pack plans (FIXED in h209)
 - Before h209, "credit packs" were a hidden `kind` toggle. Now a dedicated **Credit Packs** subtab is in Plans.

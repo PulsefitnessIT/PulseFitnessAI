@@ -10,6 +10,7 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { ModalShell, Input, ModalActions } from '@/pages/Memberships/_shared';
+import { ModalErrorBoundary } from '@/components/shared/ModalErrorBoundary';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Mon' }, { value: 1, label: 'Tue' }, { value: 2, label: 'Wed' },
@@ -17,6 +18,14 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function ClassEditorModal({ API, headers, template, onClose }) {
+  return (
+    <ModalErrorBoundary label="Class Builder" onClose={() => onClose?.(false)}>
+      <ClassEditorModalInner API={API} headers={headers} template={template} onClose={onClose} />
+    </ModalErrorBoundary>
+  );
+}
+
+function ClassEditorModalInner({ API, headers, template, onClose }) {
   const isNew = !template;
   const [f, setF] = useState(() => ({
     name: template?.name || '',

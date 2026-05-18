@@ -1,3 +1,33 @@
+## Iter 216h209 — Trust-recovery audit + durable infrastructure (Feb 18, 2026) ✅ P0 / Process
+
+User feedback: Craig (stakeholder) spent 30 mins on the platform and gave up — reported "no credits package in memberships" and "Class Builder crashed". This session prioritised **rebuilding trust** with three parallel workstreams:
+
+### Phase A — Reproduce + fix the reported bugs
+- **"No credits package"** — was a discoverability bug, not a missing feature. The class_pack `kind` lived inside the "New plan" dropdown with no signpost. **Fixed**: dedicated **Credit Packs** subtab in `MembershipsConsole.PlansTab`, alongside Plans + Courses. `PlanEditorModal` accepts `defaultKind` prop so the Credit Packs CTA pre-selects `kind=class_pack`. Filter prevents class_packs leaking into the Plans subtab.
+- **"Class Builder crashed"** — could not reproduce. Live Playwright walkthrough on `e1.agent@gymaxisai.com` opened ClassEditorModal cleanly, all fields render & save. **Defensive measures**:
+  - New `ModalErrorBoundary` (`/app/frontend/src/components/shared/ModalErrorBoundary.jsx`) wraps ClassEditorModal, PlanEditorModal, AddMemberModal. Any future render crash → readable fallback + auto-POST to backend telemetry instead of silent freeze.
+  - New backend endpoint `POST /api/client-errors` (`/app/backend/routes/client_errors.py`) persists structured payload (label, message, stack, component_stack, url, user-agent, user_id, org_id, IP) to `client_errors` collection. Verified: HTTP 204 + DB row. Permissive (no Pydantic validation, auth optional) so member-portal crashes also report.
+
+### Phase B — Full end-to-end Memberships audit
+Testing agent ran a comprehensive Playwright sweep covering: 20 operator tabs, all Plans subtabs, ClassEditor + AddMember + InstructorRoster modals, Member portal (Emma), Instructor portal (Jake). **100% backend pass, 95% frontend pass**. Only P2 findings: Playwright `fill()` quirk on Member login (testing-tool issue, not product), drawer pointer-events overlay (known F-1 footgun, minor), 403s on `/api/member/consent-forms` + `/api/member/home-widget` (expected — member-only routes accessed with operator token during audit). Full report `/app/test_reports/iteration_216h209.json`.
+
+### Phase C — Durable infrastructure (so handoffs stop leaking context)
+- **`/app/memory/STATE.md`** — NEW. Single-page snapshot of every module's current state (operator surface, public surface, route prefix, ✅/🟡/⚠️/❌ status). Update protocol baked in. Next agent reads THIS first, not the 8000-line PRD.md.
+- **`/app/memory/KNOWN_BUGS.md`** — NEW. Active P0/P1 list + Mocked/Gated integrations table + 8 recurring footguns (Radix Select-in-Dialog, missing site_id, _id leak, datetime aware, master admin org assumption, bcrypt `$` expansion, broken `bg-white dark:bg-zinc-900/<opacity>`, POST/PATCH validation drift) + last-10-iters cheatsheet.
+- **`/app/backend/tests/regression/`** — NEW. Curated suite that re-exports the critical-path tests from per-iter files. `test_critical_memberships.py` (15 cases) + `test_critical_operations.py` (4 cases) currently green (19/19). Pre-deployment gate.
+
+### Files
+- NEW: `frontend/src/components/shared/ModalErrorBoundary.jsx`
+- NEW: `backend/routes/client_errors.py`
+- NEW: `memory/STATE.md`, `memory/KNOWN_BUGS.md`
+- NEW: `backend/tests/regression/{__init__.py, README.md, test_critical_memberships.py, test_critical_operations.py}`
+- UPDATED: `frontend/src/pages/Memberships/MembershipsConsole.js` (Credit Packs subtab + variant filter)
+- UPDATED: `frontend/src/pages/Memberships/modals/{PlanEditorModal, ClassEditorModal, AddMemberModal}.js` (defaultKind prop + ModalErrorBoundary wrap)
+- UPDATED: `backend/route_registry/core.py` (register client_errors_router)
+
+---
+
+
 ## Iter 216h208 — Fault logged but not visible on fault screen (Feb 18, 2026) ✅ P0 BUG FIX
 
 User report (admin@gymaxisai.com): "I logged a fault on Preview — fault logged successfully but the fault didn't show on the fault screen."

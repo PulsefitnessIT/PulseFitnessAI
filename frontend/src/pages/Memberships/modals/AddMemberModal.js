@@ -25,11 +25,20 @@ import { notifyApiError } from '@/lib/formatApiError';
 import { ModalShell, Input, ModalActions } from '@/pages/Memberships/_shared';
 import { COUNTRIES } from '@/utils/crmDropdowns';
 import DatePicker from '@/components/shared/DatePicker';
+import { ModalErrorBoundary } from '@/components/shared/ModalErrorBoundary';
 
 const POSTCODE_API = process.env.REACT_APP_BACKEND_URL + '/api';
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function AddMemberModal({ API, headers, onClose }) {
+  return (
+    <ModalErrorBoundary label="Add member" onClose={() => onClose?.(false)}>
+      <AddMemberModalInner API={API} headers={headers} onClose={onClose} />
+    </ModalErrorBoundary>
+  );
+}
+
+function AddMemberModalInner({ API, headers, onClose }) {
   const [f, setF] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     dob: '',
