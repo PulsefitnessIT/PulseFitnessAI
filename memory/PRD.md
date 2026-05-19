@@ -8803,3 +8803,49 @@ Files: `partners.py`, `PartnerEngineerLanding.js`, `MarketingHome.js`,
 `PartnerApplyPublic.js`, `PartnerApplyWizard.js`,
 `tests/test_iter_216h75_partner_network.py`.
 
+
+## Iter 216h218 — Supplier-picker sweep complete (Feb 19, 2026)
+
+### Context
+Final hop of Craig's "drop-down boxes everywhere" audit. Operations
+free-text supplier inputs were the last surface still escaping the
+curated UK fitness supplier catalogue introduced in h217. Now all five
+operator surfaces share the same `SupplierMultiPicker`:
+
+  • Parts Inventory (`PartsInventoryPage` add row)
+  • Equipment Info Tab (`EquipmentInfoTab`)
+  • Invoice Import Wizard (`InvoiceImportWizard`)
+  • Lite Equipment Drawer (`LiteDialogs.SupplierEditor`) ← h218
+  • Partner Apply (Public + Wizard) ← already on it
+
+### Frontend (`LiteDialogs.js`)
+- Replaced the native Radix `<Select>` inside `SupplierEditor`
+  (lines 426-491) with `<SupplierMultiPicker single />`.
+- Kept the existing "Email the supplier" notify checkbox + Save /
+  Cancel buttons + handleSaveSupplier flow untouched (org supplier
+  directory still drives `supplier_id` mapping for fault routing).
+- Added an amber inline hint when the picked name is not in the
+  org's supplier directory (`lite-equip-supplier-not-in-directory`):
+  managers know fault emails won't auto-route until they register
+  the supplier in Account Settings → Suppliers.
+- Removed the legacy `lite-equip-supplier-select` testid; new testid
+  prefix is `lite-equip-supplier-picker`.
+
+### Backend
+- No backend code changes. The picker continues to consume the
+  already-shipped `/api/suppliers/catalogue` endpoint (curated +
+  org-custom merged).
+
+### Tests
+- Fixed pre-existing breakage in `tests/test_iter_216bl_site_lock.py`
+  caused by the intentional strict-scope change in Iter 216h113i.
+  Tests were never updated; this iteration pinned the new contract
+  (requested site → direct `site_id` filter, no `$or` null-fallback).
+- `make regression`: 23/23 pass (14 skipped due to env deps).
+- `make regression-full`: 96/96 pass.
+- Testing agent E2E flow: supplier picker renders, curated brands
+  visible (Pulse, Technogym, Life Fitness, Precor, …), filtering +
+  selection + amber non-directory warning + PATCH save all green
+  against `jack.ottey@thirdspace.london`'s 216-equipment estate.
+
+Files: `LiteDialogs.js`, `STATE.md`, `tests/test_iter_216bl_site_lock.py`.
