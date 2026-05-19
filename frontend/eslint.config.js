@@ -132,13 +132,10 @@ export default [
     // Iter 215i — Light-mode audit COMPLETE in scope folders. Promoted
     // to `error` after Wave-2 codemods cleared 86 leaks → 0.
     //
-    // Iter 216h226 — temporarily downgraded to `warn` after a regression
-    // crept in across ~300 files (CRM Phase 2 / 3 + new MasterAdmin
-    // tabs were authored with raw Tailwind colour utilities). The
-    // backlog is tracked in /app/memory/ROADMAP.md (P1: "Light-mode
-    // leakage cleanup"). The Quality Gate's `--max-warnings 1500`
-    // budget keeps the count from growing. Restore to `error` once
-    // the cleanup PRs land.
+    // Iter 216h226-polish-4 — REPROMOTED to `error` after the codemod
+    // `scripts/sweep_dark_mode_leakage.py` cleared all 297 violations
+    // (292 auto-patched via Tailwind `dark:` variants, 7 gradient
+    // one-offs hand-fixed). Any new leak fails the build.
     files: [
       "src/pages/Marketing/**/*.{js,jsx}",
       "src/pages/Memberships/**/*.{js,jsx}",
@@ -163,7 +160,7 @@ export default [
     ],
     plugins: { gymaxis: gymaxisPlugin },
     rules: {
-      "gymaxis/no-dark-mode-leakage": "warn",
+      "gymaxis/no-dark-mode-leakage": "error",
     },
   },
   {

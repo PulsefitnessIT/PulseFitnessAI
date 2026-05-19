@@ -94,7 +94,7 @@ export default function CompareLayout({
             <ChevronRight size={11} />
             <span className="text-slate-700 font-semibold">vs {competitor.name}</span>
           </nav>
-          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
             <Sparkles size={12} /> Alternative comparison
           </span>
           <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl tracking-tighter font-black leading-[1.05] max-w-4xl">
@@ -114,7 +114,7 @@ export default function CompareLayout({
             </button>
             <Link
               to="/contact"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:bg-zinc-900"
               data-testid={`compare-demo-${competitor.slug}`}
             >
               Book a tailored demo
@@ -124,7 +124,7 @@ export default function CompareLayout({
       </section>
 
       {/* Feature matrix */}
-      <section className="bg-white py-16 lg:py-20">
+      <section className="bg-white py-16 lg:py-20 dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-black tracking-tight">
             Feature-by-feature: <span className="gx-gradient-text">GymAxis vs {competitor.name}</span>
@@ -132,9 +132,9 @@ export default function CompareLayout({
           <p className="mt-3 text-slate-600 max-w-2xl">
             What you actually get day-to-day on the operator console, the engineer mobile, and the back-office finance hand-off.
           </p>
-          <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200" data-testid={`compare-matrix-${competitor.slug}`}>
+          <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 dark:border-zinc-800" data-testid={`compare-matrix-${competitor.slug}`}>
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50 dark:bg-zinc-900">
                 <tr>
                   <th className="px-5 py-4 font-bold tracking-tight text-slate-700">Capability</th>
                   <th className="px-5 py-4 font-bold tracking-tight text-slate-700">GymAxis AI</th>
@@ -156,12 +156,12 @@ export default function CompareLayout({
       </section>
 
       {/* Why GymAxis */}
-      <section className="bg-slate-50 py-16 lg:py-20">
+      <section className="bg-slate-50 py-16 lg:py-20 dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-black tracking-tight">Where GymAxis pulls ahead</h2>
           <div className="mt-8 grid md:grid-cols-2 gap-5">
             {winsForGymAxis.map((w) => (
-              <div key={w.title} className="rounded-2xl bg-white border border-slate-200 p-6 hover:shadow-md transition">
+              <div key={w.title} className="rounded-2xl bg-white border border-slate-200 p-6 hover:shadow-md transition dark:bg-zinc-900 dark:border-zinc-800">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
                   <CheckCircle2 size={20} />
                 </div>
@@ -175,7 +175,7 @@ export default function CompareLayout({
 
       {/* Honest counterweight */}
       {whenCompetitorWins?.length ? (
-        <section className="bg-white py-16 lg:py-20">
+        <section className="bg-white py-16 lg:py-20 dark:bg-zinc-900">
           <div className="max-w-6xl mx-auto px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-black tracking-tight">
               When {competitor.name} might be the better pick
@@ -185,8 +185,8 @@ export default function CompareLayout({
             </p>
             <div className="mt-8 grid md:grid-cols-2 gap-5">
               {whenCompetitorWins.map((w) => (
-                <div key={w.title} className="rounded-2xl border border-slate-200 p-6">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 text-slate-600">
+                <div key={w.title} className="rounded-2xl border border-slate-200 p-6 dark:border-zinc-800">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 text-slate-600 dark:bg-zinc-800">
                     <MinusCircle size={20} />
                   </div>
                   <h3 className="mt-4 text-lg font-bold tracking-tight">{w.title}</h3>
@@ -202,12 +202,12 @@ export default function CompareLayout({
       <MigrationGuarantee />
 
       {/* FAQ */}
-      <section className="bg-slate-50 py-16 lg:py-20">
+      <section className="bg-slate-50 py-16 lg:py-20 dark:bg-zinc-900">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-black tracking-tight">Frequently asked</h2>
           <div className="mt-8 space-y-3" data-testid={`compare-faq-${competitor.slug}`}>
             {faqs.map((f) => (
-              <details key={f.q} className="group rounded-xl bg-white border border-slate-200 px-5 py-4 open:shadow-sm">
+              <details key={f.q} className="group rounded-xl bg-white border border-slate-200 px-5 py-4 open:shadow-sm dark:bg-zinc-900 dark:border-zinc-800">
                 <summary className="cursor-pointer list-none flex items-center justify-between font-semibold text-slate-800">
                   {f.q}
                   <ChevronRight size={16} className="transition group-open:rotate-90 text-slate-400" />
@@ -220,7 +220,7 @@ export default function CompareLayout({
       </section>
 
       {/* CTA */}
-      <section className="bg-white py-16 lg:py-24">
+      <section className="bg-white py-16 lg:py-24 dark:bg-zinc-900">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 rounded-3xl p-10 lg:p-14 text-center" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
           <ShieldCheck size={36} className="mx-auto text-white" />
           <h2 className="mt-4 text-3xl md:text-4xl font-black tracking-tight text-white">
@@ -230,7 +230,7 @@ export default function CompareLayout({
             Start a free trial with all modules unlocked. If GymAxis isn't a clear win over {competitor.name}, we'll help you migrate back — no hard sell.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100">
+            <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3 text-sm font-bold hover:bg-slate-100 dark:bg-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">
               Start free trial <ArrowRight size={15} />
             </button>
             <Link to="/blog" className="inline-flex items-center gap-1.5 rounded-full border border-white/40 px-7 py-3 text-sm font-bold text-white hover:bg-white/10">

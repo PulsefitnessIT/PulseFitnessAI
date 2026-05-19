@@ -61,11 +61,11 @@ const LiveCustomerAppPreview = () => {
       </div>
 
       <div className="mx-auto max-w-xs rounded-[40px] border-8 border-slate-900 bg-slate-900 shadow-2xl overflow-hidden">
-        <div className="bg-slate-100 px-4 py-3 flex items-center justify-between text-xs">
+        <div className="bg-slate-100 px-4 py-3 flex items-center justify-between text-xs dark:bg-zinc-800">
           <span className="font-bold text-slate-700">9:41</span>
           <span className="font-bold text-slate-700">●●● ●●</span>
         </div>
-        <div key={animKey} className="bg-white text-left text-xs h-[440px] overflow-hidden cust-preview-screen">
+        <div key={animKey} className="bg-white text-left text-xs h-[440px] overflow-hidden cust-preview-screen dark:bg-zinc-900">
           {screen === 'tracker' && <ScreenTracker onNext={() => go('onsite')} />}
           {screen === 'onsite' && <ScreenOnsite onBack={() => go('tracker')} onComplete={() => go('done')} />}
           {screen === 'done' && <ScreenDone onBack={() => go('onsite')} onRestart={restart} />}
@@ -114,9 +114,9 @@ const ScreenTracker = ({ onNext }) => {
   return (
     <div className="h-full flex flex-col" data-testid="cust-preview-tracker">
       {/* Top bar — job ref */}
-      <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+      <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between dark:bg-zinc-900 dark:border-zinc-800">
         <div>
-          <p className="font-extrabold text-slate-900 text-sm">Engineer on the way</p>
+          <p className="font-extrabold text-slate-900 text-sm dark:text-zinc-100">Engineer on the way</p>
           <p className="text-[10px] text-slate-400">Ref · GA-1287 · Treadmill #4</p>
         </div>
         <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-700">Live</span>
@@ -151,11 +151,11 @@ const ScreenTracker = ({ onNext }) => {
         </div>
 
         {/* Bottom info card overlay */}
-        <div className="absolute left-3 right-3 bottom-3 rounded-2xl bg-white shadow-xl p-3 space-y-2.5">
+        <div className="absolute left-3 right-3 bottom-3 rounded-2xl bg-white shadow-xl p-3 space-y-2.5 dark:bg-zinc-900">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-extrabold text-sm" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>S</div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-slate-900 text-[13px] leading-tight">Sarah Hodge</p>
+              <p className="font-bold text-slate-900 text-[13px] leading-tight dark:text-zinc-100">Sarah Hodge</p>
               <p className="text-[10px] text-slate-500 inline-flex items-center gap-1">
                 <Star size={9} className="text-amber-400" fill="currentColor" /> 4.9 · 26 jobs
               </p>
@@ -174,7 +174,7 @@ const ScreenTracker = ({ onNext }) => {
         </div>
       </div>
 
-      <div className="bg-white p-3 border-t border-slate-100">
+      <div className="bg-white p-3 border-t border-slate-100 dark:bg-zinc-900 dark:border-zinc-800">
         <button
           type="button"
           onClick={onNext}
@@ -197,7 +197,7 @@ const ScreenOnsite = ({ onBack, onComplete }) => (
       <ArrowLeft size={12} /> Back
     </button>
     <div className="flex items-center justify-between mb-2">
-      <p className="font-extrabold text-slate-900 text-sm">On site</p>
+      <p className="font-extrabold text-slate-900 text-sm dark:text-zinc-100">On site</p>
       <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-700 inline-flex items-center gap-1">
         <Wrench size={9} /> Working
       </span>
@@ -212,7 +212,7 @@ const ScreenOnsite = ({ onBack, onComplete }) => (
     </div>
 
     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Live timeline</p>
-    <ol className="relative border-l border-slate-200 ml-1.5 space-y-2.5 flex-1">
+    <ol className="relative border-l border-slate-200 ml-1.5 space-y-2.5 flex-1 dark:border-zinc-800">
       <Step time="14:09" label="Arrived on site" done />
       <Step time="14:14" label="Diagnosis: drive belt worn (12 mm vs 9 mm)" done />
       <Step time="14:21" label="Belt replaced · BELT-001 from van" done />
@@ -220,9 +220,9 @@ const ScreenOnsite = ({ onBack, onComplete }) => (
       <Step time="—"     label="Customer sign-off" />
     </ol>
 
-    <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-2.5">
+    <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-2.5 dark:bg-zinc-900 dark:border-zinc-800">
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Estimated cost</p>
-      <p className="font-extrabold text-slate-900 mt-0.5">£148.50 <span className="text-[10px] text-slate-400 font-medium">incl. labour + belt · pre-approved</span></p>
+      <p className="font-extrabold text-slate-900 mt-0.5 dark:text-zinc-100">£148.50 <span className="text-[10px] text-slate-400 font-medium">incl. labour + belt · pre-approved</span></p>
     </div>
 
     <button
@@ -253,7 +253,7 @@ const ScreenDone = ({ onBack, onRestart }) => {
         <ArrowLeft size={12} /> Back
       </button>
 
-      <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 p-3 mb-3">
+      <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 border border-emerald-200 dark:border-emerald-900/60 p-3 mb-3">
         <div className="flex items-center gap-2 mb-1">
           <CheckCircle2 size={16} className="text-emerald-600" />
           <p className="font-extrabold text-emerald-900 text-sm">Treadmill #4 back in service</p>
@@ -267,13 +267,13 @@ const ScreenDone = ({ onBack, onRestart }) => {
       <button
         type="button"
         data-testid="cust-preview-pdf"
-        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 mb-3 inline-flex items-center gap-2.5 hover:bg-white transition text-left"
+        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 mb-3 inline-flex items-center gap-2.5 hover:bg-white transition text-left dark:bg-zinc-900 dark:border-zinc-800"
       >
-        <div className="w-9 h-11 rounded-md bg-white border border-slate-200 flex items-center justify-center text-slate-400 flex-shrink-0">
+        <div className="w-9 h-11 rounded-md bg-white border border-slate-200 flex items-center justify-center text-slate-400 flex-shrink-0 dark:bg-zinc-900 dark:border-zinc-800">
           <FileText size={16} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-slate-900 text-[12px] truncate">PureGym-Birmingham-CASE-1287.pdf</p>
+          <p className="font-bold text-slate-900 text-[12px] truncate dark:text-zinc-100">PureGym-Birmingham-CASE-1287.pdf</p>
           <p className="text-[10px] text-slate-500 mt-0.5">3 photos · signature · audit chain · £148.50</p>
         </div>
         <ChevronRight size={14} className="text-slate-400" />
@@ -308,7 +308,7 @@ const ScreenDone = ({ onBack, onRestart }) => {
               <Star key={n} size={20} className={n <= rating ? 'text-amber-400' : 'text-slate-200'} fill={n <= rating ? 'currentColor' : 'none'} />
             ))}
           </div>
-          <p className="font-bold text-slate-900 text-sm">Thanks — Sarah will see this!</p>
+          <p className="font-bold text-slate-900 text-sm dark:text-zinc-100">Thanks — Sarah will see this!</p>
           <p className="text-[10px] text-slate-500 max-w-[200px] mx-auto leading-relaxed">
             Your rating feeds her partner-engineer score and helps the next gym choose well.
           </p>

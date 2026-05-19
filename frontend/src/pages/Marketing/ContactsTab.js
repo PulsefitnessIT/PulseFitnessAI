@@ -127,7 +127,7 @@ export default function ContactsTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email, phone…"
-            className="pl-9 h-10 rounded-xl bg-white border-slate-200"
+            className="pl-9 h-10 rounded-xl bg-white border-slate-200 dark:bg-zinc-900 dark:border-zinc-800"
             data-testid="contacts-search"
           />
         </div>
@@ -142,7 +142,7 @@ export default function ContactsTab() {
         <Button
           variant="outline"
           onClick={handleImportClick}
-          className="h-10 rounded-full border-slate-200"
+          className="h-10 rounded-full border-slate-200 dark:border-zinc-800"
           data-testid="contacts-import-btn"
         >
           <Upload size={14} className="mr-1.5" /> Import CSV
@@ -156,10 +156,10 @@ export default function ContactsTab() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-zinc-900 dark:border-zinc-800">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-[0.16em] font-bold text-slate-500">
+            <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-[0.16em] font-bold text-slate-500 dark:bg-zinc-900 dark:border-zinc-800">
               <th className="text-left px-5 py-3">Name</th>
               <th className="text-left px-5 py-3 hidden sm:table-cell">Email</th>
               <th className="text-left px-5 py-3 hidden md:table-cell">Phone</th>
@@ -180,12 +180,12 @@ export default function ContactsTab() {
               </td></tr>
             )}
             {!loading && contacts.map((c) => (
-              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/50" data-testid={`contact-row-${c.id}`}>
+              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/50 dark:border-zinc-800" data-testid={`contact-row-${c.id}`}>
                 <td className="px-5 py-3">
                   <button
                     type="button"
                     onClick={() => setEditing(c)}
-                    className="font-semibold text-slate-900 hover:text-[var(--gx-brand-from)] text-left"
+                    className="font-semibold text-slate-900 hover:text-[var(--gx-brand-from)] text-left dark:text-zinc-100"
                   >
                     {(c.first_name || c.last_name) ? `${c.first_name || ''} ${c.last_name || ''}`.trim() : <span className="text-slate-400 italic">No name</span>}
                   </button>
@@ -196,7 +196,7 @@ export default function ContactsTab() {
                 <td className="px-5 py-3 hidden lg:table-cell">
                   <div className="flex flex-wrap gap-1">
                     {(c.tags || []).slice(0, 3).map((t) => (
-                      <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700"><Tag size={9} /> {t}</span>
+                      <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700 dark:bg-zinc-800"><Tag size={9} /> {t}</span>
                     ))}
                   </div>
                 </td>
@@ -216,7 +216,7 @@ export default function ContactsTab() {
           </tbody>
         </table>
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 text-sm text-slate-600">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 text-sm text-slate-600 dark:border-zinc-800">
             <span>Page {page + 1} of {totalPages} · {total.toLocaleString()} contacts</span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={page <= 0} onClick={() => setPage((p) => p - 1)} data-testid="contacts-prev">Prev</Button>
@@ -282,7 +282,7 @@ function ContactDialog({ contact, onClose, onSaved, API, headers }) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md bg-white">
+      <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-900">
         <DialogHeader>
           <DialogTitle>{isNew ? 'New contact' : 'Edit contact'}</DialogTitle>
         </DialogHeader>

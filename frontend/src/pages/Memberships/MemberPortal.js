@@ -369,7 +369,7 @@ function RequiredFormsBanner({ headers }) {
 
       {signing ? (
         <div
-          className="mt-3 rounded-xl bg-white text-slate-900 p-3"
+          className="mt-3 rounded-xl bg-white text-slate-900 p-3 dark:bg-zinc-900 dark:text-zinc-100"
           data-testid="member-required-form-signing"
         >
           <p className="text-sm font-bold">{signing.title}</p>
@@ -711,6 +711,7 @@ function InstallPrompt({ brandColor }) {
   const accent = brandColor || 'var(--color-brand-cyan)';
   return (
     <div
+      // eslint-disable-next-line gymaxis/no-dark-mode-leakage -- alpha-only overlay (from-white/[0.04]) over the dark portal surface; not a light background.
       className="mb-4 rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent p-3 flex items-start gap-3"
       data-testid="member-install-prompt"
       style={{ borderColor: `${accent}33` }}

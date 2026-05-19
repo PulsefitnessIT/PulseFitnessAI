@@ -195,7 +195,7 @@ export default function ParentPortalTab({ API, headers }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate inline-flex items-center gap-2">
                   {f.title}
-                  <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">v{f.version}</span>
+                  <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-zinc-800">v{f.version}</span>
                   {f.required ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">required</span> : null}
                 </p>
                 <div className="text-[11px] opacity-70 line-clamp-2 mt-0.5" dangerouslySetInnerHTML={{ __html: f.body_html }} />

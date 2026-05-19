@@ -49,7 +49,7 @@ function Hero() {
     <section className="gx-grid-bg" data-testid="sec-hero">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-20 lg:pt-20 lg:pb-28 grid lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
             <ShieldCheck size={12} />Trust & Security
           </span>
           <h1 className="mt-5 text-5xl md:text-6xl tracking-tighter font-black leading-[1.04]">
@@ -62,7 +62,7 @@ function Hero() {
             <a href="/.well-known/security.txt" target="_blank" rel="noreferrer" className="gx-cta inline-flex items-center gap-1.5 rounded-full px-6 py-3 text-sm font-bold">
               View security.txt <ArrowRight size={15} />
             </a>
-            <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+            <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:bg-zinc-900">
               Request pentest evidence
             </Link>
           </div>
@@ -81,7 +81,7 @@ function Hero() {
                 ['Audit log', 'Tamper-evident'],
                 ['security.txt', 'Published'],
               ].map(([l, r]) => (
-                <div key={l} className="flex items-center justify-between rounded-xl bg-white/80 border border-slate-100 px-3 py-2 text-sm">
+                <div key={l} className="flex items-center justify-between rounded-xl bg-white/80 border border-slate-100 px-3 py-2 text-sm dark:border-zinc-800">
                   <span className="font-semibold text-slate-700">{l}</span>
                   <span className="font-bold text-emerald-600">{r}</span>
                 </div>
@@ -96,7 +96,7 @@ function Hero() {
 
 function Pillars() {
   return (
-    <section className="py-24 md:py-32 bg-white" data-testid="sec-pillars">
+    <section className="py-24 md:py-32 bg-white dark:bg-zinc-900" data-testid="sec-pillars">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-2xl">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Our defence</p>
@@ -106,7 +106,7 @@ function Pillars() {
           {PILLARS.map((p, i) => {
             const Icon = p.icon;
             return (
-              <div key={i} className="gx-card rounded-3xl border border-slate-100 bg-slate-50/40 p-7">
+              <div key={i} className="gx-card rounded-3xl border border-slate-100 bg-slate-50/40 p-7 dark:border-zinc-800">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
                   <Icon size={18} />
                 </div>
@@ -131,11 +131,11 @@ function Hardening() {
           <p className="mt-4 text-base md:text-lg text-slate-600 leading-relaxed">
             Security is a release item, not a marketing tagline. Every quarter we publish what we hardened, what we audited, and what changed.
           </p>
-          <a href="https://github.com/gymaxis/security" className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-slate-900 hover:underline">
+          <a href="https://github.com/gymaxis/security" className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-slate-900 hover:underline dark:text-zinc-100">
             <FileText size={14} />Read SECURITY.md
           </a>
         </div>
-        <ul className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 space-y-3">
+        <ul className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 space-y-3 dark:bg-zinc-900 dark:border-zinc-800">
           {HARDENING.map((h, i) => (
             <li key={i} className="flex items-start gap-3">
               <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-500" />
@@ -150,9 +150,9 @@ function Hardening() {
 
 function Disclosure() {
   return (
-    <section className="py-24 md:py-28 bg-white">
+    <section className="py-24 md:py-28 bg-white dark:bg-zinc-900">
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
-        <div className="rounded-[28px] border border-slate-200 bg-slate-50/40 p-8 md:p-12 grid md:grid-cols-3 gap-8 items-center">
+        <div className="rounded-[28px] border border-slate-200 bg-slate-50/40 p-8 md:p-12 grid md:grid-cols-3 gap-8 items-center dark:border-zinc-800">
           <div className="md:col-span-2">
             <p className="text-xs uppercase tracking-[0.2em] font-bold" style={{ color: 'var(--gx-brand-from)' }}>
               <Activity size={13} className="inline mr-1" />Responsible disclosure
@@ -166,7 +166,7 @@ function Disclosure() {
             <a href="mailto:security@gymaxisai.com" className="gx-cta w-full inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-3 text-sm font-bold">
               <Mail size={14} />security@gymaxisai.com
             </a>
-            <a href="/.well-known/security.txt" target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-white">
+            <a href="/.well-known/security.txt" target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-white dark:bg-zinc-900">
               security.txt
             </a>
           </div>
@@ -189,7 +189,7 @@ function Cta() {
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter leading-[1.06]">Run a fitness business that takes security seriously.</h2>
             <p className="mt-4 text-base md:text-lg text-white/90 max-w-xl mx-auto">14-day free trial. Pentest-evidence pack available on request for enterprise plans.</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow">Start Free Trial <ArrowRight size={15} /></button>
+              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100">Start Free Trial <ArrowRight size={15} /></button>
               <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Talk to sales <ArrowRight size={15} /></Link>
             </div>
           </div>

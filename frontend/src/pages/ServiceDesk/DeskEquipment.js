@@ -50,7 +50,7 @@ const DeskEquipment = ({ API }) => {
   return (
     <div className="space-y-5" data-testid="desk-equipment">
       <header>
-        <h2 className="text-2xl font-bold text-slate-900">Equipment</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Equipment</h2>
         <p className="text-sm text-slate-500 mt-1">
           Search every customer's kit by name, model, manufacturer or serial number.
           Read-only view — use the customer's own console to make changes.
@@ -63,7 +63,7 @@ const DeskEquipment = ({ API }) => {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search equipment across all customers (e.g. Matrix T75, 12345-A, treadmill)…"
-          className="pl-10 h-11 bg-white"
+          className="pl-10 h-11 bg-white dark:bg-zinc-900"
           data-testid="desk-equipment-search"
         />
       </div>
@@ -73,7 +73,7 @@ const DeskEquipment = ({ API }) => {
       )}
 
       {!loading && equipment.length === 0 && (
-        <Card className="p-12 text-center bg-white border-slate-200" data-testid="desk-equipment-empty">
+        <Card className="p-12 text-center bg-white border-slate-200 dark:bg-zinc-900 dark:border-zinc-800" data-testid="desk-equipment-empty">
           <Wrench size={36} className="mx-auto mb-3 text-slate-300" />
           <p className="text-sm font-medium text-slate-600">
             {q ? 'No matching equipment' : 'Start typing to search every customer\'s kit'}
@@ -92,18 +92,18 @@ const DeskEquipment = ({ API }) => {
         {equipment.map((eq) => (
           <Card
             key={eq.id}
-            className="p-4 bg-white border-slate-200 hover:border-slate-300 transition-colors"
+            className="p-4 bg-white border-slate-200 hover:border-slate-300 transition-colors dark:bg-zinc-900 dark:border-zinc-800"
             data-testid={`desk-equipment-row-${eq.id}`}
           >
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-slate-100">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-slate-100 dark:bg-zinc-800">
                 <Wrench size={18} className="text-slate-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{eq.name || 'Unnamed equipment'}</p>
+                  <p className="text-sm font-semibold text-slate-900 truncate dark:text-zinc-100">{eq.name || 'Unnamed equipment'}</p>
                   {eq.equipment_type && (
-                    <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500">
+                    <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 dark:border-zinc-800">
                       {eq.equipment_type}
                     </Badge>
                   )}

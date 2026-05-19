@@ -63,9 +63,9 @@ const EmailVolumePanel = ({ API, headers, onClose }) => {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="mb-5 mt-2 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100" data-testid="email-cap-summary">
+        <div className="mb-5 mt-2 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100 dark:border-blue-900/60" data-testid="email-cap-summary">
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-2xl font-bold tabular-nums text-zinc-900">{sent.toLocaleString()}</span>
+            <span className="text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{sent.toLocaleString()}</span>
             <span className="text-sm text-zinc-500">/ {cap.toLocaleString()} emails this period</span>
           </div>
           <div className="h-2 rounded-full bg-zinc-200 overflow-hidden">
@@ -85,9 +85,9 @@ const EmailVolumePanel = ({ API, headers, onClose }) => {
             <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">Active bolt-on packs</h4>
             <div className="space-y-1.5">
               {mine.rows.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-2.5 rounded border border-zinc-200 bg-white text-sm" data-testid={`active-pack-${p.code}`}>
+                <div key={p.id} className="flex items-center justify-between p-2.5 rounded border border-zinc-200 bg-white text-sm dark:bg-zinc-900 dark:border-zinc-800" data-testid={`active-pack-${p.code}`}>
                   <div>
-                    <p className="font-semibold text-zinc-900">{p.name}</p>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">{p.name}</p>
                     <p className="text-[11px] text-zinc-500">+{(p.included_emails || 0).toLocaleString()} emails / mo · {fmtMoney(p.monthly_price_pence)}/mo</p>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-700 font-semibold">Active</span>
@@ -111,8 +111,8 @@ const EmailVolumePanel = ({ API, headers, onClose }) => {
               return (
                 <Card key={pack.code} className={`p-3 border ${active ? 'border-emerald-200 bg-emerald-50/50' : 'border-zinc-200'}`} data-testid={`pack-card-${pack.code}`}>
                   <div className="flex items-start justify-between mb-1.5">
-                    <p className="font-semibold text-sm text-zinc-900">{pack.name}</p>
-                    <span className="text-sm font-bold text-zinc-900">{fmtMoney(pack.monthly_price_pence)}<span className="text-[10px] text-zinc-400">/mo</span></span>
+                    <p className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{pack.name}</p>
+                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{fmtMoney(pack.monthly_price_pence)}<span className="text-[10px] text-zinc-400">/mo</span></span>
                   </div>
                   <p className="text-[11px] text-zinc-500 mb-2">
                     {pack.kind === 'sms'

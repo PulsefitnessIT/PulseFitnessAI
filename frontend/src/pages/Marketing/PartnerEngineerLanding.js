@@ -133,7 +133,7 @@ function Hero() {
     <section className="gx-grid-bg relative overflow-hidden" data-testid="pe-hero">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-20 lg:pt-20 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600" data-testid="pe-hero-eyebrow">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800" data-testid="pe-hero-eyebrow">
             <HardHat size={12} /> Partner Engineer Network
           </span>
           <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.04]" data-testid="pe-hero-headline">
@@ -153,7 +153,7 @@ function Hero() {
             </Link>
             <a
               href="#how-it-works"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap dark:bg-zinc-900"
               data-testid="pe-hero-howitworks"
             >
               How it works <ChevronRight size={15} />
@@ -167,7 +167,7 @@ function Hero() {
         </div>
         {/* Visual: stylised engineer profile card preview */}
         <div className="relative" data-testid="pe-hero-card">
-          <div className="rounded-3xl bg-white shadow-xl border border-slate-100 p-6 max-w-sm mx-auto">
+          <div className="rounded-3xl bg-white shadow-xl border border-slate-100 p-6 max-w-sm mx-auto dark:bg-zinc-900 dark:border-zinc-800">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your engineer</p>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-700">
@@ -199,7 +199,7 @@ function Hero() {
                 <span key={q} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider border border-emerald-200 bg-emerald-50 text-emerald-700">✓ {q}</span>
               ))}
             </div>
-            <div className="mt-4 pt-4 border-t border-slate-100">
+            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Truck size={14} className="text-blue-600" />
                 <span><strong className="text-slate-800">On the way</strong> · ETA 14:23</span>
@@ -219,7 +219,7 @@ function Hero() {
 /* ── Perks ─────────────────────────────────────────────── */
 function Perks() {
   return (
-    <section className="py-20 md:py-28 bg-white" data-testid="pe-perks">
+    <section className="py-20 md:py-28 bg-white dark:bg-zinc-900" data-testid="pe-perks">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-12">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Why partner with GymAxis</p>
@@ -230,11 +230,11 @@ function Perks() {
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {PERKS.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="rounded-3xl border border-slate-100 bg-slate-50/40 p-6" data-testid={`pe-perk-${title.toLowerCase().replace(/\W+/g, '-')}`}>
+            <div key={title} className="rounded-3xl border border-slate-100 bg-slate-50/40 p-6 dark:border-zinc-800" data-testid={`pe-perk-${title.toLowerCase().replace(/\W+/g, '-')}`}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
                 <Icon size={18} className="text-white" />
               </div>
-              <h3 className="font-bold tracking-tight text-slate-900">{title}</h3>
+              <h3 className="font-bold tracking-tight text-slate-900 dark:text-zinc-100">{title}</h3>
               <p className="mt-2 text-sm text-slate-600 leading-relaxed">{body}</p>
             </div>
           ))}
@@ -263,8 +263,8 @@ function Commission() {
             </p>
             <div className="mt-7 grid grid-cols-2 gap-3" data-testid="pe-commission-stats">
               {COMMISSION_STATS.map((s) => (
-                <div key={s.label} className="rounded-2xl border border-slate-100 bg-white p-4">
-                  <p className="text-2xl font-black tracking-tight text-slate-900">{s.stat}</p>
+                <div key={s.label} className="rounded-2xl border border-slate-100 bg-white p-4 dark:bg-zinc-900 dark:border-zinc-800">
+                  <p className="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">{s.stat}</p>
                   <p className="mt-1 text-xs text-slate-500 leading-snug">{s.label}</p>
                 </div>
               ))}
@@ -277,18 +277,18 @@ function Commission() {
             {COMMISSION_PLANS.map((p, i) => (
               <div
                 key={p.kicker}
-                className="relative rounded-3xl border border-slate-200 bg-white p-6 md:p-7 overflow-hidden hover:border-slate-300 transition-colors"
+                className="relative rounded-3xl border border-slate-200 bg-white p-6 md:p-7 overflow-hidden hover:border-slate-300 transition-colors dark:bg-zinc-900 dark:border-zinc-800"
                 data-testid={`pe-commission-card-${i}`}
               >
                 <div className={`absolute -top-12 -right-12 w-48 h-48 rounded-full opacity-25 bg-gradient-to-br ${p.accent}`} />
                 <div className="relative">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">{p.kicker}</p>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 dark:bg-zinc-800">
                       {p.cta}
                     </span>
                   </div>
-                  <p className="mt-4 text-5xl md:text-6xl font-black tracking-tighter text-slate-900">{p.headline}</p>
+                  <p className="mt-4 text-5xl md:text-6xl font-black tracking-tighter text-slate-900 dark:text-zinc-100">{p.headline}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-600">{p.sub}</p>
                   <p className="mt-4 text-sm text-slate-500 leading-relaxed max-w-2xl">{p.detail}</p>
                 </div>
@@ -378,7 +378,7 @@ function Pricing() {
 /* ── How it works ──────────────────────────────────────── */
 function HowItWorks() {
   return (
-    <section className="py-20 md:py-28 bg-white" id="how-it-works" data-testid="pe-howitworks">
+    <section className="py-20 md:py-28 bg-white dark:bg-zinc-900" id="how-it-works" data-testid="pe-howitworks">
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-12">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">How it works</p>
@@ -386,12 +386,12 @@ function HowItWorks() {
         </div>
         <ol className="space-y-3">
           {HOW_IT_WORKS.map(({ n, title, body }) => (
-            <li key={n} className="flex items-start gap-4 rounded-2xl border border-slate-100 p-5 bg-slate-50/40" data-testid={`pe-step-${n}`}>
+            <li key={n} className="flex items-start gap-4 rounded-2xl border border-slate-100 p-5 bg-slate-50/40 dark:border-zinc-800" data-testid={`pe-step-${n}`}>
               <span className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-black text-lg text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
                 {n}
               </span>
               <div>
-                <h3 className="font-bold text-slate-900">{title}</h3>
+                <h3 className="font-bold text-slate-900 dark:text-zinc-100">{title}</h3>
                 <p className="text-sm text-slate-600 mt-1 leading-relaxed">{body}</p>
               </div>
             </li>
@@ -457,7 +457,7 @@ function FAQ() {
       a: `No commission is paid for that referral — but there's no claw-back from your other earnings, and the gym doesn't count against your fee-tier discount either. The Stripe webhook automatically marks the referral as "lapsed" so you see exactly where it stands in your dashboard.` },
   ];
   return (
-    <section className="py-20 md:py-28 bg-white" data-testid="pe-faq">
+    <section className="py-20 md:py-28 bg-white dark:bg-zinc-900" data-testid="pe-faq">
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-10">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">FAQ</p>
@@ -465,8 +465,8 @@ function FAQ() {
         </div>
         <dl className="space-y-3">
           {items.map(({ q, a }, i) => (
-            <details key={q} className="group rounded-2xl border border-slate-100 bg-slate-50/40 p-5" data-testid={`pe-faq-${i}`}>
-              <summary className="font-bold cursor-pointer text-slate-900 list-none flex items-start gap-3">
+            <details key={q} className="group rounded-2xl border border-slate-100 bg-slate-50/40 p-5 dark:border-zinc-800" data-testid={`pe-faq-${i}`}>
+              <summary className="font-bold cursor-pointer text-slate-900 list-none flex items-start gap-3 dark:text-zinc-100">
                 <ChevronRight size={18} className="mt-0.5 flex-shrink-0 transition-transform group-open:rotate-90 text-slate-400" />
                 <span>{q}</span>
               </summary>
@@ -498,7 +498,7 @@ function FinalCta() {
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link
                 to="/partners/engineers/apply"
-                className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100"
                 data-testid="pe-final-apply"
               >
                 Start application <ArrowRight size={15} />

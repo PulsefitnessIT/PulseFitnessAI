@@ -71,13 +71,13 @@ const LiveEngineerAppPreview = () => {
 
       {/* Phone chrome */}
       <div className="mx-auto max-w-xs rounded-[40px] border-8 border-slate-900 bg-slate-900 shadow-2xl overflow-hidden">
-        <div className="bg-slate-100 px-4 py-3 flex items-center justify-between text-xs">
+        <div className="bg-slate-100 px-4 py-3 flex items-center justify-between text-xs dark:bg-zinc-800">
           <span className="font-bold text-slate-700">9:41</span>
           <span className="font-bold text-slate-700">●●● ●●</span>
         </div>
         <div
           key={animKey}
-          className="bg-white p-4 text-left text-xs h-[440px] overflow-y-auto pe-preview-screen"
+          className="bg-white p-4 text-left text-xs h-[440px] overflow-y-auto pe-preview-screen dark:bg-zinc-900"
         >
           {screen === 'job' && <ScreenJob onView={() => go('report')} onSend={() => go('send')} />}
           {screen === 'report' && <ScreenReport onBack={() => go('job')} onSend={() => go('send')} />}
@@ -109,7 +109,7 @@ const LiveEngineerAppPreview = () => {
 const ScreenJob = ({ onView, onSend }) => (
   <div className="space-y-3" data-testid="pe-preview-job">
     <div className="flex items-center justify-between">
-      <p className="font-extrabold text-slate-900 text-sm">Job · CASE-1287</p>
+      <p className="font-extrabold text-slate-900 text-sm dark:text-zinc-100">Job · CASE-1287</p>
       <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-blue-100 text-blue-700">On site</span>
     </div>
     <p className="text-slate-500">PureGym Birmingham · Treadmill #4 · belt slip at 12 km/h</p>
@@ -117,11 +117,11 @@ const ScreenJob = ({ onView, onSend }) => (
       <p className="text-[10px] font-bold uppercase tracking-wider">⚡ Asset history</p>
       <p className="mt-1">3 prior visits in 90 days · last: BELT_SLIP · ★★★★★</p>
     </div>
-    <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
+    <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 dark:bg-zinc-900 dark:border-zinc-800">
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Time on site</p>
       <p className="font-bold text-slate-800 mt-0.5">Travel 25m · On site 42m</p>
     </div>
-    <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
+    <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 dark:bg-zinc-900 dark:border-zinc-800">
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Parts (1)</p>
       <p className="font-semibold text-slate-800 mt-0.5">1 × BELT-001 <span className="opacity-60">· from van</span></p>
     </div>
@@ -138,7 +138,7 @@ const ScreenJob = ({ onView, onSend }) => (
       type="button"
       onClick={onSend}
       data-testid="pe-preview-send"
-      className="w-full rounded-lg border border-slate-200 font-bold py-2.5 text-sm hover:bg-slate-50 active:scale-[0.98] transition bg-white"
+      className="w-full rounded-lg border border-slate-200 font-bold py-2.5 text-sm hover:bg-slate-50 active:scale-[0.98] transition bg-white dark:bg-zinc-900 dark:border-zinc-800"
       style={{ color: '#334155' }}
     >
       Send to customer
@@ -154,7 +154,7 @@ const ScreenReport = ({ onBack, onSend }) => (
       <ArrowLeft size={12} /> Back
     </button>
     <div>
-      <p className="font-extrabold text-slate-900 text-sm">Service report</p>
+      <p className="font-extrabold text-slate-900 text-sm dark:text-zinc-100">Service report</p>
       <p className="text-[10px] text-slate-400 mt-0.5">CASE-1287 · drafted just now</p>
     </div>
     <section>
@@ -169,21 +169,21 @@ const ScreenReport = ({ onBack, onSend }) => (
     </section>
     <section className="grid grid-cols-3 gap-2">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="aspect-square rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
+        <div key={i} className="aspect-square rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 dark:bg-zinc-800 dark:border-zinc-800">
           <ImageIcon size={14} />
         </div>
       ))}
     </section>
     <p className="text-[10px] text-slate-400 -mt-1">3 photos attached</p>
 
-    <section className="rounded-xl border border-slate-200 p-2.5">
+    <section className="rounded-xl border border-slate-200 p-2.5 dark:border-zinc-800">
       <div className="flex items-center justify-between mb-1.5">
         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer sign-off</p>
         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-700">
           <CheckCircle2 size={9} /> Signed
         </span>
       </div>
-      <div className="h-12 rounded-md bg-gradient-to-br from-white to-slate-50 border border-slate-200 flex items-end px-3 pb-1.5">
+      <div className="h-12 rounded-md bg-gradient-to-br from-white to-slate-50 dark:from-zinc-900 dark:to-zinc-900 border border-slate-200 flex items-end px-3 pb-1.5 dark:border-zinc-800">
         <span
           className="font-[cursive] text-slate-700 text-base italic"
           style={{ fontFamily: '"Brush Script MT", cursive' }}
@@ -231,11 +231,11 @@ const ScreenSend = ({ sending, sent, onBack, onDone }) => (
           <div className="w-14 h-14 rounded-full bg-emerald-100 mx-auto flex items-center justify-center">
             <CheckCircle2 size={28} className="text-emerald-600" />
           </div>
-          <p className="font-extrabold text-slate-900 text-base">Sent to customer</p>
+          <p className="font-extrabold text-slate-900 text-base dark:text-zinc-100">Sent to customer</p>
           <p className="text-slate-600 text-xs max-w-[220px] mx-auto leading-relaxed">
             Branded PDF emailed to <strong className="text-slate-800">ops@puregym-birmingham.co.uk</strong>. Receipt + audit chain logged.
           </p>
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-left">
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-left dark:bg-zinc-900 dark:border-zinc-800">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Earned on this job</p>
             <p className="font-extrabold text-emerald-600 text-xl tabular-nums">£148.50</p>
             <p className="text-[10px] text-slate-400 mt-0.5">Labour + 1 × BELT-001 · cleared to wallet on customer pay</p>

@@ -74,7 +74,7 @@ function Hero() {
   return (
     <section className="gx-grid-bg" data-testid="contact-hero">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-12 lg:pt-20 lg:pb-16 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+        <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
           <Mail size={12} />Get in touch
         </span>
         <h1 className="mt-5 text-5xl md:text-6xl tracking-tighter font-black leading-[1.04]">
@@ -200,7 +200,7 @@ function ContactForm() {
           </ul>
         </div>
         {sent ? (
-          <div className="lg:col-span-3 rounded-3xl bg-white border border-slate-100 p-8 md:p-10 text-center" data-testid="contact-sent-confirmation">
+          <div className="lg:col-span-3 rounded-3xl bg-white border border-slate-100 p-8 md:p-10 text-center dark:bg-zinc-900 dark:border-zinc-800" data-testid="contact-sent-confirmation">
             <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'var(--gx-accent-memberships,#10b981)14' }}>
               <Mail size={22} style={{ color: 'var(--gx-accent-memberships,#10b981)' }} />
             </div>
@@ -211,14 +211,14 @@ function ContactForm() {
             <button
               type="button"
               onClick={() => setSent(false)}
-              className="mt-7 inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 hover:text-slate-900"
+              className="mt-7 inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 hover:text-slate-900 dark:text-zinc-100"
               data-testid="contact-send-another"
             >
               Send another enquiry <ArrowRight size={14} />
             </button>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="lg:col-span-3 rounded-3xl bg-white border border-slate-100 p-6 md:p-8 grid sm:grid-cols-2 gap-4">
+          <form onSubmit={onSubmit} className="lg:col-span-3 rounded-3xl bg-white border border-slate-100 p-6 md:p-8 grid sm:grid-cols-2 gap-4 dark:bg-zinc-900 dark:border-zinc-800">
             <Field label="Your name *"     value={form.name}  onChange={update('name')}  testid="contact-name" />
             <Field label="Email *"         value={form.email} onChange={update('email')} type="email" testid="contact-email" />
             <Field label="Business name"   value={form.org}   onChange={update('org')}   testid="contact-org" />
@@ -233,7 +233,7 @@ function ContactForm() {
                 value={form.message}
                 onChange={update('message')}
                 rows={5}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm focus:outline-none focus:border-slate-400"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm focus:outline-none focus:border-slate-400 dark:border-zinc-800"
                 data-testid="contact-message"
               />
             </div>
@@ -259,7 +259,7 @@ function SelectField({ label, value, onChange, options, testid }) {
       <select
         value={value}
         onChange={onChange}
-        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm focus:outline-none focus:border-slate-400"
+        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm focus:outline-none focus:border-slate-400 dark:border-zinc-800"
         data-testid={testid}
       >
         {options.map((o) => (
@@ -278,7 +278,7 @@ function Field({ label, value, onChange, type = 'text', wrap = false, testid }) 
         type={type}
         value={value}
         onChange={onChange}
-        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm focus:outline-none focus:border-slate-400"
+        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm focus:outline-none focus:border-slate-400 dark:border-zinc-800"
         data-testid={testid}
       />
     </div>
@@ -297,7 +297,7 @@ function Footer() {
           <div className="relative">
             <h2 className="text-3xl md:text-4xl font-black tracking-tighter">Or skip ahead — start free for 14 days.</h2>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow">Start Free Trial <ArrowRight size={15} /></button>
+              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100">Start Free Trial <ArrowRight size={15} /></button>
               <Link to="/pricing" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">See pricing</Link>
             </div>
           </div>

@@ -120,6 +120,7 @@ function HomeWidgetHero({ w, setTab, _vocab }) {
     <div className="space-y-3" data-testid="member-home-widget">
       {nc && (
         <button type="button" onClick={() => setTab('bookings')}
+          // eslint-disable-next-line gymaxis/no-dark-mode-leakage -- `from-white/[0.05]` is an alpha-only overlay over the dark portal surface, not a light background; renders correctly in both themes.
           className="w-full text-left rounded-2xl p-4 border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent hover:from-white/[0.08]"
           data-testid="member-home-next-class">
           <div className="flex items-start justify-between gap-3">

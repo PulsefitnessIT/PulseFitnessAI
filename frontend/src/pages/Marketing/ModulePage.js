@@ -44,7 +44,7 @@ function Hero({ m }) {
     <section className="gx-grid-bg" data-testid={`mod-${m.id}-hero`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-20 lg:pt-20 lg:pb-28 grid lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em]" style={{ color: m.color }}>
+          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] dark:bg-zinc-900 dark:border-zinc-800" style={{ color: m.color }}>
             <Icon size={12} />{m.name} module
           </span>
           <h1 className="mt-5 text-5xl md:text-6xl tracking-tighter font-black leading-[1.04]">
@@ -55,10 +55,10 @@ function Hero({ m }) {
             <button type="button" onClick={openTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-6 py-3 text-sm font-bold">
               Start Free Trial <ArrowRight size={15} />
             </button>
-            <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+            <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors dark:bg-zinc-900">
               Talk to sales <ArrowRight size={15} />
             </Link>
-            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors dark:bg-zinc-900">
               See it in action <ArrowRight size={15} />
             </button>
           </div>
@@ -84,7 +84,7 @@ function HeroVisual({ m }) {
         <p className="mt-1 text-2xl font-bold tracking-tight">{m.heroVisualHeadline}</p>
         <div className="mt-auto space-y-2">
           {(m.heroVisualLines || []).map((line, i) => (
-            <div key={i} className="flex items-center justify-between rounded-xl bg-white/80 border border-slate-100 px-3 py-2 text-sm">
+            <div key={i} className="flex items-center justify-between rounded-xl bg-white/80 border border-slate-100 px-3 py-2 text-sm dark:border-zinc-800">
               <span className="font-semibold text-slate-700">{line.label}</span>
               <span className="font-bold" style={{ color: m.color }}>{line.value}</span>
             </div>
@@ -97,7 +97,7 @@ function HeroVisual({ m }) {
 
 function ProblemSolution({ m }) {
   return (
-    <section className="py-24 md:py-32 bg-white" data-testid={`mod-${m.id}-problem`}>
+    <section className="py-24 md:py-32 bg-white dark:bg-zinc-900" data-testid={`mod-${m.id}-problem`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8 grid lg:grid-cols-2 gap-14">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">The problem</p>
@@ -126,7 +126,7 @@ function Features({ m }) {
           {m.features.map((f, i) => {
             const FIcon = f.icon;
             return (
-              <div key={i} className="gx-card rounded-3xl border border-slate-100 bg-white p-7" data-testid={`mod-${m.id}-feature-${i}`}>
+              <div key={i} className="gx-card rounded-3xl border border-slate-100 bg-white p-7 dark:bg-zinc-900 dark:border-zinc-800" data-testid={`mod-${m.id}-feature-${i}`}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${m.color}14`, color: m.color }}>
                   <FIcon size={18} />
                 </div>
@@ -143,7 +143,7 @@ function Features({ m }) {
 
 function VisualSections({ m }) {
   return (
-    <section className="py-24 md:py-32 bg-white" data-testid={`mod-${m.id}-visuals`}>
+    <section className="py-24 md:py-32 bg-white dark:bg-zinc-900" data-testid={`mod-${m.id}-visuals`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8 space-y-24">
         {m.visualSections.map((v, i) => (
           <div key={i} className={`grid lg:grid-cols-2 gap-12 items-center ${i % 2 === 1 ? 'lg:[direction:rtl]' : ''}`}>
@@ -160,12 +160,12 @@ function VisualSections({ m }) {
                 ))}
               </ul>
             </div>
-            <div className="lg:[direction:ltr] aspect-[4/3] rounded-3xl border border-slate-200 gx-glass p-6 flex flex-col">
+            <div className="lg:[direction:ltr] aspect-[4/3] rounded-3xl border border-slate-200 gx-glass p-6 flex flex-col dark:border-zinc-800">
               <p className="text-[10px] uppercase tracking-[0.22em] font-bold text-slate-400">{v.visualEyebrow || v.eyebrow}</p>
               <p className="mt-1 text-lg font-bold tracking-tight">{v.visualHeadline || v.title}</p>
               <div className="mt-4 flex-1 grid gap-2 content-start">
                 {(v.visualRows || []).map((row, k) => (
-                  <div key={k} className="rounded-xl bg-slate-50/80 border border-slate-100 px-3 py-2.5 text-sm flex items-center justify-between">
+                  <div key={k} className="rounded-xl bg-slate-50/80 border border-slate-100 px-3 py-2.5 text-sm flex items-center justify-between dark:border-zinc-800">
                     <span className="font-semibold text-slate-700">{row.l}</span>
                     <span className="font-bold" style={{ color: row.tone === 'mute' ? '#94A3B8' : m.color }}>{row.r}</span>
                   </div>
@@ -192,7 +192,7 @@ function AISection({ m }) {
         </div>
         <div className="grid gap-3">
           {m.aiCapabilities.map((cap, i) => (
-            <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5 flex gap-4">
+            <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5 flex gap-4 dark:bg-zinc-900 dark:border-zinc-800">
               <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ background: `linear-gradient(135deg, ${m.color}, var(--gx-brand-to))` }}>
                 <Sparkles size={15} />
               </span>
@@ -210,7 +210,7 @@ function AISection({ m }) {
 
 function Integrations({ m }) {
   return (
-    <section className="py-24 md:py-28 bg-white" data-testid={`mod-${m.id}-integrations`}>
+    <section className="py-24 md:py-28 bg-white dark:bg-zinc-900" data-testid={`mod-${m.id}-integrations`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-2xl">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Connected platform</p>
@@ -220,7 +220,7 @@ function Integrations({ m }) {
           {m.integrations.map((it, i) => {
             const IIcon = it.icon;
             return (
-              <Link key={i} to={it.to} className="gx-card flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/40 p-5">
+              <Link key={i} to={it.to} className="gx-card flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/40 p-5 dark:border-zinc-800">
                 <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${it.color}14`, color: it.color }}>
                   <IIcon size={17} />
                 </span>
@@ -245,7 +245,7 @@ function Results({ m }) {
         <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{m.resultsHeadline}</h2>
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
           {m.results.map((r, i) => (
-            <div key={i} className="rounded-3xl border border-slate-100 bg-white p-6">
+            <div key={i} className="rounded-3xl border border-slate-100 bg-white p-6 dark:bg-zinc-900 dark:border-zinc-800">
               <div className="text-4xl font-black tracking-tighter" style={{ color: m.color }}>{r.value}</div>
               <p className="mt-2 text-sm text-slate-600 leading-snug">{r.label}</p>
             </div>
@@ -269,7 +269,7 @@ function Cta({ m }) {
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter leading-[1.06]">{m.ctaHeadline}</h2>
             <p className="mt-4 text-base md:text-lg text-white/90 max-w-xl mx-auto">{m.ctaSubtitle}</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow">Start Free Trial <ArrowRight size={15} /></button>
+              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100">Start Free Trial <ArrowRight size={15} /></button>
               <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Talk to sales <ArrowRight size={15} /></Link>
             </div>
           </div>

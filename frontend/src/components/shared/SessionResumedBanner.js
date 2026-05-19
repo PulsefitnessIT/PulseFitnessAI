@@ -55,7 +55,7 @@ export default function SessionResumedBanner() {
 
   return (
     <div
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] max-w-md w-[calc(100%-2rem)] rounded-xl shadow-2xl border bg-white animate-in slide-in-from-bottom-3 fade-in-50"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] max-w-md w-[calc(100%-2rem)] rounded-xl shadow-2xl border bg-white animate-in slide-in-from-bottom-3 fade-in-50 dark:bg-zinc-900"
       style={{
         borderColor: 'var(--color-warning)',
         boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
@@ -72,7 +72,7 @@ export default function SessionResumedBanner() {
           <AlertTriangle size={18} />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-bold text-slate-900">Your session has expired</h4>
+          <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">Your session has expired</h4>
           <p className="text-xs text-slate-600 mt-0.5">
             Sign in again to keep working. We'll bring you straight back to this page.
           </p>
@@ -82,7 +82,7 @@ export default function SessionResumedBanner() {
         <button
           type="button"
           onClick={() => setShow(false)}
-          className="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-50"
+          className="px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-50 dark:bg-zinc-900"
           data-testid="session-banner-dismiss"
         >
           Dismiss

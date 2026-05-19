@@ -163,7 +163,7 @@ const PostcodeInput = ({ value, onChange, onResolve, testId, inputClassName }) =
       </div>
       {open && suggestions.length > 0 ? (
         <div
-          className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-xl"
+          className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-xl dark:bg-zinc-900 dark:border-zinc-800"
           data-testid={`${testId}-suggestions`}
         >
           {suggestions.map((s) => (
@@ -171,7 +171,7 @@ const PostcodeInput = ({ value, onChange, onResolve, testId, inputClassName }) =
               type="button"
               key={s}
               onClick={() => pickSuggestion(s)}
-              className="w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-zinc-50 border-b border-zinc-100 last:border-b-0"
+              className="w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-zinc-50 border-b border-zinc-100 last:border-b-0 dark:bg-zinc-900 dark:border-zinc-800"
             >
               {s}
             </button>

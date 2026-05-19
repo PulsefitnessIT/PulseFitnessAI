@@ -188,7 +188,7 @@ export default function TrialSignupModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-[28px] bg-white shadow-2xl border border-white/40 overflow-hidden"
+        className="relative w-full max-w-md rounded-[28px] bg-white shadow-2xl border border-white/40 overflow-hidden dark:bg-zinc-900"
         data-testid="trial-modal"
       >
         {/* Brand halo */}
@@ -198,10 +198,10 @@ export default function TrialSignupModal() {
         <div className="relative">
           <div className="flex items-start justify-between p-6 pb-2">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 border border-slate-200 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 border border-slate-200 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
                 <Zap size={11} /> 3-day free trial · all modules unlocked
               </span>
-              <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900" data-testid="trial-modal-title">
+              <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100" data-testid="trial-modal-title">
                 {step === 1 && 'Start your trial'}
                 {step === 2 && 'Tell us about your gym'}
                 {step === 3 && "You're in!"}
@@ -215,7 +215,7 @@ export default function TrialSignupModal() {
             <button
               onClick={close}
               type="button"
-              className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition"
+              className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition dark:bg-zinc-900"
               data-testid="trial-modal-close"
               aria-label="Close"
             >
@@ -251,11 +251,11 @@ export default function TrialSignupModal() {
                     minLength={8}
                     value={form.password}
                     onChange={update('password')}
-                    className="w-full h-11 px-3 pr-14 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition"
+                    className="w-full h-11 px-3 pr-14 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
                     placeholder="At least 8 characters"
                     data-testid="trial-password"
                   />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-900" tabIndex={-1}>
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-900 dark:text-zinc-100" tabIndex={-1}>
                     {showPass ? 'Hide' : 'Show'}
                   </button>
                 </div>
@@ -324,7 +324,7 @@ export default function TrialSignupModal() {
                 <button
                   type="button"
                   onClick={skipStep2}
-                  className="flex-1 rounded-full px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
+                  className="flex-1 rounded-full px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition dark:bg-zinc-900 dark:text-zinc-100"
                   data-testid="trial-step2-skip"
                   disabled={loading}
                 >
@@ -352,7 +352,7 @@ export default function TrialSignupModal() {
               <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
                 <CheckCircle2 size={28} className="text-emerald-500" />
               </div>
-              <h3 className="text-slate-900 font-bold text-lg">You&apos;re in — welcome aboard.</h3>
+              <h3 className="text-slate-900 font-bold text-lg dark:text-zinc-100">You&apos;re in — welcome aboard.</h3>
               <p className="text-slate-500 text-sm mt-1">Taking you to the dashboard…</p>
             </div>
           )}
@@ -372,7 +372,7 @@ function Field({ label, value, onChange, type = 'text', placeholder, testid, opt
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition"
+        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
         data-testid={testid}
       />
     </div>
@@ -386,7 +386,7 @@ function SelectField({ label, value, onChange, options, placeholder, testid }) {
       <select
         value={value}
         onChange={onChange}
-        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-slate-400 transition appearance-none"
+        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-slate-400 transition appearance-none dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
         data-testid={testid}
       >
         <option value="">{placeholder || 'Select...'}</option>

@@ -170,7 +170,7 @@ export default function SupplierMultiPicker({
 
       {open && (
         <div
-          className="absolute z-50 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-md border bg-white border-slate-200 shadow-lg"
+          className="absolute z-50 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-md border bg-white border-slate-200 shadow-lg dark:bg-zinc-900 dark:border-zinc-800"
           data-testid={`${testid}-dropdown`}
         >
           {loading && (
@@ -193,11 +193,11 @@ export default function SupplierMultiPicker({
                   key={s.slug}
                   type="button"
                   onClick={(e) => { e.stopPropagation(); add(s.name); }}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 flex items-center justify-between gap-2"
+                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 flex items-center justify-between gap-2 dark:bg-zinc-900"
                   data-testid={`${testid}-option-${s.slug}`}
                 >
                   <span className="flex flex-col">
-                    <span className="text-slate-900">{s.name}</span>
+                    <span className="text-slate-900 dark:text-zinc-100">{s.name}</span>
                     {!!(s.categories?.length) && (
                       <span className="text-[10px] text-slate-500">
                         {(s.categories || []).slice(0, 3).join(' · ')}
@@ -212,7 +212,7 @@ export default function SupplierMultiPicker({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); add(query.trim()); }}
-              className="w-full text-left px-3 py-2 text-xs border-t border-slate-200 hover:bg-slate-50 text-slate-900 flex items-center gap-1.5"
+              className="w-full text-left px-3 py-2 text-xs border-t border-slate-200 hover:bg-slate-50 text-slate-900 flex items-center gap-1.5 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
               data-testid={`${testid}-add-new`}
             >
               <Plus size={11} /> Add &quot;{query.trim()}&quot; as a new supplier

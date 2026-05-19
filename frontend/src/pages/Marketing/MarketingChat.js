@@ -73,17 +73,17 @@ export default function MarketingChat() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed bottom-24 right-5 z-[55] w-[calc(100%-2.5rem)] max-w-md rounded-2xl bg-white shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)] border border-slate-200 flex flex-col overflow-hidden"
+          className="fixed bottom-24 right-5 z-[55] w-[calc(100%-2.5rem)] max-w-md rounded-2xl bg-white shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)] border border-slate-200 flex flex-col overflow-hidden dark:bg-zinc-900 dark:border-zinc-800"
           style={{ height: 520 }}
           data-testid="gx-chat-panel"
         >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3 bg-gradient-to-r from-[var(--gx-brand-from)]/8 to-[var(--gx-brand-to)]/8">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3 bg-gradient-to-r from-[var(--gx-brand-from)]/8 to-[var(--gx-brand-to)]/8 dark:border-zinc-800">
             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] flex items-center justify-center text-white">
               <Sparkles size={15} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900">GymAxis Sales AI</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">GymAxis Sales AI</p>
               <p className="text-[11px] text-slate-500">Honest answers · grounded on the live product</p>
             </div>
           </div>
@@ -106,7 +106,7 @@ export default function MarketingChat() {
             ))}
             {busy && (
               <div className="flex justify-start" data-testid="gx-chat-thinking">
-                <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] inline-flex items-center gap-2">
+                <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-[13px] inline-flex items-center gap-2 dark:bg-zinc-800">
                   <Loader2 size={13} className="animate-spin" /> Thinking…
                 </div>
               </div>
@@ -119,7 +119,7 @@ export default function MarketingChat() {
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s} type="button" onClick={() => send(s)}
-                  className="text-[11px] rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 hover:bg-slate-50"
+                  className="text-[11px] rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 hover:bg-slate-50 dark:bg-zinc-900 dark:border-zinc-800"
                 >
                   {s}
                 </button>
@@ -130,7 +130,7 @@ export default function MarketingChat() {
           {/* Input */}
           <form
             onSubmit={(e) => { e.preventDefault(); send(input); }}
-            className="px-3 py-3 border-t border-slate-100 flex items-center gap-2"
+            className="px-3 py-3 border-t border-slate-100 flex items-center gap-2 dark:border-zinc-800"
           >
             <input
               type="text"
@@ -138,7 +138,7 @@ export default function MarketingChat() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask anything…"
               disabled={busy}
-              className="flex-1 h-9 rounded-full bg-slate-50 border border-slate-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-to)]/30"
+              className="flex-1 h-9 rounded-full bg-slate-50 border border-slate-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-to)]/30 dark:bg-zinc-900 dark:border-zinc-800"
               data-testid="gx-chat-input"
             />
             <button

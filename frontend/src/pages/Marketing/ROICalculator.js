@@ -38,13 +38,13 @@ export default function ROICalculator() {
   }, [sites, currentSpend, hoursWasted, members]);
 
   return (
-    <section className="py-12 sm:py-16 bg-white border-y border-slate-200/60" data-testid="gx-roi-calculator">
+    <section className="py-12 sm:py-16 bg-white border-y border-slate-200/60 dark:bg-zinc-900" data-testid="gx-roi-calculator">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
             <Calculator size={11} className="text-[var(--gx-brand-from)]" /> Show me the math
           </span>
-          <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tighter text-slate-900">
+          <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tighter text-slate-900 dark:text-zinc-100">
             How much will GymAxis save you?
           </h2>
           <p className="mt-3 text-base text-slate-600">
@@ -54,7 +54,7 @@ export default function ROICalculator() {
 
         <div className="grid lg:grid-cols-2 gap-8 items-stretch">
           {/* Inputs */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/30 p-6 space-y-6" data-testid="gx-roi-inputs">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/30 p-6 space-y-6 dark:border-zinc-800" data-testid="gx-roi-inputs">
             <Slider
               label="Sites" value={sites} setValue={setSites} min={1} max={20} step={1}
               suffix={sites === 1 ? 'site' : 'sites'}
@@ -82,22 +82,22 @@ export default function ROICalculator() {
 
           {/* Output */}
           <div className="rounded-2xl bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] p-1 shadow-[0_24px_60px_-20px_rgba(91,91,245,0.55)]">
-            <div className="rounded-[15px] bg-white p-6 sm:p-8 h-full flex flex-col" data-testid="gx-roi-output">
+            <div className="rounded-[15px] bg-white p-6 sm:p-8 h-full flex flex-col dark:bg-zinc-900" data-testid="gx-roi-output">
               <p className="text-[11px] uppercase tracking-[0.18em] font-bold text-slate-500">Year-one projection</p>
               <p className="mt-2 text-5xl sm:text-6xl font-black tracking-tighter gx-gradient-text" data-testid="gx-roi-annual-total">
                 £{Math.round(totalAnnual).toLocaleString('en-GB')}
               </p>
               <p className="mt-1 text-sm text-slate-500">total benefit over 12 months</p>
 
-              <div className="mt-6 space-y-3 border-t border-slate-100 pt-5">
+              <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 dark:border-zinc-800">
                 <Line icon={PoundSterling}  label="Tool consolidation savings"  value={toolSavings * 12}  testId="gx-roi-tool-savings" />
                 <Line icon={Clock}          label="Time reclaimed (admin recovery)" value={timeSavings * 12} testId="gx-roi-time-savings" />
                 <Line icon={TrendingUp}     label="Retention lift (6% lower churn)" value={retentionLift * 12} testId="gx-roi-retention" />
               </div>
 
-              <div className="mt-5 flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs">
+              <div className="mt-5 flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs dark:bg-zinc-900">
                 <span className="text-slate-600">GymAxis Pro · {sites} {sites === 1 ? 'site' : 'sites'}</span>
-                <span className="font-bold text-slate-900">£{gymaxisCost}/mo</span>
+                <span className="font-bold text-slate-900 dark:text-zinc-100">£{gymaxisCost}/mo</span>
               </div>
 
               {paybackMonths !== null && (
@@ -128,8 +128,8 @@ function Slider({ label, value, setValue, min, max, step, prefix, suffix, hint, 
   return (
     <div data-testid={testId}>
       <div className="flex items-baseline justify-between mb-1.5">
-        <label className="text-sm font-bold text-slate-900">{label}</label>
-        <span className="text-base font-black tracking-tight text-slate-900 tabular-nums">
+        <label className="text-sm font-bold text-slate-900 dark:text-zinc-100">{label}</label>
+        <span className="text-base font-black tracking-tight text-slate-900 tabular-nums dark:text-zinc-100">
           {prefix}{value.toLocaleString('en-GB')}{suffix && ` ${suffix}`}
         </span>
       </div>
@@ -147,11 +147,11 @@ function Slider({ label, value, setValue, min, max, step, prefix, suffix, hint, 
 function Line({ icon: Icon, label, value, testId }) {
   return (
     <div className="flex items-center gap-3" data-testid={testId}>
-      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 shrink-0 dark:bg-zinc-800">
         <Icon size={14} />
       </div>
       <span className="text-sm text-slate-700 flex-1">{label}</span>
-      <span className="text-sm font-bold text-slate-900 tabular-nums">£{Math.round(value).toLocaleString('en-GB')}</span>
+      <span className="text-sm font-bold text-slate-900 tabular-nums dark:text-zinc-100">£{Math.round(value).toLocaleString('en-GB')}</span>
     </div>
   );
 }

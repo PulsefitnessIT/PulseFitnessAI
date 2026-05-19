@@ -406,7 +406,7 @@ function UploadTaskRow({ task, onRetry, onRemove }) {
           <button
             type="button"
             onClick={onRetry}
-            className="p-1 rounded hover:bg-zinc-100"
+            className="p-1 rounded hover:bg-zinc-100 dark:bg-zinc-800"
             title="Retry"
             data-testid={`upload-task-retry-${task.id}`}
           >
@@ -416,7 +416,7 @@ function UploadTaskRow({ task, onRetry, onRemove }) {
         <button
           type="button"
           onClick={onRemove}
-          className="p-1 rounded hover:bg-zinc-100"
+          className="p-1 rounded hover:bg-zinc-100 dark:bg-zinc-800"
           title={isUploading ? 'Cancel' : 'Dismiss'}
           data-testid={`upload-task-remove-${task.id}`}
         >

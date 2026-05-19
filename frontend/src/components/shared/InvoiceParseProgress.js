@@ -35,7 +35,7 @@ import { FileText, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 const AVG_AI_PARSE_MS = 33000;
 
 const Bar = ({ pct, color = 'var(--color-brand-blue)' }) => (
-  <div className="w-full h-1.5 rounded-full overflow-hidden bg-zinc-100" data-testid="invoice-progress-bar-track">
+  <div className="w-full h-1.5 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800" data-testid="invoice-progress-bar-track">
     <div
       className="h-full rounded-full transition-all duration-300"
       style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: color }}

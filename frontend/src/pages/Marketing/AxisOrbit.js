@@ -63,7 +63,7 @@ export default function AxisOrbit() {
             style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}
           />
           <div
-            className="relative w-full h-full rounded-full bg-white flex items-center justify-center gx-glow"
+            className="relative w-full h-full rounded-full bg-white flex items-center justify-center gx-glow dark:bg-zinc-900"
             style={{ boxShadow: '0 18px 50px -12px rgba(37, 99, 235, .35), 0 0 0 1px rgba(15, 23, 42, .04)' }}
             data-testid="gx-orbit-center"
           >
@@ -79,7 +79,7 @@ function ModuleNode({ icon: Icon, color, label }) {
   return (
     <div className="relative">
       <div
-        className="gx-orbit-node w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white border border-slate-200 flex items-center justify-center transition-all duration-300 group-hover:-translate-y-1"
+        className="gx-orbit-node w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white border border-slate-200 flex items-center justify-center transition-all duration-300 group-hover:-translate-y-1 dark:bg-zinc-900 dark:border-zinc-800"
         style={{
           boxShadow: `0 6px 24px -6px ${color}55, 0 0 0 1px rgba(15, 23, 42, .04)`,
           ['--gx-node-accent']: color,

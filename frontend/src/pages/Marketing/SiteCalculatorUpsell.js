@@ -36,12 +36,12 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
 
   return (
     <section
-      className="py-20 md:py-24 bg-white"
+      className="py-20 md:py-24 bg-white dark:bg-zinc-900"
       data-testid="module-site-calculator-upsell"
     >
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
         <div
-          className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-8 md:p-12 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.25)]"
+          className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 dark:from-zinc-900 dark:to-zinc-950 p-8 md:p-12 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.25)] dark:border-zinc-800"
           style={{ borderTopColor: accent, borderTopWidth: 4 }}
         >
           <div
@@ -53,7 +53,7 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
             {/* Left — value pitch */}
             <div>
               <span
-                className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em]"
+                className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] dark:bg-zinc-900 dark:border-zinc-800"
                 style={{ color: accent }}
               >
                 <Sparkles size={12} /> One bundle · every module
@@ -157,7 +157,7 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
               <button
                 type="button"
                 onClick={openTrial}
-                className="mt-6 w-full rounded-full bg-white text-slate-900 font-bold text-sm px-5 py-3.5 inline-flex items-center justify-center gap-1.5 hover:bg-slate-100 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.4)] transition-all"
+                className="mt-6 w-full rounded-full bg-white text-slate-900 font-bold text-sm px-5 py-3.5 inline-flex items-center justify-center gap-1.5 hover:bg-slate-100 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.4)] transition-all dark:bg-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
                 data-testid="upsell-start-trial-cta"
               >
                 Start 3-day Free Trial <ArrowRight size={15} />

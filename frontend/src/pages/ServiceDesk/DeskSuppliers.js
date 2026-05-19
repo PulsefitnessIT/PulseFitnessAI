@@ -87,7 +87,7 @@ const DeskSuppliers = ({ API }) => {
   return (
     <div className="space-y-6" data-testid="desk-suppliers">
       <header>
-        <h2 className="text-2xl font-bold text-slate-900">Supplier health</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Supplier health</h2>
         <p className="text-sm text-slate-500 mt-1">
           Cross-customer rollup. Suppliers grouped by normalised name — same vendor
           across multiple customers shows up once with totals you can drill into.
@@ -110,11 +110,11 @@ const DeskSuppliers = ({ API }) => {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search suppliers or customer orgs…"
-            className="pl-10 h-10 bg-white"
+            className="pl-10 h-10 bg-white dark:bg-zinc-900"
             data-testid="desk-suppliers-search"
           />
         </div>
-        <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200">
+        <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200 dark:bg-zinc-900 dark:border-zinc-800">
           <span className="text-[10px] uppercase tracking-wider text-slate-500 px-2">Window</span>
           {WINDOW_OPTIONS.map((w) => (
             <button
@@ -127,7 +127,7 @@ const DeskSuppliers = ({ API }) => {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200">
+        <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200 dark:bg-zinc-900 dark:border-zinc-800">
           <span className="text-[10px] uppercase tracking-wider text-slate-500 px-2">Sort</span>
           {SORTS.map((s) => (
             <button
@@ -147,7 +147,7 @@ const DeskSuppliers = ({ API }) => {
       )}
 
       {!loading && filtered.length === 0 && (
-        <Card className="p-12 text-center bg-white border-slate-200" data-testid="desk-suppliers-empty">
+        <Card className="p-12 text-center bg-white border-slate-200 dark:bg-zinc-900 dark:border-zinc-800" data-testid="desk-suppliers-empty">
           <Wrench size={36} className="mx-auto mb-3 text-slate-300" />
           <p className="text-sm font-medium text-slate-600">
             {q ? 'No matching suppliers' : 'No suppliers tracked yet'}
@@ -165,24 +165,24 @@ const DeskSuppliers = ({ API }) => {
           return (
             <Card
               key={s.normalised_name}
-              className="bg-white border-slate-200 overflow-hidden"
+              className="bg-white border-slate-200 overflow-hidden dark:bg-zinc-900 dark:border-zinc-800"
               data-testid={`desk-supplier-row-${s.normalised_name}`}
             >
               <button
                 onClick={() => setExpanded((e) => ({ ...e, [s.normalised_name]: !isOpen }))}
-                className="w-full text-left p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors"
+                className="w-full text-left p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors dark:bg-zinc-900"
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isHot ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
                   {isHot ? <AlertTriangle size={18} /> : <Wrench size={18} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{s.name}</p>
+                    <p className="text-sm font-semibold text-slate-900 truncate dark:text-zinc-100">{s.name}</p>
                     {s.aliases && s.aliases.length > 0 && (
                       <span className="text-[10px] text-slate-400" title={s.aliases.join(', ')}>+{s.aliases.length} alias{s.aliases.length === 1 ? '' : 'es'}</span>
                     )}
                     {(s.supplier_types || []).slice(0, 3).map((t) => (
-                      <Badge key={t} variant="outline" className="text-[9px] border-slate-200 text-slate-500 uppercase tracking-wider">{t}</Badge>
+                      <Badge key={t} variant="outline" className="text-[9px] border-slate-200 text-slate-500 uppercase tracking-wider dark:border-zinc-800">{t}</Badge>
                     ))}
                   </div>
                   <div className="flex items-center gap-4 flex-wrap mt-1 text-xs text-slate-500">
@@ -214,7 +214,7 @@ const DeskSuppliers = ({ API }) => {
               </button>
 
               {isOpen && (
-                <div className="border-t border-slate-100 bg-slate-50/40 p-4 space-y-3" data-testid={`desk-supplier-detail-${s.normalised_name}`}>
+                <div className="border-t border-slate-100 bg-slate-50/40 p-4 space-y-3 dark:border-zinc-800" data-testid={`desk-supplier-detail-${s.normalised_name}`}>
                   {/* Drill-down: per-customer breakdown */}
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-2">Per customer</p>
@@ -222,7 +222,7 @@ const DeskSuppliers = ({ API }) => {
                       {(s.orgs || []).map((o) => (
                         <div
                           key={o.id}
-                          className="flex items-center justify-between px-3 py-2 bg-white rounded-md border border-slate-100 text-sm"
+                          className="flex items-center justify-between px-3 py-2 bg-white rounded-md border border-slate-100 text-sm dark:bg-zinc-900 dark:border-zinc-800"
                           data-testid={`desk-supplier-org-${s.normalised_name}-${o.id}`}
                         >
                           <span className="text-slate-700 truncate flex items-center gap-2">

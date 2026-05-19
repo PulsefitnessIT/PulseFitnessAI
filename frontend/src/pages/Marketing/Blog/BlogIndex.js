@@ -27,7 +27,7 @@ export default function BlogIndex() {
     <MarketingShell>
       <section className="gx-grid-bg">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-16 lg:pt-20 lg:pb-24">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:bg-zinc-900 dark:border-zinc-800">
             <BookOpen size={12} /> The GymAxis Blog
           </span>
           <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl tracking-tighter font-black leading-[1.05] max-w-4xl">
@@ -40,14 +40,14 @@ export default function BlogIndex() {
         </div>
       </section>
 
-      <section className="bg-white pb-24">
+      <section className="bg-white pb-24 dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 grid md:grid-cols-2 lg:grid-cols-3 gap-5" data-testid="blog-index">
           {posts.map((p) => (
             <Link
               key={p.slug}
               to={`/blog/${p.slug}`}
               data-testid={`blog-card-${p.slug}`}
-              className="group rounded-2xl bg-white border border-slate-200 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition flex flex-col"
+              className="group rounded-2xl bg-white border border-slate-200 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition flex flex-col dark:bg-zinc-900 dark:border-zinc-800"
             >
               <div className="aspect-[16/9] bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 flex items-center justify-center p-6">
                 <span className="text-white/80 text-xs font-bold uppercase tracking-[0.2em]">

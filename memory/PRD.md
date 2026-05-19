@@ -1,3 +1,60 @@
+## Iter 216h226-polish-4 — Light-mode leakage sweep COMPLETE (Feb 19, 2026) ✅ P1
+
+Cleared the 297 `gymaxis/no-dark-mode-leakage` warnings and re-promoted
+the rule to `error`. Quality Gate budget 500 → 200.
+
+### Approach
+- Wrote `scripts/sweep_dark_mode_leakage.py` — JSON-driven codemod that
+  reads `eslint --format json`, locates each flagged className, and
+  appends the matching Tailwind `dark:` variant inside the same quoted
+  string. Mapping (kept aligned with `/theme/themes/_root-css-vars.js`):
+  - `bg-white`, `bg-{slate,zinc,gray,neutral,stone}-50` → `dark:bg-zinc-900`
+  - `bg-{slate,zinc,gray,neutral,stone}-100` → `dark:bg-zinc-800`
+  - `text-{slate,zinc,gray,neutral}-900` → `dark:text-zinc-100`
+  - `border-{slate,zinc,gray}-{100,200}` → `dark:border-zinc-800`
+  - Idempotent: skips classNames that already have an equivalent `dark:`
+    variant; bails out on multi-line literals and expression-`{}` values
+    so JSX shape is never restructured.
+- **292 className sites auto-patched across 34 files** in one pass.
+  Top hot zones: PartnerEngineerLanding (29), Marketing/PageBuilderDialog
+  (21), CRM/CRMSettings (19), MarketingHome (14), MarketingChat (7).
+- **7 gradient one-offs hand-fixed**: the codemod's regex
+  intentionally doesn't touch `bg-gradient-to-* from-X` patterns
+  (different syntax + most of these are alpha-only overlays). Five
+  needed `dark:from-…/dark:to-…`/`dark:border-…` siblings;
+  two (`from-white/[0.05]` over the dark MemberPortal surface) got
+  per-line `eslint-disable` directives with a "this is an alpha-overlay
+  not a light bg" justification.
+
+### Verification
+| Gate | Before | After |
+| --- | --- | --- |
+| `gymaxis/no-dark-mode-leakage` violations | 297 | **0** |
+| Rule severity | `warn` | **`error`** (restored) |
+| `yarn eslint` total | 383 warnings | **86 warnings** |
+| `--max-warnings` budget | 500 | **200** |
+| `yarn build` | 58 s ✅ | **52 s ✅** |
+| Live smoke (Marketing home + Login) | ✅ | ✅ |
+| ruff / bandit / pip-audit / pytest | ✅ | ✅ |
+
+### Files touched
+- NEW: `scripts/sweep_dark_mode_leakage.py` (~120 LOC, reusable for
+  future Tailwind palette migrations).
+- 34 frontend files auto-patched (Marketing portals, MasterAdmin,
+  CRM settings, Memberships console, ServiceDesk).
+- 7 frontend files hand-fixed for gradients / alpha-overlays:
+  `Marketing/EmailVolumePanel.js`, `Marketing/LiveCustomerAppPreview.js`,
+  `Marketing/LiveEngineerAppPreview.js`, `Marketing/MigrationGuarantee.js`,
+  `Marketing/SiteCalculatorUpsell.js`, `Memberships/MemberHomeTab.js`,
+  `Memberships/MemberPortal.js`.
+- `frontend/eslint.config.js` — `gymaxis/no-dark-mode-leakage`: `warn` → `error`.
+- `.github/workflows/quality-gate.yml` — `--max-warnings 500 → 200`.
+- `memory/ROADMAP.md` — last sweep (exhaustive-deps, 86) is the only
+  remaining warning bucket.
+
+---
+
+
 ## Iter 216h226-polish-3 — Unused-vars sweep COMPLETE (Feb 19, 2026) ✅ P1
 
 Cleared the 164 `unused-imports/no-unused-vars` warnings the previous

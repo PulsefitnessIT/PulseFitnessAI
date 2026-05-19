@@ -137,7 +137,7 @@ export const CompanyAutocomplete = ({
       </div>
       {open && (hasResults || loading) ? (
         <div
-          className="absolute z-30 left-0 right-0 mt-1 max-h-96 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-xl"
+          className="absolute z-30 left-0 right-0 mt-1 max-h-96 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-xl dark:bg-zinc-900 dark:border-zinc-800"
           data-testid={`${testIdPrefix}-suggestions`}
         >
           {loading && !hasResults ? (
@@ -148,7 +148,7 @@ export const CompanyAutocomplete = ({
 
           {internal.length > 0 ? (
             <div data-testid={`${testIdPrefix}-section-internal`}>
-              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-zinc-400 bg-zinc-50 border-b border-zinc-100">
+              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-zinc-400 bg-zinc-50 border-b border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800">
                 Existing organisations · {internal.length}
               </div>
               {internal.map((o) => (
@@ -156,11 +156,11 @@ export const CompanyAutocomplete = ({
                   type="button"
                   key={o.id}
                   onClick={() => pickInternal(o)}
-                  className="w-full text-left px-3 py-2 hover:bg-zinc-50 border-b border-zinc-100 last:border-b-0"
+                  className="w-full text-left px-3 py-2 hover:bg-zinc-50 border-b border-zinc-100 last:border-b-0 dark:bg-zinc-900 dark:border-zinc-800"
                   data-testid={`${testIdPrefix}-internal-${o.id}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-sm text-zinc-900">{o.name || '(unnamed)'}</span>
+                    <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{o.name || '(unnamed)'}</span>
                     <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">
                       {o.account_type === 'pulse_pro' || o.account_type === 'lite' ? 'Pulse' : 'GymAxis'}
                     </span>
@@ -186,11 +186,11 @@ export const CompanyAutocomplete = ({
                   key={o.company_number}
                   onClick={() => pickExternal(o)}
                   disabled={picking === o.company_number}
-                  className="w-full text-left px-3 py-2 hover:bg-emerald-50 border-b border-zinc-100 last:border-b-0 disabled:opacity-60"
+                  className="w-full text-left px-3 py-2 hover:bg-emerald-50 border-b border-zinc-100 last:border-b-0 disabled:opacity-60 dark:border-zinc-800"
                   data-testid={`${testIdPrefix}-ch-${o.company_number}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-sm text-zinc-900">
+                    <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
                       {picking === o.company_number ? <Loader2 size={11} className="inline animate-spin mr-1" /> : null}
                       {o.company_name || '(unnamed)'}
                     </span>

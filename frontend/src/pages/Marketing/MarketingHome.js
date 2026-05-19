@@ -49,7 +49,7 @@ function Hero() {
     <section className="gx-grid-bg relative overflow-hidden" data-testid="gx-hero">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-20 lg:pt-20 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600" data-testid="gx-hero-eyebrow">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800" data-testid="gx-hero-eyebrow">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }} />
             One platform · Six modules
           </span>
@@ -64,7 +64,7 @@ function Hero() {
             <button type="button" onClick={openTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-hero-trial">
               Start Free Trial <ArrowRight size={15} />
             </button>
-            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-testid="gx-hero-preview">
+            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap dark:bg-zinc-900" data-testid="gx-hero-preview">
               See it in action <ArrowRight size={15} />
             </button>
           </div>
@@ -84,7 +84,7 @@ function Hero() {
 
 function PlatformOverview() {
   return (
-    <section className="py-24 md:py-32 bg-white" data-testid="gx-platform-overview">
+    <section className="py-24 md:py-32 bg-white dark:bg-zinc-900" data-testid="gx-platform-overview">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 grid lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-5">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Why GymAxis</p>
@@ -104,7 +104,7 @@ function PlatformOverview() {
 
 function OverviewCard({ icon, title, body }) {
   return (
-    <div className="gx-card rounded-3xl border border-slate-100 bg-slate-50/40 p-6">
+    <div className="gx-card rounded-3xl border border-slate-100 bg-slate-50/40 p-6 dark:border-zinc-800">
       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>
         {icon}
       </div>
@@ -133,7 +133,7 @@ function ModuleGrid() {
 function ModuleCard({ m }) {
   const Icon = m.icon;
   return (
-    <Link to={m.to} className="gx-card group block rounded-3xl border border-slate-100 bg-white p-6 md:p-7" data-testid={`gx-module-${m.id}`}>
+    <Link to={m.to} className="gx-card group block rounded-3xl border border-slate-100 bg-white p-6 md:p-7 dark:bg-zinc-900 dark:border-zinc-800" data-testid={`gx-module-${m.id}`}>
       <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: `${m.color}14` }}>
         <Icon size={20} style={{ color: m.color }} />
       </div>
@@ -149,7 +149,7 @@ function ModuleCard({ m }) {
 
 function CustomerExperience() {
   return (
-    <section className="py-20 md:py-28 bg-white" data-testid="gx-customer-xp">
+    <section className="py-20 md:py-28 bg-white dark:bg-zinc-900" data-testid="gx-customer-xp">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">What your customer sees</p>
@@ -179,7 +179,7 @@ function CustomerExperience() {
 
 function SocialProof() {
   return (
-    <section className="py-20 md:py-28 bg-white" data-testid="gx-social-proof">
+    <section className="py-20 md:py-28 bg-white dark:bg-zinc-900" data-testid="gx-social-proof">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Built for fitness operators</p>
@@ -204,7 +204,7 @@ function SocialProof() {
 
 function Stat({ value, label }) {
   return (
-    <div className="rounded-3xl border border-slate-100 bg-slate-50/40 p-6 text-center">
+    <div className="rounded-3xl border border-slate-100 bg-slate-50/40 p-6 text-center dark:border-zinc-800">
       <div className="text-4xl md:text-5xl font-black tracking-tighter gx-gradient-text">{value}</div>
       <p className="mt-2 text-sm text-slate-600 leading-snug">{label}</p>
     </div>
@@ -214,11 +214,11 @@ function Stat({ value, label }) {
 /* ── Engineer Partner banner (Iter 216h88) ─────────────── */
 function EngineerBanner() {
   return (
-    <section className="py-16 md:py-20 bg-slate-50" data-testid="gx-engineer-banner">
+    <section className="py-16 md:py-20 bg-slate-50 dark:bg-zinc-900" data-testid="gx-engineer-banner">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="rounded-[36px] bg-white border border-slate-100 shadow-sm overflow-hidden grid lg:grid-cols-5">
+        <div className="rounded-[36px] bg-white border border-slate-100 shadow-sm overflow-hidden grid lg:grid-cols-5 dark:bg-zinc-900 dark:border-zinc-800">
           <div className="lg:col-span-3 p-8 md:p-12">
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800">
               <HardHat size={12} /> Independent fitness engineer?
             </span>
             <h2 className="mt-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
@@ -236,13 +236,13 @@ function EngineerBanner() {
               <Link to="/partners/engineers" className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-engineer-banner-cta">
                 Learn more <ArrowRight size={15} />
               </Link>
-              <Link to="/partners/engineers/apply" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-testid="gx-engineer-banner-apply">
+              <Link to="/partners/engineers/apply" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap dark:bg-zinc-900" data-testid="gx-engineer-banner-apply">
                 Start application <ArrowRight size={15} />
               </Link>
             </div>
           </div>
           <div className="lg:col-span-2 p-8 md:p-10 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%)' }}>
-            <div className="rounded-2xl bg-white shadow-lg border border-slate-100 p-5 max-w-xs">
+            <div className="rounded-2xl bg-white shadow-lg border border-slate-100 p-5 max-w-xs dark:bg-zinc-900 dark:border-zinc-800">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your engineer</p>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-700">✓ Verified</span>
@@ -285,7 +285,7 @@ function FinalCta() {
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-[1.04]">Run your entire fitness business<br />from one platform</h2>
             <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">3-day free trial — all six modules unlocked. No credit card. We're always reachable, but you don't need to wait for us.</p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow" data-testid="gx-final-trial">
+              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100" data-testid="gx-final-trial">
                 Start Free Trial <ArrowRight size={15} />
               </button>
               <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors" data-testid="gx-final-preview">

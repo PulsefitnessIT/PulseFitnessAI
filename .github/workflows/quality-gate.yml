@@ -133,18 +133,16 @@ jobs:
 
       - name: ESLint
         working-directory: frontend
-        run: yarn eslint "src/**/*.{js,jsx,ts,tsx}" --max-warnings 500
-        # Iter 216h226-polish-3 — unused-vars sweep COMPLETE: 164 → 0.
-        # `scripts/suppress_unused_vars.py` prefixed every unused
-        # destructure / state setter / function arg with `_`. Three
-        # genuinely-dead React components in legacy-reference blocks
-        # (`GymFloorLogin`, `LegacyMemberDetailDrawer`, `AppUrlCard`)
-        # carry a per-line `eslint-disable` directive.
+        run: yarn eslint "src/**/*.{js,jsx,ts,tsx}" --max-warnings 200
+        # Iter 216h226-polish-4 — light-mode leakage sweep COMPLETE:
+        # 297 → 0 via `scripts/sweep_dark_mode_leakage.py` (292 sites
+        # auto-patched with `dark:bg-zinc-{800,900}`, `dark:text-zinc-100`,
+        # `dark:border-zinc-800`; 7 gradient one-offs hand-fixed).
+        # `gymaxis/no-dark-mode-leakage` re-promoted to `error`.
         #
-        # Warning budget dropped 600 → 500. Remaining 383 warnings:
-        #   • 297 gymaxis/no-dark-mode-leakage
-        #   •  86 react-hooks/exhaustive-deps
-        # Tighten by 100 each sweep PR until 0.
+        # Warning budget dropped 500 → 200. Remaining 86 warnings:
+        #   • 86 react-hooks/exhaustive-deps
+        # Next sweep PR tightens 200 → 0.
 
       - name: Production build smoke
         working-directory: frontend

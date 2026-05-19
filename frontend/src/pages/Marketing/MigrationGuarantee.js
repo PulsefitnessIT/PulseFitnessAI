@@ -12,13 +12,13 @@ export default function MigrationGuarantee() {
   return (
     <section className="py-12 sm:py-16" data-testid="gx-migration-guarantee">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-6 sm:p-10">
+        <div className="rounded-3xl border border-emerald-200 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50 via-white to-white dark:from-emerald-950/40 dark:via-zinc-900 dark:to-zinc-900 p-6 sm:p-10">
           <div className="grid lg:grid-cols-3 gap-8 items-center">
             <div className="lg:col-span-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">
                 <ShieldCheck size={11} /> Switching guarantee
               </span>
-              <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tighter text-slate-900">
+              <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tighter text-slate-900 dark:text-zinc-100">
                 Switch in 14 days — or your money back.
               </h2>
               <p className="mt-3 text-base text-slate-600 max-w-2xl">
@@ -47,7 +47,7 @@ export default function MigrationGuarantee() {
 
 function Pill({ icon: Icon, text }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-xl bg-white border border-emerald-200/60 px-3 py-2 text-xs font-semibold text-emerald-800">
+    <div className="inline-flex items-center gap-2 rounded-xl bg-white border border-emerald-200/60 px-3 py-2 text-xs font-semibold text-emerald-800 dark:bg-zinc-900">
       <Icon size={13} className="text-emerald-600" /> {text}
     </div>
   );

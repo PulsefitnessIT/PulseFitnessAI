@@ -37,14 +37,14 @@ export default function StickyCtaBar() {
   return (
     <div
       role="region" aria-label="Start free trial"
-      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-3xl rounded-2xl bg-white shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)] border border-slate-200 px-4 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
+      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-3xl rounded-2xl bg-white shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)] border border-slate-200 px-4 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 dark:bg-zinc-900 dark:border-zinc-800"
       data-testid="gx-sticky-cta"
     >
       <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] flex items-center justify-center text-white shrink-0">
         <Sparkles size={14} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-slate-900 truncate">Try GymAxis free for 3 days</p>
+        <p className="text-[13px] font-bold text-slate-900 truncate dark:text-zinc-100">Try GymAxis free for 3 days</p>
         <p className="text-[11px] text-slate-500 truncate">All 6 modules unlocked. No credit card. Cancel any time.</p>
       </div>
       <button type="button" onClick={openTrial}
