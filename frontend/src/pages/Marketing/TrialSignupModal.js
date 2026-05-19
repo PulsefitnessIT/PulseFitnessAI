@@ -8,8 +8,18 @@
  *
  * Trigger: dispatch a window event from any CTA:
  *   window.dispatchEvent(new CustomEvent('gymaxis:open-trial'));
+ *
+ * Iter 216h219 — Two-step flow to capture richer org intel without
+ * tanking conversion:
+ *   Step 1 (5 fields, unchanged): name, email, company, phone, password.
+ *   Step 2 (NEW, all optional, skippable): website, industry, team
+ *           size, "how did you hear about us?". Submitted via PATCH
+ *           /api/account/organisation once the user is signed in.
+ * Also silently captures UTM tags from the landing URL so the Master
+ * Admin → Organisations panel shows the exact campaign that drove
+ * the signup.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, X, CheckCircle2, Loader2, Zap } from 'lucide-react';
@@ -19,21 +29,50 @@ import Turnstile from '../../components/shared/Turnstile';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Mirrors AdminOrganizations.js so Master Admin sees a clean dropdown
+// instead of free-text fragments. Keep these two lists in sync.
+const INDUSTRY_OPTIONS = [
+  'Fitness & Leisure', 'Healthcare', 'Manufacturing', 'Technology', 'Retail',
+  'Construction', 'Education', 'Finance', 'Hospitality', 'Property', 'Other',
+];
+const EMPLOYEE_RANGES = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+'];
+const REFERRAL_SOURCES = [
+  'Google search', 'LinkedIn', 'Facebook / Instagram', 'X (Twitter)',
+  'Industry event', 'Referred by a friend', 'Press / article', 'Other',
+];
+
+/** Pluck utm_* tags from the current URL once on mount. */
+function readUtmTags() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const out = {};
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
+      const v = p.get(k);
+      if (v) out[k] = v.slice(0, 200);
+    });
+    return out;
+  } catch (_) {
+    return {};
+  }
+}
+
 export default function TrialSignupModal() {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(1); // 1 = credentials, 2 = enrichment, 3 = success
   const [form, setForm] = useState({ full_name: '', email: '', company_name: '', phone: '', password: '' });
+  const [extras, setExtras] = useState({ website: '', industry: '', employee_count: '', referral_source: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
+  const utmRef = useRef({});
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Open / close via window events so any CTA on any page can trigger it
-  // without prop-drilling.
+  // Open / close via window events so any CTA on any page can trigger it.
   useEffect(() => {
-    const onOpen = () => setOpen(true);
+    const onOpen = () => { utmRef.current = readUtmTags(); setOpen(true); };
     const onClose = () => setOpen(false);
     window.addEventListener('gymaxis:open-trial', onOpen);
     window.addEventListener('gymaxis:close-trial', onClose);
@@ -43,18 +82,19 @@ export default function TrialSignupModal() {
     };
   }, []);
 
-  // Reset form whenever the modal closes.
+  // Reset state whenever the modal closes.
   useEffect(() => {
     if (!open) {
       setForm({ full_name: '', email: '', company_name: '', phone: '', password: '' });
-      setDone(false);
+      setExtras({ website: '', industry: '', employee_count: '', referral_source: '' });
+      setStep(1);
       setShowPass(false);
       setCaptchaToken('');
       setError('');
     }
   }, [open]);
 
-  // Esc-to-close + body-scroll lock while open.
+  // Esc-to-close + body-scroll lock.
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => e.key === 'Escape' && setOpen(false);
@@ -68,9 +108,11 @@ export default function TrialSignupModal() {
   }, [open]);
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const updateExtra = (k) => (e) => setExtras((x) => ({ ...x, [k]: e.target.value }));
   const close = () => setOpen(false);
 
-  const submit = async (e) => {
+  // ── Step 1 submit: create the account + sign in. ──────────────────
+  const submitStep1 = async (e) => {
     e.preventDefault();
     setError('');
     if (form.password.length < 8) { setError('Choose a password of at least 8 characters.'); return; }
@@ -88,16 +130,52 @@ export default function TrialSignupModal() {
         trial_duration_days: 3,
         trial_unlock_all_modules: true,
         cf_turnstile_response: captchaToken,
+        // Silent attribution — forwarded straight from the landing URL.
+        ...utmRef.current,
       });
       if (!data?.token) throw new Error('Signup failed');
       login(data.token, data.user);
-      setDone(true);
-      setTimeout(() => { close(); navigate('/dashboard', { replace: true }); }, 1400);
+      setStep(2);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Could not start trial. Please check your details and try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Step 2 submit: persist org enrichment + go to dashboard. ──────
+  const submitStep2 = async (e) => {
+    e?.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      // Only PATCH the fields the user actually filled in. Trim &
+      // skip empties so we don't overwrite the org's other defaults.
+      const payload = {};
+      Object.entries(extras).forEach(([k, v]) => {
+        const trimmed = (v || '').trim();
+        if (trimmed) payload[k] = trimmed;
+      });
+      if (Object.keys(payload).length) {
+        await axios.patch(`${API}/account/organisation`, payload, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+      }
+      setStep(3);
+      setTimeout(() => { close(); navigate('/dashboard', { replace: true }); }, 1200);
+    } catch (err) {
+      // Soft-fail: prospect is already in. Don't block their first
+      // dashboard load over an optional profile field.
+      setStep(3);
+      setTimeout(() => { close(); navigate('/dashboard', { replace: true }); }, 1200);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const skipStep2 = () => {
+    setStep(3);
+    setTimeout(() => { close(); navigate('/dashboard', { replace: true }); }, 700);
   };
 
   if (!open) return null;
@@ -123,8 +201,16 @@ export default function TrialSignupModal() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 border border-slate-200 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
                 <Zap size={11} /> 3-day free trial · all modules unlocked
               </span>
-              <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900">Start your trial</h2>
-              <p className="mt-1 text-sm text-slate-500">Every module unlocked for 3 days. No credit card required.</p>
+              <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900" data-testid="trial-modal-title">
+                {step === 1 && 'Start your trial'}
+                {step === 2 && 'Tell us about your gym'}
+                {step === 3 && "You're in!"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500" data-testid="trial-modal-subtitle">
+                {step === 1 && 'Every module unlocked for 3 days. No credit card required.'}
+                {step === 2 && 'Optional — helps us tailor your dashboard. Skip anytime.'}
+                {step === 3 && 'Taking you to your dashboard…'}
+              </p>
             </div>
             <button
               onClick={close}
@@ -137,16 +223,18 @@ export default function TrialSignupModal() {
             </button>
           </div>
 
-          {done ? (
-            <div className="p-6 pt-2 text-center" data-testid="trial-modal-success">
-              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
-                <CheckCircle2 size={28} className="text-emerald-500" />
-              </div>
-              <h3 className="text-slate-900 font-bold text-lg">You&apos;re in — welcome aboard.</h3>
-              <p className="text-slate-500 text-sm mt-1">Taking you to the dashboard…</p>
+          {/* Step indicator (only visible on step 2 — step 1 is the "real" signup) */}
+          {step === 2 && (
+            <div className="px-6 -mt-1 mb-1 flex items-center gap-1.5" data-testid="trial-modal-step-indicator">
+              <span className="h-1 w-8 rounded-full bg-slate-900" />
+              <span className="h-1 w-8 rounded-full bg-slate-900" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 ml-1">Step 2 of 2</span>
             </div>
-          ) : (
-            <form onSubmit={submit} className="p-6 pt-2 space-y-3" data-testid="trial-modal-form">
+          )}
+
+          {/* ── Step 1 — credentials ─────────────────────────────── */}
+          {step === 1 && (
+            <form onSubmit={submitStep1} className="p-6 pt-2 space-y-3" data-testid="trial-modal-form">
               {error && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" data-testid="trial-modal-error">{error}</div>
               )}
@@ -199,6 +287,75 @@ export default function TrialSignupModal() {
               </p>
             </form>
           )}
+
+          {/* ── Step 2 — org enrichment (all optional) ───────────── */}
+          {step === 2 && (
+            <form onSubmit={submitStep2} className="p-6 pt-2 space-y-3" data-testid="trial-modal-step2-form">
+              {error && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" data-testid="trial-modal-step2-error">{error}</div>
+              )}
+              <Field label="Website" value={extras.website} onChange={updateExtra('website')} placeholder="https://acmefitness.com" testid="trial-extra-website" optional />
+              <SelectField
+                label="Industry"
+                value={extras.industry}
+                onChange={updateExtra('industry')}
+                options={INDUSTRY_OPTIONS}
+                placeholder="Select..."
+                testid="trial-extra-industry"
+              />
+              <SelectField
+                label="Team size"
+                value={extras.employee_count}
+                onChange={updateExtra('employee_count')}
+                options={EMPLOYEE_RANGES}
+                placeholder="Select..."
+                testid="trial-extra-employees"
+              />
+              <SelectField
+                label="How did you hear about us?"
+                value={extras.referral_source}
+                onChange={updateExtra('referral_source')}
+                options={REFERRAL_SOURCES}
+                placeholder="Select..."
+                testid="trial-extra-referral"
+              />
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={skipStep2}
+                  className="flex-1 rounded-full px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
+                  data-testid="trial-step2-skip"
+                  disabled={loading}
+                >
+                  Skip for now
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="gx-cta flex-1 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-60"
+                  data-testid="trial-step2-submit"
+                >
+                  {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <>Save &amp; continue <ArrowRight size={14} /></>}
+                </button>
+              </div>
+
+              <p className="text-center text-[11px] text-slate-400 pt-1">
+                You can always update these later in Account Settings.
+              </p>
+            </form>
+          )}
+
+          {/* ── Step 3 — success ─────────────────────────────────── */}
+          {step === 3 && (
+            <div className="p-6 pt-2 text-center" data-testid="trial-modal-success">
+              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-4">
+                <CheckCircle2 size={28} className="text-emerald-500" />
+              </div>
+              <h3 className="text-slate-900 font-bold text-lg">You&apos;re in — welcome aboard.</h3>
+              <p className="text-slate-500 text-sm mt-1">Taking you to the dashboard…</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -218,6 +375,25 @@ function Field({ label, value, onChange, type = 'text', placeholder, testid, opt
         className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition"
         data-testid={testid}
       />
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options, placeholder, testid }) {
+  return (
+    <div>
+      <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">{label}</label>
+      <select
+        value={value}
+        onChange={onChange}
+        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-slate-400 transition appearance-none"
+        data-testid={testid}
+      >
+        <option value="">{placeholder || 'Select...'}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+      </select>
     </div>
   );
 }

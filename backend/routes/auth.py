@@ -47,6 +47,25 @@ async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
         "owner_id": user_id, "created_at": datetime.now(timezone.utc).isoformat(),
         "subscription_tier": "none",
     }
+    # Iter 216h219 — Trial signup org-profile enrichment. The trial
+    # modal's step-2 captures Industry / Employees / Website / referral
+    # source + silent UTM tags from `window.location.search`. Persist
+    # whatever was supplied (all optional — empty strings are ignored).
+    enrichment_fields = {
+        "website": (user.website or "").strip(),
+        "industry": (user.industry or "").strip(),
+        "employee_count": (user.employee_count or "").strip(),
+        "phone": (user.phone or "").strip(),
+        "referral_source": (user.referral_source or "").strip(),
+        "utm_source": (user.utm_source or "").strip(),
+        "utm_medium": (user.utm_medium or "").strip(),
+        "utm_campaign": (user.utm_campaign or "").strip(),
+        "utm_term": (user.utm_term or "").strip(),
+        "utm_content": (user.utm_content or "").strip(),
+    }
+    for k, v in enrichment_fields.items():
+        if v:
+            org_doc[k] = v
     # Trial stamping (landing-page funnel)
     if getattr(user, "is_trial", False):
         # Iter 215bc — default trial dropped from 14 → 3 days. The marketing

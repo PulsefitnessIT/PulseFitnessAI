@@ -23,6 +23,25 @@ class UserRegister(BaseModel):
     # new organisation is permanently linked to that partner for
     # commission accrual on the first cleared Operations invoice.
     ref_code: Optional[str] = None
+    # Iter 216h219 — Trial signup org-profile enrichment.
+    # Captured on the new "Tell us about your gym" step of the trial
+    # modal so Master Admin → Organisations → Details has Industry /
+    # Employees / Website / Referral-source pre-filled the moment a
+    # prospect lands. All optional — empty values are ignored.
+    website: Optional[str] = None
+    industry: Optional[str] = None
+    employee_count: Optional[str] = None
+    # Free-text "How did you hear about us?" — feeds the marketing
+    # attribution dashboard alongside the silent UTM tags below.
+    referral_source: Optional[str] = None
+    # Silent marketing attribution. Captured by the trial modal from
+    # `window.location.search` and forwarded here so the org doc
+    # records the exact campaign that drove the signup.
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    utm_term: Optional[str] = None
+    utm_content: Optional[str] = None
 
 
 class UserLogin(BaseModel):

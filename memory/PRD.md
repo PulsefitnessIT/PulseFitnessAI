@@ -8849,3 +8849,53 @@ operator surfaces share the same `SupplierMultiPicker`:
   against `jack.ottey@thirdspace.london`'s 216-equipment estate.
 
 Files: `LiteDialogs.js`, `STATE.md`, `tests/test_iter_216bl_site_lock.py`.
+
+## Iter 216h219 — Trial signup org-profile enrichment + UTM capture (Feb 19, 2026)
+
+### Context
+Real Fitness signed up via the production trial flow but Master Admin
+saw a completely empty Organisation Details panel (Industry / Employees
+/ Website / Address / Phone all blank). The trial modal only captured
+name, email, gym name, phone, password — nothing that helps the team
+qualify or contact the lead.
+
+### Solution: 2-step modal (step 2 skippable) + silent UTM capture
+- **Step 1 (unchanged)** — 5 fields needed to actually create the account.
+  Protects conversion: returning users on this flow see no change.
+- **Step 2 (NEW, all-optional, skippable)** — Website · Industry
+  (dropdown matching `AdminOrganizations.INDUSTRY_OPTIONS`) · Team
+  size (`EMPLOYEE_RANGES`) · How did you hear about us?
+  Submitted via PATCH `/api/account/organisation` after the user is
+  already signed in, so abandonment ≠ lost trial.
+- **Silent UTM capture** — modal reads `utm_source`, `utm_medium`,
+  `utm_campaign`, `utm_term`, `utm_content` from `window.location.search`
+  on open and forwards them to `POST /api/auth/register`. No friction
+  for the user, but every paid-ad campaign is now attributable in
+  Master Admin → Organisations → Details.
+
+### Backend
+- `models/schemas.py UserRegister` — added optional `website`,
+  `industry`, `employee_count`, `referral_source`, `utm_source`,
+  `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`.
+- `routes/auth.py _resolve_org_and_role` — persists every non-empty
+  enrichment field on the new org doc at signup time.
+- `routes/account.py ORG_ALLOWED_FIELDS` — extended with `industry`,
+  `employee_count`, `referral_source` so PATCH `/api/account/organisation`
+  can update them post-signup.
+
+### Frontend
+- `pages/Marketing/TrialSignupModal.js` — rewritten with `step` state
+  machine (1 → 2 → 3 success). Step 2 uses native `<select>` for
+  Industry / Team size / Referral source dropdowns (matches the
+  existing Master Admin form vocab so data stays clean).
+
+### Verification
+- E2E curl: register with UTM tags → org doc has `utm_source=linkedin`,
+  `utm_campaign=q1_launch`, `industry=Fitness & Leisure`,
+  `employee_count=11-50`, `referral_source=LinkedIn`, `website=…`.
+- PATCH `/api/account/organisation` then updates all four enrichment
+  fields. Master Admin → Organisations → Details now pre-filled.
+- `make regression`: 23/23 pass.
+- ESLint clean.
+
+Files: `schemas.py`, `auth.py`, `account.py`, `TrialSignupModal.js`.

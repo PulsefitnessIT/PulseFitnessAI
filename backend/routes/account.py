@@ -672,6 +672,10 @@ ORG_ALLOWED_FIELDS = {
     "address_line1", "address_line2", "address_line3", "city",
     "postcode", "country", "phone", "primary_contact_email",
     "primary_contact_phone", "website",
+    # Iter 216h219 — Trial signup org-profile enrichment. Owners can
+    # complete these on the trial modal's step-2 OR later from
+    # Account Settings → Organisation.
+    "industry", "employee_count", "referral_source",
 }
 
 
