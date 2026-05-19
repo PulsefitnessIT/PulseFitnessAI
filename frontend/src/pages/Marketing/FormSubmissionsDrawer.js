@@ -25,7 +25,7 @@ const FormSubmissionsDrawer = ({ API, headers, form, onClose }) => {
       if (!cancelled) toast.error('Could not load submissions', { description: e.response?.data?.detail });
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [API, form.id, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [API, form.id, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — runs on the listed trigger deps; omitted refs are stable identities or read live state at call time.
 
   const fieldsById = {};
   for (const f of form.fields || []) fieldsById[f.id] = f;

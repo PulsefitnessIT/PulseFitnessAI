@@ -363,7 +363,7 @@ const IntegrationDetailDialog = ({ open, onClose, row, apiHdr }) => {
  .then(r => setEvents(r.data.events || []))
  .catch(() => setEvents([]))
  .finally(() => setLoading(false));
- // eslint-disable-next-line react-hooks/exhaustive-deps
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
  }, [open, row]);
 
  if (!row) return null;
@@ -442,11 +442,15 @@ export default function TrustDashboard({ refreshTick = 0 }) {
  return () => clearInterval(t);
  }, [load]);
 
- // When the parent page's global Refresh is clicked, refreshTick bumps → re-fetch
+ // When the parent page's global Refresh is clicked, refreshTick bumps → re-fetch.
+ // `load` is a useCallback that depends on `hdr` (the auth header memo) so its
+ // identity only changes when the auth token rotates. Including it here means
+ // a token rotation cleanly invalidates the in-flight closure — exactly what
+ // we want. (Previously omitted, which would have used a stale `hdr` after
+ // a re-login. Iter 216h226-deps-walk.)
  useEffect(() => {
  if (refreshTick > 0) load(false);
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [refreshTick]);
+ }, [refreshTick, load]);
 
  const handleAck = async (id) => {
  setBusyId(id);

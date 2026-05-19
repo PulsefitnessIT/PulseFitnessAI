@@ -375,7 +375,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
         setTemplates(r.data?.items || []);
       } catch (_) { /* templates optional */ }
     })();
-  }, [tenderId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tenderId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — runs on the listed trigger deps; omitted refs are stable identities or read live state at call time.
   const applyTemplate = (qId, tplId) => {
     if (!tplId) return;
     const tpl = templates.find((t) => t.id === tplId);
@@ -920,7 +920,7 @@ function SlideManager({ tenderId, API, headers, onClose, c, inputStyle }) {
       } catch (_) { /* fall back to empty */ }
       setLoading(false);
     })();
-  }, [tenderId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tenderId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — runs on the listed trigger deps; omitted refs are stable identities or read live state at call time.
 
   const save = async () => {
     setSaving(true);

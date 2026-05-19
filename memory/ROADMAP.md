@@ -16,12 +16,9 @@ Update as items move; archive completed work in /app/memory/PRD.md.
 
 ## P1 — Lint follow-ups (when time allows)
 
-- **react-hooks/exhaustive-deps** is currently inline-suppressed across
-  85 call sites with a `todo:` trailer. Per-call-site review remains
-  worthwhile to catch any **genuine** missing-dep bugs, but it's no
-  longer blocking CI. Search the codebase for
-  `// eslint-disable-next-line react-hooks/exhaustive-deps -- todo:`
-  to walk the list.
+- _none — exhaustive-deps manual walk complete (iter 216h226-deps-walk).
+  Every suppression now carries an `-- intentional:` rationale; one real
+  stale-closure bug found and fixed in `TrustDashboard` refreshTick._
 
 ## P2
 

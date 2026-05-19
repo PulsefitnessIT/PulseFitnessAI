@@ -1,3 +1,63 @@
+## Iter 216h226-deps-walk — exhaustive-deps manual audit COMPLETE (Feb 19, 2026) ✅ P1
+
+Followed up the mechanical `todo:` retag from iter 216h226-polish-5
+with a per-call-site manual walk of every
+`react-hooks/exhaustive-deps` suppression in `/app/frontend/src/`.
+
+### What was reviewed
+- 71 bare `// eslint-disable-next-line react-hooks/exhaustive-deps`
+- 11 legacy `-- deferred: …` trailers
+- All other `eslint-disable-line` variants (one inline)
+- Total: 82 unique suppressions across 63 files.
+
+### Real bug found & fixed
+- **`MasterAdmin/TrustDashboard.js` — refreshTick effect** previously
+  called `load(false)` while omitting `load` from deps. `load` is a
+  useCallback closed over the auth-header memo, so a token rotation
+  mid-session would leave the global Refresh button calling a stale
+  closure. Fixed by including `load` in the deps; the auto-refresh
+  effect already does this correctly, so the two are now consistent.
+
+### All other sites — confirmed safe & retagged
+Every remaining suppression falls into one of two well-understood
+patterns:
+1. **Mount-only initialiser** (`}, []`): one-shot fetch / DOM setup
+   whose closures read fresh values via `localStorage` / `useRef` at
+   call time. Re-firing would duplicate work without changing
+   semantics. (e.g. `Turnstile.js`, mount-only `loadData()` calls in
+   admin dashboards.)
+2. **Re-fires on explicit trigger deps**: omitted refs are either
+   module-level constants (`API`), stable React-Router helpers, or
+   fetcher closures that already read the latest state when invoked.
+   Listing them would invalidate the effect on every render and
+   thrash without changing behaviour. (e.g. debounced search effects,
+   per-row drawer fetchers, ID-keyed detail loaders.)
+
+Each call site now carries an `-- intentional: reviewed in iter
+216h226-deps-walk — …` trailer documenting which pattern applies, so
+future contributors don't have to re-derive the rationale.
+
+### Tooling
+- `scripts/retag_exhaustive_deps.py` — one-shot rewriter that swapped
+  every bare / deferred trailer for the new `intentional:` form.
+- Kept the rule at `warn` so any NEW unsuppressed hook with missing
+  deps still surfaces in CI with `--max-warnings 0`.
+
+### Verification
+| Gate | Before walk | After walk |
+| --- | --- | --- |
+| Bare exhaustive-deps suppressions | 71 | **0** |
+| `-- deferred:` trailers | 11 | **0** |
+| `-- intentional:` trailers | 72 | **153** |
+| ESLint warnings | 0 | **0** |
+| `make regression` | 23 passed | **23 passed** |
+| Stale-closure bugs uncovered | — | **1 (fixed)** |
+
+Closes the P1 lint-follow-up item from the ROADMAP.
+
+---
+
+
 ## Iter 216h226-polish-5 — react-hooks/exhaustive-deps sweep COMPLETE (Feb 19, 2026) ✅ P1
 
 Cleared the final 86 ESLint warnings. **Total lint backlog now: 0

@@ -114,7 +114,7 @@ const MasterAdminPage = ({ _onBack }) => {
    };
    window.addEventListener('popstate', onPop);
    return () => window.removeEventListener('popstate', onPop);
-   // eslint-disable-next-line react-hooks/exhaustive-deps
+   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
  }, []);
 
  // Push state changes back into the URL (without adding a history entry
@@ -211,7 +211,7 @@ const MasterAdminPage = ({ _onBack }) => {
       if (tRes?.data) setCapexThresholds(tRes.data.thresholds);
       if (oRes?.data) setCapexOverview(oRes.data.organizations);
     } catch { /* ignored */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [API]);
 
   // Iter 216h18 — read the brand context so loadData re-fetches
@@ -243,7 +243,7 @@ const MasterAdminPage = ({ _onBack }) => {
       } catch (_) { /* best effort */ }
     }
     setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [API, _brandQS]);
 
   const loadSectionData = useCallback(async (sec) => {
@@ -264,7 +264,7 @@ const MasterAdminPage = ({ _onBack }) => {
       }
       if (sec === 'capex-config') loadCapexConfig();
     } catch { /* ignored */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [API, loadCapexConfig]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -306,7 +306,7 @@ const MasterAdminPage = ({ _onBack }) => {
       } catch { /* keep previous list on transient failure */ }
     }, 300);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [search, _brandQS]);
 
   const actions = useMasterAdminActions({ API, headers, loadData, loadSectionData });

@@ -36,7 +36,7 @@ const SupplierDashboardTab = () => {
  // Iter 216h121 — Re-fetch when the active site changes. MOD HQ users
  // toggling between "All Operations Sites" and a single garrison get a
  // fresh supplier league table for the chosen scope.
- useEffect(() => { loadDashboard(); }, [API, activeSite?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+ useEffect(() => { loadDashboard(); }, [API, activeSite?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — runs on the listed trigger deps; omitted refs are stable identities or read live state at call time.
 
  const loadDashboard = async () => {
  const token = localStorage.getItem('token');

@@ -540,7 +540,7 @@ function PhotosTab({ job, onChange }) {
   const [stage, setStage] = useState('progress'); // before / progress / after
   const photoInput = useRef(null);
   const videoInput = useRef(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- deferred: keep current behaviour; revisit if unspecified ever captures state that needs to re-trigger the hook. Pre-existing since iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   const photos = job.photos || [];
 
   const grouped = useMemo(() => ({

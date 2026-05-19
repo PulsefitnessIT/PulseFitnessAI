@@ -40,7 +40,7 @@ const FormsAndPagesTab = ({ API, headers }) => {
     setLoading(false);
   };
 
-  useEffect(() => { refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — runs on the listed trigger deps; omitted refs are stable identities or read live state at call time.
 
   const baseUrl = useMemo(() => window.location.origin, []);
 

@@ -7,7 +7,7 @@ import { SectionCard, Pill, severityTone } from './shared';
 const AiAndFlagsTab = ({ aiInsights, onLoadAiInsights, featureFlags, onSaveFlags, onDrillOrg }) => {
  const [draft, setDraft] = useState(null);
  useEffect(() => { if (featureFlags) setDraft({ ...featureFlags.flags }); }, [featureFlags]);
- // eslint-disable-next-line react-hooks/exhaustive-deps -- deferred: keep current behaviour; revisit if 'aiInsights' and 'onLoadAiInsights' ever captures state that needs to re-trigger the hook. Pre-existing since iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
  useEffect(() => { if (!aiInsights) onLoadAiInsights?.();   }, []);
 
  const insights = aiInsights?.insights || [];

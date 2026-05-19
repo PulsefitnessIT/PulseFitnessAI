@@ -49,7 +49,7 @@ export default function AdminOnboardingPackets() {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [API]);
 
   useEffect(() => { load(); }, [load]);
@@ -173,7 +173,7 @@ function CreatePacketDialog({ API, headers, onClose, onCreated }) {
         setCrmCompanies(res.data.companies || []);
       } catch { /* optional */ }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, []);
 
   const submit = async () => {
@@ -271,7 +271,7 @@ function PacketDetailDialog({ API, headers, packet: initialPacket, onClose, onCh
       const res = await axios.get(`${API}/onboarding-packets/${packet.id}`, { headers });
       setPacket(res.data);
     } catch { /* noop */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [packet.id]);
 
   useEffect(() => { refresh(); }, [refresh]);

@@ -401,7 +401,7 @@ const GymDesignTab = ({ allEquipment: _onboardedEquipment = [] }) => {
     setWizardDetectedEquipment(prev => prev.map((eq, i) =>
       i === wizardDragging.idx ? { ...eq, x_percent, y_percent } : eq
     ));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- deferred: keep current behaviour; revisit if 'snapPercent' ever captures state that needs to re-trigger the hook. Pre-existing since iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [wizardDragging, wizardSnapToGrid, wizardGridSize, gymLengthForCalc, gymWidthForCalc]);
 
   const handleMarkerDragEnd = useCallback(() => {

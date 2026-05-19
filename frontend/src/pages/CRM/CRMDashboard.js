@@ -447,7 +447,7 @@ export default function CRMDashboard() {
   }, [API, headers]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (isManagerOrOwner) setStaffFilter('all'); }, [isManagerOrOwner]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (isManagerOrOwner) setStaffFilter('all'); }, [isManagerOrOwner]);  // eslint-disable-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — runs on the listed trigger deps; omitted refs are stable identities or read live state at call time.
 
   if (loading || !data) return (
     <div className="flex items-center justify-center h-64">
