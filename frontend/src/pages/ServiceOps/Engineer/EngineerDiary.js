@@ -608,8 +608,8 @@ export default function EngineerDiary() {
 
         {/* Week grid */}
         {view === 'week' && slots.length > 0 ? (
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-7 divide-x divide-slate-200">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
+            <div className="grid grid-cols-7 divide-x divide-slate-200 min-w-[700px]">
               {Array.from({ length: 7 }, (_, i) => {
                 const d = addDays(weekStart, i);
                 const isToday = sameDay(d, new Date());

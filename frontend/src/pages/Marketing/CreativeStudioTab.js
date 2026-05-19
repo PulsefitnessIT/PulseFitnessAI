@@ -466,7 +466,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2 max-h-[340px] overflow-y-auto pr-1" data-testid="creative-brand-grid">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[340px] overflow-y-auto pr-1" data-testid="creative-brand-grid">
                 {brandLibrary.map((row) => {
                   const importing = importingBrand === row.id;
                   // If the operator has already imported this image, the
@@ -513,7 +513,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2 max-h-[340px] overflow-y-auto pr-1" data-testid="creative-cat-grid">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[340px] overflow-y-auto pr-1" data-testid="creative-cat-grid">
               {activeLib.map((a) => {
                 const v = (a.variants || [])[0];
                 const selected = selectedRefs.includes(a.id);

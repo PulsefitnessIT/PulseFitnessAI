@@ -214,7 +214,7 @@ const OrgSitesPanel = ({ org, onClose }) => {
             <p className="text-sm font-semibold text-zinc-800">CSV preview — {csvPreview.sites.length} site(s) to import</p>
             <button onClick={() => setCsvPreview(null)} className="text-zinc-400 hover:text-zinc-600"><X size={14} /></button>
           </div>
-          <div className="max-h-44 overflow-auto text-xs border border-zinc-100 rounded">
+          <div className="max-h-44 overflow-auto text-xs border border-zinc-100 rounded overflow-x-auto">
             <table className="w-full">
               <thead className="bg-zinc-50">
                 <tr><th className="text-left p-1.5">Name</th><th className="text-left p-1.5">Postcode</th><th className="text-left p-1.5">City</th><th className="p-1.5">HQ?</th></tr>

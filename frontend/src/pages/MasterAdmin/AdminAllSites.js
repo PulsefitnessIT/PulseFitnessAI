@@ -172,7 +172,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
       )}
 
       {/* Table */}
-      <div className="rounded-lg border bg-white overflow-hidden" style={{ borderColor: '#E4E4E7' }}>
+      <div className="rounded-lg border bg-white overflow-x-auto" style={{ borderColor: '#E4E4E7' }}>
         <table className="w-full text-sm" data-testid="admin-all-sites-table">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500">
             <tr>

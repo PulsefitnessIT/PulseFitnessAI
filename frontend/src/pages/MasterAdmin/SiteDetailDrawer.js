@@ -362,7 +362,7 @@ const EquipmentInlineList = ({ orgId, siteId, siteName }) => {
         <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">{items.length} item{items.length === 1 ? '' : 's'}</p>
         <p className="text-[11px] text-zinc-400 italic">Click any cell to edit · Save commits the row</p>
       </div>
-      <div className="rounded-lg border border-zinc-200 overflow-hidden">
+      <div className="rounded-lg border border-zinc-200 overflow-x-auto">
         <table className="w-full text-sm" data-testid="site-detail-equipment-table">
           <thead className="bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
             <tr>

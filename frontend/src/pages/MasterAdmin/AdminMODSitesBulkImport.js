@@ -353,7 +353,7 @@ export default function AdminMODSitesBulkImport() {
             )}
 
             {preview.sites?.length ? (
-              <div className="border border-slate-200 rounded-lg overflow-hidden mb-3 max-h-72 overflow-y-auto" data-testid="mod-bulk-preview-table">
+              <div className="border border-slate-200 rounded-lg overflow-x-auto mb-3 max-h-72 overflow-y-auto" data-testid="mod-bulk-preview-table">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 sticky top-0 z-[1]">
                     <tr className="text-left text-[10px] uppercase font-bold tracking-wide text-slate-500">

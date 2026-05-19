@@ -204,7 +204,7 @@ export default function AuditLogPanel() {
       </div>
 
       {/* Event table — desktop */}
-      <div className="hidden md:block bg-white border border-zinc-200 rounded-lg overflow-hidden" data-testid="audit-log-table">
+      <div className="hidden md:block bg-white border border-zinc-200 rounded-lg overflow-x-auto" data-testid="audit-log-table">
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 border-b border-zinc-200">
             <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500">

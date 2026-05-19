@@ -189,7 +189,8 @@ export default function CollectionsDashboard({ onPickOrg }) {
             🎉 No overdue accounts. Everyone's paid.
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[520px]">
             <thead className="bg-zinc-50 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-4 py-2 text-left">Org</th>
@@ -239,6 +240,7 @@ export default function CollectionsDashboard({ onPickOrg }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

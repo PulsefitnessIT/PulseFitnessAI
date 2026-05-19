@@ -203,9 +203,9 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
               <li>The Sicon Service integration must be <strong>Connected</strong> for posts to actually reach Sage.</li>
             </ol>
           </div>
-          <div className="rounded-lg border p-4" style={{ borderColor: '#E4E4E7' }}>
+          <div className="rounded-lg border p-4 overflow-x-auto" style={{ borderColor: '#E4E4E7' }}>
             <h5 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Field mapping (read-only)</h5>
-            <table className="w-full text-xs">
+            <table className="w-full text-xs min-w-[420px]">
               <thead>
                 <tr className="text-zinc-500">
                   <th className="text-left py-1 font-semibold">GymAxis field</th>

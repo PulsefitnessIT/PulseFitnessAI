@@ -553,7 +553,7 @@ const MasterAdminPage = ({ _onBack }) => {
 
       <main className="flex-1 overflow-y-auto min-w-0">
         <div className="p-4 sm:p-6 lg:p-8 max-w-[1440px]">
-          <div className="flex items-center gap-3 mb-4 lg:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 lg:mb-6 flex-wrap">
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden p-2 -ml-2 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg"

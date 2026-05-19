@@ -152,7 +152,7 @@ export default function AdminMODConsole({ API }) {
  ) : sites.length === 0 ? (
  <div className="text-center text-zinc-500 py-10 text-sm">No MOD sites seeded yet.</div>
  ) : (
- <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+ <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
  <table className="w-full text-sm">
  <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500">
  <tr>

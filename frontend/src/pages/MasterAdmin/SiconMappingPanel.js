@@ -93,7 +93,7 @@ export default function SiconMappingPanel() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-zinc-50 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
             <tr>

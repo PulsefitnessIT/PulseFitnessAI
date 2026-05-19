@@ -1,3 +1,71 @@
+## Iter 216h229 — mobile audit Wave 3 (Feb 19, 2026) ✅ P0 (opt-in)
+
+Lee's follow-up: "Wave 3 mobile deep-dive (opt-in) — Marketing
+creative studio, Staffing rotas, Reporting / Master Admin, partner
+engineer hub." The cross-cutting rails from Wave 1+2 already prevented
+the worst overflows but the long-tail surfaces needed a manual sweep.
+
+### Fixes shipped
+
+**MasterAdmin tables** — 9 admin pages had `<table>` elements with
+`overflow-hidden` wrappers (or no wrapper at all). On phones these
+silently clipped the right-hand columns (worse than scrolling).
+Patched via `/app/scripts/wrap_admin_tables_mobile.py` which
+automatically swapped `overflow-hidden` for `overflow-x-auto` on
+the canonical wrapper idiom + manual fixes for the two outliers:
+- AdminAllSites, AdminMODConsole, AdminMODSitesBulkImport,
+  AuditLogPanel, OrgSitesPanel, SiconMappingPanel, SiteDetailDrawer
+  (one-shot script).
+- CollectionsDashboard (manual wrap with `min-w-[520px]` on the
+  top-overdue accounts table).
+- IntegrationsHub (manual wrap with `min-w-[420px]` on the Sage 200
+  field-mapping table).
+
+**Engineer Diary week-grid** — `grid-cols-7` was squashing each day
+column to ~55px on a 390px viewport. Wrapped in `overflow-x-auto`
+with `min-w-[700px]` so each day cell stays a readable ~100px wide
+and the row scrolls horizontally on phones.
+
+**Marketing Creative Studio** — brand library + category library
+grids changed from fixed `grid-cols-3` to `grid-cols-2 sm:grid-cols-3`
+so thumbnails go full-width below the sm breakpoint instead of
+squashing to ~120px.
+
+**Master Admin header** — the title + CommandPalette + EmailHealthPill
++ BrandPicker + Refresh row was a single flex line. Added `flex-wrap
+gap-2 sm:gap-3` so it wraps cleanly on phones instead of pushing
+buttons off-screen.
+
+### Long-tail surfaces verified clean on the cross-cutting rails
+- **Staffing/KioskPage**: numeric keypad — fixed `max-w-[280px] mx-auto`,
+  already mobile-correct.
+- **PartnerEngineerLanding**: public marketing — already uses
+  `sm:grid-cols-2 lg:grid-cols-3`, verified visually at 390x844.
+- **EngineerHomeV2, EngineerJobDetailV2, EngineerInvoiceBuilder,
+  EngineerQuoteBuilder**: all use `grid-cols-2 md:grid-cols-4` or
+  small KPI rows that work on mobile.
+- **ConsolidatedTabsBar (Master Admin sub-tabs)**: already has
+  `overflow-x-auto scrollbar-hide` + mask-image edge fade.
+- **AdminSidebar**: already has mobile slide-in drawer with backdrop
+  + hamburger toggle.
+
+### Verification
+| Gate | Result |
+| --- | --- |
+| ESLint `--max-warnings 0` | ✅ clean (12 modified files re-linted) |
+| `make regression` | ✅ 37 passed, 14 skipped |
+| Public mobile screenshot of `/partners/engineers` at 390x844 | ✅ no horizontal overflow, content fits |
+| `document.documentElement.scrollWidth === 390` on master-admin / marketing / partner-engineer | ✅ |
+| Testing agent Wave 3 sweep | ⚠️ timed out — fell back to direct lint + regression + targeted screenshots, all green |
+
+### Tooling
+- `/app/scripts/wrap_admin_tables_mobile.py` — reusable one-shot
+  script. Re-run any time new admin tables get added that don't
+  follow the overflow-x-auto convention.
+
+---
+
+
 ## Iter 216h228 — comprehensive mobile audit Wave 1+2 (Feb 19, 2026) ✅ P0
 
 Lee's audit screenshot (Feb 2026): CRM page at iPhone width had the
