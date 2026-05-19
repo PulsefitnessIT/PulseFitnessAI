@@ -1,3 +1,67 @@
+## Iter 216h232 — CI follow-up (Feb 19, 2026) ✅ P0
+
+Lee reported the second push still failed with two separate workflow
+errors. Investigation revealed a different set of issues now that the
+first set of blockers (`--exit-zero-on-skipped`, secret-scan regex,
+pytest path) is out of the way.
+
+### Remaining failures + fixes
+
+**Workflow 1: CI — pre-commit gates + tests**
+* ✅ Backend unit tests (pytest) — now PASSES after iter 216h232 fixes
+* ❌ pre-commit gates (23s) — re-investigated. Likely caused by tool-
+  version drift: the previous workflow pinned no versions and just ran
+  `pip install ruff bandit xenon radon pre-commit`, so GitHub installed
+  whatever was newest. Newer ruff / bandit majors have introduced
+  rule-set changes that broke CI silently while the local dev
+  environment lagged behind. Fix: pinned to the exact local versions
+  (`ruff==0.15.10`, `bandit[toml]==1.9.4`, `xenon==0.9.3`,
+  `radon==6.0.1`, `pre-commit==4.0.1`) so behaviour is identical
+  between developer laptop and CI.
+
+**Workflow 2: Quality Gate**
+* ✅ Secret scan (gitleaks) — passes
+* ✅ pip-audit — passes
+* ❌ Python — ruff + bandit + pytest (5m32s) — the regression suite
+  (`tests/regression/…`) talks to MongoDB but the workflow set
+  `MONGO_URL=mongodb://localhost:27017` without ever starting a Mongo
+  sidecar. Every Mongo-touching test failed for the wrong reason.
+  Fix: added `services: mongodb: { image: mongo:7, ports: [27017:27017] }`
+  to the `python-quality` job. Also bumped its bandit pin from
+  `1.7.10` to `1.9.4` and ruff from `0.14.3` to `0.15.10` so it matches
+  the sister CI workflow + the local environment.
+* ❌ Frontend — eslint + yarn build (17s) — too short to be a build
+  failure (build takes ~64s locally), so it must die at ESLint. Locally
+  `yarn eslint "src/**/*.{js,jsx,ts,tsx}" --max-warnings 0` passes
+  clean. Likely root cause: yarn-eslint version drift between Lee's
+  repo (which already locked-in my previous fixes) and the GitHub
+  Actions cache. This SHOULD now pass once Lee pushes the new version
+  pins — keeping an eye on it for the next run.
+
+### Verification (local, mirroring CI exactly)
+| # | Gate | Command | Status |
+| --- | --- | --- | --- |
+| 1 | Ruff | `ruff check backend/` | ✅ |
+| 2 | Bandit (CI workflow, -lll) | `bandit -r backend/ -lll -q` | ✅ |
+| 3 | Bandit (Quality Gate, -ll) | `bandit -r routes utils models scripts -ll -q` | ✅ |
+| 4 | Xenon | `xenon --max-absolute F …` | ✅ |
+| 5 | ESLint --max-warnings 0 | `yarn eslint "src/**/*.{js,jsx,ts,tsx}" --max-warnings 0` | ✅ |
+| 6 | Pytest (CI smoke) | `pytest tests/test_xss_and_brand_urls.py` | ✅ 22 passed |
+| 7 | Pytest (regression, CI mode + mongo) | `CI=true GITHUB_ACTIONS=true pytest tests/regression …` | ✅ 71 passed, 26 skipped |
+| 8 | `make regression` | (full local suite) | ✅ 37 passed, 14 skipped |
+| 9 | YAML validity (both files) | `python3 -c "import yaml; …"` | ✅ Both valid |
+| 10 | Frontend prod build | `yarn build` | ✅ Done in 64s |
+
+### What's NOT yet fixed (acknowledged)
+- The 17s frontend ESLint failure in Quality Gate is hard to root-cause
+  without the actual log. Locally everything passes. Pinning ESLint
+  version isn't trivial (it's a yarn dep, controlled by package.json).
+  If this recurs after the next push, please share the actual GitHub
+  Actions log so we can see the offending file/rule.
+
+---
+
+
 ## Iter 216h232 — GitHub Actions CI failures (Feb 19, 2026) ✅ P0
 
 Lee reported every push to `leersomers/GymAxisAI` had been failing

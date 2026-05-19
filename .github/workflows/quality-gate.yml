@@ -28,6 +28,22 @@ jobs:
     name: Python — ruff + bandit + pytest
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Iter 216h232 — the regression suite includes tests that talk to
+    # MongoDB (some via direct motor calls, some via a TestClient). The
+    # workflow used to set MONGO_URL=localhost:27017 but never started a
+    # mongo service alongside, so every Mongo-touching test failed for
+    # the wrong reason. Adding a sidecar mongo:7 container removes that
+    # noise — tests pass or fail on their actual assertions.
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "echo 'db.runCommand({ ping: 1 })' | mongosh --quiet --norc"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,7 +60,10 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff==0.14.3 bandit[toml]==1.7.10
+          # Pinned to match the local dev environment + the sister CI
+          # workflow (.github/workflows/ci.yml). Drift between
+          # bandit majors has caused mysterious CI failures before.
+          pip install ruff==0.15.10 "bandit[toml]==1.9.4"
 
       - name: Ruff (linter)
         working-directory: backend

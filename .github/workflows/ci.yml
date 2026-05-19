@@ -53,7 +53,16 @@ jobs:
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
-          pip install ruff bandit xenon radon pre-commit
+          # Pin to match the local dev environment so behaviour is
+          # identical between developer laptop and CI. New majors of
+          # ruff/bandit have introduced rule-set changes that broke CI
+          # silently in the past.
+          pip install \
+            ruff==0.15.10 \
+            "bandit[toml]==1.9.4" \
+            xenon==0.9.3 \
+            radon==6.0.1 \
+            pre-commit==4.0.1
 
       - name: Install frontend deps
         working-directory: frontend
