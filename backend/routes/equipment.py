@@ -83,6 +83,30 @@ async def create_equipment(equipment: EquipmentCreate, user: dict = Depends(get_
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
+    # Iter 216h225 — site_id inheritance for multi-site orgs (Pulse
+    # Fitness Pro / MOD HQ children). When the create form didn't
+    # send an explicit site_id AND the org has more than one active
+    # site, we still need to tag the equipment so the per-site list
+    # view shows it. Resolution order:
+    #   1. Explicit site_id in the payload (frontend already picked).
+    #   2. The user's active_site_id (from the JWT / current session).
+    #   3. The org's single active site (if there's only one).
+    # Lacking all three we leave site_id unset — single-site orgs are
+    # healed by the list-endpoint's backfill on first load.
+    if not equipment_doc.get("site_id") and org_id:
+        active = (user.get("active_site_id") or "").strip()
+        if active:
+            equipment_doc["site_id"] = active
+        else:
+            try:
+                org_sites = await db.sites.find(
+                    {"organization_id": org_id, "status": {"$ne": "archived"}},
+                    {"_id": 0, "id": 1},
+                ).to_list(2)
+                if len(org_sites) == 1:
+                    equipment_doc["site_id"] = org_sites[0]["id"]
+            except Exception as exc:
+                logger.warning("[equipment] site_id inherit lookup failed: %s", exc)
     await db.equipment.insert_one(equipment_doc)
     equipment_doc.pop('_id', None)
 

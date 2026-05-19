@@ -199,6 +199,13 @@ class EquipmentCreate(BaseModel):
     sla_response_time: Optional[str] = None
     sla_contract_ref: Optional[str] = None
     sla_expiry: Optional[str] = None
+    # Iter 216h225 — accept site_id from the create form so multi-site
+    # orgs (Pulse Fitness Pro, MOD HQ children, etc.) tag the row with
+    # the active site. Optional — single-site orgs leave it null and
+    # the list endpoint's lazy backfill heals it on first load.
+    site_id: Optional[str] = None
+    supplier: Optional[str] = None
+    supplier_email: Optional[str] = None
 
 
 class EquipmentResponse(BaseModel):

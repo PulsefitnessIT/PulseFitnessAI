@@ -49,7 +49,7 @@ const EMPTY_FORM = {
  *    record is created via POST /api/equipment/{id}/photo.
  */
 const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
-  const { API } = useAuth();
+  const { API, activeSite } = useAuth();
   const [form, setForm] = useState(EMPTY_FORM);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -113,6 +113,14 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
         sla_contract_ref: form.sla_contract_ref.trim() || null,
         sla_expiry: form.sla_expiry || null,
         notes: form.notes.trim() || null,
+        // Iter 216h225 — tag the equipment with the active site so
+        // the per-site list view shows it after refresh. Multi-site
+        // orgs (Pulse Fitness Pro, MOD HQ children) saved equipment
+        // before this fix but couldn't see it because the list
+        // filtered by site_id and the create endpoint never stamped
+        // it. Backend also inherits from the JWT/active session as
+        // a defence-in-depth fallback.
+        site_id: activeSite?.id || null,
       };
       const r = await axios.post(`${API}/equipment`, payload, {
         headers: { Authorization: `Bearer ${token}` },

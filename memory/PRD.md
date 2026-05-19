@@ -9245,3 +9245,41 @@ Files: `routes/crm_products.py`, `routes/crm_cpq.py` (rewritten),
 `utils/crm_quote_pdf.py`, `route_registry/crm.py`, `server.py`,
 `pages/CRM/CRMProductsSection.js`, `pages/CRM/CRMSettings.js`,
 `tests/test_iter_216h224_crm_phase2.py`.
+
+## Iter 216h225 — Equipment vanish bug (multi-site orgs) (Feb 19, 2026)
+
+### Reported
+"Adding equipment shows the success toast but the row doesn't appear
+in the Equipment tab." — Pulse Fitness Limited (2-site Pulse Pro org)
+on production.
+
+### Root cause
+The `EquipmentCreate` Pydantic schema in `models/schemas.py` did NOT
+include a `site_id` field. Even if the frontend posted `site_id`,
+Pydantic stripped it before the route handler saw it. The list
+endpoint then filters by the active site → newly-created equipment
+without `site_id` was invisible. The lazy single-site backfill in
+the list endpoint (Iter 216h194) only triggers when the org has
+exactly one active site — multi-site Pulse Fitness skipped it.
+
+### Fix (3-layer defence in depth)
+1. **Schema** — added `site_id: Optional[str]` to `EquipmentCreate`
+   so the FE payload survives.
+2. **Backend create endpoint** (`routes/equipment.py`) — if `site_id`
+   isn't supplied, inherits from `user.active_site_id` first, then
+   from the org's only active site (mirrors the Iter 216h208 issues
+   fix). Belt-and-braces for direct API callers.
+3. **Frontend** (`AddEquipmentDialog.js`) — explicitly sends
+   `site_id: activeSite?.id` from the current session.
+
+### Verification
+- New `tests/test_iter_216h225_equipment_site_id_inherit.py` — 3/3
+  passing (explicit site_id persisted, appears in filtered list,
+  round-trips on the unfiltered list).
+- `make regression` 23/23 green.
+- Verified live against Pulse Fitness (2 sites): equipment created
+  with site_id → list endpoint returns it.
+
+Files: `models/schemas.py`, `routes/equipment.py`,
+`components/equipment/AddEquipmentDialog.js`,
+`tests/test_iter_216h225_equipment_site_id_inherit.py`.
