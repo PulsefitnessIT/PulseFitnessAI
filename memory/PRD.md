@@ -8899,3 +8899,55 @@ qualify or contact the lead.
 - ESLint clean.
 
 Files: `schemas.py`, `auth.py`, `account.py`, `TrialSignupModal.js`.
+
+## Iter 216h220 — Fresh Trial Signups (24h) Master Admin tile (Feb 19, 2026)
+
+### Context
+Iter 216h219 captured rich org intel on trial signup (industry, team
+size, website, referral source, UTM tags) — but the only way to see
+it was to drill into Master Admin → Organisations → Details one org
+at a time. The team needed an at-a-glance view of fresh leads so they
+can call/email a hot prospect within minutes of signup.
+
+### Solution
+A new tile sitting beside the existing Platform Issues (24h) tile on
+the Master Admin overview. Same visual language (rounded-2xl panel,
+icon header, big count, breakdown list, refresh button) so the
+overview now reads "growth + risk + pipeline" left-to-right.
+
+Each row shows: gym name · owner email · industry · team size, plus
+attribution chips (UTM source/campaign, referral source, website
+link). Click a row → jumps to Master Admin → Trials.
+
+### Backend
+- `routes/master_admin_trials.py` — new endpoint
+  `GET /api/master-admin/trials/recent?hours=24&limit=5`.
+  - Master-admin-only.
+  - hours capped at 168 (7d), limit at 20 (defensive).
+  - Returns `{items: [{id, name, owner_email, owner_name, industry,
+    employee_count, website, referral_source, utm_source,
+    utm_campaign, trial_started_at, trial_ends_at}], hours, total}`.
+- Existing `/api/master-admin/trials/summary` untouched (regression
+  verified).
+
+### Frontend
+- `pages/MasterAdmin/FreshTrialsTile.js` — new component. Auto-refreshes
+  every 2 minutes. Renders attribution chips only when data is
+  present (UTM > referral > none) so the tile stays lean for older
+  trials.
+- `pages/MasterAdmin/AdminOverview.js` — slotted in alongside
+  PlatformIssuesTile in the 12-col charts grid (`lg:col-span-3` each).
+  Subscriptions pie moved to its own row below (now `lg:col-span-4`)
+  so the operational tiles share top-of-fold real estate.
+
+### Verification
+- Testing agent: 8/8 backend tests + 100% frontend pass.
+- E2E enrichment flow: POST `/api/auth/register` with `is_trial=true`
+  + website + industry + employee_count + referral_source +
+  utm_source + utm_campaign → org doc has them all → tile shows the
+  new prospect as the first row with UTM chip.
+- `make regression`: 23/23 pass.
+- ESLint + ruff clean.
+
+Files: `master_admin_trials.py`, `FreshTrialsTile.js`, `AdminOverview.js`,
+new test `tests/test_iter_216h220_fresh_trials.py`.
