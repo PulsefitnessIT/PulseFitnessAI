@@ -70,8 +70,14 @@ const ChurnRescuePanel = ({ API, headers, entitlement }) => {
     setScanning(false);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadAll' and 'locked'; pre-existing as of iter 216h226-polish-5.
-  useEffect(() => { if (!locked) loadAll();   }, []);
+  // Iter 216h226-polish-5 — depend on `locked` so the gated load fires
+  // ONLY after the entitlement check resolves. Without this, mount
+  // runs before `entitlement` lands → `locked` is undefined → we load
+  // even on locked tiers. `loadAll` deliberately excluded — re-creating
+  // it each render is fine; we want the effect to re-fire only when
+  // the entitlement gate flips.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!locked) loadAll(); }, [locked]);
 
   const toggleSelect = (memberId) => {
     setSelected((prev) => {

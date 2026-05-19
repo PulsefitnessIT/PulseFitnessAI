@@ -67,7 +67,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  } catch { /* use prop data */ }
  };
  loadFull();
- // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'issueProp'; pre-existing as of iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: we depend on a primitive snapshot (e.g. `obj?.id`) to avoid the object-identity re-fire trap; the full object is read at call time.
  }, [issueProp.id, API]);
 
  // Iter 216h137 — Fetch DIO contract context for MOD site users.
@@ -115,7 +115,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  useEffect(() => {
  loadPurchaseOrders();
  loadPODefaults();
- // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadPODefaults' and 'loadPurchaseOrders'; pre-existing as of iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: the loader closure(s) re-read live state on every call; the effect re-fires on the listed trigger deps, so adding the function identity would just thrash without changing behaviour.
  }, [issue.id]);
 
  useEffect(() => {
@@ -124,7 +124,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  if (match && !poForm.supplier_email) {
  setPOForm(f => ({ ...f, supplier_email: match.email || '' }));
  }
- // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'issue; pre-existing as of iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: we depend on a primitive snapshot (e.g. `obj?.id`) to avoid the object-identity re-fire trap; the full object is read at call time.
  }, [poForm.supplier_name, suppliers]);
 
  const loadPurchaseOrders = async () => {

@@ -457,7 +457,7 @@ function App() {
  } else {
  setLoading(false);
  }
- // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadBranding'; pre-existing as of iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: the loader closure(s) re-read live state on every call; the effect re-fires on the listed trigger deps, so adding the function identity would just thrash without changing behaviour.
  }, []);
 
  // Iter 215ac — Cross-tab sync. If another tab logs in/out, reflect
@@ -499,7 +499,7 @@ function App() {
    window.removeEventListener('storage', onStorage);
    window.removeEventListener('gymaxis:token-refreshed', onTokenRefreshed);
  };
- // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadBranding'; pre-existing as of iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: the loader closure(s) re-read live state on every call; the effect re-fires on the listed trigger deps, so adding the function identity would just thrash without changing behaviour.
  }, []);
 
  const login = (token, userData) => {

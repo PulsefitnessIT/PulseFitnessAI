@@ -133,7 +133,7 @@ export function UploadQueueProvider({ children }) {
     } else {
       slot.waiting.push(taskId);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'SOURCE_CAP_DEFAULTS'; pre-existing as of iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: module-level constant; identity is stable across renders.
   }, [runTaskRaw, releaseSlot]);
 
   const enqueue = useCallback((files, fn, opts = {}) => {

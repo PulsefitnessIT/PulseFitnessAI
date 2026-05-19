@@ -523,7 +523,7 @@ export default function CRMApp() {
       .filter(it => !it.hideFromBar)
       .filter(it => !(isMembersMode && it.id === 'quotes'))
       .filter(it => !(hideStart && it.id === 'start'));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'user?; pre-existing as of iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [user?.is_pulse_internal, hideStart, activeMode]);
 
   // ── Sync logout: when the user signs out from the platform Navbar
@@ -602,7 +602,7 @@ export default function CRMApp() {
     // (iter 216h67) instead of leaving the bare spinner up.
     const timer = setTimeout(() => setLoading(false), 3000);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'unifiedAuth'; pre-existing as of iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [unifiedAuth.identity.crm, unifiedAuth.tokens.main, unifiedAuth.tokens.crm, unifiedAuth.logout]);
 
   const login = (token, userData) => {

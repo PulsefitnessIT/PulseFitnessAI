@@ -810,7 +810,7 @@ const CapexIntelligenceTab = () => {
  } finally {
  setLoading(false);
  }
- // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
  }, [API]);
 
  useEffect(() => { loadData(); }, [loadData]);

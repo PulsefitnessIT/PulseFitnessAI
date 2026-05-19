@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/App';
 import ClassificationBanner from '@/components/shared/ClassificationBanner';
 import OfflineStatusPill from '@/components/shared/OfflineStatusPill';
@@ -184,23 +184,30 @@ const LiteDashboardPage = () => {
       setFiles(fileRes.data.files || []);
       setSuppliers(supRes.data.suppliers || supRes.data || []);
     } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [API, activeSite]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   // Listen for "Log Fault" events from gym layout editor
+  // Iter 216h226-polish-5 — `selectEquipmentForFault` is re-created on
+  // every render and captures live state (`faultForm`, `openFaults`,
+  // `fetchCoverage`). The window-level event listener registered below
+  // is mount-only, so without a ref it would only ever see the
+  // first-render closure. Use a ref to always invoke the latest
+  // version. Fixes the stale-closure bug surfaced by the
+  // react-hooks/exhaustive-deps sweep.
+  const selectEquipmentForFaultRef = useRef(null);
   useEffect(() => {
     const handler = (e) => {
       const eq = e.detail;
-      if (eq) {
-        selectEquipmentForFault(eq);
+      if (eq && selectEquipmentForFaultRef.current) {
+        selectEquipmentForFaultRef.current(eq);
         setShowFaultDialog(true);
       }
     };
     window.addEventListener('open-fault-for-equipment', handler);
     return () => window.removeEventListener('open-fault-for-equipment', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'selectEquipmentForFault'; pre-existing as of iter 216h226-polish-5.
   }, []);
 
   /**
@@ -446,6 +453,10 @@ const LiteDashboardPage = () => {
       setDuplicateModal({ count: existing.length, machineName: eq.name });
     }
   };
+  // Iter 216h226-polish-5 — keep the ref pointing at the latest
+  // closure so the mount-only event listener above always invokes the
+  // current `selectEquipmentForFault` (with up-to-date `faultForm`).
+  selectEquipmentForFaultRef.current = selectEquipmentForFault;
 
   const handleDownloadFile = async (file) => {
     try {

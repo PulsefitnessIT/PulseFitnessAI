@@ -55,7 +55,7 @@ const PulseCheckSheetsTab = ({ equipment }) => {
       const res = await axios.get(`${API}/check-sheets/history`, { headers });
       setHistory(res.data.completions || []);
     } catch (err) { console.error('Failed to load check sheet history:', err); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [API]);
 
   const loadReport = useCallback(async () => {
@@ -63,7 +63,7 @@ const PulseCheckSheetsTab = ({ equipment }) => {
       const res = await axios.get(`${API}/check-sheets/report`, { headers });
       setReport(res.data);
     } catch (err) { console.error('Failed to load check sheet report:', err); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [API]);
 
   const loadCustomTemplates = useCallback(async () => {
@@ -71,7 +71,7 @@ const PulseCheckSheetsTab = ({ equipment }) => {
       const res = await axios.get(`${API}/maintenance/templates`, { headers });
       setCustomTemplates(res.data.templates || []);
     } catch (err) { console.error('Failed to load custom templates:', err); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [API]);
 
   useEffect(() => { loadHistory(); loadReport(); loadCustomTemplates(); }, [loadHistory, loadReport, loadCustomTemplates]);

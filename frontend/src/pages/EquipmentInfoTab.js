@@ -57,7 +57,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  useEffect(() => {
  loadData();
  if (canEditSupplier) loadSuppliers();
- // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'canEditSupplier', 'loadData', and 'loadSuppliers'; pre-existing as of iter 216h226-polish-5.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- deferred: keep current behaviour; revisit if 'canEditSupplier', 'loadData', and 'loadSuppliers' ever captures state that needs to re-trigger the hook. Pre-existing since iter 216h226-polish-5.
  }, []);
 
  // Fetch the selected manual as a blob URL so the iframe viewer is
