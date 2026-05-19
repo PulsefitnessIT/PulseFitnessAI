@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
+import { CrossModuleTimeline, EnrichFromWebsiteButton } from './CRMPhase3Panels';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
@@ -909,6 +910,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
           </div>
         </div>
         <div className="flex gap-2">
+          {company.website && <EnrichFromWebsiteButton companyId={companyId} onEnriched={() => load()} />}
           <button onClick={openEdit} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="company-edit-btn">
             <Edit2 size={12} className="inline mr-1" /> Edit
           </button>
@@ -1147,29 +1149,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
         )}
 
         {activeSection === 'timeline' && (
-          <div className="space-y-0">
-            {(company.activities || []).map((act, i) => {
-              const Icon = actIcons[act.type] || Activity;
-              const time = new Date(act.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-              return (
-                <div key={act.id || i} className="flex gap-3 relative">
-                  {i < (company.activities?.length || 0) - 1 && <div className="absolute left-3.5 top-8 w-px h-full" style={{ background: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} />}
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)' }}>
-                    <Icon size={12} style={{ color: c.textDim }} />
-                  </div>
-                  <div className="flex-1 pb-4 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate" style={{ color: c.text }}>{act.subject}</p>
-                      <span className="text-[10px] shrink-0" style={{ color: c.textDim }}>{time}</span>
-                    </div>
-                    {act.body && <p className="text-xs mt-0.5" style={{ color: c.textDim }}>{act.body}</p>}
-                    <p className="text-[10px] mt-0.5" style={{ color: c.textDim }}>by {act.owner_name}</p>
-                  </div>
-                </div>
-              );
-            })}
-            {(company.activities || []).length === 0 && <p className="text-sm text-center py-6" style={{ color: c.textDim }}>No activity yet</p>}
-          </div>
+          <CrossModuleTimeline companyId={companyId} />
         )}
 
         {activeSection === 'audit' && (

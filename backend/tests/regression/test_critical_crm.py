@@ -39,3 +39,9 @@ from tests.test_iter_216h195_crm_tags import (  # noqa: F401
     test_tags_endpoint_skips_blanks_and_none,
     test_tags_endpoint_handles_empty_collections,
 )
+# h226 — Phase 3: Reports suite + AI next-action + website enrichment + cross-module timeline.
+# NOTE: most h226 tests require a live CRM token fixture and are exercised by the standalone
+# file test_iter_216h226_crm_phase3_api.py. Only the auth-rejection check is unit-safe here.
+from tests.test_iter_216h226_crm_phase3_api import (  # noqa: F401
+    test_reports_require_crm_auth,
+)

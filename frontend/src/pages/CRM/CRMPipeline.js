@@ -11,6 +11,7 @@ import HelpHint from '@/components/HelpHint';
 import EmptyState from '@/components/shared/EmptyState';
 import Button from '@/components/shared/Button';
 import CRMAuditTrail from './CRMAuditTrail';
+import { AINextActionCard } from './CRMPhase3Panels';
 import { MEETING_LOCATION_PRESETS } from '@/utils/crmDropdowns';
 
 const STAGE_COLORS = {
@@ -139,6 +140,7 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, setActiveTa
       <div className="rounded-lg border p-5" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
         {tab === 'overview' && (
           <div className="space-y-3">
+            <AINextActionCard opportunityId={oppId} />
             {[
               { l: 'Owner', v: opp.owner_name },
               { l: 'Source', v: opp.source },

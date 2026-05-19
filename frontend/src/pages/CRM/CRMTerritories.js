@@ -13,6 +13,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { MapPin, Plus, PlayCircle, RefreshCw, Layers, ArrowRightLeft } from 'lucide-react';
 import TerritoryEditor from './CRMTerritoryEditor';
+import TerritoryTreeDnD from './CRMTerritoryTreeDnD';
 import { TerritoryRow, TeamNode } from './CRMTerritoryPieces';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -129,18 +130,27 @@ export default function CRMTerritories() {
           </div>
         </div>
 
-        <div>
-          <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-[color:var(--theme-text-muted)] mb-3 flex items-center gap-2">
-            <ArrowRightLeft size={13} /> Sales team hierarchy
-          </h2>
-          <div className="rounded-xl border border-[color:var(--theme-border)] p-4 bg-[color:var(--theme-surface)]">
-            {tree.length === 0 ? (
-              <p className="text-sm text-[color:var(--theme-text-muted)]">No reps yet.</p>
-            ) : tree.map((n) => <TeamNode key={n.id} node={n} />)}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-[color:var(--theme-text-muted)] mb-3 flex items-center gap-2">
+              <Layers size={13} /> Territory hierarchy (drag to re-parent)
+            </h2>
+            <TerritoryTreeDnD territories={enriched} onReparented={load} />
           </div>
-          <p className="text-[11px] text-[color:var(--theme-text-muted)] mt-2">
-            Managers see their whole team's pipeline via "My team" filter on Contacts, Companies, and Deals.
-          </p>
+
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-[color:var(--theme-text-muted)] mb-3 flex items-center gap-2">
+              <ArrowRightLeft size={13} /> Sales team hierarchy
+            </h2>
+            <div className="rounded-xl border border-[color:var(--theme-border)] p-4 bg-[color:var(--theme-surface)]">
+              {tree.length === 0 ? (
+                <p className="text-sm text-[color:var(--theme-text-muted)]">No reps yet.</p>
+              ) : tree.map((n) => <TeamNode key={n.id} node={n} />)}
+            </div>
+            <p className="text-[11px] text-[color:var(--theme-text-muted)] mt-2">
+              Managers see their whole team's pipeline via "My team" filter on Contacts, Companies, and Deals.
+            </p>
+          </div>
         </div>
       </section>
 

@@ -24,6 +24,7 @@ import CRMCalendar from './CRMCalendar';
 import CRMTerritories from './CRMTerritories';
 import CRMContracts from './CRMContracts';
 import CRMForecast from './CRMForecast';
+import CRMReports from './CRMReports';
 import CRMPermissions from './CRMPermissions';
 import CRMModeSwitcher from './CRMModeSwitcher';
 import CRMUpgradeScreen from './CRMUpgradeScreen';
@@ -32,7 +33,7 @@ import { LEAD_SOURCE_OPTIONS, CRM_TASK_TYPE_OPTIONS, CRM_TASK_PRIORITY_OPTIONS }
 import PillTabBar from '@/components/shared/PillTabBar';
 import ProductTour from '@/components/shared/ProductTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
-import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, LogOut, Search, ChevronLeft, ChevronRight, Inbox, Zap, FileText, FolderOpen, Menu, X, Sun, Moon, Globe, Target, AlertTriangle, Command, Plus, Bell, User, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, LogOut, Search, ChevronLeft, ChevronRight, Inbox, Zap, FileText, FolderOpen, Menu, X, Sun, Moon, Globe, Target, AlertTriangle, Command, Plus, Bell, User, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CRMContext = createContext();
@@ -67,6 +68,8 @@ const NAV_ITEMS = [
   { id: 'territories', labelKey: 'crm.territories', icon: MapPin, adminOnly: true },
   // Iter 215de — enterprise forecasting + quota management.
   { id: 'forecast', labelKey: 'crm.forecast', icon: TrendingUp },
+  // Iter 216h226 — Phase 3 reports suite (pipeline, margin, conversion, GDPR…).
+  { id: 'reports', labelKey: 'crm.reports', icon: BarChart3 },
   // Iter 215de — record-level + field-level permissions (admin only).
   { id: 'permissions', labelKey: 'crm.permissions', icon: EyeOff, adminOnly: true, hideFromBar: true },
   // Internal-only — Pulse Fitness HQ staff. Filtered by `internalOnly` below.
@@ -752,6 +755,7 @@ export default function CRMApp() {
       case 'ai-tools': return <CRMAITools />;
       case 'territories': return <CRMTerritories />;
       case 'forecast': return <CRMForecast />;
+      case 'reports': return <CRMReports />;
       case 'permissions': return <CRMPermissions />;
       case 'settings': return <CRMSettings />;
       default: return <CRMDashboard />;

@@ -1216,6 +1216,7 @@
   "crm.contracts": "Contracts",
   "crm.territories": "Territories",
   "crm.forecast": "Forecast",
+  "crm.reports": "Reports",
   "crm.permissions": "Permissions",
   "memberships_console": {
     "title": "Memberships",
