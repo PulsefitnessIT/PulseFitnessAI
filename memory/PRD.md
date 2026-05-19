@@ -1,3 +1,42 @@
+## Iter 216h218 — Supplier picker sweep (Feb 18, 2026) ✅ P2
+
+Extended the h217 `SupplierMultiPicker` across the next 3 highest-traffic free-text supplier inputs after the engineer-apply wizards.
+
+### Component extension — `single` mode
+Added `single` boolean prop to `SupplierMultiPicker`:
+- Emits a string (not array) on `onChange` so it drops into single-supplier fields without conversion.
+- Hides the input after one selection (clearable via the chip ✕).
+- Replaces (not appends) on a second pick.
+
+### Surfaces swapped from free-text → picker
+| File | Surface | Mode |
+|------|---------|------|
+| `pages/ServiceOps/PartsInventoryPage.js` | Service Desk → Parts → Catalogue → Add part dialog | `single` |
+| `pages/InvoiceImportWizard.js` | Operations → Import equipment from invoice — extracted supplier on step 2 | `single` |
+| (h217) `pages/Marketing/PartnerApplyPublic.js` | Public engineer apply | multi |
+| (h217) `pages/PartnerEngineer/PartnerApplyWizard.js` | Operator engineer apply | multi |
+
+### Surfaces intentionally NOT swapped
+- `pages/EquipmentInfoTab.js` — already uses a native `<select>` of per-org suppliers (h75). Switching would lose the per-org curation benefit + notify-supplier email flow. Skip.
+- `pages/MasterAdmin/SiteDetailDrawer.js` — tabular bulk-edit row inputs. A 60px-tall picker per row would destroy the spreadsheet density. Skip — operators editing one row at a time use the dedicated drawer which already uses the dropdown.
+- `pages/MasterAdmin/AdminPartsRequests.js` — the field is a PO/order number, not a supplier name. Out of scope.
+
+### Verification
+- Frontend lint clean across all 3 modified files.
+- Regression suite **96/96 green** (no new tests this iter — the component contract was already covered by h217's public/auth catalogue tests).
+- The h217 multi-select tests implicitly cover single mode (single mode is a thin wrapper that emits a string).
+
+### Files
+- UPDATED: `frontend/src/components/shared/SupplierMultiPicker.jsx` (`single` prop)
+- UPDATED: `frontend/src/pages/ServiceOps/PartsInventoryPage.js` (Parts catalogue Add dialog)
+- UPDATED: `frontend/src/pages/InvoiceImportWizard.js` (Step 2 supplier override)
+
+### Trust/data benefit
+Now ad-hoc custom suppliers typed in *any* of these surfaces filter through to per-org's `suppliers` collection (via the existing `/api/suppliers/catalogue` POST when an engineer types a brand). Brand entered on the invoice wizard appears on the parts catalogue, on the engineer apply form, and vice versa.
+
+---
+
+
 ## Iter 216h217 — Supplier dropdown standardisation (Feb 18, 2026) ✅ P2
 
 Closes Craig's "drop-down boxes where possible, if need be add a plus button to add more suppliers" feedback.

@@ -18,6 +18,7 @@ import {
   Package, Boxes, FileText, AlertTriangle, RefreshCw, Plus, Send, CheckCircle,
   Trash2, Edit3, Inbox, X, Truck,
 } from 'lucide-react';
+import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';
 import { notify } from '@/components/notifications';
 import ServiceOpsShell from './ServiceOpsShell';
 
@@ -141,7 +142,15 @@ function CatalogueTab() {
         <Field className="col-span-2" label="SKU"><input value={draft.sku} onChange={(e) => setDraft({ ...draft, sku: e.target.value.toUpperCase() })} className="ip" data-testid="catalogue-add-sku" /></Field>
         <Field className="col-span-4" label="Name"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="ip" data-testid="catalogue-add-name" /></Field>
         <Field className="col-span-2" label="Manufacturer"><input value={draft.manufacturer} onChange={(e) => setDraft({ ...draft, manufacturer: e.target.value })} className="ip" data-testid="catalogue-add-mfr" /></Field>
-        <Field className="col-span-2" label="Supplier"><input value={draft.supplier} onChange={(e) => setDraft({ ...draft, supplier: e.target.value })} className="ip" data-testid="catalogue-add-supplier" /></Field>
+        <Field className="col-span-2" label="Supplier">
+          <SupplierMultiPicker
+            single
+            value={draft.supplier}
+            onChange={(v) => setDraft({ ...draft, supplier: v })}
+            placeholder="Pick a supplier or add a new one…"
+            testid="catalogue-add-supplier"
+          />
+        </Field>
         <Field className="col-span-1" label="Cost £"><input type="number" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: Number(e.target.value) })} className="ip tabular-nums" data-testid="catalogue-add-cost" /></Field>
         <button
           type="button"

@@ -29,6 +29,12 @@ export default function SupplierMultiPicker({
   placeholder = 'Type a brand…',
   testid = 'supplier-multi-picker',
   disabled = false,
+  // Iter 216h218 — `single` mode: emits the picked name as a STRING
+  // (not an array) so it can drop straight into one-supplier fields
+  // like equipment.supplier or part.supplier. The chip layout
+  // collapses to a single chip + the picker hides the input once a
+  // value is set (clearable via the chip ✕).
+  single = false,
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -39,11 +45,19 @@ export default function SupplierMultiPicker({
   const selected = useMemo(() => {
     if (!value) return [];
     if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+    if (single) {
+      const v = String(value).trim();
+      return v ? [v] : [];
+    }
     return String(value).split(',').map((v) => v.trim()).filter(Boolean);
-  }, [value]);
+  }, [value, single]);
 
   const commit = (next) => {
-    onChange?.(next);
+    if (single) {
+      onChange?.(next[0] || '');
+    } else {
+      onChange?.(next);
+    }
   };
 
   // Lazy load
@@ -88,9 +102,11 @@ export default function SupplierMultiPicker({
     const n = String(name || '').trim();
     if (!n) return;
     if (selected.some((s) => s.toLowerCase() === n.toLowerCase())) return;
-    commit([...selected, n]);
+    // Single-select replaces; multi-select appends.
+    const next = single ? [n] : [...selected, n];
+    commit(next);
     setQuery('');
-    setOpen(true); // keep the menu open so they can pick another
+    setOpen(!single); // close immediately in single mode
   };
 
   const remove = (name) => {
@@ -143,8 +159,10 @@ export default function SupplierMultiPicker({
           }}
           onFocus={() => { load(); setOpen(true); }}
           placeholder={selected.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[100px] outline-none bg-transparent text-sm py-1"
-          disabled={disabled}
+          className={`flex-1 min-w-[100px] outline-none bg-transparent text-sm py-1 ${
+            single && selected.length ? 'hidden' : ''
+          }`}
+          disabled={disabled || (single && selected.length > 0)}
           data-testid={`${testid}-input`}
         />
         <ChevronDown size={13} className="text-slate-400" />

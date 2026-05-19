@@ -8,6 +8,7 @@ import { Upload, FileText, Check, Download, ChevronLeft, ChevronRight, Loader2, 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import InvoiceParseProgress from '@/components/shared/InvoiceParseProgress';
+import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 // Iter 216o — five fixed equipment categories matching the AI extractor.
@@ -283,8 +284,15 @@ export default function InvoiceImportWizard({ onComplete, onClose }) {
  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
  <div>
  <label className="text-xs text-zinc-400 uppercase tracking-wider font-medium">Supplier</label>
- <input value={importData.supplier_name || ''} onChange={e => setImportData({...importData, supplier_name: e.target.value})}
- className="w-full mt-1 px-3 py-1.5 text-sm border border-zinc-200 rounded-md focus:ring-1 focus:ring-[var(--color-brand-blue)] focus:outline-none" />
+ <div className="mt-1">
+ <SupplierMultiPicker
+ single
+ value={importData.supplier_name || ''}
+ onChange={(v) => setImportData({ ...importData, supplier_name: v })}
+ placeholder="Pick a supplier or add a new one…"
+ testid="invoice-import-supplier"
+ />
+ </div>
  </div>
  <div>
  <label className="text-xs text-zinc-400 uppercase tracking-wider font-medium">Warranty Code</label>
