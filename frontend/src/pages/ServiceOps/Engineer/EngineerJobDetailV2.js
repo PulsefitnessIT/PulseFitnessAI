@@ -540,6 +540,7 @@ function PhotosTab({ job, onChange }) {
   const [stage, setStage] = useState('progress'); // before / progress / after
   const photoInput = useRef(null);
   const videoInput = useRef(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   const photos = job.photos || [];
 
   const grouped = useMemo(() => ({

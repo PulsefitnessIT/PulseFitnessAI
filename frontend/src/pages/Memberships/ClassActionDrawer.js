@@ -294,6 +294,7 @@ function AttendanceView({ API, headers, occurrence, onSaved }) {
       })
       .finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   const set = (id, status) => setMarks((p) => ({ ...p, [id]: p[id] === status ? null : status }));

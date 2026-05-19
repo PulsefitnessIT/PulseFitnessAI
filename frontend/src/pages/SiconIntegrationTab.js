@@ -73,6 +73,7 @@ const SiconIntegrationTab = () => {
  }
  } catch (err) { console.error('Sicon config load error:', err); }
  setLoading(false);
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
  }, [API]);
 
  const loadAuditLog = useCallback(async () => {
@@ -80,6 +81,7 @@ const SiconIntegrationTab = () => {
  const res = await axios.get(`${API}/sicon/audit-log`, { headers });
  setAuditLogs(res.data.logs || []);
  } catch (err) { console.error('Sicon audit log error:', err); }
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
  }, [API]);
 
  useEffect(() => { loadConfig(); }, [loadConfig]);

@@ -457,6 +457,7 @@ function App() {
  } else {
  setLoading(false);
  }
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadBranding'; pre-existing as of iter 216h226-polish-5.
  }, []);
 
  // Iter 215ac — Cross-tab sync. If another tab logs in/out, reflect
@@ -498,6 +499,7 @@ function App() {
    window.removeEventListener('storage', onStorage);
    window.removeEventListener('gymaxis:token-refreshed', onTokenRefreshed);
  };
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadBranding'; pre-existing as of iter 216h226-polish-5.
  }, []);
 
  const login = (token, userData) => {

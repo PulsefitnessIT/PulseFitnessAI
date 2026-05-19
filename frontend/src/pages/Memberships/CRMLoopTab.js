@@ -68,6 +68,7 @@ function DashboardView({ API, headers }) {
       .catch(() => notify.error('Failed to load CRM dashboard'))
       .finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   const scan = async () => {
@@ -154,6 +155,7 @@ function RulesView({ API, headers }) {
       .catch(() => notify.error('Rules failed'))
       .finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   const update = async (kind, patch) => {

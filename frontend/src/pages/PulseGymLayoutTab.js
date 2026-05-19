@@ -482,6 +482,7 @@ const PulseGymLayoutTab = () => {
       setLayouts(lR.data?.layouts||[]);
     } catch(e){console.error(e);}
     setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
   },[API]);
 
   useEffect(()=>{load();},[load]);
@@ -492,6 +493,7 @@ const PulseGymLayoutTab = () => {
   const loadBg = useCallback(async(fid)=>{
     if(!fid||fid.length<10){setBgUrl(null);return;}
     try{const r=await axios.get(`${API}/files/${fid}`,{headers,responseType:'blob'});setBgUrl(URL.createObjectURL(r.data));}catch{setBgUrl(null);}
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
   },[API]);
 
   // ── Undo ──

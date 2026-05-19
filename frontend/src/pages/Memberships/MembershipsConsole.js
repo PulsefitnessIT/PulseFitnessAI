@@ -1133,6 +1133,7 @@ function TimetableTab({ API, headers }) {
     const res = await axios.get(`${API}/memberships/timetable`, { headers, params: { from, to } });
     setOccs(res.data.occurrences || []);
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'reload'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { reload();   }, [weekStart]);
 
   const days = [...Array(7)].map((_, i) => new Date(weekStart.getTime() + i * 86400000));

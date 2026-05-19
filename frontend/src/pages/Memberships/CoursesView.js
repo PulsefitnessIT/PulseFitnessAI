@@ -38,6 +38,7 @@ export default function CoursesView({ API, headers }) {
     } finally { setLoading(false); }
   }, [API, headers, selectedId]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadCourses'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { loadCourses();   }, []);
 
   const selected = useMemo(

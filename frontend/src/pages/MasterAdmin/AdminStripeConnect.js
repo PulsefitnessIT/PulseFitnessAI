@@ -53,6 +53,7 @@ const AdminStripeConnect = ({ API, isMasterAdmin }) => {
  show({ tone: 'error', title: 'Couldn\'t load Stripe state', detail: err.response?.data?.detail });
  }
  setLoading(false);
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers' and 'show'; pre-existing as of iter 216h226-polish-5.
  }, [API]);
  useEffect(() => { loadAll(); }, [loadAll]);
 

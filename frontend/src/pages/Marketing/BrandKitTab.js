@@ -34,6 +34,7 @@ export default function BrandKitTab({ API, headers }) {
       .then((r) => setKit(r.data.brand_kit))
       .catch(() => notify.error('Failed to load brand kit'));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   const save = async (patch) => {

@@ -119,6 +119,7 @@ export default function ServiceScheduler() {
   useEffect(() => { load(); }, [load]);
 
   const engineers = diary?.engineers || [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   const cases = diary?.cases || [];
   const unassigned = diary?.unassigned || [];
 

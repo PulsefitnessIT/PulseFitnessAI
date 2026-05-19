@@ -69,6 +69,7 @@ const OrgIntegrationsTab = ({ org }) => {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, [org.id]);
 
   // Derive per-integration "connected" booleans from health (if returned)

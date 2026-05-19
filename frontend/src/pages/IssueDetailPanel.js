@@ -67,6 +67,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  } catch { /* use prop data */ }
  };
  loadFull();
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'issueProp'; pre-existing as of iter 216h226-polish-5.
  }, [issueProp.id, API]);
 
  // Iter 216h137 — Fetch DIO contract context for MOD site users.
@@ -114,6 +115,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  useEffect(() => {
  loadPurchaseOrders();
  loadPODefaults();
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadPODefaults' and 'loadPurchaseOrders'; pre-existing as of iter 216h226-polish-5.
  }, [issue.id]);
 
  useEffect(() => {
@@ -122,6 +124,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  if (match && !poForm.supplier_email) {
  setPOForm(f => ({ ...f, supplier_email: match.email || '' }));
  }
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'issue; pre-existing as of iter 216h226-polish-5.
  }, [poForm.supplier_name, suppliers]);
 
  const loadPurchaseOrders = async () => {

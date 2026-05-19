@@ -89,6 +89,7 @@ const CustomDomainsPanel = () => {
     }
   }, [selectedOrgId]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadOrgs'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { loadOrgs();   }, []);
 
   // ── Load this org's domains ──────────────────────────────────

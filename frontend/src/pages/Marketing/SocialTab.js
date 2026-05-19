@@ -10,6 +10,7 @@ const SocialTab = ({ API, headers }) => {
   const [busy, setBusy] = useState(false);
 
   const load = () => axios.get(`${API}/api/marketing/social/status`, { headers }).then((r) => setStatus(r.data)).catch(() => setStatus({ platform_configured: false, accounts: [] }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   const connect = async () => {

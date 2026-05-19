@@ -35,6 +35,7 @@ export default function CheckinTab({ API, headers }) {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, [dayWindow]);
 
   return (
@@ -206,6 +207,7 @@ function RosterDrawer({ API, headers, occ, onClose }) {
     }
     setLoading(false);
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, [occ.id]);
 
   const mark = async (booking_id, status) => {

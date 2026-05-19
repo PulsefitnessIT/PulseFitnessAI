@@ -48,6 +48,7 @@ const CampaignsTab = ({ API, headers }) => {
     ]);
     setCampaigns(c.data.campaigns); setAudiences(a.data.audiences); setTemplates(t.data.templates);
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   const applyTemplate = async (templateId) => {

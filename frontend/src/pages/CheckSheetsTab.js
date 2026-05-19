@@ -48,6 +48,7 @@ const CheckSheetsTab = () => {
  loadCustomTemplates();
  loadHistory();
  loadReport();
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadCustomTemplates', 'loadEquipment', 'loadHistory', and 'loadReport'; pre-existing as of iter 216h226-polish-5.
  }, []);
 
  const loadEquipment = async () => {

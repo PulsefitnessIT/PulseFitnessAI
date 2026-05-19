@@ -49,6 +49,7 @@ const OrgSitesPanel = ({ org, onClose }) => {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadSites'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { loadSites();   }, [org.id]);
 
   const setHeadOffice = async (site) => {

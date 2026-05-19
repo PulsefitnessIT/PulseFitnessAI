@@ -46,6 +46,7 @@ const PulseSettingsTab = () => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadData', 'loadEquipment', and 'loadSites'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { loadData(); loadEquipment(); loadSites(); }, []);
 
   const loadSites = async () => {

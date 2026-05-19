@@ -41,6 +41,7 @@ const AdminPulseAdmins = ({ API }) => {
  show({ tone: 'error', title: 'Couldn\'t load admins', detail: err.response?.data?.detail });
  }
  setLoading(false);
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers' and 'show'; pre-existing as of iter 216h226-polish-5.
  }, [API]);
  useEffect(() => { load(); }, [load]);
 

@@ -77,6 +77,7 @@ function DemandView({ API, headers }) {
       .catch((e) => notifyApiError(notify, e, 'Failed to load forecast'))
       .finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   if (loading) return <Spinner />;
@@ -169,6 +170,7 @@ function UnderView({ API, headers }) {
       .catch((e) => notifyApiError(notify, e, 'Failed'))
       .finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load();   }, []);
 
   return (

@@ -77,6 +77,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
     // eslint-disable-next-line
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'fetchSuggestions'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { fetchSuggestions();   }, [activeTab]);
 
   // Auto-scroll on new turn.

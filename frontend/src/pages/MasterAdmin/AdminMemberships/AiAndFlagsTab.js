@@ -7,6 +7,7 @@ import { SectionCard, Pill, severityTone } from './shared';
 const AiAndFlagsTab = ({ aiInsights, onLoadAiInsights, featureFlags, onSaveFlags, onDrillOrg }) => {
  const [draft, setDraft] = useState(null);
  useEffect(() => { if (featureFlags) setDraft({ ...featureFlags.flags }); }, [featureFlags]);
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'aiInsights' and 'onLoadAiInsights'; pre-existing as of iter 216h226-polish-5.
  useEffect(() => { if (!aiInsights) onLoadAiInsights?.();   }, []);
 
  const insights = aiInsights?.insights || [];

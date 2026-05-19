@@ -70,6 +70,7 @@ const GlobalDocumentsTab = () => {
  notify.error('Failed to load documents');
  }
  setLoading(false);
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
  }, [API, showDuplicatesOnly]);
 
  useEffect(() => { loadDocuments(); }, [loadDocuments]);

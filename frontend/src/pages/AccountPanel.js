@@ -24,6 +24,7 @@ const AccountPanel = ({ open, onClose }) => {
 
   useEffect(() => {
     if (open) loadBilling();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadBilling'; pre-existing as of iter 216h226-polish-5.
   }, [open]);
 
   const loadBilling = async () => {

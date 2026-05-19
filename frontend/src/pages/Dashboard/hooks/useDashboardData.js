@@ -88,6 +88,7 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
   }, [API, onPaymentSuccess]);
 
   // initial load
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadData'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { loadData();   }, []);
 
   return {

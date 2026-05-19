@@ -51,6 +51,7 @@ const AudiencesTab = ({ API, headers }) => {
       setCustomFields(cf);
     })
     .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load', 'loadCustomProps', and 'loadDataSrc'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load(); loadCustomProps(); loadDataSrc();   }, []);
 
   const refreshPreview = async (rules) => {

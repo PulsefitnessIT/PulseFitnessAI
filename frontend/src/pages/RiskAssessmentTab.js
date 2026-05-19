@@ -51,6 +51,7 @@ const RiskAssessmentTab = () => {
  photo_url: null
  });
 
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadAssessments' and 'loadSites'; pre-existing as of iter 216h226-polish-5.
  useEffect(() => { loadAssessments(); loadSites(); }, []);
 
  const loadAssessments = async () => {

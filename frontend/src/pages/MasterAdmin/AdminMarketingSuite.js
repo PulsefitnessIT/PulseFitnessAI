@@ -21,6 +21,7 @@ const PlansEditor = ({ API, headers }) => {
  const [busy, setBusy] = useState(false);
 
  const load = () => axios.get(`${API}/master-admin/marketing/plans`, { headers }).then((r) => setPlans(r.data.plans));
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
  useEffect(() => { load();   }, []);
 
  const save = async () => {

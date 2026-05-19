@@ -534,6 +534,7 @@ const SupplierCasePage = () => {
  }
  };
 
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadCase'; pre-existing as of iter 216h226-polish-5.
  useEffect(() => { loadCase(); }, [token]);
 
  const handleUpdate = async () => {

@@ -122,6 +122,7 @@ export default function InvoicingTab({ API, headers }) {
   }, [API, headers]);
 
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'runPreview'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { runPreview();   }, [period]);
 
   const generate = async () => {

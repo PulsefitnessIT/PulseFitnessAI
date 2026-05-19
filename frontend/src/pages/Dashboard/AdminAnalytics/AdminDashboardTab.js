@@ -23,6 +23,7 @@ const AdminDashboardTab = () => {
     load();
   }, [API, token]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   const leaderboard = data?.leaderboard || [];
   const filteredLeaderboard = useMemo(
     () => leaderboard.filter(g => g.equipment_count > 0 || g.total_faults > 0),

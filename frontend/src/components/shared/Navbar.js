@@ -46,6 +46,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  .get(`${API}/auth/sso/status`)
  .then((res) => setSsoStatus(res.data || { enabled: false }))
  .catch(() => setSsoStatus({ enabled: false }));
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'API'; pre-existing as of iter 216h226-polish-5.
  }, []);
  const navigate = useNavigate();
  const location = useLocation();

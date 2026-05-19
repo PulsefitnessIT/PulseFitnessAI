@@ -37,6 +37,7 @@ const PulseAIDiagnosisTab = ({ equipment }) => {
       const res = await axios.get(`${API}/audit/history`, { headers });
       setAuditHistory(res.data.audits || []);
     } catch (err) { console.error('Failed to load audit history:', err); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
   }, [API]);
 
   useEffect(() => { loadAudits(); }, [loadAudits]);

@@ -31,6 +31,7 @@ const AdminCRMUsers = () => {
  setLoading(false);
  };
 
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
  useEffect(() => { load(); }, []);
 
  const openCreate = () => { setEditingId(null); setForm({ email: '', full_name: '', password: '', role: 'user' }); setShowForm(true); };

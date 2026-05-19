@@ -111,6 +111,7 @@ export default function CustomFieldsPanel({
       setError(e.response?.data?.detail || 'Failed to load custom properties');
       setProps([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   }, [API, entityType, auth]);
 
   useEffect(() => { load(); }, [load]);

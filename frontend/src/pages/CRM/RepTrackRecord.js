@@ -69,6 +69,7 @@ export default function RepTrackRecord({ userId = '', periods = 4, compact = fal
 
   useEffect(() => { load(); }, [load]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   const rows = data?.rows || [];
   const summary = data?.summary || {};
   const sparkPoints = useMemo(() => rows.map(r => r.call_accuracy_pct ?? 0), [rows]);

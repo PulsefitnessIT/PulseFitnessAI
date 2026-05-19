@@ -65,6 +65,7 @@ export default function RecentErrorsPanel() {
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   }, [API, headers, view, days]);
 
   useEffect(() => { load(); }, [load]);

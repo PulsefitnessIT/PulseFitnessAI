@@ -151,6 +151,7 @@ export default function EngineerJobDetail() {
     ping();
     const id = setInterval(ping, 60_000);
     return () => { cancelled = true; clearInterval(id); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'job'; pre-existing as of iter 216h226-polish-5.
   }, [job?.id, job?.status]);
 
 

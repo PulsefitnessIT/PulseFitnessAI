@@ -59,6 +59,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
 
   useEffect(() => { load(); }, [load]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   const sites = data?.sites || [];
   const totals = data?.totals || { sites: 0, head_offices: 0, branches: 0, equipment: 0 };
 

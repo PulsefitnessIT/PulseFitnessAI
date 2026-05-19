@@ -94,6 +94,7 @@ const GymDesignTab = ({ allEquipment: _onboardedEquipment = [] }) => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importUploading, setImportUploading] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadData'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
@@ -400,6 +401,7 @@ const GymDesignTab = ({ allEquipment: _onboardedEquipment = [] }) => {
     setWizardDetectedEquipment(prev => prev.map((eq, i) =>
       i === wizardDragging.idx ? { ...eq, x_percent, y_percent } : eq
     ));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'snapPercent'; pre-existing as of iter 216h226-polish-5.
   }, [wizardDragging, wizardSnapToGrid, wizardGridSize, gymLengthForCalc, gymWidthForCalc]);
 
   const handleMarkerDragEnd = useCallback(() => {

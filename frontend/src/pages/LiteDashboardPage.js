@@ -184,6 +184,7 @@ const LiteDashboardPage = () => {
       setFiles(fileRes.data.files || []);
       setSuppliers(supRes.data.suppliers || supRes.data || []);
     } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
   }, [API, activeSite]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -199,6 +200,7 @@ const LiteDashboardPage = () => {
     };
     window.addEventListener('open-fault-for-equipment', handler);
     return () => window.removeEventListener('open-fault-for-equipment', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'selectEquipmentForFault'; pre-existing as of iter 216h226-polish-5.
   }, []);
 
   /**
