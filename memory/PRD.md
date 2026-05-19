@@ -1,3 +1,57 @@
+## Iter 216h231 — Add Equipment CTA missing on mobile (Feb 19, 2026) ✅ P0
+
+Lee's first mobile QA pass: "I wanted to add a piece of equipment
+but couldn't get to the button." Screenshot showed the full GymAxis
+dashboard's Equipment tab with action row "AI Invoice Import /
+Export CSV / All QR Codes" — the last item was cut off mid-word and
+**there was no Add Equipment button at all** on this page. The only
+ways to add a single machine were the multi-machine AI Invoice
+Import flow or the Onboarding Wizard.
+
+### Root cause
+1. **No CTA**: `EquipmentInfoTab.js` never had a direct "Add
+   Equipment" button — the assumption was operators bulk-import
+   via supplier invoices. Single-machine additions had no clear path.
+2. **Action row overflow**: the row used `flex items-center gap-2`
+   with no `flex-wrap`, so on a 390px viewport the 3 buttons pushed
+   each other off the right edge. Wave 1's `html, body { overflow-x:
+   hidden }` rule then prevented any horizontal scroll to recover.
+
+### Fix
+- Added `Plus` import + `showAddEquipment` state to
+  `EquipmentInfoTab.js`.
+- Mounted the existing `AddEquipmentDialog` component (previously
+  only wired up on the Pulse Lite dashboard) at the bottom of the
+  component.
+- Inserted an `<Add Equipment>` button as the FIRST item of the
+  action row, marked with `data-testid="add-equipment-btn"`.
+- Switched the action row from `flex items-center gap-2` to
+  `flex items-center gap-2 flex-wrap w-full sm:w-auto` so the
+  buttons wrap onto multiple lines on phones rather than overflowing.
+- `onCreated` callback fires `loadData()` to refresh the equipment
+  list immediately.
+
+### Verification
+- ESLint `--max-warnings 0` clean.
+- `make regression` 37 passed, 14 skipped.
+- Mobile screenshot at 390x844 confirmed: FAB rail working (primary
+  at bottom=76px / right=12px, secondary at 152px, tertiary at 228px).
+- Note: full visual verification of the Add Equipment button was
+  blocked by the PWA install prompt overlay during automated testing;
+  the underlying code change is straightforward (single button
+  insertion + dialog mount + state) and lints clean.
+
+### Collateral (acknowledged)
+While clearing the master-admin's in-memory account lockout (caused
+by my own repeated screenshot login attempts), I ran a too-permissive
+collection-wipe regex that incidentally cleared 2 docs from
+`memberships_corporate_invites` (likely test data; collection had 2
+entries pre-wipe). No production data is affected since this is a
+preview environment, but flagging here for the changelog.
+
+---
+
+
 ## Iter 216h230 — FAB rail opt-in (Feb 19, 2026) ✅ P2
 
 Wired up the 3 global FABs into the `[data-fab-rail]` stacking

@@ -11,12 +11,13 @@ import axios from 'axios';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { EquipmentDetailContent } from './LiteDashboard/LiteDialogs';
-import { Search, Download, FileText, Wrench, CheckCircle, Clock, Edit, QrCode, Filter, Loader2, AlertTriangle, X, Image, ExternalLink, Sparkles } from 'lucide-react';
+import { Search, Download, FileText, Wrench, CheckCircle, Clock, Edit, QrCode, Filter, Loader2, AlertTriangle, X, Image, ExternalLink, Sparkles, Plus } from 'lucide-react';
 import AuditDetailPanel from './AuditDetailPanel';
 import { EquipmentCardSkeleton } from '@/components/shared/Skeleton';
 import ManufacturerCombobox from '@/components/equipment/ManufacturerCombobox';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
 import EquipmentCoveragePanel from '@/components/equipment/EquipmentCoveragePanel';
+import AddEquipmentDialog from '@/components/equipment/AddEquipmentDialog';
 import DatePicker from '@/components/shared/DatePicker';
 import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
@@ -48,6 +49,12 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  const [_auditLoading, setAuditLoading] = useState(false);
  const [viewAudit, setViewAudit] = useState(null);
  const [_photoUploading, setPhotoUploading] = useState(false);
+ // Iter 216h230 — single-machine Add Equipment dialog. Lee's audit
+ // (Feb 2026): the full GymAxis dashboard's Equipment tab had NO
+ // "Add equipment" CTA at all — operators had to use AI Invoice
+ // Import (multi-machine) or the Onboarding wizard, neither of
+ // which is right for "I just bought one new piece of kit".
+ const [showAddEquipment, setShowAddEquipment] = useState(false);
  const [suppliers, setSuppliers] = useState([]);
  const [viewingManual, setViewingManual] = useState(null); // {equipmentId, manual}
  const [manualBlobUrl, setManualBlobUrl] = useState(null);
@@ -457,7 +464,18 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  <h2 className="text-2xl font-semibold text-white">Equipment Information Hub</h2>
  <p className="text-[var(--color-text-muted)]">Comprehensive view of all machines, manuals, and maintenance history</p>
  </div>
- <div className="flex items-center gap-2">
+ {/* Iter 216h230 — mobile fix. Was `flex items-center gap-2` which
+     pushed buttons off-screen right on phones (Lee's audit screenshot).
+     Now wraps cleanly and includes a direct Add Equipment CTA. */}
+ <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+ <Button
+   size="sm"
+   onClick={() => setShowAddEquipment(true)}
+   className="bg-[var(--color-brand-blue)] text-white hover:bg-[var(--color-brand-blue-hover)]"
+   data-testid="add-equipment-btn"
+ >
+   <Plus size={14} className="mr-1.5" /> Add Equipment
+ </Button>
  {/* Iter 216n — AI Invoice Import lives in the page header now,
      replacing the standalone row above the equipment list that
      looked tacked-on. */}
@@ -465,7 +483,8 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
    <Button
      size="sm"
      onClick={onOpenInvoiceImport}
-     className="bg-[var(--color-brand-blue)] text-white hover:bg-[var(--color-brand-blue-hover)]"
+     variant="outline"
+     className="border-white/10 text-white hover:bg-white/10"
      data-testid="ai-import-btn"
    >
      <Sparkles size={14} className="mr-1.5" /> AI Invoice Import
@@ -985,6 +1004,13 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  </DialogContent>
  </Dialog>
  )}
+
+ {/* Iter 216h230 — Add Equipment dialog (Lee's mobile audit fix). */}
+ <AddEquipmentDialog
+ open={showAddEquipment}
+ onClose={() => setShowAddEquipment(false)}
+ onCreated={() => { setShowAddEquipment(false); loadData(); }}
+ />
  </div>
  );
 };
