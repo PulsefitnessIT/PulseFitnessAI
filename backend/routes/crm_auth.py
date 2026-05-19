@@ -345,17 +345,27 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
         if account_type in ("mod_site", "mod_branch", "mod_org"):
             raise HTTPException(status_code=403, detail="CRM not available for this account")
 
+        # Iter 216h221 — use the canonical `has_module()` resolver so
+        # the gate honours the same source of truth as every other
+        # module gate (and the Master Admin Feature Control panel).
+        #
+        # The legacy implementation here read `org.enabled_modules`
+        # (a flat array) which Master Admin's Modules tab does NOT
+        # write to — the toggle writes `org.modules.crm.enabled`
+        # via PUT /master-admin/organizations/{id}/features. Result:
+        # Pulse Pro orgs with CRM toggled ON in Master Admin were
+        # still rejected here with 403 "CRM not enabled", showing
+        # the user the "Your operator hasn't enabled CRM" screen
+        # despite Master Admin clearly showing the green toggle.
+        # See `utils/module_access._org_module_access` for the
+        # canonical schema.
         org_id = main_user.get("organization_id")
-        org_doc = {}
-        if org_id:
-            org_doc = await db.organizations.find_one(
-                {"id": org_id},
-                {"_id": 0, "enabled_modules": 1, "portal_type": 1, "account_type": 1},
-            ) or {}
-        enabled = org_doc.get("enabled_modules") or []
-        # Legacy orgs with `account_type: full` get CRM by default.
-        legacy_full = (org_doc.get("account_type") == "full" or main_user.get("account_type") == "full")
-        if "crm" not in enabled and not legacy_full:
+        org_doc = await db.organizations.find_one(
+            {"id": org_id}, {"_id": 0},
+        ) if org_id else None
+
+        from utils.module_access import has_module
+        if not has_module(main_user, org_doc, "crm"):
             raise HTTPException(status_code=403, detail="CRM module not enabled for your organisation")
 
     # Find or create a matching CRM user (deduped by email). Reuse the main

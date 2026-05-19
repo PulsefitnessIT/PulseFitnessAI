@@ -1,0 +1,86 @@
+{
+  "summary": "Iter 216h221 — Both bug fixes verified. Bug #1 (CRM cross-login gate): Jack Ottey (Pulse Pro owner with modules.crm.enabled=true) can now cross-login successfully — was returning 403 before fix. Bug #2 (Logout completeness): All localStorage/sessionStorage items (token, crm_token, member_token, user_cache, sites_cache, active_site_cache, crm_active_session) are cleared on logout, and user is hard-redirected to landing page. Protected routes (/crm, /dashboard) correctly bounce to login after logout.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_216h221_crm_cross_login_module_gate.py",
+    "/app/backend/tests/test_iter_216h221_e2e_crm_cross_login.py",
+    "/app/test_reports/pytest/pytest_results_216h221.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_216h221_e2e_crm_cross_login.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 passed, 2 skipped - MOD accounts not available for login)",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 216h221 fixes verified. CRM cross-login now uses has_module() from utils/module_access.py instead of reading enabled_modules array. Logout clears all module tokens (crm_token, member_token) and broadcasts gymaxis:auth-changed event. Test credentials: jack.ottey@thirdspace.london / Test123! (Pulse Pro owner), e1.agent@gymaxisai.com / E1Agent123! (full account), admin@gymaxisai.com / MasterAdmin123! (master admin).",
+  "test_verification": {
+    "bug_1_crm_cross_login_gate": {
+      "description": "CRM cross-login gate now reads modules.crm.enabled (Master Admin toggle) instead of enabled_modules array",
+      "unit_tests": {
+        "file": "tests/test_iter_216h221_crm_cross_login_module_gate.py",
+        "tests_passed": 6,
+        "tests_total": 6,
+        "key_tests": [
+          "test_pulse_pro_with_modules_crm_enabled_grants_access - PASSED (Craig's case)",
+          "test_pulse_pro_with_modules_crm_disabled_denies - PASSED",
+          "test_master_admin_always_has_crm_access - PASSED"
+        ]
+      },
+      "e2e_tests": {
+        "file": "tests/test_iter_216h221_e2e_crm_cross_login.py",
+        "tests_passed": 6,
+        "tests_skipped": 2,
+        "key_tests": [
+          "test_pulse_pro_owner_can_cross_login (jack.ottey@thirdspace.london) - PASSED",
+          "test_master_admin_can_always_cross_login - PASSED",
+          "test_e1_agent_can_cross_login - PASSED",
+          "test_cross_login_with_crm_token_returns_400 - PASSED"
+        ],
+        "skipped_reason": "MOD site/branch accounts not available for login in test environment"
+      },
+      "playwright_verification": {
+        "crm_accessible": true,
+        "no_crm_not_enabled_error": true,
+        "crm_token_minted": true
+      }
+    },
+    "bug_2_logout_completeness": {
+      "description": "Logout now clears all module tokens and hard-redirects to landing page",
+      "storage_cleared_on_logout": {
+        "token": true,
+        "crm_token": true,
+        "member_token": true,
+        "user_cache": true,
+        "sites_cache": true,
+        "active_site_cache": true,
+        "crm_active_session": true
+      },
+      "post_logout_behavior": {
+        "redirected_to_landing": true,
+        "crm_bounces_to_login": true,
+        "dashboard_bounces_to_landing": true
+      },
+      "code_changes_verified": [
+        "App.js logout() clears crm_token, member_token",
+        "App.js logout() clears sessionStorage.crm_active_session",
+        "App.js logout() broadcasts gymaxis:auth-changed event",
+        "App.js logout() does window.location.replace('/') for non-MOD users",
+        "UnifiedAuthProvider listens for gymaxis:auth-changed and clears in-memory state"
+      ]
+    }
+  }
+}

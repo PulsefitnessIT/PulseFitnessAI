@@ -518,6 +518,18 @@ function App() {
  // before /api/sites resolves.
  localStorage.removeItem('sites_cache');
  localStorage.removeItem('active_site_cache');
+ // Iter 216h221 — wipe ALL module-scoped tokens so the CRM / member
+ // surfaces also drop the user. Previously only the main token was
+ // cleared, leaving `crm_token` (and `member_token`) alive in
+ // localStorage; navigating to /crm after Sign Out then auto-
+ // resumed because the CRM-scoped token was still valid. Broadcast
+ // the `gymaxis:auth-changed` event so UnifiedAuthProvider drops
+ // its in-memory state instantly (no tab-switch required).
+ localStorage.removeItem('crm_token');
+ localStorage.removeItem('member_token');
+ if (typeof sessionStorage !== 'undefined') {
+   sessionStorage.removeItem('crm_active_session');
+ }
  // Iter 216h113h — preserve the MOD context on sign-out: visitors
  // who came in via /MODService go back to the MOD login page,
  // not the standard GymAxis marketing surface.
@@ -528,8 +540,18 @@ function App() {
  setSites([]);
  setActiveSite(null);
  document.documentElement.style.setProperty('--brand-color', 'var(--color-brand-blue)');
+ if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+   window.dispatchEvent(new CustomEvent('gymaxis:auth-changed'));
+ }
  if (wasMOD && typeof window !== 'undefined') {
    window.location.replace('/MODService');
+ } else if (typeof window !== 'undefined') {
+   // Iter 216h221 — hard-navigate to the landing page so every route
+   // guard + cached component is forced to re-evaluate from a clean
+   // state. Belt-and-braces on top of the React state resets above —
+   // protects against memoised dashboards still rendering after the
+   // user clicks Sign Out.
+   window.location.replace('/');
  }
  };
 
