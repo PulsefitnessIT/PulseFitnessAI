@@ -9177,3 +9177,71 @@ Files: `routes/crm_picklists.py`, `routes/crm_stakeholders.py`,
 `server.py` (startup seed), `CRMSettings.js`, `CRMPicklistsSection.js`,
 `PicklistSelect.jsx`, `CRMContacts.js`,
 `tests/test_iter_216h223_crm_phase1.py`, `memory/CRM_TENDERS_AUDIT.md`.
+
+## Iter 216h224 — CRM Phase 2: Quotes enhancement (Feb 19, 2026)
+
+### What shipped
+
+**Backend — `routes/crm_products.py` (NEW)**:
+- Master price list / product catalogue. Org-scoped (`organization_id`
+  required — no cross-tenant leak).
+- Full CRUD: `GET/POST/PATCH/DELETE /crm/products`, search + category
+  filter, distinct categories endpoint.
+- Auto-computed `markup_percent`. SKU collision rejection within org.
+- Soft-delete (active=false) preserves quotes that reference the
+  product.
+- `POST /crm/products/bulk-import` accepts a CSV multipart upload.
+  Idempotent — SKU collisions update the existing row in place.
+
+**Backend — `routes/crm_cpq.py` (REWRITTEN)**:
+- All endpoints now stamp + filter on `organization_id` (fixes a
+  multi-tenant isolation bug found in audit).
+- Line items compute `subtotal / cost_total / margin_value /
+  margin_percent`. Quote totals compute `gross_profit /
+  gross_margin_percent / tax_amount / total`.
+- `product_id` on a line hydrates description/unit_price/cost_price/
+  tax_rate from the catalogue (rep can override).
+- **Approval workflow**: org-level `min_margin_percent` threshold
+  (stored on `crm_settings`). When the quote's margin drops below
+  the threshold the status flips to `pending_approval` automatically.
+  Approval/reject endpoints (admin/owner/manager only). PUT/GET
+  /crm/quotes/settings/approval for the threshold value.
+- **Versioning**: `parent_quote_id`, `version`, `is_latest_version`.
+  New endpoints: `POST /{id}/new-version`, `POST /{id}/duplicate`,
+  `GET /{id}/versions`. List endpoint hides superseded versions by
+  default; `?show_all_versions=true` reveals the chain.
+- **PDF**: `GET /crm/quotes/{id}/pdf` returns a branded A4 PDF (logo
+  / org address / quote meta / line-item table / totals box / notes).
+
+**Backend — `utils/crm_quote_pdf.py` (NEW)**:
+- Reportlab-based renderer (engineer quote PDF couldn't be reused —
+  different shape).
+
+**Frontend**:
+- New `pages/CRM/CRMProductsSection.js` — Settings → **Price List** tab.
+  Full CRUD UI (create/edit/deactivate), search + category filter,
+  colour-coded markup % (green ≥30 / amber 15-29 / red <15), CSV
+  bulk-import with result banner.
+
+### Verification
+- New `tests/test_iter_216h224_crm_phase2.py` — 9/9 passing.
+- Testing agent ran the extended suite — **17/17 backend tests +
+  100% frontend pass**, no regressions on Phase 1 (picklists tab
+  still works).
+- `make regression`: 23/23 green.
+- ESLint + ruff clean.
+
+### What did NOT ship
+- DocuSign integration (deferred — user said "build it ready, hook
+  up later"). The approval workflow + PDF export is the foundation
+  it sits on top of, so this is a small follow-up iter once creds
+  are available.
+- Quote-builder UI margin overlay (the data fields are now on the
+  quote — wiring them into the live builder is the next FE pass).
+  Margin can already be inspected by hitting the GET /crm/quotes/{id}
+  endpoint or by exporting the PDF.
+
+Files: `routes/crm_products.py`, `routes/crm_cpq.py` (rewritten),
+`utils/crm_quote_pdf.py`, `route_registry/crm.py`, `server.py`,
+`pages/CRM/CRMProductsSection.js`, `pages/CRM/CRMSettings.js`,
+`tests/test_iter_216h224_crm_phase2.py`.
