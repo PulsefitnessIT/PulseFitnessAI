@@ -14,6 +14,7 @@ import PulseUpgradeRequestsStrip from './PulseUpgradeRequestsStrip';
 import ArchiveAlertsStrip from './ArchiveAlertsStrip';
 import AdminNpsPanel from './AdminNpsPanel';
 import PlatformIssuesTile from './PlatformIssuesTile';
+import FreshTrialsTile from './FreshTrialsTile';
 
 /**
  * Master Admin → Dashboard Overview.
@@ -102,7 +103,10 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
       <ArchiveAlertsStrip onOpen={onGoArchive} />
 
       {/* Charts Row — stacked on mobile. Iter 216h215 — Platform Issues
-          tile (24h passive trust signal) sits beside Subscriptions. */}
+          tile (24h passive trust signal) sits beside Subscriptions.
+          Iter 216h220 — Fresh Trials tile (24h prospect intel) joins
+          the same row so the operator's first glance covers
+          growth + risk + pipeline together. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
         <Panel className="lg:col-span-6 p-5 lg:p-6">
           <h3 className="text-base lg:text-lg font-bold text-slate-900 tracking-tight mb-4">Platform Growth</h3>
@@ -122,7 +126,15 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
           <PlatformIssuesTile onGoSection={onGoSection} />
         </div>
 
-        <Panel className="lg:col-span-3 p-5 lg:p-6">
+        <div className="lg:col-span-3">
+          <FreshTrialsTile onGoTrials={onGoTrials} />
+        </div>
+      </div>
+
+      {/* Subscriptions pie — moved out of the charts row in 216h220 so
+          the Fresh Trials tile can sit next to Platform Issues. */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
+        <Panel className="lg:col-span-4 p-5 lg:p-6">
           <h3 className="text-base lg:text-lg font-bold text-slate-900 tracking-tight mb-4">Subscriptions</h3>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>

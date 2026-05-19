@@ -139,6 +139,59 @@ async def _compute_conversion_metrics(cutoff_30d: datetime, now: datetime, conve
     return converted_30d, ended_30d, conversion_rate_30d, avg_days_to_convert
 
 
+@router.get("/master-admin/trials/recent")
+async def trials_recent(
+    hours: int = 24,
+    limit: int = 5,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h220 — Freshest N trial signups in the last `hours` hours.
+
+    Powers the Master Admin overview "Fresh trial signups" tile so the
+    team can see prospect intel (industry, team size, UTM source) at a
+    glance without drilling into Trials → list.
+
+    The signup intel comes from the trial signup modal's step 2
+    (Iter 216h219) — older trials may have these fields blank.
+    """
+    require_master_admin(user)
+    hours = max(1, min(168, int(hours)))  # cap at 7 days
+    limit = max(1, min(20, int(limit)))
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    orgs = await db.organizations.find(
+        {
+            "is_trial": True,
+            "trial_started_at": {"$gte": cutoff},
+        },
+        {"_id": 0},
+    ).sort("trial_started_at", -1).to_list(limit)
+
+    items = []
+    for o in orgs:
+        # Best-effort owner lookup so the tile can show the contact email.
+        owner = None
+        if o.get("owner_id"):
+            owner = await db.users.find_one(
+                {"id": o["owner_id"]}, {"_id": 0, "email": 1, "full_name": 1},
+            )
+        items.append({
+            "id": o["id"],
+            "name": o.get("name") or "",
+            "owner_email": (owner or {}).get("email", ""),
+            "owner_name": (owner or {}).get("full_name", ""),
+            "industry": o.get("industry") or "",
+            "employee_count": o.get("employee_count") or "",
+            "website": o.get("website") or "",
+            "referral_source": o.get("referral_source") or "",
+            "utm_source": o.get("utm_source") or "",
+            "utm_campaign": o.get("utm_campaign") or "",
+            "trial_started_at": o.get("trial_started_at") or o.get("created_at"),
+            "trial_ends_at": o.get("trial_ends_at"),
+        })
+    return {"items": items, "hours": hours, "total": len(items)}
+
+
 @router.get("/master-admin/trials/summary")
 async def trials_summary(user: dict = Depends(get_current_user)) -> dict:
     """Aggregate trial metrics for Master Admin dashboard widget."""
