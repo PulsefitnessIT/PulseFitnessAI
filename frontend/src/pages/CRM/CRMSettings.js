@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Upload, FileSpreadsheet, Shield, Clock, User, ChevronRight, Loader2,
-  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban
+  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package
 } from 'lucide-react';
 import axios from 'axios';
 import CRMPermissions from './CRMPermissions';
 import CRMPicklistsSection from './CRMPicklistsSection';
+import CRMProductsSection from './CRMProductsSection';
 
 const ROLE_COLORS = { owner: 'var(--color-accent-amber)', admin: 'var(--color-danger-alt)', manager: 'var(--color-info-ios)', sales_rep: 'var(--color-success-alt)' };
 
@@ -464,6 +465,7 @@ export default function CRMSettings() {
     { id: 'team', label: 'Team', icon: User },
     { id: 'permissions', label: 'Permissions', icon: Lock, jumpTo: 'permissions' },
     { id: 'picklists', label: 'Picklists', icon: Edit2 },
+    { id: 'products', label: 'Price List', icon: Package },
     { id: 'security', label: 'Security', icon: Lock },
     { id: 'sage200', label: 'Sage 200', icon: Link2 },
     { id: 'audit', label: 'Audit Log', icon: Shield },
@@ -537,6 +539,11 @@ export default function CRMSettings() {
           {/* Picklists — Iter 216h223 */}
           {activeSection === 'picklists' && (
             <CRMPicklistsSection API={API} headers={headers} user={user} c={c} isDark={isDark} />
+          )}
+
+          {/* Products / Master Price List — Iter 216h224 */}
+          {activeSection === 'products' && (
+            <CRMProductsSection API={API} headers={headers} c={c} isDark={isDark} />
           )}
 
           {/* Security / 2FA */}
