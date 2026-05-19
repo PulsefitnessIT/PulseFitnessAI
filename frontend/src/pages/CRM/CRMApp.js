@@ -298,8 +298,9 @@ function NotificationsBell({ API, headers, c, isDark }) {
       </button>
       {open && (
         <div
-          className="absolute top-full mt-2 rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto
-                     w-80 right-0 max-w-[calc(100vw-2rem)]"
+          className="rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto
+                     absolute top-full mt-2 w-80 right-0
+                     max-sm:fixed max-sm:top-[5.5rem] max-sm:right-2 max-sm:left-2 max-sm:w-auto max-sm:mt-0 max-sm:max-h-[70vh]"
           style={{ 
             background: isDark ? 'var(--color-neutral-900)' : '#fff', 
             border: `1px solid ${c.border}`,
