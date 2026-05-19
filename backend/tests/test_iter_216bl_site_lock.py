@@ -4,6 +4,11 @@ Guards the new server-side site-locking helper against regressions:
 the equipment + issues endpoints rely on this clamping non-privileged
 staff to their `users.allowed_site_ids`, while letting owners and
 master-admins pass through unchanged.
+
+Iter 216h113i — when a specific site is requested, the helper now
+STRICTLY scopes to that site (no `$or` legacy null-fallback). This
+keeps per-site reporting clean for multi-site orgs. The tests below
+were updated in 216h218 to assert the strict-scope contract.
 """
 
 from __future__ import annotations
@@ -21,10 +26,10 @@ def _user(role: str = "staff", **kw):
 # ─── unrestricted (legacy default) ───────────────────────────────────
 def test_unrestricted_passthrough_with_site():
     out = apply_site_lock(_user(), "site-A", {"organization_id": "org-1"})
-    # apply_site_lock applies the legacy site_id $or branch even for
-    # unrestricted users, matching the pre-216bl behaviour exactly.
-    assert "$or" in out
-    assert {"site_id": "site-A"} in out["$or"]
+    # Iter 216h113i — strict scope: a requested site is applied directly
+    # as `site_id`, no `$or` legacy-null fallback.
+    assert "$or" not in out
+    assert out["site_id"] == "site-A"
 
 
 def test_unrestricted_passthrough_without_site():
@@ -40,7 +45,9 @@ def test_privileged_roles_ignore_allowed_site_ids(role):
     u = _user(role=role, allowed_site_ids=["site-A"])
     out = apply_site_lock(u, "site-Z", {"organization_id": "org-1"})
     # Privileged users see whatever they request — no 403, no narrowing.
-    assert {"site_id": "site-Z"} in out["$or"]
+    # Strict scope: the requested site_id is set directly (no $or).
+    assert out["site_id"] == "site-Z"
+    assert "$or" not in out
 
 
 def test_master_admin_flag_bypasses():
@@ -62,7 +69,9 @@ def test_locked_staff_no_site_clamps_to_allowed():
 def test_locked_staff_requesting_allowed_site_passes():
     u = _user(allowed_site_ids=["site-A", "site-B"])
     out = apply_site_lock(u, "site-A", {"organization_id": "org-1"})
-    assert {"site_id": {"$in": ["site-A"]}} in out["$or"]
+    # Strict scope: requested site_id is set directly (no $or).
+    assert out["site_id"] == "site-A"
+    assert "$or" not in out
 
 
 def test_locked_staff_requesting_forbidden_site_403s():

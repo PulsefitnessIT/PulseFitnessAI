@@ -6,7 +6,7 @@
 >
 > **Status legend**: ✅ live & verified · 🟡 live but rough · ⚠️ partial / gated · ❌ broken / mocked
 
-_Last refreshed: Iter 216h209 · Feb 18 2026_
+_Last refreshed: Iter 216h218 · Feb 19 2026_
 
 ---
 
@@ -66,6 +66,9 @@ Start · Dashboard · Classes & Timetable · Studio brain · Members · **Plans*
 - POST `/api/issues` now (h208) inherits `site_id` from matched equipment. **Was missing before h208 → newly-logged faults invisible on site-filtered dashboard.**
 - Multi-machine job: POST `/api/issues/batch` returns shared `job_id`.
 - Coverage banner (h205): `CoverageBanner.jsx` shows manufacturer warranty + CRM aftersales contract status on both equipment drawer + Service Desk case.
+
+_h218: Supplier picker sweep COMPLETE. `SupplierMultiPicker single` now wraps every supplier free-text input across Operations (PartsInventory, EquipmentInfoTab, InvoiceImportWizard, LiteDialogs.SupplierEditor) + Partner apply wizards. Curated UK fitness suppliers + org-custom suppliers come from `/api/suppliers/catalogue` (auth) and `/api/suppliers/catalogue/public` (anon)._
+_h218: Pinned the strict per-site scope contract for `apply_site_lock` in tests (`test_iter_216bl_site_lock.py`). Brought the regression gate back to 100% green (23 pass + 96 trust-recovery)._
 
 ### Gym Floor
 - Shared kiosk login per org. Tottenham test: `e2e-test-floor / password123!`.

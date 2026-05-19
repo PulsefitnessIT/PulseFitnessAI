@@ -17,6 +17,7 @@ import { useBackGestureClose } from '@/lib/useBackGestureClose';
 import EquipmentPhotoUpload from '../../components/equipment/EquipmentPhotoUpload';
 import AuthImage from '../../components/shared/AuthImage';
 import EquipmentSpecGrid from '@/components/shared/EquipmentSpecGrid';
+import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -421,45 +422,47 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
 
 /* ─── Inline Supplier Editor (Iter 216h114) ───
    Dropdown selector for the per-machine supplier override. Lists the
-   org's supplier directory (/api/suppliers). Owner/manager-only —
-   the parent component gates visibility. */
+   org's supplier directory PLUS the curated UK fitness supplier
+   catalogue via SupplierMultiPicker (single mode). Owner/manager-only —
+   the parent component gates visibility.
+
+   Iter 216h218 — Replaced native <Select> with SupplierMultiPicker so
+   the picker is consistent with PartsInventory / EquipmentInfoTab /
+   InvoiceImport flows and standardises on the curated supplier list.
+   The parent still passes `options` (the org's saved suppliers) so
+   handleSaveSupplier can map the chosen name → supplier_id for fault
+   email routing. */
 const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccent }) => {
   const [value, setValue] = useState(current || '');
   const [notify_, setNotify] = useState(false);
-  const hasOptions = options && options.length > 0;
   return (
     <div className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3" data-testid="lite-equip-supplier-form">
       <Label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1.5">
         Supplier (used for fault routing)
       </Label>
-      {!hasOptions ? (
-        <p className="text-xs text-[var(--color-text-muted)] py-2" data-testid="lite-equip-supplier-empty">
-          No suppliers configured. Open Account Settings → Suppliers to add one.
+      <SupplierMultiPicker
+        single
+        value={value}
+        onChange={setValue}
+        placeholder="Choose a supplier…"
+        testid="lite-equip-supplier-picker"
+      />
+      <label className="flex items-center gap-2 mt-2.5 text-[11px] text-[var(--color-text-muted)] cursor-pointer" data-testid="lite-equip-supplier-notify-toggle">
+        <input
+          type="checkbox"
+          checked={notify_}
+          onChange={(e) => setNotify(e.target.checked)}
+          className="accent-cyan-500"
+        />
+        Email the supplier about this assignment
+      </label>
+      {/* If the picked name isn't in the org's directory, callout
+          notifications can't be emailed (no supplier_id). Surface this
+          inline so managers know to add the supplier to their directory. */}
+      {value && options && !options.find((s) => (s.name || '').toLowerCase() === value.toLowerCase()) && (
+        <p className="text-[10px] text-amber-500 mt-1.5" data-testid="lite-equip-supplier-not-in-directory">
+          &quot;{value}&quot; isn&apos;t in your supplier directory yet — fault emails won&apos;t be auto-routed until you add them in Account Settings → Suppliers.
         </p>
-      ) : (
-        <>
-          <Select value={value} onValueChange={setValue}>
-            <SelectTrigger className="bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-[var(--theme-text)] h-9 text-xs" data-testid="lite-equip-supplier-select">
-              <SelectValue placeholder="Choose a supplier…" />
-            </SelectTrigger>
-            <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] max-h-60">
-              {options.map((s) => (
-                <SelectItem key={s.id} value={s.name} className="text-[var(--theme-text)] text-xs">
-                  {s.name}{s.email ? ` · ${s.email}` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <label className="flex items-center gap-2 mt-2.5 text-[11px] text-[var(--color-text-muted)] cursor-pointer" data-testid="lite-equip-supplier-notify-toggle">
-            <input
-              type="checkbox"
-              checked={notify_}
-              onChange={(e) => setNotify(e.target.checked)}
-              className="accent-cyan-500"
-            />
-            Email the supplier about this assignment
-          </label>
-        </>
       )}
       <div className="flex items-center justify-end gap-1.5 mt-3">
         <Button size="sm" variant="ghost" onClick={onCancel} className="h-7 text-[11px] text-[var(--color-text-muted)]" data-testid="lite-equip-supplier-cancel">
@@ -468,7 +471,7 @@ const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccen
         <Button
           size="sm"
           onClick={() => onSave(value, notify_)}
-          disabled={saving || !value || !hasOptions || value === current}
+          disabled={saving || !value || value === current}
           className="h-7 text-[11px] text-white"
           style={{ background: brandAccent }}
           data-testid="lite-equip-supplier-save"
