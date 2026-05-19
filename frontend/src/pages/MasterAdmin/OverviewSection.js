@@ -30,11 +30,11 @@ const InnerFallback = () => (
  * management.
  */
 const OverviewSection = ({
- stats, pulseData, organizations, users, aiUsage, activityLog,
+ stats, pulseData, organizations, _users, aiUsage, activityLog,
  orgsProps, mainToken,
  setSection, setSelectedOrg, setOrgFilter,
  loadSectionData, updateAccountType,
- navigate, API,
+ _navigate, API,
 }) => {
  const { user } = useAuth();
  const isPulseAdmin = !!(user?.is_pulse_admin && !user?.is_master_admin);

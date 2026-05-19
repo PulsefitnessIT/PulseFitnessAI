@@ -15,9 +15,9 @@ const API = process.env.REACT_APP_BACKEND_URL;
 // nine-bucket list (Treadmill / Cycle / Cross-Trainer / Rower / etc.)
 // stays as the legacy `equipment_type` field below.
 const CATEGORIES = ['Cardiovascular', 'Strength', 'Free Weights', 'Functional', 'Accessories'];
-const LEGACY_TYPES = ['Treadmill', 'Cycle', 'Cross-Trainer', 'Rower', 'Stepper', 'Strength', 'Functional', 'Multi-Station', 'Other'];
+const _LEGACY_TYPES = ['Treadmill', 'Cycle', 'Cross-Trainer', 'Rower', 'Stepper', 'Strength', 'Functional', 'Multi-Station', 'Other'];
 
-export default function InvoiceImportWizard({ onComplete, onClose }) {
+export default function InvoiceImportWizard({ onComplete, _onClose }) {
  const { token, activeSite } = useAuth();
  const headers = { Authorization: `Bearer ${token}` };
  const fileRef = useRef(null);

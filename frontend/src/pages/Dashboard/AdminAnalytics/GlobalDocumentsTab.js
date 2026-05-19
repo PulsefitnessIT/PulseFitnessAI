@@ -203,7 +203,7 @@ const GlobalDocumentsTab = () => {
  }
  };
 
- const handleUpdateSupplier = async (fileId, newSupplier) => {
+ const _handleUpdateSupplier = async (fileId, newSupplier) => {
  try {
  await axios.put(`${API}/master-admin/documents/${fileId}/supplier?supplier_name=${encodeURIComponent(newSupplier)}`, {}, { headers });
  notify.success('Supplier updated');

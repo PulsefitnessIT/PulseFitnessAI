@@ -107,7 +107,7 @@ export default function MobileAppBuilderTab({ API, headers }) {
     // Firefox needs data set on the drag event
     try { e.dataTransfer.setData('text/plain', String(idx)); } catch {}
   };
-  const onDragOver = (idx) => (e) => {
+  const onDragOver = (_idx) => (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };

@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 
 const AccountPanel = ({ open, onClose }) => {
-  const { t } = useTranslation();
-  const { API, user } = useAuth();
+  const { _t } = useTranslation();
+  const { API, _user } = useAuth();
   const [billing, setBilling] = useState(null);
   const [loading, setLoading] = useState(true);
 

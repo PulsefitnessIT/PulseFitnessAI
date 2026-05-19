@@ -284,7 +284,7 @@ function StarterPlans({ headers, status, onNext, onBack }) {
 
 const DAYS = [{ v: 0, l: 'Mon' }, { v: 1, l: 'Tue' }, { v: 2, l: 'Wed' }, { v: 3, l: 'Thu' }, { v: 4, l: 'Fri' }, { v: 5, l: 'Sat' }, { v: 6, l: 'Sun' }];
 
-function FirstClass({ headers, status, onNext, onBack }) {
+function FirstClass({ headers, _status, onNext, onBack }) {
   const [f, setF] = useState({
     name: '', category: 'Group', duration_min: 45, capacity: 20,
     recurs_days: [0, 2, 4], start_time: '18:00', colour: 'var(--color-danger)',

@@ -29,7 +29,7 @@ const fmt = (n) => n != null ? `£${Number(n).toLocaleString()}` : '—';
 
 /* ─── CAPEX Summary Cards ─── */
 const SummaryCards = ({ summary, forecast }) => {
- const flagged = (summary.at_risk || 0) + (summary.replace_soon || 0) + (summary.replace_now || 0);
+ const _flagged = (summary.at_risk || 0) + (summary.replace_soon || 0) + (summary.replace_now || 0);
  return (
  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4" data-testid="capex-summary-cards">
  <Card className="bg-[var(--theme-surface)] border-white/10 p-5">
@@ -781,7 +781,7 @@ const CapexIntelligenceTab = () => {
  const [downloadingPdf, setDownloadingPdf] = useState(false);
  const [expanded, setExpanded] = useState({});
  const [filter, setFilter] = useState('all');
- const [justificationsLoaded, setJustificationsLoaded] = useState(false);
+ const [_justificationsLoaded, setJustificationsLoaded] = useState(false);
  const token = localStorage.getItem('token');
  const headers = { Authorization: `Bearer ${token}` };
 

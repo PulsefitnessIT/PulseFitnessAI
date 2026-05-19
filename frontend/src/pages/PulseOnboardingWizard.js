@@ -153,7 +153,7 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
 };
 
 /* ─────── STEP 1: Upload Invoice (AI) — Bulk Support ─────── */
-const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) => {
+const InvoiceUploadStep = ({ _aiData, setAiData, form, setForm, _mode, headers }) => {
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -405,7 +405,7 @@ const InvoiceUploadStep = ({ aiData, setAiData, form, setForm, mode, headers }) 
 // Iter 215et — Pulse onboarding now hits postcodes.io on postcode-blur to
 // auto-fill city/county/country. Killing manual entry of those fields is
 // our biggest single UX win — users mistype counties constantly.
-const SiteDetailsStep = ({ form, setForm, mode, tier }) => {
+const SiteDetailsStep = ({ form, setForm, mode, _tier }) => {
   const lookupPostcode = async (pc) => {
     const trimmed = (pc || '').trim();
     if (!trimmed || trimmed.replace(/\s+/g, '').length < 5) return;

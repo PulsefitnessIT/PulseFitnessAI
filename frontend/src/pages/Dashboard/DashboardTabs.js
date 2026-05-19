@@ -22,7 +22,7 @@ import { useUserPref } from '@/utils/userPrefs';
  *
  *   GymAxis /dashboard (this component) — identical order + labels.
  */
-const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, userRole }) => {
+const DashboardTabs = ({ activeTab, setActiveTab, showSuppliers, t, _userRole }) => {
   const pillBarRef = useRef(null);
   const [scrollable, setScrollable] = useState(false);
   const [hideStart] = useUserPref('hideStartTabs', false);

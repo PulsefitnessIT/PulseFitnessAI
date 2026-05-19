@@ -6,7 +6,7 @@ import { useAuth } from '@/App';
 import { API, useAuthHeaders } from './shared';
 
 
-export default function BillingSection({ billing, onClose }) {
+export default function BillingSection({ billing, _onClose }) {
   const { user } = useAuth();
   const headers = useAuthHeaders();
   const trial = user?.trial;

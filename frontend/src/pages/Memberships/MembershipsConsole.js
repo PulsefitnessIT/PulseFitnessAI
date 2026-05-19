@@ -883,6 +883,7 @@ function MemberDetailDrawer({ API, headers, memberId, onClose }) {
 // ── Legacy (pre-iter-215bk) drawer kept for reference ──────────
 // Not exported, not rendered. Safe to delete once the new drawer
 // has been live for a release.
+// eslint-disable-next-line unused-imports/no-unused-vars
 function LegacyMemberDetailDrawer({ API, headers, memberId, onClose }) {
   const confirm = useConfirm();
   const [data, setData] = useState(null);
@@ -1066,7 +1067,7 @@ function RecordPaymentModal({ API, headers, memberId, plan, onClose }) {
  * Having `onSetTab` as a prop is useful for cross-links — e.g. the
  * "Rebuild term" action in the builder can kick back to the timetable.
  */
-function SchedulingHubTab({ API, headers, activeTabHint, onSetTab }) {
+function SchedulingHubTab({ API, headers, activeTabHint, _onSetTab }) {
   const initialView =
     activeTabHint === 'studio-builder' ? 'builder' :
     activeTabHint === 'classes' ? 'classes' :
@@ -1428,6 +1429,9 @@ function SetupNudge() {
   );
 }
 
+// Iter 215bi — duplicate of the live AppUrlCard in `AppUrlSection.js`.
+// Kept for reference; safe to delete once the new section ships.
+// eslint-disable-next-line unused-imports/no-unused-vars
 function AppUrlCard({ org }) {
   const appUrl = `${window.location.origin}/m/${org.slug}`;
   const API = process.env.REACT_APP_BACKEND_URL;

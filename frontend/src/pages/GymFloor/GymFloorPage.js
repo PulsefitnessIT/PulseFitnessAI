@@ -25,7 +25,11 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const STORAGE_KEY = 'gym_floor_session';
 
 // ─── Login view ─────────────────────────────────────────────────
-
+// Iter 216h226-polish-3 — `GymFloorLogin` is kept for reference; the
+// active login flow now lives in `KioskLogin` shared by all kiosk
+// surfaces. Keep the component so we can re-enable a Floor-specific
+// login if needed without re-implementing the form.
+// eslint-disable-next-line unused-imports/no-unused-vars
 function GymFloorLogin({ onAuthed }) {
  const [username, setUsername] = useState('');
  const [password, setPassword] = useState('');

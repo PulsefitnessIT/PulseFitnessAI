@@ -284,7 +284,7 @@ function SalesManagerDash({ data, serviceRevenue, tasks, stagnating, wfRuns, isD
 }
 
 /* ─── SERVICE ADMIN ─── */
-function ServiceAdminDash({ data, tasks, wfRuns, isDark, c, setActiveTab }) {
+function _ServiceAdminDash({ data, tasks, wfRuns, isDark, c, setActiveTab }) {
   const kpis = [
     { label: 'Open Cases', value: data.open_cases, icon: AlertTriangle, color: 'var(--color-accent-amber)', sub: 'Active service tickets' },
     { label: 'High Severity', value: data.cases_by_severity?.high || 0, icon: AlertCircle, color: 'var(--color-danger-alt)', sub: 'Urgent' },
@@ -310,7 +310,7 @@ function ServiceAdminDash({ data, tasks, wfRuns, isDark, c, setActiveTab }) {
 }
 
 /* ─── ENGINEER ─── */
-function EngineerDash({ data, isDark, c, setActiveTab }) {
+function _EngineerDash({ data, isDark, c, setActiveTab }) {
   const myTasks = data.my_tasks || [];
   const meetings = data.upcoming_meetings || [];
   const kpis = [
@@ -353,7 +353,7 @@ function EngineerDash({ data, isDark, c, setActiveTab }) {
 }
 
 /* ─── DIRECTOR ─── */
-function DirectorDash({ data, serviceRevenue, stagnating, wfRuns, isDark, c, navigateTo, setActiveTab }) {
+function _DirectorDash({ data, serviceRevenue, stagnating, wfRuns, isDark, c, navigateTo, setActiveTab }) {
   const kpis = [
     { label: 'Pipeline Value', value: fmt(data.pipeline_value), icon: TrendingUp, color: 'var(--color-info-ios)', sub: `${data.active_opportunities} deals`, click: () => setActiveTab('pipeline') },
     { label: 'Weighted Forecast', value: fmt(data.weighted_forecast), icon: Target, color: 'var(--color-success-alt)', sub: 'Expected revenue' },
@@ -411,7 +411,7 @@ export default function CRMDashboard() {
   const [loading, setLoading] = useState(true);
   // Toolbar staff filter is the source of truth; the dashboard only needs
   // a setter to default managers/owners to "All Staff" on first mount.
-  const [localStaff, setLocalStaff] = useState('mine');
+  const [_localStaff, setLocalStaff] = useState('mine');
   const setStaffFilter = ctxSetStaffFilter ?? setLocalStaff;
 
   const isManagerOrOwner = ['admin', 'owner', 'manager', 'director'].includes(user?.role);

@@ -18,7 +18,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
  *
  * If only one mode is missing, that card is the only one shown.
  */
-const CRMUpgradeScreen = ({ modes, accountType, membershipsEnabled, onUpgraded }) => {
+const CRMUpgradeScreen = ({ modes, accountType, membershipsEnabled, _onUpgraded }) => {
   const [loadingBiz, setLoadingBiz] = useState(false);
 
   const isLite = accountType === 'lite';

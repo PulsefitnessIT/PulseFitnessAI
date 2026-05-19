@@ -140,7 +140,7 @@ const RevenueFlowDiagram = ({ config }) => (
 );
 
 /* ─── Cost Centres ─── */
-const CostCentres = ({ config, onUpdate, saving }) => {
+const CostCentres = ({ config, onUpdate, _saving }) => {
  const centres = config?.cost_centres || {};
  return (
  <Card className="bg-[var(--theme-surface)] border-white/10 p-6" data-testid="finops-cost-centres">

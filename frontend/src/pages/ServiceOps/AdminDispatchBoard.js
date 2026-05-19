@@ -31,7 +31,7 @@ const PRIO_DOT = {
   P4: 'bg-slate-400',
 };
 
-const fmtDay = (d) =>
+const _fmtDay = (d) =>
   d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
 const fmtTime = (iso) =>
   iso

@@ -294,7 +294,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
     if (!parseText || parseText.length < 20) return;
     setAiLoading('parse');
     try {
-      const res = await axios.post(`${API}/crm/v2/tenders/${tenderId}/ai/parse`, { text: parseText }, { headers: headers() });
+      const _res = await axios.post(`${API}/crm/v2/tenders/${tenderId}/ai/parse`, { text: parseText }, { headers: headers() });
       setShowParse(false); setParseText('');
       load();
     } catch (e) { console.error(e); }
@@ -304,7 +304,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
   const aiGenerateResponse = async (qId, action = 'generate') => {
     setAiLoading(`gen-${qId}`);
     try {
-      const res = await axios.post(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/ai/generate`, { action, tone: tender?.tone }, { headers: headers() });
+      const _res = await axios.post(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/ai/generate`, { action, tone: tender?.tone }, { headers: headers() });
       load();
     } catch (e) { console.error(e); }
     setAiLoading('');
@@ -572,7 +572,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
             </div>
             {questions.length > 0 ? (
               <div className="space-y-2">
-                {questions.map((q, i) => {
+                {questions.map((q, _i) => {
                   const qColor = Q_STATUS_COLORS[q.status] || 'var(--color-text-faint-alt)';
                   const isEditing = editingQ === q.id;
                   return (

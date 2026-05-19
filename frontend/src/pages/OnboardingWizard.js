@@ -68,7 +68,7 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
  try {
  const formData = new FormData();
  formData.append('file', logoFile);
- const res = await axios.post(`${API}/organization/logo`, formData, {
+ const _res = await axios.post(`${API}/organization/logo`, formData, {
  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
  });
  notify.success('Logo uploaded');

@@ -26,7 +26,7 @@ const getRiskLevel = (rrn) => {
 };
 
 const RiskAssessmentTab = () => {
- const { t } = useTranslation();
+ const { _t } = useTranslation();
  const { user, API } = useAuth();
  const [assessments, setAssessments] = useState([]);
  const [sites, setSites] = useState([]);
@@ -35,9 +35,9 @@ const RiskAssessmentTab = () => {
  const [selectedRA, setSelectedRA] = useState(null);
  const [generating, setGenerating] = useState(false);
  const [saving, setSaving] = useState(false);
- const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
- const [photoUrl, setPhotoUrl] = useState(null);
- const printRef = useRef(null);
+ const [_photoAnalyzing, _setPhotoAnalyzing] = useState(false);
+ const [_photoUrl, _setPhotoUrl] = useState(null);
+ const _printRef = useRef(null);
 
  const [form, setForm] = useState({
  title: '',
@@ -98,7 +98,7 @@ const RiskAssessmentTab = () => {
  assessment_date: form.assessment_date || ''
  }, { headers: { Authorization: `Bearer ${token}` } });
 
- const hazards = (res.data.hazards || []).map((h, idx) => ({
+ const hazards = (res.data.hazards || []).map((h, _idx) => ({
  ...h,
  rrn: (h.plr || 1) * (h.psr || 1),
  post_rrn: (h.post_plr || 1) * (h.post_psr || 1)

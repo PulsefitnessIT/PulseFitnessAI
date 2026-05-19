@@ -638,7 +638,7 @@ function ServiceTab({ contract, contractId, API, headers, isDark, c, reload }) {
 
 
 /* ═══ APPROVAL TAB ═══ */
-function ApprovalTab({ contract, contractId, API, headers, isDark, c, reload, user }) {
+function ApprovalTab({ contract, contractId, API, headers, isDark, c, reload, _user }) {
   const [approvals, setApprovals] = useState([]);
   const [showSubmit, setShowSubmit] = useState(false);
   const [showDecision, setShowDecision] = useState(false);
@@ -942,7 +942,7 @@ function SignatureModal({ open, onClose, onSign, isDark, c }) {
 
 
 /* ═══ CONTRACT DETAIL ═══ */
-function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateTo, user }) {
+function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigateTo, user }) {
   const [contract, setContract] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showEdit, setShowEdit] = useState(false);

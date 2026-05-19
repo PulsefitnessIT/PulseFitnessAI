@@ -76,7 +76,7 @@ function PunchScreen({ kioskId, pin, staff, onBack, onPunched }) {
     setBusy(true);
     setFeedback(null);
     try {
-      const { data } = await axios.post(`${API}/staffing/kiosk/punch`,
+      const { _data } = await axios.post(`${API}/staffing/kiosk/punch`,
         { kiosk_id: kioskId, pin, staff_id: staff.id, kind });
       setFeedback({ ok: true, label: kind.replace('_', ' '), kind });
       onPunched && onPunched();

@@ -616,7 +616,7 @@ function TemplateChip({ t, dragId, onDragStart, onDragEnd, saving }) {
   );
 }
 
-function ScheduledCard({ t, dayIdx, saving, onRemove, onDragStart, onDragEnd, industry }) {
+function ScheduledCard({ t, dayIdx, saving, onRemove, onDragStart, onDragEnd, _industry }) {
   const colour = t.colour || '#3b82f6';
   return (
     <div

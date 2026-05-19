@@ -133,24 +133,17 @@ jobs:
 
       - name: ESLint
         working-directory: frontend
-        run: yarn eslint "src/**/*.{js,jsx,ts,tsx}" --max-warnings 600
-        # Iter 216h226-polish — inline-hex sweep COMPLETE: 560 errors → 0
-        # via the rule's `APPROVED_HEX` allowlist (now matches the full
-        # canonical palette codified in /theme/tokens.js + the brand /
-        # semantic / neutral / slate hex families used 3+ times across
-        # the codebase). `gymaxis/no-inline-hex` is back at `error`.
+        run: yarn eslint "src/**/*.{js,jsx,ts,tsx}" --max-warnings 500
+        # Iter 216h226-polish-3 — unused-vars sweep COMPLETE: 164 → 0.
+        # `scripts/suppress_unused_vars.py` prefixed every unused
+        # destructure / state setter / function arg with `_`. Three
+        # genuinely-dead React components in legacy-reference blocks
+        # (`GymFloorLogin`, `LegacyMemberDetailDrawer`, `AppUrlCard`)
+        # carry a per-line `eslint-disable` directive.
         #
-        # Warning budget dropped 8500 → 600 after two waves:
-        #   • Wave 1: unused-imports/no-unused-imports auto-fix
-        #     (+ react/jsx-uses-vars enabled so JSX tag refs count as
-        #     usage — required because CRA 5 + craco still emits the
-        #     legacy JSX transform on prod builds via webpack 5).
-        #   • Wave 2: caughtErrors:"none" in unused-imports/no-unused-vars
-        #     to stop flagging stylistic `catch (e) {}` blocks.
-        # Next sweeps queued in ROADMAP.md:
-        #   • 164 unused-imports/no-unused-vars (file-by-file)
+        # Warning budget dropped 600 → 500. Remaining 383 warnings:
         #   • 297 gymaxis/no-dark-mode-leakage
-        #   • 86  react-hooks/exhaustive-deps
+        #   •  86 react-hooks/exhaustive-deps
         # Tighten by 100 each sweep PR until 0.
 
       - name: Production build smoke

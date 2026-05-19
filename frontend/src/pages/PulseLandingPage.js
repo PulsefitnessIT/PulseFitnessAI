@@ -32,10 +32,10 @@ const API_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Firefox, Edge, mobile) — caniuse.com reports 97%+ global coverage. The
 // source .jpg files are still on disk as a fallback for legacy crawlers.
 const HERO_BG = '/pulse-photos/carshalton-igym.webp';
-const GYM_INTERIOR = '/pulse-photos/carshalton-igym.webp';
+const _GYM_INTERIOR = '/pulse-photos/carshalton-igym.webp';
 const GYM_EQUIPMENT = '/pulse-photos/strength-accessories.webp';
 const GYM_ACTION = '/pulse-photos/strength-accessories.webp';
-const MOBILE_BG = 'https://images.pexels.com/photos/4162581/pexels-photo-4162581.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940&fm=webp';
+const _MOBILE_BG = 'https://images.pexels.com/photos/4162581/pexels-photo-4162581.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940&fm=webp';
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },

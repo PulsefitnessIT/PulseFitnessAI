@@ -67,8 +67,8 @@ const LiteDocumentsTab = ({ files, onView, onDownload, onDelete, onUpload }) => 
 
   const activeSection = tabs.find((t) => t.id === activeDocTab) || tabs[0];
 
-  const totalIndexed = files.filter((f) => f.ai_extracted).length;
-  const totalIndexable = files.filter((f) => /\.(pdf|docx?|txt)$/i.test(f.original_filename || '')).length;
+  const _totalIndexed = files.filter((f) => f.ai_extracted).length;
+  const _totalIndexable = files.filter((f) => /\.(pdf|docx?|txt)$/i.test(f.original_filename || '')).length;
 
   const handleIndex = async (file) => {
     setIndexing((prev) => ({ ...prev, [file.id]: true }));

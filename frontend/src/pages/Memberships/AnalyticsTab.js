@@ -352,7 +352,7 @@ function RetentionSection({ API, headers, range }) {
 
       <ChartCard title="Engagement segmentation" subtitle="Last 60 days of visits & attendance">
         <div className="grid grid-cols-4 gap-3 mt-2">
-          {Object.entries(data.segments).map(([key, count], idx) => {
+          {Object.entries(data.segments).map(([key, count], _idx) => {
             const labels = {
               highly_engaged: { label: 'Highly engaged', color: 'var(--color-success-light)' },
               regular:        { label: 'Regular',        color: CYAN },
@@ -609,7 +609,7 @@ function ClassesSection({ API, headers, range }) {
   );
 }
 
-function ClassRow({ c, idx, tone }) {
+function ClassRow({ c, _idx, tone }) {
   const barColor = tone === 'rose' ? 'var(--color-rose)' : c.occupancy_pct >= 70 ? 'var(--color-success-light)' : CYAN;
   return (
     <div className="p-3 rounded-lg bg-white/5" data-testid={`mbr-class-row-${c.template_id}`}>

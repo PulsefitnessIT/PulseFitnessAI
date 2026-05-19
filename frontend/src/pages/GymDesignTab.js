@@ -52,8 +52,8 @@ function mapTypeNameToId(name) {
   return 'treadmill';
 }
 
-const GymDesignTab = ({ allEquipment: onboardedEquipment = [] }) => {
-  const { t } = useTranslation();
+const GymDesignTab = ({ allEquipment: _onboardedEquipment = [] }) => {
+  const { _t } = useTranslation();
   const { API } = useAuth();
   const [layouts, setLayouts] = useState([]);
   const [currentLayout, setCurrentLayout] = useState(null);
@@ -626,7 +626,7 @@ const GymDesignTab = ({ allEquipment: onboardedEquipment = [] }) => {
     } catch { notify.error('Failed to add equipment'); }
   };
 
-  const handleEquipmentClick = (item) => {};
+  const handleEquipmentClick = (_item) => {};
 
   const handleFloorPlanUpload = async (e) => {
     const file = e.target.files[0];

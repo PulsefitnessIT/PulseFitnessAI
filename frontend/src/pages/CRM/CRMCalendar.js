@@ -125,7 +125,7 @@ export default function CRMCalendar() {
     setSaving(false);
   };
 
-  const staffLabel = staffFilter === 'mine' ? 'My Calendar' : staffFilter === 'all' ? 'All Staff' : (teamMembers.find(m => m.id === staffFilter)?.full_name || 'Staff');
+  const _staffLabel = staffFilter === 'mine' ? 'My Calendar' : staffFilter === 'all' ? 'All Staff' : (teamMembers.find(m => m.id === staffFilter)?.full_name || 'Staff');
 
   return (
     <div data-testid="crm-calendar">

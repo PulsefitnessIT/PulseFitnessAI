@@ -16,7 +16,7 @@ const getSeverityClass = (severity) => {
 };
 
 const WeeklyDigest = () => {
- const { t } = useTranslation();
+ const { _t } = useTranslation();
  const { API } = useAuth();
  const [digest, setDigest] = useState(null);
  const [loading, setLoading] = useState(true);

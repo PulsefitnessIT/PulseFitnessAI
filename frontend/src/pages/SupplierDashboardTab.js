@@ -17,7 +17,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import KpiTile from '@/components/shared/KpiTile';
 
 const SupplierDashboardTab = () => {
- const { t } = useTranslation();
+ const { _t } = useTranslation();
  const { API, user, activeSite } = useAuth();
  const [cases, setCases] = useState([]);
  const [metrics, setMetrics] = useState(null);

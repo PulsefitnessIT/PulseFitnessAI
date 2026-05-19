@@ -7,22 +7,20 @@ Update as items move; archive completed work in /app/memory/PRD.md.
 
 ## P0 — In progress
 
-- _none — Inline-hex sweep + Phase 3 CRM polish landed in iter 216h226._
+- _none — Inline-hex + unused-vars sweeps + Phase 3 CRM polish landed._
 
 ## P1 — Quality-Gate warning cleanup (continuation)
 
-ESLint baseline after iter 216h226-polish: **0 errors / 547 warnings** (budget 600).
-Tighten the `--max-warnings` ceiling by ~100 with each cleanup PR.
+ESLint baseline after iter 216h226-polish-3: **0 errors / 383 warnings**
+(budget 500). Two sweeps remain.
 
-- **Unused-vars sweep** — 164 `unused-imports/no-unused-vars` warnings.
-  These are runtime variables (state, destructured fields, function args)
-  that are no longer referenced. File-by-file fix; mostly safe to delete.
 - **Light-mode leakage sweep** — 297 `gymaxis/no-dark-mode-leakage`
   warnings. Add `dark:` Tailwind variants or swap to
-  `style={{ background: 'var(--theme-surface)' }}`. Restore the rule to
-  `error` once cleared.
+  `style={{ background: 'var(--theme-surface)' }}`. Restore the rule
+  to `error` once cleared. Should drop budget 500 → 200.
 - **react-hooks/exhaustive-deps** — 86 warnings. Each needs a real
   review (missing dep vs intentional capture). Don't auto-disable.
+  Should drop budget 200 → 0.
 
 ## P1 — Outstanding integrations
 
@@ -40,3 +38,5 @@ Tighten the `--max-warnings` ceiling by ~100 with each cleanup PR.
 - Schedulable AI digests — weekly Reports envelope to managers' inbox.
 - Territory tree: server-side bulk re-parent endpoint.
 - Reports tab: per-user remembered date range via `localStorage`.
+- `eslint-plugin-import/order` — auto-fixable import grouping
+  (React → 3rd-party → `@/` aliases → relative).

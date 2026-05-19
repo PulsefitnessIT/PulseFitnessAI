@@ -59,7 +59,7 @@ const AdminCRMUsers = () => {
  catch { notify.error('Failed to delete'); }
  };
 
- const roleBadge = (role) => {
+ const _roleBadge = (role) => {
  const styles = { admin: 'bg-purple-500/15 text-purple-400', manager: 'bg-blue-500/15 text-blue-400', user: 'bg-gray-500/15 text-gray-400' };
  return <Badge className={`${styles[role] || styles.user} border-0 text-[10px]`}>{role}</Badge>;
  };

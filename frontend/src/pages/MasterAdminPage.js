@@ -74,7 +74,7 @@ import useMasterAdminActions from './MasterAdmin/hooks/useMasterAdminActions';
 import { BrandContextProvider, useBrandContext } from './MasterAdmin/BrandContext';
 import BrandPicker from './MasterAdmin/BrandPicker';
 
-const MasterAdminPage = ({ onBack }) => {
+const MasterAdminPage = ({ _onBack }) => {
   const { user, API, logout } = useAuth();
   const isPulseAdmin = !!(user?.is_pulse_admin && !user?.is_master_admin);
   const navigate = useNavigate();
@@ -153,7 +153,7 @@ const MasterAdminPage = ({ onBack }) => {
   const [users, setUsers] = useState([]);
   const [aiUsage, setAiUsage] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
-  const [emails, setEmails] = useState([]);
+  const [_emails, setEmails] = useState([]);
   const [pulseData, setPulseData] = useState(null);
   const [search, setSearch] = useState('');
   const [orgFilter, setOrgFilter] = useState('all');

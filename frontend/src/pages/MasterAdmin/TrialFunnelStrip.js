@@ -33,7 +33,7 @@ export default function TrialFunnelStrip({ onOpen }) {
   if (totalTouched === 0) return null;
 
   const active = data.by_status?.active || 0;
-  const expiringSoon = data.by_status?.expiring_soon || 0;
+  const _expiringSoon = data.by_status?.expiring_soon || 0;
   const expired = data.by_status?.expired || 0;
   const converted = data.by_status?.converted || 0;
   const rate = data.conversion_rate_30d || 0;

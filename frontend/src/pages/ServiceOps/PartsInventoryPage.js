@@ -233,7 +233,7 @@ function StockTab() {
   const [low, setLow] = useState([]);
   const [rules, setRules] = useState([]);
   const [draftRule, setDraftRule] = useState({ part_sku: '', location: 'warehouse', min_qty: 1, max_qty: 5, supplier: '' });
-  const [adjusting, setAdjusting] = useState(null); // {part_sku}
+  const [_adjusting, _setAdjusting] = useState(null); // {part_sku}
 
   const load = useCallback(async () => {
     try {

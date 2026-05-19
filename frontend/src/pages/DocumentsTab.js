@@ -16,7 +16,7 @@ import {
 import PageHeader from '@/components/shared/PageHeader';
 
 const DocumentsTab = () => {
- const { t } = useTranslation();
+ const { _t } = useTranslation();
  const { API } = useAuth();
  const [documents, setDocuments] = useState([]);
  const [subTab, setSubTab] = useState('manuals');

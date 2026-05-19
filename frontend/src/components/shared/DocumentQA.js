@@ -10,7 +10,7 @@ import { Send, Loader2, FileText, Sparkles } from 'lucide-react';
 
 const DocumentQA = ({ compact = false }) => {
  const { API } = useAuth();
- const [open, setOpen] = useState(false);
+ const [open, _setOpen] = useState(false);
  const [question, setQuestion] = useState('');
  const [loading, setLoading] = useState(false);
  const [history, setHistory] = useState([]);

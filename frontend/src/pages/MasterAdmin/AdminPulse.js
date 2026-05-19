@@ -24,7 +24,7 @@ const PULSE_TYPE_STYLES = {
   pulse_pro: 'bg-indigo-50 text-indigo-700 border-indigo-200',
 };
 
-const AdminPulse = ({ pulseData, onRefresh, organizations, onSelectOrg, onUpgrade, headers, API }) => {
+const AdminPulse = ({ pulseData, onRefresh, organizations, onSelectOrg, onUpgrade, _headers, _API }) => {
   const [activeTab, setActiveTab] = useState('sites');
 
   if (!pulseData) return <div className="flex items-center justify-center h-64"><RefreshCw className="animate-spin text-zinc-400" size={24} /></div>;

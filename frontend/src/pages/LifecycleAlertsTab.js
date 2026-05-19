@@ -10,13 +10,13 @@ import { AlertTriangle, Clock, Shield, Send, CheckCircle, Mail, Bell } from 'luc
 
 import { notify } from '@/components/notifications';
 const LifecycleAlertsTab = () => {
- const { t } = useTranslation();
+ const { _t } = useTranslation();
  const { API } = useAuth();
  const [alerts, setAlerts] = useState([]);
  const [loading, setLoading] = useState(true);
  const [criticalCount, setCriticalCount] = useState(0);
  const [warningCount, setWarningCount] = useState(0);
- const [infoCount, setInfoCount] = useState(0);
+ const [_infoCount, setInfoCount] = useState(0);
 
  // Expiry alerts
  const [expiryAlerts, setExpiryAlerts] = useState([]);

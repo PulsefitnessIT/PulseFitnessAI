@@ -35,7 +35,7 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 // ─────────────────────────── TASKS ───────────────────────────────
 
-function TaskComposer({ open, onClose, onSubmit, headers, staffList }) {
+function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
   const [form, setForm] = useState({
     title: '', description: '', kind: 'one_off',
     recurrence: 'daily', weekdays: [0, 1, 2, 3, 4, 5, 6],

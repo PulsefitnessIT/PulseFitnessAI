@@ -17,7 +17,7 @@ import SiconServicePanel from './SiconServicePanel';
 
 const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  const { API, user } = useAuth();
- const { t } = useTranslation();
+ const { _t } = useTranslation();
  const [issue, setIssue] = useState(issueProp);
  const [supplierRef, setSupplierRef] = useState(issueProp.supplier_ref || '');
  const [attachments, setAttachments] = useState(issueProp.attachments || []);
@@ -353,13 +353,13 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
 
  const poSubtotal = poForm.items.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0);
 
- const getSeverityColor = (sev) => {
+ const _getSeverityColor = (sev) => {
  if (sev === 'low') return 'bg-green-500/20 text-green-400';
  if (sev === 'critical') return 'bg-red-500/20 text-red-400';
  return 'bg-yellow-500/20 text-yellow-400';
  };
 
- const getStatusColor = (st) => {
+ const _getStatusColor = (st) => {
  if (st === 'open') return 'bg-red-500/20 text-red-400';
  if (st === 'in_progress') return 'bg-yellow-500/20 text-yellow-400';
  if (st === 'resolved') return 'bg-green-500/20 text-green-400';

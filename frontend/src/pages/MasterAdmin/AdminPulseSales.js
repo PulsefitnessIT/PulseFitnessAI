@@ -113,7 +113,7 @@ export default function AdminPulseSales() {
     }
   };
 
-  const grouped = useMemo(() => {
+  const _grouped = useMemo(() => {
     const buckets = {};
     STATUS_OPTIONS.forEach(s => { buckets[s.id] = []; });
     opps.forEach(o => {

@@ -27,7 +27,7 @@ const SLA_RESPONSE_OPTIONS = [
 
 const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceImport }) => {
  const { API, user } = useAuth();
- const { t } = useTranslation();
+ const { _t } = useTranslation();
  const [equipment, setEquipment] = useState([]);
  const [filteredEquipment, setFilteredEquipment] = useState([]);
  const [searchQuery, setSearchQuery] = useState('');
@@ -36,22 +36,22 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  const [selectedEquipment, setSelectedEquipment] = useState(null);
  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
  const [summary, setSummary] = useState(null);
- const [importing, setImporting] = useState(false);
+ const [_importing, setImporting] = useState(false);
  // Page-level banner for export / import / audit flows — replaces floating toasts.
  const { banner: equipBanner, show: showEquipBanner } = useInlineBanner();
  const confirm = useConfirm();
  const [showEditDialog, setShowEditDialog] = useState(false);
  const [editForm, setEditForm] = useState({});
  const [qrBlobUrl, setQrBlobUrl] = useState(null);
- const [qrLabelSize, setQrLabelSize] = useState('62x35');
+ const [qrLabelSize, _setQrLabelSize] = useState('62x35');
  const [auditForm, setAuditForm] = useState({ usage_frequency: '', last_maintenance: '', notes: '' });
- const [auditLoading, setAuditLoading] = useState(false);
+ const [_auditLoading, setAuditLoading] = useState(false);
  const [viewAudit, setViewAudit] = useState(null);
- const [photoUploading, setPhotoUploading] = useState(false);
+ const [_photoUploading, setPhotoUploading] = useState(false);
  const [suppliers, setSuppliers] = useState([]);
  const [viewingManual, setViewingManual] = useState(null); // {equipmentId, manual}
  const [manualBlobUrl, setManualBlobUrl] = useState(null);
- const canManagePhotos = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
+ const _canManagePhotos = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
  const canEditSupplier = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
 
  useEffect(() => {
@@ -183,7 +183,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  }
  };
 
- const handleUploadManual = async (equipmentId, file) => {
+ const _handleUploadManual = async (equipmentId, file) => {
  const token = localStorage.getItem('token');
  const formData = new FormData();
  formData.append('file', file);
@@ -202,13 +202,13 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  }
  };
 
- const getSeverityColor = (count) => {
+ const _getSeverityColor = (count) => {
  if (count === 0) return 'bg-green-500/20 text-green-400';
  if (count < 3) return 'bg-yellow-500/20 text-yellow-400';
  return 'bg-red-500/20 text-red-400';
  };
 
- const handleDownloadTemplate = async () => {
+ const _handleDownloadTemplate = async () => {
  const token = localStorage.getItem('token');
  try {
  const response = await axios.get(`${API}/equipment/template/csv`, {
@@ -247,7 +247,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  }
  };
 
- const handleImportCSV = async (e) => {
+ const _handleImportCSV = async (e) => {
  const file = e.target.files[0];
  if (!file) return;
  setImporting(true);
@@ -334,7 +334,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  }
  };
 
- const handleGenerateAudit = async (e) => {
+ const _handleGenerateAudit = async (e) => {
  e.preventDefault();
  if (!selectedEquipment) return;
  setAuditLoading(true);
@@ -347,7 +347,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  last_maintenance: auditForm.last_maintenance,
  notes: auditForm.notes
  };
- const res = await axios.post(`${API}/audit/generate`, payload, {
+ const _res = await axios.post(`${API}/audit/generate`, payload, {
  headers: { Authorization: `Bearer ${token}` }
  });
  notify.success('Audit report generated successfully!');
@@ -365,7 +365,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  }
  };
 
- const handlePhotoUpload = async (e) => {
+ const _handlePhotoUpload = async (e) => {
  const file = e.target.files[0];
  if (!file) return;
  if (!file.type.startsWith('image/')) { notify.error('Only image files allowed'); return; }
@@ -424,7 +424,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  e.target.value = '';
  };
 
- const handleDeletePhoto = async (photoId) => {
+ const _handleDeletePhoto = async (photoId) => {
  const ok = await confirm({
  title: 'Delete this photo?',
  detail: 'The photo will be permanently removed from this equipment record.',

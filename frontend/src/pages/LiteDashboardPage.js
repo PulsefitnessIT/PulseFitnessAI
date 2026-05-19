@@ -85,7 +85,7 @@ const getStatusColor = (status) => {
 };
 
 const LiteDashboardPage = () => {
-  const { API, user, logout, theme, toggleTheme, activeSite } = useAuth();
+  const { API, user, _logout, _theme, _toggleTheme, activeSite } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const adminView = searchParams.get('view'); // 'lite' or 'pro' for admin preview

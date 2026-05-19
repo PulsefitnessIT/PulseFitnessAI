@@ -81,7 +81,7 @@ const NAV_ITEMS = [
   // Settings stays out of the bar — it's the gear icon in the toolbar.
 ];
 
-const LANGS = [
+const _LANGS = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
   { code: 'de', label: 'Deutsch' },
@@ -210,7 +210,7 @@ function QuickCreateButton({ API, headers, c, isDark, onCreated }) {
 }
 
 /* ═══ STAFF FILTER (toolbar) ═══ */
-function StaffFilterDropdown({ API, headers, c, isDark, value, onChange, brandAccent }) {
+function StaffFilterDropdown({ API, headers, c, isDark, value, onChange, _brandAccent }) {
   const [members, setMembers] = useState([]);
   useEffect(() => {
     let alive = true;
@@ -414,7 +414,7 @@ function GlobalSearchBar({ API, headers, c, isDark, t, onNavigate }) {
 }
 
 export default function CRMApp() {
-  const { t, i18n } = useTranslation();
+  const { t, _i18n } = useTranslation();
   // The CRM app runs alongside the main platform auth context, so we can
   // borrow the operator's main user (and the platform Navbar / module
   // switcher) to keep look-and-feel consistent with Operations,
@@ -424,10 +424,10 @@ export default function CRMApp() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('start');
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, _setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
-  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [_showLangMenu, _setShowLangMenu] = useState(false);
   const [showTour, setShowTour] = useState(false);
   // Staff filter is hoisted to the top-level toolbar so it sits next to
   // Settings, above the tab bar. CRMDashboard reads `staffFilter` from
@@ -762,7 +762,7 @@ export default function CRMApp() {
     }
   };
 
-  const showLabels = !collapsed || mobileOpen;
+  const _showLabels = !collapsed || mobileOpen;
 
   // ── Platform shell wrapper ─────────────────────────────────────────
   // Renders the platform Navbar + module switcher at the top so the CRM

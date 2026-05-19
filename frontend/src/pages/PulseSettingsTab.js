@@ -21,7 +21,7 @@ import LaunchReadinessPanel from '@/components/shared/LaunchReadinessPanel';
 import SiteDataExportPanel from './SiteDataExportPanel';
 
 const PulseSettingsTab = () => {
-  const { user, API, sites: globalSites, setActiveSite, refreshSites } = useAuth();
+  const { user, API, sites: _globalSites, _setActiveSite, refreshSites } = useAuth();
   const [organization, setOrganization] = useState(null);
   const [staff, setStaff] = useState([]);
   const [invites, setInvites] = useState([]);

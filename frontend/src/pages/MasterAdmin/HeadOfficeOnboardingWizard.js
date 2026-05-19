@@ -59,7 +59,7 @@ const STEPS = [
   { id: 'review',   label: 'Review' },
 ];
 
-const blankSite = (isFirst = false) => ({
+const blankSite = (_isFirst = false) => ({
   // Iter 216e — no auto-HQ. User explicitly picks which site is HQ.
   // Head Office orgs often have HQ = the company registered office (step 1),
   // not a physical gym, so auto-ticking site #1 was wrong.

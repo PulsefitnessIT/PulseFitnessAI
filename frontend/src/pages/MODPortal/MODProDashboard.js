@@ -17,7 +17,7 @@ import { notify } from '@/components/notifications';
 import GymFloorManagerTab from '../LiteDashboard/GymFloorManagerTab';
 
 export default function MODProDashboard() {
-  const { user, logout, API } = useAuth();
+  const { _user, logout, API } = useAuth();
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };

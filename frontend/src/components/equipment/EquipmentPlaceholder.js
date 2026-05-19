@@ -59,9 +59,9 @@ const EquipmentPlaceholder = ({
   className = '',
   testId = 'equipment-placeholder',
    
-  manufacturer,
+  _manufacturer,
    
-  model,
+  _model,
 }) => {
   const Icon = iconFor(equipmentType);
 

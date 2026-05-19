@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 const OperationalReportsTab = () => {
-  const { t } = useTranslation();
+  const { _t } = useTranslation();
   const { API, activeSite, sites } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

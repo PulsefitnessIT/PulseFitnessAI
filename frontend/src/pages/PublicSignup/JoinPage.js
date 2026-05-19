@@ -34,7 +34,7 @@ const fmtMoney = (pence, ccy = 'GBP') => {
 
 export default function JoinPage() {
   const { slug } = useParams();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const location = useLocation();
 
   const [stepIdx, setStepIdx] = useState(0);

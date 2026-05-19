@@ -111,7 +111,7 @@ export default function HomeTab({ headers, setTab, API }) {
 
 /* ───────── Home widget hero (iter 216ak · Sprint B · G12) ───────── */
 
-function HomeWidgetHero({ w, setTab, vocab }) {
+function HomeWidgetHero({ w, setTab, _vocab }) {
   const nc = w.next_class;
   const hasInvoices = (w.outstanding_invoice_pence || 0) > 0;
   const hasForms = (w.unsigned_forms || 0) > 0;

@@ -33,7 +33,7 @@ const auth = () => ({
 });
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 07:00 → 19:00
+const _HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 07:00 → 19:00
 
 // ── date helpers ────────────────────────────────────────────────
 const startOfWeek = (d) => {

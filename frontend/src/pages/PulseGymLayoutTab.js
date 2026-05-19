@@ -350,7 +350,7 @@ const Sidebar = ({ equipment, items, search, setSearch, onSelect, placing, legen
 };
 
 /* ═══════ INTERACTIVE VIEW CANVAS (read-only, click for details) ═══════ */
-const GymViewCanvas = ({ gymW, gymH, px, bgUrl, items, legend, onMachineClick }) => {
+const GymViewCanvas = ({ gymW, gymH, px, bgUrl, items, _legend, onMachineClick }) => {
   const ref = useRef(null);
   const [hover, setHover] = useState(null);
   const W = gymW * px, H = gymH * px;
@@ -398,7 +398,7 @@ const GymViewCanvas = ({ gymW, gymH, px, bgUrl, items, legend, onMachineClick })
 };
 
 /* ═══════ MACHINE DETAIL PANEL (shown in view mode) ═══════ */
-const MachineDetailPanel = ({ machine, equipmentData, onClose, onLogFault, API }) => {
+const MachineDetailPanel = ({ machine, equipmentData, onClose, onLogFault, _API }) => {
   const eq = equipmentData?.find(e => e.id === machine?.equipment_id);
   if (!machine) return null;
   const name = eq?.name || machine.name || 'Unknown Machine';

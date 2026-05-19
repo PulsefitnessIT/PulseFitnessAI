@@ -103,7 +103,7 @@ const ModulesPicker = ({ value, onChange, testIdPrefix = 'org-modules' }) => {
  *  Resend DNS verification to auto-deliver. User sets their own
  *  password on arrival. Admin never handles plaintext.
  */
-const PrimaryContactPasswordReveal = ({ orgId, primaryContactEmail, primaryContactUserId }) => {
+const PrimaryContactPasswordReveal = ({ _orgId, primaryContactEmail, primaryContactUserId }) => {
   const [loading, setLoading] = useState(false);
   const [invite, setInvite] = useState(null); // {invite_url, expires_at, email}
   const [error, setError] = useState('');
@@ -346,13 +346,13 @@ const TIER_STYLES = {
  pulse_pro: 'bg-blue-50 text-blue-700',
 };
 
-const PORTAL_STYLES = {
+const _PORTAL_STYLES = {
  service_portal: 'bg-blue-50 text-blue-700 border-blue-200',
  crm: 'bg-emerald-50 text-emerald-700 border-emerald-200',
  both: 'bg-purple-50 text-purple-700 border-purple-200',
 };
 
-const PORTAL_LABELS = { service_portal: 'Operations Portal', crm: 'CRM', both: 'Both' };
+const _PORTAL_LABELS = { service_portal: 'Operations Portal', crm: 'CRM', both: 'Both' };
 
 const ACCOUNT_TYPE_STYLES = {
  full: 'bg-indigo-50 text-indigo-700 border-indigo-200 font-medium',
@@ -361,7 +361,7 @@ const ACCOUNT_TYPE_STYLES = {
 };
 const ACCOUNT_TYPE_LABELS = { full: 'GymAxis', pulse_pro: 'Pulse Pro', lite: 'Pulse Lite' };
 
-const FEATURE_LIST = [
+const _FEATURE_LIST = [
  { key: 'ai_audits', label: 'AI Audits', group: 'portal' },
  { key: 'qr_scanning', label: 'QR Scanning', group: 'portal' },
  { key: 'multi_site', label: 'Multi-Site', group: 'portal' },
@@ -390,9 +390,9 @@ const AdminOrganizations = ({
  filteredOrgs, search, onSearchChange,
  orgFilter, onOrgFilterChange,
  accountTypeFilter, onAccountTypeFilterChange,
- onUpdateTier, onUpdateStatus, onUpdateAccountType,
- onToggleTest, onSetFeatures, onSelectOrg, selectedOrg,
- users = [], onImpersonate, onResetPassword, onDisableUser,
+ onUpdateTier, onUpdateStatus, _onUpdateAccountType,
+ onToggleTest, _onSetFeatures, onSelectOrg, selectedOrg,
+ users = [], _onImpersonate, onResetPassword, onDisableUser,
  onUpdateFeatures, onCreateOrg, onAddUserToOrg, portalFilter, onArchiveUser, onHardDeleteUser,
  onEditUser, onSendEmailPreview, accountTypesIn, onReloadOrgs,
 }) => {
@@ -774,7 +774,7 @@ useEffect(() => {
  ) : displayOrgs.map(org => {
  const isExpanded = expandedOrg === org.id;
  const orgUsers = getOrgUsers(org.id);
- const portalType = org.portal_type || 'service_portal';
+ const _portalType = org.portal_type || 'service_portal';
 
  return (
  <Card key={org.id} className={`bg-white border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden transition-shadow hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)] ${STATUS_BORDER[org.status || 'active']}`} data-testid={`org-card-${org.id}`}>

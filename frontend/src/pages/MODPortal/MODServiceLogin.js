@@ -23,7 +23,7 @@ import { Loader2, ShieldCheck, ArrowRight, Lock, Mail, CheckCircle2 } from 'luci
 import { useSeo } from '@/utils/seo';
 
 // ── Official artwork (user-supplied) ──────────────────────────────
-const PULSE_LOGO = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg';
+const _PULSE_LOGO = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg';
 const MOD_LOGO   = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/t8x9pm0p_122237.png';
 const ARMY_LOGO  = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/so1rjamy_122250.webp';
 const NAVY_LOGO  = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/72uz5alx_122239.png';
@@ -80,7 +80,7 @@ export default function MODServiceLogin() {
   const [mfaCode, setMfaCode] = useState('');
   const [mfaSecret, setMfaSecret] = useState('');
   const [mfaQrUrl, setMfaQrUrl] = useState('');
-  const [mfaProvisioningUri, setMfaProvisioningUri] = useState('');
+  const [_mfaProvisioningUri, setMfaProvisioningUri] = useState('');
 
   const apiBase = `${process.env.REACT_APP_BACKEND_URL}/api`;
 

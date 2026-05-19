@@ -23,7 +23,7 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
   const [saving, setSaving] = useState(false);
   // Iter 238h — duplicate-email detection on the create form.
   const [emailMatch, setEmailMatch] = useState(null);
-  const [emailLookupBusy, setEmailLookupBusy] = useState(false);
+  const [_emailLookupBusy, setEmailLookupBusy] = useState(false);
 
   useEffect(() => {
     const email = (form.email || '').trim().toLowerCase();
@@ -360,7 +360,7 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4">
-        {['overview', `deals (${contact.opportunities?.length || 0})`, `cases (${contact.cases?.length || 0})`, 'custom', 'timeline', 'audit'].map((tab, i) => {
+        {['overview', `deals (${contact.opportunities?.length || 0})`, `cases (${contact.cases?.length || 0})`, 'custom', 'timeline', 'audit'].map((tab, _i) => {
           const id = tab.split(' ')[0];
           return (
             <button key={id} onClick={() => setActiveTab(id)} className={`px-3 py-1.5 text-xs font-medium rounded-md ${activeTab === id ? 'bg-[var(--color-info-ios)] text-white' : ''}`}

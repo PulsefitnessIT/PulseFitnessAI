@@ -24,7 +24,7 @@ const TYPE_LIST = [
 export default function CRMInbox() {
   const { API, headers, c, isDark, user, navigateTo } = useCRM();
   const [activities, setActivities] = useState([]);
-  const [total, setTotal] = useState(0);
+  const [_total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -115,7 +115,7 @@ export default function CRMInbox() {
     : staffFiltered;
 
   const tasksDue = staffFiltered.filter(a => a.type === 'task' && !a.completed_at).length;
-  const staffLabel = staffFilter === 'mine' ? 'My Activities' : staffFilter === 'all' ? 'All Staff' : (teamMembers.find(m => m.id === staffFilter)?.full_name || 'Staff');
+  const _staffLabel = staffFilter === 'mine' ? 'My Activities' : staffFilter === 'all' ? 'All Staff' : (teamMembers.find(m => m.id === staffFilter)?.full_name || 'Staff');
 
   // Company-first contact filtering in create form
   const filteredContacts = form.company_id ? contacts.filter(ct => ct.company_id === form.company_id) : contacts;

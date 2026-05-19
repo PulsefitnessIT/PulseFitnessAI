@@ -80,12 +80,12 @@ const AdminPartsRequests = lazy(() => import('@/pages/MasterAdmin/AdminPartsRequ
 const AdminMODSitesBulkImport = lazy(() => import('@/pages/MasterAdmin/AdminMODSitesBulkImport'));
 const MarketingSuite = lazy(() => import('@/pages/MarketingSuite'));
 const ServiceDeskPage = lazy(() => import('@/pages/ServiceDeskPage'));
-const ServiceOpsDeskPage = lazy(() => import('@/pages/ServiceOps/ServiceDeskPage'));
-const ServiceOpsScheduler = lazy(() => import('@/pages/ServiceOps/ServiceScheduler'));
-const ServiceOpsEngineers = lazy(() => import('@/pages/ServiceOps/EngineersAdminPage'));
-const ServiceOpsParts = lazy(() => import('@/pages/ServiceOps/PartsInventoryPage'));
-const ServiceOpsBilling = lazy(() => import('@/pages/ServiceOps/BillingPage'));
-const ServiceOpsReports = lazy(() => import('@/pages/ServiceOps/ServiceOpsReportsPage'));
+const _ServiceOpsDeskPage = lazy(() => import('@/pages/ServiceOps/ServiceDeskPage'));
+const _ServiceOpsScheduler = lazy(() => import('@/pages/ServiceOps/ServiceScheduler'));
+const _ServiceOpsEngineers = lazy(() => import('@/pages/ServiceOps/EngineersAdminPage'));
+const _ServiceOpsParts = lazy(() => import('@/pages/ServiceOps/PartsInventoryPage'));
+const _ServiceOpsBilling = lazy(() => import('@/pages/ServiceOps/BillingPage'));
+const _ServiceOpsReports = lazy(() => import('@/pages/ServiceOps/ServiceOpsReportsPage'));
 // Iter 216h75 — Partner Engineer Network (Phase 1)
 const PartnerApplyWizard = lazy(() => import('@/pages/PartnerEngineer/PartnerApplyWizard'));
 const PartnerDashboard = lazy(() => import('@/pages/PartnerEngineer/PartnerDashboard'));
@@ -94,7 +94,7 @@ const PartnerEngineerLanding = lazy(() => import('@/pages/Marketing/PartnerEngin
 const PartnerApplyPublic = lazy(() => import('@/pages/Marketing/PartnerApplyPublic'));
 // Iter 216h83 — public customer live-tracking
 const PublicTrackingPage = lazy(() => import('@/pages/PublicTracking/PublicTrackingPage'));
-const ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
+const _ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
 const IntegrationsConsole = lazy(() => import('@/pages/Admin/IntegrationsConsole'));
 const IntegrationsSiconConnect = lazy(() => import('@/pages/Admin/IntegrationsSiconConnect'));
 const ServiceOpsEngineerHome = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerHomeV2'));
@@ -126,8 +126,8 @@ const PublicEngineerLanding    = lazy(() => import('@/pages/Public/EngineerLandi
 // Iter 216h159 — Engineer card-conversion analytics
 const ServiceOpsEngineerCardAnalytics = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCardAnalytics'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
-const MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
-const MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
+const _MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
+const _MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
 const MODServiceLogin = lazy(() => import('@/pages/MODPortal/MODServiceLogin'));
 const MODConfirmFixPage = lazy(() => import('@/pages/MODPortal/MODConfirmFixPage'));
 const MembershipsConsole = lazy(() => import('@/pages/Memberships/MembershipsConsole'));

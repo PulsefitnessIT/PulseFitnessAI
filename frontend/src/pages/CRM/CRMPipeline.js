@@ -21,7 +21,7 @@ const STAGE_COLORS = {
 const fmt = (n) => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}`;
 
 /* ═══ OPPORTUNITY DETAIL ═══ */
-function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, setActiveTab }) {
+function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveTab }) {
   const [opp, setOpp] = useState(null);
   const [tab, setTab] = useState('overview');
   const [showAddNote, setShowAddNote] = useState(false);
@@ -542,7 +542,7 @@ export default function CRMPipeline() {
     setSaving(true);
     try {
       const payload = { ...form, value: parseFloat(form.value) || 0 };
-      const res = await axios.post(`${API}/crm/v2/opportunities`, payload, { headers: headers() });
+      const _res = await axios.post(`${API}/crm/v2/opportunities`, payload, { headers: headers() });
       setShowCreate(false);
       setForm({ title: '', value: '', company_id: '', company_name: '', contact_id: '', contact_name: '', stage: 'lead', close_date: '', source: '', next_step: '' });
       load();

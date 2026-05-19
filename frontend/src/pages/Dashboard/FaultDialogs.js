@@ -25,7 +25,7 @@ const FaultDialogs = ({
  selectedFixStep, setSelectedFixStep, equipmentCoverage, coverageLoading, existingFaultWarning, setExistingFaultWarning,
  // Callbacks
  onResetDialog, onIssueSubmit, onAddMachine, onRemoveMachine, fetchCoverage,
- onResolution, onEngineerClick, setIssueStep, setIssues,
+ onResolution, onEngineerClick, setIssueStep, _setIssues,
  // PO Dialog state
  showPOPrompt, setShowPOPrompt, poForm, setPOForm, poCreating,
  onCreatePOAndLog, onSkipPOAndLog,
@@ -34,7 +34,7 @@ const FaultDialogs = ({
  // Service dialog
  showServiceDialog, setShowServiceDialog, serviceForm, setServiceForm, onServiceSubmit,
  // Helpers
- getSeverityColor, getSeverityLabel, t, i18n, issues,
+ _getSeverityColor, getSeverityLabel, t, _i18n, issues,
  // Fault templates + codes
  API, canManageOrgTemplates,
 }) => {

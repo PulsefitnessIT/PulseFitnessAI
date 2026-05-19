@@ -13,7 +13,7 @@ import HelpHint from '@/components/HelpHint';
 const LiteEquipmentTab = ({
   filteredEquipment, search, onSearchChange,
   getEquipmentFaults, onSelectEquipment,
-  getSeverityStyle, getSeverityLabel, getStatusColor, onEquipmentUpdated,
+  _getSeverityStyle, _getSeverityLabel, _getStatusColor, onEquipmentUpdated,
   onAddEquipment,
 }) => {
   const { API, sites, user } = useAuth();

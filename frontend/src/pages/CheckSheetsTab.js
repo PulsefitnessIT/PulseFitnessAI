@@ -24,8 +24,8 @@ import {
 import { getTasksForType } from './pulseCheckSheets/constants';
 
 const CheckSheetsTab = () => {
- const { t } = useTranslation();
- const { API, user } = useAuth();
+ const { _t } = useTranslation();
+ const { API, _user } = useAuth();
  const [subTab, setSubTab] = useState('sheets');
  const [equipment, setEquipment] = useState([]);
  const [customTemplates, setCustomTemplates] = useState([]);

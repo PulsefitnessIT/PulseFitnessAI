@@ -577,7 +577,7 @@ const SupplierCasePage = () => {
  );
  }
 
- const { issue, equipment, media, status_history, current_status, organization_name, supplier_name, comments, reporter, site, job_ref, platform_name, platform_tagline, is_pulse_branded, brand_color, logo_url } = caseData;
+ const { issue, equipment, media, status_history, current_status, organization_name, _supplier_name, comments, reporter, site, job_ref, platform_name, platform_tagline, is_pulse_branded, brand_color, logo_url } = caseData;
 
  // A gym user is viewing this page via the "Supplier Card" link in their
  // own dashboard (they're authenticated with a JWT). Pass this down so the

@@ -94,7 +94,7 @@ const renderField = (prop, value, onChange, isDark) => {
 
 
 export default function CustomFieldsPanel({
-  entityType, entityId, values, onSave, isDark = false, headers,
+  entityType, _entityId, values, onSave, isDark = false, headers,
 }) {
   const auth = headers || ((typeof window !== 'undefined') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {});
   const [props, setProps] = useState(null);

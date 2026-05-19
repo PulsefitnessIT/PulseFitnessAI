@@ -54,7 +54,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
     setSaving(false);
   };
 
-  const handleNameChange = (val) => {
+  const _handleNameChange = (val) => {
     setForm({ ...form, name: val });
   };
 
@@ -712,7 +712,7 @@ function AddCoverageModal({ companyId, state, onClose, onSaved, API, headers, c,
 }
 
 /* ═══ COMPANY DETAIL ═══ */
-function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTab, navigateTo }) {
+function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveTab, navigateTo }) {
   const [company, setCompany] = useState(null);
   const [activeSection, setActiveSection] = useState('overview');
   const [showAddNote, setShowAddNote] = useState(false);
@@ -730,7 +730,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
   const [showAddQuote, setShowAddQuote] = useState(false);
   const [quoteLines, setQuoteLines] = useState([{ description: '', quantity: 1, unit_price: 0, discount: 0 }]);
   const [quoteNotes, setQuoteNotes] = useState('');
-  const [contacts, setContacts] = useState([]);
+  const [_contacts, _setContacts] = useState([]);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
@@ -891,7 +891,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, setActiveTa
     { id: 'audit', label: 'Audit' },
   ];
 
-  const actIcons = { note: FileText, call: Phone, email: Mail, meeting: Calendar, task: CheckCircle, system: Activity, visit: MapPin };
+  const _actIcons = { note: FileText, call: Phone, email: Mail, meeting: Calendar, task: CheckCircle, system: Activity, visit: MapPin };
 
   return (
     <div data-testid="crm-company-detail">

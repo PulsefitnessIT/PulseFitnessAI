@@ -14,8 +14,8 @@ import axios from 'axios';
 import { useInlineBanner, notify } from '@/components/notifications';
 import { useTranslation } from 'react-i18next';
 
-const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }) => {
- const { user, login, logout, API, branding, theme, toggleTheme, sites, activeSite, setActiveSite } = useAuth();
+const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }) => {
+ const { user, login, logout, API, branding, theme, toggleTheme, sites, _activeSite, _setActiveSite } = useAuth();
  const { t, i18n } = useTranslation();
  const { banner: authBanner, show: showAuthBanner, clear: clearAuthBanner } = useInlineBanner();
  const [showAuth, setShowAuth] = useState(false);
@@ -53,7 +53,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  const isOnPulse = location.pathname.startsWith('/pulse');
  // Iter 215bi — Settings should be reachable from any authenticated surface
  // (operations, memberships, CRM, marketing, master-admin), not just /dashboard.
- const isOnAuthApp = isOnDashboard || isOnPulse
+ const _isOnAuthApp = isOnDashboard || isOnPulse
    || location.pathname.startsWith('/master-admin')
    || location.pathname.startsWith('/memberships')
    || location.pathname.startsWith('/marketing')
@@ -72,7 +72,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
    user?.account_type === 'mod_org'
  );
  const showPulseBrand = isOnPulse || pulseAccount;
- const isAdmin = user?.is_master_admin || user?.account_type === 'full';
+ const _isAdmin = user?.is_master_admin || user?.account_type === 'full';
  const brandColor = branding?.primary_color || 'var(--color-brand-blue)';
 
  // Listen for open-signup event from homepage CTAs
@@ -286,7 +286,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
  // accounts continue to see PulseFitnessLogo. The fallback initial-box
  // (`brandColor` square) is reserved for orgs without a logo who don't
  // map to either brand.
- const isGymAxisBrand = !showPulseBrand && !orgLogo && (!user || (
+ const _isGymAxisBrand = !showPulseBrand && !orgLogo && (!user || (
    !pulseAccount && (branding?.company_name || '').toLowerCase().includes('gymaxis') !== false
  ));
  // Default: show GymAxis lockup whenever Pulse isn't active and the org

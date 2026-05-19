@@ -227,7 +227,7 @@ function TeamSection({ API, headers, user, c, isDark }) {
   );
 }
 
-function SecuritySection({ API, headers, user, c, isDark }) {
+function SecuritySection({ API, headers, _user, c, isDark }) {
   const [twoFAStatus, setTwoFAStatus] = useState(null);
   const [setupData, setSetupData] = useState(null);
   const [verifyCode, setVerifyCode] = useState('');

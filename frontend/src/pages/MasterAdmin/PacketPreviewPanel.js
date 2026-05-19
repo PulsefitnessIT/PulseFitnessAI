@@ -8,7 +8,7 @@ import { XCircle, AlertTriangle, Users, MapPin,
   Loader2, Sparkles,
 } from 'lucide-react';
 
-export default function PreviewPanel({ API, headers, packetId, status, onReadyChange }) {
+export default function PreviewPanel({ API, headers, packetId, _status, onReadyChange }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
 

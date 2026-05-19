@@ -21,7 +21,7 @@ const AdminSidebar = ({
  onLogout, onPulseSwitch, onGymAxisSwitch,
  isPulseAdmin = false,
 }) => {
- const navigate = useNavigate();
+ const _navigate = useNavigate();
  const [openCases, setOpenCases] = useState(0);
 
  useEffect(() => {

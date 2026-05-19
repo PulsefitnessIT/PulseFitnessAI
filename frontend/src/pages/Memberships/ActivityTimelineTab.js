@@ -44,7 +44,7 @@ function formatGBP(pence) {
   return `£${(Number(pence) / 100).toFixed(2)}`;
 }
 
-function StatusBadge({ kind, status }) {
+function StatusBadge({ _kind, status }) {
   if (!status) return null;
   const palette = {
     attended:   'bg-emerald-500/15 text-emerald-600',

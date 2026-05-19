@@ -545,7 +545,7 @@ function ContractsStep({ packet, update }) {
 
 /* ── Step 7: Review ─────────────────────────────────────────────── */
 
-function ReviewStep({ packet, onSubmit, submitting }) {
+function ReviewStep({ packet, _onSubmit, _submitting }) {
   const rows = useMemo(() => ([
     { label: 'Organisation', value: packet.organisation?.legal_name || '—' },
     { label: 'Sites', value: (packet.sites || []).length },

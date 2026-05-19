@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { banner, show, clear } = useInlineBanner({ autoDismiss: false });
+  const { banner, _show, clear } = useInlineBanner({ autoDismiss: false });
 
   // Iter 216h68 — `?next=/some/path` lets the SessionResumedBanner
   // (and any other deep-link sender) bounce the user back to where

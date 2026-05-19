@@ -87,7 +87,7 @@ export default function EngineerQuoteBuilder() {
     terms: '',
     status: 'draft',
   });
-  const [serverState, setServerState] = useState(null);
+  const [_serverState, setServerState] = useState(null);
 
   const [emailBody, setEmailBody] = useState({ to: '', message: '' });
 
