@@ -1,3 +1,32 @@
+## Iter 216h230 — FAB rail opt-in (Feb 19, 2026) ✅ P2
+
+Wired up the 3 global FABs into the `[data-fab-rail]` stacking
+system that landed in Wave 1 (iter 216h228):
+
+| Component | Slot | Stack position (mobile) |
+| --- | --- | --- |
+| `UnifiedAssistant` toggle (chat) | `primary` | 4.75rem from bottom (most reachable) |
+| `FeedbackWidget` launcher | `secondary` | 9.5rem from bottom |
+| `NPSWidget` prompt | `tertiary` | 14.25rem from bottom |
+
+All three now align flush at `right: 0.75rem` on phones with
+deterministic 4.75rem spacing between them, so two FABs can never
+overlap each other again — and they all stay clear of the bottom
+member-app tab bar (which sits at 64px / 4rem) on phones.
+
+### Verification
+Headless playwright screenshot at 390x844 with three synthetic FAB
+stand-ins (the real ones only render when authenticated):
+
+    primary:   bottom= 76px, right=12px ✅
+    secondary: bottom=152px, right=12px ✅
+    tertiary:  bottom=228px, right=12px ✅
+
+ESLint `--max-warnings 0` clean.
+
+---
+
+
 ## Iter 216h229 — mobile audit Wave 3 (Feb 19, 2026) ✅ P0 (opt-in)
 
 Lee's follow-up: "Wave 3 mobile deep-dive (opt-in) — Marketing

@@ -102,6 +102,8 @@ const NPSWidget = () => {
   return (
     <div
       data-testid="nps-widget"
+      data-fab-rail
+      data-fab-slot="tertiary"
       className="fixed bottom-4 right-4 z-[60] w-80 max-w-[92vw] rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-xl p-5"
     >
       <button

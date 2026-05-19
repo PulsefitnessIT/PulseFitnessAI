@@ -62,6 +62,8 @@ export default function FeedbackWidget() {
           className="fixed bottom-5 left-5 z-[40] w-11 h-11 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
           aria-label="Send feedback"
           data-testid="gx-feedback-launcher"
+          data-fab-rail
+          data-fab-slot="secondary"
         >
           <MessageSquarePlus size={16} className="text-zinc-700 dark:text-zinc-300" />
         </button>

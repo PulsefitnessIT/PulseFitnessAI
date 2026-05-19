@@ -330,11 +330,13 @@ const UnifiedAssistant = () => {
  const onMemberApp = typeof window !== 'undefined' && window.location.pathname.startsWith('/m/');
 
  if (!open) {
- return (
- <div
- className={`fixed ${onMemberApp ? 'bottom-4 right-3' : 'bottom-24 md:bottom-5 right-4 md:right-5'} z-30 flex items-center gap-2`}
- data-testid="unified-assistant-toggle-wrapper"
- >
+    return (
+      <div
+        className={`fixed ${onMemberApp ? 'bottom-4 right-3' : 'bottom-24 md:bottom-5 right-4 md:right-5'} z-30 flex items-center gap-2`}
+        data-testid="unified-assistant-toggle-wrapper"
+        data-fab-rail
+        data-fab-slot="primary"
+      >
  {/* "Can I help you?" hint bubble — slides out on first touch */}
  <div
  className={`pointer-events-none transition-all duration-500 ease-out origin-right ${
