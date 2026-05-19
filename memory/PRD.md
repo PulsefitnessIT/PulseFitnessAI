@@ -1,3 +1,68 @@
+## Iter 216h228 — comprehensive mobile audit Wave 1+2 (Feb 19, 2026) ✅ P0
+
+Lee's audit screenshot (Feb 2026): CRM page at iPhone width had the
+"+" QuickCreate dropdown bleeding off the LEFT edge of the screen,
+"Welcome back …" clipped behind the yellow trial banner, and two
+FABs (FeedbackWidget bottom-left + UnifiedAssistant bottom-right)
+making the bottom rail feel busy.
+
+### Wave 1 — cross-cutting structural fixes
+
+- **`frontend/src/index.css`** — added zero-config mobile rails:
+    1. `[data-radix-popper-content-wrapper] > *` capped at
+       `calc(100vw - 1rem)` on phones so Radix/shadcn popovers never
+       exceed the viewport.
+    2. `.gx-mobile-clamp` opt-in class for in-tree popovers.
+    3. `[data-fab-rail]` stacking system that gives `primary`,
+       `secondary`, and `tertiary` FAB slots deterministic spacing
+       along the right edge so two FABs can't fight any more.
+    4. `html, body { overflow-x: hidden }` below `lg:` so a rogue
+       absolute child never triggers a horizontal scroll on phones.
+- **`frontend/src/App.js`** — added a 62px inline spacer below the
+  fixed trial banner. Every authenticated module page already
+  reserves `pt-24` for the navbar but didn't account for the extra
+  ~62px the banner adds, so welcome headings + first KPI rows were
+  being clipped behind it on every page.
+- **CRM `QuickCreateButton` dropdown (CRMApp.js)** — switched anchor
+  from `right-0` to `right-0 max-sm:right-auto max-sm:left-0` for
+  BOTH the picker menu and the form variant. On phones the menu
+  now drops down to the right of the trigger instead of overflowing
+  off the left edge. `max-w-[calc(100vw-32px)]` adds a hard cap.
+- **CRM `NotificationsBell` panel** — couldn't be fixed with an
+  anchor flip because the bell sits in the middle of the toolbar
+  (so any anchor relative to its wrapper still overflows). Switched
+  the panel to `max-sm:fixed max-sm:top-[5.5rem] max-sm:right-2
+  max-sm:left-2 max-sm:w-auto max-sm:max-h-[70vh]` so on phones it
+  anchors to the viewport itself, 88px from top with 8px gutters,
+  and works regardless of where the bell renders.
+
+### Wave 2 — module-by-module audit + retest
+
+Testing agent (`/app/test_reports/iteration_216h229.json`) at
+390×844 confirmed:
+
+| Surface | Status |
+| --- | --- |
+| NotificationsBell mobile retest | ✅ panel at left=8, right=382 (in viewport) |
+| QuickCreate menu / form | ✅ both in viewport |
+| /dashboard horizontal overflow | ✅ none |
+| /crm horizontal overflow | ✅ none |
+| /memberships horizontal overflow | ✅ none |
+| /pulse horizontal overflow | ✅ none |
+| Desktop sanity (1440×900) | ✅ no regressions |
+| ESLint `--max-warnings 0` | ✅ clean |
+| `make regression` | ✅ 37 passed, 14 skipped |
+
+### Still backlog (Wave 3 — opt-in)
+Per-module deep-dive on the long-tail pages (Marketing creative
+studio, Staffing rotas, Reporting / Master Admin console, partner
+engineer hub). The cross-cutting CSS rails above already prevent
+the worst overflows there, but a manual run-through is recommended
+before the next prospect demo.
+
+---
+
+
 ## Iter 216h227 — module-tailored trial onboarding + mobile fixes (Feb 19, 2026) ✅ P0
 
 Lee's audit screenshots (Feb 2026): trial users see EVERY module's
