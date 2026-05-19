@@ -7,7 +7,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Mail, X, ExternalLink, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { Mail, X, ExternalLink, RefreshCw, RotateCw } from 'lucide-react';
 import { useAuth } from '@/App';
 
 const TONE = {
@@ -24,6 +25,7 @@ export default function EmailHealthPill() {
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [retryingId, setRetryingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,6 +38,30 @@ export default function EmailHealthPill() {
       setLoading(false);
     }
   }, [API, headers]);
+
+  /** Iter 216h222 — replay a failed outbound email from the dialog.
+      Mirrors the AdminEmails page handler so the operator can retry
+      from either surface. */
+  const onRetry = useCallback(async (eventId) => {
+    if (!eventId || retryingId) return;
+    setRetryingId(eventId);
+    try {
+      const r = await axios.post(
+        `${API}/master-admin/email-events/${eventId}/retry`,
+        {},
+        { headers },
+      );
+      toast.success('Email retried successfully', {
+        description: r.data?.resend_id ? `Resend id: ${r.data.resend_id}` : undefined,
+      });
+      load();
+    } catch (e) {
+      const detail = e?.response?.data?.detail || 'Retry failed';
+      toast.error('Retry failed', { description: detail });
+    } finally {
+      setRetryingId(null);
+    }
+  }, [API, headers, retryingId, load]);
 
   useEffect(() => {
     load();
@@ -58,14 +84,21 @@ export default function EmailHealthPill() {
         Email
       </button>
       {open && (
-        <EmailHealthDialog data={data} onClose={() => setOpen(false)} onRefresh={load} loading={loading} />
+        <EmailHealthDialog
+          data={data}
+          onClose={() => setOpen(false)}
+          onRefresh={load}
+          loading={loading}
+          onRetry={onRetry}
+          retryingId={retryingId}
+        />
       )}
     </>
   );
 }
 
 
-function EmailHealthDialog({ data, onClose, onRefresh, loading }) {
+function EmailHealthDialog({ data, onClose, onRefresh, loading, onRetry, retryingId }) {
   const tone = TONE[data.status] || TONE.unconfigured;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" data-testid="email-health-dialog">
@@ -137,12 +170,27 @@ function EmailHealthDialog({ data, onClose, onRefresh, loading }) {
             ) : (
               <div className="space-y-1">
                 {data.recent.map((row, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 rounded border border-zinc-100 text-xs" data-testid={`email-health-row-${i}`}>
+                  <div key={row.id || i} className="flex items-start gap-2 p-2 rounded border border-zinc-100 text-xs" data-testid={`email-health-row-${i}`}>
                     <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${row.status === 'sent' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-zinc-900 truncate">{row.subject || '—'}</div>
                       <div className="text-zinc-500 truncate">{row.to}</div>
                       {row.error && <div className="text-rose-600 truncate text-[11px] mt-0.5">{row.error}</div>}
+                      {/* Iter 216h222 — Try again button on failed
+                          rows whose payload was captured. Pre-h222
+                          failures have retryable=false → no button. */}
+                      {row.retryable && (
+                        <button
+                          type="button"
+                          onClick={() => onRetry?.(row.id)}
+                          disabled={retryingId === row.id}
+                          className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-wait transition"
+                          data-testid={`email-health-retry-${i}`}
+                        >
+                          <RotateCw size={10} className={retryingId === row.id ? 'animate-spin' : ''} />
+                          {retryingId === row.id ? 'Retrying…' : 'Try again'}
+                        </button>
+                      )}
                     </div>
                     <div className="text-zinc-400 text-[10px] flex-shrink-0">
                       {(row.created_at || '').slice(11, 16)}

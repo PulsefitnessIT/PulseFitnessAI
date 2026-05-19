@@ -9064,3 +9064,33 @@ panel guides the operator to do exactly that.
 
 Files: `utils/email.py`, `routes/email_health.py`, `pages/MasterAdmin/AdminEmails.js`,
 new `tests/test_iter_216h222_email_retry.py`.
+
+## Iter 216h222b — "Try again" button on the Email Health pill dialog (Feb 19, 2026)
+
+### Context
+Iter 216h222 added a Retry button to the full Outbound Emails page, but
+the user wanted the same affordance on the top-bar Email Health pill
+dialog (the popup that opens when you click the green/amber/red Email
+pill). One-click recovery from wherever they see the failure.
+
+### Changes
+- **Backend** (`routes/email_health.py` → `/master-admin/email-health`):
+  recent rows now include `id` + `retryable` (same shape as the full
+  list endpoint). Sent rows + pre-h222 failures still have
+  `retryable=false`.
+- **Frontend** (`pages/MasterAdmin/EmailHealthPill.js`):
+  - New `onRetry` callback wired to the same
+    `POST /api/master-admin/email-events/{id}/retry` endpoint.
+  - `Try again` button rendered inside each failed row when
+    `row.retryable === true`. Spins + disables during the call.
+  - Toast on success/failure mirrors the AdminEmails page.
+
+### Verification
+- E2E curl: seeded retryable failure → `email-health` returned
+  `retryable=true` with id → POST retry returned HTTP 200 with real
+  Resend message id. Pre-h222 failures correctly return
+  `retryable=false`.
+- Existing 5/5 retry contract tests still pass.
+- `make regression`: 23/23 pass.
+
+Files: `email_health.py`, `EmailHealthPill.js`.

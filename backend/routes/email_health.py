@@ -93,11 +93,22 @@ async def email_health(user: dict = Depends(get_current_user)) -> dict:
 
     # Recent feed for the dialog.
     recent_rows = await db.email_send_events.find(
-        {}, {"_id": 0, "to": 1, "subject": 1, "status": 1, "error": 1, "created_at": 1},
+        {}, {"_id": 0, "id": 1, "to": 1, "subject": 1, "status": 1, "error": 1, "created_at": 1, "payload": 1, "retried_at": 1},
         sort=[("created_at", -1)],
     ).to_list(SAMPLE_SIZE)
     for r in recent_rows:
         r["created_at"] = _iso(r.get("created_at"))
+        # Iter 216h222 — surface a retry button only on rows we can
+        # actually replay (post-h222 failure + payload stored + not
+        # yet retried). Strip the payload itself before returning.
+        r["retryable"] = bool(
+            r.get("status") and r.get("status") != "sent"
+            and r.get("payload")
+            and not r.get("retried_at")
+            and r.get("id")
+        )
+        r.pop("payload", None)
+        r.pop("retried_at", None)
 
     # Heuristic on the most common failure: Resend's "domain not verified".
     domain_verified: bool | None
