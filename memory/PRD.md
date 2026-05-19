@@ -8951,3 +8951,51 @@ link). Click a row → jumps to Master Admin → Trials.
 
 Files: `master_admin_trials.py`, `FreshTrialsTile.js`, `AdminOverview.js`,
 new test `tests/test_iter_216h220_fresh_trials.py`.
+
+## Iter 216h221 — Two production bug fixes (Feb 19, 2026)
+
+### Bug #1 — Pulse Pro users got "CRM is not enabled" despite the toggle being ON
+The CRM cross-login gate (`POST /api/crm/auth/cross-login`) was reading
+`org.enabled_modules` (a flat string array), but the Master Admin →
+Feature Control → Modules toggle writes to `org.modules.crm.enabled`
+(per `PUT /master-admin/organizations/{id}/features`). Schema
+divergence → 403 even with a clearly green toggle.
+
+**Fix**: `routes/crm_auth.py` now uses `utils.module_access.has_module()`
+— the canonical resolver every other module gate already uses. Single
+source of truth, master-admin bypass intact, MOD denial intact, trial
+overlays + per-staff overrides honoured.
+
+**Verification**: Jack Ottey (Pulse Pro owner — same shape as Craig
+Henshall) now cross-logins successfully. 6/6 unit tests + 6/6 e2e
+tests pin the contract.
+
+### Bug #2 — "I signed out but the dashboard is still showing"
+The main `App.js` `logout()` only removed `localStorage.token`. The
+CRM and member tokens were left in localStorage. The
+UnifiedAuthProvider never received a `gymaxis:auth-changed` event so
+its in-memory tokens stayed populated. Effect: navigating to `/crm`
+(or refreshing the dashboard) auto-resumed the session via the
+still-valid CRM token.
+
+**Fix**: `App.js logout()` now:
+1. Clears `token` + `crm_token` + `member_token` + `user_cache` +
+   `sites_cache` + `active_site_cache` + `sessionStorage.crm_active_session`.
+2. Dispatches `gymaxis:auth-changed` so UnifiedAuthProvider clears
+   its state instantly.
+3. Hard-redirects to `/` (non-MOD) or `/MODService` (MOD) so every
+   route guard + memoised component re-mounts from a clean state.
+
+**Verification**: After logout, all 7 storage keys are gone,
+`/dashboard` bounces to landing, `/crm` bounces to login.
+
+### Tests
+- `backend/tests/test_iter_216h221_crm_cross_login_module_gate.py` —
+  6 unit tests covering pulse_pro on/off, full default, master bypass,
+  lite paywall.
+- `backend/tests/test_iter_216h221_e2e_crm_cross_login.py` — 6 e2e
+  tests covering the Pulse Pro repro (Jack Ottey), master admin,
+  full-account, and "already-CRM-token rejected" path.
+- `make regression` 23/23 + trust-recovery 96/96.
+
+Files: `crm_auth.py`, `App.js`, new test files above.
