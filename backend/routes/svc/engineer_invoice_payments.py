@@ -251,7 +251,8 @@ async def _mark_invoice_paid(invoice: dict, *, paid_via: str = "stripe",
 
 
 def _receipt_html(invoice: dict) -> str:
-    primary = "#1d4ed8"; accent = "#6366f1"
+    primary = "#1d4ed8"
+    accent = "#6366f1"
     customer = invoice.get("customer_name") or "there"
     engineer = invoice.get("engineer_name") or "Your engineer"
     ino = invoice.get("invoice_number") or ""

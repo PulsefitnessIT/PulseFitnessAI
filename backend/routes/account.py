@@ -263,7 +263,7 @@ async def upload_logo(
     return {"logo_url": logo_url, "brand_palette": palette}
 
 
-def _extract_brand_palette(img: "Image.Image", n: int = 5) -> list[str]:
+def _extract_brand_palette(img: Image.Image, n: int = 5) -> list[str]:
     """Pick the `n` most dominant non-trivial colours from an image.
 
     Uses Pillow's adaptive quantisation (no sklearn dependency).

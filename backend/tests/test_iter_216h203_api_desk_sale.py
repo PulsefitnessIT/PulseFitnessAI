@@ -127,7 +127,7 @@ class TestDeskSaleValidation:
         )
         assert resp.status_code == 400, f"Expected 400, got {resp.status_code}"
         assert "method" in resp.text.lower() or "must be one of" in resp.text.lower()
-        print(f"✓ Rejects unknown method 'bitcoin' with 400")
+        print("✓ Rejects unknown method 'bitcoin' with 400")
     
     def test_404_for_nonexistent_member(self, admin_headers):
         """Returns 404 when member doesn't exist."""
@@ -137,7 +137,7 @@ class TestDeskSaleValidation:
             headers=admin_headers,
         )
         assert resp.status_code == 404, f"Expected 404, got {resp.status_code}"
-        print(f"✓ Returns 404 for nonexistent member")
+        print("✓ Returns 404 for nonexistent member")
     
     def test_404_for_nonexistent_plan(self, admin_headers, test_org_data):
         """Returns 404 when plan doesn't exist."""
@@ -152,7 +152,7 @@ class TestDeskSaleValidation:
             headers=admin_headers,
         )
         assert resp.status_code == 404, f"Expected 404, got {resp.status_code}"
-        print(f"✓ Returns 404 for nonexistent plan")
+        print("✓ Returns 404 for nonexistent plan")
 
 
 class TestDeskSaleHappyPath:

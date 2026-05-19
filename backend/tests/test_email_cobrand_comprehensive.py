@@ -60,7 +60,7 @@ class TestPulseFitnessCoBrand:
             return out
         
         result = run_async(_go())
-        print(f"✓ Pulse Fitness org wrapped correctly, contains 'Pulse Fitness' operator name")
+        print("✓ Pulse Fitness org wrapped correctly, contains 'Pulse Fitness' operator name")
     
     def test_pulse_fitness_uses_gymaxis_platform_mark(self):
         """Pulse Fitness (account_type='full') should use GymAxis as platform mark."""
@@ -77,7 +77,7 @@ class TestPulseFitnessCoBrand:
             return out
         
         run_async(_go())
-        print(f"✓ Pulse Fitness (full account) uses GymAxis platform mark")
+        print("✓ Pulse Fitness (full account) uses GymAxis platform mark")
 
 
 # ============================================================================
@@ -110,7 +110,7 @@ class TestThirdSpaceCoBrand:
             return out
         
         result = run_async(_go())
-        print(f"✓ Third Space (pulse_pro) gets Pulse Fitness platform mark")
+        print("✓ Third Space (pulse_pro) gets Pulse Fitness platform mark")
     
     def test_third_space_logo_url_resolved(self):
         """Third Space operator logo should be resolved to absolute URL."""
@@ -136,7 +136,7 @@ class TestThirdSpaceCoBrand:
             return brand
         
         run_async(_go())
-        print(f"✓ Third Space logo resolution verified")
+        print("✓ Third Space logo resolution verified")
 
 
 # ============================================================================
@@ -160,7 +160,7 @@ class TestNoOrgIdCoBrand:
             return out
         
         run_async(_go())
-        print(f"✓ No org_id still wraps with marker")
+        print("✓ No org_id still wraps with marker")
     
     def test_no_org_id_uses_gymaxis_mark(self):
         """No org_id should use GymAxis as platform mark."""
@@ -178,7 +178,7 @@ class TestNoOrgIdCoBrand:
             return brand
         
         run_async(_go())
-        print(f"✓ No org_id uses GymAxis platform mark")
+        print("✓ No org_id uses GymAxis platform mark")
 
 
 # ============================================================================
@@ -203,7 +203,7 @@ class TestIdempotentWrapping:
             return True
         
         run_async(_go())
-        print(f"✓ Idempotent with org_id")
+        print("✓ Idempotent with org_id")
     
     def test_idempotent_without_org_id(self):
         """wrap_branded(wrap_branded(html)) == wrap_branded(html)."""
@@ -218,7 +218,7 @@ class TestIdempotentWrapping:
             return True
         
         run_async(_go())
-        print(f"✓ Idempotent without org_id")
+        print("✓ Idempotent without org_id")
     
     def test_looks_branded_detection(self):
         """_looks_branded should detect the marker class."""
@@ -234,7 +234,7 @@ class TestIdempotentWrapping:
         assert _looks_branded(""), "Empty string should return True (avoid wrapping)"
         assert _looks_branded(None), "None should return True (avoid wrapping)"
         
-        print(f"✓ _looks_branded detection works correctly")
+        print("✓ _looks_branded detection works correctly")
 
 
 # ============================================================================
@@ -258,7 +258,7 @@ class TestUnknownOrgFallback:
             return out
         
         run_async(_go())
-        print(f"✓ Unknown org_id wraps without crash")
+        print("✓ Unknown org_id wraps without crash")
     
     def test_unknown_org_id_uses_gymaxis_fallback(self):
         """Unknown org_id should fall back to GymAxis platform mark."""
@@ -276,7 +276,7 @@ class TestUnknownOrgFallback:
             return brand
         
         run_async(_go())
-        print(f"✓ Unknown org_id falls back to GymAxis")
+        print("✓ Unknown org_id falls back to GymAxis")
 
 
 # ============================================================================
@@ -318,15 +318,15 @@ class TestSendEmailWrapping:
                         assert "Original content" in html_sent, \
                             "Original content should be preserved"
                         
-                        print(f"  HTML sent to Resend contains co-brand marker ✓")
+                        print("  HTML sent to Resend contains co-brand marker ✓")
                         return True
                 
                 # If resend wasn't called (no API key), that's expected in test env
-                print(f"  Resend not called (likely no API key in test env)")
+                print("  Resend not called (likely no API key in test env)")
                 return True
         
         run_async(_go())
-        print(f"✓ send_email wraps HTML before sending")
+        print("✓ send_email wraps HTML before sending")
 
 
 # ============================================================================
@@ -348,9 +348,9 @@ class TestAbsoluteUrlResolution:
         else:
             # No PUBLIC_BASE_URL set, should return as-is
             assert result == relative, "Without PUBLIC_BASE_URL, should return as-is"
-            print(f"  No PUBLIC_BASE_URL set, relative path returned as-is")
+            print("  No PUBLIC_BASE_URL set, relative path returned as-is")
         
-        print(f"✓ Relative path resolution works")
+        print("✓ Relative path resolution works")
     
     def test_abs_url_already_absolute(self):
         """Absolute URLs should pass through unchanged."""
@@ -360,7 +360,7 @@ class TestAbsoluteUrlResolution:
         assert _abs_url(https_url) == https_url, "HTTPS URL should pass through"
         assert _abs_url(http_url) == http_url, "HTTP URL should pass through"
         
-        print(f"✓ Absolute URLs pass through unchanged")
+        print("✓ Absolute URLs pass through unchanged")
     
     def test_abs_url_data_uri(self):
         """Data URIs should pass through unchanged."""
@@ -368,14 +368,14 @@ class TestAbsoluteUrlResolution:
         
         assert _abs_url(data_uri) == data_uri, "Data URI should pass through"
         
-        print(f"✓ Data URIs pass through unchanged")
+        print("✓ Data URIs pass through unchanged")
     
     def test_abs_url_empty_none(self):
         """Empty/None values should return empty string."""
         assert _abs_url("") == "", "Empty string should return empty"
         assert _abs_url(None) == "", "None should return empty"
         
-        print(f"✓ Empty/None values handled correctly")
+        print("✓ Empty/None values handled correctly")
 
 
 # ============================================================================
@@ -393,12 +393,12 @@ class TestResolveCoBrand:
             assert brand.get("partner_logo") == PULSE_FITNESS_LOGO, \
                 f"pulse_pro should get Pulse Fitness logo, got: {brand.get('partner_logo')}"
             assert "Pulse Fitness" in brand.get("partner_name", ""), \
-                f"pulse_pro should have 'Pulse Fitness' in partner_name"
+                "pulse_pro should have 'Pulse Fitness' in partner_name"
             
             return brand
         
         run_async(_go())
-        print(f"✓ pulse_pro gets Pulse Fitness mark")
+        print("✓ pulse_pro gets Pulse Fitness mark")
     
     def test_full_account_gets_gymaxis_mark(self):
         """full account_type should get GymAxis as platform mark."""
@@ -412,13 +412,13 @@ class TestResolveCoBrand:
             return brand
         
         run_async(_go())
-        print(f"✓ full account gets GymAxis mark")
+        print("✓ full account gets GymAxis mark")
     
     def test_lite_gets_pulse_mark(self):
         """lite account_type should also get Pulse Fitness as platform mark."""
         # This test verifies the code logic - lite accounts get Pulse mark
         # We can't test with a real lite org unless one exists
-        print(f"✓ lite account_type logic verified in code (line 74: 'lite' in condition)")
+        print("✓ lite account_type logic verified in code (line 74: 'lite' in condition)")
 
 
 # ============================================================================

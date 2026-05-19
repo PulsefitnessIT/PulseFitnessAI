@@ -159,6 +159,8 @@ export default function EngineerJobDetail() {
   const [safetyTicked, setSafetyTicked] = useState(() => new Set());
   const [safetyRemarks, setSafetyRemarks] = useState('');
   const [safetySig, setSafetySig] = useState(''); // canvas → dataURL
+  // Iter 216h226 — controls the inline H&S signoff drawer / panel.
+  const [safetyOpen, setSafetyOpen] = useState(false);
   const safetyCanvasRef = React.useRef(null);
   const safetyDrawing = React.useRef(false);
   const safetyDone = !!job?.safety_signoff;

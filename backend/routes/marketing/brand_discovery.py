@@ -495,7 +495,7 @@ def _discover_links(soup: BeautifulSoup, base_url: str) -> list[str]:
 
 async def _compress_and_store(url: str, kind: str, org_id: str, idx: int) -> Optional[dict]:
     """Download → PIL-compress (quality=85, max 2000px on longest side) → upload to storage."""
-    async with httpx.AsyncClient(headers=EXTRA_HEADERS, follow_redirects=True) as client:
+    async with httpx.AsyncClient(headers=EXTRA_HEADERS, follow_redirects=True, timeout=15.0) as client:
         raw = await _fetch_bytes(client, url)
     if not raw:
         return None
@@ -605,7 +605,7 @@ async def _run_discovery(org_id: str, website_url: str) -> None:
             upsert=True,
         )
 
-        async with httpx.AsyncClient(headers=EXTRA_HEADERS, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=EXTRA_HEADERS, follow_redirects=True, timeout=15.0) as client:
             homepage_html = await _fetch(client, website_url)
             if not homepage_html:
                 raise RuntimeError(f"Could not load homepage at {website_url}")

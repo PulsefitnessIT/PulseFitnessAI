@@ -249,7 +249,7 @@ class TestBug4b_LogoUpload:
         data = del_resp.json()
         assert "logo_url" in data, f"logo_url missing from delete response: {data}"
         assert data["logo_url"] is None, f"logo_url should be null after delete, got: {data['logo_url']}"
-        print(f"✓ Logo delete returned logo_url=null")
+        print("✓ Logo delete returned logo_url=null")
 
 
 class TestBug4b_OnboardingSteps:
@@ -273,7 +273,7 @@ class TestBug4b_OnboardingSteps:
         
         assert cta_section == "organisation", \
             f"upload_logo step should have cta_section='organisation', got cta_section={cta_section}, cta_route={cta_route}"
-        print(f"✓ upload_logo step has cta_section='organisation'")
+        print("✓ upload_logo step has cta_section='organisation'")
 
 
 if __name__ == "__main__":

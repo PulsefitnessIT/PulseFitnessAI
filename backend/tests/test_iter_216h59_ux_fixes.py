@@ -239,7 +239,7 @@ class TestOrgLogoEndpoint:
                 # Both should be /api/account/logo/... format
                 if uploaded_url.startswith("/api/account/logo/"):
                     assert retrieved_url.startswith("/api/account/logo/") or retrieved_url == uploaded_url, \
-                        f"Retrieved URL should match uploaded URL format"
+                        "Retrieved URL should match uploaded URL format"
                 print(f"✓ Logo upload and retrieval working. URL: {retrieved_url[:60]}...")
             else:
                 print(f"✓ Logo upload returned: {uploaded_url}, retrieval returned: {retrieved_url}")

@@ -263,7 +263,7 @@ class TestGetDraftEndpoint:
             f"{BASE_URL}/api/public/signup/{STRONG_FITNESS_SLUG}/draft/{draft_id}"
         )
         assert get_response.status_code == 200, "Uncompleted draft should return 200"
-        print(f"✓ Uncompleted draft returns 200 (410 test requires completed signup)")
+        print("✓ Uncompleted draft returns 200 (410 test requires completed signup)")
     
     def test_get_draft_wrong_org_returns_404(self):
         """Test getting a draft from wrong org returns 404"""
@@ -449,7 +449,7 @@ class TestFunnelEndpoint:
         
         data = response.json()
         assert data["filters"]["organization_id"] == STRONG_FITNESS_ORG_ID
-        print(f"✓ Funnel with organization filter works")
+        print("✓ Funnel with organization filter works")
     
     def test_funnel_requires_master_admin(self, bob_headers):
         """Test funnel endpoint requires master admin"""

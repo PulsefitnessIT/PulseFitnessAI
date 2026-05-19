@@ -437,7 +437,7 @@ function EngineerApp() {
 function FAQ() {
   const items = [
     { q: 'How much can I actually earn?',
-      a: `Two stacking commissions per gym you bring on: a one-off signup reward (50% of their first cleared Operations payment) and a £3/site/month recurring share for as long as the gym stays active. Both are released after the referred gym has been active on the platform for ${QUALIFYING_PERIOD} — see the next FAQ. There\'s no cap on the number of gyms you can refer.` },
+      a: `Two stacking commissions per gym you bring on: a one-off signup reward (50% of their first cleared Operations payment) and a £3/site/month recurring share for as long as the gym stays active. Both are released after the referred gym has been active on the platform for ${QUALIFYING_PERIOD} — see the next FAQ. There's no cap on the number of gyms you can refer.` },
     { q: `Why the ${QUALIFYING_PERIOD} qualifying period?`,
       a: `It protects everyone — engineers and GymAxis — from trial-and-cancel referrals where a gym signs up, takes a free quarter, and leaves. Commissions accrue from day one but are released once the referred gym has paid for ${QUALIFYING_PERIOD} of active service. If a gym cancels inside the window, no commission is paid (no claw-back from you either). Once they cross month 3, the signup reward releases in the next payout and the £3/site/mo recurring kicks in from month 4.` },
     { q: 'Do I work for GymAxis?',
@@ -455,7 +455,7 @@ function FAQ() {
     { q: 'Can a gym add me to one specific job without me joining?',
       a: 'Yes. Gyms can issue you a Job Grant that unlocks a single case at a time, free for you. Most engineers convert to a paid Partner Plan once they receive 2–3 grants.' },
     { q: 'What if a referred gym cancels in months 1–3?',
-      a: `No commission is paid for that referral — but there\'s no claw-back from your other earnings, and the gym doesn\'t count against your fee-tier discount either. The Stripe webhook automatically marks the referral as "lapsed" so you see exactly where it stands in your dashboard.` },
+      a: `No commission is paid for that referral — but there's no claw-back from your other earnings, and the gym doesn't count against your fee-tier discount either. The Stripe webhook automatically marks the referral as "lapsed" so you see exactly where it stands in your dashboard.` },
   ];
   return (
     <section className="py-20 md:py-28 bg-white" data-testid="pe-faq">

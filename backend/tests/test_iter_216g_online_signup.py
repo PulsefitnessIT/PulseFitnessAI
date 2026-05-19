@@ -411,9 +411,9 @@ class TestStripeConnectStatus:
         # Org likely not connected yet
         if not data["connected"]:
             assert data.get("account") is None, "Unconnected org should have null account"
-            print(f"✓ Status: connected=false, platform_fee_percent=1.0%")
+            print("✓ Status: connected=false, platform_fee_percent=1.0%")
         else:
-            print(f"✓ Status: connected=true, platform_fee_percent=1.0%")
+            print("✓ Status: connected=true, platform_fee_percent=1.0%")
     
     def test_status_requires_master_admin(self, bob_headers):
         """Test status endpoint requires master admin"""

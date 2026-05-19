@@ -1,29 +1,32 @@
 /**
- * CRM Reports suite — Iter 216h226.
+ * CRM Reports suite — Iter 216h226 (extended in h226-polish).
  *
  * Renders the 7 aggregated reports exposed by /api/crm/reports/*.
- * Each report has a compact card view (table + summary tiles) and a
- * "Download CSV" button that exports the current view client-side.
+ * Each report has a compact card view (table + summary tiles), a
+ * "Download CSV" button, and (for reports that accept it) a
+ * per-report date-range filter that becomes ?from_iso=…&to_iso=…
+ * on the API call.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
   BarChart3, PieChart, TrendingUp, AlertTriangle, Users, ShieldCheck, Layers,
-  Download, RefreshCw,
+  Download, RefreshCw, Calendar,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
 
+// `dateable: true` → the backend honours from_iso / to_iso on this report.
 const REPORTS = [
-  { id: 'pipeline-by-stage',     label: 'Pipeline by Stage',     category: 'Pipeline',   icon: BarChart3 },
-  { id: 'pipeline-by-territory', label: 'Pipeline by Territory', category: 'Pipeline',   icon: Layers },
-  { id: 'quote-conversion',      label: 'Quote Conversion',      category: 'Sales',      icon: TrendingUp },
-  { id: 'margin',                label: 'Margin Analysis',       category: 'Sales',      icon: PieChart },
-  { id: 'lost-reasons',          label: 'Lost Reasons',          category: 'Sales',      icon: AlertTriangle },
-  { id: 'salesperson',           label: 'Salesperson Performance', category: 'Team',     icon: Users },
-  { id: 'consent-overview',      label: 'GDPR Consent',          category: 'Compliance', icon: ShieldCheck },
+  { id: 'pipeline-by-stage',     label: 'Pipeline by Stage',       category: 'Pipeline',   icon: BarChart3,    dateable: true },
+  { id: 'pipeline-by-territory', label: 'Pipeline by Territory',   category: 'Pipeline',   icon: Layers,       dateable: true },
+  { id: 'quote-conversion',      label: 'Quote Conversion',        category: 'Sales',      icon: TrendingUp,   dateable: true },
+  { id: 'margin',                label: 'Margin Analysis',         category: 'Sales',      icon: PieChart,     dateable: true },
+  { id: 'lost-reasons',          label: 'Lost Reasons',            category: 'Sales',      icon: AlertTriangle, dateable: true },
+  { id: 'salesperson',           label: 'Salesperson Performance', category: 'Team',       icon: Users,        dateable: true },
+  { id: 'consent-overview',      label: 'GDPR Consent',            category: 'Compliance', icon: ShieldCheck,  dateable: false },
 ];
 
 function downloadCSV(filename, rows) {
@@ -37,6 +40,28 @@ function downloadCSV(filename, rows) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// Today / 7d / 30d / 90d / 365d / All quick-pick presets.
+const PRESETS = [
+  { id: '7d',   label: '7 days',  days: 7 },
+  { id: '30d',  label: '30 days', days: 30 },
+  { id: '90d',  label: '90 days', days: 90 },
+  { id: 'ytd',  label: 'YTD',     days: 0,   ytd: true },
+  { id: '365d', label: '12 mo',   days: 365 },
+  { id: 'all',  label: 'All time', days: null },
+];
+
+function presetToRange(preset) {
+  if (preset.id === 'all') return { from: '', to: '' };
+  const to = new Date();
+  const from = new Date();
+  if (preset.ytd) {
+    from.setMonth(0); from.setDate(1); from.setHours(0, 0, 0, 0);
+  } else {
+    from.setDate(from.getDate() - preset.days);
+  }
+  return { from: from.toISOString(), to: to.toISOString() };
 }
 
 const TotalsStrip = ({ totals }) => {
@@ -92,22 +117,85 @@ const DataTable = ({ rows }) => {
   );
 };
 
+const fmtDate = (iso) => {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  catch { return iso; }
+};
+
+function DateRangePicker({ from, to, onChange, presetId, onPreset, testid }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mb-3" data-testid={testid}>
+      {PRESETS.map(p => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => onPreset(p)}
+          className={`px-2 py-1 rounded-full text-[11px] font-bold border ${presetId === p.id ? 'text-white' : ''}`}
+          style={presetId === p.id
+            ? { background: 'var(--color-brand-blue)', borderColor: 'var(--color-brand-blue)' }
+            : { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }
+          }
+          data-testid={`${testid}-preset-${p.id}`}
+        >
+          {p.label}
+        </button>
+      ))}
+      <div className="ml-1 inline-flex items-center gap-1 px-2 py-1 rounded-md border" style={{ borderColor: 'var(--theme-border)' }}>
+        <Calendar size={11} className="text-[color:var(--theme-text-muted)]" />
+        <input
+          type="date"
+          value={from ? from.slice(0, 10) : ''}
+          onChange={(e) => onChange({ from: e.target.value ? new Date(e.target.value).toISOString() : '', to })}
+          className="bg-transparent text-xs outline-none w-[120px]"
+          style={{ color: 'var(--theme-text)' }}
+          data-testid={`${testid}-from`}
+        />
+        <span className="text-[10px] text-[color:var(--theme-text-muted)]">→</span>
+        <input
+          type="date"
+          value={to ? to.slice(0, 10) : ''}
+          onChange={(e) => onChange({ from, to: e.target.value ? new Date(e.target.value + 'T23:59:59Z').toISOString() : '' })}
+          className="bg-transparent text-xs outline-none w-[120px]"
+          style={{ color: 'var(--theme-text)' }}
+          data-testid={`${testid}-to`}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ReportPanel({ report }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [presetId, setPresetId] = useState('90d');
+  const [range, setRange] = useState(() => presetToRange(PRESETS.find(p => p.id === '90d')));
   const Icon = report.icon || BarChart3;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await axios.get(`${API}/crm/reports/${report.id}`, auth());
+      const params = new URLSearchParams();
+      if (report.dateable && range.from) params.set('from_iso', range.from);
+      if (report.dateable && range.to) params.set('to_iso', range.to);
+      const qs = params.toString();
+      const r = await axios.get(`${API}/crm/reports/${report.id}${qs ? `?${qs}` : ''}`, auth());
       setData(r.data);
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Failed to load report');
     } finally { setLoading(false); }
-  }, [report.id]);
+  }, [report.id, report.dateable, range.from, range.to]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handlePreset = (p) => {
+    setPresetId(p.id);
+    setRange(presetToRange(p));
+  };
+  const handleManualRange = (r) => {
+    setPresetId('custom');
+    setRange(r);
+  };
 
   return (
     <div className="rounded-xl border border-[color:var(--theme-border)] p-5 bg-[color:var(--theme-surface)]" data-testid={`report-panel-${report.id}`}>
@@ -134,6 +222,24 @@ function ReportPanel({ report }) {
           </button>
         </div>
       </header>
+
+      {report.dateable && (
+        <DateRangePicker
+          testid={`report-range-${report.id}`}
+          from={range.from}
+          to={range.to}
+          onChange={handleManualRange}
+          presetId={presetId}
+          onPreset={handlePreset}
+        />
+      )}
+
+      {data?.totals?.from && data?.totals?.to && (
+        <p className="text-[10px] text-[color:var(--theme-text-muted)] mb-2">
+          Range: <strong>{fmtDate(data.totals.from)}</strong> → <strong>{fmtDate(data.totals.to)}</strong>
+        </p>
+      )}
+
       {loading && !data ? (
         <p className="text-sm text-[color:var(--theme-text-muted)] py-8 text-center">Loading…</p>
       ) : (
@@ -164,7 +270,7 @@ export default function CRMReports() {
           <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-blue)' }}>Enterprise CRM</p>
           <h1 className="text-2xl md:text-3xl font-extrabold" style={{ color: 'var(--theme-text)' }}>Reports & analytics</h1>
           <p className="text-sm text-[color:var(--theme-text-muted)] max-w-2xl mt-1">
-            Pipeline health, quote conversion, margin distribution, win/loss reasons, salesperson leaderboard, and GDPR consent posture — all aggregated live.
+            Pipeline health, quote conversion, margin distribution, win/loss reasons, salesperson leaderboard, and GDPR consent posture — aggregated live, with per-report date ranges.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">

@@ -212,7 +212,8 @@ print(json.dumps({{'result': result}}))
         """Helper-level: accrue_commission_on_invoice_paid must return
         None for Pulse orgs even when legacy referred_by data is present.
         Subprocess isolates the Motor loop."""
-        import subprocess, json
+        import subprocess
+        import json
         org_id = pulse_user["org_id"]
         cus_id = f"cus_pulse_{uuid.uuid4()}"
         invoice_id = f"in_pulse_{uuid.uuid4()}"

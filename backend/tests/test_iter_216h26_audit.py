@@ -57,7 +57,9 @@ async def me(client, token):
 async def main():
     async with httpx.AsyncClient(timeout=30) as client:
         admin = await login(client, "admin@gymaxisai.com", "MasterAdmin123!")
-        h = lambda t=admin: {**BYPASS, "Authorization": f"Bearer {t}"}
+
+        def h(t=admin):
+            return {**BYPASS, "Authorization": f"Bearer {t}"}
 
         # ── A1 — /auth/me carries is_pulse_admin flag ─────────────────────
         pulse_t = await login(client, "pulse.scope.test@pulsefitness.com", "TestPulse2026!")

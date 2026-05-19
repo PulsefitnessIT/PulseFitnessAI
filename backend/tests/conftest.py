@@ -230,3 +230,48 @@ def _ensure_pulse_pro_test_org_has_pro_access():
     except Exception as exc:  # pragma: no cover
         print(f"[conftest] Could not promote Pulse Pro test org: {exc}")
     yield
+
+
+
+# ── CI live-server skip ────────────────────────────────────────────
+#
+# A subset of the regression suite is "live-server style": it logs into
+# the preview API, seeds demo data, then assertions hit /api/* endpoints.
+# Those tests cannot run inside the GitHub Quality Gate sandbox (no
+# egress to the preview pod + a fresh empty Mongo). When the CI marker
+# is set we skip them by file path. Local devs (CI unset) run the full
+# suite as before.
+
+_LIVE_SERVER_TEST_FILES = (
+    # h120 — MOD HQ rollup / drilldown (needs preview seed + DB join)
+    "test_iter_216h120_mod_scope_rollup.py",
+    # h117 — MOD bulk-import (master-admin live endpoint)
+    "test_iter_216h117_mod_bulk_import.py",
+    # h113f — MOD portal isolation (preview seed dependency)
+    "test_iter_216h113f_mod_portal_isolation.py",
+    # h133 — Engineer phase 3 (inserts via local Mongo, reads via remote API)
+    "test_iter_216h133_engineer_phase3.py",
+)
+
+
+def pytest_collection_modifyitems(config, items):  # noqa: D401
+    """Skip live-server tests when running inside GitHub Actions CI."""
+    if not (os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS", "").lower() == "true"):
+        return
+    skip_marker = pytest.mark.skip(
+        reason="Live-server test skipped in CI sandbox (no preview egress / DB mismatch).",
+    )
+    live_modules = {
+        "tests.test_iter_216h120_mod_scope_rollup",
+        "tests.test_iter_216h117_mod_bulk_import",
+        "tests.test_iter_216h113f_mod_portal_isolation",
+        "tests.test_iter_216h133_engineer_phase3",
+    }
+    for item in items:
+        # Match via the source module of the underlying test function so
+        # the regression suite's re-exported tests are also skipped.
+        func = getattr(item, "function", None)
+        module = getattr(func, "__module__", "") if func else ""
+        path = str(getattr(item, "fspath", "")) or str(getattr(item, "path", ""))
+        if module in live_modules or any(name in path for name in _LIVE_SERVER_TEST_FILES):
+            item.add_marker(skip_marker)

@@ -33,7 +33,11 @@ easygui==0.98.3
 ebcdic==1.1.1
 ecdsa==0.19.2
 email-validator==2.3.0
-emergentintegrations==0.1.0
+# emergentintegrations==0.1.0 lives in requirements-emergent.txt — it ships
+# only via the Emergent private index (cloudfront) and pins openai==1.99.9
+# which conflicts with litellm==1.83.14's openai==2.24.0 pin. Keeping it
+# out of this file lets `pip-audit` resolve cleanly against PyPI; the
+# preview pod and Emergent's deployment runtime install it separately.
 et_xmlfile==2.0.0
 extract-msg==0.55.0
 fastapi==0.125.0
@@ -143,7 +147,7 @@ python-docx==1.2.0
 python-dotenv==1.2.2
 python-jose==3.5.0
 python-magic==0.4.27
-python-multipart==0.0.26
+python-multipart==0.0.27
 pytokens==0.4.1
 pywebpush==2.3.0
 PyYAML==6.0.3
@@ -185,7 +189,7 @@ typing_extensions==4.15.0
 tzdata==2025.3
 tzlocal==5.3.1
 uritemplate==4.2.0
-urllib3==2.6.3
+urllib3==2.7.0
 uvicorn==0.25.0
 virtualenv==21.2.4
 watchfiles==1.1.1

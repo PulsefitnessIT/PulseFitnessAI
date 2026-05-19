@@ -58,6 +58,10 @@ export default function EngineerInvoiceBuilder() {
     notes: '', terms: '', status: 'draft',
   });
   const [emailBody, setEmailBody] = useState({ to: '', message: '' });
+  // Iter 216h226 — Stripe Connect onboarding state for the email modal
+  // warning. Loaded lazily when we open the modal so a missing token
+  // (engineer hasn't connected yet) doesn't block invoice editing.
+  const [connect, setConnect] = useState(null);
 
   const load = useCallback(async () => {
     if (isNew) return;
@@ -172,7 +176,19 @@ export default function EngineerInvoiceBuilder() {
                 <button onClick={handlePdf} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-bold" data-testid="invoice-builder-pdf-btn">
                   <FileDown size={14} /> PDF
                 </button>
-                <button onClick={() => setShowEmail(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow" data-testid="invoice-builder-send-btn">
+                <button
+                  onClick={async () => {
+                    setShowEmail(true);
+                    try {
+                      const r = await axios.get(`${API}/svc/engineer/payouts/connect/status`, auth());
+                      setConnect(r.data);
+                    } catch {
+                      setConnect({ ready: false, connected: false });
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow"
+                  data-testid="invoice-builder-send-btn"
+                >
                   <Send size={14} /> Send
                 </button>
               </>

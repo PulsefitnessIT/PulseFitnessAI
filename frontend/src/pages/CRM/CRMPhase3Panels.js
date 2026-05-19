@@ -126,9 +126,9 @@ export function EnrichFromWebsiteButton({ companyId, onEnriched }) {
 }
 
 const URGENCY_TONE = {
-  high:   { bg: 'rgba(239,68,68,0.10)',  fg: '#ef4444', label: 'HIGH' },
-  medium: { bg: 'rgba(245,158,11,0.10)', fg: '#f59e0b', label: 'MED' },
-  low:    { bg: 'rgba(34,197,94,0.10)',  fg: '#22c55e', label: 'LOW' },
+  high:   { bg: 'rgba(239,68,68,0.10)',  fg: 'var(--color-danger)',  label: 'HIGH' },
+  medium: { bg: 'rgba(245,158,11,0.10)', fg: 'var(--color-warning)', label: 'MED' },
+  low:    { bg: 'rgba(34,197,94,0.10)',  fg: 'var(--color-success)', label: 'LOW' },
 };
 
 export function AINextActionCard({ opportunityId, onActOnSuggestion }) {

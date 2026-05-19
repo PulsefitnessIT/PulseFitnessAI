@@ -55,7 +55,7 @@ class TestBrandDiscoveryStart:
         data = resp.json()
         assert data.get("ok") is True, f"Expected ok:true, got {data}"
         assert data.get("status") == "queued", f"Expected status:queued, got {data.get('status')}"
-        assert "example.com" in data.get("website_url", ""), f"Expected website_url to contain example.com"
+        assert "example.com" in data.get("website_url", ""), "Expected website_url to contain example.com"
         print(f"✓ Start returned: {data}")
 
 
@@ -174,7 +174,7 @@ class TestBrandDiscoveryApply:
         )
         assert apply_resp.status_code == 200, f"Apply failed: {apply_resp.text}"
         apply_data = apply_resp.json()
-        assert apply_data.get("ok") is True, f"Apply did not return ok:true"
+        assert apply_data.get("ok") is True, "Apply did not return ok:true"
         print(f"✓ Apply returned: {apply_data}")
 
         # Verify brand-kit was updated
@@ -194,12 +194,12 @@ class TestBrandDiscoveryApply:
                 f"font_heading not copied: kit={kit.get('font_heading')}, draft={draft['fonts']['heading']}"
         if draft.get("logos"):
             assert kit.get("primary_logo_url") == draft["logos"][0].get("stored_url"), \
-                f"primary_logo_url not copied"
+                "primary_logo_url not copied"
         if draft.get("intelligence", {}).get("tone_of_voice"):
             assert kit.get("voice") == draft["intelligence"]["tone_of_voice"], \
-                f"voice not copied"
+                "voice not copied"
 
-        print(f"✓ Brand-kit updated with draft values")
+        print("✓ Brand-kit updated with draft values")
 
         # Verify discovery status flipped to 'applied'
         status_resp = requests.get(
@@ -208,7 +208,7 @@ class TestBrandDiscoveryApply:
         )
         assert status_resp.json().get("status") == "applied", \
             f"Discovery status should be 'applied', got {status_resp.json().get('status')}"
-        print(f"✓ Discovery status is now 'applied'")
+        print("✓ Discovery status is now 'applied'")
 
 
 class TestBrandDiscoveryDiscard:

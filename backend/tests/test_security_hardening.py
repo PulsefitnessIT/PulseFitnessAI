@@ -244,11 +244,15 @@ def test_audit_required_raises_when_mongo_down(monkeypatch):
 
 # ─── CORS resolver ───────────────────────────────────────────────
 
-def test_cors_fails_fast_in_prod(monkeypatch):
+def test_cors_falls_back_to_brand_defaults_in_prod(monkeypatch):
+    """In production with CORS_ORIGINS unset we fall back to the two
+    customer brand domains (better than crashing on boot, never `*`).
+    """
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.delenv("CORS_ORIGINS", raising=False)
-    with pytest.raises(RuntimeError):
-        resolve_cors_origins()
+    origins = resolve_cors_origins()
+    assert origins, "should return at least one brand-default origin"
+    assert "*" not in origins, "production must never default to wildcard"
 
 
 def test_cors_dev_default_permissive(monkeypatch):

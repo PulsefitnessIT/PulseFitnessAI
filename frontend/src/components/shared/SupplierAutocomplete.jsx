@@ -38,7 +38,7 @@ export default function SupplierAutocomplete({
   disabled = false,
   testid,
 }) {
-  const { } = useAuth();
+  useAuth(); // ensures auth context is mounted; no values needed here.
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const [items, setItems] = useState([]);

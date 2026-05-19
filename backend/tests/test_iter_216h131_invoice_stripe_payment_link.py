@@ -178,7 +178,7 @@ def test_webhook_marks_invoice_paid_via_metadata_routing():
     assert body.get("ok") is True
     if body.get("ignored"):
         # Unexpected — shouldn't happen for engineer_invoice tenant
-        assert False, body
+        raise AssertionError(body)
     fresh = requests.get(f"{API}/api/svc/engineer/invoices/{inv['id']}",
                          headers=_hdr(tok), timeout=15).json()
     assert fresh["status"] == "paid"

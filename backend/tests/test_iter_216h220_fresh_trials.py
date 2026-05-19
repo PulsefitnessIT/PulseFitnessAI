@@ -244,7 +244,7 @@ class TestE2EEnrichmentFlow:
         assert found_trial["utm_source"] == "google", f"UTM source mismatch: {found_trial['utm_source']}"
         assert found_trial["utm_campaign"] == "test_campaign_2026", f"UTM campaign mismatch: {found_trial['utm_campaign']}"
         
-        print(f"✓ E2E enrichment verified - all fields populated correctly")
+        print("✓ E2E enrichment verified - all fields populated correctly")
         print(f"  Trial: {found_trial['name']}")
         print(f"  Industry: {found_trial['industry']}, Employees: {found_trial['employee_count']}")
         print(f"  UTM: source={found_trial['utm_source']}, campaign={found_trial['utm_campaign']}")

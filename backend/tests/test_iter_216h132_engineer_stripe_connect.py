@@ -201,7 +201,7 @@ def test_connect_webhook_caches_account_updated_flags():
     if body.get("ignored"):
         # Acceptable only if the partner lookup failed — but we just
         # inserted them so it really shouldn't.
-        assert False, body
+        raise AssertionError(body)
     # Confirm the cache was updated
     fresh = _mongo()["partner_engineers"].find_one({"id": pid}, {"_id": 0})
     flags = (fresh.get("payout") or {}).get("stripe_connect") or {}

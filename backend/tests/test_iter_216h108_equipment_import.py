@@ -232,7 +232,7 @@ class TestEquipmentImportEndpoint:
                     elif not iso_pattern.match(value) and not value.startswith("20"):
                         issues.append(f"Equipment {eq.get('id')}: {field}={value} is not ISO format")
         
-        assert len(issues) == 0, f"Date format issues found:\n" + "\n".join(issues[:10])
+        assert len(issues) == 0, "Date format issues found:\n" + "\n".join(issues[:10])
 
 
 class TestBulkAutoLookupChunking:

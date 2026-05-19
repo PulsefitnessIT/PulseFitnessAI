@@ -1,0 +1,11 @@
+# Private-index dependency for the Emergent runtime.
+#
+# emergentintegrations is published only via the Emergent cloudfront simple
+# index (it carries the universal LLM key bridge). It pins openai==1.99.9
+# which clashes with litellm==1.83.14's openai==2.24.0 pin, so we keep it
+# out of requirements.txt where pip-audit + Quality Gate can't resolve.
+#
+# Pod install (already wired by the platform):
+#   pip install -r requirements-emergent.txt \
+#     --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+emergentintegrations==0.1.0

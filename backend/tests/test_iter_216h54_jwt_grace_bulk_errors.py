@@ -272,7 +272,7 @@ class TestBulkImportCustomersRowErrors:
         """Row with duplicate email must report 'Row N: duplicate - contact with email X already exists'."""
         # First import a contact
         unique_email = f"test-dup-{int(time.time())}@example.com"
-        csv_content = f"customer_account_number,first_name,last_name,email\n"
+        csv_content = "customer_account_number,first_name,last_name,email\n"
         csv_content += f"PULSENC01,Test,User,{unique_email}\n"
         
         files = {"file": ("test.csv", io.BytesIO(csv_content.encode()), "text/csv")}
@@ -351,7 +351,7 @@ class TestBulkImportSitesRowErrors:
         """Row with duplicate site name must report 'Row N: duplicate - a site named X already exists'."""
         # First import a site
         unique_name = f"TEST Site {int(time.time())}"
-        csv_content = f"site_name,address_line1,city\n"
+        csv_content = "site_name,address_line1,city\n"
         csv_content += f"{unique_name},123 Test Street,London\n"
         
         files = {"file": ("test.csv", io.BytesIO(csv_content.encode()), "text/csv")}

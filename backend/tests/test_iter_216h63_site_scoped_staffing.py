@@ -110,8 +110,8 @@ class TestTeamSiteFilter:
         
         # Test staff should appear (allocated to SITE_HQ)
         test_user = next((m for m in members if m.get("id") == test_staff_user["id"]), None)
-        assert test_user is not None, f"Test staff allocated to SITE_HQ should appear in SITE_HQ filter"
-        print(f"✓ Test staff appears in SITE_HQ filter")
+        assert test_user is not None, "Test staff allocated to SITE_HQ should appear in SITE_HQ filter"
+        print("✓ Test staff appears in SITE_HQ filter")
     
     def test_team_site_filter_hides_unallocated_staff(self, auth_headers, test_staff_user):
         """Staff allocated to SITE_HQ should NOT appear when filtering by SITE_B."""
@@ -122,12 +122,12 @@ class TestTeamSiteFilter:
         
         # Test staff should NOT appear (only allocated to SITE_HQ, not SITE_B)
         test_user = next((m for m in members if m.get("id") == test_staff_user["id"]), None)
-        assert test_user is None, f"Test staff allocated to SITE_HQ should NOT appear in SITE_B filter"
+        assert test_user is None, "Test staff allocated to SITE_HQ should NOT appear in SITE_B filter"
         
         # But owner should still appear
         owner = next((m for m in members if m.get("email") == PULSE_OWNER_EMAIL), None)
         assert owner is not None, "Owner should always appear even in SITE_B filter"
-        print(f"✓ Test staff hidden in SITE_B filter, owner still visible")
+        print("✓ Test staff hidden in SITE_B filter, owner still visible")
 
 
 class TestClockBoardSiteFilter:

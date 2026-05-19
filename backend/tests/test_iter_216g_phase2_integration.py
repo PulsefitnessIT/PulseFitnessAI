@@ -287,7 +287,7 @@ class TestJourneyStepsConfiguration:
         
         # The expected statuses are: pending, sending, sent, failed
         valid_statuses = {"pending", "sending", "sent", "failed"}
-        for status in journey_jobs.keys():
+        for status in journey_jobs:
             assert status in valid_statuses, f"Unexpected status: {status}"
         
         print("✓ Journey jobs have valid status values")

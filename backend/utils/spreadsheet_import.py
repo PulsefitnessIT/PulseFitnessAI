@@ -159,8 +159,7 @@ def _iter_xlsx(content: bytes) -> Iterable[dict]:
 def _iter_csv(content: bytes) -> Iterable[dict]:
     text = content.decode("utf-8-sig", errors="ignore")
     reader = csv.DictReader(io.StringIO(text))
-    for row in reader:
-        yield row
+    yield from reader
 
 
 def iter_rows(content: bytes, filename: str) -> Iterable[dict]:

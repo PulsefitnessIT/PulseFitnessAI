@@ -74,13 +74,24 @@ def _envelope(rows: list[dict], totals: dict | None = None, **extra) -> dict:
 
 
 @router.get("/pipeline-by-stage")
-async def pipeline_by_stage(user=Depends(get_crm_user)) -> dict:
+async def pipeline_by_stage(
+    from_iso: str | None = None,
+    to_iso: str | None = None,
+    user=Depends(get_crm_user),
+) -> dict:
     """Count + total value of open opportunities grouped by stage.
     Excludes closed_won / closed_lost so the view focuses on what's
     actually still in play.
+
+    Honours `from_iso` / `to_iso` against `created_at` so admins can
+    inspect pipeline composition at a specific point in time.
     """
+    start, end = _date_range(from_iso, to_iso)
+    match: dict[str, Any] = {**_of(user), "stage": {"$nin": ["closed_won", "closed_lost"]}}
+    if from_iso or to_iso:
+        match["created_at"] = {"$gte": start, "$lte": end}
     pipeline = [
-        {"$match": {**_of(user), "stage": {"$nin": ["closed_won", "closed_lost"]}}},
+        {"$match": match},
         {"$group": {
             "_id": "$stage",
             "count": {"$sum": 1},
@@ -93,6 +104,7 @@ async def pipeline_by_stage(user=Depends(get_crm_user)) -> dict:
     totals = {
         "count": sum(r.get("count", 0) for r in rows),
         "value": round(sum(r.get("value", 0) for r in rows), 2),
+        "from": start, "to": end,
     }
     return _envelope(rows, totals)
 
@@ -101,13 +113,21 @@ async def pipeline_by_stage(user=Depends(get_crm_user)) -> dict:
 
 
 @router.get("/pipeline-by-territory")
-async def pipeline_by_territory(user=Depends(get_crm_user)) -> dict:
+async def pipeline_by_territory(
+    from_iso: str | None = None,
+    to_iso: str | None = None,
+    user=Depends(get_crm_user),
+) -> dict:
     """Open opportunity count + value broken down by `territory_id`.
     Joined to the territory directory so the row carries the human
     name (or "Unassigned" when null).
     """
+    start, end = _date_range(from_iso, to_iso)
+    match: dict[str, Any] = {**_of(user), "stage": {"$nin": ["closed_won", "closed_lost"]}}
+    if from_iso or to_iso:
+        match["created_at"] = {"$gte": start, "$lte": end}
     pipeline = [
-        {"$match": {**_of(user), "stage": {"$nin": ["closed_won", "closed_lost"]}}},
+        {"$match": match},
         {"$group": {
             "_id": {"$ifNull": ["$territory_id", "__unassigned__"]},
             "count": {"$sum": 1},
@@ -135,6 +155,7 @@ async def pipeline_by_territory(user=Depends(get_crm_user)) -> dict:
         "count": sum(r.get("count", 0) for r in rows),
         "value": round(sum(r.get("value", 0) for r in rows), 2),
         "territories": len([r for r in rows if r["territory_id"] != "__unassigned__"]),
+        "from": start, "to": end,
     }
     return _envelope(rows, totals)
 
@@ -198,24 +219,34 @@ async def quote_conversion(
 
 
 @router.get("/margin")
-async def margin_analysis(user=Depends(get_crm_user)) -> dict:
+async def margin_analysis(
+    from_iso: str | None = None,
+    to_iso: str | None = None,
+    user=Depends(get_crm_user),
+) -> dict:
     """Distribution + outliers of gross margin % across the org's
     quotes. Includes a "leaking margin" list — quotes pending approval
     older than 48h.
+
+    `from_iso` / `to_iso` filter on the quote's `created_at`.
     """
+    start, end = _date_range(from_iso, to_iso)
     org_q = {
         "$or": [
             {"organization_id": user.get("organization_id")},
             {"organization_id": {"$exists": False}},
         ],
     }
+    quote_match: dict[str, Any] = {**org_q, "gross_margin_percent": {"$exists": True}}
+    if from_iso or to_iso:
+        quote_match["created_at"] = {"$gte": start, "$lte": end}
     cursor = db.crm_quotes.find(
-        {**org_q, "gross_margin_percent": {"$exists": True}},
+        quote_match,
         {"_id": 0, "id": 1, "quote_number": 1, "title": 1, "gross_margin_percent": 1, "total": 1, "status": 1, "company_name": 1, "created_by_name": 1, "updated_at": 1, "approval_status": 1, "created_at": 1},
     ).sort("gross_margin_percent", -1).limit(500)
     rows = await cursor.to_list(500)
     if not rows:
-        return _envelope([], {"avg_margin_percent": 0, "median_margin_percent": 0, "count": 0, "leaking": []})
+        return _envelope([], {"avg_margin_percent": 0, "median_margin_percent": 0, "count": 0, "leaking": [], "from": start, "to": end})
 
     margins = sorted([r.get("gross_margin_percent", 0) or 0 for r in rows])
     avg = round(sum(margins) / len(margins), 2)
@@ -223,11 +254,16 @@ async def margin_analysis(user=Depends(get_crm_user)) -> dict:
     # Distribution buckets (0-10, 11-20, 21-30, 31-50, 51+).
     buckets = {"0-10": 0, "11-20": 0, "21-30": 0, "31-50": 0, "51+": 0}
     for m in margins:
-        if m <= 10: buckets["0-10"] += 1
-        elif m <= 20: buckets["11-20"] += 1
-        elif m <= 30: buckets["21-30"] += 1
-        elif m <= 50: buckets["31-50"] += 1
-        else: buckets["51+"] += 1
+        if m <= 10:
+            buckets["0-10"] += 1
+        elif m <= 20:
+            buckets["11-20"] += 1
+        elif m <= 30:
+            buckets["21-30"] += 1
+        elif m <= 50:
+            buckets["31-50"] += 1
+        else:
+            buckets["51+"] += 1
     distribution = [{"bucket": k, "count": v} for k, v in buckets.items()]
 
     # Top 5 / bottom 5 by margin.
@@ -250,6 +286,7 @@ async def margin_analysis(user=Depends(get_crm_user)) -> dict:
         "top": top,
         "bottom": bottom,
         "leaking": leaking[:10],
+        "from": start, "to": end,
     })
 
 
@@ -257,10 +294,18 @@ async def margin_analysis(user=Depends(get_crm_user)) -> dict:
 
 
 @router.get("/lost-reasons")
-async def lost_reasons(user=Depends(get_crm_user)) -> dict:
+async def lost_reasons(
+    from_iso: str | None = None,
+    to_iso: str | None = None,
+    user=Depends(get_crm_user),
+) -> dict:
     """Top reasons we lose deals + dollar value lost per reason."""
+    start, end = _date_range(from_iso, to_iso)
+    match: dict[str, Any] = {**_of(user), "stage": "closed_lost"}
+    if from_iso or to_iso:
+        match["closed_at"] = {"$gte": start, "$lte": end}
     pipeline = [
-        {"$match": {**_of(user), "stage": "closed_lost"}},
+        {"$match": match},
         {"$group": {
             "_id": {"$ifNull": ["$lost_reason", "(no reason)"]},
             "count": {"$sum": 1},
@@ -274,6 +319,7 @@ async def lost_reasons(user=Depends(get_crm_user)) -> dict:
     totals = {
         "deals_lost": sum(r["count"] for r in rows),
         "value_lost": round(sum(r["value"] for r in rows), 2),
+        "from": start, "to": end,
     }
     return _envelope(rows, totals)
 

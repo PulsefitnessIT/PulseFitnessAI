@@ -78,7 +78,7 @@ class TestCRMCrossLoginBugFix:
         assert cross_login_resp.status_code == 200, f"Master admin cross-login failed: {cross_login_resp.text}"
         data = cross_login_resp.json()
         assert "token" in data, "No CRM token in response"
-        print(f"✓ Master admin cross-login successful")
+        print("✓ Master admin cross-login successful")
 
     def test_e1_agent_can_cross_login(self):
         """E1 agent (e1.agent@gymaxisai.com) should be able to cross-login."""
@@ -102,7 +102,7 @@ class TestCRMCrossLoginBugFix:
         assert cross_login_resp.status_code == 200, f"E1 agent cross-login failed: {cross_login_resp.text}"
         data = cross_login_resp.json()
         assert "token" in data, "No CRM token in response"
-        print(f"✓ E1 agent cross-login successful")
+        print("✓ E1 agent cross-login successful")
 
 
 class TestCRMCrossLoginDenials:
@@ -132,7 +132,7 @@ class TestCRMCrossLoginDenials:
         )
         
         assert cross_login_resp.status_code == 403, f"MOD site should be denied, got {cross_login_resp.status_code}"
-        print(f"✓ MOD site account correctly denied CRM cross-login")
+        print("✓ MOD site account correctly denied CRM cross-login")
 
     def test_mod_branch_account_denied_cross_login(self):
         """MOD branch account should get 403 on cross-login."""
@@ -157,7 +157,7 @@ class TestCRMCrossLoginDenials:
         )
         
         assert cross_login_resp.status_code == 403, f"MOD branch should be denied, got {cross_login_resp.status_code}"
-        print(f"✓ MOD branch account correctly denied CRM cross-login")
+        print("✓ MOD branch account correctly denied CRM cross-login")
 
 
 class TestCRMCrossLoginEdgeCases:
@@ -177,7 +177,7 @@ class TestCRMCrossLoginEdgeCases:
             timeout=10
         )
         assert resp.status_code == 401, f"Expected 401, got {resp.status_code}"
-        print(f"✓ Cross-login with invalid token correctly returns 401")
+        print("✓ Cross-login with invalid token correctly returns 401")
 
     def test_cross_login_with_crm_token_returns_400(self):
         """Cross-login with an already-CRM token should return 400."""
@@ -206,4 +206,4 @@ class TestCRMCrossLoginEdgeCases:
             timeout=15
         )
         assert re_cross_resp.status_code == 400, f"Expected 400 for re-exchange, got {re_cross_resp.status_code}"
-        print(f"✓ Re-exchange of CRM token correctly returns 400")
+        print("✓ Re-exchange of CRM token correctly returns 400")

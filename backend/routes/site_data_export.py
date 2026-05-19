@@ -327,7 +327,7 @@ def _rows_to_csv_bytes(rows: list[dict]) -> bytes:
             keys.append(preferred)
             seen.add(preferred)
     for r in rows:
-        for k in r.keys():
+        for k in r:
             if k not in seen:
                 keys.append(k)
                 seen.add(k)

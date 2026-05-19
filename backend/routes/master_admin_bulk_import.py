@@ -185,10 +185,7 @@ def _is_blank_row(row: dict) -> bool:
 
     Returns True if every cell in the row is empty/whitespace.
     """
-    for v in row.values():
-        if v and str(v).strip():
-            return False
-    return True
+    return all(not (v and str(v).strip()) for v in row.values())
 
 
 async def _resolve_target_org(user: dict, organization_id: Optional[str]) -> str:

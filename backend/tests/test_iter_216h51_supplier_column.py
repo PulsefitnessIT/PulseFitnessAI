@@ -60,7 +60,7 @@ class TestCanonicalE1User:
         assert resp.status_code == 200, f"E1 agent login failed: {resp.text}"
         data = resp.json()
         assert "access_token" in data or "token" in data, "No token in response"
-        print(f"✓ E1 agent login succeeded")
+        print("✓ E1 agent login succeeded")
     
     def test_e1_agent_has_owner_role(self):
         """E1 agent user has role='owner'."""
@@ -72,7 +72,7 @@ class TestCanonicalE1User:
         data = resp.json()
         user = data.get("user", {})
         assert user.get("role") == "owner", f"Expected role='owner', got '{user.get('role')}'"
-        print(f"✓ E1 agent has role='owner'")
+        print("✓ E1 agent has role='owner'")
     
     def test_e1_agent_belongs_to_pulse_fitness_org(self):
         """E1 agent belongs to Pulse Fitness org (8cd02d8c-e5a2-4c13-bdb9-8b143b85455f)."""
@@ -85,7 +85,7 @@ class TestCanonicalE1User:
         user = data.get("user", {})
         assert user.get("organization_id") == PULSE_FITNESS_ORG_ID, \
             f"Expected org_id='{PULSE_FITNESS_ORG_ID}', got '{user.get('organization_id')}'"
-        print(f"✓ E1 agent belongs to Pulse Fitness org")
+        print("✓ E1 agent belongs to Pulse Fitness org")
 
 
 class TestEquipmentTemplateSupplierColumn:
@@ -104,7 +104,7 @@ class TestEquipmentTemplateSupplierColumn:
         headers = next(reader)
         
         assert "supplier" in headers, f"'supplier' column missing. Headers: {headers}"
-        print(f"✓ Template has 'supplier' column")
+        print("✓ Template has 'supplier' column")
     
     def test_template_header_order(self, master_admin_token):
         """Verify exact header order: site_name, customer_account_number, supplier, name, ..."""
@@ -126,7 +126,7 @@ class TestEquipmentTemplateSupplierColumn:
         ]
         
         assert headers == expected_order, f"Header order mismatch.\nExpected: {expected_order}\nGot: {headers}"
-        print(f"✓ Header order is correct: supplier is 3rd column (after site_name, customer_account_number)")
+        print("✓ Header order is correct: supplier is 3rd column (after site_name, customer_account_number)")
     
     def test_template_example_row_supplier_value(self, master_admin_token):
         """Example row has supplier='Pulse Fitness'."""
@@ -143,7 +143,7 @@ class TestEquipmentTemplateSupplierColumn:
         supplier_idx = headers.index("supplier")
         assert example_row[supplier_idx] == "Pulse Fitness", \
             f"Expected supplier='Pulse Fitness', got '{example_row[supplier_idx]}'"
-        print(f"✓ Example row has supplier='Pulse Fitness'")
+        print("✓ Example row has supplier='Pulse Fitness'")
 
 
 class TestEquipmentBulkImportSupplierResolution:
@@ -416,7 +416,7 @@ class TestEquipmentBulkImportSupplierResolution:
         assert test_equip.get("supplier_email") is None, \
             f"Expected supplier_email=None for unmatched supplier, got '{test_equip.get('supplier_email')}'"
         
-        print(f"✓ No match: supplier='Some Unknown Supplier', supplier_id=None, supplier_email=None")
+        print("✓ No match: supplier='Some Unknown Supplier', supplier_id=None, supplier_email=None")
         
         # Cleanup
         requests.delete(
@@ -462,7 +462,7 @@ class TestEquipmentBulkImportSupplierResolution:
         assert test_equip.get("supplier_email") is None, \
             f"Expected supplier_email=None, got '{test_equip.get('supplier_email')}'"
         
-        print(f"✓ Blank supplier: falls back to manufacturer='Life Fitness', supplier_id=None")
+        print("✓ Blank supplier: falls back to manufacturer='Life Fitness', supplier_id=None")
         
         # Cleanup
         requests.delete(
@@ -494,7 +494,7 @@ class TestOrganizationsEndpointLimit:
         assert "user_count" in first_org, "Org missing 'user_count' enrichment"
         assert "owner_email" in first_org, "Org missing 'owner_email' enrichment"
         
-        print(f"✓ Org structure verified: id, name, user_count, owner_email present")
+        print("✓ Org structure verified: id, name, user_count, owner_email present")
     
     def test_organizations_no_truncation(self, master_admin_token):
         """Verify orgs aren't silently truncated (should be 5-6 after purge)."""

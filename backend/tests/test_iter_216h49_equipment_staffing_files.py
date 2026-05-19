@@ -196,7 +196,7 @@ class TestEquipmentMove:
         )
         
         assert resp.status_code == 404, f"Expected 404, got {resp.status_code}: {resp.text}"
-        print(f"✓ Non-existent equipment returns 404")
+        print("✓ Non-existent equipment returns 404")
 
 
 class TestEquipmentDeleteOrgScoped:
@@ -236,7 +236,7 @@ class TestEquipmentDeleteOrgScoped:
         
         resp = requests.delete(f"{BASE_URL}/api/equipment/non-existent-id", headers=headers)
         assert resp.status_code == 404, f"Expected 404, got {resp.status_code}: {resp.text}"
-        print(f"✓ Delete non-existent equipment returns 404")
+        print("✓ Delete non-existent equipment returns 404")
 
 
 class TestEquipmentPatchSiteIdGating:
@@ -350,7 +350,7 @@ class TestServiceDeskEquipmentSearch:
         
         resp = requests.get(f"{BASE_URL}/api/service-desk/equipment", headers=headers)
         assert resp.status_code == 403, f"Expected 403 for regular user, got {resp.status_code}: {resp.text}"
-        print(f"✓ Regular user gets 403 on service desk endpoint")
+        print("✓ Regular user gets 403 on service desk endpoint")
 
 
 class TestStaffingAutoBackfill:
@@ -435,7 +435,7 @@ class TestStaffingAutoBackfill:
             for s in data.get("staff", []):
                 if s.get("email", "").lower() == test_email.lower():
                     assert s.get("auto_synced_from_users") is True, "Missing auto_synced_from_users flag"
-                    print(f"✓ Staff record has auto_synced_from_users=true")
+                    print("✓ Staff record has auto_synced_from_users=true")
                     break
         else:
             print(f"Note: User {test_email} not found in staff list - backfill may not have run or user creation failed")
@@ -524,7 +524,7 @@ startxref
         data = resp.json()
         assert "original_size" in data, "Missing original_size field"
         assert "compression_ratio" in data, "Missing compression_ratio field"
-        assert data["original_size"] == len(pdf_content), f"original_size mismatch"
+        assert data["original_size"] == len(pdf_content), "original_size mismatch"
         
         print(f"✓ PDF upload returned original_size={data['original_size']}, compression_ratio={data['compression_ratio']}")
 
@@ -577,9 +577,9 @@ class TestAuditLogEntries:
             logs = audit_resp.json().get("logs", [])
             found = any(log.get("equipment_id") == equipment_id for log in logs)
             if found:
-                print(f"✓ Audit log entry found for equipment.deleted event")
+                print("✓ Audit log entry found for equipment.deleted event")
             else:
-                print(f"Note: Audit log entry not found in recent logs (may be in different collection)")
+                print("Note: Audit log entry not found in recent logs (may be in different collection)")
         else:
             print(f"Note: Could not verify audit log: {audit_resp.status_code}")
 

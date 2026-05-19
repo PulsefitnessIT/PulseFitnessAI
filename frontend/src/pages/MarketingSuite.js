@@ -99,13 +99,11 @@ const MarketingSuite = () => {
     if (typeof window === 'undefined') return;
     const sp = new URLSearchParams(window.location.search);
     if (sp.get('from') === 'crm') {
-      // Lazy-import-friendly: notify is already imported elsewhere; use a
-      // light DOM-friendly toast via the global notify if available.
-      try {
-        // eslint-disable-next-line global-require
-        const { notify } = require('@/components/notifications');
+      // Dynamic import keeps the marketing bundle lean and avoids the
+      // eslint `no-undef` for require() in ESM-mode lint.
+      import('@/components/notifications').then(({ notify }) => {
         notify.info('CRM Lite', 'Manage your contacts and segments here. Upgrade to CRM Pro for pipeline & forecasting.');
-      } catch (_) { /* notification system unavailable — silent */ }
+      }).catch(() => { /* notification system unavailable — silent */ });
     }
   }, []);
   const [hideStart] = useUserPref('hideStartTabs', false);

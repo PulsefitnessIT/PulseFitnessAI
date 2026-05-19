@@ -152,7 +152,7 @@ class TestCreditPackCheckoutEndpoint:
             # The checkout_url should be a Stripe URL
             assert "stripe.com" in data["checkout_url"] or "checkout.stripe" in data["checkout_url"], \
                 f"checkout_url should be Stripe URL, got: {data['checkout_url']}"
-            print(f"✓ Checkout created (price_pence in body was ignored)")
+            print("✓ Checkout created (price_pence in body was ignored)")
             print(f"  checkout_url: {data['checkout_url'][:80]}...")
         else:
             # Other errors (rate limit, etc.) are acceptable
@@ -189,7 +189,7 @@ class TestWalletTopupRegression:
         )
         # Should not be 404 (endpoint exists)
         # May be 400/503 if Stripe not configured or other validation
-        assert r.status_code != 404, f"Wallet topup endpoint should exist, got 404"
+        assert r.status_code != 404, "Wallet topup endpoint should exist, got 404"
         print(f"✓ Wallet topup endpoint exists (status: {r.status_code})")
 
 
@@ -225,7 +225,7 @@ class TestStaffOverrideBookingRegression:
             # Should be 404 (member not found) or 400, not 500 or endpoint missing
             assert r2.status_code in [400, 404, 422], \
                 f"Expected 400/404/422 for invalid member, got {r2.status_code}: {r2.text}"
-            print(f"✓ Booking endpoint accepts bypass_credits parameter")
+            print("✓ Booking endpoint accepts bypass_credits parameter")
         else:
             print(f"No occurrences found to test (status: {r.status_code})")
 

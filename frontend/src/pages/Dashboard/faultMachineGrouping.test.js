@@ -5,7 +5,6 @@ import {
 } from './faultMachineGrouping';
 
 /* eslint-env jest */
-/* global describe, test, expect */
 
 describe('iter 216d2 — fault machine grouping', () => {
   // Minimal repro of Lee's Feb-2026 production data: the Machine Type

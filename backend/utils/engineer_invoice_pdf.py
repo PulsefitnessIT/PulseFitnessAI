@@ -170,10 +170,14 @@ def _payment_block(s, inv):
     if inv.get("payment_method"):
         body.append(f"<b>Method:</b> {_esc(inv['payment_method'])}")
     bank_lines = []
-    if inv.get("bank_name"): bank_lines.append(f"Bank: {inv['bank_name']}")
-    if inv.get("bank_account_name"): bank_lines.append(f"Account name: {inv['bank_account_name']}")
-    if inv.get("bank_sort_code"): bank_lines.append(f"Sort code: {inv['bank_sort_code']}")
-    if inv.get("bank_account_number"): bank_lines.append(f"Account number: {inv['bank_account_number']}")
+    if inv.get("bank_name"):
+        bank_lines.append(f"Bank: {inv['bank_name']}")
+    if inv.get("bank_account_name"):
+        bank_lines.append(f"Account name: {inv['bank_account_name']}")
+    if inv.get("bank_sort_code"):
+        bank_lines.append(f"Sort code: {inv['bank_sort_code']}")
+    if inv.get("bank_account_number"):
+        bank_lines.append(f"Account number: {inv['bank_account_number']}")
     if bank_lines:
         body.append("<br/>".join(_esc(b) for b in bank_lines))
     if inv.get("payment_instructions"):

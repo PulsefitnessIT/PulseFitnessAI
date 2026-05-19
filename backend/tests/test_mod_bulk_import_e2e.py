@@ -86,7 +86,7 @@ test-e2e-003,Test Site E2E 3,RAF,789 Test Rd,,Test City,Test County,TS3 3CC,Unit
             assert receipt_response.status_code == 409, \
                 f"Expected 409 for delivery receipt before send, got {receipt_response.status_code}: {receipt_response.text}"
             
-            print(f"✓ Delivery receipt correctly returns 409 before send")
+            print("✓ Delivery receipt correctly returns 409 before send")
     
     def test_send_credentials_returns_404_for_unknown_batch(self, auth_headers):
         """POST send-credentials returns 404 for unknown batch_id"""
@@ -101,7 +101,7 @@ test-e2e-003,Test Site E2E 3,RAF,789 Test Rd,,Test City,Test County,TS3 3CC,Unit
         assert response.status_code == 404, \
             f"Expected 404 for unknown batch, got {response.status_code}: {response.text}"
         
-        print(f"✓ Send credentials correctly returns 404 for unknown batch")
+        print("✓ Send credentials correctly returns 404 for unknown batch")
     
     def test_full_bulk_import_flow(self, auth_headers):
         """
@@ -151,9 +151,9 @@ flow-test-003,Flow Test Site 3,RAF,300 Flow Rd,,Flow City,Flow County,FL3 3CC,Un
             f"Send credentials failed: {send_response.status_code} - {send_response.text}"
         
         if send_response.status_code == 409:
-            print(f"✓ Step 2: Send already in progress (409)")
+            print("✓ Step 2: Send already in progress (409)")
         else:
-            print(f"✓ Step 2: Send credentials initiated")
+            print("✓ Step 2: Send credentials initiated")
         
         # Step 3: Poll status until done
         max_polls = 30
@@ -208,7 +208,7 @@ flow-test-003,Flow Test Site 3,RAF,300 Flow Rd,,Flow City,Flow County,FL3 3CC,Un
         assert len(receipt_content) > 0, "Receipt CSV is empty"
         print(f"✓ Step 4: Delivery receipt downloaded ({len(receipt_content)} bytes)")
         
-        print(f"\n✓ Full bulk import flow completed successfully!")
+        print("\n✓ Full bulk import flow completed successfully!")
 
 
 class TestMODBulkImportEdgeCases:
@@ -224,7 +224,7 @@ class TestMODBulkImportEdgeCases:
         assert response.status_code in [401, 403], \
             f"Expected 401/403 without auth, got {response.status_code}"
         
-        print(f"✓ Send credentials correctly requires auth")
+        print("✓ Send credentials correctly requires auth")
     
     def test_status_endpoint_returns_delivery_fields(self, auth_headers):
         """Status endpoint should return delivery_* fields"""
@@ -267,7 +267,7 @@ status-test-001,Status Test Site,Army,1 Status St,,Status City,Status County,ST1
         for field in expected_fields:
             assert field in status_data, f"Missing field: {field}"
         
-        print(f"✓ Status endpoint returns all delivery fields")
+        print("✓ Status endpoint returns all delivery fields")
 
 
 if __name__ == "__main__":

@@ -45,7 +45,10 @@ export default function SetupChecklist() {
   // wins" card). Component now no-ops; equivalent UX lives in
   // WelcomeHero / per-module Start tabs.
   return null;
-  // eslint-disable-next-line no-unreachable
+  /* eslint-disable no-unreachable */
+  // The legacy implementation below is intentionally kept for reference
+  // — see Iter 215dj rollback plan. Wrapped in an eslint-disable region
+  // so the unreachable scaffolding doesn't fail the Quality Gate.
   const location = useLocation();
   const navigate = useNavigate();
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;

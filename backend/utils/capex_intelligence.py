@@ -76,10 +76,14 @@ def compute_condition_scores(stats: dict, severity_counts: dict, age_years: floa
 
     def _band(value: int, thresholds=(0, 1, 3, 6)) -> int:
         # 1..5 from increasing fault counts.
-        if value <= thresholds[0]: return 1
-        if value <= thresholds[1]: return 2
-        if value <= thresholds[2]: return 3
-        if value <= thresholds[3]: return 4
+        if value <= thresholds[0]:
+            return 1
+        if value <= thresholds[1]:
+            return 2
+        if value <= thresholds[2]:
+            return 3
+        if value <= thresholds[3]:
+            return 4
         return 5
 
     # Mechanical: weighted by total faults + open faults.
@@ -124,9 +128,12 @@ def compute_fault_history_breakdown(faults: list[dict], now_dt: datetime) -> dic
             ca = datetime.fromisoformat(str(f.get("created_at", "")).replace("Z", "+00:00"))
         except (ValueError, TypeError):
             continue
-        if ca >= cutoff_12: f12 += 1
-        if ca >= cutoff_24: f24 += 1
-        if ca >= cutoff_36: f36 += 1
+        if ca >= cutoff_12:
+            f12 += 1
+        if ca >= cutoff_24:
+            f24 += 1
+        if ca >= cutoff_36:
+            f36 += 1
         desc = (f.get("issue_description") or "").strip().lower()[:80]
         if desc:
             repeat_descs[desc] = repeat_descs.get(desc, 0) + 1

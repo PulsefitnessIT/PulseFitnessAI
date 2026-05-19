@@ -1,5 +1,4 @@
 /* eslint-env jest */
-/* global describe, test, expect, beforeEach, afterEach, jest */
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';

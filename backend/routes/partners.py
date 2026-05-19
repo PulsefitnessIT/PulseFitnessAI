@@ -1846,10 +1846,7 @@ def _postcode_match(engineer_pc: str, customer_pc: str) -> bool:
     if not a or not b:
         return False
     # Same outcode prefix (≥2 chars) → match
-    for n in (4, 3, 2):
-        if a[:n] == b[:n]:
-            return True
-    return False
+    return any(a[:n] == b[:n] for n in (4, 3, 2))
 
 
 @router.get("/partners/find-engineers")

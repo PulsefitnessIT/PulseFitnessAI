@@ -374,8 +374,8 @@ def build_capex_board_pdf(report: dict, brand: dict | None = None, *, is_mod: bo
     fleet_kpis = (report.get("fleet_intelligence") or {}).get("fleet_kpis", {})
     flow.append(_kpi_row(s, [
         ("Assets", str(summary.get("total", 0))),
-        ("Flagged", str((summary.get("replace_now", 0) + summary.get("replace_soon", 0)
-                         + summary.get("at_risk", 0)))),
+        ("Flagged", str(summary.get("replace_now", 0) + summary.get("replace_soon", 0)
+                         + summary.get("at_risk", 0))),
         ("12m £", f"£{forecast.get('next_12_months', 0):,}"),
         ("Availability", f"{fleet_kpis.get('fleet_availability_pct') or '—'}%"),
     ]))

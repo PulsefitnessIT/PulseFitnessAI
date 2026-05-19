@@ -237,8 +237,8 @@ class TestMarketingBrandFilter:
         data = resp.json()
         # Pulse admin should be forced to pulse
         assert data.get("brand") == "pulse", f"Expected brand=pulse (forced), got: {data.get('brand')}"
-        assert data.get("scoped") is True, f"Expected scoped=True for Pulse admin"
-        print(f"✓ Pulse admin forced to brand=pulse in analytics")
+        assert data.get("scoped") is True, "Expected scoped=True for Pulse admin"
+        print("✓ Pulse admin forced to brand=pulse in analytics")
 
     def test_marketing_subscriptions_brand(self, gymaxis_headers):
         """GET /api/master-admin/marketing/subscriptions accepts ?brand=."""
@@ -263,7 +263,7 @@ class TestMarketingBrandFilter:
         data = resp.json()
         # Should return subscriptions (Pulse-scoped)
         assert "subscriptions" in data
-        print(f"✓ Pulse admin subscriptions forced to pulse scope")
+        print("✓ Pulse admin subscriptions forced to pulse scope")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

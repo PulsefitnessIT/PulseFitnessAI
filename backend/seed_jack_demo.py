@@ -29,7 +29,7 @@ def main():
     client = MongoClient(os.environ["MONGO_URL"])
     db = client[os.environ["DB_NAME"]]
     ts_id = "c695638c-5f60-424d-bdd0-2273e6c24205"
-    jack_id = "d1cb6ba8-f187-4e0e-a44b-7a96e05e9339"
+    # jack_id retained as documentation — value baked into seeded users below.
     now = datetime.now(timezone.utc)
 
     # ── Wipe previous seed runs ──
@@ -197,10 +197,12 @@ def main():
     cases = []
     case_supplier_pool = ["Life Fitness", "Technogym", "Wattbike", "Concept 2"]
     for k in range(4):
-        if k >= len(open_competitor_issues): break
+        if k >= len(open_competitor_issues):
+            break
         iss = open_competitor_issues[k]
         eq = next((e for e in competitor_eq if e["id"] == iss["equipment_id"]), None)
-        if not eq: continue
+        if not eq:
+            continue
         sname = eq.get("manufacturer", case_supplier_pool[k % 4])
         created = datetime.fromisoformat(iss["created_at"])
         responded = created + timedelta(hours=random.randint(2, 30))
