@@ -14,7 +14,7 @@
  * raw API keys — only safe metadata (account ids, latency, domain
  * counts, etc.).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Activity, RefreshCw, CheckCircle2, AlertTriangle,
@@ -86,7 +86,7 @@ export default function IntegrationHealthPanel() {
     } catch (e) {
       // Non-fatal — the existing integration health card is the
       // primary surface; perf telemetry is additive.
-      // eslint-disable-next-line no-console
+       
       console.warn('Perf telemetry fetch failed:', e?.message);
     } finally {
       setPerfLoading(false);
@@ -98,7 +98,7 @@ export default function IntegrationHealthPanel() {
       await axios.post(`${API}/master-admin/perf/slow-requests/clear`, null, { headers });
       runPerf();
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.warn('Slow-request clear failed:', e?.message);
     }
   }, [API, headers, runPerf]);

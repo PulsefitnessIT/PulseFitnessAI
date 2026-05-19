@@ -15,7 +15,7 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { X, Sparkles, ChevronRight, Activity, Calendar, Briefcase, Rocket, CheckCircle2, Loader2 } from 'lucide-react'; // eslint-disable-line no-unused-vars
+import { X, Sparkles, ChevronRight, Activity, Calendar, Briefcase, Rocket, CheckCircle2, Loader2 } from 'lucide-react';  
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 

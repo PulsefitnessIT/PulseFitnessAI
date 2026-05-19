@@ -7,9 +7,8 @@
  *   - per-channel checkboxes (warranty / PPM / supplier drift)
  * + "Send me a test" button.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { Mail, Bell, MessageSquare } from 'lucide-react';

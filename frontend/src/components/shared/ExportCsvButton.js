@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Download, Loader2 } from 'lucide-react';

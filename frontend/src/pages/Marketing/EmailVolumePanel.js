@@ -7,9 +7,9 @@
  * now packs are attached by master admin so this dialog explains how to
  * request one.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { Mail, X as Close, Plus, Sparkles } from 'lucide-react';
+import { Mail, Plus, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';

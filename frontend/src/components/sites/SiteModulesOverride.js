@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,7 @@ const SiteModulesOverride = ({ siteId, siteName, theme = 'dark' }) => {
     setLoading(false);
   };
 
-  useEffect(() => { if (siteId) load(); /* eslint-disable-next-line */ }, [siteId]);
+  useEffect(() => { if (siteId) load();   }, [siteId]);
 
   const setOverride = async (key, enabled) => {
     setSaving(key);

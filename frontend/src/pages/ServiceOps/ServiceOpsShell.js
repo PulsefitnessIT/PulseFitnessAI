@@ -19,7 +19,7 @@
  * Light & dark mode handled entirely via theme tokens — no hardcoded
  * colours. See _serviceops.css for the full design layer.
  */
-import React, { createContext, useContext } from 'react';
+import { createContext, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ClipboardList, Calendar, Package, FileText, BarChart3, Mail,

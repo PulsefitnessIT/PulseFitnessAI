@@ -10,7 +10,7 @@
  * Empty state: friendly "No new signups in the last 24h" so the tile
  * is never noisy when growth is quiet.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Sparkles, RefreshCw, ChevronRight, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/App';

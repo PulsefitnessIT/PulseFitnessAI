@@ -18,7 +18,7 @@
  * customer) on the marketing surface lifts trial signup ~14% in B2B
  * SaaS landings because each persona pictures themselves using it.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft, RotateCcw, MapPin, MessageCircle, Star, Truck, Wrench,
   CheckCircle2, FileText, ChevronDown, ChevronRight, Phone,

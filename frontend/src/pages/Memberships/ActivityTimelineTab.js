@@ -9,11 +9,11 @@
  * timestamp. Empty / loading / error states use the same surface the
  * other drawer tabs use so the drawer feels unified.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, CalendarDays, CreditCard, FileText, Mail, Tag as TagIcon,
-  UserPlus, AlertTriangle, CheckCircle2, XCircle, Pause, Activity,
+  UserPlus, AlertTriangle, Activity,
 } from 'lucide-react';
 
 const KIND_META = {

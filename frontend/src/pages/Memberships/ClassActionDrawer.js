@@ -8,11 +8,10 @@
  * Mobile-first: drawer slides up from the bottom on small screens,
  * centered modal on lg+.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Megaphone, ListChecks, X, Send, CheckCircle2, XCircle, Loader2,
-  AlertTriangle, Mail, Inbox, Users, Clock, MapPin, Edit3, UserPlus, Search,
+  Megaphone, ListChecks, X, Send, CheckCircle2, XCircle, Loader2, Mail, Inbox, Users, MapPin, Edit3, UserPlus, Search,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -295,7 +294,7 @@ function AttendanceView({ API, headers, occurrence, onSaved }) {
       })
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const set = (id, status) => setMarks((p) => ({ ...p, [id]: p[id] === status ? null : status }));
 

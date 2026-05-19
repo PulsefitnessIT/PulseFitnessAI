@@ -9,7 +9,7 @@
  * Layout: left category sidebar · main content · right AI assistant rail.
  * All data comes from `/api/help/*` — role-filtered server-side.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {

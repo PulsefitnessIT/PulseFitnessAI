@@ -26,7 +26,7 @@ export class ModalErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     // Surface via console for our debugging + toast for the operator.
-    // eslint-disable-next-line no-console
+     
     console.error(
       `[ModalErrorBoundary:${this.props.label || 'unknown'}]`,
       error,

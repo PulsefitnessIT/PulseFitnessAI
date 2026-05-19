@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -8,9 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
-import { Plus, Layout as LayoutIcon, Save, FileImage, Upload, X, Trash2, Loader2, Sparkles, Grid3X3, Image as ImageIcon, Check, MousePointerClick, Pencil, RotateCw, RotateCcw, ZoomIn, ZoomOut, Package, Move } from 'lucide-react';
+import { Plus, Layout as LayoutIcon, FileImage, Upload, X, Trash2, Loader2, Sparkles, Grid3X3, Image as ImageIcon, MousePointerClick, Pencil, RotateCw, RotateCcw, ZoomIn, ZoomOut, Package } from 'lucide-react';
 import GymLayoutEditor from '../components/gym-design/GymLayoutEditor';
 
 const EQUIPMENT_TYPES = [

@@ -5,7 +5,7 @@
  * Sub-tabs: Onboard Site (interactive wizard), Onboarding Packets
  * (shareable self-service links), Bulk Imports (CSV uploads).
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 
 import PulseOnboardingWizard from '../PulseOnboardingWizard';

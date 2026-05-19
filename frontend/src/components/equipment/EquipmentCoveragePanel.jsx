@@ -12,7 +12,7 @@
  * endpoint backs both Operations + Service Desk so the three modules
  * never disagree.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ShieldCheck, ShieldX, Clock, ExternalLink, Loader2 } from 'lucide-react';
 

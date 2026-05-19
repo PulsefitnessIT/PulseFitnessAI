@@ -1,4 +1,3 @@
-import React from 'react';
 import { LayoutDashboard, Wrench, AlertTriangle, FileText, Plus, BarChart3, Brain, Users, Calendar, Dumbbell } from 'lucide-react';
 
 const MobileBottomNav = ({ activeTab, setActiveTab, onReportFault, variant = 'gymaxis', isPro = false }) => {

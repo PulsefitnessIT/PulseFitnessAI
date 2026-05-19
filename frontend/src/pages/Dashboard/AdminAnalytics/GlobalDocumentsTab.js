@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,14 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import DocumentQA from '@/components/shared/DocumentQA';
 import { useUploadQueue } from '@/components/shared/UploadQueue';
 import {
  FileText, Upload, FolderOpen, Book, Award, Search, Trash2, Download,
- Eye, Image, FileSpreadsheet, Brain, Loader2, Printer, Copy, Building2,
- Filter, X, CloudUpload, CheckCircle, AlertTriangle, RefreshCw
+ Eye, Image, FileSpreadsheet, Brain, Loader2, Copy, Building2, X, CloudUpload, CheckCircle, RefreshCw
 } from 'lucide-react';
 
 const GlobalDocumentsTab = () => {

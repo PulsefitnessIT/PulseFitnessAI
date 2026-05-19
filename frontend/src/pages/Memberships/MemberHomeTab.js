@@ -6,7 +6,7 @@
  * portal to an existing tab or shows an inline summary. This is the screen
  * the gym owner customises in the Mobile App Builder.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   CalendarDays, ClipboardList, Dumbbell, Wrench, Trophy, Activity,

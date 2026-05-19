@@ -5,7 +5,7 @@
  * "here's what we do to keep you safe" page for gym operators — not InfoSec teams.
  * Still fetches /api/security/manifest live so every tick is real.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   ShieldCheck, Lock, KeyRound, Eye, Server, AlertTriangle, Users,

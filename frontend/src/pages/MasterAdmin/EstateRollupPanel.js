@@ -8,7 +8,7 @@
  *   • Catch trials expiring within 7 days
  *   • Spot orgs with NO modules enabled (billing red flag)
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
   BarChart3, Loader2, AlertTriangle, Clock, Building2, Activity,

@@ -148,7 +148,7 @@ export async function drainQueue(fetchImpl = fetch) {
       } else if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
         // Client-side error — dropping the entry (server will not accept
         // it on retry). Keep the user informed.
-        // eslint-disable-next-line no-console
+         
         console.warn('[offline-queue] dropping unrecoverable entry', entry.id, res.status);
         await removeEntry(entry.id);
         failed += 1;

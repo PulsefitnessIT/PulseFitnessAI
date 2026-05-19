@@ -4,7 +4,7 @@
  * Funnel (views → drafts → completed → paid + revenue), per-org breakdown,
  * and the most recent 25 sign-ups. Backed by /master-admin/signups/funnel.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

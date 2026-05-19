@@ -11,7 +11,7 @@
  * burning the LLM key on idle tab loads. The two deterministic ones
  * load on tab entry.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Brain, TrendingUp, TrendingDown, AlertTriangle, Sparkles,
@@ -77,7 +77,7 @@ function DemandView({ API, headers }) {
       .catch((e) => notifyApiError(notify, e, 'Failed to load forecast'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   if (loading) return <Spinner />;
   if (!data || data.count === 0) {
@@ -169,7 +169,7 @@ function UnderView({ API, headers }) {
       .catch((e) => notifyApiError(notify, e, 'Failed'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   return (
     <div>

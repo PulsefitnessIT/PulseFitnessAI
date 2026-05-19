@@ -5,7 +5,7 @@
  * backend webhook (and the polled status endpoint) are both idempotent
  * so duplicate notifications are harmless.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Check, Loader2, AlertTriangle } from 'lucide-react';

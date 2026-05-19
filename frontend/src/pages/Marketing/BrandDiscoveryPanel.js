@@ -17,7 +17,7 @@
  * Polls /status every 2 s while running. Stops as soon as state is
  * `ready` / `applied` / `failed`.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   Sparkles, Globe, Loader2, CheckCircle2, AlertTriangle, RefreshCw,

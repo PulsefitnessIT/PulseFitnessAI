@@ -1,6 +1,6 @@
 import {
-  UserCog, Calendar as CalIcon, ClipboardCheck, BadgeCheck, Repeat, FileText, Sparkles,
-  Wrench, Users, Calendar, Megaphone, BarChart3,
+  UserCog, Calendar as CalIcon, ClipboardCheck, BadgeCheck, Repeat, FileText,
+  Wrench, Users, Calendar, Megaphone,
 } from 'lucide-react';
 
 export default {

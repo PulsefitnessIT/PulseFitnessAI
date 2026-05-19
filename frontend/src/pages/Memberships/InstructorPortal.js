@@ -10,9 +10,8 @@
  *   • Week    — upcoming 7 days
  *   • Pay     — current-month commission (rate × completed classes)
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import Button from '@/components/shared/Button';

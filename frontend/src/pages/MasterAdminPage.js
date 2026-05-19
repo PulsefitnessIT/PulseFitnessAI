@@ -1,8 +1,7 @@
-import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
+import { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
@@ -169,7 +168,7 @@ const MasterAdminPage = ({ onBack }) => {
     const q = p.get('q'); if (q !== null) setSearch(q);
     const s = p.get('status'); if (s) setOrgFilter(s);
     const a = p.get('account'); if (a) setAccountTypeFilter(a);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {
@@ -234,7 +233,7 @@ const MasterAdminPage = ({ onBack }) => {
     } catch (err) {
       // Iter 216g · log silent failures so a single endpoint hiccup
       // doesn't leave the org-users list quietly stale.
-      // eslint-disable-next-line no-console
+       
       console.error('[MasterAdmin loadData failed]', err?.response?.status, err?.response?.data || err?.message);
       // Fall back: try fetching users alone so the org-users panel
       // still refreshes even if stats/orgs failed.

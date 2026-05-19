@@ -11,11 +11,11 @@
  * No data is ever soft-deleted — rejections live as ledger / partner
  * rows with explicit status changes.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  Loader2, CheckCircle2, X, ShieldCheck, PoundSterling, Users,
-  Download, ChevronRight, BadgeCheck, Star, TrendingUp,
+  Loader2, CheckCircle2, X, PoundSterling, Users,
+  Download, Star, TrendingUp,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

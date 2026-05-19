@@ -1,7 +1,7 @@
 /* Audiences tab — rule builder, save, list */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Users, Plus, Sparkles, Loader2, Trash2, Save, Upload, AlertCircle } from 'lucide-react'; // eslint-disable-line no-unused-vars
+import { Users, Plus, Sparkles, Loader2, Trash2, Save, Upload } from 'lucide-react';  
 import { Link } from 'react-router-dom';
 import HelpHint from '@/components/HelpHint';
 import EmptyState from '@/components/shared/EmptyState';
@@ -51,7 +51,7 @@ const AudiencesTab = ({ API, headers }) => {
       setCustomFields(cf);
     })
     .catch(() => {});
-  useEffect(() => { load(); loadCustomProps(); loadDataSrc(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); loadCustomProps(); loadDataSrc();   }, []);
 
   const refreshPreview = async (rules) => {
     try {

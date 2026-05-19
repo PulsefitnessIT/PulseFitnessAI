@@ -30,7 +30,7 @@
  *   for downstream Sage/Sicon outboxes. The parent form is responsible for
  *   composing it from the structured fields (see composeLegacyAddress).
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

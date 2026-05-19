@@ -15,7 +15,7 @@
  * and an optional staff override so operators can stamp the same
  * template for different people without cloning it.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Plus, Clock, Pencil, Trash2, X, Check, Calendar as CalIcon, Loader2, Layers,

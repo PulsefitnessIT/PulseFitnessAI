@@ -5,7 +5,7 @@
  * Instagram-pretty: big number, top class, brand colour, simple CTA.
  * The gym can screenshot it or paste the link into their bio.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Sparkles, Users, Calendar, TrendingUp, ArrowRight } from 'lucide-react';

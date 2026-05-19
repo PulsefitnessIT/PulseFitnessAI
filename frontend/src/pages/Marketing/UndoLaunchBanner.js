@@ -9,7 +9,7 @@
  * Usage:
  *   <UndoLaunchBanner campaignId={id} onUndone={...} onExpire={...} />
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Rocket, Undo2, CheckCircle2 } from 'lucide-react';
 

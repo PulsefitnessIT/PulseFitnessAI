@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Stage, Layer, Rect, Text, Circle, Group, Line, Image as KonvaImage } from 'react-konva';
+import { useState, useRef, useEffect } from 'react';
+import { Stage, Layer, Rect, Text, Group, Line, Image as KonvaImage } from 'react-konva';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ZoomIn, ZoomOut, Save, Trash2 } from 'lucide-react';

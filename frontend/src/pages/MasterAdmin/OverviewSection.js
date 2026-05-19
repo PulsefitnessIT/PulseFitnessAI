@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { SubTabBar } from './SidebarConfig';
 import { useAuth } from '@/App';
 import { Loader2 } from 'lucide-react';

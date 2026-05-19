@@ -8,7 +8,7 @@
  * Editor: header (case + customer), line table (kind/qty/unit/desc),
  *  auto-fill button, totals (subtotal/discount/VAT/gross), Approve & Finalise.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   FileText, Wand2, RefreshCw, Plus, Trash2, X, Save,

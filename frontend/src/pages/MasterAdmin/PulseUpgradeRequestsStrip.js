@@ -5,7 +5,7 @@
  * the existing Trial Funnel strip. Lets the admin move records through
  * the funnel (new → contacted → quoted → converted/lost).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/App';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
@@ -14,7 +14,6 @@ import {
   Building2, Sparkles, ArrowRight, Mail, Phone, MessageSquare, Clock,
   CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 const STATUSES = [

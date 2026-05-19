@@ -7,10 +7,10 @@
  *   3. Payment plans (instalment offerings)
  *   4. AI Payment-risk dashboard (heuristic risk score per member)
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  Users2, Layers, Loader2, Plus, Trash2, Save, AlertTriangle,
+  Users2, Layers, Loader2, Plus, Trash2, Save,
   CheckCircle2, RefreshCw, Brain, CreditCard, Zap,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

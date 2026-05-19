@@ -16,12 +16,12 @@
  *   POST  /api/svc/engineer/quotes/:id/duplicate
  *   POST  /api/svc/engineer/quotes/:id/convert-to-job
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, FileText, Send, FileDown, Plus, Trash2, Save,
-  CheckCircle2, XCircle, Copy, Briefcase, Loader2, Mail, Eye,
+  ArrowLeft, Send, FileDown, Plus, Trash2, Save,
+  CheckCircle2, XCircle, Copy, Briefcase, Loader2, Mail,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 

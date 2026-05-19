@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ScrollText, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { authConfig } from './authConfig';
 
 const ACTION_COLOURS = {

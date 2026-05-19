@@ -1,8 +1,7 @@
 /* Master Admin — Trial Management */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/App';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { Card } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   Clock, CheckCircle2, AlertTriangle, Lock, Zap,
-  Calendar, Users, Timer, Loader2, RefreshCw, ExternalLink, TrendingUp
+  Calendar, Users, Loader2, RefreshCw, TrendingUp
 } from 'lucide-react';
 
 const STATUS_META = {

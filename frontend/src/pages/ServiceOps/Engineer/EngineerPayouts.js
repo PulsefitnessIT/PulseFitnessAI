@@ -11,7 +11,7 @@
  *  • If fully ready → green badge + "Open Stripe dashboard" + "Refresh status".
  *  • `?onboarding=return` triggers an automatic status refresh on mount.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {

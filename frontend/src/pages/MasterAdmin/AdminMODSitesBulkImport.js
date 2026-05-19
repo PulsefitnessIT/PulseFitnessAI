@@ -15,7 +15,7 @@
  *   POST /api/master-admin/mod-sites/bulk-import     (multipart)
  *   GET  /api/master-admin/mod-sites/bulk-import/{batch_id}/credentials.csv
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {

@@ -1,10 +1,9 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
-import { Upload, FileText, Check, Download, ChevronLeft, ChevronRight, Loader2, Pencil, Trash2, Plus, X, AlertTriangle, Sparkles } from 'lucide-react';
+import { Upload, Check, Download, ChevronLeft, ChevronRight, Loader2, Trash2, AlertTriangle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import InvoiceParseProgress from '@/components/shared/InvoiceParseProgress';

@@ -8,7 +8,6 @@
  *   <GymAxisLockup />        – the full horizontal lockup (GA + GYMAXIS + tagline), used in nav + footer.
  *   <GymAxisWordmark />      – the wordmark + tagline only (no GA), useful where the GA is shown separately.
  */
-import React from 'react';
 
 // PNGs live under /public/brand/ so they're served at /brand/* with cache headers.
 // We use the auto-trimmed "tight" versions so display heights translate cleanly.

@@ -6,7 +6,7 @@
  * brute-force trust events. Built for security-team triage during
  * "is this account compromised?" investigations.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';

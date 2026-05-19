@@ -2,7 +2,6 @@
  * Security marketing page — refreshed in MarketingShell visual language.
  * This is the ONE place pentest / SOC 2 / responsible disclosure language lives.
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShieldCheck, Lock, KeyRound, FileSearch, Bug, Server, Activity, ArrowRight,

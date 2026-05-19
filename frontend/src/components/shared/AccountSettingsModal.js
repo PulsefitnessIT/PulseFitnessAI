@@ -15,7 +15,7 @@
  *   • Side-rail navigation + section routing
  *   • The shared style block (`account-input`, `account-btn-*`, etc.)
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { X } from 'lucide-react';
 import { useAuth } from '@/App';

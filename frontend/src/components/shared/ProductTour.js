@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Joyride, STATUS } from 'react-joyride';
 
 const TOUR_KEY_GYMAXIS = 'gymaxis_tour_completed';

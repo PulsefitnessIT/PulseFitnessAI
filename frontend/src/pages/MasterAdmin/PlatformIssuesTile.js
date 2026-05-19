@@ -6,7 +6,7 @@
  * that switches the Master Admin section to the relevant detail panel
  * (login-events / client-errors / trust).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Activity, RefreshCw, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/App';

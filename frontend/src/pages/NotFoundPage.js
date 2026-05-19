@@ -6,7 +6,6 @@
  * and CTA. Covers truly unknown routes — paid by the App-router fallback
  * `<Route path="*" element={<NotFoundPage />} />`.
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home, ArrowLeft, Search } from 'lucide-react';
 

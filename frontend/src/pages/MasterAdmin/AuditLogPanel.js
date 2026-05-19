@@ -12,7 +12,7 @@
  *   GET /api/master-admin/audit-log/summary[?since_days=]
  *   GET /api/master-admin/audit-log/export.csv[?...]
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useBrandContext } from './BrandContext';
 import { useAuth } from '@/App';

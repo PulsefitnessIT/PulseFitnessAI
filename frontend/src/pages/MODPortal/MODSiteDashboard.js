@@ -4,15 +4,14 @@
  * Landed when a user's org.account_type === 'mod_site'. Shows site health,
  * open faults, opens the fault wizard, and drills into staff management.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   AlertTriangle, Wrench, Users, Shield, Gauge, ChevronRight,
-  Activity, Clock, Zap, LogOut, CheckCircle2, Plus, QrCode, CloudOff, ShieldAlert, ShieldCheck,
+  Activity, Clock, LogOut, CheckCircle2, QrCode, CloudOff, ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/App';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { installAutoFlush, countPending, flushQueue } from '@/utils/offlineFaultQueue';
 import ClassificationBanner from '@/components/shared/ClassificationBanner';
@@ -91,11 +90,11 @@ export default function MODSiteDashboard() {
       setNudges(n.data.nudges || []);
       setActiveDrill(dr.data?.drill || null);
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.error('MOD dashboard load failed', e?.response?.status, e?.response?.data || e.message);
       setDash({ stats: {}, open_faults: [], site: {} });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [AUTH_API]);
 
   const acknowledgeDrill = async () => {

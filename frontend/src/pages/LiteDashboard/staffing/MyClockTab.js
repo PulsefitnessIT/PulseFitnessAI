@@ -11,7 +11,7 @@
  * geofence check. Hard rejects only happen if the operator is more
  * than 5km from the configured site centre.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Play, Square, Coffee, Loader2, AlertTriangle, Clock, MapPin, History as HistIcon,

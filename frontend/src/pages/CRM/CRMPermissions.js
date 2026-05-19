@@ -8,7 +8,7 @@
  *
  * Backend API: /api/crm/permissions/{sharing-rules,field-perms,effective}.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Shield, EyeOff, Trash2, Plus, Lock } from 'lucide-react';

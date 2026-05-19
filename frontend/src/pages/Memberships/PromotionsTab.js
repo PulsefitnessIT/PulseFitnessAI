@@ -5,12 +5,12 @@
  * Built on Stripe's native Coupon + PromotionCode so the discount is
  * enforced at the gateway (no client-side trust required).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Tag, Plus, Trash2, Calendar, Percent, PoundSterling, Sparkles,
-  Loader2, ShieldCheck, Users, BadgeCheck, X,
+  Loader2, ShieldCheck, BadgeCheck, X,
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

@@ -9,7 +9,6 @@
  * Tapping the pill opens the engineer sync panel for a detailed list
  * with manual "Sync now" + per-op error display.
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WifiOff, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useEngineerOfflineQueue, engineerFlushQueue } from '@/utils/engineerOfflineQueue';

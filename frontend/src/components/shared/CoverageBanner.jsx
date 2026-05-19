@@ -18,7 +18,6 @@
  *   • expiring_soon  (amber)    — contract ends <90 days
  *   • uncovered      (red)      — chargeable to customer
  */
-import React from 'react';
 import { ShieldCheck, ShieldAlert, ShieldOff, Clock } from 'lucide-react';
 
 function _formatDDMMYYYY(iso) {

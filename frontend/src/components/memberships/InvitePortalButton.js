@@ -14,7 +14,7 @@
  * Clicks `stopPropagation` so the parent row's click-to-open-drawer
  * doesn't fire at the same time.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { Mail, Check, Copy, RefreshCw, ShieldOff } from 'lucide-react';
 import { notify } from '@/components/notifications';

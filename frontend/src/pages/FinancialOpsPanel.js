@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,13 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
  PoundSterling, Shield, TrendingUp, AlertTriangle, Wallet, ArrowUpRight,
- ArrowDownRight, RefreshCw, Loader2, CheckCircle, Bell, Zap, Server,
- Brain, Settings, CreditCard, PieChart, ChevronDown, ChevronUp, Info
+ ArrowDownRight, Loader2, CheckCircle, Bell, Zap, Server,
+ Brain, Settings, CreditCard, Info
 } from 'lucide-react';
 
 const HEALTH_CONFIG = {

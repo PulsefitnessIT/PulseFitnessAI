@@ -3,15 +3,13 @@ import { useAuth } from '@/App';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { toast } from 'sonner';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { useUserPref } from '@/utils/userPrefs';
 
 import Navbar from '../components/shared/Navbar';
 import ModuleSwitcher from '../components/shared/ModuleSwitcher';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 

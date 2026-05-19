@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Sparkles, Flame, AlertTriangle, Info, FlaskConical } from 'lucide-react';
@@ -7,7 +7,7 @@ import { SectionCard, Pill, severityTone } from './shared';
 const AiAndFlagsTab = ({ aiInsights, onLoadAiInsights, featureFlags, onSaveFlags, onDrillOrg }) => {
  const [draft, setDraft] = useState(null);
  useEffect(() => { if (featureFlags) setDraft({ ...featureFlags.flags }); }, [featureFlags]);
- useEffect(() => { if (!aiInsights) onLoadAiInsights?.(); /* eslint-disable-next-line */ }, []);
+ useEffect(() => { if (!aiInsights) onLoadAiInsights?.();   }, []);
 
  const insights = aiInsights?.insights || [];
  const betaKeys = draft ? Object.keys(draft).filter((k) => k.startsWith('beta_')) : [];

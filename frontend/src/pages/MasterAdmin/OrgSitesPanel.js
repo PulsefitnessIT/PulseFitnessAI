@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { X, MapPin, Loader2, Crown, Plus, Upload, Download, ChevronRight } from 'lucide-react';
 import SiteModulesOverride from '@/components/sites/SiteModulesOverride';
@@ -49,7 +49,7 @@ const OrgSitesPanel = ({ org, onClose }) => {
     }
   };
 
-  useEffect(() => { loadSites(); /* eslint-disable-next-line */ }, [org.id]);
+  useEffect(() => { loadSites();   }, [org.id]);
 
   const setHeadOffice = async (site) => {
     setHqBusyId(site.id);

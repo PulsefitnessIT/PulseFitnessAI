@@ -7,7 +7,7 @@
  * footer line. Used by HQ owners/managers preparing DIO / ISO 27001
  * inspection packs.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { X, ShieldCheck, ShieldAlert, Loader2, Download, Clock } from 'lucide-react';
 

@@ -5,7 +5,7 @@
  * being gimmicky. Used below the GymAxis hero. Numbers can be hard-coded
  * (proof) or live-fetched in a future iteration.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 
 /**

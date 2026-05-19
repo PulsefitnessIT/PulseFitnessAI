@@ -1,13 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
-import { MessageSquare, Send, Loader2, FileText, X, BookOpen, Sparkles } from 'lucide-react';
+import { Send, Loader2, FileText, Sparkles } from 'lucide-react';
 
 const DocumentQA = ({ compact = false }) => {
  const { API } = useAuth();

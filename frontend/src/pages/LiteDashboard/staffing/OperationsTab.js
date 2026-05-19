@@ -6,12 +6,11 @@
  * subsystems. A pill-style toggle at the top swaps the active panel
  * (saved to localStorage so the operator stays where they left off).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   CheckSquare, FileText, ShieldAlert, Plus, X, Loader2, Camera, Trash2,
-  Pencil, Calendar as CalIcon, AlertTriangle, Check, ClipboardList,
-  ChevronDown, ChevronRight, Upload, Send, RefreshCw,
+  Pencil, Calendar as CalIcon, AlertTriangle, Check, ClipboardList, Send, RefreshCw,
 } from 'lucide-react';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';

@@ -12,7 +12,7 @@
  * returns per-member ok/error so we can show a "Invited 18 of 20, 2
  * skipped" toast. Clears the selection on success.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { Mail, MessageSquare, Tag as TagIcon, X, Loader2, CheckCircle2 } from 'lucide-react';
 import { notify } from '@/components/notifications';

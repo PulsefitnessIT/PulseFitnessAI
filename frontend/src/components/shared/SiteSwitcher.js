@@ -13,7 +13,7 @@
  *   • Pure presentational — no API calls; the sites list is whatever
  *     the auth context already loaded.
  */
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MapPin, Star, Globe2, Check } from 'lucide-react';
 import { useAuth } from '@/App';
 

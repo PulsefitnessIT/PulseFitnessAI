@@ -8,7 +8,7 @@
  *     supplier_po with `{{var}}` placeholders, reset to default
  *   • Activity — recent send log with status pills (sent / failed)
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Mail, History, Save, RotateCcw, RefreshCw, Loader2,

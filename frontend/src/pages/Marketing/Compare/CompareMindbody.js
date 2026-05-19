@@ -1,4 +1,3 @@
-import React from 'react';
 import CompareLayout from './CompareLayout';
 
 const competitor = {

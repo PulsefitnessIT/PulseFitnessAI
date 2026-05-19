@@ -5,7 +5,6 @@
  * 402 "engineer_app_blocked". Different CTAs per reason so the engineer
  * always knows the exact next step — never an opaque error toast.
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Lock, CreditCard, ClipboardEdit, Clock, AlertTriangle, Sparkles,

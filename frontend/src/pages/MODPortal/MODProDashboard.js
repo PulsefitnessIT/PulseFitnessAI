@@ -5,12 +5,12 @@
  * GET /api/mod/pro/dashboard. Shows availability KPIs, recent urgent faults
  * across scope, and top offender sites.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Activity, AlertTriangle, Building2, LogOut, Gauge, Wrench, Shield, ArrowUpRight,
-  ClipboardList, TrendingUp, FileText, PoundSterling, KeyRound, Copy, Check, Loader2, Mail, X,
+  ClipboardList, FileText, PoundSterling, KeyRound, Copy, Check, Loader2, Mail, X,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';

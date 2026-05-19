@@ -13,7 +13,6 @@
  *
  * A page just supplies a `module` config object — see ./modules/*.js
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 

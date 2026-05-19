@@ -9,7 +9,7 @@
  *
  * Iter 215x.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { GraduationCap, Users, Calendar, X, UserPlus, Loader2, Info, PoundSterling } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -38,7 +38,7 @@ export default function CoursesView({ API, headers }) {
     } finally { setLoading(false); }
   }, [API, headers, selectedId]);
 
-  useEffect(() => { loadCourses(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadCourses();   }, []);
 
   const selected = useMemo(
     () => courses.find((c) => c.id === selectedId) || null,

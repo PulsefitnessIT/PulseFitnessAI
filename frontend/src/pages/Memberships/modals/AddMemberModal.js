@@ -18,7 +18,7 @@
  *   • GDPR: explicit T&Cs acceptance (required) + marketing consent
  *     (opt-in). Server rejects POST without `gdpr_consent: true`.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

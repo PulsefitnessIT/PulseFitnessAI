@@ -12,7 +12,7 @@
  * when the kit is empty (`configured: false`) so users coming from
  * onboarding never miss it.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   Palette, Loader2, CheckCircle2, Upload, Image as ImageIcon, Type,
@@ -34,7 +34,7 @@ export default function BrandKitTab({ API, headers }) {
       .then((r) => setKit(r.data.brand_kit))
       .catch(() => notify.error('Failed to load brand kit'));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const save = async (patch) => {
     setBusy(true);
@@ -74,7 +74,7 @@ export default function BrandKitTab({ API, headers }) {
       } catch (orgErr) {
         // Org-level upload failure doesn't block the BrandKit upload —
         // operator can still hand-pick colours below.
-        // eslint-disable-next-line no-console
+         
         console.warn('Org logo sync failed (non-fatal):', orgErr);
       }
 

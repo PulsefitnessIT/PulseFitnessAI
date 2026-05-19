@@ -6,10 +6,9 @@
  * GET /api/master-admin/mod/sites
  * GET /api/master-admin/mod/audit-log/{site_id}
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Shield, Building2, Users, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { Shield, Building2, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 

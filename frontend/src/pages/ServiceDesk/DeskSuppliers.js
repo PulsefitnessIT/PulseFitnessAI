@@ -11,11 +11,10 @@
  * suffix-stripped) so the same vendor entered slightly differently
  * across customer accounts collapses into one row.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
-  Search, Wrench, Building2, AlertTriangle, TrendingDown,
-  Clock, Mail, Phone, ChevronDown, ChevronRight, ListChecks,
+  Search, Wrench, Building2, AlertTriangle, Mail, Phone, ChevronDown, ChevronRight, ListChecks,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

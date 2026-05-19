@@ -5,7 +5,7 @@
  * fault has been marked resolved. Captures Y/N + 1–5 rating + free
  * text comment. No auth — the token in the URL is the auth.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Star, Check, X, Loader2, AlertTriangle } from 'lucide-react';

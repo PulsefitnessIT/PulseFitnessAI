@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import {
  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
 import { X, Copy, History, Sparkles, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

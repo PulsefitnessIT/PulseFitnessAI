@@ -1,7 +1,7 @@
 /* Journeys — list + visual SVG canvas builder */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Workflow, Plus, Save, Loader2, Edit2, Send, X, CheckCircle2, AlertCircle } from 'lucide-react'; // eslint-disable-line no-unused-vars
+import { Plus, Save, Loader2, Edit2, Send, X, CheckCircle2, AlertCircle } from 'lucide-react';  
 import JourneyCanvas from './JourneyCanvas';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -20,7 +20,7 @@ const JourneysTab = ({ API, headers }) => {
   const [testBusy, setTestBusy] = useState(false);
 
   const load = () => axios.get(`${API}/api/marketing/journeys`, { headers }).then((r) => setJourneys(r.data.journeys)).catch(() => {});
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const startNew = () => {
     setEditing('new');

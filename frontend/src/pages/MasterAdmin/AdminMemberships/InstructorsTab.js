@@ -1,4 +1,3 @@
-import React from 'react';
 import { Trophy, AlertCircle } from 'lucide-react';
 import { SectionCard, Pill, fmtPct } from './shared';
 

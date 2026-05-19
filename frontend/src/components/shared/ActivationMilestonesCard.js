@@ -15,7 +15,7 @@
  * dashboard + the Pulse Pro dashboard. Hidden once every milestone is
  * hit so the card disappears from the page naturally.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Circle, Sparkles, ArrowRight, X } from 'lucide-react';
@@ -68,7 +68,7 @@ export default function ActivationMilestonesCard({ hideWhenComplete = true }) {
   // operators who have onboarded shouldn't keep seeing it. Per Lee's
   // Feb-2026 request: "remove the start option from the users options
   // and Dashboard be the first option."
-  // eslint-disable-next-line no-unused-vars
+   
   const [, setHideStart] = useUserPref('hideStartTabs', false);
 
   const load = useCallback(async () => {

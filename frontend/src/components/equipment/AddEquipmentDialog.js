@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,7 +9,6 @@ import { Loader2, Camera, X } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ManufacturerCombobox from './ManufacturerCombobox';
 import DatePicker from '@/components/shared/DatePicker';
-import SupplierAutocomplete from '@/components/shared/SupplierAutocomplete';
 import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
 // Iter 216h193 — use the platform-wide SLA enum so reports compare

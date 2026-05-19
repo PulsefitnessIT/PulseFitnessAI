@@ -11,7 +11,7 @@
  * the customer's account. Mutations (move/delete) still go through the
  * customer's own owner/manager via the Pulse Equipment tab.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { Search, Wrench, Building2, MapPin, Calendar, Hash } from 'lucide-react';
 import { Card } from '@/components/ui/card';

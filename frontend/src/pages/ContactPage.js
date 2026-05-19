@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/shared/Navbar';
 import Footer from '../components/shared/Footer';
 import CaptchaWidget from '../components/shared/CaptchaWidget';
 import { Button } from '@/components/ui/button';
-import { Mail, Phone, Calendar, ArrowRight, CheckCircle } from 'lucide-react';
+import { Mail, Calendar, ArrowRight, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/App';
 import axios from 'axios';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

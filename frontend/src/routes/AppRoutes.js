@@ -12,7 +12,7 @@
  * are all declared here. Auth gates are inline so each surface can
  * negotiate its own redirect.
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Eager-loaded marketing entry points — must be in the initial bundle

@@ -39,7 +39,6 @@
  *     </RowActions>
  *   </div>
  */
-import React from 'react';
 
 const GAP = {
   0.5: 'gap-0.5',

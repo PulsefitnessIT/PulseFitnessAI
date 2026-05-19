@@ -10,12 +10,10 @@ import { motion, useInView } from 'framer-motion';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import axios from 'axios';
 
-import { toast } from 'sonner';
 import { useInlineBanner } from '@/components/notifications';
 import { useAuth } from '@/App';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -23,7 +21,7 @@ import {
   QrCode, Smartphone, Zap, Timer, TrendingDown, TrendingUp, Eye, CheckCircle2,
   ArrowRight, LogIn, Loader2, EyeOff, Sun, Moon, Globe, Check,
   Plus, ListChecks, MessageSquareHeart, Trophy, ChevronRight, Star, ClipboardList,
-  AlertTriangle, Mail, User, KeyRound,
+  AlertTriangle, Mail, User,
   Sliders, Layers, UserCog, Workflow, Link2,
   Menu, X,
 } from 'lucide-react';

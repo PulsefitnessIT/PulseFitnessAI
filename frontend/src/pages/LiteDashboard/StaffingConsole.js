@@ -13,11 +13,11 @@
  * All data fetched from /api/staffing/* — role filtering is enforced
  * server-side; the frontend just hides UI the user can't use.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Users, Calendar, UserPlus, Plane, ShoppingBag, BarChart3, PoundSterling,
-  Eye, Shield, Megaphone, Sparkles, Plus, Trash2, CheckCircle2, X,
+  Eye, Shield, Megaphone, Sparkles, Trash2,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
   LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
   IdCard, Wand2, ArrowRightLeft,

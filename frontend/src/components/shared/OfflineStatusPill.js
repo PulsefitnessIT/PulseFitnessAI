@@ -6,7 +6,7 @@
  *
  * Iter 216h117 — P1 #4 (offline-first field mode UX).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Wifi, WifiOff, CloudUpload, Check } from 'lucide-react';
 import { countPending, flushQueue, installAutoFlush } from '@/utils/offlineFaultQueue';
 

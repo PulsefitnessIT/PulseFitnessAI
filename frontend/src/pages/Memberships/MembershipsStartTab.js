@@ -8,7 +8,7 @@
  * this"), the parent (MembershipsConsole) hides the Start tab entirely
  * via the `onAllComplete` callback — see useOnboardingChecklist below.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
   CheckCircle2, Circle, ArrowRight, EyeOff, Sparkles, Loader2, Zap,

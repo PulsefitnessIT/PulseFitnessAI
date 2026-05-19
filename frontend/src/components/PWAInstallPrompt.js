@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Download, X, Share, Plus, Smartphone } from 'lucide-react';
 import { useAuth } from '@/App';
 

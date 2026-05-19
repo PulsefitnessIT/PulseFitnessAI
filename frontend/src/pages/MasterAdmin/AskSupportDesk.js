@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
@@ -251,7 +250,7 @@ export default function AskSupportDesk() {
  setLoading(false);
  }
  };
- useEffect(() => { load(); /* eslint-disable-next-line */ }, [statusFilter]);
+ useEffect(() => { load();   }, [statusFilter]);
 
  const handleUpdated = (updated) => {
  setOpenCase(updated);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -7,12 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import DocumentQA from '../components/shared/DocumentQA';
 import {
  FileText, Upload, FolderOpen, Book, Award, Search,
- Trash2, Download, Eye, Image, FileSpreadsheet, X, Brain, Loader2, Printer
+ Trash2, Download, Eye, Image, FileSpreadsheet, Brain, Loader2, Printer
 } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 

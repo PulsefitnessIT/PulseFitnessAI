@@ -18,7 +18,7 @@
  *     respective endpoint returned including the structured 7-field
  *     address }
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2, Building2 } from 'lucide-react';

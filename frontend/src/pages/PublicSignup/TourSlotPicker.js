@@ -15,9 +15,9 @@
  *   • onChange  — fires after a successful book / cancel call
  *   • accent    — primary brand colour for selected state
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Calendar, MapPin, Loader2, Check, X as XIcon, AlertTriangle, Clock } from 'lucide-react';
+import { MapPin, Loader2, Check, X as XIcon, AlertTriangle, Clock } from 'lucide-react';
 
 const fmtDate = (iso) => {
   if (!iso) return '';

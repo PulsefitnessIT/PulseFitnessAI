@@ -15,7 +15,7 @@
  * The backend also enforces this via `require_module()` — the frontend
  * guard is the friendly UX layer, not the security boundary.
  */
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';

@@ -5,7 +5,6 @@
  * pull JSON / ZIP-CSV exports for any site they manage, straight from
  * the Account Settings modal.
  */
-import React from 'react';
 import SiteDataExportPanel from '@/pages/SiteDataExportPanel';
 
 export default function DataExportSection() {

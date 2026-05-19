@@ -11,7 +11,7 @@
  * Backend: POST /api/memberships/members/{id}/sell-pack-at-desk
  *   body { plan_id, method, reference?, note? }
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { X, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
 import { notify } from '@/components/notifications';

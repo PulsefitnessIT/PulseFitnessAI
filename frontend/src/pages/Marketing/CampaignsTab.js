@@ -1,5 +1,5 @@
 /* Campaigns tab — list + minimal builder + send */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Mail, Plus, Send, Loader2, CheckCircle2, Sparkles, UserPlus, TrendingDown, Calendar, UserCheck, CreditCard, Share2, BarChart3, X, Pencil, Trash2, RotateCcw, FlaskConical, Trophy, Megaphone } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
@@ -48,7 +48,7 @@ const CampaignsTab = ({ API, headers }) => {
     ]);
     setCampaigns(c.data.campaigns); setAudiences(a.data.audiences); setTemplates(t.data.templates);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const applyTemplate = async (templateId) => {
     setBusy(true);

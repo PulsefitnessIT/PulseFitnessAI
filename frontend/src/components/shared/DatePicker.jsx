@@ -16,7 +16,7 @@
  * Props mirror a normal Input so existing forms can swap straight in:
  *   <DatePicker value={form.warranty_expiry} onChange={(iso) => …} />
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Calendar as CalendarIcon, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';

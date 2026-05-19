@@ -15,7 +15,7 @@
  * That keeps the per-module pill styling (icons, accent colour, active
  * state) untouched while fixing the shared overflow UX in one place.
  */
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function PillTabBar({

@@ -6,7 +6,7 @@
  * class_pack / payg / course / bundle plans with smoothing, waivers, and
  * course schedule materialisation.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

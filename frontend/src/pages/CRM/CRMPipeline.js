@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Plus, Search, Target, DollarSign, Calendar, User, Building2,
-  ChevronRight, ArrowLeft, GripVertical, BarChart3, List, LayoutGrid,
-  AlertTriangle, Clock, X, Activity, FileText, Phone, Mail, CheckCircle, Edit2, Printer,
+  Plus, Search, Target, DollarSign, Calendar, User, Building2, ArrowLeft, GripVertical, List, LayoutGrid, X, Activity, FileText, Phone, Mail, CheckCircle, Edit2, Printer,
   GitBranch,
 } from 'lucide-react';
 import axios from 'axios';

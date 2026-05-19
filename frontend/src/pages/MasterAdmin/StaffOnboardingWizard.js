@@ -22,7 +22,7 @@
  *   • PUT  /api/master-admin/users/{user_id}/edit               (allowed_site_ids, module_overrides)
  *   • POST /api/master-admin/users/{user_id}/invite-link        (re-issue 72 h link if needed)
  */
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
   UserPlus, Mail, Briefcase, MapPin, Layers, ClipboardCheck,

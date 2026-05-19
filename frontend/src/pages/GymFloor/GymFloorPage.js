@@ -7,11 +7,11 @@
  * • Post-login: Handover Diary surface where staff pick their name from
  * a managed roster, choose a topic, and log notes. Date auto-fills.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
- ClipboardList, ShieldAlert, Users, Sparkles, LogOut, Send, Trash2, Plus,
+ ClipboardList, ShieldAlert, Users, LogOut, Send,
  CheckCircle2, AlertTriangle, Calendar, Clock, Wrench, User, Eye, EyeOff,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';

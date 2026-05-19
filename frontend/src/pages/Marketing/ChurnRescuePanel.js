@@ -17,7 +17,7 @@
  * Per user choices: multi-signal detector + queue for staff approval +
  * multi-channel with smart fallback.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   HeartCrack, Loader2, Sparkles, Search, RefreshCw, Check, X, Send,
@@ -70,7 +70,7 @@ const ChurnRescuePanel = ({ API, headers, entitlement }) => {
     setScanning(false);
   };
 
-  useEffect(() => { if (!locked) loadAll(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { if (!locked) loadAll();   }, []);
 
   const toggleSelect = (memberId) => {
     setSelected((prev) => {

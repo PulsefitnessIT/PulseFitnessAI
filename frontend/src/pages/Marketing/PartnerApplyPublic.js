@@ -9,7 +9,7 @@
  * After approval the engineer gets an email magic-link to claim a
  * GymAxis account and finish onboarding via the existing wizard.
  */
-import React, { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import {
@@ -512,5 +512,5 @@ function Summary({ label, value }) {
 }
 
 /* Unused — declared so lint stays happy on Sparkles import. */
-// eslint-disable-next-line no-unused-vars
+ 
 const _kept = Sparkles;

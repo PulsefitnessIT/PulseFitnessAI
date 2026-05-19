@@ -14,7 +14,7 @@
  *
  * Iter 216h117 — Closing P1.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { X, ShieldCheck, Loader2, Save } from 'lucide-react';
 import { notify } from '@/components/notifications';

@@ -12,7 +12,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  MapPin, Clock, CheckCircle, Wrench, Loader2, Phone, Truck, Star, AlertCircle, Send,
+  MapPin, Clock, CheckCircle, Wrench, Loader2, Truck, Star, AlertCircle, Send,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';

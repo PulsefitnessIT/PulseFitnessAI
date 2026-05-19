@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
-import { Mail, BarChart3, AlertCircle, CheckCircle, Shield, Activity } from 'lucide-react';
+import { Mail, BarChart3, AlertCircle, CheckCircle, Activity } from 'lucide-react';
 import HelpHint from '@/components/HelpHint';
 
 const getSeverityClass = (severity) => {

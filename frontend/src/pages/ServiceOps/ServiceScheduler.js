@@ -11,11 +11,11 @@
  * users get a fallback "tap to assign" modal triggered by long-press
  * via the `dragstart` event firing on touch.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
-  Calendar, RefreshCw, Sparkles, ChevronLeft, ChevronRight,
+  Calendar, RefreshCw, ChevronLeft, ChevronRight,
   AlertTriangle, Clock, MapPin, Wand2, Loader2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

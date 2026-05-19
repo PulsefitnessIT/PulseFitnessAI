@@ -20,7 +20,7 @@
  * of users + crm_users + pulse-admin memberships. No new endpoint
  * needed.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, Users, ShieldCheck, Briefcase, UserCog, Archive, AlertTriangle, ChevronRight, Clock } from 'lucide-react';
 import { useBrandContext } from './BrandContext';
 

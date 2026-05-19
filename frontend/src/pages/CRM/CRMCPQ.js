@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Plus, FileText, Send, Check, Trash2, X, ArrowLeft,
-  Building2, User, Calendar, DollarSign, ChevronRight, Loader2, Edit2, History, Copy
+  Plus, FileText, X, ArrowLeft,
+  Building2, User, ChevronRight, History, Copy
 } from 'lucide-react';
 import axios from 'axios';
 

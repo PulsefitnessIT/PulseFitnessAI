@@ -10,7 +10,7 @@
  * Triggered from the MOD site dashboard via a dedicated "Report
  * incident" button. Returns the incident_ref + RIDDOR verdict.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { AlertTriangle, ShieldAlert, Loader2, X, Check } from 'lucide-react';
 import { notify } from '@/components/notifications';

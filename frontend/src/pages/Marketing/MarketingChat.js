@@ -6,7 +6,7 @@
  * grounded on the help corpus). Anonymous, no signup required, rate-
  * limited server-side.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { MessageCircle, X, Send, Sparkles, Loader2 } from 'lucide-react';
 

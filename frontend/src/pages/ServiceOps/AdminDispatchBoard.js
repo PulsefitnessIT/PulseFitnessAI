@@ -8,11 +8,11 @@
  * Lives under /service-desk/dispatch (admin-only) — keeps the existing
  * engineer-side `/svc/engineer/diary` view untouched.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   AlertTriangle, Calendar, ChevronLeft, Loader2, RefreshCw,
-  Wrench, Users, X, CheckCircle2, Clock,
+  Wrench, Users, X, CheckCircle2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notify } from '@/components/notifications';

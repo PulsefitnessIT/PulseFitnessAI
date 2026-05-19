@@ -7,7 +7,7 @@
  *
  * Bulk import via CSV (multipart upload to /api/crm/products/bulk-import).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Package, Plus, Loader2, Search, Trash2, Upload, X, Save } from 'lucide-react';
 

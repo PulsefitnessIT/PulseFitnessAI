@@ -8,7 +8,7 @@
  * Used at intake (case isn't created yet — purely local state) and in
  * the case drawer (case exists — POSTs to /api/svc/parts/allocate).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Package, Search, Plus, X, Truck, Warehouse } from 'lucide-react';
 import { notify } from '@/components/notifications';

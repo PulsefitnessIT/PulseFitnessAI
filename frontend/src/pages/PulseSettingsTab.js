@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,12 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   Users, UserPlus, Copy, Crown, Shield, User, Trash2, Building,
-  Mail, Phone, Save, Clock, X, Loader2, MapPin, Contact, QrCode, Printer, Plus, Edit, Settings2, Palette, ChevronDown, ChevronUp, Star
+  Mail, Save, Clock, X, Loader2, MapPin, QrCode, Printer, Plus, Edit, Settings2, Palette, ChevronDown, ChevronUp, Star
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';

@@ -14,7 +14,7 @@
  * **zero code changes** — outbox workers already monitor `sicon_config
  * .enabled=true` and start pushing the moment it flips.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {

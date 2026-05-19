@@ -7,15 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import InvoiceParseProgress from '@/components/shared/InvoiceParseProgress';
 import { useUploadQueue } from '@/components/shared/UploadQueue';
 import {
   Building2, Users, Wrench, CheckCircle, ArrowRight, ArrowLeft,
-  Loader2, Plus, Trash2, UserPlus, Upload, Download,
-  Eye, EyeOff, Package, Star, Sparkles, FileText, UserCheck
+  Loader2, Plus, Trash2, UserPlus, Download,
+  Eye, EyeOff, Star, Sparkles, FileText, UserCheck
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';

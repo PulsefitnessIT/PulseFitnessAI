@@ -19,7 +19,7 @@
  * embedded indicator rotates its chevron into a spinner at the
  * activation point.
  */
-import React, { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Loader2, ArrowDown } from 'lucide-react';
 
 const ACTIVATE_DISTANCE = 72;

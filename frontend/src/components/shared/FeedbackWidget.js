@@ -9,7 +9,7 @@
  * Marketing, Master Admin) — NOT on the marketing site (where the
  * MarketingChat is the equivalent).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ThumbsUp, ThumbsDown, MessageSquarePlus, X, Send, Check } from 'lucide-react';
 

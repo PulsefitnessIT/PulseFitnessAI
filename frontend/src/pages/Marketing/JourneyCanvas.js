@@ -10,7 +10,7 @@
  * — the previous "template" name was a placeholder. Old journeys with
  * `template` still load (we surface it as a body fallback).
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Sparkles, Clock, Mail, MessageSquare, Bell, BellRing, Smartphone,
   GitBranch, Tag, Target, Trash2, Plus,

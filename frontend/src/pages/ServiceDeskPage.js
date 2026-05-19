@@ -15,7 +15,7 @@
  * <ServiceOpsShell>. We wrap them with <ServiceOpsEmbeddedContext.Provider>
  * so the shell collapses its hero+nav (the new sidebar owns that now).
  */
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '@/App';
 import { useNavigate } from 'react-router-dom';
 import {

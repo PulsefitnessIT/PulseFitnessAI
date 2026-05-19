@@ -5,7 +5,7 @@
  * dialog with the last 5 send attempts + a deep-link to Resend
  * domains config when the failure mode is "domain not verified".
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Mail, X, ExternalLink, RefreshCw, RotateCw } from 'lucide-react';

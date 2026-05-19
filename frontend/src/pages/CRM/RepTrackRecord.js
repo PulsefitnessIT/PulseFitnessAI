@@ -13,7 +13,7 @@
  *
  * Backend: GET /api/crm/forecast/track-record?user_id=&periods=
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Award, AlertTriangle, Target, TrendingUp, TrendingDown, Activity } from 'lucide-react';

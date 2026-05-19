@@ -1,4 +1,3 @@
-import React from 'react';
 
 export const fmtMoney = (pence) => {
   if (pence == null) return '£0';

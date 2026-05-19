@@ -4,7 +4,7 @@
  * Catalog CRUD: name / code / price / included emails / SMS. Used by the
  * customer-facing EmailVolumePanel.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

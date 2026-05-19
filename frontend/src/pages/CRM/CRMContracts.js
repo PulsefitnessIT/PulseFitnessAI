@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Plus, FileText, ChevronRight, ArrowLeft, Building2, MapPin,
   Calendar, DollarSign, Shield, Clock, CheckCircle, AlertTriangle,
   Edit2, Trash2, X, Wrench, Activity, Copy, Send, ThumbsUp,
-  ThumbsDown, RefreshCw, Link2, PenTool, ChevronDown, BarChart3,
+  ThumbsDown, RefreshCw, Link2, PenTool, BarChart3,
   Settings2, ExternalLink, Zap
 } from 'lucide-react';
 import axios from 'axios';

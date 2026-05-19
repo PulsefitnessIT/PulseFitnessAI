@@ -6,7 +6,7 @@
  * the value story. Reuses the Pulse shell (header, footer, login modal,
  * scoped global CSS) so brand parity with PulseLandingPage is automatic.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Sparkles } from 'lucide-react';

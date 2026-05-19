@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -24,7 +24,7 @@ const FaultTemplatePicker = ({ API, onApply }) => {
     }
   };
 
-  useEffect(() => { loadTemplates(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { loadTemplates();   }, []);
 
   const topSuggestions = useMemo(() => templates.slice(0, 3), [templates]);
 

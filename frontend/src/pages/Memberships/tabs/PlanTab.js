@@ -3,7 +3,7 @@
  *
  * Owns the plans list + the CheckoutModal (promo / waiver / Stripe).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

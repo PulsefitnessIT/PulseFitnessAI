@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -6,13 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import axios from 'axios';
 import {
- Clock, CheckCircle, AlertCircle, Truck, Search, Plus,
- ArrowRight, Building, Wrench, Package, Timer, Star, Info, ChevronDown
+ Clock, CheckCircle, AlertCircle, Truck, Search, Plus, Building, Wrench, Package, Star, Info, ChevronDown
 } from 'lucide-react';
 import SupplierEquipmentWizard from './SupplierEquipmentWizard';
 import PageHeader from '@/components/shared/PageHeader';

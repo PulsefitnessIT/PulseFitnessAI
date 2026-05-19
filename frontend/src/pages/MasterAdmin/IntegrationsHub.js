@@ -21,7 +21,7 @@
  * right-hand drawer with the FULL existing configuration page embedded
  * — mappings, logs, config, per-org table all preserved.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ArrowLeftRight, Banknote, Plug, ShieldCheck, RefreshCw, AlertTriangle, CheckCircle2, Clock, XCircle, ExternalLink, Settings } from 'lucide-react';

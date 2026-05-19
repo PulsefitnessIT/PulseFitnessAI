@@ -6,7 +6,7 @@
  * audit which GymAxis field flows into which Sicon column for every
  * sync without having to dig in the codebase.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Loader2, ArrowRight, ArrowLeft, ArrowLeftRight, Search } from 'lucide-react';

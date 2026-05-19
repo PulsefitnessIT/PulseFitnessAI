@@ -10,7 +10,7 @@
  *   4. Backend verifies TOTP, marks the next-class booking as attended
  *   5. Big "Welcome, {first_name}!" success screen → auto-resets in 4s
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { CheckCircle2, AlertTriangle, Search, ArrowLeft, Loader2 } from 'lucide-react';

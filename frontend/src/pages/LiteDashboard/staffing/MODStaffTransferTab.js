@@ -14,7 +14,7 @@
  *   4. Optional transfer reason → confirm.
  *   5. Toast + refresh on success.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

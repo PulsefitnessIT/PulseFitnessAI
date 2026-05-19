@@ -6,7 +6,7 @@
  * marketing chat widget. Feeds homepage / pricing-page improvement
  * decisions with real-world data.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Sparkles, Loader2, MessageSquare, TrendingUp, Hash, Compass,

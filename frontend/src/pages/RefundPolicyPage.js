@@ -9,7 +9,6 @@
  * Style matches the existing PrivacyPolicyPage / TermsOfServicePage —
  * white shell, prose-like, single-column, ArrowLeft back-link.
  */
-import React from 'react';
 import { ArrowLeft, Mail } from 'lucide-react';
 
 const Section = ({ title, children }) => (

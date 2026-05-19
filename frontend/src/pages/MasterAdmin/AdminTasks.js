@@ -7,7 +7,7 @@
  *   the CRM and Marketing modules (replaces the previous "HubSpot Parity"
  *   panel — no third-party brand names anywhere on the platform).
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import SetupTasksPanel from './SetupTasksPanel';
 import CrmMarketingTasksPanel from './CrmMarketingTasksPanel';
 import { SubTabBar } from './SidebarConfig';

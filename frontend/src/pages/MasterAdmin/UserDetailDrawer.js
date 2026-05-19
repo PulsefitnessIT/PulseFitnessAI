@@ -15,7 +15,7 @@
  * for one release. Once operators are happy with the drawer, the
  * legacy panel is retired (P3b).
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { X, Mail, Building, ShieldCheck, KeyRound, Copy, Check, AlertTriangle, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';

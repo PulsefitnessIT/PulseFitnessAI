@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import axios from 'axios';
 import {
   Users, Building2, GitBranch, Inbox, Zap, FileText, Target,
-  TrendingUp, MessageSquare, Brain, RefreshCw, ArrowUpRight,
-  ArrowDownRight, Minus, Clock, Link2, CheckCircle, AlertTriangle
+  TrendingUp, MessageSquare, Brain, RefreshCw, ArrowUpRight, Clock, Link2, AlertTriangle
 } from 'lucide-react';
 
 const fmt = (v) => typeof v === 'number' ? (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toLocaleString()) : v;

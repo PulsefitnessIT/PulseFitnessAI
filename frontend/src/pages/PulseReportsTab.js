@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import {
 import axios from 'axios';
 import {
   BarChart3, TrendingUp, Wrench, AlertTriangle, CheckCircle,
-  PoundSterling, Clock, Users, RefreshCw, Shield, Mail
+  PoundSterling, RefreshCw, Shield, Mail
 } from 'lucide-react';
 import RiskAssessmentTab from './RiskAssessmentTab';
 import CapexIntelligenceTab from './CapexIntelligenceTab';

@@ -1,5 +1,5 @@
 import {
-  BarChart3, LineChart, PieChart, FileText, ShieldCheck, Database, Sparkles,
+  BarChart3, LineChart, PieChart, FileText, ShieldCheck, Database,
   Wrench, Users, Calendar, Megaphone,
 } from 'lucide-react';
 

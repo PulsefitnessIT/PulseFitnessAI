@@ -4,12 +4,11 @@
  *
  * Route: /m/:slug/c/:occId
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Calendar, Clock, MapPin, Users, ArrowLeft, ExternalLink,
-  CheckCircle2, AlertCircle,
+  Calendar, Clock, MapPin, Users, ArrowLeft, ExternalLink, AlertCircle,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

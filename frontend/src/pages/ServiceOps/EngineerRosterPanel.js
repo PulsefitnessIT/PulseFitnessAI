@@ -12,11 +12,10 @@
  *   POST   /api/customer-engineer-grants     {engineer_email, case_ids[], scope, note}
  *   DELETE /api/customer-engineer-grants/{id}
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  UserPlus, Trash2, Loader2, ShieldCheck, X, CheckCircle2, ChevronDown,
-  ChevronUp, Mail, Sparkles,
+  UserPlus, Trash2, Loader2, ShieldCheck, X, CheckCircle2, ChevronDown, Mail, Sparkles,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

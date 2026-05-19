@@ -14,7 +14,7 @@
  *   7. "Make it better" toolbar (punchier, urgency, shorter, premium)
  *   8. "Launch as campaign" CTA
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Sparkles, Loader2, Wand2, RefreshCw, Copy, Send, Mail, Instagram, Facebook,

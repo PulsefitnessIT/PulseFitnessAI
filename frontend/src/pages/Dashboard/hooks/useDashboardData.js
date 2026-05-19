@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 /**
@@ -89,7 +88,7 @@ const useDashboardData = (API, { onPaymentSuccess } = {}) => {
   }, [API, onPaymentSuccess]);
 
   // initial load
-  useEffect(() => { loadData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { loadData();   }, []);
 
   return {
     issues, setIssues,

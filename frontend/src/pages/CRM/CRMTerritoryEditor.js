@@ -2,7 +2,7 @@
  * Territory editor modal — split into its own file so Babel's
  * traversal visitor doesn't overflow on a deep JSX tree.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { X, Save } from 'lucide-react';

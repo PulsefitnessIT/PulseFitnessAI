@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, User, Trash2, Bookmark, Zap } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 /**
@@ -39,7 +38,7 @@ const FaultTemplatesManager = ({ API, user }) => {
   useEffect(() => { load(); }, [load]);
 
   const handleDelete = async (tpl) => {
-    // eslint-disable-next-line no-alert
+     
     if (!window.confirm(`Delete template "${tpl.name}"?`)) return;
     setDeletingId(tpl.id);
     try {

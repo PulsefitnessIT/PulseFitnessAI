@@ -201,7 +201,7 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
         // Surface the raw error in the console too so operators screen-
         // sharing with support can copy/paste the stack instead of
         // describing a "silent fail".
-        // eslint-disable-next-line no-console
+         
         console.error('[onboard-head-office] failed', e?.response?.status, e?.response?.data, e);
       }
     } finally { setSubmitting(false); }
@@ -691,7 +691,7 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
                             setParseProgress((p) => ({ ...p, [i]: { phase: 'error', message: detail } }));
                             setTimeout(() => setParseProgress((p) => { const cp = { ...p }; delete cp[i]; return cp; }), 6000);
                             notify.error('Invoice parse failed', detail, { duration: 9000 });
-                            // eslint-disable-next-line no-console
+                             
                             console.error('[invoice/parse-for-wizard] failed', err?.response?.status, err?.response?.data, err);
                           }
                           e.target.value = '';

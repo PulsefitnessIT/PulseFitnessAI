@@ -5,7 +5,7 @@
  * "Compliance" button. Shows the entire estate's upcoming expiries
  * with severity colouring and lets HQ add / edit / delete events.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { X, Calendar, AlertTriangle, Loader2, Plus, Trash2, ExternalLink } from 'lucide-react';
 
@@ -45,7 +45,7 @@ export default function MODComplianceCalendar({ sites, API, onClose }) {
       .catch((e) => setError(e?.response?.data?.detail || 'Could not load compliance calendar'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { load();   }, []);
 
   const submit = async () => {
     if (!form.site_id || !form.title || !form.due_date) {

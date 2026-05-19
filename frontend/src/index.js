@@ -12,7 +12,7 @@ if (SENTRY_DSN) {
   // Use a synchronous import via webpack's dynamic require so the bundle
   // includes Sentry only when DSN is set. ESLint's no-undef warning
   // about `require` is a false positive in CRA — webpack provides it.
-  // eslint-disable-next-line no-undef, global-require
+  // eslint-disable-next-line no-undef
   const Sentry = require("@sentry/react");
   Sentry.init({
     dsn: SENTRY_DSN,

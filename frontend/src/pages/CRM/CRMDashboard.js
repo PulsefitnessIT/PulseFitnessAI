@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  TrendingUp, Users, Building2, Target, AlertTriangle, CheckCircle,
-  Clock, FileText, Phone, Mail, Calendar, DollarSign, Briefcase,
-  Shield, Activity, ChevronRight, Zap, BarChart3, Wrench, ArrowUpRight,
-  AlertCircle, PieChart, Award, UserCheck, Filter
+  TrendingUp, Users, Building2, Target, AlertTriangle, CheckCircle, FileText, Phone, Mail, Calendar, DollarSign, Briefcase, Activity, ChevronRight, Zap, Wrench,
+  AlertCircle, PieChart, Award, UserCheck
 } from 'lucide-react';
 import axios from 'axios';
 import Button from '@/components/shared/Button';

@@ -14,7 +14,7 @@
  *   searchable. Files without it get a "Index" button that triggers
  *   extraction.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

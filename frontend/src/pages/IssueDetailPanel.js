@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,11 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import {
- FileText, Upload, PoundSterling, Send, Plus, Trash2, X,
- Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Link2, Mail, Wrench, Loader2, CalendarDays, ShieldCheck
+ FileText, Upload, Send, Plus, Trash2,
+ Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 

@@ -7,13 +7,13 @@
  * per-site volume discount tiers, and saves. The public homepage's
  * pricing page consumes the same data via /api/pricing/public.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
-  Save, RotateCcw, Sparkles, Plus, Trash2, ChevronDown, ChevronUp, History,
+  Save, Sparkles, Plus, Trash2, ChevronDown, ChevronUp, History,
   PoundSterling, Euro, DollarSign, Loader2, Eye, EyeOff,
 } from 'lucide-react';
 import MarketingAddonsPanel from './MarketingAddonsPanel';

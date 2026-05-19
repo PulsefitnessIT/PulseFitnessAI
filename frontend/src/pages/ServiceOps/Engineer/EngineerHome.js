@@ -12,7 +12,7 @@
  *   GET /api/svc/engineer/me
  *   GET /api/svc/engineer/jobs?when=today|upcoming|open
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {

@@ -16,7 +16,7 @@
  * in the Help Centre. Walkthroughs from the Help Centre auto-recheck
  * this list when they finish.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CheckCircle2, Circle, ChevronUp, ChevronDown, X, Sparkles, BookOpen } from 'lucide-react';

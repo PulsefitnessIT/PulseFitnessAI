@@ -13,12 +13,12 @@
  * Submit → POST /api/svc/engineer/jobs/self-create with an Idempotency-Key.
  * Lands on the new job's detail page on success.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Loader2, Sparkles, Wand2, ClipboardPaste,
-  Wrench, Mail, Building2, AlertCircle, CheckCircle2,
+  Wrench, Building2, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 

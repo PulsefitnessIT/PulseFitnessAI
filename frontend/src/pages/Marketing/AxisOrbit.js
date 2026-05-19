@@ -6,7 +6,6 @@
  * counter-rotation on the inner content keeps icons + labels upright.
  * Pure CSS animation — GPU-friendly, no JS RAF loop.
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Wrench, Users, Calendar, Megaphone, UserCog, BarChart3,

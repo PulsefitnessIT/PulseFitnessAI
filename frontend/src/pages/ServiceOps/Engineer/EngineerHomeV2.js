@@ -17,13 +17,12 @@
  *   GET /api/svc/engineer/dashboard   (this iter)
  *   GET /api/svc/engineer/me           (existing — for active_timer)
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
-  CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2,
-  PoundSterling, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
+  CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
   CreditCard, Inbox, Hand, QrCode,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

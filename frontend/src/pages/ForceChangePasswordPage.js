@@ -7,7 +7,7 @@
  * we replace their JWT with the freshly-issued one and route them to
  * the appropriate dashboard for their role.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Lock, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';

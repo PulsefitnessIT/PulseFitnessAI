@@ -48,7 +48,7 @@
  *   to migrate to `useUnifiedAuth()` yet can still react to logins via:
  *     window.addEventListener('gymaxis:auth-changed', handler)
  */
-import React, {
+import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react';
 import axios from 'axios';

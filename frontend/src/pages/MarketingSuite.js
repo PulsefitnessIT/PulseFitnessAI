@@ -25,7 +25,6 @@ import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
 import ModuleSwitcher from '@/components/shared/ModuleSwitcher';
 import PillTabBar from '@/components/shared/PillTabBar';
-import ProductTour from '@/components/shared/ProductTour';
 
 import StartTab from './Marketing/StartTab';
 import CampaignWizard from './Marketing/CampaignWizard';

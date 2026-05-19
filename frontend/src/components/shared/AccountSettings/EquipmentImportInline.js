@@ -11,7 +11,7 @@
  *   • Download a fresh template
  *   • Live progress + result summary
  */
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Download, Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';

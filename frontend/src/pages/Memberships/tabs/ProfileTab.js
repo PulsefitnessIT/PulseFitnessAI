@@ -6,7 +6,7 @@
  * initial Home tab paint, so loading them async on first Profile visit
  * is a net win.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import {

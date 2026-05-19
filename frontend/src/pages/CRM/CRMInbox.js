@@ -3,7 +3,7 @@ import { useCRM } from './CRMApp';
 import {
   Plus, Search, MessageSquare, CheckCircle, Clock,
   ArrowLeft, Phone, Mail, FileText, Calendar, Activity,
-  X, Building2, Users, Filter, Target, MapPin
+  X, Building2, Users, Target, MapPin
 } from 'lucide-react';
 import axios from 'axios';
 

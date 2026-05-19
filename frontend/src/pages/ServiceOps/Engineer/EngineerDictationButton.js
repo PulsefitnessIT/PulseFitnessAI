@@ -12,7 +12,7 @@
  *  • Auto-stops at 60s to keep budget in check.
  *  • Graceful errors when mic permission is denied or the API fails.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Mic, MicOff, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { notify } from '@/components/notifications';

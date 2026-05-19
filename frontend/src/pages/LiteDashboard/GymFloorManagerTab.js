@@ -7,15 +7,14 @@
  *  2. Diary — same entries the floor staff see, with delete rights for the
  *     manager. Flagged entries are highlighted for moderation review.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  ClipboardList, Users, KeyRound, ShieldAlert, Trash2, Plus, CheckCircle2, CopyIcon, Tag, Send, Eye, EyeOff,
+import { Users, KeyRound, ShieldAlert, Trash2, Plus, CopyIcon, Tag, Eye, EyeOff,
 } from 'lucide-react';
 import { useInlineBanner, useConfirm } from '@/components/notifications';
 

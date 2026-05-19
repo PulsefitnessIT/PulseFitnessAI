@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Upload, FolderOpen, Search, Trash2, Download, FileText, File, Image, X, Filter, Eye
+  Upload, FolderOpen, Search, Trash2, Download, FileText, File, Image, Eye
 } from 'lucide-react';
 import axios from 'axios';
 import Button from '@/components/shared/Button';

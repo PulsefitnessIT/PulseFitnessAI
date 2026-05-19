@@ -39,7 +39,7 @@ describe('formatApiError', () => {
       let caught;
       try {
         const obj = undefined;
-        // eslint-disable-next-line no-unused-expressions
+         
         obj.foo;
       } catch (e) { caught = e; }
       const result = formatApiError(caught, 'Failed to load');

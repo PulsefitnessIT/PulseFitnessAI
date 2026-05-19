@@ -1,10 +1,9 @@
 /* PreviewPanel — pre-provision readiness check + validation report. */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  CheckCircle2, XCircle, AlertTriangle, Users, MapPin,
+import { XCircle, AlertTriangle, Users, MapPin,
   Wrench, Truck, FileText, Building2, Mail, Shield,
   Loader2, Sparkles,
 } from 'lucide-react';

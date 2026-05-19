@@ -1,22 +1,18 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle
-} from '@/components/ui/dialog';
+
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import {
-  Brain, Send, Loader2, FileText, Clock, Wrench, ChevronDown, ChevronUp
+  Brain, Send, Loader2, FileText, Clock, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 const EQUIPMENT_TYPES = ['Treadmill', 'Exercise Bike', 'Cross Trainer', 'Rowing Machine', 'Spin Bike', 'Strength Equipment', 'Free Weights', 'StepMill', 'Cable Machine'];

@@ -1,7 +1,7 @@
 /* Social Media — Meta OAuth wizard + status */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Share2, AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
@@ -10,7 +10,7 @@ const SocialTab = ({ API, headers }) => {
   const [busy, setBusy] = useState(false);
 
   const load = () => axios.get(`${API}/api/marketing/social/status`, { headers }).then((r) => setStatus(r.data)).catch(() => setStatus({ platform_configured: false, accounts: [] }));
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const connect = async () => {
     setBusy(true);

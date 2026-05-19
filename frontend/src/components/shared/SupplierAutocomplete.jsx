@@ -20,7 +20,7 @@
  * AddEquipmentDialog, EquipmentInfoTab edit panels) without a layout
  * regression — width / height match a standard <Input>.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { ChevronDown, Search, Plus, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';

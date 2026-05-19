@@ -9,7 +9,7 @@
  * Wire: GET /api/member/credit-packs, POST /api/member/credit-pack-checkout
  *       → redirect to session.checkout_url.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { X, Loader2, CreditCard, Sparkles } from 'lucide-react';
 import { notify } from '@/components/notifications';

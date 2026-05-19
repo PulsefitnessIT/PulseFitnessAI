@@ -1,7 +1,7 @@
 /* Insights tab — proactive opportunity tiles */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Lightbulb, Calendar, TrendingDown, AlertTriangle, Sparkles, ChevronRight, Loader2 } from 'lucide-react';
+import { Calendar, TrendingDown, AlertTriangle, Sparkles, ChevronRight, Loader2 } from 'lucide-react';
 
 const ICONS = { calendar: Calendar, 'trending-down': TrendingDown, 'alert-triangle': AlertTriangle, sparkles: Sparkles };
 

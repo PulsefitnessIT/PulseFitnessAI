@@ -13,11 +13,11 @@
  *   GET /api/integrations/admin/sage/outbox
  *   GET /api/integrations/admin/mapping/sections
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
-  Cable, RefreshCw, AlertTriangle, CheckCircle2, Clock, Inbox,
+  Cable, RefreshCw, AlertTriangle, Inbox,
   Database, Workflow, FileText, Zap, ZapOff, Cog, Play, FlaskConical, RotateCcw,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

@@ -10,7 +10,7 @@
  *   <CRMAuditTrail entityType="contact" entityId={id} />
  *   <CRMAuditTrail /> // Org-wide recent stream when no entity passed.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Shield, UserCircle2, Plus, Pencil, Trash2, GitBranch, FileSignature, CheckCircle2 } from 'lucide-react';
 

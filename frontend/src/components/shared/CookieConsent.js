@@ -7,7 +7,7 @@
  * Detection is purely client-side (route + body class) so the banner
  * doesn't need to wait on any auth context.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Shield } from 'lucide-react';
 
 function detectIsPulse() {

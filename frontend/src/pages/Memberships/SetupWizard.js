@@ -11,15 +11,14 @@
  *
  * Progress persists on the org doc (setup_step + setup_completed).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   CheckCircle2, ChevronRight, ChevronLeft, Sparkles, Link as LinkIcon,
-  Copy, CreditCard, Banknote, Wand2, Check, X, Plus, Loader2,
+  Copy, CreditCard, Banknote, Check, Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 

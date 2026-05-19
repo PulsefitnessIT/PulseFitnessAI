@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import axios from 'axios';
 import {
  Wrench, MapPin, AlertTriangle, Clock, CheckCircle, Send,
- Image, Video, FileText, ChevronDown, ChevronUp, Shield, Loader2,
+ Image, FileText, ChevronDown, ChevronUp, Shield, Loader2,
  Calendar, User, Building2, Paperclip, Star, X, Camera, MessageCircle,
- Phone, Mail, Download, Copy, ContactRound, Globe
+ Phone, Mail, Copy, ContactRound, Globe
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;

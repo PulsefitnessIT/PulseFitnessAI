@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

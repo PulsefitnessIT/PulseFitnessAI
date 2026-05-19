@@ -2,7 +2,7 @@
  * TerritoryRow + TeamNode — list-item components extracted into their
  * own file so Babel's JSX traversal stays shallow on the main page.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MapPin, Users, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 
 const StatPill = ({ label, value }) => (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -10,9 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
-import { Shield, Plus, Printer, FileText, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Shield, Plus, Printer, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 
 const RISK_COLORS = {
  low: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Low' },

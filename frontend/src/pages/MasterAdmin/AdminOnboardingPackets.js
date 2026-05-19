@@ -4,7 +4,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/App';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { Card } from '@/components/ui/card';

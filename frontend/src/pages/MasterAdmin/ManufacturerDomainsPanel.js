@@ -15,7 +15,7 @@
  * Top bar carries the bulk "Ingest all priority domains" CTA + a job
  * status card so large ingests are still first-class.
  */
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

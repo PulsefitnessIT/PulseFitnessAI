@@ -8,7 +8,7 @@
  *
  * Calls: GET /api/memberships/tour-conversion?days=30
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { TrendingUp, Calendar, UserCheck, UserPlus, RefreshCw, Loader2 } from 'lucide-react';
 

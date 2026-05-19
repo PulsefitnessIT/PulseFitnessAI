@@ -23,10 +23,9 @@
  *     apiBase      (string)  — e.g. `${REACT_APP_BACKEND_URL}/api`
  *     authToken    (string)  — Bearer token
  */
-import React, { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Camera, Upload, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import axios from 'axios';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 import EquipmentPlaceholder from './EquipmentPlaceholder';

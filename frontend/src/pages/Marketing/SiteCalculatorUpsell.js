@@ -7,7 +7,7 @@
  *
  * Bundle: £150/mo (1 site included) + £50/mo per additional site.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Sparkles, Plus, Minus, Building2 } from 'lucide-react';
 

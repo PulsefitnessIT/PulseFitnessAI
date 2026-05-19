@@ -2,10 +2,10 @@
  * Master Admin — Marketing Suite
  * Two sub-tabs: Plans (editor) + Analytics (platform KPIs).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useBrandContext } from './BrandContext';
-import { Sparkles, Edit2, Save, BarChart3, Loader2, PoundSterling, Mail, ImagePlus, Workflow, Users, Plus, Trash2, X } from 'lucide-react';
+import { Edit2, Save, Loader2, PoundSterling, Mail, ImagePlus, Workflow, Users, Plus, Trash2, X } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
@@ -21,7 +21,7 @@ const PlansEditor = ({ API, headers }) => {
  const [busy, setBusy] = useState(false);
 
  const load = () => axios.get(`${API}/master-admin/marketing/plans`, { headers }).then((r) => setPlans(r.data.plans));
- useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+ useEffect(() => { load();   }, []);
 
  const save = async () => {
  setBusy(true);

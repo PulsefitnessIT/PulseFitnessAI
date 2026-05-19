@@ -10,7 +10,7 @@
  * `dev-bypass` so forms don't lock up on localhost — the backend fails open
  * when CAPTCHA_SECRET is absent, so this is safe.
  */
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 const TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 const SITEKEY = process.env.REACT_APP_TURNSTILE_SITEKEY;

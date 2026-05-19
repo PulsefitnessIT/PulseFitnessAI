@@ -11,7 +11,7 @@
  * Hard scope: this page MUST NOT surface CRM, full Operations,
  * Memberships, or Marketing data. Read-only commercial summary only.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link, useSearchParams } from 'react-router-dom';
 import {

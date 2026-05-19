@@ -1,7 +1,7 @@
 /* Performance — KPI dashboard */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { BarChart3, Mail, MousePointerClick, Users, Workflow, TrendingUp, Loader2 } from 'lucide-react';
+import { Mail, MousePointerClick, Users, Workflow, TrendingUp, Loader2 } from 'lucide-react';
 
 const Tile = ({ icon: Icon, label, value, sub, accent = 'text-zinc-900 dark:text-zinc-100' }) => (
   <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">

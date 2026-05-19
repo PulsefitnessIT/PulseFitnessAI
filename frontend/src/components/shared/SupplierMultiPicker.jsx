@@ -14,7 +14,7 @@
  * it. "Add new" commits a free-text custom value so an engineer who
  * services a one-off niche brand isn't blocked.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { ChevronDown, Search, Plus, X } from 'lucide-react';
 

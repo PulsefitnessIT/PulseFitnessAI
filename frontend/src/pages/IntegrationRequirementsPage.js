@@ -1,6 +1,5 @@
-import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, CheckCircle, Circle } from 'lucide-react';
+import { ArrowLeft, Printer, Circle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const IntegrationRequirementsPage = () => {

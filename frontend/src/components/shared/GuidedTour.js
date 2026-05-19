@@ -18,7 +18,7 @@
  *
  * Step format mirrors Joyride: { target, title, content, placement? }.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Joyride, STATUS } from 'react-joyride';
 import { useNavigate } from 'react-router-dom';
 

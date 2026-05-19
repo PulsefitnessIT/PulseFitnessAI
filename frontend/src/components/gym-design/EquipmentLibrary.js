@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card } from '@/components/ui/card';
 
 const GymIcon = ({ type, size = 24, color = 'var(--color-brand-blue)' }) => {

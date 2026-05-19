@@ -25,7 +25,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from
 import axios from 'axios';
 import { Toaster as SonnerToaster } from 'sonner';
 import {
-  Calendar, Ticket, QrCode, User, LogOut, Users as UsersIcon, Users, Sparkles,
+  Calendar, Ticket, QrCode, User, LogOut, Users, Sparkles,
   CheckCircle2, X, Loader2, CreditCard, Activity, Home, MoreHorizontal,
 } from 'lucide-react';
 import { useInlineBanner, notify } from '@/components/notifications';

@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
-  Shield, Phone, Mail, Globe, MapPin, Tag, MoreHorizontal, ArrowLeft,
-  FileText, Calendar, Activity, DollarSign, CheckCircle, Clock, Edit2, Trash2, X,
+  Shield, Phone, Mail, Globe, MapPin, Tag, ArrowLeft,
+  FileText, Calendar, Activity, CheckCircle, Edit2, Trash2, X,
   Upload, Download, Sparkles, Loader2, Hash
 } from 'lucide-react';
 import axios from 'axios';

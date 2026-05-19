@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useCRM } from './CRMApp';
 import {
@@ -10,7 +10,6 @@ import CustomFieldsPanel from '@/components/shared/CustomFieldsPanel';
 import ExportCsvButton from '@/components/shared/ExportCsvButton';
 import CRMAuditTrail from './CRMAuditTrail';
 import HelpHint from '@/components/HelpHint';
-import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
 import PicklistSelect from '@/components/shared/PicklistSelect';
 

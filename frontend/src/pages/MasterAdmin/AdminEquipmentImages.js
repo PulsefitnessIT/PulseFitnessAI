@@ -9,7 +9,7 @@
  * for an OG:image, and verifies the match with GPT-4o vision before saving
  * to `equipment.auto_image_url`.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
  ImageIcon, RefreshCw, CheckCircle2, AlertTriangle, Sparkles,
@@ -53,7 +53,7 @@ const AdminEquipmentImages = ({ API }) => {
  setLoading(false);
  };
 
- useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+ useEffect(() => { load();   }, []);
 
  const runNow = async () => {
  setRunning(true);

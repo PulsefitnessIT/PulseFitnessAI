@@ -8,7 +8,7 @@
  *   action  — free-form label for logging (e.g. "login", "forgot_password")
  *   onToken — invoked with a string token (or "" when captcha is disabled)
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

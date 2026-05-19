@@ -2,7 +2,7 @@
  * Creative Studio entry — switches between the new AI Director (default)
  * and the original single-asset builder.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sparkles, ImagePlus, HeartCrack } from 'lucide-react';
 import AIDirectorPanel from './AIDirectorPanel';
 import ChurnRescuePanel from './ChurnRescuePanel';

@@ -10,7 +10,7 @@
  * + start-time and instantly persist via PATCH /memberships/classes/templates/{id}.
  * Drop into the "Idle templates" rail to detach all weekday recurrences.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Plus, Trash2, Calendar as CalendarIcon, GripVertical, Sparkles,

@@ -4,7 +4,7 @@
  * One-stop surface for downloading CSV templates and bulk-loading equipment
  * + customer rosters into a target Pulse customer's tenant.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
  Download, Upload, Wrench, Users, FileSpreadsheet, ChevronRight,

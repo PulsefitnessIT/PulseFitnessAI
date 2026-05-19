@@ -1,4 +1,3 @@
-import React from 'react';
 
 /**
  * Pulse Fitness "blip" logo icon

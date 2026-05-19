@@ -7,7 +7,7 @@
  * which returns a per-site score (0–100) computed from open faults,
  * overdue faults, and check-sheet completion rate.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Loader2, Trophy, AlertTriangle, Wrench, MapPin, Star, ArrowRight, TrendingUp, TrendingDown, Globe2, KeyRound, Copy, Check, Mail, X, FileSearch, ShieldCheck } from 'lucide-react';

@@ -16,7 +16,7 @@
  *   POST   /api/svc/cases/{id}/transition
  *   POST   /api/svc/ai/summarise/{id}
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {

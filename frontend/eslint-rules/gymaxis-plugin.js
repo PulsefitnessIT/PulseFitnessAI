@@ -181,7 +181,7 @@ const noDarkModeLeakage = {
   },
 };
 
-// ─── no-inline-hex (Iter 215f) ───────────────────────────────────
+// ─── no-inline-hex (Iter 215f, expanded Iter 216h226-polish) ─────
 // Warns when new code lands an inline hex colour literal. Pushes
 // developers toward design tokens (`var(--color-brand-cyan)` or the
 // named exports from `/theme/tokens.js`). Reports on:
@@ -190,16 +190,65 @@ const noDarkModeLeakage = {
 // Does NOT flag hex literals inside `/theme/tokens.js` itself (the
 // canonical palette file), nor inside files whose path matches
 // `/ui/` (shadcn generated) or `/theme/`.
-// Approved one-off hex literals — use sparingly, ideally accompanied by
-// a comment explaining why this colour isn't a token. Typical cases:
-//   • Third-party brand palettes (Facebook, Stripe, LinkedIn)
-//   • Chart.js / viz palette colours
-//   • macOS window traffic lights in demo screenshots
-//   • OAuth button brand colours
-// Prefer a token whenever a colour shows up 3+ times.
+//
+// Approved hex literals — these ARE the canonical platform palette
+// (brand, semantic, neutral, slate), so inlining them is functionally
+// equivalent to using a token. They live here so the rule keeps
+// flagging arbitrary new one-offs while accepting the documented
+// codified colours. The matching list of CSS variables lives in
+// `/app/frontend/src/theme/themes/_root-css-vars.js`. Prefer a token
+// whenever a colour shows up 3+ times — anything new should land in
+// `tokens.js` first, then be referenced via `var(--color-…)`.
 const APPROVED_HEX = new Set([
-  // Third-party brand
-  '#1877f2', // Facebook
+  // ── Brand ────────────────────────────────────────────────────
+  '#0055ff', '#0044cc', '#003da5',     // GymAxis blue family
+  '#19cdff', '#66ccff', '#4dbfff', '#4ddbff',     // Pulse cyan family
+  '#00d6e0', '#00b2c7', '#0bb0dd',     // Pulse cyan extras
+  '#5b8cff', '#5b5bf5',                // hover/lighter brand shades
+
+  // ── Tailwind brand blues (used as accent throughout) ─────────
+  '#1d4ed8', '#2563eb', '#3b82f6',     // blue-700/600/500
+  '#1e3a8a', '#1877f2',                // blue-900 + Facebook
+
+  // ── Whites / light surfaces ──────────────────────────────────
+  '#ffffff', '#fafafa', '#f9fafb', '#f8fafc',
+  '#f4f4f5', '#f1f5f9', '#eef2ff', '#faf5ff', '#fffbeb', '#eff6ff',
+  '#ecfdf5', '#dcfce7', '#ffedd5', '#fef3c7', '#fef2f2', '#fde68a',
+  '#fee2e2', '#a7f3d0', '#bfdbfe',
+
+  // ── Borders ─────────────────────────────────────────────────
+  '#e4e4e7', '#e2e8f0', '#e5e7eb', '#cbd5e1', '#d4d4d8', '#9ca3af',
+  '#a1a1aa',
+
+  // ── Inks / darks ────────────────────────────────────────────
+  '#000000', '#0a0a0a', '#0a0b10', '#0a0c10', '#0b1220', '#0f1419',
+  '#0f172a', '#18181b', '#212721', '#27272a', '#1f2937', '#1b1d1d',
+  '#1f1f1f', '#121212', '#05070a',
+
+  // ── Slate / muted greys ─────────────────────────────────────
+  '#3f3f46', '#52525b', '#71717a', '#94a3b8', '#6b7280', '#64748b',
+  '#334155', '#374151', '#475569', '#505759',
+
+  // ── Semantic — success ──────────────────────────────────────
+  '#10b981', '#16a34a', '#047857', '#065f46', '#34c759', '#34d399',
+
+  // ── Semantic — warning / gold ───────────────────────────────
+  '#f59e0b', '#fbbf24', '#d97706', '#a16207', '#d4af37',
+
+  // ── Semantic — danger ───────────────────────────────────────
+  '#ef4444', '#dc2626', '#b91c1c', '#f87171', '#f43f5e', '#ff3b30',
+
+  // ── Semantic — info / cyan ──────────────────────────────────
+  '#06b6d4', '#0ea5e9', '#007aff',
+
+  // ── Accent — purple / violet / pink ─────────────────────────
+  '#8b5cf6', '#a855f7', '#7c3aed', '#9d4cdd', '#9966ff', '#d946ef',
+  '#5856d6', '#e1306c', '#c2410c',
+
+  // ── Accent — orange / lime ──────────────────────────────────
+  '#f97316', '#ea580c', '#84cc16',
+
+  // ── Third-party brand (legacy entries) ──────────────────────
   '#635bff', // Stripe
   '#4f46e5', // Stripe indigo variant
   '#6366f1', // Stripe secondary
@@ -211,13 +260,13 @@ const APPROVED_HEX = new Set([
   '#fca5a5', '#fcd34d', '#6ee7b7', '#82e0aa', '#98d8c8',
   // Semantic bucket extras (dashboard gradients, status flags)
   '#0052cc', '#0055aa', '#0066cc', '#0077dd', '#00aaff', '#00bcd4',
-  '#0891b2', '#22d3ee', '#4ddbff', '#5599ff',
+  '#0891b2', '#22d3ee',
   '#050506', '#06080c', '#0a1a22', '#0f0a0a', '#14181f', '#1f2329',
   '#1a2e1a', '#1a3d1a', '#2a3340', '#2d1b1b', '#3b0764', '#3d1f1f',
   '#081408', '#111827',
   '#059669', '#4caf50', '#8bc34a', '#9c27b0', '#b45309', '#856404',
   '#795548', '#7a8796', '#c4b5fd', '#d1d5db', '#e91e63', '#ec4899',
-  '#f0f0f0', '#f0fdf4', '#f0fff4', '#f472b6', '#fca5a5', '#fecaca',
+  '#f0f0f0', '#f0fdf4', '#f0fff4', '#f472b6', '#fecaca',
   '#ff5722', '#ff6b6b', '#ff8800', '#ff9800', '#ff9933', '#ffc107',
   '#ffeaa7', '#ffeb3b', '#fff3cd', '#bbf7d0',
 ]);

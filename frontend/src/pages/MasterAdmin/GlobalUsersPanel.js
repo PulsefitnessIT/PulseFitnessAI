@@ -13,7 +13,7 @@
  * `HardDeleteUserDialog` from `AdminOrganizations.js`, so the data
  * model + audit log stay consistent.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';

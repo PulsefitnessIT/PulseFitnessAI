@@ -16,11 +16,9 @@
  * The AI describes references in its prompt; this gives 80% of the
  * "composite multiple inputs" value with a single round-trip to gpt-image-1.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import {
-  ImagePlus, Sparkles, Loader2, Upload, Trash2, Image as ImageIcon, Wand2,
-  ChevronDown, Building2, User, Dumbbell, Camera, Maximize2, Check, X, Megaphone,
+import { Sparkles, Loader2, Upload, Trash2, Image as ImageIcon, Wand2, Building2, User, Dumbbell, Camera, Maximize2, Check, X, Megaphone,
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

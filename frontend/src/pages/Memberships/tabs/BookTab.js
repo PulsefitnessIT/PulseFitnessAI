@@ -6,7 +6,7 @@
  * bundle no longer ships ~150 LoC of timetable logic that's only needed
  * once a member taps the Book tab.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   ChevronLeft, ChevronRight, Clock, MapPin, Users as UsersIcon, X, CreditCard,

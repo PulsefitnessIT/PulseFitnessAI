@@ -77,7 +77,7 @@ const AIAssistant = ({ API, headers, activeTab, onSuggestionAction }) => {
     // eslint-disable-next-line
   }, []);
 
-  useEffect(() => { fetchSuggestions(); /* eslint-disable-next-line */ }, [activeTab]);
+  useEffect(() => { fetchSuggestions();   }, [activeTab]);
 
   // Auto-scroll on new turn.
   useEffect(() => {

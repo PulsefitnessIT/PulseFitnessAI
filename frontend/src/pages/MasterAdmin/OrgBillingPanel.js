@@ -15,8 +15,8 @@ import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
-  Loader2, FileText, Plus, Download, CheckCircle2, Banknote, CreditCard,
-  Mail, X, ChevronLeft, AlertCircle, Sparkles, FolderArchive, Receipt, Send,
+  Loader2, FileText, Download, CheckCircle2, Banknote, CreditCard,
+  Mail, X, ChevronLeft, Sparkles, FolderArchive, Receipt, Send,
   Bell, AlarmClock,
 } from 'lucide-react';
 import DocumentsPanel from './DocumentsPanel';

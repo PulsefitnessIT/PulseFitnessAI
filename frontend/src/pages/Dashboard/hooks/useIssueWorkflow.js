@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { queuedMutation } from '@/utils/queuedMutation';
 
 import { notify } from '@/components/notifications';

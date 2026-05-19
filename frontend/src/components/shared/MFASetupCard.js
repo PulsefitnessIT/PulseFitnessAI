@@ -3,9 +3,8 @@
  * walks the user through: setup → scan QR → enter first code → show backup
  * codes (once) → disable with code.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { Shield, ShieldCheck, ShieldAlert, Copy, Check } from 'lucide-react';

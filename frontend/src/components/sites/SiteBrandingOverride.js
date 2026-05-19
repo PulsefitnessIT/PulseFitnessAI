@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +47,7 @@ const SiteBrandingOverride = ({ siteId, theme = 'dark' }) => {
     setLoading(false);
   };
 
-  useEffect(() => { if (siteId) load(); /* eslint-disable-next-line */ }, [siteId]);
+  useEffect(() => { if (siteId) load();   }, [siteId]);
 
   const save = async () => {
     setSaving(true);

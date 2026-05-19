@@ -5,10 +5,9 @@
  * reporting this?" step (+ Add new contact inline). MRU sort comes from the
  * backend (last_reported_at DESC).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { X, UserPlus, Pencil, Trash2, Mail, Phone, Briefcase, Save } from 'lucide-react';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { useAuth } from '@/App';

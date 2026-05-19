@@ -11,12 +11,12 @@
  * Header strip shows the org's open / P1 / SLA-due counters so the
  * engineer can decide whether to step in.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, RefreshCw, Loader2, AlertTriangle, Clock, MapPin,
-  Hand, CheckCircle2, X, ShieldCheck, Inbox, Navigation, Crosshair,
+  Hand, CheckCircle2, X, ShieldCheck, Navigation, Crosshair,
 } from 'lucide-react';
 import { List } from 'react-window';
 import { notify } from '@/components/notifications';
@@ -311,7 +311,7 @@ export default function EngineerQueue() {
         { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 },
       );
     });
-    let coords = await tryGeo();
+    const coords = await tryGeo();
     let nextOrigin = null;
     if (coords) {
       nextOrigin = { lat: coords.lat, lon: coords.lon };

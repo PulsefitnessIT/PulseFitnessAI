@@ -11,7 +11,7 @@
  * single switch between the two brands across every Master Admin
  * panel (replaces the ad-hoc `gymaxisOnly` flag scattering).
  */
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 
 const STORAGE_KEY = 'master_admin_brand_filter';
 export const BRAND_OPTIONS = [

@@ -6,7 +6,7 @@
  * The nav has a mobile drawer with body-scroll lock. Module pages use
  * the same shell so navigation is consistent.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, ArrowRight } from 'lucide-react';

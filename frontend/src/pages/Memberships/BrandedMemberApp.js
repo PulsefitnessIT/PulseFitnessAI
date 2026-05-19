@@ -5,7 +5,6 @@
  * the shared MemberPortal. The portal then fetches branding from
  * /api/m/{slug}/branding and themes itself (logo, accent colour, gym name).
  */
-import React from 'react';
 import { useParams } from 'react-router-dom';
 import MemberPortal from './MemberPortal';
 

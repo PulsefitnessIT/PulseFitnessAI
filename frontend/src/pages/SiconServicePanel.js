@@ -1,8 +1,8 @@
 /* SiconServicePanel.js — compact, collapsible surface for all mapped Sicon fields. */
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
  ClipboardList, ChevronDown, ChevronUp, User, Calendar, MapPin, Hash, CheckCircle2,
- Wrench, Clock, FileText, Shield, Users, Briefcase, Flag,
+ Wrench, FileText, Shield, Users, Briefcase, Flag,
 } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 

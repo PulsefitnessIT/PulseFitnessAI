@@ -7,11 +7,11 @@
  *
  * Iter 216h128 — `routes/pulse_sales.py`.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   TrendingUp, Briefcase, ShieldCheck, RefreshCcw, Loader2,
-  CheckCircle2, XCircle, Clock, Send, Sparkles, PoundSterling,
+  CheckCircle2, XCircle, Clock, Send, Sparkles,
   Building2, Cpu, MessageSquare, AlertTriangle,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';

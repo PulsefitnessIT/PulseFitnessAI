@@ -6,7 +6,7 @@
  * with the gym-floor kiosk fallback (username login) so on-site terminals
  * keep working.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';

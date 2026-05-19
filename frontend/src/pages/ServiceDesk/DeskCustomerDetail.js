@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { Card } from '@/components/ui/card';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, Eye, Users, Building2, Wrench, Truck } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Users, Building2, Truck } from 'lucide-react';
 import { authConfig } from './authConfig';
 
 function Section({ title, icon: Icon, children }) {

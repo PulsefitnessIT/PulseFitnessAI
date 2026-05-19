@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
-import { X, Wrench, LogOut, HeadphonesIcon, Layers, Sparkles } from 'lucide-react';
+import { X, Wrench, LogOut, HeadphonesIcon, Layers } from 'lucide-react';
 import { SIDEBAR_ITEMS, SECTION_TO_GROUP } from './SidebarConfig';
 
 /**

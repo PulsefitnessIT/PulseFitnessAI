@@ -4,14 +4,13 @@
  * Matches the dark Swiss high-contrast aesthetic of the homepage. One
  * component, content selected by URL slug. Accessible via /learn/:slug.
  */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Link, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
  ArrowLeft, ArrowRight, Workflow, Wrench, FileText, Brain, BarChart3,
- Link2, CheckCircle2, Zap, ShieldCheck, Sparkles,
- AlertTriangle, Activity, Users, Calendar, Star, DollarSign,
- TrendingUp, Clock, Send, Check, ShieldAlert, ClipboardList,
+ Link2, CheckCircle2, Sparkles,
+ AlertTriangle, Activity, Users, Calendar, DollarSign, Send, Check, ShieldAlert, ClipboardList,
 } from 'lucide-react';
 import Footer from '../components/shared/Footer';
 

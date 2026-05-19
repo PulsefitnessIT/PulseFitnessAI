@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,7 +13,7 @@ import UsageMeterCard from '../components/shared/UsageMeterCard';
 import NotificationPreferencesPanel from '../components/shared/NotificationPreferencesPanel';
 import SubscriptionManagementPanel from '../components/shared/SubscriptionManagementPanel';
 import {
-  CreditCard, Calendar, User, Building2, Shield, ArrowUpRight, Clock
+  CreditCard, Calendar, Building2, ArrowUpRight, Clock
 } from 'lucide-react';
 
 const AccountPanel = ({ open, onClose }) => {

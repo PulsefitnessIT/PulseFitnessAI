@@ -12,10 +12,10 @@
  * Design pulls the same operator language as ServiceDeskPage so it
  * feels like one console.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Package, Boxes, FileText, AlertTriangle, RefreshCw, Plus, Send, CheckCircle,
+  Package, Boxes, FileText, AlertTriangle, Plus, Send, CheckCircle,
   Trash2, Edit3, Inbox, X, Truck,
 } from 'lucide-react';
 import SupplierMultiPicker from '@/components/shared/SupplierMultiPicker';

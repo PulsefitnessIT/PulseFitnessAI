@@ -13,7 +13,7 @@
  * Wire: GET /api/memberships/reports/desk-sales
  *       GET /api/memberships/reports/desk-sales/export.csv (download)
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Download, Calendar, Wallet, Users, RefreshCcw, FileText,

@@ -6,7 +6,7 @@
  * the CTA is never more than one tap away no matter how far the user
  * scrolls.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, X, Sparkles } from 'lucide-react';
 import { openTrial } from './TrialSignupModal';
 

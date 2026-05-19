@@ -5,11 +5,11 @@
  * button in their email. Pulls the redacted quote, lets them review
  * lines and total, then sign + accept (or decline with reason).
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import {
-  CheckCircle2, XCircle, Loader2, FileText, ShieldCheck,
+  CheckCircle2, XCircle, Loader2, ShieldCheck,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';

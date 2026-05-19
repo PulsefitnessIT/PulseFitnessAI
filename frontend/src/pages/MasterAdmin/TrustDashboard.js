@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify, useConfirm } from '@/components/notifications';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

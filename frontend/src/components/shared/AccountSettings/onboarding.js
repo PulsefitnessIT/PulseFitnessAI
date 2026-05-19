@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
-import { Check, Loader2 } from 'lucide-react';
-import { useAuth } from '@/App';
+import { Check } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 import { useNavigate } from 'react-router-dom';
 import EquipmentImportInline from './EquipmentImportInline';

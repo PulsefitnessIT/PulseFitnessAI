@@ -4,7 +4,7 @@
  * a slim progress bar to amplify urgency as expiry approaches. Recomputes
  * once per minute without re-fetching the user.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';

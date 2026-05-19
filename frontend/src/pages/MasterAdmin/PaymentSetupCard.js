@@ -6,7 +6,7 @@
  *   2. Connecting / pending  → "Continue onboarding"
  *   3. Connected & ready     → status row + "Open dashboard" + "Disconnect"
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

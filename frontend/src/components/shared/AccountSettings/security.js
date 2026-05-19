@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/App';
 import { API, useAuthHeaders, FieldRow } from './shared';
 import MFASetupCard from '../MFASetupCard';
 

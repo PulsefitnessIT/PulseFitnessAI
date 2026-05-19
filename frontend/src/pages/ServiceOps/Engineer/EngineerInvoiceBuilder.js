@@ -3,11 +3,11 @@
  *
  * Iter 216h130. Mirrors EngineerQuoteBuilder. Locks after paid/void.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, Receipt, Send, FileDown, Plus, Trash2, Save, Loader2, Mail,
+  ArrowLeft, Send, FileDown, Plus, Trash2, Save, Loader2, Mail,
   CheckCircle2, XCircle, Copy, AlertTriangle,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

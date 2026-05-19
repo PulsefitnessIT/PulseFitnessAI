@@ -1,4 +1,3 @@
-import React from 'react';
 import { useSeo } from '@/utils/seo';
 import MarketingShell from '../Marketing/MarketingShell';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';

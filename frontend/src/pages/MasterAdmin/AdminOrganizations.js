@@ -1,26 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import {
  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import {
- Building2, Search, ToggleLeft, Shield, Users, X, Plus, Save, Loader2, UserPlus, Archive,
- Globe, Phone, MapPin, Hash, Edit2, ChevronDown, ChevronUp, Briefcase, Mail,
- CheckCircle2, AlertTriangle, ShieldCheck, Building, Trash2, AlertCircle,
- Eye, EyeOff, Copy, Wrench, Calendar, Megaphone, UserCog, BarChart3, MoreHorizontal, Undo2,
- CreditCard, FileClock, KeyRound,
+ Building2, Search, Shield, Users, X, Plus, Save, Loader2, UserPlus, Archive, Edit2, Mail,
+ CheckCircle2, AlertTriangle, ShieldCheck, Trash2, AlertCircle, Copy, Wrench, Calendar, Megaphone, UserCog, BarChart3, MoreHorizontal, Undo2, KeyRound,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -1959,7 +1955,7 @@ useEffect(() => {
        notify.success('Reset link ready', `Copied to clipboard · send to ${editingUser.email}`, { ttl: 6000 });
      }
    } catch (err) {
-     // eslint-disable-next-line no-console
+      
      console.error('[invite-link] failed', err?.response?.status, err?.response?.data, err);
      notifyApiError(notify, err, 'Failed to generate reset link');
    }
@@ -1984,7 +1980,7 @@ useEffect(() => {
  notify.success('Temp password ready', `Copied to clipboard · send to ${editingUser.email}`, { ttl: 6000 });
  }
  } catch (err) {
- // eslint-disable-next-line no-console
+  
  console.error('[reset-password] failed', err?.response?.status, err?.response?.data, err);
  // Fall back to the reset-link path automatically — that's the
  // safer, equivalent flow and works even when temp_password

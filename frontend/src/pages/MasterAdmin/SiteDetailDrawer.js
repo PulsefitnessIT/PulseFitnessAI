@@ -9,10 +9,10 @@
  * bouncing through three modal layers; the equipment tab uses an inline
  * row pattern instead of "open detail card per click".
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
-  X, Loader2, MapPin, Wrench, Save, Building2, Crown, Archive, Trash2, RotateCcw,
+  X, Loader2, MapPin, Wrench, Save, Crown, Archive, Trash2, RotateCcw,
   ShieldCheck,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

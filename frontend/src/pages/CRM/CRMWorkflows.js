@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Zap, Plus, Play, Pause, Trash2, ArrowRight, CheckCircle, X, Clock,
-  AlertTriangle, ChevronRight, Activity, BarChart3, Copy, Eye
+  Zap, Plus, Play, Pause, Trash2, ArrowRight, CheckCircle, X, ChevronRight, BarChart3, Copy
 } from 'lucide-react';
 import axios from 'axios';
 

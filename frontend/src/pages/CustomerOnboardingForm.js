@@ -2,10 +2,9 @@
  * Matches backend /api/onboarding/public/{token}
  * Progress auto-saves on step change (debounced).
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

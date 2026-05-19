@@ -17,13 +17,13 @@
  * surfaces on light theme. Pulse routes never load this component (it's
  * mounted only inside MembershipsConsole which is GymAxis-only).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   X, Loader2, User, CalendarDays, CreditCard, Users, Activity as ActivityIcon,
   Save, Pause, XOctagon, Search, Link as LinkIcon, Plus, Mail, Phone,
-  MapPin, Cake, ShieldAlert, Tag as TagIcon, FileText, AlertCircle,
+  MapPin, Cake, ShieldAlert, Tag as TagIcon,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

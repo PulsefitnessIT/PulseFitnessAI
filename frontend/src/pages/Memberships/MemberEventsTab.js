@@ -9,7 +9,7 @@
  * "Buy tickets" popover that supports 1–8 tickets added to the next
  * monthly invoice (same pattern as the costume-→-invoice hook).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Sparkles, Loader2, Calendar, Ticket, MapPin, Plus, Minus,

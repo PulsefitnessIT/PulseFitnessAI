@@ -3,13 +3,11 @@ import { useAuth } from '@/App';
 import ClassificationBanner from '@/components/shared/ClassificationBanner';
 import OfflineStatusPill from '@/components/shared/OfflineStatusPill';
 import MODIncidentWizard from './MODPortal/MODIncidentWizard';
-import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
 import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -253,7 +251,7 @@ const LiteDashboardPage = () => {
     if (onboarding === '1') {
       setShowOnboarding(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [searchParams]);
 
   const openFaults = issues.filter(i => i.status === 'open');

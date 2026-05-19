@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/App';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { CheckCircle, ArrowRight, Loader2, CreditCard, LayoutDashboard, Headphones } from 'lucide-react';
+import { CheckCircle, Loader2, CreditCard, LayoutDashboard, Headphones } from 'lucide-react';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';

@@ -7,7 +7,7 @@
  * label primitive. Public surface deliberately small — the modal
  * shell and individual section files are the only consumers.
  */
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   User, ShieldCheck, Sliders, CreditCard, Building2, Users, ListChecks, Truck, Database,
 } from 'lucide-react';

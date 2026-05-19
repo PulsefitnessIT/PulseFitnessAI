@@ -8,7 +8,7 @@
  *   • Single sites see ONLY their own metrics (enforced via the
  *     /api/gym-health-score?site_id=… backend filter we just added).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

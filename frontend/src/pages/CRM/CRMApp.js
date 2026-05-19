@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/App';
 import { useUnifiedAuth } from '@/components/shared/UnifiedAuthProvider';
 import Navbar from '@/components/shared/Navbar';
@@ -33,7 +33,7 @@ import { LEAD_SOURCE_OPTIONS, CRM_TASK_TYPE_OPTIONS, CRM_TASK_PRIORITY_OPTIONS }
 import PillTabBar from '@/components/shared/PillTabBar';
 import ProductTour from '@/components/shared/ProductTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
-import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, LogOut, Search, ChevronLeft, ChevronRight, Inbox, Zap, FileText, FolderOpen, Menu, X, Sun, Moon, Globe, Target, AlertTriangle, Command, Plus, Bell, User, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CRMContext = createContext();

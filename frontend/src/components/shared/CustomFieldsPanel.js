@@ -24,7 +24,7 @@
  * Permissions: read for any authenticated user; write requires the
  * caller to provide a working onSave (we don't gate write here).
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { Database, Loader2, CheckCircle2, X } from 'lucide-react';
 

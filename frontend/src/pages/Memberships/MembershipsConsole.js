@@ -11,13 +11,12 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Users as UsersIcon, Calendar, PackageOpen, Plus, X, ChevronLeft,
-  ChevronRight, Pause, XOctagon, Users2, Clock, Activity, Sparkles, CheckCircle2, CreditCard, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2, Wallet,
+  ChevronRight, Pause, XOctagon, Activity, Sparkles, CheckCircle2, Edit3, Trash2, Dumbbell, Link as LinkIcon, Copy, Megaphone, BarChart3, Printer, Settings, Tag, Brain, ClipboardCheck, Workflow, Smartphone, ReceiptPoundSterling as Receipt, Wand2, HeartHandshake, ShieldCheck, Theater, Loader2, Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import EmptyState from '@/components/shared/EmptyState';
@@ -30,7 +29,7 @@ import {
   Header, Kpi, StatusPill, CapacityBar, Loading, Empty, Input, Select, ModalShell, ModalActions,
 } from '@/pages/Memberships/_shared';
 import AddMemberModal from '@/pages/Memberships/modals/AddMemberModal';
-import PlanEditorModal, { PLAN_KINDS, BILLING_CYCLES, INCLUDED_OPTIONS } from '@/pages/Memberships/modals/PlanEditorModal';
+import PlanEditorModal from '@/pages/Memberships/modals/PlanEditorModal';
 import ClassEditorModal from '@/pages/Memberships/modals/ClassEditorModal';
 import SavedViewsDropdown from '@/components/memberships/SavedViewsDropdown';
 import MembersBulkBar from '@/components/memberships/MembersBulkBar';
@@ -1133,7 +1132,7 @@ function TimetableTab({ API, headers }) {
     const res = await axios.get(`${API}/memberships/timetable`, { headers, params: { from, to } });
     setOccs(res.data.occurrences || []);
   };
-  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [weekStart]);
+  useEffect(() => { reload();   }, [weekStart]);
 
   const days = [...Array(7)].map((_, i) => new Date(weekStart.getTime() + i * 86400000));
   const byDay = days.map((d) => occs.filter((o) => new Date(o.starts_at).toDateString() === d.toDateString()));

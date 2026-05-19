@@ -7,10 +7,10 @@
  *   • Rehearsal sub-schedule
  *   • AI-drafted parent comms (Claude Haiku) with one-click bulk announce
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  Loader2, Plus, Trash2, Save, Sparkles, Megaphone, Theater, Mail,
+  Loader2, Plus, Trash2, Sparkles, Megaphone, Theater,
   CalendarRange, Users, X, Clock, MapPin, Wand2, ChevronRight,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   Upload, Layout, Trash2, Plus, Loader2, ZoomIn, ZoomOut,
-  Save, Search, Brain, ImageIcon, Grid3X3, Eye, Edit, Info, AlertTriangle,
+  Save, Search, Brain, ImageIcon, Grid3X3, Eye, Edit, AlertTriangle,
   RotateCw, Undo2, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
 

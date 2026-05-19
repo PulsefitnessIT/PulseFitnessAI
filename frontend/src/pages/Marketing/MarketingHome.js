@@ -2,7 +2,6 @@
  * GymAxis homepage — hero with AXIS orbit, platform overview, module
  * preview grid, social proof, final CTA. Iter 215an.
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Wrench, Users, Calendar, Megaphone, UserCog, BarChart3,

@@ -9,7 +9,7 @@
  * row to deep-link into the org's user editor where the actual
  * permission change can be made.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Lock, RefreshCcw, Star, MapPin, Loader2, AlertCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';

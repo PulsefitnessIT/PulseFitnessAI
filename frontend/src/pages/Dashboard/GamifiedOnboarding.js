@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
@@ -7,7 +7,6 @@ import {
  CheckCircle2, Truck, Dumbbell, Users, Rocket,
  ArrowRight, Sparkles, X, Loader2,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -65,7 +64,7 @@ const GamifiedOnboarding = ({ open, onClose, API, user, onComplete }) => {
  }
  };
 
- useEffect(() => { if (open) loadStatus(); /* eslint-disable-next-line */ }, [open]);
+ useEffect(() => { if (open) loadStatus();   }, [open]);
 
  const stages = status?.stages || {};
  const percent = status?.percent || 0;

@@ -11,7 +11,7 @@
  *  • AI observability (calls / ok rate / p50 / p95 by kind)
  *  • Audit feed (filterable timeline)
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   BarChart3, RefreshCw, Sparkles, Activity, Gauge,
@@ -78,7 +78,7 @@ export default function ServiceOpsReportsPage() {
       setSavedViews(r.data?.views || []);
     } catch (e) {
       // Soft-fail — saved views shouldn't break the page.
-      // eslint-disable-next-line no-console
+       
       console.warn('saved views load failed', e?.response?.data?.detail || e.message);
     }
   }, []);

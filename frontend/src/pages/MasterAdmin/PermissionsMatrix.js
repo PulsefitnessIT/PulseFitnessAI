@@ -11,7 +11,7 @@
  * without filing a backend ticket — useful as evidence artefact for quarterly
  * access reviews.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Building2, Search, Download, Users, RefreshCw, Filter, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';

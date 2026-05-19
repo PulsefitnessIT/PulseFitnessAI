@@ -1,5 +1,5 @@
 /* Archive Alerts Tile — Master Admin Overview */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/App';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';

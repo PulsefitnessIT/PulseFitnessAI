@@ -1,20 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import {
  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
  ScatterChart, Scatter, ZAxis, CartesianGrid
 } from 'recharts';
 import {
- TrendingUp, TrendingDown, AlertTriangle, Shield, Wrench, PoundSterling, Download,
- Brain, Loader2, ChevronDown, ChevronUp, Calendar, FileText,
- CheckCircle, Clock, XCircle, CircleAlert, Activity, Gauge, Target, ArrowRight
+ TrendingUp, TrendingDown, AlertTriangle, Shield, Download,
+ Brain, Loader2, ChevronDown, ChevronUp, FileText,
+ CheckCircle, Clock, XCircle, CircleAlert, Gauge, Target, ArrowRight
 } from 'lucide-react';
 
 const STATUS_CONFIG = {

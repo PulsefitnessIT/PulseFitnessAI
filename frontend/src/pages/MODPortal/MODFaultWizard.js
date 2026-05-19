@@ -9,14 +9,13 @@
  *
  * Mobile-first: one step per screen, primary CTA bottom, back to previous state.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   X, ChevronLeft, ChevronRight, Search, AlertTriangle, Zap,
   Volume2, Wrench, ShieldAlert, HelpCircle, Camera, Check, Sparkles, Loader2,
   ScanLine, Image as ImageIcon, Film, Trash2,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { useAuth } from '@/App';

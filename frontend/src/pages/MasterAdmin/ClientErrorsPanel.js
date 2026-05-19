@@ -7,7 +7,7 @@
  * which is populated by `<ModalErrorBoundary>` (see
  * `/app/frontend/src/components/shared/ModalErrorBoundary.jsx`).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';

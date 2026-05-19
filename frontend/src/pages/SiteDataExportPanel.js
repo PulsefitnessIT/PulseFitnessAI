@@ -6,7 +6,7 @@
  * either a JSON dump or a ZIP of CSVs. Every download is audit-logged
  * server-side and shows up in the Master Admin Compliance trail.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

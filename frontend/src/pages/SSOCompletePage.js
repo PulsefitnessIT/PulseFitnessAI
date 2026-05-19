@@ -3,11 +3,10 @@
  * JWT in the URL fragment so it never hits server logs or the referrer.
  * We parse, persist, and redirect to the dashboard.
  */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/App';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

@@ -21,7 +21,6 @@
  * content, only the heading row. Use it inside the existing
  * `space-y-*` flow at the top of each tab.
  */
-import React from 'react';
 import HelpHint from '@/components/HelpHint';
 
 const PageHeader = ({

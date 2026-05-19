@@ -9,7 +9,6 @@
  * To add a release: append to the top of `RELEASES` and tag each
  * item with the smallest brand scope that fits.
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Wrench, Shield, Zap } from 'lucide-react';
 

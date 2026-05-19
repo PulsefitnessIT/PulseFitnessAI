@@ -7,7 +7,7 @@
  *   • MTD dunning reminders fired (with stage breakdown)
  *   • One-click "Run dunning sweep" + jump-to-org links
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';

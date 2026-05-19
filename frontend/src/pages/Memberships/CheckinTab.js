@@ -6,10 +6,10 @@
  *   - Drop-in invite broadcast button per under-capacity class
  *   - Kiosk token issue + URL preview
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  CalendarDays, ClipboardCheck, Search, UserCheck, UserX, RefreshCw,
+  CalendarDays, Search, UserCheck, UserX, RefreshCw,
   Send, Tablet, Copy, KeyRound, AlertCircle, Loader2, Users, UserPlus, Megaphone, Share2, X,
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
@@ -35,7 +35,7 @@ export default function CheckinTab({ API, headers }) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [dayWindow]);
+  useEffect(() => { load();   }, [dayWindow]);
 
   return (
     <div data-testid="mbr-checkin-tab" className="space-y-4">
@@ -206,7 +206,7 @@ function RosterDrawer({ API, headers, occ, onClose }) {
     }
     setLoading(false);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [occ.id]);
+  useEffect(() => { load();   }, [occ.id]);
 
   const mark = async (booking_id, status) => {
     try {

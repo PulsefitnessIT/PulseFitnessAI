@@ -3,7 +3,7 @@
  * Pulse-side master admins. Visible only to the platform-level GymAxis
  * Master Admin (not to the Pulse Master Admins themselves).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Plus, Trash2, RefreshCw, Mail, ShieldCheck, AlertCircle, Copy, KeyRound, Building2, X as XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';

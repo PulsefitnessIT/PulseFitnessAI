@@ -7,7 +7,7 @@
  * sales-enquiry response patterns (pricing intro, demo invite,
  * security questionnaire ack, "out of office" holding reply, etc.).
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

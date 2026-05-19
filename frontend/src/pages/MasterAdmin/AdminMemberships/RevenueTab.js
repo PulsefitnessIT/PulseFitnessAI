@@ -1,6 +1,5 @@
-import React from 'react';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell,
 } from 'recharts';
 import { PoundSterling, XCircle, RotateCcw, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';

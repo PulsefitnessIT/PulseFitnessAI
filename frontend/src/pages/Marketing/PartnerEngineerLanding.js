@@ -12,11 +12,10 @@
  *
  * Lives at /partners/engineers (indexable, no auth).
  */
-import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, HardHat, ShieldCheck, MapPin, Wrench, Smartphone, Camera,
-  PoundSterling, Users, BadgeCheck, CheckCircle2, Sparkles, Star, ChevronRight,
+  ArrowRight, HardHat, MapPin, Smartphone, Camera,
+  PoundSterling, BadgeCheck, CheckCircle2, Star, ChevronRight,
   Truck,
 } from 'lucide-react';
 

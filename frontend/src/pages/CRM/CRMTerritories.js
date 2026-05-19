@@ -8,7 +8,7 @@
  *   - CRMTerritoryEditor.js (create/edit modal).
  *   - CRMTerritoryPieces.js (TerritoryRow + TeamNode list items).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { MapPin, Plus, PlayCircle, RefreshCw, Layers, ArrowRightLeft } from 'lucide-react';

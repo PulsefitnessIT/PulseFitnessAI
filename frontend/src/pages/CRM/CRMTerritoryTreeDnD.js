@@ -5,7 +5,7 @@
  * visitor stack shallow. Drag a territory onto another to re-parent;
  * drop on the top bar to detach.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { MapPin, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';

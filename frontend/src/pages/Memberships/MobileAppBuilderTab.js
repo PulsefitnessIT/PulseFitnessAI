@@ -10,7 +10,7 @@
  * Persists via /api/member-app/* endpoints (router: member_app_builder.py).
  * The MemberPortal reads the same layout to render the actual mobile app.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

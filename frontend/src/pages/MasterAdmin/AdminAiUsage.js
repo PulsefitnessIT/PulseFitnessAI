@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { RefreshCw } from 'lucide-react';
 import {

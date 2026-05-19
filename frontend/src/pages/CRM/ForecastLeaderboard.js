@@ -9,7 +9,7 @@
  *
  * Backend: GET /api/crm/forecast/leaderboard?periods=4
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Trophy, Medal, Award, ChevronDown, ChevronRight } from 'lucide-react';

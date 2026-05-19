@@ -18,7 +18,6 @@
  *           --color-brand-blue; pass `var(--color-brand-cyan-hover)`
  *           on Pulse pages).
  */
-import React from 'react';
 
 const EquipmentSpecGrid = ({ tiles, columns = 3, accent = 'var(--color-brand-blue)' }) => {
   if (!Array.isArray(tiles) || tiles.length === 0) return null;

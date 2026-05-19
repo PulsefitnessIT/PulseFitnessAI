@@ -10,7 +10,7 @@
  * NOTE: this is the native replacement for the Sicon Service desk view.
  * The legacy Sicon panel still works in parallel until cutover (Phase 8).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Plus, Search, AlertTriangle, Clock, CircleAlert, RefreshCw, Phone, Filter,

@@ -6,7 +6,6 @@
  * Requested by the user (msg 741) to welcome gym staff on first login —
  * every CTA is a pure navigation into an existing tab.
  */
-import React from 'react';
 import {
   AlertTriangle, ClipboardCheck, Dumbbell, ArrowRight, Truck,
   LayoutDashboard, BarChart3, EyeOff, ShieldCheck, Zap, Wrench, ClipboardList,
@@ -44,7 +43,7 @@ const OutcomeCard = ({ icon: Icon, title, note }) => (
 );
 
 export default function OperationsStartTab({ setTab, onLogFault, onOpenEquipmentImport }) {
-  // eslint-disable-next-line no-unused-vars
+   
   const [, setHideStart] = useUserPref('hideStartTabs', false);
 
   const quickStart = [

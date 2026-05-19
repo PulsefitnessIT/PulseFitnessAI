@@ -12,7 +12,7 @@
  * are real buttons and each transition uses a small slide animation so
  * the experience matches the live Engineer App PWA.
  */
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ArrowLeft, ChevronRight, RotateCcw, CheckCircle2, Mail, Image as ImageIcon,
   PenLine, ChevronDown,

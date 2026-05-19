@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginImport from "eslint-plugin-import";
+import pluginUnusedImports from "eslint-plugin-unused-imports";
 import gymaxisPlugin from "./eslint-rules/gymaxis-plugin.js";
 
 export default [
@@ -12,6 +13,7 @@ export default [
       react: pluginReact,
       "react-hooks": pluginReactHooks,
       import: pluginImport,
+      "unused-imports": pluginUnusedImports,
       gymaxis: gymaxisPlugin,
     },
     languageOptions: {
@@ -78,7 +80,23 @@ export default [
     rules: {
       // Errors — catch real bugs
       "no-undef": "error",
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-unused-vars": "off",
+      // Iter 216h226-polish — unused-imports plugin replaces no-unused-vars.
+      // `no-unused-imports` is auto-fixable (drops dead `import` lines on
+      // --fix), `no-unused-vars` keeps the runtime variable cleanup but
+      // ignores anything prefixed with `_`.
+      "unused-imports/no-unused-imports": "warn",
+      "unused-imports/no-unused-vars": [
+        "warn",
+        {
+          vars: "all",
+          varsIgnorePattern: "^_",
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          // Unused `catch (e)` blocks are stylistic, not a real issue.
+          caughtErrors: "none",
+        },
+      ],
       "no-duplicate-imports": "error",
       "no-self-assign": "error",
       "no-unreachable": "error",
@@ -86,6 +104,13 @@ export default [
       // React
       "react/jsx-uses-react": "off",       // not needed with new JSX transform
       "react/react-in-jsx-scope": "off",   // not needed with new JSX transform
+      // Iter 216h226-polish — tell ESLint that JSX tag references DO
+      // count as variable usage, so unused-imports/no-unused-imports
+      // doesn't aggressively delete `import { HelpCircle } from
+      // 'lucide-react'` when only `<HelpCircle/>` is used (it would
+      // otherwise blow up at runtime since CRA 5 + craco still emits
+      // the legacy JSX transform on prod builds via webpack 5).
+      "react/jsx-uses-vars": "error",
       "react/prop-types": "off",           // using JS not TS, skip prop-types
       "react/jsx-key": "error",
       "react/no-direct-mutation-state": "error",
@@ -142,10 +167,13 @@ export default [
     },
   },
   {
-    // no-inline-hex — Iter 215h promoted to ERROR. Iter 216h226
-    // downgraded back to `warn` after the same colour-token migration
-    // gap. Tracked under ROADMAP.md → "Inline-hex sweep". `--max-warnings`
-    // pins the budget so we cannot regress further.
+    // no-inline-hex — Iter 215h promoted to ERROR. Iter 216h226-polish
+    // re-promoted to ERROR after the canonical palette (brand /
+    // semantic / neutral / slate hexes appearing 3+ times) was added
+    // to the `APPROVED_HEX` allowlist inside the rule. Any NEW hex
+    // outside the allowlist now fails the build, pushing devs to
+    // either (a) use a token, or (b) justify the colour by extending
+    // the allowlist with a reason comment.
     files: [
       "src/theme/**/*.{js,jsx}",
       "src/components/shared/**/*.{js,jsx}",
@@ -156,7 +184,7 @@ export default [
     ],
     plugins: { gymaxis: gymaxisPlugin },
     rules: {
-      "gymaxis/no-inline-hex": "warn",
+      "gymaxis/no-inline-hex": "error",
     },
   },
   {

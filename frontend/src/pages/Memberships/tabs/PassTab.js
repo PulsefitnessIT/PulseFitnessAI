@@ -5,7 +5,7 @@
  * Pass tab. Previously this dragged ~30 KB of QR generation code into
  * the first paint bundle for every portal session.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import QRCode from 'qrcode';

@@ -6,7 +6,7 @@
  * After approval by Master Admin, the engineer can sign into the
  * Engineer App at /svc/engineer with their referral link active.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {

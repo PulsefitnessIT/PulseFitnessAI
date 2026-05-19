@@ -11,7 +11,7 @@
  * their own org's values. Soft-deprecate (PATCH deprecated=true) is
  * preferred over hard-delete so existing records keep their labels.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { List, Plus, Loader2, Trash2, EyeOff, Eye, Save } from 'lucide-react';
 

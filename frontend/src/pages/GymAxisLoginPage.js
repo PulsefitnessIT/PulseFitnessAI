@@ -12,7 +12,7 @@
  * Old behaviour preserved: visiting /login while authenticated redirects
  * to the right destination (/master-admin / /pulse / /dashboard).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, ArrowRight, ShieldCheck } from 'lucide-react';

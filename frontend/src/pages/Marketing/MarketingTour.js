@@ -15,12 +15,10 @@
  *   • The final step shows a "Create demo data" primary CTA
  *   • Re-openable via the floating "Take a tour" pill on every tab
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Sparkles, X, ChevronLeft, ChevronRight, Loader2,
-  Lightbulb, Users, Mail, Workflow, ImagePlus, BarChart3, Rocket,
-  CheckCircle2, Trash2,
+  Sparkles, X, ChevronLeft, ChevronRight, Loader2, Users, Mail, Workflow, ImagePlus, BarChart3, Rocket, Trash2,
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

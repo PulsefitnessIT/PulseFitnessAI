@@ -14,7 +14,6 @@
  *   - Deterministic output → uniform across the whole fleet.
  *   - Crisp at any size, renders offline.
  */
-import React from 'react';
 import {
   Activity, Bike, Dumbbell, Disc, Waves, Footprints, Heart,
   Settings2, Package,
@@ -59,9 +58,9 @@ const EquipmentPlaceholder = ({
   equipmentType,
   className = '',
   testId = 'equipment-placeholder',
-  // eslint-disable-next-line no-unused-vars
+   
   manufacturer,
-  // eslint-disable-next-line no-unused-vars
+   
   model,
 }) => {
   const Icon = iconFor(equipmentType);

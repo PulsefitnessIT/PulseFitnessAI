@@ -1,5 +1,5 @@
 import {
-  Calendar, CreditCard, Users2, Smartphone, RefreshCcw, Wallet, Sparkles,
+  Calendar, CreditCard, Users2, Smartphone, RefreshCcw, Wallet,
   Wrench, Users, Megaphone, BarChart3,
 } from 'lucide-react';
 

@@ -36,7 +36,7 @@
  * MOUNT: wrap your app with <ConfirmProvider /> once — it also hosts the
  * global banner stack used by `notify.*`.
  */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
  CheckCircle2, AlertTriangle, Info, XCircle, X, Loader2,
 } from 'lucide-react';

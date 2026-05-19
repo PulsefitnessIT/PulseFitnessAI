@@ -19,7 +19,7 @@
  * Admin → Organisations panel shows the exact campaign that drove
  * the signup.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, X, CheckCircle2, Loader2, Zap } from 'lucide-react';

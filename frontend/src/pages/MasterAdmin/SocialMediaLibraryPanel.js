@@ -6,7 +6,7 @@
  * one-tap Download Image, Copy Caption, Copy Hashtags so the operator
  * can drop straight into Instagram / LinkedIn / etc.
  */
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

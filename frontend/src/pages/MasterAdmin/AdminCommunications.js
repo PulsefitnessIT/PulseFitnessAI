@@ -15,7 +15,7 @@
  * power users and we optimise for triage speed (status pill + email +
  * preview snippet + relative time) over visual polish.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

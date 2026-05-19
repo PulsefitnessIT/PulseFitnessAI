@@ -16,7 +16,7 @@
  *   - Owner / master admin can start the trial; others see copy that
  *     nudges them to ask their owner.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Sparkles, Rocket, X, ShieldCheck } from 'lucide-react';
 import { notify } from '@/components/notifications';

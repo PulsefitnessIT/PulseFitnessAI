@@ -10,7 +10,7 @@
  * accepted on this device we cache it in sessionStorage for the
  * lifetime of the tab so users don't have to re-enter on every punch.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {

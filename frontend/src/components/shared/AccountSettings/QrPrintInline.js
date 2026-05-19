@@ -9,7 +9,7 @@
  * Identical print template to PulseSettingsTab so labels look the
  * same wherever they're triggered.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Printer, Loader2, CheckSquare, Square, Search } from 'lucide-react';

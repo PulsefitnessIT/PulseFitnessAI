@@ -18,7 +18,7 @@
  * authenticated-only concern, matching the rest of the operator
  * chrome (Navbar, GlobalCommandPalette, etc).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { WifiOff, CheckCircle2, RefreshCw, CloudOff } from 'lucide-react';
 import useOnlineStatus from '../../hooks/useOnlineStatus';
 import useOfflineQueue from '../../hooks/useOfflineQueue';

@@ -1,7 +1,6 @@
-import React from 'react';
 import { useSeo } from '@/utils/seo';
 import MarketingShell from '../Marketing/MarketingShell';
-import { Shield, Download, FileText } from 'lucide-react';
+import { Shield, FileText } from 'lucide-react';
 
 /**
  * DpaPage — Data Processing Agreement template (iter 215c2).

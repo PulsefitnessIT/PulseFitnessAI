@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Camera, Loader2, Trash2 } from 'lucide-react';
-import { useAuth } from '@/App';
 import { API, useAuthHeaders, FieldRow } from './shared';
 
 

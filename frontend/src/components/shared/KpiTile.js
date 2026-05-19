@@ -27,7 +27,6 @@
  *   │ small trend hint         │
  *   └──────────────────────────┘
  */
-import React from 'react';
 import { Card } from '@/components/ui/card';
 
 const TONE_MAP = {

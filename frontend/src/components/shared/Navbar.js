@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/App';
-import { X, Menu, Eye, EyeOff, Settings, UserCircle, LogOut, ChevronDown, Crown, Globe, Sun, Moon, Loader2, CheckCircle, HelpCircle, MapPin, LifeBuoy } from 'lucide-react';
-import PulseFitnessLogo from './PulseFitnessLogo';
+import { X, Menu, Eye, EyeOff, Settings, UserCircle, LogOut, ChevronDown, Crown, Globe, Sun, Moon, Loader2, CheckCircle, HelpCircle, LifeBuoy } from 'lucide-react';
 import SiteSwitcher from './SiteSwitcher';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,6 @@ import AccountPanel from '../../pages/AccountPanel';
 import AccountSettingsModal from './AccountSettingsModal';
 import CaptchaWidget from './CaptchaWidget';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { useInlineBanner, notify } from '@/components/notifications';
 import { useTranslation } from 'react-i18next';
 

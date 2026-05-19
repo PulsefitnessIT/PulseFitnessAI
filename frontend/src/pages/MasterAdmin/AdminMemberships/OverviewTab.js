@@ -1,9 +1,8 @@
-import React from 'react';
 import {
   Users, PoundSterling, Calendar, AlertTriangle, TrendingUp, Activity,
 } from 'lucide-react';
 import {
-  ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { StatCard, SectionCard, Pill, fmtMoney, fmtPct } from './shared';
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SubTabBar } from './SidebarConfig';
 import AdminDashboardTab from '../Dashboard/AdminAnalytics/AdminDashboardTab';
 import AdminEquipmentTab from '../Dashboard/AdminAnalytics/AdminEquipmentTab';

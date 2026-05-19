@@ -6,7 +6,7 @@
  * member count), 3 outputs (annual savings, payback months, time
  * reclaimed). Pure client-side; no API calls.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TrendingUp, Clock, PoundSterling, Calculator, ArrowRight } from 'lucide-react';
 import { openTrial } from './TrialSignupModal';
 

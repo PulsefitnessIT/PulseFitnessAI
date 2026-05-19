@@ -14,7 +14,6 @@
  *     secondaryAction={{ label: 'Bulk import', onClick: openImport }}
  *   />
  */
-import React from 'react';
 
 export const EmptyState = ({
   icon: Icon,

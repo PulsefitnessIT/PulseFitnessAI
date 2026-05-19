@@ -4,7 +4,7 @@
  * Touch / mouse signature capture. Renders to a 600x200 canvas and
  * returns a base64 PNG via `onSubmit(dataUrl)`.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, RotateCcw, Check } from 'lucide-react';
 
 export default function SignatureCanvas({ onSubmit, onCancel }) {

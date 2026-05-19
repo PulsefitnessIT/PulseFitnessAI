@@ -20,7 +20,7 @@
  *      "Force-verify" — used for staging hostnames where public
  *      DNS won't be configured.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
@@ -89,7 +89,7 @@ const CustomDomainsPanel = () => {
     }
   }, [selectedOrgId]);
 
-  useEffect(() => { loadOrgs(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadOrgs();   }, []);
 
   // ── Load this org's domains ──────────────────────────────────
   const loadDomains = useCallback(async (orgId) => {

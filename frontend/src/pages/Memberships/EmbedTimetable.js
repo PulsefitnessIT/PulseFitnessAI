@@ -6,10 +6,10 @@
  *
  * Route: /embed/:slug/timetable
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Clock, Users, MapPin } from 'lucide-react';
+import { Users, MapPin } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 

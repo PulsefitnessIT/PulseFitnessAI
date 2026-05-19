@@ -17,11 +17,11 @@
  *
  * Uses the shared `_serviceops.css` design layer.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   X, Phone, Loader2, Sparkles, MapPin, User as UserIcon, Wrench, Hash,
-  ShieldCheck, FileText, Camera, AlertTriangle, CheckCircle2, Plus, Trash2, Upload,
+  ShieldCheck, FileText, Camera, AlertTriangle, CheckCircle2, Trash2, Upload,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import './_serviceops.css';

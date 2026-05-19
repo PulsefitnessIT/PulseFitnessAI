@@ -15,11 +15,11 @@
  * horizontally, on-now roster stacks. Auto-refreshes every 60s to
  * keep the live counters honest without hammering the backend.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Users, Loader2, Circle, Clock, AlertTriangle, PoundSterling,
-  TrendingUp, Calendar as CalendarIcon, RefreshCw, ShieldCheck, Zap,
+  TrendingUp, RefreshCw, ShieldCheck, Zap,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

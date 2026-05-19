@@ -6,14 +6,14 @@
  * action, or commonly-needed shortcut. Built on `cmdk` (already installed)
  * so we get keyboard navigation, fuzzy matching and accessibility for free.
  */
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Command } from 'cmdk';
 import {
   Search, ArrowRight, Building2, CreditCard, Users, BarChart3, Receipt,
   ShieldAlert, ShieldCheck, Megaphone, Tag, LifeBuoy, Settings, Wrench,
-  Sparkles, FileText, Banknote, Mail, ListChecks, LayoutDashboard,
-  Smartphone, Calendar, PoundSterling, Lock, KeyRound, Headphones,
+  Sparkles, Banknote, Mail, ListChecks, LayoutDashboard,
+  Smartphone, Calendar, PoundSterling, KeyRound, Headphones,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 

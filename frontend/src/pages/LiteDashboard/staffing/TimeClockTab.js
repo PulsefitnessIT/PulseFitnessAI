@@ -13,11 +13,11 @@
  *
  * The clock board auto-refreshes every 30s.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Activity, Loader2, Check, AlertTriangle, ChevronDown, ChevronRight,
-  Plus, Trash2, Pencil, X, Clock, ClipboardCheck, Smartphone, RefreshCw,
+  Plus, Trash2, Pencil, X, ClipboardCheck, Smartphone, RefreshCw,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

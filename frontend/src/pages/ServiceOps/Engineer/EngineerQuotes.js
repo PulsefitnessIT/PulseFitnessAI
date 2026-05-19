@@ -5,12 +5,12 @@
  *
  * Backend: /api/svc/engineer/quotes
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FileText, Plus, Loader2, RefreshCw, ChevronRight, Send,
-  CheckCircle2, XCircle, FileDown, Receipt, ArrowLeft,
+  CheckCircle2, XCircle, Receipt, ArrowLeft,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 

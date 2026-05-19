@@ -5,7 +5,7 @@
  * onboarding packets) plus everything master admin manually uploads
  * (DPAs, signed contracts, NDAs, supplier certs).
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';

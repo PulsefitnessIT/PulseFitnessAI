@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp, Award, RefreshCw } from 'lucide-react';

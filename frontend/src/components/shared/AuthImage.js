@@ -15,7 +15,7 @@
  * If `src` is already a direct blob or data URL, or a public URL (spec-sheet
  * image), render the <img> directly without fetching.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const isAlreadyRenderable = (src) => {
   if (!src) return false;

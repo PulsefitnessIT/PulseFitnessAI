@@ -12,7 +12,7 @@
  * editors stay in their existing global panels (Stripe Connect page,
  * Sicon Service page, Orbit 4 page, Billing tab on the same drawer).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Banknote, Plug, ArrowUpRight, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import Button from '@/components/shared/Button';
@@ -69,7 +69,7 @@ const OrgIntegrationsTab = ({ org }) => {
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [org.id]);
+  useEffect(() => { load();   }, [org.id]);
 
   // Derive per-integration "connected" booleans from health (if returned)
   // OR from the org doc itself (graceful fallback).

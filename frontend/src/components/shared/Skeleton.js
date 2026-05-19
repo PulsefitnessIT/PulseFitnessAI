@@ -1,4 +1,3 @@
-import React from 'react';
 
 /**
  * Skeleton loader that matches the visual rhythm of a content row.

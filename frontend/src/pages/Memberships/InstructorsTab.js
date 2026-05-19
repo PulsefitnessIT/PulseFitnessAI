@@ -7,10 +7,9 @@
  *
  * Mobile-first: stacked cards on small screens, table on lg+.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import {
-  Activity, BarChart3, Trophy, AlertTriangle, Users, Calendar, Clock,
+import { BarChart3, Trophy, AlertTriangle, Users, Calendar,
   PoundSterling, Loader2, ChevronRight, X, BadgeCheck, UserCheck, UserCircle2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -227,7 +226,7 @@ function CoverBoardView({ API, headers }) {
     }
     setLoading(false);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   if (loading) return <CenteredSpinner />;
 

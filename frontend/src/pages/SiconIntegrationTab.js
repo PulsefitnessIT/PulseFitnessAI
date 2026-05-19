@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
  Link2, Zap, Shield, CheckCircle, XCircle, Loader2,
- RefreshCw, Clock, Server, ArrowRight, AlertTriangle, ScrollText
+ RefreshCw, Clock, ArrowRight, ScrollText
 } from 'lucide-react';
 
 const SiconIntegrationTab = () => {

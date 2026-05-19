@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Wrench, Search, ChevronRight, Shield, Camera, Sparkles, Loader2, Plus, MoreHorizontal, ArrowRightLeft, Trash2, MapPin } from 'lucide-react';
+import { Search, ChevronRight, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin } from 'lucide-react';
 import { useAuth } from '@/App';
 import { useInlineBanner, InlineProgress, notify, useConfirm } from '@/components/notifications';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';

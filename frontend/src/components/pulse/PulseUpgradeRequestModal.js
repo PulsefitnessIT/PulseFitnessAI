@@ -7,14 +7,13 @@
  * which persists the record and fans out two emails (Pulse service team
  * + platform owner).
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
  X as XIcon, ArrowRight, CheckCircle2, Loader2, Zap,
  Mail, Phone, Building2, MessageSquare,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import Turnstile from '@/components/shared/Turnstile';

@@ -9,7 +9,7 @@
  * full-screen wizard. The trial / live operator can come back to it
  * any time.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Mail, Loader2, Save, CheckCircle2, AlertTriangle, Database,

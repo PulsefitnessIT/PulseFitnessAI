@@ -16,8 +16,7 @@
  * configured in /app/backend/.env (STRIPE_PRICE_GYMAXIS_PRO,
  * STRIPE_PRICE_SITE_ADDON, plus per-module STRIPE_PRICE_MEMBERSHIPS etc.).
  */
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { ArrowRight, Check, Sparkles, Users, Megaphone, Wrench, Star, Plus, Minus, PlayCircle } from 'lucide-react';
 
 import './marketing.css';

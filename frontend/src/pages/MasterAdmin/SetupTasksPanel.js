@@ -12,7 +12,7 @@
  * • content — onboarding packets, AI image fallback verification
  * • compliance — security baseline, audit log review
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
  CheckCircle2, Circle, ChevronRight, ListChecks, RefreshCw,

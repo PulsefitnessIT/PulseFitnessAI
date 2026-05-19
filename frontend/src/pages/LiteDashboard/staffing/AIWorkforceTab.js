@@ -7,11 +7,10 @@
  *   • Absence Risk    — heuristic per-staff risk leaderboard
  *   • Sage Payroll    — date-range CSV download in Sage 50 format
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Sparkles, Wand2, Calendar, Loader2, Download, AlertTriangle, Users,
-  PoundSterling, CheckCircle2, RefreshCw, ShieldAlert, FileSpreadsheet,
+  Sparkles, Wand2, Loader2, Download, CheckCircle2, RefreshCw, ShieldAlert, FileSpreadsheet,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

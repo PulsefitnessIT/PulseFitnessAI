@@ -9,14 +9,13 @@
  * Mounted inside the Master Admin tabbed shell — no route file
  * changes required.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Activity, RefreshCw, Search, Download, FileText, Filter,
+import { RefreshCw, Search, Download, FileText, Filter,
   Calendar, User, FileBadge, ChevronLeft, ChevronRight, Loader2,
 } from 'lucide-react';
 

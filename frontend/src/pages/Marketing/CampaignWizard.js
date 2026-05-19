@@ -16,7 +16,7 @@
  *  4. Schedule         — channel + send time
  *  5. Review & Launch  — pre-flight + confirm
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   X, ChevronLeft, ChevronRight, Sparkles, Target, Users, ImagePlus, Calendar, Rocket,
@@ -192,7 +192,7 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
     } else {
       setStep(0);
     }
-    // eslint-disable-next-line
+     
   }, [open, templateId, preset]);
 
   // Static scaffold — used as instant default while live AI loads, and as

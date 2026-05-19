@@ -12,7 +12,7 @@
  * Triggered the same way as the trial modal:
  *   window.dispatchEvent(new CustomEvent('gymaxis:open-preview'));
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   X, ArrowRight, ChevronLeft, ChevronRight, Pause, Play, Sparkles,
   Wrench, Calendar, Megaphone, UserCog, BarChart3, Users, ArrowUpRight,

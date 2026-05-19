@@ -14,7 +14,7 @@
  *   • Configuration — IntegrationAdminPanel config view
  *   • Field Mappings — IntegrationAdminPanel mappings view (single source)
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import SiconHealthPanel from './SiconHealthPanel';
 import IntegrationAdminPanel from '../IntegrationAdminPanel';

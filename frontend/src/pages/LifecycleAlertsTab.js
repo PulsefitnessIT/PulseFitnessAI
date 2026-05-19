@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import axios from 'axios';
 import { AlertTriangle, Clock, Shield, Send, CheckCircle, Mail, Bell } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { notify } from '@/components/notifications';
 const LifecycleAlertsTab = () => {

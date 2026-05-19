@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Plus, Search, FileText, Upload, Trash2, ChevronRight, ArrowLeft,
-  Target, AlertTriangle, CheckCircle, Clock, Award, Shield,
-  Sparkles, BarChart3, Edit3, Eye, Send, Copy, BookOpen, Tag,
-  Building2, User, Calendar, Loader2, X, Zap, TrendingUp,
+  Plus, FileText, Upload, Trash2, ChevronRight, ArrowLeft, Award,
+  Sparkles, Edit3, Eye, Copy, BookOpen, Loader2, X, TrendingUp,
   Download, Presentation, Lightbulb
 } from 'lucide-react';
 import axios from 'axios';
-import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', parsing: 'var(--color-info-ios)', in_progress: 'var(--color-warning)', review: 'var(--color-accent-magenta)', submitted: 'var(--color-success-alt)', won: 'var(--color-success-alt-2)', lost: 'var(--color-danger)' };

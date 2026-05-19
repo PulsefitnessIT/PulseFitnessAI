@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Sparkles, Mail, TrendingUp, Send, RefreshCw, Loader2, Mic, FileText,
-  Shield, CheckCircle, AlertTriangle, Users
+  Sparkles, Mail, TrendingUp, Send, RefreshCw, Loader2, Mic,
+  Shield, CheckCircle
 } from 'lucide-react';
 import axios from 'axios';
 

@@ -14,7 +14,7 @@
  *   - End screen shows the shareable link with QR + copy-button
  *   - Idempotent on the backend, so re-running is safe
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Sparkles, Check, Copy, QrCode, ExternalLink, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import useStudioMode from './useStudioMode';

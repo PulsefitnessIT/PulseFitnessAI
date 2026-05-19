@@ -3,7 +3,6 @@
  * Same architecture as Marketing/StartTab.js and Memberships equivalent:
  * overview, outcomes, quick starts, 5-step preview, fast-path jumps.
  */
-import React from 'react';
 import {
   UserPlus, Building2, TrendingUp, HeartHandshake, FileText, ArrowRight,
   CheckSquare, Activity, Plus, EyeOff,
@@ -35,7 +34,7 @@ const OutcomeCard = ({ icon: Icon, title, note }) => (
 );
 
 export default function CRMStartTab({ setActiveTab }) {
-  // eslint-disable-next-line no-unused-vars
+   
   const [, setHideStart] = useUserPref('hideStartTabs', false);
   const quickStart = [
     { id: 'qs-new-contact',  title: 'Add a new contact',        desc: 'Name, email, and you\'re in',           icon: UserPlus,      cta: () => setActiveTab('contacts') },

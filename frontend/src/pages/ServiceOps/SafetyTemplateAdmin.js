@@ -8,7 +8,7 @@
  *
  * Only owners and managers can persist changes (server-side enforced).
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   ShieldCheck, Plus, Trash2, Save, Upload, Download, Loader2,

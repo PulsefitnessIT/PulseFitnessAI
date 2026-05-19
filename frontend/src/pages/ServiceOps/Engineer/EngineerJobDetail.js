@@ -22,8 +22,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Phone, MapPin, Wrench, Loader2, Play, Square, Camera, PenLine,
-  CheckCircle, Image as ImageIcon, ChevronRight, Clock, AlertTriangle, WifiOff,
-  Sparkles, Mic, MicOff, Navigation, Plus, FileText, Send, Package, Trash2, Search,
+  CheckCircle, Image as ImageIcon, Clock, AlertTriangle, WifiOff, Mic, MicOff, Navigation, Plus, FileText, Send, Package, Trash2, Search,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { queuedMutation } from '@/utils/queuedMutation';

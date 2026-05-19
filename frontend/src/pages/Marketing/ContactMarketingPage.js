@@ -2,7 +2,7 @@
  * Contact marketing page — refreshed in MarketingShell visual language.
  * Three quick paths: see the product preview, talk to sales, contact security.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Mail, Phone, MessageSquare, MapPin, Calendar, ShieldCheck,

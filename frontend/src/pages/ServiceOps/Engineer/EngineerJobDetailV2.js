@@ -20,7 +20,7 @@
  *   POST   /api/svc/engineer/signature                    (existing)
  *   GET    /api/svc/parts                                 (catalogue search)
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import {

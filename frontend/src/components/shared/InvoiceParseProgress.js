@@ -25,7 +25,7 @@
  *
  *   <InvoiceParseProgress state={progress} />
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 
 // Average wall-time for the AI parse phase (Carshalton 25 k chars

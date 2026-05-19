@@ -13,11 +13,10 @@
  *     "Request contact" which creates a partner_contact_requests row
  *     the engineer sees on their dashboard.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Search, MapPin, Star, ShieldCheck, BadgeCheck, Loader2, MessageSquare,
-  ChevronRight, Send, CheckCircle2, Sparkles,
+  Search, MapPin, Star, ShieldCheck, BadgeCheck, Loader2, MessageSquare, CheckCircle2, Sparkles,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';

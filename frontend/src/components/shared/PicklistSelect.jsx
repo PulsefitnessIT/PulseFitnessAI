@@ -22,7 +22,7 @@
  *     api={API}
  *   />
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 const CACHE = new Map(); // pickKey -> values[]

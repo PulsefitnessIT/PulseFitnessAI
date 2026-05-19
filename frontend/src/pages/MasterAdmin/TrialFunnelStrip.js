@@ -1,11 +1,11 @@
 /* Trial Funnel Analytics Strip — Master Admin Overview */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/App';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Timer, TrendingUp, AlertTriangle, Zap, ArrowRight,
+  Timer, AlertTriangle, Zap, ArrowRight,
   Clock, CheckCircle2, Target
 } from 'lucide-react';
 

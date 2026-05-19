@@ -6,7 +6,7 @@
  * first time, the UI flips to the simplified 5-tab layout AND surfaces
  * the Studio Quickstart on the Start tab.
  */
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { Sparkles } from 'lucide-react';
 import { notify } from '@/components/notifications';
 

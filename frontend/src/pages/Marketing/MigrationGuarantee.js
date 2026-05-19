@@ -5,7 +5,6 @@
  * Reduces switching friction by promising free migration + a refund
  * window if it doesn't go smoothly.
  */
-import React from 'react';
 import { ShieldCheck, ArrowRight, Clock, Database, BadgeCheck } from 'lucide-react';
 import { openTrial } from './TrialSignupModal';
 

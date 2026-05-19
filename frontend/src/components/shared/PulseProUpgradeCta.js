@@ -11,7 +11,7 @@
  *   • Owners see the live CTA. Non-owners see "Ask your owner" copy
  *     with the same module preview so they understand what's locked.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import {

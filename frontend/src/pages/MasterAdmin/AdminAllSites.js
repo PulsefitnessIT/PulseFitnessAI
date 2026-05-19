@@ -14,7 +14,7 @@
  * `gymaxis:focus-org` so AdminOrganizations can expand the right row +
  * land on its Sites tab. Single source of truth preserved.
  */
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { MapPin, RefreshCw, Search, ExternalLink, Building2, Star } from 'lucide-react';
 import Button from '@/components/shared/Button';

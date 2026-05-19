@@ -5,7 +5,7 @@
  * pricing inconsistency between the master pricing engine, the legacy
  * marketing_plans collection, and the public PricingPage homepage.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

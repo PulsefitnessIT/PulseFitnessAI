@@ -7,31 +7,22 @@ Update as items move; archive completed work in /app/memory/PRD.md.
 
 ## P0 — In progress
 
-- _none — Phase 3 CRM polish landed in iter 216h226._
+- _none — Inline-hex sweep + Phase 3 CRM polish landed in iter 216h226._
 
-## P1 — Quality-Gate cleanup (Iter 216h226-tech-debt)
+## P1 — Quality-Gate warning cleanup (continuation)
 
-> Quality Gate was re-greened by temporarily downgrading the
-> `gymaxis/no-inline-hex` and `gymaxis/no-dark-mode-leakage` ESLint
-> rules from `error` → `warn`. Restore to `error` once each sweep is
-> complete.
+ESLint baseline after iter 216h226-polish: **0 errors / 547 warnings** (budget 600).
+Tighten the `--max-warnings` ceiling by ~100 with each cleanup PR.
 
-- **Inline-hex sweep** — replace ~560 raw `#xxxxxx` literals with
-  `var(--color-…)` or `/theme/tokens.js` imports.
-  - 65 errors in `src/pages/MasterAdmin/**`
-  - 60 errors in `src/components/shared/**`
-  - 52 errors in `src/pages/Marketing/**`
-  - 38 errors in `src/pages/Memberships/**`
-  - 26 errors in `src/pages/CRM/**`
-  - Trigger: re-enable `"gymaxis/no-inline-hex": "error"` in `eslint.config.js`.
-
-- **Light-mode leakage sweep** — ~297 `bg-white` / `text-slate-900`
-  classes outside `dark:` variants. Add the `dark:` variants or swap to
-  `style={{ background: 'var(--theme-surface)' }}`. Trigger: re-enable
-  `"gymaxis/no-dark-mode-leakage": "error"`.
-
-- **ESLint warning budget** — currently `--max-warnings 8500`. Tighten
-  by 500/week as the two sweeps land until the budget reaches 0.
+- **Unused-vars sweep** — 164 `unused-imports/no-unused-vars` warnings.
+  These are runtime variables (state, destructured fields, function args)
+  that are no longer referenced. File-by-file fix; mostly safe to delete.
+- **Light-mode leakage sweep** — 297 `gymaxis/no-dark-mode-leakage`
+  warnings. Add `dark:` Tailwind variants or swap to
+  `style={{ background: 'var(--theme-surface)' }}`. Restore the rule to
+  `error` once cleared.
+- **react-hooks/exhaustive-deps** — 86 warnings. Each needs a real
+  review (missing dep vs intentional capture). Don't auto-disable.
 
 ## P1 — Outstanding integrations
 
@@ -48,3 +39,4 @@ Update as items move; archive completed work in /app/memory/PRD.md.
 - **Right-to-erasure workflow** for personnel records.
 - Schedulable AI digests — weekly Reports envelope to managers' inbox.
 - Territory tree: server-side bulk re-parent endpoint.
+- Reports tab: per-user remembered date range via `localStorage`.

@@ -11,7 +11,7 @@
  * Visible to both GymAxis and Pulse Fitness master admins (the backend
  * checks `platform_role == "master_admin"` regardless of brand).
  */
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

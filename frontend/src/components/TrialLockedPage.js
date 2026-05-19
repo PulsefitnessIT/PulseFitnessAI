@@ -5,7 +5,6 @@
  * the bundle vs individual modules instead of being force-bought into
  * the bundle.
  */
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';

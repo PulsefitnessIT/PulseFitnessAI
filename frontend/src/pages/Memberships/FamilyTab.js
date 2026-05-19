@@ -5,7 +5,7 @@
  * pick from this list when checking attendees in. Bookings against
  * sub-profiles draw from the parent's credit pool.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Users, Plus, Trash2, X, Loader2, BadgeCheck, AlertTriangle,
@@ -39,7 +39,7 @@ export default function FamilyTab({ API, headers }) {
     }
     setLoading(false);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const remove = async (sp) => {
     if (!window.confirm(`Remove ${sp.first_name} from your ${vocab.member_plural}? Their booking history stays on record.`)) return;

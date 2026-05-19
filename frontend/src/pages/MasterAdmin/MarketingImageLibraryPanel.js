@@ -5,7 +5,7 @@
  * every Pulse Fitness operator with the Marketing bolt-on. Operators
  * see the list inside Marketing Suite's Creative Studio "Brand library".
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';

@@ -6,11 +6,10 @@
  *   2. Consent / waiver forms CRUD
  *   3. Push notification subscription stat
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  ShieldCheck, Bell, Loader2, Plus, Trash2, Save, Sparkles,
-  CheckCircle2, Smartphone, FileText,
+  ShieldCheck, Bell, Loader2, Plus, Trash2, Save, Sparkles, Smartphone, FileText,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 

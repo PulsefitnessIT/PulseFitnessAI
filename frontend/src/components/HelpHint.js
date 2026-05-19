@@ -15,10 +15,10 @@
  *
  * Always emits a `data-testid` on the trigger so tests can target it.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  HelpCircle, X, ExternalLink, Sparkles, ArrowRight, Loader2,
+  HelpCircle, X, Sparkles, ArrowRight, Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { useNavigate } from 'react-router-dom';

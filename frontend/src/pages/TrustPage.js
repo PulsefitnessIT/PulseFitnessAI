@@ -7,12 +7,12 @@
  * processor list. Most of these are static today; backend hooks are
  * marked with TODO comments where we'd plug in real status feeds.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
-  ShieldCheck, Lock, KeyRound, Activity, Globe, Database, FileCheck,
-  CheckCircle2, ArrowRight, AlertCircle, Server, Eye, Clock,
+  ShieldCheck, Lock, KeyRound, Activity, Database,
+  CheckCircle2, ArrowRight, AlertCircle, Clock,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

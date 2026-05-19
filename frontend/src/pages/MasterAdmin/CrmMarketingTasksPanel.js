@@ -9,14 +9,12 @@
  *
  * Status values: shipped · partial · planned
  */
-import React, { useMemo, useState } from 'react';
-import {
-  ListChecks, Search, Filter, ChevronRight,
+import { useMemo, useState } from 'react';
+import { Search, Filter, ChevronRight,
   CheckCircle2, Clock4, CircleDashed, Sparkles,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 
 const STATUS = {
   shipped: { label: 'Shipped',  tone: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },

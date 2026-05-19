@@ -17,12 +17,12 @@
  *   GET    /api/svc/engineer/push/vapid-key
  *   POST   /api/svc/engineer/push/subscribe
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, BellOff, ChevronLeft, CheckCheck, Wrench, Calendar, Trash2,
-  Loader2, RefreshCw, ChevronRight, AlertTriangle, ShieldCheck, Inbox,
+  Loader2, RefreshCw, AlertTriangle, ShieldCheck, Inbox,
   Settings, MoonStar, Clock,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

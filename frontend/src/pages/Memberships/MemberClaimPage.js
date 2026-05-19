@@ -8,7 +8,7 @@
  * pipe the returned bearer through UnifiedAuthProvider (scope='member')
  * and bounce them into the normal member portal at /m/{slug}.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Lock, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';

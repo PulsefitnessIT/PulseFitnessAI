@@ -5,7 +5,7 @@
  * Returns { ids[], serials[] } via onChange so parent can store both
  * for Sicon EquipmentIDs[] mapping.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Search, X, Plus } from 'lucide-react';
 

@@ -14,7 +14,7 @@
  * for a guided build, (b) an existing tab (Audiences / Creative / Campaigns)
  * for a power-user workflow, or (c) a templated quick-launch.
  */
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   Zap, Target, Users, Sparkles, Calendar, ArrowRight, Send, TrendingUp,
   HeartHandshake, Dumbbell, PartyPopper, CheckCircle2, Flame, EyeOff,
@@ -87,7 +87,7 @@ const OutcomeCard = ({ icon: Icon, title, note }) => (
 );
 
 export default function StartTab({ openWizard, setTab }) {
-  // eslint-disable-next-line no-unused-vars
+   
   const [, setHideStart] = useUserPref('hideStartTabs', false);
   const quickStart = useMemo(() => [
     { id: 'qs-60sec',   title: 'Create campaign in 60 seconds', desc: 'AI picks audience + writes content', icon: Zap,      cta: () => openWizard({ preset: 'fast' }) },

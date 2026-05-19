@@ -9,12 +9,12 @@
  *   POST /api/admin/parts-requests/{id}/approve { ship_from, supplier_ref?, notes? }
  *   POST /api/admin/parts-requests/{id}/reject  { reason }
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Package, RefreshCw, Loader2, Check, X, AlertTriangle,
-  Inbox, CheckCircle2, XCircle, Send, Filter, ChevronRight,
+  ArrowLeft, Package, RefreshCw, Loader2, Check, X,
+  Inbox, CheckCircle2, XCircle, Filter,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 

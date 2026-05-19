@@ -11,14 +11,14 @@
  *   • Disciplinary— incidents + warnings (manager-only writes)
  *   • Training    — learning history (alongside Phase S4 certs)
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   User, FileText, ShieldAlert, GraduationCap, Loader2, Plus, Pencil,
-  Trash2, X, Check, Search, Calendar as CalIcon, Phone, MapPin, AlertTriangle,
+  Trash2, X, Check, Search, AlertTriangle,
   ExternalLink,
 } from 'lucide-react';
-import { RELATIONSHIP_OPTIONS, COUNTRIES, UK_COUNTIES } from '@/utils/crmDropdowns';
+import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 

@@ -15,7 +15,7 @@
  * the supported way to customise individual customer brands without a
  * deploy.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

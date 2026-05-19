@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
-import { Wrench, Bot, TrendingUp, PoundSterling, BarChart3, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Wrench, Bot, TrendingUp, PoundSterling, BarChart3, CheckCircle, Clock } from 'lucide-react';
 import PageHeader from '@/components/shared/PageHeader';
 import KpiTile from '@/components/shared/KpiTile';
 

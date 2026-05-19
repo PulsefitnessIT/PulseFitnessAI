@@ -122,7 +122,7 @@ export default function InvoicingTab({ API, headers }) {
   }, [API, headers]);
 
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
-  useEffect(() => { runPreview(); /* eslint-disable-next-line */ }, [period]);
+  useEffect(() => { runPreview();   }, [period]);
 
   const generate = async () => {
     if (!preview || !preview.invoices?.length) {

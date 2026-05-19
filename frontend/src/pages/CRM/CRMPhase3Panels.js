@@ -5,7 +5,7 @@
  * - EnrichFromWebsiteButton: triggers website meta scrape to fill company metadata.
  * - AINextActionCard: AI next-best-action card for an opportunity.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

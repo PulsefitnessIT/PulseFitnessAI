@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Users, Building2, GitBranch, Sparkles, Inbox, Zap, FileText, LayoutDashboard, ArrowRight, ArrowLeft, X, CheckCircle, Rocket } from 'lucide-react';
 
 const TOUR_STEPS = [

@@ -2,7 +2,7 @@
  * Operator-facing instructor roster (create / edit / photo / publish).
  * Rendered inside InstructorsTab.js as a 3rd subtab.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Plus, Edit3, Image as ImageIcon, ExternalLink, Copy, X, Eye, EyeOff, Trash2, Upload, Link as LinkIcon, Mail, AlertTriangle, MapPin, ShieldCheck, PoundSterling, Download, CalendarDays } from 'lucide-react';

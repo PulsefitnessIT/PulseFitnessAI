@@ -43,7 +43,7 @@ export function formatApiError(err, fallback = 'Something went wrong') {
   // straight to support instead of chasing wifi signal.
   if (err instanceof ReferenceError || err instanceof TypeError || err instanceof SyntaxError) {
     const msg = (err && err.message) ? String(err.message) : err.name;
-    // eslint-disable-next-line no-console
+     
     console.error('[formatApiError] caught client-side bug:', err);
     return {
       title: fallback,

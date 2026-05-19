@@ -5,7 +5,7 @@
  * Plan, Pass, Profile) can pull the same primitives without dragging the
  * entire portal chunk along.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 

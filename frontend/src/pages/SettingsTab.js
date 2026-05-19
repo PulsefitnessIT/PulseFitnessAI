@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -11,10 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
-import { Users, UserPlus, Copy, Crown, Shield, User, Trash2, Building, Plus, Mail, Phone, Palette, Upload, Link2, CheckCircle, PoundSterling, Save, Edit3, Send, Wrench } from 'lucide-react';
+import { UserPlus, Copy, Crown, Shield, User, Trash2, Building, Plus, Mail, Phone, Upload, CheckCircle, PoundSterling, Save, Edit3, Send, Wrench } from 'lucide-react';
 import SupplierEquipmentWizard from './SupplierEquipmentWizard';
 import SiconIntegrationTab from './SiconIntegrationTab';
 import FaultTemplatesManager from './Dashboard/FaultTemplatesManager';

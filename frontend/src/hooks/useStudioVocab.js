@@ -11,7 +11,7 @@
  * Vocabulary shape (from the backend):
  *   { member_singular, member_plural, guardian_noun, label, ... }
  */
-import React, { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 
 const DEFAULT_VOCAB = {
   member_singular: 'member',

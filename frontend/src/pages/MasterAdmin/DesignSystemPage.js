@@ -9,7 +9,7 @@
  * .btn-* / .subtab-* classes in index.css, this page reflects the change
  * instantly so regressions are obvious.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Save, Download, Trash2, Eye, AlertCircle, CheckCircle2, Copy, Settings, Search, Filter, Calendar, Sparkles, Building2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';

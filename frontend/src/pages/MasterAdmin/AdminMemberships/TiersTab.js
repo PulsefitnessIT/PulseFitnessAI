@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Crown, Check, X } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import { SectionCard, Pill } from './shared';
 
 const TiersTab = ({ tierMatrix, onSave }) => {

@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/App';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import axios from 'axios';
-import { toast } from 'sonner';
 import { notify } from '@/components/notifications';
-import { FileText, Upload, Download, Calendar, User, Clipboard, ExternalLink, X } from 'lucide-react';
+import { FileText, Upload, Download, Calendar, Clipboard, ExternalLink } from 'lucide-react';
 
 const AuditDetailPanel = ({ audit, onClose }) => {
  const { API } = useAuth();

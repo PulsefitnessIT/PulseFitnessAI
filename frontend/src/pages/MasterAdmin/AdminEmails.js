@@ -10,7 +10,7 @@
  * Filters: status (all / sent / failed), free-text search. Rolling 24h
  * counts in the header mirror the global "Email" health pill.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

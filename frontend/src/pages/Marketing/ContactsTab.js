@@ -12,7 +12,7 @@
  *  Backend: `/api/marketing/contacts` (list/get/create/update/delete +
  *  bulk CSV import) gated by `require_module(("crm","marketing"))`.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { Search, Plus, Upload, Trash2, X, Loader2, AtSign, Phone as PhoneIcon, Tag, Sparkles } from 'lucide-react';
 import CRMProTrialNudge from './CRMProTrialNudge';

@@ -5,7 +5,6 @@
  * cyan accent, dark-on-light type, rounded shadcn cards. Lives inside
  * /admin/design-system as a brand toggle alongside the GymAxis content.
  */
-import React from 'react';
 import { Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 const PALETTE = [

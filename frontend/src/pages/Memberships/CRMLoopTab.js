@@ -8,10 +8,9 @@
  *   • Recent signals + recent sends timeline
  *   • One-tap "Scan now" (forces a detector pass for this org)
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import {
-  Workflow, Activity, Send, RefreshCw, Loader2, ToggleLeft, ToggleRight,
+import { Activity, Send, RefreshCw, Loader2, ToggleLeft, ToggleRight,
   ChevronDown, AlertTriangle, Sparkles, Heart, UserMinus,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -69,7 +68,7 @@ function DashboardView({ API, headers }) {
       .catch(() => notify.error('Failed to load CRM dashboard'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const scan = async () => {
     setScanning(true);
@@ -155,7 +154,7 @@ function RulesView({ API, headers }) {
       .catch(() => notify.error('Rules failed'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load();   }, []);
 
   const update = async (kind, patch) => {
     setBusy(kind);

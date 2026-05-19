@@ -11,7 +11,7 @@
  * photo, generous typography, specialty chips, upcoming class list with
  * direct booking links.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Instagram, Link2, Globe, ArrowRight, Calendar, MapPin, Share2, Copy } from 'lucide-react';

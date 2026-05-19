@@ -6,7 +6,7 @@
  * never add a second piece of equipment after sign-up") and target
  * onboarding fixes accordingly.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Loader2, Users, Sparkles, RefreshCw } from 'lucide-react';

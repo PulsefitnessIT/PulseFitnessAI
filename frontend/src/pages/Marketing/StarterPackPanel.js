@@ -15,7 +15,7 @@
  * Social cards retain "Copy to clipboard" until the Meta/X OAuth
  * scheduling MVP lands.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -49,7 +49,7 @@ export default function StarterPackPanel({ API, headers }) {
     } catch {
       /* tolerated */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [API, headers]);
 
   useEffect(() => { load(); }, [load]);

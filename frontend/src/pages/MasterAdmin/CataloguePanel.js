@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/App';
 import { Image as ImageIcon, FileText, Camera, Megaphone, Share2 } from 'lucide-react';
 import AdminSpecSheets from './AdminSpecSheets';
