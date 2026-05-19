@@ -8999,3 +8999,68 @@ still-valid CRM token.
 - `make regression` 23/23 + trust-recovery 96/96.
 
 Files: `crm_auth.py`, `App.js`, new test files above.
+
+## Iter 216h222 — "Retry failed sends" in the Outbound Emails panel (Feb 19, 2026)
+
+### Context
+After resolving the Resend DNS verification, ~180 emails sent during the
+unverified window were stuck as "failed". User asked for a one-click
+retry so new failures aren't lost while the underlying issue is fixed.
+
+### Design
+The failure capture path (`utils.email._record_email_event`) now stores
+the **full Resend params** (from/to/subject/html/reply_to/attachments
++ organization_id) on `email_send_events` rows whose `status != "sent"`.
+Successful rows never carry the payload (saves space + tighter PII
+boundary). Master admin sees a `Retry send` button on every
+post-h222 failed row in `Master Admin → Growth → Outbound emails`.
+
+### Backend
+- `utils/email.py`
+  - `_record_email_event(*, payload=None)` — extended signature.
+    Failed rows get `id` (uuid) + `payload` (replayable Resend params).
+    Sent rows unchanged.
+  - `send_email()` failure branch — passes a `retry_payload` dict
+    containing the post-branding html, from-addr, attachments, etc.
+- `routes/email_health.py`
+  - New `POST /master-admin/email-events/{event_id}/retry`:
+    - 404 if event doesn't exist.
+    - 409 if event is already `sent`, already retried, or has no
+      stored payload (pre-h222 failures).
+    - On success: re-sends via Resend, marks the original
+      `retried_at` + `retry_event_id`, inserts a fresh `sent` row,
+      returns `{ok, retry_event_id, resend_id, original_event_id}`.
+    - On Resend rejection: writes a new failed row (with payload
+      copied) so the operator can keep retrying.
+  - `list_outbound_emails()` — surfaces a `retryable: bool` flag on
+    every row (true only for failed + payload-stored + not-yet-retried)
+    so the frontend can show/hide the button cleanly.
+  - Index on `id` added to `ensure_email_send_events_indexes`.
+
+### Frontend
+- `pages/MasterAdmin/AdminEmails.js`
+  - `onRetry()` callback POSTs to the new endpoint, toasts result,
+    reloads the list.
+  - "Retry send" button rendered inside the expanded row when
+    `e.retryable === true`. Spins + disables during the call.
+  - For pre-h222 failures (no payload), shows a small italic hint
+    instead of the button so operators know to trigger the
+    original flow again.
+
+### Pre-h222 failures
+Cannot be replayed (no payload was captured). The ~180 stuck rows
+visible today will clear naturally as customers re-engage and new
+welcome/reminder emails go through the now-verified domain. The
+panel guides the operator to do exactly that.
+
+### Verification
+- E2E curl: seed failed row with payload → POST retry → HTTP 200
+  + Resend message id returned → repeat returns 409. Seed failed
+  row WITHOUT payload → POST retry → HTTP 409 with friendly
+  "trigger original flow" message.
+- New regression test `tests/test_iter_216h222_email_retry.py` — 5/5
+  passing (404, three 409 cases, auth gate).
+- `make regression`: 23/23 pass · ESLint clean · ruff clean.
+
+Files: `utils/email.py`, `routes/email_health.py`, `pages/MasterAdmin/AdminEmails.js`,
+new `tests/test_iter_216h222_email_retry.py`.

@@ -187,24 +187,49 @@ except ImportError:
     resend = None
 
 
-async def _record_email_event(*, to: str, subject: str, status: str, error: str | None) -> None:
+async def _record_email_event(
+    *,
+    to: str,
+    subject: str,
+    status: str,
+    error: str | None,
+    payload: dict | None = None,
+) -> str | None:
     """Best-effort write to the ``email_send_events`` audit collection.
 
-    Powers the Master Admin "email health" pill. Capped to recent
-    history via a TTL index created in :mod:`server` startup.
+    Powers the Master Admin "email health" pill and the Outbound emails
+    panel. Capped to recent history via a TTL index created in
+    :mod:`server` startup.
+
+    Iter 216h222 — when ``status != "sent"`` and ``payload`` is supplied
+    the full Resend params (from/to/subject/html/reply_to/attachments)
+    + branding context are persisted on the row so a master admin can
+    one-click retry the failed send from the Outbound emails panel.
+    Successful rows never carry the payload (saves space + avoids
+    leaking customer-bound HTML in the audit log longer than needed).
+
+    Returns the event id so the caller can correlate retries.
     """
+    import uuid
+    event_id = str(uuid.uuid4())
+    doc: dict = {
+        "id": event_id,
+        "to": to,
+        "subject": subject,
+        "sender": SENDER_EMAIL or "",
+        "status": status,            # "sent" | "failed" | "no_api_key" | "bad_sender"
+        "error": (error or "")[:500],
+        "created_at": datetime.now(timezone.utc),
+    }
+    # Stash the full payload on failed sends so they're retryable.
+    if status != "sent" and payload:
+        doc["payload"] = payload
     try:
-        await db.email_send_events.insert_one({
-            "to": to,
-            "subject": subject,
-            "sender": SENDER_EMAIL or "",
-            "status": status,            # "sent" | "failed" | "no_api_key" | "bad_sender"
-            "error": (error or "")[:500],
-            "created_at": datetime.now(timezone.utc),
-        })
+        await db.email_send_events.insert_one(doc)
     except Exception:
         # Telemetry failures must never block real email sends.
-        pass
+        return None
+    return event_id
 
 
 async def send_email(
@@ -279,7 +304,22 @@ async def send_email(
         return True
     except Exception as e:
         logger.error(f"Email send FAILED via Resend: to={to}, subject={subject!r}, sender={from_addr!r}, error={e!r}")
-        await _record_email_event(to=to, subject=subject, status="failed", error=repr(e))
+        # Iter 216h222 — persist the full Resend payload so master
+        # admins can one-click retry the send once the underlying
+        # issue (e.g. domain not verified) is fixed.
+        retry_payload = {
+            "from": from_addr,
+            "to": [to],
+            "subject": subject,
+            "html": branded_html,
+            "reply_to": reply_to,
+            "attachments": attachments or [],
+            "organization_id": organization_id,
+        }
+        await _record_email_event(
+            to=to, subject=subject, status="failed", error=repr(e),
+            payload=retry_payload,
+        )
         return False
 
 

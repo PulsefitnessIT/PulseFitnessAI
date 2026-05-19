@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
-  Mail, RefreshCw, Search, CheckCircle2, AlertTriangle, ChevronDown,
+  Mail, RefreshCw, Search, CheckCircle2, AlertTriangle, ChevronDown, RotateCw,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -43,6 +43,7 @@ export default function AdminEmails() {
   const [status, setStatus] = useState('all');   // all | sent | failed
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const [retryingId, setRetryingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,13 +60,43 @@ export default function AdminEmails() {
     }
   }, [status, search]);
 
+  /** Iter 216h222 — replay a failed outbound email via the
+      persisted Resend payload. Shows the retry attempt as a new row
+      in the panel on success. */
+  const onRetry = useCallback(async (eventId) => {
+    if (!eventId || retryingId) return;
+    setRetryingId(eventId);
+    try {
+      const r = await axios.post(
+        `${API}/master-admin/email-events/${eventId}/retry`,
+        {},
+        { headers: authHeader() },
+      );
+      toast.success('Email retried successfully', {
+        description: r.data?.resend_id ? `Resend id: ${r.data.resend_id}` : undefined,
+      });
+      load();
+    } catch (e) {
+      const detail = e?.response?.data?.detail || 'Retry failed';
+      toast.error('Retry failed', { description: detail });
+    } finally {
+      setRetryingId(null);
+    }
+  }, [retryingId, load]);
+
   useEffect(() => { load(); }, [load]);
 
   return (
     <div className="space-y-5" data-testid="admin-emails">
       <Header data={data} loading={loading} onRefresh={load} />
       <FiltersBar status={status} setStatus={setStatus} search={search} setSearch={setSearch} />
-      <ListView items={data.items} expandedId={expandedId} setExpandedId={setExpandedId} />
+      <ListView
+        items={data.items}
+        expandedId={expandedId}
+        setExpandedId={setExpandedId}
+        onRetry={onRetry}
+        retryingId={retryingId}
+      />
     </div>
   );
 }
@@ -168,7 +199,7 @@ function FiltersBar({ status, setStatus, search, setSearch }) {
   );
 }
 
-function ListView({ items, expandedId, setExpandedId }) {
+function ListView({ items, expandedId, setExpandedId, onRetry, retryingId }) {
   if (items.length === 0) {
     return (
       <div className="bg-white border border-zinc-200 rounded-2xl py-16 text-center" data-testid="emails-empty">
@@ -221,6 +252,29 @@ function ListView({ items, expandedId, setExpandedId }) {
                   {e.error && (
                     <div className="mt-2 rounded-md bg-rose-50 border border-rose-200 p-2 text-rose-800 font-mono text-[11px] break-all">
                       <strong className="font-semibold mr-1">Resend error:</strong>{e.error}
+                    </div>
+                  )}
+                  {/* Iter 216h222 — Retry button shown only on failed
+                      rows that have a stored payload. Pre-216h222
+                      failures show the friendly "cannot retry" hint. */}
+                  {!sent && (
+                    <div className="mt-2 flex items-center gap-2 pt-1">
+                      {e.retryable ? (
+                        <button
+                          type="button"
+                          onClick={(ev) => { ev.stopPropagation(); onRetry?.(e.id); }}
+                          disabled={retryingId === e.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 text-white text-xs font-semibold px-3 py-1.5 hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-wait transition"
+                          data-testid={`emails-retry-${i}`}
+                        >
+                          <RotateCw size={12} className={retryingId === e.id ? 'animate-spin' : ''} />
+                          {retryingId === e.id ? 'Retrying…' : 'Retry send'}
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-zinc-400 italic" data-testid={`emails-retry-na-${i}`}>
+                          No payload stored — trigger the original flow again to resend.
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

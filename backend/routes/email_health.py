@@ -160,7 +160,7 @@ async def list_outbound_emails(
     cursor = (
         db.email_send_events.find(
             q,
-            {"_id": 0, "to": 1, "subject": 1, "sender": 1, "status": 1, "error": 1, "created_at": 1},
+            {"_id": 0, "id": 1, "to": 1, "subject": 1, "sender": 1, "status": 1, "error": 1, "created_at": 1, "payload": 1, "retried_at": 1, "retry_event_id": 1},
         )
         .sort("created_at", -1)
         .limit(limit)
@@ -168,6 +168,17 @@ async def list_outbound_emails(
     rows: list[dict] = []
     async for r in cursor:
         r["created_at"] = _iso(r.get("created_at"))
+        # Iter 216h222 — front-end flag so the "Retry" button only
+        # appears on rows we can actually replay (failed + payload
+        # persisted + not already retried). Strip the payload from
+        # the response so the UI list stays light.
+        r["retryable"] = bool(
+            r.get("status") and r.get("status") != "sent"
+            and r.get("payload")
+            and not r.get("retried_at")
+            and r.get("id")
+        )
+        r.pop("payload", None)
         rows.append(r)
 
     # Cheap rolling counts (24h) so the panel header shows the same
@@ -191,6 +202,122 @@ async def list_outbound_emails(
         "items": rows,
     }
 
+
+
+
+@router.post("/master-admin/email-events/{event_id}/retry")
+async def retry_failed_email(
+    event_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Iter 216h222 — replay a failed outbound email.
+
+    Looks up the failed ``email_send_events`` row by id, re-sends the
+    persisted Resend payload, and (on success) marks the row as
+    ``retried_at`` so it can't be replayed in a loop. Returns the new
+    event row + Resend message id.
+
+    Errors:
+      • 404 — event not found
+      • 409 — event already retried, or already in ``sent`` state, or
+              no payload was persisted (pre-h222 failures cannot be
+              retried — surface that clearly so the operator knows to
+              trigger the original flow again).
+      • 502 — Resend rejected the retry; the new error is captured.
+    """
+    _require_master(user)
+
+    if not RESEND_API_KEY:
+        raise HTTPException(503, "RESEND_API_KEY missing — cannot send")
+
+    event = await db.email_send_events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(404, "Email event not found")
+    if event.get("status") == "sent":
+        raise HTTPException(409, "This email already delivered — nothing to retry")
+    if event.get("retried_at"):
+        raise HTTPException(409, "This email has already been retried")
+    payload = event.get("payload") or {}
+    if not payload.get("to") or not payload.get("html"):
+        raise HTTPException(
+            409,
+            "No retry payload stored for this email (pre-216h222 failure). "
+            "Trigger the original flow again instead.",
+        )
+
+    # Re-build the Resend params from the persisted payload. Note:
+    # `html` is already wrapped with operator branding so we DON'T
+    # call ``send_email()`` here (that would double-wrap).
+    try:
+        import resend as _resend
+        _resend.api_key = RESEND_API_KEY
+        params = {
+            "from": payload.get("from"),
+            "to": payload["to"] if isinstance(payload["to"], list) else [payload["to"]],
+            "subject": payload.get("subject") or event.get("subject") or "(no subject)",
+            "html": payload["html"],
+        }
+        if payload.get("reply_to"):
+            params["reply_to"] = payload["reply_to"]
+        if payload.get("attachments"):
+            params["attachments"] = payload["attachments"]
+
+        import asyncio as _asyncio
+        from utils.email_rate_limiter import acquire as _rl_acquire
+        await _rl_acquire()
+        result = await _asyncio.to_thread(_resend.Emails.send, params)
+        resend_id = result.get("id") if isinstance(result, dict) else None
+    except Exception as exc:
+        # Persist the new failure as its own event so the operator
+        # sees the retry attempt in the panel.
+        new_err = repr(exc)
+        import uuid as _uuid
+        new_event_id = str(_uuid.uuid4())
+        try:
+            await db.email_send_events.insert_one({
+                "id": new_event_id,
+                "to": (payload.get("to") or [event.get("to")])[0] if isinstance(payload.get("to"), list) else event.get("to"),
+                "subject": params.get("subject"),
+                "sender": payload.get("from") or SENDER_EMAIL or "",
+                "status": "failed",
+                "error": (new_err or "")[:500],
+                "created_at": datetime.now(timezone.utc),
+                "payload": payload,
+                "retry_of": event_id,
+            })
+        except Exception:
+            pass
+        raise HTTPException(502, f"Retry rejected by Resend: {new_err[:200]}")
+
+    # Mark the original event as retried + log the success.
+    now = datetime.now(timezone.utc)
+    import uuid as _uuid
+    success_event_id = str(_uuid.uuid4())
+    try:
+        await db.email_send_events.insert_one({
+            "id": success_event_id,
+            "to": (payload.get("to") or [event.get("to")])[0] if isinstance(payload.get("to"), list) else event.get("to"),
+            "subject": params.get("subject"),
+            "sender": payload.get("from") or SENDER_EMAIL or "",
+            "status": "sent",
+            "error": "",
+            "created_at": now,
+            "retry_of": event_id,
+            "resend_id": resend_id,
+        })
+        await db.email_send_events.update_one(
+            {"id": event_id},
+            {"$set": {"retried_at": now, "retry_event_id": success_event_id}},
+        )
+    except Exception:
+        logger.exception("retry: failed to write success row (Resend already accepted, non-fatal)")
+
+    return {
+        "ok": True,
+        "retry_event_id": success_event_id,
+        "resend_id": resend_id,
+        "original_event_id": event_id,
+    }
 
 
 
@@ -230,6 +357,7 @@ async def ensure_email_send_events_indexes() -> None:
     """30-day TTL on `email_send_events` so the collection stays small."""
     try:
         await db.email_send_events.create_index("created_at")
+        await db.email_send_events.create_index("id", unique=False, sparse=True)
         await db.email_send_events.create_index(
             [("created_at", 1)],
             name="email_send_events_ttl",
