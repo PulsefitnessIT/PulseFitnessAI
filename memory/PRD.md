@@ -9094,3 +9094,86 @@ pill). One-click recovery from wherever they see the failure.
 - `make regression`: 23/23 pass.
 
 Files: `email_health.py`, `EmailHealthPill.js`.
+
+## Iter 216h223 — CRM Phase 1 (data integrity foundation) + Tenders dedup audit (Feb 19, 2026)
+
+### Context
+User asked for a major CRM evolution covering 22 deliverables. The
+audit (see `/app/memory/CRM_TENDERS_AUDIT.md`) found that 5 of the 9
+"missing" features actually already exist in production (tenders,
+address autocomplete, GDPR consent, service cases in 360°, hierarchical
+territory data model). This iteration delivers the genuinely-missing
+**Phase 1** (data integrity) and produces a side-by-side audit for
+Tenders so the user can confirm the existing build matches the spec.
+
+### Phase 1 — what shipped
+
+**Backend (`routes/crm_picklists.py`, `routes/crm_stakeholders.py`)**:
+- New `crm_picklists` collection with global defaults + per-org
+  extensions. 8 canonical keys: `job_title`, `industry`, `lead_source`,
+  `opportunity_type`, `lost_reason`, `case_type`, `contact_role`,
+  `department`. Seeded on every startup (idempotent).
+- Full CRUD: `GET /crm/picklists`, `GET /crm/picklists/{key}` (merges
+  global + org, hides deprecated), `POST` (create with dup guard),
+  `PATCH` (rename / sort / deprecate), `DELETE` (hard-delete; refused
+  if the value is still referenced anywhere — surfaces the count in
+  the 409 detail).
+- New `crm_stakeholder_map` collection + 5 endpoints for per-deal
+  stakeholder mapping (Miller Heiman + ops roles). Same contact can
+  play different roles on different deals.
+- `INFLUENCE_TYPES` catalogue (11 roles) — Economic Buyer / Technical
+  Buyer / User Buyer / Coach / Champion / Decision Maker / Influencer
+  / Blocker / Procurement / Finance / Operational Lead.
+- Extended `POST /crm/v2/contacts`:
+  - **Email now mandatory** (`force_no_email: true` master-admin
+    override for legacy imports)
+  - **Email format validated** (cheap regex; heavy DNS validation
+    stays at marketing-engine layer)
+  - **Duplicate-email soft-block** (409 unless `allow_duplicate_email`
+    is passed)
+  - `influence_types: []` field accepted; `is_decision_maker` /
+    `is_champion` booleans auto-derived for backward compat.
+- PATCH `/crm/contacts/{id}/influence-types` for in-place updates.
+
+**Frontend**:
+- New `pages/CRM/CRMPicklistsSection.js` — Settings → Picklists admin
+  panel. Master Admin sees a "Global edit" badge and can modify global
+  defaults; regular admins see "Org · Local edit" and add only to
+  their own org.
+- New `components/shared/PicklistSelect.jsx` — drop-in <select>
+  backed by the picklists API. Module-level cache so multiple
+  instances on the same page hit the network once. Falls back to
+  free-text on API failure (never blocks a form).
+- Wired into `CRMContacts.js` create form (Job Title field) as a
+  reference pattern. Other forms (industry on companies, lead_source
+  on opportunities) can adopt the same component without further
+  backend work.
+
+### Tenders dedup audit
+Full audit at `/app/memory/CRM_TENDERS_AUDIT.md`. **TL;DR**: tenders
+module is fully built (28 endpoints + 1165-line frontend, AI parsing,
+OCR, pitch slides, branded export PDFs, win/loss analytics). Only
+genuine polish gaps are: @mentions/threaded comments, structured
+competitor list, first-class tasks on tenders. Deferred to a polish
+iter post-Phase 2.
+
+### Verification
+- New regression test `tests/test_iter_216h223_crm_phase1.py` — 9/9
+  passing (picklists keys / merge / dup-rejection / 404 + influence
+  types catalogue + contact create email validation + influence
+  sync + duplicate-email soft-block).
+- `make regression`: 23/23 pass.
+- ESLint + ruff clean.
+
+### What did NOT ship (deferred to Phase 2 — next iter)
+- CRM Quote PDF + branded template (engineer PDF is not reusable)
+- `crm_products` master price list + product configurator
+- Real-time margin calc on quote builder
+- Approval workflow (margin threshold)
+- Quote versioning + duplicate
+
+Files: `routes/crm_picklists.py`, `routes/crm_stakeholders.py`,
+`routes/crm_v2.py` (contact create), `route_registry/crm.py`,
+`server.py` (startup seed), `CRMSettings.js`, `CRMPicklistsSection.js`,
+`PicklistSelect.jsx`, `CRMContacts.js`,
+`tests/test_iter_216h223_crm_phase1.py`, `memory/CRM_TENDERS_AUDIT.md`.

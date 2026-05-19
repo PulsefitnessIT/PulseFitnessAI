@@ -368,18 +368,67 @@ async def list_contacts(
 
 @router.post("/contacts")
 async def create_contact(data: dict, user=Depends(get_crm_user)):
+    # Iter 216h223 — tighten email validation + stakeholder mapping.
+    # Email is required by default; the `force=true` query/body flag
+    # (master-admin only) keeps the legacy importer paths working for
+    # contacts where the email genuinely isn't known yet.
+    email = (data.get("email") or "").strip().lower()
+    force_no_email = bool(data.get("force_no_email")) and (
+        user.get("is_master_admin") or user.get("is_pulse_admin")
+    )
+    if not email and not force_no_email:
+        raise HTTPException(
+            422,
+            "An email address is required for contact creation. Master admins can pass "
+            "`force_no_email: true` to bypass for legacy imports.",
+        )
+    if email:
+        # Cheap, RFC-friendly check. Heavier DNS/MX validation lives at
+        # the marketing-engine layer where the cost of a wrong send is high.
+        import re as _re
+        if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            raise HTTPException(422, "Invalid email address")
+        # Duplicate-email guard (within the same org). Soft 409 so the
+        # importer can decide whether to merge or skip.
+        dup = await db.crm2_contacts.find_one(
+            {"organization_id": user.get("organization_id"), "email": email},
+            {"_id": 0, "id": 1, "first_name": 1, "last_name": 1},
+        )
+        if dup and not data.get("allow_duplicate_email"):
+            raise HTTPException(
+                409,
+                f"A contact with email '{email}' already exists "
+                f"(id={dup['id']}, {dup.get('first_name','')} {dup.get('last_name','')}). "
+                "Pass `allow_duplicate_email: true` to override.",
+            )
+
+    # Iter 216h223 — Miller Heiman stakeholder tags. We accept either
+    # the new `influence_types: []` array OR the legacy booleans (or
+    # both — booleans win when explicitly set).
+    raw_types = data.get("influence_types") or []
+    if isinstance(raw_types, list):
+        from routes.crm_stakeholders import _validate_types, _derive_legacy_booleans
+        influence_types = _validate_types(raw_types)
+    else:
+        influence_types = []
+    legacy = _derive_legacy_booleans(influence_types)
+
     contact = {
         "id": _id(), "organization_id": user.get("organization_id"),
         "first_name": data.get("first_name", ""),
         "last_name": data.get("last_name", ""),
-        "email": data.get("email", ""),
+        "email": email,
         "phone": data.get("phone", ""),
         "mobile": data.get("mobile", ""),
         "job_title": data.get("job_title", ""),
         "company_id": data.get("company_id"),
         "company_name": data.get("company_name", ""),
-        "is_decision_maker": data.get("is_decision_maker", False),
-        "is_champion": data.get("is_champion", False),
+        # Multi-tag stakeholder field (Miller Heiman + ops roles).
+        "influence_types": influence_types,
+        # Legacy booleans — kept in sync from the multi-tag field but
+        # also overridable when callers pass them explicitly.
+        "is_decision_maker": data.get("is_decision_maker", legacy["is_decision_maker"]),
+        "is_champion": data.get("is_champion", legacy["is_champion"]),
         "linkedin": data.get("linkedin", ""),
         "source": data.get("source", "manual"),
         "status": data.get("status", "active"),

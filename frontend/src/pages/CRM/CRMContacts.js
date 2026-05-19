@@ -12,6 +12,7 @@ import CRMAuditTrail from './CRMAuditTrail';
 import HelpHint from '@/components/HelpHint';
 import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
+import PicklistSelect from '@/components/shared/PicklistSelect';
 
 function ContactList({ onSelect, c, isDark, API, headers }) {
   const [contacts, setContacts] = useState([]);
@@ -164,15 +165,32 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
               {[
                 { key: 'first_name', label: 'First Name *' },
                 { key: 'last_name', label: 'Last Name *' },
-                { key: 'email', label: 'Email', span: 2 },
+                { key: 'email', label: 'Email *', span: 2 },
                 { key: 'phone', label: 'Phone' },
-                { key: 'job_title', label: 'Job Title' },
               ].map(f => (
                 <div key={f.key} className={f.span === 2 ? 'col-span-2' : ''}>
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>{f.label}</label>
                   <input value={form[f.key]} onChange={e => setForm({...form, [f.key]: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
                 </div>
               ))}
+              {/* Iter 216h223 — Job Title now uses the centralised
+                  picklist instead of a free-text input. Falls back to
+                  free-text via the "Other" option so org-custom titles
+                  still work. */}
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Job Title</label>
+                <PicklistSelect
+                  pickKey="job_title"
+                  value={form.job_title}
+                  onChange={v => setForm({ ...form, job_title: v })}
+                  placeholder="Select a job title"
+                  api={API}
+                  headers={headers}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  testId="contact-job-title-picklist"
+                />
+              </div>
               <div className="col-span-2 flex items-center gap-3 flex-wrap">
                 <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: c.textMuted }}>
                   <input type="checkbox" checked={form.is_decision_maker} onChange={e => setForm({...form, is_decision_maker: e.target.checked})} className="rounded" /> Decision Maker

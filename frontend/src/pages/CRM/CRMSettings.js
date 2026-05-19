@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import CRMPermissions from './CRMPermissions';
+import CRMPicklistsSection from './CRMPicklistsSection';
 
 const ROLE_COLORS = { owner: 'var(--color-accent-amber)', admin: 'var(--color-danger-alt)', manager: 'var(--color-info-ios)', sales_rep: 'var(--color-success-alt)' };
 
@@ -462,6 +463,7 @@ export default function CRMSettings() {
     { id: 'import', label: 'Data Import', icon: Upload },
     { id: 'team', label: 'Team', icon: User },
     { id: 'permissions', label: 'Permissions', icon: Lock, jumpTo: 'permissions' },
+    { id: 'picklists', label: 'Picklists', icon: Edit2 },
     { id: 'security', label: 'Security', icon: Lock },
     { id: 'sage200', label: 'Sage 200', icon: Link2 },
     { id: 'audit', label: 'Audit Log', icon: Shield },
@@ -530,6 +532,11 @@ export default function CRMSettings() {
           {/* Permissions */}
           {activeSection === 'permissions' && (
             <CRMPermissions />
+          )}
+
+          {/* Picklists — Iter 216h223 */}
+          {activeSection === 'picklists' && (
+            <CRMPicklistsSection API={API} headers={headers} user={user} c={c} isDark={isDark} />
           )}
 
           {/* Security / 2FA */}

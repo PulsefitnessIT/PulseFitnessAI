@@ -381,6 +381,15 @@ async def _seed_services() -> None:
     from routes.crm_auth import seed_crm_admin
     await seed_crm_admin()
     logger.info("CRM admin seeded")
+    # Iter 216h223 — CRM Picklists global defaults + Stakeholder map indexes.
+    try:
+        from routes.crm_picklists import seed_global_picklists
+        from routes.crm_stakeholders import ensure_stakeholder_indexes
+        await seed_global_picklists()
+        await ensure_stakeholder_indexes()
+        logger.info("CRM picklists + stakeholder indexes ready")
+    except Exception as e:  # pragma: no cover
+        logger.warning("CRM picklists / stakeholder seed failed (non-fatal): %s", e)
     # MOD demo tree (idempotent) — disabled in fresh-platform mode
     if os.environ.get("ENABLE_DEMO_SEED", "0") == "1":
         try:
