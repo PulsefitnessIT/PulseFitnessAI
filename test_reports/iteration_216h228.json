@@ -1,0 +1,79 @@
+{
+  "summary": "Iter 216h228 Wave 1 mobile audit testing. Verified cross-cutting fixes for popover/dropdown overflow, FAB stacking rails, and trial banner clipping. QuickCreate dropdown and form render correctly within viewport on mobile. Notifications panel has a positioning issue on mobile (clips off-screen). No horizontal overflow detected on any tested page. Desktop regression passes - dropdowns still anchor to RIGHT.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "NotificationsBell (CRMApp.js:299)",
+        "issue": "Notifications panel clips off-screen on mobile (390px viewport). Panel is 320px wide and anchored to right-0 relative to button wrapper, but button is positioned far right in toolbar, causing panel to extend off left edge of viewport.",
+        "selector": "[data-testid='notifications-panel']",
+        "priority": "MEDIUM",
+        "repro_steps": "1. Open /crm on 390x844 viewport, 2. Click notifications bell, 3. Panel renders with left edge at -67px to -241px (off-screen)",
+        "suggested_fix": "Use a React portal to render the panel at document root level, or use fixed positioning with viewport-relative coordinates on mobile. The current approach of centering relative to the button wrapper doesn't work because the button is near the right edge of the viewport."
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/mobile_audit/crm_mobile_initial.png",
+    "/app/test_reports/mobile_audit/crm_quickcreate_menu.png",
+    "/app/test_reports/mobile_audit/crm_quickcreate_form.png",
+    "/app/test_reports/mobile_audit/crm_notifications_panel.png",
+    "/app/test_reports/mobile_audit/crm_desktop_quickcreate.png",
+    "/app/test_reports/mobile_audit/crm_desktop_notifications.png"
+  ],
+  "action_items": [
+    "Fix NotificationsBell panel positioning on mobile - use portal or fixed positioning to ensure panel stays within viewport",
+    "Consider applying same fix pattern to any other toolbar dropdowns that may have similar issues"
+  ],
+  "critical_code_review_comments": [
+    "The Wave 1 fixes for QuickCreate dropdown work correctly - menu and form both render within viewport on mobile",
+    "Global CSS rails in index.css (lines 1596-1642) are working - no horizontal overflow detected on any page",
+    "Trial banner spacer (62px) is correctly added in App.js for trial users",
+    "The NotificationsBell centering approach (max-sm:left-1/2 max-sm:-translate-x-1/2) doesn't work because it centers relative to the button wrapper, not the viewport"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/CRM/CRMApp.js"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "90% (QuickCreate OK, Notifications panel needs fix)"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Wave 1 mobile audit focused on CRM page. QuickCreate dropdown/form positioning is fixed and working. NotificationsBell panel still clips on mobile - needs portal-based or fixed-position solution. Other pages (dashboard, memberships, marketing, pulse) show no horizontal overflow. Desktop regression passes - all dropdowns still anchor to RIGHT correctly.",
+  "test_results": {
+    "crm_quickcreate_menu": {
+      "status": "PASS",
+      "mobile_position": "left=37, right=229, width=192 - fully within 390px viewport"
+    },
+    "crm_quickcreate_form": {
+      "status": "PASS",
+      "mobile_position": "left=37, right=357, width=320 - fully within 390px viewport"
+    },
+    "crm_notifications_panel": {
+      "status": "FAIL",
+      "mobile_position": "left=-67 to -241, clipped off left edge of viewport",
+      "root_cause": "Panel anchored to button wrapper with right-0, but button is near right edge of viewport"
+    },
+    "horizontal_overflow": {
+      "status": "PASS",
+      "pages_tested": ["/crm", "/dashboard", "/memberships", "/marketing", "/pulse"],
+      "result": "No horizontal overflow on any page (scrollWidth <= windowWidth)"
+    },
+    "desktop_regression": {
+      "status": "PASS",
+      "quickcreate_menu": "Correctly anchored to RIGHT (menu right edge = button right edge)",
+      "notifications_panel": "Correctly anchored to RIGHT (panel right edge = button right edge)"
+    },
+    "eslint": {
+      "status": "PASS",
+      "warnings": 0
+    }
+  }
+}

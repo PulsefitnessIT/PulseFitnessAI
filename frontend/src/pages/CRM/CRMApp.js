@@ -133,9 +133,13 @@ function QuickCreateButton({ API, headers, c, isDark, onCreated }) {
         <Plus size={16} />
       </button>
       {open && !activeType && (
-        <div className="absolute top-full right-0 mt-2 w-48 rounded-lg shadow-xl z-50 py-1"
+        <div
+          className="absolute top-full mt-2 w-48 max-w-[calc(100vw-32px)] rounded-lg shadow-xl z-50 py-1
+                     right-0
+                     max-sm:right-auto max-sm:left-0"
           style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
-          data-testid="quick-create-menu">
+          data-testid="quick-create-menu"
+        >
           {QUICK_CREATE_ITEMS.map(item => {
             const Icon = item.icon;
             return (
@@ -151,9 +155,13 @@ function QuickCreateButton({ API, headers, c, isDark, onCreated }) {
         </div>
       )}
       {open && activeType && (
-        <div className="absolute top-full right-0 mt-2 w-80 rounded-lg shadow-xl z-50 p-4"
+        <div
+          className="absolute top-full mt-2 w-80 max-w-[calc(100vw-32px)] rounded-lg shadow-xl z-50 p-4
+                     right-0
+                     max-sm:right-auto max-sm:left-0"
           style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
-          data-testid="quick-create-form">
+          data-testid="quick-create-form"
+        >
           <h3 className="text-sm font-semibold mb-3" style={{ color: c.text }}>
             New {QUICK_CREATE_ITEMS.find(i => i.id === activeType)?.label}
           </h3>
@@ -289,9 +297,15 @@ function NotificationsBell({ API, headers, c, isDark }) {
         )}
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-80 rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto"
-          style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
-          data-testid="notifications-panel">
+        <div
+          className="absolute top-full mt-2 rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto
+                     w-80 right-0 max-w-[calc(100vw-2rem)]"
+          style={{ 
+            background: isDark ? 'var(--color-neutral-900)' : '#fff', 
+            border: `1px solid ${c.border}`,
+          }}
+          data-testid="notifications-panel"
+        >
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${c.border}` }}>
             <span className="text-sm font-semibold" style={{ color: c.text }}>Notifications</span>
             {unread > 0 && <button onClick={markAllRead} className="text-[10px] text-[var(--color-info-ios)] hover:underline">Mark all read</button>}

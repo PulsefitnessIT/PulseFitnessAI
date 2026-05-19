@@ -1593,3 +1593,50 @@ html[data-brand="gymaxis"] {
 }
 
 
+
+/* ─── Iter 216h228 — global mobile-safe rails ────────────────────
+   Lee's audit (Feb 2026): "We can't have squashed up text, cards
+   hanging off the edge of the mobile, or buttons looking misplaced."
+   These three rules are zero-config insurance for every absolute
+   popover / dropdown / floating panel in the app — they never
+   exceed the viewport on phone-width screens, regardless of which
+   anchor the component author chose. Per-component fixes still
+   apply for positioning, but this prevents anything from ever
+   bleeding off the edge again.
+   ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 639.98px) {
+  /* Any absolutely / fixed-positioned panel with z-40+ is presumed
+     to be a floating UI element — keep it inside the viewport. */
+  [data-radix-popper-content-wrapper] > * {
+    max-width: calc(100vw - 1rem) !important;
+  }
+  /* shadcn/radix DropdownMenu + Popover content panels. */
+  [data-radix-popper-content-wrapper] [role="menu"],
+  [data-radix-popper-content-wrapper] [role="dialog"],
+  [data-radix-popper-content-wrapper] [role="listbox"] {
+    max-width: calc(100vw - 1rem);
+  }
+  /* In-tree popovers (CRM QuickCreate, CompanyAutocomplete, etc.) — opt-in via data-attr or known z-50 + absolute combo. */
+  .gx-mobile-clamp {
+    max-width: calc(100vw - 1rem) !important;
+  }
+  /* Floating Action Buttons (FABs) — stack vertically along the
+     bottom-right rail with consistent spacing so two FABs don't
+     overlap as in Lee's screenshot. Mark each with [data-fab-rail]. */
+  [data-fab-rail] {
+    right: 0.75rem !important;
+    left: auto !important;
+  }
+  [data-fab-rail][data-fab-slot="primary"]   { bottom: 4.75rem !important; }
+  [data-fab-rail][data-fab-slot="secondary"] { bottom: 9.5rem  !important; }
+  [data-fab-rail][data-fab-slot="tertiary"]  { bottom: 14.25rem !important; }
+}
+
+/* Cap horizontal overflow at the document level — any rogue absolute
+   element overflowing past the right edge no longer triggers a
+   horizontal scroll on phones (which is what made cards "hang off" in
+   the audit screenshots). */
+@media (max-width: 1023.98px) {
+  html, body { overflow-x: hidden; }
+}

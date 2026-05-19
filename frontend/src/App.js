@@ -625,9 +625,18 @@ function App() {
  ) : (
  <>
  {user?.trial?.is_trial && !user?.is_master_admin && (
+ <>
  <div className="fixed top-20 inset-x-0 z-40" data-testid="trial-banner-wrapper">
  <TrialBanner />
  </div>
+ {/* Iter 216h228 — push subsequent page content below the
+ fixed trial banner (~62px tall incl. progress bar). All
+ module pages reserve pt-24 (96px) for the navbar; this
+ inline spacer adds the extra clearance so welcome
+ headings + KPI rows are no longer clipped behind the
+ banner on mobile + tablet. */}
+ <div aria-hidden="true" className="h-[62px]" data-testid="trial-banner-spacer" />
+ </>
  )}
  <Suspense fallback={
  <div className="min-h-screen flex items-center justify-center bg-black">
