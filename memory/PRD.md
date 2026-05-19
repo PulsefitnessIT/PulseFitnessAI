@@ -1,3 +1,82 @@
+## Iter 216h227 — module-tailored trial onboarding + mobile fixes (Feb 19, 2026) ✅ P0
+
+Lee's audit screenshots (Feb 2026): trial users see EVERY module's
+"first wins" + Setup-checklist entries regardless of which module
+they actually came to GymAxis for. Marketing trials were being told
+to "Add a piece of equipment". Operations-only trials were being
+told to "Add a member". Account Settings + Add-Equipment modal were
+unusable on phones.
+
+### Backend
+- **`activation_events.py`** — added module-tagged events for the
+  modules that had none:
+    - CRM: `first_lead_added`, `first_deal_created`, `first_quote_sent`
+    - Marketing: `first_brand_discovered`, `first_audience_built`,
+      `first_campaign_launched`
+    - Operations: `first_fault_logged`
+  Tightened the legacy fallback so an org with no module info now
+  shows the historical core checklist (universal + ops + memberships)
+  rather than leaking every module's events. New helper
+  `_primary_modules_for()` narrows the funnel to the operator's
+  declared `primary_module` (captured at trial signup).
+- **`/account/onboarding`** — tagged each ONBOARDING_STEP with a
+  `modules` field and applied the same primary-module filter.
+  `import_machines` / `print_qr_codes` are now operations-only;
+  `connect_stripe` shows for memberships/marketing/operations only;
+  everything else stays universal.
+- Wired NEW activation emit hooks at:
+    - CRM company create → `first_lead_added`
+    - CRM deal create → `first_deal_created`
+    - CRM quote send → `first_quote_sent`
+    - Marketing audience create → `first_audience_built`
+    - Marketing brand-discovery apply → `first_brand_discovered`
+    - Marketing campaign send (when sent>0) → `first_campaign_launched`
+    - Operations fault intake → `first_fault_logged`
+  Every emit is best-effort (try/except) so they NEVER block the
+  primary write path.
+- `UserRegister.primary_module` field added; `auth.py` register flow
+  persists it on the org doc.
+
+### Frontend
+- **TrialSignupModal.js** — `openTrial(module)` helper now passes a
+  `module` payload through to `/api/auth/register` so the activation
+  filter narrows the post-signup experience.
+- **ModulePage.js** — `MODULE_INTENT_MAP` translates the marketing-
+  site IDs (`crm`, `marketing`, `memberships`, `service`) to the
+  backend module keys, then passes the right hint into `openTrial`.
+- **ActivationMilestonesCard.js** — `ACTION_HINTS` extended with
+  per-module CTA routes for every new milestone (e.g. "Add your
+  first lead" → `/crm?tab=companies&add=1`).
+- **AccountSettingsModal.js** — mobile-first layout. Below `sm:` the
+  modal goes full-screen and the 200px sidebar becomes a horizontal
+  pill rail across the top, freeing the entire viewport width for
+  step cards (previously they squeezed to ~140px and CTAs overlapped
+  descriptions).
+- **AccountSettings/onboarding.js** — step cards switched to
+  `flex-col sm:flex-row` so the CTA button drops below the
+  description on phones, never overlapping.
+- **OnboardingWizard.js** — equipment input grid changed to
+  `grid-cols-1 sm:grid-cols-2 md:grid-cols-3` and the photo picker
+  stacks above the grid on phones (previously 3 columns squashed
+  each input to ~80px on a 390px viewport).
+
+### Verification
+| Gate | Result |
+| --- | --- |
+| New unit tests (`test_iter_216h227_module_tailored_onboarding.py`) | **9 / 9** |
+| Updated activation filter tests (`test_iter_216h216`) | **5 / 5** |
+| E2E module-tailored API tests (testing agent) | **8 / 10** (2 skipped — trial signup rate limit) |
+| `make regression` | **37 passed, 14 skipped** |
+| ESLint `--max-warnings 0` | **0 / 0** |
+| Mobile UI visual check (390×844 viewport) | ✅ AccountSettingsModal full-width + horizontal rail; onboarding cards flex-col; CTAs below text |
+
+### Test credentials
+See `/app/memory/test_credentials.md`. The testing agent used
+`craig.henshall@pulsefitness.com` for trial flows.
+
+---
+
+
 ## Iter 216h226-deps-walk — exhaustive-deps manual audit COMPLETE (Feb 19, 2026) ✅ P1
 
 Followed up the mechanical `todo:` retag from iter 216h226-polish-5
