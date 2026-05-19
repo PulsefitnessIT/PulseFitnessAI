@@ -1,3 +1,61 @@
+## Iter 216h232 — GitHub Actions CI failures (Feb 19, 2026) ✅ P0
+
+Lee reported every push to `leersomers/GymAxisAI` had been failing
+with "All jobs have failed" on the **CI — pre-commit gates + tests**
+workflow. Both jobs (pre-commit gates @ 27s + backend unit tests @
+1m10s) failed for THREE independent reasons.
+
+### Root causes & fixes
+
+**1. Bandit unknown CLI flag** — `.github/workflows/ci.yml` step
+"Bandit (Python security — high severity only)" was running
+`bandit -r backend/ -lll --exit-zero-on-skipped`. That flag has
+never existed in the bandit CLI; bandit aborted with
+"unrecognized arguments" → the whole gate failed at step 2 every
+single time. Fix: dropped the flag entirely. `bandit -lll` already
+filters to high severity and exits 0 when clean / 1 if any high-
+severity issues are found, which is exactly what we want.
+
+**2. Secret-detection grep matched test fixtures** — the workflow's
+"Detect hardcoded secrets" step grep'd for `sk_live_…` /
+`sk_test_…` / `whsec_…` / `AKIA…` patterns across `backend/`. Two
+test files legitimately reference these prefixes as STRING LITERALS
+the code is guarding against (`backend/tests/test_stripe_prices_guard_216o.py`
+checks `key.startswith('sk_live_')`; `backend/tests/test_secrets_audit_215ae.py`
+uses `STRIPE_API_KEY="sk_live_x"` as a sentinel). These false
+positives failed the step every push. Fix: added `--exclude-dir=tests`
+to the grep so test fixtures don't poison the gate.
+
+**3. Pytest couldn't import `tests.shared_loop`** — the conftest does
+`from tests.shared_loop import _SHARED_LOOP, run_async` for the
+process-wide asyncio loop (Iter 238g fix). Locally we always run
+`python -m pytest` which adds CWD to `sys.path`, so `tests` is
+importable as a package. CI runs bare `pytest`, which does NOT
+prepend CWD — so the import error'd out and pytest never collected
+a single test. Fix: added `[tool.pytest.ini_options]` to
+`backend/pyproject.toml` with `pythonpath = ["."]` so bare
+`pytest` behaves identically to `python -m pytest`.
+
+### Verification (all 6 gates locally)
+| # | Gate | Status |
+| --- | --- | --- |
+| 1 | Ruff (`ruff check backend/`) | ✅ All checks passed |
+| 2 | Bandit (`bandit -r backend/ -lll`) | ✅ No high-severity issues |
+| 3 | Xenon (`xenon --max-absolute F --max-modules F --max-average C`) | ✅ |
+| 4 | ESLint (`yarn eslint --max-warnings 99999 src/`) | ✅ |
+| 5 | Secret detection grep (with `--exclude-dir=tests`) | ✅ CLEAN |
+| 6 | Pytest (`pytest tests/test_xss_and_brand_urls.py`) | ✅ 22 passed |
+| 7 | `make regression` | ✅ 37 passed, 14 skipped |
+| 8 | YAML validity of ci.yml | ✅ |
+
+These were three independent bugs all introduced when CI was first
+wired up. None of the gates had ever passed since the workflow
+landed, which is why every push since reported "All jobs have
+failed". Push again and CI should go green for the first time.
+
+---
+
+
 ## Iter 216h231 — Add Equipment CTA missing on mobile (Feb 19, 2026) ✅ P0
 
 Lee's first mobile QA pass: "I wanted to add a piece of equipment

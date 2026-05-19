@@ -66,7 +66,10 @@ jobs:
         run: ruff check backend/
 
       - name: Bandit (Python security — high severity only)
-        run: bandit -r backend/ -lll --exit-zero-on-skipped
+        # `-lll` filters to HIGH severity; bandit exits 0 if clean, 1 if any
+        # high-severity issues found. The previous `--exit-zero-on-skipped`
+        # flag never existed in bandit and was failing CI on every push.
+        run: bandit -r backend/ -lll
 
       - name: Xenon (complexity safety-net — repo-wide)
         working-directory: backend
@@ -83,9 +86,13 @@ jobs:
       - name: Detect hardcoded secrets
         run: |
           # Cheap grep for the patterns most likely to leak. Bandit catches
-          # the rest. Adjust this if it ever produces a false positive.
+          # the rest. Test fixtures legitimately reference these prefixes
+          # (e.g. `sk_live_x` as a sentinel in test_secrets_audit_215ae.py),
+          # so we exclude `backend/tests/`. Adjust if it produces false
+          # positives.
           ! grep -rE "(sk_live_|sk_test_[A-Za-z0-9]{20,}|whsec_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})" \
               --include="*.py" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" \
+              --exclude-dir=tests \
               backend/ frontend/src/ \
               || (echo "::error::Potential secret detected. Move it to .env." && exit 1)
 
