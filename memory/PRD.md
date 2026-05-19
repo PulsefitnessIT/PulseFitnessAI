@@ -1,3 +1,48 @@
+## Iter 216h226 — CRM Phase 3: Reports suite + AI next-action + cross-module timeline + drag-drop territories + website enrichment (Feb 19, 2026) ✅ P0
+
+Completed the operational-CRM "Phase 3" milestone. The backend route files (`crm_reports.py`, `crm_phase3.py`) were authored in the previous session but never registered. This iter wired them, added regression coverage, and built the full frontend surface for all five deliverables.
+
+### Backend (wiring + tests)
+- `route_registry/crm.py` — added `crm_reports_router` + `crm_phase3_router` to the include list (was the missing link making Phase 3 invisible end-to-end).
+- 7 reports exposed under `/api/crm/reports/*`: `pipeline-by-stage`, `pipeline-by-territory`, `quote-conversion`, `margin` (with distribution buckets + leaking-margin watchlist), `lost-reasons`, `salesperson`, `consent-overview` (GDPR per-channel opt-in rates). Each returns `{rows, totals, generated_at}`.
+- Phase 3 endpoints:
+  - `POST /api/crm/opportunities/{id}/ai/next-action` — AI-suggested next action with reasoning, urgency, confidence, optional draft subject/body. Persisted as an `ai_suggestion` activity so the timeline records it. Uses the existing Emergent LLM key via `routes.crm_ai.call_llm` + `_parse_llm_json`.
+  - `POST /api/crm/companies/{id}/enrich-from-website` — fetches the company's website, parses OG/meta + favicon, fills blanks only (never overwrites curated data). 404 on missing company, 422 if the company has no website, 502 on fetch failure.
+  - `GET /api/crm/companies/{id}/timeline` — unified chronological feed across CRM activities + CRM cases + Operations issues + invoices. Each row carries a `module` tag (`crm` / `service` / `operations` / `billing`) so the FE colour-codes + filters.
+
+### Frontend (new components)
+- `pages/CRM/CRMReports.js` — 7-panel grid, per-card refresh + CSV export (client-side blob download), category filter pills. Wired into `CRMApp.js` nav as the new `reports` tab (icon `BarChart3`).
+- `pages/CRM/CRMPhase3Panels.js`:
+  - `CrossModuleTimeline` — replaces the old single-source Timeline tab on `CRMCompanies.js`. Module filter pills (All / CRM / Service / Operations / Billing), colour-coded module badges, icon per row type.
+  - `EnrichFromWebsiteButton` — slim header CTA on the Company detail (rendered only when website is set). Toast on success ("Enriched: description, logo_url, …") and a graceful "nothing new to fill" message when blanks are already populated.
+  - `AINextActionCard` — wired into `CRMPipeline.js` OpportunityDetail Overview tab. Press "Suggest" → AI proposes next move with urgency/confidence chips + optional draft email body.
+- `pages/CRM/CRMTerritoryTreeDnD.js` — iterative-flatten drag-drop tree (no recursive JSX — Babel-safe). HTML5 drag handles, drop-on-row to nest, drop-on-top-bar to detach, cycle prevention with toast, PUTs `parent_id` on `/api/crm/territories/{id}`. Wired into `CRMTerritories.js` under the Sales-team hierarchy.
+
+### Verification
+- `pytest backend/tests/test_iter_216h226_crm_phase3_api.py -v` → **14/14 pass** (catalogue, envelope shape for all 7 reports, auth gating, consent channels, 404 paths for company/opportunity, margin buckets contract).
+- `pytest backend/tests/regression -q` → **97/97 pass** (was 96; +1 = `test_reports_require_crm_auth` — the only h226 test that is fixture-free and so safe in the regression suite).
+- Testing agent (iter 216h226): **100% pass on backend + frontend**. Reports tab renders 7 panels with CSV buttons. Territories page renders the new drag-drop tree. Companies + Pipeline detail pages load (empty state for the Craig demo org but no console errors).
+- Babel JSX-visitor regression averted by rewriting `CRMTerritoryTreeDnD.js` to flatten the tree iteratively (the recursive component first cut blew the visitor stack — same footgun previously documented for `TeamNode`).
+
+### Files
+- UPDATED: `backend/route_registry/crm.py` (wired both routers)
+- NEW: `frontend/src/pages/CRM/CRMReports.js`
+- NEW: `frontend/src/pages/CRM/CRMPhase3Panels.js`
+- NEW: `frontend/src/pages/CRM/CRMTerritoryTreeDnD.js`
+- NEW: `backend/tests/test_iter_216h226_crm_phase3_api.py` (14 live HTTP tests)
+- UPDATED: `frontend/src/pages/CRM/CRMApp.js` (nav item + route)
+- UPDATED: `frontend/src/pages/CRM/CRMCompanies.js` (Timeline → cross-module + Enrich CTA)
+- UPDATED: `frontend/src/pages/CRM/CRMPipeline.js` (AI next-action card)
+- UPDATED: `frontend/src/pages/CRM/CRMTerritories.js` (drag-drop tree panel)
+- UPDATED: `frontend/src/i18n/locales/en.json` (crm.reports label)
+- UPDATED: `backend/tests/regression/test_critical_crm.py` (h226 auth-rejection import)
+
+### Action required
+**Redeploy** preview → production. Craig should test Reports + drag-drop territory tree + AI next-action on his existing deals.
+
+---
+
+
 ## Iter 216h218 — Supplier picker sweep (Feb 18, 2026) ✅ P2
 
 Extended the h217 `SupplierMultiPicker` across the next 3 highest-traffic free-text supplier inputs after the engineer-apply wizards.
