@@ -773,33 +773,49 @@ async def apply_brand_color(body: dict, user: dict = Depends(get_current_user)) 
 # ── Onboarding checklist (live derivation) ────────────────────────
 
 ONBOARDING_STEPS = [
+    # Universal — every operator needs sites, staff, branding, profile.
     {"id": "site_details", "label": "Enter site details",
      "description": "Add your primary site name, address, and operating hours.",
-     "cta_label": "Open sites", "cta_route": "/sites"},
+     "cta_label": "Open sites", "cta_route": "/sites",
+     "modules": "always"},
     {"id": "extra_sites", "label": "Add extra site(s)",
      "description": "Multi-site operators add each branch so reporting and rotas split correctly.",
-     "cta_label": "Manage sites", "cta_route": "/sites"},
+     "cta_label": "Manage sites", "cta_route": "/sites",
+     "modules": "always"},
     {"id": "invite_staff", "label": "Invite staff to sites",
      "description": "Invite teammates via the Team & Roles tab so they can sign in and contribute.",
-     "cta_label": "Invite teammates", "cta_section": "team"},
+     "cta_label": "Invite teammates", "cta_section": "team",
+     "modules": "always"},
     {"id": "set_roles", "label": "Set roles",
      "description": "Promote site leads to Manager and keep day-to-day staff on Staff.",
-     "cta_label": "Open Team & Roles", "cta_section": "team"},
+     "cta_label": "Open Team & Roles", "cta_section": "team",
+     "modules": "always"},
     {"id": "upload_logo", "label": "Upload logo",
      "description": "Your logo brands every invoice, member-facing email, and case page.",
-     "cta_label": "Upload logo", "cta_section": "organisation"},
+     "cta_label": "Upload logo", "cta_section": "organisation",
+     "modules": "always"},
+    # Operations-specific — hidden when the operator's primary module is
+    # something else (Lee Feb 2026: "why is a Marketing trial asked to
+    # add a machine?")
     {"id": "import_machines", "label": "Import machines to site(s)",
      "description": "Pull equipment from a supplier invoice (PDF), CSV, or Excel spreadsheet — uses the same template across the platform.",
-     "cta_label": "Import equipment", "cta_inline": "equipment_import"},
+     "cta_label": "Import equipment", "cta_inline": "equipment_import",
+     "modules": ["operations"]},
     {"id": "print_qr_codes", "label": "Print QR codes",
      "description": "Generate and bulk-print QR labels for every machine — members scan them to log a fault.",
-     "cta_label": "Print QR codes", "cta_inline": "qr_print"},
+     "cta_label": "Print QR codes", "cta_inline": "qr_print",
+     "modules": ["operations"]},
+    # Payments — needed by any module that takes money (memberships,
+    # marketing checkout pages, CRM quote acceptance). Hidden for the
+    # pure CRM/Service-desk/Reporting trials where billing is N/A.
     {"id": "connect_stripe", "label": "Connect Stripe",
      "description": "Take memberships, classes, and product payments online.",
-     "cta_label": "Connect Stripe", "cta_route": "/pricing"},
+     "cta_label": "Connect Stripe", "cta_route": "/pricing",
+     "modules": ["memberships", "marketing", "operations"]},
     {"id": "complete_profile", "label": "Complete profile",
      "description": "Add your photo and phone so teammates and members recognise you.",
-     "cta_label": "Open Profile", "cta_section": "profile"},
+     "cta_label": "Open Profile", "cta_section": "profile",
+     "modules": "always"},
 ]
 
 
@@ -858,18 +874,52 @@ async def onboarding_status(user: dict = Depends(get_current_user)) -> dict:
         return {"steps": [{**s, "completed": False} for s in ONBOARDING_STEPS], "percent": 0}
 
     flags = await _gather_onboarding_signals(user, org_id)
-    steps = [{**s, "completed": flags.get(s["id"], False)} for s in ONBOARDING_STEPS]
+    # Iter 216h227 — module-aware checklist. Each step is tagged with a
+    # `modules` field ("always" or a list of module keys). When the org
+    # declared a primary_module at signup, hide steps that don't apply.
+    # Falls back to showing every step for legacy orgs.
+    from routes.activation_events import _modules_enabled_for, _primary_modules_for
+    primary = _primary_modules_for(user)
+    enabled = _modules_enabled_for(user)
+    if not primary or not enabled:
+        org = await db.organizations.find_one(
+            {"id": org_id},
+            {"_id": 0, "modules": 1, "enabled_modules": 1,
+             "account_type": 1, "primary_module": 1},
+        ) or {}
+        if not primary:
+            primary = _primary_modules_for(org)
+        if not enabled:
+            enabled = _modules_enabled_for(org)
+    focus = primary or enabled
+
+    def _step_visible(step: dict) -> bool:
+        mods = step.get("modules", "always")
+        if mods == "always":
+            return True
+        if not focus:
+            return True
+        if isinstance(mods, (list, tuple, set)):
+            return any(m in focus for m in mods)
+        return mods in focus
+
+    visible_steps = [
+        {**s, "completed": flags.get(s["id"], False)}
+        for s in ONBOARDING_STEPS
+        if _step_visible(s)
+    ]
     # Iter 216h113h — MOD tenants don't onboard Stripe (procurement
     # handled centrally by DIO / DEFCON), so the step is removed
     # from the wizard entirely rather than shown as "incomplete".
     if (user.get("account_type") or "").lower().startswith("mod_"):
-        steps = [s for s in steps if s["id"] != "connect_stripe"]
-    completed_count = sum(1 for s in steps if s["completed"])
+        visible_steps = [s for s in visible_steps if s["id"] != "connect_stripe"]
+    completed_count = sum(1 for s in visible_steps if s["completed"])
     return {
-        "steps": steps,
+        "steps": visible_steps,
         "completed_count": completed_count,
-        "total": len(steps),
-        "percent": int(round((completed_count / len(steps)) * 100)) if steps else 0,
+        "total": len(visible_steps),
+        "percent": int(round((completed_count / len(visible_steps)) * 100)) if visible_steps else 0,
+        "primary_module": sorted(primary)[0] if len(primary) == 1 else (sorted(primary) or None),
     }
 
 

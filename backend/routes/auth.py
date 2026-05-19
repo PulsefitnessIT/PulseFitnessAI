@@ -62,6 +62,8 @@ async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
         "utm_campaign": (user.utm_campaign or "").strip(),
         "utm_term": (user.utm_term or "").strip(),
         "utm_content": (user.utm_content or "").strip(),
+        # Iter 216h227 — module-intent capture (see UserRegister docstring).
+        "primary_module": (user.primary_module or "").strip().lower(),
     }
     for k, v in enrichment_fields.items():
         if v:

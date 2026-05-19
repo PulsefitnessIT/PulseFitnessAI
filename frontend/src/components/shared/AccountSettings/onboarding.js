@@ -118,38 +118,40 @@ export default function OnboardingSection({ onJumpSection, onClose, profile }) {
         {(data?.steps || []).map((s) => (
           <div
             key={s.id}
-            className="account-card rounded-xl p-4 flex items-start gap-3"
+            className="account-card rounded-xl p-4 flex flex-col sm:flex-row items-start gap-3"
             data-testid={`account-onboarding-step-${s.id}`}
             data-completed={s.completed ? 'true' : 'false'}
           >
-            <div
-              className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{
-                background: s.completed
-                  ? 'var(--brand-color, var(--color-brand-blue))'
-                  : 'transparent',
-                border: s.completed
-                  ? 'none'
-                  : '1.5px solid var(--theme-border)',
-              }}
-            >
-              {s.completed && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
-            </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-3 flex-1 min-w-0 w-full sm:w-auto">
               <div
-                className={`text-sm font-semibold ${s.completed ? 'line-through opacity-60' : ''}`}
-                style={{ color: 'var(--theme-text)' }}
+                className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: s.completed
+                    ? 'var(--brand-color, var(--color-brand-blue))'
+                    : 'transparent',
+                  border: s.completed
+                    ? 'none'
+                    : '1.5px solid var(--theme-border)',
+                }}
               >
-                {s.label}
+                {s.completed && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
               </div>
-              <div className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-                {s.description}
+              <div className="flex-1 min-w-0">
+                <div
+                  className={`text-sm font-semibold ${s.completed ? 'line-through opacity-60' : ''}`}
+                  style={{ color: 'var(--theme-text)' }}
+                >
+                  {s.label}
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
+                  {s.description}
+                </div>
               </div>
             </div>
             <button
               type="button"
               onClick={() => handleStep(s)}
-              className="account-btn-secondary flex-shrink-0"
+              className="account-btn-secondary flex-shrink-0 w-full sm:w-auto justify-center"
               data-testid={`account-onboarding-cta-${s.id}`}
             >
               {s.completed ? 'Review' : (s.cta_label || 'Open')}

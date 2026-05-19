@@ -47,29 +47,61 @@ logger = logging.getLogger(__name__)
 
 
 EVENT_TYPES = (
+    # Universal — fire regardless of module mix.
     "first_login",
+    "first_staff_invited",
+    "module_activated",
+    # Operations module
     "first_equipment_added",
+    "first_fault_logged",
+    # Memberships module
     "first_member_added",
     "first_booking_taken",
     "first_invoice_generated",
-    "first_staff_invited",
     "first_class_scheduled",
-    "module_activated",
+    # CRM module
+    "first_lead_added",
+    "first_deal_created",
+    "first_quote_sent",
+    # Marketing module
+    "first_brand_discovered",
+    "first_audience_built",
+    "first_campaign_launched",
 )
 
 # Iter 216h216 — Craig's audit: "why do I need to add equipment if I
 # chose the Memberships module?" The activation checklist now filters
 # by what the org has actually switched on. Each event belongs to a
-# module key (or "any" / "always" when it's universal).
+# module key (or "always" when it's universal across every trial).
+#
+# Iter 216h227 — Lee follow-up: marketing / CRM trials previously saw
+# zero relevant milestones because no events were defined for those
+# modules. New event types added below and wired into the matching
+# route handlers so every module trial gets a tailored "first wins"
+# list out of the box. Engineers / Staffing / Reporting aren't
+# first-class module keys (see utils.module_access.MODULE_KEYS) so
+# their would-be milestones fold into the four canonical modules.
 EVENT_MODULES: dict[str, str] = {
-    "first_login":             "always",
-    "first_equipment_added":   "operations",
-    "first_member_added":      "memberships",
-    "first_booking_taken":     "memberships",
-    "first_invoice_generated": "memberships",  # invoices today live in memberships
-    "first_class_scheduled":   "memberships",
-    "first_staff_invited":     "always",
-    "module_activated":        "always",
+    # Universal
+    "first_login":              "always",
+    "first_staff_invited":      "always",
+    "module_activated":         "always",
+    # Operations
+    "first_equipment_added":    "operations",
+    "first_fault_logged":       "operations",
+    # Memberships (invoices today live in memberships)
+    "first_member_added":       "memberships",
+    "first_booking_taken":      "memberships",
+    "first_invoice_generated":  "memberships",
+    "first_class_scheduled":    "memberships",
+    # CRM
+    "first_lead_added":         "crm",
+    "first_deal_created":       "crm",
+    "first_quote_sent":         "crm",
+    # Marketing
+    "first_brand_discovered":   "marketing",
+    "first_audience_built":     "marketing",
+    "first_campaign_launched":  "marketing",
 }
 
 
@@ -78,8 +110,9 @@ def _modules_enabled_for(user_or_org: dict) -> set[str]:
 
     Accepts either a `users` row (which carries the cached module_access)
     or an `organizations` row (which has the canonical `modules` map).
-    Falls back to "all modules enabled" when no data is available so we
-    don't accidentally hide milestones from legacy accounts.
+    Iter 216h227 — also reads list-form `enabled_modules` (trial
+    signups stamp this so the activation filter sees the actual unlock
+    set, not just the dict-form module_access map).
     """
     enabled: set[str] = set()
     # users row stores it as `module_access` (cached on login)
@@ -88,6 +121,12 @@ def _modules_enabled_for(user_or_org: dict) -> set[str]:
         for k, v in mods.items():
             if v:
                 enabled.add(k)
+    # Trial orgs persist their unlocked module list as a flat array.
+    em = user_or_org.get("enabled_modules")
+    if isinstance(em, (list, tuple, set)):
+        for m in em:
+            if m:
+                enabled.add(str(m))
     # Full account types (account_type='full' / 'pulse_pro' / 'pro') have
     # everything enabled by default.
     acc = (user_or_org.get("account_type") or "").lower()
@@ -95,16 +134,40 @@ def _modules_enabled_for(user_or_org: dict) -> set[str]:
         enabled.update({"operations", "memberships", "service_desk", "crm", "marketing"})
     return enabled
 
+
+def _primary_modules_for(user_or_org: dict) -> set[str]:
+    """Modules the operator declared as their PRIMARY intent at signup.
+
+    When set, the activation funnel narrows to JUST those + the
+    `always` event types so a Marketing trial doesn't see "Add
+    equipment" or "Take first booking" as suggested first wins
+    (Lee's Feb 2026 audit). When unset, all enabled modules' events
+    are surfaced — preserves behaviour for legacy / pre-existing orgs.
+    """
+    pm = user_or_org.get("primary_module")
+    if isinstance(pm, str) and pm.strip():
+        return {pm.strip().lower()}
+    if isinstance(pm, (list, tuple, set)):
+        return {str(m).strip().lower() for m in pm if m and str(m).strip()}
+    return set()
+
 # Friendly labels surfaced in the UI funnel.
 EVENT_LABELS: dict[str, str] = {
     "first_login":             "First login",
+    "first_staff_invited":     "First staff member invited",
+    "module_activated":        "First module switched on",
     "first_equipment_added":   "First piece of equipment added",
+    "first_fault_logged":      "First fault logged",
     "first_member_added":      "First member added",
     "first_booking_taken":     "First booking taken",
     "first_invoice_generated": "First invoice generated",
-    "first_staff_invited":     "First staff member invited",
     "first_class_scheduled":   "First class scheduled",
-    "module_activated":        "First module switched on",
+    "first_lead_added":        "First lead added",
+    "first_deal_created":      "First deal created",
+    "first_quote_sent":        "First quote sent",
+    "first_brand_discovered":  "Brand discovery completed",
+    "first_audience_built":    "First audience built",
+    "first_campaign_launched": "First campaign launched",
 }
 
 
@@ -198,21 +261,39 @@ async def activation_for_me(user: dict = Depends(get_current_user)) -> dict:
         return {"timeline": [], "fired_count": 0, "total": 0, "as_of": _iso_now()}
 
     # Resolve enabled modules from the user row first (cheap), fall
-    # back to the org doc if missing.
+    # back to the org doc if missing. Iter 216h227 — also fetch
+    # `primary_module` so the funnel can narrow to the intent module
+    # the prospect chose at signup.
     enabled = _modules_enabled_for(user)
-    if not enabled:
-        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "modules": 1, "account_type": 1})
+    primary = _primary_modules_for(user)
+    if not enabled or not primary:
+        org = await db.organizations.find_one(
+            {"id": org_id},
+            {"_id": 0, "modules": 1, "enabled_modules": 1,
+             "account_type": 1, "primary_module": 1},
+        )
         if org:
-            enabled = _modules_enabled_for(org)
+            if not enabled:
+                enabled = _modules_enabled_for(org)
+            if not primary:
+                primary = _primary_modules_for(org)
+
+    # When the operator declared a primary module at signup, the
+    # funnel narrows to JUST that module's events. Otherwise the
+    # full enabled set is used.
+    focus = primary or enabled
 
     def _is_relevant(et: str) -> bool:
         mod = EVENT_MODULES.get(et, "always")
         if mod == "always":
             return True
-        # No module info → show all (legacy).
-        if not enabled:
-            return True
-        return mod in enabled
+        # Iter 216h227 — when we have NO module info at all (very old
+        # orgs from before the modules schema landed), fall back to
+        # the historical core set (operations + memberships) rather
+        # than leaking every module's events.
+        if not focus:
+            return mod in {"operations", "memberships"}
+        return mod in focus
 
     relevant = tuple(et for et in EVENT_TYPES if _is_relevant(et))
 
@@ -234,6 +315,7 @@ async def activation_for_me(user: dict = Depends(get_current_user)) -> dict:
         "fired_count": len(fired_set),
         "total": len(relevant),
         "modules_enabled": sorted(enabled),
+        "primary_module": sorted(primary)[0] if len(primary) == 1 else (sorted(primary) or None),
         "as_of": _iso_now(),
     }
 

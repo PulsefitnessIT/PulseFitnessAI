@@ -488,6 +488,15 @@ async def send_quote(quote_id: str, user=Depends(get_crm_user)):
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Quote not found")
     await log_audit(user, "quote", quote_id, "sent")
+    # Iter 216h227 — CRM trial first-win milestone for "first quote sent".
+    try:
+        from routes.activation_events import record_activation_event
+        await record_activation_event(
+            user.get("organization_id"), "first_quote_sent",
+            trigger_user_id=user.get("id"),
+        )
+    except Exception:  # best-effort — never block CPQ writes
+        pass
     return {"status": "sent"}
 
 

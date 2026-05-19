@@ -254,21 +254,25 @@ const OnboardingWizard = ({ open, onClose, onComplete, skipLogo = false }) => {
 
  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
  {equipment.map((eq, idx) => (
- <Card key={idx} className="bg-[var(--color-ink-alt)] border-white/10 p-5" data-testid={`onboard-equip-${idx}`}>
- <div className="flex items-start gap-3">
- {/* Photo */}
- <label className="cursor-pointer flex-shrink-0">
- <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(idx, e)} data-testid={`equip-photo-input-${idx}`} />
- <div className="w-16 h-16 bg-[var(--theme-surface)] border border-white/10 rounded-lg flex items-center justify-center overflow-hidden hover:border-[rgb(var(--rgb-brand-blue)/0.5)] transition-colors">
- {eq.photo_url ? (
- <img src={eq.photo_url} alt="" className="w-full h-full object-cover" />
- ) : (
- <Image size={20} className="text-[var(--color-text-muted)]" />
- )}
- </div>
- </label>
- 
- <div className="flex-1 grid grid-cols-3 gap-2">
+              <Card key={idx} className="bg-[var(--color-ink-alt)] border-white/10 p-5" data-testid={`onboard-equip-${idx}`}>
+                {/* Iter 216h227 — mobile layout: photo + photo-picker
+                    stays in line above the field grid so the 9 inputs
+                    don't squash to ~80px each on phone screens.
+                    Above sm: revert to the original side-by-side. */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3">
+                  {/* Photo */}
+                  <label className="cursor-pointer flex-shrink-0 self-start">
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(idx, e)} data-testid={`equip-photo-input-${idx}`} />
+                    <div className="w-16 h-16 bg-[var(--theme-surface)] border border-white/10 rounded-lg flex items-center justify-center overflow-hidden hover:border-[rgb(var(--rgb-brand-blue)/0.5)] transition-colors">
+                      {eq.photo_url ? (
+                        <img src={eq.photo_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Image size={20} className="text-[var(--color-text-muted)]" />
+                      )}
+                    </div>
+                  </label>
+
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
  <Input value={eq.name} onChange={e => updateEquipment(idx, 'name', e.target.value)} placeholder="Name (e.g., Treadmill 1)" className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-name-${idx}`} />
  <Select value={eq.equipment_type} onValueChange={v => updateEquipment(idx, 'equipment_type', v)}>
  <SelectTrigger className="bg-[var(--theme-surface)] border-white/10 text-white text-sm" data-testid={`equip-type-${idx}`}><SelectValue placeholder="Type" /></SelectTrigger>

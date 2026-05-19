@@ -42,6 +42,14 @@ class UserRegister(BaseModel):
     utm_campaign: Optional[str] = None
     utm_term: Optional[str] = None
     utm_content: Optional[str] = None
+    # Iter 216h227 — module-intent capture. The trial CTAs on each
+    # module marketing page now dispatch this so the activation
+    # checklist + setup wizard tailor themselves to what the prospect
+    # actually came in for (e.g. a Marketing signup no longer sees
+    # "Add a piece of equipment" as a first win). One of:
+    # 'operations' | 'memberships' | 'crm' | 'marketing' |
+    # 'service_desk' | 'staffing' | 'reporting'.
+    primary_module: Optional[str] = None
 
 
 class UserLogin(BaseModel):

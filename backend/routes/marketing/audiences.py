@@ -111,6 +111,14 @@ async def create_audience(body: dict = Body(...), user: dict = Depends(get_curre
         "created_at": _now_iso(), "updated_at": _now_iso(),
     }
     await db.marketing_audiences.insert_one(doc)
+    # Iter 216h227 — Marketing trial first-win milestone.
+    try:
+        from routes.activation_events import record_activation_event
+        await record_activation_event(
+            org_id, "first_audience_built", trigger_user_id=user.get("id"),
+        )
+    except Exception:  # best-effort — never block marketing writes
+        pass
     return {"audience": {k: v for k, v in doc.items() if k not in ("_id",)}}
 
 

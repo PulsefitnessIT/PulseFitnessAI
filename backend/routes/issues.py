@@ -499,6 +499,18 @@ async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user
     # Bridge: if escalated to engineer, mirror to Service Desk (best-effort).
     await _mirror_issue_to_svc_case(issue_doc, user)
 
+    # Iter 216h227 — Operations trial first-win milestone for logging
+    # the org's very first fault. Best-effort — never block intake.
+    try:
+        from routes.activation_events import record_activation_event
+        await record_activation_event(
+            user.get("organization_id"), "first_fault_logged",
+            trigger_user_id=user.get("id"),
+            payload={"issue_id": issue_doc.get("id")},
+        )
+    except Exception:
+        pass
+
     return issue_doc
 
 

@@ -143,18 +143,18 @@ export default function AccountSettingsModal({ open, onClose }) {
       `}</style>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="account-modal-shell relative w-[920px] max-w-full h-[640px] max-h-[92vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="account-modal-shell relative w-[920px] max-w-full h-[640px] max-h-[92vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col sm:rounded-2xl max-sm:rounded-none max-sm:h-full max-sm:max-h-full"
         data-testid="account-settings-modal"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b account-modal-divider">
-          <div>
-            <h2 className="text-base font-bold" style={{ color: 'var(--theme-text)' }}>Account Settings</h2>
-            <p className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>Manage your profile, security, plan and team.</p>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b account-modal-divider">
+          <div className="min-w-0">
+            <h2 className="text-base font-bold truncate" style={{ color: 'var(--theme-text)' }}>Account Settings</h2>
+            <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--theme-text-muted)' }}>Manage your profile, security, plan and team.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-md transition"
+            className="p-1.5 rounded-md transition flex-shrink-0"
             style={{ color: 'var(--theme-text-muted)' }}
             data-testid="account-settings-close"
           >
@@ -162,14 +162,22 @@ export default function AccountSettingsModal({ open, onClose }) {
           </button>
         </div>
 
-        <div className="flex-1 grid grid-cols-[200px_1fr] min-h-0">
-          <nav className="account-sidebar border-r account-modal-divider p-3 flex flex-col gap-1 overflow-y-auto">
+        {/* Iter 216h227 — mobile-first layout. Below sm: horizontal
+            pill rail across the top so the right pane gets the full
+            screen width (otherwise the 200px rail squeezed cards to
+            ~140px and step CTAs overlapped descriptions). Above sm:
+            the original 200px / 1fr two-column grid. */}
+        <div className="flex-1 flex flex-col sm:grid sm:grid-cols-[200px_1fr] min-h-0">
+          <nav
+            className="account-sidebar border-b sm:border-b-0 sm:border-r account-modal-divider p-2 sm:p-3 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto sm:overflow-x-hidden"
+            aria-label="Account sections"
+          >
             {sections.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setSection(id)}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-left font-medium transition ${
+                className={`flex items-center gap-2 sm:gap-2.5 px-3 py-2 rounded-md text-xs sm:text-sm text-left font-medium transition flex-shrink-0 sm:flex-shrink whitespace-nowrap ${
                   section === id ? 'account-nav-active' : 'account-nav-idle'
                 }`}
                 data-testid={`account-nav-${id}`}
@@ -180,7 +188,7 @@ export default function AccountSettingsModal({ open, onClose }) {
             ))}
           </nav>
 
-          <div className="overflow-y-auto p-6">
+          <div className="overflow-y-auto p-4 sm:p-6">
             {section === 'profile' && (
               <ProfileSection profile={profile} onProfileUpdate={(p) => setProfile((prev) => ({ ...(prev || {}), ...p }))} />
             )}

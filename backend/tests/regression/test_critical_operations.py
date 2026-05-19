@@ -16,6 +16,6 @@ from tests.test_iter_216h208_issue_site_inherit import (  # noqa: F401
 from tests.test_iter_216h216_activation_module_filter import (  # noqa: F401
     test_operations_only_org_hides_memberships_milestones,
     test_full_account_type_sees_every_milestone,
-    test_legacy_user_with_no_module_data_sees_all_milestones,
+    test_legacy_user_with_no_module_data_sees_ops_plus_memberships,
     test_no_org_returns_empty_timeline,
 )

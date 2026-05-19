@@ -340,6 +340,19 @@ async def send_campaign(campaign_id: str, user: dict = Depends(get_current_user)
         {"organization_id": org_id},
         {"$inc": {f"usage_this_period.{'emails_sent' if campaign['channel'] == 'email' else 'sms_sent'}": sent}},
     )
+    # Iter 216h227 — Marketing trial first-win milestone — fires the
+    # FIRST time any campaign actually ships emails / in-app messages
+    # for the org so the activation card celebrates the launch.
+    if sent > 0:
+        try:
+            from routes.activation_events import record_activation_event
+            await record_activation_event(
+                org_id, "first_campaign_launched",
+                trigger_user_id=user.get("id"),
+                payload={"campaign_id": campaign_id, "sent": sent},
+            )
+        except Exception:  # best-effort — never block campaign dispatch
+            pass
     return {
         "ok": True, "sent": sent, "failed": failed,
         "audience_size": len(audience),

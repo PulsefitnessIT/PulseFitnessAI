@@ -22,10 +22,25 @@ import { openTrial } from './TrialSignupModal';
 import { openPreview } from './ProductPreviewModal';
 import SiteCalculatorUpsell from './SiteCalculatorUpsell';
 
+// Iter 216h227 — Marketing module IDs don't map 1:1 to backend
+// MODULE_KEYS (operations / memberships / crm / marketing). Modules
+// like Service / Engineers fold into Operations; Reporting / Staffing
+// have no dedicated module-level activation funnel, so we omit the
+// hint and let the legacy "show enabled modules" path take over.
+const MODULE_INTENT_MAP = {
+  crm: 'crm',
+  marketing: 'marketing',
+  memberships: 'memberships',
+  service: 'operations',
+  // reporting & staffing intentionally absent — no primary module hint.
+};
+
 export default function ModulePage({ module: m }) {
+  const moduleIntent = MODULE_INTENT_MAP[m.id];
+  const startTrial = () => openTrial(moduleIntent);
   return (
     <MarketingShell>
-      <Hero m={m} />
+      <Hero m={m} onStartTrial={startTrial} />
       <ProblemSolution m={m} />
       <Features m={m} />
       <VisualSections m={m} />
@@ -33,12 +48,12 @@ export default function ModulePage({ module: m }) {
       <Integrations m={m} />
       <Results m={m} />
       <SiteCalculatorUpsell accent={m.color} />
-      <Cta m={m} />
+      <Cta m={m} onStartTrial={startTrial} />
     </MarketingShell>
   );
 }
 
-function Hero({ m }) {
+function Hero({ m, onStartTrial }) {
   const Icon = m.icon;
   return (
     <section className="gx-grid-bg" data-testid={`mod-${m.id}-hero`}>
@@ -52,7 +67,7 @@ function Hero({ m }) {
           </h1>
           <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed max-w-xl">{m.heroSubtitle}</p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={openTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-6 py-3 text-sm font-bold">
+            <button type="button" onClick={onStartTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-6 py-3 text-sm font-bold">
               Start Free Trial <ArrowRight size={15} />
             </button>
             <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors dark:bg-zinc-900">
@@ -256,7 +271,7 @@ function Results({ m }) {
   );
 }
 
-function Cta({ m }) {
+function Cta({ m, onStartTrial }) {
   return (
     <section className="py-24 md:py-28" data-testid={`mod-${m.id}-cta`}>
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
@@ -269,7 +284,7 @@ function Cta({ m }) {
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter leading-[1.06]">{m.ctaHeadline}</h2>
             <p className="mt-4 text-base md:text-lg text-white/90 max-w-xl mx-auto">{m.ctaSubtitle}</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100">Start Free Trial <ArrowRight size={15} /></button>
+              <button type="button" onClick={onStartTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100">Start Free Trial <ArrowRight size={15} /></button>
               <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors">Talk to sales <ArrowRight size={15} /></Link>
             </div>
           </div>

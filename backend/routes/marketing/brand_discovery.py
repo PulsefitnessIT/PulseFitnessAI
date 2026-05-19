@@ -790,6 +790,14 @@ async def apply(req: ApplyReq, user: dict = Depends(get_current_user)) -> dict:
         {"organization_id": org_id},
         {"$set": {"status": "applied", "applied_at": _now_iso(), "applied_by": user.get("id")}},
     )
+    # Iter 216h227 — Marketing trial first-win milestone.
+    try:
+        from routes.activation_events import record_activation_event
+        await record_activation_event(
+            org_id, "first_brand_discovered", trigger_user_id=user.get("id"),
+        )
+    except Exception:  # best-effort — never block brand discovery
+        pass
     return {"ok": True, "applied": list(patch.keys())}
 
 

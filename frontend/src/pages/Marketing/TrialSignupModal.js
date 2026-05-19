@@ -66,13 +66,26 @@ export default function TrialSignupModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
+  // Iter 216h227 — module intent captured from the CTA that opened
+  // the modal (e.g. clicking "Start Free Trial" on the Marketing
+  // module page sets this to "marketing"). Drives the per-module
+  // activation milestones + onboarding checklist post-signup.
+  const [primaryModule, setPrimaryModule] = useState('');
   const utmRef = useRef({});
   const navigate = useNavigate();
   const { login } = useAuth();
 
   // Open / close via window events so any CTA on any page can trigger it.
   useEffect(() => {
-    const onOpen = () => { utmRef.current = readUtmTags(); setOpen(true); };
+    const onOpen = (ev) => {
+      utmRef.current = readUtmTags();
+      // CTAs may pass { module: 'marketing' | 'crm' | 'operations' | 'memberships' }
+      // via the CustomEvent detail. Default to '' so unannotated CTAs
+      // keep their existing "show every module's milestones" behaviour.
+      const mod = (ev?.detail?.module || '').toString().trim().toLowerCase();
+      setPrimaryModule(['operations', 'memberships', 'crm', 'marketing'].includes(mod) ? mod : '');
+      setOpen(true);
+    };
     const onClose = () => setOpen(false);
     window.addEventListener('gymaxis:open-trial', onOpen);
     window.addEventListener('gymaxis:close-trial', onClose);
@@ -90,6 +103,7 @@ export default function TrialSignupModal() {
       setStep(1);
       setShowPass(false);
       setCaptchaToken('');
+      setPrimaryModule('');
       setError('');
     }
   }, [open]);
@@ -130,6 +144,8 @@ export default function TrialSignupModal() {
         trial_duration_days: 3,
         trial_unlock_all_modules: true,
         cf_turnstile_response: captchaToken,
+        // Module intent — see useState comment above.
+        primary_module: primaryModule || undefined,
         // Silent attribution — forwarded straight from the landing URL.
         ...utmRef.current,
       });
@@ -398,7 +414,18 @@ function SelectField({ label, value, onChange, options, placeholder, testid }) {
   );
 }
 
-/** Helper any CTA can call. Also exported so JSX can use onClick={openTrial}. */
-export function openTrial() {
-  window.dispatchEvent(new CustomEvent('gymaxis:open-trial'));
+/** Helper any CTA can call. Also exported so JSX can use onClick={openTrial}.
+ *
+ * Iter 216h227 — pass an optional `module` so the post-signup
+ * activation milestones + onboarding checklist tailor themselves to
+ * what the prospect actually came in for:
+ *
+ *     <button onClick={() => openTrial('marketing')}>Start free trial</button>
+ *
+ * Valid modules: 'operations' | 'memberships' | 'crm' | 'marketing'.
+ * Calls without an argument keep the legacy "show every module" behaviour.
+ */
+export function openTrial(module) {
+  const detail = module ? { module } : undefined;
+  window.dispatchEvent(new CustomEvent('gymaxis:open-trial', { detail }));
 }

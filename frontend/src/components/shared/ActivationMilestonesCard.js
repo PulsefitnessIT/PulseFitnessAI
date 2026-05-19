@@ -32,15 +32,31 @@ const DISMISS_KEY = 'gymaxis:activation_milestones_dismissed';
 // `equipment` CTA also passes `onboarding=1` so the operations dashboard
 // auto-opens the OnboardingWizard (Step 1: Add Your Equipment) rather
 // than just switching tab — which was Craig's bug report.
+//
+// Iter 216h227 — added per-module CTAs for the new CRM / Marketing /
+// Operations-fault milestones so each trial mode now has every "first
+// win" actionable straight from the card (Lee's audit: a Marketing
+// trial should never see "add a machine" as a suggested win).
 const ACTION_HINTS = {
   first_login:             { hint: 'Welcome aboard — you\'re here.',  ops: false, suffix: null },
+  first_staff_invited:     { hint: 'Invite a teammate',               ops: true,  suffix: '?tab=staffing' },
+  module_activated:        { hint: 'Switch on another module',        ops: false, suffix: '/account?tab=modules' },
+  // Operations
   first_equipment_added:   { hint: 'Add your first piece of equipment', ops: true,  suffix: '?tab=equipment&onboarding=1' },
+  first_fault_logged:      { hint: 'Log your first fault',            ops: true,  suffix: '?tab=faults' },
+  // Memberships
   first_member_added:      { hint: 'Add a member to Memberships',     ops: false, suffix: '/memberships?tab=members&add=1' },
   first_booking_taken:     { hint: 'Take your first class booking',   ops: false, suffix: '/memberships?tab=schedule' },
   first_invoice_generated: { hint: 'Generate your first invoice',     ops: false, suffix: '/memberships?tab=billing' },
-  first_staff_invited:     { hint: 'Invite a teammate',               ops: true,  suffix: '?tab=staffing' },
   first_class_scheduled:   { hint: 'Schedule a class template',       ops: false, suffix: '/memberships?tab=schedule' },
-  module_activated:        { hint: 'Switch on another module',        ops: false, suffix: '/account?tab=modules' },
+  // CRM
+  first_lead_added:        { hint: 'Add your first lead',             ops: false, suffix: '/crm?tab=companies&add=1' },
+  first_deal_created:      { hint: 'Create your first deal',          ops: false, suffix: '/crm?tab=deals&add=1' },
+  first_quote_sent:        { hint: 'Send your first quote',           ops: false, suffix: '/crm?tab=quotes' },
+  // Marketing
+  first_brand_discovered:  { hint: 'Discover your brand',             ops: false, suffix: '/marketing?tab=brand-discovery' },
+  first_audience_built:    { hint: 'Build your first audience',       ops: false, suffix: '/marketing?tab=audiences&add=1' },
+  first_campaign_launched: { hint: 'Launch your first campaign',      ops: false, suffix: '/marketing?tab=campaigns&add=1' },
 };
 
 export default function ActivationMilestonesCard({ hideWhenComplete = true }) {

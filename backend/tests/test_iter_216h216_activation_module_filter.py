@@ -75,7 +75,13 @@ def test_operations_only_org_hides_memberships_milestones():
 
 
 def test_full_account_type_sees_every_milestone():
-    """`account_type=full` implies all modules — must show every milestone."""
+    """`account_type=full` implies all four modules (operations,
+    memberships, CRM, marketing) — must show every milestone across
+    every module, plus the three universal events.
+
+    Iter 216h227 — the milestone set grew when CRM / Marketing trials
+    got dedicated first-win events. Update expectation accordingly.
+    """
     from routes import activation_events as ae
 
     user = {
@@ -89,16 +95,29 @@ def test_full_account_type_sees_every_milestone():
 
     event_types = {t["event_type"] for t in out["timeline"]}
     assert event_types == {
-        "first_login", "first_equipment_added", "first_member_added",
-        "first_booking_taken", "first_invoice_generated",
-        "first_staff_invited", "first_class_scheduled", "module_activated",
+        # Universal
+        "first_login", "first_staff_invited", "module_activated",
+        # Operations
+        "first_equipment_added", "first_fault_logged",
+        # Memberships
+        "first_member_added", "first_booking_taken",
+        "first_invoice_generated", "first_class_scheduled",
+        # CRM
+        "first_lead_added", "first_deal_created", "first_quote_sent",
+        # Marketing
+        "first_brand_discovered", "first_audience_built", "first_campaign_launched",
     }
 
 
-def test_legacy_user_with_no_module_data_sees_all_milestones():
+def test_legacy_user_with_no_module_data_sees_ops_plus_memberships():
     """Fallback path: no module_access cached AND org doc has no modules
-    → show every milestone so we don't accidentally hide things for
-    legacy accounts."""
+    → show the historical core checklist (universal + ops + memberships).
+
+    Iter 216h227 — previously this returned EVERY event; that leaked
+    Marketing/CRM milestones to legacy operators who couldn't reach
+    them. The legacy fallback now matches what the checklist looked
+    like before CRM/Marketing events existed.
+    """
     from routes import activation_events as ae
 
     user = {
@@ -113,7 +132,11 @@ def test_legacy_user_with_no_module_data_sees_all_milestones():
     event_types = {t["event_type"] for t in out["timeline"]}
     assert "first_equipment_added" in event_types
     assert "first_member_added" in event_types
-    assert out["total"] == 8
+    # CRM / Marketing events must NOT leak into a legacy view.
+    assert "first_lead_added" not in event_types
+    assert "first_campaign_launched" not in event_types
+    # 3 universal + 2 ops + 4 memberships = 9
+    assert out["total"] == 9
 
 
 def test_no_org_returns_empty_timeline():

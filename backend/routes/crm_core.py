@@ -197,6 +197,16 @@ async def create_company(data: dict, user=Depends(get_crm_user)):
     }
     await db.crm_companies.insert_one(company)
     await log_audit(user, "company", company_id, "created")
+    # Iter 216h227 — fire the CRM trial first-win milestone so the
+    # activation card congratulates the operator on their first lead.
+    try:
+        from routes.activation_events import record_activation_event
+        await record_activation_event(
+            user.get("organization_id"), "first_lead_added",
+            trigger_user_id=user.get("id"),
+        )
+    except Exception:  # best-effort — never block CRM writes
+        pass
     company.pop("_id", None)
     return company
 
@@ -290,6 +300,18 @@ async def create_deal(data: dict, user=Depends(get_crm_user)):
         "created_by_name": user["full_name"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+
+    # Iter 216h227 — fire the CRM trial first-win milestone for
+    # "first deal created" so the activation card congratulates the
+    # operator on building their first pipeline opportunity.
+    try:
+        from routes.activation_events import record_activation_event
+        await record_activation_event(
+            user.get("organization_id"), "first_deal_created",
+            trigger_user_id=user.get("id"),
+        )
+    except Exception:  # best-effort — never block CRM writes
+        pass
 
     deal.pop("_id", None)
     return deal
