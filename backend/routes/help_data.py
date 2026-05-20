@@ -1855,7 +1855,7 @@ GUIDES: list[Guide] = [
             },
             {
                 "title": "What's NOT in V1.0 (transparent backlog)",
-                "body": "Live Sage 200 sync (manual CSV export shipped) · Live Sicon Service Manager cutover (mocked + dry-run) · Twilio SMS real integration (mocked) · Calendly demo embed · Affiliate / referral logic · Sentry DSN observability.",
+                "body": "Live Sage 200 sync (manual CSV export shipped) · Live Sicon Service Manager cutover (mocked + dry-run) · Twilio SMS real integration (mocked) · Calendly demo embed · Affiliate / referral logic · Sentry DSN observability. → Many of these have advanced in V1.1 — see the V1.1 release notes for the latest.",
             },
         ],
         "tips": [
@@ -1866,6 +1866,155 @@ GUIDES: list[Guide] = [
             "Don't expect the live Sicon / Sage 200 sync in V1.0 — it's intentionally on the next release. Use the manual CSV exports until then.",
         ],
         "related": ["gs-modules-overview", "staffing-overview", "staffing-ai-rota", "admin-security-checks"],
+    },
+    {
+        "id": "rn-v1-1",
+        "category": "release-notes", "module": "operations",
+        "title": "GymAxis V1.1 — CRM Phase 3, module-tailored trials, mobile audit",
+        "description": "Drag-drop territory tree, AI next-best-action, cross-module timeline, module-aware first wins, comprehensive mobile fixes, and production live on gymaxisai.com.",
+        "read_minutes": 6,
+        "roles": [],
+        "popular": True,
+        "updated_at": "2026-02-19",
+        "steps": [
+            {
+                "title": "Headline",
+                "body": "V1.1 turns GymAxis into a true enterprise-grade relational CRM platform, with strict data typing, picklists, quote margins, Miller Heiman stakeholder mapping, and cross-module relationship visibility. It also ships a comprehensive mobile audit and goes fully live on https://gymaxisai.com.",
+            },
+            {
+                "title": "CRM Phase 3 — Territory tree (drag & drop)",
+                "body": "Build your sales territory hierarchy by dragging companies between branches. Every move re-attributes deal forecasts in real time. Available under CRM → Territories.",
+                "ui_hint": "Look for the new 'Territories' tab in CRM Business mode.",
+            },
+            {
+                "title": "CRM Phase 3 — AI Next-Best-Action",
+                "body": "Every company page now suggests the single highest-impact next action based on Miller Heiman stakeholder coverage, deal stage, and recency. Powered by Claude Sonnet 4.5.",
+                "ui_hint": "Top-right of any CRM company detail page.",
+            },
+            {
+                "title": "CRM Phase 3 — Cross-module activity timeline",
+                "body": "See every CRM, Service Ops, and Memberships interaction with a company on a single timeline. Faults raised by a member of that company surface here automatically.",
+            },
+            {
+                "title": "CRM Phase 3 — Reports suite with date filters",
+                "body": "Every report on the Reports tab now takes a from_iso/to_iso date range so the same dashboard can answer 'this quarter' and 'last quarter' without exporting.",
+            },
+            {
+                "title": "Module-tailored trial onboarding",
+                "body": "When a prospect clicks 'Start Free Trial' on the Marketing module landing page, their post-signup First Wins and Setup Checklist now show ONLY Marketing-relevant milestones. Same for CRM, Memberships, and Operations trials. Operators no longer see 'Add a piece of equipment' if they signed up for Marketing.",
+            },
+            {
+                "title": "First Wins activation funnel — 16 events (was 8)",
+                "body": "Added CRM (first lead / deal / quote), Marketing (brand discovery / audience / campaign), and Operations (first fault) milestones. Each fires automatically on the matching action and the ActivationMilestonesCard congratulates you with the next CTA.",
+            },
+            {
+                "title": "Add Equipment direct CTA",
+                "body": "The full GymAxis dashboard's Equipment Hub now has a direct 'Add Equipment' button for single-machine additions. Previously the only path was the multi-machine AI Invoice Import — useful for bulk, overkill for a single new piece of kit.",
+                "ui_hint": "Dashboard → Equipment tab → top-right.",
+            },
+            {
+                "title": "Mobile audit Wave 1+2+3",
+                "body": "Global mobile rails: floating popovers / dropdowns / menus clamped to the viewport, FABs stack deterministically along the right edge, body overflow-x hidden below desktop. 9 MasterAdmin tables wrapped to scroll horizontally on phones. EngineerDiary week-view, CreativeStudio thumbnails, AccountSettings modal, OnboardingWizard equipment grid all now mobile-correct.",
+            },
+            {
+                "title": "Production live",
+                "body": "GymAxis is now serving customer traffic at https://gymaxisai.com. The preview environment at maintenance-hub-357.preview.emergentagent.com remains available for staging.",
+            },
+            {
+                "title": "GitHub Actions Quality Gates green",
+                "body": "Every push now runs Ruff + Bandit + Xenon + ESLint (--max-warnings 0) + pip-audit + gitleaks + pytest. Tool versions are pinned (ruff 0.15.10, bandit 1.9.4, xenon 0.9.3) to prevent silent drift. Mongo sidecar wired up so regression tests pass on real assertions, not missing DB.",
+            },
+            {
+                "title": "What's NOT yet in V1.1 (transparent backlog)",
+                "body": "Sicon Service Manager cutover (still mocked, awaiting partner creds) · DocuSign on Quote send (code-ready, awaiting creds) · Live Sage 200 sync (still manual CSV) · Twilio SMS real integration (still mocked) · Right-to-erasure workflow for personnel records (P3).",
+            },
+        ],
+        "tips": [
+            "Open the CRM 'Territories' tab even if you only have one site — it doubles as a clean visual of your contact ownership.",
+            "Module-tailored First Wins also apply to existing trial accounts the first time they hit the dashboard, not just new signups.",
+            "If a mobile dropdown ever clips off-screen, take a screenshot and we'll add it to the popover-clamp test suite.",
+        ],
+        "mistakes": [
+            "Don't re-create CRM territories from scratch each quarter — drag-drop is non-destructive; the audit log keeps the history.",
+            "The 'first quote sent' milestone fires once per org, not per deal. Subsequent quotes won't re-celebrate it.",
+        ],
+        "related": ["rn-v1-0", "crm-territory-tree", "crm-next-best-action", "gs-module-tailored-trial"],
+    },
+    # ── New how-to guides (CRM Phase 3 + module-tailored onboarding) ────
+    {
+        "id": "crm-territory-tree",
+        "category": "crm", "module": "crm",
+        "title": "Build your sales territory tree",
+        "description": "Drag-and-drop companies between territory branches; forecasts re-attribute instantly.",
+        "read_minutes": 3,
+        "roles": ["owner", "manager"],
+        "popular": True,
+        "updated_at": "2026-02-19",
+        "steps": [
+            {"title": "Open CRM → Territories", "body": "Switch CRM to Business mode (top right), then click the Territories tab.", "ui_hint": "If you don't see it, your role may need a sales-ops permission — ask your owner."},
+            {"title": "Add your top-level branches", "body": "Click 'Add territory' for each geographical region, product line, or customer segment you organise by."},
+            {"title": "Drag companies into branches", "body": "From the right-hand company list, drag companies onto the relevant branch. The deal-forecast totals on each branch update in real time."},
+            {"title": "Assign a territory owner", "body": "Click any branch to set its owner. AI next-best-action recommendations now factor in that owner's open pipeline load."},
+            {"title": "Re-organise without losing history", "body": "Drag-drop is non-destructive. The audit log keeps every move with timestamp + actor — useful at the end of each quarter."},
+        ],
+        "tips": [
+            "Start with 3–5 top-level branches max — too many makes the tree noisy.",
+            "Use territory names like 'North · Independent' rather than 'Nigel' so handovers don't require a rename.",
+        ],
+        "mistakes": [
+            "Don't put every company at the root — nesting is what makes the forecast roll-ups useful.",
+            "Reassigning a company moves its deals but NOT its contacts — re-assign contacts separately if needed.",
+        ],
+        "related": ["crm-company-setup", "crm-next-best-action", "crm-mode-switch"],
+    },
+    {
+        "id": "crm-next-best-action",
+        "category": "crm", "module": "crm",
+        "title": "Use AI Next-Best-Action on every company",
+        "description": "Get a single highest-impact next move on any CRM company, powered by Claude Sonnet 4.5.",
+        "read_minutes": 2,
+        "roles": ["owner", "manager", "staff"],
+        "popular": True,
+        "updated_at": "2026-02-19",
+        "steps": [
+            {"title": "Open any company in CRM", "body": "From CRM → Companies, click into a company. The Next-Best-Action card lives in the top-right of the company detail page."},
+            {"title": "Read the recommended move", "body": "GymAxis weighs Miller Heiman stakeholder coverage, deal stage, recency of last activity, and similar-company patterns to pick ONE action."},
+            {"title": "Why this action?", "body": "Click 'Why?' for a plain-English reason — useful for handovers and account reviews."},
+            {"title": "Mark complete or skip", "body": "If you've done the action elsewhere, mark complete to log it in the timeline. If it's irrelevant, skip — GymAxis learns and improves the suggestion."},
+        ],
+        "tips": [
+            "The recommendation refreshes every time a new activity lands on the company timeline, so it's always live.",
+            "Pair this with the cross-module activity timeline — if a member of this company has just raised a fault, the suggestion will often be 'check in proactively'.",
+        ],
+        "mistakes": [
+            "Don't ignore 'skip' — it's how the model improves. Skipping is the explicit dismiss action, not just closing the page.",
+        ],
+        "related": ["crm-territory-tree", "crm-activity-timeline", "crm-pipeline-first-deal"],
+    },
+    {
+        "id": "gs-module-tailored-trial",
+        "category": "getting-started", "module": "operations",
+        "title": "Why my First Wins look different from my colleague's",
+        "description": "First Wins and the Setup Checklist tailor to the module you signed up for. Marketing trials don't see 'Add equipment'.",
+        "read_minutes": 2,
+        "roles": [],
+        "popular": True,
+        "updated_at": "2026-02-19",
+        "steps": [
+            {"title": "Module intent is captured at signup", "body": "When you click 'Start Free Trial' on the Marketing module landing page, your primary_module is set to 'marketing'. Same for CRM, Memberships, and Operations."},
+            {"title": "First Wins narrow to that module", "body": "A Marketing trial sees: First brand discovered · First audience built · First campaign launched · plus universal events (First login, First staff invited)."},
+            {"title": "Setup Checklist narrows too", "body": "Operations-specific steps like 'Import machines' and 'Print QR codes' are hidden when your primary module isn't Operations. Universal steps (site details, invite staff, upload logo, complete profile) stay visible for everyone."},
+            {"title": "Want to see everything?", "body": "Open Account Settings → Modules and switch additional modules on. Their milestones and steps then join your First Wins and Setup Checklist."},
+            {"title": "Existing trials get this too", "body": "If your trial pre-dates V1.1, the filter falls back to showing the historical Operations + Memberships core. To opt into the narrower module-specific view, contact support to set your primary_module retrospectively."},
+        ],
+        "tips": [
+            "Module intent doesn't restrict what you can use — only what's recommended in your First Wins. You can still access every module you've enabled.",
+            "If you signed up via a partner / direct-sales path that didn't go through the marketing site, primary_module won't be set — that's fine; you'll see the historical core checklist.",
+        ],
+        "mistakes": [
+            "Don't worry if a teammate sees different milestones — that's by design when your trial primary modules differ.",
+        ],
+        "related": ["gs-setup-checklist", "gs-first-login", "gs-modules-overview"],
     },
 ]
 

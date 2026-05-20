@@ -33,6 +33,19 @@ CATALOG: list[dict] = [
     {"title": "CRM — Tenders", "module": "crm", "url": "/crm/tenders",
      "summary": "Bid management and AI-assisted tender response.",
      "keywords": ["tender", "bid", "rfp", "rfq", "procurement"]},
+    # CRM Phase 3 (iter 216h-series)
+    {"title": "CRM — Territory Tree", "module": "crm", "url": "/crm?tab=territories",
+     "summary": "Drag-and-drop territory hierarchy; forecasts re-attribute in real time.",
+     "keywords": ["territory", "hierarchy", "region", "owner", "drag", "tree"]},
+    {"title": "CRM — AI Next-Best-Action", "module": "crm", "url": "/crm?tab=companies",
+     "summary": "Claude-powered single-action recommendation on every company.",
+     "keywords": ["next best action", "ai", "recommend", "next", "action", "claude"]},
+    {"title": "CRM — Cross-module Timeline", "module": "crm", "url": "/crm?tab=companies",
+     "summary": "Every CRM, Service Ops, and Memberships interaction in one timeline.",
+     "keywords": ["timeline", "activity", "cross", "history", "interaction"]},
+    {"title": "CRM — Reports (with date filters)", "module": "crm", "url": "/crm?tab=reports",
+     "summary": "Filter every CRM report by date range — quarterly comparisons without exports.",
+     "keywords": ["report", "analytics", "date", "range", "filter", "quarter"]},
 
     # Memberships
     {"title": "Memberships — Members", "module": "memberships", "url": "/memberships?tab=members",
@@ -103,6 +116,10 @@ CATALOG: list[dict] = [
     {"title": "System Status", "module": "support", "url": "/status",
      "summary": "Live status of platform services.",
      "keywords": ["status", "health", "outage", "uptime", "live"]},
+    # Onboarding / First Wins (iter 216h227)
+    {"title": "First Wins — module-tailored activation", "module": "support", "url": "/account?tab=onboarding",
+     "summary": "Your First Wins and Setup Checklist tailor to the module you signed up for.",
+     "keywords": ["first wins", "onboarding", "activation", "checklist", "milestone", "trial", "primary module"]},
 ]
 
 

@@ -1,3 +1,70 @@
+## Iter 216h234 — Help Centre + Guides refresh (Feb 19, 2026) ✅ P1
+
+Lee follow-up to the doc audit: "Now we need to update help and
+guides for all modules." Mapped out the full help surface, then
+shipped four new guides + capability catalogue updates.
+
+### Surfaces audited
+| Surface | Lines | Status before | Status after |
+| --- | --- | --- | --- |
+| `backend/routes/help_data.py` GUIDES seed corpus | 2225 | 79 guides, latest May 2026 | **83 guides, latest Feb 2026** |
+| `backend/routes/help_search.py` capability catalogue | 141 | 24 entries | **29 entries** |
+| `backend/routes/help.py` API endpoints | 574 | green | unchanged |
+| `frontend/src/pages/HelpCentrePage.js` UI | 819 | green | unchanged (auto-picks up new guides) |
+| `frontend/src/components/HelpHint.js` inline help tooltip | — | green | unchanged |
+
+### New guides shipped (4)
+- **`rn-v1-1`** — V1.1 release notes covering CRM Phase 3 (territory
+  tree, AI next-best-action, cross-module timeline, reports with date
+  filters), module-tailored trial onboarding, 16-event activation
+  funnel, Add Equipment direct CTA, mobile audit Wave 1+2+3, production
+  live on gymaxisai.com, GitHub Actions Quality Gates green, and the
+  transparent "not yet in V1.1" backlog.
+- **`crm-territory-tree`** — how-to for the new drag-and-drop CRM
+  territory hierarchy (popular: true). Covers branch creation, drag-
+  drop reassignment, territory owner assignment, audit-log behaviour.
+- **`crm-next-best-action`** — how-to for the AI Next-Best-Action
+  recommendation engine on every CRM company (popular: true). Covers
+  the "Why this action?" reasoning surface and the skip/complete
+  feedback loop.
+- **`gs-module-tailored-trial`** — getting-started guide explaining
+  WHY First Wins and the Setup Checklist look different per operator
+  (the new `primary_module` field). Includes the legacy-fallback
+  behaviour for pre-V1.1 trials.
+
+### Capability catalogue additions (5)
+Search now returns the new CRM Phase 3 surfaces + the First Wins
+funnel:
+- CRM — Territory Tree → `/crm?tab=territories`
+- CRM — AI Next-Best-Action → `/crm?tab=companies`
+- CRM — Cross-module Timeline → `/crm?tab=companies`
+- CRM — Reports (with date filters) → `/crm?tab=reports`
+- First Wins — module-tailored activation → `/account?tab=onboarding`
+
+### V1.0 release notes updated
+Appended a forward-reference link in the "What's NOT in V1.0" section
+so operators reading the V1.0 release notes see the V1.1 advances.
+
+### Verification
+- API curl tests at preview URL confirmed:
+  - `/api/help/capabilities?q=territory` → returns CRM Territory Tree
+  - `/api/help/capabilities?q=first+wins` → returns First Wins guide
+- `from routes.help_data import …` import smoke test:
+  - Total guides 83, all 4 new guides resolve via `guide_by_id()`
+  - Full-text search hits: 'territory' → V1.1, 'next best' → V1.1+V1.0,
+    'first wins' → all 3 relevant guides ranked correctly.
+- `make regression` 37 passed, 14 skipped.
+- ESLint `--max-warnings 0` clean.
+
+### Convention preserved
+Every new guide follows the V1.0 mandatory format: title →
+description → steps → ui_hint → tips → mistakes → related. The
+release-notes append-only rule is preserved — V1.0 wasn't rewritten
+retrospectively, V1.1 is a new entry below it.
+
+---
+
+
 ## Iter 216h233 — backend docs refresh (Feb 19, 2026) ✅ P2
 
 Comprehensive audit of `/app/memory/` + `/app/docs/` architecture
