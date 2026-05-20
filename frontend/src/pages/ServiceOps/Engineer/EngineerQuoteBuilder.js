@@ -356,14 +356,18 @@ export default function EngineerQuoteBuilder() {
                 <Briefcase size={12} /> Convert to job
               </button>
             )}
-            {form.status === 'accepted' && !form.linked_invoice_id && (
+            {/* Iter 216h257 — surface "Convert to invoice" for both
+                sent + accepted quotes (the backend already accepts both)
+                so the engineer doesn't have to jump back and mark the
+                quote accepted before invoicing. */}
+            {(form.status === 'accepted' || form.status === 'sent') && !form.linked_invoice_id && (
               <button
                 type="button"
                 onClick={handleInvoiceFromQuote}
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold"
                 data-testid="quote-builder-invoice-from-quote"
               >
-                <CheckCircle2 size={12} /> Invoice this quote
+                <CheckCircle2 size={12} /> Convert to invoice
               </button>
             )}
             {form.linked_invoice_number && (

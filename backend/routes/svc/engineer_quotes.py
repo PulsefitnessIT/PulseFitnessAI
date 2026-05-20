@@ -592,6 +592,112 @@ async def engineer_dashboard(user=Depends(get_current_user)):
     }
 
 
+# ─────────────────────────── Analytics ────────────────────────────
+# Iter 216h257 — Engineer Analytics surface. Same shape as the
+# dashboard KPIs but parameterised by a date window so the engineer
+# can break down a 7-day / 30-day / 90-day / YTD slice. Returns the
+# headline KPIs + status breakdown for the period.
+
+_ANALYTICS_RANGES = {
+    "7d":  timedelta(days=7),
+    "30d": timedelta(days=30),
+    "90d": timedelta(days=90),
+    "ytd": None,   # special-case → Jan 1 of current year
+    "all": None,   # no filter
+}
+
+
+@router.get("/analytics")
+async def engineer_analytics(
+    range: str = "30d",  # noqa: A002 — public API name; harmless shadowing
+    user=Depends(get_current_user),
+):
+    """Filtered KPI breakdown for the engineer over the supplied range.
+
+    Accepts ``range ∈ {7d, 30d, 90d, ytd, all}``. Returns counts of
+    jobs/quotes/invoices and the period earnings.
+    """
+    of = _of(user)
+    user_id = user.get("id")
+    now = datetime.now(timezone.utc)
+
+    if range not in _ANALYTICS_RANGES:
+        raise HTTPException(400, f"invalid range; must be one of {sorted(_ANALYTICS_RANGES)}")
+
+    if range == "ytd":
+        start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    elif range == "all":
+        start = None
+    else:
+        start = (now - _ANALYTICS_RANGES[range]).isoformat()
+
+    case_match = {**of, "assigned_engineer_id": user_id}
+    quote_match = {**of, "engineer_id": user_id}
+    if start:
+        case_match["created_at"] = {"$gte": start}
+        quote_match["created_at"] = {"$gte": start}
+
+    # Status breakdown for cases.
+    case_pipeline = [
+        {"$match": case_match},
+        {"$group": {"_id": "$status", "n": {"$sum": 1}}},
+    ]
+    case_rows = await db.svc_cases.aggregate(case_pipeline).to_list(40)
+    case_by_status = {(r["_id"] or "unknown"): r["n"] for r in case_rows}
+    cases_total = sum(case_by_status.values())
+
+    # Status breakdown for engineer quotes + earnings sum.
+    quote_pipeline = [
+        {"$match": quote_match},
+        {"$group": {
+            "_id": "$status",
+            "n":     {"$sum": 1},
+            "total": {"$sum": "$total"},
+        }},
+    ]
+    quote_rows = await db.svc_engineer_quotes.aggregate(quote_pipeline).to_list(40)
+    quote_by_status = {(r["_id"] or "unknown"): r["n"] for r in quote_rows}
+    quotes_total = sum(quote_by_status.values())
+    # Earnings: only count accepted + invoiced.
+    earnings = round(sum(
+        r["total"] for r in quote_rows if r["_id"] in ("accepted", "invoiced")
+    ), 2)
+
+    # Jobs completed in window (status closed | invoiced | repaired).
+    completed_match = {**case_match, "status": {"$in": ["closed", "invoiced", "repaired"]}}
+    jobs_completed = await db.svc_cases.count_documents(completed_match)
+
+    # Average value of accepted quotes in window.
+    accepted_pipeline = [
+        {"$match": {**quote_match, "status": {"$in": ["accepted", "invoiced"]}}},
+        {"$group": {"_id": None, "avg": {"$avg": "$total"}}},
+    ]
+    avg_rows = await db.svc_engineer_quotes.aggregate(accepted_pipeline).to_list(1)
+    avg_quote_value = round(avg_rows[0]["avg"], 2) if avg_rows and avg_rows[0].get("avg") else 0.0
+
+    return {
+        "range": range,
+        "range_start": start,
+        "cases": {
+            "total": cases_total,
+            "completed": jobs_completed,
+            "by_status": case_by_status,
+        },
+        "quotes": {
+            "total": quotes_total,
+            "by_status": quote_by_status,
+            "average_value": avg_quote_value,
+            "earnings": earnings,
+        },
+    }
+
+
+# ─────────────────────────── Convert to invoice ────────────────────────────
+# Iter 216h257 — Implemented via the existing
+# POST /api/svc/engineer/invoices/from-quote/{quote_id} endpoint in
+# engineer_invoices.py. We no longer ship a parallel route here.
+
+
 # ─────────────────────────── Email body ───────────────────────────
 
 

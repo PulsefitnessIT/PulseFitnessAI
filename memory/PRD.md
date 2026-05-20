@@ -11310,3 +11310,54 @@ Added a new "Engineer App" button (`HardHat` icon, amber accent) under the Switc
 - `frontend/src/pages/MasterAdmin/AdminSidebar.js` (Engineer App switch)
 - `backend/tests/test_iter_216h256_marketing_resend_engineerapp_mobile.py`
 - `Makefile`
+
+## Iter 216h257 — Engineer dashboard polish + photo/video upload fix + Analytics + report actions + quote→invoice (Feb 21, 2026)
+
+### User feedback addressed (6 of 7 items)
+
+**1. Earnings hero card removed**
+The gradient "Earnings this month" hero on the engineer dashboard is gone. Earnings now live in the KPI grid + Analytics page.
+
+**2. New Analytics surface**
+- Backend: new `GET /api/svc/engineer/analytics?range={7d|30d|90d|ytd|all}` aggregates cases + quotes for the engineer over the selected window. Returns total/completed cases, total/by-status quotes, average accepted-quote value, and period earnings.
+- Frontend: new `/svc/engineer/analytics` page — mobile-first, 5 range chips, 4 KPI tiles, status breakdown for cases + quotes (each row drills into the relevant list). Analytics is now reachable from the dashboard via a new "Analytics" Quick Action tile.
+
+**3. Stat tiles now all interactive**
+`kpi-awaiting-customer` → `/svc/engineer/quotes?status=sent`.
+`kpi-invoiced` → `/svc/engineer/invoices`. The other 6 tiles were already wired.
+
+**4. Photo/video upload fix (ROOT CAUSE)**
+Photo + video uploads in the engineer PWA were silently 415'ing because `MIME_ALL_ATTACHMENTS = MIME_IMAGES | MIME_OFFICE | MIME_SPREADSHEETS` — videos were never in the allow-list. Backend `/api/files/upload` now branches on the `category` query param:
+- `service-media | case-media | engineer-media` → `MIME_IMAGES | MIME_VIDEOS`
+- `photos | service-photos | case-photos` → `MIME_IMAGES`
+- `videos | service-videos | case-videos` → `MIME_VIDEOS`
+- everything else → previous global allow-list
+Frontend now sends `category=service-media` for both photo + video captures and surfaces the actual server `detail` instead of a generic "Upload failed".
+
+**5. Report actions on the Complete screen**
+New `ReportActionsCard` on the Complete tab wires the existing PDF + email endpoints (`GET /api/svc/cases/{id}/service-report.pdf` and `POST /…/service-report/email`). Engineer can:
+- Type an override customer email (defaults to the case's customer email).
+- Add an optional cover note.
+- **Download PDF** (browser download) or **Email report** (sends via Resend) — both with proper error handling.
+
+**6. Quote → Invoice surfaced earlier**
+The "Invoice this quote" button only appeared once a quote was marked `accepted`. The backend already accepted `sent` quotes too, so the button now shows for both `sent` and `accepted` and is renamed "Convert to invoice" for clarity.
+
+### Deferred — needs more info from user
+**7. Stripe Connect not working** — the code path looks correct (creates an Account + AccountLink with proper success/refresh URLs). Likely an account-level issue (Stripe Connect not enabled in the dashboard) or a missing CONNECT_RETURN_URL env. Need the actual error message from the user to diagnose.
+
+### Verification
+- `tests/test_iter_216h257_engineer_dashboard_uploads_reports.py` — 10/10 passing.
+- `make regression` — 153 passed / 14 skipped (up from 143).
+- ESLint + Ruff clean across all touched files.
+
+### Files changed
+- `backend/routes/svc/engineer_quotes.py` (analytics endpoint)
+- `backend/routes/files.py` (per-category MIME allow-list)
+- `frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js` (hero removed, tiles clickable, Analytics quick action)
+- `frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js` (upload category + error surface + ReportActionsCard)
+- `frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js` ("sent" quotes can convert)
+- `frontend/src/pages/ServiceOps/Engineer/EngineerAnalyticsPage.js` (new)
+- `frontend/src/routes/AppRoutes.js` (new route)
+- `backend/tests/test_iter_216h257_engineer_dashboard_uploads_reports.py`
+- `Makefile`

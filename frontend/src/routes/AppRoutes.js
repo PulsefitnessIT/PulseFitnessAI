@@ -125,6 +125,7 @@ const ServiceOpsEngineerQueue  = lazy(() => import('@/pages/ServiceOps/Engineer/
 const PublicEngineerLanding    = lazy(() => import('@/pages/Public/EngineerLanding'));
 // Iter 216h159 — Engineer card-conversion analytics
 const ServiceOpsEngineerCardAnalytics = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCardAnalytics'));
+const ServiceOpsEngineerAnalytics = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerAnalyticsPage'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const _MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const _MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
@@ -348,6 +349,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/engineers" element={<Navigate to="/engineer" replace />} />
       {/* Iter 216h159 — Engineer card-conversion analytics */}
       <Route path="/svc/engineer/card-analytics" element={user ? <ServiceOpsEngineerCardAnalytics /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/analytics" element={user ? <ServiceOpsEngineerAnalytics /> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />

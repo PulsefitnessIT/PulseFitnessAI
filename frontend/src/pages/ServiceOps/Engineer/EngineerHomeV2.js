@@ -282,25 +282,8 @@ export default function EngineerHomeV2() {
               </button>
             ) : null}
 
-            {/* Earnings hero card */}
-            <div
-              className="rounded-2xl p-5 text-white shadow-md"
-              style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #6366f1 60%, #8b5cf6 100%)' }}
-              data-testid="engineer-home-earnings-card"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">Earnings this month</p>
-                  <p className="text-3xl font-extrabold tabular-nums mt-1">
-                    {fmtGBP(kpis.earnings_this_month)}
-                  </p>
-                  <p className="text-xs opacity-90 mt-1">
-                    {kpis.quote_accepted || 0} accepted · {kpis.quote_invoiced || 0} invoiced
-                  </p>
-                </div>
-                <TrendingUp size={42} className="opacity-50" />
-              </div>
-            </div>
+            {/* Iter 216h257 — Earnings hero card removed per user feedback.
+                Earnings live in the KPI grid + the new Analytics page. */}
 
             {/* KPI Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engineer-home-kpi-grid">
@@ -317,9 +300,11 @@ export default function EngineerHomeV2() {
               <KPITile icon={CheckCircle2} label="Accepted" value={kpis.quote_accepted} accent="#059669"
                        testid="kpi-accepted-quotes" onClick={() => navigate('/svc/engineer/quotes?status=accepted')} />
               <KPITile icon={MessageCircle} label="Awaiting customer" value={kpis.awaiting_customer} accent="#7c3aed"
-                       testid="kpi-awaiting-customer" />
+                       testid="kpi-awaiting-customer"
+                       onClick={() => navigate('/svc/engineer/quotes?status=sent')} />
               <KPITile icon={Receipt} label="Invoiced" value={kpis.quote_invoiced} accent="#16a34a"
-                       testid="kpi-invoiced" />
+                       testid="kpi-invoiced"
+                       onClick={() => navigate('/svc/engineer/invoices')} />
             </div>
 
             {/* Quick actions */}
@@ -365,6 +350,10 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={QrCode} label="Card stats"
                              testid="qa-card-analytics"
                              onClick={() => navigate('/svc/engineer/card-analytics')} />
+                {/* Iter 216h257 — Analytics surface with filtered KPI breakdowns. */}
+                <QuickAction icon={TrendingUp} label="Analytics"
+                             testid="qa-analytics"
+                             onClick={() => navigate('/svc/engineer/analytics')} />
               </div>
             </div>
 

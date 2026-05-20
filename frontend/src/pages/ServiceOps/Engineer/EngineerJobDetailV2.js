@@ -27,7 +27,7 @@ import {
   ArrowLeft, Clock, Camera, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
-  Video, MapPin, Send,
+  Video, MapPin, Send, Download,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { engineerSendOrQueue } from '@/utils/engineerOfflineQueue';
@@ -568,8 +568,11 @@ function PhotosTab({ job, onChange }) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const category = kind === 'video' ? 'videos' : 'photos';
-      const u = await axios.post(`${API}/files/upload?category=${category}`, fd, {
+      // Iter 216h257 — use `service-media` so the backend allow-list
+      // covers BOTH images and videos. Old `photos|videos` categories
+      // used the global MIME_ALL_ATTACHMENTS allow-list which silently
+      // 415'd every video.
+      const u = await axios.post(`${API}/files/upload?category=service-media`, fd, {
         ...auth(),
         headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
       });
@@ -585,7 +588,15 @@ function PhotosTab({ job, onChange }) {
       setCaption('');
       await onChange();
     } catch (err) {
-      notify.error('Upload failed');
+      // Iter 216h257 — surface the real reason. "Upload failed" with no
+      // detail trained engineers to ignore the toast and re-try the
+      // same file (still failing). Now show the server-supplied detail
+      // when available so MIME / size / auth errors are obvious.
+      const detail = err?.response?.data?.detail
+        || err?.response?.data?.message
+        || err?.message
+        || 'Unknown error';
+      notify.error('Upload failed', String(detail).slice(0, 200));
     } finally { setUploading(false); }
   }, [stage, caption, job.id, onChange]);
 
@@ -1064,10 +1075,109 @@ function CompleteTab({ job, locked, onChange, navigate }) {
         </div>
       )}
 
+      {/* Iter 216h257 — Report actions surface so the engineer can
+          download the branded PDF or email it straight to the customer
+          without leaving the Complete screen. */}
+      <ReportActionsCard job={job} />
+
       <div className="sticky bottom-4">
         <button onClick={complete} disabled={busy} className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow-md disabled:opacity-50" data-testid="complete-submit">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
           Complete job
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Iter 216h257 — Compact card that wires the existing
+// /api/svc/cases/{id}/service-report.pdf + /service-report/email
+// endpoints into the Complete screen so the engineer can hand the
+// customer a PDF the moment the job is done.
+function ReportActionsCard({ job }) {
+  const [emailing, setEmailing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [overrideEmail, setOverrideEmail] = useState('');
+  const [note, setNote] = useState('');
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const r = await axios.get(
+        `${API}/svc/cases/${job.id}/service-report.pdf`,
+        { ...auth(), responseType: 'blob' },
+      );
+      const blob = new Blob([r.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `service-report-${job.reference || job.id.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify.success('Report downloaded');
+    } catch (err) {
+      notify.error('Download failed', err?.response?.data?.detail || err?.message || '');
+    } finally { setDownloading(false); }
+  };
+
+  const email = async () => {
+    setEmailing(true);
+    try {
+      const body = {};
+      if (overrideEmail.trim()) body.to = overrideEmail.trim();
+      if (note.trim()) body.note = note.trim();
+      await axios.post(`${API}/svc/cases/${job.id}/service-report/email`, body, auth());
+      notify.success('Report emailed to customer');
+      setNote('');
+    } catch (err) {
+      notify.error('Email failed', err?.response?.data?.detail || err?.message || '');
+    } finally { setEmailing(false); }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="complete-report-card">
+      <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500">Service report</p>
+      <p className="text-xs text-slate-600">
+        Send the branded PDF straight to {job.customer_email || 'the customer'} — or download it for your records.
+      </p>
+      <input
+        type="email"
+        value={overrideEmail}
+        onChange={(e) => setOverrideEmail(e.target.value)}
+        placeholder={`Customer email (default: ${job.customer_email || '—'})`}
+        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-400"
+        data-testid="complete-report-email-to"
+      />
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Optional cover note for the customer…"
+        rows={2}
+        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-400"
+        data-testid="complete-report-note"
+      />
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={download}
+          disabled={downloading}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+          data-testid="complete-report-download"
+        >
+          {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+          Download PDF
+        </button>
+        <button
+          type="button"
+          onClick={email}
+          disabled={emailing}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold bg-blue-600 text-white disabled:opacity-50"
+          data-testid="complete-report-email"
+        >
+          {emailing ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+          Email report
         </button>
       </div>
     </div>

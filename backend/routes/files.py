@@ -28,20 +28,33 @@ def convert_pdf_to_image(pdf_bytes: bytes) -> tuple:
 @router.post("/files/upload")
 async def upload_file(file: UploadFile = File(...), category: str = Query("general"), user: dict = Depends(get_current_user)):
     import hashlib
-    from utils.file_validation import validate_upload, MIME_ALL_ATTACHMENTS
+    from utils.file_validation import validate_upload, MIME_ALL_ATTACHMENTS, MIME_IMAGES, MIME_VIDEOS
 
     ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
     data = await file.read()
     original_filename = file.filename
     original_size = len(data)
 
+    # Iter 216h257 — narrow allow-list per category so engineers can
+    # upload videos for case media. Without the override the global
+    # `MIME_ALL_ATTACHMENTS` set excluded videos and every video upload
+    # silently 415'd, surfacing only as "Upload failed" in the engineer
+    # PWA.
+    if category in ("videos", "service-videos", "case-videos"):
+        allow = MIME_VIDEOS
+    elif category in ("photos", "service-photos", "case-photos"):
+        allow = MIME_IMAGES
+    elif category in ("service-media", "case-media", "engineer-media"):
+        # Field engineers capture both photos AND short videos in one flow.
+        allow = MIME_IMAGES | MIME_VIDEOS
+    else:
+        allow = MIME_ALL_ATTACHMENTS
+
     # Sniff actual bytes — reject polyglots (e.g. HTML disguised as PDF).
-    # Uses a permissive but non-executable allow-list covering images, PDFs,
-    # Office docs and CSVs. Category-specific uploads can narrow this.
     content_type = validate_upload(
         file_bytes=data,
         filename=original_filename,
-        allowed=MIME_ALL_ATTACHMENTS,
+        allowed=allow,
     )
 
     # Compress PDFs before storage (PyMuPDF — typically 30-60% smaller
