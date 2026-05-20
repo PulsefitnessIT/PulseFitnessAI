@@ -1,3 +1,61 @@
+## Iter 216h236 — Nav parity regression test (Feb 19, 2026) ✅ P1
+
+Building on the iter 216h235 fix (Help & Tutorials missing from
+mobile hamburger), this iteration adds the automated regression
+test that prevents the entire bug class from ever shipping again.
+
+### What landed
+`frontend/tests/mobile-regression/nav-parity.spec.js` — a Playwright
+spec that, for each operator-facing route:
+
+1. Opens the desktop user-menu at **1440×900**.
+2. Collects which of the canonical action testids (Account, Help &
+   Tutorials, Logout) are currently visible.
+3. Reloads at **390×844** and opens the mobile hamburger.
+4. Collects the matching mobile testids.
+5. **Asserts** every desktop action is also reachable on mobile.
+
+### Asymmetry rules
+- Mobile MUST be a superset of desktop (anything reachable on
+  desktop is reachable on mobile).
+- Mobile-only items (e.g. theme toggle on small screens, hamburger
+  language picker) are allowed — they don't need a desktop counter-
+  part.
+- Pairs are declared in `PARITY_PAIRS`. Adding a new desktop menu
+  item now REQUIRES adding its mobile counterpart, or the spec
+  goes red.
+
+### Robustness
+- `nav-user-menu-btn` and `nav-user-menu-trigger` both accepted as
+  the desktop trigger so the spec doesn't break if the testid is
+  renamed.
+- If neither trigger / hamburger exists on a route (e.g. a custom
+  shell renders), spec warns to console and skips rather than fails
+  — keeps the suite resilient to future routes.
+
+### Documentation
+Updated `frontend/tests/mobile-regression/README.md` with the new
+spec covered, plus instructions for adding pages / action pairs.
+
+### Verification
+- ESLint `--max-warnings 0` clean on `src/` (the enforced scope)
+- `make regression` 37 passed, 14 skipped
+- Cannot run Playwright locally in this preview container (browsers
+  not installed; running takes ~290MB Chromium install). The spec
+  will execute in CI once Lee runs `yarn test:mobile-regression`
+  after a deploy, matching the existing `master-admin.spec.js`
+  flow documented in the README.
+
+### How this fits in the CI pipeline
+The mobile-regression suite isn't yet wired into the GitHub Actions
+gates (it's an opt-in post-deploy step per the README). Worth
+adding to the next CI sprint: a separate workflow job that runs
+after the frontend prod build, against the preview environment,
+with `E2E_BASE_URL` set to the preview URL.
+
+---
+
+
 ## Iter 216h235 — Help & Tutorials missing on mobile (Feb 19, 2026) ✅ P1
 
 Lee's report: "Help and tutorials are available on desktop but not on

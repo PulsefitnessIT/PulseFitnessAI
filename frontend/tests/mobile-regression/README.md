@@ -10,6 +10,11 @@ opens a list of pages at iPhone-13-Pro viewport and asserts that:
    decorative `gx-orbit-*` marketing animations.
 3. A critical test-id on each page is present (logged as a warning if
    missing — not a hard fail, since some testids are role-gated).
+4. **Navigation parity** — every action available in the desktop
+   user-menu is also reachable from the mobile hamburger menu
+   (iter 216h236, `nav-parity.spec.js`). Catches the class of bug
+   Lee found in iter 216h235 where Help & Tutorials had been
+   silently dropped from the mobile menu.
 
 ## Pages covered
 
@@ -20,6 +25,12 @@ See `MOBILE_PAGES` in `master-admin.spec.js`. Currently:
 - Pulse Fitness · Operations Dashboard
 
 Add a new page by appending `{ path, testid, name }` to the array.
+
+`nav-parity.spec.js` separately covers:
+- `/dashboard?as=operator` and `/pulse-dashboard`. Add more by
+  appending to `NAV_PARITY_PAGES`. Adjust the action set under test
+  via the `PARITY_PAIRS` array — each entry maps a desktop testid
+  to its mobile counterpart.
 
 ## Running locally
 
