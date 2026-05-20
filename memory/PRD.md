@@ -1,3 +1,72 @@
+## Iter 216h247 — Memberships polish (Feb 19, 2026) ✅ P0 bugfix + P1 UX
+
+User ask (verbatim): *"Memberships - Classes & Timetables - Add class
+has opened the modal up half way down the page and the greyed out
+screen is not complete / Add class - Instructor should be a drop down
+box - this should include add new instructor that will then guide the
+user to add new instructor screen / Memberships - rearrange the
+options bar into a more logical order"*
+
+### Bug — Class template modal half-down + un-dimmed backdrop
+- **Root cause:** `StudioBuilderTab.js` has its own inline modal (separate
+  from `ClassEditorModal.js`). It rendered `<div className="fixed
+  inset-0 z-[90] bg-black/70 grid items-end sm:place-items-center">`
+  **directly inside the Pulse Pro page tree**, which has a transformed
+  ancestor → the `fixed inset-0` containing block became the transformed
+  parent's box, not the viewport. Same root cause as h242 (Add Staff).
+- **Fix:** Wrapped in `createPortal(..., document.body)`. Replaced the
+  bottom-sheet variant with a clean `grid items-center` so the modal
+  always centers on viewport. `z-[100]` to clear any other overlays.
+
+### UX — Instructor dropdown + "Add new instructor"
+- The inline modal's `<input type="text" placeholder="Sarah">` is replaced
+  with `<select data-testid="cte-instructor-select">` that loads from
+  `GET /api/memberships/instructors` on mount, lists every instructor
+  in the directory, and offers:
+  - `Use a custom name (cover)` — expands a free-text input below
+    (for one-off cover instructors who don't have a profile).
+  - `+ Add new instructor…` — fires the new `onAddInstructor` callback.
+    Bubbles up: `ClassTemplateEditor → StudioBuilderTab →
+    SchedulingHubTab → MembershipsConsole.setTab('instructors')`.
+    Modal closes on the way through, so the user lands on the
+    Instructors tab ready to create the profile.
+- `instructor_id` and `instructor_name` now both flow to the backend
+  on save, so renaming an instructor later doesn't break historical
+  class labels.
+
+### UX — Memberships top-tab order rationalised
+
+Grouped the pill bar by the operator's natural workflow:
+
+| Group | Tabs (left → right) |
+|---|---|
+| **Onboarding** | Start · Dashboard |
+| **Daily ops** | Classes & Timetable · Check-in |
+| **People** | Members · Instructors |
+| **Commercial** | Plans · Invoicing · Desk sales · Family billing |
+| **Family + events** | Parent portal · Events |
+| **Marketing** | Promotions · Ads |
+| **Intelligence** | Studio brain · Analytics · AI Insights |
+| **Tools** | CRM Loop · Booking rules · Mobile app |
+
+Deep-link tab IDs unchanged — every old `?tab=xxx` URL still resolves
+correctly. Only the **display position** changed.
+
+### Verification
+
+- 5 new regression tests in
+  `tests/test_iter_216h247_memberships_polish.py` — portal usage,
+  instructor dropdown wiring, onAddInstructor plumbing, and tab
+  reorder anchors.
+- `make regression` → **85 passed, 14 skipped** (was 80 → 85).
+- ESLint `--max-warnings 0` clean (also fixed an initial parse error
+  when the createPortal closing parens didn't match the search-replace).
+- Live screenshot at 1920×1080: modal renders **centered, full-viewport
+  backdrop**, no white area, instructor field is a `<select>`.
+
+---
+
+
 ## Iter 216h245 — Remaining sub-headers: Memberships + Marketing (Feb 19, 2026) ✅ P0 polish
 
 User ask (verbatim): *"2 sub headers in memberships / 1 in marketing /

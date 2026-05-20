@@ -121,29 +121,37 @@ function MembershipsConsoleInner() {
   // Studio Mode: 5-tab simplified layout for small teams.
   const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'studio-brain', 'timetable', 'classes', 'members', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
 
+  // Iter 216h247 — Tab order rationalised for the typical Studio
+  // Operator's day:  set up → daily ops → people → commercial →
+  // promo + comms → analytics → tools. Grouped with separators to
+  // make scanning the bar quicker. (Deep-link IDs unchanged so
+  // existing email CTAs / checklist links still work.)
   const TABS = useMemo(() => [
+    // — Onboarding & landing
     { id: 'start',     label: 'Start', icon: Sparkles },
     { id: 'dashboard', label: t('memberships_console.tab_dashboard'), icon: LayoutDashboard },
-    // Iter 216ai — Sprint A item 6: merged Studio Builder + Timetable +
-    // Classes list into one "Classes & Timetable" tab with internal sub-pills.
-    // Old tab IDs (studio-builder, timetable, classes) still route here for
-    // deep-links / Start checklist CTAs — SchedulingHubTab picks the right
-    // sub-view based on the incoming tab value.
+    // — Daily ops
     { id: 'schedule', label: 'Classes & Timetable', icon: Calendar },
-    { id: 'studio-brain', label: 'Studio brain', icon: Brain },
-    { id: 'members',   label: t('memberships_console.tab_members'),   icon: Users },
-    { id: 'plans',     label: t('memberships_console.tab_plans'),     icon: PackageOpen },
-    { id: 'family-billing', label: 'Family billing', icon: HeartHandshake },
-    { id: 'parent-portal', label: 'Parent portal', icon: ShieldCheck },
-    { id: 'events', label: 'Events', icon: Theater },
-    { id: 'instructors', label: 'Instructors', icon: Activity },
-    { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'checkin', label: 'Check-in', icon: ClipboardCheck },
+    // — People
+    { id: 'members',   label: t('memberships_console.tab_members'),   icon: Users },
+    { id: 'instructors', label: 'Instructors', icon: Activity },
+    // — Commercial
+    { id: 'plans',     label: t('memberships_console.tab_plans'),     icon: PackageOpen },
     { id: 'invoicing', label: 'Invoicing', icon: Receipt },
     { id: 'desk-sales', label: 'Desk sales', icon: Wallet },
+    { id: 'family-billing', label: 'Family billing', icon: HeartHandshake },
+    // — Family / events
+    { id: 'parent-portal', label: 'Parent portal', icon: ShieldCheck },
+    { id: 'events', label: 'Events', icon: Theater },
+    // — Marketing
+    { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'ads',       label: t('memberships_console.tab_ads'),       icon: Megaphone },
+    // — Intelligence & analytics
+    { id: 'studio-brain', label: 'Studio brain', icon: Brain },
     { id: 'analytics', label: t('memberships_console.tab_analytics'), icon: BarChart3 },
     { id: 'ai-insights', label: 'AI Insights', icon: Brain },
+    // — Cross-platform tools
     { id: 'crm-loop', label: 'CRM Loop', icon: Workflow },
     { id: 'booking-rules', label: 'Booking rules', icon: Settings },
     { id: 'mobile-app', label: 'Mobile app', icon: Smartphone },
@@ -1067,7 +1075,7 @@ function RecordPaymentModal({ API, headers, memberId, plan, onClose }) {
  * Having `onSetTab` as a prop is useful for cross-links — e.g. the
  * "Rebuild term" action in the builder can kick back to the timetable.
  */
-function SchedulingHubTab({ API, headers, activeTabHint, _onSetTab }) {
+function SchedulingHubTab({ API, headers, activeTabHint, onSetTab }) {
   // Iter 216h246 — default to "Weekly builder" and reorder pills so it
   // sits first (was timetable-first). Matches the user's workflow:
   // most operators build the week first, then verify on the timetable
@@ -1116,7 +1124,7 @@ function SchedulingHubTab({ API, headers, activeTabHint, _onSetTab }) {
         </p>
       </div>
       {view === 'timetable' && <TimetableTab API={API} headers={headers} />}
-      {view === 'builder'   && <StudioBuilderTab API={API} headers={headers} />}
+      {view === 'builder'   && <StudioBuilderTab API={API} headers={headers} onAddInstructor={() => onSetTab?.('instructors')} />}
       {view === 'classes'   && <ClassesTab API={API} headers={headers} />}
     </div>
   );

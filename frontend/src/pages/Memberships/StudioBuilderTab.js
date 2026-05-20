@@ -11,6 +11,7 @@
  * Drop into the "Idle templates" rail to detach all weekday recurrences.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Plus, Trash2, Calendar as CalendarIcon, GripVertical, Sparkles,
@@ -36,7 +37,7 @@ function timeToSlotIndex(t) {
   return Math.max(0, Math.min(SLOTS.length - 1, Math.round(fromBase / SLOT_MINUTES)));
 }
 
-export default function StudioBuilderTab({ API, headers }) {
+export default function StudioBuilderTab({ API, headers, onAddInstructor }) {
   const auth = useMemo(() => ({ headers }), [headers]);
   const [settings, setSettings] = useState(null);
   const [industries, setIndustries] = useState([]);
@@ -252,6 +253,9 @@ export default function StudioBuilderTab({ API, headers }) {
             if (created) setTemplates((cur) => [created, ...cur]);
             await load();
           }}
+          // Iter 216h247 — route the "+ Add new instructor" picker to
+          // the parent so the user lands on the Instructors tab.
+          onAddInstructor={() => { setShowNewClass(false); onAddInstructor?.(); }}
         />
       )}
     </div>
@@ -659,8 +663,20 @@ function ScheduledCard({ t, dayIdx, saving, onRemove, onDragStart, onDragEnd, _i
  * Full-featured "new class" modal. Creates a class template via
  * POST /memberships/classes/templates and also serves as the edit
  * drawer (see ClassActionDrawer for the timetable-side entry point).
+ *
+ * Iter 216h247:
+ *   • Portaled to ``document.body`` so the fixed-inset backdrop covers
+ *     the full viewport (was clipped by a transformed ancestor in
+ *     Pulse Pro — same fix as the Add Staff modal h242).
+ *   • Free-text instructor input replaced with a dropdown loaded from
+ *     ``GET /memberships/instructors``. A final option "+ Add new
+ *     instructor" closes the modal and notifies the parent via
+ *     ``onAddInstructor`` so the user is routed to the Instructors
+ *     tab. The original free-text fallback is still available (for
+ *     impromptu cover instructors) but lives in an expandable
+ *     "use a custom name" toggle below the dropdown.
  */
-export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
+export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose, onAddInstructor }) {
   const isEdit = !!initial?.id;
   const [form, setForm] = useState(() => ({
     name: initial?.name || '',
@@ -672,6 +688,7 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
     start_time: initial?.start_time || '09:00',
     recurs_days: initial?.recurs_days || [],
     room_name: initial?.room_name || '',
+    instructor_id: initial?.instructor_id || '',
     instructor_name: initial?.instructor_name || '',
     credits_to_book: initial?.credits_to_book ?? 1,
     waitlist_enabled: initial?.waitlist_enabled !== false,
@@ -682,6 +699,21 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
     max_age: initial?.max_age ?? '',
   }));
   const [saving, setSaving] = useState(false);
+  const [instructors, setInstructors] = useState([]);
+  const [showCustomInstructor, setShowCustomInstructor] = useState(!!initial?.instructor_name && !initial?.instructor_id);
+
+  // Load instructor directory once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/memberships/instructors`, auth);
+        if (!cancelled) setInstructors(data?.instructors || []);
+      } catch { /* non-fatal */ }
+    })();
+    return () => { cancelled = true; };
+  }, [API, auth]);
+
   const up = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
 
   const toggleDay = (i) => setForm((f) => ({
@@ -709,6 +741,11 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
         max_waitlist: Number(form.max_waitlist) || 0,
         min_age: form.min_age === '' ? null : Number(form.min_age),
         max_age: form.max_age === '' ? null : Number(form.max_age),
+        // Iter 216h247 — send both id and label so the timetable
+        // renderer keeps showing the same name even if the
+        // instructor's profile is renamed later.
+        instructor_id: form.instructor_id || null,
+        instructor_name: form.instructor_name || null,
       };
       if (isEdit) {
         await axios.patch(`${API}/memberships/classes/templates/${initial.id}`, payload, auth);
@@ -725,9 +762,13 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
     setSaving(false);
   };
 
-  return (
-    <div className="fixed inset-0 z-[90] bg-black/70 grid items-end sm:place-items-center p-0 sm:p-3" onClick={onClose} data-testid="class-template-editor">
-      <div className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]"
+  return createPortal((
+    // Iter 216h247 — portal to document.body so the fixed inset-0
+    // backdrop covers the full viewport (a transformed ancestor was
+    // clipping it in Pulse Pro, leaving a white area to the right and
+    // making the modal appear "half way down the page").
+    <div className="fixed inset-0 z-[100] bg-black/70 grid items-center justify-items-center p-3" onClick={onClose} data-testid="class-template-editor">
+      <div className="w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh]"
         style={{ background: 'var(--theme-surface, #fff)', border: '1px solid var(--theme-border, #e2e8f0)' }}
         onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 flex items-start justify-between border-b" style={{ borderColor: 'var(--theme-border)' }}>
@@ -767,7 +808,52 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Room"><input type="text" value={form.room_name} onChange={(e) => up('room_name')(e.target.value)} className={InputCls} placeholder="Studio 1" data-testid="cte-room" /></Field>
-            <Field label="Instructor name (label)"><input type="text" value={form.instructor_name} onChange={(e) => up('instructor_name')(e.target.value)} className={InputCls} placeholder="Sarah" data-testid="cte-instructor" /></Field>
+            {/* Iter 216h247 — instructor dropdown with "+ Add new instructor"
+                option. Falls back to a free-text label for cover instructors
+                via the "use a custom name" toggle. */}
+            <Field label="Instructor">
+              <select
+                value={form.instructor_id || (showCustomInstructor ? '__custom__' : '')}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '__add_new__') {
+                    onAddInstructor?.();
+                    return;
+                  }
+                  if (v === '__custom__') {
+                    setShowCustomInstructor(true);
+                    setForm((f) => ({ ...f, instructor_id: '' }));
+                    return;
+                  }
+                  const picked = instructors.find((i) => i.id === v);
+                  setShowCustomInstructor(false);
+                  setForm((f) => ({
+                    ...f,
+                    instructor_id: v || '',
+                    instructor_name: picked ? picked.name : '',
+                  }));
+                }}
+                className={InputCls}
+                data-testid="cte-instructor-select"
+              >
+                <option value="">— Choose instructor —</option>
+                {instructors.map((i) => (
+                  <option key={i.id} value={i.id}>{i.name}{i.headline ? ` · ${i.headline}` : ''}</option>
+                ))}
+                <option value="__custom__">Use a custom name (cover)</option>
+                <option value="__add_new__">+ Add new instructor…</option>
+              </select>
+              {showCustomInstructor && (
+                <input
+                  type="text"
+                  value={form.instructor_name}
+                  onChange={(e) => up('instructor_name')(e.target.value)}
+                  className={`${InputCls} mt-1`}
+                  placeholder="e.g. Sarah (cover)"
+                  data-testid="cte-instructor-custom"
+                />
+              )}
+            </Field>
             <Field label="Colour"><input type="color" value={form.colour} onChange={(e) => up('colour')(e.target.value)} className="h-9 w-16 rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="cte-colour" /></Field>
           </div>
 
@@ -804,7 +890,7 @@ export function ClassTemplateEditor({ API, auth, initial, onSaved, onClose }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 const InputCls = 'w-full px-3 py-2 rounded-md text-sm border bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)] border-[color:var(--theme-border)]';
