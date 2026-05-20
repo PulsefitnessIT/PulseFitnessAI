@@ -8,77 +8,39 @@
  * StaffingConsole and DashboardPage so we have a single, themed source
  * of truth for the per-tab header chrome.
  *
- *   <PageHeader
- *     title="Faults"
- *     subtitle="Reactive faults and planned maintenance"
- *     icon={AlertCircle}
- *     helpId="service-log-fault"
- *     actions={<Button>Log fault</Button>}
- *     testId="faults-header"
- *   />
- *
- * The component is intentionally small — it never wraps the page
- * content, only the heading row. Use it inside the existing
- * `space-y-*` flow at the top of each tab.
+ * Iter 216h244 — title + subtitle render path now suppressed
+ * platform-wide (sub-header sweep). Component still accepts the
+ * props for back-compat but only renders the actions strip. See the
+ * inline comment in the function body for rationale.
  */
-import HelpHint from '@/components/HelpHint';
 
 const PageHeader = ({
-  title,
-  subtitle,
-  icon: Icon,
-  helpId,
   actions,
-  badge,
   testId,
   className = '',
+  // Iter 216h244 — title / subtitle / icon / helpId / badge are
+  // intentionally absorbed and discarded. The platform-wide sub-header
+  // sweep dropped the H2+description render path; props remain on the
+  // caller API for back-compat so we don't have to edit ~30 tabs.
+  ...rest
 }) => {
+  void rest;  // satisfies the linter — see comment above.
+  // If the caller passes `actions`, render JUST a right-aligned action
+  // strip so "Log fault", "Upload", "Add staff" etc. keep working.
+  // If no actions, return null entirely so the now-redundant header
+  // is invisible AND collapses any surrounding margin.
+  if (!actions) return null;
   return (
     <div
-      className={`flex items-start justify-between gap-3 flex-wrap mb-4 ${className}`}
+      className={`flex items-center justify-end gap-2 flex-wrap ${className}`}
       data-testid={testId || 'page-header'}
     >
-      <div className="min-w-0 flex-1">
-        <h2
-          className="text-xl sm:text-2xl font-semibold tracking-tight pulse-font-heading flex items-center gap-2"
-          style={{ color: 'var(--theme-text)' }}
-          data-testid={testId ? `${testId}-title` : 'page-header-title'}
-        >
-          {Icon ? (
-            <Icon
-              size={20}
-              className="shrink-0"
-              style={{ color: 'var(--color-brand-cyan-hover)' }}
-            />
-          ) : null}
-          <span className="truncate">{title}</span>
-          {helpId ? (
-            <HelpHint
-              guideId={helpId}
-              testId={testId ? `${testId}-help` : 'page-header-help'}
-              className="ml-1 shrink-0"
-            />
-          ) : null}
-          {badge ? <span className="ml-1 shrink-0">{badge}</span> : null}
-        </h2>
-        {subtitle ? (
-          <p
-            className="text-sm pulse-font-body mt-0.5"
-            style={{ color: 'var(--theme-text-muted)' }}
-            data-testid={testId ? `${testId}-subtitle` : 'page-header-subtitle'}
-          >
-            {subtitle}
-          </p>
-        ) : null}
+      <div
+        className="flex items-center gap-2 shrink-0"
+        data-testid={testId ? `${testId}-actions` : 'page-header-actions'}
+      >
+        {actions}
       </div>
-      {actions ? (
-        <div
-          className="flex items-center gap-2 shrink-0 mt-1"
-          data-testid={testId ? `${testId}-actions` : 'page-header-actions'}
-        >
-          {actions}
-        </div>
-      ) : null}
     </div>
   );
 };

@@ -1,3 +1,58 @@
+## Iter 216h244 — Operations PageHeader suppression (Feb 19, 2026) ✅ P0 polish
+
+User ask (verbatim): *"Sub headers throughout Operations - as
+previously done please remove all sub headers in operations"*
+
+### Single source of truth — one edit, ~10 sub-tabs collapsed
+
+Every Operations sub-tab (Faults, Documents, Staffing, Equipment,
+Reports, Check Sheets, Suppliers, Gym Layout, plus the Lite-portal
+mirrors) uses the shared
+`components/shared/PageHeader.js` wrapper for its title / subtitle /
+icon / help-hint / actions strip. Modifying the component once nukes
+the redundant `<h2>` + description block everywhere it's used.
+
+### What changed
+- Refactored `PageHeader` to a **null-by-default** component:
+  - When called **without** an `actions` prop → returns `null`
+    entirely (no DOM node, no margin).
+  - When called **with** an `actions` prop → renders just a
+    right-aligned action strip so CTAs like `Log fault`, `Upload`,
+    `Add staff`, `Add equipment` still work and align correctly.
+- Removed the H2, subtitle `<p>`, icon, `<HelpHint>`, and badge
+  rendering paths.
+- All legacy props (`title`, `subtitle`, `icon`, `helpId`, `badge`)
+  absorbed via rest-spread and silently discarded — **no caller
+  edits required** (saving ~30 file touches across the Pulse and
+  full Dashboard portals).
+- Updated the file header docstring to record the iteration and the
+  reasoning so the next agent doesn't accidentally re-introduce the
+  block.
+
+### Verification
+- 4 new regression tests in
+  `tests/test_iter_216h244_pageheader_suppression.py` —
+  `return null` short-circuit, no `<h2>`, no `HelpHint` import,
+  rest-spread back-compat absorption.
+- `make regression` → **77 passed, 14 skipped** (was 73 → 77).
+- `ruff` + `yarn eslint src --max-warnings 0` clean.
+- Live screenshot (Pulse Pro / Operations / Faults + Documents):
+  - `page-header-title count = 0`, `page-header-subtitle count = 0`.
+  - "Reactive faults and planned maintenance" no longer renders.
+  - "Manuals, certificates, RAMS, SOPs and invoices" no longer renders.
+  - Action buttons (`Log first fault`, `Upload your first manual`)
+    still present where actions were passed.
+
+### Why this matters
+Operations is the user's largest module by surface area (8+ sub-tabs
++ Lite mirrors). A per-page edit would have been ~25 files and risky
+to keep visually consistent. Concentrating the fix in the shared
+component guarantees future Operations sub-tabs default to the same
+clean look without anyone having to remember the rule.
+
+---
+
+
 ## Iter 216h243 — Sub-header platform sweep + custom staff roles (Feb 19, 2026) ✅ P0 + P1
 
 User ask (verbatim): *"CRM - I'm still seeing sub headers in preview?
