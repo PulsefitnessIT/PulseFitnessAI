@@ -572,8 +572,16 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
   const [f, setF] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = (params.get('ref') || '').toUpperCase().trim();
-    return { first_name: '', last_name: '', email: '', password: '', phone: '',
-             referral_code: ref };
+    return {
+      first_name: '', last_name: '', email: '', password: '', phone: '',
+      // Iter 216h253 — DOB split into day/month/year selects for tap-friendly mobile entry.
+      dob_day: '', dob_month: '', dob_year: '',
+      address_line1: '', city: '', postcode: '', country: 'United Kingdom',
+      emergency_contact_name: '', emergency_contact_phone: '',
+      gdpr_consent: false,
+      marketing_consent: true,
+      referral_code: ref,
+    };
   });
   const [busy, setBusy] = useState(false);
   const { banner, show, clear } = useInlineBanner({ autoDismiss: false });
@@ -585,15 +593,34 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
       show({ tone: 'error', title: 'Password too short', detail: 'Please use at least 8 characters so your account stays secure.' });
       return;
     }
+    if (!f.phone.trim()) {
+      show({ tone: 'error', title: 'Phone number required', detail: 'Studios use this to contact you about class changes.' });
+      return;
+    }
+    if (!f.dob_day || !f.dob_month || !f.dob_year) {
+      show({ tone: 'error', title: 'Date of birth required', detail: 'Required by gym insurance providers.' });
+      return;
+    }
+    if (!f.emergency_contact_phone.trim()) {
+      show({ tone: 'error', title: 'Emergency contact phone required', detail: 'A second number we can call in case of emergency.' });
+      return;
+    }
+    if (!f.gdpr_consent) {
+      show({ tone: 'error', title: 'Please accept the Terms & Conditions', detail: 'We need your consent to process your booking & contact details.' });
+      return;
+    }
     setBusy(true);
     try {
+      const dob = `${f.dob_year}-${String(f.dob_month).padStart(2, '0')}-${String(f.dob_day).padStart(2, '0')}`;
+      const { referral_code, dob_day: _d, dob_month: _m, dob_year: _y, ...rest } = f;
       const payload = {
-        ...f, referral_code: f.referral_code || undefined,
+        ...rest, dob,
+        referral_code: referral_code || undefined,
         ...(slug ? { organization_slug: slug } : { organization_id: 'mbr-demo-org' }),
       };
       const { data } = await axios.post(`${API}/member-auth/register`, payload);
       onAuthed(data.token, data.member);
-      notify.success(`Welcome, ${data.member.first_name}!${f.referral_code ? ' · Friend referral applied' : ''}`);
+      notify.success(`Welcome, ${data.member.first_name}!${referral_code ? ' · Friend referral applied' : ''}`);
     } catch (err) {
       const d = err.response?.data?.detail || '';
       show({
@@ -608,6 +635,17 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
 
   const up = (k) => (v) => setF((prev) => ({ ...prev, [k]: v }));
 
+  // Iter 216h253 — date dropdowns. Year range covers ages 5-100 so a
+  // junior dance student and a senior fitness member both fit.
+  const thisYear = new Date().getFullYear();
+  const dobYears = Array.from({ length: 96 }, (_, i) => String(thisYear - 5 - i));
+  const dobMonths = [
+    { v: '1', l: 'Jan' }, { v: '2', l: 'Feb' }, { v: '3', l: 'Mar' }, { v: '4', l: 'Apr' },
+    { v: '5', l: 'May' }, { v: '6', l: 'Jun' }, { v: '7', l: 'Jul' }, { v: '8', l: 'Aug' },
+    { v: '9', l: 'Sep' }, { v: '10', l: 'Oct' }, { v: '11', l: 'Nov' }, { v: '12', l: 'Dec' },
+  ];
+  const dobDays = Array.from({ length: 31 }, (_, i) => String(i + 1));
+
   return (
     <form onSubmit={submit} className="space-y-3" data-testid="member-register-form">
       {banner}
@@ -616,18 +654,100 @@ function RegisterForm({ onAuthed, branding, slug, accent }) {
         <LabelledInput label="Last name"  value={f.last_name}  onChange={up('last_name')}  required testid="member-reg-last" />
       </div>
       <LabelledInput label="Email"    type="email"    value={f.email}    onChange={up('email')}    required testid="member-reg-email" />
-      <LabelledInput label="Phone"                    value={f.phone}    onChange={up('phone')}             testid="member-reg-phone" />
-      <LabelledInput label="Password" type="password" value={f.password} onChange={up('password')} required testid="member-reg-password" />
+      <LabelledInput label="Phone"                    value={f.phone}    onChange={up('phone')}    required placeholder="+44 7700 900000" testid="member-reg-phone" />
+
+      {/* Date of birth — day/month/year dropdowns for thumb-friendly mobile entry */}
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">Date of birth *</p>
+        <div className="grid grid-cols-3 gap-2">
+          <RegisterSelect placeholder="Day"   value={f.dob_day}   onChange={up('dob_day')}   options={dobDays.map((v) => ({ v, l: v }))} testid="member-reg-dob-day" />
+          <RegisterSelect placeholder="Month" value={f.dob_month} onChange={up('dob_month')} options={dobMonths}                            testid="member-reg-dob-month" />
+          <RegisterSelect placeholder="Year"  value={f.dob_year}  onChange={up('dob_year')}  options={dobYears.map((v) => ({ v, l: v }))} testid="member-reg-dob-year" />
+        </div>
+      </div>
+
+      {/* Address */}
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">Address</p>
+        <div className="space-y-2">
+          <LabelledInput label={null} value={f.address_line1} onChange={up('address_line1')} placeholder="Address line 1" testid="member-reg-addr1" />
+          <div className="grid grid-cols-3 gap-2">
+            <LabelledInput label={null} value={f.city}     onChange={up('city')}     placeholder="City"     testid="member-reg-city" />
+            <LabelledInput label={null} value={f.postcode} onChange={(v) => up('postcode')(v.toUpperCase())} placeholder="Postcode" testid="member-reg-postcode" />
+            <RegisterSelect
+              placeholder="Country"
+              value={f.country}
+              onChange={up('country')}
+              options={['United Kingdom', 'Ireland', 'United States', 'Canada', 'Australia', 'New Zealand', 'France', 'Germany', 'Spain', 'Other'].map((c) => ({ v: c, l: c }))}
+              testid="member-reg-country"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Emergency contact */}
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60 mb-1">Emergency contact</p>
+        <div className="grid grid-cols-2 gap-3">
+          <LabelledInput label={null} value={f.emergency_contact_name}  onChange={up('emergency_contact_name')}  placeholder="Name"          testid="member-reg-eg-name" />
+          <LabelledInput label={null} value={f.emergency_contact_phone} onChange={up('emergency_contact_phone')} placeholder="Phone *" required testid="member-reg-eg-phone" />
+        </div>
+      </div>
+
+      <LabelledInput label="Password (min 8 characters)" type="password" value={f.password} onChange={up('password')} required testid="member-reg-password" />
       <LabelledInput label="Referral code (optional)" value={f.referral_code} onChange={(v) => up('referral_code')(v.toUpperCase())} testid="member-reg-referral" />
-      <p className="text-[10px] text-white/40 leading-relaxed">
-        By joining you agree to {branding?.name || 'the studio'}'s terms. You'll select your plan after signup.
-      </p>
+
+      {/* Consent */}
+      <div className="space-y-2 pt-1">
+        <label className="flex items-start gap-2 text-[11px] cursor-pointer text-white/80" data-testid="member-reg-gdpr-row">
+          <input
+            type="checkbox"
+            checked={f.gdpr_consent}
+            onChange={(e) => up('gdpr_consent')(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[color:var(--color-brand-cyan)]"
+            data-testid="member-reg-gdpr"
+          />
+          <span>I agree to {branding?.name || 'the studio'}&apos;s Terms &amp; Conditions and Privacy Policy. <span className="text-white/50">(required)</span></span>
+        </label>
+        <label className="flex items-start gap-2 text-[11px] cursor-pointer text-white/80" data-testid="member-reg-mkt-row">
+          <input
+            type="checkbox"
+            checked={f.marketing_consent}
+            onChange={(e) => up('marketing_consent')(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[color:var(--color-brand-cyan)]"
+            data-testid="member-reg-mkt"
+          />
+          <span>Send me class reminders and offers from {branding?.name || 'the studio'}. <span className="text-white/50">(optional)</span></span>
+        </label>
+      </div>
+
       <button type="submit" disabled={busy}
         className="w-full rounded-lg py-3 text-sm font-extrabold uppercase tracking-wider disabled:opacity-60"
         style={{ background: accent || 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }} data-testid="member-register-submit">
         {busy ? 'Creating account…' : 'Create account'}
       </button>
     </form>
+  );
+}
+
+function RegisterSelect({ placeholder, value, onChange, options, testid }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      data-testid={testid}
+      className="rounded-lg px-3 py-2.5 text-sm focus:outline-none w-full"
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.18)',
+        color: '#ffffff',
+      }}
+    >
+      <option value="" style={{ background: '#0a0c10', color: '#fff' }}>{placeholder}</option>
+      {options.map((o) => (
+        <option key={o.v} value={o.v} style={{ background: '#0a0c10', color: '#fff' }}>{o.l}</option>
+      ))}
+    </select>
   );
 }
 

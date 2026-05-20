@@ -11135,3 +11135,60 @@ includes the counts: e.g. "2 rehearsals · 27 costume rows added from template".
 - `backend/routes/memberships_ops.py` (check-slug + extended BasicsBody + status)
 - `backend/tests/test_iter_216h252_wizard_redesign.py`
 - `Makefile`
+
+## Iter 216h253 — Public member sign-up captures full contact + DOB dropdowns (Feb 20, 2026)
+
+### Reported by Lee
+"When a member requested to join via the app — it didn't ask for any
+contact details. All the contact fields within the add-member option
+need to be completed. Ensure new member forms are easy to complete
+with date dropdown boxes where possible."
+
+### Root cause
+The **`/m/<slug>` member-portal `RegisterForm`** only captured first
+name, last name, email, password and phone (optional). No DOB, no
+address, no emergency contact, no GDPR consent. Studios were getting
+half-built member records.
+
+### Fixes
+
+**Backend (`/api/member-auth/register`)**
+- `MemberRegister` extended with `address_line1`, `address_line2`,
+  `city`, `postcode`, `country`, `emergency_contact_name`,
+  `emergency_contact_phone`, `gdpr_consent`, `marketing_consent`.
+- Server now enforces **phone required** and **GDPR consent required**
+  (mirrors the operator AddMemberModal) — returns 400 with a clear
+  detail.
+- Persisted record stamps a consent audit trail
+  (`gdpr_consent_at`, `marketing_consent_at`) and auto-uppercases
+  the postcode.
+
+**Frontend — `RegisterForm` (MemberPortal.js)**
+- DOB is now **3 selects: day / month / year** for tap-friendly mobile
+  entry. Combined to ISO before POSTing.
+- Year range covers ages 5–100 (junior dance students + seniors).
+- New sections: Address (line 1, city, postcode, country select),
+  Emergency contact (name, phone — phone required).
+- Two consent checkboxes: T&Cs (required) + marketing (optional,
+  pre-checked).
+- Clear client-side guards with friendly inline banners.
+
+**Frontend — AddMemberModal (operator side)**
+- Country field upgraded from free-text + `<datalist>` autocomplete to
+  a proper `<select>` populated from the shared `COUNTRIES` list.
+  Keeps a "(custom)" fallback for legacy free-text values.
+
+### Verification
+- `tests/test_iter_216h253_member_signup_contact.py` — 8/8 passing
+  (schema accepts new fields, phone-required 400, GDPR-required 400,
+  full-record persistence, FE DOB dropdowns, FE contact fields,
+  FE client-side guards, AddMemberModal country select).
+- `make regression` — 128 passed / 14 skipped (up from 120).
+- ESLint + Ruff clean.
+
+### Files changed
+- `backend/routes/memberships/member_auth.py` (MemberRegister + persistence)
+- `frontend/src/pages/Memberships/MemberPortal.js` (RegisterForm rewrite + RegisterSelect)
+- `frontend/src/pages/Memberships/modals/AddMemberModal.js` (country select)
+- `backend/tests/test_iter_216h253_member_signup_contact.py`
+- `Makefile`

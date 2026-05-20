@@ -36,6 +36,18 @@ class MemberRegister(BaseModel):
     last_name: str
     phone: str | None = None
     dob: str | None = None
+    # Iter 216h253 — extended contact + safety fields. Mirrors what the
+    # operator-side AddMemberModal captures so a self-service member
+    # sign-up doesn't leave the studio with a half-populated record.
+    address_line1: str | None = None
+    address_line2: str | None = None
+    city: str | None = None
+    postcode: str | None = None
+    country: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
+    gdpr_consent: bool = False
+    marketing_consent: bool = False
     organization_id: str | None = None
     organization_slug: str | None = None
     site_id: str | None = None
@@ -76,14 +88,36 @@ async def member_register(body: MemberRegister, request: Request):
         )
         if referrer:
             referred_by = referrer["id"]
+    # Iter 216h253 — enforce contact + GDPR parity with the operator
+    # AddMemberModal so the studio always gets a complete record.
+    phone = (body.phone or "").strip()
+    if not phone:
+        raise HTTPException(400, "phone required")
+    if not body.gdpr_consent:
+        raise HTTPException(400, "GDPR consent (T&Cs acceptance) required")
+    now_iso = _now_iso()
     member = {
         "id": _uuid(),
         "email": email,
         "password": pwd_ctx.hash(body.password),
         "first_name": sanitise_string(body.first_name),
         "last_name": sanitise_string(body.last_name),
-        "phone": (body.phone or "").strip() or None,
+        "phone": phone,
         "dob": body.dob,
+        # Iter 216h253 — persist the extended contact fields collected
+        # by the redesigned public RegisterForm.
+        "address_line1": (body.address_line1 or "").strip() or None,
+        "address_line2": (body.address_line2 or "").strip() or None,
+        "city": (body.city or "").strip() or None,
+        "postcode": ((body.postcode or "").strip().upper()) or None,
+        "country": (body.country or "").strip() or None,
+        "emergency_contact_name": (body.emergency_contact_name or "").strip() or None,
+        "emergency_contact_phone": (body.emergency_contact_phone or "").strip() or None,
+        # Consent audit trail.
+        "gdpr_consent": True,
+        "gdpr_consent_at": now_iso,
+        "marketing_consent": bool(body.marketing_consent),
+        "marketing_consent_at": now_iso if body.marketing_consent else None,
         "organization_id": org_id,
         "site_id": body.site_id,
         "account_type": "member",
@@ -94,7 +128,7 @@ async def member_register(body: MemberRegister, request: Request):
         "promo_credit_pence": 0,
         "referral_code": _gen_referral_code(body.first_name),
         "referred_by": referred_by,
-        "created_at": _now_iso(),
+        "created_at": now_iso,
     }
     await db.members.insert_one(member)
     # Materialise TOTP secret for QR

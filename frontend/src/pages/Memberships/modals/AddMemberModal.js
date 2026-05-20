@@ -168,11 +168,31 @@ function AddMemberModalInner({ API, headers, onClose }) {
               placeholder="Postcode (e.g. SW1A 1AA)"
               testid="mbr-new-postcode"
             />
-            <Input label={null} value={f.country}  onChange={(v) => setF({ ...f, country: v })}  placeholder="Country" list="mbr-new-country-list" testid="mbr-new-country" />
+            {/* Iter 216h253 — Country is a proper Select for easier
+                completion (per user feedback). Falls back to free text
+                only if the stored value isn't in our list. */}
+            <select
+              value={COUNTRIES.includes(f.country) ? f.country : (f.country ? '__other__' : '')}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '__other__') return; // keep custom value
+                setF({ ...f, country: v });
+              }}
+              data-testid="mbr-new-country"
+              className="rounded-lg px-3 py-2 text-sm focus:outline-none"
+              style={{
+                background: 'var(--theme-surface-hover, rgba(0,0,0,0.04))',
+                border: '1px solid var(--theme-border, rgba(0,0,0,0.1))',
+                color: 'var(--theme-text, #111)',
+              }}
+            >
+              <option value="">Country…</option>
+              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {f.country && !COUNTRIES.includes(f.country) && (
+                <option value="__other__">{f.country} (custom)</option>
+              )}
+            </select>
           </div>
-          <datalist id="mbr-new-country-list">
-            {COUNTRIES.map((c) => <option key={c} value={c} />)}
-          </datalist>
         </div>
       </div>
 
