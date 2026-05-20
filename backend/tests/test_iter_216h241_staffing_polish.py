@@ -63,19 +63,28 @@ def test_staff_update_accepts_site_ids():
 
 
 def test_phase_subheadings_removed_from_staffing_tabs():
-    """All 5 'Phase Sx · …' visible subheadings must be replaced with
-    the iter 216h241 hidden marker. Detection: no visible-text 'Phase
-    Sx · …' string with the brand-cyan colour modifier remains."""
+    """All 5 'Phase Sx · …' visible subheadings must be gone. The
+    earlier (h241) hidden-placeholder approach left a lone icon next
+    to the empty `<p>` — iter h242 removed the whole wrapper. So the
+    test now just asserts no visible `>Phase S` strings remain."""
     base = pathlib.Path("/app/frontend/src/pages/LiteDashboard/staffing")
     targets = ["HRTab.js", "CommsTab.js", "OperationsTab.js", "AIWorkforceTab.js", "TimeClockTab.js"]
     for fname in targets:
         text = (base / fname).read_text(encoding="utf-8")
-        # The replaced lines must carry the removal marker.
-        assert "subheading-removed-iter216h241" in text, f"{fname}: missing removal marker"
-        # And the visible Phase Sx · text must be gone from JSX (still ok
-        # in module docstring comments at top of file).
-        # Strict check: no `>Phase S\d · ` substring anywhere.
+        # Strict check: no `>Phase S\d · ` substring anywhere in JSX.
         assert ">Phase S" not in text, f"{fname}: visible 'Phase S' subheading still present"
+
+
+def test_enterprise_crm_subheadings_removed():
+    """Iter 216h242 — the 'Enterprise CRM' eyebrow above Territory &
+    coverage / Forecast & quotas / Reports & analytics was removed."""
+    for path in (
+        "/app/frontend/src/pages/CRM/CRMForecast.js",
+        "/app/frontend/src/pages/CRM/CRMReports.js",
+        "/app/frontend/src/pages/CRM/CRMTerritories.js",
+    ):
+        text = pathlib.Path(path).read_text(encoding="utf-8")
+        assert ">Enterprise CRM<" not in text, f"{path}: 'Enterprise CRM' eyebrow still present"
 
 
 def test_datepicker_exports_parse_typed_date():
@@ -94,3 +103,16 @@ def test_staffing_console_has_hrs_per_week_column():
     assert "Hourly cost £" not in src  # old placeholder gone
     assert 'data-testid={`staff-row-${s.id}-hourly`}' in src
     assert 'data-testid={`staff-row-${s.id}-hrs`}' in src
+
+
+def test_staffing_console_modal_uses_portal():
+    """Iter 216h242 — modal must portal to document.body so the fixed
+    inset-0 backdrop covers the whole viewport (parent transforms
+    were creating a new containing block and leaving 1/3 of the
+    screen un-dimmed). Also asserts explicit labels are present."""
+    src = pathlib.Path("/app/frontend/src/pages/LiteDashboard/StaffingConsole.js").read_text()
+    assert "createPortal" in src
+    assert "document.body" in src
+    # Explicit labels above the two number inputs.
+    assert ">Hourly rate (£/hr)<" in src
+    assert ">Contracted hours / week<" in src

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   CheckSquare, FileText, ShieldAlert, Plus, X, Loader2, Camera, Trash2,
-  Pencil, Calendar as CalIcon, AlertTriangle, Check, ClipboardList, Send, RefreshCw,
+  Pencil, Calendar as CalIcon, AlertTriangle, Check, Send, RefreshCw,
 } from 'lucide-react';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';
@@ -789,10 +789,6 @@ export default function OperationsTab({ headers, isManager }) {
 
   return (
     <div className="space-y-4" data-testid="operations-tab">
-      <div className="flex items-center gap-2 flex-wrap">
-        <ClipboardList size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="ops-tab-subheading-removed-iter216h241" hidden></p>
-      </div>
       <div className="inline-flex rounded-full border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
         {SUB_TABS.map((s) => {
           const Icon = s.icon;

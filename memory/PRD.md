@@ -1,3 +1,73 @@
+## Iter 216h242 — Staffing & CRM polish round 2 (Feb 19, 2026) ✅ P0 bugfix batch
+
+User ask (verbatim): *"Remove the little symbols too / Add staff -
+Hours per week - hourly rate - don't know which field is for what /
+When the add staff modal shows - 1/3 of the screen turns white -
+as shown on picture in zig zag red / Similar to Staffing- CRM -
+remove sub headers from options, also on reports"*
+
+Carry-over from h241: removing the visible Phase Sx text alone left
+**lone icons** dangling in the flex wrappers, and the user spotted
+the modal portaling + label clarity issues at the same time.
+
+### Bug 1 — Lone icons next to (now-hidden) Phase Sx tags
+- **Root cause:** h241 hid the `<p>` text but kept the parent
+  `<div className="flex items-center gap-2">` with its lucide icon
+  alongside. Empty `<p>` + visible icon = orphaned ghost icon under
+  every staffing tab.
+- **Fix:** Deleted the whole wrapper div (icon + hidden p) in HRTab,
+  OperationsTab, AIWorkforceTab, TimeClockTab. For CommsTab the
+  wrapper was needed for the "Internal messaging" sub-label, so just
+  removed the empty `<p>`. Cleaned up the now-unused `ClipboardList`
+  + `Activity` imports.
+
+### Bug 2 — Add Staff modal field-label ambiguity
+- **Root cause:** The number inputs used `placeholder="0"` which
+  vanishes the moment the user types and the parent dialog has zero
+  field labels. Two `0`s side-by-side looked identical.
+- **Fix:** Restructured the Add Staff modal to render each field
+  with a visible **uppercase label** above it (`Full name`, `Email`,
+  `Primary role`, `Contract type`, `Hourly rate (£/hr)`,
+  `Contracted hours / week`). Labels stay visible whether or not the
+  input has a value.
+
+### Bug 3 — Modal white-area below dialog (1/3 of screen un-dimmed)
+- **Root cause:** The dialog was rendered inline inside Pulse Pro's
+  page tree, which has a `transform` somewhere up the parent chain.
+  CSS spec: a transformed ancestor becomes the **containing block**
+  for any `position: fixed` descendant — so `inset-0` no longer
+  spans the viewport, it spans the transformed ancestor's box,
+  which doesn't extend to the bottom of the viewport.
+- **Fix:** Wrapped the modal in `createPortal(..., document.body)`
+  so the `fixed inset-0` overlay attaches directly to body and
+  resolves to the full viewport. Verified live: backdrop rect now
+  `{x:0, y:0, w:1920, h:1080}` matching the viewport exactly.
+
+### Bug 4 — "Enterprise CRM" eyebrow above CRM headings
+- **Root cause:** Same dev-style scaffolding as the Phase Sx tags
+  but in CRM — `<p>Enterprise CRM</p>` above the H1 on Territories,
+  Forecast & quotas, and Reports & analytics. Customers don't want
+  to see the platform's marketing tier label in-product.
+- **Fix:** Removed the eyebrow `<p>` from all three CRM pages. The
+  H1 alone (e.g. "Territory & coverage") is enough orientation.
+
+### Verification
+- 2 new + 1 updated regression tests in
+  `tests/test_iter_216h241_staffing_polish.py` (now `test_phase_subheadings_removed_from_staffing_tabs`
+  + `test_enterprise_crm_subheadings_removed`
+  + `test_staffing_console_modal_uses_portal`).
+- `make regression` → **64 passed, 14 skipped**.
+- `ruff check .` + `yarn eslint src --max-warnings 0` clean (cleaned
+  up two `unused-imports` warnings on `ClipboardList`/`Activity`).
+- Live Playwright check: `staff-add-backdrop` portal is a direct
+  child of `document.body`; its bounding rect = `{x:0,y:0,w:1920,h:1080}`
+  = full viewport. Modal labels render exactly as designed
+  (FULL NAME, EMAIL, PRIMARY ROLE, CONTRACT TYPE, HOURLY RATE
+  (£/HR), CONTRACTED HOURS / WEEK).
+
+---
+
+
 ## Iter 216h241 — Staffing UX polish from production review (Feb 19, 2026) ✅ P0 bugfix batch
 
 User ask (verbatim): *"Staffing - HR - Difficult to enter a year -

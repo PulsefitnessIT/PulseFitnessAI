@@ -267,7 +267,7 @@ export default function CRMReports() {
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6" data-testid="crm-reports-page">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-blue)' }}>Enterprise CRM</p>
+          {/* Iter 216h242 — "Enterprise CRM" eyebrow removed. */}
           <h1 className="text-2xl md:text-3xl font-extrabold" style={{ color: 'var(--theme-text)' }}>Reports & analytics</h1>
           <p className="text-sm text-[color:var(--theme-text-muted)] max-w-2xl mt-1">
             Pipeline health, quote conversion, margin distribution, win/loss reasons, salesperson leaderboard, and GDPR consent posture — aggregated live, with per-report date ranges.

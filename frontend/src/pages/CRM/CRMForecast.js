@@ -412,7 +412,8 @@ export default function CRMForecast() {
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-5" data-testid="crm-forecast-page">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}>Enterprise CRM</p>
+          {/* Iter 216h242 — "Enterprise CRM" eyebrow removed per user
+              production review. The H1 alone is enough orientation. */}
           <h1 className="text-2xl md:text-3xl font-extrabold" style={{ color: 'var(--theme-text)' }}>
             {isAccuracyView ? 'Forecast accuracy' : (isTeamView ? 'Manager forecast review' : 'Forecast & quotas')}
           </h1>

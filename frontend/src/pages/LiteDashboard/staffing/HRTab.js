@@ -611,10 +611,6 @@ export default function HRTab({ headers, isManager }) {
 
   return (
     <div className="space-y-3" data-testid="hr-tab">
-      <div className="flex items-center gap-2">
-        <User size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="hr-tab-subheading-removed-iter216h241" hidden></p>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 rounded-xl border overflow-hidden"
         style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)', minHeight: '600px' }}>

@@ -14,6 +14,7 @@
  * server-side; the frontend just hides UI the user can't use.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Users, Calendar, UserPlus, Plane, ShoppingBag, BarChart3, PoundSterling,
@@ -542,26 +543,51 @@ function StaffTab({ headers }) {
         </Card>
       )}
 
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4" onClick={() => setShowAdd(false)}>
+      {showAdd && createPortal((
+        // Iter 216h242 — portal to document.body so the fixed inset-0
+        // overlay covers the full viewport. Previously the modal was
+        // rendered inside a parent with `transform`, which creates a
+        // new containing block for position:fixed — the result was a
+        // 1/3-of-screen un-dimmed white area below the page content.
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4" onClick={() => setShowAdd(false)} data-testid="staff-add-backdrop">
           <div className="rounded-2xl border p-5 w-full max-w-md" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} onClick={(e) => e.stopPropagation()} data-testid="staff-add-dialog">
             <div className="text-sm font-semibold mb-3 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Add staff</div>
             <div className="space-y-2">
-              <input placeholder="Full name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-name" />
-              <input placeholder="Email (optional — links to existing user)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-email" />
-              <div className="grid grid-cols-2 gap-2">
-                <select value={form.primary_role} onChange={(e) => setForm({ ...form, primary_role: e.target.value })} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-role">
-                  {['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'].map((r) => <option key={r}>{r}</option>)}
-                </select>
-                <select value={form.contract_type} onChange={(e) => setForm({ ...form, contract_type: e.target.value })} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-contract">
-                  {['full_time','part_time','casual','contractor'].map((c) => <option key={c}>{c}</option>)}
-                </select>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Full name</label>
+                <input placeholder="e.g. Jane Doe" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-name" />
               </div>
-              <input type="number" step="0.5" placeholder="Hourly rate (£/hr)" value={form.hourly_cost} onChange={(e) => setForm({ ...form, hourly_cost: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hourly" />
-              {/* Iter 216h241 — add hours/week to the create dialog so
-                  the staff row carries both values from day one (no
-                  separate HR profile trip required). */}
-              <input type="number" step="0.5" min="0" max="80" placeholder="Contracted hours / week" value={form.hours_per_week} onChange={(e) => setForm({ ...form, hours_per_week: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hours-per-week" />
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Email <span className="opacity-60 normal-case font-normal">(optional — links to existing user)</span></label>
+                <input placeholder="jane@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-email" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Primary role</label>
+                  <select value={form.primary_role} onChange={(e) => setForm({ ...form, primary_role: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-role">
+                    {['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'].map((r) => <option key={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Contract type</label>
+                  <select value={form.contract_type} onChange={(e) => setForm({ ...form, contract_type: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-contract">
+                    {['full_time','part_time','casual','contractor'].map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  {/* Iter 216h242 — labels above each number input. Without
+                      these the two zeros looked identical and operators
+                      had no way to tell which was £/hr vs hours/week. */}
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Hourly rate (£/hr)</label>
+                  <input type="number" step="0.5" min="0" value={form.hourly_cost} onChange={(e) => setForm({ ...form, hourly_cost: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hourly" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Contracted hours / week</label>
+                  <input type="number" step="0.5" min="0" max="80" value={form.hours_per_week} onChange={(e) => setForm({ ...form, hours_per_week: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hours-per-week" />
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button type="button" onClick={() => setShowAdd(false)} className="text-xs px-3 py-1.5 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
@@ -569,7 +595,7 @@ function StaffTab({ headers }) {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }

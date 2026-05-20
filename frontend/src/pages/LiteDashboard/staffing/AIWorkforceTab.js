@@ -329,10 +329,6 @@ export default function AIWorkforceTab({ headers }) {
   useEffect(() => { localStorage.setItem('staffing.ai.sub', sub); }, [sub]);
   return (
     <div className="space-y-3" data-testid="ai-workforce-tab">
-      <div className="flex items-center gap-2">
-        <Sparkles size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="ai-rota-tab-subheading-removed-iter216h241" hidden></p>
-      </div>
       <div className="inline-flex rounded-full border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
         {SUB_TABS.map((t) => {
           const Icon = t.icon;

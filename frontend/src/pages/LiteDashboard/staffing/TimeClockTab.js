@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Activity, Loader2, Check, AlertTriangle, ChevronDown, ChevronRight,
+  Loader2, Check, AlertTriangle, ChevronDown, ChevronRight,
   Plus, Trash2, Pencil, X, ClipboardCheck, Smartphone, RefreshCw,
 } from 'lucide-react';
 
@@ -418,10 +418,6 @@ function KiosksPanel({ headers }) {
 export default function TimeClockTab({ headers }) {
   return (
     <div className="space-y-4" data-testid="time-clock-tab">
-      <div className="flex items-center gap-2">
-        <Activity size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="time-clock-tab-subheading-removed-iter216h241" hidden></p>
-      </div>
       <ClockBoard headers={headers} />
       <div className="flex items-center gap-1.5 text-xs pt-1" style={{ color: 'var(--theme-text-muted)' }}>
         <ClipboardCheck size={12} /> Approve hours below before exporting payroll.
