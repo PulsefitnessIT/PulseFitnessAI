@@ -1,14 +1,16 @@
-> **📋 Status — Iter 216h237 (Feb 19, 2026)**
+> **📋 Status — Iter 216h239 (Feb 19, 2026)**
 >
-> Field mapping below remains the canonical reference. Two new
-> sections appended at the bottom (§27 and §28) to formally cover
-> additions that landed across the h-series sprint:
+> Field mapping below remains the canonical reference. New sections
+> appended at the bottom to cover surfaces missing from earlier sweeps:
 >
 > | New surface | Section |
 > | --- | --- |
 > | CRM activation events that fire Sage/Sicon-relevant business signals | §27 |
 > | `primary_module` flow (signup → org doc → trial funnel) | §28 |
 > | Two-step CRM ↔ Sage customer sync (already in `routes/crm_sage200.py`) | §29 — formalised mapping |
+> | **Orbit 4 platform — overview, credentials, webhook events** | **§30** (new) |
+> | **Orbit 4 → GymAxis (inbound mappers)** — tickets, assets, contracts, users | **§31** (new) |
+> | **GymAxis → Orbit 4 (outbound mappers)** — equipment, contracts, tickets, users + status crosswalk | **§32** (new) |
 >
 > Earlier h232 addendum:
 >
@@ -48,17 +50,18 @@
 
 Which modules are wired to which external system, and at what fidelity.
 
-| Module | Sicon Service Manager | Sage 200 UK | Direction | Fidelity |
-|---|---|---|---|---|
-| **Service Operations** (`routes/svc/*`) | Cases, tracking notes, appointments, signatures, parts, attachments | Invoice posting (`SLInvoice`), nominal codes, employee + stock + customer reads | bidirectional with Sicon · outbound to Sage | **Master spec — sections 2-18** |
-| **CRM · Companies** (`crm_v2`, `crm_core`) | Read-only customer reference (Sicon `Company.SiconCompanyID`) | `SLCustomerAccount` (master) | Sage → GymAxis bootstrap, GymAxis → Sage on commercial enrichment | §19 below |
-| **CRM · Contracts** (`crm_contracts.py`) | Sicon Service Contracts (`ServiceContractID`) | `SLContract` / recurring `SLInvoice` | bidirectional · Sicon owns lifecycle, Sage owns billing | §20 below |
-| **CRM · CPQ Quotes** (`crm_cpq.py`) | — | `SLQuote` / `SLInvoice` (on signature) | GymAxis → Sage | §21 below |
-| **Operations · Sites** (`sites.py`, `crm_v2`) | Sicon `SubLocation` | Sage `DeliveryAddress` | bidirectional, Sicon canonical for service routing | §22 below |
-| **Operations · Equipment** (`equipment_import.py`) | Sicon `Equipment` (master) | Sage `FixedAsset` (if customer uses Sage Assets) | Sicon → GymAxis primary; Sage optional | §23 below |
-| **Memberships · Plans / Members** (`routes/memberships/*`) | — (Pulse Fitness members are not Sicon-tracked) | `SLInvoice` (recurring), `SLCustomerAccount` (member as account) | GymAxis → Sage | §24 below |
-| **Memberships · Booking** | — | — | gymaxis_only | §24 below |
-| **Marketing** (`routes/marketing/*`) | — | — | gymaxis_only | not externally synced |
+| Module | Sicon Service Manager | Sage 200 UK | Orbit 4 | Direction | Fidelity |
+|---|---|---|---|---|---|
+| **Service Operations** (`routes/svc/*`) | Cases, tracking notes, appointments, signatures, parts, attachments | Invoice posting (`SLInvoice`), nominal codes, employee + stock + customer reads | Inbound tickets via webhook → forwarded as Sicon cases (`routes/integrations.py`) | bidirectional with Sicon · outbound to Sage · inbound from Orbit 4 | **Master spec — sections 2-18 (Sicon/Sage), §30-§32 (Orbit 4)** |
+| **CRM · Companies** (`crm_v2`, `crm_core`) | Read-only customer reference (Sicon `Company.SiconCompanyID`) | `SLCustomerAccount` (master) | — | Sage → GymAxis bootstrap, GymAxis → Sage on commercial enrichment | §19 below |
+| **CRM · Contracts** (`crm_contracts.py`) | Sicon Service Contracts (`ServiceContractID`) | `SLContract` / recurring `SLInvoice` | Mirrored to Orbit 4 `/contracts` (active + dates + parties — §32) | bidirectional · Sicon owns lifecycle, Sage owns billing, Orbit 4 holds operator-facing copy | §20 below + §32 |
+| **CRM · CPQ Quotes** (`crm_cpq.py`) | — | `SLQuote` / `SLInvoice` (on signature) | — | GymAxis → Sage | §21 below |
+| **Operations · Sites** (`sites.py`, `crm_v2`) | Sicon `SubLocation` | Sage `DeliveryAddress` | `user.site_name` on Orbit 4 user records (denormalised, §32) | bidirectional, Sicon canonical for service routing | §22 below |
+| **Operations · Equipment** (`equipment_import.py`) | Sicon `Equipment` (master) | Sage `FixedAsset` (if customer uses Sage Assets) | Orbit 4 `/assets` — bidirectional (qr_code, brand/range/product, lifecycle dates — §31/§32) | Sicon → GymAxis primary; Sage optional; Orbit 4 bidirectional | §23 below + §31/§32 |
+| **Issues / Faults** (`routes/issues.py`, `routes/faults.py`) | Mirrored as `svc_cases` (existing §2-§4 pipeline) | — | Orbit 4 `/contracts/{id}/tickets` — outbound mirror with status crosswalk (§32) | inbound from Orbit 4 via webhook; outbound for GymAxis-originated faults | §31/§32 |
+| **Memberships · Plans / Members** (`routes/memberships/*`) | — (Pulse Fitness members are not Sicon-tracked) | `SLInvoice` (recurring), `SLCustomerAccount` (member as account) | — | GymAxis → Sage | §24 below |
+| **Memberships · Booking** | — | — | — | gymaxis_only | §24 below |
+| **Marketing** (`routes/marketing/*`) | — | — | — | gymaxis_only | not externally synced |
 
 ---
 
@@ -447,6 +450,280 @@ client_secret / site_id / company_id`, the two endpoints start
 hitting the real Sage API immediately — no separate worker drain,
 because these are synchronous endpoints triggered by an operator,
 not background outbox writes.
+
+---
+
+
+## 30. Orbit 4 platform — overview, credentials, webhook events
+
+Orbit 4 (`api.orbit4.org/v1`) is the gym-operator-facing fault &
+asset register used by Pulse Fitness members. Wired in
+`routes/integrations.py` + `utils/orbit4_client.py`. Three flows:
+
+| Flow | Direction | Mode | Code path |
+|---|---|---|---|
+| **Webhook receiver** | Orbit 4 → GymAxis | Inbound, real-time | `POST /api/webhooks/orbit4` (HMAC-SHA256 verified via `X-Signature`) |
+| **REST client** | GymAxis → Orbit 4 | Outbound, on-demand | `utils.orbit4_client.Orbit4Client` (httpx, Bearer auth) |
+| **Sicon bridge** | Orbit 4 → Sicon | Forwarded | `process_new_ticket()` → `_map_orbit4_to_sicon()` → `svc_cases` outbox |
+
+### Credentials matrix (per-org or platform-level via `db.integrations`)
+
+Configured via `PUT /api/integrations/orbit4` (UI: Admin Console →
+Integrations → Orbit 4). Defaults seeded by `seed_integrations()` in
+`routes/integrations.py:_DEFAULT_ORBIT4_CONFIG`.
+
+| Field | Required | Notes |
+|---|---|---|
+| `enabled` | yes | master switch — false = webhook returns `{"status":"ignored","reason":"integration_disabled"}` |
+| `api_token` | yes (for outbound) | OAuth Bearer token sent as `Authorization: Bearer …` |
+| `webhook_secret` | yes (for inbound) | HMAC-SHA256 shared secret. Webhook signature header: `X-Signature` |
+| `base_url` | yes | default `https://api.orbit4.org/v1`; per-tenant overrides supported |
+| `webhook_url` | derived | always `/api/webhooks/orbit4` (the GymAxis route — give this to Orbit 4 ops) |
+| `field_mappings` | optional | JSON overrides for the default field map (description / subject / asset_serial / asset_name / priority) |
+| `settings.auto_forward_to_sicon` | optional | when true (default), inbound tickets fan out to `svc_cases` (§2-4) |
+| `settings.log_all_events` | optional | drop every webhook into `integration_logs` for replay |
+| `branding.display_name` | optional | tenant label shown in the webhook ack response |
+| `branding.user_agent` | optional | sent as `User-Agent` header on outbound calls (default `PulseFitness-ServiceBridge/1.0`) |
+
+### Webhook event types (set by `utils.orbit4_client.ORBIT4_SUPPORTED_EVENTS`)
+
+Handled by `routes.integrations.orbit4_webhook` → dispatcher:
+
+| Event | Handler | GymAxis side effect |
+|---|---|---|
+| `ticket.created` | `process_new_ticket` | Insert `integration_bridge` row, create `svc_cases` row (when `auto_forward_to_sicon=true`) |
+| `ticket.updated` | `process_ticket_update` | Mirror status + lifecycle timestamps onto existing bridge row |
+| `ticket.closed`  | `process_ticket_closed` | Set `svc_cases.status="closed"`, populate `closed_at` |
+| `asset.created`  | `process_asset_upsert` | Upsert `equipment` row keyed on `orbit4_asset_id` |
+| `asset.updated`  | `process_asset_upsert` | Same upsert (idempotent) |
+| `asset.moved`    | `process_asset_moved`  | Reassign `equipment.site_id` |
+| `note.created`   | `process_note_created` | Append `svc_case_notes` row tagged `source="orbit4"` |
+| `media.created`  | `process_media_created` | Append `svc_case_attachments` row |
+| `user.created`   | `process_user_upsert`  | Provision `users` row (kiosk operator role) |
+| `user.updated`   | `process_user_upsert`  | Same upsert |
+
+Inbound webhook ack body:
+```json
+{"status": "ok", "event": "<event_type>", "processor": "<branding.display_name>"}
+```
+
+---
+
+## 31. Orbit 4 → GymAxis (inbound mappers — Phase α/β)
+
+Implemented in `utils/orbit4_client.py`. Every Orbit 4 entity has a
+dedicated mapper that flattens the upstream JSON into a GymAxis-shaped
+dict ready for Mongo insert.
+
+### 31.1 Ticket → GymAxis fault / svc_case  (`map_orbit4_ticket_full`)
+
+| GymAxis field | Orbit 4 field | Notes |
+|---|---|---|
+| `orbit4_ticket_id` | `id` | natural key — string |
+| `orbit4_ticket_number` | `number` | human reference (e.g. `O4-12345`) |
+| `subject` | derived: `f"Orbit4 #{number} — {asset.product}"` | shown on Service Desk row |
+| `description` | `description` | also mirrored to `issue_description` |
+| `severity` | `priority` via `ORBIT4_PRIORITY_TO_GYMAXIS` | `critical/urgent → critical · high → high · normal/medium → medium · low → low` |
+| `orbit4_status` | `status` | raw Orbit 4 status, not yet remapped |
+| `orbit4_type` | `type` | Orbit 4 ticket type tag |
+| `orbit4_problem_type` | `problem_type` | drives Sicon `problem_type` field |
+| `orbit4_priority` | `priority` | raw value preserved for analytics |
+| `orbit4_tags[]` | `tags[]` | string list |
+| `orbit4_engineer_deployed_at` | `engineer_deployed_at` | ISO-8601 |
+| `orbit4_engineer_arrived_at`  | `engineer_arrived_at`  | ISO-8601 |
+| `orbit4_closed_at` | `closed_at` | ISO-8601 |
+| `orbit4_created_at` | `created_at` | ISO-8601 |
+| `orbit4_gym_operator{}` | `gym_operator` (user) | flattened via `_user_summary()`: `{id, name, email, role, site_name, company_name}` |
+| `orbit4_service_provider{}` | `service_provider` (user) | same shape |
+| `orbit4_ticket_admin{}` | `ticket_admin` (user) | same shape |
+| `orbit4_engineer{}` | `engineer` (user) | same shape |
+| `orbit4_caretaker{}` | `caretaker` (user) | same shape |
+| `orbit4_contract{}` | `contract` (summary) | `{id, number, type, active, start_date, end_date}` |
+| `orbit4_attachments[]` | flattened `media[]` + `images[]` + `documents[]` | `{id, url, type, source:"orbit4", created_at}` |
+| `orbit4_notes[]` | `notes[]` | `{type:"orbit4_note", message, by, is_system, timestamp}` |
+| `orbit4_metadata{}` | `metadata` | raw passthrough (JSON object) |
+| `asset_serial` | `asset.serial_number` | only set when `asset` block present |
+| `asset_name` | derived from `asset.brand / asset.range / asset.product` | display friendly |
+| `asset_qr_code` | `asset.qr_code` | QR code on the machine |
+| `machine_type` | `asset.product` | category bucket |
+| (asset fan-out) | inlined via `map_orbit4_asset_to_gymaxis(asset)` | see §31.2 |
+| `source` | hard-coded `"orbit4"` | provenance tag for audit |
+
+### 31.2 Asset → GymAxis equipment  (`map_orbit4_asset_to_gymaxis`)
+
+| GymAxis field | Orbit 4 field | Notes |
+|---|---|---|
+| `orbit4_asset_id` | `id` | natural key (int) |
+| `orbit4_product_id` | `product_id` | Orbit 4 catalogue id |
+| `orbit4_qr_code` | `qr_code` | physical sticker on the machine |
+| `serial_number` | `serial_number` | bidirectional with Sicon §23 |
+| `manufacturer` | `brand` |  |
+| `model` | `range` | Orbit 4 calls the model line "range" |
+| `equipment_type` | `product` | e.g. "Treadmill", "Bike" |
+| `install_date` | `installation_date` | ISO date |
+| `manufacturing_date` | `manufacturing_date` |  |
+| `warranty_expiry` | `warranty_end_date` |  |
+| `orbit4_deprecation_date` | `deprecation_date` | end-of-life flag |
+| `orbit4_current_spend` | `current_spend` | YTD spend on this asset |
+| `orbit4_max_spend` | `max_spend` | budget cap |
+| `orbit4_residual_price` | `residual_price` | depreciated book value |
+| `orbit4_fitness_product` | `fitness_product` | boolean — `true` for cardio/strength |
+| `orbit4_has_odometer` | `has_odometer` | boolean — true for treadmills/bikes |
+| `orbit4_image_url` | `image` | hero image |
+| `orbit4_metadata{}` | `metadata` | raw passthrough |
+
+### 31.3 Contract → GymAxis CRM contract  (`map_orbit4_contract_to_gymaxis`)
+
+Cross-references §20 (CRM contracts).
+
+| GymAxis field | Orbit 4 field |
+|---|---|
+| `orbit4_contract_id` | `id` |
+| `contract_number` | `number` |
+| `contract_type` | `type` |
+| `active` | `active` |
+| `start_date` | `start_date` |
+| `end_date` | `end_date` |
+| `orbit4_gym_operator{}` | `gym_operator` (user summary) |
+| `orbit4_service_provider{}` | `service_provider` (user summary) |
+| `orbit4_metadata{}` | `metadata` |
+
+### 31.4 Forward to Sicon  (`_map_orbit4_to_sicon`)
+
+When `auto_forward_to_sicon=true`, the inbound ticket is *also* shaped into a
+Sicon-friendly `svc_cases` row:
+
+| svc_cases field | Built from |
+|---|---|
+| `issue_description` | `description` |
+| `severity` | `ORBIT4_PRIORITY_TO_GYMAXIS[priority]` |
+| `priority` | `map_orbit4_priority(priority)` |
+| `location` | `orbit4_gym_operator.site_name` |
+| `reporter_name` | `orbit4_gym_operator.name` |
+| `reporter_email` | `orbit4_gym_operator.email` |
+| `orbit4_ticket_id` | echoed onto the case for cross-ref |
+| `orbit4_reference` | `orbit4_ticket_number` |
+| `orbit4_status / type / problem_type` | echoed for analytics |
+
+The created case then flows through the standard Sicon §2-§4 outbox
+(no special-cased path). The `integration_bridge` collection holds the
+`{orbit4_ticket_id ↔ svc_cases.id ↔ sicon_case_id}` triple-key for
+deterministic reverse lookup on subsequent webhooks.
+
+---
+
+## 32. GymAxis → Orbit 4 (outbound mappers — Phase γ/δ)
+
+GymAxis-originated changes mirror to Orbit 4 via the
+`utils.orbit4_client.Orbit4Client` REST surface. All outbound payloads
+strip `None`/`""` values for clean PUTs.
+
+### 32.1 Equipment → Orbit 4 asset  (`map_gymaxis_equipment_to_orbit4`)
+
+`POST /v1/assets` — invert of §31.2.
+
+| Orbit 4 field | GymAxis field | Notes |
+|---|---|---|
+| `qr_code` | `equipment.qr_code` (fallback `GA-{id[:8]}`) | guarantees a unique QR even without user-set value |
+| `serial_number` | `equipment.serial_number` | natural key |
+| `brand` | `equipment.manufacturer` (fallback `make`) |  |
+| `range` | `equipment.model` (fallback `model_code`) |  |
+| `product` | `equipment.equipment_type` (fallback `name`) |  |
+| `installation_date` | `equipment.install_date[:10]` | trimmed to YYYY-MM-DD |
+| `manufacturing_date` | `equipment.manufacture_date[:10]` |  |
+| `warranty_end_date` | `equipment.warranty_expiry[:10]` |  |
+| `deprecation_date` | `equipment.deprecation_date[:10]` |  |
+| `user_id` | optional integer (Orbit 4 gym operator id) | injected by caller |
+| `product_id` | optional integer (Orbit 4 catalogue id) | injected by caller |
+| `metadata` | JSON-stringified `{"integration_id": equipment.id, "organization_id": equipment.organization_id}` | reverse-lookup key |
+
+### 32.2 CRM contract → Orbit 4 contract  (`map_gymaxis_contract_to_orbit4`)
+
+`POST /v1/contracts` — natural extension of §20.
+
+| Orbit 4 field | GymAxis field |
+|---|---|
+| `gym_operator_id` | caller-provided int (Orbit 4 user id of the gym) |
+| `service_provider_id` | caller-provided int (Orbit 4 user id of Pulse / installer) |
+| `number` | `contract.contract_number` (fallback `id`) |
+| `type` | `contract.contract_type` (fallback `tier` or `"Full Annual"`) |
+| `start_date` | `contract.start_date[:10]` |
+| `end_date` | `contract.end_date[:10]` |
+| `active` | `contract.status == "active"` |
+| `metadata` | JSON-stringified `{integration_id, organization_id}` |
+
+### 32.3 Fault → Orbit 4 ticket  (`map_gymaxis_issue_to_orbit4_ticket`)
+
+`POST /v1/contracts/{contract_id}/tickets`.
+
+| Orbit 4 field | GymAxis field |
+|---|---|
+| `description` | `issue.issue_description` |
+| `priority` | `_priority_for_orbit4(issue.severity)` via `GYMAXIS_SEVERITY_TO_ORBIT4` (see crosswalk below) |
+| `problem_type` | caller-provided string (default `"undefined"`) |
+| `tags[]` | `issue.fault_tags[]` |
+| `asset_id` | optional Orbit 4 asset id |
+| `gym_operator_id` | optional Orbit 4 user id |
+| `service_provider_id` | optional Orbit 4 user id |
+| `metadata` | JSON-stringified `{integration_id, organization_id, supplier_case_token, sicon_case_id}` |
+
+### 32.4 Severity → priority crosswalk  (`GYMAXIS_SEVERITY_TO_ORBIT4`)
+
+| GymAxis `severity` | Orbit 4 `priority` |
+|---|---|
+| `safety_critical` | `critical` |
+| `critical` | `high` |
+| `high` | `high` |
+| `medium` | `normal` |
+| `low` | `low` |
+
+Reverse map (`ORBIT4_PRIORITY_TO_GYMAXIS`, used in §31.1) accepts
+`critical / urgent / high / normal / medium / low`.
+
+### 32.5 Status → status crosswalk  (`map_gymaxis_status_to_orbit4_patch`)
+
+`PUT /v1/tickets/{id}` — conservative remap (Orbit 4 only knows
+`open` / `in_progress` / `closed`).
+
+| GymAxis `issue.status` | Orbit 4 `status` |
+|---|---|
+| `open` / `new` | `open` |
+| `in_progress` / `scheduled` / `parts_on_order` / `awaiting_parts` / `engineer_assigned` | `in_progress` |
+| `completed` / `resolved` / `closed` / `archived` | `closed` |
+
+When the remapped status is `closed`, the PATCH body also includes
+`closed_at` (now-UTC ISO) and an optional `resolution` string
+(truncated to 1000 chars).
+
+### 32.6 User → Orbit 4 user  (`map_gymaxis_user_to_orbit4`)
+
+`POST /v1/users` — provisions a GymAxis operator onto Orbit 4 so
+subsequent ticket/asset events have a known counterparty.
+
+| Orbit 4 field | GymAxis field | Notes |
+|---|---|---|
+| `first_name` | `user.full_name.split(" ", 1)[0]` (≤60 chars) |  |
+| `last_name`  | `user.full_name.split(" ", 1)[1]` (≤60 chars, fallback `"-"`) |  |
+| `email` | `user.email` |  |
+| `language` | `user.language` if in `ORBIT4_LANG_ENUM`, else `"en"` | enum: en/es/de/bg/pt/fr/jp/tr/ar/zh/zh-Hant/hi/bn/pl/id/th/vi/el |
+| `role` | caller-provided (default `"gym_operator"`) |  |
+| `site_name` | optional (≤120 chars) |  |
+| `metadata` | JSON-stringified `{integration_id, organization_id}` |  |
+
+### 32.7 Note / attachment add-ons
+
+These ride on existing ticket calls — no dedicated mapper:
+- `Orbit4Client.add_ticket_note(ticket_id, note, user_id?)` → `POST /v1/tickets/{id}/notes`
+- `Orbit4Client.close_ticket(ticket_id, payload?)` → `POST /v1/tickets/{id}/close`
+- `Orbit4Client.link_user(parent_id, child_id)` → `POST /v1/users/{parent_id}/link`
+
+### Demo-readiness note
+
+To go live with Orbit 4:
+1. Add the `api_token` + `webhook_secret` via `PUT /api/integrations/orbit4`.
+2. Set `enabled=true`. The webhook receiver becomes hot immediately.
+3. Run `POST /api/integrations/orbit4/test-connection` for a credentials/handshake check, then verify outbound mirroring via `POST /api/integrations/orbit4/mirror/equipment/{equipment_id}` (and the equivalent `/mirror/contract/{contract_id}` + `/mirror/issue/{issue_id}` routes).
+4. For outbound: ensure `gym_operator_id` and `service_provider_id` are populated on the GymAxis org → these are the Orbit 4 user ids to pass into the mappers.
 
 ---
 

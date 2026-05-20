@@ -1,3 +1,64 @@
+## Iter 216h239 — Orbit 4 integration mapping audit (Feb 19, 2026) ✅ P1
+
+User ask (verbatim): *"Is the orbit 4 integration mapping fields
+fully up to date too?"*
+
+### Honest finding
+**Orbit 4 was completely missing from `INTEGRATION_FIELD_MAPPING.md`.**
+The codebase has ~1,431 LoC across `routes/integrations.py` (970
+LoC) + `utils/orbit4_client.py` (461 LoC) — a full webhook receiver,
+HMAC validation, three inbound mappers, six outbound mappers and a
+Sicon-bridge forward path — but the canonical field-mapping doc had
+**zero** Orbit 4 rows.
+
+### What landed
+Three new sections appended to `INTEGRATION_FIELD_MAPPING.md`,
+totalling ~210 lines of canonical mapping:
+
+| Section | Coverage |
+|---|---|
+| **§30 — Orbit 4 platform overview** | Three flows (webhook receiver, REST client, Sicon bridge), credentials matrix (`api_token`, `webhook_secret`, `base_url`, `field_mappings`, `settings`, `branding`), full webhook event table (10 events) with handler + side-effect, ack body shape, HMAC `X-Signature` header. |
+| **§31 — Orbit 4 → GymAxis (inbound mappers)** | Four sub-sections (§31.1 ticket, §31.2 asset, §31.3 contract, §31.4 Sicon forward). Every field captured by `map_orbit4_ticket_full`, `map_orbit4_asset_to_gymaxis`, `map_orbit4_contract_to_gymaxis`, and `_map_orbit4_to_sicon` is documented with its Orbit 4 source. |
+| **§32 — GymAxis → Orbit 4 (outbound mappers)** | Seven sub-sections (§32.1 equipment, §32.2 contract, §32.3 ticket, §32.4 severity crosswalk, §32.5 status crosswalk, §32.6 user provisioning, §32.7 note/attachment add-ons). Documents the natural keys, default fallbacks, optional ids, and the `metadata` JSON convention for reverse lookup. Demo-readiness checklist references the actual endpoints (`test-connection`, `mirror/equipment/{id}`, etc.). |
+
+Updated the §0 module matrix to include an Orbit 4 column for all
+seven impacted modules (Service Ops, CRM Contracts, Operations
+Sites/Equipment, Issues/Faults).
+
+Updated iter status header at the top of the doc to call out the
+three new sections.
+
+### Verification
+- `make lint-integrations` → `PASS · 6 ok · 1 warn · 0 err`.
+- `make regression` → **42 passed, 14 skipped** in 6.95s.
+- Cross-checked every code symbol referenced (`ORBIT4_SUPPORTED_EVENTS`,
+  `ORBIT4_PRIORITY_TO_GYMAXIS`, `GYMAXIS_SEVERITY_TO_ORBIT4`,
+  `GYMAXIS_STATUS_TO_ORBIT4`, `ORBIT4_LANG_ENUM`,
+  `_DEFAULT_ORBIT4_CONFIG`, `Orbit4Client.add_ticket_note` etc.) —
+  every name exists where claimed.
+- Audited the route surface (`grep '@router' routes/integrations.py`)
+  and corrected the doc's demo-readiness step (the endpoint is
+  `test-connection`, not `test-bridge`).
+
+### Why this matters
+Orbit 4 is the Pulse Fitness customer-facing intake; without it being
+in the canonical mapping doc, any future field added to a webhook
+handler or outbound mapper could ship without review. The mapping
+doc is now the single source of truth across **three** upstream
+platforms (Sicon, Sage, Orbit 4), and the existing CI lint already
+acknowledges the new sections as part of the extra-sections allow-list.
+
+### Follow-up considered (not in this iteration)
+- The "Field-mapping coverage" badge (§h238) currently scans only
+  `backend/routes/svc/*` for `sicon:` / `sage:` / `gymaxis_only`
+  annotations — it doesn't yet count Orbit 4 fields. Adopting the
+  `__integration_fields__` manifest in `routes/integrations.py`
+  with `orbit4:` tags is a P2 follow-up. The badge percentage stays
+  honest (97.2%) until that backfill happens.
+
+---
+
+
 ## Iter 216h238 — "Field-mapping coverage" badge on the Integrations Hub (Feb 19, 2026) ✅ P2 enhancement
 
 Carry-over from the iter 216h237 docs audit: the lint at
