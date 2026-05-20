@@ -549,6 +549,28 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  >
  <UserCircle size={16} /> {t('nav.account')}
  </button>
+ {/* Iter 216h235 — Help & Tutorials parity with desktop user menu.
+     Was previously desktop-only; Lee's mobile QA pass surfaced it
+     missing. Picks the same module hint from location.pathname as
+     the desktop button does (line 454-461). */}
+ <button
+ onClick={() => {
+   setMobileMenuOpen(false);
+   const moduleHint = location.pathname.startsWith('/crm')
+     ? 'crm'
+     : location.pathname.startsWith('/memberships')
+       ? 'memberships'
+       : location.pathname.startsWith('/marketing')
+         ? 'marketing'
+         : 'operations';
+   navigate(`/help?module=${moduleHint}`);
+ }}
+ className="w-full flex items-center gap-2 px-3 py-2 hover:opacity-80"
+ style={{ color: 'var(--theme-text-muted)' }}
+ data-testid="mobile-help-btn"
+ >
+ <LifeBuoy size={16} /> Help &amp; Tutorials
+ </button>
  {/* Mobile: settings option removed iter202 — moved into Account modal */}
  {user?.is_master_admin && (isOnDashboard || isOnPulse) && onOpenMasterAdmin && (
  <button

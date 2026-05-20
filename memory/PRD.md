@@ -1,3 +1,40 @@
+## Iter 216h235 — Help & Tutorials missing on mobile (Feb 19, 2026) ✅ P1
+
+Lee's report: "Help and tutorials are available on desktop but not on
+mobile." Confirmed — the desktop user-menu dropdown had a `<LifeBuoy>
+Help & Tutorials` entry (Navbar.js:467) but the mobile hamburger menu
+(Navbar.js:531-580) had Account / Master Admin / Take a Tour / Logout
+and no Help & Tutorials button at all.
+
+### Fix
+Added a `<LifeBuoy> Help & Tutorials` button to the mobile hamburger
+menu directly below the Account button, with `data-testid="mobile-help-btn"`.
+It mirrors the desktop button's behaviour exactly — extracts the
+module hint from `location.pathname` (`/crm` → `crm`, `/memberships`
+→ `memberships`, `/marketing` → `marketing`, anything else →
+`operations`) and navigates to `/help?module=<hint>` so the Help
+Centre opens filtered to the operator's current module.
+
+### Verification
+- Mobile (390×844) hamburger opens to show Account / **Help & Tutorials**
+  (new) / Take a Tour / Log Out
+- Tapping it navigates to `/help?module=operations` correctly
+- Help Centre rendered as expected — "How can we help?" landing with
+  guide categories + AI assistant
+- `data-testid="mobile-help-btn"` available for regression suite
+- ESLint `--max-warnings 0` clean
+- `make regression` 37 passed, 14 skipped
+
+### Why this slipped through earlier mobile audits
+The previous Wave 1+2+3 sweeps focused on visual overflow / layout
+bugs (popovers off-screen, FAB stacking, table clipping). Functional
+parity gaps between desktop and mobile menus weren't on the audit
+checklist. Worth adding "mobile menu parity check" as a recurring
+QA step for future nav changes.
+
+---
+
+
 ## Iter 216h234 — Help Centre + Guides refresh (Feb 19, 2026) ✅ P1
 
 Lee follow-up to the doc audit: "Now we need to update help and
