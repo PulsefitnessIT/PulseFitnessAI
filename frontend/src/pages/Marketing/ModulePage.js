@@ -19,7 +19,6 @@ import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import './marketing.css';
 import MarketingShell from './MarketingShell';
 import { openTrial } from './TrialSignupModal';
-import { openPreview } from './ProductPreviewModal';
 import SiteCalculatorUpsell from './SiteCalculatorUpsell';
 
 // Iter 216h227 — Marketing module IDs don't map 1:1 to backend
@@ -73,9 +72,7 @@ function Hero({ m, onStartTrial }) {
             <Link to="/contact" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors dark:bg-zinc-900">
               Talk to sales <ArrowRight size={15} />
             </Link>
-            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors dark:bg-zinc-900">
-              See it in action <ArrowRight size={15} />
-            </button>
+            {/* Iter 216h256 — "See it in action" preview button removed. */}
           </div>
         </div>
         <div className="lg:col-span-5">

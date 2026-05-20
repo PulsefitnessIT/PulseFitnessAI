@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
   HardHat, LogOut, ArrowLeft, Wrench, TrendingDown, ScrollText, Loader2,
-  ShieldCheck,
+  ShieldCheck, Menu, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -75,6 +75,9 @@ export default function ServiceDeskPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('dashboard');
   const [selectedOrgId, setSelectedOrgId] = useState(null);
+  // Iter 216h256 — mobile-first: sidebar is an off-canvas drawer below
+  // `md`. State drives the hamburger toggle + backdrop.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!user?.is_service_desk && !user?.is_master_admin) {
@@ -154,9 +157,23 @@ export default function ServiceDeskPage() {
 
   return (
     <div className="min-h-screen bg-[var(--gx-bg)] flex theme-gymaxis" data-testid="service-desk-page" data-theme="light">
-      <aside className="fixed inset-y-0 left-0 z-40 w-60 bg-white border-r border-slate-200 flex flex-col">
+      {/* Iter 216h256 — Mobile backdrop. Tapping the dimmed area closes
+          the off-canvas sidebar. Hidden on md+. */}
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          data-testid="desk-sidebar-backdrop"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-60 bg-white border-r border-slate-200 flex flex-col transition-transform duration-200 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+      >
         {/* Logo header */}
-        <div className="p-5 border-b border-slate-100">
+        <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center overflow-hidden gx-grad-ring shadow-sm">
               <img src="/brand/gymaxis-mark-tight.webp" alt="GymAxis" className="w-6 h-6 object-contain" draggable={false} loading="eager" decoding="async" />
@@ -166,6 +183,16 @@ export default function ServiceDeskPage() {
               <div className="text-[10px] text-slate-400 uppercase tracking-[0.16em] font-semibold">Field service ops</div>
             </div>
           </div>
+          {/* Mobile-only close button inside the drawer. */}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden text-slate-400 hover:text-slate-700"
+            aria-label="Close sidebar"
+            data-testid="desk-sidebar-close"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Primary tabs */}
@@ -173,7 +200,7 @@ export default function ServiceDeskPage() {
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => { setTab(id); setSelectedOrgId(null); }}
+              onClick={() => { setTab(id); setSelectedOrgId(null); setSidebarOpen(false); }}
               data-testid={`desk-tab-${id}`}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
                 tab === id
@@ -191,7 +218,7 @@ export default function ServiceDeskPage() {
           {INSIGHTS_TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => { setTab(id); setSelectedOrgId(null); }}
+              onClick={() => { setTab(id); setSelectedOrgId(null); setSidebarOpen(false); }}
               data-testid={`desk-tab-${id}`}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
                 tab === id
@@ -235,7 +262,21 @@ export default function ServiceDeskPage() {
         </div>
       </aside>
 
-      <main className="flex-1 ml-60 p-8 max-w-[1400px]">
+      <main className="flex-1 md:ml-60 p-4 sm:p-6 md:p-8 max-w-[1400px] w-full">
+        {/* Iter 216h256 — Mobile-only top bar with hamburger trigger. */}
+        <div className="md:hidden flex items-center justify-between mb-4 sticky top-0 z-20 bg-[var(--gx-bg)] py-2">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            aria-label="Open navigation"
+            data-testid="desk-sidebar-open"
+          >
+            <Menu size={18} />
+          </button>
+          <div className="text-sm font-bold text-slate-900 capitalize truncate">{tab.replace(/_/g, ' ')}</div>
+          <div className="w-9" aria-hidden />
+        </div>
         <Body />
       </main>
     </div>

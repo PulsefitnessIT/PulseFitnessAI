@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, Mail, Phone, MessageSquare, MapPin, Calendar, ShieldCheck,
+  ArrowRight, Mail, MessageSquare, ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -18,7 +18,8 @@ import { openPreview } from './ProductPreviewModal';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const PATHS = [
-  { icon: Calendar,      title: 'See it in action', body: 'Self-running 6-scene product walkthrough. No calendar, no waiting — watch it now.', cta: 'Watch the preview', action: 'preview', accent: 'var(--gx-accent-memberships)' },
+  // Iter 216h256 — "See it in action" card removed: the canned preview
+  // wasn't representative of the live build and was misleading prospects.
   { icon: MessageSquare, title: 'Talk to sales',   body: 'Quick questions about pricing, integrations, multi-site rollouts.', cta: 'Send an enquiry', action: 'enquire', accent: 'var(--gx-accent-crm)' },
   { icon: ShieldCheck,   title: 'Security & DPA',  body: 'Procurement, DPA, pentest evidence, security questionnaires.', cta: 'Email security', href: 'mailto:security@gymaxisai.com', accent: 'var(--gx-accent-service)' },
 ];
@@ -193,11 +194,8 @@ function ContactForm() {
           <p className="mt-4 text-base text-slate-600 leading-relaxed">
             Type, sites, member count, current tools — whatever&apos;s easy. Every enquiry lands in our internal Communications inbox so a real human can reply within a working day.
           </p>
-          <ul className="mt-6 space-y-3 text-sm text-slate-700">
-            <li className="flex items-center gap-2"><Mail size={15} className="text-slate-400" />hello@gymaxisai.com</li>
-            <li className="flex items-center gap-2"><Phone size={15} className="text-slate-400" />+44 20 1234 5678</li>
-            <li className="flex items-center gap-2"><MapPin size={15} className="text-slate-400" />London, United Kingdom</li>
-          </ul>
+          {/* Iter 216h256 — placeholder contact details (hello@, +44 20 1234 5678,
+              London) removed. Once real channels are live they'll be added back. */}
         </div>
         {sent ? (
           <div className="lg:col-span-3 rounded-3xl bg-white border border-slate-100 p-8 md:p-10 text-center dark:bg-zinc-900 dark:border-zinc-800" data-testid="contact-sent-confirmation">
@@ -206,7 +204,7 @@ function ContactForm() {
             </div>
             <h3 className="mt-5 text-2xl font-bold tracking-tight">Enquiry received.</h3>
             <p className="mt-3 text-base text-slate-600 leading-relaxed max-w-md mx-auto">
-              We&apos;ll reply within 24 working hours. If it&apos;s urgent, ring us on +44 20 1234 5678.
+              We&apos;ll reply within 24 working hours.
             </p>
             <button
               type="button"

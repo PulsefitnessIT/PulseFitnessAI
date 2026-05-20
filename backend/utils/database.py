@@ -49,7 +49,19 @@ STRIPE_PRICE_CRM           = os.environ.get('STRIPE_PRICE_CRM')
 STRIPE_PRICE_MARKETING     = os.environ.get('STRIPE_PRICE_MARKETING')
 STRIPE_PRICE_OPERATIONS    = os.environ.get('STRIPE_PRICE_OPERATIONS')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
+# Iter 216h256 — Resend stores verified domains in lowercase (per RFC
+# 1035). If the env var supplies a mixed-case domain (e.g.
+# `support@GymAxisAI.com`) the Resend API rejects every send with a
+# "domain is not verified" error. Lowercase the domain segment of the
+# sender so case mishaps in deployment configs never break delivery.
+def _normalise_sender(addr: str) -> str:
+    if not addr or '@' not in addr:
+        return addr
+    local, _, domain = addr.partition('@')
+    return f"{local}@{domain.lower()}"
+
+
+SENDER_EMAIL = _normalise_sender(os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev'))
 JWT_SECRET = os.environ.get('JWT_SECRET')
 JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
 

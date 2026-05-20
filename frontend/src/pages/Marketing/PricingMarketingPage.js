@@ -17,12 +17,11 @@
  * STRIPE_PRICE_SITE_ADDON, plus per-module STRIPE_PRICE_MEMBERSHIPS etc.).
  */
 import { useMemo, useState } from 'react';
-import { ArrowRight, Check, Sparkles, Users, Megaphone, Wrench, Star, Plus, Minus, PlayCircle } from 'lucide-react';
+import { ArrowRight, Check, Sparkles, Users, Megaphone, Wrench, Star, Plus, Minus } from 'lucide-react';
 
 import './marketing.css';
 import MarketingShell from './MarketingShell';
 import { openTrial } from './TrialSignupModal';
-import { openPreview } from './ProductPreviewModal';
 import ROICalculator from './ROICalculator';
 import MigrationGuarantee from './MigrationGuarantee';
 import { useSeo } from '@/utils/seo';
@@ -428,9 +427,7 @@ export default function GymAxisPricingPage() {
                 <button type="button" onClick={openTrial} className="rounded-full bg-white text-slate-900 font-bold text-sm px-6 py-3 inline-flex items-center gap-1.5 hover:bg-slate-50 dark:bg-zinc-900 dark:text-zinc-100" data-testid="gx-pricing-final-cta">
                   Start Free Trial <ArrowRight size={14} />
                 </button>
-                <button type="button" onClick={openPreview} className="rounded-full border border-white/30 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 inline-flex items-center gap-1.5" data-testid="gx-pricing-preview">
-                  <PlayCircle size={14} /> See it in action
-                </button>
+                {/* Iter 216h256 — "See it in action" preview button removed. */}
               </div>
             </div>
           </div>

@@ -13,7 +13,6 @@ import MarketingShell from './MarketingShell';
 import AxisOrbit from './AxisOrbit';
 import LiveCustomerAppPreview from './LiveCustomerAppPreview';
 import { openTrial } from './TrialSignupModal';
-import { openPreview } from './ProductPreviewModal';
 import { useSeo } from '@/utils/seo';
 
 const MODULES = [
@@ -64,9 +63,8 @@ function Hero() {
             <button type="button" onClick={openTrial} className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-hero-trial">
               Start Free Trial <ArrowRight size={15} />
             </button>
-            <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap dark:bg-zinc-900" data-testid="gx-hero-preview">
-              See it in action <ArrowRight size={15} />
-            </button>
+            {/* Iter 216h256 — "See it in action" removed: the canned preview
+                doesn't reflect the live platform and was misleading prospects. */}
           </div>
           <ul className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-semibold text-slate-500">
             <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />3-day free trial</li>
@@ -288,9 +286,8 @@ function FinalCta() {
               <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100" data-testid="gx-final-trial">
                 Start Free Trial <ArrowRight size={15} />
               </button>
-              <button type="button" onClick={openPreview} className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 text-white px-7 py-3.5 text-sm font-bold hover:bg-white/10 transition-colors" data-testid="gx-final-preview">
-                See it in action <ArrowRight size={15} />
-              </button>
+              {/* Iter 216h256 — "See it in action" removed; the canned
+                  walkthrough is no longer representative of the live build. */}
             </div>
           </div>
         </div>

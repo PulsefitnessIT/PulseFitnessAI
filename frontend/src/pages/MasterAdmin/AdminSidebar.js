@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
-import { X, Wrench, LogOut, HeadphonesIcon, Layers } from 'lucide-react';
+import { X, Wrench, LogOut, HeadphonesIcon, Layers, HardHat } from 'lucide-react';
 import { SIDEBAR_ITEMS, SECTION_TO_GROUP } from './SidebarConfig';
 
 /**
@@ -154,6 +154,18 @@ const AdminSidebar = ({
  data-testid="portal-switch-service-desk"
  >
  <HeadphonesIcon size={16} className="text-orange-500" /> Service Desk
+ </button>
+ )}
+ {/* Iter 216h256 — Engineer App switch lets Master Admin demo the
+     mobile-first engineer surface to prospective field engineers
+     without logging in as an engineer. */}
+ {!isPulseAdmin && (
+ <button
+ onClick={() => { window.location.href = '/svc/engineer'; }}
+ className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+ data-testid="portal-switch-engineer-app"
+ >
+ <HardHat size={16} className="text-amber-500" /> Engineer App
  </button>
  )}
  {/* Iter 216h53 — Service Ops folded into Service Desk (full merge).

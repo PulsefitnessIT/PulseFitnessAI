@@ -11269,3 +11269,44 @@ drawer.
 - `frontend/src/pages/Memberships/modals/PlanEditorModal.js`
 - `backend/tests/test_iter_216h255_memberships_date_sweep.py`
 - `Makefile`
+
+## Iter 216h256 — Marketing polish + Resend domain fix + Engineer App switch + Service Desk mobile (Feb 20, 2026)
+
+### 5 fixes shipped together
+
+**1. Removed "See it in action" button**
+Removed from MarketingHome.js (hero + final CTA), ContactMarketingPage.js (paths card), ModulePage.js, PricingMarketingPage.js. The canned preview wasn't representative of the live build and was misleading prospects.
+
+**2. Removed placeholder contact details from /contact**
+Removed the hardcoded `hello@gymaxisai.com`, `+44 20 1234 5678`, `London, United Kingdom`, and "If it's urgent, ring us on +44 20 1234 5678" sentence from `ContactMarketingPage.js`.
+
+**3. Resend domain rejection (ROOT CAUSE FIXED)**
+- **Root cause**: `.env` had `SENDER_EMAIL=support@GymAxisAI.com` (mixed-case). Resend stores verified domains in lowercase per RFC 1035, so its API rejected every send with `ResendError('The GymAxisAI.com domain is not verified...')` even though the domain WAS verified.
+- **Fix 1**: `.env` updated to `SENDER_EMAIL=support@gymaxisai.com`.
+- **Fix 2 (defense in depth)**: Added `_normalise_sender()` helper in `utils/database.py` that lowercases the domain portion of `SENDER_EMAIL` at module import — so any future deployment-config drift can't reproduce the bug.
+
+**4. Service Desk mobile optimisation**
+Refactored `ServiceDeskPage.js` to an off-canvas drawer pattern below `md` breakpoint:
+- Hamburger trigger in a sticky top bar shows current tab name.
+- Backdrop tap closes the drawer.
+- Drawer has its own close (×) button.
+- Main area padding scales `p-4 sm:p-6 md:p-8`; the `ml-60` left offset only applies at `md+`.
+- Tab clicks auto-close the drawer.
+
+**5. Engineer App switch in Master Admin sidebar**
+Added a new "Engineer App" button (`HardHat` icon, amber accent) under the Switch Portal section of `AdminSidebar.js` — lands directly on `/svc/engineer` so Master Admin can demo the mobile-first engineer surface to prospective field engineers.
+
+### Verification
+- `tests/test_iter_216h256_marketing_resend_engineerapp_mobile.py` — 6/6 passing.
+- `make regression` — 143 passed / 14 skipped (up from 137).
+- ESLint clean (auto-fixed unused imports from removed CTAs).
+- Backend supervisor restarted to pick up the new `.env` value.
+
+### Files changed
+- 4 marketing pages (MarketingHome, ContactMarketingPage, ModulePage, PricingMarketingPage)
+- `backend/.env` (SENDER_EMAIL lowercased)
+- `backend/utils/database.py` (`_normalise_sender` helper)
+- `frontend/src/pages/ServiceDeskPage.js` (off-canvas drawer + hamburger)
+- `frontend/src/pages/MasterAdmin/AdminSidebar.js` (Engineer App switch)
+- `backend/tests/test_iter_216h256_marketing_resend_engineerapp_mobile.py`
+- `Makefile`
