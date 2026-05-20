@@ -138,16 +138,9 @@ export default function DeskSalesReportTab({ API, headers }) {
 
   return (
     <div className="space-y-5" data-testid="desk-sales-report-tab">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-            Desk sales reconciliation
-          </h2>
-          <p className="text-[12px] text-[color:var(--theme-text-muted)] mt-0.5">
-            Every pack sold at the front desk (cash, card, comp). Filter, total and export for the bookkeeper.
-          </p>
-        </div>
+      {/* Iter 216h245 — sub-header (H2 + description) removed. Right-side
+          actions migrated up; nothing else changes. */}
+      <div className="flex items-center justify-end flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <button
             onClick={load}

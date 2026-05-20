@@ -196,18 +196,11 @@ export default function InvoicingTab({ API, headers }) {
 
   return (
     <div data-testid="mbr-invoicing">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--theme-text-muted)]">Billing</div>
-          <h2 className="mt-1 text-2xl font-black tracking-tight">Monthly class invoicing</h2>
-          <p className="mt-1 text-sm text-[color:var(--theme-text-muted)] max-w-xl">
-            Bill every member for the classes they booked or attended in a month in one click — or pro-rata an annual plan across 12 months for predictable monthly payments.
-          </p>
-        </div>
-      </div>
+      {/* Iter 216h245 — sub-header removed (Billing eyebrow + H1 +
+          description). The tab pill above already names this section. */}
 
       {/* Controls */}
-      <div className="mt-6 rounded-xl border border-[color:var(--theme-border)] p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="rounded-xl border border-[color:var(--theme-border)] p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <label className="block">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)]">Period</span>
           <select value={period} onChange={(e) => setPeriod(e.target.value)}

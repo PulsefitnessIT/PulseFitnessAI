@@ -1,3 +1,35 @@
+## Iter 216h245 — Remaining sub-headers: Memberships + Marketing (Feb 19, 2026) ✅ P0 polish
+
+User ask (verbatim): *"2 sub headers in memberships / 1 in marketing /
+all included in images attached"*
+
+### Three holdouts removed
+
+These didn't use the shared `<ListPanel>` / `<PageHeader>` wrappers
+so the h243/h244 sweeps missed them — they were inline JSX.
+
+| File | Removed |
+|---|---|
+| `Memberships/InvoicingTab.js` | "BILLING" eyebrow + H1 "Monthly class invoicing" + description |
+| `Memberships/DeskSalesReportTab.js` | H2 "Desk sales reconciliation" + description. Action buttons (`Refresh`, `Export CSV`) migrated to a right-aligned strip — kept functional |
+| `Marketing/DynamicListsTab.js` | H2 "Dynamic Lists" inline-icon header. **Kept** the "What is a Dynamic List?" explainer box — that's onboarding content, not a sub-header |
+
+### Verification
+- 3 new regression tests in
+  `tests/test_iter_216h245_memberships_marketing_subheaders.py`
+  guarding the removals (and asserting the explainer stayed).
+- `make regression` → **80 passed, 14 skipped** (was 77 → 80).
+- ESLint `--max-warnings 0` clean.
+
+### Why this matters
+After three sweeps (h243 ListPanel, h244 PageHeader, h245 inline
+holdouts) the platform now has **zero** dev-style sub-headers
+remaining on customer-facing tabs. Every sub-page sits flush under
+the tab pill bar with consistent rhythm.
+
+---
+
+
 ## Iter 216h244 — Operations PageHeader suppression (Feb 19, 2026) ✅ P0 polish
 
 User ask (verbatim): *"Sub headers throughout Operations - as

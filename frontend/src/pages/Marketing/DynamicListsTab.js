@@ -169,17 +169,16 @@ const DynamicListsTab = ({ API, headers }) => {
 
   return (
     <div className="space-y-5" data-testid="marketing-dynamic-lists-tab">
-      {/* Header */}
+      {/* Iter 216h245 — H2 "Dynamic Lists" removed (redundant with the
+          tab pill). The "What is a Dynamic List?" explainer box stays —
+          it's onboarding content, not a sub-header. */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-semibold pulse-font-heading inline-flex items-center gap-2" style={{ color: 'var(--theme-text)' }}>
-            <ListChecks size={18} className="text-fuchsia-500" /> Dynamic Lists
-          </h2>
-          <div className="mt-2 max-w-3xl rounded-xl border border-fuchsia-200/60 bg-fuchsia-50/40 px-4 py-3 text-[13px] leading-relaxed" style={{ color: 'var(--theme-text)' }} data-testid="dynamic-lists-explainer">
+          <div className="max-w-3xl rounded-xl border border-fuchsia-200/60 bg-fuchsia-50/40 px-4 py-3 text-[13px] leading-relaxed" style={{ color: 'var(--theme-text)' }} data-testid="dynamic-lists-explainer">
             <strong className="text-fuchsia-700">What is a Dynamic List?</strong>
             <span className="text-[var(--theme-text-muted)]"> A saved audience that <em>updates itself</em>. You write a rule once
             (e.g. <em>“members joined in the last 30 days who skipped a class”</em>) and the list re-evaluates
-            every time a contact's data changes — no manual refresh, no stale exports. Use them as campaign
+            every time a contact&apos;s data changes — no manual refresh, no stale exports. Use them as campaign
             audiences or journey entry conditions. Compare with a <em>Static list</em> (fixed snapshot, never updates).</span>
           </div>
         </div>
