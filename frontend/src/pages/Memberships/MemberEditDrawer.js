@@ -28,6 +28,7 @@ import {
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import ActivityTimelineTab from '@/pages/Memberships/ActivityTimelineTab';
+import DatePicker from '@/components/shared/DatePicker';
 import Button from '@/components/shared/Button';
 import { COUNTRIES, RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 
@@ -162,9 +163,21 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
         </div>
         <Field label="Phone" required><Input value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} testid="member-drawer-phone" /></Field>
       </div>
-      <Field label="Date of birth" hint={age !== null ? `Age ${age}` : undefined}>
-        <Input type="date" value={(form.dob || '').slice(0, 10)} onChange={(v) => setForm({ ...form, dob: v })} testid="member-drawer-dob" />
-      </Field>
+      {/* Iter 216h254 — DatePicker has its own clickable surface, so we
+          render its label inline (matching AddMemberModal) instead of
+          nesting inside a <label> Field. */}
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-1">
+          Date of birth
+          {age !== null && <span className="ml-2 text-[11px] normal-case tracking-normal" style={{ color: 'var(--theme-text-muted)' }}>Age {age}</span>}
+        </p>
+        <DatePicker
+          value={(form.dob || '').slice(0, 10)}
+          onChange={(iso) => setForm({ ...form, dob: iso })}
+          maxDate={new Date().toISOString().slice(0, 10)}
+          testid="member-drawer-dob"
+        />
+      </div>
 
       <div className="pt-1">
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--theme-text-muted)] mb-2 flex items-center gap-1.5"><MapPin size={11} /> Address</p>
@@ -174,11 +187,31 @@ function ProfileTab({ form, setForm, member, age, onSave, saving }) {
           <div className="grid grid-cols-3 gap-2">
             <Input value={form.city} onChange={(v) => setForm({ ...form, city: v })} placeholder="City" testid="member-drawer-city" />
             <Input value={form.postcode} onChange={(v) => setForm({ ...form, postcode: v.toUpperCase() })} placeholder="Postcode" testid="member-drawer-postcode" />
-            <Input value={form.country} onChange={(v) => setForm({ ...form, country: v })} placeholder="Country" testid="member-drawer-country" />
+            {/* Iter 216h254 — Country is now a proper Select for
+                tap-friendly mobile entry, matching AddMemberModal. */}
+            <select
+              value={COUNTRIES.includes(form.country) ? form.country : (form.country ? '__other__' : '')}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '__other__') return;
+                setForm({ ...form, country: v });
+              }}
+              data-testid="member-drawer-country"
+              className="rounded-lg px-3 py-2 text-sm focus:outline-none"
+              style={{
+                background: 'var(--theme-surface-hover, rgba(0,0,0,0.04))',
+                border: '1px solid var(--theme-border, rgba(0,0,0,0.1))',
+                color: 'var(--theme-text, #111)',
+              }}
+            >
+              <option value="">Country…</option>
+              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {form.country && !COUNTRIES.includes(form.country) && (
+                <option value="__other__">{form.country} (custom)</option>
+              )}
+            </select>
           </div>
-          <datalist id="member-drawer-country-list">
-            {COUNTRIES.map((c) => <option key={c} value={c} />)}
-          </datalist>
+          {/* Iter 216h254 — datalist no longer needed; Select drives the field. */}
         </div>
       </div>
 

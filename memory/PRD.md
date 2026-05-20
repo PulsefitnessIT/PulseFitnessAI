@@ -11192,3 +11192,37 @@ half-built member records.
 - `frontend/src/pages/Memberships/modals/AddMemberModal.js` (country select)
 - `backend/tests/test_iter_216h253_member_signup_contact.py`
 - `Makefile`
+
+## Iter 216h254 — Memberships visual audit: date-field consistency (Feb 20, 2026)
+
+### Scope
+Visual audit of `SellPackAtDeskModal`, `MemberEditDrawer`, and
+`ClassActionDrawer` for date-input + country-field consistency with
+the redesigned `AddMemberModal` (Iter 216h200) and member portal
+(Iter 216h253).
+
+### Findings + fixes
+- **`SellPackAtDeskModal`** — no date inputs. ✅ Already consistent.
+- **`ClassActionDrawer`** — no date inputs (only `toLocaleString` for
+  display). ✅ Already consistent.
+- **`MemberEditDrawer`** — two inconsistencies fixed:
+  1. **DOB** was `<input type="date">` (renders DD/MM/YYYY on UK
+     locale but YYYY-MM-DD elsewhere — inconsistent with the
+     `AddMemberModal` which uses the shared `DatePicker`). Replaced
+     with `DatePicker` so create + edit flows feel identical.
+  2. **Country** was a free-text `<input>` with `<datalist>`
+     autocomplete. Upgraded to a proper `<select>` driven by the
+     shared `COUNTRIES` list (with a "(custom)" fallback for legacy
+     free-text values).
+
+### Verification
+- `tests/test_iter_216h254_member_drawer_date_consistency.py` — 4/4
+  passing (DOB uses DatePicker, Country uses Select, no native date
+  inputs in SellPackAtDeskModal or ClassActionDrawer).
+- `make regression` — 132 passed / 14 skipped (up from 128).
+- ESLint clean on MemberEditDrawer.js.
+
+### Files changed
+- `frontend/src/pages/Memberships/MemberEditDrawer.js` (DatePicker import + DOB + Country)
+- `backend/tests/test_iter_216h254_member_drawer_date_consistency.py`
+- `Makefile`
