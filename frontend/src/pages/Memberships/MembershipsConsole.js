@@ -119,7 +119,11 @@ function MembershipsConsoleInner() {
   const pillBarRef = React.useRef(null);
   const studio = useStudioMode();
   // Studio Mode: 5-tab simplified layout for small teams.
-  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'studio-brain', 'timetable', 'classes', 'members', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
+  // Iter 216h248 — `instructors` added to the allowed Studio-Mode set so
+  // the "+ Add new instructor" option in the Class Template Editor
+  // (StudioBuilderTab → ClassTemplateEditor) can route to the Instructors
+  // tab without the guard bouncing the operator back to Start.
+  const STUDIO_TAB_IDS = useMemo(() => new Set(['start', 'dashboard', 'schedule', 'studio-builder', 'studio-brain', 'timetable', 'classes', 'members', 'instructors', 'plans', 'family-billing', 'parent-portal', 'events', 'checkin', 'invoicing']), []);
 
   // Iter 216h247 — Tab order rationalised for the typical Studio
   // Operator's day:  set up → daily ops → people → commercial →

@@ -10926,3 +10926,36 @@ exactly one active site — multi-site Pulse Fitness skipped it.
 Files: `models/schemas.py`, `routes/equipment.py`,
 `components/equipment/AddEquipmentDialog.js`,
 `tests/test_iter_216h225_equipment_site_id_inherit.py`.
+
+## Iter 216h248 — Add-new-instructor routing fix (Feb 20, 2026)
+
+### Bug
+Clicking "+ Add new instructor" from the Class Template Editor dropdown
+(Memberships → Classes & Timetable → Weekly builder → Add class →
+Instructor) routed the operator to the Memberships **Start** screen
+instead of the Instructors tab. Reproduces only when **Studio Mode**
+is ON.
+
+### Root cause
+`STUDIO_TAB_IDS` in `MembershipsConsole.js` did not include
+`'instructors'`. The guard effect
+`if (studio.studioMode && !STUDIO_TAB_IDS.has(tab)) setTab('start')`
+ran straight after `setTab('instructors')` and bounced the operator
+back to Start.
+
+### Fix
+Added `'instructors'` to `STUDIO_TAB_IDS`. The Instructors pill is
+already in `TABS` and is rendered when not filtered out, so this is
+the only change required.
+
+### Verification
+- `tests/test_iter_216h248_instructor_route_fix.py` (2/2) — confirms
+  the allow-list now contains `'instructors'` and the guard is intact.
+- `tests/test_iter_216h247_memberships_polish.py` (5/5) — unchanged
+  prop chain still wired.
+- `make regression` — 87 passed, 14 skipped.
+- ESLint — 0 warnings on the modified file.
+
+Files: `frontend/src/pages/Memberships/MembershipsConsole.js`,
+`backend/tests/test_iter_216h248_instructor_route_fix.py`,
+`Makefile`.
