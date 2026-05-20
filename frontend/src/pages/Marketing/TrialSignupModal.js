@@ -159,7 +159,20 @@ export default function TrialSignupModal() {
     }
   };
 
-  // ── Step 2 submit: persist org enrichment + go to dashboard. ──────
+  // ── Step 2 submit: persist org enrichment + go to module home. ──
+  // Iter 216h249 — route the new operator to their declared module
+  // (Memberships / CRM / Marketing) instead of dumping every trial
+  // user onto the Operations dashboard. Memberships users now land on
+  // their own Start tab (add logo, add members) and never see the
+  // Equipment wizard meant for gym operators.
+  const moduleHome = () => {
+    switch (primaryModule) {
+      case 'memberships': return '/memberships';
+      case 'crm':         return '/crm';
+      case 'marketing':   return '/marketing';
+      default:            return '/dashboard';
+    }
+  };
   const submitStep2 = async (e) => {
     e?.preventDefault();
     setError('');
@@ -178,12 +191,12 @@ export default function TrialSignupModal() {
         });
       }
       setStep(3);
-      setTimeout(() => { close(); navigate('/dashboard', { replace: true }); }, 1200);
+      setTimeout(() => { close(); navigate(moduleHome(), { replace: true }); }, 1200);
     } catch (err) {
       // Soft-fail: prospect is already in. Don't block their first
       // dashboard load over an optional profile field.
       setStep(3);
-      setTimeout(() => { close(); navigate('/dashboard', { replace: true }); }, 1200);
+      setTimeout(() => { close(); navigate(moduleHome(), { replace: true }); }, 1200);
     } finally {
       setLoading(false);
     }
@@ -191,7 +204,7 @@ export default function TrialSignupModal() {
 
   const skipStep2 = () => {
     setStep(3);
-    setTimeout(() => { close(); navigate('/dashboard', { replace: true }); }, 700);
+    setTimeout(() => { close(); navigate(moduleHome(), { replace: true }); }, 700);
   };
 
   if (!open) return null;

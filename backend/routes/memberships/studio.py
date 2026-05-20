@@ -179,11 +179,23 @@ async def get_studio_onboarding(user: dict = Depends(get_current_user)):
 
     # Optional dismissal override — operator clicked "Hide this" manually.
     org = await db.organizations.find_one(
-        {"id": org_id}, {"_id": 0, "studio_onboarding_dismissed_at": 1},
+        {"id": org_id}, {"_id": 0, "studio_onboarding_dismissed_at": 1, "logo_url": 1, "name": 1},
     ) or {}
     dismissed = bool(org.get("studio_onboarding_dismissed_at"))
+    has_logo = bool(org.get("logo_url"))
 
     steps = [
+        # Iter 216h249 — branding is the strongest first-touch for a new
+        # studio (dance studios especially: brand-led businesses). Surface
+        # the logo upload as Step 1 so the operator sees their identity
+        # land before they wrangle members / classes.
+        {
+            "id": "add_logo",
+            "title": "Add your studio logo",
+            "note": "Members see this on the portal, invoices, and emails",
+            "cta_tab": "settings", "cta_label": "Upload logo",
+            "done": has_logo, "count": 1 if has_logo else 0,
+        },
         {
             "id": "add_members",
             "title": "Add or import your members",

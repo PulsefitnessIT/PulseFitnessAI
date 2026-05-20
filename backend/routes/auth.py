@@ -205,6 +205,14 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "must_change_password": user.get('must_change_password', False),
         "account_type": org.get('account_type', 'full') if org else 'full',
+        # Iter 216h249 — surface `primary_module` so the frontend knows
+        # which module the operator declared at signup. Drives:
+        #   • TrialSignupModal post-signup navigation (lands on the
+        #     module surface, not the generic /dashboard).
+        #   • DashboardPage WelcomeHero / GamifiedOnboarding suppression
+        #     (no Equipment-wizard prompts for Memberships / CRM /
+        #     Marketing trials).
+        "primary_module": (org or {}).get('primary_module') or '',
         "trial": trial_state,
         "features": features,
         # Include module-access matrix so the React ModuleSwitcher can light
@@ -716,6 +724,8 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
         "account_type": org.get('account_type', 'full') if org else 'full',
+        # Iter 216h249 — see /auth/login docstring for context.
+        "primary_module": (org or {}).get('primary_module') or '',
         "avatar_url": user.get('avatar_url'),
         "phone": user.get('phone'),
         "trial": trial_state,

@@ -244,8 +244,11 @@ const DashboardPage = () => {
               <NudgeBanner canDismiss={user?.role === 'owner' || user?.role === 'manager'} />
             )}
 
-            {/* Welcome hero (gamified onboarding) — shown for non-master-admin users who haven't dismissed or completed onboarding */}
-            {!user?.is_master_admin && onboardingStatus && !onboardingStatus.dismissed && !onboardingStatus.stages?.live && (
+            {/* Welcome hero (gamified onboarding) — shown for non-master-admin users who haven't dismissed or completed onboarding.
+                Iter 216h249 — suppressed for trial operators whose declared primary module is NOT Operations.
+                A Memberships / CRM / Marketing trial user landing on /dashboard should never see the
+                Equipment / Suppliers wizard meant for gym operators. */}
+            {!user?.is_master_admin && onboardingStatus && !onboardingStatus.dismissed && !onboardingStatus.stages?.live && !(user?.primary_module && user.primary_module !== 'operations') && (
               <WelcomeHero
                 gymName={user?.organization_name || user?.gym_name || ''}
                 status={onboardingStatus}

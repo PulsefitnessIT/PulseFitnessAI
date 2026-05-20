@@ -536,6 +536,10 @@ function App() {
  // who came in via /MODService go back to the MOD login page,
  // not the standard GymAxis marketing surface.
  const wasMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+ // Iter 216h249 — preserve the Pulse brand on sign-out. Pulse Pro /
+ // Lite operators land on `/pulse` (their branded portal + login
+ // dialog) instead of being dropped onto the GymAxis marketing site.
+ const wasPulse = ['pulse_pro', 'lite'].includes(user?.account_type);
  setToken(null);
  setUser(null);
  setBranding(null);
@@ -547,6 +551,8 @@ function App() {
  }
  if (wasMOD && typeof window !== 'undefined') {
    window.location.replace('/MODService');
+ } else if (wasPulse && typeof window !== 'undefined') {
+   window.location.replace('/pulse');
  } else if (typeof window !== 'undefined') {
    // Iter 216h221 — hard-navigate to the landing page so every route
    // guard + cached component is forced to re-evaluate from a clean

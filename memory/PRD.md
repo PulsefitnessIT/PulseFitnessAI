@@ -10959,3 +10959,53 @@ the only change required.
 Files: `frontend/src/pages/Memberships/MembershipsConsole.js`,
 `backend/tests/test_iter_216h248_instructor_route_fix.py`,
 `Makefile`.
+
+## Iter 216h249 — Module-tailored signup + Pulse logout + Logo step (Feb 20, 2026)
+
+### Reported by Lee (production, dance-studio onboarding)
+1. **Pulse Portal logout** redirected to GymAxis marketing site instead of `/pulse`.
+2. **Memberships trial signup** landed on `/dashboard` (Operations) and
+   prompted the user to upload equipment — not what a dance studio
+   needs. Dismissing the modal left the operator stuck on Operations
+   with no obvious way to reach Memberships.
+3. **Memberships onboarding** should lead with branding (logo) +
+   add-members (manual or CSV).
+
+### Fixes
+1. **TrialSignupModal**: post-signup navigation now branches on
+   `primary_module` — `memberships → /memberships`, `crm → /crm`,
+   `marketing → /marketing`, fallback `/dashboard`. Both the submit
+   path and the "Skip" path use the new `moduleHome()` helper.
+2. **App.js logout**: detects `account_type ∈ {pulse_pro, lite}` and
+   `window.location.replace('/pulse')` instead of `/`. Mirrors the
+   existing MOD-preservation logic.
+3. **DashboardPage WelcomeHero suppression**: when
+   `user.primary_module` is set and is not `'operations'`, the
+   Equipment wizard's WelcomeHero is hidden. Marketing / CRM /
+   Memberships trials never see the gym-operator wizard.
+4. **/auth/login + /auth/me**: now surface `primary_module` from the
+   org doc so the frontend can branch immediately after login.
+5. **Memberships studio onboarding**: prepended `add_logo` step
+   (driven by `org.logo_url`). The Start tab's checklist now reads:
+   Add your studio logo → Add or import your members → Build your
+   first class → Set up a membership plan → Invite a member to the
+   portal → Take your first booking. The logo CTA opens an inline
+   `LogoUploadModal` that POSTs to `/api/account/logo`.
+
+### Verification
+- `tests/test_iter_216h249_module_tailored_signup.py` — 7/7 passing
+  (2 backend logic + 5 frontend source assertions).
+- `make regression` — 94 passed / 14 skipped (up from 87).
+- ESLint clean on App.js, DashboardPage.js, TrialSignupModal.js,
+  MembershipsStartTab.js.
+- Ruff clean on auth.py + memberships/studio.py.
+
+### Files changed
+- `frontend/src/App.js` (Pulse logout branch)
+- `frontend/src/pages/Marketing/TrialSignupModal.js` (module-aware nav)
+- `frontend/src/pages/DashboardPage.js` (WelcomeHero suppression guard)
+- `frontend/src/pages/Memberships/MembershipsStartTab.js` (LogoUploadModal)
+- `backend/routes/auth.py` (primary_module in /login + /me)
+- `backend/routes/memberships/studio.py` (add_logo step)
+- `backend/tests/test_iter_216h249_module_tailored_signup.py`
+- `Makefile`

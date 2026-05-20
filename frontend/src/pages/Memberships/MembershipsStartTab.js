@@ -8,10 +8,10 @@
  * this"), the parent (MembershipsConsole) hides the Start tab entirely
  * via the `onAllComplete` callback — see useOnboardingChecklist below.
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
-  CheckCircle2, Circle, ArrowRight, EyeOff, Sparkles, Loader2, Zap,
+  CheckCircle2, Circle, ArrowRight, EyeOff, Sparkles, Loader2, Zap, Upload, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -92,6 +92,14 @@ function ChecklistStep({ step, index, onAdvance }) {
 export default function MembershipsStartTab({ setTab }) {
   const { data, loading, reload } = useOnboardingChecklist();
   const [dismissing, setDismissing] = useState(false);
+  // Iter 216h249 — inline logo upload modal so the "Add your studio logo"
+  // step doesn't punt the operator to a different module's settings screen.
+  const [logoModalOpen, setLogoModalOpen] = useState(false);
+
+  const advance = useCallback((ctaTab) => {
+    if (ctaTab === 'settings') { setLogoModalOpen(true); return; }
+    setTab?.(ctaTab);
+  }, [setTab]);
 
   if (loading) {
     return (
@@ -154,7 +162,7 @@ export default function MembershipsStartTab({ setTab }) {
 
       <ul className="space-y-2">
         {steps.map((s, idx) => (
-          <ChecklistStep key={s.id} step={s} index={idx} onAdvance={setTab} />
+          <ChecklistStep key={s.id} step={s} index={idx} onAdvance={advance} />
         ))}
       </ul>
 
@@ -178,6 +186,93 @@ export default function MembershipsStartTab({ setTab }) {
       {/* Iter 216h4 — upcoming tour bookings from the public sign-up flow */}
       <div className="mt-6">
         <UpcomingToursPanel compact />
+      </div>
+
+      {/* Iter 216h249 — inline logo upload modal triggered by the
+          "Add your studio logo" checklist step. */}
+      {logoModalOpen && (
+        <LogoUploadModal onClose={() => { setLogoModalOpen(false); reload(); }} />
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────── Logo upload modal ─────────────────── */
+function LogoUploadModal({ onClose }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState(null);
+
+  const handleFile = async (file) => {
+    if (!file) return;
+    if (!/^image\/(png|jpeg|jpg)/.test(file.type)) {
+      notify.error('Please choose a PNG or JPEG image.');
+      return;
+    }
+    setPreview(URL.createObjectURL(file));
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      await axios.post(`${API}/account/logo`, fd, {
+        headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' },
+      });
+      notify.success('Logo uploaded — looking sharp.');
+      setTimeout(onClose, 600);
+    } catch (e) {
+      notifyApiError(notify, e, 'Logo upload failed');
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={onClose}
+      data-testid="mbr-logo-modal"
+    >
+      <div
+        className="rounded-2xl border border-[color:var(--theme-border)] bg-[color:var(--theme-surface)] w-full max-w-md p-6 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-3 text-[color:var(--theme-text-muted)] hover:text-white"
+          aria-label="Close"
+          data-testid="mbr-logo-modal-close"
+        >
+          <X size={18} />
+        </button>
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)] flex items-center gap-1">
+          <Sparkles size={11} /> Studio brand
+        </p>
+        <h3 className="text-xl font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>Upload your logo</h3>
+        <p className="text-xs mt-1 mb-4" style={{ color: 'var(--theme-text-muted)' }}>
+          PNG or JPEG, up to 512&times;512 px. Appears on your member portal, emails and invoices.
+        </p>
+        {preview && (
+          <div className="rounded-xl border border-[color:var(--theme-border)] p-4 mb-4 flex items-center justify-center bg-white/5">
+            <img src={preview} alt="logo preview" className="max-h-32 max-w-full object-contain" />
+          </div>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0])}
+          data-testid="mbr-logo-input"
+        />
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-extrabold"
+          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+          data-testid="mbr-logo-pick"
+        >
+          {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+          {uploading ? 'Uploading…' : 'Choose image'}
+        </button>
       </div>
     </div>
   );
