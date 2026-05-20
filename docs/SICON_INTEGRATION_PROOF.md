@@ -1,3 +1,15 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Hand-over package status unchanged: code path complete + tested with
+> mocked Sicon endpoints. Awaiting partner credentials. The
+> `/master-admin/integrations → Sicon` mapping panel is now mobile-
+> friendly (iter 216h229) — the field-mapping read-only table wraps
+> in `overflow-x-auto` with `min-w-[420px]` so it stays readable on
+> phones during partner demos.
+
+---
+
+
 # Sicon Integration — Proof of Completion
 
 **Document for hand-over to the Sicon partner team**

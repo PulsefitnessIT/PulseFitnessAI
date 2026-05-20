@@ -1,3 +1,21 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Quick-start flows unchanged. New activation events available for
+> supplier-facing operations (these fire automatically when the
+> matching action happens, see `routes/activation_events.py`):
+>
+> | When supplier-related event happens | Event fired |
+> | --- | --- |
+> | First piece of equipment added (any path) | `first_equipment_added` |
+> | First fault logged on supplier-covered equipment | `first_fault_logged` |
+> | First engineer invited to a partner job | _(planned — not yet wired)_ |
+>
+> Suppliers can subscribe to these via `/api/integrations/webhooks`
+> (the universal webhook bus) to feed their own dashboards.
+
+---
+
+
 # GymAxis AI - Supplier Integration Guide
 
 ## Quick Start for Suppliers

@@ -1,3 +1,34 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> The PRD below remains the canonical Marketing roadmap. Net new
+> capabilities since the original April 2026 doc:
+>
+> **Module-intent capture at trial signup (iter 216h227)**
+> Marketing module landing pages (`/modules/marketing`) now dispatch
+> `openTrial('marketing')` so the new operator's primary_module is
+> set to `marketing` at signup. The `/activation/me` funnel then
+> narrows to JUST marketing-relevant first wins:
+>
+> 1. `first_brand_discovered` — fires when the brand-discovery flow
+>    is applied (`POST /api/marketing/brand-discovery/apply`).
+> 2. `first_audience_built` — fires on the first
+>    `POST /api/marketing/audiences`.
+> 3. `first_campaign_launched` — fires on the first
+>    `POST /api/marketing/campaigns/{id}/send` **only when sent>0**
+>    (zero-send drafts do NOT count).
+>
+> All three are wired into the existing route handlers as best-effort
+> emit hooks (`try/except`) so a failed activation write never blocks
+> the marketing operation.
+>
+> **Creative Studio mobile fix (iter 216h229)**
+> Brand library + category library grids switched from fixed
+> `grid-cols-3` to `grid-cols-2 sm:grid-cols-3` so thumbnails get
+> full width below the sm breakpoint instead of squashing to ~120px.
+
+---
+
+
 # GymAxis Marketing Suite — Architecture & PRD
 
 > **Status**: Active — Phase 1 in development (Apr 2026)

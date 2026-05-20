@@ -1,3 +1,38 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> The Version 1.0 (April 2026) baseline below is augmented by the
+> Feb 2026 sprint (h-series). See `PRD.md` for the iter-level log;
+> the table below summarises what's NEW since 1.0:
+>
+> | Capability | Status |
+> | --- | --- |
+> | CRM Phase 3 (territory tree, AI next-best-action, cross-module timeline, reports + date filters) | ✅ shipped |
+> | Module-tailored trial onboarding (primary_module narrows /activation/me + /account/onboarding) | ✅ shipped |
+> | 16 activation event types (was 8) — CRM lead/deal/quote, Marketing brand/audience/campaign, Operations fault | ✅ shipped + emit hooks wired |
+> | Mobile rails — popover viewport clamp, `[data-fab-rail]` stacking, fixed trial banner spacer, horizontal-scroll wrappers on 9 MasterAdmin tables | ✅ shipped |
+> | `Add Equipment` direct CTA on `EquipmentInfoTab` (previously only multi-machine AI Invoice Import) | ✅ shipped |
+> | EngineerDiary week-view mobile fix (overflow-x-auto + min-w-[700px]) | ✅ shipped |
+> | CreativeStudio 2-column mobile grid | ✅ shipped |
+> | GitHub Actions Quality Gates (ESLint=0, Ruff/Bandit/Xenon/pip-audit clean, pytest CI suite, gitleaks, prod build smoke) | ✅ green & enforced |
+> | Tool versions pinned in CI (`ruff==0.15.10`, `bandit==1.9.4`, `xenon==0.9.3`) | ✅ |
+> | Production deployment | ✅ `gymaxis.com` live |
+>
+> ### Outstanding integrations (P1)
+> - **Sicon** (CAPEX / parts / labour) — code path ready, waiting on
+>   live credentials. See `memory/SICON_INTEGRATION_SPEC.md` + the
+>   companion `docs/SICON_INTEGRATION_PROOF.md`.
+> - **DocuSign** on CRM Quote send — code path ready, waiting on creds.
+>
+> ### Outstanding integrations (P2)
+> - **Sage 200** ledger posting on payment + CRM lead conversion — MOCKED.
+> - **Twilio SMS** — MOCKED.
+>
+> ### P3
+> - Right-to-erasure workflow for personnel records.
+
+---
+
+
 # GymAxis AI - Complete Platform Documentation
 ## Version 1.0 | April 2026
 

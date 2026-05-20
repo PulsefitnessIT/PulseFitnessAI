@@ -1,3 +1,23 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Blueprint below unchanged. Mobile-specific implementations now in
+> place since the doc was written:
+>
+> - **AdminMODConsole table** — wrapped in `overflow-x-auto` (iter
+>   216h229) so the per-org rollup table scrolls horizontally on
+>   phones instead of clipping.
+> - **AdminMODSitesBulkImport** — same treatment.
+> - **MOD operator dashboard** — inherits the global `[data-fab-rail]`
+>   stacking + popover viewport clamp from the Wave 1 mobile audit.
+>
+> MOD-specific authentication / module gating logic is unchanged; the
+> `account_type.startswith('mod_')` check still hides the Stripe
+> onboarding step in the Setup Checklist (handled in
+> `routes/account.py:onboarding_status`).
+
+---
+
+
 # Ministry of Defence (MOD) Service Portal — Design Blueprint
 
 **Audience**: Pulse Fitness product + engineering team

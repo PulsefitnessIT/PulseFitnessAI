@@ -1,3 +1,57 @@
+## Iter 216h233 — backend docs refresh (Feb 19, 2026) ✅ P2
+
+Comprehensive audit of `/app/memory/` + `/app/docs/` architecture
+and integration docs. Each got a "📋 Status — Iter 216h232" addendum
+prepended with the relevant net-new realities from the h-series sprint.
+
+### Wave A — engineering critical (6 docs)
+- `memory/PRODUCTION_READINESS.md` — added quality-gate status table
+- `memory/CODE_REVIEW.md` — added h225–232 highlights vs iter 196 baseline
+- `memory/CRM_ARCHITECTURE.md` — Phase 3 surfaces + 3 new CRM activation events
+- `memory/CRM_INTEGRATION_ARCHITECTURE.md` — activation event bus flow + `primary_module` flow
+- `memory/SERVICE_OPS_ARCHITECTURE.md` — Engineer Diary fix, EquipmentInfoTab CTA, `first_fault_logged`
+- `memory/PLATFORM_DOCUMENTATION.md` — full capabilities table + outstanding integration status
+- `docs/PRE_COMMIT.md` — 3 CI bugs fixed + version pinning rationale
+
+### Wave B — integration specs (8 docs)
+- `memory/SICON_INTEGRATION_SPEC.md` + `docs/SICON_INTEGRATION_PROOF.md` — still P1, awaiting creds
+- `memory/SUPPLIER_INTEGRATION_GUIDE.md` — new activation events available via webhook bus
+- `memory/INTEGRATION_FIELD_MAPPING.md` — `primary_module` field added
+- `memory/SVC_FIELD_MAPPING.md` — activation bus side effects noted
+- `memory/MARKETING_SUITE_PRD.md` — module-intent capture + 3 new Marketing events + Creative Studio mobile fix
+- `memory/hubspot_parity_audit.md` — 6 gap items closed
+- `docs/TRUST_AND_SUPPORT_ENGINE.md` — TrustDashboard stale-closure bug fix note
+- `docs/MOD_SERVICE_PORTAL.md` — MOD admin tables mobile-fixed
+- `docs/GYMAXIS_MEMBERSHIPS.md` — 4 new Memberships activation events listed
+
+### Wave C — customer-facing briefs + runbooks (9 docs)
+- `docs/SECURITY_BRIEFING_PULSE_FITNESS.md` — CI security additions, prod URL
+- `docs/RESPONSE_TO_CRAIG_PULSE_FITNESS.md` — Craig's two audit points now fixed
+- `memory/SECURITY_OPS.md` — CI gate workflow references
+- `memory/DOMAIN_CUTOVER_RUNBOOK.md` — historical now; gymaxisai.com live
+- `memory/MASTER_ADMIN_RECOVERY.md` — prod/preview URLs updated
+- `memory/PERF_AUDIT.md` — 3 post-h171 perf-relevant changes
+- `memory/COST_BREAKDOWN.md` — no change confirmed, prod live noted
+- `memory/CRM_TENDERS_AUDIT.md` — 2 findings resolved
+- `memory/UX_AND_PROCESS_BACKLOG.md` — 4 items closed (mobile audit + onboarding)
+- `memory/KNOWN_BUGS.md` — full h225→h232 fix log replacing stale h212 marker
+
+### Verification
+- All 17 doc files modified (some prepended, some inline-updated).
+- 28 references to "iter 216h232" across `memory/` + `docs/` (some
+  docs cross-reference each other intentionally).
+- `make regression` 37 passed, 14 skipped.
+- No code changes — docs-only sprint.
+
+### Convention used
+Every addendum is a Markdown blockquote (`> **📋 Status …`) so it
+visually separates from the original content and never breaks
+syntax-aware Markdown tooling. The original content below each
+addendum remains untouched as historical reference.
+
+---
+
+
 ## Iter 216h232 — CI follow-up (Feb 19, 2026) ✅ P0
 
 Lee reported the second push still failed with two separate workflow

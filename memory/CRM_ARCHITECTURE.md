@@ -1,3 +1,39 @@
+> **📋 Status — Iter 216h232 update (Feb 19, 2026)**
+>
+> CRM Phase 3 has shipped end-to-end since the original v2 architecture
+> doc was written. New surfaces & data flows:
+>
+> | New surface | Module | Route |
+> | --- | --- | --- |
+> | Drag-and-drop territory tree | CRM Phase 3 | `/api/crm/v2/territories` |
+> | AI next-best-action | CRM Phase 3 | `/api/crm/v2/companies/{id}/next-best-action` |
+> | Cross-module activity timeline | CRM Phase 3 | `/api/crm/v2/companies/{id}/timeline` |
+> | Reports suite (per-report date filters) | CRM Phase 3 | `/api/crm/reports?from_iso=…&to_iso=…` |
+> | Website-first enrichment | CRM Phase 3 | `/api/crm/v2/companies/auto-recognize` |
+> | Quote send + DocuSign hook | CPQ | `/api/crm/v2/quotes/{id}/send` |
+>
+> **Module-tailored trial onboarding (iter 216h227)**
+> The `primary_module` captured at signup narrows the post-signup
+> activation funnel to `crm`-relevant events only when a prospect
+> arrives via the CRM module landing page. The picker (`MODULE_INTENT_MAP`
+> in `ModulePage.js`) maps `crm → crm`, `service → operations`, etc.
+>
+> **Three new CRM activation event types** with emit hooks:
+> - `first_lead_added`  — emitted by `POST /api/crm/companies`
+> - `first_deal_created` — emitted by `POST /api/crm/deals`
+> - `first_quote_sent`   — emitted by `POST /api/crm/quotes/{id}/send`
+>
+> All best-effort wrapped (`try/except`) so they never block CRM writes.
+>
+> **Schema additions**
+> Picklists, products, quotes, deals all backed by collections
+> `crm_picklists`, `crm_products`, `crm_v2_companies`, `crm_v2_contacts`,
+> `crm_deals`, `crm_quotes`. Miller Heiman stakeholder mapping wired
+> on contacts.
+
+---
+
+
 # GymAxis CRM — Enterprise Architecture Document
 ## Version 2.0 — Complete Rebuild
 

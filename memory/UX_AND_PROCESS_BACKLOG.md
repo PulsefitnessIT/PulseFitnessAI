@@ -1,3 +1,18 @@
+## Resolved since iter 210 capture (Feb 19, 2026 — iter 216h232)
+
+Backlog items below were captured iter 210. Items now resolved:
+
+- **Module-tailored trial onboarding** — fixed in iter 216h227. `primary_module` captured at signup; First Wins + Setup Checklist narrowed to operator intent (operations/memberships/crm/marketing).
+- **Mobile audit Wave 1+2+3** — fixed in iters 216h228, h229, h230. Cross-cutting CSS rails, `[data-fab-rail]` stacking, popover viewport clamp, body overflow-x hidden, 9 MasterAdmin table wrappers, EquipmentInfoTab Add CTA, EngineerDiary week-view scroll.
+- **AccountSettings mobile** — fixed in iter 216h227. Mobile-first layout, full-screen on max-sm, horizontal pill rail nav, step cards flex-col with CTA below text.
+- **OnboardingWizard mobile** — fixed in iter 216h227. Equipment input grid switched to `grid-cols-1 sm:grid-cols-2 md:grid-cols-3`.
+
+Outstanding items from the original backlog remain in
+`memory/ROADMAP.md` § P2/P3.
+
+---
+
+
 # UX & Process Analyst Backlog
 *Captured: 2026-04-28 (iteration 210). Master designer + process analyst review.*
 

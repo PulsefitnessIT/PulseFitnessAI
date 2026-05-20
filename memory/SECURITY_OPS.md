@@ -1,3 +1,24 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Security operations runbook below remains canonical. CI-side
+> additions since this doc was written:
+>
+> - **`.github/workflows/quality-gate.yml`** runs gitleaks + pip-audit
+>   on every PR-to-main. Tool pins: `ruff==0.15.10`, `bandit==1.9.4`.
+> - **`.github/workflows/ci.yml`** runs the same gates on every push
+>   to `main`/`develop` and on every PR. Secret-detection grep
+>   excludes `backend/tests/` (test fixtures intentionally reference
+>   `sk_live_…` / `sk_test_…` prefixes the production code guards
+>   against).
+> - **Pytest CI hook** — `tests/conftest.py:pytest_collection_modifyitems`
+>   skips live-server tests when `CI=true` / `GITHUB_ACTIONS=true`
+>   so red flakes don't block legitimate PRs.
+>
+> Live production: `https://gymaxisai.com`.
+
+---
+
+
 # Security Operations Runbook
 
 **Audience**: DevOps / Platform engineers preparing GymAxis for Pulse-Fitness-grade enterprise rollout.

@@ -1,3 +1,40 @@
+> **📋 Status — Iter 216h232 update (Feb 19, 2026)**
+>
+> Post-iter-215dn shipping that touches Service Ops:
+>
+> **Engineer Diary mobile fix (iter 216h229)**
+> The `grid-cols-7` week view in `EngineerDiary.js` now wraps in
+> `overflow-x-auto` with `min-w-[700px]` so day cells stay a readable
+> ~100px wide on phones instead of squashing to ~55px.
+>
+> **Equipment Hub — single-machine Add CTA (iter 216h231)**
+> `EquipmentInfoTab.js` had only multi-machine AI Invoice Import.
+> Added a direct `Add Equipment` button (wired to the existing
+> `AddEquipmentDialog`) and switched the action row to `flex-wrap`
+> so on phones the buttons cleanly wrap instead of overflowing.
+> `data-testid="add-equipment-btn"` for testability.
+>
+> **First-fault activation event (iter 216h227)**
+> `POST /api/issues` now fires `first_fault_logged` to the activation
+> bus, with `payload={"issue_id": ...}`. Wraps in `try/except` so
+> a failed emit never blocks issue intake. The first-fault milestone
+> appears in `ActivationMilestonesCard` for operations-trial users
+> and links them straight to the faults tab.
+>
+> **CRM ↔ Service Desk mirror** — escalations from `issues.py` mirror
+> into `svc_cases` via `_mirror_issue_to_svc_case()` so engineers
+> dispatched from the Service Desk see the same record their CSM is
+> tracking in CRM. Same record appears in the cross-module
+> `/api/crm/v2/companies/{id}/timeline`.
+>
+> **Mobile rails (iter 216h228)** — global `[data-fab-rail]`
+> stacking applies to the Engineer hub's report/feedback FABs;
+> `html, body { overflow-x: hidden }` below `lg:` prevents the long-
+> table Engineer pages from leaking horizontal scroll.
+
+---
+
+
 # GymAxis Service Operations Platform — Architecture Spec
 **Codename: SERVICE OPS** · Replaces Sicon Service · iter 215dn (Feb 2026)
 

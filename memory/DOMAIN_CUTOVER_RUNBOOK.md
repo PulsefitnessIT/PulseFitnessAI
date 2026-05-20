@@ -1,3 +1,15 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> **`gymaxisai.com` is live in production.** This runbook is now a
+> historical reference for the cutover that completed. Any further
+> domain changes (e.g. wiring up `pulsefitness.ai`) should follow the
+> same steps below but check the post-cutover health-check checklist
+> at the bottom against current production endpoints
+> (`https://gymaxisai.com/api/health`, etc.).
+
+---
+
+
 # Domain Cutover Runbook — `gymaxisai.com` + `pulsefitness.ai`
 
 This is the step-by-step play for moving the live app off the

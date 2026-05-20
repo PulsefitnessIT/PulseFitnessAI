@@ -1,3 +1,47 @@
+> **📋 Status — Iter 216h232 update (Feb 19, 2026)**
+>
+> The single-source-of-truth model below remains the canonical
+> design. Post-h225 additions worth surfacing in any future revision
+> of this document:
+>
+> **Activation event bus (iter 216h216 + h227)**
+> A new collection `activation_events` mediates between modules so
+> CRM/Marketing/Operations/Memberships can each fire a milestone
+> independently while the funnel renders a unified "first wins"
+> timeline filtered to the operator's `primary_module`. 16 event
+> types currently, each tagged with one of `always` / `operations` /
+> `memberships` / `crm` / `marketing` so the rendering layer can
+> show only what's relevant.
+>
+> ```
+> CRM lead create ─┐
+> CRM deal create ─┼─→ activation_events  ─→  /api/activation/me ─→ ActivationMilestonesCard.js
+> CRM quote send  ─┘
+> Marketing audience create ─┐
+> Marketing brand-discovery  ─┼─→ activation_events
+> Marketing campaign send    ─┘
+> Operations equipment create ─┐
+> Operations fault log         ─┴─→ activation_events
+> ```
+>
+> Hooks at: `crm_core.py`, `crm_cpq.py`, `marketing/audiences.py`,
+> `marketing/campaigns.py`, `marketing/brand_discovery.py`,
+> `equipment.py`, `issues.py`. All wrapped in `try/except` so a
+> failed emit never blocks the underlying write.
+>
+> **CRM ↔ Service Desk bridge** — when an Operations fault is
+> escalated to engineer, `issues.py` mirrors it to `svc_cases`
+> via `_mirror_issue_to_svc_case(...)`; same record is then
+> visible in the CRM company timeline.
+>
+> **`primary_module` capture** — passed through from the marketing
+> ModulePage CTAs to `/api/auth/register`, persisted on the org
+> doc, and consumed by both `/account/onboarding` (Setup Checklist
+> filter) and `/activation/me` (First Wins filter).
+
+---
+
+
 # GymAxis AI — Enterprise Integration Architecture
 ## Single Source of Truth for Sales, Service, and Finance
 

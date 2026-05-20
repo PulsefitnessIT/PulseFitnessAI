@@ -1,3 +1,20 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Field mapping below remains the canonical reference. Additions since
+> iter 215dy:
+>
+> | New field | Direction | Notes |
+> | --- | --- | --- |
+> | `users.primary_module` | inbound from signup | One of `operations` / `memberships` / `crm` / `marketing`. Narrows post-signup `/activation/me` + `/account/onboarding`. |
+> | `organizations.primary_module` | persisted at register-time | Same; used when the user-level field isn't cached. |
+> | `activation_events.event_type` | internal | 16 types now (was 8). See `routes/activation_events.py:EVENT_TYPES` for the canonical list. |
+> | `activation_events.module` | internal | Tag: `always` / `operations` / `memberships` / `crm` / `marketing`. |
+>
+> No outbound integration field changes vs 215dy.
+
+---
+
+
 # GymAxis · Integration Field Mapping (Master)
 
 **Iter 215dy · Feb 2026 · Source-of-truth for cross-system data flow**

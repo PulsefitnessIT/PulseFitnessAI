@@ -1,3 +1,18 @@
+> **📋 Status — Iter 216h232 update (Feb 19, 2026)**
+>
+> Audit findings below remain valid. Resolved since the audit:
+>
+> - **Tenders mobile** — table wrapped in `overflow-x-auto` via the
+>   iter 216h229 sweep (`scripts/wrap_admin_tables_mobile.py`).
+> - **Quote send DocuSign hook** — code path complete + activation
+>   event `first_quote_sent` wired up. Awaiting partner credentials.
+>
+> Outstanding items from this audit are tracked in `memory/ROADMAP.md`
+> § P2 (CPQ margins, BOM versioning).
+
+---
+
+
 # CRM Tenders Module — Audit (Iter 216h223)
 
 This document compares the user's requested Tender Management feature

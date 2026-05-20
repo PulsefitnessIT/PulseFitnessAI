@@ -1,3 +1,23 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Response below remains the canonical answer to Craig's review.
+> Net new since the original response:
+>
+> - **Module-tailored trial onboarding** — Craig's audit "why is a
+>   memberships trial being asked to add a machine?" is fixed. The
+>   `primary_module` captured at signup narrows both
+>   `/activation/me` (First Wins) and `/account/onboarding`
+>   (Setup Checklist) to the operator's intent.
+> - **Add Equipment CTA on the operations dashboard** — Craig's
+>   second observation ("I wanted to add a piece of equipment but
+>   couldn't get to the button") is fixed in iter 216h231. The
+>   `EquipmentInfoTab.js` action row was overflowing right on mobile
+>   AND lacked a single-machine Add button. Both issues resolved.
+> - **Production live** — `https://gymaxisai.com` since Feb 2026.
+
+---
+
+
 # Response to Craig's Review — GymAxis AI Platform
 
 **Prepared for:** Managing Director, Pulse Fitness  

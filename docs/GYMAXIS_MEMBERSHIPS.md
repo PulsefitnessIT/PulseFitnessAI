@@ -1,3 +1,26 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Memberships blueprint below unchanged. New activation events
+> exposed for Memberships trials:
+>
+> - `first_member_added` — `POST /api/memberships/members`
+> - `first_booking_taken` — `POST /api/memberships/bookings`
+> - `first_invoice_generated` — `POST /api/memberships/invoices`
+> - `first_class_scheduled` — `POST /api/memberships/class-templates`
+>
+> All wired into the matching route handlers as best-effort emit
+> hooks. When a prospect signs up via `/modules/memberships`,
+> `primary_module='memberships'` is set at register-time and the
+> First Wins funnel narrows to ONLY these events (no equipment / no
+> CRM / no marketing milestones).
+>
+> The `connect_stripe` step in the Setup Checklist remains visible
+> for memberships trials (memberships is one of the modules that
+> needs payment collection on day one).
+
+---
+
+
 # GymAxis Memberships — Architecture & Build Blueprint
 
 > Member lifecycle + revenue + retention platform. Not a timetable. Not a

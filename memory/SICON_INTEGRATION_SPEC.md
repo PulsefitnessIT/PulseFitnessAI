@@ -1,3 +1,18 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Still **P1 — waiting on live Sicon credentials** to switch from
+> mocked endpoints to production. The code path described below is
+> implemented and unit-tested; the companion `docs/SICON_INTEGRATION_PROOF.md`
+> tracks the hand-over package for the Sicon partner team. The
+> field-mapping admin UI (`/master-admin/integrations` ⇒ Sicon panel)
+> ships its own horizontal-scroll wrapper since iter 216h229's mobile
+> audit so the read-only field mapping table is usable on phones.
+>
+> No model / endpoint changes since v1.0 below; only awaiting creds.
+
+---
+
+
 # GymAxis AI x Sicon Service Integration Model
 ## Production-Ready Enterprise Integration Specification
 ### Version 1.0 | April 2026

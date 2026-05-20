@@ -1,3 +1,18 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Service Ops field mapping below is unchanged. Worth noting the new
+> activation-bus side effects (NOT a Sicon/Sage data flow, internal-
+> only):
+>
+> - On engineer escalation from `issues.py`, the `_mirror_issue_to_svc_case`
+>   helper copies the issue into `svc_cases`. The same record then
+>   shows in CRM via `/api/crm/v2/companies/{id}/timeline`.
+> - `first_fault_logged` fires once per org on the first issue intake
+>   (best-effort, never blocks intake).
+
+---
+
+
 # GymAxis Service Operations — Sicon Service / Sage 200 Field Mapping
 **Iter 215dp · Feb 2026 · Source-of-truth for Service Ops cross-system data flow**
 

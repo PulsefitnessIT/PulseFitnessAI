@@ -1,3 +1,44 @@
+> **📋 Status — Iter 216h232 update (Feb 19, 2026)**
+>
+> This review was originally written at iter 196. The post-196 sprint
+> (h-series) has materially tightened the picture. Highlights since
+> the original report:
+>
+> **Quality Gates ⇒ green & enforced in CI**
+> - ESLint `--max-warnings 0` (was 200) — every legacy
+>   `react-hooks/exhaustive-deps` site now carries an `-- intentional:`
+>   rationale documented in iter 216h226-deps-walk.
+> - Ruff `0.15.10` / Bandit `1.9.4` / Xenon `0.9.3` pinned in both
+>   `ci.yml` and `quality-gate.yml`. Tool-version drift was the root
+>   cause of repeated "All jobs have failed" runs through Feb 19.
+> - Pip-audit clean; 3 known-accepted upstream CVEs in litellm
+>   whitelisted with full reasoning in `quality-gate.yml`.
+> - `make regression` 37/14 green; a CI-mode marker
+>   (`pytest_collection_modifyitems`) skips live-server tests inside
+>   GitHub Actions to prevent flake.
+>
+> **Application-level changes worth noting in a future review**
+> - Module-tailored trial onboarding (`primary_module` field on
+>   `UserRegister`, narrowed `/activation/me` + `/account/onboarding`).
+> - CRM Phase 3 (territory tree drag-drop, AI next-best-action, cross-
+>   module timeline, reports suite with date filters).
+> - 16 activation event types now (was 8), with emit hooks in 7 route
+>   handlers — all best-effort wrapped (`try/except` so they never
+>   block primary writes).
+> - Mobile audit Wave 1+2+3 — global CSS rails + `[data-fab-rail]`
+>   stacking + 9 MasterAdmin tables wrapped in horizontal-scroll
+>   wrappers + EquipmentInfoTab Add-Equipment CTA wired up.
+> - Bug fix worth flagging: stale closure on `selectEquipmentForFault`
+>   in `LiteDashboardPage.js`, plus `TrustDashboard.refreshTick` no
+>   longer reads a stale auth-header closure on token rotation.
+>
+> The "Findings" sections below remain useful as a historical snapshot;
+> the items they flagged in iter 196 have largely been actioned. The
+> only original P1 carry-overs are Sicon + DocuSign credentials.
+
+---
+
+
 # GymAxis — Code Review Report
 **Date**: Feb 2026 (iteration 196)
 **Scope**: (a) Recent shipping — Memberships Phases 4-6 + Marketing AI Director · (b) Backend security audit

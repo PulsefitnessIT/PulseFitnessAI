@@ -1,3 +1,17 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Cost baseline below remains current. No infrastructure changes
+> since the doc was written. Production live on `gymaxisai.com` since
+> Feb 2026 — same Emergent platform tier, no upgrade required.
+>
+> The `[tool.pytest.ini_options]` + Mongo sidecar additions to the
+> Quality Gate workflow do NOT add cost — they use the same
+> ubuntu-latest runner budget; the mongo:7 container is part of the
+> standard GitHub Actions service quota.
+
+---
+
+
 # GymAxis AI — Monthly Running Cost Breakdown & CRM Licensing
 
 *Prepared: April 2026 | Updated with confirmed details*

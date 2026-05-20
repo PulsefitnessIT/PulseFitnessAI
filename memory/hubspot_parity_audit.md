@@ -1,3 +1,27 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Parity check below remains useful as a feature gap analysis vs
+> HubSpot Professional. Items now closed since the audit was first
+> written:
+>
+> | HubSpot feature | GymAxis status (Feb 2026) |
+> | --- | --- |
+> | Territory management with drag-drop ownership | ✅ shipped (CRM Phase 3 — territory tree) |
+> | AI next-best-action on Contact / Company | ✅ shipped (CRM Phase 3) |
+> | Cross-module activity timeline | ✅ shipped (CRM Phase 3) |
+> | Per-report date-range filters | ✅ shipped (CRM Phase 3) |
+> | Website-first enrichment | ✅ shipped (CRM Phase 3) |
+> | Module-specific trial onboarding | ✅ shipped (iter 216h227) |
+> | DocuSign on Quote send | 🟢 code-ready, waiting on creds |
+> | Sequences (drip nurture) | 🟡 partial — see Marketing Suite PRD |
+> | Predictive lead scoring | 🟢 next-best-action covers this; full model planned |
+>
+> Outstanding gaps from the original audit that remain genuinely
+> open are documented in `memory/ROADMAP.md` § P1/P2.
+
+---
+
+
 # HubSpot Parity Audit
 
 **Baseline**: Professional (Marketing Hub + Smart CRM)  

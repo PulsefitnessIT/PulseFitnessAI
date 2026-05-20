@@ -1,3 +1,34 @@
+> **📋 Status — Iter 216h232 update (Feb 19, 2026)**
+>
+> The hooks below remain accurate but the **CI workflow** that enforces
+> them has been hardened. Three bugs were fixed Feb 19 that had been
+> silently failing CI on every push since the workflow first landed:
+>
+> 1. **`bandit --exit-zero-on-skipped`** — flag never existed in
+>    bandit's CLI; bandit aborted immediately on every CI run.
+>    Removed.
+> 2. **Secret-detection regex matched test fixtures** —
+>    `backend/tests/test_stripe_prices_guard_216o.py` and
+>    `test_secrets_audit_215ae.py` legitimately reference `sk_live_…`
+>    and `sk_test_…` as string literals the code guards against.
+>    Added `--exclude-dir=tests` to the grep.
+> 3. **Pytest couldn't import `tests.shared_loop`** — conftest uses
+>    `from tests.shared_loop import …` which works locally with
+>    `python -m pytest` (adds CWD to sys.path) but breaks with bare
+>    `pytest` as used in CI. Added `[tool.pytest.ini_options]
+>    pythonpath = ["."]` to `backend/pyproject.toml`.
+>
+> Additionally, tool versions are now pinned in both `ci.yml` and
+> `quality-gate.yml` (`ruff==0.15.10`, `bandit==1.9.4`, `xenon==0.9.3`,
+> `radon==6.0.1`, `pre-commit==4.0.1`) to prevent the tool-version-drift
+> failures we hit through Feb 19.
+>
+> The Quality Gate's `python-quality` job now also runs a `mongo:7`
+> sidecar so the regression suite has a working DB to connect to.
+
+---
+
+
 # Pre-commit Hooks
 
 This repo ships with a `.pre-commit-config.yaml` that catches the same issues

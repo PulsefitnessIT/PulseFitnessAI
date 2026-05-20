@@ -3,7 +3,51 @@
 > Read this **first** when picking up work. Re-introducing one of these
 > wastes a session. Update on every fix / new finding.
 
-_Last refreshed: Iter 216h212 · May 18 2026_
+_Last refreshed: Iter 216h232 · Feb 19, 2026_
+
+---
+
+## ✅ Fixed since h212 (iter 216h225 → h232)
+
+- **`exhaustive-deps` doom loop** (h226-deps-walk) — 82 sites
+  manually reviewed. One real bug found: `TrustDashboard.refreshTick`
+  was calling a stale `load` closure after token rotation. Fixed by
+  including `load` in deps. The other 81 sites got explicit
+  `-- intentional:` rationales documenting why their suppression is
+  safe.
+
+- **Module-tailored trial onboarding leak** (h227) — every trial saw
+  every module's First Wins. Fixed by adding `primary_module` to
+  `UserRegister`, narrowing `/activation/me` + `/account/onboarding`
+  to the operator's intent.
+
+- **Mobile UX bugs** (h228 / h229 / h230 / h231):
+  - CRM "+" QuickCreate menu off-screen on phones → anchor flipped on
+    `max-sm`.
+  - Welcome header clipped behind trial banner → fixed with 62px
+    inline spacer below the fixed banner.
+  - NotificationsBell panel off-screen → switched to viewport-anchored
+    fixed positioning on `max-sm`.
+  - 9 MasterAdmin tables clipping silently → wrapped in
+    `overflow-x-auto`.
+  - EngineerDiary week-grid squashed to ~55px cells → wrapped in
+    `overflow-x-auto` with `min-w-[700px]`.
+  - EquipmentInfoTab missing Add Equipment button + action row
+    overflowing → button added, row switched to flex-wrap.
+  - 3 global FABs (UnifiedAssistant + FeedbackWidget + NPSWidget) now
+    opted into `[data-fab-rail]` so they stack deterministically
+    (76px / 152px / 228px from bottom) instead of overlapping.
+
+- **GitHub Actions Quality Gate failures** (h232):
+  - `bandit --exit-zero-on-skipped` flag never existed → removed.
+  - Secret-detection grep matched test fixtures → added
+    `--exclude-dir=tests`.
+  - Pytest couldn't import `tests.shared_loop` under bare `pytest` →
+    added `pythonpath = ["."]` to `pyproject.toml`.
+  - Tool-version drift in CI → pinned `ruff==0.15.10`, `bandit==1.9.4`,
+    `xenon==0.9.3`.
+  - Mongo missing from Quality Gate's `python-quality` job →
+    added `services: mongodb` sidecar.
 
 ---
 

@@ -1,3 +1,21 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Draft v1 design still current. One implementation detail worth
+> flagging since the doc was written (Feb 22 v1): the `TrustDashboard`
+> auto-refresh effect had a stale-closure bug on token rotation
+> (refreshTick fired against an old `load` callback closed over the
+> previous auth header). Fixed in iter 216h226-deps-walk by including
+> `load` in the effect deps.
+>
+> The mobile audit (iter 216h228) also moved the dashboard's
+> notifications panel from anchor-flip to `max-sm:fixed` positioning
+> so it no longer clips off-screen on phones — see the CRM bell pattern
+> in `pages/CRM/CRMApp.js:299`. Apply the same pattern when porting
+> Trust dashboard notifications to mobile.
+
+---
+
+
 # GymAxis Trust & Support Engine
 
 **Design owner:** Lee Somers (Pulse Fitness) · **Status:** Draft v1 · **Date:** Feb 22, 2026

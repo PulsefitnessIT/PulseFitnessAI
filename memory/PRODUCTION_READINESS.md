@@ -1,3 +1,23 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> This document was last refreshed during the **GitHub Actions CI repair + mobile audit + module-tailored onboarding** sprint. See `PRD.md` § iter 216h225–232 for the canonical session log. The Production Readiness baseline below remains accurate; the table at the bottom adds the new realities.
+>
+> | Aspect | State |
+> | --- | --- |
+> | ESLint warnings budget | **0** (`--max-warnings 0`, strictly enforced in CI) |
+> | Ruff / Bandit / Xenon | Clean, pinned versions (`ruff==0.15.10`, `bandit==1.9.4`, `xenon==0.9.3`) |
+> | Pip-audit | Clean (3 accepted CVEs whitelisted in `quality-gate.yml`) |
+> | `make regression` | **37 passed, 14 skipped** (live-server tests skip in CI via `pytest_collection_modifyitems`) |
+> | GitHub Actions workflows | `ci.yml` (push+PR) + `quality-gate.yml` (PR-to-main). Both green as of iter 216h232. Mongo sidecar added to `python-quality` job. |
+> | Frontend mobile rails | Global `[data-fab-rail]` stacking, `html, body { overflow-x: hidden }` below `lg:`, Radix popover viewport clamp, fixed trial banner spacer |
+> | Module-tailored trial onboarding | `primary_module` captured at signup, narrows `/activation/me` + `/account/onboarding` to the operator's intent (operations/memberships/crm/marketing) |
+> | Activation event types | 16 (was 8) — added CRM (lead/deal/quote), Marketing (brand/audience/campaign), Operations (fault). Emit hooks wired into 7 route handlers. |
+> | CRM Phase 3 | Territory tree (drag-drop), AI next-best-action, cross-module timeline, reports suite with date filters — all shipped |
+> | Mobile audit Wave 1+2+3 | Cross-cutting CSS rails + 9 MasterAdmin tables wrapped + EngineerDiary scroll + CreativeStudio 2-col mobile + Add Equipment CTA in `EquipmentInfoTab` |
+
+---
+
+
 # Production Readiness — P0 Hardening (Apr 28, 2026)
 
 ## What was shipped

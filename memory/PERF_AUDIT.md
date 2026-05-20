@@ -1,3 +1,25 @@
+## Iter 216h232 update (Feb 19, 2026)
+
+The running log below remains the canonical perf audit. Three
+post-h171 changes worth noting:
+
+- **`html, body { overflow-x: hidden }` below `lg:`** added in
+  iter 216h228 mobile audit. Slight repaint cost but eliminates
+  horizontal-scroll thrash on phones (worth it).
+- **9 MasterAdmin tables** now wrap in `overflow-x-auto` with
+  `min-w-[xxxpx]` (iter 216h229). No perf impact; tables that
+  used to clip silently are now scrollable.
+- **`[data-fab-rail]` stacking CSS** (iter 216h228, formalised
+  iter 216h230). Zero JS, pure CSS — three FABs now stack
+  deterministically without overlap.
+
+ESLint stays at `--max-warnings 0` budget; any new perf-related
+hooks must add explicit `-- intentional:` rationales rather than
+suppressing deps blindly.
+
+---
+
+
 ## Iter 216h171 — Safe pagination + truncation telemetry (Feb 2026)
 
 ### Audit reality check

@@ -1,3 +1,19 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Recovery procedure below remains current. Updated production
+> URLs since the doc was written:
+>
+> - Production: `https://gymaxisai.com`
+> - Preview: `https://maintenance-hub-357.preview.emergentagent.com`
+>
+> The `admin@gymaxisai.com` master-admin credentials in
+> `memory/test_credentials.md` are valid for both environments.
+> Account lockout is now in-memory (`utils/security.py:_locked_accounts`)
+> so a backend restart clears it — see iter 216h231 collateral note.
+
+---
+
+
 # Master Admin Recovery on Production
 
 If you ever can't sign in as `admin@gymaxisai.com` on the deployed app

@@ -1,3 +1,31 @@
+> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+>
+> Briefing below remains accurate. Additional defence-in-depth
+> measures added since the original briefing:
+>
+> - **CI Quality Gates** — every push runs Ruff + Bandit (high-
+>   severity SAST) + ESLint (0-warning budget) + pip-audit + gitleaks
+>   + pytest security suite. Workflow files: `.github/workflows/ci.yml`
+>   + `.github/workflows/quality-gate.yml`. Tool versions pinned to
+>   prevent silent drift.
+> - **Activation event bus** — every CRM/Marketing/Operations
+>   write that creates a "first" milestone fires via best-effort
+>   `try/except` wrappers — a failed activation write NEVER blocks
+>   the primary operation, eliminating a class of side-effect
+>   DoS opportunities.
+> - **MongoDB sidecar in CI** — `python-quality` job spins up
+>   `mongo:7` so regression tests don't silently silently pass
+>   against a missing DB (which would mask issues).
+> - **`html, body { overflow-x: hidden }` below `lg:`** prevents a
+>   rogue absolute-positioned element from triggering horizontal
+>   scroll on mobile, which is sometimes used as a tap-jacking
+>   attack vector.
+>
+> Live production: `https://gymaxisai.com` (deployed Feb 2026).
+
+---
+
+
 # Pulse Fitness — Platform Security Briefing
 
 **Prepared for the Director, Pulse Fitness**  
