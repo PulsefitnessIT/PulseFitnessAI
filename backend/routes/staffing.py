@@ -146,6 +146,12 @@ class StaffCreate(BaseModel):
     site_ids: list[str] = Field(default_factory=list)
     contract_type: str | None = "part_time"  # part_time|full_time|casual|contractor
     weekly_hours: float | None = None
+    # Iter 216h241 — canonical contracted-hours field. ``weekly_hours``
+    # is kept above for backward compat with legacy callers; the HR
+    # profile (see ``routes/staffing_hr.PROFILE_FIELDS``) writes to
+    # ``hours_per_week``, so accept it here too and mirror across both
+    # keys on persist so the staff list + HR profile stay consistent.
+    hours_per_week: float | None = None
     hourly_cost: float = 0.0
     phone: str | None = None
     active: bool = True
@@ -161,6 +167,8 @@ class StaffUpdate(BaseModel):
     site_ids: list[str] | None = None
     contract_type: str | None = None
     weekly_hours: float | None = None
+    # Iter 216h241 — see StaffCreate. Accepted here for the same reason.
+    hours_per_week: float | None = None
     hourly_cost: float | None = None
     phone: str | None = None
     active: bool | None = None
@@ -332,6 +340,15 @@ async def create_staff(body: StaffCreate, user: dict = Depends(get_current_user)
         "created_by": user.get("email"),
         **body.dict(),
     }
+    # Iter 216h241 — mirror the contracted-hours value across both keys
+    # (``hours_per_week`` ↔ ``weekly_hours``) so the staff list and the
+    # HR profile read the same number regardless of which write path
+    # the caller used. Whichever value is non-null wins; ties are fine
+    # because they're identical.
+    h = doc.get("hours_per_week") or doc.get("weekly_hours")
+    if h is not None:
+        doc["hours_per_week"] = h
+        doc["weekly_hours"] = h
     await db.staff_members.insert_one(doc.copy())
     return _clean(doc)
 
@@ -343,6 +360,12 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
     patch = {k: v for k, v in body.dict().items() if v is not None}
     if "primary_role" in patch and patch["primary_role"] not in VALID_ROLES:
         raise HTTPException(400, "invalid primary_role")
+    # Iter 216h241 — see create_staff: keep both contracted-hours keys
+    # in lock-step so the HR profile and the staff list never disagree.
+    if "hours_per_week" in patch and "weekly_hours" not in patch:
+        patch["weekly_hours"] = patch["hours_per_week"]
+    elif "weekly_hours" in patch and "hours_per_week" not in patch:
+        patch["hours_per_week"] = patch["weekly_hours"]
     patch["updated_at"] = _now().isoformat()
     res = await db.staff_members.update_one({"id": staff_id, "organization_id": org_id}, {"$set": patch})
     if res.matched_count == 0:

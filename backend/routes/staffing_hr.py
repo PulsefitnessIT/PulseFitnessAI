@@ -227,6 +227,11 @@ async def update_profile(
         raise HTTPException(400, "No valid HR fields in payload")
     patch["hr_updated_at"] = _now().isoformat()
     patch["hr_updated_by"] = user.get("email")
+    # Iter 216h241 — mirror hours_per_week → weekly_hours so the staff
+    # list (which reads ``weekly_hours``) and the HR profile (which
+    # writes ``hours_per_week``) never disagree.
+    if "hours_per_week" in patch:
+        patch["weekly_hours"] = patch["hours_per_week"]
     await db.staff_members.update_one(
         {"id": staff_id, "organization_id": org_id}, {"$set": patch},
     )

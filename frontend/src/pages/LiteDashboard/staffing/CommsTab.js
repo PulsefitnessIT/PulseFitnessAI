@@ -423,7 +423,7 @@ export default function CommsTab({ headers, isManager }) {
     <div className="space-y-3" data-testid="comms-tab">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Phase S3 · Comms hub</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="comms-tab-subheading-removed-iter216h241" hidden></p>
           <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Internal messaging</p>
         </div>
         <button type="button" onClick={() => setShowNew(true)}

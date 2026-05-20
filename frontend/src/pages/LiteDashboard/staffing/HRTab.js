@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
+import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -51,6 +52,13 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  // Iter 216h241 — multi-site allocation panel. Loads all org sites once
+  // on first render so the manager can tick which sites the staff
+  // member is authorised to work at. Persists to ``staff_members.site_ids``
+  // via the PATCH /staffing/staff/{id} endpoint (separate from the HR
+  // profile PATCH; profile fields are whitelisted in PROFILE_FIELDS
+  // and site_ids isn't an HR field, it's a core staff_members field).
+  const [sites, setSites] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -61,7 +69,27 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
   }, [staffId, headers]);
   useEffect(() => { load(); }, [load]);
 
+  // One-shot site directory load. Stays warm for the whole session.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/sites`, { headers });
+        if (!cancelled) setSites(data?.sites || []);
+      } catch { /* manager has no /sites access? leave panel empty */ }
+    })();
+    return () => { cancelled = true; };
+  }, [headers]);
+
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const toggleSite = (sid) => {
+    setForm((f) => {
+      const cur = Array.isArray(f.site_ids) ? f.site_ids : [];
+      const next = cur.includes(sid) ? cur.filter((x) => x !== sid) : [...cur, sid];
+      return { ...f, site_ids: next };
+    });
+  };
 
   const save = async () => {
     setSaving(true);
@@ -80,6 +108,15 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
         payload.hours_per_week = parseFloat(payload.hours_per_week) || null;
       }
       await axios.patch(`${API}/staffing/hr/profile/${staffId}`, payload, { headers });
+      // Iter 216h241 — site_ids lives on the core staff_members doc
+      // (StaffUpdate model) not in the HR PROFILE_FIELDS whitelist, so
+      // ship it via the dedicated endpoint. Best-effort: a failure here
+      // shouldn't block the HR profile save above.
+      if (Array.isArray(form.site_ids)) {
+        try {
+          await axios.patch(`${API}/staffing/staff/${staffId}`, { site_ids: form.site_ids }, { headers });
+        } catch (siteErr) { window.alert(siteErr.response?.data?.detail || 'Site allocation save failed'); }
+      }
       setEditing(false);
       load();
       onUpdated && onUpdated();
@@ -95,15 +132,31 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{label}</span>
       {editing ? (
-        <input type={type}
-          value={form[k] || ''}
-          onChange={(e) => set(k, e.target.value)}
-          list={list}
-          className="h-8 rounded-md bg-transparent border px-2 text-sm"
-          style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
-          data-testid={`hr-field-${k}`} />
+        type === 'date' ? (
+          // Iter 216h241 — hybrid DatePicker (typeable DD/MM/YYYY +
+          // calendar). Native <input type="date"> made DOB entry
+          // unusable: the year segment auto-stored 0001 when the user
+          // typed a 2-digit year and the cursor jumped on focus.
+          <DatePicker
+            value={form[k] || ''}
+            onChange={(iso) => set(k, iso || null)}
+            placeholder="DD/MM/YYYY"
+            inputClassName="h-8 px-1"
+            testid={`hr-field-${k}`}
+          />
+        ) : (
+          <input type={type}
+            value={form[k] || ''}
+            onChange={(e) => set(k, e.target.value)}
+            list={list}
+            className="h-8 rounded-md bg-transparent border px-2 text-sm"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+            data-testid={`hr-field-${k}`} />
+        )
       ) : (
-        <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile[k] || '—'}</span>
+        <span className="text-sm" style={{ color: 'var(--theme-text)' }}>
+          {type === 'date' ? (formatDDMMYYYY(profile[k]) || '—') : (profile[k] || '—')}
+        </span>
       )}
     </div>
   );
@@ -170,6 +223,48 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
         <Field label="Hours / week" k="hours_per_week" type="number" />
         <Field label="Hire date" k="hire_date" type="date" />
         <Field label="Termination date" k="termination_date" type="date" />
+
+        {/* Iter 216h241 — Site allocation panel. Multi-site orgs (Pulse
+            Fitness Pro, MOD HQ + children) need to scope each staff
+            member to one or more sites; the scheduler and Sicon
+            engineer-routing both consume ``staff_members.site_ids``.
+            Hidden entirely for orgs with 0-1 sites to keep the form
+            tidy. */}
+        {sites.length > 1 && (
+          <div className="md:col-span-2 mt-2" data-testid="hr-site-allocation-panel">
+            <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Site allocation</p>
+            {editing ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-3" style={{ borderColor: 'var(--theme-border)' }}>
+                {sites.map((s) => {
+                  const checked = Array.isArray(form.site_ids) && form.site_ids.includes(s.id);
+                  return (
+                    <label key={s.id} className="inline-flex items-start gap-2 text-sm cursor-pointer" style={{ color: 'var(--theme-text)' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!checked}
+                        onChange={() => toggleSite(s.id)}
+                        className="mt-0.5 accent-[var(--color-brand-cyan)]"
+                        data-testid={`hr-site-allocation-toggle-${s.id}`}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate">{s.name || 'Unnamed site'}</span>
+                        <span className="block text-[10px] opacity-60 truncate">{s.address || s.postcode || '—'}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--theme-text)' }} data-testid="hr-site-allocation-readout">
+                {(() => {
+                  const ids = Array.isArray(profile.site_ids) ? profile.site_ids : [];
+                  if (ids.length === 0) return 'All sites (no restriction)';
+                  return sites.filter((s) => ids.includes(s.id)).map((s) => s.name).filter(Boolean).join(', ') || '—';
+                })()}
+              </p>
+            )}
+          </div>
+        )}
 
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Right to work</p>
         <div className="flex flex-col gap-1">
@@ -518,7 +613,7 @@ export default function HRTab({ headers, isManager }) {
     <div className="space-y-3" data-testid="hr-tab">
       <div className="flex items-center gap-2">
         <User size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Phase S5 · HR · Documents · Disciplinary · Training</p>
+        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="hr-tab-subheading-removed-iter216h241" hidden></p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 rounded-xl border overflow-hidden"

@@ -1,3 +1,106 @@
+## Iter 216h241 — Staffing UX polish from production review (Feb 19, 2026) ✅ P0 bugfix batch
+
+User ask (verbatim): *"Staffing - HR - Difficult to enter a year -
+can't type it in as normal, loose the curser after 2 digits / Hoyrs
+per week is showing up as hours paid per hour / For Multi-sites - we
+need a section to be able to allocate the staff to specific sites
+within staff or HR / Remove all subheadings as shown in pictures -
+within staffing they are also HR and ai rota"*
+
+User screenshots came from production (gymaxisai.com/pulse). All
+fixes shipped in preview — needs redeploy to push live.
+
+### Bug 1 — Hybrid DD/MM/YYYY date input (DOB year capture)
+- **Root cause:** Native `<input type="date">` cap the year at 4
+  chars but Chrome's typing UX auto-advances after the 2-digit day
+  segment, leaving the cursor in a state where year input loops
+  back to "0001". Multiple users hit it: Lee Somers' DOB stored
+  `0001-10-27` in production.
+- **Fix:** Upgraded
+  `components/shared/DatePicker.jsx` to a hybrid input — typeable
+  `<input>` showing DD/MM/YYYY *plus* a calendar icon button that
+  opens the popover. Added `parseTypedDate()` that accepts
+  `27/10/1986`, `27-10-1986`, `27.10.1986`, `27101986`, and even
+  `1/4/2026` (single-digit segments) and round-trips them via Date
+  to catch `31/02/2026`-style invalid combos. 2-digit years map to
+  1900s when ≥ 50, 2000s otherwise.
+- HRTab's `Field` component now uses the new picker for any
+  `type="date"` field (DOB, hire date, termination date).
+- Read-only display also formats stored ISO as DD/MM/YYYY so the
+  old `0001-10-27` rows display as `27/10/0001` until re-saved
+  (cleanly fixable from the same edit form now).
+
+### Bug 2 — Hours/week vs Hourly rate display ambiguity
+- **Root cause:** Two issues at once.
+  1. The "Hourly" column header in
+  `StaffingConsole.js` was ambiguous — operators read it as "hours"
+  (e.g. 39 = 39h/wk) when the value was actually £/hr.
+  2. The backend stores
+  contracted hours under **two** keys depending on the write path:
+  `staff_members.weekly_hours` (POST `/staffing/staff`) vs
+  `staff_members.hours_per_week` (PATCH `/staffing/hr/profile`).
+  The HR profile would write to one, the staff list never showed
+  either, so the same person could appear inconsistent.
+- **Fix:**
+  - Renamed the column header to **"Hourly rate"** and added a
+    new **"Hrs/wk"** column reading `s.hours_per_week`.
+  - Renamed Add Staff dialog placeholder `Hourly cost £` →
+    `Hourly rate (£/hr)`; added a new `Contracted hours / week`
+    input alongside.
+  - Backend `StaffCreate` + `StaffUpdate` now accept
+    `hours_per_week` and both endpoints mirror
+    `hours_per_week ↔ weekly_hours` on every write. HR profile
+    PATCH also mirrors to `weekly_hours`. End-to-end, both keys
+    stay in lock-step regardless of which endpoint the caller hit.
+
+### Bug 3 — Multi-site allocation
+- **Root cause:** `staff_members.site_ids` field has always existed
+  (StaffUpdate accepts it) but the UI never exposed it. Multi-site
+  orgs (Pulse Fitness Pro, MOD HQ + children, The Third Space)
+  couldn't restrict who works where.
+- **Fix:** New "Site allocation" panel in the HR profile, between
+  Employment and Right to Work. Pulls `GET /api/sites` once on
+  mount; shows a checkbox list of all org sites; persists via the
+  dedicated `PATCH /api/staffing/staff/{id}` route (best-effort —
+  failure here doesn't block the HR profile save). Hidden when the
+  org has 0-1 sites so single-site shops don't see clutter.
+
+### Bug 4 — "Phase Sx · …" dev subheadings
+- **Root cause:** Five development-era labels were never demoted
+  from `block` to `hidden` (`Phase S2 · Time Clock …`, `Phase S3 ·
+  Comms Hub`, `Phase S4 · Tasks · Forms · Compliance`, `Phase S5 ·
+  HR · Documents · Disciplinary · Training`, `Phase S6 · AI Rota ·
+  Absence Prediction · Sage Payroll`). Visible to customers in
+  production.
+- **Fix:** All five replaced with `hidden` placeholder `<p>` tags
+  carrying `data-testid="*-subheading-removed-iter216h241"` so a
+  regression test can guarantee they don't re-appear. Hidden (not
+  deleted) so the parent flex/grid wrappers keep their child
+  count and existing spacing logic unchanged.
+
+### Verification
+
+- **8 new regression tests** in
+  `tests/test_iter_216h241_staffing_polish.py` — model fields,
+  source-grep for the mirror logic in create + patch, source-grep
+  for the HR PATCH mirror, source-grep for the removal markers
+  across all 5 tabs, source-grep for new columns in StaffingConsole.
+- `make regression` → **62 passed, 14 skipped** in 9.29s (was 54 → 62).
+- `ruff check .` → All checks passed.
+- `yarn eslint src --max-warnings 0` → clean (after fixing two
+  `prefer-const` warnings on DatePicker's `day` / `mon`).
+- Live curl proofs:
+  - POST `hours_per_week:39` → `{weekly_hours:39.0, hours_per_week:39.0}`.
+  - PATCH `weekly_hours:40` → both keys → 40.0.
+  - PATCH `site_ids:["site-abc","site-xyz"]` persists.
+- Smoke screenshot confirms:
+  - HR tab loads with **no** "PHASE S5 …" subheading.
+  - `hr removed-marker=1; visible 'Phase S5'=0`.
+  - Site-allocation panel mounted on multi-site org.
+
+---
+
+
 ## Iter 216h240 — Close all import-surface gaps for Sicon / Sage / Orbit 4 (Feb 19, 2026) ✅ P0+P1+P2
 
 User ask (verbatim): *"a — please ensure all import files are the

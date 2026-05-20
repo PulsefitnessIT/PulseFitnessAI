@@ -420,7 +420,7 @@ export default function TimeClockTab({ headers }) {
     <div className="space-y-4" data-testid="time-clock-tab">
       <div className="flex items-center gap-2">
         <Activity size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Phase S2 · Time Clock & Attendance</p>
+        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="time-clock-tab-subheading-removed-iter216h241" hidden></p>
       </div>
       <ClockBoard headers={headers} />
       <div className="flex items-center gap-1.5 text-xs pt-1" style={{ color: 'var(--theme-text-muted)' }}>

@@ -482,7 +482,7 @@ function AddShiftDialog({ initial, onCancel, onSubmit }) {
 // ─── Staff directory (manager only) ───
 function StaffTab({ headers }) {
   const [rows, setRows] = useState([]);
-  const [form, setForm] = useState({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, contract_type: 'part_time' });
+  const [form, setForm] = useState({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' });
   const [showAdd, setShowAdd] = useState(false);
   const load = useCallback(async () => {
     const r = await axios.get(`${API}/staffing/staff`, { headers });
@@ -490,7 +490,7 @@ function StaffTab({ headers }) {
   }, [headers]);
   useEffect(() => { load(); }, [load]);
   const save = async () => {
-    try { await axios.post(`${API}/staffing/staff`, form, { headers }); setShowAdd(false); setForm({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, contract_type: 'part_time' }); load(); }
+    try { await axios.post(`${API}/staffing/staff`, form, { headers }); setShowAdd(false); setForm({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' }); load(); }
     catch (err) { alert(err.response?.data?.detail || 'Failed'); }
   };
   const archive = async (id) => { if (!window.confirm('Archive staff?')) return; await axios.delete(`${API}/staffing/staff/${id}`, { headers }); load(); };
@@ -515,7 +515,13 @@ function StaffTab({ headers }) {
                 <th className="text-left py-2 px-2 font-semibold">Name</th>
                 <th className="text-left py-2 px-2 font-semibold">Role</th>
                 <th className="text-left py-2 px-2 font-semibold">Contract</th>
-                <th className="text-right py-2 px-2 font-semibold">Hourly</th>
+                {/* Iter 216h241 — surface both contracted hours and hourly
+                    rate so operators can spot at a glance which is which.
+                    Previously a row showing "£39.00" under "Hourly" was
+                    mistaken for hours/week because the column header was
+                    ambiguous. */}
+                <th className="text-right py-2 px-2 font-semibold">Hrs/wk</th>
+                <th className="text-right py-2 px-2 font-semibold">Hourly rate</th>
                 <th className="w-8" />
               </tr>
             </thead>
@@ -525,7 +531,8 @@ function StaffTab({ headers }) {
                   <td className="py-2 px-2 font-medium" style={{ color: 'var(--theme-text)' }}>{s.full_name}</td>
                   <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.primary_role}</td>
                   <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.contract_type || '—'}</td>
-                  <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }}>£{Number(s.hourly_cost || 0).toFixed(2)}</td>
+                  <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hrs`}>{s.hours_per_week ? `${s.hours_per_week}h` : '—'}</td>
+                  <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hourly`}>£{Number(s.hourly_cost || 0).toFixed(2)}</td>
                   <td className="py-2 px-2 text-right"><button type="button" onClick={() => archive(s.id)} className="opacity-60 hover:opacity-100" data-testid={`staff-archive-${s.id}`}><Trash2 size={12} /></button></td>
                 </tr>
               ))}
@@ -550,7 +557,11 @@ function StaffTab({ headers }) {
                   {['full_time','part_time','casual','contractor'].map((c) => <option key={c}>{c}</option>)}
                 </select>
               </div>
-              <input type="number" step="0.5" placeholder="Hourly cost £" value={form.hourly_cost} onChange={(e) => setForm({ ...form, hourly_cost: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hourly" />
+              <input type="number" step="0.5" placeholder="Hourly rate (£/hr)" value={form.hourly_cost} onChange={(e) => setForm({ ...form, hourly_cost: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hourly" />
+              {/* Iter 216h241 — add hours/week to the create dialog so
+                  the staff row carries both values from day one (no
+                  separate HR profile trip required). */}
+              <input type="number" step="0.5" min="0" max="80" placeholder="Contracted hours / week" value={form.hours_per_week} onChange={(e) => setForm({ ...form, hours_per_week: parseFloat(e.target.value) || 0 })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-hours-per-week" />
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button type="button" onClick={() => setShowAdd(false)} className="text-xs px-3 py-1.5 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>

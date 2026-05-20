@@ -791,7 +791,7 @@ export default function OperationsTab({ headers, isManager }) {
     <div className="space-y-4" data-testid="operations-tab">
       <div className="flex items-center gap-2 flex-wrap">
         <ClipboardList size={14} style={{ color: 'var(--color-brand-cyan)' }} />
-        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>Phase S4 · Tasks · Forms · Compliance</p>
+        <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="ops-tab-subheading-removed-iter216h241" hidden></p>
       </div>
       <div className="inline-flex rounded-full border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
         {SUB_TABS.map((s) => {
