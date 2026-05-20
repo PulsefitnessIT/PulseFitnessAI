@@ -1,7 +1,16 @@
-> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+> **📋 Status — Iter 216h237 (Feb 19, 2026)**
 >
-> Field mapping below remains the canonical reference. Additions since
-> iter 215dy:
+> Field mapping below remains the canonical reference. Two new
+> sections appended at the bottom (§27 and §28) to formally cover
+> additions that landed across the h-series sprint:
+>
+> | New surface | Section |
+> | --- | --- |
+> | CRM activation events that fire Sage/Sicon-relevant business signals | §27 |
+> | `primary_module` flow (signup → org doc → trial funnel) | §28 |
+> | Two-step CRM ↔ Sage customer sync (already in `routes/crm_sage200.py`) | §29 — formalised mapping |
+>
+> Earlier h232 addendum:
 >
 > | New field | Direction | Notes |
 > | --- | --- | --- |
@@ -10,7 +19,7 @@
 > | `activation_events.event_type` | internal | 16 types now (was 8). See `routes/activation_events.py:EVENT_TYPES` for the canonical list. |
 > | `activation_events.module` | internal | Tag: `always` / `operations` / `memberships` / `crm` / `marketing`. |
 >
-> No outbound integration field changes vs 215dy.
+> No outbound Sicon/Sage payload changes vs 215dy.
 
 ---
 
@@ -337,3 +346,107 @@ SAGE_TIER=standard                         # or `professional`
 - `/app/memory/SICON_INTEGRATION_SPEC.md` — Sicon API contract
 - `/app/backend/routes/svc/integrations/INTEGRATIONS_README.md` — code-side wiring guide
 - `/app/backend/scripts/check_integration_mapping.py` — CI lint
+
+---
+
+## 27. Activation event bus — Sage/Sicon-relevant signals
+
+The activation bus (`routes/activation_events.py`) emits internal
+"first wins" signals that often map onto upstream CRM events Sage
+and Sicon care about. These are NOT pushed to Sage/Sicon directly —
+the bus is internal — but each one is also the natural moment to
+fire the outbound integration write.
+
+| Activation event | Fires from | Sage / Sicon side effect |
+|---|---|---|
+| `first_lead_added` | `crm_core.py:POST /companies` | Same handler creates a `crm_v2_companies` row that holds `sage_customer_account_id`. When the field is set later (manual or via §29 sync), no extra hook needed. |
+| `first_deal_created` | `crm_core.py:POST /deals` | Sage doesn't model deals — pure GymAxis. CRM forecasting only. |
+| `first_quote_sent` | `crm_cpq.py:POST /quotes/{id}/send` | Quote send emits to `svc_sage_quote_outbox` (§25). Worker posts `SLQuote` to Sage. |
+| `first_brand_discovered` | `marketing/brand_discovery.py:POST /apply` | Pure marketing; no Sage/Sicon write. |
+| `first_audience_built` | `marketing/audiences.py:POST /audiences` | Pure marketing. |
+| `first_campaign_launched` | `marketing/campaigns.py:POST /campaigns/{id}/send` | When `sent > 0`, fires `first_campaign_launched`. No Sage write — campaign metering is internal. |
+| `first_equipment_added` | `equipment.py:POST /equipment` | New equipment row is Sicon-bound via §23 — `_enqueue` to `svc_sicon_outbox` for `Equipment` upsert (existing wiring). |
+| `first_fault_logged` | `issues.py:POST /issues` | When escalated → `_mirror_issue_to_svc_case` clones into `svc_cases`. From there the existing Sicon push (§2) fires. |
+| `first_member_added` | `memberships/members.py:POST /members` | New `members` row creates a Sage `SLCustomerAccount` on first `SLInvoice` (lazy creation per §24). |
+| `first_booking_taken` | `memberships/bookings.py:POST /bookings` | Pure memberships; no Sage write at booking time. |
+| `first_invoice_generated` | `memberships/billing.py` recurring run | Direct Sage `SLInvoice` write (§24). |
+| `first_class_scheduled` | `memberships/class_templates.py:POST /class-templates` | Pure memberships. |
+
+**Rule**: every activation event is wrapped in `try/except` so a
+failed activation write NEVER blocks the primary CRM/Marketing/
+Memberships/Operations write. The outbox writes that drive Sage/Sicon
+are separately resilient via their own outbox retry logic (§25).
+
+---
+
+## 28. `primary_module` flow
+
+Captured at trial signup so the post-signup First Wins funnel and
+Setup Checklist tailor to the operator's intent (iter 216h227).
+
+| GymAxis field | Source | Destination | Direction | Notes |
+|---|---|---|---|---|
+| `UserRegister.primary_module` | Frontend signup form (`TrialSignupModal.openTrial('crm'|'marketing'|'memberships'|'operations')`) | `/api/auth/register` POST body | inbound | Optional — null when prospect arrives via direct-sales / partner path |
+| `organizations.primary_module` | `auth.py:register` `enrichment_fields["primary_module"]` | MongoDB `organizations` doc | persisted | Read by `activation_for_me` + `onboarding_status` |
+| `users.primary_module` | Cached on login | `users` doc | derived | Fallback when org doc isn't cached |
+| activation funnel filter | `_primary_modules_for()` in `activation_events.py` | computed | internal | Narrows visible events to JUST the primary module + universal events |
+| onboarding step filter | `routes/account.py:_step_visible()` | computed | internal | Hides ops-only steps (import_machines, print_qr_codes) for non-ops trials; hides `connect_stripe` for CRM trials |
+
+**No outbound mapping** — `primary_module` is a GymAxis-internal
+funnel-shaping signal that never reaches Sage or Sicon. Documented
+here because the field touches the same `organizations` doc that
+holds `sage_customer_account_id` / `sicon_company_id`.
+
+---
+
+## 29. CRM `crm_contacts` ↔ Sage `SLCustomerAccount` (already-implemented sync)
+
+The route `routes/crm_sage200.py` has both directions wired up
+(introduced earlier than the current spec was written). Documenting
+formally here so the field-mapping CI lint can validate against
+the canonical rows.
+
+### Direction A — Sage → CRM (`POST /api/crm/sage200/sync/customers`)
+
+Implemented in `_map_sage_customer_to_contact()`.
+
+| GymAxis `crm_contacts` field | Sage `SLCustomerAccount` field | Direction | Notes |
+|---|---|---|---|
+| `id` | — | gymaxis_only | UUID at first insert |
+| `company_name` | `name` | Sage → GymAxis |  |
+| `sage_ref` | `reference` | Sage → GymAxis | Natural key for upsert |
+| `sage_id` | `id` | Sage → GymAxis | Sage's own customer GUID |
+| `phone` | `telephone_subscriber_number` | Sage → GymAxis |  |
+| `website` | `website` | Sage → GymAxis |  |
+| `first_name` / `last_name` | `contacts[0].first_name/last_name` | Sage → GymAxis | First primary contact, if any |
+| `tags` | — | gymaxis_only | Set to `["sage200"]` on first insert |
+| `source` | — | gymaxis_only | Set to `"sage200"` |
+| `lead_score` | — | gymaxis_only | Default 0 |
+| `owner_id` | — | gymaxis_only | Set to the syncing user's id |
+
+### Direction B — CRM → Sage (`POST /api/crm/sage200/sync/customers-to-sage`)
+
+Implemented inline in `push_contacts_to_sage()`. Only pushes contacts
+where `sage_ref` is unset (never re-syncs).
+
+| GymAxis `crm_contacts` field | Sage `SLCustomerAccount` payload | Direction | Notes |
+|---|---|---|---|
+| `id[:8].upper()` | `reference` | GymAxis → Sage | Generated as `CRM-{first 8 of UUID}` |
+| `first_name + last_name` (fallback `company_name`) | `name` | GymAxis → Sage |  |
+| `first_name` | `contacts[0].first_name` | GymAxis → Sage |  |
+| `last_name` | `contacts[0].last_name` | GymAxis → Sage |  |
+| Sage returned `id` | persisted to `sage_id` | Sage → GymAxis | Round-trip — sets `sage_id` on success so subsequent syncs are no-ops |
+
+### Mode
+
+Currently **dry-run** until per-org Sage credentials are configured
+via `POST /api/crm/sage200/config` (UI: CRM Settings → Sage 200).
+When `enabled=false` (default), every sync call returns `503 Sage 200
+not configured`. The moment `enabled=true` with valid `client_id /
+client_secret / site_id / company_id`, the two endpoints start
+hitting the real Sage API immediately — no separate worker drain,
+because these are synchronous endpoints triggered by an operator,
+not background outbox writes.
+
+---
+
