@@ -1,3 +1,45 @@
+## Iter 216h237 — Sage/Sicon integration field-mapping docs audit (Feb 19, 2026) ✅ P1
+
+User ask (verbatim): *"Please review and update the sage and
+sicon integration and mapping to ensure all features, fields are
+covered."*
+
+### What landed
+`/app/memory/INTEGRATION_FIELD_MAPPING.md` extended with three new
+sections covering surfaces that have appeared across the h-series
+sprint but were missing from the canonical mapping doc:
+
+| Section | Coverage |
+| --- | --- |
+| **§27 — Activation event bus** | All 12 first-win signals (`first_lead_added`, `first_deal_created`, `first_quote_sent`, `first_brand_discovered`, `first_audience_built`, `first_campaign_launched`, `first_equipment_added`, `first_fault_logged`, `first_member_added`, `first_booking_taken`, `first_invoice_generated`, `first_class_scheduled`) mapped to their Sage / Sicon side-effect (if any). Confirms the bus stays internal and never writes directly to upstream. |
+| **§28 — `primary_module` signup flow** | Captures the trial-tailoring field added in iter 216h227. Documents `UserRegister.primary_module → organizations.primary_module → activation_for_me() / _step_visible() filters`. Marked `no outbound mapping` (GymAxis-internal funnel-shaping signal). |
+| **§29 — CRM `crm_contacts` ↔ Sage `SLCustomerAccount` sync** | Formalised the already-wired two-direction sync in `routes/crm_sage200.py` (`_map_sage_customer_to_contact()` inbound, `push_contacts_to_sage()` outbound). Documents the natural-key strategy (`sage_ref` upsert) and the dry-run gating. |
+
+### Verification
+- `python3 /app/backend/scripts/check_integration_mapping.py` →
+  `PASS · 6 ok · 1 warn · 0 err` (the single warn is the long-
+  standing annotation-coverage backfill, unchanged at 307/316).
+- `make regression` → **37 passed, 14 skipped** in 7.28s.
+- `ruff check .` on backend → **All checks passed!**
+- Cross-referenced each code claim made in the new sections —
+  `EVENT_TYPES`, `_primary_modules_for()`, `record_activation_event("first_quote_sent")`,
+  `_map_sage_customer_to_contact()`, `push_contacts_to_sage()`,
+  `_step_visible()`, `svc_sage_quote_outbox` — every symbol exists
+  exactly where the doc claims (verified via grep).
+
+### Why this matters
+The integration mapping doc is the contract that gates every
+Pydantic field in `routes/crm_*`, `routes/svc/*`,
+`routes/memberships/*` and `routes/operations*`. Keeping it in
+lock-step with the h-series additions means the next CI lint pass
+will continue to validate the reverse direction — every `sicon:` /
+`sage:` annotation in the code resolves to a row in this file —
+and prevents the "shipped a field, never mapped it" failure mode
+that bit us in iter 215.
+
+---
+
+
 ## Iter 216h236 — Nav parity regression test (Feb 19, 2026) ✅ P1
 
 Building on the iter 216h235 fix (Help & Tutorials missing from
