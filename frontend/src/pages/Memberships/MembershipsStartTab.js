@@ -188,11 +188,57 @@ export default function MembershipsStartTab({ setTab }) {
         <UpcomingToursPanel compact />
       </div>
 
+      {/* Iter 216h250 — module discovery card. Surfaces the other GymAxis
+          modules so a Memberships-first operator knows they can bolt-on
+          Operations / CRM / Marketing without leaving the platform. */}
+      <ModuleDiscoveryCard />
+
       {/* Iter 216h249 — inline logo upload modal triggered by the
           "Add your studio logo" checklist step. */}
       {logoModalOpen && (
         <LogoUploadModal onClose={() => { setLogoModalOpen(false); reload(); }} />
       )}
+    </div>
+  );
+}
+
+/* ─────────────────── Module discovery card ─────────────────── */
+function ModuleDiscoveryCard() {
+  const otherModules = [
+    { id: 'operations', label: 'Operations', note: 'Equipment + faults + suppliers' },
+    { id: 'crm',        label: 'CRM',        note: 'Sales pipeline + deals + quotes' },
+    { id: 'marketing',  label: 'Marketing',  note: 'Campaigns + audiences + ads' },
+  ];
+  return (
+    <div className="mt-8 rounded-2xl border p-5" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="mbr-module-discovery">
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">Add another module</p>
+          <h3 className="text-base font-semibold mt-1" style={{ color: 'var(--theme-text)' }}>Unlock more of GymAxis</h3>
+          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>Trial includes everything. After trial, bolt on only what you need.</p>
+        </div>
+        <a
+          href="/pricing?from=memberships"
+          className="px-3 py-2 rounded-lg text-xs font-extrabold inline-flex items-center gap-1.5"
+          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+          data-testid="mbr-module-discovery-cta"
+        >
+          See pricing <ArrowRight size={11} />
+        </a>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {otherModules.map((m) => (
+          <div
+            key={m.id}
+            className="rounded-xl border p-3"
+            style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface-hover)' }}
+            data-testid={`mbr-module-discovery-${m.id}`}
+          >
+            <p className="text-xs font-extrabold" style={{ color: 'var(--theme-text)' }}>{m.label}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{m.note}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  ShieldCheck, Bell, Loader2, Plus, Trash2, Save, Sparkles, Smartphone, FileText,
+  ShieldCheck, Bell, Loader2, Plus, Trash2, Save, Sparkles, Smartphone, FileText, ExternalLink, Eye,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -18,6 +18,9 @@ export default function ParentPortalTab({ API, headers }) {
   const [vocab, setVocab] = useState(null);
   const [forms, setForms] = useState([]);
   const [pushCount, setPushCount] = useState(0);
+  // Iter 216h250 — surface the studio slug so the operator can "Preview"
+  // the customer-facing parent portal in a new tab.
+  const [slug, setSlug] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({ title: '', body_html: '', required: true });
@@ -26,19 +29,29 @@ export default function ParentPortalTab({ API, headers }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [v, f, p] = await Promise.all([
+      const [v, f, p, o] = await Promise.all([
         axios.get(`${API}/memberships/studio/vocabulary`, auth),
         axios.get(`${API}/memberships/consent-forms`, auth),
         axios.get(`${API}/operator/push-subscriptions/count`, auth),
+        axios.get(`${API}/account/organisation`, auth).catch(() => null),
       ]);
       setVocab(v.data || null);
       setForms(f.data?.forms || []);
       setPushCount(p.data?.count ?? 0);
+      setSlug(o?.data?.slug || '');
     } catch (e) {
       notify.error('Failed to load parent portal', e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
   }, [API, auth]);
   useEffect(() => { load(); }, [load]);
+
+  const previewParentPortal = () => {
+    if (!slug) {
+      notify.error('Set your studio slug first', 'Open the Memberships setup wizard to assign your app URL.');
+      return;
+    }
+    window.open(`/m/${slug}`, '_blank', 'noopener,noreferrer');
+  };
 
   const startNew = () => {
     setEditingId('new');
@@ -91,6 +104,37 @@ export default function ParentPortalTab({ API, headers }) {
 
   return (
     <div className="space-y-5" data-testid="parent-portal-tab">
+      {/* Iter 216h250 — Preview banner. Lets operators / managers see
+          the customer-facing parent portal in a new tab. */}
+      <section
+        className="rounded-2xl border p-4 flex items-center gap-3 flex-wrap"
+        style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+        data-testid="parent-portal-preview"
+      >
+        <div className="rounded-full p-2" style={{ background: 'rgba(34,211,238,0.12)' }}>
+          <Eye size={16} style={{ color: 'var(--color-brand-cyan)' }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] uppercase tracking-wider font-bold opacity-60">Preview</p>
+          <h3 className="text-base font-bold">See it from a parent&apos;s phone</h3>
+          <p className="text-[11px] opacity-70 mt-0.5">
+            {slug
+              ? <>Opens <code className="text-[10px] px-1 rounded bg-black/5 dark:bg-white/5">/m/{slug}</code> in a new tab — the same view your customers see.</>
+              : <>Set your studio slug in the Memberships setup wizard to enable this preview.</>}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={previewParentPortal}
+          disabled={!slug}
+          className="px-3 py-2 rounded-lg text-xs font-extrabold inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+          data-testid="parent-portal-preview-btn"
+        >
+          <ExternalLink size={12} /> Preview portal
+        </button>
+      </section>
+
       {/* Vocabulary preview */}
       <section
         className="rounded-2xl border p-4"

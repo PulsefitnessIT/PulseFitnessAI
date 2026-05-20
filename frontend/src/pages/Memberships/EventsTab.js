@@ -14,6 +14,7 @@ import {
   CalendarRange, Users, X, Clock, MapPin, Wand2, ChevronRight,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { ModalShell, ModalActions, Input, Select } from '@/pages/Memberships/_shared';
 
 const KIND_META = {
   recital:     { label: 'Recital',     emoji: 'R', tone: '#a855f7' },
@@ -48,6 +49,11 @@ export default function EventsTab({ API, headers }) {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  // Iter 216h250 — replaced the window.prompt() chain (which silently
+  // cancelled the event when the user typed a kind that wasn't in
+  // KIND_META) with a proper Pulse-themed modal that exposes the kind
+  // values as a dropdown.
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,36 +68,10 @@ export default function EventsTab({ API, headers }) {
   }, [API, auth, selectedId]);
   useEffect(() => { load(); }, [load]);
 
-  const createEvent = async () => {
-    const name = window.prompt('Event name (e.g. "Spring Recital 2026")');
-    if (!name) return;
-    const kind = window.prompt('Type — recital, showcase, competition, workshop, camp, other', 'recital');
-    if (!kind || !KIND_META[kind]) {
-      notify.error('Invalid type');
-      return;
-    }
-    const date = window.prompt('Date YYYY-MM-DD');
-    if (!date) return;
-    const start = window.prompt('Start time HH:MM (24h)', '18:00') || '18:00';
-    const end = window.prompt('End time HH:MM (24h)', '20:00') || '20:00';
-    const venue = window.prompt('Venue', '') || '';
-    const ticket = parseFloat(window.prompt('Ticket price (£) — 0 for free', '15') || '0');
-    const capacity = parseInt(window.prompt('Ticket capacity — 0 unlimited', '0') || '0', 10);
-    try {
-      const r = await axios.post(`${API}/memberships/events`, {
-        name: name.trim(), kind,
-        starts_at: `${date}T${start}:00Z`,
-        ends_at:   `${date}T${end}:00Z`,
-        venue, description: '',
-        ticket_price_pence: Math.round(ticket * 100),
-        ticket_capacity: capacity,
-      }, auth);
-      setSelectedId(r.data?.id);
-      notify.success('Event created');
-      await load();
-    } catch (e) {
-      notify.error('Create failed', e?.response?.data?.detail || e.message);
-    }
+  const handleCreated = (id) => {
+    setSelectedId(id);
+    setCreateOpen(false);
+    load();
   };
 
   const archiveEvent = async (event) => {
@@ -123,7 +103,7 @@ export default function EventsTab({ API, headers }) {
           <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
             <Theater size={11} /> Events
           </p>
-          <button type="button" onClick={createEvent} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="events-create">
+          <button type="button" onClick={() => setCreateOpen(true)} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="events-create">
             <Plus size={11} /> New
           </button>
         </header>
@@ -132,6 +112,15 @@ export default function EventsTab({ API, headers }) {
             <CalendarRange size={22} className="mx-auto mb-1 opacity-50" />
             <p className="text-sm font-bold">No events yet</p>
             <p className="text-xs opacity-70 mt-1">Create your first recital or showcase to start tracking costumes &amp; tickets.</p>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-extrabold"
+              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+              data-testid="events-empty-create"
+            >
+              <Plus size={12} /> Create event
+            </button>
           </div>
         ) : (
           <ul className="space-y-1.5" data-testid="events-list">
@@ -182,6 +171,14 @@ export default function EventsTab({ API, headers }) {
           <p className="text-sm font-bold">Select or create an event to start</p>
         </div>
       )}
+      {createOpen && (
+        <CreateEventModal
+          API={API}
+          auth={auth}
+          onClose={() => setCreateOpen(false)}
+          onCreated={handleCreated}
+        />
+      )}
     </div>
   );
 }
@@ -215,26 +212,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
 
   const meta = KIND_META[event.kind] || KIND_META.other;
 
-  const addRehearsal = async () => {
-    const name = window.prompt('Rehearsal name', 'Tech rehearsal');
-    if (!name) return;
-    const date = window.prompt('Date YYYY-MM-DD');
-    if (!date) return;
-    const start = window.prompt('Start HH:MM', '16:00') || '16:00';
-    const end = window.prompt('End HH:MM', '18:00') || '18:00';
-    const room = window.prompt('Room (optional)', '') || '';
-    try {
-      await axios.post(`${API}/memberships/events/${event.id}/rehearsals`, {
-        name: name.trim(),
-        starts_at: `${date}T${start}:00Z`,
-        ends_at:   `${date}T${end}:00Z`,
-        room,
-      }, auth);
-      load();
-    } catch (e) {
-      notify.error('Add failed', e?.response?.data?.detail || e.message);
-    }
-  };
+  const addRehearsal = () => setRehearsalOpen(true);
 
   const removeRehearsal = async (r) => {
     if (!window.confirm(`Remove "${r.name}"?`)) return;
@@ -242,26 +220,10 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
     load();
   };
 
-  const addCostume = async () => {
-    const name = window.prompt('Student name');
-    if (!name) return;
-    const costume = window.prompt('Costume description (e.g. "Pink ballet tutu")');
-    if (!costume) return;
-    const size = window.prompt('Size (optional)', 'Child M') || '';
-    const cost = parseFloat(window.prompt('Cost (£)', '45') || '0');
-    try {
-      await axios.post(`${API}/memberships/events/${event.id}/costumes`, {
-        attendee_name: name.trim(),
-        costume_name: costume.trim(),
-        size,
-        total_pence: Math.round(cost * 100),
-        status: 'needed',
-      }, auth);
-      load();
-    } catch (e) {
-      notify.error('Add failed', e?.response?.data?.detail || e.message);
-    }
-  };
+  const addCostume = () => setCostumeOpen(true);
+
+  const [rehearsalOpen, setRehearsalOpen] = useState(false);
+  const [costumeOpen, setCostumeOpen] = useState(false);
 
   const advanceCostume = async (c) => {
     const next = COSTUME_NEXT[c.status];
@@ -474,6 +436,157 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
           )}
         </div>
       ) : null}
+      {rehearsalOpen && (
+        <RehearsalModal
+          API={API}
+          auth={auth}
+          eventId={event.id}
+          onClose={() => setRehearsalOpen(false)}
+          onSaved={() => { setRehearsalOpen(false); load(); }}
+        />
+      )}
+      {costumeOpen && (
+        <CostumeModal
+          API={API}
+          auth={auth}
+          eventId={event.id}
+          onClose={() => setCostumeOpen(false)}
+          onSaved={() => { setCostumeOpen(false); load(); }}
+        />
+      )}
     </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Modals (Iter 216h250) — replace window.prompt() chains with
+// Pulse-themed dialogs. The kind picker is a <select> bound to
+// KIND_META so the silent "Invalid type" reject can't happen
+// (user can only pick valid values).
+// ─────────────────────────────────────────────────────────────────
+
+function CreateEventModal({ API, auth, onClose, onCreated }) {
+  const [form, setForm] = useState({
+    name: '', kind: 'recital',
+    date: '', start: '18:00', end: '20:00',
+    venue: '', ticket_price: '15', capacity: '0',
+  });
+  const [saving, setSaving] = useState(false);
+  const up = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const submit = async () => {
+    if (!form.name.trim()) { notify.error('Event name required'); return; }
+    if (!form.date) { notify.error('Date required'); return; }
+    setSaving(true);
+    try {
+      const r = await axios.post(`${API}/memberships/events`, {
+        name: form.name.trim(),
+        kind: form.kind,
+        starts_at: `${form.date}T${form.start}:00Z`,
+        ends_at:   `${form.date}T${form.end}:00Z`,
+        venue: form.venue || '',
+        description: '',
+        ticket_price_pence: Math.round((parseFloat(form.ticket_price) || 0) * 100),
+        ticket_capacity: parseInt(form.capacity, 10) || 0,
+      }, auth);
+      notify.success('Event created');
+      onCreated?.(r.data?.id);
+    } catch (e) {
+      notify.error('Create failed', e?.response?.data?.detail || e.message);
+    } finally { setSaving(false); }
+  };
+
+  const kindOptions = Object.entries(KIND_META).map(([value, meta]) => ({ value, label: meta.label }));
+
+  return (
+    <ModalShell title="New event" eyebrow="Studio events" testId="events-create-modal" onClose={onClose} wide>
+      <Input label="Event name" value={form.name} onChange={up('name')} required testid="events-create-name" placeholder='e.g. "Spring Recital 2026"' />
+      <Select label="Type" value={form.kind} onChange={up('kind')} options={kindOptions} testid="events-create-kind" />
+      <Input label="Date" type="date" value={form.date} onChange={up('date')} required testid="events-create-date" />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Start time" type="time" value={form.start} onChange={up('start')} testid="events-create-start" />
+        <Input label="End time" type="time" value={form.end} onChange={up('end')} testid="events-create-end" />
+      </div>
+      <Input label="Venue" value={form.venue} onChange={up('venue')} testid="events-create-venue" placeholder="Optional" />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Ticket price (£)" type="number" value={form.ticket_price} onChange={up('ticket_price')} testid="events-create-price" hint="0 for free" />
+        <Input label="Ticket capacity" type="number" value={form.capacity} onChange={up('capacity')} testid="events-create-capacity" hint="0 = unlimited" />
+      </div>
+      <ModalActions onCancel={onClose} onSave={submit} saving={saving} testId="events-create-submit" />
+    </ModalShell>
+  );
+}
+
+function RehearsalModal({ API, auth, eventId, onClose, onSaved }) {
+  const [form, setForm] = useState({ name: 'Tech rehearsal', date: '', start: '16:00', end: '18:00', room: '' });
+  const [saving, setSaving] = useState(false);
+  const up = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const submit = async () => {
+    if (!form.name.trim()) { notify.error('Rehearsal name required'); return; }
+    if (!form.date) { notify.error('Date required'); return; }
+    setSaving(true);
+    try {
+      await axios.post(`${API}/memberships/events/${eventId}/rehearsals`, {
+        name: form.name.trim(),
+        starts_at: `${form.date}T${form.start}:00Z`,
+        ends_at:   `${form.date}T${form.end}:00Z`,
+        room: form.room || '',
+      }, auth);
+      notify.success('Rehearsal added');
+      onSaved?.();
+    } catch (e) {
+      notify.error('Add failed', e?.response?.data?.detail || e.message);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <ModalShell title="New rehearsal" eyebrow="Rehearsal schedule" testId="events-rehearsal-modal" onClose={onClose}>
+      <Input label="Rehearsal name" value={form.name} onChange={up('name')} required testid="events-rehearsal-name" />
+      <Input label="Date" type="date" value={form.date} onChange={up('date')} required testid="events-rehearsal-date" />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Start" type="time" value={form.start} onChange={up('start')} testid="events-rehearsal-start" />
+        <Input label="End" type="time" value={form.end} onChange={up('end')} testid="events-rehearsal-end" />
+      </div>
+      <Input label="Room" value={form.room} onChange={up('room')} testid="events-rehearsal-room" placeholder="Optional" />
+      <ModalActions onCancel={onClose} onSave={submit} saving={saving} testId="events-rehearsal-submit" />
+    </ModalShell>
+  );
+}
+
+function CostumeModal({ API, auth, eventId, onClose, onSaved }) {
+  const [form, setForm] = useState({ name: '', costume: '', size: 'Child M', cost: '45' });
+  const [saving, setSaving] = useState(false);
+  const up = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const submit = async () => {
+    if (!form.name.trim()) { notify.error('Student name required'); return; }
+    if (!form.costume.trim()) { notify.error('Costume description required'); return; }
+    setSaving(true);
+    try {
+      await axios.post(`${API}/memberships/events/${eventId}/costumes`, {
+        attendee_name: form.name.trim(),
+        costume_name: form.costume.trim(),
+        size: form.size || '',
+        total_pence: Math.round((parseFloat(form.cost) || 0) * 100),
+        status: 'needed',
+      }, auth);
+      notify.success('Costume added');
+      onSaved?.();
+    } catch (e) {
+      notify.error('Add failed', e?.response?.data?.detail || e.message);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <ModalShell title="New costume" eyebrow="Costume tracker" testId="events-costume-modal" onClose={onClose}>
+      <Input label="Student name" value={form.name} onChange={up('name')} required testid="events-costume-name" />
+      <Input label="Costume description" value={form.costume} onChange={up('costume')} required testid="events-costume-desc" placeholder='e.g. "Pink ballet tutu"' />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Size" value={form.size} onChange={up('size')} testid="events-costume-size" placeholder="Optional" />
+        <Input label="Cost (£)" type="number" value={form.cost} onChange={up('cost')} testid="events-costume-cost" />
+      </div>
+      <ModalActions onCancel={onClose} onSave={submit} saving={saving} testId="events-costume-submit" />
+    </ModalShell>
   );
 }

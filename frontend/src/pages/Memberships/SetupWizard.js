@@ -415,10 +415,13 @@ function AllDone({ headers, status, onFinish }) {
 /* ─────────────────── Step shell & helpers ─────────────────── */
 
 function StepShell({ title, subtitle, children }) {
+  // Iter 216h250 — explicit white inline-style keeps the heading legible
+  // even when the surrounding theme (e.g. Pulse-light) cascades a dark
+  // text colour into the wizard surface.
   return (
     <div>
-      <h1 className="text-3xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.025em' }}>{title}</h1>
-      {subtitle && <p className="text-sm text-white/60 mt-2">{subtitle}</p>}
+      <h1 className="text-3xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.025em', color: '#ffffff' }}>{title}</h1>
+      {subtitle && <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.7)' }}>{subtitle}</p>}
       <div className="mt-6">{children}</div>
     </div>
   );
@@ -441,13 +444,28 @@ function StepActions({ onBack, primaryLabel, onPrimary, saving, testId }) {
 }
 
 function Input({ label, value, onChange, type = 'text', required, testid, hint }) {
+  // Iter 216h250 — beefed up the contrast: background is now a lifted
+  // surface (white/8) with a brighter border so the input visibly
+  // floats above the very-dark wizard backdrop. Previously the
+  // bg-black/40 + border-white/10 combo was virtually invisible on
+  // the wizard's #07090E backdrop.
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">{label}{required ? ' *' : ''}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required}
-        className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
-        data-testid={testid} />
-      {hint && <span className="text-[10px] text-white/40 mt-1 block">{hint}</span>}
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}{required ? ' *' : ''}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          color: '#ffffff',
+        }}
+        data-testid={testid}
+      />
+      {hint && <span className="text-[10px] mt-1 block" style={{ color: 'rgba(255,255,255,0.5)' }}>{hint}</span>}
     </label>
   );
 }
@@ -455,10 +473,19 @@ function Input({ label, value, onChange, type = 'text', required, testid, hint }
 function Select({ label, value, onChange, options, testid }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} data-testid={testid}
-        className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]">
-        {options.map((o) => <option key={o} value={o} className="bg-[var(--color-ink-deep)]">{o}</option>)}
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.75)' }}>{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        data-testid={testid}
+        className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          color: '#ffffff',
+        }}
+      >
+        {options.map((o) => <option key={o} value={o} style={{ background: '#0a0c10', color: '#fff' }}>{o}</option>)}
       </select>
     </label>
   );

@@ -691,6 +691,9 @@ def _serialise_org(org: dict | None) -> dict:
     payload["name"] = org.get("name", "")
     payload["company_code"] = org.get("company_code", "")
     payload["logo_url"] = org.get("logo_url", "")
+    # Iter 216h250 — surface the public studio slug so the operator UI
+    # can build the customer-facing parent-portal URL (e.g. /m/<slug>).
+    payload["slug"] = org.get("slug", "")
     # Iter 216h58 — palette + active primary brand colour for the UI.
     payload["brand_palette"] = org.get("brand_palette", []) or []
     payload["primary_color"] = (

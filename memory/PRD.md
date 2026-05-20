@@ -11009,3 +11009,34 @@ Files: `frontend/src/pages/Memberships/MembershipsConsole.js`,
 - `backend/routes/memberships/studio.py` (add_logo step)
 - `backend/tests/test_iter_216h249_module_tailored_signup.py`
 - `Makefile`
+
+## Iter 216h250 — Events modal redesign + wizard contrast + portal preview + module discovery (Feb 20, 2026)
+
+### Reported by Lee
+1. **Events bug**: "I couldn't create an event if I used an event name that wasn't shown — it cancelled the event — said invalid type". The native `window.prompt()` flow forced the operator to type a kind, and any typo silently rejected the event.
+2. **Memberships Setup Wizard**: heading + inputs barely visible on the dark surface (low contrast).
+3. **Events modals**: native browser prompts looked off-brand vs the rest of GymAxis/Pulse.
+4. **Parent portal Preview button**: owner/manager should see the customer view.
+5. **Module unlock affordance**: signing up for one module should surface the option to unlock the others.
+
+### Fixes
+1. **EventsTab**: replaced all three `window.prompt()` chains (event create, rehearsal add, costume add) with Pulse-themed `ModalShell` forms using shared `Input` / `Select` components. The event "kind" is now a `<select>` bound to `KIND_META` — no more silent "Invalid type" rejection.
+2. **SetupWizard**: `StepShell` heading + subtitle now use explicit `color: '#ffffff'` / `rgba(255,255,255,0.7)`. `Input` + `Select` get an explicit `background: rgba(255,255,255,0.06)` + `border: rgba(255,255,255,0.18)` so they're visible on the wizard's near-black backdrop.
+3. **ParentPortalTab**: new Preview banner with an "Open `/m/<slug>` in new tab" CTA. Disabled until the slug is set.
+4. **Backend**: `/account/organisation` now exposes `org.slug` so the portal preview can build the URL.
+5. **MembershipsStartTab**: new `ModuleDiscoveryCard` listing the other 3 modules with a "See pricing" CTA → `/pricing?from=memberships`.
+
+### Verification
+- `tests/test_iter_216h250_events_modal_and_polish.py` — 7/7 passing.
+- `make regression` — 101 passed, 14 skipped (up from 94).
+- ESLint clean on EventsTab.js, SetupWizard.js, ParentPortalTab.js, MembershipsStartTab.js.
+- Ruff clean on account.py.
+
+### Files changed
+- `frontend/src/pages/Memberships/EventsTab.js` (modal refactor + 3 new modal components)
+- `frontend/src/pages/Memberships/SetupWizard.js` (contrast fix)
+- `frontend/src/pages/Memberships/ParentPortalTab.js` (Preview banner)
+- `frontend/src/pages/Memberships/MembershipsStartTab.js` (ModuleDiscoveryCard)
+- `backend/routes/account.py` (slug surfaced)
+- `backend/tests/test_iter_216h250_events_modal_and_polish.py`
+- `Makefile`
