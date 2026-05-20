@@ -1,16 +1,33 @@
-> **📋 Status — Iter 216h239 (Feb 19, 2026)**
+> **📋 Status — Iter 216h240 (Feb 19, 2026)**
 >
-> Field mapping below remains the canonical reference. New sections
-> appended at the bottom to cover surfaces missing from earlier sweeps:
+> Field mapping below remains the canonical reference. Iter 216h240
+> closed the import-surface gaps that prevented end-to-end Sicon /
+> Sage / Orbit 4 round-trips at migration time. **No additional
+> sections** are introduced — the existing §19, §22, §23, §29
+> rows are now fully reachable through the import + manual UIs:
+>
+> | Surface | Now captures |
+> | --- | --- |
+> | `POST /api/equipment` (manual add dialog) | `qr_code`, `manufacturing_date`, `deprecation_date`, `orbit4_asset_id`, `orbit4_product_id`, `sicon_equipment_id` |
+> | `POST /api/equipment/import/csv` + `/import-csv` + `GET /equipment/csv-template` + `/equipment/template/csv` | Same six round-trip columns appended to both CSV variants |
+> | `POST /api/equipment` AI invoice flow (`equipment_import._build_equipment_doc`) | Best-effort pass-through of the same six fields when the AI extractor surfaces them |
+> | `POST /api/sites` + `PATCH /api/sites/{id}` + sites CSV import template | `opening_hours`, `access_notes`, `default_engineer_email` (§22 Sicon engineer-scheduling fields) |
+> | `POST /api/crm/companies` (manual + UI) | `sage_customer_account_id`, `sage_customer_reference`, `sicon_company_id`, `sicon_company_reference`, `vat_registration`, `currency`, `nominal_default`, `payment_terms_days`, `credit_limit`, `account_status` |
+> | **`GET /api/crm/companies-csv-template`** (new) | Same 10 Sage/Sicon refs |
+> | **`POST /api/crm/companies-import-csv`** (new) | Idempotent dedupe on `sage_customer_reference` → `sicon_company_reference` → `name` |
+> | `POST /api/crm/import/contacts` (existing) | Now also accepts `sage_ref`, `sage_id`, `sage_customer_account_id` — dedupes on `sage_ref` first, then email |
+> | `POST /api/crm/contracts` (existing) | Default doc now carries `orbit4_contract_id` slot (PUT already accepted unknown fields) |
+>
+> Earlier h-series additions retained:
 >
 > | New surface | Section |
 > | --- | --- |
 > | CRM activation events that fire Sage/Sicon-relevant business signals | §27 |
 > | `primary_module` flow (signup → org doc → trial funnel) | §28 |
 > | Two-step CRM ↔ Sage customer sync (already in `routes/crm_sage200.py`) | §29 — formalised mapping |
-> | **Orbit 4 platform — overview, credentials, webhook events** | **§30** (new) |
-> | **Orbit 4 → GymAxis (inbound mappers)** — tickets, assets, contracts, users | **§31** (new) |
-> | **GymAxis → Orbit 4 (outbound mappers)** — equipment, contracts, tickets, users + status crosswalk | **§32** (new) |
+> | Orbit 4 platform — overview, credentials, webhook events | §30 |
+> | Orbit 4 → GymAxis (inbound mappers) — tickets, assets, contracts, users | §31 |
+> | GymAxis → Orbit 4 (outbound mappers) — equipment, contracts, tickets, users + status crosswalk | §32 |
 >
 > Earlier h232 addendum:
 >

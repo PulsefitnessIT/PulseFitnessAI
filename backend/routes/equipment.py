@@ -216,10 +216,16 @@ async def get_equipment_csv_template() -> Response:
         "Name", "Type", "Manufacturer", "Model", "Serial Number",
         "Purchase Date (YYYY-MM-DD)", "Warranty Expiry (YYYY-MM-DD)",
         "Length (m)", "Width (m)", "Height (m)", "Notes",
+        # Iter 216h240 — integration round-trip columns. Title-case to
+        # match this template's existing convention. Same physical data
+        # as the snake_case variant at /equipment/csv-template.
+        "QR Code", "Manufacturing Date", "Deprecation Date",
+        "Orbit 4 Asset ID", "Sicon Equipment ID",
     ])
     writer.writerow([
         "Treadmill Pro 9000", "Treadmill", "Life Fitness", "95T Discover SE3",
         "LF-TM-001", "2024-01-15", "2027-01-15", "2.1", "0.9", "1.6", "Main cardio area",
+        "GA-TM-001", "2023-11-01", "2034-01-15", "", "",
     ])
     csv_content = output.getvalue()
     return Response(content=csv_content, media_type="text/csv",
@@ -250,6 +256,13 @@ def _parse_csv_row(row: dict, field_map: dict, user: dict) -> dict:
         "height": _safe_float(row.get(field_map.get('height', 'height'), '')),
         "notes": row.get(field_map.get('notes', 'notes'), '').strip() or None,
         "service_provider": row.get(field_map.get('service_provider', 'service_provider'), '').strip() or None,
+        # Iter 216h240 — integration round-trip fields. Persisted as None
+        # when missing so consumers can rely on `field in doc` semantics.
+        "qr_code": row.get(field_map.get('qr_code', 'qr_code'), '').strip() or None,
+        "manufacturing_date": row.get(field_map.get('manufacturing_date', 'manufacturing_date'), '').strip() or None,
+        "deprecation_date": row.get(field_map.get('deprecation_date', 'deprecation_date'), '').strip() or None,
+        "orbit4_asset_id": row.get(field_map.get('orbit4_asset_id', 'orbit4_asset_id'), '').strip() or None,
+        "sicon_equipment_id": row.get(field_map.get('sicon_equipment_id', 'sicon_equipment_id'), '').strip() or None,
         "manuals": [],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -279,12 +292,24 @@ _CSV_FIELDS_TITLE = {
     'model': 'Model', 'serial': 'Serial Number', 'purchase_date': 'Purchase Date',
     'warranty': 'Warranty Expiry', 'length': 'Length (m)', 'width': 'Width (m)',
     'height': 'Height (m)', 'notes': 'Notes', 'service_provider': 'Service Provider',
+    # Iter 216h240 — integration round-trip columns. Optional in the CSV.
+    'qr_code': 'QR Code',
+    'manufacturing_date': 'Manufacturing Date',
+    'deprecation_date': 'Deprecation Date',
+    'orbit4_asset_id': 'Orbit 4 Asset ID',
+    'sicon_equipment_id': 'Sicon Equipment ID',
 }
 _CSV_FIELDS_SNAKE = {
     'name': 'name', 'type': 'equipment_type', 'manufacturer': 'manufacturer',
     'model': 'model', 'serial': 'serial_number', 'purchase_date': 'purchase_date',
     'warranty': 'warranty_expiry', 'length': 'length', 'width': 'width',
     'height': 'height', 'notes': 'notes', 'service_provider': 'service_provider',
+    # Iter 216h240 — snake_case header set.
+    'qr_code': 'qr_code',
+    'manufacturing_date': 'manufacturing_date',
+    'deprecation_date': 'deprecation_date',
+    'orbit4_asset_id': 'orbit4_asset_id',
+    'sicon_equipment_id': 'sicon_equipment_id',
 }
 
 
@@ -312,9 +337,14 @@ async def import_equipment_csv_dash(file: UploadFile = File(...), user: dict = D
 async def get_csv_template() -> Response:
     template = (
         "name,equipment_type,manufacturer,model,serial_number,"
-        "purchase_date,warranty_expiry,service_provider,length,width,height,notes\n"
+        "purchase_date,warranty_expiry,service_provider,length,width,height,notes,"
+        # Iter 216h240 — integration round-trip columns appended at the
+        # end so existing imports stay compatible. Operators can leave
+        # them blank or populate them when migrating from Orbit 4 / Sicon.
+        "qr_code,manufacturing_date,deprecation_date,orbit4_asset_id,sicon_equipment_id\n"
         "Treadmill 1,Treadmill,Life Fitness,T5-Go,SN123456,"
-        "2024-01-15,2027-01-15,Pulse Fitness,2.5,1.5,1.8,Main cardio area\n"
+        "2024-01-15,2027-01-15,Pulse Fitness,2.5,1.5,1.8,Main cardio area,"
+        "GA-TM-001,2023-11-01,2034-01-15,,\n"
     )
     return Response(content=template, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=equipment_template.csv"})
 
@@ -541,6 +571,11 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], user: dict =
         # Iter 216h49 — owners/managers can now move kit between sites
         # directly via PATCH. Also gated below.
         "site_id",
+        # Iter 216h240 — integration round-trip fields. PATCH-able so
+        # operators can backfill them after a Sicon / Orbit 4 sync
+        # surfaces the natural keys.
+        "qr_code", "manufacturing_date", "deprecation_date",
+        "orbit4_asset_id", "orbit4_product_id", "sicon_equipment_id",
     }
     update_data = {k: v for k, v in data.items() if k in allowed_fields}
 

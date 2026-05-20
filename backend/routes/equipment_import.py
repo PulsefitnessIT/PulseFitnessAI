@@ -1124,6 +1124,14 @@ def _build_equipment_doc(eq: dict, ctx: dict) -> dict:
         "notes": note,
         "description": description,
         "import_id": ctx["import_id"],
+        # Iter 216h240 — integration round-trip placeholders. Populated
+        # when the AI extractor finds them on the invoice (rare today)
+        # or left as None so a later Sicon/Orbit 4 sync can backfill.
+        "qr_code": eq.get("qr_code") or None,
+        "manufacturing_date": _parse_date_to_iso(eq.get("manufacturing_date", "")) or None,
+        "deprecation_date": _parse_date_to_iso(eq.get("deprecation_date", "")) or None,
+        "orbit4_asset_id": eq.get("orbit4_asset_id") or None,
+        "sicon_equipment_id": eq.get("sicon_equipment_id") or None,
         **({"batch_id": ctx["batch_id"]} if ctx.get("batch_id") else {}),
         **({"site_id": ctx["site_id"]} if ctx.get("site_id") else {}),
         "created_at": datetime.now(timezone.utc).isoformat(),

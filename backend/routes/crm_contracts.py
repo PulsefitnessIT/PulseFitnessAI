@@ -222,6 +222,11 @@ def _build_contract_doc(data: dict, user: dict) -> dict:
         "special_terms": data.get("special_terms", ""),
         "signature": None, "signed_by": None, "signed_at": None,
         "sicon_contract_id": None, "sage_reference": None,
+        # Iter 216h240 — Orbit 4 round-trip ref. Populated when the
+        # contract is mirrored to Orbit 4 via the outbound mappers
+        # documented in INTEGRATION_FIELD_MAPPING.md §32.2. Stays null
+        # for non-Orbit 4 tenants.
+        "orbit4_contract_id": data.get("orbit4_contract_id"),
         "version": 1,
         "created_by": user.get("full_name", ""),
         "owner_id": user.get("id"),

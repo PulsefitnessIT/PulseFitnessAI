@@ -1,3 +1,71 @@
+## Iter 216h240 — Close all import-surface gaps for Sicon / Sage / Orbit 4 (Feb 19, 2026) ✅ P0+P1+P2
+
+User ask (verbatim): *"a — please ensure all import files are the
+same across the platform and also ensure the manual add equipment
+also ties into the platform correctly"*
+
+Closes the audit gaps surfaced under iter 216h239 — `crm_companies`
+had no CSV import and no Sage/Sicon ref capture in the POST; equipment
+& sites CSVs were missing Orbit 4 / Sicon-routing columns; the manual
+"Add Equipment" dialog didn't surface the integration refs.
+
+### What landed — backend
+
+| File | Change |
+|---|---|
+| `models/schemas.py` | `EquipmentCreate` now accepts `qr_code`, `manufacturing_date`, `deprecation_date`, `orbit4_asset_id`, `orbit4_product_id`, `sicon_equipment_id` |
+| `routes/equipment.py` | • Both CSV field maps (`_CSV_FIELDS_TITLE`, `_CSV_FIELDS_SNAKE`) include the 5 new round-trip columns<br>• Both CSV templates (`/equipment/template/csv` Title-case + `/equipment/csv-template` snake-case) emit them<br>• `_parse_csv_row` persists them to the inserted document<br>• PATCH `allowed_fields` set includes the 6 new keys so operators can backfill later |
+| `routes/equipment_import.py` | `_build_equipment_doc` ctx flows the same 5 fields when present on the AI-extracted invoice |
+| `routes/sites_import.py` | CSV headers + parser include `opening_hours`, `access_notes`, `default_engineer_email` (§22 Sicon engineer-scheduling fields). Example row populated. Friendly aliases accepted (`"opening hours"`, `"access notes"`, `"engineer_email"`) so existing spreadsheets parse |
+| `routes/sites.py` | `POST /sites` persists the 3 routing fields on create; `PATCH /sites/{id}` accepts them for backfill |
+| `routes/crm_core.py` | • `POST /companies` persists 10 Sage/Sicon refs (`sage_customer_account_id`, `sage_customer_reference`, `sicon_company_id`, `sicon_company_reference`, `vat_registration`, `currency`, `nominal_default`, `payment_terms_days`, `credit_limit`, `account_status`)<br>• **New** `GET /companies-csv-template` — canonical CSV with example row<br>• **New** `POST /companies-import-csv` — idempotent dedupe on `sage_customer_reference` → `sicon_company_reference` → `name`. Path uses `-` separator (not `/`) to dodge the dynamic `/companies/{company_id}` route<br>• Contact CSV parser captures `sage_ref` + `sage_id` + `sage_customer_account_id`; contact import dedupes on `sage_ref` first, falls back to email |
+| `routes/crm_contracts.py` | `_build_contract_doc` seeds `orbit4_contract_id: None` so the field is always present on read |
+
+### What landed — frontend
+
+| File | Change |
+|---|---|
+| `components/equipment/AddEquipmentDialog.js` | New collapsible **"Integration refs"** `<details>` section with QR Code, Manufacturing Date, Deprecation Date, Orbit 4 Asset ID, Sicon Equipment ID inputs. Closed by default so non-Sicon/Orbit 4 tenants see the same form as before. Every input has a stable `data-testid`. |
+
+### Tests
+
+- **`tests/test_iter_216h240_integration_field_capture.py`** — 12 cases
+  covering: EquipmentCreate fields, PATCH allowed_fields, CSV parser
+  output, sites CSV headers, `create_site` field persistence, sites
+  PATCH, CRM company POST refs, new template + import endpoints, CRM
+  company CSV parser numeric coercion, CRM contact Sage refs, contract
+  default doc, CSV template strings.
+- Wired into `make regression`.
+
+### Verification
+
+- `make regression` → **54 passed, 14 skipped** in 7.97s (was 42 → 54, +12 new).
+- `ruff check .` clean on all 7 changed Python files.
+- `yarn eslint src --max-warnings 0` clean on the changed dialog.
+- `make lint-integrations` → `PASS · 6 ok · 1 warn · 0 err`.
+- Live curl:
+  - `GET /api/equipment/csv-template` → returns all 17 columns incl. the 5 new ones.
+  - `GET /api/master-admin/sites/template.csv` → returns 19 columns incl. the 3 new ones.
+  - `GET /api/crm/companies-csv-template` → returns 18 columns incl. all 10 Sage/Sicon refs.
+  - 2-row upload to `POST /api/crm/companies-import-csv` → first run: `{imported:2,skipped:0}`; second run (same CSV): `{imported:0,skipped:2}` — **idempotent dedupe verified**.
+
+### Why this matters
+
+Before this iteration, a customer migrating their existing Pulse Fitness
+operation into GymAxis had to either:
+1. Connect Sage credentials first, run the sync, then edit per-row by
+   hand to add Sicon refs — slow, error-prone.
+2. Or live with duplicate `crm_companies` rows the moment Sage came
+   online and the auto-sync ran.
+
+After this iteration, a single CSV upload populates every Sage/Sicon
+ref in one shot, dedupes idempotently, and the manual "Add Equipment"
+dialog captures Orbit 4 / Sicon natural keys at the moment of entry —
+so the round-trip is complete without a second-pass sync.
+
+---
+
+
 ## Iter 216h239 — Orbit 4 integration mapping audit (Feb 19, 2026) ✅ P1
 
 User ask (verbatim): *"Is the orbit 4 integration mapping fields

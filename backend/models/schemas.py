@@ -214,6 +214,17 @@ class EquipmentCreate(BaseModel):
     site_id: Optional[str] = None
     supplier: Optional[str] = None
     supplier_email: Optional[str] = None
+    # Iter 216h240 — integration round-trip fields. Captured upfront so
+    # Orbit 4 / Sicon syncs don't need a second-pass enrichment step.
+    # All optional: orgs without Orbit 4 / Sicon credentials can ignore
+    # them, and the field-mapping spec marks them as `gymaxis_only`
+    # placeholders until populated. See INTEGRATION_FIELD_MAPPING.md §23 + §31.2.
+    qr_code: Optional[str] = None
+    manufacturing_date: Optional[str] = None
+    deprecation_date: Optional[str] = None
+    orbit4_asset_id: Optional[str] = None
+    orbit4_product_id: Optional[str] = None
+    sicon_equipment_id: Optional[str] = None
 
 
 class EquipmentResponse(BaseModel):

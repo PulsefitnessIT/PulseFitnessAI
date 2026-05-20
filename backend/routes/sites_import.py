@@ -61,6 +61,13 @@ _SITE_CSV_HEADERS = [
     "default_location",
     # Iter 216h111 — MOD Force (Army / RAF / Navy). Ignored for non-MOD orgs.
     "mod_force",
+    # Iter 216h240 — Sicon-routing fields. `opening_hours` and
+    # `access_notes` drive Sicon engineer-scheduling cut-offs (§22).
+    # `default_engineer_email` resolves to Sicon `DefaultResourceID`
+    # at sync-time via the engineer directory lookup.
+    "opening_hours",
+    "access_notes",
+    "default_engineer_email",
 ]
 
 _SITE_CSV_EXAMPLE_ROWS = [
@@ -72,6 +79,10 @@ _SITE_CSV_EXAMPLE_ROWS = [
         "Jane Doe", "jane.doe@example.com",
         "", "Main Floor",
         "",  # mod_force
+        # Iter 216h240 — example values for the new Sicon-routing columns.
+        "Mon-Fri 06:00-22:00, Sat-Sun 08:00-18:00",
+        "Ring buzzer 14; gym is on the second floor",
+        "",  # default_engineer_email
     ],
 ]
 
@@ -162,6 +173,24 @@ async def preview_sites_csv(file: UploadFile = File(...), user: dict = Depends(g
             "mod_force": parse_force(
                 row.get("mod_force", "") or row.get("force", "") or row.get("service", "")
             ) or None,
+            # Iter 216h240 — Sicon-routing fields. Accept friendly aliases
+            # so spreadsheets exported from other systems still parse.
+            "opening_hours": (
+                row.get("opening_hours", "")
+                or row.get("opening hours", "")
+                or row.get("hours", "")
+            ),
+            "access_notes": (
+                row.get("access_notes", "")
+                or row.get("access notes", "")
+                or row.get("notes", "")
+            ),
+            "default_engineer_email": (
+                row.get("default_engineer_email", "")
+                or row.get("default engineer email", "")
+                or row.get("engineer_email", "")
+                or ""
+            ).lower(),
         })
 
     if not rows:

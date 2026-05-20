@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse
 from datetime import datetime, timezone
+from typing import Optional
 import uuid
 import csv
 import io
@@ -191,6 +193,22 @@ async def create_company(data: dict, user=Depends(get_crm_user)):
         "address": data.get("address", ""),
         "phone": data.get("phone", ""),
         "notes": data.get("notes", ""),
+        # Iter 216h240 — integration round-trip fields. Captured at
+        # create-time so spreadsheet migrations from Sage / Sicon can
+        # bind the GymAxis row to its upstream natural keys without a
+        # second-pass sync. Empty defaults keep the field shape stable
+        # for orgs that haven't connected Sage / Sicon yet.
+        # See INTEGRATION_FIELD_MAPPING.md §19 + §29.
+        "sage_customer_account_id": data.get("sage_customer_account_id", "") or "",
+        "sage_customer_reference":  data.get("sage_customer_reference", "")  or "",
+        "sicon_company_id":         data.get("sicon_company_id", "")         or "",
+        "sicon_company_reference":  data.get("sicon_company_reference", "")  or "",
+        "vat_registration":         data.get("vat_registration", "")         or "",
+        "currency":                 data.get("currency", "")                 or "",
+        "nominal_default":          data.get("nominal_default", "")          or "",
+        "payment_terms_days":       data.get("payment_terms_days"),
+        "credit_limit":             data.get("credit_limit"),
+        "account_status":           data.get("account_status", "")           or "",
         "created_by": user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -470,6 +488,13 @@ def _parse_csv_row(row: dict, user_id: str) -> dict | None:
         "notes": "",
         "linkedin_url": _normalize_csv_field(row, "linkedin", "LinkedIn"),
         "address": _normalize_csv_field(row, "address", "Address"),
+        # Iter 216h240 — Sage round-trip refs. When the CSV carries
+        # these, the row binds to the existing Sage SLCustomerAccount
+        # at upsert time instead of being treated as a new contact.
+        # See INTEGRATION_FIELD_MAPPING.md §29.
+        "sage_ref": _normalize_csv_field(row, "sage_ref", "Sage Ref", "sage_reference"),
+        "sage_id":  _normalize_csv_field(row, "sage_id",  "Sage ID"),
+        "sage_customer_account_id": _normalize_csv_field(row, "sage_customer_account_id", "Sage Customer Account ID"),
         "created_by": user_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -497,6 +522,14 @@ async def import_contacts(file: UploadFile = File(...), user=Depends(get_crm_use
                 skipped += 1
                 continue
 
+            # Iter 216h240 — dedupe on `sage_ref` first (when present)
+            # so re-imports from Sage don't create duplicates. Fall back
+            # to email dedupe for the standard case.
+            if contact.get("sage_ref"):
+                existing = await db.crm_contacts.find_one({"sage_ref": contact["sage_ref"]})
+                if existing:
+                    skipped += 1
+                    continue
             if contact["email"]:
                 existing = await db.crm_contacts.find_one({"email": contact["email"]})
                 if existing:
@@ -510,6 +543,184 @@ async def import_contacts(file: UploadFile = File(...), user=Depends(get_crm_use
 
     await log_audit(user, "import", "contacts", "bulk_import", {"imported": imported, "skipped": skipped})
     return {"imported": imported, "skipped": skipped, "errors": errors[:10]}
+
+
+# ==================== COMPANY CSV IMPORT (Iter 216h240) ====================
+# See INTEGRATION_FIELD_MAPPING.md §19 — every column below has a
+# documented Sage / Sicon counterpart, so a freshly-imported spreadsheet
+# binds cleanly to the existing accounts on the next sync (no duplicates).
+_COMPANY_CSV_HEADERS = [
+    "name",                        # required
+    "industry",
+    "website",
+    "size",
+    "revenue",
+    "address",
+    "phone",
+    "notes",
+    # Integration refs — natural keys for Sage / Sicon round-trip.
+    "sage_customer_account_id",
+    "sage_customer_reference",
+    "sicon_company_id",
+    "sicon_company_reference",
+    "vat_registration",
+    "currency",
+    "nominal_default",
+    "payment_terms_days",
+    "credit_limit",
+    "account_status",
+]
+
+
+@router.get("/companies-csv-template")
+async def download_companies_csv_template(user=Depends(get_crm_user)):
+    """Iter 216h240 — canonical company CSV template.
+
+    Pre-filled with one example row so operators can see the expected
+    shape of each Sage/Sicon column. Idempotent download.
+
+    Path note: uses ``-`` separator instead of ``/`` to avoid colliding
+    with the dynamic ``GET /companies/{company_id}`` route — FastAPI
+    resolves routes in registration order, and the dynamic param
+    pattern would otherwise swallow ``csv-template`` as a fake id.
+    """
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(_COMPANY_CSV_HEADERS)
+    w.writerow([
+        "Acme Fitness Ltd", "Health & Fitness", "https://acmefitness.example", "201-500",
+        "£8M", "1 Acme Way, London SW1A 1AA", "020 0000 0000",
+        "Migrated from Pulse Fitness back-office on 2026-02-19.",
+        # Sage refs
+        "ACME001", "ACME-LDN", "sicon-acme-1234", "SiconAcme",
+        "GB123456789", "GBP", "4000", "30", "50000", "active",
+    ])
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="gymaxis-companies-template.csv"'},
+    )
+
+
+def _parse_company_csv_row(row: dict, user_id: str, org_id: Optional[str]) -> Optional[dict]:
+    """Build a `crm_companies` document from a single CSV row. Returns
+    None when the row is missing the required `name` field."""
+    name = _normalize_csv_field(row, "name", "Name", "company_name").strip()
+    if not name:
+        return None
+
+    def _val(*aliases: str) -> str:
+        return _normalize_csv_field(row, *aliases).strip()
+
+    def _num_or_none(s: str):
+        if not s:
+            return None
+        try:
+            # Accept "30", "30.0", "£50,000" — strip non-numeric where sensible.
+            cleaned = "".join(c for c in s if c.isdigit() or c in ".-")
+            return float(cleaned) if cleaned else None
+        except (ValueError, TypeError):
+            return None
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    return {
+        "id": str(uuid.uuid4()),
+        "organization_id": org_id,
+        "name": name,
+        "industry": _val("industry", "Industry"),
+        "website": _val("website", "Website"),
+        "size":    _val("size", "Size"),
+        "revenue": _val("revenue", "Revenue"),
+        "address": _val("address", "Address"),
+        "phone":   _val("phone", "Phone"),
+        "notes":   _val("notes", "Notes"),
+        # Integration round-trip fields. Every value preserved as a
+        # string so leading zeros / mixed-case account refs survive.
+        "sage_customer_account_id": _val("sage_customer_account_id", "Sage Customer Account ID"),
+        "sage_customer_reference":  _val("sage_customer_reference",  "Sage Customer Reference", "sage_ref"),
+        "sicon_company_id":         _val("sicon_company_id",         "Sicon Company ID"),
+        "sicon_company_reference":  _val("sicon_company_reference",  "Sicon Company Reference"),
+        "vat_registration":         _val("vat_registration",         "VAT Registration"),
+        "currency":                 _val("currency",                 "Currency") or "GBP",
+        "nominal_default":          _val("nominal_default",          "Nominal Default"),
+        "payment_terms_days":       _num_or_none(_val("payment_terms_days", "Payment Terms Days")),
+        "credit_limit":             _num_or_none(_val("credit_limit", "Credit Limit")),
+        "account_status":           _val("account_status", "Account Status") or "active",
+        "source": "csv_import",
+        "created_by": user_id,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+
+
+@router.post("/companies-import-csv")
+async def import_companies_csv(file: UploadFile = File(...), user=Depends(get_crm_user)):
+    """Iter 216h240 — CRM Companies CSV bulk-import.
+
+    Idempotent dedupe order: ``sage_customer_reference`` (preferred) →
+    ``sicon_company_reference`` → ``name`` (case-insensitive). Re-running
+    the same CSV is safe; rows with a matching natural key are skipped
+    rather than duplicated.
+
+    Manager / admin only — this is a commercial dataset. Path note:
+    sibling of ``GET /companies-csv-template``; same reason for the
+    ``-`` separator (avoids ``/companies/{company_id}`` collision).
+    """
+    if user["role"] not in ("admin", "manager"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    from utils.file_validation import validate_upload, MIME_SPREADSHEETS
+    content = await file.read()
+    validate_upload(file_bytes=content, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=10 * 1024 * 1024)
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="CSV is empty or missing a header row")
+    headers_lower = [(h or "").strip().lower() for h in reader.fieldnames]
+    if "name" not in headers_lower:
+        raise HTTPException(
+            status_code=400,
+            detail="CSV must include a 'name' column. Download the template via GET /api/crm/companies-csv-template.",
+        )
+
+    imported, skipped = 0, 0
+    errors: list[str] = []
+    org_id = user.get("organization_id")
+    for i, raw_row in enumerate(reader, start=2):
+        row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items()}
+        try:
+            doc = _parse_company_csv_row(row, user["id"], org_id)
+            if not doc:
+                skipped += 1
+                continue
+
+            # Idempotent dedupe — natural-key first, then name fallback.
+            dedupe_query = None
+            if doc.get("sage_customer_reference"):
+                dedupe_query = {"sage_customer_reference": doc["sage_customer_reference"]}
+            elif doc.get("sicon_company_reference"):
+                dedupe_query = {"sicon_company_reference": doc["sicon_company_reference"]}
+            else:
+                dedupe_query = {"name": doc["name"]}
+
+            if org_id:
+                dedupe_query["organization_id"] = org_id
+
+            existing = await db.crm_companies.find_one(dedupe_query, {"_id": 0, "id": 1})
+            if existing:
+                skipped += 1
+                continue
+
+            await db.crm_companies.insert_one(doc)
+            imported += 1
+        except Exception as e:
+            errors.append(f"Row {i}: {e!s}")
+
+    await log_audit(user, "import", "companies", "bulk_import", {"imported": imported, "skipped": skipped})
+    return {"imported": imported, "skipped": skipped, "errors": errors[:10]}
+
+
 
 
 # ==================== CRM USERS LIST ====================

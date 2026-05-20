@@ -395,6 +395,12 @@ async def create_site(
         # Iter 216h50 — Sicon "Invoice Customer Ref" per-site reference.
         # Stored even when blank so the field is always present on read.
         "invoice_customer_ref": (body.get("invoice_customer_ref") or "").strip(),
+        # Iter 216h240 — Sicon-routing fields. Persisted on create so
+        # the engineer scheduler and access-instructions UX have them
+        # available immediately (vs waiting for a separate PATCH).
+        "opening_hours": (body.get("opening_hours") or "").strip(),
+        "access_notes": (body.get("access_notes") or "").strip(),
+        "default_engineer_email": (body.get("default_engineer_email") or "").strip().lower(),
         "is_head_office": is_head_office,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -426,7 +432,9 @@ async def update_site(
         raise HTTPException(status_code=404, detail="Site not found")
 
     updates = {}
-    for field in ("name", "address", "postcode", "invoice_customer_ref"):
+    for field in ("name", "address", "postcode", "invoice_customer_ref",
+                  # Iter 216h240 — Sicon-routing fields editable via PATCH.
+                  "opening_hours", "access_notes", "default_engineer_email"):
         if field in body:
             updates[field] = (body[field] or "").strip()
     # Iter 216h113j — MOD force selector (army/raf/navy). MOD tenants

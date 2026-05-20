@@ -33,6 +33,14 @@ const EMPTY_FORM = {
   sla_contract_ref: '',
   sla_expiry: '',
   notes: '',
+  // Iter 216h240 — integration round-trip refs. Optional; surfaced
+  // in a collapsible "Integration refs" panel so the standard form
+  // stays clean for non-Sicon / non-Orbit 4 customers.
+  qr_code: '',
+  manufacturing_date: '',
+  deprecation_date: '',
+  orbit4_asset_id: '',
+  sicon_equipment_id: '',
 };
 
 /**
@@ -120,6 +128,14 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
         // it. Backend also inherits from the JWT/active session as
         // a defence-in-depth fallback.
         site_id: activeSite?.id || null,
+        // Iter 216h240 — integration round-trip fields. Sent only when
+        // populated so the backend doesn't receive empty placeholders
+        // (cleaner audit trail for non-Sicon / non-Orbit 4 customers).
+        qr_code: form.qr_code.trim() || null,
+        manufacturing_date: form.manufacturing_date || null,
+        deprecation_date: form.deprecation_date || null,
+        orbit4_asset_id: form.orbit4_asset_id.trim() || null,
+        sicon_equipment_id: form.sicon_equipment_id.trim() || null,
       };
       const r = await axios.post(`${API}/equipment`, payload, {
         headers: { Authorization: `Bearer ${token}` },
@@ -349,6 +365,74 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
               </label>
             )}
           </div>
+
+          {/* Iter 216h240 — Integration refs (Sicon / Orbit 4). Native
+              <details> for zero-dep collapse; only shown by default
+              for operators who care. Skipping = backend stores null. */}
+          <details className="border border-white/10 rounded-md group" data-testid="add-equip-integration-refs">
+            <summary className="cursor-pointer px-3 py-2 text-sm text-[var(--color-text-muted)] hover:text-white select-none flex items-center justify-between">
+              <span>Integration refs <span className="text-xs opacity-60">(optional · Sicon / Orbit 4)</span></span>
+              <span className="text-xs opacity-60 group-open:hidden">Expand</span>
+              <span className="text-xs opacity-60 hidden group-open:inline">Collapse</span>
+            </summary>
+            <div className="p-3 pt-2 space-y-3 border-t border-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[var(--color-text-muted)] text-sm">QR Code</Label>
+                  <Input
+                    value={form.qr_code}
+                    onChange={(e) => setField('qr_code', e.target.value)}
+                    placeholder="e.g. GA-TM-001"
+                    className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                    data-testid="add-equip-qr-code"
+                  />
+                  <p className="text-[10px] text-[var(--color-text-muted)] mt-1 opacity-70">Required by Orbit 4 on asset POST. Auto-generated if left blank.</p>
+                </div>
+                <div>
+                  <Label className="text-[var(--color-text-muted)] text-sm">Manufacturing Date</Label>
+                  <DatePicker
+                    value={form.manufacturing_date}
+                    onChange={(iso) => setField('manufacturing_date', iso)}
+                    placeholder="DD/MM/YYYY"
+                    inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                    testid="add-equip-manufacturing-date"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-[var(--color-text-muted)] text-sm">Deprecation Date</Label>
+                  <DatePicker
+                    value={form.deprecation_date}
+                    onChange={(iso) => setField('deprecation_date', iso)}
+                    placeholder="DD/MM/YYYY"
+                    inputClassName="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                    testid="add-equip-deprecation-date"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[var(--color-text-muted)] text-sm">Orbit 4 Asset ID</Label>
+                  <Input
+                    value={form.orbit4_asset_id}
+                    onChange={(e) => setField('orbit4_asset_id', e.target.value)}
+                    placeholder="e.g. 12345"
+                    className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                    data-testid="add-equip-orbit4-asset-id"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[var(--color-text-muted)] text-sm">Sicon Equipment ID</Label>
+                  <Input
+                    value={form.sicon_equipment_id}
+                    onChange={(e) => setField('sicon_equipment_id', e.target.value)}
+                    placeholder="e.g. SICON-EQ-001"
+                    className="bg-[var(--color-ink-alt)] border-white/10 text-white mt-1"
+                    data-testid="add-equip-sicon-equipment-id"
+                  />
+                </div>
+              </div>
+            </div>
+          </details>
 
           <div>
             <Label className="text-[var(--color-text-muted)] text-sm">Notes</Label>
