@@ -11087,3 +11087,51 @@ includes the counts: e.g. "2 rehearsals · 27 costume rows added from template".
 - `frontend/src/pages/Memberships/EventsTab.js` (template toggle in CreateEventModal)
 - `backend/tests/test_iter_216h251_event_bootstrap_template.py`
 - `Makefile`
+
+## Iter 216h252 — Memberships Setup Wizard redesign (Feb 20, 2026)
+
+### Reported by Lee
+- Operators don't understand the word "slug" — rename + auto-derive.
+- Timezone must be a dropdown (not free text).
+- Logo upload must be drag-and-drop.
+- Capture studio address + contact details.
+- Fix the light-mode leakage on the Payment step's "Soon" cards.
+- Add an "Add instructor" step + an instructor dropdown on the
+  "Add a class" step.
+
+### What changed
+
+**Step 1 — Studio basics (complete rewrite)**
+- Pre-fills the studio name from the org doc.
+- New `SlugField` component renames "App URL slug" → **"Your member app address"** with a clear prefix preview (`yoursite.com/m/`), client-side slug derivation as the operator types the name, and a **live availability check** (`GET /api/memberships/setup/check-slug`, 400ms debounce). Taken slugs show an amber alert and a 1-click "use the suggestion" link.
+- **Timezone is now a Select** dropdown with the 25 most relevant IANA zones (UK / EU / NA / AU / NZ / Asia).
+- **Logo is now a drag-and-drop dropzone** with hover/active states; uploads via `POST /api/account/logo`. Shows a preview thumbnail.
+- New **Studio address** section (line 1, line 2, city, postcode, country dropdown).
+- New **Contact for members** section (email + phone).
+- **Currency** expanded to GBP / EUR / USD / AUD / CAD / NZD.
+
+**Step 2 — Payment method (dark-mode fix)**
+- Replaced Tailwind `bg-white/[0.02]` + `border-white/10` (which leaked through on Pulse-light tenants) with explicit `rgba()` colours. The "Soon" cards now render dark with proper text contrast regardless of the surrounding theme.
+
+**Step 4 — Instructor (NEW, functional)**
+- Was a placeholder. Now actually creates an instructor via `POST /api/memberships/instructors` — name, email, phone (required by backend), headline, comma-separated specialties, GDPR consent checkbox (required).
+- Skip-able if the operator already added instructors elsewhere.
+
+**Step 5 — First class (instructor dropdown)**
+- Replaced the free-text "Instructor name" field with a **select** populated from `/api/memberships/instructors`. Auto-selects the only instructor if exactly one exists (likely the one just added in Step 4). "Type custom name…" escape hatch retained.
+
+**Backend**
+- New `GET /api/memberships/setup/check-slug?slug=x` endpoint.
+- `BasicsBody` extended with `address_line1`, `address_line2`, `city`, `postcode`, `country`, `contact_email`, `contact_phone`.
+- `setup_status` returns the new fields so the wizard can pre-populate on reload.
+
+### Verification
+- `tests/test_iter_216h252_wizard_redesign.py` — 12/12 passing (3 backend check-slug branches, BasicsBody schema, status payload, 7 frontend source assertions).
+- `make regression` — 120 passed / 14 skipped (up from 108).
+- ESLint clean on SetupWizard.js; Ruff clean on memberships_ops.py.
+
+### Files changed
+- `frontend/src/pages/Memberships/SetupWizard.js` (full redesign — same file, restructured)
+- `backend/routes/memberships_ops.py` (check-slug + extended BasicsBody + status)
+- `backend/tests/test_iter_216h252_wizard_redesign.py`
+- `Makefile`

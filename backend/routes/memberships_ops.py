@@ -57,6 +57,10 @@ async def setup_status(user: dict = Depends(get_current_user)):
             "id", "name", "slug", "logo_url", "primary_brand_colour",
             "currency", "timezone", "payment_method", "setup_completed",
             "setup_step",
+            # Iter 216h252 — surface address + contact so the redesigned
+            # Step 1 can pre-populate from data captured at trial-signup.
+            "address_line1", "address_line2", "city", "postcode", "country",
+            "contact_email", "contact_phone",
         )},
         "counts": {"plans": plan_count, "class_templates": template_count, "instructors": instructor_count},
     }
@@ -69,6 +73,36 @@ class BasicsBody(BaseModel):
     primary_brand_colour: str = "#19CDFF"
     logo_url: str | None = None
     slug: str | None = None  # operator can override auto-slug
+    # Iter 216h252 — wizard now captures studio address + contact in
+    # Step 1 so the operator doesn't have to hunt them down in the
+    # admin console after onboarding.
+    address_line1: str | None = None
+    address_line2: str | None = None
+    city: str | None = None
+    postcode: str | None = None
+    country: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+
+
+@router.get("/memberships/setup/check-slug")
+async def setup_check_slug(slug: str, user: dict = Depends(get_current_user)):
+    """Iter 216h252 — live "is this app address taken?" check for the
+    Step 1 input. Returns availability + a tweaked suggestion if the
+    given slug clashes with another org. Empty/garbage input returns
+    `available: False` so the UI can dim the Save button.
+    """
+    org_id = await _require_operator_org(user)
+    cleaned = _slugify(slug or "")
+    if not cleaned or len(cleaned) < 3:
+        return {"available": False, "slug": cleaned, "reason": "too_short"}
+    conflict = await db.organizations.find_one(
+        {"slug": cleaned, "id": {"$ne": org_id}}, {"_id": 0, "id": 1},
+    )
+    if conflict:
+        suggestion = f"{cleaned}-{uuid.uuid4().hex[:4]}"
+        return {"available": False, "slug": cleaned, "suggestion": suggestion, "reason": "taken"}
+    return {"available": True, "slug": cleaned}
 
 
 @router.post("/memberships/setup/basics")
@@ -80,14 +114,22 @@ async def setup_basics(body: BasicsBody, user: dict = Depends(get_current_user))
         {"slug": slug, "id": {"$ne": org_id}}, {"_id": 0, "id": 1})
     if conflict:
         slug = f"{slug}-{uuid.uuid4().hex[:4]}"
-    await db.organizations.update_one(
-        {"id": org_id},
-        {"$set": {
-            "name": body.name, "slug": slug, "timezone": body.timezone,
-            "currency": body.currency, "primary_brand_colour": body.primary_brand_colour,
-            "logo_url": body.logo_url, "setup_step": "payment",
-        }},
-    )
+    # Iter 216h252 — persist the optional address + contact captured in
+    # the redesigned Step 1. Only $set fields the operator provided so
+    # we never overwrite values already entered via other surfaces.
+    update: dict = {
+        "name": body.name, "slug": slug, "timezone": body.timezone,
+        "currency": body.currency, "primary_brand_colour": body.primary_brand_colour,
+        "logo_url": body.logo_url, "setup_step": "payment",
+    }
+    for key in (
+        "address_line1", "address_line2", "city", "postcode", "country",
+        "contact_email", "contact_phone",
+    ):
+        value = getattr(body, key, None)
+        if value is not None:
+            update[key] = (value or "").strip()
+    await db.organizations.update_one({"id": org_id}, {"$set": update})
     return {"ok": True, "slug": slug}
 
 

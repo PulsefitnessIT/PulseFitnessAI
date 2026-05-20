@@ -55,6 +55,7 @@ regression:
 	  tests/test_iter_216h249_module_tailored_signup.py \
 	  tests/test_iter_216h250_events_modal_and_polish.py \
 	  tests/test_iter_216h251_event_bootstrap_template.py \
+	  tests/test_iter_216h252_wizard_redesign.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
