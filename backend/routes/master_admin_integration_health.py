@@ -26,6 +26,7 @@ from fastapi import APIRouter, Body, Depends
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.integration_mapping_coverage import compute_mapping_coverage
 from routes.master_admin import (
     assert_org_in_pulse_scope,
     is_pulse_only,
@@ -374,3 +375,30 @@ async def integrations_hub(user: dict = Depends(get_current_user)):
         "integrations": [stripe_row, sicon_row, orbit_row, sage_row],
         "summary": summary,
     }
+
+
+
+@router.get("/master-admin/integration-mapping-coverage")
+async def integration_mapping_coverage(user: dict = Depends(get_current_user)):
+    """Iter 216h238 — live Sicon/Sage field-mapping coverage.
+
+    Returns the same numbers the CI lint at
+    ``/app/backend/scripts/check_integration_mapping.py`` produces, but
+    in a structured shape the master-admin UI can render as a badge:
+
+    * **fields_total / fields_annotated / fields_pct** — % of Pydantic
+      fields and ``__integration_fields__`` manifest entries across
+      ``backend/routes/svc/*`` that carry a ``sicon:`` / ``sage:`` /
+      ``gymaxis_only`` annotation.
+    * **files_total / files_manifested / files_pct** — % of svc route
+      files that have adopted the manifest pattern.
+    * **by_module** — breakdown by integration target (sicon / sage /
+      both / gymaxis_only).
+    * **doc_sections** — proxy for how comprehensive
+      INTEGRATION_FIELD_MAPPING.md is.
+
+    Master-admin only — Pulse master admins are also allowed so they
+    can see the same number on their Integrations Hub.
+    """
+    require_master_admin(user)
+    return compute_mapping_coverage()

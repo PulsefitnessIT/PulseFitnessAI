@@ -158,9 +158,111 @@ const IntegrationCard = ({ row, brand, onOpen }) => {
   );
 };
 
+const MappingCoverageStrip = ({ coverage }) => {
+  const {
+    fields_total: total = 0,
+    fields_annotated: annotated = 0,
+    fields_pct: pct = 0,
+    files_total: filesTotal = 0,
+    files_manifested: filesManifested = 0,
+    files_pct: filesPct = 0,
+    by_module: byModule = {},
+    doc_sections: docSections = 0,
+  } = coverage || {};
+
+  // Colour by completeness — green ≥98%, amber ≥90%, red below.
+  const tone =
+    pct >= 98 ? { bar: '#10B981', bg: '#ECFDF5', fg: '#047857', border: '#A7F3D0' }
+    : pct >= 90 ? { bar: '#F59E0B', bg: '#FFFBEB', fg: '#B45309', border: '#FDE68A' }
+    : { bar: '#EF4444', bg: '#FEF2F2', fg: '#B91C1C', border: '#FECACA' };
+
+  const moduleOrder = ['sicon', 'sage', 'both', 'gymaxis_only'];
+  const moduleLabel = {
+    sicon: 'Sicon',
+    sage: 'Sage',
+    both: 'Both',
+    gymaxis_only: 'GymAxis-only',
+  };
+
+  return (
+    <div
+      className="rounded-xl border bg-white p-4"
+      style={{ borderColor: '#E4E4E7' }}
+      data-testid="integrations-hub-mapping-coverage"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+            Field-mapping coverage
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border"
+              style={{ background: tone.bg, color: tone.fg, borderColor: tone.border }}
+              data-testid="mapping-coverage-pct-badge"
+            >
+              {pct}%
+            </span>
+          </h3>
+          <p className="text-[11px] text-zinc-500 mt-0.5">
+            % of Pydantic fields + manifest entries in <code className="text-zinc-700">routes/svc/*</code> annotated with a Sicon / Sage / <code>gymaxis_only</code> tag. Source-of-truth: <code className="text-zinc-700">INTEGRATION_FIELD_MAPPING.md</code>.
+          </p>
+        </div>
+        <span className="text-[10px] text-zinc-400 italic flex-shrink-0">
+          {docSections} doc sections · live
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div
+        className="h-2 rounded-full overflow-hidden"
+        style={{ background: '#F4F4F5' }}
+        data-testid="mapping-coverage-progress"
+      >
+        <div
+          className="h-full transition-all"
+          style={{ width: `${pct}%`, background: tone.bar }}
+        />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
+        <span className="text-[11px] font-semibold text-zinc-700" data-testid="mapping-coverage-fields">
+          {annotated} <span className="text-zinc-400 font-normal">/ {total} fields</span>
+        </span>
+        <span className="text-[11px] text-zinc-500" data-testid="mapping-coverage-files">
+          {filesManifested} <span className="text-zinc-400">/ {filesTotal} files manifested ({filesPct}%)</span>
+        </span>
+      </div>
+
+      {/* Per-module breakdown */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3" data-testid="mapping-coverage-modules">
+        {moduleOrder.map((key) => {
+          const info = byModule[key];
+          if (!info) return null;
+          const fields = info.fields || 0;
+          if (fields === 0) return null;
+          return (
+            <div
+              key={key}
+              className="rounded-md bg-zinc-50 px-2 py-1.5"
+              data-testid={`mapping-coverage-module-${key}`}
+            >
+              <div className="text-[9px] uppercase tracking-wider font-bold text-zinc-400">
+                {moduleLabel[key] || key}
+              </div>
+              <div className="font-bold text-zinc-900 text-sm mt-0.5">
+                {fields}
+                <span className="text-zinc-400 font-normal text-[10px] ml-1">fields</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const IntegrationsHub = ({ isPulseAdmin = false }) => {
   const { brand, brandLabel } = useBrandContext();
   const [data, setData] = useState(null);
+  const [coverage, setCoverage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [openKey, setOpenKey] = useState(null);
@@ -169,11 +271,16 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
     setLoading(true); setError('');
     try {
       const token = localStorage.getItem('token');
-      const { data: payload } = await axios.get(
-        `${API_BASE}/master-admin/integrations-hub`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const headers = { Authorization: `Bearer ${token}` };
+      const [{ data: payload }, coveragePayload] = await Promise.all([
+        axios.get(`${API_BASE}/master-admin/integrations-hub`, { headers }),
+        // Coverage endpoint is master-admin only; tolerate 403 for Pulse-only viewers.
+        axios.get(`${API_BASE}/master-admin/integration-mapping-coverage`, { headers })
+          .then((r) => r.data)
+          .catch(() => null),
+      ]);
       setData(payload);
+      setCoverage(coveragePayload);
     } catch (e) {
       setError(e.response?.data?.detail || 'Failed to load integrations hub');
     }
@@ -278,6 +385,8 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
       )}
+
+      {coverage && <MappingCoverageStrip coverage={coverage} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" data-testid="integrations-hub-grid">
         {rows.map((row) => (

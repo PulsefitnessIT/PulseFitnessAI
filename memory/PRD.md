@@ -1,3 +1,53 @@
+## Iter 216h238 — "Field-mapping coverage" badge on the Integrations Hub (Feb 19, 2026) ✅ P2 enhancement
+
+Carry-over from the iter 216h237 docs audit: the lint at
+`/app/backend/scripts/check_integration_mapping.py` already produced
+a `307/316 fields (97.2%)` figure, but it was buried in the CI log.
+This iteration surfaces the same number live, in the master-admin
+Integrations Hub, so any future PR that adds an un-annotated field is
+visible to ops the moment they refresh the page — no more chasing
+yellow warnings in GitHub Actions.
+
+### What landed
+- **`backend/utils/integration_mapping_coverage.py`** — reusable
+  helper `compute_mapping_coverage()` mirroring the lint script's
+  Pydantic/manifest scan. Returns a structured dict with field
+  totals, percentage, per-module breakdown (`sicon` / `sage` /
+  `both` / `gymaxis_only`), and file-manifest coverage.
+- **`GET /api/master-admin/integration-mapping-coverage`** (in
+  `routes/master_admin_integration_health.py`) — master-admin-only
+  endpoint that returns the dict. Gates via `require_master_admin`.
+- **Frontend strip on `pages/MasterAdmin/IntegrationsHub.js`** — new
+  `MappingCoverageStrip` component rendered between the 4-tile
+  summary and the integration cards grid. Shows:
+  - Live `%` pill (colour-coded: green ≥98%, amber 90-97%, red <90%)
+  - Progress bar with the same colour
+  - `N / N fields` annotated, `N / N files manifested (XX.X%)`
+  - Per-module field counts (Sicon / Sage / Both / GymAxis-only)
+- **Regression test**: `tests/test_iter_216h238_mapping_coverage_badge.py`
+  with 5 cases (shape, sanity, route registration, master-admin gate,
+  module pct). Wired into `make regression`.
+
+### Verification
+- `make regression` → **42 passed, 14 skipped** in 6.61s (was 37 → 42).
+- `make lint-integrations` → `PASS · 6 ok · 1 warn · 0 err`.
+- `ruff check .` clean across the three changed Python files.
+- `yarn eslint src --max-warnings 0` clean.
+- Curl: master-admin token returns the dict (`97.2%`, `307/316`,
+  `12/32`); unauth returns 401.
+- Screenshot: badge renders correctly at 1920×800 with amber pill,
+  filled bar, 4 module tiles populated.
+
+### Why this matters
+The coverage figure is the easiest leading indicator of integration
+debt. Surfacing it next to the Sicon/Sage cards means ops can
+self-monitor without reading the CI log — and the 5-line regression
+test fixes the metric to the codebase, so the badge can never silently
+report a stale number.
+
+---
+
+
 ## Iter 216h237 — Sage/Sicon integration field-mapping docs audit (Feb 19, 2026) ✅ P1
 
 User ask (verbatim): *"Please review and update the sage and
