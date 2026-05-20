@@ -12,6 +12,7 @@ import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { ModalShell, Input, Select, ModalActions } from '@/pages/Memberships/_shared';
 import { ModalErrorBoundary } from '@/components/shared/ModalErrorBoundary';
+import DatePicker from '@/components/shared/DatePicker';
 
 export const PLAN_KINDS = [
   { value: 'recurring',   label: 'Recurring (subscription)' },
@@ -231,9 +232,15 @@ function PlanEditorModalInner({ API, headers, plan, defaultKind, onClose }) {
               onChange={up('course_session_count')} type="number"
               testid="mbr-plan-course-sessions" />
           </div>
-          <Input label="First session date (YYYY-MM-DD)"
-            value={f.course_start_date} onChange={up('course_start_date')}
-            type="date" testid="mbr-plan-course-start" />
+          {/* Iter 216h255 — shared DatePicker (replaces native input). */}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">First session date</p>
+            <DatePicker
+              value={(f.course_start_date || '').slice(0, 10)}
+              onChange={(iso) => up('course_start_date')(iso)}
+              testid="mbr-plan-course-start"
+            />
+          </div>
 
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">
@@ -250,23 +257,10 @@ function PlanEditorModalInner({ API, headers, plan, defaultKind, onClose }) {
                 </span>
               ))}
             </div>
-            <div className="flex gap-1.5">
-              <input type="date" id="mbr-excluded-date-picker"
-                className="rounded-lg border border-[color:var(--theme-border)] bg-transparent px-2 py-1.5 text-sm"
-                data-testid="mbr-plan-course-excluded-input" />
-              <button type="button"
-                onClick={() => {
-                  const el = document.getElementById('mbr-excluded-date-picker');
-                  const v = el?.value;
-                  if (!v) return;
-                  if ((f.course_excluded_dates || []).includes(v)) { el.value = ''; return; }
-                  up('course_excluded_dates')([...(f.course_excluded_dates || []), v].sort());
-                  el.value = '';
-                }}
-                className="px-2 py-1 text-xs font-bold rounded-lg border border-[color:var(--theme-border)] hover:bg-white/5">
-                Skip this date
-              </button>
-            </div>
+            <ExcludedDateAdder
+              existing={f.course_excluded_dates || []}
+              onAdd={(iso) => up('course_excluded_dates')([...(f.course_excluded_dates || []), iso].sort())}
+            />
             <p className="mt-2 text-[11px] text-[color:var(--theme-text-muted)]">
               Each skipped date extends the course by one week so pupils still get the full {f.course_session_count || 'N'} sessions.
             </p>
@@ -295,5 +289,36 @@ function PlanEditorModalInner({ API, headers, plan, defaultKind, onClose }) {
       </div>
       <ModalActions onCancel={() => onClose(false)} onSave={submit} saving={saving} testId="mbr-plan-save" />
     </ModalShell>
+  );
+}
+
+// Iter 216h255 — small helper that wraps the shared DatePicker with an
+// "Add" button. Replaces the legacy native-date-input + getElementById
+// trick (which broke when more than one PlanEditorModal mounted).
+function ExcludedDateAdder({ existing, onAdd }) {
+  const [pending, setPending] = useState('');
+  return (
+    <div className="flex items-end gap-1.5">
+      <div className="flex-1 max-w-[180px]">
+        <DatePicker
+          value={pending}
+          onChange={(iso) => setPending(iso)}
+          testid="mbr-plan-course-excluded-input"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          if (!pending) return;
+          if (existing.includes(pending)) { setPending(''); return; }
+          onAdd(pending);
+          setPending('');
+        }}
+        className="px-2 py-1.5 text-xs font-bold rounded-lg border border-[color:var(--theme-border)] hover:bg-white/5"
+        data-testid="mbr-plan-course-excluded-add"
+      >
+        Skip this date
+      </button>
+    </div>
   );
 }

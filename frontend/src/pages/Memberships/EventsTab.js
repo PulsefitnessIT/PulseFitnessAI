@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { ModalShell, ModalActions, Input, Select } from '@/pages/Memberships/_shared';
+import DatePicker from '@/components/shared/DatePicker';
 
 const KIND_META = {
   recital:     { label: 'Recital',     emoji: 'R', tone: '#a855f7' },
@@ -533,7 +534,15 @@ function CreateEventModal({ API, auth, onClose, onCreated }) {
     <ModalShell title="New event" eyebrow="Studio events" testId="events-create-modal" onClose={onClose} wide>
       <Input label="Event name" value={form.name} onChange={up('name')} required testid="events-create-name" placeholder='e.g. "Spring Recital 2026"' />
       <Select label="Type" value={form.kind} onChange={up('kind')} options={kindOptions} testid="events-create-kind" />
-      <Input label="Date" type="date" value={form.date} onChange={up('date')} required testid="events-create-date" />
+      {/* Iter 216h255 — DatePicker for consistency with the rest of the module. */}
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">Date *</p>
+        <DatePicker
+          value={(form.date || '').slice(0, 10)}
+          onChange={(iso) => up('date')(iso)}
+          testid="events-create-date"
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Input label="Start time" type="time" value={form.start} onChange={up('start')} testid="events-create-start" />
         <Input label="End time" type="time" value={form.end} onChange={up('end')} testid="events-create-end" />
@@ -591,7 +600,14 @@ function RehearsalModal({ API, auth, eventId, onClose, onSaved }) {
   return (
     <ModalShell title="New rehearsal" eyebrow="Rehearsal schedule" testId="events-rehearsal-modal" onClose={onClose}>
       <Input label="Rehearsal name" value={form.name} onChange={up('name')} required testid="events-rehearsal-name" />
-      <Input label="Date" type="date" value={form.date} onChange={up('date')} required testid="events-rehearsal-date" />
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">Date *</p>
+        <DatePicker
+          value={(form.date || '').slice(0, 10)}
+          onChange={(iso) => up('date')(iso)}
+          testid="events-rehearsal-date"
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Input label="Start" type="time" value={form.start} onChange={up('start')} testid="events-rehearsal-start" />
         <Input label="End" type="time" value={form.end} onChange={up('end')} testid="events-rehearsal-end" />

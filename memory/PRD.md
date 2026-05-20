@@ -11226,3 +11226,46 @@ the redesigned `AddMemberModal` (Iter 216h200) and member portal
 - `frontend/src/pages/Memberships/MemberEditDrawer.js` (DatePicker import + DOB + Country)
 - `backend/tests/test_iter_216h254_member_drawer_date_consistency.py`
 - `Makefile`
+
+## Iter 216h255 — Memberships module-wide date-field sweep (Feb 20, 2026)
+
+### Scope
+Audit of every remaining native `<input type="date">` in the
+Memberships module. Replaced with the shared DD/MM/YYYY `DatePicker`
+so operators get one consistent date paradigm across every modal and
+drawer.
+
+### Files swept (6 files, 14 native date inputs → 0)
+1. **`PromotionsTab.js`** — promo expiry date. `minDate` clamped to
+   today so operators can't back-date a promotion.
+2. **`StudioBuilderTab.js`** — academic term starts / ends (Ends's
+   `minDate` = Starts).
+3. **`FamilyTab.js`** — sub-profile DOB on the member portal (parent
+   adding a child).
+4. **`InstructorRosterView.js`** — 8 inputs upgraded: payroll
+   range From / To, DOB, DBS issued/expires, safeguarding
+   completed/expires, first-aid completed/expires.
+5. **`EventsTab.js`** — `CreateEventModal` + `RehearsalModal` date
+   fields.
+6. **`modals/PlanEditorModal.js`** — first session date + a brand-new
+   `ExcludedDateAdder` helper component (replaces the brittle
+   `document.getElementById('mbr-excluded-date-picker')` trick that
+   would have broken with multiple modals mounted).
+
+### Verification
+- `tests/test_iter_216h255_memberships_date_sweep.py` — 5/5 passing
+  (no native inputs across swept files, AddMemberModal docstring
+  preserved, ExcludedDateAdder migration, InstructorRoster IDs,
+  promo min-today guard).
+- `make regression` — 137 passed / 14 skipped (up from 132).
+- ESLint clean on all touched files.
+
+### Files changed
+- `frontend/src/pages/Memberships/PromotionsTab.js`
+- `frontend/src/pages/Memberships/StudioBuilderTab.js`
+- `frontend/src/pages/Memberships/FamilyTab.js`
+- `frontend/src/pages/Memberships/InstructorRosterView.js`
+- `frontend/src/pages/Memberships/EventsTab.js`
+- `frontend/src/pages/Memberships/modals/PlanEditorModal.js`
+- `backend/tests/test_iter_216h255_memberships_date_sweep.py`
+- `Makefile`

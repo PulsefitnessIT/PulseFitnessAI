@@ -14,6 +14,7 @@ import {
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { useStudioVocab } from '@/hooks/useStudioVocab';
+import DatePicker from '@/components/shared/DatePicker';
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'child',     label: 'Child' },
@@ -195,8 +196,13 @@ function SubProfileEditor({ API, headers, onClose }) {
               </select>
             </Field>
             <Field label="Date of birth">
-              <input type="date" value={f.dob} onChange={(e) => up('dob')(e.target.value)}
-                className="input" data-testid="member-family-dob" />
+              {/* Iter 216h255 — shared DatePicker for date-field consistency. */}
+              <DatePicker
+                value={(f.dob || '').slice(0, 10)}
+                onChange={(iso) => up('dob')(iso)}
+                maxDate={new Date().toISOString().slice(0, 10)}
+                testid="member-family-dob"
+              />
             </Field>
           </div>
 

@@ -17,6 +17,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';
 import ListPanel from '@/components/shared/ListPanel';
+import DatePicker from '@/components/shared/DatePicker';
 
 const KIND_OPTIONS = [
   { value: 'recurring',  label: 'Memberships' },
@@ -384,10 +385,14 @@ function PromoEditorModal({ API, headers, plans, onClose }) {
                 data-testid="mbr-promo-max-redemptions" />
             </Field>
             <Field label="Expires">
-              <input value={f.valid_until} onChange={(e) => up('valid_until')(e.target.value)}
-                type="date"
-                className="w-full px-3 py-2 rounded-md text-sm border border-[color:var(--theme-border)] bg-transparent focus:outline-none focus:border-[var(--color-brand-cyan)]"
-                data-testid="mbr-promo-valid-until" />
+              {/* Iter 216h255 — shared DatePicker for date-field
+                  consistency across the Memberships module. */}
+              <DatePicker
+                value={(f.valid_until || '').slice(0, 10)}
+                onChange={(iso) => up('valid_until')(iso)}
+                minDate={new Date().toISOString().slice(0, 10)}
+                testid="mbr-promo-valid-until"
+              />
             </Field>
           </div>
 

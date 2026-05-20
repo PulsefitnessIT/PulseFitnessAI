@@ -9,6 +9,7 @@ import { Plus, Edit3, Image as ImageIcon, ExternalLink, Copy, X, Eye, EyeOff, Tr
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { COUNTRIES } from '@/utils/crmDropdowns';
+import DatePicker from '@/components/shared/DatePicker';
 
 const empty = () => ({
   name: '', email: '', phone: '', headline: '', bio: '',
@@ -327,15 +328,12 @@ function PayrollExportModal({ API, headers, onClose }) {
         <div className="grid grid-cols-2 gap-3 mt-2">
           <label className="block">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">From</span>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="w-full h-10 px-3 rounded-lg bg-transparent border border-[color:var(--theme-border)] text-sm"
-              data-testid="mbr-payroll-from" />
+            {/* Iter 216h255 — shared DatePicker for consistency. */}
+            <DatePicker value={from} onChange={(iso) => setFrom(iso)} testid="mbr-payroll-from" />
           </label>
           <label className="block">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-[color:var(--theme-text-muted)] mb-1">To</span>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="w-full h-10 px-3 rounded-lg bg-transparent border border-[color:var(--theme-border)] text-sm"
-              data-testid="mbr-payroll-to" />
+            <DatePicker value={to} onChange={(iso) => setTo(iso)} minDate={from || undefined} testid="mbr-payroll-to" />
           </label>
         </div>
         <div className="flex items-center gap-2 mt-4 flex-wrap">
@@ -592,7 +590,12 @@ function EditorDrawer({ API, headers, initial, onClose }) {
               </div>
 
               <Field label="Date of birth" hint={age !== null ? `Age ${age}` : undefined}>
-                <input type="date" value={(f.dob || '').slice(0, 10)} onChange={(e) => up('dob')(e.target.value)} className={inputClass} data-testid="mbr-instructor-dob" />
+                <DatePicker
+                  value={(f.dob || '').slice(0, 10)}
+                  onChange={(iso) => up('dob')(iso)}
+                  maxDate={new Date().toISOString().slice(0, 10)}
+                  testid="mbr-instructor-dob"
+                />
               </Field>
 
               <div>
@@ -718,10 +721,10 @@ function EditorDrawer({ API, headers, initial, onClose }) {
                     <input type="text" value={f.dbs_reference || ''} onChange={(e) => up('dbs_reference')(e.target.value)} className={inputClass} placeholder="e.g. 001234567890" data-testid="mbr-instructor-dbs-ref" />
                   </Field>
                   <Field label="Issued on">
-                    <input type="date" value={(f.dbs_issued_on || '').slice(0, 10)} onChange={(e) => up('dbs_issued_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-dbs-issued" />
+                    <DatePicker value={(f.dbs_issued_on || '').slice(0, 10)} onChange={(iso) => up('dbs_issued_on')(iso)} testid="mbr-instructor-dbs-issued" />
                   </Field>
                   <Field label="Expires on" span={2}>
-                    <input type="date" value={(f.dbs_expires_on || '').slice(0, 10)} onChange={(e) => up('dbs_expires_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-dbs-expires" />
+                    <DatePicker value={(f.dbs_expires_on || '').slice(0, 10)} onChange={(iso) => up('dbs_expires_on')(iso)} testid="mbr-instructor-dbs-expires" />
                   </Field>
                 </div>
               </div>
@@ -732,10 +735,10 @@ function EditorDrawer({ API, headers, initial, onClose }) {
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Completed on">
-                    <input type="date" value={(f.safeguarding_completed_on || '').slice(0, 10)} onChange={(e) => up('safeguarding_completed_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-sg-completed" />
+                    <DatePicker value={(f.safeguarding_completed_on || '').slice(0, 10)} onChange={(iso) => up('safeguarding_completed_on')(iso)} testid="mbr-instructor-sg-completed" />
                   </Field>
                   <Field label="Expires on">
-                    <input type="date" value={(f.safeguarding_expires_on || '').slice(0, 10)} onChange={(e) => up('safeguarding_expires_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-sg-expires" />
+                    <DatePicker value={(f.safeguarding_expires_on || '').slice(0, 10)} onChange={(iso) => up('safeguarding_expires_on')(iso)} testid="mbr-instructor-sg-expires" />
                   </Field>
                 </div>
               </div>
@@ -746,10 +749,10 @@ function EditorDrawer({ API, headers, initial, onClose }) {
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Completed on">
-                    <input type="date" value={(f.first_aid_completed_on || '').slice(0, 10)} onChange={(e) => up('first_aid_completed_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-fa-completed" />
+                    <DatePicker value={(f.first_aid_completed_on || '').slice(0, 10)} onChange={(iso) => up('first_aid_completed_on')(iso)} testid="mbr-instructor-fa-completed" />
                   </Field>
                   <Field label="Expires on">
-                    <input type="date" value={(f.first_aid_expires_on || '').slice(0, 10)} onChange={(e) => up('first_aid_expires_on')(e.target.value)} className={inputClass} data-testid="mbr-instructor-fa-expires" />
+                    <DatePicker value={(f.first_aid_expires_on || '').slice(0, 10)} onChange={(iso) => up('first_aid_expires_on')(iso)} testid="mbr-instructor-fa-expires" />
                   </Field>
                 </div>
               </div>

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import Button from '@/components/shared/Button';
+import DatePicker from '@/components/shared/DatePicker';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 // 30-minute slots from 06:00 → 22:00 (covers most studios)
@@ -366,11 +367,12 @@ function TermsCard({ terms, activeTermId, showForm, onToggleForm, onCreate, onDe
           </label>
           <label className="block">
             <span className="text-[11px] font-bold opacity-70">Starts</span>
-            <input type="date" value={starts} onChange={(e) => setStarts(e.target.value)} className="w-full px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="studio-builder-term-starts" />
+            {/* Iter 216h255 — shared DatePicker for consistency. */}
+            <DatePicker value={starts} onChange={(iso) => setStarts(iso)} testid="studio-builder-term-starts" />
           </label>
           <label className="block">
             <span className="text-[11px] font-bold opacity-70">Ends</span>
-            <input type="date" value={ends} onChange={(e) => setEnds(e.target.value)} className="w-full px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid="studio-builder-term-ends" />
+            <DatePicker value={ends} onChange={(iso) => setEnds(iso)} minDate={starts || undefined} testid="studio-builder-term-ends" />
           </label>
           <label className="flex items-end gap-2 text-xs">
             <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} data-testid="studio-builder-term-default" />
