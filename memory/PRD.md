@@ -11040,3 +11040,50 @@ Files: `frontend/src/pages/Memberships/MembershipsConsole.js`,
 - `backend/routes/account.py` (slug surfaced)
 - `backend/tests/test_iter_216h250_events_modal_and_polish.py`
 - `Makefile`
+
+## Iter 216h251 — Event bootstrap-from-kind template (Feb 20, 2026)
+
+### Why
+Setting up a dance recital is repetitive: every recital needs a tech
+rehearsal + dress rehearsal, and every active member needs a costume
+tracking row. Forcing the operator to type each of those manually was
+a 15–20 minute slog that killed the trial-experience wow factor.
+
+### What
+- New endpoint **`POST /api/memberships/events/{id}/bootstrap-from-kind`**
+  populates rehearsals + costumes per kind template:
+  - **recital**: tech rehearsal (-7d, 16:00, 120m) + dress rehearsal
+    (-1d, 17:00, 120m) + costume row per active member.
+  - **showcase**: dress rehearsal (-1d, 18:00, 90m) + costume per member.
+  - **competition**: practice run (-14d) + final run-through (-2d) +
+    costume per member.
+  - **workshop** / **camp**: a single prep meeting / welcome briefing,
+    no costumes.
+  - **other**: no template.
+- Idempotent: skips rehearsals whose names already exist on the event
+  (case-insensitive) and skips costume rows for attendees that already
+  exist. Re-running on a populated event is safe.
+- Capped at 500 members so a huge studio can't accidentally flood the
+  costume tracker.
+- Body flags `include_rehearsals` + `include_costumes` allow the
+  operator to opt out of either half from the UI.
+
+### UI
+**CreateEventModal** now shows a "Use {kind} template" checkbox for
+the three templated kinds (recital / showcase / competition), default
+ON. After the event is created the bootstrap endpoint is called
+best-effort (a failure doesn't roll back the event). Success toast
+includes the counts: e.g. "2 rehearsals · 27 costume rows added from template".
+
+### Verification
+- `tests/test_iter_216h251_event_bootstrap_template.py` — 7/7
+  (recital templates, workshop-no-costumes, idempotency, opt-out
+  flags, 404, frontend toggle, endpoint registered).
+- `make regression` — 108 passed / 14 skipped.
+- ESLint + Ruff clean.
+
+### Files changed
+- `backend/routes/memberships/events.py` (bootstrap endpoint + templates)
+- `frontend/src/pages/Memberships/EventsTab.js` (template toggle in CreateEventModal)
+- `backend/tests/test_iter_216h251_event_bootstrap_template.py`
+- `Makefile`

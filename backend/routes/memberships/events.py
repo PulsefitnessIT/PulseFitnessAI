@@ -205,6 +205,192 @@ async def archive_event(event_id: str, user=Depends(get_current_user)):
 
 
 # ─────────────────────────────────────────────────────────────────
+# Bootstrap from kind (Iter 216h251)
+# ─────────────────────────────────────────────────────────────────
+#
+# Auto-populate a brand-new event with the rehearsals + costume rows a
+# typical studio expects for that event kind. Saves a dance-studio
+# operator 15–20 minutes of typing on every recital. Idempotent on the
+# rehearsal+costume keys: re-running on a populated event is a no-op
+# (skip rehearsal names that already exist; skip costume rows for
+# attendees that already exist for the event).
+
+# Each kind's template: a list of rehearsals (relative to the event's
+# starts_at) + whether costume rows should be auto-created for every
+# active member of the org.
+_KIND_TEMPLATES: dict[str, dict] = {
+    "recital": {
+        "rehearsals": [
+            {"name": "Tech rehearsal", "offset_days": -7, "start_hhmm": "16:00", "duration_minutes": 120},
+            {"name": "Dress rehearsal", "offset_days": -1, "start_hhmm": "17:00", "duration_minutes": 120},
+        ],
+        "auto_costumes": True,
+        "default_costume_name": "Recital costume — TBC",
+    },
+    "showcase": {
+        "rehearsals": [
+            {"name": "Dress rehearsal", "offset_days": -1, "start_hhmm": "18:00", "duration_minutes": 90},
+        ],
+        "auto_costumes": True,
+        "default_costume_name": "Showcase outfit — TBC",
+    },
+    "competition": {
+        "rehearsals": [
+            {"name": "Practice run", "offset_days": -14, "start_hhmm": "16:00", "duration_minutes": 120},
+            {"name": "Final run-through", "offset_days": -2, "start_hhmm": "17:00", "duration_minutes": 120},
+        ],
+        "auto_costumes": True,
+        "default_costume_name": "Competition costume — TBC",
+    },
+    "workshop": {
+        "rehearsals": [
+            {"name": "Prep meeting", "offset_days": -3, "start_hhmm": "10:00", "duration_minutes": 30},
+        ],
+        "auto_costumes": False,
+        "default_costume_name": "",
+    },
+    "camp": {
+        "rehearsals": [
+            {"name": "Welcome briefing", "offset_days": 0, "start_hhmm": "09:00", "duration_minutes": 30},
+        ],
+        "auto_costumes": False,
+        "default_costume_name": "",
+    },
+    "other": {
+        "rehearsals": [],
+        "auto_costumes": False,
+        "default_costume_name": "",
+    },
+}
+
+
+class BootstrapIn(BaseModel):
+    # Reserved for future toggles (e.g. opt-out of costumes). Empty body
+    # is fine — defaults match the kind's template.
+    include_rehearsals: bool = True
+    include_costumes: bool = True
+
+
+@router.post(
+    "/memberships/events/{event_id}/bootstrap-from-kind",
+    dependencies=[Depends(require_module("memberships"))],
+)
+async def bootstrap_event_from_kind(
+    event_id: str,
+    body: BootstrapIn = Body(default=BootstrapIn()),
+    user=Depends(get_current_user),
+):
+    """Populate default rehearsals + costume rows based on the event's
+    kind. Returns counts of items created. Safe to call multiple times.
+    """
+    org_id = await _require_operator_org(user)
+    event = await db.studio_events.find_one(
+        {"id": event_id, "organization_id": org_id}, {"_id": 0},
+    )
+    if not event:
+        raise HTTPException(404, "Event not found")
+
+    kind = event.get("kind") or "other"
+    template = _KIND_TEMPLATES.get(kind, _KIND_TEMPLATES["other"])
+
+    try:
+        starts = datetime.fromisoformat(str(event["starts_at"]).replace("Z", "+00:00"))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(400, "Event has an invalid starts_at") from exc
+
+    from datetime import timedelta
+
+    rehearsals_created = 0
+    rehearsals_skipped = 0
+    if body.include_rehearsals:
+        # Existing rehearsal names so we don't duplicate on re-runs.
+        existing_names = {
+            r.get("name", "").strip().lower()
+            async for r in db.event_rehearsals.find(
+                {"event_id": event_id, "organization_id": org_id},
+                {"_id": 0, "name": 1},
+            )
+        }
+        for r in template["rehearsals"]:
+            if r["name"].strip().lower() in existing_names:
+                rehearsals_skipped += 1
+                continue
+            try:
+                hh, mm = (int(x) for x in r["start_hhmm"].split(":"))
+            except (ValueError, AttributeError):
+                hh, mm = 17, 0
+            r_start = (starts + timedelta(days=r["offset_days"])).replace(
+                hour=hh, minute=mm, second=0, microsecond=0,
+            )
+            r_end = r_start + timedelta(minutes=int(r["duration_minutes"]))
+            await db.event_rehearsals.insert_one({
+                "id": _uuid(),
+                "organization_id": org_id,
+                "event_id": event_id,
+                "name": r["name"],
+                "starts_at": r_start.isoformat(),
+                "ends_at": r_end.isoformat(),
+                "room": "",
+                "notes": "Auto-generated from event template — edit anytime.",
+                "created_at": _now_iso(),
+                "auto_generated": True,
+            })
+            rehearsals_created += 1
+
+    costumes_created = 0
+    costumes_skipped = 0
+    if body.include_costumes and template.get("auto_costumes"):
+        # Active org members, capped at 500 so a huge studio doesn't
+        # accidentally drown the costume tracker.
+        members = await db.members.find(
+            {"organization_id": org_id, "status": {"$ne": "archived"}},
+            {"_id": 0, "id": 1, "first_name": 1, "last_name": 1},
+        ).limit(500).to_list(500)
+
+        # Existing attendee_name set (case-insensitive) so we don't
+        # double-add rows on re-runs.
+        existing_attendees = {
+            (c.get("attendee_name") or "").strip().lower()
+            async for c in db.event_costumes.find(
+                {"event_id": event_id, "organization_id": org_id},
+                {"_id": 0, "attendee_name": 1},
+            )
+        }
+        default_costume = template.get("default_costume_name") or "Costume — TBC"
+        for m in members:
+            attendee = f"{m.get('first_name', '').strip()} {m.get('last_name', '').strip()}".strip()
+            if not attendee or attendee.lower() in existing_attendees:
+                costumes_skipped += 1
+                continue
+            await db.event_costumes.insert_one({
+                "id": _uuid(),
+                "organization_id": org_id,
+                "event_id": event_id,
+                "member_id": m.get("id"),
+                "sub_profile_id": None,
+                "attendee_name": attendee,
+                "costume_name": default_costume,
+                "size": "",
+                "notes": "",
+                "total_pence": 0,
+                "paid_pence": 0,
+                "status": "needed",
+                "created_at": _now_iso(),
+                "auto_generated": True,
+            })
+            costumes_created += 1
+
+    return {
+        "ok": True,
+        "kind": kind,
+        "rehearsals_created": rehearsals_created,
+        "rehearsals_skipped": rehearsals_skipped,
+        "costumes_created": costumes_created,
+        "costumes_skipped": costumes_skipped,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────
 # Rehearsals
 # ─────────────────────────────────────────────────────────────────
 

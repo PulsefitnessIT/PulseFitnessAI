@@ -471,8 +471,15 @@ function CreateEventModal({ API, auth, onClose, onCreated }) {
     date: '', start: '18:00', end: '20:00',
     venue: '', ticket_price: '15', capacity: '0',
   });
+  // Iter 216h251 — auto-populate rehearsals & costumes for the picked
+  // kind. Default ON for kinds that benefit (recital / showcase /
+  // competition). Operator can untick before saving.
+  const [useTemplate, setUseTemplate] = useState(true);
   const [saving, setSaving] = useState(false);
   const up = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const templatedKinds = new Set(['recital', 'showcase', 'competition']);
+  const templateApplies = templatedKinds.has(form.kind);
 
   const submit = async () => {
     if (!form.name.trim()) { notify.error('Event name required'); return; }
@@ -489,8 +496,32 @@ function CreateEventModal({ API, auth, onClose, onCreated }) {
         ticket_price_pence: Math.round((parseFloat(form.ticket_price) || 0) * 100),
         ticket_capacity: parseInt(form.capacity, 10) || 0,
       }, auth);
-      notify.success('Event created');
-      onCreated?.(r.data?.id);
+      const newId = r.data?.id;
+
+      // Iter 216h251 — bootstrap from kind. Best-effort: a failure here
+      // doesn't roll back the event itself — the operator can add
+      // rehearsals/costumes manually if the template call fails.
+      if (newId && useTemplate && templateApplies) {
+        try {
+          const b = await axios.post(
+            `${API}/memberships/events/${newId}/bootstrap-from-kind`,
+            { include_rehearsals: true, include_costumes: true },
+            auth,
+          );
+          const rc = b.data?.rehearsals_created ?? 0;
+          const cc = b.data?.costumes_created ?? 0;
+          if (rc || cc) {
+            notify.success('Event created', `${rc} rehearsal${rc === 1 ? '' : 's'} · ${cc} costume row${cc === 1 ? '' : 's'} added from template`);
+          } else {
+            notify.success('Event created');
+          }
+        } catch {
+          notify.success('Event created');
+        }
+      } else {
+        notify.success('Event created');
+      }
+      onCreated?.(newId);
     } catch (e) {
       notify.error('Create failed', e?.response?.data?.detail || e.message);
     } finally { setSaving(false); }
@@ -512,6 +543,23 @@ function CreateEventModal({ API, auth, onClose, onCreated }) {
         <Input label="Ticket price (£)" type="number" value={form.ticket_price} onChange={up('ticket_price')} testid="events-create-price" hint="0 for free" />
         <Input label="Ticket capacity" type="number" value={form.capacity} onChange={up('capacity')} testid="events-create-capacity" hint="0 = unlimited" />
       </div>
+      {templateApplies && (
+        <label className="flex items-start gap-2 rounded-lg p-3 border" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface-hover)' }} data-testid="events-create-template-row">
+          <input
+            type="checkbox"
+            checked={useTemplate}
+            onChange={(e) => setUseTemplate(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[color:var(--color-brand-cyan)]"
+            data-testid="events-create-template"
+          />
+          <span className="text-xs" style={{ color: 'var(--theme-text)' }}>
+            <strong>Use {form.kind} template</strong>
+            <span className="block text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
+              Pre-fill rehearsals (e.g. tech + dress) and add a costume row for every active member. You can edit or delete any of them after.
+            </span>
+          </span>
+        </label>
+      )}
       <ModalActions onCancel={onClose} onSave={submit} saving={saving} testId="events-create-submit" />
     </ModalShell>
   );
