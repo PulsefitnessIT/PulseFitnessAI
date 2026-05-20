@@ -72,13 +72,21 @@ const ListPanel = ({
   // The empty state should only render when the caller signals it AND
   // there are no rows. We don't auto-count children because callers
   // sometimes pass conditional render trees that yield non-row content.
+  // Iter 216h243 — title + subtitle suppression. The platform-wide
+  // audit (user prod review) flagged sub-page H1+description blocks
+  // as redundant — the parent tab pill already names the section.
+  // Suppressed unconditionally here so every Memberships sub-tab that
+  // uses ListPanel collapses its header gap in one place. The
+  // `title`/`subtitle` props are kept on the API so callers don't need
+  // edits and a future toggle can re-expose them if needed.
+  const showTitleBlock = false;
   const showEmpty = empty?.when && !loading;
-  const hasToolbar = title || subtitle || search || count || secondaryActions.length > 0 || primaryAction || toolbarRight;
+  const hasToolbar = search || count || secondaryActions.length > 0 || primaryAction || toolbarRight;
 
   return (
     <div className={`space-y-3 ${className}`} {...rest}>
-      {/* Title + subtitle */}
-      {(title || subtitle) && (
+      {/* Title + subtitle — Iter 216h243: suppressed platform-wide. */}
+      {showTitleBlock && (title || subtitle) && (
         <div>
           {title && <h2 className="text-base font-bold tracking-tight" style={{ color: 'var(--theme-text)' }}>{title}</h2>}
           {subtitle && <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{subtitle}</p>}

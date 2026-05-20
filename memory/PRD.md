@@ -1,3 +1,81 @@
+## Iter 216h243 — Sub-header platform sweep + custom staff roles (Feb 19, 2026) ✅ P0 + P1
+
+User ask (verbatim): *"CRM - I'm still seeing sub headers in preview?
+And a big gap in between the option bar and fields / Sub headers are
+running throughout the whole platform - we don't need sub headers.
+Please audit and remove them - ensure the space in between the options
+bar and where the information fields are, are all the same design /
+Staffing - We need the ability to add different staff roles - within
+HR and the staff account?"*
+
+### Sub-header platform sweep
+
+- **Memberships sub-tabs** — All sub-tabs use the shared
+  `<ListPanel>` wrapper. Suppressed the title + subtitle render
+  block in **one place**
+  (`components/shared/ListPanel.js`) by hard-coding
+  `showTitleBlock = false`. Props remain on the API for back-compat;
+  a future toggle could re-expose them. **One edit, ~10 tabs collapsed.**
+- **CRM Territories** (`pages/CRM/CRMTerritories.js`) — removed H1
+  "Territory & coverage" + description. Header collapsed to
+  right-aligned actions. Padding tightened `py-6 space-y-6` →
+  `py-3 space-y-3`.
+- **CRM Forecast** (`pages/CRM/CRMForecast.js`) — removed H1
+  "Forecast & quotas" + 3-variant description. Same padding tighten.
+- **CRM Reports** (`pages/CRM/CRMReports.js`) — removed H1
+  "Reports & analytics" + description. Same padding tighten.
+
+Net effect: each sub-tab now sits flush under the tab pill bar with
+consistent `py-3 space-y-3` rhythm. The user's "big gap" between
+options bar and content is closed.
+
+### Custom staff roles
+
+Backend (`routes/staffing.py`):
+- **Helper `_allowed_roles_for(org_id)`** — async, unions platform
+  defaults (`VALID_ROLES`) with `organizations.custom_staff_roles[]`.
+- **`GET /api/staffing/roles`** — returns `{platform_defaults, custom, all}`.
+  The dropdown UIs consume `all`.
+- **`POST /api/staffing/roles {role}`** — manager-only. Trims whitespace,
+  enforces ≤60 chars, rejects collisions with platform defaults
+  (409) and case-insensitive duplicates of existing custom roles (409).
+  Persists to `organizations.custom_staff_roles`.
+- **`DELETE /api/staffing/roles/{role}`** — manager-only. Refuses
+  to remove a platform default (400). Existing `staff_members` rows
+  carrying the deleted role are left untouched (historical data
+  integrity) — only the dropdown stops offering it.
+- `create_staff` + `update_staff` now validate `primary_role` against
+  `_allowed_roles_for(org_id)` (was hard-coded `VALID_ROLES`).
+
+Frontend:
+- **Add Staff dialog** (`StaffingConsole.js StaffTab`) — role select
+  fetches from `/staffing/roles` on mount. Includes `+ Add new
+  role…` option. Selecting it pops an inline input; submit POSTs to
+  `/staffing/roles`, refreshes the dropdown, and auto-selects the
+  newly-added role. `Enter` saves, `Escape` cancels.
+- **HR profile** (`HRTab.js`) — added an editable **Primary role**
+  field in the Employment section with the same dynamic dropdown +
+  `+ Add new role…` UX. Persisted via the dedicated staff PATCH
+  route (since `primary_role` is a core staff field, not in HR's
+  PROFILE_FIELDS whitelist).
+
+### Verification
+- 9 new regression tests in
+  `tests/test_iter_216h243_subheaders_and_custom_roles.py` —
+  ListPanel suppression, CRM sub-page H1 removal, endpoint
+  registration, helper existence, create_staff + update_staff using
+  the dynamic helper, role-validation paths, dropdown wiring,
+  HR profile field.
+- `make regression` → **73 passed, 14 skipped** (was 64 → 73).
+- `ruff check .` + `yarn eslint src --max-warnings 0` clean.
+- `make lint-integrations` PASS.
+- Live curl: `GET /api/staffing/roles` → 9 platform defaults; `POST` with
+  duplicate of platform default `reception` → **409**; cross-org
+  custom-role create + dedupe path verified via unit test.
+
+---
+
+
 ## Iter 216h242 — Staffing & CRM polish round 2 (Feb 19, 2026) ✅ P0 bugfix batch
 
 User ask (verbatim): *"Remove the little symbols too / Add staff -

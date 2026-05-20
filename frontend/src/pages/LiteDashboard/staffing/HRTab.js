@@ -69,6 +69,33 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
   }, [staffId, headers]);
   useEffect(() => { load(); }, [load]);
 
+  // Iter 216h243 — dynamic role list for the Primary role field below.
+  // Mirrors the Add Staff dialog (StaffingConsole) — same endpoint.
+  const DEFAULT_ROLES = useMemo(() => ['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'], []);
+  const [roleOptions, setRoleOptions] = useState(DEFAULT_ROLES);
+  const [addingRole, setAddingRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
+  const loadRoles = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/staffing/roles`, { headers });
+      if (Array.isArray(data?.all) && data.all.length) setRoleOptions(data.all);
+    } catch { /* best-effort */ }
+  }, [headers]);
+  useEffect(() => { loadRoles(); }, [loadRoles]);
+  const submitNewRole = async () => {
+    const name = (newRoleName || '').trim();
+    if (!name) { setAddingRole(false); return; }
+    try {
+      await axios.post(`${API}/staffing/roles`, { role: name }, { headers });
+      setNewRoleName('');
+      setAddingRole(false);
+      await loadRoles();
+      set('primary_role', name);
+    } catch (err) {
+      window.alert(err.response?.data?.detail || 'Could not add role');
+    }
+  };
+
   // One-shot site directory load. Stays warm for the whole session.
   useEffect(() => {
     let cancelled = false;
@@ -112,10 +139,15 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
       // (StaffUpdate model) not in the HR PROFILE_FIELDS whitelist, so
       // ship it via the dedicated endpoint. Best-effort: a failure here
       // shouldn't block the HR profile save above.
-      if (Array.isArray(form.site_ids)) {
+      // Iter 216h243 — also ship primary_role via the same route since
+      // it's a core staff field, not an HR profile field.
+      const staffPatch = {};
+      if (Array.isArray(form.site_ids)) staffPatch.site_ids = form.site_ids;
+      if (form.primary_role && form.primary_role !== profile.primary_role) staffPatch.primary_role = form.primary_role;
+      if (Object.keys(staffPatch).length > 0) {
         try {
-          await axios.patch(`${API}/staffing/staff/${staffId}`, { site_ids: form.site_ids }, { headers });
-        } catch (siteErr) { window.alert(siteErr.response?.data?.detail || 'Site allocation save failed'); }
+          await axios.patch(`${API}/staffing/staff/${staffId}`, staffPatch, { headers });
+        } catch (siteErr) { window.alert(siteErr.response?.data?.detail || 'Role / site allocation save failed'); }
       }
       setEditing(false);
       load();
@@ -208,6 +240,48 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
         </datalist>
 
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>Employment</p>
+        {/* Iter 216h243 — Primary role editable from HR with dynamic
+            org-custom roles. Persisted via the staff PATCH route (same
+            as site_ids below) since primary_role isn't an HR-only
+            field in PROFILE_FIELDS. */}
+        <div className="flex flex-col gap-1" data-testid="hr-primary-role-field">
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Primary role</span>
+          {editing ? (addingRole ? (
+            <div className="flex gap-1">
+              <input
+                autoFocus
+                type="text"
+                maxLength={60}
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="e.g. Swim coach"
+                className="flex-1 h-8 rounded-md bg-transparent border px-2 text-sm"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                onKeyDown={(e) => { if (e.key === 'Enter') submitNewRole(); if (e.key === 'Escape') { setAddingRole(false); setNewRoleName(''); } }}
+                data-testid="hr-primary-role-new-input"
+              />
+              <button type="button" onClick={submitNewRole} className="text-xs font-semibold px-2 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="hr-primary-role-new-save">Add</button>
+              <button type="button" onClick={() => { setAddingRole(false); setNewRoleName(''); }} className="text-xs px-2 rounded-md border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-primary-role-new-cancel">×</button>
+            </div>
+          ) : (
+            <select
+              value={form.primary_role || ''}
+              onChange={(e) => {
+                if (e.target.value === '__add_new__') { setAddingRole(true); return; }
+                set('primary_role', e.target.value);
+              }}
+              className="h-8 rounded-md bg-transparent border px-2 text-sm"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-primary-role"
+            >
+              {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+              <option value="__add_new__">+ Add new role…</option>
+            </select>
+          )) : (
+            <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.primary_role || '—'}</span>
+          )}
+        </div>
+
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Contract type</span>
           {editing ? (

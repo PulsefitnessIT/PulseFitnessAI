@@ -94,16 +94,11 @@ export default function CRMTerritories() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6" data-testid="crm-territories-page">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          {/* Iter 216h242 — "Enterprise CRM" eyebrow removed. */}
-          <h1 className="text-2xl md:text-3xl font-extrabold" style={{ color: 'var(--theme-text)' }}>Territory & coverage</h1>
-          <p className="text-sm text-[color:var(--theme-text-muted)] max-w-2xl mt-1">
-            Define geographic coverage areas, assign sales reps, and auto-route new contacts, companies, and opportunities to the right owner using round-robin.
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <div className="max-w-6xl mx-auto px-4 py-3 space-y-3" data-testid="crm-territories-page">
+      {/* Iter 216h243 — H1 + description removed (platform-wide
+          sub-header sweep). Header collapsed to a right-aligned
+          actions bar so the content sits flush under the tab pills. */}
+      <header className="flex flex-wrap items-center justify-end gap-2">
           <button onClick={() => runAutoAssign(true)} disabled={running} className="px-3 py-2 rounded-lg text-sm font-bold border border-[color:var(--theme-border)] inline-flex items-center gap-1.5" data-testid="auto-assign-dry" type="button">
             <PlayCircle size={14} /> Preview
           </button>
@@ -113,7 +108,6 @@ export default function CRMTerritories() {
           <button onClick={handleNew} className="px-3 py-2 rounded-lg text-sm font-extrabold text-white inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue)' }} data-testid="new-territory" type="button">
             <Plus size={14} /> New territory
           </button>
-        </div>
       </header>
 
       <section className="grid md:grid-cols-2 gap-6">

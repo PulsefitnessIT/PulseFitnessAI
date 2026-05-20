@@ -485,14 +485,40 @@ function StaffTab({ headers }) {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' });
   const [showAdd, setShowAdd] = useState(false);
+  // Iter 216h243 — dynamic role list. Platform defaults + custom roles
+  // come from `GET /staffing/roles` so operators can manage org-specific
+  // roles (e.g. "swim coach", "spa therapist") without redeploys.
+  const DEFAULT_ROLES = useMemo(() => ['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'], []);
+  const [roleOptions, setRoleOptions] = useState(DEFAULT_ROLES);
+  const [addingRole, setAddingRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
+  const loadRoles = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/staffing/roles`, { headers });
+      if (Array.isArray(data?.all) && data.all.length) setRoleOptions(data.all);
+    } catch { /* best-effort — fall back to defaults */ }
+  }, [headers]);
   const load = useCallback(async () => {
     const r = await axios.get(`${API}/staffing/staff`, { headers });
     setRows(r.data.staff || []);
   }, [headers]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadRoles(); }, [load, loadRoles]);
   const save = async () => {
     try { await axios.post(`${API}/staffing/staff`, form, { headers }); setShowAdd(false); setForm({ full_name: '', email: '', primary_role: 'reception', hourly_cost: 0, hours_per_week: 0, contract_type: 'part_time' }); load(); }
     catch (err) { alert(err.response?.data?.detail || 'Failed'); }
+  };
+  const submitNewRole = async () => {
+    const name = (newRoleName || '').trim();
+    if (!name) { setAddingRole(false); return; }
+    try {
+      await axios.post(`${API}/staffing/roles`, { role: name }, { headers });
+      setNewRoleName('');
+      setAddingRole(false);
+      await loadRoles();
+      setForm((f) => ({ ...f, primary_role: name }));
+    } catch (err) {
+      window.alert(err.response?.data?.detail || 'Could not add role');
+    }
   };
   const archive = async (id) => { if (!window.confirm('Archive staff?')) return; await axios.delete(`${API}/staffing/staff/${id}`, { headers }); load(); };
 
@@ -564,9 +590,38 @@ function StaffTab({ headers }) {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Primary role</label>
-                  <select value={form.primary_role} onChange={(e) => setForm({ ...form, primary_role: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="staff-add-role">
-                    {['reception','instructor','pt','manager','cleaner','maintenance','lifeguard','duty_manager','other'].map((r) => <option key={r}>{r}</option>)}
-                  </select>
+                  {addingRole ? (
+                    <div className="flex gap-1" data-testid="staff-add-role-new">
+                      <input
+                        autoFocus
+                        type="text"
+                        maxLength={60}
+                        value={newRoleName}
+                        onChange={(e) => setNewRoleName(e.target.value)}
+                        placeholder="e.g. Swim coach"
+                        className="flex-1 rounded-lg px-3 py-2 text-sm border"
+                        style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') submitNewRole(); if (e.key === 'Escape') { setAddingRole(false); setNewRoleName(''); } }}
+                        data-testid="staff-add-role-new-input"
+                      />
+                      <button type="button" onClick={submitNewRole} className="text-xs font-semibold px-3 py-1 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-add-role-new-save">Add</button>
+                      <button type="button" onClick={() => { setAddingRole(false); setNewRoleName(''); }} className="text-xs px-2 py-1 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="staff-add-role-new-cancel">×</button>
+                    </div>
+                  ) : (
+                    <select
+                      value={form.primary_role}
+                      onChange={(e) => {
+                        if (e.target.value === '__add_new__') { setAddingRole(true); return; }
+                        setForm({ ...form, primary_role: e.target.value });
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-sm border"
+                      style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                      data-testid="staff-add-role"
+                    >
+                      {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                      <option value="__add_new__">+ Add new role…</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Contract type</label>

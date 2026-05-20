@@ -409,22 +409,11 @@ export default function CRMForecast() {
   const isAccuracyView = view === 'accuracy';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-5" data-testid="crm-forecast-page">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          {/* Iter 216h242 — "Enterprise CRM" eyebrow removed per user
-              production review. The H1 alone is enough orientation. */}
-          <h1 className="text-2xl md:text-3xl font-extrabold" style={{ color: 'var(--theme-text)' }}>
-            {isAccuracyView ? 'Forecast accuracy' : (isTeamView ? 'Manager forecast review' : 'Forecast & quotas')}
-          </h1>
-          <p className="text-sm opacity-70 max-w-2xl mt-1">
-            {isAccuracyView
-              ? 'Snapshot the period, then score each rep on how close their (or your) commit-call landed to the actual closed-won number.'
-              : isTeamView
-              ? "Your team's commits in one place. Click 'Set call' on any rep to override the system commit with the number you'll defend in the forecast review."
-              : 'Track per-rep attainment with the classic Pipeline → Best case → Commit → Closed-won progression. Click any quota to edit.'}
-          </p>
-        </div>
+    <div className="max-w-6xl mx-auto px-4 py-3 space-y-3" data-testid="crm-forecast-page">
+      {/* Iter 216h243 — H1 + description removed (platform-wide
+          sub-header sweep). The Forecast tab pill above already
+          identifies this page. */}
+      <header className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex rounded-lg border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }} data-testid="forecast-view-toggle">
             <button

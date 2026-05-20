@@ -136,6 +136,22 @@ VALID_LEAVE_STATUS = {"pending", "approved", "rejected", "cancelled"}
 VALID_SWAP_STATUS = {"pending", "accepted", "rejected", "cancelled"}
 
 
+# Iter 216h243 — custom staff roles per organization. Tenants asked
+# for the ability to add roles beyond the platform defaults
+# (e.g. "swim coach", "first aider", "spa therapist"). Stored on
+# ``organizations.custom_staff_roles[]`` as plain string list and
+# blended into ``VALID_ROLES`` on every validation call.
+async def _allowed_roles_for(org_id: str | None) -> set[str]:
+    """Union of platform defaults and the org's custom_staff_roles."""
+    if not org_id:
+        return set(VALID_ROLES)
+    org = await db.organizations.find_one(
+        {"id": org_id}, {"_id": 0, "custom_staff_roles": 1},
+    )
+    custom = (org or {}).get("custom_staff_roles") or []
+    return set(VALID_ROLES) | {r.strip() for r in custom if isinstance(r, str) and r.strip()}
+
+
 class StaffCreate(BaseModel):
     full_name: str
     email: str | None = None
@@ -330,9 +346,10 @@ async def _ensure_staff_for_org_users(org_id: str) -> int:
 @router.post("/staffing/staff")
 async def create_staff(body: StaffCreate, user: dict = Depends(get_current_user)):
     _require_manager(user)
-    if body.primary_role not in VALID_ROLES:
-        raise HTTPException(400, f"primary_role must be one of {sorted(VALID_ROLES)}")
     org_id = _org(user)
+    allowed = await _allowed_roles_for(org_id)
+    if body.primary_role not in allowed:
+        raise HTTPException(400, f"primary_role must be one of {sorted(allowed)}")
     doc = {
         "id": str(uuid4()),
         "organization_id": org_id,
@@ -358,8 +375,10 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
     _require_manager(user)
     org_id = _org(user)
     patch = {k: v for k, v in body.dict().items() if v is not None}
-    if "primary_role" in patch and patch["primary_role"] not in VALID_ROLES:
-        raise HTTPException(400, "invalid primary_role")
+    if "primary_role" in patch:
+        allowed = await _allowed_roles_for(org_id)
+        if patch["primary_role"] not in allowed:
+            raise HTTPException(400, "invalid primary_role")
     # Iter 216h241 — see create_staff: keep both contracted-hours keys
     # in lock-step so the HR profile and the staff list never disagree.
     if "hours_per_week" in patch and "weekly_hours" not in patch:
@@ -1560,3 +1579,89 @@ async def workforce_dashboard(user: dict = Depends(get_current_user)):
         "open_shifts": open_shifts,
         "compliance": {"count": len(conflicts_list), "top": top_conflicts},
     }
+
+
+
+# ╔════════════════════════════════════════════════════════════════╗
+# ║  Iter 216h243 — Custom staff roles                             ║
+# ║                                                                ║
+# ║  Org-scoped extensions to the platform default ``VALID_ROLES`` ║
+# ║  set. Backed by ``organizations.custom_staff_roles[]``.        ║
+# ╚════════════════════════════════════════════════════════════════╝
+
+@router.get("/staffing/roles")
+async def list_staff_roles(user: dict = Depends(get_current_user)):
+    """Return platform-default + org-custom staff roles.
+
+    Frontend dropdowns (Add Staff, HR profile) consume this to render
+    the full role list dynamically.
+    """
+    org_id = _org(user)
+    allowed = sorted(await _allowed_roles_for(org_id))
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "custom_staff_roles": 1})
+    custom = [r for r in ((org or {}).get("custom_staff_roles") or []) if isinstance(r, str) and r.strip()]
+    return {
+        "platform_defaults": sorted(VALID_ROLES),
+        "custom": sorted(set(custom)),
+        "all": allowed,
+    }
+
+
+class StaffRoleAdd(BaseModel):
+    role: str
+
+
+@router.post("/staffing/roles")
+async def add_staff_role(body: StaffRoleAdd, user: dict = Depends(get_current_user)):
+    """Add a custom staff role to the current org.
+
+    Manager / admin only. Normalises whitespace and rejects duplicates
+    of platform defaults (case-insensitive).
+    """
+    _require_manager(user)
+    org_id = _org(user)
+    if not org_id:
+        raise HTTPException(400, "organization scope required")
+    name = (body.role or "").strip()
+    if not name:
+        raise HTTPException(400, "role name required")
+    if len(name) > 60:
+        raise HTTPException(400, "role name too long (max 60)")
+    # Reject collision with platform defaults (case-insensitive).
+    if name.lower() in {r.lower() for r in VALID_ROLES}:
+        raise HTTPException(409, f"'{name}' is already a platform default")
+    # Read current list, dedupe, persist.
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "custom_staff_roles": 1})
+    existing = (org or {}).get("custom_staff_roles") or []
+    if any((r or "").lower() == name.lower() for r in existing):
+        raise HTTPException(409, f"'{name}' already exists")
+    new_list = [*existing, name]
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {"custom_staff_roles": new_list, "updated_at": _now().isoformat()}},
+    )
+    return {"role": name, "custom": sorted(set(new_list))}
+
+
+@router.delete("/staffing/roles/{role}")
+async def delete_staff_role(role: str, user: dict = Depends(get_current_user)):
+    """Remove a custom staff role. Platform defaults can't be removed.
+
+    Note: existing ``staff_members`` rows that carry the deleted role
+    are left untouched — they keep the historical label so payroll and
+    HR records stay correct. Only the dropdown stops offering it.
+    """
+    _require_manager(user)
+    org_id = _org(user)
+    if role.lower() in {r.lower() for r in VALID_ROLES}:
+        raise HTTPException(400, "cannot delete a platform default role")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "custom_staff_roles": 1})
+    existing = (org or {}).get("custom_staff_roles") or []
+    new_list = [r for r in existing if (r or "").lower() != role.lower()]
+    if len(new_list) == len(existing):
+        raise HTTPException(404, "role not found")
+    await db.organizations.update_one(
+        {"id": org_id},
+        {"$set": {"custom_staff_roles": new_list, "updated_at": _now().isoformat()}},
+    )
+    return {"removed": role, "custom": sorted(set(new_list))}

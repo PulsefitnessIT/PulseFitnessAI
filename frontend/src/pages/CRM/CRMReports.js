@@ -264,15 +264,10 @@ export default function CRMReports() {
   const filtered = useMemo(() => REPORTS.filter(r => category === 'All' || r.category === category), [category]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6" data-testid="crm-reports-page">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          {/* Iter 216h242 — "Enterprise CRM" eyebrow removed. */}
-          <h1 className="text-2xl md:text-3xl font-extrabold" style={{ color: 'var(--theme-text)' }}>Reports & analytics</h1>
-          <p className="text-sm text-[color:var(--theme-text-muted)] max-w-2xl mt-1">
-            Pipeline health, quote conversion, margin distribution, win/loss reasons, salesperson leaderboard, and GDPR consent posture — aggregated live, with per-report date ranges.
-          </p>
-        </div>
+    <div className="max-w-6xl mx-auto px-4 py-3 space-y-3" data-testid="crm-reports-page">
+      {/* Iter 216h243 — H1 + description removed (platform-wide
+          sub-header sweep). */}
+      <header className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex flex-wrap gap-1.5">
           {categories.map(c => (
             <button
