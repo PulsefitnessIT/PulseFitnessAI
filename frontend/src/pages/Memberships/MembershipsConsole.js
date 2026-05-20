@@ -1068,10 +1068,15 @@ function RecordPaymentModal({ API, headers, memberId, plan, onClose }) {
  * "Rebuild term" action in the builder can kick back to the timetable.
  */
 function SchedulingHubTab({ API, headers, activeTabHint, _onSetTab }) {
+  // Iter 216h246 — default to "Weekly builder" and reorder pills so it
+  // sits first (was timetable-first). Matches the user's workflow:
+  // most operators build the week first, then verify on the timetable
+  // and edit individual class templates in "All classes".
   const initialView =
     activeTabHint === 'studio-builder' ? 'builder' :
     activeTabHint === 'classes' ? 'classes' :
-    'timetable';
+    activeTabHint === 'timetable' ? 'timetable' :
+    'builder';
   const [view, setView] = useState(initialView);
   // Keep the sub-pill in sync when the parent routes a deep-link change
   // while the hub is already mounted (e.g. clicking "Studio Builder" CTA
@@ -1079,9 +1084,10 @@ function SchedulingHubTab({ API, headers, activeTabHint, _onSetTab }) {
   useEffect(() => { setView(initialView); }, [initialView]);
 
   const pills = [
-    { id: 'timetable', label: 'Timetable',       icon: Calendar,    hint: 'This week' },
+    // Iter 216h246 — reorder: Weekly builder → All classes → Timetable.
     { id: 'builder',   label: 'Weekly builder',  icon: Wand2,       hint: 'Drag classes onto the grid' },
     { id: 'classes',   label: 'All classes',     icon: Dumbbell,    hint: 'List + bulk edit' },
+    { id: 'timetable', label: 'Timetable',       icon: Calendar,    hint: 'This week' },
   ];
 
   return (
