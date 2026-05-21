@@ -11361,3 +11361,38 @@ The "Invoice this quote" button only appeared once a quote was marked `accepted`
 - `frontend/src/routes/AppRoutes.js` (new route)
 - `backend/tests/test_iter_216h257_engineer_dashboard_uploads_reports.py`
 - `Makefile`
+
+## Iter 216h258 — Email pipeline shows all senders (Feb 21, 2026)
+
+### User feedback
+"Master admin — can email pipeline include all email addresses.
+Support, billing, service etc"
+
+### Fix
+`GET /api/master-admin/email-health` now returns a `senders` array
+aggregated from the rolling 24h `email_send_events` window. Each row
+exposes: address, sent count, failed count, `last_at` timestamp, and an
+`is_default` flag (matches the configured `SENDER_EMAIL`). The default
+sender is always included even with no activity so the operator can
+confirm wiring.
+
+`sender` (single string) is kept for backward compatibility with older
+FE bundles.
+
+**Modal redesign**: `EmailHealthPill` now renders a list of senders with
+per-sender sent/failed badges + last-activity timestamp + "Default" tag
+on the configured address. Falls back to the legacy single-line display
+if `senders` is empty (e.g. when an older backend is deployed).
+
+### Verification
+- `tests/test_iter_216h258_email_pipeline_all_senders.py` — 4/4 passing
+  (aggregation, default-included-when-no-activity, skips empty addrs,
+  FE renders the list).
+- `make regression` — 157 passed / 14 skipped (up from 153).
+- ESLint + Ruff clean.
+
+### Files changed
+- `backend/routes/email_health.py` (sender aggregation pipeline)
+- `frontend/src/pages/MasterAdmin/EmailHealthPill.js` (senders list)
+- `backend/tests/test_iter_216h258_email_pipeline_all_senders.py`
+- `Makefile`

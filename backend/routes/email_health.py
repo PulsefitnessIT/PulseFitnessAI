@@ -121,6 +121,47 @@ async def email_health(user: dict = Depends(get_current_user)) -> dict:
 
     status, label = _classify(sent, failed, last_error)
 
+    # Iter 216h258 — aggregate distinct senders seen in the rolling
+    # window so the modal can show ALL outgoing addresses (support /
+    # billing / service / etc.), not just the configured default. The
+    # default `SENDER_EMAIL` is always included even if it hasn't sent
+    # anything yet so the operator can confirm it's wired up.
+    sender_pipeline = [
+        {"$match": {
+            "created_at": {"$gte": cutoff},
+            "sender": {"$exists": True, "$nin": [None, ""]},
+        }},
+        {"$group": {
+            "_id": "$sender",
+            "sent":   {"$sum": {"$cond": [{"$eq": ["$status", "sent"]}, 1, 0]}},
+            "failed": {"$sum": {"$cond": [{"$eq": ["$status", "sent"]}, 0, 1]}},
+            "last_at": {"$max": "$created_at"},
+        }},
+        {"$sort": {"last_at": -1}},
+        {"$limit": 25},
+    ]
+    sender_rows = await db.email_send_events.aggregate(sender_pipeline).to_list(25)
+    senders: list[dict] = []
+    seen_default = False
+    for r in sender_rows:
+        addr = (r.get("_id") or "").strip()
+        if not addr:
+            continue
+        if SENDER_EMAIL and addr.lower() == SENDER_EMAIL.lower():
+            seen_default = True
+        senders.append({
+            "address": addr,
+            "sent":   int(r.get("sent")   or 0),
+            "failed": int(r.get("failed") or 0),
+            "last_at": _iso(r.get("last_at")),
+            "is_default": bool(SENDER_EMAIL and addr.lower() == SENDER_EMAIL.lower()),
+        })
+    if SENDER_EMAIL and not seen_default:
+        senders.insert(0, {
+            "address": SENDER_EMAIL,
+            "sent": 0, "failed": 0, "last_at": None, "is_default": True,
+        })
+
     return {
         "status": status,
         "label": label,
@@ -130,6 +171,10 @@ async def email_health(user: dict = Depends(get_current_user)) -> dict:
         "last_failed_at": last_failed_at,
         "last_error": last_error,
         "sender": SENDER_EMAIL or "",
+        # Iter 216h258 — `senders` is the new full list. `sender`
+        # remains for backward compatibility (older FE bundles still
+        # display only the default).
+        "senders": senders,
         "domain_verified": domain_verified,
         "recent": recent_rows,
     }

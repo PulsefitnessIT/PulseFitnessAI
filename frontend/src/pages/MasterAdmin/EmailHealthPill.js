@@ -140,8 +140,45 @@ function EmailHealthDialog({ data, onClose, onRefresh, loading, onRetry, retryin
           </div>
 
           <div className="text-xs">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">Sender</div>
-            <div className="text-zinc-900 font-mono mt-0.5">{data.sender || '—'}</div>
+            <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">
+              {/* Iter 216h258 — surface every sender (support / billing /
+                  service / etc.) seen in the last 24h, not just the
+                  default `SENDER_EMAIL`. */}
+              Senders {(data.senders || []).length > 1 && (
+                <span className="font-normal normal-case text-zinc-400">· {(data.senders || []).length} active</span>
+              )}
+            </div>
+            {(data.senders && data.senders.length > 0) ? (
+              <div className="mt-1 space-y-1.5" data-testid="email-health-senders">
+                {data.senders.map((s) => (
+                  <div
+                    key={s.address}
+                    className="flex items-center justify-between gap-2 p-2 rounded border border-zinc-100"
+                    data-testid={`email-health-sender-${(s.address || '').replace(/[^a-zA-Z0-9]/g, '-')}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-zinc-900 font-mono text-[12px] truncate flex items-center gap-1.5">
+                        {s.address}
+                        {s.is_default && (
+                          <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Default</span>
+                        )}
+                      </div>
+                      {s.last_at && (
+                        <div className="text-[10px] text-zinc-400 truncate">
+                          Last activity {String(s.last_at).slice(0, 16).replace('T', ' ')}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-semibold tabular-nums whitespace-nowrap">
+                      <span className="text-emerald-600">{s.sent} sent</span>
+                      <span className={s.failed > 0 ? 'text-rose-600' : 'text-zinc-300'}>{s.failed} failed</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-zinc-900 font-mono mt-0.5">{data.sender || '—'}</div>
+            )}
             {data.domain_verified === false && (
               <a
                 href="https://resend.com/domains"
