@@ -1,3 +1,55 @@
+## Iter 216h261 — Engineer Lite CRM auto-suggest banner (Feb 21, 2026) ✅ P1 enhancement
+
+User ask (verbatim): *"Continue potential improvement — auto-suggest
+banner on the Quote/Invoice builders that recognises a new email/
+phone and prompts 'Save this customer to your Lite CRM?' with
+one-click confirmation."*
+
+### Backend
+
+* `GET /api/svc/engineer/customers/lookup?email=&phone=` — lightweight
+  probe. Returns `{found: bool, customer?: {…}}` based on an org-scoped
+  match on email OR phone. Email/phone get normalised before lookup so
+  `"Lookup@Test.com"` matches the stored `lookup@test.com`.
+
+### Frontend
+
+Both `EngineerQuoteBuilder` and `EngineerInvoiceBuilder` now pass the
+current `customer` block down into `CustomerPicker`. The picker
+debounces (600ms) a `/lookup` call whenever the engineer changes the
+email or phone field. If the response says `found:false` AND the
+engineer has typed a name + at least one contact field, an inline
+**blue banner** appears below the search bar:
+
+> *Save **Acme Gym Ltd** to your Lite CRM so you can reuse them later?* [Save] [×]
+
+Clicking **Save** calls the existing `POST /customers` flow (idempotent
+on email/phone) and hides the banner. The × button dismisses it for
+the current email/phone combo until the engineer changes the contact
+details.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h261_engineer_customer_suggest.py`) | **7 / 7** |
+| `make regression` | **193 passed, 14 skipped** (was 186 → 193) |
+| `ruff check` | clean |
+| `yarn eslint --max-warnings 0` | clean |
+| Live curl: lookup HIT / MISS / EMPTY | ✅ all 3 paths return expected payload |
+| Live smoke: type new name + email → banner appears in ~1s | ✅ |
+
+### Why this matters
+
+Field engineers don't need to remember to click Save any more — the
+banner offers the upgrade exactly when it's relevant (a contact the
+org hasn't seen before), so the Lite CRM fills itself out as the
+team works.
+
+---
+
+
+
 ## Iter 216h260 — Engineer Lite CRM: CSV import + history (Feb 21, 2026) ✅ P1 enhancement
 
 User ask (verbatim): *"Continue potential enhancement … Also allow

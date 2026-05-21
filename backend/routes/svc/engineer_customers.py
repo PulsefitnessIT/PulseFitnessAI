@@ -210,6 +210,26 @@ async def list_customers(
     return {"customers": rows, "total": len(rows)}
 
 
+@router.get("/lookup")
+async def lookup_customer(
+    user=Depends(get_current_user),
+    email: Optional[str] = Query(default=None, max_length=200),
+    phone: Optional[str] = Query(default=None, max_length=80),
+):
+    """Cheap probe used by the Quote/Invoice builders to decide whether
+    to nudge the engineer to save a new customer. Returns the matching
+    row if one exists, else `{found: false}`."""
+    org_id = _of(user)
+    norm_email = _norm_email(email)
+    norm_phone = _norm_phone(phone)
+    if not norm_email and not norm_phone:
+        return {"found": False}
+    match = await _find_duplicate(org_id, norm_email, norm_phone)
+    if not match:
+        return {"found": False}
+    return {"found": True, "customer": _strip(match)}
+
+
 @router.get("/search")
 async def search_customers(
     user=Depends(get_current_user),

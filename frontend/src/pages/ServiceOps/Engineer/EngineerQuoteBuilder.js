@@ -404,6 +404,13 @@ export default function EngineerQuoteBuilder() {
         <Section title="Customer &amp; Site">
           {!readOnly ? (
             <CustomerPicker
+              customer={{
+                name: form.customer_name,
+                email: form.customer_email,
+                phone: form.customer_phone,
+                site_name: form.site_name,
+                site_address: form.site_address,
+              }}
               onPick={(c) => setForm((f) => ({
                 ...f,
                 customer_name: c.name || f.customer_name,
@@ -426,8 +433,10 @@ export default function EngineerQuoteBuilder() {
                     site_address: form.site_address || null,
                   }, auth());
                   notify.success(r.data?.merged ? 'Customer updated in Lite CRM' : 'Customer saved to Lite CRM');
+                  return r.data;
                 } catch (err) {
                   notify.error('Could not save customer', err?.response?.data?.detail || err?.message);
+                  throw err;
                 }
               }}
             />
@@ -720,11 +729,13 @@ const TextField = ({ label, value, onChange, type = 'text', testid, readOnly, fu
 
 
 // Iter 216h259 — Lite CRM autocomplete for Customer & Site
-function CustomerPicker({ onPick, onSaveCurrent }) {
+// Iter 216h261 — auto-suggest "Save this customer?" banner
+function CustomerPicker({ customer, onPick, onSaveCurrent }) {
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [loadingResults, setLoadingResults] = useState(false);
   const [open, setOpen] = useState(false);
+  const [suggestState, setSuggestState] = useState({ found: null, dismissed: false, saving: false });
 
   useEffect(() => {
     if (!q || q.length < 2) {
@@ -751,6 +762,38 @@ function CustomerPicker({ onPick, onSaveCurrent }) {
     }, 220);
     return () => { cancelled = true; clearTimeout(id); };
   }, [q]);
+
+  // Debounced lookup probe so we know whether to nudge "Save?"
+  const email = customer?.email?.trim();
+  const phone = customer?.phone?.trim();
+  const name = customer?.name?.trim();
+  useEffect(() => {
+    setSuggestState((s) => ({ ...s, dismissed: false }));
+  }, [email, phone]);
+  useEffect(() => {
+    if (!name || (!email && !phone)) {
+      setSuggestState((s) => ({ ...s, found: null }));
+      return undefined;
+    }
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      try {
+        const r = await axios.get(`${API}/svc/engineer/customers/lookup`, {
+          ...auth(),
+          params: { email: email || undefined, phone: phone || undefined },
+        });
+        if (!cancelled) setSuggestState((s) => ({ ...s, found: !!r.data?.found }));
+      } catch {
+        if (!cancelled) setSuggestState((s) => ({ ...s, found: null }));
+      }
+    }, 600);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [name, email, phone]);
+
+  const showSuggestion =
+    !!name && (!!email || !!phone)
+    && suggestState.found === false
+    && !suggestState.dismissed;
 
   return (
     <div className="relative mb-3" data-testid="qb-customer-picker">
@@ -797,6 +840,49 @@ function CustomerPicker({ onPick, onSaveCurrent }) {
               </p>
             </button>
           ))}
+        </div>
+      ) : null}
+      {showSuggestion ? (
+        <div
+          className="mt-2 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-blue-200 bg-blue-50"
+          data-testid="qb-customer-suggest"
+        >
+          <p className="text-xs text-blue-900 flex items-center gap-2">
+            <BookmarkPlus size={14} className="text-blue-600" />
+            <span>
+              Save <b>{name}</b> to your Lite CRM so you can reuse them later?
+            </span>
+          </p>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={async () => {
+                setSuggestState((s) => ({ ...s, saving: true }));
+                try {
+                  await onSaveCurrent();
+                  setSuggestState({ found: true, dismissed: false, saving: false });
+                } catch {
+                  setSuggestState((s) => ({ ...s, saving: false }));
+                }
+              }}
+              disabled={suggestState.saving}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+              data-testid="qb-customer-suggest-save"
+            >
+              {suggestState.saving ? <Loader2 size={12} className="animate-spin" /> : <BookmarkPlus size={12} />}
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setSuggestState((s) => ({ ...s, dismissed: true }))}
+              className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-blue-200 bg-white hover:bg-blue-100 text-blue-700"
+              data-testid="qb-customer-suggest-dismiss"
+              aria-label="Dismiss"
+              title="Dismiss"
+            >
+              <span className="text-xs">×</span>
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
