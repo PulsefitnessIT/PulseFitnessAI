@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  Search, MapPin, Star, ShieldCheck, BadgeCheck, Loader2, MessageSquare, CheckCircle2, Sparkles,
+  Search, MapPin, Star, ShieldCheck, BadgeCheck, Loader2, MessageSquare, CheckCircle2, Sparkles, CalendarOff,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -167,6 +167,18 @@ export default function FindEngineerPanel({ defaultPostcode = '' }) {
                             {eng.in_area
                               ? <span className="text-[9px] font-bold uppercase text-emerald-600">In your area</span>
                               : <span className="text-[9px] svc-muted">Wide-radius</span>}
+                            {/* Iter 216h288 — Gap 10: availability badge.
+                                Yellow "Back on …" so the customer sees
+                                the engineer's there but on leave. */}
+                            {eng.availability?.status === 'unavailable' && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800"
+                                    data-testid={`find-engineer-unavailable-${eng.id}`}>
+                                <CalendarOff size={9} />
+                                {eng.availability.resumes_on
+                                  ? `Back ${new Date(`${eng.availability.resumes_on}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+                                  : 'On leave'}
+                              </span>
+                            )}
                           </div>
                           <div className="text-[11px] svc-muted mt-0.5 truncate">
                             {eng.company_name ? eng.company_name + ' · ' : ''}

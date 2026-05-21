@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, Link } from 'react-router-dom';
-import { Star, ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Star, ShieldCheck, CheckCircle2, AlertCircle, Loader2, CalendarOff } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 
@@ -115,6 +115,19 @@ export default function PartnerReviewPublic() {
                 <p className="text-sm text-zinc-500 mt-1 inline-flex items-center gap-1">
                   <Star size={12} className="text-amber-500 fill-amber-500" />
                   {summary.average?.toFixed(1) ?? '–'} from {summary.count} {summary.count === 1 ? 'review' : 'reviews'}
+                </p>
+              )}
+              {/* Iter 216h288 — Gap 10: yellow "Back on …" badge so a
+                  reviewer knows the engineer's on leave (still valid to
+                  leave a retrospective review on past work though). */}
+              {engineer.availability?.status === 'unavailable' && (
+                <p className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold"
+                   data-testid="review-engineer-unavailable">
+                  <CalendarOff size={11} />
+                  {engineer.availability.resumes_on
+                    ? `Currently on leave · back ${new Date(`${engineer.availability.resumes_on}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+                    : 'Currently on leave'}
+                  {engineer.availability.note ? ` · ${engineer.availability.note}` : ''}
                 </p>
               )}
             </div>

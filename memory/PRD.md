@@ -1,3 +1,82 @@
+## Iter 216h288 — Engineer master availability toggle (Feb 21, 2026) ✅ P1
+
+Closes **Gap 10** from the BA audit. Approved Partner Engineers can
+now flip themselves between "Available" and "Unavailable" with an
+optional resume date + 200-char public note. Per the user's 2C
+choice, unavailable engineers stay visible across all discovery
+surfaces but render with a yellow **"Back on Mar 5"** badge and
+sink to the bottom of result lists — preserving existing
+relationships while still steering new work to engineers actually
+accepting it.
+
+### Backend (`/app/backend/routes/partners.py`)
+
+Schema on `partner_engineers`:
+```
+availability: {
+  status: "available" | "unavailable",
+  resumes_on: ISO date | null,
+  note: short str | null,
+  updated_at: ISO datetime,
+}
+```
+
+* `_parse_resumes_on(raw)` — accepts ISO date / ISO datetime, drops
+  garbage to `None`.
+* `_effective_availability(partner)` — pure read helper. Returns
+  the live state, **auto-resumes** when `resumes_on` is in the
+  past so a returning engineer doesn't need to remember to toggle
+  back on. Defaults to `available` for legacy rows that never set
+  the field.
+* `GET /partners/me/availability` — engineer read.
+* `PUT /partners/me/availability` — engineer toggle. Body:
+  `{available: bool (required), resumes_on?: ISO date, note?: str}`.
+  Switching back to available wipes the leave metadata; a past
+  resumes_on with `available=false` is silently stripped (sanity
+  guard — the engineer almost certainly meant indefinite). Audit
+  logged.
+
+Read paths enriched:
+* `find-engineers` — exposes `availability` and **sinks unavailable
+  rows to the bottom** of the sorted list. In-area / strategic /
+  score sort still apply within each band.
+* Public `GET /partners/{id}/reviews` partner card — exposes
+  `availability` so the public review page can render the badge.
+
+### Frontend
+
+* **`pages/PartnerEngineer/PartnerAvailabilityCard.js`** — dashboard
+  widget at the top of the partner stack. Toggle pill (emerald
+  "Go unavailable" → amber "Back on now"), inline editor for
+  `resumes_on` date picker + public note input, "Plan upcoming
+  leave →" affordance when already available. Card background
+  flips amber when unavailable for instant glance-recognition.
+* **`pages/PartnerEngineer/PartnerDashboard.js`** — mounted the
+  card immediately under the partner header (above activation
+  checklist) so the toggle is visible from every dashboard load.
+* **`pages/ServiceOps/FindEngineerPanel.js`** — yellow `CalendarOff`
+  badge next to engineer name, "Back Jun 4" or "On leave" if
+  indefinite.
+* **`pages/Public/PartnerReviewPublic.js`** — pill under the
+  engineer name on the public review page: "Currently on leave ·
+  back Jun 4 · {note}".
+
+### Verification
+
+* `tests/test_iter_216h288_engineer_availability.py` — **13 tests**
+  pin parse logic, defaults, auto-resume, validation, persistence
+  shape on toggle-off and toggle-on, past-date stripping, audit
+  payload, and GET endpoint shape.
+* Full regression: **488 passed, 14 skipped** in 13.7s.
+* End-to-end smoke: set partner `40c2b861…` to unavailable until
+  Jun 4 in DB, hit `/api/partners/{id}/reviews` — endpoint returns
+  full availability sub-doc. Public review page renders the yellow
+  badge "Currently on leave · back Jun 4 · On annual leave". Test
+  data cleaned up after.
+
+---
+
+
 ## Iter 216h287 — Engineer-of-engineer referrals (Feb 21, 2026) ✅ P1
 
 Closes **Gap 9** from the BA audit. An approved Partner Engineer

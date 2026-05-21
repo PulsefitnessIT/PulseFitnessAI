@@ -1497,7 +1497,8 @@ async def list_partner_reviews(partner_id: str, limit: int = 50):
     """Public endpoint — returns approved reviews + summary stats so
     the engineer's public card can render trust signals."""
     partner = await db.partner_engineers.find_one(
-        {"id": partner_id, "status": "approved"}, {"_id": 0, "id": 1, "full_name": 1, "company_name": 1, "level": 1},
+        {"id": partner_id, "status": "approved"},
+        {"_id": 0, "id": 1, "full_name": 1, "company_name": 1, "level": 1, "availability": 1},
     )
     if not partner:
         raise HTTPException(404, "Engineer not found")
@@ -1515,6 +1516,10 @@ async def list_partner_reviews(partner_id: str, limit: int = 50):
             "first_name": (partner.get("full_name") or "").split(" ")[0],
             "company_name": partner.get("company_name"),
             "level": partner.get("level"),
+            # Iter 216h288 — Gap 10: pass availability to the public
+            # review page so the visitor sees a yellow "Back on …"
+            # badge rather than booking an engineer on leave.
+            "availability": _effective_availability(partner),
         },
         "summary": {"average": average, "count": len(rows)},
         "reviews": [_public_review(r) for r in rows],
@@ -1810,6 +1815,140 @@ def _mask_email(addr: str) -> str:
 
 
 # ── End iter 216h287 engineer-referrals block ──────────────────────
+
+
+# ── Iter 216h288 — Gap 10: master availability toggle ───────────────
+#
+# An approved Partner Engineer can flip themselves to "unavailable"
+# (annual leave, parental leave, full diary) with an optional
+# "back on" date. Per the user's BA-audit decision (2C), an
+# unavailable engineer is **still surfaced** on discovery surfaces
+# but with a yellow "Back on 5 Mar" badge so existing relationships
+# aren't broken and the visitor knows there's a partner in the area.
+#
+# Schema lives under `partner_engineers.availability`:
+#   { status: "available" | "unavailable",
+#     resumes_on: ISO date | None,
+#     note: short str | None,
+#     updated_at: ISO datetime }
+#
+# Read paths automatically "auto-resume" a partner whose `resumes_on`
+# is in the past — so a returning engineer doesn't need to remember
+# to toggle back on.
+
+
+def _today_utc():
+    """Date-only helper, UTC. Pulled out so tests can patch it."""
+    return datetime.now(timezone.utc).date()
+
+
+def _parse_resumes_on(raw: Optional[str]) -> Optional[str]:
+    """Accept an ISO-ish date string and emit a normalised 'YYYY-MM-DD'.
+    Empty / None / unparseable → None (which means 'no end date set')."""
+    if not raw:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    try:
+        # Accept full ISO datetimes too — strip the time component.
+        if "T" in s:
+            s = s.split("T", 1)[0]
+        from datetime import date as _date
+        parsed = _date.fromisoformat(s)
+        return parsed.isoformat()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _effective_availability(partner: dict) -> dict:
+    """Return the live availability sub-doc for a partner. Auto-flips
+    back to 'available' if `resumes_on` is in the past. Defaults to
+    'available' for legacy rows that never set the field.
+
+    This is **read-only** — it does NOT persist the auto-flip; the
+    next write (engineer toggle, admin update) will reconcile state.
+    """
+    av = (partner or {}).get("availability") or {}
+    status = av.get("status") or "available"
+    resumes_on = av.get("resumes_on")
+    note = av.get("note") or None
+    if status == "unavailable" and resumes_on:
+        try:
+            from datetime import date as _date
+            if _date.fromisoformat(resumes_on) <= _today_utc():
+                status = "available"
+                # Keep resumes_on + note around for the audit trail; the
+                # caller can render "Back on Mar 5 (last leave ended)".
+        except Exception:  # noqa: BLE001
+            pass
+    return {
+        "status": status,
+        "resumes_on": resumes_on,
+        "note": note,
+        "updated_at": av.get("updated_at"),
+    }
+
+
+@router.get("/partners/me/availability")
+async def get_my_availability(user: dict = Depends(get_current_user)):
+    """Engineer reads their own toggle state. Pure read — useful for
+    a settings page that doesn't already hit `/partners/me`."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    return {"availability": _effective_availability(partner)}
+
+
+@router.put("/partners/me/availability")
+async def set_my_availability(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Engineer flips their own availability toggle.
+
+    Body:
+      * `available` (bool, required) — true = accepting work, false = on leave
+      * `resumes_on` (ISO date, optional) — only meaningful when
+        `available=false`. Cleared when switching back on.
+      * `note` (str, optional, max 200 chars) — surfaces on the public
+        badge (e.g. "Back from paternity leave 4 Mar"). Stripped when
+        switching back on.
+    """
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    if "available" not in body:
+        raise HTTPException(400, "`available` (bool) is required")
+    is_available = bool(body.get("available"))
+    note = (body.get("note") or "").strip()[:200] or None
+    resumes_on = _parse_resumes_on(body.get("resumes_on")) if not is_available else None
+    if not is_available and resumes_on:
+        # Optional sanity: if the date is in the past, drop it — the engineer
+        # almost certainly meant to leave it open-ended.
+        from datetime import date as _date
+        try:
+            if _date.fromisoformat(resumes_on) <= _today_utc():
+                resumes_on = None
+        except Exception:  # noqa: BLE001
+            resumes_on = None
+    new_av = {
+        "status": "available" if is_available else "unavailable",
+        "resumes_on": resumes_on,
+        "note": note if not is_available else None,
+        "updated_at": _now(),
+    }
+    before = (partner.get("availability") or {}).get("status") or "available"
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {"availability": new_av, "updated_at": _now()}},
+    )
+    await _audit(
+        partner_id=partner["id"], actor_id=user["id"], action="availability_set",
+        before={"status": before},
+        after={"status": new_av["status"], "resumes_on": resumes_on, "note": note},
+    )
+    return {"ok": True, "availability": new_av}
+
+
+# ── End iter 216h288 availability block ────────────────────────────
 
 
 async def attach_referral_to_org(*, organization_id: str, ref_code: Optional[str]) -> Optional[dict]:
@@ -2858,7 +2997,8 @@ async def find_engineers(
         {"status": "approved", "level": {"$in": ["verified_partner", "strategic_partner"]}},
         {"_id": 0, "id": 1, "full_name": 1, "company_name": 1, "level": 1,
          "service_postcode": 1, "travel_radius_km": 1, "brands_supported": 1,
-         "skills": 1, "qualifications": 1, "active_referral_count": 1},
+         "skills": 1, "qualifications": 1, "active_referral_count": 1,
+         "availability": 1},
     )
     rows = await cur.to_list(length=500)
 
@@ -2895,9 +3035,16 @@ async def find_engineers(
             "rating": (perf.get("counts") or {}).get("avg_rating"),
             "jobs_completed_90d": (perf.get("counts") or {}).get("closed", 0),
             "in_area":  r in matched,
+            # Iter 216h288 — Gap 10: include availability so the
+            # customer-facing card can render a yellow "Back on …"
+            # badge instead of hiding the engineer outright.
+            "availability": _effective_availability(r),
         })
     # Top-tier + strategic always rank above verified; within tier, score desc.
+    # Iter 216h288 — additionally sink unavailable engineers below available
+    # ones so the visitor sees who can actually take work first.
     scored.sort(key=lambda x: (
+        (x.get("availability") or {}).get("status") == "unavailable",
         not x["in_area"],                            # in-area first
         x["level"] != "strategic_partner",           # strategic ranks above verified
         -(x["score"] or 0),

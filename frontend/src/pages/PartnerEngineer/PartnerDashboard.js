@@ -25,6 +25,7 @@ import PartnerActivationChecklist from './PartnerActivationChecklist';
 import PartnerCollateralCard from './PartnerCollateralCard';
 import PartnerReviewsCard from './PartnerReviewsCard';
 import PartnerEngineerReferralCard from './PartnerEngineerReferralCard';
+import PartnerAvailabilityCard from './PartnerAvailabilityCard';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -246,6 +247,14 @@ export default function PartnerDashboard() {
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }}
           />
+        )}
+
+        {/* Iter 216h288 — Gap 10: master availability toggle. Lives
+            high in the stack so engineers can flip themselves to
+            unavailable without scrolling past the activation/referral
+            cards. Visible only once the partner is approved. */}
+        {partner.status === 'approved' && (
+          <PartnerAvailabilityCard partner={partner} onChanged={load} />
         )}
 
         {/* Iter 216h285 — Gap 6: referral collateral kit (QR poster,
