@@ -1,3 +1,103 @@
+## Iter 216h270 — Expand Miller Heiman fields on contacts (Feb 21, 2026) ✅ P3
+
+Iter 216h223 shipped multi-tag `influence_types[]` + a per-opp
+stakeholder map. This iter adds the qualitative **Strategic
+Selling "Blue Sheet" scoring fields** every account exec is
+taught to maintain on each contact before a deal review.
+
+### Five new contact-level fields
+
+| Field | Type | Values |
+|---|---|---|
+| `buying_influence_level` | enum | `low` / `medium` / `high` |
+| `adoption_sentiment` | enum (5-pt) | `strong_anti` / `anti` / `neutral` / `supporter` / `strong_supporter` |
+| `coverage_confidence` | enum | `stranger` / `acquaintance` / `trusted_advisor` |
+| `reports_to_id` | UUID | another contact in the same org (org chart) |
+| `personal_wins` | text | free-form motivations / win-results |
+
+### Backend
+
+* `routes/crm_stakeholders.py`:
+  - **Three new catalogues** — `BUYING_INFLUENCE_LEVELS`,
+    `ADOPTION_SENTIMENTS` (each with `score` -2 → +2 for
+    pipeline-weight maths later), `COVERAGE_CONFIDENCES`.
+  - `_validate_miller_heiman(data)` — whitelist + case-fold validator.
+    Empty strings explicitly clear a field; unknown values raise 400.
+    Whitelist enforcement means extraneous keys are dropped.
+  - **`GET /api/crm/stakeholders/miller-heiman-catalogues`** — one
+    round-trip returns all three lists so the UI renders in 1 fetch.
+  - **`PATCH /api/crm/contacts/{id}/miller-heiman`** — accepts any
+    subset; missing keys leave fields untouched (partial update).
+    Cross-validates `reports_to_id`:
+      - Must exist as a contact in the same org → else 404.
+      - Cannot be the contact's own id → else 400.
+* `routes/crm_v2.py`:
+  - `create_contact` accepts the 5 fields via the shared validator.
+  - `get_contact` hydrates `reports_to` (id, name, job_title, email)
+    so the org chart renders without a 2nd round-trip.
+
+### Frontend (`CRMContacts.js`)
+
+* **New "Strategic" tab** in the contact detail (between Overview
+  and Deals), powered by a new `<StrategicSellingPanel>`:
+  - **Coverage Confidence** pills — Stranger / Acquaintance /
+    Trusted Advisor (tone-tinted).
+  - **Adoption Sentiment** pills — 5-point with `+1`/`-2` score
+    chips so the rep sees the numeric weight at-a-glance.
+  - **Buying Influence** pills — Low / Medium / High.
+  - **Reports To** native `<select>` populated with other contacts
+    at the same company. Disabled with a hint when company isn't
+    linked yet ("Link a company first to map org-chart").
+  - **Personal Wins** textarea with prompt copy
+    (*"What does THIS person personally get out of the deal
+    closing?"*).
+  - Save button shows a transient ✓ Saved confirmation.
+  - Loading state has its own `data-testid="strategic-selling-loading"`.
+* **Header badges** appear automatically as soon as fields are set:
+  - Sentiment pill: green for *_supporter, red for *_anti, zinc for neutral.
+  - Influence pill: rose for High, amber for Medium, zinc for Low.
+* All controls carry stable `data-testid`s: `mh-coverage-{id}`,
+  `mh-sentiment-{id}`, `mh-influence-{id}`, `mh-reports-to-select`,
+  `mh-personal-wins`, `mh-save-btn`.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h270_miller_heiman_fields.py`) | **19 / 19** |
+| `make regression` | **306 passed, 14 skipped** (was 287 → 306) |
+| `ruff` + `yarn eslint --max-warnings 0` | clean |
+| Live curl: GET catalogues → 3 lists | ✅ |
+| Live curl: create contact w/ MH fields → persisted | ✅ |
+| Live curl: PATCH miller-heiman → `strong_supporter` + `trusted_advisor` + `Wants visibility` returned | ✅ |
+| Live curl: self-`reports_to_id` → 400 *"can't report to themselves"* | ✅ |
+| Live curl: `adoption_sentiment=indifferent` → 400 *"Unknown adoption_sentiment"* | ✅ |
+
+### Why this matters
+
+Before: reps had two booleans on each contact (`is_decision_maker`
++ `is_champion`). Useless for nuanced reviews — a "Decision Maker"
+who personally opposes the deal looks the same as one who's already
+sold internally.
+
+After: every contact carries the canonical Strategic Selling scoring
+fields. Account reviews can now answer:
+* *"Have we covered every decision maker?"* — `coverage_confidence`
+  on every key contact.
+* *"What's the sentiment of the buying committee?"* — sum of
+  `adoption_sentiment` scores across stakeholders on the deal.
+* *"Who reports to who?"* — `reports_to_id` builds the org chart.
+* *"What's the personal win for our champion?"* — `personal_wins`
+  notes drive talk-track personalisation.
+
+This sets up the next P3 iter (account-review dashboards rolling
+these scores up to the deal level) without any further data model
+work.
+
+---
+
+
+
 ## Iter 216h269 — Quote builder bundle auto-expansion (Feb 21, 2026) ✅ P2
 
 Closes the loop on iter 216h267 (CRM Product Bundles). The bundle

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { useCRM } from './CRMApp';
 import {
   Users, Plus, ChevronRight, Phone, Mail, Building2, ArrowLeft, ArrowRightLeft,
-  FileText, Calendar, Activity, Target, CheckCircle, Star, Shield, Tag, Globe, Edit2, X, Loader2, Database, Sparkles
+  FileText, Calendar, Activity, Target, CheckCircle, Star, Shield, Tag, Globe, Edit2, X, Loader2, Database, Sparkles,
+  TrendingUp, Heart, Crown, Save, ChevronUp
 } from 'lucide-react';
 import axios from 'axios';
 import CustomFieldsPanel from '@/components/shared/CustomFieldsPanel';
@@ -259,6 +260,218 @@ function ContactList({ onSelect, c, isDark, API, headers }) {
   );
 }
 
+function StrategicSellingPanel({ contact, isDark, c, API, headers, onSaved }) {
+  // Iter 216h270 — Miller Heiman / Strategic Selling "Blue Sheet"
+  // scoring panel. Every field is optional, but populating them
+  // drives the deal-review dashboards + coverage-gap alerts.
+  const [cats, setCats] = useState(null);
+  const [form, setForm] = useState({
+    buying_influence_level: contact.buying_influence_level || '',
+    adoption_sentiment: contact.adoption_sentiment || '',
+    coverage_confidence: contact.coverage_confidence || '',
+    reports_to_id: contact.reports_to_id || '',
+    personal_wins: contact.personal_wins || '',
+  });
+  const [reportsTo, setReportsTo] = useState(contact.reports_to || null);
+  const [companyContacts, setCompanyContacts] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/crm/stakeholders/miller-heiman-catalogues`, { headers: headers() });
+        if (alive) setCats(r.data);
+        // Load other contacts at the same company for the reports-to picker.
+        if (contact.company_id) {
+          const r2 = await axios.get(`${API}/crm/v2/contacts?company_id=${contact.company_id}&limit=100`, { headers: headers() });
+          if (alive) setCompanyContacts((r2.data.contacts || []).filter(x => x.id !== contact.id));
+        }
+      } catch (e) { console.error(e); }
+    })();
+    return () => { alive = false; };
+  }, [API, headers, contact.id, contact.company_id]);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      await axios.patch(
+        `${API}/crm/contacts/${contact.id}/miller-heiman`,
+        form,
+        { headers: headers() },
+      );
+      setSaved(true);
+      onSaved && onSaved();
+      setTimeout(() => setSaved(false), 2400);
+    } catch (e) {
+      console.error('miller-heiman save failed', e);
+    }
+    setSaving(false);
+  };
+
+  if (!cats) {
+    return (
+      <div className="flex items-center justify-center py-10" style={{ color: c.textDim }} data-testid="strategic-selling-loading">
+        <Loader2 size={14} className="animate-spin mr-2" /> Loading scoring catalogues…
+      </div>
+    );
+  }
+
+  const Pill = ({ active, label, tone, onClick, testid, score }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testid}
+      className={`px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-all flex items-center gap-1.5 ${active ? 'shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+      style={{
+        borderColor: active ? `var(--color-${tone}-500, var(--color-info-ios))` : c.border,
+        background: active ? `var(--color-${tone}-500, var(--color-info-ios))15` : 'transparent',
+        color: active ? `var(--color-${tone}-500, var(--color-info-ios))` : c.textMuted,
+      }}
+    >
+      {label}
+      {typeof score === 'number' && (
+        <span className="text-[9px] opacity-70 font-mono">{score > 0 ? `+${score}` : score}</span>
+      )}
+    </button>
+  );
+
+  return (
+    <div className="space-y-5" data-testid="strategic-selling-panel">
+      {/* Coverage confidence */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Shield size={11} style={{ color: 'var(--color-info-ios)' }} />
+          <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Relationship — Coverage Confidence</label>
+        </div>
+        <div className="flex flex-wrap gap-1.5" data-testid="mh-coverage-row">
+          {cats.coverage_confidences.map(o => (
+            <Pill
+              key={o.id}
+              active={form.coverage_confidence === o.id}
+              label={o.label}
+              tone={o.tone}
+              testid={`mh-coverage-${o.id}`}
+              onClick={() => setForm(f => ({ ...f, coverage_confidence: f.coverage_confidence === o.id ? '' : o.id }))}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Adoption sentiment */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Heart size={11} style={{ color: 'var(--color-info-ios)' }} />
+          <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Adoption Sentiment</label>
+        </div>
+        <div className="flex flex-wrap gap-1.5" data-testid="mh-sentiment-row">
+          {cats.adoption_sentiments.map(o => (
+            <Pill
+              key={o.id}
+              active={form.adoption_sentiment === o.id}
+              label={o.label}
+              tone={o.tone}
+              score={o.score}
+              testid={`mh-sentiment-${o.id}`}
+              onClick={() => setForm(f => ({ ...f, adoption_sentiment: f.adoption_sentiment === o.id ? '' : o.id }))}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Buying influence */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <TrendingUp size={11} style={{ color: 'var(--color-info-ios)' }} />
+          <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Buying Influence Level</label>
+        </div>
+        <div className="flex flex-wrap gap-1.5" data-testid="mh-influence-row">
+          {cats.buying_influence_levels.map(o => (
+            <Pill
+              key={o.id}
+              active={form.buying_influence_level === o.id}
+              label={o.label}
+              tone={o.tone}
+              testid={`mh-influence-${o.id}`}
+              onClick={() => setForm(f => ({ ...f, buying_influence_level: f.buying_influence_level === o.id ? '' : o.id }))}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Reports-to (org-chart hierarchy) */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <ChevronUp size={11} style={{ color: 'var(--color-info-ios)' }} />
+          <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Reports To</label>
+        </div>
+        <select
+          value={form.reports_to_id}
+          onChange={e => {
+            const id = e.target.value;
+            setForm(f => ({ ...f, reports_to_id: id }));
+            setReportsTo(companyContacts.find(x => x.id === id) || null);
+          }}
+          className="w-full max-w-md px-3 py-2 text-sm rounded-md"
+          style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+          data-testid="mh-reports-to-select"
+          disabled={!contact.company_id}
+        >
+          <option value="">{contact.company_id ? '— No manager set —' : 'Link a company first to map org-chart'}</option>
+          {companyContacts.map(p => (
+            <option key={p.id} value={p.id}>{p.first_name} {p.last_name}{p.job_title ? ` · ${p.job_title}` : ''}</option>
+          ))}
+        </select>
+        {reportsTo && (
+          <p className="text-[11px] mt-1" style={{ color: c.textDim }} data-testid="mh-reports-to-hint">
+            Reports to <span style={{ color: c.text }}>{reportsTo.first_name} {reportsTo.last_name}</span>
+            {reportsTo.job_title ? ` (${reportsTo.job_title})` : ''}
+          </p>
+        )}
+      </div>
+
+      {/* Personal wins / motivations */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Star size={11} style={{ color: 'var(--color-info-ios)' }} />
+          <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Personal Wins / Motivations</label>
+        </div>
+        <textarea
+          rows={3}
+          value={form.personal_wins}
+          onChange={e => setForm(f => ({ ...f, personal_wins: e.target.value }))}
+          placeholder="What does THIS person personally get out of the deal closing? (career visibility, KPI hit, reduced workload, recognition…)"
+          className="w-full px-3 py-2 text-sm rounded-md"
+          style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+          data-testid="mh-personal-wins"
+        />
+      </div>
+
+      {/* Save bar */}
+      <div className="flex items-center gap-3 pt-2 border-t" style={{ borderColor: c.border }}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="px-4 py-2 text-xs font-medium rounded-md flex items-center gap-1.5 disabled:opacity-50"
+          style={{ background: 'var(--color-info-ios)', color: '#fff' }}
+          data-testid="mh-save-btn"
+        >
+          {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+          {saving ? 'Saving…' : 'Save Strategic Selling fields'}
+        </button>
+        {saved && (
+          <span className="text-[11px] flex items-center gap-1" style={{ color: 'var(--color-success-alt)' }} data-testid="mh-saved-hint">
+            <CheckCircle size={11} /> Saved
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo }) {
   const [contact, setContact] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -330,6 +543,33 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
             <h1 className="text-lg font-bold" style={{ color: c.text }}>{contact.first_name} {contact.last_name}</h1>
             {contact.is_decision_maker && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Decision Maker</span>}
             {contact.is_champion && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-green-500/15 text-green-500">Champion</span>}
+            {/* Iter 216h270 — Strategic Selling at-a-glance badges */}
+            {contact.adoption_sentiment && (
+              <span
+                className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
+                style={{
+                  background: contact.adoption_sentiment.includes('supporter') ? 'rgba(16,185,129,0.15)' : contact.adoption_sentiment.includes('anti') ? 'rgba(239,68,68,0.15)' : 'rgba(113,113,122,0.15)',
+                  color: contact.adoption_sentiment.includes('supporter') ? 'var(--color-success-alt)' : contact.adoption_sentiment.includes('anti') ? 'var(--color-danger-alt)' : 'var(--color-textMuted, #71717a)',
+                }}
+                data-testid="contact-header-sentiment-badge"
+                title="Adoption sentiment (Strategic Selling)"
+              >
+                {contact.adoption_sentiment.replace('_', ' ')}
+              </span>
+            )}
+            {contact.buying_influence_level && (
+              <span
+                className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
+                style={{
+                  background: contact.buying_influence_level === 'high' ? 'rgba(244,63,94,0.15)' : contact.buying_influence_level === 'medium' ? 'rgba(245,158,11,0.15)' : 'rgba(113,113,122,0.15)',
+                  color: contact.buying_influence_level === 'high' ? 'var(--color-danger-alt)' : contact.buying_influence_level === 'medium' ? 'var(--color-accent-amber)' : 'var(--color-textMuted, #71717a)',
+                }}
+                data-testid="contact-header-influence-badge"
+                title="Buying influence level (Strategic Selling)"
+              >
+                Influence: {contact.buying_influence_level}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             {contact.job_title && <span className="text-xs" style={{ color: c.textDim }}>{contact.job_title}</span>}
@@ -359,14 +599,14 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4">
-        {['overview', `deals (${contact.opportunities?.length || 0})`, `cases (${contact.cases?.length || 0})`, 'custom', 'timeline', 'audit'].map((tab, _i) => {
+      <div className="flex gap-1 mb-4 flex-wrap">
+        {['overview', 'strategic', `deals (${contact.opportunities?.length || 0})`, `cases (${contact.cases?.length || 0})`, 'custom', 'timeline', 'audit'].map((tab, _i) => {
           const id = tab.split(' ')[0];
           return (
             <button key={id} onClick={() => setActiveTab(id)} className={`px-3 py-1.5 text-xs font-medium rounded-md ${activeTab === id ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
               style={activeTab !== id ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}
               data-testid={`contact-tab-${id}`}>
-              {id === 'custom' ? <span className="inline-flex items-center gap-1"><Database size={10} /> Custom</span> : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {id === 'custom' ? <span className="inline-flex items-center gap-1"><Database size={10} /> Custom</span> : id === 'strategic' ? <span className="inline-flex items-center gap-1"><Crown size={10} /> Strategic</span> : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           );
         })}
@@ -388,6 +628,16 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
               </div>
             )}
           </div>
+        )}
+        {activeTab === 'strategic' && (
+          <StrategicSellingPanel
+            contact={contact}
+            isDark={isDark}
+            c={c}
+            API={API}
+            headers={headers}
+            onSaved={load}
+          />
         )}
         {activeTab === 'deals' && (
           <div className="space-y-2">

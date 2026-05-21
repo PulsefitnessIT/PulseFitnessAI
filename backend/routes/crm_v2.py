@@ -524,6 +524,12 @@ async def create_contact(data: dict, user=Depends(get_crm_user)):
         influence_types = []
     legacy = _derive_legacy_booleans(influence_types)
 
+    # Iter 216h270 — Strategic Selling extension fields. Stored
+    # alongside the contact so a Blue Sheet review can read them
+    # without a second collection.
+    from routes.crm_stakeholders import _validate_miller_heiman
+    mh = _validate_miller_heiman(data)
+
     contact = {
         "id": _id(), "organization_id": user.get("organization_id"),
         "first_name": data.get("first_name", ""),
@@ -540,6 +546,12 @@ async def create_contact(data: dict, user=Depends(get_crm_user)):
         # also overridable when callers pass them explicitly.
         "is_decision_maker": data.get("is_decision_maker", legacy["is_decision_maker"]),
         "is_champion": data.get("is_champion", legacy["is_champion"]),
+        # Iter 216h270 — Miller Heiman scoring fields (Blue Sheet).
+        "buying_influence_level": mh.get("buying_influence_level"),
+        "adoption_sentiment": mh.get("adoption_sentiment"),
+        "coverage_confidence": mh.get("coverage_confidence"),
+        "reports_to_id": mh.get("reports_to_id"),
+        "personal_wins": mh.get("personal_wins", ""),
         "linkedin": data.get("linkedin", ""),
         "source": data.get("source", "manual"),
         "status": data.get("status", "active"),
@@ -623,6 +635,15 @@ async def get_contact(contact_id: str, user=Depends(get_crm_user)):
     if c.get("company_id"):
         company = await db.crm2_companies.find_one({"id": c["company_id"], **of}, {"_id": 0, "name": 1, "sector": 1, "type": 1})
         c["company"] = company
+    # Iter 216h270 — hydrate the `reports_to` link so the Strategic
+    # Selling panel can show "Reports to: Jane Doe (CFO)" without a
+    # second round-trip.
+    if c.get("reports_to_id"):
+        boss = await db.crm2_contacts.find_one(
+            {"id": c["reports_to_id"], **of},
+            {"_id": 0, "id": 1, "first_name": 1, "last_name": 1, "job_title": 1, "email": 1},
+        )
+        c["reports_to"] = boss
     return c
 
 
