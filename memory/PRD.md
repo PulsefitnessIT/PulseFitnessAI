@@ -1,3 +1,98 @@
+## Iter 216h268 — Website-first company recognition (Feb 21, 2026) ✅ P2
+
+Customer feedback (verbatim): *"Companies — use the company's
+website URL as the primary source rather than Companies House
+addresses, so the right typing flows through."*
+
+Sales reps had three problems with Companies-House-first capture:
+* The registered office is usually an **accountant's address**,
+  not the trading gym. The CRM ended up with directors' "filing"
+  postcodes, useless for routing engineers.
+* Public-website meta data (logo, switchboard, switchboard email,
+  social handles) was never captured at create time — managers
+  had to copy-paste them in later.
+* Many UK SMBs aren't even on Companies House (sole traders,
+  CICs) so the only first-touch source was the AI guesser.
+
+### Backend
+
+* **`utils/website_enrichment.py`** — pure HTML extractor (no I/O,
+  no DB, no clock). Maps a homepage's HTML onto the CRM company
+  shape in this priority order:
+  1. **JSON-LD** `Organization` / `LocalBusiness` / `ExerciseGym`
+     blocks — `legalName`, `telephone`, `email`, `address`
+     (PostalAddress → `streetAddress`, `addressLocality`,
+     `addressRegion`, `postalCode`, `addressCountry`), `sameAs`
+     (social links), `logo`.
+  2. **OpenGraph + meta tags** — `og:site_name`, `og:description`,
+     `og:image` (resolved to absolute), `og:title`, meta
+     description, `<title>` (cleaned: strips `Acme | Site` /
+     `Acme - Site` / `Acme — Site` separators iteratively).
+  3. **Visible-text fallback** — `tel:` and `mailto:` anchors,
+     phone regex (UK + international), UK postcode regex
+     (`SW1A 1AA` / `M1 1AE` shape). When a UK postcode is found
+     and `country` is empty, defaults to "United Kingdom".
+  4. **Anchor sweep** for social links (Twitter / X / Facebook /
+     Instagram / LinkedIn / YouTube / TikTok) — only when JSON-LD
+     `sameAs` didn't already populate them.
+* **`routes/crm_website_recognize.py`** — `POST /api/crm/v2/companies/recognize-from-website`.
+  Fetches `/` then opportunistic contact pages (`/contact`,
+  `/contact-us`, `/about`, `/about-us`, `/get-in-touch`) only
+  when the homepage didn't yield phone + email + postcode. Each
+  fetch is timeout-bounded (8s), size-capped (400KB), and
+  `User-Agent`-identified. Results are cached for 24h in
+  `crm_website_cache` keyed by canonical URL.
+* **Router registration** — added to
+  `route_registry/crm.py` and `ensure_website_cache_indexes()`
+  wired into the server startup hooks.
+
+### Frontend
+
+* **`CRMCompanies.js`** — Create Company modal now leads with a
+  **"Start from website URL (recommended)"** panel:
+  - URL input + Fetch button (also fires on Enter).
+  - On success, spreads the extracted `info` into the form
+    (`name`, `phone`, `email`, `website`, `address_line1`,
+    `city`, `county`, `postcode`, `country`, `description`).
+  - Summary line under the panel reports: **"N fields filled ·
+    M pages read"**, with `(cached)` suffix on cache hits and a
+    social-link count when present.
+  - Error state surfaces backend 400/404 detail inline.
+* The existing **Companies House autocomplete** is kept as a
+  secondary path — placeholder now reads *"Or type a name to
+  search Companies House (UK)"* so reps know it's a fallback.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h268_website_recognise.py`) | **17 / 17** |
+| `make regression` | **274 passed, 14 skipped** (was 257 → 274) |
+| `ruff` + `yarn eslint --max-warnings 0` | clean |
+| Live curl: empty URL → 400 | ✅ |
+| Live curl: `example.com` → 200, returns `{name:"Example Domain"}` | ✅ |
+| Live curl: same URL again → `cached: true` | ✅ |
+| Live screenshot: Create Company modal shows website panel + form auto-filled | ✅ "3 fields filled · 1 page read (cached)" rendered |
+
+### Why this matters
+
+Before: a rep types "Acme Gym" → Companies House returns the
+accountant's address → the CRM contact-routing thinks Acme is
+based in Slough, not Manchester. Cases get routed to the wrong
+engineer, marketing campaigns miss-target by region, and managers
+have to manually clean every record.
+
+After: the rep pastes `acmegym.co.uk` → 24h-cached extraction
+fills name, trading address, switchboard, email, social handles
+and description in a single click. The Companies House lookup
+stays available for filing data (company number, directors), but
+the primary source of truth is now the prospect's own website —
+exactly as the prospective customer asked.
+
+---
+
+
+
 ## Iter 216h267 — CRM Product Bundles + nav-bar reorder (Feb 21, 2026) ✅ P2
 
 User ask (verbatim): *"P2 — Product configuration / bundles … Arrange

@@ -31,6 +31,13 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
   const [form, setForm] = useState({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [] });
   const [saving, setSaving] = useState(false);
   const [aiLookup, setAiLookup] = useState(false);
+  // Iter 216h268 — website-first recognition. Sales reps prefer the
+  // company's actual trading website over Companies House (which
+  // usually points at an accountant's office).
+  const [websiteLookupUrl, setWebsiteLookupUrl] = useState('');
+  const [websiteLookup, setWebsiteLookup] = useState(false);
+  const [websiteLookupError, setWebsiteLookupError] = useState('');
+  const [websiteSummary, setWebsiteSummary] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -86,6 +93,51 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
       }
     } catch (e) { /* silent */ }
     setAiLookup(false);
+  };
+
+  // Iter 216h268 — fetch company info from a homepage URL. This is now
+  // the recommended primary source (trading address + decision-makers
+  // live on the website, not on the Companies House registered office).
+  const autoRecognizeFromWebsite = async () => {
+    const url = (websiteLookupUrl || '').trim();
+    if (!url) {
+      setWebsiteLookupError('Paste the prospect\u2019s website URL first');
+      return;
+    }
+    setWebsiteLookup(true);
+    setWebsiteLookupError('');
+    setWebsiteSummary(null);
+    try {
+      const res = await axios.post(
+        `${API}/crm/v2/companies/recognize-from-website`,
+        { url },
+        { headers: headers() },
+      );
+      const info = res.data?.company_info || {};
+      setForm(prev => ({
+        ...prev,
+        name: info.name || prev.name,
+        phone: info.phone || prev.phone,
+        email: info.email || prev.email,
+        website: info.website || url,
+        address_line1: info.address_line1 || prev.address_line1,
+        city: info.city || prev.city,
+        county: info.county || prev.county,
+        postcode: info.postcode || prev.postcode,
+        country: info.country || prev.country,
+        description: info.description || prev.description,
+      }));
+      setWebsiteSummary({
+        url: res.data?.url || url,
+        pagesFetched: res.data?.pages_fetched || [],
+        cached: !!res.data?.cached,
+        filled: Object.keys(info).filter(k => info[k]).length,
+        socialLinks: info.social_links || [],
+      });
+    } catch (e) {
+      setWebsiteLookupError(e?.response?.data?.detail || 'Could not read that website');
+    }
+    setWebsiteLookup(false);
   };
 
   return (
@@ -145,6 +197,63 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
           <div className="w-full max-w-lg mx-4 rounded-xl p-6 shadow-2xl" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()} data-testid="create-company-dialog">
             <h2 className="text-lg font-semibold mb-4" style={{ color: c.text }}>New Company</h2>
+            {/* Iter 216h268 — website-first recognition. Recommended
+                primary source: paste the prospect's actual trading
+                website (not Companies House) so the right typing
+                (trading address, switchboard, decision-makers) flows
+                through to the rest of the CRM. */}
+            <div
+              className="mb-4 rounded-lg p-3"
+              style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-25-alt)', border: `1px solid ${c.border}` }}
+              data-testid="company-website-recognise-panel"
+            >
+              <label className="text-[10px] uppercase tracking-wider font-medium flex items-center gap-1.5" style={{ color: c.textDim }}>
+                <Globe size={11} style={{ color: 'var(--color-info-ios)' }} />
+                Start from website URL <span className="text-[9px] opacity-70">(recommended)</span>
+              </label>
+              <div className="flex gap-2 mt-1.5">
+                <input
+                  type="url"
+                  value={websiteLookupUrl}
+                  onChange={e => { setWebsiteLookupUrl(e.target.value); setWebsiteLookupError(''); }}
+                  placeholder="https://acmegym.co.uk"
+                  className="flex-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: c.inputBg || (isDark ? 'var(--color-ink-alt)' : '#fff'), border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="company-website-url-input"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); autoRecognizeFromWebsite(); } }}
+                />
+                <button
+                  type="button"
+                  onClick={autoRecognizeFromWebsite}
+                  disabled={websiteLookup || !websiteLookupUrl.trim()}
+                  className="px-3 py-2 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all disabled:opacity-40 shrink-0"
+                  style={{ background: 'var(--color-info-ios)', color: '#fff' }}
+                  data-testid="company-website-lookup-btn"
+                >
+                  {websiteLookup ? <Loader2 size={12} className="animate-spin" /> : <Globe size={12} />}
+                  {websiteLookup ? 'Reading…' : 'Fetch'}
+                </button>
+              </div>
+              <p className="text-[9px] mt-1" style={{ color: c.textDim }}>
+                We&apos;ll pull name, phone, email, address, description &amp; social links straight from the company&apos;s site. Cached for 24h.
+              </p>
+              {websiteLookupError && (
+                <p className="text-[10px] mt-1.5" style={{ color: 'var(--color-danger-alt)' }} data-testid="company-website-lookup-error">{websiteLookupError}</p>
+              )}
+              {websiteSummary && (
+                <div className="mt-2 text-[10px] flex items-center gap-2 flex-wrap" style={{ color: c.textDim }} data-testid="company-website-lookup-summary">
+                  <span style={{ color: 'var(--color-success-alt)' }}>{websiteSummary.filled} fields filled</span>
+                  <span>·</span>
+                  <span>{websiteSummary.pagesFetched.length} page{websiteSummary.pagesFetched.length === 1 ? '' : 's'} read{websiteSummary.cached ? ' (cached)' : ''}</span>
+                  {websiteSummary.socialLinks.length > 0 && (
+                    <>
+                      <span>·</span>
+                      <span>{websiteSummary.socialLinks.length} social link{websiteSummary.socialLinks.length === 1 ? '' : 's'}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             {aiLookup && (
               <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md" style={{ background: 'var(--color-info-ios)08', border: '1px solid var(--color-info-ios)20' }}>
                 <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-info-ios)' }} />
@@ -183,7 +292,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                       }}
                       testIdPrefix="company-name-autocomplete"
                       includeInternal={false}
-                      placeholder="Type to search Companies House (UK)"
+                      placeholder="Or type a name to search Companies House (UK)"
                       inputClassName="text-sm"
                     />
                   </div>
