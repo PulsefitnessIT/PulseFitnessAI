@@ -1,3 +1,96 @@
+## Iter 216h272 — `/memberships` "Organisation not found" P0 bug fix (Feb 21, 2026) ✅
+
+User report (verbatim): *"Master Admin → Memberships still not
+loading on Pulse Fitness or GymAxis"*. Screenshot showed the bare
+text "Organisation not found" rendered as the page body of
+`/memberships`.
+
+### Root cause
+
+The **GymAxis Master Admin home org**
+(`9fa701ef-5cc2-4db6-8795-bbfd2c85179d`) was **missing** from the
+`organizations` collection — almost certainly nuked by an earlier
+data-wipe / fixture reset. But the master admin user record + every
+Pulse Fitness staff user still pointed at it via `organization_id`.
+
+The chain:
+
+```
+GET /memberships
+  → <ModuleAccessGate module="memberships">
+  → GET /api/me/module-trials
+  → _resolve_org(user) → org=None
+  → HTTPException(404, "Organisation not found")
+  ↓
+frontend (ModuleAccessGate.js L80) reads `e.response.data.detail`
+and renders it verbatim as the page text (L93-99 — `<div>{state.error}</div>`).
+```
+
+Result: every `/memberships`, `/crm`, `/marketing` page for every
+GymAxis-org user (master admin + ALL Pulse Fitness staff) rendered
+the bare phrase **"Organisation not found"** — no toast, no retry,
+no fallback. Diagnostic effort would be high because the symptom
+looks like a data lookup failure but the actual cause is a deleted
+parent doc.
+
+### Fixes (layered defence)
+
+* **Boot-time self-heal** (`server.py:_seed_master_admin`):
+  the seeder already created the org on first-ever boot. Now when
+  the user *exists* but the org doc has gone missing, the seeder
+  re-inserts a fresh org with full module access. Idempotent —
+  re-runs every boot. Logs `logger.warning(...)` so ops can see
+  the heal happened.
+
+  ```python
+  org_id = existing.get("organization_id")
+  if org_id:
+      org_doc = await db.organizations.find_one({"id": org_id})
+      if not org_doc:
+          await db.organizations.insert_one({
+              "id": org_id, "name": "GymAxis AI Admin",
+              "account_type": "full", "subscription_tier": "premium",
+              "modules": {m: {"enabled": True, "source": "seed"}
+                          for m in ("memberships", "crm", "marketing")},
+              ...
+          })
+          logger.warning("Master admin org doc %s was missing — re-seeded", org_id)
+  ```
+
+* **Safety net in `_resolve_org`** (`routes/module_trials.py`):
+  when the lookup misses AND the requester is `is_master_admin`,
+  synthesise a minimal full-access org dict rather than raising
+  404. Belt-and-braces: survives the seeder itself failing.
+  **Crucially, the synth is master-admin-only** — non-master users
+  with a broken FK still see the 404, so we don't mask real tenant
+  data corruption for paying customers.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h272_module_trials_org_resolve.py`) | **5 / 5** |
+| `make regression` | **318 passed, 14 skipped** (was 313 → 318) |
+| `ruff` | clean |
+| Live curl: master admin → `/api/me/module-trials` → 200 with `module_access.memberships: true` (was 404) | ✅ |
+| Live curl: Craig (Pulse Fitness) → 200 with `module_access.memberships: true` (was 404) | ✅ |
+| Live DB check: org doc `9fa701ef-...` re-inserted with `account_type: full` | ✅ |
+
+### Why this matters
+
+This single missing org doc had taken down THREE operator-facing
+modules (`/memberships`, `/crm`, `/marketing`) for both the
+GymAxis demo tenant and the live Pulse Fitness staff. The
+self-healing seeder means a future fixture reset / data-wipe can
+never re-break the master admin's own home org — the next reboot
+just rebuilds it. The `_resolve_org` safety net means even if the
+seeder fails (e.g. mid-restore, partial migration), the master
+admin can still log in and unblock themselves.
+
+---
+
+
+
 ## Iter 216h271 — Master Admin Memberships + Free Trial button fixes (Feb 21, 2026) ✅ Bug fixes
 
 Two user-reported bugs surfaced from the screenshots.

@@ -368,6 +368,36 @@ async def _seed_master_admin() -> None:
     # Also drop any in-memory rate-limit lockout against this email so a
     # fresh deploy after a brute-force test doesn't lock the admin out.
     clear_failed_logins(master_email)
+
+    # Iter 216h272 — self-heal the master admin's home org if the
+    # org doc was deleted out from under the user (data-wipe scripts,
+    # restored backups, partial migrations). Without this guard the
+    # operator-facing `/api/me/module-trials` endpoint 404s and the
+    # whole Memberships / CRM / Marketing module pages render the
+    # raw "Organisation not found" string. Verified live: master
+    # admin + every Pulse Fitness user share org id 9fa701ef-... and
+    # all five module pages failed when the org doc went missing.
+    org_id = existing.get("organization_id")
+    if org_id:
+        org_doc = await db.organizations.find_one({"id": org_id}, {"_id": 0, "id": 1})
+        if not org_doc:
+            await db.organizations.insert_one({
+                "id": org_id,
+                "name": "GymAxis AI Admin",
+                "account_type": "full",
+                "subscription_tier": "premium",
+                "modules": {
+                    "memberships": {"enabled": True, "source": "seed"},
+                    "crm": {"enabled": True, "source": "seed"},
+                    "marketing": {"enabled": True, "source": "seed"},
+                },
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })
+            logger.warning(
+                "Master admin org doc %s was missing — re-seeded so module pages can render", org_id,
+            )
+
     if reset_on_boot:
         logger.info(f"Master admin healed (password re-synced): {master_email}")
     else:

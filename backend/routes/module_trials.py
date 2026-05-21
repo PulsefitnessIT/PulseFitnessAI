@@ -45,6 +45,23 @@ async def _resolve_org(user: dict) -> dict:
         {"id": user.get("organization_id")}, {"_id": 0},
     )
     if not org:
+        # Iter 216h272 — last-resort safety net: master admins must
+        # never see the operator-facing module pages crash on a
+        # missing org doc. The startup seeder normally self-heals
+        # this on boot, but if it failed (e.g. mid-restore) we still
+        # synthesise a minimal full-access org so the UI can render.
+        if user.get("is_master_admin"):
+            return {
+                "id": user.get("organization_id") or "master-admin",
+                "name": "GymAxis AI Admin",
+                "account_type": "full",
+                "subscription_tier": "premium",
+                "modules": {
+                    "memberships": {"enabled": True, "source": "seed"},
+                    "crm": {"enabled": True, "source": "seed"},
+                    "marketing": {"enabled": True, "source": "seed"},
+                },
+            }
         raise HTTPException(404, "Organisation not found")
     return org
 
