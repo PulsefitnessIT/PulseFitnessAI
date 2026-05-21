@@ -23,13 +23,16 @@ Routes (all gated by `require_engineer_app_access`):
 """
 from __future__ import annotations
 
+import csv
+import io
 from datetime import datetime, timezone
 from typing import Optional
 import logging
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from utils.database import db
@@ -139,6 +142,45 @@ async def _find_duplicate(org_id: str, email: Optional[str], phone: Optional[str
     )
 
 
+def _contact_or_clauses(email: Optional[str], phone: Optional[str]) -> list[dict]:
+    """Build the $or clauses used to match quotes/invoices by customer."""
+    clauses: list[dict] = []
+    if email:
+        clauses.append({"customer_email": email})
+    if phone:
+        clauses.append({"customer_phone": phone})
+    return clauses
+
+
+async def _recent_quotes(org_id: str, email: Optional[str], phone: Optional[str], limit: int = 5):
+    clauses = _contact_or_clauses(email, phone)
+    if not clauses:
+        return []
+    cur = db.svc_engineer_quotes.find(
+        {"organization_id": org_id, "$or": clauses},
+        {
+            "_id": 0, "id": 1, "quote_number": 1, "status": 1, "total": 1,
+            "created_at": 1, "updated_at": 1, "case_reference": 1,
+            "description_of_work": 1,
+        },
+    ).sort("created_at", -1).limit(limit)
+    return await cur.to_list(length=limit)
+
+
+async def _recent_invoices(org_id: str, email: Optional[str], phone: Optional[str], limit: int = 5):
+    clauses = _contact_or_clauses(email, phone)
+    if not clauses:
+        return []
+    cur = db.svc_engineer_invoices.find(
+        {"organization_id": org_id, "$or": clauses},
+        {
+            "_id": 0, "id": 1, "invoice_number": 1, "status": 1, "total": 1,
+            "created_at": 1, "issue_date": 1, "case_reference": 1,
+        },
+    ).sort("created_at", -1).limit(limit)
+    return await cur.to_list(length=limit)
+
+
 # ─────────────────────────────────────────────────────────────────
 # Routes
 # ─────────────────────────────────────────────────────────────────
@@ -198,6 +240,135 @@ async def search_customers(
     return {"results": rows}
 
 
+@router.get("/template.csv")
+async def template_csv(_user=Depends(get_current_user)):
+    """Canonical CSV template for the bulk-import workflow."""
+    header = [
+        "name", "email", "phone", "site_name", "site_address",
+        "notes", "equipment_list",
+    ]
+    example = [
+        "Acme Gyms Ltd",
+        "manager@acme.co.uk",
+        "+44 7700 900 001",
+        "Acme HQ · Leeds",
+        "12 Industrial Way, Leeds LS10 1AB",
+        "Access via side gate. Manager: Sarah.",
+        "Life Fitness 95Ti #1234 | Concept2 RowErg | Wattbike Atom",
+    ]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(header)
+    w.writerow(example)
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="engineer-customers-template.csv"'},
+    )
+
+
+@router.post("/import-csv")
+async def import_csv(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    """Bulk-create customers from a CSV upload.
+
+    Accepted columns (case-insensitive, any subset, in any order):
+      name, email, phone, site_name, site_address, notes, equipment_list
+
+    `equipment_list` is split on `|`, `;`, or newline. Idempotent on
+    (org × email) and (org × phone) — duplicate rows update the
+    existing record instead of inserting a new one.
+    """
+    org_id = _of(user)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty file")
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("latin-1")
+        except Exception as e:
+            raise HTTPException(400, "Could not decode CSV file") from e
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(400, "CSV has no header row")
+    norm_fields = {(h or "").strip().lower(): (h or "") for h in reader.fieldnames}
+    if "name" not in norm_fields:
+        raise HTTPException(400, "CSV must include a 'name' column")
+
+    def _get(row: dict, key: str) -> str:
+        src_key = norm_fields.get(key)
+        if not src_key:
+            return ""
+        return (row.get(src_key) or "").strip()
+
+    imported = 0
+    merged = 0
+    skipped: list[dict] = []
+    errors: list[dict] = []
+
+    for idx, row in enumerate(reader, start=2):  # row 1 = header
+        name = _get(row, "name")
+        if not name:
+            skipped.append({"row": idx, "reason": "missing name"})
+            continue
+        email = _norm_email(_get(row, "email"))
+        phone = _norm_phone(_get(row, "phone"))
+        equipment_raw = _get(row, "equipment_list")
+        equipment = [
+            chunk.strip()
+            for chunk in re.split(r"[|;\n]+", equipment_raw)
+            if chunk and chunk.strip()
+        ]
+        doc_base = {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "site_name": (_get(row, "site_name") or "").strip() or None,
+            "site_address": (_get(row, "site_address") or "").strip() or None,
+            "notes": (_get(row, "notes") or "").strip() or None,
+            "equipment_list": equipment,
+        }
+        try:
+            dupe = await _find_duplicate(org_id, email, phone)
+            if dupe:
+                updates = {
+                    k: v for k, v in doc_base.items() if v not in (None, "", [])
+                }
+                updates["updated_at"] = _now_iso()
+                await db.svc_engineer_customers.update_one(
+                    {"organization_id": org_id, "id": dupe["id"]},
+                    {"$set": updates},
+                )
+                merged += 1
+            else:
+                new_doc = {
+                    "id": str(uuid.uuid4()),
+                    "organization_id": org_id,
+                    "created_by_id": user["id"],
+                    **doc_base,
+                    "last_job_at": None,
+                    "created_at": _now_iso(),
+                    "updated_at": _now_iso(),
+                }
+                await db.svc_engineer_customers.insert_one(new_doc)
+                imported += 1
+        except Exception as exc:  # noqa: BLE001
+            errors.append({"row": idx, "error": str(exc)[:200]})
+
+    return {
+        "imported": imported,
+        "merged": merged,
+        "skipped": skipped,
+        "errors": errors,
+        "total_processed": imported + merged + len(skipped) + len(errors),
+    }
+
+
 @router.get("/{customer_id}")
 async def get_customer(customer_id: str, user=Depends(get_current_user)):
     org_id = _of(user)
@@ -206,7 +377,17 @@ async def get_customer(customer_id: str, user=Depends(get_current_user)):
     )
     if not doc:
         raise HTTPException(404, "Customer not found")
-    return _strip(doc)
+    doc = _strip(doc)
+    # Iter 216h260 — surface recent quotes + invoices inline for repeat-business view
+    try:
+        doc["recent_quotes"] = await _recent_quotes(org_id, doc.get("email"), doc.get("phone"))
+    except Exception:
+        doc["recent_quotes"] = []
+    try:
+        doc["recent_invoices"] = await _recent_invoices(org_id, doc.get("email"), doc.get("phone"))
+    except Exception:
+        doc["recent_invoices"] = []
+    return doc
 
 
 @router.post("", status_code=201)

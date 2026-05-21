@@ -1,4 +1,65 @@
-## Iter 216h259 — Engineer Lite CRM + UI polish (Feb 21, 2026) ✅ P1 feature batch
+## Iter 216h260 — Engineer Lite CRM: CSV import + history (Feb 21, 2026) ✅ P1 enhancement
+
+User ask (verbatim): *"Continue potential enhancement … Also allow
+engineers to import customers via .csv file. They need to download
+template, single and bulk import."*
+
+### Backend
+
+* `GET /api/svc/engineer/customers/template.csv` — downloadable CSV
+  template with the canonical 7 columns (`name, email, phone,
+  site_name, site_address, notes, equipment_list`) plus one example
+  row demonstrating the `|` separator for equipment.
+* `POST /api/svc/engineer/customers/import-csv` (multipart `file`) —
+  bulk import that dedupes idempotently on `(org × email)` and
+  `(org × phone)`. Returns `{imported, merged, skipped[], errors[],
+  total_processed}`. Equipment list accepts `|`, `;` or newline as
+  the row separator. Header row is case-insensitive; only `name` is
+  required.
+* `GET /api/svc/engineer/customers/{id}` — now also returns
+  `recent_quotes[]` and `recent_invoices[]` (max 5 each, sorted by
+  `created_at` desc, matched on email/phone within the same org).
+  History queries are wrapped in try/except so the primary payload
+  always returns.
+
+Helpers added: `_recent_quotes()`, `_recent_invoices()`,
+`_contact_or_clauses()` for the email/phone $or shape.
+
+Route order matters — `/template.csv` and `/import-csv` are declared
+BEFORE the dynamic `/{customer_id}` route so FastAPI matches them
+literally.
+
+### Frontend
+
+* `EngineerCustomers.js` header now has three action buttons:
+  - **Template** (`customers-template-btn`) — downloads the CSV via
+    blob → `<a download>` click.
+  - **Import** (`customers-import-btn`) — opens a hidden
+    `<input type="file">`. On submit, posts via FormData and shows a
+    summary toast `"3 new · 1 merged · 0 skipped"`.
+  - **+ New** — unchanged (single-customer modal).
+* Expanding a customer row now fetches `GET /customers/{id}` and
+  surfaces the inline **Recent quotes** and **Recent invoices** tabs
+  with clickable rows that deep-link to the existing
+  `/svc/engineer/quotes/{id}` and `/svc/engineer/invoices/{id}`
+  pages — perfect for engineers chasing repeat business.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h260_engineer_customers_csv_history.py`) | **11 / 11** |
+| `make regression` | **186 passed, 14 skipped** (was 175 → 186) |
+| `ruff check` | clean |
+| `yarn eslint --max-warnings 0` | clean |
+| Live curl: template → import 3 rows → merges on duplicate email | ✅ `{imported:2, merged:1}` |
+| Live curl: `GET /customers/{id}` | ✅ returns `recent_quotes:[], recent_invoices:[]` |
+| Smoke screenshot of `/svc/engineer/customers` | Template + Import + New buttons all visible |
+
+---
+
+
+
 
 User ask (verbatim): *"Engineer app - ensure there are back buttons
 on every page... Support button doesn't work? Move to top nav...
@@ -85,6 +146,62 @@ future quote/invoice → `last_job_at` auto-stamped → less typing,
 fewer typos, faster turnaround on returning customers.
 
 ---
+
+
+## Iter 216h259 — Engineer Lite CRM + UI polish (Feb 21, 2026) ✅ P1 feature batch
+
+User ask (verbatim): *"Engineer app - ensure there are back buttons
+on every page... Support button doesn't work? Move to top nav...
+Merge card stats with analytics... Engineers to have a Lite CRM so
+they can save customer details and avoid retyping."*
+
+User choices on fork (Feb 21, 2026):
+* Lite CRM scope: **richer** — name + email + phone + site/address +
+  notes + last-job-date + equipment list.
+* Ownership: **shared org-wide** (any engineer on the same org sees
+  every saved customer).
+* Card analytics: **keep Analytics**, **remove Card Stats** tile.
+
+### Backend — Engineer Lite CRM
+
+New `routes/svc/engineer_customers.py` (collection
+`svc_engineer_customers`, indexes on `organization_id+email`,
+`organization_id+phone`, `organization_id+updated_at`):
+
+| Method | Path | Notes |
+|---|---|---|
+| GET    | `/svc/engineer/customers` | Org-wide list with optional `q=` filter |
+| GET    | `/svc/engineer/customers/search?q=` | Lightweight autocomplete payload |
+| GET    | `/svc/engineer/customers/{id}` | Full doc (+ history in h260) |
+| POST   | `/svc/engineer/customers` | Idempotent — merges on email OR phone |
+| PATCH  | `/svc/engineer/customers/{id}` | Partial update |
+| DELETE | `/svc/engineer/customers/{id}` | Hard delete |
+
+Also exposes `touch_last_job(org_id, email, phone)` — invoked by
+`engineer_quotes.create_quote` + `engineer_invoices.create_invoice`
+to stamp the matching customer's `last_job_at` automatically.
+
+### Frontend changes
+
+* `EngineerHomeV2`: Support → top nav icon button
+  (`engineer-home-support-btn`). Card Stats QuickAction removed. New
+  "My customers" QuickAction.
+* New page `EngineerCustomers.js` at `/svc/engineer/customers`.
+* `EngineerQuoteBuilder` + `EngineerInvoiceBuilder` each got a
+  `CustomerPicker` + a **Save** button that pushes the current
+  customer block into the Lite CRM.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h259_engineer_lite_crm.py`) | **18 / 18** |
+| `make regression` | **175 passed, 14 skipped** (157 → 175) |
+| `ruff` + `yarn eslint --max-warnings 0` | clean |
+| Live curl: create → search → dupe-merge → delete | ✅ |
+
+---
+
 
 
 

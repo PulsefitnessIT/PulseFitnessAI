@@ -8,12 +8,13 @@
  *
  * Routes: GET/POST/PATCH/DELETE /api/svc/engineer/customers
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   ArrowLeft, Users, Plus, Search, Loader2, Mail, Phone, MapPin,
   Trash2, Edit3, Save, X, Wrench, FileText, CalendarClock,
+  Upload, Download, Receipt,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -73,6 +74,10 @@ export default function EngineerCustomers() {
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState(null);
+  const [activeDetail, setActiveDetail] = useState(null); // { id, recent_quotes, recent_invoices }
+  const [activeDetailLoading, setActiveDetailLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -176,6 +181,76 @@ export default function EngineerCustomers() {
     navigate(`/svc/engineer/quotes/new?${params.toString()}`);
   };
 
+  const handleToggleRow = async (row) => {
+    if (activeId === row.id) {
+      setActiveId(null);
+      setActiveDetail(null);
+      return;
+    }
+    setActiveId(row.id);
+    setActiveDetail(null);
+    setActiveDetailLoading(true);
+    try {
+      const r = await axios.get(`${API}/svc/engineer/customers/${row.id}`, auth());
+      setActiveDetail(r.data);
+    } catch (err) {
+      notify.error('Failed to load customer history', err?.response?.data?.detail || err?.message);
+    } finally {
+      setActiveDetailLoading(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const r = await axios.get(`${API}/svc/engineer/customers/template.csv`, {
+        ...auth(),
+        responseType: 'blob',
+      });
+      const blob = new Blob([r.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'engineer-customers-template.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      notify.error('Could not download template', err?.response?.data?.detail || err?.message);
+    }
+  };
+
+  const handleImportClick = () => {
+    importRef.current?.click();
+  };
+
+  const handleImportFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const r = await axios.post(`${API}/svc/engineer/customers/import-csv`, fd, {
+        ...auth(),
+        headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
+      });
+      const d = r.data || {};
+      const summary = `${d.imported || 0} new · ${d.merged || 0} merged · ${(d.skipped || []).length} skipped`;
+      notify.success('Import complete', summary);
+      if ((d.errors || []).length) {
+        notify.error(`${d.errors.length} row(s) failed`, d.errors.slice(0, 3).map((e) => `Row ${e.row}: ${e.error}`).join('\n'));
+      }
+      await load();
+    } catch (err) {
+      notify.error('Import failed', err?.response?.data?.detail || err?.message);
+    } finally {
+      setImporting(false);
+      // Reset input so the same file can be re-selected
+      if (importRef.current) importRef.current.value = '';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50" data-testid="engineer-customers-page">
       <header className="sticky top-0 z-20 bg-white border-b border-slate-200">
@@ -196,6 +271,33 @@ export default function EngineerCustomers() {
               Shared with your team — save once, reuse on every quote.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50"
+            data-testid="customers-template-btn"
+            title="Download CSV template"
+          >
+            <Download size={14} /> Template
+          </button>
+          <button
+            type="button"
+            onClick={handleImportClick}
+            disabled={importing}
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-50"
+            data-testid="customers-import-btn"
+            title="Import customers from CSV"
+          >
+            {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Import
+          </button>
+          <input
+            type="file"
+            ref={importRef}
+            accept=".csv,text/csv"
+            onChange={handleImportFile}
+            className="hidden"
+            data-testid="customers-import-input"
+          />
           <button
             type="button"
             onClick={openNew}
@@ -251,7 +353,7 @@ export default function EngineerCustomers() {
               >
                 <button
                   type="button"
-                  onClick={() => setActiveId(isOpen ? null : row.id)}
+                  onClick={() => handleToggleRow(row)}
                   className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50"
                   data-testid={`customer-row-toggle-${row.id}`}
                 >
@@ -309,6 +411,71 @@ export default function EngineerCustomers() {
                       <p className="flex items-center gap-2 text-[11px] text-slate-500">
                         <CalendarClock size={12} /> Last job {fmtDate(row.last_job_at)}
                       </p>
+                    ) : null}
+                    {/* Iter 216h260 — recent quotes + invoices for repeat-business view */}
+                    {activeDetailLoading && activeId === row.id ? (
+                      <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                        <Loader2 size={12} className="animate-spin" /> Loading history…
+                      </p>
+                    ) : activeDetail && activeDetail.id === row.id ? (
+                      <div className="space-y-2 pt-2 border-t border-slate-100" data-testid={`customer-history-${row.id}`}>
+                        {(activeDetail.recent_quotes || []).length > 0 ? (
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+                              <FileText size={12} /> Recent quotes ({activeDetail.recent_quotes.length})
+                            </p>
+                            <ul className="mt-1 space-y-1">
+                              {activeDetail.recent_quotes.map((qq) => (
+                                <li key={qq.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/svc/engineer/quotes/${qq.id}`)}
+                                    className="w-full text-left flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-slate-50 text-xs"
+                                    data-testid={`customer-quote-${qq.id}`}
+                                  >
+                                    <span className="truncate">
+                                      <b>{qq.quote_number}</b>
+                                      <span className="text-slate-500 ml-1 capitalize">· {qq.status}</span>
+                                    </span>
+                                    <span className="tabular-nums font-semibold">£{Number(qq.total || 0).toFixed(2)}</span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {(activeDetail.recent_invoices || []).length > 0 ? (
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+                              <Receipt size={12} /> Recent invoices ({activeDetail.recent_invoices.length})
+                            </p>
+                            <ul className="mt-1 space-y-1">
+                              {activeDetail.recent_invoices.map((inv) => (
+                                <li key={inv.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/svc/engineer/invoices/${inv.id}`)}
+                                    className="w-full text-left flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-slate-50 text-xs"
+                                    data-testid={`customer-invoice-${inv.id}`}
+                                  >
+                                    <span className="truncate">
+                                      <b>{inv.invoice_number}</b>
+                                      <span className="text-slate-500 ml-1 capitalize">· {inv.status}</span>
+                                    </span>
+                                    <span className="tabular-nums font-semibold">£{Number(inv.total || 0).toFixed(2)}</span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {(activeDetail.recent_quotes || []).length === 0
+                         && (activeDetail.recent_invoices || []).length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic">
+                            No quotes or invoices on file yet.
+                          </p>
+                        ) : null}
+                      </div>
                     ) : null}
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
                       <button
