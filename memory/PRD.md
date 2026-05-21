@@ -1,3 +1,86 @@
+## Iter 216h264 — Staff portal preview + per-staff credentials + Templates modal fix (Feb 21, 2026) ✅ Feature batch
+
+User asks (3 screenshots):
+1. *"Rota template modal screen is 1/3 white."*
+2. *"Arrange the staffing option bar in a more logical order."*
+3. *"We need a staff portal preview button so managers/owners can
+   see how the website app will look — Users will need to be
+   assigned usernames and passwords too."*
+
+### Backend
+
+* New endpoint `POST /api/staffing/staff/{id}/issue-credentials`:
+  manager-only. Creates the matching `users` doc with role=staff
+  if it doesn't exist (or refreshes the password if it does — and
+  critically never downgrades an existing owner/manager). Returns
+  `{ok, email, temp_password, created, email_sent}`. The endpoint
+  also best-effort emails the staff member their login details
+  via `utils.email.send_email`; a delivery failure doesn't fail
+  the call. Stamps `portal_credentials_issued_at` on the
+  staff_members row so the UI can show "Re-issue" instead of
+  "Send login" on subsequent rotations.
+
+### Frontend
+
+**Tab order** (`TABS_ALL` in `StaffingConsole.js`) — reordered to
+people → schedule → daily ops → performance → comms → AI:
+
+```
+Dashboard · Staff · Rota · Templates · Time Off · Shift Market ·
+Time Clock · Live Floor · Performance · Payroll · Announcements ·
+Comms Hub · Ops · Forms · HR · Rules · AI Rota · AI Insights
+```
+
+**StaffTab** gains:
+* **Preview staff portal** header button — opens the current URL
+  with `?as=staff` in a new tab.
+* **Send login / Re-issue** button per row — calls the new
+  endpoint, then opens a modal that surfaces the temp password
+  with one-click Copy buttons. Modal labels switch automatically
+  based on `email_sent` so managers know whether the email got
+  out.
+* New "Login" column between Hourly rate and the archive action.
+
+**Preview mode** — `StaffingConsole` checks `window.location.search`
+for `as=staff` on every render. When set:
+* `role` is forced to `'staff'`
+* `isManager` becomes `false`
+* a blue "Previewing the staff portal — managers' tabs are hidden."
+  banner appears at the top with an "Exit preview" link
+* the API token in localStorage is unchanged, so backend calls still
+  authenticate as the manager (no privilege issue)
+
+**ShiftTemplatesTab** — both `TemplateEditor` + `ApplyDialog` now
+mount via `createPortal(..., document.body)`. Modal is also
+widened from `max-w-lg` → `max-w-2xl`, gets `bg-black/70
+backdrop-blur-sm` and `shadow-2xl` so it stops feeling like a
+tiny island on the white Pulse Pro page (same pattern as the Add
+Staff modal fix in Iter 216h242).
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h264_staff_portal_creds.py`) | **11 / 11** |
+| `make regression` | **220 passed, 14 skipped** (209 → 220) |
+| `ruff check` + `yarn eslint --max-warnings 0` | clean |
+| Live curl: `POST /staffing/staff/{id}/issue-credentials` | ✅ creates user, returns temp password, mirrors email + timestamp on staff_members row |
+| Manual flow | manager → Staff tab → "Send login" → modal shows password → "Copy" works → staff logs in elsewhere with temp password |
+
+### Notes
+
+Owner / Manager passwords are NEVER downgraded to `staff` even if
+their email exists in `staff_members`. The endpoint only writes
+`role: "staff"` for a freshly-minted user doc.
+
+Email delivery uses the existing Resend pipeline + the org's
+branded sender (when configured), so the staff member sees an
+email from the gym's name rather than "GymAxis".
+
+---
+
+
+
 ## Iter 216h263 — Fault card UX upgrades + photo-lookup loading state (Feb 21, 2026) ✅ Bug fix + UX
 
 User feedback with 3 screenshots (Feb 21, 2026):

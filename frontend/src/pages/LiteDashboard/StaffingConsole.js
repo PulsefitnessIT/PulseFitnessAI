@@ -22,6 +22,8 @@ import {
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
   LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
   IdCard, Wand2, ArrowRightLeft,
+  // Iter 216h264 — staff portal preview + credentials issuance
+  ExternalLink, KeyRound, Loader2, Copy, Check, X,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import PillTabBar from '@/components/shared/PillTabBar';
@@ -41,23 +43,26 @@ import ProductTour from '@/components/shared/ProductTour';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Canonical tab registry. Each tab knows which roles can see it.
+// Iter 216h264 — reordered into a "people → schedule → daily ops →
+// performance → comms" flow per user feedback. Old order had
+// `templates` before `staff` which read backwards.
 const TABS_ALL = [
   { id: 'dashboard',    label: 'Dashboard',     icon: LayoutDashboard, roles: ['owner','manager','master_admin'] },
+  { id: 'staff',        label: 'Staff',         icon: Users,       roles: ['owner','manager','master_admin'] },
   { id: 'rota',         label: 'Rota',          icon: Calendar,    roles: ['owner','manager','master_admin'] },
   { id: 'templates',    label: 'Templates',     icon: Layers,      roles: ['owner','manager','master_admin'] },
-  { id: 'timeclock',    label: 'Time Clock',    icon: Activity,    roles: ['owner','manager','master_admin'] },
-  { id: 'myclock',      label: 'My Clock',      icon: Timer,       roles: ['staff'] },
-  { id: 'staff',        label: 'Staff',         icon: Users,       roles: ['owner','manager','master_admin'] },
   { id: 'leave',        label: 'Time Off',      icon: Plane,       roles: ['owner','manager','master_admin','staff'] },
   { id: 'market',       label: 'Shift Market',  icon: ShoppingBag, roles: ['owner','manager','master_admin','staff'] },
+  { id: 'timeclock',    label: 'Time Clock',    icon: Activity,    roles: ['owner','manager','master_admin'] },
+  { id: 'myclock',      label: 'My Clock',      icon: Timer,       roles: ['staff'] },
+  { id: 'live',         label: 'Live Floor',    icon: Eye,         roles: ['owner','manager','master_admin','staff'] },
   { id: 'performance',  label: 'Performance',   icon: BarChart3,   roles: ['owner','manager','master_admin'] },
   { id: 'payroll',      label: 'Payroll',       icon: PoundSterling,  roles: ['owner','manager','master_admin'] },
-  { id: 'live',         label: 'Live Floor',    icon: Eye,         roles: ['owner','manager','master_admin','staff'] },
-  { id: 'rules',        label: 'Rules',         icon: Shield,      roles: ['owner','manager','master_admin'] },
   { id: 'announce',     label: 'Announcements', icon: Megaphone,   roles: ['owner','manager','master_admin','staff'] },
   { id: 'comms',        label: 'Comms Hub',     icon: MessageSquare, roles: ['owner','manager','master_admin','staff'] },
   { id: 'operations',   label: 'Ops · Forms',   icon: ClipboardList, roles: ['owner','manager','master_admin','staff'] },
   { id: 'hr',           label: 'HR',            icon: IdCard,      roles: ['owner','manager','master_admin'] },
+  { id: 'rules',        label: 'Rules',         icon: Shield,      roles: ['owner','manager','master_admin'] },
   { id: 'ai-rota',      label: 'AI Rota',       icon: Wand2,       roles: ['owner','manager','master_admin'] },
   { id: 'ai',           label: 'AI Insights',   icon: Sparkles,    roles: ['owner','manager','master_admin'] },
   // Iter 216h113e — MOD-only: cross-site staff transfer within the
@@ -71,12 +76,20 @@ export default function StaffingConsole() {
   const { user } = useAuth();
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
+  // Iter 216h264 — when a manager opens this console with ?as=staff
+  // we want to render the exact tab set a staff member would see
+  // (no payroll, no HR, etc.). The actual user object is untouched
+  // so API calls still authenticate as the manager — the preview is
+  // purely a frontend role-gate filter.
+  const previewAsStaff = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('as') === 'staff';
   const role = useMemo(() => {
+    if (previewAsStaff) return 'staff';
     if (user?.is_master_admin || user?.is_pulse_admin) return 'master_admin';
     const r = (user?.role || '').toLowerCase();
     return ['owner','manager','staff','gym_floor'].includes(r) ? r : 'staff';
-  }, [user]);
-  const isManager = role === 'owner' || role === 'manager' || role === 'master_admin';
+  }, [user, previewAsStaff]);
+  const isManager = !previewAsStaff && (role === 'owner' || role === 'manager' || role === 'master_admin');
   const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
 
   const tabs = useMemo(
@@ -108,6 +121,27 @@ export default function StaffingConsole() {
   return (
     <div className="space-y-5 pulse-font-body" data-testid="staffing-console">
       <ProductTour variant="staffing" />
+      {previewAsStaff && (
+        <div
+          className="rounded-xl border px-4 py-2 flex items-center justify-between gap-3 text-xs"
+          style={{ borderColor: 'var(--color-brand-cyan)', background: 'rgba(25,205,255,0.08)', color: 'var(--color-brand-cyan)' }}
+          data-testid="staff-portal-preview-banner"
+        >
+          <span className="font-semibold inline-flex items-center gap-1.5">
+            <Eye size={12} /> Previewing the staff portal — managers&apos; tabs are hidden.
+          </span>
+          <a
+            href="?"
+            className="font-semibold underline"
+            onClick={(e) => {
+              e.preventDefault();
+              const u = new URL(window.location.href);
+              u.searchParams.delete('as');
+              window.location.href = u.toString();
+            }}
+          >Exit preview</a>
+        </div>
+      )}
       <PageHeader
         title={isManager ? 'Staffing' : 'My shifts'}
         subtitle={isManager
@@ -522,13 +556,57 @@ function StaffTab({ headers }) {
   };
   const archive = async (id) => { if (!window.confirm('Archive staff?')) return; await axios.delete(`${API}/staffing/staff/${id}`, { headers }); load(); };
 
+  // Iter 216h264 — issue or reset a staff member's portal credentials.
+  // Backend creates / refreshes the matching users doc, returns a one-
+  // shot temp password the manager can hand over (and best-effort
+  // emails it to the staff member).
+  const [credsBusy, setCredsBusy] = useState(null);
+  const [credsDialog, setCredsDialog] = useState(null);
+  const issueCredentials = async (s) => {
+    const ok = window.confirm(
+      `Issue portal login for ${s.full_name}? A temporary password will be ${s.email ? 'emailed to them and ' : ''}shown to you once.`,
+    );
+    if (!ok) return;
+    setCredsBusy(s.id);
+    try {
+      const r = await axios.post(`${API}/staffing/staff/${s.id}/issue-credentials`, {}, { headers });
+      setCredsDialog({ ...r.data, staffName: s.full_name });
+    } catch (err) {
+      window.alert(err.response?.data?.detail || 'Could not issue credentials');
+    } finally {
+      setCredsBusy(null);
+    }
+  };
+
+  // Iter 216h264 — let managers preview what the staff portal looks
+  // like by opening the Staffing console in a fresh tab with
+  // `?as=staff`. The console hides manager-only tabs when this flag
+  // is on (see useStaffPreviewRole below).
+  const openStaffPreview = () => {
+    const u = new URL(window.location.href);
+    u.searchParams.set('as', 'staff');
+    window.open(u.toString(), '_blank', 'noopener');
+  };
+
   return (
     <div className="space-y-3">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{rows.length} active staff</div>
-        <button type="button" onClick={() => setShowAdd(true)} className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-add-btn">
-          <UserPlus size={12} /> Add staff
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openStaffPreview}
+            className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5 border"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}
+            data-testid="staff-preview-portal-btn"
+            title="Open the staff portal in a new tab as if you were a staff member"
+          >
+            <ExternalLink size={12} /> Preview staff portal
+          </button>
+          <button type="button" onClick={() => setShowAdd(true)} className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-add-btn">
+            <UserPlus size={12} /> Add staff
+          </button>
+        </div>
       </div>
 
       {rows.length === 0 ? <EmptyState icon={Users} title="No staff yet" hint="Click 'Add staff' to build your roster." testId="staff-empty" /> : (
@@ -549,6 +627,7 @@ function StaffTab({ headers }) {
                     ambiguous. */}
                 <th className="text-right py-2 px-2 font-semibold">Hrs/wk</th>
                 <th className="text-right py-2 px-2 font-semibold">Hourly rate</th>
+                <th className="text-right py-2 px-2 font-semibold">Login</th>
                 <th className="w-8" />
               </tr>
             </thead>
@@ -560,6 +639,22 @@ function StaffTab({ headers }) {
                   <td className="py-2 px-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.contract_type || '—'}</td>
                   <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hrs`}>{s.hours_per_week ? `${s.hours_per_week}h` : '—'}</td>
                   <td className="py-2 px-2 text-right text-xs" style={{ color: 'var(--theme-text)' }} data-testid={`staff-row-${s.id}-hourly`}>£{Number(s.hourly_cost || 0).toFixed(2)}</td>
+                  <td className="py-2 px-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => issueCredentials(s)}
+                      disabled={credsBusy === s.id}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-md px-2 py-1 border disabled:opacity-50"
+                      style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}
+                      data-testid={`staff-issue-creds-${s.id}`}
+                      title={s.portal_credentials_issued_at ? 'Re-issue portal password' : 'Send portal login'}
+                    >
+                      {credsBusy === s.id
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : <KeyRound size={11} />}
+                      {s.portal_credentials_issued_at ? 'Re-issue' : 'Send login'}
+                    </button>
+                  </td>
                   <td className="py-2 px-2 text-right"><button type="button" onClick={() => archive(s.id)} className="opacity-60 hover:opacity-100" data-testid={`staff-archive-${s.id}`}><Trash2 size={12} /></button></td>
                 </tr>
               ))}
@@ -651,6 +746,70 @@ function StaffTab({ headers }) {
           </div>
         </div>
       ), document.body)}
+
+      {credsDialog && createPortal((
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" data-testid="staff-creds-dialog">
+          <div className="w-full max-w-md rounded-2xl p-5 shadow-2xl" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-brand-cyan)' }}>Portal credentials</p>
+                <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{credsDialog.staffName}</h4>
+              </div>
+              <button type="button" onClick={() => setCredsDialog(null)} className="opacity-60 hover:opacity-100" data-testid="staff-creds-close" aria-label="Close"><X size={16} /></button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: 'var(--theme-text-muted)' }}>
+              {credsDialog.email_sent
+                ? 'We\u2019ve emailed the temporary password to the staff member. You can also share it below.'
+                : credsDialog.email
+                  ? 'Email delivery failed — please copy the temporary password below and share it with the staff member.'
+                  : 'Share the temporary password below with the staff member.'}
+              {' '}They&rsquo;ll be asked to change it on first login.
+            </p>
+            <div className="space-y-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Login email</p>
+                <CopyableField value={credsDialog.email} testid="staff-creds-email" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Temporary password</p>
+                <CopyableField value={credsDialog.temp_password} mono testid="staff-creds-temp-password" />
+              </div>
+            </div>
+            <div className="flex justify-end mt-4">
+              <button type="button" onClick={() => setCredsDialog(null)} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-creds-done">
+                <Check size={11} className="inline-block mr-1" /> Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
+    </div>
+  );
+}
+
+function CopyableField({ value, mono, testid }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value || '');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard blocked */ }
+  };
+  return (
+    <div className="mt-1 flex items-stretch gap-1.5">
+      <input
+        readOnly
+        value={value || ''}
+        className={`flex-1 min-w-0 h-9 rounded-md border px-2 text-sm ${mono ? 'font-mono tracking-wide' : ''}`}
+        style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+        onFocus={(e) => e.target.select()}
+        data-testid={`${testid}-input`}
+      />
+      <button type="button" onClick={copy} className="h-9 px-2 rounded-md border inline-flex items-center gap-1 text-[11px] font-semibold" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }} data-testid={`${testid}-copy`}>
+        {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+      </button>
+
     </div>
   );
 }

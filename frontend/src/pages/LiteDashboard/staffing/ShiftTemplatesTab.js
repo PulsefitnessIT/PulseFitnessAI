@@ -16,6 +16,7 @@
  * template for different people without cloning it.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Plus, Clock, Pencil, Trash2, X, Check, Calendar as CalIcon, Loader2, Layers,
@@ -77,8 +78,8 @@ function TemplateEditor({ initial, staff, onSave, onCancel, saving }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" data-testid="template-editor">
-      <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto"
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" data-testid="template-editor">
+      <div className="w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl"
         style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
         <div className="flex items-center justify-between">
           <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
@@ -424,7 +425,11 @@ export default function ShiftTemplatesTab({ headers, isManager }) {
         </div>
       )}
 
-      {editing && (
+      {editing && createPortal((
+        // Iter 216h264 — portal to document.body so the fixed inset-0
+        // overlay covers the full viewport (parent has `transform` which
+        // would otherwise create a new containing block for fixed and
+        // leave a white 1/3 strip at the bottom of the screen).
         <TemplateEditor
           initial={editing.id ? editing : null}
           staff={staff}
@@ -432,8 +437,8 @@ export default function ShiftTemplatesTab({ headers, isManager }) {
           onSave={save}
           onCancel={() => setEditing(null)}
         />
-      )}
-      {applying && (
+      ), document.body)}
+      {applying && createPortal((
         <ApplyDialog
           template={applying}
           staff={staff}
@@ -441,7 +446,7 @@ export default function ShiftTemplatesTab({ headers, isManager }) {
           onApply={apply}
           onCancel={() => setApplying(null)}
         />
-      )}
+      ), document.body)}
     </div>
   );
 }

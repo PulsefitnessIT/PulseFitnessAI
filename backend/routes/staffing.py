@@ -403,6 +403,138 @@ async def archive_staff(staff_id: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+# ───────────────────────── Iter 216h264 — Staff portal credentials ──
+#
+# Today `create_staff` only inserts a row into `staff_members`. That
+# row is enough for the rota / payroll / KPI side of the platform but
+# it does NOT give the person a login to the Pulse staff portal.
+#
+# Managers can now issue (or reset) a staff member's portal login from
+# the Staff tab. The endpoint:
+#
+#   1. Locates the staff_members row in the caller's org.
+#   2. Upserts the matching `users` doc with role="staff" (creates if
+#      absent, refreshes the password if present).
+#   3. Generates a 10-character urlsafe temporary password and bcrypts
+#      it before persisting. The plaintext value is returned ONCE in
+#      the response so the manager can hand it to the staff member.
+#   4. (Best-effort) sends an email with the credentials + portal URL
+#      via the existing utils.email pipeline. Failure to send doesn't
+#      fail the request — managers can always copy the password from
+#      the response.
+
+from pydantic import EmailStr
+
+
+class StaffCredentialsRequest(BaseModel):
+    email: EmailStr | None = None  # falls back to staff_member.email
+    send_email: bool = True
+
+
+@router.post("/staffing/staff/{staff_id}/issue-credentials")
+async def issue_staff_credentials(
+    staff_id: str,
+    body: StaffCredentialsRequest | None = None,
+    user: dict = Depends(get_current_user),
+):
+    import secrets
+    from utils.auth import hash_password
+
+    _require_manager(user)
+    org_id = _org(user)
+    body = body or StaffCredentialsRequest()
+
+    staff = await db.staff_members.find_one(
+        {"id": staff_id, "organization_id": org_id}, {"_id": 0}
+    )
+    if not staff:
+        raise HTTPException(404, "staff not found")
+
+    email = (body.email or staff.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(
+            400,
+            "Staff member has no email on file. Save an email on their "
+            "profile (or pass one in the body) before issuing credentials.",
+        )
+
+    # Generate a friendly temp password — 10 url-safe chars, easy to
+    # type without ambiguous glyphs.
+    temp_password = secrets.token_urlsafe(8).replace("_", "x").replace("-", "y")[:10]
+
+    now_iso = _now().isoformat()
+    user_doc_seed = {
+        "id": str(uuid4()),
+        "email": email,
+        "full_name": staff.get("full_name") or email,
+        "organization_id": org_id,
+        "role": "staff",
+        "staff_member_id": staff_id,
+        "must_change_password": True,
+        "created_at": now_iso,
+    }
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        # Reset rather than fail — managers often re-issue when staff
+        # lose their password.
+        update = {
+            "password": hash_password(temp_password),
+            "password_updated_at": now_iso,
+            "must_change_password": True,
+            "staff_member_id": staff_id,
+            "organization_id": existing.get("organization_id") or org_id,
+            # Don't downgrade an existing owner/manager to staff.
+            "role": existing.get("role") if existing.get("role") in {"owner", "manager", "master_admin"} else "staff",
+        }
+        await db.users.update_one({"email": email}, {"$set": update})
+        created = False
+    else:
+        user_doc_seed["password"] = hash_password(temp_password)
+        user_doc_seed["password_updated_at"] = now_iso
+        await db.users.insert_one(user_doc_seed.copy())
+        created = True
+
+    # Mirror the email back onto staff_members so subsequent UI reads
+    # stay in sync.
+    await db.staff_members.update_one(
+        {"id": staff_id, "organization_id": org_id},
+        {"$set": {"email": email, "portal_credentials_issued_at": now_iso}},
+    )
+
+    sent = False
+    if body.send_email:
+        try:
+            from utils.email import send_email  # generic helper
+            org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
+            site_url = (
+                os.environ.get("APP_PUBLIC_URL")
+                or "https://gymaxisai.com"
+            ).rstrip("/")
+            org_name = org.get("name") or "your team"
+            subject = f"Your {org_name} staff portal login"
+            html = (
+                f"<p>Hi {staff.get('full_name') or 'there'},</p>"
+                f"<p>{user.get('full_name') or 'Your manager'} has created a "
+                f"staff portal account for you on <b>{org_name}</b>.</p>"
+                f"<p><b>Email:</b> {email}<br>"
+                f"<b>Temporary password:</b> <code>{temp_password}</code></p>"
+                f"<p>Log in here: <a href=\"{site_url}/login\">{site_url}/login</a></p>"
+                f"<p>You&rsquo;ll be asked to change your password on first login.</p>"
+            )
+            await send_email(to=email, subject=subject, html=html)
+            sent = True
+        except Exception:
+            logger.exception("[staff-credentials] welcome email failed")
+
+    return {
+        "ok": True,
+        "email": email,
+        "temp_password": temp_password,
+        "created": created,
+        "email_sent": sent,
+    }
+
+
 # ───────────────────────── Rota / shifts ─────────────────────────
 
 @router.get("/staffing/shifts")
