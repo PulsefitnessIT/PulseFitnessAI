@@ -273,8 +273,11 @@ def _validate(data: dict) -> dict:
             pid = (it.get("product_id") or "").strip()
             if not pid:
                 raise HTTPException(422, f"bundle_items[{idx}].product_id is required")
+            qty_raw = it.get("quantity", 1)
+            if qty_raw in (None, ""):
+                qty_raw = 1
             try:
-                qty = float(it.get("quantity", 1) or 1)
+                qty = float(qty_raw)
             except (TypeError, ValueError) as exc:
                 raise HTTPException(422, f"bundle_items[{idx}].quantity must be numeric") from exc
             if qty <= 0:

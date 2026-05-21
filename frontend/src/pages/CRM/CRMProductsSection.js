@@ -330,7 +330,7 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
                           data-testid={`products-bundle-product-${idx}`}
                         >
                           <option value="">Pick a product…</option>
-                          {items.filter(p => !p.is_bundle && p.id !== editingId).map(p => (
+                          {products.filter(p => !p.is_bundle && p.id !== editingId).map(p => (
                             <option key={p.id} value={p.id}>{p.name} {p.sku ? `· ${p.sku}` : ''}</option>
                           ))}
                         </select>

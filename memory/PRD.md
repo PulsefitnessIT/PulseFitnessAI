@@ -1,3 +1,89 @@
+## Iter 216h267 — CRM Product Bundles + nav-bar reorder (Feb 21, 2026) ✅ P2
+
+User ask (verbatim): *"P2 — Product configuration / bundles … Arrange
+the CRM options bar in a more logical order."*
+
+### Backend — bundle schema + expansion endpoint
+
+* `routes/crm_products.py` — `_validate()` now persists:
+  - `is_bundle: bool` (default False)
+  - `bundle_items[]` of `{product_id, quantity, override_sell_price?}`
+* Validation rejects: bundles with no components, 0-quantity rows,
+  rows missing `product_id`, non-numeric quantities / overrides.
+  Also tightened the quantity default: `0` is no longer silently
+  coerced to `1` (regression caught by `test_validate_rejects_bundle_item_with_zero_quantity`).
+* **New** `GET /api/crm/products/{product_id}/expand` — explodes a
+  bundle into resolved component lines:
+  - Hydrates each line with the **current** `cost_price`,
+    `sell_price`, `tax_rate`, `supplier_id`, `supplier_name` from
+    the master price list (so changes to component prices flow
+    through automatically on the next quote).
+  - `override_sell_price` on a bundle row replaces the sell price
+    on that single component (cost stays truthful for margin maths).
+  - Missing components surface a `{missing: True}` stub so the
+    manager notices, instead of 404ing the whole bundle.
+  - Rolls up `rollup_cost`, `rollup_sell`, `rollup_margin_percent`
+    so the quote builder can preview totals before insertion.
+  - Non-bundle products return a single-item list — the route is
+    safe to call on any product id.
+
+### Frontend — bundle editor + nav reorder
+
+* `pages/CRM/CRMProductsSection.js` — the create/edit modal now
+  carries an **"This product is a bundle / kit"** checkbox. When
+  ticked, an inline component editor appears with one row per
+  bundle item:
+  - **Product** picker — filters out other bundles + the product
+    being edited (to forbid self-reference / cycles)
+  - **Quantity** input
+  - **£ override** (optional)
+  - per-row delete button + a footer **"+ Add component"** button
+* Form submit clamps `bundle_items` to `[]` when `is_bundle` is
+  false, and drops blank rows + non-numeric quantities before
+  POSTing.
+* **Bug fixed**: an earlier draft of the bundle picker referenced
+  the undefined `items.filter(...)` instead of the state variable
+  `products.filter(...)` — would crash the modal at runtime.
+  Regression test now pins this.
+* `pages/CRM/CRMApp.js` — `NAV_ITEMS` reordered into a clearer
+  records → sales → daily → admin → specialised flow:
+
+  ```
+  Dashboard · Companies · Contacts ·   ← Records
+  Pipeline · Quotes · Forecast ·       ← Sales flow
+  Activity Feed · Calendar ·           ← Daily ops
+  Workflows · Territories · Reports ·  ← Admin / setup
+  Tenders · Contracts                  ← Specialised
+  ```
+
+  Old order put **Pipeline before Companies** and buried Quotes /
+  Forecast behind Workflows. The new order matches how sales reps
+  actually navigate: open the company → look at the contacts →
+  drop into the pipeline / quote / forecast for that account.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h267_crm_bundles.py`) | **15 / 15** |
+| `make regression` | **257 passed, 14 skipped** (was 242 → 257) |
+| `ruff check` on `crm_products.py` | clean |
+| `yarn eslint --max-warnings 0` on `CRMProductsSection.js` | clean |
+| Live smoke screenshot | Settings → Price List → Add product → ☑ This product is a bundle → component row + add component visible, nav bar in new order |
+
+### Why this matters
+
+Sales reps were previously typing every line item by hand even
+for repeatable bundles (e.g. "Cardio starter pack" = 1 treadmill +
+2 bikes + install + 12-month service plan). Now: define the
+bundle once → drop it on a quote → 4 lines expand with current
+prices and supplier routing intact. Margin maths stays truthful
+because cost prices are pulled fresh on every expansion.
+
+---
+
+
+
 ## Iter 216h266 — CRM company 360° deep UI audit (Feb 21, 2026) ✅ P2 follow-up
 
 Customer feedback (P2 from h265 plan):
