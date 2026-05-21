@@ -730,6 +730,15 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
   const [showAddQuote, setShowAddQuote] = useState(false);
   const [quoteLines, setQuoteLines] = useState([{ description: '', quantity: 1, unit_price: 0, discount: 0 }]);
   const [quoteNotes, setQuoteNotes] = useState('');
+  // Iter 216h266 — 360° UI: case & deal create dialogs directly on
+  // the company drawer. Customer feedback: "I didn't seem to be
+  // able to log a case and have it appear against the company
+  // record." Backend already supports company_id on cases; we just
+  // needed the UI affordances.
+  const [showAddCase, setShowAddCase] = useState(false);
+  const [caseForm, setCaseForm] = useState({ subject: '', description: '', severity: 'medium' });
+  const [showAddDeal, setShowAddDeal] = useState(false);
+  const [dealForm, setDealForm] = useState({ title: '', value: '', stage: 'lead', close_date: '' });
   const [_contacts, _setContacts] = useState([]);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -842,6 +851,42 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     setSaving(false);
   };
 
+  // Iter 216h266 — log a case directly from the company drawer.
+  const handleAddCase = async () => {
+    if (!caseForm.subject.trim()) return;
+    setSaving(true);
+    try {
+      await axios.post(`${API}/crm/v2/cases`, {
+        ...caseForm,
+        company_id: companyId,
+        contact_id: company?.contacts?.[0]?.id || undefined,
+      }, { headers: headers() });
+      setShowAddCase(false);
+      setCaseForm({ subject: '', description: '', severity: 'medium' });
+      load();
+    } catch (e) { console.error(e); window.alert(e?.response?.data?.detail || 'Could not log case'); }
+    setSaving(false);
+  };
+
+  const handleAddDeal = async () => {
+    if (!dealForm.title.trim()) return;
+    setSaving(true);
+    try {
+      await axios.post(`${API}/crm/v2/opportunities`, {
+        title: dealForm.title,
+        value: Number(dealForm.value) || 0,
+        stage: dealForm.stage,
+        close_date: dealForm.close_date || undefined,
+        company_id: companyId,
+        contact_id: company?.contacts?.[0]?.id || undefined,
+      }, { headers: headers() });
+      setShowAddDeal(false);
+      setDealForm({ title: '', value: '', stage: 'lead', close_date: '' });
+      load();
+    } catch (e) { console.error(e); window.alert(e?.response?.data?.detail || 'Could not create deal'); }
+    setSaving(false);
+  };
+
   if (!company) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
   const openEdit = () => {
@@ -876,6 +921,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'contacts', label: `Contacts (${company.contacts?.length || 0})` },
     { id: 'opportunities', label: `Deals (${company.opportunities?.length || 0})` },
     { id: 'cases', label: `Cases (${company.cases?.length || 0})` },
+    // Iter 216h266 — dedicated Activities tab (data already loaded by
+    // /companies/{id} timeline). Customer feedback: needed all
+    // related activities in one 360° place.
+    { id: 'activities', label: `Activity (${company.activities?.length || 0})` },
     // Iter 216h196 — Phase 1 of the Ops↔CRM↔ServiceDesk linkage:
     // surfaces the company's linked-org sites + machines with live
     // contract-coverage badges, and lets operators attach aftersales
@@ -1039,8 +1088,13 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
 
         {activeSection === 'opportunities' && (
           <div className="space-y-2">
+            <div className="flex justify-end">
+              <button onClick={() => setShowAddDeal(true)} className="text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1" style={{ background: 'var(--color-info-ios)', color: '#fff' }} data-testid="company-add-deal-btn">
+                <Plus size={12} /> New deal
+              </button>
+            </div>
             {(company.opportunities || []).map(opp => (
-              <div key={opp.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+              <div key={opp.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`company-deal-row-${opp.id}`}>
                 <Target size={16} style={{ color: 'var(--color-info-ios)' }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: c.text }}>{opp.title}</p>
@@ -1055,8 +1109,13 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
 
         {activeSection === 'cases' && (
           <div className="space-y-2">
+            <div className="flex justify-end">
+              <button onClick={() => setShowAddCase(true)} className="text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1" style={{ background: 'var(--color-info-ios)', color: '#fff' }} data-testid="company-add-case-btn">
+                <Plus size={12} /> Log case
+              </button>
+            </div>
             {(company.cases || []).map(cs => (
-              <div key={cs.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+              <div key={cs.id} className="flex items-center gap-3 p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`company-case-row-${cs.id}`}>
                 <AlertTriangle size={16} style={{ color: cs.severity === 'high' ? 'var(--color-danger-alt)' : cs.severity === 'medium' ? 'var(--color-accent-amber)' : 'var(--color-success-alt)' }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: c.text }}>{cs.case_number}: {cs.subject}</p>
@@ -1065,6 +1124,38 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
               </div>
             ))}
             {(company.cases || []).length === 0 && <p className="text-sm text-center py-6" style={{ color: c.textDim }}>No service cases</p>}
+          </div>
+        )}
+
+        {activeSection === 'activities' && (
+          <div className="space-y-2" data-testid="company-activities-section">
+            <div className="flex justify-end">
+              <button onClick={() => setShowAddNote(true)} className="text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1" style={{ background: 'var(--color-info-ios)', color: '#fff' }} data-testid="company-add-activity-btn">
+                <Plus size={12} /> Log activity
+              </button>
+            </div>
+            {(company.activities || []).map(a => (
+              <div key={a.id} className="p-3 rounded-md border" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`company-activity-row-${a.id}`}>
+                <div className="flex items-start gap-3">
+                  <FileText size={14} style={{ color: 'var(--color-info-ios)', marginTop: 2 }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-sm font-medium" style={{ color: c.text }}>{a.subject || a.type || 'Activity'}</p>
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'var(--color-info-ios)20', color: 'var(--color-info-ios)' }}>{a.type || 'note'}</span>
+                    </div>
+                    {a.body && <p className="text-[12px] mt-1 whitespace-pre-wrap" style={{ color: c.textMuted }}>{a.body}</p>}
+                    <p className="text-[11px] mt-1" style={{ color: c.textDim }}>
+                      {a.owner_name || 'system'} · {a.created_at ? new Date(a.created_at).toLocaleString() : ''}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {(company.activities || []).length === 0 && (
+              <p className="text-sm text-center py-6" style={{ color: c.textDim }}>
+                No activities logged yet. Notes, emails and calls posted against this company will appear here.
+              </p>
+            )}
           </div>
         )}
 
@@ -1418,6 +1509,87 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
               <button onClick={() => setShowAddQuote(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
               <button onClick={handleAddQuote} disabled={saving || quoteLines.every(l => !l.description.trim())} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50">
                 {saving ? 'Creating...' : 'Create Quote'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Iter 216h266 — Log a case dialog */}
+      {showAddCase && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddCase(false)} data-testid="company-add-case-dialog">
+          <div className="rounded-lg max-w-md w-full mx-4 p-5 shadow-2xl" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold" style={{ color: c.text }}>Log a case</h3>
+              <button onClick={() => setShowAddCase(false)} className="p-1 hover:opacity-70" style={{ color: c.textDim }} data-testid="company-add-case-close"><X size={16} /></button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: c.textDim }}>Linked to <b style={{ color: c.text }}>{company.name}</b>.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Subject</label>
+                <input value={caseForm.subject} onChange={e => setCaseForm({ ...caseForm, subject: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} placeholder="Treadmill belt slipping" data-testid="company-add-case-subject" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Severity</label>
+                <select value={caseForm.severity} onChange={e => setCaseForm({ ...caseForm, severity: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-case-severity">
+                  <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Description</label>
+                <textarea rows={4} value={caseForm.description} onChange={e => setCaseForm({ ...caseForm, description: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-case-description" />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setShowAddCase(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }} data-testid="company-add-case-cancel">Cancel</button>
+              <button onClick={handleAddCase} disabled={saving || !caseForm.subject.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" data-testid="company-add-case-submit">
+                {saving ? 'Logging…' : 'Log case'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Iter 216h266 — Add deal dialog */}
+      {showAddDeal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddDeal(false)} data-testid="company-add-deal-dialog">
+          <div className="rounded-lg max-w-md w-full mx-4 p-5 shadow-2xl" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold" style={{ color: c.text }}>New deal</h3>
+              <button onClick={() => setShowAddDeal(false)} className="p-1 hover:opacity-70" style={{ color: c.textDim }} data-testid="company-add-deal-close"><X size={16} /></button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: c.textDim }}>Linked to <b style={{ color: c.text }}>{company.name}</b>.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Title</label>
+                <input value={dealForm.title} onChange={e => setDealForm({ ...dealForm, title: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} placeholder="Q2 cardio refresh – 20 treadmills" data-testid="company-add-deal-title" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Value (£)</label>
+                  <input type="number" value={dealForm.value} onChange={e => setDealForm({ ...dealForm, value: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-deal-value" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Close date</label>
+                  <input type="date" value={dealForm.close_date} onChange={e => setDealForm({ ...dealForm, close_date: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-deal-close-date" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Stage</label>
+                <select value={dealForm.stage} onChange={e => setDealForm({ ...dealForm, stage: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-deal-stage">
+                  <option value="lead">Lead</option>
+                  <option value="qualified">Qualified</option>
+                  <option value="discovery">Discovery</option>
+                  <option value="solution">Solution Review</option>
+                  <option value="proposal">Proposal Sent</option>
+                  <option value="negotiation">Negotiation</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setShowAddDeal(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }} data-testid="company-add-deal-cancel">Cancel</button>
+              <button onClick={handleAddDeal} disabled={saving || !dealForm.title.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" data-testid="company-add-deal-submit">
+                {saving ? 'Creating…' : 'Create deal'}
               </button>
             </div>
           </div>

@@ -1,3 +1,69 @@
+## Iter 216h266 — CRM company 360° deep UI audit (Feb 21, 2026) ✅ P2 follow-up
+
+Customer feedback (P2 from h265 plan):
+*"I didn't seem to be able to log a case and have it appear
+against the company record. Being able to see all related
+activities, cases, contacts, opportunities, and quotes in one
+place is essential."*
+
+### Audit findings
+
+| Backend data already on `/companies/{id}` | UI surfaced before |
+|---|---|
+| `contacts[]` | ✅ tab existed |
+| `opportunities[]` | ✅ tab existed, **no Add deal button** |
+| `quotes[]` | ✅ tab + Add quote button |
+| `cases[]` | ✅ tab existed, **no Log case button** |
+| `activities[]` | ❌ **no tab at all** |
+| `assets[]` | ✅ tab existed |
+| `contracts[]` | ✅ tab existed |
+
+So the data was 100% on the wire — the customer's "I can't make
+a case appear" complaint was entirely a missing UI button.
+
+### Changes — `CRMCompanies.js` only (backend already complete)
+
+* New **Activities tab** between Cases and Quotes — renders
+  `company.activities[]` with each row showing subject, type
+  badge, body and `{owner} · {created_at}`. Empty state explains
+  *"Notes, emails and calls posted against this company will
+  appear here."*
+* New **"Log case" button** on the Cases tab → modal posts to
+  `/api/crm/v2/cases` with `company_id` pre-filled (+ the first
+  contact if available). Severity options match backend enum.
+* New **"New deal" button** on the Opportunities tab → modal
+  posts to `/api/crm/v2/opportunities` with `company_id`
+  pre-filled. Stage select uses the same canonical ids as the
+  backend pipeline so the Iter 216h265 quote → proposal
+  auto-progression keeps working.
+* All row containers now have stable `data-testid`s
+  (`company-case-row-{id}`, `company-deal-row-{id}`,
+  `company-activity-row-{id}`).
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h266_company_360_ui.py`) | **8 / 8** |
+| `make regression` | **242 passed, 14 skipped** (was 234 → 242) |
+| `yarn eslint --max-warnings 0` | clean |
+| Stage option ids assert == pipeline canonical ids | ✅ all 6 stages present |
+
+### Why this matters
+
+Before: a manager opened the company drawer, hit the "Cases" tab
+and saw an empty state. To file a case they'd navigate elsewhere
+and forget the `company_id`, leaving the company record blind to
+the new ticket — exactly the symptom the customer hit.
+
+After: the manager can log a case, raise a deal or post an
+activity without leaving the company drawer. Every record is
+forced to link via `company_id`, so the 360° view stays honest.
+
+---
+
+
+
 ## Iter 216h265 — CRM customer-feedback P0 + P1 batch (Feb 21, 2026) ✅ 8 items
 
 Prospective-customer feedback (Feb 21, 2026):
