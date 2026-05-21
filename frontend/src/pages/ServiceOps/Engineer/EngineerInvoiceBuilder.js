@@ -8,7 +8,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Send, FileDown, Plus, Trash2, Save, Loader2, Mail,
-  CheckCircle2, XCircle, Copy, AlertTriangle,
+  CheckCircle2, XCircle, Copy, AlertTriangle, Search, BookmarkPlus,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -225,6 +225,36 @@ export default function EngineerInvoiceBuilder() {
         )}
 
         <Section title="Customer">
+          {!readOnly ? (
+            <CustomerPicker
+              onPick={(c) => setForm((f) => ({
+                ...f,
+                customer_name: c.name || f.customer_name,
+                customer_email: c.email || f.customer_email,
+                customer_phone: c.phone || f.customer_phone,
+                site_name: c.site_name || f.site_name,
+                site_address: c.site_address || f.site_address,
+              }))}
+              onSaveCurrent={async () => {
+                if (!form.customer_name.trim()) {
+                  notify.error('Enter a customer name first');
+                  return;
+                }
+                try {
+                  const r = await axios.post(`${API}/svc/engineer/customers`, {
+                    name: form.customer_name,
+                    email: form.customer_email || null,
+                    phone: form.customer_phone || null,
+                    site_name: form.site_name || null,
+                    site_address: form.site_address || null,
+                  }, auth());
+                  notify.success(r.data?.merged ? 'Customer updated in Lite CRM' : 'Customer saved to Lite CRM');
+                } catch (err) {
+                  notify.error('Could not save customer', err?.response?.data?.detail || err?.message);
+                }
+              }}
+            />
+          ) : null}
           <div className="grid md:grid-cols-2 gap-3">
             <Text label="Customer name *" v={form.customer_name} on={v => setForm(f => ({ ...f, customer_name: v }))} testid="ib-customer-name" ro={readOnly} />
             <Text label="Customer email" v={form.customer_email} on={v => setForm(f => ({ ...f, customer_email: v }))} testid="ib-customer-email" ro={readOnly} />
@@ -393,3 +423,81 @@ const Text = ({ label, v, on, testid, ro, fullWidth }) => (
     <input type="text" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white disabled:bg-slate-50" value={v || ''} readOnly={ro} onChange={e => on(e.target.value)} data-testid={testid} />
   </div>
 );
+
+
+// Iter 216h259 — Lite CRM autocomplete for Invoice Customer block
+function CustomerPicker({ onPick, onSaveCurrent }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [loadingResults, setLoadingResults] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!q || q.length < 2) { setResults([]); return; }
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      setLoadingResults(true);
+      try {
+        const r = await axios.get(`${API}/svc/engineer/customers/search`, {
+          ...auth(), params: { q, limit: 8 },
+        });
+        if (!cancelled) { setResults(r.data?.results || []); setOpen(true); }
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setLoadingResults(false);
+      }
+    }, 220);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [q]);
+
+  return (
+    <div className="relative mb-3" data-testid="ib-customer-picker">
+      <div className="flex items-stretch gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onFocus={() => q.length >= 2 && setOpen(true)}
+            placeholder="Search saved customers…"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-blue-400 focus:outline-none"
+            data-testid="ib-customer-search"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onSaveCurrent}
+          className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
+          title="Save current customer details to Lite CRM"
+          data-testid="ib-customer-save"
+        >
+          <BookmarkPlus size={14} /> Save
+        </button>
+      </div>
+      {open && (results.length > 0 || loadingResults) ? (
+        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+             data-testid="ib-customer-results">
+          {loadingResults ? (
+            <p className="px-3 py-2 text-xs text-slate-400 flex items-center gap-1.5">
+              <Loader2 size={12} className="animate-spin" /> Searching…
+            </p>
+          ) : results.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => { onPick(c); setQ(''); setOpen(false); setResults([]); }}
+              className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+              data-testid={`ib-customer-result-${c.id}`}
+            >
+              <p className="text-sm font-semibold text-slate-900">{c.name}</p>
+              <p className="text-[11px] text-slate-500 truncate">
+                {[c.site_name, c.email, c.phone].filter(Boolean).join(' · ') || '—'}
+              </p>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}

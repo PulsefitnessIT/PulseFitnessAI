@@ -224,6 +224,16 @@ async def create_quote(body: QuoteCreate, user=Depends(get_current_user)):
     }
     await db.svc_engineer_quotes.insert_one({**quote})
     quote.pop("_id", None)
+    # Iter 216h259 — stamp Lite CRM last_job_at on matching customer
+    try:
+        from routes.svc.engineer_customers import touch_last_job
+        await touch_last_job(
+            user.get("organization_id"),
+            email=quote.get("customer_email"),
+            phone=quote.get("customer_phone"),
+        )
+    except Exception:
+        pass
     return quote
 
 

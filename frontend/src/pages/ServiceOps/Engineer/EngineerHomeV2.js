@@ -23,7 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
-  CreditCard, Inbox, Hand, QrCode,
+  CreditCard, Inbox, Hand, Users, LifeBuoy,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -215,6 +215,16 @@ export default function EngineerHomeV2() {
             </button>
             <button
               type="button"
+              onClick={() => navigate('/support')}
+              className="p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
+              data-testid="engineer-home-support-btn"
+              title="Support"
+              aria-label="Support"
+            >
+              <LifeBuoy size={16} className="text-blue-600" />
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/svc/engineer/notifications')}
               className="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
               data-testid="engineer-home-notifications-btn"
@@ -341,15 +351,12 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={FileSignature} label="Send report"
                              testid="qa-report"
                              onClick={() => navigate('/svc/engineer/jobs')} />
-                <QuickAction icon={MessageCircle} label="Support"
-                             testid="qa-support"
-                             onClick={() => navigate('/support')} />
+                <QuickAction icon={Users} label="My customers"
+                             testid="qa-customers"
+                             onClick={() => navigate('/svc/engineer/customers')} />
                 <QuickAction icon={CreditCard} label={payouts?.ready ? 'Payouts' : 'Connect Stripe'}
                              testid="qa-payouts"
                              onClick={() => navigate('/svc/engineer/payouts')} />
-                <QuickAction icon={QrCode} label="Card stats"
-                             testid="qa-card-analytics"
-                             onClick={() => navigate('/svc/engineer/card-analytics')} />
                 {/* Iter 216h257 — Analytics surface with filtered KPI breakdowns. */}
                 <QuickAction icon={TrendingUp} label="Analytics"
                              testid="qa-analytics"

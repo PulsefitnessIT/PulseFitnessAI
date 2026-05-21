@@ -46,8 +46,8 @@ export default function EngineerAnalyticsPage() {
   }, [range]);
   useEffect(() => { load(); }, [load]);
 
-  const cases = data?.cases || { total: 0, completed: 0, by_status: {} };
-  const quotes = data?.quotes || { total: 0, by_status: {}, average_value: 0, earnings: 0 };
+  const cases = useMemo(() => data?.cases || { total: 0, completed: 0, by_status: {} }, [data]);
+  const quotes = useMemo(() => data?.quotes || { total: 0, by_status: {}, average_value: 0, earnings: 0 }, [data]);
 
   const caseRows = useMemo(() => Object.entries(cases.by_status || {}).sort((a, b) => b[1] - a[1]), [cases]);
   const quoteRows = useMemo(() => Object.entries(quotes.by_status || {}).sort((a, b) => b[1] - a[1]), [quotes]);

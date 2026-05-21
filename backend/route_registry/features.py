@@ -152,6 +152,8 @@ from routes.svc.inbound_email import (
     public_router as svc_inbound_email_public_router,
     engineer_router as svc_inbound_email_engineer_router,
 )
+# Iter 216h259 — Engineer Lite CRM (saved customers, shared org-wide)
+from routes.svc.engineer_customers import router as svc_engineer_customers_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -277,6 +279,8 @@ _UNGATED_ROUTERS = (
     # Iter 216h146 — Inbound email webhook
     svc_inbound_email_public_router,
     svc_inbound_email_engineer_router,
+    # Iter 216h259 — Engineer Lite CRM
+    svc_engineer_customers_router,
 )
 
 

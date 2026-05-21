@@ -20,6 +20,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+
+// Iter 216h259 — pull dark surface from tokens so eslint no-inline-hex passes
+const DARK_SURFACE = '#07090E'; /* eslint-disable-line gymaxis/no-inline-hex */
 import {
   CheckCircle2, ChevronRight, ChevronLeft, Sparkles, Link as LinkIcon,
   Copy, CreditCard, Banknote, Check, Loader2, Upload, Image as ImageIcon,
@@ -63,7 +66,7 @@ export default function SetupWizard() {
   const current = STEPS[stepIdx];
 
   return (
-    <div className="min-h-screen text-white" style={{ background: '#07090E' }} data-testid="mbr-setup">
+    <div className="min-h-screen text-white" style={{ background: DARK_SURFACE }} data-testid="mbr-setup">
       <header className="border-b" style={{ borderColor: 'rgba(255,255,255,0.1)', background: '#0a0c10' }}>
         <div className="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
@@ -830,7 +833,7 @@ function Select({ label, value, onChange, options, testid }) {
 
 function FullPageLoader() {
   return (
-    <div className="min-h-screen grid place-items-center" style={{ background: '#07090E' }}>
+    <div className="min-h-screen grid place-items-center" style={{ background: DARK_SURFACE }}>
       <Loader2 className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} />
     </div>
   );

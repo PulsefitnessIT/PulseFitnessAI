@@ -514,6 +514,9 @@ async def _create_indexes() -> None:
     # Iter 216h146 — Inbound email log indexes
     from routes.svc.inbound_email import ensure_inbound_email_indexes
     await ensure_inbound_email_indexes()
+    # Iter 216h259 — Engineer Lite CRM indexes
+    from routes.svc.engineer_customers import ensure_indexes as ensure_engineer_customer_indexes
+    await ensure_engineer_customer_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()

@@ -254,6 +254,16 @@ async def create_invoice(body: InvoiceCreate, user=Depends(get_current_user)):
     )
     await db.svc_engineer_invoices.insert_one({**inv})
     inv.pop("_id", None)
+    # Iter 216h259 — stamp Lite CRM last_job_at
+    try:
+        from routes.svc.engineer_customers import touch_last_job
+        await touch_last_job(
+            user.get("organization_id"),
+            email=inv.get("customer_email"),
+            phone=inv.get("customer_phone"),
+        )
+    except Exception:
+        pass
     return inv
 
 
