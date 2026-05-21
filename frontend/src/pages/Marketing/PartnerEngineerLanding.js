@@ -7,8 +7,8 @@
  *   2. Why join? (real jobs, fair pricing, branded customer experience)
  *   3. How it works (apply → verify → £30/mo, drops to free at 10 referrals)
  *   4. Built-in advantages (mobile PWA, AI photo triage, signature capture)
- *   5. Strong CTA → /partner-engineer/apply (login-gated; bounces to signup
- *      if not logged in).
+ *   5. Strong CTA → /partners/engineers/apply (the canonical single
+ *      public application form — no login required).
  *
  * Lives at /partners/engineers (indexable, no auth).
  */

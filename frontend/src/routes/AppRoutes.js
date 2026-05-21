@@ -87,7 +87,9 @@ const _ServiceOpsParts = lazy(() => import('@/pages/ServiceOps/PartsInventoryPag
 const _ServiceOpsBilling = lazy(() => import('@/pages/ServiceOps/BillingPage'));
 const _ServiceOpsReports = lazy(() => import('@/pages/ServiceOps/ServiceOpsReportsPage'));
 // Iter 216h75 — Partner Engineer Network (Phase 1)
-const PartnerApplyWizard = lazy(() => import('@/pages/PartnerEngineer/PartnerApplyWizard'));
+// Iter 216h282 — PartnerApplyWizard removed in favour of the single
+// canonical `/partners/engineers/apply` (PartnerApplyPublic). Keeping
+// the lazy-import stubs below for any other PartnerEngineer routes.
 const PartnerDashboard = lazy(() => import('@/pages/PartnerEngineer/PartnerDashboard'));
 // Iter 216h88 — public Partner Engineer landing page
 const PartnerEngineerLanding = lazy(() => import('@/pages/Marketing/PartnerEngineerLanding'));
@@ -372,7 +374,14 @@ export default function AppRoutes({ user, login }) {
 
       {/* Iter 216h75 — Partner Engineer Network (Phase 1) — Iter 216h110: MOD-blocked */}
       <Route path="/partner-engineer" element={user ? <MODForbidden><PartnerDashboard /></MODForbidden> : <Navigate to="/login?next=/partner-engineer" replace />} />
-      <Route path="/partner-engineer/apply" element={user ? <MODForbidden><PartnerApplyWizard /></MODForbidden> : <Navigate to="/login?next=/partner-engineer/apply" replace />} />
+      {/* Iter 216h282 — Gap 3/7 from BA audit. Single canonical
+          application form lives at `/partners/engineers/apply`
+          (the public `PartnerApplyPublic`). The duplicate logged-in
+          wizard (`PartnerApplyWizard`) has been deleted — the form
+          works without login and `_resolve_or_create_partner` on the
+          backend dedupes by email so an authed re-application is
+          handled by the same endpoint. */}
+      <Route path="/partner-engineer/apply" element={<Navigate to="/partners/engineers/apply" replace />} />
 
       {/* ─── Member-facing surfaces (white-label) ─── */}
       <Route path="/members" element={<MemberPortal />} />

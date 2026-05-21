@@ -27,7 +27,7 @@ const REASON_CONFIG = {
     icon: AlertTriangle, color: '#dc2626',
     title: 'Application not approved',
     sub:   'Update your details and resubmit — most approvals are quick once the missing info is in.',
-    cta:   { label: 'Update & resubmit', to: '/partner-engineer/apply' },
+    cta:   { label: 'Update & resubmit', to: '/partners/engineers/apply' },
   },
   suspended: {
     icon: AlertTriangle, color: '#dc2626',

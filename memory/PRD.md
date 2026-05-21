@@ -1,3 +1,69 @@
+## Iter 216h282 — Engineer route consolidation (Feb 21, 2026) ✅ P1
+
+Closes Gaps 3 + 7 from the BA audit.
+
+### The mess
+
+Engineer-partner content used to live across **6 paths**:
+
+| Path | What it served |
+|---|---|
+| `/engineer` | Customer-facing find-an-engineer landing |
+| `/engineers` | Same — already redirected in iter 216h280 |
+| `/partners/engineers` | Partner programme marketing landing |
+| `/partners/engineers/apply` | **Public** 5-step application form |
+| `/partner-engineer` | Authed partner dashboard |
+| `/partner-engineer/apply` | **Logged-in duplicate** of the apply form |
+
+The two application paths had divergent validation (the logged-in
+wizard didn't enforce the 5 km min radius), and the backend's
+`_resolve_or_create_partner` already de-dupes by email — so the
+logged-in form was pure duplication.
+
+### Canonical map after this iter
+
+| Concept | Canonical path |
+|---|---|
+| Find an engineer (customer) | `/engineer` |
+| Engineer partner programme | `/partners/engineers` |
+| Apply to become a partner | `/partners/engineers/apply` |
+| Authed partner dashboard | `/partner-engineer` |
+
+`/partner-engineer/apply` is now a Navigate-alias → `/partners/engineers/apply`.
+
+### Changes
+
+* **Deleted**: `pages/PartnerEngineer/PartnerApplyWizard.js` (was 258 lines)
+* **Removed**: lazy import for `PartnerApplyWizard` in `AppRoutes.js`
+* **Replaced**: the `/partner-engineer/apply` Route element with a Navigate
+* **Re-pointed** the 4 internal links that targeted the killed path
+  (PartnerDashboard ×2, EngineerAccessGate, doc comment in PartnerEngineerLanding)
+* **No backend changes** — the `_resolve_or_create_partner` already covered both flows
+
+### Verification
+
+* `tests/test_iter_216h282_engineer_route_consolidation.py` — **5 tests**
+  pin:
+  * `/partner-engineer/apply` stays in the route table as a Navigate-alias
+  * `/engineers` redirect from iter 216h280 still works (regression guard)
+  * `PartnerApplyWizard.js` file no longer exists
+  * No JS/JSX file still imports the deleted wizard
+  * No source file still links to `/partner-engineer/apply` outside `AppRoutes`
+* `make regression` → **402 passed, 14 skipped** (up from 397).
+* Live smoke confirmed all 4 paths resolve to the intended canonical destination.
+
+### Files
+* `frontend/src/routes/AppRoutes.js` (modified — wizard removed, redirect added)
+* `frontend/src/pages/PartnerEngineer/PartnerApplyWizard.js` (**deleted**)
+* `frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (modified — 2 links)
+* `frontend/src/pages/ServiceOps/Engineer/EngineerAccessGate.js` (modified — 1 link)
+* `frontend/src/pages/Marketing/PartnerEngineerLanding.js` (modified — doc comment)
+* `backend/tests/test_iter_216h282_engineer_route_consolidation.py` (new, 5 tests)
+* `Makefile` (regression added)
+
+---
+
+
 ## Iter 216h281 — Partner Engineer P0 fixes: emails + compliance sweep (Feb 21, 2026) ✅ P0
 
 Implements the P0 gaps from the BA audit of the Engineer Partner Plan:

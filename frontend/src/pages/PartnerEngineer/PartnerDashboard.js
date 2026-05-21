@@ -141,7 +141,7 @@ export default function PartnerDashboard() {
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Earn commission on every gym you refer to GymAxis and take jobs through the Engineer App.
           </p>
-          <Link to="/partner-engineer/apply"
+          <Link to="/partners/engineers/apply"
             className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold"
             data-testid="partner-apply-cta">
             Apply now <ExternalLink size={13} />
@@ -189,7 +189,7 @@ export default function PartnerDashboard() {
               {partner.status === 'pending' && 'Your application is under review. We aim to respond within 2 working days. You can still complete jobs your customers have assigned you while we review.'}
               {partner.status === 'rejected' && (
                 <>Your application was not approved. {partner.rejected_reason ? <span className="block mt-1 italic">"{partner.rejected_reason}"</span> : null}{' '}
-                <Link to="/partner-engineer/apply" className="underline font-bold">Update your details and resubmit.</Link></>
+                <Link to="/partners/engineers/apply" className="underline font-bold">Update your details and resubmit.</Link></>
               )}
               {partner.status === 'suspended' && 'Your partner access is suspended. Contact GymAxis support to discuss next steps.'}
             </div>
