@@ -1,3 +1,95 @@
+## Iter 216h275 — Production P0: Tenders wiring + rename + Email packs (Feb 21, 2026) ✅
+
+Three user-reported bugs on production (gymaxisai.com). User
+confirmed P0 scope, parked the P1 dirty-org follow-on.
+
+### Bug 1 — Pulse Fitness lost Tenders despite master-admin toggle
+
+**Root cause**: `CRMApp.js:81` had `internalOnly: true` on the
+Tenders nav item. That checked `user.is_pulse_internal`, which
+was only true when the user's org name was **literally**
+`"pulse fitness"` (strict ==). The customer's actual org is
+`"Pulse Fitness Limited"` — strict equality failed, so Tenders
+disappeared for them DESPITE the master admin toggle saying
+`crm_tenders: true`.
+
+The master admin toggle was being **written** to `organizations.features.crm_tenders`
+but the frontend never read it — the gate was off the wrong signal entirely.
+
+**Fix**:
+* `routes/crm_auth.py:_resolve_crm_brand_flags()` — now returns
+  `(crm_brand, is_pulse_internal, features, modules)`. Read the
+  org's `features` + `modules` dicts and include them in both
+  `/api/crm/auth/me` and `/api/crm/auth/login` payloads.
+* Name-match loosened from `== "pulse fitness"` to
+  `startswith("pulse fitness")` so "Pulse Fitness Limited" /
+  "Pulse Fitness LTD" / any variant still flips the internal flag.
+* `CRMApp.js`:
+  - Replaced `internalOnly: true` with `featureFlag: 'crm_tenders'`
+    on the Tenders nav item.
+  - Same fix on Contracts (`featureFlag: 'crm_documents'`).
+  - Added `featureOn(key)` resolver to `visibleNavItems`:
+    1. master admin → always true (so misconfigured orgs can't lock the master out)
+    2. `features[key]` explicit → use that
+    3. `modules[key].enabled` → fallback for the legacy module-level toggle
+    4. `is_pulse_internal` → final back-compat fallback so existing internal users don't lose surfaces overnight
+
+### Bug 2 — Rename "Tender Engine" → "Tenders"
+
+Updated 4 surfaces:
+* `i18n/locales/en.json#crm.tenders` — `"Tender Engine"` → `"Tenders"`
+* `MasterAdmin/AdminOrganizations.js#L373`
+* `MasterAdmin/AdminFeatures.js#L12`
+* `MasterAdmin/FeatureControlPanel.js#L60`
+
+Regression tests pin the rename in all three master-admin panels
+(matches `key: 'crm_tenders', label: 'Tenders'` via regex so any
+new panel that copies the pattern can't reintroduce "Tender Engine").
+
+### Bug 3 — Marketing "No packs available right now"
+
+**Root cause**: `marketing_addons._seed_catalog_if_empty()` only
+seeded when the collection was completely empty. If a master admin
+had deactivated every pack — or a partial restore left only inactive
+rows behind — the auto-seed never re-populated, and the tenant
+catalog query (`find({"active": True})`) returned an empty list.
+Production was in exactly that state.
+
+**Fix**: re-seed when no **active** rows exist, and only insert
+default codes that aren't already present (preserves any custom
+packs the master admin has added).
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h275_tenders_and_email_packs.py`) | **10 / 10** |
+| `make regression` | **340 passed, 14 skipped** (330 → 340) |
+| `ruff` + `yarn eslint --max-warnings 0` | clean |
+| Live curl `/api/crm/auth/me` (Jack@Third Space) | now returns `features: {crm_tenders: true, crm_documents: true}`, `modules: {memberships, crm, marketing}` |
+| Live curl `/api/marketing/addons/catalog` | returns 4 default packs after auto-seed |
+
+### Why this matters
+
+The whole point of the master admin module-toggle drawer is that
+flipping a switch should immediately change what the tenant sees.
+Before h275, the Tender Engine toggle was theatre — it persisted
+to the DB but the frontend ignored it. Now the toggle is the
+single source of truth: master admin flips it → tenant's CRM nav
+updates on next page load. The same wiring will surface every
+other feature flag (workflows, AI tools, documents, white-label,
+SSO, etc.) without further code — they all flow through the same
+`featureFlag` prop on the nav item.
+
+The Email packs fix is small but critical: a customer trying to
+top up their email volume saw a dead-end dialog. Now even a
+fully-deactivated catalog auto-recovers to the default 4 packs
+(2 email + 2 SMS).
+
+---
+
+
+
 ## Iter 216h274 — CRM cross-module tip banner clipped under navbar (Feb 21, 2026) ✅ P1 bug
 
 User report (verbatim): *"CRM — it looks like there is a card?

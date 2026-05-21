@@ -100,11 +100,28 @@ def _now() -> str:
 
 
 async def _seed_catalog_if_empty() -> int:
-    if await db.marketing_addons.count_documents({}) > 0:
+    """Seed the default Email + SMS bolt-on packs.
+
+    Iter 216h275 — also re-seeds when every existing row has been
+    deactivated. The previous "count > 0 → skip" check meant that
+    after a master admin had deactivated all packs (or after a
+    partial restore left only inactive rows behind), the tenant
+    catalog endpoint kept returning an empty list AND the seeder
+    wouldn't re-populate the defaults. Production "No packs
+    available right now" repro path.
+    """
+    active_count = await db.marketing_addons.count_documents({"active": True})
+    if active_count > 0:
         return 0
+    # Only seed defaults that aren't already present (by code) — keeps
+    # custom packs the master admin might have added intact.
+    existing_codes = {
+        r.get("code") async for r in db.marketing_addons.find({}, {"_id": 0, "code": 1})
+    }
     docs = [
         {**a, "id": str(uuid.uuid4()), "created_at": _now()}
         for a in DEFAULT_ADDONS
+        if a["code"] not in existing_codes
     ]
     if docs:
         await db.marketing_addons.insert_many(docs)

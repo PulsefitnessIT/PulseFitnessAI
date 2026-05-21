@@ -57,7 +57,7 @@ const FEATURE_LIST = [
  // ── CRM Modules ────────────────────────────────────────────
  { key: 'crm_pipeline', label: 'Pipeline', group: 'crm' },
  { key: 'crm_quotes', label: 'Quotes / CPQ', group: 'crm' },
- { key: 'crm_tenders', label: 'Tender Engine', group: 'crm' },
+ { key: 'crm_tenders', label: 'Tenders', group: 'crm' },
  { key: 'crm_ai_tools', label: 'AI Tools', group: 'crm' },
  { key: 'crm_workflows', label: 'Workflows', group: 'crm' },
  { key: 'crm_documents', label: 'Documents', group: 'crm' },

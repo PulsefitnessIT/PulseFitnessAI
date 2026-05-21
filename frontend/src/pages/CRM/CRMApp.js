@@ -77,9 +77,15 @@ const NAV_ITEMS = [
   { id: 'territories', labelKey: 'crm.territories', icon: MapPin, adminOnly: true },
   // Iter 216h226 — Phase 3 reports suite (pipeline, margin, conversion, GDPR…).
   { id: 'reports', labelKey: 'crm.reports', icon: BarChart3 },
-  // ─── Specialised / internal-only ───
-  { id: 'tenders', labelKey: 'crm.tenders', icon: Award, internalOnly: true },
-  { id: 'contracts', labelKey: 'crm.contracts', icon: Shield, internalOnly: true },
+  // ─── Specialised / feature-gated ───
+  // Iter 216h275 — Tenders + Contracts now gate on the org's master-admin
+  // module toggle (`features.crm_tenders` / `features.crm_pipeline+contracts`)
+  // rather than the user's `is_pulse_internal` flag. Previously these only
+  // showed for users whose org name was literally "Pulse Fitness" — the
+  // "Pulse Fitness Limited" tenant + every other paying Pulse Pro org
+  // missed out despite the master admin toggling Tender Engine ON.
+  { id: 'tenders', labelKey: 'crm.tenders', icon: Award, featureFlag: 'crm_tenders' },
+  { id: 'contracts', labelKey: 'crm.contracts', icon: Shield, featureFlag: 'crm_documents' },
   // Iter 215de — record-level + field-level permissions (admin only).
   { id: 'permissions', labelKey: 'crm.permissions', icon: EyeOff, adminOnly: true, hideFromBar: true },
   // Hidden from the bar but still routable via contextual entry points.
@@ -535,18 +541,36 @@ export default function CRMApp() {
   useEffect(() => { if (hideStart && activeTab === 'start') setActiveTab('dashboard'); }, [hideStart, activeTab]);
   const visibleNavItems = useMemo(() => {
     const isInternal = !!user?.is_pulse_internal;
-    // Iter 215bi — Members mode (leisure) hides the Quotes/CPQ tab. Leisure
-    // centres / gyms work off membership packages, not formal sales quotes.
     const isMembersMode = activeMode === 'leisure';
     const isAdmin = user?.role === 'admin' || user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
+    // Iter 216h275 — feature-flag resolution: master admins see every
+    // tab; everyone else sees a tab when their org has the matching
+    // feature toggle ON. Falls back to `true` if the feature key is
+    // missing (so an unconfigured org still gets the default UX).
+    const features = user?.features || {};
+    const modules = user?.modules || {};
+    const featureOn = (key) => {
+      if (!key) return true;
+      if (user?.is_master_admin) return true;
+      // Explicit org override wins
+      if (key in features) return !!features[key];
+      // Falls back to module enable status (e.g. crm_tenders → modules.crm_tenders)
+      if (modules && modules[key]?.enabled) return true;
+      // h275 — internal Pulse users still get the original surface as
+      // a back-compat path until every prod org has the feature flag
+      // set explicitly.
+      if (isInternal) return true;
+      return false;
+    };
     return NAV_ITEMS
       .filter(it => !it.internalOnly || isInternal)
       .filter(it => !it.adminOnly || isAdmin)
       .filter(it => !it.hideFromBar)
+      .filter(it => featureOn(it.featureFlag))
       .filter(it => !(isMembersMode && it.id === 'quotes'))
       .filter(it => !(hideStart && it.id === 'start'));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
-  }, [user?.is_pulse_internal, hideStart, activeMode]);
+  }, [user?.is_pulse_internal, user?.is_master_admin, user?.features, user?.modules, user?.role, hideStart, activeMode]);
 
   // ── Sync logout: when the user signs out from the platform Navbar
   // (which clears `mainAuth.user`), the CRM module must follow suit.

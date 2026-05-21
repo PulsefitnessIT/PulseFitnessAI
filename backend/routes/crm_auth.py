@@ -221,7 +221,7 @@ async def crm_login(data: dict):
     # (account_type pulse_pro/lite OR org name = "Pulse Fitness") see
     # Pulse branding; everyone else sees GymAxis.
     is_admin_user = _is_master_admin_user(user)
-    crm_brand, is_pulse_internal = await _resolve_crm_brand_flags(user, is_admin_user)
+    crm_brand, is_pulse_internal, features, modules = await _resolve_crm_brand_flags(user, is_admin_user)
 
     # Check if 2FA is enabled
     if user.get("totp_enabled"):
@@ -252,6 +252,8 @@ async def crm_login(data: dict):
             "crm_brand": crm_brand,
             "is_pulse_internal": is_pulse_internal,
             "is_master_admin": is_admin_user,
+            "features": features,
+            "modules": modules,
         }
     }
 
@@ -268,13 +270,15 @@ async def crm_me(user=Depends(get_crm_user)):
     # its branding signal on /me-driven boots and Pulse customers would
     # briefly see GymAxis chrome.
     is_admin_user = _is_master_admin_user(user)
-    crm_brand, is_pulse_internal = await _resolve_crm_brand_flags(user, is_admin_user)
+    crm_brand, is_pulse_internal, features, modules = await _resolve_crm_brand_flags(user, is_admin_user)
     return {
         **user,
         "organization_name": org_name,
         "crm_brand": crm_brand,
         "is_pulse_internal": is_pulse_internal,
         "is_master_admin": is_admin_user,
+        "features": features,
+        "modules": modules,
     }
 
 
@@ -408,7 +412,7 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
             await db.crm_users.update_one({"email": email}, {"$set": updates})
             crm_user.update(updates)
 
-    crm_brand, is_pulse_internal = await _resolve_crm_brand_flags(main_user, is_master)
+    crm_brand, is_pulse_internal, features, modules = await _resolve_crm_brand_flags(main_user, is_master)
 
     # Resolve org name for the response.
     org_name = ""
@@ -431,6 +435,8 @@ async def crm_cross_login(credentials: HTTPAuthorizationCredentials = Depends(se
             "crm_brand": crm_brand,
             "is_pulse_internal": is_pulse_internal,
             "is_master_admin": is_master,
+            "features": features,
+            "modules": modules,
         },
     }
 
@@ -441,28 +447,41 @@ def _is_master_admin_user(user: dict) -> bool:
     return user.get("email") == master_email or bool(user.get("is_master_admin"))
 
 
-async def _resolve_crm_brand_flags(main_user: dict, is_admin: bool) -> tuple[str, bool]:
-    """Decide which brand the CRM should wear (`gymaxis` vs `pulse`) and
-    whether the user is a Pulse Fitness *internal* operator (gets to see
-    Tender Engine + Contracts) vs a Pulse customer.
+async def _resolve_crm_brand_flags(main_user: dict, is_admin: bool):
+    """Resolve crm_brand + is_pulse_internal + module/feature signals
+    from the user's home org. Returns:
+       (crm_brand, is_pulse_internal, features, modules)
+
+    Iter 216h275 — added `features` + `modules` so the CRM nav can
+    gate tabs (e.g. Tenders) by the master-admin module toggle
+    rather than by `is_pulse_internal`. Previously the Tenders tab
+    only rendered when the org name was literally "Pulse Fitness"
+    (the "Pulse Fitness Limited" tenant was excluded). Now any
+    org with `features.crm_tenders=true` (or the `crm_tenders`
+    module enabled) sees the tab — exactly what the master admin
+    toggle promises.
     """
     main_org = {}
     if main_user.get("organization_id"):
         main_org = await db.organizations.find_one(
             {"id": main_user["organization_id"]},
-            {"_id": 0, "name": 1, "account_type": 1, "portal_type": 1, "is_pulse_internal": 1},
+            {"_id": 0, "name": 1, "account_type": 1, "portal_type": 1, "is_pulse_internal": 1,
+             "features": 1, "modules": 1, "enabled_modules": 1},
         ) or {}
     pulse_branded_account_types = {"pulse_pro", "lite"}
+    name_lower = (main_org.get("name") or "").strip().lower()
     is_pulse_branded = (
         main_org.get("account_type") in pulse_branded_account_types
-        or (main_org.get("name") or "").strip().lower() == "pulse fitness"
+        or name_lower.startswith("pulse fitness")  # h275 — was strict ==, missed "Pulse Fitness Limited"
     )
     is_pulse_internal = bool(
         main_org.get("is_pulse_internal")
-        or (main_org.get("name") or "").strip().lower() == "pulse fitness"
+        or name_lower.startswith("pulse fitness")  # h275 — same fix
     ) or is_admin
     crm_brand = "pulse" if is_pulse_branded else "gymaxis"
-    return crm_brand, is_pulse_internal
+    features = main_org.get("features") or {}
+    modules = main_org.get("modules") or {}
+    return crm_brand, is_pulse_internal, features, modules
 
 
 async def _seed_crm_user(email: str, password: str, full_name: str, role: str = "admin", organization_id: str = None) -> None:

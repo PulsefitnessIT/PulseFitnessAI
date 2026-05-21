@@ -9,7 +9,7 @@ const FEATURES = [
   { key: 'white_label', label: 'White Label', group: 'General' },
   { key: 'crm_pipeline', label: 'Pipeline', group: 'CRM Modules' },
   { key: 'crm_quotes', label: 'Quotes / CPQ', group: 'CRM Modules' },
-  { key: 'crm_tenders', label: 'Tender Engine', group: 'CRM Modules' },
+  { key: 'crm_tenders', label: 'Tenders', group: 'CRM Modules' },
   { key: 'crm_ai_tools', label: 'AI Tools', group: 'CRM Modules' },
   { key: 'crm_workflows', label: 'Workflows', group: 'CRM Modules' },
   { key: 'crm_documents', label: 'Documents', group: 'CRM Modules' },
