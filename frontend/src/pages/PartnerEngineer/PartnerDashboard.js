@@ -23,6 +23,7 @@ import { notifyApiError } from '@/lib/formatApiError';
 import PartnerComplianceCard from './PartnerComplianceCard';
 import PartnerActivationChecklist from './PartnerActivationChecklist';
 import PartnerCollateralCard from './PartnerCollateralCard';
+import PartnerReviewsCard from './PartnerReviewsCard';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -250,6 +251,10 @@ export default function PartnerDashboard() {
             social card, PDF pitch). Closes the loop on "Copy your link"
             with something the engineer actually wants to share. */}
         {partner.status === 'approved' && <PartnerCollateralCard />}
+
+        {/* Iter 216h286 — Gap 8: customer reviews on the engineer.
+            Hides itself silently if the engineer has no reviews yet. */}
+        {partner.status === 'approved' && <PartnerReviewsCard />}
 
         {/* Stat grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

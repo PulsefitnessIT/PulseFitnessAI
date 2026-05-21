@@ -51,10 +51,10 @@ import os
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 
 from utils.auth import get_current_user
@@ -1292,6 +1292,242 @@ async def public_referral_lookup(code: str = Query(...)):
         "level": partner.get("level"),
         "code": partner["referral_code"],
     }
+
+
+# ── Iter 216h286 — Gap 8: customer review submission flow ──────────
+
+
+def _hash_ip(ip: str) -> str:
+    """Hash a client IP for soft-rate-limit + abuse audit without
+    persisting the cleartext. Single-iteration SHA-256 is fine — this
+    is anti-spam scaffolding, not PII protection."""
+    import hashlib
+    return hashlib.sha256((ip or "").encode()).hexdigest()[:24]
+
+
+def _moderation_status(rating: int, body: str) -> str:
+    """Light heuristic — anything ≤ 3 stars or with hot-button keywords
+    lands in `pending` so a human moderator reviews it; everything
+    else auto-approves so the engineer's wall stays alive. The admin
+    moderation endpoint can flip either way."""
+    blocked = ("fraud", "scam", "lawsuit", "thief", "incompetent")
+    body_lower = (body or "").lower()
+    if rating <= 3 or any(b in body_lower for b in blocked):
+        return "pending"
+    return "approved"
+
+
+def _public_review(doc: dict) -> dict:
+    """Shape-mapper used by the public list endpoint."""
+    return {
+        "id": doc["id"],
+        "rating": doc["rating"],
+        "title": doc.get("title", ""),
+        "body": doc.get("body", ""),
+        "reviewer_name": doc.get("reviewer_name", "Anonymous"),
+        "gym_name": doc.get("gym_name") or None,
+        "created_at": doc.get("created_at"),
+        "engineer_response": doc.get("engineer_response") or None,
+        "engineer_response_at": doc.get("engineer_response_at") or None,
+    }
+
+
+@router.post("/partners/{partner_id}/reviews")
+async def submit_review(
+    partner_id: str,
+    body: dict = Body(...),
+    request: Request = None,
+):
+    """Public endpoint — a gym contact submits a review on a partner.
+
+    Soft-spam controls:
+      * IP hash + 24 h cooldown on the (partner, reviewer_email) pair
+      * Low-rating + keyword heuristic routes to `pending` moderation
+      * Names + emails trimmed and length-capped
+    """
+    partner = await db.partner_engineers.find_one(
+        {"id": partner_id, "status": "approved"}, {"_id": 0, "id": 1, "full_name": 1},
+    )
+    if not partner:
+        raise HTTPException(404, "Engineer not found")
+
+    try:
+        rating = int(body.get("rating") or 0)
+    except (TypeError, ValueError):
+        rating = 0
+    if rating < 1 or rating > 5:
+        raise HTTPException(400, "Rating must be between 1 and 5 stars")
+
+    reviewer_name = (body.get("reviewer_name") or "").strip()[:80]
+    reviewer_email = (body.get("reviewer_email") or "").strip().lower()[:200]
+    gym_name = (body.get("gym_name") or "").strip()[:120] or None
+    title = (body.get("title") or "").strip()[:120]
+    review_body = (body.get("body") or "").strip()[:2000]
+    job_ref = (body.get("job_reference") or "").strip()[:80] or None
+    if not reviewer_name:
+        raise HTTPException(400, "reviewer_name is required")
+    if not review_body:
+        raise HTTPException(400, "Tell us what the engineer did — review body is required")
+
+    # 24h cooldown on (partner, reviewer_email) so a single requester
+    # can't flood the page.
+    if reviewer_email:
+        dup = await db.partner_reviews.find_one(
+            {
+                "partner_id": partner_id,
+                "reviewer_email": reviewer_email,
+                "created_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()},
+            },
+            {"_id": 0, "id": 1},
+        )
+        if dup:
+            raise HTTPException(429, "You've already submitted a review for this engineer in the last 24 hours.")
+
+    ip = request.client.host if request and request.client else ""
+    doc = {
+        "id": _new_id(),
+        "partner_id": partner_id,
+        "rating": rating,
+        "title": title,
+        "body": review_body,
+        "reviewer_name": reviewer_name,
+        "reviewer_email": reviewer_email or None,
+        "gym_name": gym_name,
+        "job_reference": job_ref,
+        "ip_hash": _hash_ip(ip),
+        "status": _moderation_status(rating, review_body),
+        "engineer_response": None,
+        "engineer_response_at": None,
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    await db.partner_reviews.insert_one(doc)
+    await _audit(
+        partner_id=partner_id, actor_id=None, action="review_submitted",
+        after={"review_id": doc["id"], "rating": rating, "status": doc["status"]},
+    )
+    return {
+        "ok": True,
+        "review_id": doc["id"],
+        "status": doc["status"],
+        "message": (
+            "Thanks — your review has been published."
+            if doc["status"] == "approved"
+            else "Thanks — your review will be public once our team has reviewed it."
+        ),
+    }
+
+
+@router.get("/partners/{partner_id}/reviews")
+async def list_partner_reviews(partner_id: str, limit: int = 50):
+    """Public endpoint — returns approved reviews + summary stats so
+    the engineer's public card can render trust signals."""
+    partner = await db.partner_engineers.find_one(
+        {"id": partner_id, "status": "approved"}, {"_id": 0, "id": 1, "full_name": 1, "company_name": 1, "level": 1},
+    )
+    if not partner:
+        raise HTTPException(404, "Engineer not found")
+    rows = await db.partner_reviews.find(
+        {"partner_id": partner_id, "status": "approved"},
+        {"_id": 0, "ip_hash": 0, "reviewer_email": 0},
+    ).sort("created_at", -1).limit(min(max(int(limit), 1), 200)).to_list(length=200)
+    average = (
+        round(sum(r.get("rating") or 0 for r in rows) / len(rows), 2)
+        if rows else None
+    )
+    return {
+        "partner": {
+            "id": partner["id"],
+            "first_name": (partner.get("full_name") or "").split(" ")[0],
+            "company_name": partner.get("company_name"),
+            "level": partner.get("level"),
+        },
+        "summary": {"average": average, "count": len(rows)},
+        "reviews": [_public_review(r) for r in rows],
+    }
+
+
+@router.get("/partners/me/reviews")
+async def list_my_reviews(user: dict = Depends(get_current_user)):
+    """Engineer's own view — includes pending + rejected so they can
+    see incoming reviews before moderation. Excludes the
+    reviewer email + IP hash."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    rows = await db.partner_reviews.find(
+        {"partner_id": partner["id"]},
+        {"_id": 0, "ip_hash": 0, "reviewer_email": 0},
+    ).sort("created_at", -1).limit(500).to_list(length=500)
+    approved = [r for r in rows if r.get("status") == "approved"]
+    avg = round(sum(r.get("rating") or 0 for r in approved) / len(approved), 2) if approved else None
+    return {
+        "reviews": rows,
+        "summary": {
+            "total": len(rows),
+            "approved": len(approved),
+            "pending": len([r for r in rows if r.get("status") == "pending"]),
+            "rejected": len([r for r in rows if r.get("status") == "rejected"]),
+            "average": avg,
+        },
+    }
+
+
+@router.post("/partners/me/reviews/{review_id}/respond")
+async def respond_to_review(review_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Engineer posts a single public response to a review on their
+    own profile. Replacing an existing response is allowed (covers
+    typo fixes) — every response is timestamped."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    review = await db.partner_reviews.find_one({"id": review_id, "partner_id": partner["id"]}, {"_id": 0})
+    if not review:
+        raise HTTPException(404, "Review not found")
+    response = (body.get("response") or "").strip()[:1500]
+    if not response:
+        raise HTTPException(400, "Response text is required")
+    await db.partner_reviews.update_one(
+        {"id": review_id},
+        {"$set": {"engineer_response": response, "engineer_response_at": _now(), "updated_at": _now()}},
+    )
+    await _audit(partner_id=partner["id"], actor_id=user["id"], action="review_responded",
+                 after={"review_id": review_id})
+    return {"ok": True}
+
+
+@router.post("/master-admin/partners/{partner_id}/reviews/{review_id}/moderate")
+async def admin_moderate_review(
+    partner_id: str,
+    review_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user),
+):
+    """Master admin approves / rejects a review. Body:
+    ``{decision: "approve" | "reject", note?: str}``."""
+    _require_master_admin(user)
+    decision = (body.get("decision") or "").strip().lower()
+    if decision not in {"approve", "reject"}:
+        raise HTTPException(400, "decision must be 'approve' or 'reject'")
+    review = await db.partner_reviews.find_one({"id": review_id, "partner_id": partner_id}, {"_id": 0})
+    if not review:
+        raise HTTPException(404, "Review not found")
+    status = "approved" if decision == "approve" else "rejected"
+    note = (body.get("note") or "").strip()[:400] or None
+    await db.partner_reviews.update_one(
+        {"id": review_id},
+        {"$set": {
+            "status": status, "moderation_note": note,
+            "moderated_by": user["id"], "moderated_at": _now(),
+            "updated_at": _now(),
+        }},
+    )
+    await _audit(partner_id=partner_id, actor_id=user["id"], action=f"review_{decision}d",
+                 after={"review_id": review_id, "note": note})
+    return {"ok": True, "status": status}
+
+
+# ── End iter 216h286 reviews block ──────────────────────────────────
 
 
 async def attach_referral_to_org(*, organization_id: str, ref_code: Optional[str]) -> Optional[dict]:
