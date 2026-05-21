@@ -3,7 +3,7 @@ import { useCRM } from './CRMApp';
 import {
   Plus, FileText, X, ArrowLeft,
   Building2, User, ChevronRight, History, Copy,
-  Printer, Mail, AlertTriangle, Loader2,
+  Printer, Mail, AlertTriangle, Loader2, Package, Search, Layers,
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -580,6 +580,15 @@ export default function CRMCPQ() {
   const [companies, setCompanies] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [opps, setOpps] = useState([]);
+  // Iter 216h269 — products catalogue + bundle expansion in the quote
+  // builder. Each line item may carry a `product_id` (link back to
+  // the master price list), `cost_price` (drives the margin badge),
+  // and `from_bundle_id` / `from_bundle_name` (set when a bundle
+  // exploded into N lines so the rep can see the provenance).
+  const [products, setProducts] = useState([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [expanding, setExpanding] = useState(null);  // product id being expanded
   const [form, setForm] = useState({
     company_id: '', contact_id: '', opportunity_id: '',
     valid_until: '', notes: '', vat_rate: 20,
@@ -606,14 +615,16 @@ export default function CRMCPQ() {
 
   const loadLookups = useCallback(async () => {
     try {
-      const [coRes, ctRes, oppRes] = await Promise.all([
+      const [coRes, ctRes, oppRes, prodRes] = await Promise.all([
         axios.get(`${API}/crm/v2/companies?limit=200`, { headers: headers() }),
         axios.get(`${API}/crm/v2/contacts?limit=200`, { headers: headers() }),
         axios.get(`${API}/crm/v2/opportunities?limit=200`, { headers: headers() }),
+        axios.get(`${API}/crm/products?active=true&limit=500`, { headers: headers() }),
       ]);
       setCompanies(coRes.data.companies);
       setContacts(ctRes.data.contacts);
       setOpps(oppRes.data.opportunities);
+      setProducts(prodRes.data.products || []);
     } catch (e) { console.error(e); }
   }, [API, headers]);
 
@@ -635,6 +646,76 @@ export default function CRMCPQ() {
   const subtotal = form.lines.reduce((s, l) => s + (l.quantity * l.unit_price * (1 - (l.discount || 0) / 100)), 0);
   const vatAmount = subtotal * form.vat_rate / 100;
   const grandTotal = subtotal + vatAmount;
+
+  // Iter 216h269 — margin badge. Computed only over lines that carry
+  // a `cost_price` (typically populated when the line came from the
+  // master price list). Manual lines without a cost are excluded.
+  const totalCost = form.lines.reduce((s, l) => s + ((Number(l.cost_price) || 0) * (Number(l.quantity) || 0)), 0);
+  const sellOfCosted = form.lines.reduce((s, l) => {
+    if (!Number(l.cost_price)) return s;
+    return s + (Number(l.quantity) * Number(l.unit_price) * (1 - (Number(l.discount) || 0) / 100));
+  }, 0);
+  const marginAmount = sellOfCosted - totalCost;
+  const marginPercent = sellOfCosted > 0 ? (marginAmount / sellOfCosted) * 100 : 0;
+  const hasCostedLines = totalCost > 0;
+
+  // Iter 216h269 — drop a product onto the quote. Non-bundles append
+  // one line. Bundles call /crm/products/{id}/expand → push N lines
+  // (one per component) with `from_bundle_*` provenance so the rep
+  // can see the lineage at-a-glance.
+  const addProductToQuote = async (p) => {
+    if (!p || !p.id) return;
+    if (!p.is_bundle) {
+      const next = [
+        ...form.lines.filter(l => l.description.trim() || Number(l.unit_price)),
+        {
+          description: p.name + (p.sku ? ` (${p.sku})` : ''),
+          quantity: 1,
+          unit_price: Number(p.sell_price) || 0,
+          discount: 0,
+          product_id: p.id,
+          cost_price: Number(p.cost_price) || 0,
+          tax_rate: Number(p.tax_rate) || 0,
+        },
+      ];
+      setForm(prev => ({ ...prev, lines: next.length ? next : prev.lines }));
+      setShowPicker(false);
+      return;
+    }
+    setExpanding(p.id);
+    try {
+      const r = await axios.get(`${API}/crm/products/${p.id}/expand`, { headers: headers() });
+      const components = r.data?.items || [];
+      const newLines = components.map(item => ({
+        description: `${item.name}${item.sku ? ` (${item.sku})` : ''}${item.from_bundle_name ? ` · from ${item.from_bundle_name}` : ''}`,
+        quantity: Number(item.quantity) || 1,
+        unit_price: Number(item.sell_price) || 0,
+        discount: 0,
+        product_id: item.product_id,
+        cost_price: Number(item.cost_price) || 0,
+        tax_rate: Number(item.tax_rate) || 0,
+        from_bundle_id: item.from_bundle_id || p.id,
+        from_bundle_name: item.from_bundle_name || p.name,
+        missing: !!item.missing,
+      }));
+      const keepExisting = form.lines.filter(l => l.description.trim() || Number(l.unit_price));
+      setForm(prev => ({ ...prev, lines: [...keepExisting, ...newLines] }));
+      setShowPicker(false);
+    } catch (e) {
+      console.error('Bundle expand failed', e);
+    }
+    setExpanding(null);
+  };
+
+  const filteredProducts = (() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return products.slice(0, 80);
+    return products.filter(p =>
+      (p.name || '').toLowerCase().includes(q)
+      || (p.sku || '').toLowerCase().includes(q)
+      || (p.category || '').toLowerCase().includes(q),
+    ).slice(0, 80);
+  })();
 
   const handleCreate = async () => {
     if (form.lines.every(l => !l.description.trim())) return;
@@ -754,8 +835,75 @@ export default function CRMCPQ() {
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Line Items</label>
-                <button type="button" onClick={addLine} className="text-xs text-[var(--color-info-ios)] hover:underline">+ Add line</button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowPicker(s => !s); setProductSearch(''); }}
+                    className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded border"
+                    style={{ borderColor: c.border, color: 'var(--color-info-ios)' }}
+                    data-testid="quote-add-from-catalogue-btn"
+                  >
+                    <Package size={11} /> Add from catalogue
+                  </button>
+                  <button type="button" onClick={addLine} className="text-xs text-[var(--color-info-ios)] hover:underline" data-testid="quote-add-line-btn">+ Add line</button>
+                </div>
               </div>
+              {showPicker && (
+                <div
+                  className="mb-3 rounded-lg border p-3"
+                  style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-25-alt)', borderColor: c.border }}
+                  data-testid="quote-product-picker"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="relative flex-1">
+                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-50" />
+                      <input
+                        type="text"
+                        autoFocus
+                        value={productSearch}
+                        onChange={e => setProductSearch(e.target.value)}
+                        placeholder="Search products, SKUs, bundles…"
+                        className="w-full h-8 pl-8 pr-3 text-xs rounded-md"
+                        style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                        data-testid="quote-product-search"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPicker(false)}
+                      className="opacity-60 hover:opacity-100"
+                      style={{ color: c.textDim }}
+                      data-testid="quote-product-picker-close"
+                    ><X size={14} /></button>
+                  </div>
+                  {filteredProducts.length === 0 && (
+                    <p className="text-[11px] py-2" style={{ color: c.textDim }} data-testid="quote-product-picker-empty">
+                      No products in the master price list match &ldquo;{productSearch || 'this filter'}&rdquo;. Add some in CRM Settings &rarr; Price List.
+                    </p>
+                  )}
+                  <div className="max-h-56 overflow-y-auto -mx-1">
+                    {filteredProducts.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => addProductToQuote(p)}
+                        disabled={expanding === p.id}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs rounded-md hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50"
+                        data-testid={`quote-product-pick-${p.id}`}
+                      >
+                        {p.is_bundle ? <Layers size={12} style={{ color: 'var(--color-accent-violet)' }} /> : <Package size={12} style={{ color: c.textDim }} />}
+                        <span className="flex-1 truncate" style={{ color: c.text }}>{p.name}</span>
+                        {p.sku && <span className="opacity-60 text-[10px]" style={{ color: c.textDim }}>{p.sku}</span>}
+                        {p.is_bundle && (
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: 'var(--color-accent-violet)20', color: 'var(--color-accent-violet)' }} data-testid={`quote-product-bundle-badge-${p.id}`}>Bundle</span>
+                        )}
+                        <span className="opacity-80 font-mono text-[11px]" style={{ color: c.textMuted }}>{fmt(p.sell_price)}</span>
+                        {expanding === p.id && <Loader2 size={10} className="animate-spin" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 {form.lines.map((line, i) => (
                   <div key={i} className="grid grid-cols-12 gap-2 items-end" data-testid={`quote-line-${i}`}>
@@ -789,12 +937,25 @@ export default function CRMCPQ() {
 
             {/* Totals */}
             <div className="flex justify-end mb-4">
-              <div className="w-56 space-y-1.5 text-sm">
+              <div className="w-72 space-y-1.5 text-sm">
                 <div className="flex justify-between"><span style={{ color: c.textDim }}>Subtotal</span><span style={{ color: c.text }}>{fmt(subtotal)}</span></div>
                 <div className="flex justify-between"><span style={{ color: c.textDim }}>VAT ({form.vat_rate}%)</span><span style={{ color: c.text }}>{fmt(vatAmount)}</span></div>
                 <div className="flex justify-between font-bold pt-1" style={{ borderTop: `1px solid ${c.border}` }}>
                   <span style={{ color: c.text }}>Total</span><span style={{ color: 'var(--color-success-alt)' }}>{fmt(grandTotal)}</span>
                 </div>
+                {hasCostedLines && (
+                  <div
+                    className="mt-2 px-2.5 py-1.5 rounded-md flex items-center justify-between text-[11px]"
+                    style={{
+                      background: marginPercent >= 30 ? 'rgba(16,185,129,0.08)' : marginPercent >= 15 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)',
+                      color: marginPercent >= 30 ? 'var(--color-success-alt)' : marginPercent >= 15 ? 'var(--color-accent-amber)' : 'var(--color-danger-alt)',
+                    }}
+                    data-testid="quote-margin-badge"
+                  >
+                    <span className="font-semibold">Margin {marginPercent.toFixed(1)}%</span>
+                    <span className="font-mono">cost {fmt(totalCost)} · sell {fmt(sellOfCosted)}</span>
+                  </div>
+                )}
               </div>
             </div>
 

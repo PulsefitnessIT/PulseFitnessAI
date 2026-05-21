@@ -1,3 +1,80 @@
+## Iter 216h269 — Quote builder bundle auto-expansion (Feb 21, 2026) ✅ P2
+
+Closes the loop on iter 216h267 (CRM Product Bundles). The bundle
+schema + `/expand` endpoint shipped in h267 — but until this iter
+reps still had to type each component manually when raising the
+actual quote.
+
+### Frontend (`CRMCPQ.js`)
+
+* **Product picker** — new **"Add from catalogue"** button next to
+  "+ Add line" on the Create Quote modal. Opens an inline panel
+  with:
+  - Search input (case-insensitive over name / SKU / category)
+  - Scrollable list of every active product
+  - **Bundle pill** on `is_bundle: true` rows (purple)
+  - Sell price on the right of each row
+* **Bundle expansion** — picking a bundle calls
+  `GET /api/crm/products/{id}/expand`. The handler:
+  - Maps each `items[]` entry into a new quote line
+  - Hydrates each line with the current `cost_price`, `sell_price`,
+    `tax_rate` from the master price list (not stale snapshots)
+  - Stamps `from_bundle_id` + `from_bundle_name` on every component
+    line so the description shows *"Treadmill (TM-01) · from Cardio
+    Kit"* and reports can group bundle-derived revenue
+  - Picking a **non-bundle** appends a single line with `product_id`
+    + `cost_price` only — no extra fetch
+  - Picker auto-clears empty placeholder lines on first add so the
+    rep doesn't end up with a blank row above their first product
+* **Margin badge** — new colour-coded strip in the totals panel:
+  - Green ≥ 30% margin
+  - Amber ≥ 15% margin
+  - Red < 15% margin
+  - Only renders when at least one line carries a `cost_price`
+    (manual lines without a cost don't poison the metric)
+  - Shows `Margin 42.5% · cost £900.00 · sell £1,800.00`
+* **Manual lines preserved** — "+ Add line" still works, and
+  manual lines stay free-text (no `product_id` / `cost_price`)
+  so the existing one-off-service workflow keeps running.
+
+### Backend
+
+No backend changes — the existing `POST /api/crm/v2/quotes`
+endpoint persists `lines` verbatim, so the new fields
+(`product_id`, `cost_price`, `tax_rate`, `from_bundle_id`,
+`from_bundle_name`, `missing`) round-trip onto the quote doc
+without schema migration.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h269_quote_bundle_expand.py`) | **13 / 13** |
+| `make regression` | **287 passed, 14 skipped** (was 274 → 287) |
+| `yarn eslint --max-warnings 0` on changed CRM files | clean |
+| Existing "+ Add line" + manual line workflow | preserved (regression test) |
+
+### Why this matters
+
+Before: rep defines a "Cardio Starter Pack" bundle (1 treadmill +
+2 bikes + 12-month service plan). On the quote, they still type
+each line by hand — slow, error-prone, and the margin is invisible
+until accounting runs the numbers.
+
+After: rep picks "Cardio Starter Pack" → 4 lines explode with
+current prices and provenance → margin badge updates live:
+*"Margin 38.4% · cost £1,420 · sell £2,305"*. If the bundle
+margin drops below the org's threshold the approval-required
+callout already shipped in h265 catches it before the quote
+goes out.
+
+The Bundles feature is now end-to-end: catalogue → expansion →
+quote → PDF/Email → opportunity auto-progression → margin badge.
+
+---
+
+
+
 ## Iter 216h268 — Website-first company recognition (Feb 21, 2026) ✅ P2
 
 Customer feedback (verbatim): *"Companies — use the company's
