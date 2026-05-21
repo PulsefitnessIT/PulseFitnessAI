@@ -1,3 +1,81 @@
+## Iter 216h285 — Referral collateral kit (Feb 21, 2026) ✅ P1
+
+Closes Gap 6 from the BA audit. Engineers used to have a raw URL and
+no way to share it that didn't look DIY. Now they download three
+branded, personalised assets in one click from the partner dashboard.
+
+### The three assets (generated on-demand, in memory)
+
+| Asset | Format | Spec | Use case |
+|---|---|---|---|
+| **QR poster** | PNG | A4 portrait, 1240×1754 @ 150 DPI | Print and stick on a gym wall, in the van, on a workshop noticeboard |
+| **Social share card** | PNG | 1200×630 (OpenGraph spec) | Instagram, LinkedIn, X, WhatsApp link-preview |
+| **PDF pitch deck** | PDF | Single-page A4 portrait | Email a gym owner directly with the proposition + offer + QR |
+
+Every asset embeds the engineer's full name, referral code, and the
+full referral URL (encoded into the QR). Brand colours match the
+marketing site — blue brand bars, emerald CTA block on the pitch
+deck.
+
+### Backend
+
+* `utils/partner_collateral.py` — three pure generator functions
+  using **Pillow** (PNG) and **reportlab** (PDF), plus a `qrcode`
+  helper that draws crisp brand-blue QR codes via box-size 10 →
+  Lanczos resize.
+* `GET /partners/me/collateral/{kind}` — single endpoint, `kind ∈
+  {qr-poster, social-card, pdf-pitch}`. Streams the file with
+  `Content-Disposition: attachment; filename=...` and a 1-hour
+  `Cache-Control: private` so the dashboard's three buttons stay
+  cheap. Approved partners only — non-approved get a clean 403.
+* Generation is in-memory only — no files persisted on disk or in
+  object storage, so the engineer's name and code are never written
+  outside the partner record.
+
+### Frontend
+
+* New `pages/PartnerEngineer/PartnerCollateralCard.js` — three-up
+  grid of download buttons. Each click streams the file as a blob,
+  pulls the filename out of `Content-Disposition`, triggers the
+  browser download, then `notify.success`-es. Per-button spinner
+  state while the request is in flight.
+* Wired into `PartnerDashboard.js` right after the activation
+  checklist, visible only to approved partners.
+
+### Verification
+
+* `tests/test_iter_216h285_collateral_kit.py` — **11 tests** pin:
+  * PNG bytes start with `\x89PNG`, PDF bytes start with `%PDF-` and
+    end with `%%EOF` (proper file headers/footers)
+  * file-size sanity ranges for each format
+  * different referral codes produce different bytes (personalisation
+    actually fires)
+  * `generate()` dispatches to the right helper + sets correct MIME
+  * unknown kind raises with a clear message
+  * endpoint returns the right Content-Disposition + media_type +
+    cache headers
+  * endpoint rejects unknown kind, non-approved status, missing
+    partner with the right detail strings
+  * `COLLATERAL_KINDS` constant is pinned (coordinated update gate
+    for the front-end button strip)
+* `make regression` → **444 passed, 14 skipped** (up from 433).
+* Local smoke (`python -c "from utils.partner_collateral import generate; ..."`):
+  - qr-poster: 138 KB PNG ✓
+  - social-card: 80 KB PNG ✓
+  - pdf-pitch: 32 KB PDF ✓
+
+### Files
+
+* `backend/utils/partner_collateral.py` (new — 3 generators)
+* `backend/routes/partners.py` (modified — 1 new endpoint)
+* `frontend/src/pages/PartnerEngineer/PartnerCollateralCard.js` (new)
+* `frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (modified — wired card)
+* `backend/tests/test_iter_216h285_collateral_kit.py` (new, 11 tests)
+* `Makefile` (regression added)
+
+---
+
+
 ## Iter 216h284 — Partner activation checklist (Feb 21, 2026) ✅ P1
 
 Closes Gap 5 from the BA audit. Approved engineers used to land on a

@@ -55,7 +55,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from utils.auth import get_current_user
 from utils.database import db, put_object, APP_NAME
@@ -1010,6 +1010,48 @@ async def ack_my_checklist_step(body: dict = Body(...), user: dict = Depends(get
         partner["checklist"] = {**cl, f"{key}_at": _now()}
     referrals_count = await db.partner_referrals.count_documents({"partner_id": partner["id"]})
     return {"ok": True, "checklist": build_checklist(partner, referrals_count)}
+
+
+@router.get("/partners/me/collateral/{kind}")
+async def get_my_collateral(kind: str, user: dict = Depends(get_current_user)):
+    """Iter 216h285 — Gap 6: return a referral-collateral asset.
+
+    Supported kinds:
+      * ``qr-poster``   — A4 portrait PNG with a large QR code.
+      * ``social-card`` — 1200×630 PNG sized for Instagram/LinkedIn/X.
+      * ``pdf-pitch``   — single-page A4 PDF pitch deck.
+
+    Generated in-memory from the partner's referral code + link. No
+    files persisted; the browser caches for an hour so the engineer
+    can hammer the dashboard download buttons without flooding the API.
+    """
+    from utils.partner_collateral import generate, COLLATERAL_KINDS
+    if kind not in COLLATERAL_KINDS:
+        raise HTTPException(400, f"Unknown collateral kind '{kind}' — expected one of {sorted(COLLATERAL_KINDS)}")
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    if partner.get("status") != "approved":
+        raise HTTPException(403, "Approved partners only — your application is still in review.")
+    referral_url = _public_referral_link(partner["referral_code"])
+    try:
+        data, mime, filename = generate(
+            kind=kind,
+            full_name=partner.get("full_name", ""),
+            referral_code=partner["referral_code"],
+            referral_url=referral_url,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Collateral generation failed (%s): %s", kind, exc)
+        raise HTTPException(500, "Could not generate the collateral file — please retry.") from exc
+    return Response(
+        content=data,
+        media_type=mime,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
 
 
 @router.get("/partners/me/commission")
