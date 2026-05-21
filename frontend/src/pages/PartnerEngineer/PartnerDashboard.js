@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import PartnerComplianceCard from './PartnerComplianceCard';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -219,6 +220,11 @@ export default function PartnerDashboard() {
           busy={subBusy} onStart={startSubscription}
           onCancel={cancelSubscription} onResume={resumeSubscription}
         />
+
+        {/* Iter 216h283 — Gap 4: gym-entry compliance docs (DBS, RTW,
+            Safeguarding, Public Liability). Shown to approved partners
+            only — the panel hides itself silently for any other status. */}
+        {partner.status === 'approved' && <PartnerComplianceCard />}
 
         {/* Stat grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

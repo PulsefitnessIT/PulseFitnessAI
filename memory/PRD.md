@@ -1,3 +1,102 @@
+## Iter 216h283 — Gym-entry compliance docs (DBS / RTW / Safeguarding / Public Liability) (Feb 21, 2026) ✅ P0
+
+Closes Gap 4 from the BA audit. The platform now captures, verifies
+and tracks the four core docs gym operators ask for in procurement.
+
+### What we capture per partner
+
+| Doc | Fields |
+|---|---|
+| **DBS** | Check level (Basic / Standard / Enhanced / Enhanced + Barred), certificate number, Update Service number, check date, expiry, scanned cert |
+| **Right to Work** | Document type (UK passport, EU passport, BRP, share code, etc.), share code, expiry, scanned doc |
+| **Safeguarding** | Issuer (NSPCC etc.), completion date, expiry, scanned cert |
+| **Public Liability** | Provider, policy number, cover amount (£), expiry, scanned policy |
+
+### Security model
+
+* Certificate numbers, Update Service numbers, RTW share codes and PL
+  policy numbers are **Fernet-encrypted at rest** using the same
+  `MFA_ENCRYPTION_KEY` already wired for MFA. The plaintext last 4
+  characters are stored separately so the dashboard can identify a
+  doc at a glance without paying the decrypt cost.
+* `sanitise_docs_for_response` strips every `*_enc` field before any
+  API response, so ciphertext never leaves the server.
+
+### AI verification (Emergent LLM Key, GPT-4o vision)
+
+* Triggered automatically on every image upload via
+  `utils.partner_compliance_docs.ai_check_document`.
+* Returns structured JSON: doc type, issuee name, issuer, issue/expiry
+  dates, certificate number (only the last 4 is persisted), confidence
+  score, notes on anything that looks off.
+* Sets a `matches_expected` flag if confidence ≥ 0.6 AND the doc-type
+  label contains the expected kind keyword.
+* Degrades gracefully: missing key, PDF upload, garbage LLM response,
+  decode error → returns a structured "skipped" / "unsupported" /
+  "error" status so the admin can still review manually.
+
+### Two-step verification
+
+1. Engineer uploads via `PUT /partners/me/compliance-docs/{kind}` (one
+   endpoint per kind, multipart).
+2. Master admin reviews + clicks Verify via
+   `POST /master-admin/partners/{id}/verify-doc`. Rejecting clears
+   `verified_at` and stores a `rejection_note` the engineer sees
+   inline on their dashboard.
+
+Every new upload **automatically resets** the verification, so a
+re-uploaded doc has to be re-signed.
+
+### Nightly sweep extended
+
+`utils/partner_compliance.sweep_once` was already running daily for
+top-level insurance / qualifications expiry (iter 216h281). Now also
+walks every nested `compliance_docs[kind].expires_at`, fires T-30 /
+T-7 / T-0 reminder emails, and flips `compliance_paused = True` once
+anything expires. The reminder-window tracking lives inside the nested
+doc so the four kinds never collide.
+
+### Frontend
+
+* New `pages/PartnerEngineer/PartnerComplianceCard.js` — collapsible
+  per-doc rows with status pill, AI-confidence badge, expanded form
+  for each kind, file picker (PDF / PNG / JPG), inline rejection notes.
+* Wired into `PartnerDashboard.js` above the stat grid, only shown
+  for approved partners.
+* Per-doc-kind data-testids for the testing agent.
+
+### Verification
+
+* `tests/test_iter_216h283_compliance_docs.py` — **16 tests** pin:
+  * Encryption round-trip + last4 helper
+  * `validate_kind` error path, `default_doc_shell` shape
+  * `sanitise_docs_for_response` strips every `_enc` field
+  * `overall_status` blocked flag on expired uploaded doc
+  * AI checker: skipped (no key) / unsupported (PDF) / garbage JSON /
+    valid JSON parsed + match flagged
+  * Sweep extended to nested doc kinds (reminder fired + pause)
+  * Admin verify endpoint: verified / rejected w/ note / blocked
+    without a file
+* `make regression` → **418 passed, 14 skipped** (up from 402).
+* Live smoke: Jack (non-partner Pulse Pro tenant) gets a clean 404 on
+  `GET /partners/me/compliance-docs` — no leakage, no crash.
+
+### Files
+
+* `backend/utils/partner_compliance_docs.py` (new — encryption helpers,
+  validation, AI checker, sanitisation)
+* `backend/routes/partners.py` (modified — 4 new endpoints: engineer
+  upload, engineer read, admin verify, admin read)
+* `backend/utils/partner_compliance.py` (modified — sweep extended to
+  the 4 nested doc kinds)
+* `frontend/src/pages/PartnerEngineer/PartnerComplianceCard.js` (new)
+* `frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (modified)
+* `backend/tests/test_iter_216h283_compliance_docs.py` (new, 16 tests)
+* `Makefile` (regression added)
+
+---
+
+
 ## Iter 216h282 — Engineer route consolidation (Feb 21, 2026) ✅ P1
 
 Closes Gaps 3 + 7 from the BA audit.

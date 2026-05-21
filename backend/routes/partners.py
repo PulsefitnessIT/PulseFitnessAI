@@ -635,6 +635,257 @@ def _is_doc_valid(expires_at) -> bool:
     return expires > datetime.now(timezone.utc)
 
 
+# ── Iter 216h283 — Gap 4: DBS / RTW / Safeguarding / Public Liability ─
+
+
+def _parse_int(value: Optional[str]) -> Optional[int]:
+    try:
+        return int(str(value).strip()) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+async def _store_compliance_attachment(file: UploadFile, partner_id: str, kind: str) -> tuple[dict, bytes, str]:
+    """Save a compliance doc file using the existing put_object pipeline.
+
+    Returns ``(file_dict, raw_bytes, content_type)`` so the caller can
+    immediately ship the bytes to the AI checker without re-reading
+    from storage.
+    """
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "Uploaded file is empty")
+    if len(data) > _CV_MAX_BYTES:
+        raise HTTPException(400, f"File too large — keep compliance docs under {_CV_MAX_BYTES // (1024 * 1024)} MB")
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in (file.filename or "") else "bin").lower()
+    if ext not in _CV_ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"Unsupported file type .{ext}")
+    path = f"{APP_NAME}/partner-compliance/{partner_id}/{kind}/{uuid.uuid4()}.{ext}"
+    stored = put_object(path, data, file.content_type or "application/octet-stream")
+    return ({
+        "id": _new_id(),
+        "original_filename": file.filename or f"{kind}.{ext}",
+        "content_type": file.content_type or "application/octet-stream",
+        "size": len(data),
+        "storage_path": stored.get("path", path),
+        "download_url": stored.get("url", stored.get("path", path)),
+        "uploaded_at": _now(),
+    }, data, file.content_type or "application/octet-stream")
+
+
+@router.put("/partners/me/compliance-docs/{kind}")
+async def upload_my_compliance_doc(
+    kind: str,
+    user: dict = Depends(get_current_user),
+    # File upload (optional — engineer can submit metadata first, file later)
+    file: Optional[UploadFile] = File(None),
+    # Common metadata
+    expires_at: str = Form(""),
+    # DBS-specific
+    dbs_certificate_number: str = Form(""),
+    dbs_update_service_number: str = Form(""),
+    dbs_check_date: str = Form(""),
+    dbs_check_level: str = Form(""),
+    # RTW-specific
+    rtw_document_type: str = Form(""),
+    rtw_share_code: str = Form(""),
+    # Safeguarding-specific
+    safeguarding_issuer: str = Form(""),
+    safeguarding_completed_at: str = Form(""),
+    # Public liability-specific
+    pl_provider: str = Form(""),
+    pl_policy_number: str = Form(""),
+    pl_cover_amount: str = Form(""),
+):
+    """Engineer self-service compliance doc submission.
+
+    Validates the kind, encrypts sensitive numbers, stores the file
+    via the existing object-storage helper, runs the AI vision check
+    immediately, and resets ``verified_at`` to None so the admin
+    re-signs off on every new upload.
+    """
+    from utils.partner_compliance_docs import (
+        DBS_LEVELS, DOC_KINDS, RTW_DOC_TYPES,
+        ai_check_document, default_doc_shell, encrypt_field, last4, validate_kind,
+    )
+    validate_kind(kind)
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+
+    blob: dict = (partner.get("compliance_docs") or {}).get(kind) or default_doc_shell()
+
+    # ── Per-kind metadata ────────────────────────────────────────────
+    if kind == "dbs":
+        if dbs_certificate_number:
+            blob["certificate_number_enc"] = encrypt_field(dbs_certificate_number)
+            blob["certificate_last4"] = last4(dbs_certificate_number)
+        if dbs_update_service_number:
+            blob["update_service_number_enc"] = encrypt_field(dbs_update_service_number)
+            blob["update_service_last4"] = last4(dbs_update_service_number)
+        if dbs_check_date:
+            blob["check_date"] = _parse_iso_date(dbs_check_date)
+        if dbs_check_level:
+            level = dbs_check_level.strip().lower()
+            if level not in DBS_LEVELS:
+                raise HTTPException(400, f"dbs_check_level must be one of {sorted(DBS_LEVELS)}")
+            blob["check_level"] = level
+    elif kind == "rtw":
+        if rtw_document_type:
+            doc_t = rtw_document_type.strip().lower()
+            if doc_t not in RTW_DOC_TYPES:
+                raise HTTPException(400, f"rtw_document_type must be one of {sorted(RTW_DOC_TYPES)}")
+            blob["document_type"] = doc_t
+        if rtw_share_code:
+            blob["share_code_enc"] = encrypt_field(rtw_share_code)
+            blob["share_code_last4"] = last4(rtw_share_code)
+    elif kind == "safeguarding":
+        if safeguarding_issuer:
+            blob["issuer"] = safeguarding_issuer.strip()[:200]
+        if safeguarding_completed_at:
+            blob["completed_at"] = _parse_iso_date(safeguarding_completed_at)
+    elif kind == "public_liability":
+        if pl_provider:
+            blob["provider"] = pl_provider.strip()[:200]
+        if pl_policy_number:
+            blob["policy_number_enc"] = encrypt_field(pl_policy_number)
+            blob["policy_number_last4"] = last4(pl_policy_number)
+        cover = _parse_int(pl_cover_amount)
+        if cover is not None:
+            blob["cover_amount"] = cover
+
+    if expires_at:
+        blob["expires_at"] = _parse_iso_date(expires_at)
+
+    # ── File + AI check ──────────────────────────────────────────────
+    if file is not None:
+        file_dict, raw_bytes, content_type = await _store_compliance_attachment(file, partner["id"], kind)
+        blob["file"] = file_dict
+        blob["uploaded_at"] = _now()
+        # Reset verification on every new upload — the admin must
+        # re-sign off after a doc replacement.
+        blob["verified_at"] = None
+        blob["verified_by"] = None
+        # Fire-and-forget AI check (synchronous so the engineer sees
+        # the result immediately, but wrapped to never break the
+        # upload path).
+        try:
+            blob["ai_check"] = await ai_check_document(raw_bytes, content_type, expected_kind=kind)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("AI compliance check threw: %s", exc)
+            blob["ai_check"] = {"status": "error", "notes": str(exc)[:200], "checked_at": _now()}
+
+    # ── Persist & re-evaluate compliance pause ───────────────────────
+    docs = dict(partner.get("compliance_docs") or {})
+    docs[kind] = blob
+
+    # Soft auto-unpause: if every uploaded doc with an expiry is still
+    # in the future, drop the compliance_paused flag.
+    paused = bool(partner.get("compliance_paused"))
+    if paused:
+        all_ok = all(_is_doc_valid((docs.get(k) or {}).get("expires_at")) for k in DOC_KINDS)
+        if all_ok:
+            paused = False
+
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {
+            "compliance_docs": docs,
+            "compliance_paused": paused,
+            "updated_at": _now(),
+        }},
+    )
+    await _audit(partner_id=partner["id"], actor_id=user["id"], action=f"compliance_doc_{kind}_uploaded",
+                 after={"has_file": blob.get("file") is not None, "ai_status": (blob.get("ai_check") or {}).get("status")})
+    # Return only sanitised view so we never echo the ciphertext back.
+    from utils.partner_compliance_docs import sanitise_docs_for_response, overall_status
+    return {
+        "ok": True,
+        "compliance_docs": sanitise_docs_for_response(docs),
+        "status": overall_status(docs),
+    }
+
+
+@router.get("/partners/me/compliance-docs")
+async def get_my_compliance_docs(user: dict = Depends(get_current_user)):
+    """Sanitised compliance docs for the engineer dashboard."""
+    from utils.partner_compliance_docs import sanitise_docs_for_response, overall_status, DOC_KINDS, default_doc_shell
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    docs = partner.get("compliance_docs") or {}
+    # Make sure the UI never has to handle missing keys.
+    full = {k: docs.get(k) or default_doc_shell() for k in DOC_KINDS}
+    return {
+        "compliance_docs": sanitise_docs_for_response(full),
+        "status": overall_status(docs),
+        "compliance_paused": bool(partner.get("compliance_paused")),
+    }
+
+
+@router.post("/master-admin/partners/{partner_id}/verify-doc")
+async def admin_verify_compliance_doc(
+    partner_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user),
+):
+    """Master admin signs off on a compliance doc.
+
+    Body: ``{kind: "dbs|rtw|safeguarding|public_liability", verified: bool, note?: str}``
+    Setting ``verified=False`` clears any prior verification and adds
+    the rejection note to the doc's audit trail.
+    """
+    from utils.partner_compliance_docs import sanitise_docs_for_response, validate_kind
+    _require_master_admin(user)
+    kind = validate_kind((body.get("kind") or "").strip().lower())
+    verified = bool(body.get("verified", True))
+
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(404, "Partner not found")
+    docs = dict(partner.get("compliance_docs") or {})
+    blob = dict(docs.get(kind) or {})
+    if not blob.get("file"):
+        raise HTTPException(400, f"No {kind} doc to verify yet — engineer must upload first.")
+    if verified:
+        blob["verified_at"] = _now()
+        blob["verified_by"] = user["id"]
+        blob["rejection_note"] = None
+    else:
+        blob["verified_at"] = None
+        blob["verified_by"] = None
+        note = (body.get("note") or "").strip()[:400]
+        if note:
+            blob["rejection_note"] = note
+    docs[kind] = blob
+    await db.partner_engineers.update_one(
+        {"id": partner_id},
+        {"$set": {"compliance_docs": docs, "updated_at": _now()}},
+    )
+    await _audit(partner_id=partner_id, actor_id=user["id"], action=f"compliance_doc_{kind}_verified",
+                 after={"verified": verified})
+    return {"ok": True, "compliance_docs": sanitise_docs_for_response(docs)}
+
+
+@router.get("/master-admin/partners/{partner_id}/compliance-docs")
+async def admin_get_compliance_docs(partner_id: str, user: dict = Depends(get_current_user)):
+    """Full compliance view for the admin verification panel."""
+    from utils.partner_compliance_docs import sanitise_docs_for_response, overall_status, DOC_KINDS, default_doc_shell
+    _require_master_admin(user)
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(404, "Partner not found")
+    docs = partner.get("compliance_docs") or {}
+    full = {k: docs.get(k) or default_doc_shell() for k in DOC_KINDS}
+    return {
+        "compliance_docs": sanitise_docs_for_response(full),
+        "status": overall_status(docs),
+    }
+
+
+# ── End of iter 216h283 compliance-docs block ───────────────────────
+
+
 @router.post("/partners/apply")
 async def apply_partner(body: dict = Body(...), user: dict = Depends(get_current_user)):
     """Submit / refresh the partner application. Idempotent — calling
