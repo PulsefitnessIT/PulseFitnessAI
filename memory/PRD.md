@@ -1,3 +1,66 @@
+## Iter 216h286 — Customer review submission flow (Feb 21, 2026) ✅ P0
+
+Closes **Gap 8** from the BA audit. The marketing landing page had
+been promising a star-rating system since launch but the platform
+had no way to capture, moderate or display reviews. Engineer
+partners now have a public review URL per partner, a moderated
+publishing pipeline, and a dashboard wall where they can read and
+respond to every review.
+
+### Backend (`/app/backend/routes/partners.py`)
+
+* `POST /partners/{partner_id}/reviews` — public submission. No
+  auth. Validates rating 1–5, reviewer name and body. Captures
+  reviewer email and a SHA-256 hash of the source IP for soft-rate
+  limiting (24h cooldown per partner × email pair). Auto-routes to
+  `approved` for rating ≥ 4 + clean body; everything else lands in
+  `pending` for human moderation.
+* `_moderation_status(rating, body)` heuristic — pulls keywords like
+  "scam", "fraud", "lawsuit", "ghosted" into the pending bucket
+  regardless of star count.
+* `GET /partners/{partner_id}/reviews` — public list, **only**
+  `status: approved`. Mongo projection drops `ip_hash` +
+  `reviewer_email` so no PII leaks to the wire. Returns partner card
+  (first name + company name only, never full name), aggregate
+  summary (count, average), and the review rows.
+* `GET /partners/me/reviews` — engineer view. Returns all statuses
+  (approved + pending + rejected) plus a summary breakdown.
+* `POST /partners/me/reviews/{review_id}/respond` — engineer
+  response, max 1500 chars, ownership-checked against
+  `partner_id`. Persists `engineer_response` + `engineer_response_at`.
+* `POST /master-admin/partners/{partner_id}/reviews/{review_id}/moderate`
+  — admin flip to approve/reject with optional note. Audit-logged.
+
+### Frontend
+
+* **`pages/Public/PartnerReviewPublic.js`** — lean public form at
+  `/engineer/:partnerId/review`. Star picker, reviewer fields,
+  textarea, fully `data-testid`-instrumented. Confirmation screen
+  shows the moderation message ("Live now" vs "team has reviewed").
+* **`pages/PartnerEngineer/PartnerReviewsCard.js`** — engineer
+  dashboard widget. Aggregate stars, status pills (Published /
+  Awaiting review / Hidden), inline response composer per row.
+  Hides itself when no reviews exist (no empty-state noise).
+* Public route registered in `routes/AppRoutes.js`; card mounted on
+  `PartnerDashboard.js` for approved partners only.
+
+### Verification
+
+* `tests/test_iter_216h286_customer_reviews.py` — **15 tests** pin
+  the heuristic, validation, cooldown, projection, ownership and
+  moderation logic. All green.
+* Added to `Makefile` regression target. Full suite: **459 passed,
+  14 skipped**.
+* Smoke-tested the public form against a real approved partner —
+  engineer name resolves, stars interactive, submit button live.
+
+### Minor cleanup
+* Removed an unused `X` import from `PartnerComplianceCard.js`
+  (pre-existing lint warning from h283).
+
+---
+
+
 ## Iter 216h285 — Referral collateral kit (Feb 21, 2026) ✅ P1
 
 Closes Gap 6 from the BA audit. Engineers used to have a raw URL and

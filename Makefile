@@ -89,6 +89,7 @@ regression:
 	  tests/test_iter_216h283_compliance_docs.py \
 	  tests/test_iter_216h284_activation_checklist.py \
 	  tests/test_iter_216h285_collateral_kit.py \
+	  tests/test_iter_216h286_customer_reviews.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

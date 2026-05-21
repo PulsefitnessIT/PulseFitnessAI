@@ -16,7 +16,7 @@
  */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Upload, CheckCircle2, AlertTriangle, Clock, X, ShieldCheck, FileCheck2, Loader2 } from 'lucide-react';
+import { Upload, CheckCircle2, AlertTriangle, Clock, ShieldCheck, FileCheck2, Loader2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
 const API = process.env.REACT_APP_BACKEND_URL;
