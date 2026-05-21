@@ -24,7 +24,7 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '' });
+  const [form, setForm] = useState({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '', is_bundle: false, bundle_items: [] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -56,7 +56,24 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
     setSaving(true);
     setError('');
     try {
-      const payload = { ...form, cost_price: Number(form.cost_price || 0), sell_price: Number(form.sell_price || 0), tax_rate: Number(form.tax_rate || 0) };
+      const payload = {
+        ...form,
+        cost_price: Number(form.cost_price || 0),
+        sell_price: Number(form.sell_price || 0),
+        tax_rate: Number(form.tax_rate || 0),
+        is_bundle: !!form.is_bundle,
+        bundle_items: form.is_bundle
+          ? (form.bundle_items || [])
+              .filter(b => b && b.product_id && Number(b.quantity) > 0)
+              .map(b => ({
+                product_id: b.product_id,
+                quantity: Number(b.quantity),
+                override_sell_price: b.override_sell_price === '' || b.override_sell_price == null
+                  ? undefined
+                  : Number(b.override_sell_price),
+              }))
+          : [],
+      };
       if (editingId) {
         await axios.patch(`${API}/crm/products/${editingId}`, payload, { headers: headers() });
       } else {
@@ -64,7 +81,7 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
       }
       setShowCreate(false);
       setEditingId(null);
-      setForm({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '' });
+      setForm({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '', is_bundle: false, bundle_items: [] });
       load();
     } catch (err) {
       setError(err?.response?.data?.detail || 'Failed to save product');
@@ -92,6 +109,12 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
       unit: p.unit || 'each',
       supplier_name: p.supplier_name || '',
       description: p.description || '',
+      is_bundle: !!p.is_bundle,
+      bundle_items: Array.isArray(p.bundle_items) ? p.bundle_items.map(it => ({
+        product_id: it.product_id,
+        quantity: it.quantity,
+        override_sell_price: it.override_sell_price ?? '',
+      })) : [],
     });
     setShowCreate(true);
   };
@@ -138,7 +161,7 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
           </label>
           <button
             type="button"
-            onClick={() => { setShowCreate(true); setEditingId(null); setForm({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '' }); }}
+            onClick={() => { setShowCreate(true); setEditingId(null); setForm({ name: '', sku: '', category: 'Equipment', cost_price: '', sell_price: '', tax_rate: '20', unit: 'each', supplier_name: '', description: '', is_bundle: false, bundle_items: [] }); }}
             className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md text-white"
             style={{ background: 'var(--color-info-ios)' }}
             data-testid="products-add-btn"
@@ -276,6 +299,94 @@ export default function CRMProductsSection({ API, headers, c, isDark }) {
               <div className="col-span-2">
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Description</label>
                 <textarea rows={2} value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md border" style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }} />
+              </div>
+              {/* Iter 216h267 — bundle / kit configuration */}
+              <div className="col-span-2 rounded-md border p-3" style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: c.text }}>
+                  <input
+                    type="checkbox"
+                    checked={form.is_bundle}
+                    onChange={e => setForm({ ...form, is_bundle: e.target.checked, bundle_items: e.target.checked && form.bundle_items.length === 0 ? [{ product_id: '', quantity: 1, override_sell_price: '' }] : form.bundle_items })}
+                    data-testid="products-is-bundle"
+                  />
+                  This product is a bundle / kit
+                </label>
+                {form.is_bundle && (
+                  <div className="mt-3 space-y-2" data-testid="products-bundle-editor">
+                    <p className="text-[10px]" style={{ color: c.textDim }}>
+                      Pick the component products and quantities. When this bundle is added to a quote we&apos;ll explode it into one line per component (current price + supplier preserved).
+                    </p>
+                    {form.bundle_items.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center" data-testid={`products-bundle-row-${idx}`}>
+                        <select
+                          value={item.product_id}
+                          onChange={e => {
+                            const next = [...form.bundle_items];
+                            next[idx] = { ...next[idx], product_id: e.target.value };
+                            setForm({ ...form, bundle_items: next });
+                          }}
+                          className="col-span-6 px-2 py-1.5 text-xs rounded border"
+                          style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+                          data-testid={`products-bundle-product-${idx}`}
+                        >
+                          <option value="">Pick a product…</option>
+                          {items.filter(p => !p.is_bundle && p.id !== editingId).map(p => (
+                            <option key={p.id} value={p.id}>{p.name} {p.sku ? `· ${p.sku}` : ''}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={item.quantity}
+                          onChange={e => {
+                            const next = [...form.bundle_items];
+                            next[idx] = { ...next[idx], quantity: e.target.value };
+                            setForm({ ...form, bundle_items: next });
+                          }}
+                          placeholder="Qty"
+                          className="col-span-2 px-2 py-1.5 text-xs rounded border"
+                          style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+                          data-testid={`products-bundle-qty-${idx}`}
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.override_sell_price || ''}
+                          onChange={e => {
+                            const next = [...form.bundle_items];
+                            next[idx] = { ...next[idx], override_sell_price: e.target.value };
+                            setForm({ ...form, bundle_items: next });
+                          }}
+                          placeholder="£ override (opt.)"
+                          className="col-span-3 px-2 py-1.5 text-xs rounded border"
+                          style={{ background: isDark ? 'var(--color-surface-dark-2)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.text }}
+                          data-testid={`products-bundle-override-${idx}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, bundle_items: form.bundle_items.filter((_, i) => i !== idx) })}
+                          className="col-span-1 opacity-60 hover:opacity-100"
+                          style={{ color: 'var(--color-danger-alt)' }}
+                          data-testid={`products-bundle-remove-${idx}`}
+                          aria-label="Remove component"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, bundle_items: [...form.bundle_items, { product_id: '', quantity: 1, override_sell_price: '' }] })}
+                      className="text-[11px] font-semibold inline-flex items-center gap-1 px-2 py-1 rounded border"
+                      style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textMuted, background: 'transparent' }}
+                      data-testid="products-bundle-add-row"
+                    >
+                      <Plus size={11} /> Add component
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             {error && <div className="text-xs px-3 py-1.5 rounded-md" style={{ background: 'rgba(239,68,68,0.06)', color: 'var(--color-danger-alt)' }}>{error}</div>}

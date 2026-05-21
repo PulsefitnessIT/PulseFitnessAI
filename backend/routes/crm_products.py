@@ -147,6 +147,101 @@ async def get_product(product_id: str, user=Depends(get_crm_user)) -> dict:
     return p
 
 
+@router.get("/{product_id}/expand")
+async def expand_product(product_id: str, user=Depends(get_crm_user)) -> dict:
+    """Iter 216h267 — explode a bundle into resolved component lines.
+
+    For a non-bundle product, returns a single-item list with the
+    product itself. For a bundle, hydrates each `bundle_items` entry
+    with the current cost_price / sell_price / tax_rate from the
+    catalogue. Override prices on the bundle line replace `sell_price`.
+
+    Used by the quote builder: drop a bundle into a quote and it
+    explodes into one line per component (so margin maths stays
+    truthful and the supplier routing on each line is preserved).
+    """
+    bundle = await db.crm_products.find_one(
+        {"id": product_id, **_of(user)}, {"_id": 0}
+    )
+    if not bundle:
+        raise HTTPException(404, "Product not found")
+    if not bundle.get("is_bundle"):
+        return {"is_bundle": False, "items": [
+            {
+                "product_id": bundle["id"],
+                "sku": bundle.get("sku"),
+                "name": bundle["name"],
+                "category": bundle.get("category"),
+                "unit": bundle.get("unit"),
+                "quantity": 1,
+                "cost_price": bundle.get("cost_price", 0),
+                "sell_price": bundle.get("sell_price", 0),
+                "tax_rate": bundle.get("tax_rate", 0),
+                "supplier_id": bundle.get("supplier_id"),
+                "supplier_name": bundle.get("supplier_name"),
+                "image_url": bundle.get("image_url"),
+            }
+        ]}
+    item_ids = [it["product_id"] for it in (bundle.get("bundle_items") or [])]
+    rows: list[dict] = []
+    if item_ids:
+        cur = db.crm_products.find(
+            {"id": {"$in": item_ids}, **_of(user)},
+            {"_id": 0},
+        )
+        rows = await cur.to_list(len(item_ids))
+    by_id = {p["id"]: p for p in rows}
+    expanded: list[dict] = []
+    for entry in (bundle.get("bundle_items") or []):
+        p = by_id.get(entry["product_id"])
+        if not p:
+            # Component was deleted — surface a stub so the manager
+            # notices, but don't 404 the whole bundle.
+            expanded.append({
+                "product_id": entry["product_id"],
+                "name": "(missing product)",
+                "missing": True,
+                "quantity": entry["quantity"],
+                "cost_price": 0,
+                "sell_price": 0,
+                "tax_rate": 0,
+            })
+            continue
+        sell_price = p.get("sell_price", 0)
+        if entry.get("override_sell_price") is not None:
+            sell_price = entry["override_sell_price"]
+        expanded.append({
+            "product_id": p["id"],
+            "sku": p.get("sku"),
+            "name": p["name"],
+            "category": p.get("category"),
+            "unit": p.get("unit"),
+            "quantity": entry["quantity"],
+            "cost_price": p.get("cost_price", 0),
+            "sell_price": sell_price,
+            "tax_rate": p.get("tax_rate", 0),
+            "supplier_id": p.get("supplier_id"),
+            "supplier_name": p.get("supplier_name"),
+            "image_url": p.get("image_url"),
+            "from_bundle_id": bundle["id"],
+            "from_bundle_name": bundle["name"],
+        })
+    rollup_cost = sum(float(e["cost_price"]) * float(e["quantity"]) for e in expanded)
+    rollup_sell = sum(float(e["sell_price"]) * float(e["quantity"]) for e in expanded)
+    return {
+        "is_bundle": True,
+        "bundle_id": bundle["id"],
+        "bundle_name": bundle["name"],
+        "items": expanded,
+        "rollup_cost": round(rollup_cost, 2),
+        "rollup_sell": round(rollup_sell, 2),
+        "rollup_margin_percent": round(
+            ((rollup_sell - rollup_cost) / rollup_sell * 100) if rollup_sell > 0 else 0,
+            2,
+        ),
+    }
+
+
 # ── Write ──────────────────────────────────────────────────────────
 
 
@@ -160,6 +255,38 @@ def _validate(data: dict) -> dict:
     if cost < 0 or sell < 0:
         raise HTTPException(422, "Prices cannot be negative")
     sku = (data.get("sku") or "").strip() or None
+    # Iter 216h267 — bundle / kit support. A bundle product carries
+    # `is_bundle: True` plus a `bundle_items` array of:
+    #   { product_id: str, quantity: float, override_sell_price?: float }
+    # When a bundle is added to a quote we expand the items into
+    # individual line items (still hydrated from the master price
+    # list) so margin maths and supplier routing stay correct.
+    is_bundle = bool(data.get("is_bundle"))
+    raw_items = data.get("bundle_items") or []
+    bundle_items: list[dict] = []
+    if is_bundle:
+        if not isinstance(raw_items, list) or not raw_items:
+            raise HTTPException(422, "Bundles must include at least one bundle_items entry")
+        for idx, it in enumerate(raw_items):
+            if not isinstance(it, dict):
+                raise HTTPException(422, f"bundle_items[{idx}] must be an object")
+            pid = (it.get("product_id") or "").strip()
+            if not pid:
+                raise HTTPException(422, f"bundle_items[{idx}].product_id is required")
+            try:
+                qty = float(it.get("quantity", 1) or 1)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(422, f"bundle_items[{idx}].quantity must be numeric") from exc
+            if qty <= 0:
+                raise HTTPException(422, f"bundle_items[{idx}].quantity must be > 0")
+            entry = {"product_id": pid, "quantity": qty}
+            override = it.get("override_sell_price")
+            if override not in (None, ""):
+                try:
+                    entry["override_sell_price"] = float(override)
+                except (TypeError, ValueError) as exc:
+                    raise HTTPException(422, f"bundle_items[{idx}].override_sell_price must be numeric") from exc
+            bundle_items.append(entry)
     return {
         "name": name,
         "description": (data.get("description") or "").strip(),
@@ -177,6 +304,8 @@ def _validate(data: dict) -> dict:
         "active": bool(data.get("active", True)),
         "notes": (data.get("notes") or "").strip(),
         "sort_order": int(data.get("sort_order", 100)),
+        "is_bundle": is_bundle,
+        "bundle_items": bundle_items,
     }
 
 

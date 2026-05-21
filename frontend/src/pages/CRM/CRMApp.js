@@ -54,27 +54,34 @@ export const useCRM = () => useContext(CRMContext);
  *   • documents  — surfaced inside contact / company drawers + Quotes
  *   • ai-tools   — surfaced as a Sparkles button in the toolbar
  */
+// Iter 216h267 — CRM nav reordered into a records → sales → daily →
+// admin → specialised flow per prospective customer feedback. Old
+// order put Pipeline before Companies and buried Quotes/Forecast
+// behind Workflows.
 const NAV_ITEMS = [
   { id: 'start', labelKey: 'crm.start', icon: Sparkles, hideFromBar: true },
+  // ─── Records ───
   { id: 'dashboard', labelKey: 'crm.dashboard', icon: LayoutDashboard },
-  { id: 'contacts', labelKey: 'crm.contacts', icon: Users },
   { id: 'companies', labelKey: 'crm.companies', icon: Building2 },
+  { id: 'contacts', labelKey: 'crm.contacts', icon: Users },
+  // ─── Sales flow ───
   { id: 'pipeline', labelKey: 'crm.pipeline', icon: GitBranch },
+  { id: 'quotes', labelKey: 'crm.quotes', icon: FileText },
+  { id: 'forecast', labelKey: 'crm.forecast', icon: TrendingUp },
+  // ─── Daily ops ───
   { id: 'inbox', labelKey: 'crm.activity_feed', icon: Activity },
   { id: 'calendar', labelKey: 'crm.calendar', icon: CalendarDays },
+  // ─── Admin / setup ───
   { id: 'workflows', labelKey: 'crm.workflows', icon: Zap },
-  { id: 'quotes', labelKey: 'crm.quotes', icon: FileText },
   // Iter 215dc — enterprise territory & coverage management. Admins + managers only.
   { id: 'territories', labelKey: 'crm.territories', icon: MapPin, adminOnly: true },
-  // Iter 215de — enterprise forecasting + quota management.
-  { id: 'forecast', labelKey: 'crm.forecast', icon: TrendingUp },
   // Iter 216h226 — Phase 3 reports suite (pipeline, margin, conversion, GDPR…).
   { id: 'reports', labelKey: 'crm.reports', icon: BarChart3 },
+  // ─── Specialised / internal-only ───
+  { id: 'tenders', labelKey: 'crm.tenders', icon: Award, internalOnly: true },
+  { id: 'contracts', labelKey: 'crm.contracts', icon: Shield, internalOnly: true },
   // Iter 215de — record-level + field-level permissions (admin only).
   { id: 'permissions', labelKey: 'crm.permissions', icon: EyeOff, adminOnly: true, hideFromBar: true },
-  // Internal-only — Pulse Fitness HQ staff. Filtered by `internalOnly` below.
-  { id: 'contracts', labelKey: 'crm.contracts', icon: Shield, internalOnly: true },
-  { id: 'tenders', labelKey: 'crm.tenders', icon: Award, internalOnly: true },
   // Hidden from the bar but still routable via contextual entry points.
   { id: 'documents', labelKey: 'crm.documents', icon: FolderOpen, hideFromBar: true },
   { id: 'ai-tools', labelKey: 'crm.ai_tools', icon: Sparkles, hideFromBar: true },
