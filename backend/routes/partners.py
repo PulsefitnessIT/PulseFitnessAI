@@ -223,6 +223,30 @@ def _split_csv(value: Optional[str]) -> list[str]:
     return [s.strip() for s in str(value).split(",") if s and s.strip()][:25]
 
 
+def _parse_iso_date(value: Optional[str]) -> Optional[datetime]:
+    """Iter 216h281 — accept ``YYYY-MM-DD`` (HTML <input type=date>) or full
+    ISO datetimes and return an aware UTC datetime. Returns None on any
+    failure so we never block the form on a bad date."""
+    if not value:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    try:
+        # date-only input → midnight UTC
+        if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+            return datetime.fromisoformat(raw).replace(tzinfo=timezone.utc)
+        # full ISO datetime (with or without trailing 'Z')
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
+
 async def _store_application_attachment(file: UploadFile, application_id: str) -> dict:
     data = await file.read()
     if not data:
@@ -259,6 +283,8 @@ async def public_apply_partner(
     years_experience: str = Form(""),
     has_insurance: str = Form("false"),
     insurance_provider: str = Form(""),
+    insurance_expires_at: str = Form(""),
+    qualifications_expires_at: str = Form(""),
     referral_source: str = Form(""),
     cover_letter: str = Form(""),
     terms_accepted: str = Form("false"),
@@ -299,6 +325,10 @@ async def public_apply_partner(
         "years_experience": (years_experience or "").strip()[:30] or None,
         "has_insurance": (has_insurance or "").lower() in ("true", "1", "on", "yes"),
         "insurance_provider": (insurance_provider or "").strip()[:200] or None,
+        # Iter 216h281 — Gap 2 from BA audit: capture expiry dates so the
+        # nightly job can warn engineers ahead of compliance gaps.
+        "insurance_expires_at": _parse_iso_date(insurance_expires_at),
+        "qualifications_expires_at": _parse_iso_date(qualifications_expires_at),
         "referral_source": (referral_source or "").strip()[:120] or None,
         "cover_letter": (cover_letter or "").strip()[:4000] or None,
         "terms_accepted_at": _now(),
@@ -314,6 +344,13 @@ async def public_apply_partner(
             {"id": existing["id"]},
             {"$set": {**base_doc, "attachments": merged_attachments[:20]}},
         )
+        # Iter 216h281 — re-fire the receipt email on resubmit too so the
+        # applicant has the most recent reference number in their inbox.
+        try:
+            from utils.partner_emails import send_application_received
+            await send_application_received(email=email, full_name=full_name, application_id=existing["id"])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Partner application-received resubmit email failed: %s", exc)
         return {
             "ok": True,
             "application_id": existing["id"],
@@ -333,6 +370,14 @@ async def public_apply_partner(
         **base_doc,
     }
     await db.partner_applications.insert_one(doc)
+    # Iter 216h281 — Gap 1 from the BA audit: fire the "application
+    # received" email. Wrapped in a try so a mail failure never breaks
+    # the form submission (the row is already persisted by this point).
+    try:
+        from utils.partner_emails import send_application_received
+        await send_application_received(email=email, full_name=full_name, application_id=application_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Partner application-received email failed: %s", exc)
     return {
         "ok": True,
         "application_id": application_id,
@@ -536,6 +581,58 @@ async def get_my_partner(user: dict = Depends(get_current_user)):
     await _recompute_app_fee(partner["id"])
     partner = _public(await db.partner_engineers.find_one({"id": partner["id"]}))
     return {"partner": partner, "referral_link": _public_referral_link(partner["referral_code"])}
+
+
+@router.put("/partners/me/compliance")
+async def update_my_compliance(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Iter 216h281 — Gap 2: engineer self-service for insurance + cert
+    expiry dates. Triggered from the dashboard when the nightly job
+    flagged the partner as ``compliance_paused``.
+
+    Body: ``{insurance_expires_at?: ISO, qualifications_expires_at?: ISO,
+              insurance_provider?: str, has_insurance?: bool}``
+    """
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    updates: dict = {"updated_at": _now()}
+    if "insurance_expires_at" in body:
+        updates["insurance_expires_at"] = _parse_iso_date(body.get("insurance_expires_at"))
+    if "qualifications_expires_at" in body:
+        updates["qualifications_expires_at"] = _parse_iso_date(body.get("qualifications_expires_at"))
+    if "insurance_provider" in body:
+        updates["insurance_provider"] = (body.get("insurance_provider") or "").strip()[:200] or None
+    if "has_insurance" in body:
+        updates["has_insurance"] = bool(body.get("has_insurance"))
+    if len(updates) == 1:
+        raise HTTPException(400, "Nothing to update")
+
+    # Determine if the new dates clear the compliance pause.
+    insurance_ok = _is_doc_valid(updates.get("insurance_expires_at") if "insurance_expires_at" in updates else partner.get("insurance_expires_at"))
+    quals_ok = _is_doc_valid(updates.get("qualifications_expires_at") if "qualifications_expires_at" in updates else partner.get("qualifications_expires_at"))
+    if partner.get("compliance_paused") and insurance_ok and quals_ok:
+        # Auto-reactivate.
+        updates["compliance_paused"] = False
+        updates["compliance_pause_reason"] = None
+    await db.partner_engineers.update_one({"id": partner["id"]}, {"$set": updates})
+    await _audit(partner_id=partner["id"], actor_id=user["id"], action="compliance_updated",
+                 after={k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in updates.items() if k != "updated_at"})
+    refreshed = _public(await db.partner_engineers.find_one({"id": partner["id"]}))
+    return {"ok": True, "partner": refreshed}
+
+
+def _is_doc_valid(expires_at) -> bool:
+    """A doc is "valid" if its expiry is unset (we haven't asked) or in
+    the future. None means we never collected it — we treat that as
+    allow-list during the rollout so existing approved partners aren't
+    instantly paused. Future iter can flip this to False once the
+    backfill is complete."""
+    if expires_at is None:
+        return True
+    if not isinstance(expires_at, datetime):
+        return True
+    expires = expires_at if expires_at.tzinfo else expires_at.replace(tzinfo=timezone.utc)
+    return expires > datetime.now(timezone.utc)
 
 
 @router.post("/partners/apply")
@@ -1089,6 +1186,18 @@ async def admin_approve_partner(
     )
     await _audit(partner_id=partner_id, actor_id=user["id"], action="approve",
                  before={"status": partner.get("status")}, after={"status": "approved", "level": level})
+    # Iter 216h281 — Gap 1: notify the engineer they're approved + send
+    # them their referral code straight into the inbox.
+    try:
+        from utils.partner_emails import send_application_approved
+        if partner.get("email"):
+            await send_application_approved(
+                email=partner["email"],
+                full_name=partner.get("full_name", ""),
+                referral_code=partner.get("referral_code"),
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Partner approval email failed: %s", exc)
     return {"ok": True}
 
 
@@ -1109,6 +1218,18 @@ async def admin_reject_partner(
     )
     await _audit(partner_id=partner_id, actor_id=user["id"], action="reject",
                  before={"status": partner.get("status")}, after={"status": "rejected", "reason": reason})
+    # Iter 216h281 — Gap 1: notify the engineer their app was rejected
+    # and let them know they can re-apply.
+    try:
+        from utils.partner_emails import send_application_rejected
+        if partner.get("email"):
+            await send_application_rejected(
+                email=partner["email"],
+                full_name=partner.get("full_name", ""),
+                reason=reason if reason != "Not approved" else None,
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Partner rejection email failed: %s", exc)
     return {"ok": True}
 
 

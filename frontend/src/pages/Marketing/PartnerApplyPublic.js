@@ -71,6 +71,8 @@ export default function PartnerApplyPublic() {
     years_experience: '',
     has_insurance: false,
     insurance_provider: '',
+    insurance_expires_at: '',
+    qualifications_expires_at: '',
     referral_source: '',
     cover_letter: '',
     terms_accepted: false,
@@ -331,6 +333,15 @@ export default function PartnerApplyPublic() {
                   <Field label="Insurance provider (optional)" testId="pe-apply-insurer"
                     value={profile.insurance_provider} onChange={setField('insurance_provider')} />
                 )}
+                {/* Iter 216h281 — Gap 2 from BA audit: capture expiry
+                    so the nightly job can reminder the engineer ahead
+                    of any compliance lapse. Date-only HTML5 input. */}
+                <Field label="Insurance expiry (optional now — required once approved)"
+                  type="date" testId="pe-apply-insurance-expiry"
+                  value={profile.insurance_expires_at} onChange={setField('insurance_expires_at')} />
+                <Field label="Qualifications expiry (if any — e.g. PAT, 18th Edition)"
+                  type="date" testId="pe-apply-quals-expiry"
+                  value={profile.qualifications_expires_at} onChange={setField('qualifications_expires_at')} />
                 <Field label="How did you hear about us? (optional)" placeholder="Referral, Google, LinkedIn, trade show…"
                   testId="pe-apply-source"
                   value={profile.referral_source} onChange={setField('referral_source')} />

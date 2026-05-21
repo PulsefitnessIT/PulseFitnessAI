@@ -1,3 +1,76 @@
+## Iter 216h281 — Partner Engineer P0 fixes: emails + compliance sweep (Feb 21, 2026) ✅ P0
+
+Implements the P0 gaps from the BA audit of the Engineer Partner Plan:
+
+### Gap 1 closed — Application emails (received / approved / rejected)
+
+The applicant used to fill a 5-step form and hear nothing back until a
+human checked. Now:
+
+* `POST /partners/public-apply` → fires `send_application_received`
+  (with the application reference ID and a "while you wait" checklist).
+* `POST /master-admin/partners/{id}/approve` → fires
+  `send_application_approved` (includes the engineer's referral code
+  and a CTA to open the dashboard).
+* `POST /master-admin/partners/{id}/reject` → fires
+  `send_application_rejected` (carries the admin's reason verbatim,
+  defaults to None so the placeholder "Not approved" never leaks).
+
+All three calls are wrapped in try/except so a Resend outage can never
+block the DB write or the admin's HTTP response. Sent via the existing
+`utils.email.send_email` so they pick up the platform's Resend client,
+co-branded shell, rate limiter, and email-event ledger.
+
+### Gap 2 closed — Insurance / qualifications expiry tracking
+
+* Application form now collects `insurance_expires_at` and
+  `qualifications_expires_at` (HTML5 date inputs).
+* `_parse_iso_date` helper accepts both `YYYY-MM-DD` and full ISO
+  datetimes; bad input returns None so the form never blocks.
+* New `PUT /partners/me/compliance` — engineer self-service for renewing
+  these dates from the dashboard. Auto-unpauses the partner when both
+  docs are renewed.
+* New `utils/partner_compliance.py` nightly sweep:
+  * Reads every approved partner with `*_expires_at <= now + 31d`.
+  * Buckets each by tightest reminder window (T-30 / T-7 / T-0).
+  * Idempotent — never fires the same window twice for the same partner.
+  * Sends `send_compliance_reminder` with the right tone per window.
+  * Flips `compliance_paused = True` + writes a reason once anything
+    has expired.
+* Job scheduled at startup via `asyncio.create_task` in `server.py`
+  with a 24-hour interval. First sweep runs immediately on boot.
+
+### Verification
+
+* `tests/test_iter_216h281_partner_emails_compliance.py` — **12 tests**
+  pin:
+  * ISO date parsing + the "rollout-friendly" None-allows-true default
+  * approve / reject both fire the right email + flake-resilience
+  * self-service endpoint persists dates and auto-unpauses
+  * sweep fires T-7 reminder without pausing
+  * sweep pauses partner when doc expired
+  * sweep is idempotent (same window doesn't double-fire)
+  * sweep skips partners with no email but still marks the window
+* `make regression` → **397 passed, 14 skipped** (up from 385).
+* Live smoke against preview:
+  * POST public-apply → 201 + Resend log line confirming the receipt
+    email actually shipped (`resend_id=d7dc737a-...`).
+  * Sweep loop visible in supervisor logs: `[partners] compliance
+    sweep loop started (24h)` + first sweep result.
+
+### Files
+
+* `backend/utils/partner_emails.py` (new — 4 lifecycle templates)
+* `backend/utils/partner_compliance.py` (new — nightly sweep)
+* `backend/routes/partners.py` (modified — email triggers + new endpoint + `_parse_iso_date`)
+* `backend/server.py` (modified — startup task)
+* `frontend/src/pages/Marketing/PartnerApplyPublic.js` (modified — 2 new date inputs)
+* `backend/tests/test_iter_216h281_partner_emails_compliance.py` (new, 12 tests)
+* `Makefile` (regression added)
+
+---
+
+
 ## Iter 216h280 — Dead-link audit & redirects (Feb 21, 2026) ✅ Polish
 
 User asked: *"First wins — audit and ensure that every link is

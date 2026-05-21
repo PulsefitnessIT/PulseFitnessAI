@@ -2,6 +2,7 @@ from fastapi import FastAPI, APIRouter
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 import os
+import asyncio
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
@@ -855,6 +856,17 @@ async def startup() -> None:
             )
     except Exception as e:
         logger.error(f"file validation self-check crashed: {e}")
+
+    # Iter 216h281 — kick off the Partner Engineer compliance sweep.
+    # Closes Gap 2 from the BA audit: insurance + cert expiry tracking.
+    # 24h interval is fine because reminder fires once per window —
+    # repeat invocations within the same window are no-ops.
+    try:
+        from utils.partner_compliance import run_forever as _partner_compliance_loop
+        asyncio.create_task(_partner_compliance_loop(24))
+        logger.info("[partners] compliance sweep loop started (24h)")
+    except Exception as e:
+        logger.error(f"partner compliance loop start failed: {e}")
 
 
 @app.on_event("shutdown")
