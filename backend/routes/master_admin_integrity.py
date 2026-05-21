@@ -129,3 +129,23 @@ async def delete_orphan_user(user_id: str, user: dict = Depends(get_current_user
         user.get("id"), user_id, target.get("email"),
     )
     return {"deleted": res.deleted_count == 1, "user_id": user_id, "email": target.get("email")}
+
+
+# ── Iter 216h276 — manual tenant→CRM mirror reconcile ─────────────
+
+
+@router.post("/integrity/tenant-mirror-reconcile")
+async def reconcile_tenant_mirror(user: dict = Depends(get_current_user)) -> dict:
+    """Force-mirror every Pulse tenant into the master admin's CRM
+    Companies. Idempotent. Use after a bulk import / restore when
+    the auto-mirror on boot might've missed rows.
+
+    Returns:
+      {created, updated, marked_former, skipped, pulse_tenants_found}
+    """
+    require_master_admin(user)
+    from utils.tenant_mirror import mirror_pulse_tenants_to_crm
+    summary = await mirror_pulse_tenants_to_crm()
+    logger.info("[org-integrity] master_admin=%s ran manual tenant-mirror reconcile: %s",
+                user.get("id"), summary)
+    return summary

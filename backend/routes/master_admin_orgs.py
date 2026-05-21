@@ -344,6 +344,13 @@ async def update_org_subscription(org_id: str, body: dict = Body(...), user: dic
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Organisation not found")
     await log_activity("subscription_change", f"Changed org {org_id} to {tier}", user["email"], "organization", org_id)
+    # Iter 216h276 — subscription change can flip an org INTO (or OUT
+    # of) the Pulse mirror set; reconcile the CRM company now.
+    try:
+        from utils.tenant_mirror import mirror_single_tenant
+        await mirror_single_tenant(org_id)
+    except Exception:
+        pass
     return {"success": True, "tier": tier, "account_type": updates.get("account_type")}
 
 
@@ -472,6 +479,14 @@ async def update_org_details(org_id: str, body: dict = Body(...), user: dict = D
             await _ensure_primary_contact_user(org_after, user)
 
     await log_activity("org_details_updated", f"Updated details for org {org_id}", user["email"], "organization", org_id)
+    # Iter 216h276 — propagate tenant-side changes into the mirrored
+    # CRM company so renames + address updates flow forward without
+    # a backend restart.
+    try:
+        from utils.tenant_mirror import mirror_single_tenant
+        await mirror_single_tenant(org_id)
+    except Exception:
+        pass  # mirror is best-effort; never block the admin write
     return {"success": True}
 
 

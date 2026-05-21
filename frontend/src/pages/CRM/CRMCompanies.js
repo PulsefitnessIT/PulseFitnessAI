@@ -176,6 +176,21 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{co.name}</p>
               <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)'}20`, color: TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)' }}>{co.type}</span>
+              {/* Iter 216h276 — visual badge so master admins can tell
+                  Pulse-tenant mirrors apart from CRM-native rows. */}
+              {co.source === 'tenant_mirror' && (
+                <span
+                  className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"
+                  style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--color-accent-violet)' }}
+                  data-testid={`company-tenant-mirror-badge-${co.id}`}
+                  title="Auto-mirrored from a Pulse tenant org. Edits here don't push back to the tenant."
+                >
+                  ↺ Tenant
+                </span>
+              )}
+              {co.status === 'former' && (
+                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(113,113,122,0.15)', color: 'var(--color-text-dim)' }}>Former</span>
+              )}
             </div>
             <div className="flex items-center gap-3 mt-0.5">
               {co.sector && <span className="text-[11px]" style={{ color: c.textDim }}>{co.sector}</span>}

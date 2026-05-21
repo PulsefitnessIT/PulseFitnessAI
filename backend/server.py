@@ -418,10 +418,19 @@ async def _seed_services() -> None:
         from routes.crm_stakeholders import ensure_stakeholder_indexes
         from routes.crm_products import ensure_product_indexes
         from routes.crm_website_recognize import ensure_website_cache_indexes
+        from utils.tenant_mirror import ensure_tenant_mirror_indexes, mirror_pulse_tenants_to_crm
         await seed_global_picklists()
         await ensure_stakeholder_indexes()
         await ensure_product_indexes()
         await ensure_website_cache_indexes()
+        await ensure_tenant_mirror_indexes()
+        # Iter 216h276 — mirror Pulse tenants into the master admin's
+        # CRM so paying customers (Pulse Fitness Limited, Third Space)
+        # show up in CRM Companies. Idempotent on every boot.
+        try:
+            await mirror_pulse_tenants_to_crm()
+        except Exception:
+            logger.exception("tenant mirror reconciliation failed (non-fatal)")
         logger.info("CRM picklists + stakeholder + products indexes ready")
     except Exception as e:  # pragma: no cover
         logger.warning("CRM picklists / stakeholder / products seed failed (non-fatal): %s", e)

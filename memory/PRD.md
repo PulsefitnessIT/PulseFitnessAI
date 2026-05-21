@@ -1,3 +1,112 @@
+## Iter 216h276 — Auto-mirror Pulse tenants into the master CRM (Feb 21, 2026) ✅ P1
+
+Customer ask (verbatim, from h275 turn): *"Pulse Fitness Limited
+are on Pulse Pro with all modules unlocked but they are not
+showing as an organisation on CRM."*
+
+### Why mirror
+
+The CRM Companies list reads from `crm_v2_companies`, a per-CRM-org
+scoped collection. The master admin's paying tenants live in a
+separate top-level `organizations` collection. The two never met —
+so even though the master admin could see Pulse Fitness Limited
+in their org admin drawer, the same row didn't exist in their
+CRM. No way to log activities, attach quotes, or run pipeline
+analytics against their actual paying customers.
+
+### How it works
+
+* New module `utils/tenant_mirror.py`:
+  - `_is_pulse_tenant(org)` — qualifies an org for mirroring when
+    `subscription_tier` ∈ `{pulse_lite, pulse_pro, pulse_pro_plus}`
+    OR `account_type` ∈ `{lite, pulse_pro, pulse_lite, pulse_pro_plus}`.
+    Explicitly excludes the master admin's own home org.
+  - `_project_org_to_company(org, master_org_id)` — maps tenant
+    fields → `crm_v2_companies` shape with `source="tenant_mirror"`,
+    `tenant_org_id=<source id>`, `type="customer"`, `status="active"`.
+    Maps `website_url → website`, `contact_email → email`, etc.
+  - `mirror_pulse_tenants_to_crm()` — idempotent reconciliation:
+    1. Find the master admin's CRM org (`users.is_master_admin=true`).
+    2. For every Pulse tenant, upsert a `crm_v2_companies` row
+       under the master CRM scope.
+    3. Sweep previously-mirrored rows whose `tenant_org_id` no
+       longer resolves and mark them `status="former"` (kept for
+       historical reporting; never auto-deleted).
+    Returns `{created, updated, marked_former, skipped, pulse_tenants_found}`.
+  - `mirror_single_tenant(tenant_org_id)` — single-tenant variant
+    called on org PUTs so subscription / rename changes flow
+    forward without a restart.
+
+* `ensure_tenant_mirror_indexes()` creates a **partial unique
+  index** `(organization_id, tenant_org_id)` filtered by
+  `tenant_org_id IS string`. Sparse=true was insufficient because
+  the existing collection had thousands of rows with explicit
+  `tenant_org_id: null` that collided. Partial filter sidesteps it.
+
+### Wiring
+
+* **`server.py` startup**: runs `ensure_tenant_mirror_indexes()` →
+  `mirror_pulse_tenants_to_crm()` after the CRM seed hook. Boot-time
+  reconciliation, idempotent, ~50ms.
+* **`master_admin_orgs.py` PUTs**: both subscription change AND
+  details change call `mirror_single_tenant(org_id)` post-write
+  (try/except wrapped — mirror is best-effort and never blocks the
+  admin write).
+* **`master_admin_integrity.py`**: new
+  `POST /api/master-admin/integrity/tenant-mirror-reconcile`
+  endpoint for manual force-reconcile (master-admin gated).
+  Useful after a bulk restore / wipe.
+
+### Frontend visual
+
+* `CRMCompanies.js` — every CRM Companies list row checks
+  `co.source === 'tenant_mirror'` and renders a small violet
+  **↺ Tenant** badge next to the company type pill. Tooltip:
+  *"Auto-mirrored from a Pulse tenant org. Edits here don't push
+  back to the tenant."* Also surfaces `status: former` as a grey
+  pill so the rep knows the tenant has been off-boarded.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h276_tenant_mirror.py`) | **14 / 14** |
+| `make regression` | **354 passed, 14 skipped** (340 → 354) |
+| `ruff` + `yarn eslint --max-warnings 0` | clean |
+| Live boot: tenant-mirror logs `created=0, updated=1, pulse_tenants_found=1` (Third Space) | ✅ |
+| Live: `/api/crm/v2/companies` for master admin shows Third Space with `source=tenant_mirror` | ✅ |
+| Live: `POST /api/master-admin/integrity/tenant-mirror-reconcile` returns 200 + reconcile summary | ✅ |
+| Live: full wipe-then-reboot → mirror auto-rebuilt Third Space | ✅ |
+
+### What this iter is NOT solving (parked)
+
+* **Reverse sync**: CRM-side edits to a mirrored company don't
+  push back to the tenant org (would need conflict resolution).
+* **Non-Pulse tenants**: MOD orgs / GymAxis enterprise customers
+  aren't mirrored — they don't fit the "Pulse customer" CRM persona.
+* **Dirty-org build-up** (the parent P1 from h275): the
+  `LIVE_DATA_ONLY` env gate and master-admin Org Integrity tile
+  are the next move.
+
+### Why this matters
+
+After this iter, the master admin opens CRM Companies and
+immediately sees every paying Pulse tenant as a customer row,
+flagged so they can't be confused with manually-added CRM
+prospects. Renames / subscription changes on the tenant side
+propagate instantly via the org PUT hook. Off-boarded tenants
+fade to `former` automatically on the next reconcile.
+
+The h275 + h276 combo unlocks the full "operator dogfooding"
+flow Pulse Fitness Limited asked for: they can log into their
+own CRM, see every other Pulse customer, raise quotes / contracts
+against them, and track the pipeline — using the same product
+they're selling.
+
+---
+
+
+
 ## Iter 216h275 — Production P0: Tenders wiring + rename + Email packs (Feb 21, 2026) ✅
 
 Three user-reported bugs on production (gymaxisai.com). User
