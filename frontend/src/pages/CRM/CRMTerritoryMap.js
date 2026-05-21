@@ -30,8 +30,12 @@ const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('crm_token') || localStorage.getItem('token') || ''}` } });
 
 const DEFAULT_PALETTE = [
+  // Territory swatch palette — these are visual data, not theme tokens.
+  // The palette must stay stable so saved colour assignments don't shift.
+  /* eslint-disable gymaxis/no-inline-hex -- swatch literals, not theme styling */
   '#2563EB', '#DB2777', '#059669', '#D97706', '#7C3AED', '#DC2626',
   '#0891B2', '#65A30D', '#EA580C', '#9333EA', '#0EA5E9', '#16A34A',
+  /* eslint-enable gymaxis/no-inline-hex */
 ];
 
 const ROLE_LABELS = { sales_manager: 'Sales Manager', engineer: 'Engineer', both: 'Manager + Engineer' };
@@ -42,7 +46,7 @@ function StaffRow({ s, onColour, onRole, focused, onFocus }) {
   return (
     <div
       onClick={() => onFocus(focused ? null : s.id)}
-      className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer border ${focused ? 'border-zinc-900 bg-zinc-50 shadow-sm' : 'border-transparent hover:bg-zinc-50'}`}
+      className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer border ${focused ? 'border-zinc-900 bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-200 shadow-sm' : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
       data-testid={`staff-row-${s.id}`}
     >
       <input
@@ -50,12 +54,12 @@ function StaffRow({ s, onColour, onRole, focused, onFocus }) {
         value={s.colour_hex}
         onChange={(e) => onColour(s.id, e.target.value)}
         onClick={(e) => e.stopPropagation()}
-        className="w-7 h-7 rounded border border-zinc-200 cursor-pointer bg-transparent"
+        className="w-7 h-7 rounded border border-zinc-200 dark:border-zinc-700 cursor-pointer bg-transparent"
         title="Pick colour"
         data-testid={`staff-colour-${s.id}`}
       />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-zinc-900 truncate">{s.full_name || s.email}</p>
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{s.full_name || s.email}</p>
         <p className="text-[10px] text-zinc-500 truncate flex items-center gap-1">
           <Icon size={10} /> {ROLE_LABELS[s.territory_role]}
         </p>
@@ -64,7 +68,7 @@ function StaffRow({ s, onColour, onRole, focused, onFocus }) {
         value={s.territory_role}
         onChange={(e) => onRole(s.id, e.target.value)}
         onClick={(e) => e.stopPropagation()}
-        className="text-[11px] border border-zinc-200 rounded px-1 py-0.5 bg-white"
+        className="text-[11px] border border-zinc-200 dark:border-zinc-700 rounded px-1 py-0.5 bg-white dark:bg-zinc-900"
         data-testid={`staff-role-${s.id}`}
       >
         <option value="sales_manager">Manager</option>
@@ -98,19 +102,19 @@ function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-full sm:w-[420px] bg-white border-l border-zinc-200 shadow-xl flex flex-col" data-testid="region-drawer">
-      <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between">
+    <div className="fixed inset-y-0 right-0 z-40 w-full sm:w-[420px] bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col" data-testid="region-drawer">
+      <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
             {region.type === 'county' ? 'County' : 'Postcode area'}
           </p>
-          <h3 className="text-lg font-bold text-zinc-900 truncate">{region.label}</h3>
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 truncate">{region.label}</h3>
         </div>
-        <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-900" data-testid="region-drawer-close">
+        <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100" data-testid="region-drawer-close">
           <X size={18} />
         </button>
       </div>
-      <div className="px-5 py-3 border-b border-zinc-100">
+      <div className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-800">
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-2.5 text-zinc-400" />
           <input
@@ -118,7 +122,7 @@ function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter people..."
-            className="w-full pl-7 pr-2 py-1.5 text-sm border border-zinc-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+            className="w-full pl-7 pr-2 py-1.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
             data-testid="region-drawer-search"
           />
         </div>
@@ -136,12 +140,12 @@ function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
               type="button"
               key={s.id}
               onClick={() => toggle(s.id)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md border text-left ${on ? 'border-zinc-900 bg-zinc-50' : 'border-transparent hover:bg-zinc-50'}`}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md border text-left ${on ? 'border-zinc-900 bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-200' : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
               data-testid={`region-drawer-staff-${s.id}`}
             >
               <span className="w-3 h-3 rounded border border-zinc-300" style={{ backgroundColor: s.colour_hex }} />
               <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-zinc-900 truncate">{s.full_name || s.email}</span>
+                <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{s.full_name || s.email}</span>
                 <span className="block text-[10px] text-zinc-500 flex items-center gap-1">
                   <Icon size={9} /> {ROLE_LABELS[s.territory_role]}
                 </span>
@@ -151,7 +155,7 @@ function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
           );
         })}
       </div>
-      <div className="px-5 py-3 border-t border-zinc-200 flex items-center gap-3 bg-zinc-50">
+      <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-3 bg-zinc-50 dark:bg-zinc-900/60">
         <button
           onClick={() => onSave(region, [])}
           disabled={saving || current.length === 0}
@@ -161,7 +165,7 @@ function RegionDrawer({ region, staff, coverage, onClose, onSave }) {
           Clear region
         </button>
         <div className="flex-1" />
-        <button onClick={onClose} className="px-3 py-2 text-sm font-bold text-zinc-700 hover:bg-zinc-100 rounded-md" data-testid="region-drawer-cancel">
+        <button onClick={onClose} className="px-3 py-2 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md" data-testid="region-drawer-cancel">
           Cancel
         </button>
         <button
@@ -335,7 +339,7 @@ export default function CRMTerritoryMap() {
     if (!svgRef.current) return;
     const svg = svgRef.current.querySelector('svg');
     if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
+    const xml = new window.XMLSerializer().serializeToString(svg);
     const blob = new Blob([xml], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -357,11 +361,11 @@ export default function CRMTerritoryMap() {
     <div className="max-w-7xl mx-auto px-4 py-3 space-y-3" data-testid="crm-territory-map">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="inline-flex border border-zinc-200 rounded-lg overflow-hidden bg-white" data-testid="layer-toggle">
+          <div className="inline-flex border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-zinc-900" data-testid="layer-toggle">
             <button
               type="button"
               onClick={() => setLayer('county')}
-              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'county' ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}
+              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'county' ? 'bg-zinc-900 text-white' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
               data-testid="layer-county"
             >
               <MapIcon size={12} /> Counties
@@ -369,16 +373,16 @@ export default function CRMTerritoryMap() {
             <button
               type="button"
               onClick={() => setLayer('postcode_area')}
-              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'postcode_area' ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}
+              className={`px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 ${layer === 'postcode_area' ? 'bg-zinc-900 text-white' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
               data-testid="layer-postcode"
             >
               <Layers size={12} /> Postcode areas
             </button>
           </div>
           {focusedUser && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700 bg-zinc-100 border border-zinc-200 px-2 py-1 rounded-md" data-testid="focus-indicator">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2 py-1 rounded-md" data-testid="focus-indicator">
               Focused: {staffById[focusedUser]?.full_name || '?'} · {focusedCount} {layer === 'county' ? 'counties' : 'areas'}
-              <button onClick={() => setFocusedUser(null)} className="ml-1 text-zinc-500 hover:text-zinc-900" data-testid="focus-clear">
+              <button onClick={() => setFocusedUser(null)} className="ml-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" data-testid="focus-clear">
                 <X size={11} />
               </button>
             </span>
@@ -388,7 +392,7 @@ export default function CRMTerritoryMap() {
           <button
             onClick={runAutoAssign}
             disabled={autoAssigning}
-            className="px-3 py-1.5 text-xs font-bold border border-zinc-200 rounded-md hover:bg-zinc-50 inline-flex items-center gap-1.5 disabled:opacity-50"
+            className="px-3 py-1.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/60 inline-flex items-center gap-1.5 disabled:opacity-50"
             title="Push every region's coverage onto unassigned companies, deals and tenders."
             data-testid="map-auto-assign"
           >
@@ -396,7 +400,7 @@ export default function CRMTerritoryMap() {
           </button>
           <button
             onClick={() => setShowHeatmap((v) => !v)}
-            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showHeatmap ? 'bg-amber-500 border-amber-500 text-white' : 'border-zinc-200 hover:bg-zinc-50'}`}
+            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showHeatmap ? 'bg-amber-500 border-amber-500 text-white' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
             title="Shade regions by open pipeline + tender value."
             data-testid="map-heatmap-toggle"
           >
@@ -404,14 +408,14 @@ export default function CRMTerritoryMap() {
           </button>
           <button
             onClick={loadCoverage}
-            className="px-3 py-1.5 text-xs font-bold border border-zinc-200 rounded-md hover:bg-zinc-50 inline-flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/60 inline-flex items-center gap-1.5"
             data-testid="map-refresh"
           >
             <RefreshCw size={12} /> Refresh
           </button>
           <button
             onClick={downloadPng}
-            className="px-3 py-1.5 text-xs font-bold border border-zinc-200 rounded-md hover:bg-zinc-50 inline-flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/60 inline-flex items-center gap-1.5"
             data-testid="map-download"
           >
             <Download size={12} /> Export SVG
@@ -420,7 +424,7 @@ export default function CRMTerritoryMap() {
       </header>
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
-        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden" ref={svgRef} data-testid="territory-map-svg">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden" ref={svgRef} data-testid="territory-map-svg">
           {loading ? (
             <div className="h-[600px] flex items-center justify-center text-zinc-400 text-sm">Loading map…</div>
           ) : (
@@ -445,9 +449,12 @@ export default function CRMTerritoryMap() {
                       geography={geo}
                       onClick={() => setActiveRegion(region)}
                       style={{
+                        // SVG stroke colours — visual data, not theme tokens.
+                        /* eslint-disable gymaxis/no-inline-hex -- SVG stroke literals */
                         default:  { fill, fillOpacity: opacityForRegion(region.type, region.code), stroke: '#94A3B8', strokeWidth: 0.4, outline: 'none', cursor: 'pointer' },
                         hover:    { fill: hasAssignees ? fill : '#E2E8F0', fillOpacity: 1, stroke: '#1E293B', strokeWidth: 0.9, outline: 'none', cursor: 'pointer' },
                         pressed:  { fill, fillOpacity: 1, stroke: '#0F172A', strokeWidth: 1.1, outline: 'none' },
+                        /* eslint-enable gymaxis/no-inline-hex */
                       }}
                       data-testid={`region-${region.type}-${region.code}`}
                     >
@@ -461,7 +468,7 @@ export default function CRMTerritoryMap() {
         </div>
 
         <aside className="space-y-3">
-          <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Sales team · {staff.length}</p>
               {focusedUser && (
@@ -487,8 +494,8 @@ export default function CRMTerritoryMap() {
               ))}
             </div>
           </div>
-          <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 p-3 text-[11px] text-zinc-500 leading-relaxed">
-            <p className="font-semibold text-zinc-700 mb-1">How coverage resolves</p>
+          <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/60 p-3 text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            <p className="font-semibold text-zinc-700 dark:text-zinc-300 mb-1">How coverage resolves</p>
             <p>
               Postcode-area assignments override county assignments — so you can paint Greater London to
               one manager, then override SW1 to a different engineer for that single postcode area.

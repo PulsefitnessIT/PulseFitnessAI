@@ -24,7 +24,7 @@ lint-backend:
 	@cd /app/backend && ruff check . || true
 
 lint-frontend:
-	@cd /app/frontend && yarn -s eslint src --ext .js,.jsx --max-warnings 0 || true
+	@cd /app/frontend && yarn -s eslint src --ext .js,.jsx --max-warnings 0
 
 lint: lint-integrations lint-backend lint-frontend
 

@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useParams, Navigate } from 'react-router-dom';
-import { Wrench, ShieldCheck, ArrowRight, Sparkles, Loader2, AlertCircle, MapPin } from 'lucide-react';
+import { Wrench, ShieldCheck, ArrowRight, Sparkles, Loader2, MapPin } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 

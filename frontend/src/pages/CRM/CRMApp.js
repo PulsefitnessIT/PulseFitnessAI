@@ -569,7 +569,6 @@ export default function CRMApp() {
       .filter(it => featureOn(it.featureFlag))
       .filter(it => !(isMembersMode && it.id === 'quotes'))
       .filter(it => !(hideStart && it.id === 'start'));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [user?.is_pulse_internal, user?.is_master_admin, user?.features, user?.modules, user?.role, hideStart, activeMode]);
 
   // ── Sync logout: when the user signs out from the platform Navbar

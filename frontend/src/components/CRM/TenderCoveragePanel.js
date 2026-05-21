@@ -40,7 +40,7 @@ export default function TenderCoveragePanel() {
     return () => { cancel = true; };
   }, []);
 
-  const rows = data?.rows || [];
+  const rows = useMemo(() => data?.rows || [], [data]);
   const totals = data?.totals || { tenders: 0, value: 0 };
   const totalRegions = useMemo(() => rows.reduce((acc, r) => acc + (r.region_count || 0), 0), [rows]);
 

@@ -108,7 +108,7 @@ export default function CRMTerritories() {
           coverage; the list view stays one click away for power users
           who'd rather see the audit + rollup data densely tabulated. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex border border-[color:var(--theme-border)] rounded-lg overflow-hidden bg-white" data-testid="territories-view-toggle">
+        <div className="inline-flex border border-[color:var(--theme-border)] rounded-lg overflow-hidden bg-white dark:bg-zinc-900" data-testid="territories-view-toggle">
           <button
             type="button"
             onClick={() => setView('map')}
