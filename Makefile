@@ -77,6 +77,7 @@ regression:
 	  tests/test_iter_216h271_membership_admin_and_trial_btn.py \
 	  tests/test_iter_216h272_module_trials_org_resolve.py \
 	  tests/test_iter_216h273_org_integrity_audit.py \
+	  tests/test_iter_216h274_crm_banner_clipping.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

@@ -1,3 +1,55 @@
+## Iter 216h274 — CRM cross-module tip banner clipped under navbar (Feb 21, 2026) ✅ P1 bug
+
+User report (verbatim): *"CRM — it looks like there is a card?
+Quick wins maybe? stuck at the top of the page under the top
+navbar — can't scroll up to remove it."*
+
+### Root cause
+
+`CRMApp.js` rendered `<CrossModuleTipsBanner mode="crm" />` inside
+a wrapper that had **no top padding** to clear the 81 px fixed
+navbar. The `pt-24` lived only on the next sibling — the
+"GymAxis Pro" header block.
+
+Result: the banner (containing the *"TIP — You're capturing leads —
+let's close them"* tip and the **× dismiss** button) sat at
+`top ≈ 16px`, fully behind the navbar (`top: 0; height: 81px`).
+Both the dismiss × and the **Explore CRM** CTA were unreachable.
+
+Compare with `/memberships`, `/marketing`, `/lite-dashboard`: all
+three put `pt-24` on the parent `<main>` so the banner is the
+first child inside the padded region. Only CRMApp had its `pt-24`
+on the wrong child.
+
+### Fix
+
+`CRMApp.js`: wrapped the banner in its own
+`<div className="pt-24 px-4 sm:px-6 max-w-7xl mx-auto"
+data-testid="crm-cross-module-tips-wrap">` block. Dropped the now-redundant
+`pt-24` from the "GymAxis Pro" header block immediately below so
+the spacing doesn't double up.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h274_crm_banner_clipping.py`) | **4 / 4** |
+| `make regression` | **330 passed, 14 skipped** (326 → 330) |
+| `yarn eslint --max-warnings 0` on `CRMApp.js` | clean |
+| Live screenshot post-fix | banner top = 96 px (clear of the 81 px navbar), × dismiss + "Explore CRM" CTA both clickable, "Your CRM Command Center" hero renders directly below |
+
+### Regression-proof tests
+
+Tests pin both the positive (the wrapper has `pt-24`) and the
+negative (the header block doesn't carry a duplicate `pt-24`),
+and a third test sanity-checks Memberships / Marketing /
+LiteDashboard kept their existing `pt-24`/`pt-32` so this fix
+doesn't quietly regress sibling modules.
+
+---
+
+
+
 ## Iter 216h273 — Preview wipe + Org Integrity Audit (Feb 21, 2026) ✅
 
 User ask (verbatim): *"Wipe test data — Keep only Master Admin,

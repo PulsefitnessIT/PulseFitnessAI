@@ -817,14 +817,24 @@ export default function CRMApp() {
           />
         )}
         {showShell && <ProductTour variant="crm" />}
-        {showShell && <div className="px-4 sm:px-6 max-w-7xl mx-auto"><CrossModuleTipsBanner mode="crm" /></div>}
+        {/* Iter 216h274 — wrap the tips banner with the same pt-24 the
+            "GymAxis Pro" header below uses. Without it the banner
+            sits behind the fixed 81px navbar and the user can't
+            scroll up to dismiss it. */}
+        {showShell && (
+          <div className="pt-24 px-4 sm:px-6 max-w-7xl mx-auto" data-testid="crm-cross-module-tips-wrap">
+            <CrossModuleTipsBanner mode="crm" />
+          </div>
+        )}
 
         {/* Pulse / GymAxis branded module header — byte-for-byte parity
             with Marketing / Memberships so the user gets the same
             typography (text-3xl..4xl + pulse-font-heading) and the
-            "Welcome back, …" line sits ABOVE the module switcher. */}
+            "Welcome back, …" line sits ABOVE the module switcher.
+            Iter 216h274: dropped the duplicate pt-24 — the banner
+            wrapper above already cleared the navbar. */}
         {showShell && (
-          <div className="pt-24 pb-3 px-4 md:px-8 max-w-7xl mx-auto" data-testid="crm-app-header">
+          <div className="pb-3 px-4 md:px-8 max-w-7xl mx-auto" data-testid="crm-app-header">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0">
                 <h1
