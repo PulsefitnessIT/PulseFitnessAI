@@ -286,6 +286,7 @@ async def public_apply_partner(
     insurance_expires_at: str = Form(""),
     qualifications_expires_at: str = Form(""),
     referral_source: str = Form(""),
+    referred_by_eref: str = Form(""),
     cover_letter: str = Form(""),
     terms_accepted: str = Form("false"),
     cv_file: Optional[UploadFile] = File(None),
@@ -330,6 +331,11 @@ async def public_apply_partner(
         "insurance_expires_at": _parse_iso_date(insurance_expires_at),
         "qualifications_expires_at": _parse_iso_date(qualifications_expires_at),
         "referral_source": (referral_source or "").strip()[:120] or None,
+        # Iter 216h287 — Gap 9: engineer-of-engineer referrals. Stamp
+        # the referring partner so master-admin sees the attribution
+        # at-a-glance. The `engineer_referrals` ledger row is written
+        # below once we know the applicant's email is valid.
+        "referred_by_eref": (referred_by_eref or "").strip().upper()[:32] or None,
         "cover_letter": (cover_letter or "").strip()[:4000] or None,
         "terms_accepted_at": _now(),
         "terms_version": TERMS_VERSION,
@@ -344,6 +350,19 @@ async def public_apply_partner(
             {"id": existing["id"]},
             {"$set": {**base_doc, "attachments": merged_attachments[:20]}},
         )
+        # Iter 216h287 — re-attempt eref attribution on resubmit, in
+        # case the applicant lost the original link or applied raw
+        # the first time.
+        eref_re = base_doc.get("referred_by_eref")
+        if eref_re:
+            referrer = await _resolve_eref_partner(eref_re)
+            if referrer:
+                await _record_engineer_referral(
+                    referrer_partner_id=referrer["id"],
+                    referrer_code=referrer["referral_code"],
+                    referred_email=email,
+                    referred_application_id=existing["id"],
+                )
         # Iter 216h281 — re-fire the receipt email on resubmit too so the
         # applicant has the most recent reference number in their inbox.
         try:
@@ -370,6 +389,20 @@ async def public_apply_partner(
         **base_doc,
     }
     await db.partner_applications.insert_one(doc)
+    # Iter 216h287 — Gap 9: if the application came via an engineer's
+    # eref link, log the attribution into `engineer_referrals` so the
+    # tier credit can be awarded on approval. Self-referral, bad eref
+    # and missing email are silently no-op'd by the helper.
+    eref = base_doc.get("referred_by_eref")
+    if eref:
+        referrer = await _resolve_eref_partner(eref)
+        if referrer:
+            await _record_engineer_referral(
+                referrer_partner_id=referrer["id"],
+                referrer_code=referrer["referral_code"],
+                referred_email=email,
+                referred_application_id=application_id,
+            )
     # Iter 216h281 — Gap 1 from the BA audit: fire the "application
     # received" email. Wrapped in a try so a mail failure never breaks
     # the form submission (the row is already persisted by this point).
@@ -430,10 +463,31 @@ def _app_fee_tier(active_count: int) -> dict:
 
 
 async def _active_referral_count(partner_id: str) -> int:
+    """Active **gym** referrals — orgs that signed up via the partner's
+    referral code and are still on a paid plan."""
     return await db.partner_referrals.count_documents({
         "partner_id": partner_id,
         "status": "active",
     })
+
+
+async def _approved_engineer_referral_count(partner_id: str) -> int:
+    """Iter 216h287 — Gap 9: engineer-of-engineer referrals. Counts
+    approved fellow-engineer recruits. Each one contributes to the
+    same tier-credit ladder as a gym referral (the BA-audit decision).
+    """
+    return await db.engineer_referrals.count_documents({
+        "referrer_partner_id": partner_id,
+        "status": "approved",
+    })
+
+
+async def _combined_active_count(partner_id: str) -> int:
+    """Sum of gym + engineer referrals used to drive the app-fee tier.
+    Single source of truth — call this anywhere the tier matters."""
+    gym = await _active_referral_count(partner_id)
+    eng = await _approved_engineer_referral_count(partner_id)
+    return gym + eng
 
 
 async def _recompute_app_fee(partner_id: str) -> dict:
@@ -441,14 +495,21 @@ async def _recompute_app_fee(partner_id: str) -> dict:
     Persists `app_fee_tier` + `enhanced_review_required` and returns the
     tier. Also re-syncs the live Stripe subscription (if any) so that
     crossing a milestone (£30 → £15 → free) automatically transitions
-    the partner's billing without a manual round-trip."""
-    count = await _active_referral_count(partner_id)
+    the partner's billing without a manual round-trip.
+
+    Iter 216h287 — the count is now `gym + engineer` referrals so a
+    partner who recruits 10 fellow engineers gets the same free-tier
+    unlock as one who refers 10 gyms.
+    """
+    count = await _combined_active_count(partner_id)
+    eng_count = await _approved_engineer_referral_count(partner_id)
     tier = _app_fee_tier(count)
     previous = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0, "app_fee_tier": 1, "subscription": 1})
     await db.partner_engineers.update_one(
         {"id": partner_id},
         {"$set": {
             "active_referral_count": count,
+            "engineer_referral_count": eng_count,
             "app_fee_tier": tier,
             "enhanced_review_required": tier["enhanced_review_required"],
             "updated_at": _now(),
@@ -954,6 +1015,19 @@ async def apply_partner(body: dict = Body(...), user: dict = Depends(get_current
         await db.partner_engineers.insert_one(doc)
         await _audit(partner_id=partner_id, actor_id=user["id"], action="apply",
                      after={"status": "pending"})
+        # Iter 216h287 — Gap 9: capture eref attribution on the authed
+        # apply path too. The legacy form omits it; the engineer-side
+        # invite link surfaces it via `eref` in the request body.
+        eref_authed = (body.get("referred_by_eref") or "").strip().upper()
+        if eref_authed and user.get("email"):
+            referrer = await _resolve_eref_partner(eref_authed)
+            if referrer:
+                await _record_engineer_referral(
+                    referrer_partner_id=referrer["id"],
+                    referrer_code=referrer["referral_code"],
+                    referred_email=user["email"],
+                    referred_application_id=None,
+                )
 
     fresh = _public(await db.partner_engineers.find_one({"id": partner_id}))
     return {"partner": fresh, "referral_link": _public_referral_link(fresh["referral_code"])}
@@ -1530,6 +1604,214 @@ async def admin_moderate_review(
 # ── End iter 216h286 reviews block ──────────────────────────────────
 
 
+# ── Iter 216h287 — Gap 9: engineer-of-engineer referrals ────────────
+#
+# An approved Partner Engineer can share their referral_code under a
+# new `eref` URL (`/engineer/r/{code}`). Anyone who applies through
+# that link is attributed back to the referring engineer; once master
+# admin approves the new applicant, the referrer earns +1 tier credit
+# (same ladder as gym referrals: 5 → £15/mo, 10 → free).
+#
+# Storage: collection `engineer_referrals` — append-only, one row per
+# attempted referral. The `status` field walks pending → approved /
+# rejected as the application moves through master-admin review.
+# Status fields used:
+#   pending   — applicant submitted, no decision yet
+#   approved  — applicant was approved as a partner; credit awarded
+#   rejected  — applicant was rejected (no credit)
+#   superseded — applicant resubmitted later under the same email
+#                (we keep the original row for the audit trail)
+
+
+def _public_eref_link(code: str) -> str:
+    """Engineer-of-engineer share URL. Lands on the branded recruit
+    page, which then forwards into the public apply form with the
+    `eref` query param preserved."""
+    base = (
+        os.environ.get("PARTNER_REFERRAL_BASE_URL")
+        or os.environ.get("EMAIL_PUBLIC_BASE_URL")
+        or os.environ.get("FRONTEND_URL")
+        or os.environ.get("REACT_APP_BACKEND_URL")
+        or ""
+    ).rstrip("/")
+    return f"{base}/engineer/r/{code}" if base else f"/engineer/r/{code}"
+
+
+async def _resolve_eref_partner(code: str) -> Optional[dict]:
+    """Look up the referring engineer by their referral_code. Only
+    returns approved partners so an unverified engineer can't drive
+    a branded recruit page."""
+    code_up = (code or "").strip().upper()
+    if not code_up:
+        return None
+    return await db.partner_engineers.find_one(
+        {"referral_code": code_up, "status": "approved"},
+        {"_id": 0, "id": 1, "full_name": 1, "company_name": 1, "referral_code": 1,
+         "service_postcode": 1, "level": 1, "active_referral_count": 1},
+    )
+
+
+async def _record_engineer_referral(
+    *,
+    referrer_partner_id: str,
+    referrer_code: str,
+    referred_email: str,
+    referred_application_id: Optional[str] = None,
+) -> Optional[dict]:
+    """Idempotent — re-applying with the same email re-uses the row
+    (and bumps `updated_at`). Returns the stored doc or ``None`` if
+    the inputs are unusable (self-referral / bad email)."""
+    email = (referred_email or "").strip().lower()
+    if not email or "@" not in email:
+        return None
+    # Self-referral guard: the referrer's own email never attributes.
+    referrer = await db.partner_engineers.find_one(
+        {"id": referrer_partner_id}, {"_id": 0, "email": 1},
+    )
+    if referrer and (referrer.get("email") or "").lower() == email:
+        return None
+    now = _now()
+    existing = await db.engineer_referrals.find_one(
+        {"referrer_partner_id": referrer_partner_id, "referred_email": email,
+         "status": {"$in": ["pending", "approved"]}},
+        {"_id": 0},
+    )
+    if existing:
+        await db.engineer_referrals.update_one(
+            {"id": existing["id"]},
+            {"$set": {
+                "referred_application_id": referred_application_id or existing.get("referred_application_id"),
+                "updated_at": now,
+            }},
+        )
+        return {**existing, "updated_at": now,
+                "referred_application_id": referred_application_id or existing.get("referred_application_id")}
+    doc = {
+        "id": _new_id(),
+        "referrer_partner_id": referrer_partner_id,
+        "referrer_referral_code": referrer_code,
+        "referred_email": email,
+        "referred_application_id": referred_application_id,
+        "referred_partner_id": None,
+        "status": "pending",
+        "credit_awarded_at": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.engineer_referrals.insert_one(doc)
+    return doc
+
+
+async def _credit_engineer_referral_on_approval(partner: dict, actor_id: str) -> Optional[dict]:
+    """Called from `admin_approve_partner` once a partner_engineers
+    row is flipped to approved. Idempotent — if the matching engineer
+    referral row was already credited, returns ``None`` without
+    side-effects. Otherwise marks the row approved, recomputes the
+    referrer's app-fee tier, and audit-logs against the referrer.
+    """
+    email = (partner.get("email") or "").lower()
+    if not email:
+        return None
+    ref = await db.engineer_referrals.find_one(
+        {"referred_email": email, "status": "pending"},
+        {"_id": 0},
+    )
+    if not ref:
+        return None
+    now = _now()
+    await db.engineer_referrals.update_one(
+        {"id": ref["id"]},
+        {"$set": {
+            "status": "approved",
+            "referred_partner_id": partner["id"],
+            "credit_awarded_at": now,
+            "updated_at": now,
+        }},
+    )
+    # Re-tier the referrer — may trigger a Stripe subscription downshift.
+    try:
+        await _recompute_app_fee(ref["referrer_partner_id"])
+    except Exception:
+        logger.exception("[partners] eref re-tier failed for partner=%s", ref["referrer_partner_id"])
+    await _audit(
+        partner_id=ref["referrer_partner_id"], actor_id=actor_id,
+        action="engineer_referral_credit",
+        after={"referred_partner_id": partner["id"], "referred_email": email,
+               "engineer_referral_id": ref["id"]},
+    )
+    return {**ref, "status": "approved", "referred_partner_id": partner["id"]}
+
+
+@router.get("/partners/public/by-eref/{code}")
+async def public_eref_lookup(code: str):
+    """Public — drives the branded recruit landing page. Returns the
+    referring engineer's first name + company so the visitor sees
+    "Jane recommends GymAxis". Never leaks PII (no email, no phone,
+    no full name, no postcode beyond outward code)."""
+    partner = await _resolve_eref_partner(code)
+    if not partner:
+        raise HTTPException(404, "Referral link not found")
+    first = (partner.get("full_name") or "").split(" ")[0] or "An engineer"
+    postcode = (partner.get("service_postcode") or "").upper().strip()
+    outward = postcode.split(" ")[0] if " " in postcode else (postcode[:4] if postcode else None)
+    return {
+        "first_name": first,
+        "company_name": partner.get("company_name"),
+        "level": partner.get("level"),
+        "service_area": outward or None,
+        "referral_code": partner["referral_code"],
+        "active_referrals": int(partner.get("active_referral_count") or 0),
+        "apply_url": f"/partners/engineers/apply?eref={partner['referral_code']}",
+    }
+
+
+@router.get("/partners/me/engineer-referrals")
+async def list_my_engineer_referrals(user: dict = Depends(get_current_user)):
+    """Engineer dashboard — list the partner's recruit pipeline +
+    summary stats. Sensitive applicant data is held back; the engineer
+    sees an obfuscated email (`j***@gym.io`) and the current status."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "No partner profile")
+    rows = await db.engineer_referrals.find(
+        {"referrer_partner_id": partner["id"]}, {"_id": 0},
+    ).sort("created_at", -1).to_list(length=500)
+    sanitised = [
+        {
+            "id": r["id"],
+            "status": r.get("status", "pending"),
+            "referred_email_masked": _mask_email(r.get("referred_email", "")),
+            "created_at": r.get("created_at"),
+            "credit_awarded_at": r.get("credit_awarded_at"),
+        }
+        for r in rows
+    ]
+    approved = sum(1 for r in rows if r.get("status") == "approved")
+    pending = sum(1 for r in rows if r.get("status") == "pending")
+    rejected = sum(1 for r in rows if r.get("status") == "rejected")
+    return {
+        "referrals": sanitised,
+        "summary": {"total": len(rows), "approved": approved, "pending": pending, "rejected": rejected},
+        "share_link": _public_eref_link(partner["referral_code"]),
+        "referral_code": partner["referral_code"],
+        "tier_credit_each": 1,
+    }
+
+
+def _mask_email(addr: str) -> str:
+    """j.smith@gym.io → j***@gym.io. Stable, length-preserving-ish,
+    no PII leakage beyond the first character of the local-part."""
+    if not addr or "@" not in addr:
+        return "anonymous"
+    local, _, domain = addr.partition("@")
+    if len(local) <= 1:
+        return f"{local}***@{domain}"
+    return f"{local[0]}***@{domain}"
+
+
+# ── End iter 216h287 engineer-referrals block ──────────────────────
+
+
 async def attach_referral_to_org(*, organization_id: str, ref_code: Optional[str]) -> Optional[dict]:
     """Called from auth.register() — write-once link from the new org back
     to the partner. Returns the partner_referrals row, or None when no
@@ -1757,6 +2039,20 @@ async def admin_approve_partner(
     )
     await _audit(partner_id=partner_id, actor_id=user["id"], action="approve",
                  before={"status": partner.get("status")}, after={"status": "approved", "level": level})
+    # Iter 216h287 — Gap 9: if this partner was attributed to a
+    # referring engineer, mark the engineer_referrals row approved and
+    # award the tier credit. Idempotent — re-approving has no effect.
+    try:
+        credited = await _credit_engineer_referral_on_approval(
+            {**partner, "status": "approved"}, actor_id=user["id"],
+        )
+        if credited:
+            logger.info(
+                "[partners] engineer-referral credit awarded: referrer=%s referred=%s",
+                credited.get("referrer_partner_id"), partner_id,
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Engineer-referral credit failed for partner=%s: %s", partner_id, exc)
     # Iter 216h281 — Gap 1: notify the engineer they're approved + send
     # them their referral code straight into the inbox.
     try:
@@ -2673,3 +2969,8 @@ async def ensure_partner_indexes() -> None:
     # Iter 216h80 — find-engineers widget
     await db.partner_contact_requests.create_index([("partner_id", 1), ("created_at", -1)])
     await db.partner_contact_requests.create_index([("requested_by_organization_id", 1), ("created_at", -1)])
+    # Iter 216h287 — Gap 9: engineer-of-engineer referrals.
+    await db.engineer_referrals.create_index([("referrer_partner_id", 1), ("created_at", -1)])
+    await db.engineer_referrals.create_index(
+        [("referred_email", 1), ("status", 1)],
+    )

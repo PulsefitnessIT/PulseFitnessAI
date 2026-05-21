@@ -126,6 +126,7 @@ const ServiceOpsEngineerQueue  = lazy(() => import('@/pages/ServiceOps/Engineer/
 // Iter 216h148 — Public Engineer landing/login page
 const PublicEngineerLanding    = lazy(() => import('@/pages/Public/EngineerLanding'));
 const PartnerReviewPublic      = lazy(() => import('@/pages/Public/PartnerReviewPublic'));
+const EngineerReferralLanding  = lazy(() => import('@/pages/Public/EngineerReferralLanding'));
 // Iter 216h159 — Engineer card-conversion analytics
 const ServiceOpsEngineerCardAnalytics = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCardAnalytics'));
 const ServiceOpsEngineerAnalytics = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerAnalyticsPage'));
@@ -238,6 +239,9 @@ export default function AppRoutes({ user, login }) {
           Linked from the find-engineer card; surfaces star + body
           ratings the engineer dashboard then responds to. */}
       <Route path="/engineer/:partnerId/review" element={<PartnerReviewPublic />} />
+      {/* Iter 216h287 — Gap 9: engineer-of-engineer recruit landing.
+          Branded one-pager from a peer engineer's referral link. */}
+      <Route path="/engineer/r/:code" element={<EngineerReferralLanding />} />
       {/* Iter 216h104 — public Engineer Partner application form (no login required) */}
       <Route path="/partners/engineers/apply" element={<PartnerApplyPublic />} />
       <Route path="/legacy-home" element={<Navigate to="/" replace />} />

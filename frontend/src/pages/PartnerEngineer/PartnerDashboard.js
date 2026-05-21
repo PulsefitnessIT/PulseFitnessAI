@@ -24,6 +24,7 @@ import PartnerComplianceCard from './PartnerComplianceCard';
 import PartnerActivationChecklist from './PartnerActivationChecklist';
 import PartnerCollateralCard from './PartnerCollateralCard';
 import PartnerReviewsCard from './PartnerReviewsCard';
+import PartnerEngineerReferralCard from './PartnerEngineerReferralCard';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -251,6 +252,11 @@ export default function PartnerDashboard() {
             social card, PDF pitch). Closes the loop on "Copy your link"
             with something the engineer actually wants to share. */}
         {partner.status === 'approved' && <PartnerCollateralCard />}
+
+        {/* Iter 216h287 — Gap 9: engineer-of-engineer referrals. Each
+            approved recruit drops the partner's plan fee — same tier
+            ladder as gym referrals. */}
+        {partner.status === 'approved' && <PartnerEngineerReferralCard />}
 
         {/* Iter 216h286 — Gap 8: customer reviews on the engineer.
             Hides itself silently if the engineer has no reviews yet. */}

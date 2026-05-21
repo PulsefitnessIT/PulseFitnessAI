@@ -11,7 +11,7 @@
  */
 import { useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowRight, ArrowLeft, CheckCircle2, Loader2, Wrench, MapPin,
   ShieldCheck, FileText, Sparkles, Upload, Trash2, FileUp, Mail,
@@ -53,6 +53,12 @@ export default function PartnerApplyPublic() {
     description: 'Apply to join the GymAxis Partner Engineer Network. Upload your CV and certifications — most decisions within 2 working days.',
     canonical: 'https://www.gymaxisai.com/partners/engineers/apply',
   });
+
+  // Iter 216h287 — Gap 9: capture engineer-of-engineer referral code
+  // from the URL (`?eref=ABC123`). Stored verbatim and forwarded to
+  // the backend so attribution survives form submission.
+  const [searchParams] = useSearchParams();
+  const erefCode = (searchParams.get('eref') || '').trim().toUpperCase().slice(0, 32);
 
   const [stepIdx, setStepIdx] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -146,6 +152,8 @@ export default function PartnerApplyPublic() {
       });
       if (cvFile) fd.append('cv_file', cvFile);
       if (certFile) fd.append('cert_file', certFile);
+      // Iter 216h287 — forward the eref attribution code if present
+      if (erefCode) fd.append('referred_by_eref', erefCode);
       const r = await axios.post(`${API}/api/partners/public-apply`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -210,6 +218,12 @@ export default function PartnerApplyPublic() {
             <p className="mt-3 text-base text-slate-600 leading-relaxed">
               5-minute form. Upload your CV and any qualifications — we'll review and email you within 2 working days. No GymAxis account needed yet.
             </p>
+            {erefCode && (
+              <div className="mt-4 inline-flex items-center gap-2 text-[12px] font-semibold text-blue-900 bg-blue-50 border border-blue-200 rounded-full px-3 py-1"
+                   data-testid="partner-apply-eref-banner">
+                <Sparkles size={12} /> Recommended via code <span className="font-mono">{erefCode}</span> — your sponsor gets the credit once we approve you.
+              </div>
+            )}
           </div>
 
           {/* Stepper — Iter 216h216: Craig's audit flagged steps cut off

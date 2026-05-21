@@ -1,3 +1,84 @@
+## Iter 216h287 — Engineer-of-engineer referrals (Feb 21, 2026) ✅ P1
+
+Closes **Gap 9** from the BA audit. An approved Partner Engineer
+now has a personal recruit URL — every engineer they bring in who
+gets approved counts toward the same tier-credit ladder as a gym
+referral (5 → £15/mo, 10 → free). Per the user's choice (2B),
+there's no cash commission: it's pure plan-fee compression.
+
+### Backend (`/app/backend/routes/partners.py`)
+
+* **New collection `engineer_referrals`** — append-only ledger,
+  one row per attempted recruit. Fields: `referrer_partner_id`,
+  `referrer_referral_code`, `referred_email`, `referred_application_id`,
+  `referred_partner_id`, `status` (pending → approved/rejected),
+  `credit_awarded_at`. Indexed on `(referrer_partner_id, created_at)`
+  and `(referred_email, status)`.
+* `_combined_active_count(partner_id)` — sums gym +
+  engineer-referrals. Drives `_recompute_app_fee` so a partner who
+  recruits 10 fellow engineers gets the same free-tier unlock as
+  one who refers 10 gyms.
+* `_resolve_eref_partner(code)` — only returns **approved**
+  engineers so an unverified applicant can't drive a branded
+  recruit page.
+* `_record_engineer_referral(...)` — idempotent on
+  `(referrer, referred_email)`; rejects self-referrals and
+  malformed emails silently.
+* `_credit_engineer_referral_on_approval(partner, actor_id)` —
+  called from `admin_approve_partner` after a partner is approved.
+  Finds any pending `engineer_referrals` row by email, flips it to
+  approved, re-tiers the referrer (may down-shift their Stripe
+  subscription automatically), and audit-logs against the
+  referrer. Idempotent — re-approving the same partner is a no-op.
+* `GET /partners/public/by-eref/{code}` — public, drives the
+  branded recruit landing. Returns first name + company + outward
+  postcode + active-referrals count. Never leaks PII.
+* `GET /partners/me/engineer-referrals` — engineer dashboard view.
+  Masks emails (`j***@gym.io`), summarises approved/pending/
+  rejected, and emits the share link + referral code.
+* `POST /partners/public-apply` and `POST /partners/apply` now
+  accept `referred_by_eref` (form field / body field) and call the
+  recorder when the code resolves.
+
+### Frontend
+
+* **`pages/Public/EngineerReferralLanding.js`** at `/engineer/r/:code`
+  — lean branded one-pager. Big headline `"{First Name} · {Company}
+  thinks you'd be a brilliant Partner Engineer."`, three-perk grid
+  (inbound jobs, plan-drop ladder, GymAxis-backed compliance), CTA
+  jumps into the standard apply form with `?eref=` preserved.
+  Hard-falls-through to the standard apply page if the code is
+  unknown so the lead is never lost.
+* **`pages/PartnerEngineer/PartnerEngineerReferralCard.js`** —
+  dashboard widget. Share link (copy + mailto), masked recruit
+  list, "X to free" counter ticking down each approval. Wired into
+  `PartnerDashboard.js` between the collateral card and reviews
+  card for approved partners only.
+* **`pages/Marketing/PartnerApplyPublic.js`** — reads `?eref=` from
+  the URL, shows a "Recommended via code XYZ" banner, and forwards
+  the code on form POST.
+* Public route registered in `routes/AppRoutes.js`.
+
+### Verification
+
+* `tests/test_iter_216h287_engineer_referrals.py` — **16 tests**
+  pin combined-count summation, tier flipping on combined count,
+  eref normalisation + approved-only filter, idempotent recording,
+  self-referral rejection, one-time credit award on approval,
+  email masking, and minimal PII in the public lookup.
+* Full regression: **475 passed, 14 skipped** in 12.3s.
+* End-to-end smoke test (curl + screenshot):
+  * `/engineer/r/AGQZKPAP` renders with the right engineer name,
+    SW1A area, CTA href `/partners/engineers/apply?eref=AGQZKPAP`.
+  * Apply form picks up the eref and shows the banner.
+  * `POST /partners/public-apply` with `referred_by_eref` writes a
+    pending row in `engineer_referrals` with the correct referrer
+    + application linkage.
+  * Unknown eref code → 404.
+
+---
+
+
 ## Iter 216h286 — Customer review submission flow (Feb 21, 2026) ✅ P0
 
 Closes **Gap 8** from the BA audit. The marketing landing page had
