@@ -22,6 +22,7 @@ from utils.database import db
 from utils.brand_filter import merge_brand_filter
 from routes.master_admin import (
     ADDRESS_FIELDS,
+    ALL_MODULE_IDS,
     PULSE_VISIBLE_ACCOUNT_TYPES,
     _PULSE_TIER_TO_ACCOUNT_TYPE,
     _GYMAXIS_TIERS,
@@ -404,6 +405,23 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
         # the `crm` flag directly.
         set_doc["modules"] = merged
 
+        # Iter 216h277 — Keep `enabled_modules` array + `portal_type`
+        # legacy field in sync with the per-module dict so the Master
+        # Admin "CRM Orgs" filter (and any other consumer of either
+        # field) sees a single source of truth. Previously, toggling
+        # CRM in the Features tab only wrote to `modules.crm.enabled`
+        # — the org never appeared in the CRM tab list because that
+        # filter still checked `portal_type`.
+        enabled_list = [k for k, v in merged.items() if isinstance(v, dict) and v.get("enabled")]
+        # Stable order matching the UI grid + filter to known module ids.
+        derived_modules = [m for m in ALL_MODULE_IDS if m in enabled_list]
+        # Never let the array go empty — every org has at least Operations
+        # by product policy (matches `_modules_from_portal_type` default).
+        if not derived_modules:
+            derived_modules = ["operations"]
+        set_doc["enabled_modules"] = derived_modules
+        set_doc["portal_type"] = _derive_portal_type(derived_modules)
+
     if not set_doc:
         raise HTTPException(400, "Nothing to update — pass {features:{…}} or {modules:{…}}")
 
@@ -460,6 +478,23 @@ async def update_org_details(org_id: str, body: dict = Body(...), user: dict = D
         normalised = _normalize_modules(updates["enabled_modules"], updates.get("portal_type"))
         updates["enabled_modules"] = normalised
         updates["portal_type"] = _derive_portal_type(normalised)
+        # Iter 216h277 — also reconcile the per-module `modules` dict
+        # so the Features tab "Module access" toggles stay coherent
+        # with the Details-tab module picker. Without this an admin
+        # could toggle CRM ON via the picker but the Features tab
+        # would still show it OFF (different storage shape).
+        existing_modules = await db.organizations.find_one({"id": org_id}, {"_id": 0, "modules": 1})
+        old_modules = (existing_modules or {}).get("modules") or {}
+        synced_modules: dict = dict(old_modules)
+        for m_key in ("operations", "memberships", "marketing", "crm"):
+            prev = old_modules.get(m_key) or {}
+            tier = prev.get("tier") if prev.get("tier") in {"lite", "pro", "enterprise"} else "pro"
+            entry = {"enabled": m_key in normalised, "tier": tier}
+            for k, v in prev.items():
+                if k not in entry:
+                    entry[k] = v
+            synced_modules[m_key] = entry
+        updates["modules"] = synced_modules
     elif "portal_type" in updates and updates["portal_type"] not in ("service_portal", "crm", "both"):
         raise HTTPException(status_code=400, detail="portal_type must be service_portal, crm, or both")
 

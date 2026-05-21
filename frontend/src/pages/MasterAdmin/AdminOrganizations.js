@@ -554,9 +554,25 @@ useEffect(() => {
  const getOrgUsers = (orgId) => users.filter(u => u.organization_id === orgId);
 
  // Apply portal filter if provided (for CRM tab view)
- let displayOrgs = portalFilter
- ? filteredOrgs.filter(o => o.portal_type === portalFilter || o.portal_type === 'both')
- : filteredOrgs;
+ // Iter 216h277 — robust filter. Historically this checked `portal_type`
+ // only, but the Features tab writes module enablement to the per-module
+ // `org.modules.{key}.enabled` dict and the Details tab writes to the
+ // `enabled_modules` array. The three storages aren't always coherent on
+ // older orgs, so the CRM Orgs tab was rendering empty even when admins
+ // had enabled CRM. Match on the UNION of all three signals.
+ let displayOrgs = filteredOrgs;
+ if (portalFilter) {
+   const moduleKey = portalFilter === 'crm' ? 'crm' : 'operations';
+   displayOrgs = filteredOrgs.filter((o) => {
+     const portalMatch =
+       portalFilter === 'crm'
+         ? o.portal_type === 'crm' || o.portal_type === 'both'
+         : o.portal_type === 'service_portal' || o.portal_type === 'both';
+     const enabledModulesMatch = Array.isArray(o.enabled_modules) && o.enabled_modules.includes(moduleKey);
+     const featuresMatch = !!(o.modules && o.modules[moduleKey] && o.modules[moduleKey].enabled);
+     return portalMatch || enabledModulesMatch || featuresMatch;
+   });
+ }
 
  // Apply multi-account-type filter (used by the MoD tab to show only mod_* orgs)
  if (Array.isArray(accountTypesIn) && accountTypesIn.length > 0) {

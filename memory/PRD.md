@@ -1,3 +1,68 @@
+## Iter 216h277 — CRM Orgs list shows CRM-enabled orgs (Feb 21, 2026) ✅ P0
+
+Customer ask (verbatim, h276 turn): *"In Preview — I'm still not seeing
+organisations that have CRM enabled in the CRM Orgs list?"*
+
+### Root cause
+
+An organisation's "CRM is enabled" signal lived in **three** unsynchronised
+storage shapes:
+
+  1. `portal_type` — legacy enum (`service_portal`/`crm`/`both`)
+  2. `enabled_modules` — array (e.g. `['operations','crm']`) written by
+     the Details-tab Modules picker
+  3. `modules` — per-module dict (e.g. `{crm:{enabled:true,tier:'pro'}}`)
+     written by the Features-tab Module Matrix
+
+The Master Admin → CRM → Organisations filter checked **only (1)**. The
+Features tab wrote **only (3)**. Result: admins toggled CRM on for real
+tenants (Third Space, GymAxis AI Admin) but those orgs never appeared in
+the CRM Orgs tab. Live preview verified: Third Space had
+`modules.crm.enabled=True` but `enabled_modules=['operations']` and
+`portal_type='service_portal'`.
+
+### Fix
+
+* **Backend (`routes/master_admin_orgs.py`)** —
+  `PUT /organizations/{id}/features` now derives `enabled_modules` and
+  `portal_type` from the merged per-module dict on every save. Operations
+  default is preserved so an org never goes empty.
+* **Backend (`routes/master_admin_orgs.py`)** —
+  `PUT /organizations/{id}/details` reconciles the inverse direction:
+  when the Modules picker writes `enabled_modules`, the `modules` dict is
+  rewritten to match (per-module `enabled` flag plus preserved tier).
+* **Frontend (`pages/MasterAdmin/AdminOrganizations.js`)** — the portal
+  filter is now the UNION of (1)+(2)+(3) so older orgs whose three
+  storages have drifted are still found correctly while the backfill is
+  rolling out.
+* **One-shot reconcile (`scripts/reconcile_org_modules.py`)** —
+  idempotent dry-run + `--commit` script that walks every org, takes the
+  union of dict + array, strips invalid module ids (e.g. legacy
+  `'service_portal'` in the array), and writes the canonical
+  `enabled_modules` + `portal_type` back. Ran in preview: 6/6 orgs
+  reconciled, Third Space + GymAxis AI Admin now flagged `portal_type='both'`.
+
+### Verification
+
+* `tests/test_iter_216h277_crm_orgs_filter_sync.py` — 5 new tests
+  pin the features-PUT sync, the details-PUT sync, the operations
+  default, the portal_type='both' derivation, and the reconcile
+  script's union behaviour.
+* `make regression` → **359 passed, 14 skipped** (up from 354).
+* UI smoke screenshot: Master Admin → CRM → Organisations now lists
+  GymAxis AI Admin + Third Space (2/6 orgs, exactly matching DB state).
+
+### Files
+
+* `backend/routes/master_admin_orgs.py` (modified)
+* `frontend/src/pages/MasterAdmin/AdminOrganizations.js` (modified)
+* `backend/scripts/reconcile_org_modules.py` (new)
+* `backend/tests/test_iter_216h277_crm_orgs_filter_sync.py` (new)
+* `Makefile` (added new test to regression)
+
+---
+
+
 ## Iter 216h276 — Auto-mirror Pulse tenants into the master CRM (Feb 21, 2026) ✅ P1
 
 Customer ask (verbatim, from h275 turn): *"Pulse Fitness Limited
