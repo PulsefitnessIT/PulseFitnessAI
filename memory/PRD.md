@@ -1,3 +1,106 @@
+## Iter 216h265 — CRM customer-feedback P0 + P1 batch (Feb 21, 2026) ✅ 8 items
+
+Prospective-customer feedback (Feb 21, 2026):
+* Hierarchical "tree" structure for territories (UK → Scotland/North/Midlands/South).
+* Companies House director scraping — directors not auto-linked to the company.
+* Mandatory email on contacts.
+* Job Title from picklist instead of free text.
+* Quotes not appearing in Sales Pipeline.
+* "Ability to print quotes" + "Distribution via email".
+* Approval workflow where quotes below the agreed margin require management approval — surface this in the UI.
+* Lead → Prospect → Quote workflow tightening.
+
+User chose **scope = P0 + P1 (8 items)** and **territories = simple
+`parent_id` nesting**.
+
+### Backend
+
+* **`crm_territories.py`** — new `GET /api/crm/territories/tree`
+  endpoint. Returns territories nested by `parent_id` plus a flat
+  list. Defensive: rows whose `parent_id` doesn't resolve in-org
+  are promoted to root.
+* **`crm_v2.py` company create** — now invokes
+  `_seed_director_contacts(company, user)` which inserts one stub
+  contact per Companies House director onto the parent company.
+  Stubs are tagged `decision_maker` + `director` + source
+  `companies_house`, with all marketing opt-outs ON (no consent yet)
+  and lifecycle `lead`. Idempotent on
+  `(organization × company × first_name × last_name)`.
+* **`POST /api/crm/v2/companies/{id}/seed-directors`** — manual
+  re-run for existing companies (e.g. after re-pulling CH data).
+* **`list_opportunities` pipeline endpoint** — now decorates each
+  opp with `quotes[]`, `quote_count`, `quoted_value` so the
+  pipeline view can show quote totals inline (customer's headline
+  complaint).
+* **`create_quote` workflow auto-progression** — when a quote is
+  raised against an opportunity:
+  - If the opp is in `lead / qualified / discovery / solution`,
+    it jumps to `proposal` (+ stage_history entry "Quote created").
+  - Linked contact's lifecycle bumps `lead` → `prospect`.
+* **`GET /api/crm/v2/quotes/{id}/pdf`** — downloads a branded PDF
+  via the existing `crm_quote_pdf.build_crm_quote_pdf` reportlab
+  builder. New `render_quote_pdf(quote, organization_id)` async
+  helper resolves the org doc for branding.
+* **`POST /api/crm/v2/quotes/{id}/send-email`** — emails the PDF to
+  the linked contact (or the manager's `to` override) via the
+  unified `utils.email.send_email` pipeline. Stamps
+  `last_sent_to`, `last_sent_at`, appends to `send_log[]`, and
+  auto-progresses the quote status from `draft`/`approved` → `sent`.
+  Logs an activity against the opp/company/contact.
+
+### Frontend
+
+* **`CRMCPQ.js` Quote detail** — three new action buttons next to
+  Status: **Print** (`quote-print-btn`), **Email**
+  (`quote-email-btn`), Versions, Revise. Print downloads the PDF
+  via blob → `<a download>`. Email opens a dialog with `to`,
+  `subject`, `message` fields (default subject is the quote
+  number; `to` defaults to the linked contact's email
+  server-side).
+* **Approval-required callout** — when `approval_required` or
+  `approval_status === 'pending_approval'`, a yellow warning panel
+  appears above the line items: *"Margin X% is below the configured
+  minimum. A manager must approve it before it can be sent or
+  signed."*
+* **`CRMContacts.js`** — edit form's `job_title` row replaced with
+  the existing `<PicklistSelect pickKey="job_title" …>` widget,
+  giving parity with the create form. Editable per-org via the
+  Picklists settings.
+
+### Already-existed items (confirmed)
+
+* Email mandatory on contacts (`EmailStr` validator, returns 400 if
+  empty — confirmed via existing tests).
+* Picklists infrastructure (`crm_picklists`).
+* Miller Heiman influence types on contacts
+  (`decision_maker / champion / influencer / coach / blocker`).
+* Tenders module (`CRMTenders.js`).
+* Company 360° timeline (`GET /companies/{id}/timeline` returns
+  cases, opps, quotes, activities, contacts, assets, contracts).
+* Approval workflow with `min_margin_percent` threshold
+  (`/settings/approval` get/put).
+* Product images (`crm_products.image_url`).
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h265_crm_customer_feedback.py`) | **14 / 14** |
+| `make regression` | **234 passed, 14 skipped** (was 220 → 234) |
+| `ruff check` + `yarn eslint --max-warnings 0` | clean |
+| Live curl: territory tree + seed-directors + PDF + send-email | ✅ all routes resolve (401 from CRM auth gate, not 404) |
+
+### Deferred to a later batch
+
+* **P2** — Product configuration / bundles
+* **P2** — Deep audit of 360° UI (mostly already wired)
+* **P3** — DocuSign integration (waiting on creds)
+* **P3** — Miller Heiman field expansion (already 80% there)
+
+---
+
+
+
 ## Iter 216h264 — Staff portal preview + per-staff credentials + Templates modal fix (Feb 21, 2026) ✅ Feature batch
 
 User asks (3 screenshots):

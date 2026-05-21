@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Plus, FileText, X, ArrowLeft,
-  Building2, User, ChevronRight, History, Copy
+  Building2, User, ChevronRight, History, Copy,
+  Printer, Mail, AlertTriangle, Loader2,
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -158,6 +159,63 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
     setSavingRevise(false);
   };
 
+  // Iter 216h265 — print + email a quote. Print downloads the PDF;
+  // email asks for a recipient (defaults to linked contact) and
+  // dispatches via Resend with the PDF attached.
+  const [emailDialog, setEmailDialog] = useState(null);
+  const downloadPdf = async () => {
+    setActionLoading('print');
+    try {
+      const res = await axios.get(`${API}/crm/v2/quotes/${quoteId}/pdf`, {
+        headers: headers(),
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${quote.quote_number || 'quote'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      window.alert('Could not download PDF — check backend logs.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+  const openEmailDialog = () => {
+    setEmailDialog({
+      to: '',
+      subject: `Quote ${quote.quote_number || ''}`.trim(),
+      message: '',
+      sending: false,
+    });
+  };
+  const sendQuoteEmail = async () => {
+    if (!emailDialog) return;
+    setEmailDialog((d) => ({ ...d, sending: true }));
+    try {
+      const res = await axios.post(
+        `${API}/crm/v2/quotes/${quoteId}/send-email`,
+        {
+          to: emailDialog.to || undefined,
+          subject: emailDialog.subject || undefined,
+          message: emailDialog.message || undefined,
+        },
+        { headers: headers() },
+      );
+      setEmailDialog(null);
+      window.alert(`Quote emailed to ${res.data.to}`);
+      load();
+    } catch (e) {
+      const detail = e?.response?.data?.detail || e?.message || 'Send failed';
+      window.alert(detail);
+      setEmailDialog((d) => d && ({ ...d, sending: false }));
+    }
+  };
+
   if (!quote) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
   const statusColor = STATUS_COLORS[quote.status] || 'var(--color-text-faint-alt)';
@@ -175,6 +233,12 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
             <p className="text-xs mt-0.5" style={{ color: c.textDim }}>Created by {quote.created_by} &middot; v{quote.version}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={downloadPdf} disabled={actionLoading === 'print'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5 disabled:opacity-50" style={{ borderColor: c.border, color: c.textMuted }} data-testid="quote-print-btn">
+              {actionLoading === 'print' ? <Loader2 size={12} className="animate-spin" /> : <Printer size={12} />} Print
+            </button>
+            <button onClick={openEmailDialog} disabled={quote.status === 'superseded'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5 disabled:opacity-50" style={{ borderColor: 'var(--color-info-ios)40', color: 'var(--color-info-ios)' }} data-testid="quote-email-btn">
+              <Mail size={12} /> Email
+            </button>
             <button onClick={loadVersions} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="quote-versions-btn">
               <History size={12} /> Versions
             </button>
@@ -186,6 +250,24 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
             <span className="text-[10px] font-bold uppercase px-2 py-1 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{quote.status?.replace('_', ' ')}</span>
           </div>
         </div>
+
+        {/* Iter 216h265 — approval-required callout (margin below min). */}
+        {(quote.approval_required || quote.approval_status === 'pending_approval') && quote.status !== 'approved' && (
+          <div className="mb-4 flex items-start gap-2 p-3 rounded-lg border" style={{ background: 'var(--color-warning)10', borderColor: 'var(--color-warning)40' }} data-testid="quote-approval-callout">
+            <AlertTriangle size={14} style={{ color: 'var(--color-warning)', marginTop: 2 }} />
+            <div className="flex-1 text-xs">
+              <p className="font-semibold" style={{ color: 'var(--color-warning)' }}>
+                {quote.approval_status === 'pending_approval' ? 'Awaiting management approval' : 'Approval required before sending'}
+              </p>
+              <p style={{ color: c.textMuted }}>
+                {quote.margin_percent != null
+                  ? <>Margin <b>{Number(quote.margin_percent).toFixed(1)}%</b> is below the configured minimum.</>
+                  : <>This quote falls below the agreed margin floor.</>}
+                {' '}A manager must approve it before it can be sent or signed.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           {[
@@ -417,6 +499,66 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers }) {
               <button onClick={() => setShowRevise(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
               <button onClick={submitRevise} disabled={savingRevise} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" data-testid="submit-revise-btn">
                 {savingRevise ? 'Creating...' : `Create v${(quote.version || 1) + 1}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Iter 216h265 — Email quote dialog */}
+      {emailDialog && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" data-testid="quote-email-dialog">
+          <div className="rounded-lg max-w-md w-full shadow-2xl" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${c.border}` }}>
+            <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: c.border }}>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-info-ios)' }}>Send quote</p>
+                <h3 className="text-base font-bold" style={{ color: c.text }}>{quote.quote_number}</h3>
+              </div>
+              <button onClick={() => setEmailDialog(null)} className="opacity-60 hover:opacity-100" style={{ color: c.textMuted }} data-testid="quote-email-dialog-close"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textDim }}>To</label>
+                <input
+                  type="email"
+                  value={emailDialog.to}
+                  onChange={(e) => setEmailDialog((d) => ({ ...d, to: e.target.value }))}
+                  placeholder="customer@example.com (leave blank to use linked contact)"
+                  className="w-full px-3 py-2 text-sm rounded-md border"
+                  style={{ background: isDark ? 'var(--color-neutral-950)' : '#fff', borderColor: c.border, color: c.text }}
+                  data-testid="quote-email-to"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Subject</label>
+                <input
+                  type="text"
+                  value={emailDialog.subject}
+                  onChange={(e) => setEmailDialog((d) => ({ ...d, subject: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm rounded-md border"
+                  style={{ background: isDark ? 'var(--color-neutral-950)' : '#fff', borderColor: c.border, color: c.text }}
+                  data-testid="quote-email-subject"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Message <span className="opacity-60 font-normal">(optional)</span></label>
+                <textarea
+                  rows={4}
+                  value={emailDialog.message}
+                  onChange={(e) => setEmailDialog((d) => ({ ...d, message: e.target.value }))}
+                  placeholder="Hi, please find attached…"
+                  className="w-full px-3 py-2 text-sm rounded-md border"
+                  style={{ background: isDark ? 'var(--color-neutral-950)' : '#fff', borderColor: c.border, color: c.text }}
+                  data-testid="quote-email-message"
+                />
+              </div>
+              <p className="text-[11px]" style={{ color: c.textDim }}>The quote PDF will be attached automatically.</p>
+            </div>
+            <div className="p-5 border-t flex gap-2 justify-end" style={{ borderColor: c.border }}>
+              <button onClick={() => setEmailDialog(null)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }} data-testid="quote-email-cancel">Cancel</button>
+              <button onClick={sendQuoteEmail} disabled={emailDialog.sending} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md text-white disabled:opacity-50" style={{ background: 'var(--color-info-ios)' }} data-testid="quote-email-send">
+                {emailDialog.sending ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
+                {emailDialog.sending ? 'Sending…' : 'Send quote'}
               </button>
             </div>
           </div>

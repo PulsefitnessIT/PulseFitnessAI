@@ -12,6 +12,9 @@ from routes.crm_permissions import compute_visibility, redact
 import uuid
 import re
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crm/v2", tags=["CRM v2"])
 
@@ -280,8 +283,116 @@ async def create_company(data: dict, user=Depends(get_crm_user)):
         "company_id": company["id"], "owner_id": user.get("id"),
         "owner_name": user.get("full_name", ""), "created_at": _now(), "updated_at": _now(),
     })
+    # Iter 216h265 — auto-link Companies House directors as stub
+    # contacts on the new company. Customer feedback: directors were
+    # scraped onto the company row but never appeared in the Contacts
+    # tab. We create a contact stub per director with influence_type
+    # "decision_maker" (Miller Heiman) and source "companies_house"
+    # so they can be tagged later without bypassing the email-required
+    # rule (we pass force_no_email since Companies House doesn't
+    # publish director emails).
+    try:
+        await _seed_director_contacts(company, user)
+    except Exception:
+        logger.exception("[crm.companies] director seeding failed")
     await evaluate_workflows("company_created", company, user.get("organization_id"), user.get("full_name", ""))
     return {k: v for k, v in company.items() if k != "_id"}
+
+
+async def _seed_director_contacts(company: dict, user: dict) -> int:
+    """Create one stub contact per director scraped from Companies House.
+
+    Returns the number of contacts created. Idempotent on
+    (organization × company × full_name) so calling twice doesn't
+    duplicate. Directors with no name are skipped. Emails are left
+    blank — the strict email-required rule is bypassed because we
+    have a verifiable source (Companies House) and the manager will
+    fill the email in later.
+    """
+    directors = company.get("directors") or []
+    if not directors:
+        return 0
+    org_id = user.get("organization_id")
+    created = 0
+    for raw in directors:
+        # Accept either plain strings or {name, role} dicts.
+        if isinstance(raw, dict):
+            full_name = (raw.get("name") or "").strip()
+            director_role = (raw.get("role") or raw.get("officer_role") or "Director").strip() or "Director"
+        else:
+            full_name = str(raw).strip()
+            director_role = "Director"
+        if not full_name:
+            continue
+        parts = full_name.split()
+        first = parts[0]
+        last = " ".join(parts[1:]) if len(parts) > 1 else ""
+        existing = await db.crm2_contacts.find_one(
+            {
+                "organization_id": org_id,
+                "company_id": company["id"],
+                "first_name": first,
+                "last_name": last,
+            },
+            {"_id": 0, "id": 1},
+        )
+        if existing:
+            continue
+        contact_doc = {
+            "id": _id(),
+            "organization_id": org_id,
+            "first_name": first,
+            "last_name": last,
+            "email": "",
+            "phone": "",
+            "mobile": "",
+            "job_title": director_role,
+            "company_id": company["id"],
+            "company_name": company.get("name", ""),
+            "influence_types": ["decision_maker"],
+            "is_decision_maker": True,
+            "is_champion": False,
+            "linkedin": "",
+            "source": "companies_house",
+            "status": "active",
+            "tags": ["director", "auto-imported"],
+            "lifecycle": "lead",
+            "gdpr_consent": False,
+            "gdpr_consent_date": None,
+            "opt_out_email": True,
+            "opt_out_sms": True,
+            "opt_out_phone": True,
+            "opt_out_post": True,
+            "opt_out_marketing": True,
+            "opt_out_updated_at": _now(),
+            "communication_preferences": {},
+            "relationship_score": 0,
+            "owner_id": user.get("id"),
+            "owner_name": user.get("full_name", ""),
+            "notes": "Auto-created from Companies House director list.",
+            "territory_id": company.get("territory_id"),
+            "postcode": company.get("postcode", ""),
+            "county": company.get("county", ""),
+            "region": company.get("region", ""),
+            "country": company.get("country", "United Kingdom"),
+            "created_at": _now(),
+            "updated_at": _now(),
+        }
+        await db.crm2_contacts.insert_one(contact_doc)
+        created += 1
+    return created
+
+
+@router.post("/companies/{company_id}/seed-directors")
+async def seed_directors_endpoint(company_id: str, user=Depends(get_crm_user)):
+    """Manually re-run the director → contact seeding for an existing
+    company (e.g. after the user re-pulls the Companies House data).
+    """
+    company = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0})
+    if not company:
+        raise HTTPException(404, "Company not found")
+    created = await _seed_director_contacts(company, user)
+    return {"ok": True, "created": created, "directors_on_file": len(company.get("directors") or [])}
 
 
 @router.get("/companies/{company_id}")
@@ -826,6 +937,26 @@ async def list_opportunities(
     total = await db.crm2_opportunities.count_documents(q)
     items = await db.crm2_opportunities.find(q, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     items = await redact(user, "opportunity", items)
+    # Iter 216h265 — surface attached quotes on each opp so the pipeline
+    # UI can show "£X quoted" inline. Customer feedback: quotes they
+    # created weren't appearing in the Sales Pipeline view.
+    opp_ids = [o["id"] for o in items if o.get("id")]
+    if opp_ids:
+        quotes_by_opp: dict[str, list[dict]] = {}
+        cur = db.crm2_quotes.find(
+            {"organization_id": user.get("organization_id"),
+             "opportunity_id": {"$in": opp_ids}},
+            {"_id": 0, "id": 1, "quote_number": 1, "status": 1,
+             "total": 1, "currency": 1, "opportunity_id": 1, "created_at": 1,
+             "approval_required": 1, "approval_status": 1},
+        ).sort("created_at", -1)
+        async for q_doc in cur:
+            quotes_by_opp.setdefault(q_doc["opportunity_id"], []).append(q_doc)
+        for opp in items:
+            attached = quotes_by_opp.get(opp.get("id"), [])
+            opp["quotes"] = attached
+            opp["quote_count"] = len(attached)
+            opp["quoted_value"] = sum(float(q.get("total") or 0) for q in attached)
     return {"opportunities": items, "total": total}
 
 
@@ -1339,6 +1470,35 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
         "created_at": _now(), "updated_at": _now(),
     }
     await db.crm2_quotes.insert_one(quote)
+    # Iter 216h265 — workflow tightening. When a quote is created on
+    # an opportunity, auto-advance the opp to at least "proposal" (so
+    # the pipeline view always reflects reality). Contact lifecycle
+    # gets nudged lead → prospect since they've now received a quote.
+    if data.get("opportunity_id"):
+        opp = await db.crm2_opportunities.find_one(
+            {"id": data["opportunity_id"], **_of(user)}, {"_id": 0}
+        )
+        if opp and opp.get("stage") in (None, "", "lead", "qualified", "discovery", "solution"):
+            stage_info = next((s for s in OPPORTUNITY_STAGES if s["id"] == "proposal"), None)
+            if stage_info:
+                await db.crm2_opportunities.update_one(
+                    {"id": opp["id"]},
+                    {"$set": {
+                        "stage": "proposal",
+                        "probability": stage_info["probability"],
+                        "stage_entered_at": _now(),
+                        "updated_at": _now(),
+                    }, "$push": {
+                        "stage_history": {"stage": "proposal", "entered_at": _now(),
+                                          "by": user.get("full_name", ""),
+                                          "reason": "Quote created"},
+                    }},
+                )
+    if data.get("contact_id"):
+        await db.crm2_contacts.update_one(
+            {"id": data["contact_id"], **_of(user), "lifecycle": "lead"},
+            {"$set": {"lifecycle": "prospect", "updated_at": _now()}},
+        )
     await evaluate_workflows("quote_created", quote, user.get("organization_id"), user.get("full_name", ""))
     return {k: v for k, v in quote.items() if k != "_id"}
 
@@ -3160,6 +3320,112 @@ async def sign_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
         }}
     )
     return {"success": True, "status": "accepted", "signer": signer_name}
+
+
+# Iter 216h265 — Print + Email Quote ════════════════════════════════
+#
+# Customer asked for "ability to print quotes" and "distribution via
+# email". PDF generation routes through the existing reportlab helper
+# (used in crm_cpq.py); email delivery uses the unified utils.email
+# pipeline (same one Quotes-the-supplier and Engineer reports use).
+
+
+@router.get("/quotes/{quote_id}/pdf")
+async def quote_pdf(quote_id: str, user=Depends(get_crm_user)):
+    """Render the quote as a downloadable PDF."""
+    from fastapi.responses import Response
+    quote = await db.crm2_quotes.find_one({"id": quote_id, **_of(user)}, {"_id": 0})
+    if not quote:
+        raise HTTPException(404, "Quote not found")
+    try:
+        from utils.crm_quote_pdf import render_quote_pdf
+        pdf_bytes = await render_quote_pdf(quote, organization_id=user.get("organization_id"))
+    except Exception as exc:
+        logger.exception("[crm.quote_pdf] render failed")
+        raise HTTPException(500, f"Could not generate PDF: {exc}") from exc
+    filename = (quote.get("quote_number") or quote_id) + ".pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/quotes/{quote_id}/send-email")
+async def send_quote_email(quote_id: str, data: dict, user=Depends(get_crm_user)):
+    """Email the quote PDF to the customer.
+
+    Body: `{to?: str, cc?: list[str], subject?: str, message?: str}`.
+    Defaults `to` to the linked contact's email when omitted.
+    """
+    quote = await db.crm2_quotes.find_one({"id": quote_id, **_of(user)}, {"_id": 0})
+    if not quote:
+        raise HTTPException(404, "Quote not found")
+    to_addr = (data.get("to") or "").strip().lower()
+    if not to_addr and quote.get("contact_id"):
+        contact = await db.crm2_contacts.find_one(
+            {"id": quote["contact_id"], **_of(user)},
+            {"_id": 0, "email": 1, "first_name": 1, "last_name": 1},
+        )
+        if contact:
+            to_addr = (contact.get("email") or "").strip().lower()
+    if not to_addr:
+        raise HTTPException(
+            400,
+            "No recipient email. Pass `to` or link a contact with an email address.",
+        )
+    cc = [c for c in (data.get("cc") or []) if isinstance(c, str) and c.strip()]
+    subject = (data.get("subject") or f"Quote {quote.get('quote_number') or quote_id}").strip()
+    body_html = (data.get("message") or "").strip() or (
+        f"<p>Hi,</p>"
+        f"<p>Please find attached quote <b>{quote.get('quote_number') or quote_id}</b> "
+        f"from {user.get('full_name') or 'us'}.</p>"
+        f"<p>Total: <b>£{float(quote.get('total') or 0):,.2f}</b><br>"
+        f"Valid until: {quote.get('valid_until') or 'on request'}</p>"
+        f"<p>Reply to this email with any questions.</p>"
+    )
+    try:
+        from utils.crm_quote_pdf import render_quote_pdf
+        from utils.email import send_email
+        pdf_bytes = await render_quote_pdf(quote, organization_id=user.get("organization_id"))
+        attachment = {
+            "filename": (quote.get("quote_number") or quote_id) + ".pdf",
+            "content": pdf_bytes,
+            "content_type": "application/pdf",
+        }
+        await send_email(
+            to=to_addr,
+            subject=subject,
+            html=body_html,
+            cc=cc or None,
+            attachments=[attachment],
+        )
+    except Exception as exc:
+        logger.exception("[crm.quote_send_email] failed")
+        raise HTTPException(500, f"Could not send quote email: {exc}") from exc
+
+    sent_at = _now()
+    await db.crm2_quotes.update_one(
+        {"id": quote_id},
+        {"$set": {
+            "last_sent_to": to_addr,
+            "last_sent_at": sent_at,
+            "status": "sent" if quote.get("status") in (None, "", "draft", "approved") else quote.get("status"),
+            "updated_at": sent_at,
+        }, "$push": {
+            "send_log": {"to": to_addr, "cc": cc, "sent_at": sent_at, "by": user.get("full_name", "")},
+        }},
+    )
+    await db.crm2_activities.insert_one({
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "type": "system", "subject": f"Quote {quote.get('quote_number') or quote_id} emailed",
+        "body": f"Sent to {to_addr}",
+        "quote_id": quote_id, "company_id": quote.get("company_id"),
+        "contact_id": quote.get("contact_id"),
+        "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
+        "created_at": sent_at, "updated_at": sent_at,
+    })
+    return {"ok": True, "to": to_addr, "sent_at": sent_at}
 
 
 # ═══════════════════════════════════════════

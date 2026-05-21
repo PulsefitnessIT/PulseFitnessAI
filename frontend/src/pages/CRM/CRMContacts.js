@@ -467,7 +467,6 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
                 { key: 'last_name', label: 'Last Name' },
                 { key: 'email', label: 'Email', span: 2 },
                 { key: 'phone', label: 'Phone' },
-                { key: 'job_title', label: 'Job Title' },
                 { key: 'linkedin', label: 'LinkedIn', span: 2 },
                 { key: 'source', label: 'Source' },
               ].map(f => (
@@ -476,6 +475,21 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
                   <input value={editForm[f.key] || ''} onChange={e => setEditForm({...editForm, [f.key]: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid={`edit-contact-${f.key}`} />
                 </div>
               ))}
+              {/* Iter 216h265 — Job Title picklist parity on the edit form */}
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Job Title</label>
+                <PicklistSelect
+                  pickKey="job_title"
+                  value={editForm.job_title || ''}
+                  onChange={v => setEditForm({ ...editForm, job_title: v })}
+                  placeholder="Select a job title"
+                  api={API}
+                  headers={headers}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  testId="edit-contact-job-title-picklist"
+                />
+              </div>
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Company</label>
                 <select value={editForm.company_id || ''} onChange={e => { const co = companies.find(cx => cx.id === e.target.value); setEditForm({...editForm, company_id: e.target.value, company_name: co?.name || ''}); }}

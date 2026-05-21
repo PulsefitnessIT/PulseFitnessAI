@@ -195,3 +195,23 @@ def build_crm_quote_pdf(quote: dict, org: dict) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
+
+
+async def render_quote_pdf(quote: dict, organization_id: str | None = None) -> bytes:
+    """Async helper used by `crm_v2.quote_pdf` + `send_quote_email`.
+
+    Resolves the organisation doc (for branding) then delegates to the
+    synchronous `build_crm_quote_pdf`. Tolerant of a missing org row —
+    falls back to a bare {} so an export still works on demo tenants.
+    """
+    org: dict = {}
+    if organization_id:
+        try:
+            from utils.database import db as _db
+            org_doc = await _db.organizations.find_one({"id": organization_id}, {"_id": 0})
+            if org_doc:
+                org = org_doc
+        except Exception:
+            org = {}
+    return build_crm_quote_pdf(quote, org)

@@ -146,6 +146,47 @@ async def list_territories(user=Depends(get_crm_user)):
     return {"territories": items, "total": len(items)}
 
 
+@router.get("/tree")
+async def territory_tree(user=Depends(get_crm_user)):
+    """Iter 216h265 — hierarchical territory tree.
+
+    Returns territories nested by `parent_id` (UK → Scotland → North…)
+    plus a flat list so the UI can pick whichever shape it needs.
+    Roots are nodes with no `parent_id` (or a `parent_id` that doesn't
+    resolve inside the org — defensive against stale data).
+    """
+    of = _org_filter(user)
+    items = await db.crm_territories.find(
+        {**of, "archived": {"$ne": True}},
+        {"_id": 0},
+    ).sort("name", 1).to_list(1000)
+
+    by_id = {t["id"]: t for t in items}
+    # Cheap headline rollups so the tree can show counts without N+1
+    # round-trips on the client side.
+    children_by_parent: dict[str | None, list[dict]] = {}
+    for t in items:
+        pid = t.get("parent_id") if t.get("parent_id") in by_id else None
+        children_by_parent.setdefault(pid, []).append(t)
+
+    def build(node: dict) -> dict:
+        kids = children_by_parent.get(node["id"], [])
+        return {
+            **node,
+            "children": sorted(
+                (build(c) for c in kids),
+                key=lambda n: (n.get("name") or "").lower(),
+            ),
+        }
+
+    roots = children_by_parent.get(None, [])
+    tree = sorted(
+        (build(r) for r in roots),
+        key=lambda n: (n.get("name") or "").lower(),
+    )
+    return {"tree": tree, "flat": items, "total": len(items)}
+
+
 @router.post("")
 @router.post("/")
 async def create_territory(data: dict, user=Depends(get_crm_user)):
