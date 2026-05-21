@@ -1,3 +1,87 @@
+## Iter 216h271 — Master Admin Memberships + Free Trial button fixes (Feb 21, 2026) ✅ Bug fixes
+
+Two user-reported bugs surfaced from the screenshots.
+
+### Bug 1 — Master Admin → Memberships stuck loading
+
+**Symptom**: page never finished loading; sub-pages "GymAxis / Pulse
+Fitness portal buttons" also couldn't reach memberships.
+
+**Root cause**: two of the ten endpoints the page fans out to
+returned **500** with `KeyError: 'name'`:
+
+```python
+# crm/master_admin_memberships.py L659, L825
+org_names = {o["id"]: o["name"] for o in
+             await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(2000)}
+```
+
+A few org docs in the live DB are partial (no `name`, sometimes
+no `id`) — the comprehension blew up. The frontend used
+`Promise.all`, so a single 500 rejected the whole batch and the
+page never cleared the loading flag.
+
+**Fix** (`routes/master_admin_memberships.py`):
+* Every brittle `o["name"]` / `o["id"]` swapped to
+  `.get(...) or "—"` with an `if o.get("id"):` skip guard.
+* 5 call-sites hardened — `engagement` alerts, `revenue` by-org,
+  `instructors` utilisation, `instructors` churn rows, and the
+  shared `org_names` dict in both top-level endpoints.
+
+**Defence in depth** (`useMembershipsAdmin.js`):
+* `Promise.all` → `Promise.allSettled`. A single endpoint 500 now
+  loads the OTHER nine tabs and the operator gets a toast listing
+  exactly which sections failed (e.g.
+  *"Memberships admin: 2 sections failed to load (revenue, instructors)"*)
+  instead of a stuck loading spinner.
+
+### Bug 2 — "Start Free Trial" button has no visible text
+
+**Symptom**: the Free Trial button in the mobile marketing menu
+appeared as an empty pill (circled in red on the user's screenshot).
+
+**Root cause**: `MarketingShell.js` line 131 used only the `gx-cta`
+custom CSS class for styling. In some builds Tailwind's purge
+pass dropped the custom class, leaving the button with no
+background gradient AND inheriting white-on-white text.
+
+**Fix** (`MarketingShell.js`): replaced the class-only styling
+with explicit inline `linear-gradient(..., var(--gx-brand-from),
+var(--gx-brand-to))` background + `color: #fff` — same brand
+gradient as the hero CTA, but inline so it can't be purged. Same
+fix applied prophylactically to the shared `Navbar.js` mobile
+trial button (which had the same class-dependency vulnerability).
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h271_membership_admin_and_trial_btn.py`) | **7 / 7** |
+| `make regression` | **313 passed, 14 skipped** (was 306 → 313) |
+| `ruff` + `yarn eslint --max-warnings 0` | clean |
+| Live curl: `/api/master-admin/memberships/revenue` | **200** (was 500) |
+| Live curl: `/api/master-admin/memberships/instructors` | **200** (was 500) |
+| Live screenshot (375×800): mobile menu → "Start Free Trial" visible with brand gradient + white text | ✅ |
+
+### Why both fixes matter
+
+The Master Admin Memberships page was the ONE central place
+operators go to check MRR, churn, and instructor utilisation across
+every gym on the platform. Stuck-loading meant zero visibility —
+the platform owner couldn't see revenue or churn by org. Fix is
+defensive (frontend allSettled) AND root-cause (backend get()
+guards), so future fixtures with partial org docs can never
+re-break this surface.
+
+The Free Trial CTA on mobile is the **primary conversion path**
+for the marketing site — an invisible button on the homepage
+mobile menu translates directly into missed signups. Inline styles
+make the button visible regardless of CSS purge behaviour.
+
+---
+
+
+
 ## Iter 216h270 — Expand Miller Heiman fields on contacts (Feb 21, 2026) ✅ P3
 
 Iter 216h223 shipped multi-tag `influence_types[]` + a per-opp

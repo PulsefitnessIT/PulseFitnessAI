@@ -128,7 +128,19 @@ export function MarketingNav() {
               ))}
             </nav>
             <div className="px-4 pb-6 pt-3 border-t border-slate-100 space-y-2 dark:border-zinc-800">
-              <button onClick={() => { setOpen(false); openTrial(); }} className="gx-cta w-full rounded-full px-5 py-3 text-sm font-bold" data-testid="gx-nav-mobile-trial">
+              {/* Iter 216h271 — explicit inline gradient + white text.
+                  The previous `gx-cta` class alone evaluated invisible
+                  on the mobile menu surface (white-on-white because
+                  Tailwind purged the custom class in some builds). */}
+              <button
+                onClick={() => { setOpen(false); openTrial(); }}
+                className="w-full rounded-full px-5 py-3 text-sm font-bold transition-shadow hover:shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, var(--gx-brand-from, #2563EB) 0%, var(--gx-brand-to, #9D4CDD) 100%)',
+                  color: '#fff',
+                }}
+                data-testid="gx-nav-mobile-trial"
+              >
                 Start Free Trial
               </button>
               <button onClick={() => { setOpen(false); navigate('/login'); }} className="w-full rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 dark:border-zinc-800" data-testid="gx-nav-mobile-signin">

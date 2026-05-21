@@ -596,7 +596,15 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  ) : (
  <>
  <Button onClick={() => { setIsLogin(true); setShowAuth(true); setMobileMenuOpen(false); }} variant="outline" className="w-full" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="mobile-login-btn">{t('nav.login')}</Button>
- <Button onClick={() => { setIsLogin(false); setShowAuth(true); setMobileMenuOpen(false); }} className="w-full" data-testid="mobile-trial-btn">{t('nav.start_free_trial')}</Button>
+ <Button
+  onClick={() => { setIsLogin(false); setShowAuth(true); setMobileMenuOpen(false); }}
+  className="w-full justify-center hover:opacity-90 border-0 font-semibold"
+  style={{
+    background: 'linear-gradient(135deg, var(--gx-brand-from, #2563EB) 0%, var(--gx-brand-to, #9D4CDD) 100%)',
+    color: '#fff',
+  }}
+  data-testid="mobile-trial-btn"
+>{t('nav.start_free_trial')}</Button>
  </>
  )}
  </div>

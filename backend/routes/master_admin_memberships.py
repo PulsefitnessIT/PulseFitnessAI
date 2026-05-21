@@ -171,8 +171,8 @@ async def memberships_overview(user: dict = Depends(get_current_user)):
         churn_rate = round(100.0 * ch / max(1, total_members), 1) if total_members else 0.0
         if churn_rate >= 5.0:
             per_org_alerts.append({
-                "organization_id": o["id"],
-                "name": o["name"],
+                "organization_id": o.get("id"),
+                "name": o.get("name") or "—",
                 "churn_rate": churn_rate,
                 "cancelled_30d": ch,
                 "members": total_members,
@@ -656,7 +656,16 @@ async def revenue_oversight(user: dict = Depends(get_current_user)):
         }},
         {"$sort": {"mrr_pence": -1}},
     ]).to_list(500)
-    org_names = {o["id"]: o["name"] for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(2000)}
+    # Iter 216h271 — guard against orphan org docs missing `name` or
+    # `id` (a fixture / partial migration can leave these unset). The
+    # previous strict dict-access blew up the whole revenue endpoint
+    # with KeyError → 500 → frontend Promise.all rejected → the
+    # entire Master Admin Memberships page stayed in loading state.
+    org_names = {
+        o["id"]: o.get("name") or "—"
+        for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(2000)
+        if o.get("id")
+    }
     by_org = [{
         "organization_id": r["_id"], "name": org_names.get(r["_id"]) or "—",
         "mrr_pence": int(r["mrr_pence"]), "members": r["members"],
@@ -755,6 +764,8 @@ async def engagement_retention(user: dict = Depends(get_current_user)):
     ).to_list(500)
     util_rows: list[dict] = []
     for o in orgs:
+        if not o.get("id"):
+            continue
         row = await db.class_occurrences.aggregate([
             {"$match": {"organization_id": o["id"], "starts_at": {"$gte": _since(30)}}},
             {"$group": {"_id": None,
@@ -764,7 +775,7 @@ async def engagement_retention(user: dict = Depends(get_current_user)):
         if row and row[0]["capacity"]:
             util = round(100.0 * row[0]["booked"] / row[0]["capacity"], 1)
             util_rows.append({
-                "organization_id": o["id"], "name": o["name"],
+                "organization_id": o["id"], "name": o.get("name") or "—",
                 "capacity_30d": int(row[0]["capacity"]),
                 "booked_30d": int(row[0]["booked"]),
                 "utilisation_pct": util,
@@ -779,6 +790,8 @@ async def engagement_retention(user: dict = Depends(get_current_user)):
     # Churn by org
     churn_rows: list[dict] = []
     for o in orgs:
+        if not o.get("id"):
+            continue
         total = await db.members.count_documents({"organization_id": o["id"]})
         can30 = await db.members.count_documents({
             "organization_id": o["id"], "status": "cancelled",
@@ -786,7 +799,7 @@ async def engagement_retention(user: dict = Depends(get_current_user)):
         })
         if total:
             churn_rows.append({
-                "organization_id": o["id"], "name": o["name"],
+                "organization_id": o["id"], "name": o.get("name") or "—",
                 "members": total, "cancelled_30d": can30,
                 "churn_rate_30d": round(100.0 * can30 / total, 1),
             })
@@ -822,7 +835,12 @@ async def instructor_leaderboard(user: dict = Depends(get_current_user)):
         }},
     ]
     rows = await db.class_occurrences.aggregate(pipe).to_list(2000)
-    org_names = {o["id"]: o["name"] for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(2000)}
+    # Iter 216h271 — same orphan-org guard as revenue_oversight (above).
+    org_names = {
+        o["id"]: o.get("name") or "—"
+        for o in await db.organizations.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(2000)
+        if o.get("id")
+    }
     out: list[dict] = []
     for r in rows:
         name = r["_id"].get("instructor_name") or "—"
