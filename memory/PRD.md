@@ -1,3 +1,116 @@
+## Iter 216h273 — Preview wipe + Org Integrity Audit (Feb 21, 2026) ✅
+
+User ask (verbatim): *"Wipe test data — Keep only Master Admin,
+Third Space, British Army and Catterick Garrison. Nuke everything
+else on preview. Continue potential improvement."*
+
+### The preview wipe
+
+Built `scripts/wipe_preview_to_kept_orgs.py` with explicit keep-list:
+
+| ID | Name | Type |
+|---|---|---|
+| 9fa701ef-…3179d | GymAxis AI Admin | full (master admin home) |
+| c695638c-…4205 | Third Space | pulse_pro |
+| 2be58411-…2997 | British Army — Head Office | mod_org |
+| 6c355051-…06fc | Catterick Garrison | mod_branch |
+| mod-site-army-catterick | Catterick Garrison Gym | mod_site |
+
+**Wipe scope** (dry-run shown before execute, user confirmed):
+* `organizations` — deleted 402 (kept 5)
+* `users` — deleted 330 (kept 9: master admin + 2 Pulse staff under his org + 2 Third Space + 4 MOD/Army)
+* Every org-scoped collection (members, sites, equipment, issues,
+  CRM contacts/companies/deals/quotes, supplier records, service
+  cases, audit logs, etc.) filtered by `organization_id NOT IN <keep>`
+* Wiped entirely: operational logs (security_audit_log, jwt_revocations,
+  rate_buckets, password_reset_tokens, email_send_events,
+  crm_loop_runs, qr_rotation_secret, support_*, etc.)
+* **Preserved**: manufacturer_catalogue, pricing_plans, gym_layouts,
+  onboarding_packets, memberships_global_rules (global reference data)
+
+**Recurrence prevention**:
+* `routes/crm_auth.py:seed_crm_admin()` was creating two extra
+  CRM-specific orgs ("GymAxis AI" + "Pulse Fitness", `portal_type=crm`)
+  on every boot, blowing the scoped wipe. Now gated behind
+  `CRM_SEED_DEMO_ORGS` env flag (set to `0` on this preview's
+  `backend/.env`). When disabled, the seeder only ensures the
+  master admin has a CRM user record on the existing master org —
+  no new orgs created. Default stays `1` for dev environments.
+* `tests/conftest.py` creates "Test Org" + `test@gymaxisai.com` on
+  every `make regression` run for fixture isolation. Documented as
+  a known artefact — gets re-nuked any time a clean preview is
+  re-prepared. Doesn't affect runtime, only ever appears during
+  test execution.
+
+### Continued improvement: Org Integrity Audit
+
+Follow-on to h272 (which self-healed the master admin org
+specifically). This iter ships a generalised read-only audit:
+
+**Endpoints** (master admin only, prefixed `/api/master-admin/integrity/...`):
+
+* `GET /org-integrity` — sweeps every user record and reports
+  every one whose `organization_id` points at a missing org doc
+  (or is missing the field entirely). Returns:
+  ```json
+  {
+    "total_users": int,
+    "total_orgs": int,
+    "orphan_users_count": int,
+    "orphan_users": [
+      {"id", "email", "full_name", "role", "organization_id",
+       "is_master_admin", "active", "missing_reason"}
+    ],
+    "checked_at": ISO
+  }
+  ```
+  Classifies orphans as `org_doc_missing` (h272-style pointer break)
+  or `no_organization_id` (legacy / partial fixtures).
+
+* `DELETE /orphan-users/{user_id}` — manual cleanup with two
+  safety guards:
+  1. **Refuses** if the user's org actually exists (a stale audit
+     can't be turned into accidental data loss → 409).
+  2. **Refuses** to delete master admins via this endpoint (use
+     regular user management → 403).
+
+Master-admin-gated. Read-only by default. Does NOT auto-heal —
+h272 covers the master admin specifically, and we don't want to
+silently re-create tenant orgs for paying customers (that'd mask
+real data corruption).
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h273_org_integrity_audit.py`) | **8 / 8** |
+| `make regression` | **326 passed, 14 skipped** (was 318 → 326) |
+| `ruff` clean | ✅ |
+| Final DB state | **5 orgs, 9 users** (exactly the keep list) |
+| Live `/api/me/module-trials` → master admin | HTTP 200, full module access |
+| Live `/api/master-admin/memberships/overview` | HTTP 200, `total_orgs: 5` |
+| Live `/api/master-admin/integrity/org-integrity` | HTTP 200, `orphans: 0` |
+| Backend restart with CRM_SEED_DEMO_ORGS=0 → no stray orgs return | ✅ |
+
+### Why this matters
+
+The preview is now a clean, predictable demo environment that
+mirrors what the customer will see when they log in:
+* GymAxis AI Admin (their master) → owns the CRM + master tooling
+* Third Space (a CRM/Pulse Pro customer)
+* British Army HQ + Catterick Garrison + Catterick Gym (a MOD
+  multi-site tree)
+
+The Org Integrity Audit means a future zombie-pointer scenario
+(like h272) would surface as a clean orphan-users list in the
+master admin UI rather than a user-facing crash. Builds the
+foundation for a future "Data Hygiene" tile rolling up integrity
+checks across every join in the platform.
+
+---
+
+
+
 ## Iter 216h272 — `/memberships` "Organisation not found" P0 bug fix (Feb 21, 2026) ✅
 
 User report (verbatim): *"Master Admin → Memberships still not

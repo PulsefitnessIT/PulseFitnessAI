@@ -496,8 +496,36 @@ _DEFAULT_PIPELINE_STAGES = [
 
 
 async def seed_crm_admin():
-    """Seed CRM users, orgs, and pipeline on every startup. Always resets passwords."""
+    """Seed CRM users, orgs, and pipeline on every startup. Always resets passwords.
+
+    Iter 216h273 — gated by `CRM_SEED_DEMO_ORGS` env flag (defaults
+    to ON to preserve existing dev-env behaviour). Set to "0" on
+    previews where the customer has scoped down to a specific keep
+    list — otherwise this seeder re-creates "GymAxis AI" + "Pulse
+    Fitness" CRM orgs on every boot, blowing the scoped wipe.
+    """
     import os
+
+    # Master admin CRM access is the ONLY thing that must always
+    # be seeded — we attach it to the existing master admin home
+    # org instead of creating a new one when demo seeding is off.
+    seed_demo = os.environ.get("CRM_SEED_DEMO_ORGS", "1").lower() not in ("0", "false", "no")
+
+    if not seed_demo:
+        # Minimal seed: ensure the master admin has a CRM user record
+        # bound to their existing master home org.
+        master_user = await db.users.find_one(
+            {"email": os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")},
+            {"_id": 0, "organization_id": 1},
+        )
+        master_org_id = (master_user or {}).get("organization_id")
+        if master_org_id:
+            await _seed_crm_user(
+                os.environ.get("MASTER_ADMIN_EMAIL", "admin@gymaxisai.com"),
+                os.environ.get("MASTER_ADMIN_PASSWORD", "MasterAdmin123!"),
+                "Master Admin", organization_id=master_org_id,
+            )
+        return
 
     # 1. Create GymAxis Admin CRM org
     admin_crm_org = await db.organizations.find_one({"name": "GymAxis AI", "portal_type": "crm"}, {"_id": 0, "id": 1})
