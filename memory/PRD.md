@@ -1,3 +1,97 @@
+## Iter 216h278 — Interactive UK Territory Map (Feb 21, 2026) ✅ P1
+
+Customer ask (verbatim): *"I would like an interactive Map of the UK
+where we can allocate colours to counties — then be able to allocate
+those areas to Sales Managers and Engineers — We can then use this
+within Tenders as a visual representation of sales managers and
+engineers coverage. Within the counties could also be broken down into
+post codes in case there are any cross overs."*
+
+User choices: 1a (England + Wales + Scotland + NI), 2c (both layers
+editable, postcode override beats county), 3c (multiple managers +
+engineers per region, full list in side panel), 4c (badge + auto-route
++ Territory Coverage report), 5b (manual colour per rep).
+
+### What shipped
+
+* **`CRM → Territories → Map` tab** (new default view) with:
+  * 74 ceremonial counties spanning the full UK (England + Wales +
+    Scotland + NI) rendered from a bundled 196 KB TopoJSON.
+  * 120 postcode areas (AB, AL, B, …) on a second toggleable layer.
+  * Click a region → side drawer with a searchable team picker.
+    Multiple Sales Managers + Engineers per region (model already
+    supports N-to-1 via `assigned_rep_ids`).
+  * Click a person → "focus mode" — only that rep's regions stay
+    coloured; everything else fades to a neutral wash.
+  * Per-person colour picker (HTML `<input type=color>`) + role
+    selector (Manager / Engineer / Both).
+  * "Export SVG" downloads a printable hand-over of the current map
+    (with assigned colours baked in).
+
+* **Tenders → "Covered by" badge** — every tender row whose linked
+  company has a postcode renders a compact pill showing the rep
+  name + colour dot + first-initial chips. Cached client-side so a
+  scrolling list doesn't fire N requests.
+
+* **Cross-over rule** — postcode-area territories carry priority 100,
+  county territories priority 10, so a single postcode override
+  always beats a broad county sweep. (Customer's exact ask.)
+
+### Backend
+
+`routes/crm_territories.py` adds 6 endpoints (re-ordered above the
+existing `/{tid}` catch-all so FastAPI doesn't shadow them):
+
+* `GET  /staff-palette` — list CRM users with `colour_hex` + `territory_role`
+* `PUT  /staff/{uid}/style` — set colour / role (self-service or admin)
+* `PUT  /region/{region_type}/{region_code}` — upsert / archive
+  per-region territory (creates row in `crm_territories` with
+  `region_type` + `region_code` + priority); empty list clears it
+* `GET  /coverage-map` — compact `{counties:{}, postcode_areas:{}}`
+* `GET  /coverage-for?postcode=&county=&company_id=` — owner lookup
+* `GET  /coverage-report` — pipeline + tender £ per rep, per region
+
+Every region maps 1:1 to an existing `crm_territories` row, so the
+auto-assign engine + rollup keep working unchanged.
+
+### Frontend
+
+* `pages/CRM/CRMTerritoryMap.js` (new, ~340 lines) — built on
+  `react-simple-maps` + `topojson-client` + `d3-geo`.
+* `components/CRM/CoverageBadge.js` (new) — reusable badge with a
+  module-level cache so the same lookup never fires twice.
+* `pages/CRM/CRMTerritories.js` — Map / List view toggle; Map is the
+  new default, List one click away for the existing power-user view.
+* `public/maps/uk_counties.topojson` (196 KB) + `uk_postcodes.topojson`
+  (352 KB) — pre-simplified to 5 % via `mapshaper`.
+
+### Verification
+
+* `tests/test_iter_216h278_territory_map.py` — 14 tests pin colour /
+  role normalisation, region priority rule (postcode > county),
+  upsert / clear flow, staff palette defaults, coverage-map grouping,
+  postcode-lookup via `company_id`.
+* `make regression` → **373 passed, 14 skipped** (up from 359).
+* UI smoke: full UK rendered with all 74 counties, sidebar staff
+  palette populated (Master Admin + Service Desk Agent), region click
+  opens drawer (verified visually).
+
+### Files
+
+* `backend/routes/crm_territories.py` (modified — 6 new routes)
+* `frontend/src/pages/CRM/CRMTerritoryMap.js` (new)
+* `frontend/src/pages/CRM/CRMTerritories.js` (modified — view toggle)
+* `frontend/src/pages/CRM/CRMTenders.js` (modified — coverage badge)
+* `frontend/src/components/CRM/CoverageBadge.js` (new)
+* `frontend/public/maps/uk_counties.topojson` (new)
+* `frontend/public/maps/uk_postcodes.topojson` (new)
+* `frontend/package.json` — added `react-simple-maps`, `d3-geo`, `topojson-client`
+* `backend/tests/test_iter_216h278_territory_map.py` (new)
+* `Makefile` (regression added)
+
+---
+
+
 ## Iter 216h277 — CRM Orgs list shows CRM-enabled orgs (Feb 21, 2026) ✅ P0
 
 Customer ask (verbatim, h276 turn): *"In Preview — I'm still not seeing

@@ -258,6 +258,385 @@ async def territory_rollup(user=Depends(get_crm_user)):
     return {"rows": rows}
 
 
+# ── Iter 216h278: Interactive UK Territory Map ───────────────────────
+#
+# A visual map of the UK (counties + postcode areas) where the admin
+# can colour regions and assign Sales Managers + Engineers. The map
+# UI reads/writes via the endpoints below; under the hood every
+# region becomes a row in `crm_territories` so the existing
+# auto-assign engine + rollup keep working unchanged.
+#
+# Postcode-area territories carry priority 100; county territories
+# carry priority 10 — so a single postcode override always beats a
+# broad county sweep, which is the "cross-over" model the customer
+# explicitly asked for.
+
+REGION_TYPES = {"county", "postcode_area"}
+_REGION_PRIORITY = {"county": 10, "postcode_area": 100}
+
+
+def _normalise_role(value: str | None) -> str:
+    v = (value or "").strip().lower()
+    return v if v in {"sales_manager", "engineer", "both"} else "sales_manager"
+
+
+def _normalise_colour(value: str | None) -> str:
+    """Accept '#RRGGBB' / 'RRGGBB' / 'rgb()'. Fall back to a neutral grey."""
+    v = (value or "").strip()
+    if not v:
+        return "#94A3B8"
+    if not v.startswith("#"):
+        v = "#" + v
+    # very lightweight hex validation
+    hex_part = v[1:]
+    if len(hex_part) in (3, 6) and all(c in "0123456789abcdefABCDEF" for c in hex_part):
+        return v.upper() if len(hex_part) == 6 else v.upper()
+    return "#94A3B8"
+
+
+@router.get("/staff-palette")
+async def staff_palette(user=Depends(get_crm_user)):
+    """List every CRM user with their assigned map colour + role.
+
+    Used by the Territory Map sidebar so admins can pick who to drop
+    onto a region. Adds a `colour_hex` and `territory_role` to each
+    record (with sensible defaults if the user hasn't been styled yet).
+    """
+    of = _org_filter(user)
+    users = await db.crm_users.find(
+        of, {"_id": 0, "password": 0},
+    ).sort("full_name", 1).to_list(500)
+    palette = []
+    for u in users:
+        palette.append({
+            "id": u["id"],
+            "full_name": u.get("full_name", ""),
+            "email": u.get("email", ""),
+            "role": u.get("role", "rep"),
+            "manager_id": u.get("manager_id"),
+            "colour_hex": _normalise_colour(u.get("colour_hex")),
+            "territory_role": _normalise_role(u.get("territory_role")),
+        })
+    return {"staff": palette, "total": len(palette)}
+
+
+@router.put("/staff/{uid}/style")
+async def update_staff_style(uid: str, data: dict, user=Depends(get_crm_user)):
+    """Save a CRM user's map colour + territory role.
+
+    Self-service: the user editing themselves is allowed; otherwise
+    requires admin/owner/manager.
+    """
+    of = _org_filter(user)
+    if uid != user["id"]:
+        _require_team_admin(user)
+    target = await db.crm_users.find_one({"id": uid, **of}, {"_id": 0, "id": 1})
+    if not target:
+        raise HTTPException(404, "User not found")
+    updates: dict = {"updated_at": _now()}
+    if "colour_hex" in data:
+        updates["colour_hex"] = _normalise_colour(data.get("colour_hex"))
+    if "territory_role" in data:
+        updates["territory_role"] = _normalise_role(data.get("territory_role"))
+    if len(updates) == 1:
+        raise HTTPException(400, "Nothing to update — pass colour_hex or territory_role")
+    await db.crm_users.update_one({"id": uid, **of}, {"$set": updates})
+    await log_audit(user, "user", uid, "style_updated", {k: v for k, v in updates.items() if k != "updated_at"})
+    return {"success": True, **{k: v for k, v in updates.items() if k != "updated_at"}}
+
+
+def _region_territory_name(region_type: str, region_code: str) -> str:
+    if region_type == "postcode_area":
+        return f"Postcode {region_code}"
+    return region_code
+
+
+async def _region_territory_doc(org_id: str, region_type: str, region_code: str) -> dict | None:
+    return await db.crm_territories.find_one(
+        {
+            "organization_id": org_id,
+            "region_type": region_type,
+            "region_code": region_code,
+            "archived": {"$ne": True},
+        },
+        {"_id": 0},
+    )
+
+
+@router.put("/region/{region_type}/{region_code}")
+async def upsert_region_assignment(
+    region_type: str,
+    region_code: str,
+    data: dict,
+    user=Depends(get_crm_user),
+):
+    """Assign N reps to a county or postcode area on the map.
+
+    Body: `{ assigned_rep_ids: [uid, ...], colour_hex?: "#RRGGBB" }`.
+    Pass an empty `assigned_rep_ids` list to clear the region.
+    Creates the underlying territory on first assignment, updates in
+    place thereafter, archives when the list goes empty.
+    """
+    _require_team_admin(user)
+    if region_type not in REGION_TYPES:
+        raise HTTPException(400, "region_type must be 'county' or 'postcode_area'")
+    region_code = (region_code or "").strip()
+    if not region_code:
+        raise HTTPException(400, "region_code required")
+    org_id = user.get("organization_id")
+    assigned = list(data.get("assigned_rep_ids") or [])
+
+    # Validate reps belong to the org (silently drops strays).
+    if assigned:
+        valid = await db.crm_users.find(
+            {"id": {"$in": assigned}, "organization_id": org_id},
+            {"_id": 0, "id": 1},
+        ).to_list(500)
+        assigned = [r["id"] for r in valid]
+
+    existing = await _region_territory_doc(org_id, region_type, region_code)
+    if not assigned:
+        # Empty list → archive the region's territory (if any).
+        if existing:
+            await db.crm_territories.update_one(
+                {"id": existing["id"]},
+                {"$set": {"archived": True, "assigned_rep_ids": [], "updated_at": _now()}},
+            )
+            await log_audit(user, "territory", existing["id"], "region_cleared",
+                            {"region_type": region_type, "region_code": region_code})
+        return {"success": True, "cleared": True}
+
+    colour = _normalise_colour(data.get("colour_hex")) if "colour_hex" in data else None
+    if existing:
+        patch: dict = {
+            "assigned_rep_ids": assigned,
+            "archived": False,
+            "updated_at": _now(),
+        }
+        if colour:
+            patch["colour_hex"] = colour
+        await db.crm_territories.update_one({"id": existing["id"]}, {"$set": patch})
+        await log_audit(user, "territory", existing["id"], "region_updated",
+                        {"assigned_rep_ids": assigned, "region_code": region_code})
+        return {"success": True, "territory_id": existing["id"]}
+
+    tid = _id()
+    record = {
+        "id": tid,
+        "organization_id": org_id,
+        "name": _region_territory_name(region_type, region_code),
+        "parent_id": None,
+        "description": f"Auto-created from map ({region_type}: {region_code})",
+        "postcode_prefixes": [region_code.upper()] if region_type == "postcode_area" else [],
+        "counties": [region_code] if region_type == "county" else [],
+        "regions": [],
+        "countries": [],
+        "assigned_rep_ids": assigned,
+        "priority": _REGION_PRIORITY[region_type],
+        "rr_cursor": 0,
+        "region_type": region_type,
+        "region_code": region_code,
+        "colour_hex": colour,
+        "archived": False,
+        "created_by": user["id"],
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    await db.crm_territories.insert_one(record)
+    await log_audit(user, "territory", tid, "region_created", {
+        "region_type": region_type, "region_code": region_code,
+        "assigned_rep_ids": assigned,
+    })
+    return {"success": True, "territory_id": tid, "created": True}
+
+
+@router.get("/coverage-map")
+async def coverage_map(user=Depends(get_crm_user)):
+    """Compact payload the map UI reads to paint every region.
+
+    Returns:
+        {
+          counties:        { '<county name>': [{user_id, full_name, colour_hex, role}] },
+          postcode_areas:  { '<area code>':   [{user_id, full_name, colour_hex, role}] },
+          updated_at:      ISO ts,
+        }
+    """
+    org_id = user.get("organization_id")
+    territories = await db.crm_territories.find(
+        {
+            "organization_id": org_id,
+            "archived": {"$ne": True},
+            "region_type": {"$in": list(REGION_TYPES)},
+        },
+        {"_id": 0},
+    ).to_list(1000)
+    # Collect every rep id so we can resolve names + colours in one batch query.
+    rep_ids: set[str] = set()
+    for t in territories:
+        for rid in t.get("assigned_rep_ids") or []:
+            rep_ids.add(rid)
+    rep_lookup: dict[str, dict] = {}
+    if rep_ids:
+        reps = await db.crm_users.find(
+            {"id": {"$in": list(rep_ids)}, "organization_id": org_id},
+            {"_id": 0, "password": 0},
+        ).to_list(500)
+        for r in reps:
+            rep_lookup[r["id"]] = {
+                "user_id": r["id"],
+                "full_name": r.get("full_name", ""),
+                "colour_hex": _normalise_colour(r.get("colour_hex")),
+                "role": _normalise_role(r.get("territory_role")),
+            }
+
+    counties: dict[str, list[dict]] = {}
+    postcodes: dict[str, list[dict]] = {}
+    for t in territories:
+        bucket = counties if t.get("region_type") == "county" else postcodes
+        members = [rep_lookup[rid] for rid in t.get("assigned_rep_ids") or [] if rid in rep_lookup]
+        bucket[t.get("region_code", "")] = members
+    return {
+        "counties": counties,
+        "postcode_areas": postcodes,
+        "updated_at": _now(),
+    }
+
+
+@router.get("/coverage-for")
+async def coverage_for(
+    postcode: str = "",
+    county: str = "",
+    company_id: str = "",
+    user=Depends(get_crm_user),
+):
+    """Resolve who covers a location — used by Tenders + Companies
+    to render a 'Covered by' badge.
+
+    Postcode-area match wins over county match (priority 100 vs 10).
+    Pass `company_id` to look up the company's stored postcode/county
+    without a round-trip from the caller.
+    """
+    org_id = user.get("organization_id")
+    # If the caller passed a company_id, resolve its postcode/county.
+    if company_id and not (postcode or county):
+        comp = await db.crm2_companies.find_one(
+            {"id": company_id, "organization_id": org_id},
+            {"_id": 0, "postcode": 1, "county": 1},
+        )
+        if comp:
+            postcode = comp.get("postcode") or ""
+            county = comp.get("county") or ""
+    record = {"postcode": postcode or "", "county": county or ""}
+    t = await resolve_territory_for(record, org_id)
+    if not t:
+        return {"covered": False}
+    rep_ids = t.get("assigned_rep_ids") or []
+    if not rep_ids:
+        return {"covered": True, "territory_id": t["id"], "territory_name": t.get("name"), "reps": []}
+    reps = await db.crm_users.find(
+        {"id": {"$in": rep_ids}, "organization_id": org_id},
+        {"_id": 0, "password": 0},
+    ).to_list(100)
+    return {
+        "covered": True,
+        "territory_id": t["id"],
+        "territory_name": t.get("name"),
+        "region_type": t.get("region_type"),
+        "region_code": t.get("region_code"),
+        "reps": [
+            {
+                "user_id": r["id"],
+                "full_name": r.get("full_name", ""),
+                "colour_hex": _normalise_colour(r.get("colour_hex")),
+                "role": _normalise_role(r.get("territory_role")),
+            }
+            for r in reps
+        ],
+    }
+
+
+@router.get("/coverage-report")
+async def coverage_report(user=Depends(get_crm_user)):
+    """Pipeline + tender £ value per rep, grouped by their territories.
+
+    The CRM Tenders module asked for a visual indicator of who covers
+    what; this endpoint feeds the "Territory Coverage" panel on the
+    Tenders page (£ value of tenders inside each rep's patch).
+    """
+    org_id = user.get("organization_id")
+    territories = await db.crm_territories.find(
+        {
+            "organization_id": org_id,
+            "archived": {"$ne": True},
+            "region_type": {"$in": list(REGION_TYPES)},
+        },
+        {"_id": 0},
+    ).to_list(1000)
+    if not territories:
+        return {"rows": [], "totals": {"tenders": 0, "value": 0}}
+
+    rep_to_regions: dict[str, list[dict]] = {}
+    for t in territories:
+        for rid in t.get("assigned_rep_ids") or []:
+            rep_to_regions.setdefault(rid, []).append({
+                "id": t["id"],
+                "name": t.get("name"),
+                "region_type": t.get("region_type"),
+                "region_code": t.get("region_code"),
+            })
+
+    # Resolve rep meta in one batch.
+    rep_ids = list(rep_to_regions.keys())
+    reps_meta: dict[str, dict] = {}
+    if rep_ids:
+        reps = await db.crm_users.find(
+            {"id": {"$in": rep_ids}, "organization_id": org_id},
+            {"_id": 0, "password": 0},
+        ).to_list(500)
+        for r in reps:
+            reps_meta[r["id"]] = {
+                "full_name": r.get("full_name", ""),
+                "colour_hex": _normalise_colour(r.get("colour_hex")),
+                "role": _normalise_role(r.get("territory_role")),
+            }
+
+    # Tender + opportunity counts per territory.
+    rows = []
+    total_tenders = 0
+    total_value = 0.0
+    for rep_id, regions in rep_to_regions.items():
+        meta = reps_meta.get(rep_id, {"full_name": "?", "colour_hex": "#94A3B8", "role": "sales_manager"})
+        tender_count = 0
+        tender_value = 0.0
+        opp_value = 0.0
+        for r in regions:
+            tenders = await db.crm_v2_tenders.find(
+                {"organization_id": org_id, "territory_id": r["id"]},
+                {"_id": 0, "value": 1},
+            ).to_list(500)
+            tender_count += len(tenders)
+            tender_value += sum(t.get("value") or 0 for t in tenders)
+            opps = await db.crm2_opportunities.find(
+                {"organization_id": org_id, "territory_id": r["id"], "stage": {"$nin": ["closed_won", "closed_lost"]}},
+                {"_id": 0, "value": 1},
+            ).to_list(500)
+            opp_value += sum(o.get("value") or 0 for o in opps)
+        rows.append({
+            "user_id": rep_id,
+            **meta,
+            "region_count": len(regions),
+            "regions": regions,
+            "tender_count": tender_count,
+            "tender_value": round(tender_value, 2),
+            "pipeline_value": round(opp_value, 2),
+        })
+        total_tenders += tender_count
+        total_value += tender_value
+    rows.sort(key=lambda r: r["tender_value"], reverse=True)
+    return {
+        "rows": rows,
+        "totals": {"tenders": total_tenders, "value": round(total_value, 2)},
+    }
 @router.get("/{tid}")
 async def get_territory(tid: str, user=Depends(get_crm_user)):
     of = _org_filter(user)
@@ -525,3 +904,5 @@ async def bulk_reassign(data: dict, user=Depends(get_crm_user)):
         {"from": frm, "to": to, "moved": moved},
     )
     return {"moved": moved}
+
+

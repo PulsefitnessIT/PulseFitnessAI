@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import ListPanel from '@/components/shared/ListPanel';
+import CoverageBadge from '@/components/CRM/CoverageBadge';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', parsing: 'var(--color-info-ios)', in_progress: 'var(--color-warning)', review: 'var(--color-accent-magenta)', submitted: 'var(--color-success-alt)', won: 'var(--color-success-alt-2)', lost: 'var(--color-danger)' };
 const Q_STATUS_COLORS = { not_started: 'var(--color-text-faint-alt)', draft: 'var(--color-warning)', reviewed: 'var(--color-accent-magenta)', final: 'var(--color-success-alt)' };
@@ -129,6 +130,7 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
                   <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{t.title}</p>
                   <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{t.status}</span>
                   <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textDim }}>{t.type}</span>
+                  {t.company_id && <CoverageBadge companyId={t.company_id} compact testId={`tender-coverage-${t.id}`} />}
                 </div>
                 <p className="text-[11px] mt-0.5" style={{ color: c.textDim }}>
                   {t.issuer && <>{t.issuer} &middot; </>}
