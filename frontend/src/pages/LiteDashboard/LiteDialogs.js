@@ -292,6 +292,10 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                       onSave={handleSaveSupplier}
                       onCancel={() => setEditingSupplier(false)}
                       brandAccent={brandAccent}
+                      authToken={authToken}
+                      onSupplierAdded={(newSupplier) => {
+                        setSupplierOptions((prev) => [...prev, newSupplier]);
+                      }}
                     />
                   )}
                 </div>
@@ -432,9 +436,59 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
    The parent still passes `options` (the org's saved suppliers) so
    handleSaveSupplier can map the chosen name → supplier_id for fault
    email routing. */
-const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccent }) => {
+const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccent, authToken, onSupplierAdded }) => {
   const [value, setValue] = useState(current || '');
   const [notify_, setNotify] = useState(false);
+  // Iter 216h262 — inline add-to-directory form. When the picked
+  // supplier name doesn't match any directory entry, surface an email
+  // input so owners/managers can fill in the missing email without
+  // leaving the equipment drawer.
+  const [supplierEmail, setSupplierEmail] = useState('');
+  const [addingToDirectory, setAddingToDirectory] = useState(false);
+
+  const directoryHit = !!value
+    && !!options
+    && options.find((s) => (s.name || '').toLowerCase() === value.toLowerCase());
+  const notInDirectory = !!value && !directoryHit;
+
+  // Reset the email field whenever the picked supplier changes
+  useEffect(() => {
+    setSupplierEmail('');
+  }, [value]);
+
+  const handleAddToDirectory = async () => {
+    const email = supplierEmail.trim();
+    if (!email) {
+      notify.error('Add an email address first');
+      return;
+    }
+    // basic email shape check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      notify.error('That doesn\u2019t look like a valid email');
+      return;
+    }
+    setAddingToDirectory(true);
+    try {
+      const r = await axios.post(
+        `${API_BASE}/suppliers`,
+        {
+          name: value,
+          email,
+          send_welcome: false, // don't spam — engineer hasn't been briefed yet
+        },
+        { headers: { Authorization: `Bearer ${authToken}` } },
+      );
+      const newSupplier = r.data || {};
+      notify.success(`${value} added to your supplier directory`);
+      if (typeof onSupplierAdded === 'function') onSupplierAdded(newSupplier);
+      setSupplierEmail('');
+    } catch (err) {
+      notify.error(err?.response?.data?.detail || 'Could not add supplier');
+    } finally {
+      setAddingToDirectory(false);
+    }
+  };
+
   return (
     <div className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3" data-testid="lite-equip-supplier-form">
       <Label className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1.5">
@@ -456,13 +510,43 @@ const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccen
         />
         Email the supplier about this assignment
       </label>
-      {/* If the picked name isn't in the org's directory, callout
-          notifications can't be emailed (no supplier_id). Surface this
-          inline so managers know to add the supplier to their directory. */}
-      {value && options && !options.find((s) => (s.name || '').toLowerCase() === value.toLowerCase()) && (
-        <p className="text-[10px] text-amber-500 mt-1.5" data-testid="lite-equip-supplier-not-in-directory">
-          &quot;{value}&quot; isn&apos;t in your supplier directory yet — fault emails won&apos;t be auto-routed until you add them in Account Settings → Suppliers.
-        </p>
+      {/* Iter 216h262 — if the picked name isn't in the org's
+          directory, show an inline email field + "Add to directory"
+          action so owners/managers can fill in the missing address
+          right here. Without an email on file, fault auto-routing
+          can't fire. */}
+      {notInDirectory && (
+        <div
+          className="mt-2.5 rounded-md border border-amber-400/40 bg-amber-50 dark:bg-amber-500/10 p-2.5"
+          data-testid="lite-equip-supplier-not-in-directory"
+        >
+          <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-snug">
+            <b>&quot;{value}&quot;</b> isn&apos;t in your supplier directory yet.
+            Add an email address below so fault notifications can be
+            auto-routed to them.
+          </p>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2">
+            <input
+              type="email"
+              value={supplierEmail}
+              onChange={(e) => setSupplierEmail(e.target.value)}
+              placeholder="service@supplier.co.uk"
+              className="flex-1 min-w-0 px-2.5 py-1.5 text-xs rounded-md border border-amber-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-zinc-900 dark:text-zinc-100 dark:border-amber-500/40 focus:outline-none focus:border-amber-500"
+              data-testid="lite-equip-supplier-add-email"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddToDirectory}
+              disabled={addingToDirectory || !supplierEmail.trim()}
+              className="h-7 text-[11px] text-white shrink-0"
+              style={{ background: brandAccent }}
+              data-testid="lite-equip-supplier-add-to-directory"
+            >
+              {addingToDirectory ? <Loader2 size={12} className="animate-spin" /> : '+ Add to directory'}
+            </Button>
+          </div>
+        </div>
       )}
       <div className="flex items-center justify-end gap-1.5 mt-3">
         <Button size="sm" variant="ghost" onClick={onCancel} className="h-7 text-[11px] text-[var(--color-text-muted)]" data-testid="lite-equip-supplier-cancel">

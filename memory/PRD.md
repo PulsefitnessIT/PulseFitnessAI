@@ -1,3 +1,68 @@
+## Iter 216h262 — Supplier inline email + dark-mode chip readability (Feb 21, 2026) ✅ Bug fix
+
+User screenshot feedback (Feb 21, 2026):
+1. *"Change supplier field — has a black button"* — the
+   SupplierMultiPicker in single-pick mode rendered the selected
+   supplier as a slate-900 pill chip on top of the Pulse Pro
+   dark-mode modal background. The chip + the surrounding wrapper
+   read as one near-invisible black rectangle. The placeholder text
+   and the open dropdown were equally unreadable.
+2. *"If the owner/manager changes the supplier and the email address
+   for the supplier isn't pre-populated they need the ability to add
+   the email address for the supplier — otherwise emails won't be
+   sent."*
+
+### Changes (frontend only)
+
+**`components/shared/SupplierMultiPicker.jsx`**
+* Wrapper now has `dark:bg-zinc-900 dark:text-zinc-100
+  dark:border-zinc-700` so the picker reads correctly on Pulse Pro
+  dark modals.
+* In `single` mode the chip switches from `bg-slate-900 text-white`
+  pill to a soft outlined `border-slate-300 bg-slate-100 text-slate-900`
+  (light) / `dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100`
+  (dark) chip — the name + ✕ are now legible against both surface
+  themes. Multi-pick mode (engineer onboarding etc.) is unchanged.
+* `ChevronDown` and placeholder text also pick up dark-mode tokens.
+
+**`pages/LiteDashboard/LiteDialogs.js` — `SupplierEditor`**
+* Accepts new props `authToken` + `onSupplierAdded(newSupplier)`.
+* When the picked supplier name doesn't match the org's directory,
+  the existing amber warning callout now also renders an **inline
+  email input + "+ Add to directory" button**. Hitting it:
+  - Validates the email shape client-side
+  - `POST /api/suppliers` with `{name, email, send_welcome: false}`
+    so the new supplier isn't spammed before the manager is ready
+  - Pushes the returned supplier into the parent's
+    `supplierOptions` so the warning disappears immediately
+  - Surfaces a toast `"{name} added to your supplier directory"`
+* Existing "Save" workflow still patches the equipment with the
+  resolved `supplier_id` so fault auto-routing kicks in on the
+  next fault report.
+
+### Why we kept `send_welcome: false`
+
+The warning copy says *"so fault notifications can be auto-routed"*
+— that's the only contract the manager is signing up to in that
+moment. We don't want the supplier to receive an out-of-context
+"welcome to Pulse" email before the org has assigned them any
+equipment. The existing
+`POST /api/suppliers/{id}/send-welcome` route lets a manager fire
+that explicitly from the Suppliers settings page.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h262_supplier_inline_email.py`) | **7 / 7** |
+| `make regression` | **200 passed, 14 skipped** (was 193 → 200) |
+| `yarn eslint --max-warnings 0` | clean |
+| Manual flow | Owner opens equipment → Change supplier → picks "Matrix Fitness" → warning + email box appear → enters email → click "+ Add to directory" → warning disappears → Save → fault auto-routing now works |
+
+---
+
+
+
 ## Iter 216h261 — Engineer Lite CRM auto-suggest banner (Feb 21, 2026) ✅ P1 enhancement
 
 User ask (verbatim): *"Continue potential improvement — auto-suggest

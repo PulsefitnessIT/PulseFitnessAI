@@ -120,22 +120,30 @@ export default function SupplierMultiPicker({
   return (
     <div ref={wrapRef} className="relative" data-testid={testid}>
       <div
-        className={`min-h-[2.5rem] w-full px-2.5 py-1.5 border rounded-lg flex flex-wrap items-center gap-1.5 bg-white ${
-          open ? 'border-slate-900' : 'border-slate-200'
+        className={`min-h-[2.5rem] w-full px-2.5 py-1.5 border rounded-lg flex flex-wrap items-center gap-1.5 bg-white text-slate-900 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700 ${
+          open ? 'border-slate-900 dark:border-zinc-500' : 'border-slate-200'
         }`}
         onClick={() => { if (!disabled) { load(); setOpen(true); } }}
       >
         {selected.map((name) => (
           <span
             key={name}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900 text-white text-xs font-semibold"
+            className={
+              single
+                /* Iter 216h262 — in single-pick mode the chip lives inside
+                   a one-line surface (often dark Pulse Pro modal). The
+                   previous slate-900 chip rendered as a near-invisible
+                   black blob. Use a contrasting outlined chip instead. */
+                ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-300 bg-slate-100 text-slate-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 text-xs font-semibold'
+                : 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900 text-white text-xs font-semibold'
+            }
             data-testid={`${testid}-chip-${name.toLowerCase().replace(/\s+/g, '-')}`}
           >
             {name}
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); remove(name); }}
-              className="hover:text-slate-300"
+              className={single ? 'hover:text-rose-600 text-slate-500 dark:text-zinc-400' : 'hover:text-slate-300'}
               aria-label={`Remove ${name}`}
               data-testid={`${testid}-remove-${name.toLowerCase().replace(/\s+/g, '-')}`}
             >
@@ -159,13 +167,13 @@ export default function SupplierMultiPicker({
           }}
           onFocus={() => { load(); setOpen(true); }}
           placeholder={selected.length === 0 ? placeholder : ''}
-          className={`flex-1 min-w-[100px] outline-none bg-transparent text-sm py-1 ${
+          className={`flex-1 min-w-[100px] outline-none bg-transparent text-sm py-1 placeholder:text-slate-400 dark:placeholder:text-zinc-500 ${
             single && selected.length ? 'hidden' : ''
           }`}
           disabled={disabled || (single && selected.length > 0)}
           data-testid={`${testid}-input`}
         />
-        <ChevronDown size={13} className="text-slate-400" />
+        <ChevronDown size={13} className="text-slate-400 dark:text-zinc-500" />
       </div>
 
       {open && (
