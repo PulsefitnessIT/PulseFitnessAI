@@ -82,6 +82,7 @@ regression:
 	  tests/test_iter_216h276_tenant_mirror.py \
 	  tests/test_iter_216h277_crm_orgs_filter_sync.py \
 	  tests/test_iter_216h278_territory_map.py \
+	  tests/test_iter_216h279_map_autoassign_heatmap.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

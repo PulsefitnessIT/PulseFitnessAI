@@ -8,6 +8,7 @@ import {
 import axios from 'axios';
 import ListPanel from '@/components/shared/ListPanel';
 import CoverageBadge from '@/components/CRM/CoverageBadge';
+import TenderCoveragePanel from '@/components/CRM/TenderCoveragePanel';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', parsing: 'var(--color-info-ios)', in_progress: 'var(--color-warning)', review: 'var(--color-accent-magenta)', submitted: 'var(--color-success-alt)', won: 'var(--color-success-alt-2)', lost: 'var(--color-danger)' };
 const Q_STATUS_COLORS = { not_started: 'var(--color-text-faint-alt)', draft: 'var(--color-warning)', reviewed: 'var(--color-accent-magenta)', final: 'var(--color-success-alt)' };
@@ -100,6 +101,8 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
       )}
 
       {!showAnalytics && (
+      <>
+      <TenderCoveragePanel />
       <ListPanel
         data-testid="crm-tender-list"
         count={{ value: total, label: 'tender' }}
@@ -151,6 +154,7 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
           );
         })}
       </ListPanel>
+      </>
       )}
 
       {/* Create Tender Dialog */}

@@ -637,6 +637,91 @@ async def coverage_report(user=Depends(get_crm_user)):
         "rows": rows,
         "totals": {"tenders": total_tenders, "value": round(total_value, 2)},
     }
+
+
+@router.get("/coverage-heatmap")
+async def coverage_heatmap(user=Depends(get_crm_user)):
+    """Per-region open pipeline + tender £ — used by the Map heatmap overlay.
+
+    Returns a flat `{counties:{code:£}, postcode_areas:{code:£}}` so the
+    Map UI can recolour each polygon's opacity in O(1). Picks the
+    MAX(tender_value, pipeline_value) per region so the heatmap stays
+    legible even when one stream is dwarfing the other.
+    """
+    org_id = user.get("organization_id")
+    territories = await db.crm_territories.find(
+        {
+            "organization_id": org_id,
+            "archived": {"$ne": True},
+            "region_type": {"$in": list(REGION_TYPES)},
+        },
+        {"_id": 0, "id": 1, "region_type": 1, "region_code": 1},
+    ).to_list(1000)
+    counties: dict[str, float] = {}
+    postcodes: dict[str, float] = {}
+    for t in territories:
+        tenders = await db.crm_v2_tenders.find(
+            {"organization_id": org_id, "territory_id": t["id"]},
+            {"_id": 0, "value": 1},
+        ).to_list(500)
+        opps = await db.crm2_opportunities.find(
+            {"organization_id": org_id, "territory_id": t["id"], "stage": {"$nin": ["closed_won", "closed_lost"]}},
+            {"_id": 0, "value": 1},
+        ).to_list(500)
+        v = max(
+            sum(x.get("value") or 0 for x in tenders),
+            sum(x.get("value") or 0 for x in opps),
+        )
+        bucket = counties if t.get("region_type") == "county" else postcodes
+        bucket[t.get("region_code", "")] = round(float(v), 2)
+    return {"counties": counties, "postcode_areas": postcodes}
+
+
+@router.post("/map-auto-assign")
+async def map_auto_assign(data: dict, user=Depends(get_crm_user)):
+    """One-click apply: push every region's coverage onto unassigned
+    companies, opportunities, and tenders.
+
+    Wraps the existing `assign_from_territory` per record and skips
+    anything that already has a `territory_id`. Returns a summary so
+    the Map sidebar can render a confirmation toast.
+
+    Body: `{ dry_run?: bool, only_unassigned?: bool }`
+    """
+    _require_team_admin(user)
+    org_id = user.get("organization_id")
+    dry_run = bool(data.get("dry_run", False))
+    only_unassigned = bool(data.get("only_unassigned", True))
+
+    coll_map = {
+        "company": db.crm2_companies,
+        "opportunity": db.crm2_opportunities,
+        "tender": db.crm_v2_tenders,
+    }
+    totals = {"company": 0, "opportunity": 0, "tender": 0}
+    for entity, coll in coll_map.items():
+        query = {"organization_id": org_id}
+        if only_unassigned:
+            query["territory_id"] = {"$in": [None, ""]}
+        cursor = coll.find(query, {"_id": 0}).limit(2000)
+        async for rec in cursor:
+            assignment = await assign_from_territory(rec, org_id)
+            if not assignment or not assignment.get("territory_id"):
+                continue
+            if not dry_run:
+                patch = {"territory_id": assignment["territory_id"], "updated_at": _now()}
+                if assignment.get("owner_id"):
+                    patch["owner_id"] = assignment["owner_id"]
+                    patch["owner_name"] = assignment.get("owner_name", "")
+                await coll.update_one({"id": rec["id"]}, {"$set": patch})
+            totals[entity] += 1
+    if not dry_run:
+        await log_audit(
+            user, "territory", "map", "auto_assign", {"totals": totals},
+        )
+    return {"dry_run": dry_run, "totals": totals, "total": sum(totals.values())}
+
+
 @router.get("/{tid}")
 async def get_territory(tid: str, user=Depends(get_crm_user)):
     of = _org_filter(user)

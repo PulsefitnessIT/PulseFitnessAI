@@ -1,3 +1,49 @@
+## Iter 216h279 — Map auto-assign + heatmap + Tender Coverage panel (Feb 21, 2026) ✅ P2
+
+Three follow-up enhancements that complete the Interactive UK
+Territory Map from h278:
+
+### 1. One-click "Auto-assign"
+New button on the Map header — runs `POST /api/crm/territories/map-auto-assign`
+which walks every unassigned company / opportunity / tender against
+the existing `assign_from_territory` engine and writes `territory_id`
++ `owner_id`. Idempotent (`only_unassigned=true` by default). Toast
+summarises totals per entity.
+
+### 2. Heatmap overlay
+New toggle on the Map header — paints each region's opacity in
+proportion to MAX(open tender £, pipeline £) inside it. Empty
+regions sit at 18 % so they stay legible; the busiest region hits
+100 %. Backed by `GET /api/crm/territories/coverage-heatmap`.
+
+### 3. Tender Coverage panel
+New collapsible panel at the top of the CRM Tenders list reading the
+existing `/coverage-report` endpoint. Per-rep summary:
+* coloured swatch + name + role (Manager / Engineer / Both)
+* region count + tender £ in flight + pipeline £
+* expandable chip strip showing every covered region
+Hides itself silently when no territories are configured so it never
+shouts at unconfigured tenants.
+
+### Files
+* `backend/routes/crm_territories.py` — 2 new endpoints
+  (`/coverage-heatmap`, `/map-auto-assign`)
+* `frontend/src/pages/CRM/CRMTerritoryMap.js` — heatmap toggle +
+  auto-assign button + opacity logic
+* `frontend/src/components/CRM/TenderCoveragePanel.js` (new)
+* `frontend/src/pages/CRM/CRMTenders.js` — wires panel above list
+* `backend/tests/test_iter_216h279_map_autoassign_heatmap.py` (new, 6 tests)
+* `Makefile` (regression added)
+
+### Verification
+* `make regression` → **379 passed, 14 skipped** (up from 373).
+* UI smoke: Map header shows new Auto-assign + Heatmap pill buttons;
+  Heatmap toggle flips colour to amber when active; Tender Coverage
+  panel silently hides when no coverage is configured (as designed).
+
+---
+
+
 ## Iter 216h278 — Interactive UK Territory Map (Feb 21, 2026) ✅ P1
 
 Customer ask (verbatim): *"I would like an interactive Map of the UK

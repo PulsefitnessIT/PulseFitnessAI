@@ -23,6 +23,7 @@ import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { feature } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
+  Flame, Zap,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -182,6 +183,9 @@ export default function CRMTerritoryMap() {
   const [counties, setCounties] = useState([]);
   const [postcodes, setPostcodes] = useState([]);
   const [coverage, setCoverage] = useState({ counties: {}, postcode_areas: {} });
+  const [heatmap, setHeatmap] = useState({ counties: {}, postcode_areas: {} });
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
   const [staff, setStaff] = useState([]);
   const [focusedUser, setFocusedUser] = useState(null);
   const [activeRegion, setActiveRegion] = useState(null);
@@ -191,13 +195,18 @@ export default function CRMTerritoryMap() {
   // ── Data loading ─────────────────────────────────────────────────
   const loadCoverage = useCallback(async () => {
     try {
-      const [cov, palette] = await Promise.all([
+      const [cov, palette, heat] = await Promise.all([
         axios.get(`${API}/crm/territories/coverage-map`, auth()),
         axios.get(`${API}/crm/territories/staff-palette`, auth()),
+        axios.get(`${API}/crm/territories/coverage-heatmap`, auth()).catch(() => ({ data: { counties: {}, postcode_areas: {} } })),
       ]);
       setCoverage({
         counties: cov.data.counties || {},
         postcode_areas: cov.data.postcode_areas || {},
+      });
+      setHeatmap({
+        counties: heat.data.counties || {},
+        postcode_areas: heat.data.postcode_areas || {},
       });
       // Auto-assign default colours to staff who haven't picked one.
       const pal = (palette.data.staff || []).map((s, i) => ({
@@ -268,16 +277,52 @@ export default function CRMTerritoryMap() {
     }
   };
 
+  // Iter 216h279 — push every region's coverage onto unassigned
+  // companies + opportunities + tenders in one click. Heaviest write
+  // op on this page so we lock the button + show a spinner; the
+  // backend already short-circuits on records that already carry a
+  // territory_id so re-runs are cheap and idempotent.
+  const runAutoAssign = async () => {
+    setAutoAssigning(true);
+    try {
+      const r = await axios.post(
+        `${API}/crm/territories/map-auto-assign`,
+        { dry_run: false, only_unassigned: true },
+        auth(),
+      );
+      const tot = r.data?.totals || {};
+      toast.success(
+        `Auto-assigned ${r.data.total} records · ${tot.company || 0} companies · ${tot.opportunity || 0} deals · ${tot.tender || 0} tenders`,
+      );
+      loadCoverage();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Auto-assign failed');
+    } finally { setAutoAssigning(false); }
+  };
+
   // ── Region fill resolver — colour-mix when N reps cover the same area ──
   const staffById = useMemo(() => Object.fromEntries(staff.map((s) => [s.id, s])), [staff]);
+  // Pre-compute the heatmap normalisation range for the active layer so
+  // opacity scales sensibly across whatever range the org has.
+  const heatRange = useMemo(() => {
+    const vals = Object.values(heatmap[layer === 'county' ? 'counties' : 'postcode_areas']).filter((v) => v > 0);
+    if (!vals.length) return { max: 0 };
+    return { max: Math.max(...vals) };
+  }, [heatmap, layer]);
   const fillForRegion = useCallback((type, code) => {
     const list = (type === 'county' ? coverage.counties : coverage.postcode_areas)[code] || [];
     const focusList = focusedUser ? list.filter((m) => m.user_id === focusedUser) : list;
     if (!focusList.length) return focusedUser ? '#F1F5F9' : '#FFFFFF';
-    // Use the first rep's colour (or merge with stripes via SVG pattern when N > 1).
     const first = staffById[focusList[0].user_id] || focusList[0];
     return first.colour_hex || '#94A3B8';
   }, [coverage, focusedUser, staffById]);
+  const opacityForRegion = useCallback((type, code) => {
+    if (!showHeatmap) return 1;
+    if (!heatRange.max) return 0.18;
+    const v = (heatmap[type === 'county' ? 'counties' : 'postcode_areas'][code]) || 0;
+    if (!v) return 0.18; // empty regions stay readable, never invisible
+    return 0.2 + 0.8 * (v / heatRange.max);
+  }, [showHeatmap, heatmap, heatRange]);
 
   // ── Geometries to render ─────────────────────────────────────────
   const features = layer === 'county' ? counties : postcodes;
@@ -341,6 +386,23 @@ export default function CRMTerritoryMap() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={runAutoAssign}
+            disabled={autoAssigning}
+            className="px-3 py-1.5 text-xs font-bold border border-zinc-200 rounded-md hover:bg-zinc-50 inline-flex items-center gap-1.5 disabled:opacity-50"
+            title="Push every region's coverage onto unassigned companies, deals and tenders."
+            data-testid="map-auto-assign"
+          >
+            <Zap size={12} className={autoAssigning ? 'animate-pulse' : ''} /> {autoAssigning ? 'Assigning…' : 'Auto-assign'}
+          </button>
+          <button
+            onClick={() => setShowHeatmap((v) => !v)}
+            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showHeatmap ? 'bg-amber-500 border-amber-500 text-white' : 'border-zinc-200 hover:bg-zinc-50'}`}
+            title="Shade regions by open pipeline + tender value."
+            data-testid="map-heatmap-toggle"
+          >
+            <Flame size={12} /> {showHeatmap ? 'Heatmap on' : 'Heatmap'}
+          </button>
+          <button
             onClick={loadCoverage}
             className="px-3 py-1.5 text-xs font-bold border border-zinc-200 rounded-md hover:bg-zinc-50 inline-flex items-center gap-1.5"
             data-testid="map-refresh"
@@ -383,9 +445,9 @@ export default function CRMTerritoryMap() {
                       geography={geo}
                       onClick={() => setActiveRegion(region)}
                       style={{
-                        default:  { fill, stroke: '#94A3B8', strokeWidth: 0.4, outline: 'none', cursor: 'pointer' },
-                        hover:    { fill: hasAssignees ? fill : '#E2E8F0', stroke: '#1E293B', strokeWidth: 0.9, outline: 'none', cursor: 'pointer' },
-                        pressed:  { fill, stroke: '#0F172A', strokeWidth: 1.1, outline: 'none' },
+                        default:  { fill, fillOpacity: opacityForRegion(region.type, region.code), stroke: '#94A3B8', strokeWidth: 0.4, outline: 'none', cursor: 'pointer' },
+                        hover:    { fill: hasAssignees ? fill : '#E2E8F0', fillOpacity: 1, stroke: '#1E293B', strokeWidth: 0.9, outline: 'none', cursor: 'pointer' },
+                        pressed:  { fill, fillOpacity: 1, stroke: '#0F172A', strokeWidth: 1.1, outline: 'none' },
                       }}
                       data-testid={`region-${region.type}-${region.code}`}
                     >
