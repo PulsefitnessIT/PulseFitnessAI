@@ -1,3 +1,63 @@
+## Iter 216h280 — Dead-link audit & redirects (Feb 21, 2026) ✅ Polish
+
+User asked: *"First wins — audit and ensure that every link is
+directed to where it is intended to."*
+
+### Audit approach
+
+1. Grepped every `Link to=`, `navigate('...')`, `<a href=`, and
+   `window.location.href` across `/app/frontend/src` and built a set
+   of internal targets.
+2. Cross-referenced against every `path="..."` declared in
+   `routes/AppRoutes.js`.
+3. Live Playwright crawl of the marketing site + auth + tenant
+   sidebar to catch runtime-only 404s and ingress collisions.
+
+### Dead links found (5) — all fixed
+
+| Source | Broken target | Fix |
+|---|---|---|
+| `pages/Public/EngineerLanding.js` "Forgot password?" link | `/forgot-password` | → `/reset-password` |
+| `pages/Public/EngineerLanding.js` footer Privacy | `/legal/privacy` | → `/privacy` |
+| `pages/Public/EngineerLanding.js` footer Terms  | `/legal/terms`   | → `/terms` |
+| `pages/ServiceOps/Engineer/EngineerHomeV2.js` Parts quick-action | `/svc/engineer/parts` | → `/svc/engineer/jobs` (parts are managed inside each job) |
+| `components/shared/Footer.js` developer-docs link | `/api-docs` | → `/developers` (the `/api*` prefix was being matched by the Kubernetes ingress and routed to the backend, producing a hard HTTP 404 before React loaded) |
+
+### Defensive redirects added in `AppRoutes.js`
+
+So any external bookmarks or stray copy-paste links keep working:
+
+* `/legal/privacy`     → `<Navigate to="/privacy" replace />`
+* `/legal/terms`       → `<Navigate to="/terms" replace />`
+* `/forgot-password`   → `<Navigate to="/reset-password" replace />`
+* `/svc/engineer/parts`→ `<Navigate to="/svc/engineer/jobs" replace />`
+* `/api-docs`          → `<Navigate to="/developers" replace />`
+
+### Verification
+
+* `tests/test_iter_216h280_link_audit.py` — 6 tests pin all five
+  redirects + scan the rest of the codebase for any remaining links
+  to the dead paths (`/legal/privacy`, `/legal/terms`).
+* `make regression` → **385 passed, 14 skipped** (up from 379).
+* Live smoke against `https://maintenance-hub-357.preview.emergentagent.com`:
+  * `/legal/privacy`     → final URL `/privacy` ✅
+  * `/legal/terms`       → final URL `/terms` ✅
+  * `/forgot-password`   → final URL `/reset-password` ✅
+  * `/svc/engineer/parts`→ final URL `/svc/engineer/jobs` (or `/login` if unauth) ✅
+  * `/developers`        → renders the Supplier Integration API page ✅
+
+### Files
+
+* `frontend/src/routes/AppRoutes.js` — 5 redirect routes + new `/developers` route
+* `frontend/src/components/shared/Footer.js` — point footer to `/developers`
+* `frontend/src/pages/Public/EngineerLanding.js` — 3 link fixes
+* `frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js` — Parts QuickAction target
+* `backend/tests/test_iter_216h280_link_audit.py` (new, 6 tests)
+* `Makefile` (regression added)
+
+---
+
+
 ## Iter 216h279 — Map auto-assign + heatmap + Tender Coverage panel (Feb 21, 2026) ✅ P2
 
 Three follow-up enhancements that complete the Interactive UK

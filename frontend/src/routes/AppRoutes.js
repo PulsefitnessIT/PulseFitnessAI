@@ -246,7 +246,12 @@ export default function AppRoutes({ user, login }) {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/contact" element={<ContactMarketingPage />} />
       <Route path="/legacy-contact" element={<ContactPage />} />
-      <Route path="/api-docs" element={<ApiDocsPage />} />
+      {/* Iter 216h280 — renamed from `/api-docs` (which Kubernetes
+          ingress routes to the backend due to the `/api*` prefix
+          rule, producing a hard 404 before React loaded). */}
+      <Route path="/developers" element={<ApiDocsPage />} />
+      {/* Legacy redirect for any external bookmarks. */}
+      <Route path="/api-docs" element={<Navigate to="/developers" replace />} />
       <Route path="/security" element={<SecurityMarketingPage />} />
       <Route path="/legacy-security" element={<SecurityPage />} />
       <Route path="/trust" element={<TrustPage />} />
@@ -269,6 +274,15 @@ export default function AppRoutes({ user, login }) {
       <Route path="/refunds" element={<RefundPolicyPage />} />
       <Route path="/legal/dpa" element={<DpaPage />} />
       <Route path="/legal/dpia" element={<DpiaPage />} />
+      {/* Iter 216h280 — legacy aliases. We never had `/legal/privacy`,
+          `/legal/terms`, `/forgot-password` or `/svc/engineer/parts`
+          as real pages, but a handful of links/buttons pointed there
+          and a few external bookmarks may. Redirect them in-app so
+          users always land on the right page. */}
+      <Route path="/legal/privacy" element={<Navigate to="/privacy" replace />} />
+      <Route path="/legal/terms"   element={<Navigate to="/terms" replace />} />
+      <Route path="/forgot-password" element={<Navigate to="/reset-password" replace />} />
+      <Route path="/svc/engineer/parts" element={<Navigate to="/svc/engineer/jobs" replace />} />
 
       {/* ─── Auth & onboarding ─── */}
       {/* Iter 216h68 — always render LoginRedirectPage so it can honour

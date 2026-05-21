@@ -347,7 +347,7 @@ export default function EngineerHomeV2() {
                              onClick={() => navigate('/svc/engineer/invoices')} />
                 <QuickAction icon={Package} label="Parts"
                              testid="qa-parts"
-                             onClick={() => navigate('/svc/engineer/parts')} />
+                             onClick={() => navigate('/svc/engineer/jobs')} />
                 <QuickAction icon={FileSignature} label="Send report"
                              testid="qa-report"
                              onClick={() => navigate('/svc/engineer/jobs')} />

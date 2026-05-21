@@ -45,7 +45,7 @@ const Footer = () => {
               <FooterLink to="/features" style={{ color: 'var(--theme-text-muted)' }}>{t('home.feat_ai_title')}</FooterLink>
               <FooterLink to="/features" style={{ color: 'var(--theme-text-muted)' }}>{t('home.feat_qr_title')}</FooterLink>
               <FooterLink to="/features" style={{ color: 'var(--theme-text-muted)' }}>{t('home.feat_warranty_title')}</FooterLink>
-              <FooterLink to="/api-docs" style={{ color: 'var(--theme-text-muted)' }}>{t('nav.api_docs')}</FooterLink>
+              <FooterLink to="/developers" style={{ color: 'var(--theme-text-muted)' }}>{t('nav.api_docs')}</FooterLink>
             </div>
           </div>
         </div>

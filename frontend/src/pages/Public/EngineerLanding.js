@@ -108,7 +108,7 @@ const LoginCard = ({ onSuccess }) => {
         Sign in
       </button>
       <p className="text-[11px] text-center text-slate-500 mt-3">
-        <Link to="/forgot-password" className="hover:underline">Forgot password?</Link>
+        <Link to="/reset-password" className="hover:underline">Forgot password?</Link>
       </p>
     </form>
   );
@@ -253,8 +253,8 @@ export default function EngineerLanding() {
 
       <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
         © {new Date().getFullYear()} GymAxis · For partner engineers ·{' '}
-        <Link to="/legal/privacy" className="hover:underline">Privacy</Link>{' · '}
-        <Link to="/legal/terms" className="hover:underline">Terms</Link>
+        <Link to="/privacy" className="hover:underline">Privacy</Link>{' · '}
+        <Link to="/terms" className="hover:underline">Terms</Link>
       </footer>
     </div>
   );
