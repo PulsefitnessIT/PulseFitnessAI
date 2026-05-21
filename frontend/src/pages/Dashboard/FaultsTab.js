@@ -40,7 +40,7 @@ const FaultsTab = ({
              {issue.resolved_by === 'gymaxis_ai' && <Badge className="bg-green-500/20 text-green-400">{t('faults.ai_fixed')}</Badge>}
              {issue.resolved_by === 'engineer' && <Badge className="bg-orange-500/20 text-orange-400">{t('faults.engineer_flag')}</Badge>}
            </div>
-           <p className="text-[var(--color-text-muted)] text-sm">{issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''} | {new Date(issue.created_at).toLocaleDateString()}</p>
+           <p className="text-[var(--color-text-muted)] text-sm">{issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''} | {new Date(issue.created_at).toLocaleDateString()}{issue.supplier_ref ? ` | Ref: ${issue.supplier_ref}` : ''}</p>
            <p className="text-white text-sm mt-1">{issue.issue_description.substring(0, 100)}{issue.issue_description.length > 100 ? '...' : ''}</p>
            {issue.sicon_case_id && (
              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]" data-testid={`job-card-summary-${issue.id}`}>

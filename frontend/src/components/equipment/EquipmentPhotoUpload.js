@@ -106,6 +106,20 @@ export default function EquipmentPhotoUpload({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [progress, setProgress] = useState(0);
+  // Iter 216h263 — was instant-fire with no visual feedback. Users
+  // pressed it again thinking nothing happened, then a toast finally
+  // arrived 5-15s later. Now: spinner + disabled button until done.
+  const [autoLookingUp, setAutoLookingUp] = useState(false);
+
+  const handleAutoLookup = async () => {
+    if (autoLookingUp || !onAutoLookup) return;
+    setAutoLookingUp(true);
+    try {
+      await onAutoLookup();
+    } finally {
+      setAutoLookingUp(false);
+    }
+  };
 
   const doUpload = useCallback(async (file) => {
     if (!file) return;
@@ -290,11 +304,24 @@ export default function EquipmentPhotoUpload({
         </div>
         {canAutoLookup ? (
           <button
-            onClick={onAutoLookup}
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-500 to-violet-500 text-white text-[10px] font-semibold rounded-md hover:opacity-90 transition shadow-md"
+            onClick={handleAutoLookup}
+            disabled={autoLookingUp}
+            className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1 text-white text-[10px] font-semibold rounded-md transition shadow-md ${
+              autoLookingUp
+                ? 'bg-gradient-to-r from-blue-500/70 to-violet-500/70 cursor-wait'
+                : 'bg-gradient-to-r from-blue-500 to-violet-500 hover:opacity-90'
+            }`}
             data-testid="equipment-photo-autolookup-btn"
           >
-            <Sparkles size={11} /> Find manufacturer photo
+            {autoLookingUp ? (
+              <>
+                <Loader2 size={11} className="animate-spin" /> Searching manufacturer site…
+              </>
+            ) : (
+              <>
+                <Sparkles size={11} /> Find manufacturer photo
+              </>
+            )}
           </button>
         ) : null}
       </div>

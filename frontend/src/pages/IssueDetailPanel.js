@@ -11,7 +11,8 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import {
  FileText, Upload, Send, Plus, Trash2,
- Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck
+ Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck,
+ ChevronDown, ChevronUp, Receipt,
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 
@@ -22,6 +23,11 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  const [supplierRef, setSupplierRef] = useState(issueProp.supplier_ref || '');
  const [attachments, setAttachments] = useState(issueProp.attachments || []);
  const [uploading, setUploading] = useState(false);
+ // Iter 216h263 — dedicated quote uploader has its own busy flag so
+ // the generic job-sheet button doesn't visually grey out alongside it.
+ const [uploadingQuote, setUploadingQuote] = useState(false);
+ // Iter 216h263 — AI Triage collapsed by default, owners can expand.
+ const [showAiTriage, setShowAiTriage] = useState(false);
  const [showPODialog, setShowPODialog] = useState(false);
  const [purchaseOrders, setPurchaseOrders] = useState([]);
  const [poForm, setPOForm] = useState({
@@ -266,23 +272,25 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  }
  };
 
- const handleFileUpload = async (e) => {
+ const handleFileUpload = async (e, kind = null) => {
  const file = e.target.files[0];
  if (!file) return;
- setUploading(true);
+ const isQuote = kind === 'quote';
+ if (isQuote) setUploadingQuote(true); else setUploading(true);
  const token = localStorage.getItem('token');
  try {
  const formData = new FormData();
  formData.append('file', file);
+ if (kind) formData.append('kind', kind);
  const res = await axios.post(`${API}/issues/${issue.id}/attachments`, formData, {
  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
  });
  setAttachments([...attachments, res.data]);
- notify.success('File uploaded');
+ notify.success(isQuote ? 'Quote uploaded' : 'File uploaded');
  } catch {
  notify.error('Upload failed');
  } finally {
- setUploading(false);
+ if (isQuote) setUploadingQuote(false); else setUploading(false);
  e.target.value = '';
  }
  };
@@ -383,6 +391,26 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  [data-portal="pulse"] .issue-detail-themed .border-t.border-white\\/10 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
  [data-portal="pulse"] .issue-detail-themed input, [data-portal="pulse"] .issue-detail-themed textarea { background: var(--theme-bg, #fff) !important; border-color: var(--theme-border, #d1d5db) !important; color: var(--theme-text, #111) !important; }
  `}</style>
+ {/* Iter 216h263 — Supplier Reference / Job Number lifted to the
+     top of the detail panel (above the Logged-by header) so it's
+     the first thing the manager sees + fills in. Once populated
+     it's also rendered on the fault list row. */}
+ <div className="p-4 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg">
+ <Label className="text-[var(--color-text-muted)] text-sm">Supplier Reference / Job Number</Label>
+ <div className="flex items-center gap-2 mt-1">
+ <Input
+ value={supplierRef}
+ onChange={(e) => setSupplierRef(e.target.value)}
+ placeholder="e.g., JOB-2024-001"
+ className="bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-white flex-1"
+ data-testid={`supplier-ref-input-${issue.id}`}
+ />
+ <Button size="sm" onClick={handleSaveSupplierRef} className="bg-[var(--color-brand-blue)] text-white" data-testid={`save-ref-btn-${issue.id}`}>
+ Save
+ </Button>
+ </div>
+ </div>
+
  {/* Info Grid */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
  <div>
@@ -480,10 +508,40 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  )}
 
- {/* AI Triage — Structured & Presentable */}
+ {/* AI Triage — collapsible (Iter 216h263). Users wanted this
+     tucked away in a dropdown so the fault card opens with the
+     conversation/quotes immediately visible. */}
+ {(issue.ai_triage_parsed || issue.ai_triage) && (
+ <div className="rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface)] overflow-hidden" data-testid={`ai-triage-dropdown-${issue.id}`}>
+ <button
+ type="button"
+ onClick={() => setShowAiTriage((s) => !s)}
+ className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-white/[0.03]"
+ data-testid={`ai-triage-toggle-${issue.id}`}
+ >
+ <span className="flex items-center gap-2 text-sm font-medium text-[var(--theme-text)]">
+ <ShieldCheck size={14} className="text-[var(--color-brand-cyan-hover)]" />
+ AI Triage Assessment
+ {issue.ai_triage_parsed?.severity_assessment ? (
+ <Badge className={
+ issue.ai_triage_parsed.severity_assessment === 'critical' ? 'bg-red-500/20 text-red-400 ml-1' :
+ issue.ai_triage_parsed.severity_assessment === 'medium' ? 'bg-yellow-500/20 text-yellow-400 ml-1' :
+ 'bg-green-500/20 text-green-400 ml-1'
+ }>
+ {(issue.ai_triage_parsed.severity_assessment || '').toUpperCase()}
+ </Badge>
+ ) : null}
+ </span>
+ {showAiTriage ? (
+ <ChevronUp size={16} className="text-[var(--color-text-muted)]" />
+ ) : (
+ <ChevronDown size={16} className="text-[var(--color-text-muted)]" />
+ )}
+ </button>
+ {showAiTriage && (
+ <div className="px-4 pb-4 pt-1 border-t border-[var(--theme-border)]">
  {issue.ai_triage_parsed ? (
  <div data-testid="structured-triage-section">
- <span className="text-[var(--color-text-muted)] text-sm font-medium">AI Triage Assessment</span>
  <div className="mt-2 space-y-3">
  {/* Severity + Status badges */}
  <div className="flex items-center gap-2 flex-wrap">
@@ -580,44 +638,30 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  ) : issue.ai_triage && (
  <div>
- <span className="text-[var(--color-text-muted)] text-sm font-medium">AI Triage Assessment</span>
  <div className="mt-2 p-4 bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded-lg text-[var(--color-text-muted)] text-sm whitespace-pre-wrap break-words" style={{overflowWrap:'break-word'}}>{issue.ai_triage}</div>
  </div>
  )}
-
- {/* Supplier Reference */}
- <div className="p-4 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg">
- <Label className="text-[var(--color-text-muted)] text-sm">Supplier Reference / Job Number</Label>
- <div className="flex items-center gap-2 mt-1">
- <Input
- value={supplierRef}
- onChange={(e) => setSupplierRef(e.target.value)}
- placeholder="e.g., JOB-2024-001"
- className="bg-[var(--theme-surface-2)] border-[var(--theme-border)] text-white flex-1"
- data-testid={`supplier-ref-input-${issue.id}`}
- />
- <Button size="sm" onClick={handleSaveSupplierRef} className="bg-[var(--color-brand-blue)] text-white" data-testid={`save-ref-btn-${issue.id}`}>
- Save
- </Button>
  </div>
+ )}
  </div>
+ )}
 
- {/* Attachments */}
+ {/* Attachments (excludes kind=quote — those have their own card below) */}
  <div className="p-4 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg">
  <div className="flex items-center justify-between mb-3">
  <h4 className="text-[var(--theme-text)] font-medium flex items-center gap-2">
- <Paperclip size={16} /> Attachments ({attachments.length})
+ <Paperclip size={16} /> Attachments ({attachments.filter((a) => (a.kind || '').toLowerCase() !== 'quote').length})
  </h4>
  <label className="cursor-pointer">
  <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.doc,.docx,.xlsx" data-testid={`attachment-input-${issue.id}`} />
  <span className="flex items-center gap-1 text-sm text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)]">
- <Upload size={14} /> {uploading ? 'Uploading...' : 'Upload Job Sheet / Quote'}
+ <Upload size={14} /> {uploading ? 'Uploading...' : 'Upload Job Sheet'}
  </span>
  </label>
  </div>
- {attachments.length > 0 ? (
+ {attachments.filter((a) => (a.kind || '').toLowerCase() !== 'quote').length > 0 ? (
  <div className="space-y-2">
- {attachments.map(att => (
+ {attachments.filter((a) => (a.kind || '').toLowerCase() !== 'quote').map(att => (
  <div key={att.id} className="flex items-center justify-between p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded">
  <div className="flex items-center gap-2">
  <FileText size={14} className="text-[var(--color-brand-blue)]" />
@@ -633,7 +677,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  ))}
  </div>
  ) : (
- <p className="text-[var(--color-text-muted)] text-sm">No files attached. Upload job sheets, quotes, or photos.</p>
+ <p className="text-[var(--color-text-muted)] text-sm">No files attached. Upload job sheets or photos here.</p>
  )}
  </div>
 
@@ -776,6 +820,55 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  <div className="flex gap-0.5">{[1,2,3,4,5].map(s => <span key={s} className={`text-sm ${s <= issue.supplier_case.rating ? 'text-amber-400' : 'text-[#333]'}`}>&#9733;</span>)}</div>
  {issue.supplier_case.rating_feedback && <span className="text-[#666] text-xs italic">"{issue.supplier_case.rating_feedback}"</span>}
  </div>
+ )}
+ </div>
+
+ {/* Quotes (Iter 216h263) — dedicated PDF/image upload slot for
+     supplier quotes. Lives ABOVE Purchase Orders so the manager
+     can see the quote before raising the PO. Uses the same
+     /attachments endpoint with `kind=quote`. */}
+ <div className="p-4 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg" data-testid={`quotes-section-${issue.id}`}>
+ <div className="flex items-center justify-between mb-3">
+ <h4 className="text-white font-medium flex items-center gap-2">
+ <Receipt size={16} className="text-[var(--color-brand-cyan-hover)]" /> Quotes ({(attachments || []).filter((a) => (a.kind || '').toLowerCase() === 'quote').length})
+ </h4>
+ <label className="cursor-pointer">
+ <input
+ type="file"
+ className="hidden"
+ onChange={(e) => handleFileUpload(e, 'quote')}
+ accept=".pdf,image/*"
+ data-testid={`quote-input-${issue.id}`}
+ />
+ <span className="inline-flex items-center gap-1 text-sm text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)]">
+ {uploadingQuote ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+ {uploadingQuote ? 'Uploading…' : 'Add quote (PDF)'}
+ </span>
+ </label>
+ </div>
+ {(attachments || []).filter((a) => (a.kind || '').toLowerCase() === 'quote').length > 0 ? (
+ <div className="space-y-2">
+ {(attachments || []).filter((a) => (a.kind || '').toLowerCase() === 'quote').map((att) => (
+ <div key={att.id} className="flex items-center justify-between p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded">
+ <div className="flex items-center gap-2 min-w-0">
+ <FileText size={14} className="text-[var(--color-brand-cyan-hover)] shrink-0" />
+ <span className="text-[var(--theme-text)] text-sm truncate">{att.filename}</span>
+ <span className="text-[var(--color-text-muted)] text-xs shrink-0">
+ {att.uploaded_by}{att.uploaded_at ? ` · ${new Date(att.uploaded_at).toLocaleDateString()}` : ''}
+ </span>
+ </div>
+ {att.download_url && (
+ <a href={att.download_url} target="_blank" rel="noreferrer" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)] shrink-0" data-testid={`quote-open-${att.id}`}>
+ <ExternalLink size={14} />
+ </a>
+ )}
+ </div>
+ ))}
+ </div>
+ ) : (
+ <p className="text-[var(--color-text-muted)] text-sm" data-testid={`quotes-empty-${issue.id}`}>
+ No quotes attached. Drop the supplier&apos;s quote PDF here so you can review it before raising a PO.
+ </p>
  )}
  </div>
 

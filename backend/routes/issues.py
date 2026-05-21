@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Body
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Body
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import uuid
@@ -790,7 +790,7 @@ async def update_issue(issue_id: str, data: dict = Body(...), user: dict = Depen
 
 
 @router.post("/issues/{issue_id}/attachments")
-async def add_issue_attachment(issue_id: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)) -> dict:
+async def add_issue_attachment(issue_id: str, file: UploadFile = File(...), kind: str = Form(None), user: dict = Depends(get_current_user)) -> dict:
     from utils.file_validation import validate_upload, MIME_FAULT_MEDIA
     org_filter = get_organization_filter(user)
     issue = await db.issues.find_one({"id": issue_id, **org_filter})
@@ -811,7 +811,13 @@ async def add_issue_attachment(issue_id: str, file: UploadFile = File(...), user
         "content_type": ct,
         "size": result.get("size", len(data)),
         "uploaded_by": user.get('full_name'),
-        "uploaded_at": datetime.now(timezone.utc).isoformat()
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        # Iter 216h263 — tag the attachment so the fault detail card
+        # can render quote PDFs in a dedicated Quotes section above
+        # the Purchase Orders block. `kind` is one of:
+        #   "quote"  — supplier quote (PDF/image)
+        #   None     — generic job sheet / photo
+        "kind": (kind or "").strip().lower() or None,
     }
     await db.issues.update_one({"id": issue_id}, {"$push": {"attachments": attachment}})
     return attachment

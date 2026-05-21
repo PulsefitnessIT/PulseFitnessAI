@@ -1,3 +1,67 @@
+## Iter 216h263 — Fault card UX upgrades + photo-lookup loading state (Feb 21, 2026) ✅ Bug fix + UX
+
+User feedback with 3 screenshots (Feb 21, 2026):
+1. *"Find manufacturer photo — needs to look like it's working — once
+   pressed it looks dead until you get a toast notification."*
+2. *"Fault card — under full description and steps already tried,
+   what was recommended within the AI triage (if the customer is on
+   pro) — add the AI triage within a dropdown box."*
+3. *"The supplier/user needs the ability to add quotes to the fault
+   card, pdf, place this card above Purchase order within the
+   fault card."*
+4. *"Move supplier reference/job number above the logged by and
+   description — once this has been populated it should be included
+   in the main fault line."*
+
+### Backend
+
+* `POST /api/issues/{id}/attachments` now accepts an optional
+  multipart `kind` form field (currently `"quote"` is the only
+  consumer). The value is persisted on the attachment doc so the
+  fault-detail card can render quote PDFs in a dedicated section.
+
+### Frontend
+
+**`EquipmentPhotoUpload`** — wraps the existing `onAutoLookup`
+prop in an internal `autoLookingUp` state. While the lookup is
+in flight the button:
+* disables itself (no double-fires)
+* swaps the Sparkles icon for an animated Loader2 spinner
+* swaps the copy to **"Searching manufacturer site…"**
+* dims the gradient + sets `cursor-wait`
+
+**`IssueDetailPanel`** got four structural changes:
+1. **Supplier Reference / Job Number** card moved to the very top
+   of the detail panel (above the Logged-by header grid).
+2. **AI Triage** wrapped in a collapsible dropdown card with a
+   chevron toggle + severity badge in the header. Default state
+   is collapsed so the supplier conversation + quotes sit
+   immediately under the fold.
+3. New **Quotes** card sits between Supplier Communication and
+   Purchase Orders. Upload posts `kind=quote` to the attachments
+   endpoint and the list filters by `kind === 'quote'`. Generic
+   "Upload Job Sheet / Quote" affordance trimmed to just
+   "Upload Job Sheet" so the responsibilities don't overlap.
+4. Generic **Attachments** card excludes `kind=quote` entries so
+   quotes never render twice.
+
+**`Dashboard/FaultsTab` + `LiteDashboard/LiteFaultsTab`** — the
+fault row's secondary line now appends `| Ref: {supplier_ref}` once
+the reference is populated (e.g. `Treadmill | Matrix Fitness | 5/21/2026 | Ref: JOB-2024-001`).
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| New unit tests (`test_iter_216h263_fault_card_ux.py`) | **9 / 9** |
+| `make regression` | **209 passed, 14 skipped** (was 200 → 209) |
+| `ruff check` + `yarn eslint --max-warnings 0` | clean |
+| Live curl: attachments endpoint accepts `kind=quote` | ✅ verified via pytest mock |
+
+---
+
+
+
 ## Iter 216h262 — Supplier inline email + dark-mode chip readability (Feb 21, 2026) ✅ Bug fix
 
 User screenshot feedback (Feb 21, 2026):
