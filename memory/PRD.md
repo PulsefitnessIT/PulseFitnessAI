@@ -1,3 +1,78 @@
+## Iter 216h284 — Partner activation checklist (Feb 21, 2026) ✅ P1
+
+Closes Gap 5 from the BA audit. Approved engineers used to land on a
+"No referrals yet — share your link" empty state with no guided
+next-actions. Most never reached the 5/10 referral milestones where
+the plan's value compounds. Now they get a 6-step "First 7 days"
+checklist at the top of the dashboard.
+
+### The 6 milestones
+
+| # | Step | Auto-resolves from |
+|---|---|---|
+| 1 | Approved as a Partner | `partner.approved_at` |
+| 2 | Start your Partner Plan | `partner.subscription.stripe_subscription_id` |
+| 3 | Upload your first compliance doc | any `compliance_docs.*.file` |
+| 4 | Copy your referral link | manual ack (`checklist.referral_link_copied_at`) |
+| 5 | Land your first referral | `partner_referrals` count > 0 |
+| 6 | Set your service area | `service_postcode` AND `travel_radius_km` |
+
+Only **#4** is user-ackable. Everything else flips automatically the
+moment the underlying field appears — so the engineer literally just
+*does* the action, the checklist updates on the next dashboard load.
+
+### Server-side
+
+* New `utils/partner_checklist.py` — pure `build_checklist(partner,
+  referrals_count)` returns the structured payload. Zero side-effects,
+  trivially unit-testable.
+* `GET  /partners/me/checklist` — recomputes from the latest partner
+  doc + referrals count. No client cache to invalidate.
+* `POST /partners/me/checklist/ack` — accepts `{key: "referral_link_copied"}`,
+  persists `checklist.referral_link_copied_at`. Rejects any other key
+  with a 400 ("Step is not user-ackable — auto-resolved from your
+  profile."). Idempotent — re-acking is a no-op write.
+
+### Frontend
+
+* New `pages/PartnerEngineer/PartnerActivationChecklist.js`:
+  * Progress bar with smooth gradient + percentage label.
+  * Click an unfinished auto-resolved step → smooth-scrolls the
+    dashboard to the matching card (subscription or compliance).
+  * Click an ackable step → hits the ack endpoint AND the parent's
+    `onCopyLink` callback so the engineer actually copies the URL.
+  * At 100 % the component collapses to a single-line trophy banner
+    ("You're fully set up — 6/6 milestones cleared.") with a Dismiss
+    button so seasoned partners stop seeing the panel.
+* Wired into `PartnerDashboard.js` directly under the compliance card,
+  visible only to approved partners.
+
+### Verification
+
+* `tests/test_iter_216h284_activation_checklist.py` — **15 tests** pin:
+  * step order stability + total count
+  * each step's auto-resolve rule (subscription, compliance, referral,
+    service area)
+  * `complete` only flips at 6/6
+  * only `referral_link_copied` is in `ACKABLE_KEYS`
+  * GET endpoint returns 6 steps, 404s for non-partners
+  * POST endpoint persists, rejects un-ackable keys, idempotent re-ack
+* `make regression` → **433 passed, 14 skipped** (up from 418).
+* Live smoke confirmed clean 404 for Jack (non-partner) + 400 on a
+  bad ack key.
+
+### Files
+
+* `backend/utils/partner_checklist.py` (new)
+* `backend/routes/partners.py` (modified — 2 new endpoints)
+* `frontend/src/pages/PartnerEngineer/PartnerActivationChecklist.js` (new)
+* `frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (modified — wired card)
+* `backend/tests/test_iter_216h284_activation_checklist.py` (new, 15 tests)
+* `Makefile` (regression added)
+
+---
+
+
 ## Iter 216h283 — Gym-entry compliance docs (DBS / RTW / Safeguarding / Public Liability) (Feb 21, 2026) ✅ P0
 
 Closes Gap 4 from the BA audit. The platform now captures, verifies

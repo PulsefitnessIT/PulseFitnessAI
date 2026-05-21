@@ -21,6 +21,7 @@ import {
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import PartnerComplianceCard from './PartnerComplianceCard';
+import PartnerActivationChecklist from './PartnerActivationChecklist';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -225,6 +226,24 @@ export default function PartnerDashboard() {
             Safeguarding, Public Liability). Shown to approved partners
             only — the panel hides itself silently for any other status. */}
         {partner.status === 'approved' && <PartnerComplianceCard />}
+
+        {/* Iter 216h284 — Gap 5: first-7-days activation checklist.
+            Renders only for approved partners; once 100% complete the
+            component swaps to a compact trophy banner the user can
+            dismiss for the session. */}
+        {partner.status === 'approved' && (
+          <PartnerActivationChecklist
+            onCopyLink={() => copy(referralLink)}
+            onSubscribeClick={() => {
+              const el = document.querySelector('[data-testid="partner-subscription-card"]');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            onComplianceClick={() => {
+              const el = document.querySelector('[data-testid="partner-compliance-card"]');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+          />
+        )}
 
         {/* Stat grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

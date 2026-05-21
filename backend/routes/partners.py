@@ -970,6 +970,48 @@ async def list_my_referrals(user: dict = Depends(get_current_user)):
     return {"referrals": rows}
 
 
+# ── Iter 216h284 — Gap 5: first-7-days activation checklist ──────────
+
+
+@router.get("/partners/me/checklist")
+async def get_my_checklist(user: dict = Depends(get_current_user)):
+    """Pure-read endpoint — the dashboard hits this on mount + after
+    any meaningful action (subscription, compliance upload). Computes
+    the checklist from the latest partner record so we never serve
+    stale completion state."""
+    from utils.partner_checklist import build_checklist
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    referrals_count = await db.partner_referrals.count_documents({"partner_id": partner["id"]})
+    return {"checklist": build_checklist(partner, referrals_count)}
+
+
+@router.post("/partners/me/checklist/ack")
+async def ack_my_checklist_step(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Mark one of the manually-ackable steps as done (currently only
+    `referral_link_copied`). Idempotent — re-acking is a no-op."""
+    from utils.partner_checklist import ack_field_name, build_checklist, is_ackable
+    key = (body.get("key") or "").strip()
+    if not is_ackable(key):
+        raise HTTPException(400, "Step is not user-ackable — auto-resolved from your profile.")
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    # Only set the timestamp the first time so we preserve "completed on …".
+    cl = partner.get("checklist") or {}
+    if not cl.get(f"{key}_at"):
+        await db.partner_engineers.update_one(
+            {"id": partner["id"]},
+            {"$set": {ack_field_name(key): _now(), "updated_at": _now()}},
+        )
+        await _audit(partner_id=partner["id"], actor_id=user["id"],
+                     action="checklist_acked", after={"key": key})
+        partner["checklist"] = {**cl, f"{key}_at": _now()}
+    referrals_count = await db.partner_referrals.count_documents({"partner_id": partner["id"]})
+    return {"ok": True, "checklist": build_checklist(partner, referrals_count)}
+
+
 @router.get("/partners/me/commission")
 async def my_commission(user: dict = Depends(get_current_user)):
     partner = await _get_partner_by_user(user["id"])
