@@ -3,7 +3,7 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
-.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy install-hooks
+.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy install-hooks
 
 help:
 	@echo "GymAxis make targets:"
@@ -17,6 +17,7 @@ help:
 	@echo "  make regression          # iter-216 regression suite (branding, site-lock, brand inheritance)"
 	@echo "  make regression-full     # h211 trust-recovery suite (84 tests, 6 modules)"
 	@echo "  make pre-deploy          # full deploy gate — regressions + security + Stripe + lint"
+	@echo "  make post-deploy         # 6-probe HTTP smoke against \$$POST_DEPLOY_BASE_URL (Resend on result)"
 
 # Iter 216h291 — install the git pre-commit hook so ESLint warnings
 # can't sneak past local commits. Idempotent — re-running just
@@ -105,6 +106,7 @@ regression:
 	  tests/test_iter_216h293_ci_gating.py \
 	  tests/test_iter_216h294_predeploy_lint_gate.py \
 	  tests/test_iter_216h295_required_checks_doc.py \
+	  tests/test_iter_216h296_post_deploy_smoke.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
@@ -131,3 +133,22 @@ regression-full:
 #   SKIP_LIVE_CHECK=1 make pre-deploy
 pre-deploy: lint
 	@bash /app/scripts/pre-deploy.sh
+
+# Iter 216h296 — Post-deploy smoke. Fires 6 HTTP probes against
+# `$$POST_DEPLOY_BASE_URL` (or `$$REACT_APP_BACKEND_URL` as fallback)
+# immediately after a deploy, with optional email-on-result via the
+# existing Resend integration. Exits 0 only if every required probe
+# is green.
+#
+# Probes covered:
+#   /api/health, public referral lookup, public reviews,
+#   POST /api/auth/login (when creds set), CRM capex catalogue read,
+#   marketing site root.
+#
+# Optional probes that depend on env vars are SKIPPED rather than
+# failed when the var is missing — the operator can roll the smoke
+# out incrementally.
+#
+# Configure recipient: export POST_DEPLOY_NOTIFY_EMAIL=ops@your.co
+post-deploy:
+	@cd /app/backend && python3 /app/scripts/post-deploy.py

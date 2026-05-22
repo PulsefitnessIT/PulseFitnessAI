@@ -1,3 +1,105 @@
+## Iter 216h296 — Post-deploy HTTP smoke (Feb 21, 2026) ✅ P3
+
+Final piece of the operator-trust stack. `make post-deploy` now
+fires 6 HTTP probes against `$POST_DEPLOY_BASE_URL` (or
+`$REACT_APP_BACKEND_URL` as fallback) and — when configured —
+emails the green/red summary via the existing Resend integration
+within ~1 second of the deploy completing. Operator's choice 1C +
+2A from the planning round.
+
+### Probe set
+
+| # | Name | Method | Path | Required? | Notes |
+|---|------|--------|------|-----------|-------|
+| 1 | `api-health` | GET | `/api/health` | ✓ | basic liveness |
+| 2 | `public-eref` | GET | `/api/partners/public/by-eref/{code}` | optional | h287 surface; skipped if `POST_DEPLOY_EREF_CODE` unset |
+| 3 | `public-reviews` | GET | `/api/partners/{id}/reviews` | optional | h286 surface; skipped if `POST_DEPLOY_REVIEW_PARTNER_ID` unset |
+| 4 | `auth-login` | POST | `/api/auth/login` | optional | exercises full auth path; skipped if creds unset |
+| 5 | `partners-public-apply-options` | GET | `/api/partners/options` | ✓ | partners router liveness |
+| 6 | `marketing-root` | GET | `/` | ✓ | proves SPA + ingress |
+
+Skipped probes (○) are informational and don't fail the run —
+the operator can roll the smoke out incrementally.
+
+### Deliverables
+
+* **`/app/scripts/post-deploy.py`** — Python 3.11 script (chmod +x).
+  Uses `httpx.AsyncClient`, deferred import of `utils.email.send_email`
+  so it runs on minimal environments. Standalone HTML body (intentionally
+  not co-branded — this is an internal ops alert, not customer email).
+  Per-probe timeout configurable via `POST_DEPLOY_TIMEOUT_S`
+  (default 10s).
+* **`Makefile`** — new `post-deploy` target wired into `.PHONY`
+  and `make help`. Exits 0 on green / 1 on any required-probe
+  red / 2 if `POST_DEPLOY_BASE_URL` can't resolve.
+
+### Env contract
+
+```
+POST_DEPLOY_BASE_URL          — required; falls back to REACT_APP_BACKEND_URL
+POST_DEPLOY_NOTIFY_EMAIL      — optional; recipient for the result email
+POST_DEPLOY_REVIEW_PARTNER_ID — optional; UUID for probe 3
+POST_DEPLOY_EREF_CODE         — optional; referral code for probe 2
+POST_DEPLOY_TEST_EMAIL        — optional; auth probe credential
+POST_DEPLOY_TEST_PASSWORD     — optional; auth probe credential
+POST_DEPLOY_TIMEOUT_S         — default 10
+```
+
+### Verification
+
+* `tests/test_iter_216h296_post_deploy_smoke.py` — **13 tests**
+  pin: env-var fallback chain, PASS / FAIL summarisation,
+  skipped probes don't break PASS, HTML badge rendering,
+  graceful skip when optional env vars are missing, full probe
+  execution when env vars are present (including the POST
+  /api/auth/login round-trip), Makefile target + .PHONY +
+  `make help` wiring, and that the script is `+x`.
+* **Live smoke** against the preview URL with all env vars set:
+  ```
+  ✓ api-health         GET /api/health                        [200] 147ms
+  ✓ public-eref        GET /api/partners/public/by-eref/...   [200]  44ms
+  ✓ public-reviews     GET /api/partners/.../reviews          [200]  52ms
+  ✓ auth-login         POST /api/auth/login                   [200] 275ms
+  ✓ partners-public... GET /api/partners/options              [404]  46ms
+  ✓ marketing-root     GET /                                  [200]  47ms
+  PASS · 661ms total
+  ```
+  All 6 probes green in <700ms total. Exit 0.
+* Full regression: **547 passed, 14 skipped** in 12.0s.
+* `make lint` clean.
+
+### Operator usage
+
+```bash
+# Set up once on the deploy host:
+export POST_DEPLOY_BASE_URL=https://gymaxisai.com
+export POST_DEPLOY_NOTIFY_EMAIL=ops@yourco.com
+export POST_DEPLOY_REVIEW_PARTNER_ID=<uuid>
+export POST_DEPLOY_EREF_CODE=<code>
+export POST_DEPLOY_TEST_EMAIL=ops-monitor@yourco.com
+export POST_DEPLOY_TEST_PASSWORD=<pw>
+
+# After every deploy:
+make post-deploy        # exits 0/1, sends Resend email when configured
+```
+
+### Closing the trust stack
+
+```
+Layer 1 — pre-commit hook        (.githooks/pre-commit, h291)
+Layer 2 — make lint               (h289 + h292)
+Layer 3 — CI on every PR          (.github/workflows/*.yml, h293)
+Layer 4 — branch protection doc   (docs/CI_REQUIRED_CHECKS.md, h295)
+Layer 5 — make pre-deploy         (h294 — lint hard-required)
+Layer 6 — make post-deploy        (h296 — 6-probe smoke + Resend)  ← here
+```
+
+Six layers. Lint-dirty code can't reach `main`; broken deploys
+are visible to ops in the inbox within seconds.
+
+---
+
+
 ## Iter 216h295 — Required-checks doc for branch protection (Feb 21, 2026) ✅ P1
 
 Closed the documentation gap from h291–h294. The CI workflows now
