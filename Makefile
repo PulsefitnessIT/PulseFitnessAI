@@ -111,6 +111,7 @@ regression:
 	  tests/test_iter_216h296_post_deploy_smoke.py \
 	  tests/test_iter_216h297_lint_health_report.py \
 	  tests/test_iter_216h298_uptime_monitor.py \
+	  tests/test_iter_216h299_lite_dashboard_bugs.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

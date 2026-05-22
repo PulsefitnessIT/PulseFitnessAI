@@ -1,3 +1,112 @@
+## Iter 216h299 — Lite-dashboard three-bug fix pack (Feb 22, 2026) ✅ user-reported
+
+Three user-reported regressions on the Lite Dashboard preview,
+all triaged + fixed in a single iter.
+
+### Bug 1 — "Log Fault for this Machine" modal disappears
+
+**Symptom**: Click the button from inside the Equipment Detail
+dialog → fault dialog flashes open then immediately closes.
+
+**Root cause**: Radix Dialog uses portals + outside-click detection.
+The handler synchronously closed the equipment dialog AND opened
+the fault dialog in the same React batch. Radix saw the click
+that triggered the handoff as "outside" the new dialog (because
+it originated in the now-closed dialog) and dismissed it via
+`onPointerDownOutside`.
+
+**Fix** (`pages/LiteDashboardPage.js`):
+```diff
+-onLogFaultForEquipment={(eq) => { setSelectedEquipment(null);
+-  selectEquipmentForFault(eq); setActiveTab('faults'); setShowFaultDialog(true); }}
++onLogFaultForEquipment={(eq) => {
++  setSelectedEquipment(null);
++  selectEquipmentForFault(eq);
++  setActiveTab('faults');
++  requestAnimationFrame(() => setShowFaultDialog(true));
++}}
+```
+
+Two other call sites (`onLogFault` quick-action button, mobile
+bottom-nav) are unaffected — they trigger from outside any open
+dialog.
+
+### Bug 2 — AI Triage results render at the bottom of the form
+
+**Symptom**: BA asked for AI triage info to appear in a dropdown
+under "Steps Already Taken". Currently it lands at the bottom of
+the form, above the Submit button.
+
+**Fix** (`pages/LiteDashboard/LiteDialogs.js`):
+* Removed the old bottom-of-form `{triageResult && isPro && …}`
+  block (43 lines).
+* Inserted a new render directly inside the `<div>` that wraps the
+  Steps Already Taken textarea — wrapped in a native `<details>`
+  element so it's a collapsible dropdown with `open` by default
+  (zero new deps). Chevron rotation via Tailwind
+  `[details[open]_&]:rotate-180`.
+* Same visual content as before: priority, diagnosis, fault code
+  badge, repair steps, parts likely, est. downtime.
+
+### Bug 3 — QR scan page doesn't show machine photo
+
+**Symptom**: Equipment that was auto-matched to a manufacturer
+image (`auto_image_url`) or a spec-sheet hero
+(`spec_sheet_image`) — but never had an operator photo upload —
+shows blank on the public QR scan page. The dashboard's equipment
+detail dialog renders these as `fallbackImageUrl`; the public QR
+endpoint did not.
+
+**Fix** (`routes/qr_codes.py`):
+```diff
++# Iter 216h299 — extend the fallback chain so machines that never
++# had an operator-uploaded photo but DO have a matched manufacturer
++# image (auto_image_url) or a spec-sheet hero (spec_sheet_image)
++# still display a photo on the public QR scan page.
+ photo_url = None
+ if equipment.get("photo_path") or equipment.get("photo_url"):
+     photo_url = f"{resolve_frontend_url(request)}/api/public/equipment/{equipment_id}/photo"
++elif equipment.get("auto_image_url"):
++    photo_url = equipment["auto_image_url"]
++elif equipment.get("spec_sheet_image"):
++    photo_url = equipment["spec_sheet_image"]
+```
+
+Fallback order matches the authenticated dashboard exactly so the
+gym member who scans the QR sees the same photo staff see in-app.
+
+### Verification
+
+* `tests/test_iter_216h299_lite_dashboard_bugs.py` — **9 tests**:
+  * Bug 1 — handler defers via `requestAnimationFrame` (static
+    source-string pin scoped to the `onLogFaultForEquipment`
+    handler only, so it doesn't false-positive on the unaffected
+    quick-action handlers).
+  * Bug 2 — triage dropdown lives between the Steps Already Taken
+    textarea and the Submit button, uses `<details>`/`<summary>`,
+    exactly one occurrence of the test-id (no duplicate render).
+  * Bug 3 — five backend tests covering: photo_path → re-derive
+    URL from request host, no upload but `auto_image_url` set →
+    return that, no upload + no auto-image but `spec_sheet_image`
+    set → return that, nothing set → `None`, fallback order
+    `auto_image_url` wins over `spec_sheet_image`.
+* Test-isolation fix: pre-seeds `emergentintegrations.llm.chat`
+  module stubs since an earlier regression file overwrites
+  `emergentintegrations.llm` without `__path__`, blocking our
+  `from routes import qr_codes` import.
+* **Live e2e against preview**: hit the public endpoint for the
+  real "Seated Row" equipment that has only `auto_image_url`:
+  ```
+  $ curl /api/public/equipment/8a0bfeea-…/-1d1
+  { "name": "Seated Row", "photo_url": "https://pulsefitness.com/...446H-AAP-1200.jpg", ... }
+  ```
+  Manufacturer image returned correctly — bug 3 verified fixed.
+* Full regression: **609 passed, 14 skipped** in 10.8s.
+* `make lint` clean.
+
+---
+
+
 ## Iter 216h298 — Uptime monitor with state-change-only emails (Feb 21, 2026) ✅ P3
 
 Final piece of the operator-trust stack. `make uptime-check` runs

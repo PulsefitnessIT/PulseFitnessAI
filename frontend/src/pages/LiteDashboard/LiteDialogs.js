@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, CheckCircle, Shield, Download, FileText, Camera, Loader2, X, Wrench, Sparkles, Check, QrCode } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Shield, Download, FileText, Camera, Loader2, X, Wrench, Sparkles, Check, QrCode, ChevronDown } from 'lucide-react';
 import axios from 'axios';
 import FaultTemplatePicker from '../Dashboard/FaultTemplatePicker';
 import FaultCodeSelect from '../Dashboard/FaultCodeSelect';
@@ -829,6 +829,60 @@ const LiteDialogs = ({
             <div>
               <Label className="text-[var(--color-text-muted)] font-medium">Any Steps Already Taken?</Label>
               <Textarea value={faultForm.steps_taken || ''} onChange={e => setFaultForm({ ...faultForm, steps_taken: e.target.value })} placeholder="Have you tried anything to fix this? (helps AI diagnose faster)" className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[60px]" data-testid="lite-fault-steps-taken" />
+              {/* Iter 216h299 — AI Triage Assessment dropdown. Lives
+                  directly under Steps Already Taken (per BA request)
+                  so the engineer sees the AI's read on what's
+                  happening, then can add detail. Collapsible via
+                  native <details> for zero new deps; opens by default
+                  the first time triage results come back. */}
+              {triageResult && isPro && (
+                <details
+                  className="mt-2 rounded-lg border border-[rgb(var(--rgb-brand-blue)/0.25)] bg-[rgb(var(--rgb-brand-blue)/0.08)]"
+                  open
+                  data-testid="ai-triage-result-dropdown"
+                >
+                  <summary className="cursor-pointer list-none px-3 py-2 flex items-center gap-2 text-sm font-semibold text-[var(--color-brand-cyan-hover)]">
+                    <Sparkles size={14} />
+                    <span className="flex-1">AI Triage Assessment</span>
+                    <ChevronDown size={14} className="transition-transform [details[open]_&]:rotate-180" />
+                  </summary>
+                  <div className="px-3 pb-3 pt-1 space-y-2.5" data-testid="ai-triage-result">
+                    {triageResult.priority && (
+                      <div className="text-xs"><span className="text-[var(--color-text-muted)]">Priority:</span> <span className="text-[var(--theme-text)] font-medium ml-1">{triageResult.priority}</span></div>
+                    )}
+                    {triageResult.diagnosis && (
+                      <div><p className="text-xs text-[var(--color-text-muted)] mb-1">Diagnosis:</p><p className="text-sm text-[var(--theme-text)]">{triageResult.diagnosis}</p></div>
+                    )}
+                    {triageResult.fault_code && (
+                      <div className="text-xs flex items-center gap-2" data-testid="lite-triage-fault-code">
+                        <span className="text-[var(--color-text-muted)]">AI-suggested fault code:</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">
+                          {triageResult.fault_code}
+                        </span>
+                      </div>
+                    )}
+                    {triageResult.repair_steps?.length > 0 && (
+                      <div>
+                        <p className="text-xs text-[var(--color-text-muted)] mb-1">Suggested Steps:</p>
+                        <div className="space-y-1.5">
+                          {triageResult.repair_steps.map((step, idx) => (
+                            <div key={idx} className="flex gap-2 text-sm">
+                              <span className="text-[var(--color-brand-cyan-hover)] font-bold text-xs mt-0.5">{idx + 1}.</span>
+                              <span className="text-[var(--theme-text)]">{step.instruction || step}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {triageResult.parts_likely && (
+                      <div className="text-xs"><span className="text-[var(--color-text-muted)]">Parts likely needed:</span> <span className="text-[var(--theme-text)] ml-1">{triageResult.parts_likely}</span></div>
+                    )}
+                    {triageResult.estimated_downtime && (
+                      <div className="text-xs"><span className="text-[var(--color-text-muted)]">Est. downtime:</span> <span className="text-[var(--theme-text)] ml-1">{triageResult.estimated_downtime}</span></div>
+                    )}
+                  </div>
+                </details>
+              )}
             </div>
             <div>
               <Label className="text-[var(--color-text-muted)] font-medium">Severity</Label>
@@ -875,48 +929,9 @@ const LiteDialogs = ({
                 </div>
               )}
             </div>
-            {/* AI Triage Results (Pro only) */}
-            {triageResult && isPro && (
-              <div className="space-y-3 p-4 bg-[rgb(var(--rgb-brand-blue)/0.1)] border border-[rgb(var(--rgb-brand-blue)/0.2)] rounded-lg" data-testid="ai-triage-result">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-[var(--color-brand-cyan-hover)]" />
-                  <h4 className="text-sm font-semibold text-[var(--color-brand-cyan-hover)]">AI Triage Assessment</h4>
-                </div>
-                {triageResult.priority && (
-                  <div className="text-xs"><span className="text-[var(--color-text-muted)]">Priority:</span> <span className="text-[var(--theme-text)] font-medium ml-1">{triageResult.priority}</span></div>
-                )}
-                {triageResult.diagnosis && (
-                  <div><p className="text-xs text-[var(--color-text-muted)] mb-1">Diagnosis:</p><p className="text-sm text-[var(--theme-text)]">{triageResult.diagnosis}</p></div>
-                )}
-                {triageResult.fault_code && (
-                  <div className="text-xs flex items-center gap-2" data-testid="lite-triage-fault-code">
-                    <span className="text-[var(--color-text-muted)]">AI-suggested fault code:</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">
-                      {triageResult.fault_code}
-                    </span>
-                  </div>
-                )}
-                {triageResult.repair_steps?.length > 0 && (
-                  <div>
-                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Suggested Steps:</p>
-                    <div className="space-y-1.5">
-                      {triageResult.repair_steps.map((step, idx) => (
-                        <div key={idx} className="flex gap-2 text-sm">
-                          <span className="text-[var(--color-brand-cyan-hover)] font-bold text-xs mt-0.5">{idx + 1}.</span>
-                          <span className="text-[var(--theme-text)]">{step.instruction || step}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {triageResult.parts_likely && (
-                  <div className="text-xs"><span className="text-[var(--color-text-muted)]">Parts likely needed:</span> <span className="text-[var(--theme-text)] ml-1">{triageResult.parts_likely}</span></div>
-                )}
-                {triageResult.estimated_downtime && (
-                  <div className="text-xs"><span className="text-[var(--color-text-muted)]">Est. downtime:</span> <span className="text-[var(--theme-text)] ml-1">{triageResult.estimated_downtime}</span></div>
-                )}
-              </div>
-            )}
+            {/* AI Triage Results moved into a dropdown under
+                "Steps Already Taken" above — iter 216h299 (BA req).
+                Submission UI below still gates on `triageResult`. */}
 
             {triageResult && isPro ? (
               showFixMethod ? (

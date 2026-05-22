@@ -439,9 +439,21 @@ async def public_equipment_info(equipment_id: str, request: Request):
     # have preview URLs baked in, which 404 on user phones. We always
     # return a fresh URL pointing at the current public host so legacy
     # uploads keep working without a data migration.
+    #
+    # Iter 216h299 — extend the fallback chain so machines that never
+    # had an operator-uploaded photo but DO have a matched manufacturer
+    # image (auto_image_url) or a spec-sheet hero (spec_sheet_image)
+    # still display a photo on the public QR scan page. This mirrors
+    # the fallback hierarchy the authenticated equipment detail dialog
+    # already uses, so a gym member who scans the QR sees the same
+    # picture the staff see in-app.
     photo_url = None
     if equipment.get("photo_path") or equipment.get("photo_url"):
         photo_url = f"{resolve_frontend_url(request)}/api/public/equipment/{equipment_id}/photo"
+    elif equipment.get("auto_image_url"):
+        photo_url = equipment["auto_image_url"]
+    elif equipment.get("spec_sheet_image"):
+        photo_url = equipment["spec_sheet_image"]
 
     # Iter 216d — surface org branding so the QR scan page can render the
     # operator's logo / name (Pulse Fitness vs GymAxis) instead of always

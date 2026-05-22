@@ -945,7 +945,19 @@ const LiteDashboardPage = () => {
         getEquipmentFaults={getEquipmentFaults}
         getEquipmentFiles={getEquipmentFiles}
         onDownloadFile={handleDownloadFile}
-        onLogFaultForEquipment={(eq) => { setSelectedEquipment(null); selectEquipmentForFault(eq); setActiveTab('faults'); setShowFaultDialog(true); }}
+        onLogFaultForEquipment={(eq) => {
+          // Iter 216h299 — defer the fault-dialog open by one tick.
+          // The click originated inside the Equipment Detail dialog;
+          // closing that dialog in the same React batch leaves Radix
+          // with a stale "pointerdown-outside" event that fires on
+          // the new fault dialog the instant it mounts, dismissing
+          // it. A microtask + raf gives the equipment dialog time
+          // to fully unmount before the fault dialog mounts.
+          setSelectedEquipment(null);
+          selectEquipmentForFault(eq);
+          setActiveTab('faults');
+          requestAnimationFrame(() => setShowFaultDialog(true));
+        }}
         getSeverityStyle={getSeverityStyle}
         getSeverityLabel={getSeverityLabel}
         getStatusColor={getStatusColor}
