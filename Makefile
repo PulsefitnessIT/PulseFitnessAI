@@ -3,7 +3,7 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
-.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health install-hooks
+.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health uptime-check install-hooks
 
 help:
 	@echo "GymAxis make targets:"
@@ -19,6 +19,7 @@ help:
 	@echo "  make pre-deploy          # full deploy gate — regressions + security + Stripe + lint"
 	@echo "  make post-deploy         # 6-probe HTTP smoke against \$$POST_DEPLOY_BASE_URL (Resend on result)"
 	@echo "  make lint-health         # weekly codebase-health snapshot to /app/reports/ (Resend opt-in)"
+	@echo "  make uptime-check        # single uptime probe (state-change-only emails; cron-friendly)"
 
 # Iter 216h291 — install the git pre-commit hook so ESLint warnings
 # can't sneak past local commits. Idempotent — re-running just
@@ -109,6 +110,7 @@ regression:
 	  tests/test_iter_216h295_required_checks_doc.py \
 	  tests/test_iter_216h296_post_deploy_smoke.py \
 	  tests/test_iter_216h297_lint_health_report.py \
+	  tests/test_iter_216h298_uptime_monitor.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
@@ -169,3 +171,14 @@ post-deploy:
 #   /app/reports/lint-health-YYYY-WNN.json  (raw metrics; powers next week's trends)
 lint-health:
 	@cd /app/backend && python3 /app/scripts/lint_health_report.py
+
+# Iter 216h298 — Uptime monitor. Re-uses the same 6 probes as
+# `make post-deploy` but emails only on state CHANGE (green→red
+# or red→green). Designed for a 5-minute cron — exits 0 on probe
+# failure (so cron doesn't itself email about non-zero scripts);
+# state lives at `/app/reports/uptime-state.json`.
+#
+# Suggested cron:
+#   */5 * * * * cd /app && UPTIME_NOTIFY_EMAIL=ops@yourco.com make uptime-check
+uptime-check:
+	@cd /app/backend && python3 /app/scripts/uptime_monitor.py

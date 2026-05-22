@@ -1,3 +1,130 @@
+## Iter 216h298 — Uptime monitor with state-change-only emails (Feb 21, 2026) ✅ P3
+
+Final piece of the operator-trust stack. `make uptime-check` runs
+the same 6-probe smoke as `make post-deploy` but emails ONLY on
+state change (green→red or red→green). Designed for a 5-minute
+cron — silent on healthy steady state, loud on transitions.
+
+### Why state-change-only?
+
+A 5-min cron that emails every tick produces 288 emails/day per
+operator. The whole point of an uptime monitor is to surface
+*changes*, not heartbeats. Steady-state runs persist the state
+file (so the consecutive counter ticks up + the operator can
+eyeball `cat /app/reports/uptime-state.json`) but stay silent.
+
+### Cron-safety design
+
+`main()` exits **0 even on probe failure**. Cron emails the
+shell user about non-zero scripts by default — if we let cron
+get involved, the operator gets two emails per regression: one
+from us (intentional, structured) and one from cron (noise). The
+only non-zero exit is `2` for "POST_DEPLOY_BASE_URL not
+resolvable", which is a config bug, not a probe bug.
+
+### Deliverables
+
+* **`/app/scripts/uptime_monitor.py`** — Python 3.11 script
+  (chmod +x). DRY: imports `run_probes` and `_format_html`
+  verbatim from `post-deploy.py` via `importlib` (the script's
+  hyphenated filename blocks plain `import`).
+* **State file** at `/app/reports/uptime-state.json` (override
+  with `UPTIME_STATE_PATH`):
+  ```json
+  {
+    "last_status": "ok" | "fail",
+    "last_changed_at": ISO8601,
+    "last_checked_at": ISO8601,
+    "consecutive": int,
+    "previous_status": "ok"|"fail",   // only on state-change
+    "results": [...],                  // last probe details
+    "base_url": "...",
+    "total_ms": int
+  }
+  ```
+* **`Makefile`** — new `uptime-check` target wired into `.PHONY`
+  + `make help`.
+
+### State transitions covered
+
+| From | To | Action | Email |
+|------|----|--------|-------|
+| _(none)_ | ok | first-run | Yes — "monitoring started · ONLINE" |
+| _(none)_ | fail | first-run | Yes — "monitoring started · DOWN" |
+| ok | ok | steady | No |
+| fail | fail | steady | No |
+| ok | fail | state-change | Yes — "🚨 DOWN" + amber banner |
+| fail | ok | state-change | Yes — "✅ RECOVERED" + amber banner |
+
+### Env contract
+
+```
+POST_DEPLOY_BASE_URL          — required (or REACT_APP_BACKEND_URL fallback)
+POST_DEPLOY_REVIEW_PARTNER_ID — optional probe input
+POST_DEPLOY_EREF_CODE         — optional probe input
+POST_DEPLOY_TEST_EMAIL        — optional probe input
+POST_DEPLOY_TEST_PASSWORD     — optional probe input
+POST_DEPLOY_TIMEOUT_S         — default 10
+UPTIME_NOTIFY_EMAIL           — recipient for state-change emails
+                                  (falls back to POST_DEPLOY_NOTIFY_EMAIL)
+UPTIME_STATE_PATH             — override state file location
+```
+
+### Verification
+
+* `tests/test_iter_216h298_uptime_monitor.py` — **26 tests** pin:
+  state-path env override, missing/corrupt JSON returns None,
+  `save_state` creates parent dirs, overall_status ignores
+  skipped probes, all 4 decide_action branches (first-run /
+  steady / green→red / red→green), all 5 subject formatters,
+  `run_once` first-run persists + emails, **steady-state does
+  NOT email** (the most important pin), state-change emits the
+  amber "State change detected" banner with `prev → next`
+  text, `main()` exits 0 even on probe failure (cron-safety),
+  `main()` exits 2 only on missing base URL, Makefile +
+  executability wiring. All green in 2.6s, fully mocked.
+* **Live smoke** against the preview URL:
+  ```
+  $ make uptime-check        # first run, state file empty
+  [uptime] first-run · status=ok · consecutive=1 · 857ms
+  $ make uptime-check        # second run, healthy
+  [uptime] steady · status=ok · consecutive=2 · 677ms
+  ```
+  State file persisted correctly, exit 0 both times.
+* Full regression: **600 passed, 14 skipped** in 13.1s. (We
+  crossed the 600-test threshold this iter!)
+* `make lint` clean.
+
+### Suggested cron
+
+```cron
+# /etc/cron.d/gymaxis-uptime — every 5 minutes
+*/5 * * * * www-data cd /app && \
+    UPTIME_NOTIFY_EMAIL=ops@yourco.com \
+    POST_DEPLOY_BASE_URL=https://gymaxisai.com \
+    make uptime-check >>/var/log/uptime.log 2>&1
+```
+
+### Final operator-trust stack (h291 → h298)
+
+```
+Layer 1 — pre-commit hook        — strict ESLint on staged JS/JSX
+Layer 2 — make lint               — strict ruff + ESLint, no swallows
+Layer 3 — CI on every PR          — make regression + 6 quality jobs
+Layer 4 — branch protection doc   — require all 6 status checks
+Layer 5 — make pre-deploy         — lint hard-required
+Layer 6 — make post-deploy        — 6 HTTP probes after deploy
+Layer 7 — make lint-health        — weekly codebase snapshot + trends
+Layer 8 — make uptime-check       — 5-min cron with state-change emails
+```
+
+Eight layers covering write-time → commit → review → deploy →
+post-deploy → ongoing operations. From a clean repo to never
+finding a regression in production: every gap closed.
+
+---
+
+
 ## Iter 216h297 — Lint-health weekly snapshot (Feb 21, 2026) ✅ P3
 
 Closed the operator-visibility gap from h296 with a weekly
