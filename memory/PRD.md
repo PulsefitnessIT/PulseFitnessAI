@@ -1,3 +1,74 @@
+## Iter 216h293 — CI gating tightened (Feb 21, 2026) ✅ P1
+
+Closed the last quiet bypass in the GitHub-Actions CI workflow so
+even `git commit --no-verify` developers get caught at PR. The
+sister `quality-gate.yml` already had a proper strict ESLint gate
++ regression run; `ci.yml` had two real holes that we just plugged.
+
+### Behaviour delta in `.github/workflows/ci.yml`
+
+* **ESLint step**: `--max-warnings 99999` → `--max-warnings 0`.
+  The previous budget was literally the gate disabled — any number
+  of dark-mode leakage / inline-hex / unused-imports warnings
+  could land on `main`. Now matches `make lint-frontend` and the
+  local pre-commit hook (iter 216h291).
+* **`backend-tests` job**: was running a single hand-picked file
+  (`tests/test_xss_and_brand_urls.py`). Promoted to `make
+  regression` — the curated 521-test suite that runs in ~12s
+  with no live MongoDB / no LLM. Now there is exactly **one**
+  definition of "did the suite pass" (the Makefile target),
+  shared between developer laptops, the pre-commit hook and
+  CI.
+
+### Plumbing
+
+* No new workflow file. The two existing workflows
+  (`ci.yml` precommit gates, `quality-gate.yml` heavier checks
+  with mongo:7 sidecar + production build smoke) were already
+  registered for `pull_request` events on `main` / `develop`.
+  Required-check status entries should now genuinely block bad
+  PRs.
+
+### Verification
+
+* `tests/test_iter_216h293_ci_gating.py` — **10 tests** pin the
+  CI YAMLs against drift:
+  * `--max-warnings 0` is present and `99999` is gone (in any
+    form, including comments)
+  * `backend-tests` runs `make regression` and the old single-
+    file invocation is gone
+  * Both workflows fire on `pull_request`
+  * Ruff and gitleaks/secrets steps survive
+  * `quality-gate.yml`'s ESLint stays strict
+  * Ruff-version pin matches across the two workflows so a
+    Dependabot bump can't drift one but not the other.
+* `python -c "yaml.safe_load(...)"` against both files → both
+  parse cleanly, expected job names present.
+* Full `make regression`: **521 passed, 14 skipped** in 11.9s.
+* `make lint` → exit 0.
+
+### Defence-in-depth picture (now that this is in)
+
+```
+Layer 1 — pre-commit hook        (.githooks/pre-commit, h291)
+              ↓ strict --max-warnings 0 on staged JS/JSX
+Layer 2 — `make lint`             (h289 + h292)
+              ↓ strict ESLint + ruff, no || true swallows
+Layer 3 — CI on every PR          (.github/workflows/*.yml, h293)
+              ↓ make regression + strict ESLint + bandit + gitleaks
+              ↓ ruff + bandit (medium+) + production build smoke
+              ↓ gitleaks history scan + pip-audit CVE
+              ↓ trust-recovery regression suite (84 tests, mongo:7)
+                = mergeable iff every gate green
+```
+
+A `--no-verify` developer can still commit dirty code locally,
+but the PR will be red on at least the precommit + backend-tests
++ quality-gate workflows before merge.
+
+---
+
+
 ## Iter 216h292 — Backend ruff debt cleanup (Feb 21, 2026) ✅ P3
 
 Cleared all **47 ruff issues** that had been swallowed behind

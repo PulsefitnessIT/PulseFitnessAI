@@ -86,11 +86,14 @@ jobs:
         # complexity-gate-repo-safety-net hook.
         run: xenon --max-absolute F --max-modules F --max-average C --exclude "tests/*,venv/*,migrations/*" .
 
-      - name: ESLint (frontend)
+      - name: ESLint (frontend, strict 0-warning gate)
         working-directory: frontend
-        # Run on the whole src/ tree — pre-commit only scans staged files,
-        # but CI is the place to enforce the global state.
-        run: yarn eslint --max-warnings 99999 src/
+        # Iter 216h293 — was previously bypassing the gate with a
+        # bogus huge max-warnings budget. We've cleared the legacy
+        # lint debt and `make lint-frontend` enforces 0 warnings
+        # locally — CI must match or developers will quietly
+        # regress dark-mode leakage.
+        run: yarn eslint --max-warnings 0 src/
 
       - name: Detect hardcoded secrets
         run: |
@@ -106,9 +109,14 @@ jobs:
               || (echo "::error::Potential secret detected. Move it to .env." && exit 1)
 
   backend-tests:
-    name: Backend unit tests (pytest)
+    name: Backend regression suite (make regression)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Iter 216h293 — was a single hand-picked test file. Promoted to
+    # the curated `make regression` target (511+ unit tests, no live
+    # MongoDB, no LLM, runs in ~15 s) so a `--no-verify` commit can't
+    # bypass it. The sister `quality-gate.yml` still owns the heavier
+    # mongo-backed regression directory + production build smoke.
     steps:
       - uses: actions/checkout@v4
 
@@ -125,8 +133,8 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio
 
-      - name: Run lightweight tests (no DB, no LLM)
-        working-directory: backend
-        # Only the tests that don't require a live MongoDB / network. Heavier
-        # integration tests run on a separate workflow with services: mongo:7.
-        run: pytest tests/test_xss_and_brand_urls.py -v
+      - name: Run regression suite
+        # `make regression` is the developer-facing target everyone
+        # runs locally before pushing. CI runs it verbatim so there
+        # is exactly ONE definition of "did the suite pass".
+        run: make regression

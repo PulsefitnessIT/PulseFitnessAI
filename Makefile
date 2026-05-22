@@ -102,6 +102,7 @@ regression:
 	  tests/test_iter_216h288_engineer_availability.py \
 	  tests/test_iter_216h290_unavailable_autoreply.py \
 	  tests/test_iter_216h291_precommit_hook.py \
+	  tests/test_iter_216h293_ci_gating.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
