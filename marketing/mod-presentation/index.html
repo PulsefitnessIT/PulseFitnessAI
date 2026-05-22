@@ -124,24 +124,22 @@
   .dark .footer-line { color: rgba(255,255,255,0.40); }
 
   /* ─── BRAND LOGO ─── */
-  .logo {
-    display: inline-flex; align-items: center; gap: 10px;
+  .logo { display: inline-flex; align-items: center; gap: 10px; }
+  .logo img {
+    height: 30px; width: auto; display: block;
+  }
+  .dark .logo img { filter: brightness(0) invert(1); }
+  .logo .mod-tag {
     font-family: var(--font-display);
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-size: 11pt;
+    font-weight: 700;
+    color: var(--brand-blue);
+    letter-spacing: 0.02em;
+    padding-left: 8px;
+    border-left: 1px solid var(--line);
+    margin-left: 4px;
   }
-  .logo .mark {
-    width: 28px; height: 28px;
-    border-radius: 7px;
-    background: linear-gradient(135deg, var(--brand-cyan) 0%, var(--brand-blue) 100%);
-    display: flex; align-items: center; justify-content: center;
-    color: #fff;
-    font-size: 13pt;
-    font-weight: 900;
-    box-shadow: 0 6px 18px rgba(0,85,255,0.45);
-  }
-  .logo .word { font-size: 14pt; color: var(--ink); }
-  .dark .logo .word { color: #fff; }
+  .dark .logo .mod-tag { color: var(--brand-cyan); border-left-color: rgba(255,255,255,0.20); }
 
   /* ─── TYPOGRAPHY ─── */
   h1, h2, h3, h4 { font-family: var(--font-display); margin: 0; }
@@ -437,10 +435,7 @@
 
   <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; justify-content: space-between; z-index: 2;">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-      <div class="logo">
-        <div class="mark">G</div>
-        <div class="word" style="color: #fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div>
-      </div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" style="height: 38px;" /><span class="mod-tag" style="font-size: 13pt;">· MOD</span></div>
       <div style="text-align: right;">
         <div class="doc-classify">Official — Sensitive · Commercial in Confidence</div>
         <div style="font-family: var(--font-mono); font-size: 8pt; color: rgba(255,255,255,0.55); margin-top: 4px;">
@@ -497,56 +492,62 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
-    <div class="eyebrow" style="margin-top: 18pt;">01 · The reality on the ground</div>
-    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
-      Every base runs PT. Almost no base can prove the kit is safe.
+    <div class="eyebrow" style="margin-top: 14pt;">01 · Where MOD gyms are today</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px; font-size: 24pt;">
+      Most MOD gyms run on paper, WhatsApp, and trust.
     </h2>
+    <p class="lead" style="margin-top: 8pt; max-width: 920px; font-size: 11.5pt;">
+      Every base has a gym. Every gym has expensive kit. But the systems used to keep
+      that kit safe — and to prove it's safe in an audit — haven't kept up with the rest
+      of the estate.
+    </p>
 
-    <div class="grid-3" style="margin-top: 18pt;">
+    <div class="divider" style="margin-top: 12pt;"></div>
+
+    <div class="grid-2" style="margin-top: 12pt;">
       <div>
-        <div class="stat" style="border-color: rgba(239,68,68,0.30); background: rgba(239,68,68,0.04);">
-          <div class="num" style="background: linear-gradient(135deg,#EF4444,#F97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">62%</div>
-          <div class="label">of MOD gyms have <em>no</em> single asset register</div>
-        </div>
+        <h3 class="sub" style="font-size: 12pt;">What we hear from PTIs &amp; estates teams</h3>
+        <ul class="check-list" style="font-size: 9.5pt;">
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Paper check-sheets</strong> on clipboards — easy to lose, impossible to audit, gone on handover.</li>
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Faults on WhatsApp</strong> — no record of who logged what, or how long the fix took.</li>
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Excel asset registers</strong> — out of date the moment someone moves base.</li>
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Compliance evidence scattered</strong> across mailboxes, SharePoint, and filing cabinets.</li>
+        </ul>
       </div>
       <div>
-        <div class="stat" style="border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.04);">
-          <div class="num" style="background: linear-gradient(135deg,#F59E0B,#EF4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">14 days</div>
-          <div class="label">average time to action a fault on a treadmill</div>
-        </div>
-      </div>
-      <div>
-        <div class="stat" style="border-color: rgba(0,85,255,0.30); background: rgba(0,85,255,0.04);">
-          <div class="num">£3.2m</div>
-          <div class="label">est. annual write-off on out-of-warranty kit MOD-wide</div>
-        </div>
+        <h3 class="sub" style="font-size: 12pt;">Why it matters to the MOD</h3>
+        <ul class="check-list" style="font-size: 9.5pt;">
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Operational readiness gaps</strong> — squadrons can't complete PT cycles on kit that's been broken for weeks.</li>
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Avoidable injury risk</strong> — unchecked machines mean preventable claims and inquiries.</li>
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Wasted CAPEX</strong> — kit binned years early because no one logged the service that would have saved it.</li>
+          <li style="font-size: 9.5pt; margin-bottom: 7px;"><strong>Audit fatigue</strong> — PTIs spending duty hours chasing paper instead of training Service Personnel.</li>
+        </ul>
       </div>
     </div>
 
-    <div class="divider" style="margin-top: 22pt;"></div>
-
-    <div class="grid-2" style="margin-top: 18pt;">
-      <div>
-        <h3 class="sub">What's breaking</h3>
-        <ul class="check-list">
-          <li><strong>Paper check-sheets</strong> on clipboards — no audit trail, lost on handover.</li>
-          <li><strong>Faults logged on WhatsApp</strong> — engineer turnaround unmeasured.</li>
-          <li><strong>Excel asset registers</strong> drift out of sync the moment a posting moves.</li>
-          <li><strong>RIDDOR &amp; HSE evidence</strong> scattered across mailboxes &amp; SharePoint.</li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="sub">What it costs the MOD</h3>
-        <ul class="check-list">
-          <li><strong>Operational readiness gaps</strong> — squadrons unable to complete PT cycles on broken kit.</li>
-          <li><strong>Avoidable insurance claims</strong> after preventable injuries on unaudited machines.</li>
-          <li><strong>Repeated CAPEX</strong> — kit binned at year 7 that should have lasted 12.</li>
-          <li><strong>Audit fatigue</strong> — PTIs spending duty hours chasing paper, not training personnel.</li>
-        </ul>
+    <div style="margin-top: 14pt;">
+      <h3 class="sub" style="font-size: 12pt;">What GymAxis is built to deliver</h3>
+      <div class="grid-4" style="margin-top: 8pt;">
+        <div class="stat" style="padding: 12px 14px;">
+          <div class="num" style="font-size: 24pt;">10 sec</div>
+          <div class="label" style="font-size: 8pt;">to log a fault — vs minutes on paper</div>
+        </div>
+        <div class="stat" style="padding: 12px 14px;">
+          <div class="num" style="font-size: 24pt;">5 → 1</div>
+          <div class="label" style="font-size: 8pt;">tools replaced (paper, WhatsApp, Excel, email, SharePoint)</div>
+        </div>
+        <div class="stat" style="padding: 12px 14px;">
+          <div class="num" style="font-size: 24pt;">100%</div>
+          <div class="label" style="font-size: 8pt;">audit trail — every check, every fault, every fix</div>
+        </div>
+        <div class="stat" style="padding: 12px 14px;">
+          <div class="num" style="font-size: 24pt;">3 clicks</div>
+          <div class="label" style="font-size: 8pt;">from HQ rollup to a single machine on a base</div>
+        </div>
       </div>
     </div>
   </div>
@@ -565,7 +566,7 @@
 
   <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; z-index: 2;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word" style="color:#fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -624,34 +625,34 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
-    <div class="eyebrow" style="margin-top: 18pt;">03 · The MOD Service Portal · purpose-built sign-in</div>
+    <div class="eyebrow" style="margin-top: 18pt;">03 · A dedicated sign-in for HM Forces</div>
     <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
-      A dedicated front door for HM Forces personnel.
+      Service Personnel get their own front door — not a public website.
     </h2>
 
     <div class="grid-2" style="margin-top: 14pt; flex: 1; align-items: start; gap: 22px;">
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <p class="body" style="font-size: 10.5pt; margin: 0 0 4pt;">
-          MOD users never touch the public commercial sign-in. They land on
-          <span style="font-family: var(--font-mono); color: var(--brand-blue); font-weight: 600;">/MODService</span> —
-          a hardened portal supporting both <strong>shared site logins</strong>
-          and <strong>individual HQ accounts</strong> with mandatory TOTP MFA.
+          MOD users never touch the commercial sign-in. They land on a hardened portal
+          that supports two ways in: a <strong>shared site login</strong> (one login per
+          gym for the duty team) and <strong>personal logins</strong> for branch and
+          estate HQ staff with two-factor security.
         </p>
         <div class="feature-card" style="padding: 12px 14px;">
-          <h4 style="font-size: 11.5pt;">Hardened authentication</h4>
-          <p style="font-size: 9pt;">BCrypt password hashing, JWT session tokens, rate-limited brute-force protection, 90-day rotation on MOD HQ, TOTP MFA enrolment forced on first login.</p>
+          <h4 style="font-size: 11.5pt;">Two-factor security on every HQ account</h4>
+          <p style="font-size: 9pt;">Branch &amp; estate HQ users must enrol a two-factor code on first login. Passwords rotate every 90 days. Five wrong attempts locks the account.</p>
         </div>
         <div class="feature-card" style="padding: 12px 14px;">
-          <h4 style="font-size: 11.5pt;">Three identity tiers</h4>
-          <p style="font-size: 9pt;">Site code (shared kiosk for duty staff), branch HQ account, and estate HQ account. Each tier sees only what its remit allows.</p>
+          <h4 style="font-size: 11.5pt;">Three permission levels</h4>
+          <p style="font-size: 9pt;">Site (gym-floor view), branch (RAF / Army / Navy oversight), and estate HQ (whole-of-defence). Each role sees only what it needs.</p>
         </div>
         <div class="feature-card" style="padding: 12px 14px;">
-          <h4 style="font-size: 11.5pt;">No cross-pollination</h4>
-          <p style="font-size: 9pt;">Backend rejects MOD personnel attempting the commercial sign-in — and vice-versa. Tenant scope enforced at the JWT layer on every request.</p>
+          <h4 style="font-size: 11.5pt;">No data leaks between users</h4>
+          <p style="font-size: 9pt;">MOD users can't see commercial customers and vice-versa. Every request is checked against the user's permitted base &amp; branch — on every click.</p>
         </div>
       </div>
 
@@ -660,7 +661,7 @@
           <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
           <div class="url">https://gymaxis.mod.uk/MODService</div>
         </div>
-        <img src="screenshots/01_mod_login.jpeg" alt="MOD Service Portal login" />
+        <img src="screenshots/v3_01_login.jpeg" alt="MOD Service Portal login" />
       </div>
     </div>
   </div>
@@ -676,7 +677,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -685,38 +686,38 @@
       One glance. Every base. Every fault. Every audit.
     </h2>
 
-    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; align-items: center; gap: 22px;">
       <div class="browser-frame">
         <div class="bar">
           <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
           <div class="url">gymaxis.mod.uk · Catterick Garrison · Site Dashboard</div>
         </div>
-        <img src="screenshots/07_dashboard_kpis.jpeg" alt="Site Dashboard KPIs" />
+        <img src="screenshots/v3_07_dashboard.jpeg" alt="Site Dashboard KPIs" />
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
         <h3 class="sub">What HQ sees</h3>
         <p class="body">
-          The Estates HQ console presents every base on the network as a single
-          health-scored card. Drill in from <em>RAF</em> → <em>Estates Facilities</em>
-          → <em>Brize Norton</em> → <em>treadmill TM-03</em> in three clicks.
+          One screen, every base. Each gym appears as a card with a single health score.
+          Click a card to drill into a branch, then a site, then a machine —
+          in three clicks you're on a treadmill.
         </p>
         <div class="grid-2" style="margin-top: 6pt;">
           <div class="feature-card">
             <h4 style="font-size: 11pt;">Gym Health Score</h4>
-            <p>0–100 composite of fault management, audit coverage, self-fix rate, warranty health, and AI knowledge use.</p>
+            <p>A single 0–100 number combining how well faults are managed, how often kit is checked, what's covered by warranty, and how much is fixed on-base.</p>
           </div>
           <div class="feature-card">
-            <h4 style="font-size: 11pt;">Site benchmarking</h4>
-            <p>League tables across the estate — RAF Brize Norton vs Catterick Garrison vs HMS Raleigh — same metrics, side by side.</p>
+            <h4 style="font-size: 11pt;">Compare bases side-by-side</h4>
+            <p>RAF Brize Norton vs Catterick Garrison vs HMS Raleigh — exact same metrics, exact same chart. No more apples-to-oranges.</p>
           </div>
           <div class="feature-card">
-            <h4 style="font-size: 11pt;">SLA &amp; uptime</h4>
-            <p>Live tracking of fault first-response, time-to-engineer, and time-to-restore against MOD-set thresholds.</p>
+            <h4 style="font-size: 11pt;">Response &amp; uptime</h4>
+            <p>How long it took to acknowledge a fault, get an engineer on site, and get the machine running — every step timestamped.</p>
           </div>
           <div class="feature-card">
-            <h4 style="font-size: 11pt;">CAPEX intelligence</h4>
-            <p>Aggregate end-of-life view across the estate — when to refurb, when to replace, when to bin.</p>
+            <h4 style="font-size: 11pt;">CAPEX picture</h4>
+            <p>See, at a glance, how much kit is approaching end-of-life across the whole estate — so refurb vs replace decisions are evidence-led.</p>
           </div>
         </div>
       </div>
@@ -734,7 +735,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -743,20 +744,20 @@
       Every machine, every serial, every warranty — pinned to a base.
     </h2>
 
-    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; align-items: center; gap: 22px;">
       <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
         <p class="body">
-          Each piece of kit lives as a structured record with serial number, manufacturer,
-          model, purchase date, warranty expiry, service contract, and full fault history.
-          <strong>Serial naming follows the MOD convention</strong>
-          (<span style="font-family: var(--font-mono); color: var(--brand-blue);">ARMY.CATTERICK-TR-000</span>)
-          so it can be reconciled against existing DIO records on day one.
+          Every machine has its own record — serial number, make, model, when it was bought,
+          when the warranty runs out, what service contract it sits under, and every fault
+          it has ever had. <strong>Serial numbers use the MOD's own naming convention</strong>
+          (<span style="font-family: var(--font-mono); color: var(--brand-blue);">ARMY.CATTERICK-TR-000</span>),
+          so existing estates records reconcile on day one.
         </p>
         <ul class="check-list">
-          <li><strong>QR-coded labels</strong> — durable, gym-grade labels printable from the platform. Scan to view, report, or photograph.</li>
-          <li><strong>Auto-photo lookup</strong> — the platform finds a verified product image from the manufacturer catalogue when one isn't supplied.</li>
-          <li><strong>Coverage at a glance</strong> — warranty &amp; service contract status flagged per machine, with countdown.</li>
-          <li><strong>Bulk import</strong> — CSV / Excel ingest with validation, so transition from legacy spreadsheets is one upload.</li>
+          <li><strong>QR-code labels</strong> — print durable, gym-grade stickers from the platform. Scan to view, report a fault, or take a photo.</li>
+          <li><strong>Auto-photo lookup</strong> — if a machine doesn't have a picture, the platform fetches a verified one from the manufacturer's catalogue.</li>
+          <li><strong>Warranty &amp; service at a glance</strong> — every machine shows a coloured pill: in warranty, expiring soon, or chargeable.</li>
+          <li><strong>One-click bulk import</strong> — drop your existing Excel asset register in and we'll turn it into live records, validated as it loads.</li>
         </ul>
       </div>
 
@@ -765,7 +766,7 @@
           <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
           <div class="url">gymaxis.mod.uk · Catterick Garrison · Equipment Register</div>
         </div>
-        <img src="screenshots/05_equipment_register.jpeg" alt="Equipment register" />
+        <img src="screenshots/v3_05_equipment.jpeg" alt="Equipment register" />
       </div>
     </div>
   </div>
@@ -781,7 +782,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -790,34 +791,34 @@
       A duty PTI logs a fault as fast as they'd send a WhatsApp.
     </h2>
 
-    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; align-items: center; gap: 22px;">
       <div class="browser-frame">
         <div class="bar">
           <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
           <div class="url">gymaxis.mod.uk · Log a Fault · Catterick Garrison</div>
         </div>
-        <img src="screenshots/04_fault_wizard.jpeg" alt="Fault wizard" />
+        <img src="screenshots/v3_04_fault_wizard.jpeg" alt="Fault wizard" />
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
         <div style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.30); border-radius: 12px; padding: 14px 16px;">
           <div style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 9pt; font-weight: 700; color: #B45309; text-transform: uppercase; letter-spacing: 0.08em;">
-            <span style="font-size: 11pt;">◆</span> Built-in classification guard
+            <span style="font-size: 11pt;">◆</span> Classification reminder built in
           </div>
           <p style="font-size: 10.5pt; color: var(--ink-2); margin: 8px 0 0; line-height: 1.5;">
-            On every free-text field the user sees a persistent banner:
-            <em>"OFFICIAL only — do NOT include NSN, operation names, callsigns or
-            anything above OFFICIAL."</em> The platform <strong>auto-scans</strong>
-            submissions for classified patterns and flags HQ for review.
+            Every text box shows a constant reminder:
+            <em>"OFFICIAL only — please don't include NSNs, operation names, callsigns
+            or anything higher than OFFICIAL."</em> The platform also <strong>scans for
+            classified patterns automatically</strong> and flags HQ for a quick review.
           </p>
         </div>
 
         <ul class="check-list">
-          <li><strong>Severity-led triage</strong> — five tiers from "Minor Issue" to "Safety Critical / isolate immediately".</li>
-          <li><strong>Photo / video evidence</strong> attached on the spot from a duty phone.</li>
-          <li><strong>Auto-routing</strong> to the right supplier (Life Fitness, Technogym, Concept 2…) by manufacturer.</li>
-          <li><strong>DIO escalation</strong> — one-click route to the configured DIO contact when a fault sits beyond SLA.</li>
-          <li><strong>Multi-machine jobs</strong> — log five treadmills with the same fault as a single bundled engineer call-out.</li>
+          <li><strong>Clear urgency levels</strong> — five steps from "minor issue" to "safety critical — isolate immediately".</li>
+          <li><strong>Photo &amp; video</strong> attached on the spot from a duty phone.</li>
+          <li><strong>The right supplier, automatically</strong> — Life Fitness, Technogym, Concept 2 — by make.</li>
+          <li><strong>One-click escalation to HQ</strong> when a fault sits longer than it should.</li>
+          <li><strong>Group multiple machines</strong> — five treadmills with the same fault becomes one engineer visit, not five.</li>
         </ul>
       </div>
     </div>
@@ -834,7 +835,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -843,30 +844,30 @@
       Digital check-sheets. Photo evidence. Audit-grade trail.
     </h2>
 
-    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; align-items: center; gap: 22px;">
       <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
         <p class="body">
-          Every machine has a configurable check-sheet — by default an MOD-tuned template
-          (e-stop check, hoover underneath, foot-strap inspection, fluid levels, cable wear).
-          PTIs run them on a tablet during the morning shift; HQ sees coverage as a
-          live percentage.
+          Every machine comes with a configurable daily checklist — by default, an
+          MOD-tuned template (emergency-stop test, hoover underneath, foot-strap
+          inspection, fluid levels, cable wear). PTIs run them on a tablet during
+          the morning shift. HQ sees coverage as a live percentage.
         </p>
         <div class="grid-2" style="margin-top: 4pt;">
           <div class="feature-card">
-            <h4 style="font-size: 11pt;">JSP 375 aligned</h4>
-            <p>Templates mapped to JSP 375 Vol 3 Ch 5 — duty-of-care evidence baked in.</p>
+            <h4 style="font-size: 11pt;">Mapped to JSP 375</h4>
+            <p>Templates line up with the MOD's own Health &amp; Safety manual — duty-of-care evidence is built in.</p>
           </div>
           <div class="feature-card">
             <h4 style="font-size: 11pt;">RIDDOR-ready</h4>
-            <p>Incident workflow captures injury reports with photo, witness, and timestamp.</p>
+            <p>A dedicated incident wizard captures injury reports with photo, witness, and timestamp — ready for HSE if needed.</p>
           </div>
           <div class="feature-card">
             <h4 style="font-size: 11pt;">Risk assessments</h4>
-            <p>Service Department risk assessment imported as a managed document, reviewed annually.</p>
+            <p>Your existing Service Department risk assessment lives inside the platform, reviewed annually with reminders.</p>
           </div>
           <div class="feature-card">
-            <h4 style="font-size: 11pt;">Auto-escalation</h4>
-            <p>Missed checks for &gt;48h auto-page the duty manager; &gt;7 days notify branch HQ.</p>
+            <h4 style="font-size: 11pt;">Missed checks chase themselves</h4>
+            <p>Checks missed for over 48 hours nudge the duty manager; over 7 days, branch HQ is alerted automatically.</p>
           </div>
         </div>
       </div>
@@ -876,7 +877,7 @@
           <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
           <div class="url">gymaxis.mod.uk · Catterick Garrison · Check Sheets</div>
         </div>
-        <img src="screenshots/08_check_sheets.jpeg" alt="Check sheets" />
+        <img src="screenshots/v3_08_checksheets.jpeg" alt="Check sheets" />
       </div>
     </div>
   </div>
@@ -892,7 +893,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -905,7 +906,7 @@
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <div class="browser-frame">
           <div class="bar"><div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div><div class="url">Documents</div></div>
-          <img src="screenshots/10_documents.jpeg" alt="Documents" />
+          <img src="screenshots/v3_10_documents.jpeg" alt="Documents" />
         </div>
         <h4 style="font-family: var(--font-display); font-size: 12pt; font-weight: 800; margin: 0;">Documents</h4>
         <p style="font-size: 9.5pt; color: var(--muted); margin: 0; line-height: 1.5;">
@@ -916,7 +917,7 @@
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <div class="browser-frame">
           <div class="bar"><div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div><div class="url">Staffing</div></div>
-          <img src="screenshots/11_staffing.jpeg" alt="Staffing" />
+          <img src="screenshots/v3_11_staffing.jpeg" alt="Staffing" />
         </div>
         <h4 style="font-family: var(--font-display); font-size: 12pt; font-weight: 800; margin: 0;">Personnel &amp; transfers</h4>
         <p style="font-size: 9.5pt; color: var(--muted); margin: 0; line-height: 1.5;">
@@ -927,7 +928,7 @@
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <div class="browser-frame">
           <div class="bar"><div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div><div class="url">Suppliers</div></div>
-          <img src="screenshots/12_suppliers.jpeg" alt="Suppliers" />
+          <img src="screenshots/v3_12_suppliers.jpeg" alt="Suppliers" />
         </div>
         <h4 style="font-family: var(--font-display); font-size: 12pt; font-weight: 800; margin: 0;">Supplier scorecards</h4>
         <p style="font-size: 9.5pt; color: var(--muted); margin: 0; line-height: 1.5;">
@@ -949,7 +950,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -958,37 +959,37 @@
       KPIs, CAPEX, risk — exportable, audit-defensible.
     </h2>
 
-    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; align-items: center; gap: 22px;">
       <div class="browser-frame">
         <div class="bar">
           <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
           <div class="url">Reports · Performance KPIs · Operational · CAPEX · Risk · Weekly Digest</div>
         </div>
-        <img src="screenshots/09_reports.jpeg" alt="Reports" />
+        <img src="screenshots/v3_09_reports.jpeg" alt="Reports" />
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
         <h3 class="sub">Five report families</h3>
         <div class="timeline">
           <div class="timeline-item">
-            <h4>Performance KPIs</h4>
-            <p>First-response time, time-to-engineer, time-to-restore, self-fix rate, audit coverage — sliced by site, by branch, by service.</p>
+            <h4>Performance</h4>
+            <p>How long it takes to acknowledge a fault, get an engineer on site, and get the machine running — sliced by site, branch, and Service.</p>
           </div>
           <div class="timeline-item">
-            <h4>Operational reports</h4>
-            <p>Fault volumes, fault codes (trending), downtime hours, machines out of service — for OC PT and base SHEF briefings.</p>
+            <h4>Operational</h4>
+            <p>Fault volumes, the faults that keep coming back, downtime hours, machines out of service — for OC PT and base SHEF briefings.</p>
           </div>
           <div class="timeline-item">
             <h4>Risk assessments</h4>
-            <p>Live RA library by service / by site, with annual review reminders and version history.</p>
+            <p>A live library of risk assessments by Service and by site, with annual review reminders and version history.</p>
           </div>
           <div class="timeline-item">
-            <h4>CAPEX intelligence</h4>
-            <p>Replacement cost forecasting from manufacturer pricing — refurbish-or-replace recommendations per asset.</p>
+            <h4>CAPEX picture</h4>
+            <p>Replacement costs forecast from manufacturer pricing, with refurbish-vs-replace recommendations on every machine.</p>
           </div>
           <div class="timeline-item">
             <h4>Weekly digest</h4>
-            <p>Emailed every Monday 07:00 to OC PT and DIO contacts — a one-page operational picture for the week ahead.</p>
+            <p>Emailed every Monday at 07:00 to OC PT and HQ contacts — a one-page picture of the week ahead.</p>
           </div>
         </div>
       </div>
@@ -1009,33 +1010,34 @@
 
   <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; z-index: 2;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word" style="color:#fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
-    <div class="eyebrow" style="margin-top: 18pt;">10 · Security · the reason this passes procurement</div>
+    <div class="eyebrow" style="margin-top: 18pt;">10 · Security · why this passes procurement</div>
     <h2 class="title" style="margin-top: 4pt; max-width: 920px; color: #fff;">
-      Built for OFFICIAL. Hardened for HMG.
+      Built for OFFICIAL. Hardened for HM Government.
     </h2>
 
     <div class="grid-3" style="margin-top: 18pt; gap: 14px;">
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
         <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">IDENTITY</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Mandatory MFA · HQ</h4>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Two-factor on every HQ login</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          MOD branch &amp; estate HQ accounts <em>must</em> enrol TOTP on first login.
-          15-minute temp tokens, single-use backup codes, master admins can't disable
-          their own MFA.
+          Branch &amp; estate HQ accounts must enrol a two-factor code on first login.
+          Short-lived sessions, single-use backup codes, and admins can't turn off
+          their own two-factor.
         </p>
       </div>
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
         <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">SEPARATION</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Tenant isolation</h4>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Your data, only your data</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          Every API call enforces <strong>organization_id</strong> + <strong>site_lock</strong>.
-          MOD data never crosses branch lines, never crosses into the commercial tenant base.
+          Every request is checked against the user's permitted base and branch.
+          MOD data never crosses branch lines and is never mixed with the commercial
+          customer base.
         </p>
       </div>
 
@@ -1043,62 +1045,69 @@
         <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">CLASSIFICATION</div>
         <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">OFFICIAL-only guard</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          Every free-text field is regex-scanned for NSN, callsigns, operation names.
-          Hits flag HQ for review and are persisted as classification flags on the audit log.
+          Every text field is scanned automatically for NSNs, callsigns, and
+          operation names. Any hit pauses the submission and notifies HQ for
+          a quick review.
         </p>
       </div>
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
-        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">CRYPTO</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Encrypted in transit &amp; at rest</h4>
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">ENCRYPTION</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Encrypted end-to-end</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          TLS 1.3 end-to-end, HSTS + preload, CSP locked-down, bcrypt password hashing,
-          DB-level encryption at rest, hardware-backed key custody.
+          Data is encrypted while travelling between you and us, and again at rest
+          inside our database. Industry-standard ciphers (TLS 1.3, AES-256), with
+          keys held in hardware-backed custody.
         </p>
       </div>
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
         <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">PASSWORDS</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">90-day rotation</h4>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">90-day password rotation</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          MOD HQ accounts auto-prompt for password rotation every 90 days. Lockout
-          after 5 failed attempts. Rate-limit-bypass secrets gated to internal CI only.
+          MOD HQ accounts are prompted to change their password every 90 days.
+          Five wrong attempts locks the account. Passwords are stored as one-way
+          hashes — even we can't read them.
         </p>
       </div>
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
         <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">AUDIT</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Immutable timeline</h4>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Tamper-proof timeline</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          Every issue carries an append-only event timeline — log, escalate, assign,
-          fix, close — with timestamps and the user that did it. RIDDOR-defensible.
+          Every fault carries a full history — logged, escalated, assigned, fixed,
+          closed — with a timestamp and the user who did it. Nothing can be edited
+          after the event.
         </p>
       </div>
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
-        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">DATA</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">UK-hosted, DPA-18</h4>
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">HOSTING</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">UK-hosted, GDPR compliant</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          All MOD tenant data hosted in UK data centres. Right-to-erasure workflow
-          for posted-out personnel. GDPR + DPA-18 aligned.
+          All MOD tenant data lives in UK data centres. We support full
+          right-to-erasure for posted-out personnel. Compliant with UK GDPR
+          and the Data Protection Act 2018.
         </p>
       </div>
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
         <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">QUALITY</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">CI/CD quality gates</h4>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">No release reaches you untested</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          624 pinned regression tests · zero-warning lint gate · post-deploy smoke
-          script · uptime monitor. No release reaches MOD without it.
+          Over 600 automated tests run before every release, plus a daily check
+          that the live platform is healthy. If something breaks, we know
+          before you do.
         </p>
       </div>
 
       <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
         <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">PEN-TEST</div>
-        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">CHECK-aligned</h4>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Independently tested every year</h4>
         <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
-          Annual independent penetration test against NCSC CHECK methodology;
-          remediation SLA &lt;30 days. Findings shared with DIO security team.
+          A UK-government-approved firm tries to break in once a year. Findings
+          are fixed within 30 days and the full report is shared with your
+          security team.
         </p>
       </div>
     </div>
@@ -1116,7 +1125,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -1189,7 +1198,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -1251,31 +1260,31 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive · Commercial</div>
     </div>
 
-    <div class="eyebrow" style="margin-top: 18pt;">13 · The commercial case · pays for itself in year one</div>
+    <div class="eyebrow" style="margin-top: 18pt;">13 · The commercial case · pays back in year one</div>
     <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
-      Less downtime. Longer kit life. Audit-ready every day.
+      Less downtime. Longer-lasting kit. Audit-ready every day.
     </h2>
 
     <div class="grid-4" style="margin-top: 18pt;">
-      <div class="stat">
-        <div class="num">−40%</div>
-        <div class="label">Mean time-to-restore on reactive faults</div>
+      <div class="stat" style="padding: 14px 16px;">
+        <div class="num" style="font-size: 26pt;">10 sec</div>
+        <div class="label" style="font-size: 8.5pt;">to log a fault from a phone — vs minutes on paper</div>
       </div>
-      <div class="stat">
-        <div class="num">+3 yrs</div>
-        <div class="label">Average asset life via PPM &amp; warranty discipline</div>
+      <div class="stat" style="padding: 14px 16px;">
+        <div class="num" style="font-size: 26pt;">5 → 1</div>
+        <div class="label" style="font-size: 8.5pt;">tools replaced (paper, WhatsApp, Excel, email, SharePoint)</div>
       </div>
-      <div class="stat">
-        <div class="num">100%</div>
-        <div class="label">Audit coverage on managed sites (vs ~40% on paper)</div>
+      <div class="stat" style="padding: 14px 16px;">
+        <div class="num" style="font-size: 26pt;">Every day</div>
+        <div class="label" style="font-size: 8.5pt;">an auditable check-sheet for every machine, on every base</div>
       </div>
-      <div class="stat">
-        <div class="num">10 s</div>
-        <div class="label">Average time for a PTI to log a fault from a phone</div>
+      <div class="stat" style="padding: 14px 16px;">
+        <div class="num" style="font-size: 26pt;">Day 1</div>
+        <div class="label" style="font-size: 8.5pt;">your existing Excel asset register becomes live records</div>
       </div>
     </div>
 
@@ -1283,25 +1292,26 @@
       <div>
         <h3 class="sub">Where the money comes back</h3>
         <ul class="check-list">
-          <li><strong>Avoided CAPEX</strong> — kit kept serviced runs years longer; refurb routes opened that paper estates miss.</li>
-          <li><strong>Reduced engineer call-outs</strong> — supplier auto-routing &amp; self-fix knowledge base catches the easy wins on-base.</li>
-          <li><strong>Insurance &amp; claims defensibility</strong> — every machine inspection has a timestamped audit trail.</li>
-          <li><strong>PTI time recovered</strong> — duty staff spend duty hours on personnel, not on clipboards.</li>
-          <li><strong>Procurement leverage</strong> — supplier scorecards turn renewal conversations into evidence-led ones.</li>
+          <li><strong>Kit lasts longer</strong> — proper service records protect warranties and unlock refurb routes paper-based estates miss.</li>
+          <li><strong>Fewer engineer call-outs</strong> — supplier auto-routing and a self-fix knowledge base catch easy wins on base.</li>
+          <li><strong>Insurance &amp; injury claims defensible</strong> — every check on every machine has a date, photo, and signature.</li>
+          <li><strong>PTI hours recovered</strong> — duty staff spend duty hours on Service Personnel, not on clipboards.</li>
+          <li><strong>Smarter procurement</strong> — supplier scorecards turn contract renewals into evidence-led conversations.</li>
         </ul>
       </div>
       <div>
         <h3 class="sub">Commercial model</h3>
         <p class="body" style="margin-bottom: 10pt;">
-          <strong>Per-site annual licence</strong>, banded by site size, with a flat fee for HQ
-          rollup access. All integrations, support, and training included — no hidden
-          per-user uplift. Volume tier built around <strong>multi-base estate commitments</strong>.
+          <strong>One annual licence per site</strong>, banded by size, with a flat fee
+          for HQ rollup access. All integrations, support, training, and on-base rollout
+          included — no per-user uplift, no hidden fees. Volume tiers built around
+          <strong>multi-base estate commitments</strong>.
         </p>
         <div class="feature-card">
-          <h4>Pricing engagement</h4>
-          <p>Indicative pricing shared at the second meeting under NDA. Full commercials
-          delivered against an MOD scope statement, with G-Cloud framework alignment
-          where applicable.</p>
+          <h4>How we share pricing</h4>
+          <p>Indicative pricing at the second meeting under NDA. Full commercials
+          delivered against an MOD scope statement, aligned with G-Cloud frameworks
+          where the contract demands it.</p>
         </div>
       </div>
     </div>
@@ -1318,7 +1328,7 @@
   <div class="crest-bar"></div>
   <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
@@ -1379,7 +1389,7 @@
 
   <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; z-index: 2;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="logo"><div class="mark">G</div><div class="word" style="color:#fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div></div>
+      <div class="logo"><img src="assets/gymaxis-logo.png" alt="GymAxis" /><span class="mod-tag">· MOD</span></div>
       <div class="doc-classify">Official — Sensitive</div>
     </div>
 
