@@ -1,3 +1,105 @@
+## Iter 216h297 — Lint-health weekly snapshot (Feb 21, 2026) ✅ P3
+
+Closed the operator-visibility gap from h296 with a weekly
+codebase-health report. Per the user's 1A choice (after I flagged
+that the originally-floated "regressions caught" framing needed
+unbuilt telemetry), this iter ships the **honest, cheaper version**
+— a current-state snapshot that trends week-over-week without
+any new infra.
+
+### What gets captured
+
+Every Monday (or on demand via `make lint-health`):
+
+| Metric | Source |
+|---|---|
+| ESLint warnings | `yarn eslint src --max-warnings 999999` footer |
+| ruff findings | `ruff check . --statistics` + trailer fallback |
+| `eslint-disable-next-line` count | grep over `frontend/src` (excl. node_modules) |
+| `# noqa` directive count | grep over `backend/{routes,utils,models}` |
+| Backend regression tests passing | `make regression` summary parse |
+| Top 5 most complex files | `radon cc -s -j` over backend |
+
+Each metric is paired with a trend arrow vs the previous week's
+JSON sidecar (`↓ N fewer / ↑ N more / → no change / —` if no
+baseline or tooling failure).
+
+### Deliverables
+
+* **`/app/scripts/lint_health_report.py`** — Python 3.11 script
+  (chmod +x). Pure stdlib + radon. Deferred Resend import so it
+  runs on minimal envs. Tiny inline markdown→HTML converter so
+  the email body renders without a markdown library dependency.
+* **`Makefile`** — new `lint-health` target wired into `.PHONY` +
+  `make help`. Output goes to `/app/reports/lint-health-YYYY-WNN.{md,json}`.
+* **`/app/reports/lint-health-2026-W21.md` + `.json`** — the
+  baseline snapshot. First-week numbers committed:
+  * ESLint warnings: **0** ✅
+  * ruff findings: **0** ✅
+  * eslint-disable-next-line: 162 (debt indicator — 86 from
+    iter 216h226 polish-5 sweep, balance accumulated since)
+  * `# noqa` directives: 85
+  * Backend tests passing: 547 / 561 (14 skipped)
+  * Most complex blocks: `churn_signals.detect_churn_signals` (CC 69),
+    `service_report._build_pdf` (CC 68), `marketing/creative.generate_creative` (CC 66)
+
+### Env contract
+
+```
+LINT_HEALTH_NOTIFY_EMAIL  — optional; recipient for the Resend body
+```
+
+### Verification
+
+* `tests/test_iter_216h297_lint_health_report.py` — **27 tests**
+  pin: ESLint footer parse, clean-state zero, tooling-failure
+  −1, ruff `--statistics` summation + trailer fallback, directive
+  counter `node_modules`/`venv` exclusion, multiple-per-file,
+  pytest summary parse with and without `skipped`, unparseable
+  pytest output → −1, all 5 trend-arrow branches (↓ ↑ → — twice),
+  Markdown rendering of headline metrics + trend arrows +
+  complexity table + tooling-failure warning block, the
+  inline markdown→HTML converter (tables + headings + bullets,
+  no separator-row leak), `_previous_snapshot` skipping today's
+  own JSON, no false positive when only today's JSON exists,
+  Makefile `.PHONY` + `make help` wiring, script `+x`. All
+  green in 0.4s (fully mocked, no real subprocess).
+* **Live run** against the real repo: report wrote correctly,
+  trend computation verified by planting a fake W20 sidecar
+  → arrows rendered exactly as expected (↓ 3 fewer ESLint
+  warnings, ↑ 7 more passing tests, etc).
+* Full regression: **574 passed, 14 skipped** in 11.6s.
+* `make lint` clean.
+
+### Operator usage
+
+```bash
+# Weekly cron suggestion (every Mon 09:00 UTC):
+0 9 * * 1 cd /app && LINT_HEALTH_NOTIFY_EMAIL=ops@yourco.com make lint-health
+
+# Or run on demand any time:
+make lint-health
+```
+
+The committed Markdown is repo-tracked, so `git log reports/`
+shows the long-term quality trend at a glance — useful for
+quarterly all-hands or sprint retros.
+
+### Why this isn't "regressions caught at PR vs pre-commit vs CI"
+
+Honest moment from the planning round: the original framing
+needed persistent telemetry between developer laptops (where
+the pre-commit hook runs) and the GitHub-Actions CI (cloud).
+Building that pipe properly was 3-4 hrs of infra work. A
+current-state snapshot delivers the same operator-visible
+"is the codebase getting cleaner or dirtier?" signal in 1 hr
+of code — and is the right level of investment for a P3.
+The "regressions caught" version remains a future option if
+the team wants a deeper investment.
+
+---
+
+
 ## Iter 216h296 — Post-deploy HTTP smoke (Feb 21, 2026) ✅ P3
 
 Final piece of the operator-trust stack. `make post-deploy` now

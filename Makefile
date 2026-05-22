@@ -3,7 +3,7 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
-.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy install-hooks
+.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health install-hooks
 
 help:
 	@echo "GymAxis make targets:"
@@ -18,6 +18,7 @@ help:
 	@echo "  make regression-full     # h211 trust-recovery suite (84 tests, 6 modules)"
 	@echo "  make pre-deploy          # full deploy gate — regressions + security + Stripe + lint"
 	@echo "  make post-deploy         # 6-probe HTTP smoke against \$$POST_DEPLOY_BASE_URL (Resend on result)"
+	@echo "  make lint-health         # weekly codebase-health snapshot to /app/reports/ (Resend opt-in)"
 
 # Iter 216h291 — install the git pre-commit hook so ESLint warnings
 # can't sneak past local commits. Idempotent — re-running just
@@ -107,6 +108,7 @@ regression:
 	  tests/test_iter_216h294_predeploy_lint_gate.py \
 	  tests/test_iter_216h295_required_checks_doc.py \
 	  tests/test_iter_216h296_post_deploy_smoke.py \
+	  tests/test_iter_216h297_lint_health_report.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
@@ -152,3 +154,18 @@ pre-deploy: lint
 # Configure recipient: export POST_DEPLOY_NOTIFY_EMAIL=ops@your.co
 post-deploy:
 	@cd /app/backend && python3 /app/scripts/post-deploy.py
+
+# Iter 216h297 — Lint-health weekly snapshot. Captures the current
+# state of the repo's lint/test/complexity metrics, computes trend
+# arrows vs the most recent previous snapshot in /app/reports/, and
+# fires a Resend email if `LINT_HEALTH_NOTIFY_EMAIL` is set.
+#
+# Designed to be run weekly via cron / scheduled GitHub Action,
+# but safe to run on-demand any time:
+#     make lint-health
+#
+# Output:
+#   /app/reports/lint-health-YYYY-WNN.md   (committable Markdown)
+#   /app/reports/lint-health-YYYY-WNN.json  (raw metrics; powers next week's trends)
+lint-health:
+	@cd /app/backend && python3 /app/scripts/lint_health_report.py

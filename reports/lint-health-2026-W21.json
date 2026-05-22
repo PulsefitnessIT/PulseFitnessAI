@@ -1,0 +1,39 @@
+{
+  "captured_at": "2026-05-22T05:59:25.500322+00:00",
+  "iso_week": "2026-W21",
+  "eslint_warnings": 0,
+  "ruff_findings": 0,
+  "eslint_disable_directives": 162,
+  "noqa_directives": 85,
+  "backend_regression_total": 561,
+  "backend_regression_passed": 547,
+  "backend_regression_skipped": 14,
+  "top_complex_files": [
+    {
+      "file": "backend/utils/churn_signals.py",
+      "max_cc": 69,
+      "worst_block": "detect_churn_signals"
+    },
+    {
+      "file": "backend/routes/svc/service_report.py",
+      "max_cc": 68,
+      "worst_block": "_build_pdf"
+    },
+    {
+      "file": "backend/routes/marketing/creative.py",
+      "max_cc": 66,
+      "worst_block": "generate_creative"
+    },
+    {
+      "file": "backend/routes/service_desk.py",
+      "max_cc": 62,
+      "worst_block": "supplier_health_global"
+    },
+    {
+      "file": "backend/routes/memberships/bookings.py",
+      "max_cc": 62,
+      "worst_block": "member_book"
+    }
+  ],
+  "notes": []
+}
