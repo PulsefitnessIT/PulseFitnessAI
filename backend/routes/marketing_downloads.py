@@ -30,6 +30,11 @@ DOWNLOADS: dict[str, tuple[str, str]] = {
         "mod-presentation/GymAxis_MOD_Briefing.pdf",
         "GymAxis_MOD_Briefing.pdf",
     ),
+    # Iter 216h303 — Sicon WebAPI access request for Pulse Fitness Test.
+    "sicon-access.pdf": (
+        "sicon-access/GymAxis_Sicon_Access_Request.pdf",
+        "GymAxis_Sicon_Access_Request.pdf",
+    ),
 }
 
 

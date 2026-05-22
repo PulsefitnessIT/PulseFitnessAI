@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<title>GymAxis · Sicon WebAPI Access Request — Pulse Fitness Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand-cyan:  #19CDFF;
+    --brand-blue:  #0055FF;
+    --ink:         #0B0F1A;
+    --ink-2:       #111827;
+    --paper:       #FFFFFF;
+    --paper-2:     #F7F9FC;
+    --muted:       #64748B;
+    --line:        #E2E8F0;
+    --emerald:     #10B981;
+    --amber:       #F59E0B;
+    --red:         #EF4444;
+    --font-display: 'Montserrat', system-ui, sans-serif;
+    --font-body:    'Nunito', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #1a1f2e;
+    font-family: var(--font-body);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 8mm auto;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+    padding: 14mm 18mm 22mm;
+  }
+  @page { size: A4 portrait; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+    .page:last-child { page-break-after: auto; }
+  }
+
+  /* tricolour bar */
+  .crest-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 5px;
+    background: linear-gradient(90deg,
+      #012169 0%, #012169 25%,
+      var(--brand-blue) 25%, var(--brand-blue) 55%,
+      var(--brand-cyan) 55%, var(--brand-cyan) 80%,
+      #C8102E 80%, #C8102E 100%);
+  }
+
+  /* header */
+  .head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 14pt; margin-bottom: 18pt;
+    border-bottom: 1px solid var(--line);
+  }
+  .head .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .head .logo img { height: 32px; width: auto; }
+  .head .logo .tag {
+    font-family: var(--font-display);
+    font-size: 11pt;
+    font-weight: 700;
+    color: var(--brand-blue);
+    padding-left: 8px;
+    border-left: 1px solid var(--line);
+    margin-left: 4px;
+  }
+  .head .meta {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .head .meta .conf {
+    color: #C8102E;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  /* type */
+  h1.title {
+    font-family: var(--font-display);
+    font-size: 22pt;
+    font-weight: 900;
+    line-height: 1.06;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+    margin: 0 0 6pt 0;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 8.5pt;
+    font-weight: 600;
+    color: var(--brand-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 6pt;
+  }
+  .lead {
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: var(--ink-2);
+    margin: 0 0 10pt 0;
+  }
+  p { font-size: 9.5pt; line-height: 1.5; color: var(--ink-2); margin: 0 0 6pt 0; }
+  strong { color: var(--ink); }
+
+  h2.section {
+    font-family: var(--font-display);
+    font-size: 11pt;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 10pt 0 5pt 0;
+    padding-bottom: 3pt;
+    border-bottom: 2px solid var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  h2.section .n {
+    font-family: var(--font-mono);
+    font-size: 9pt;
+    font-weight: 700;
+    color: var(--brand-blue);
+    letter-spacing: 0.1em;
+  }
+
+  /* spec card */
+  .spec-card {
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--brand-blue);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 6pt;
+  }
+  .spec-card table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .spec-card td {
+    padding: 4px 0;
+    font-size: 9.5pt;
+    vertical-align: top;
+    line-height: 1.4;
+  }
+  .spec-card td:first-child {
+    width: 36%;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 9pt;
+  }
+  .spec-card td.val {
+    font-family: var(--font-mono);
+    font-size: 9.5pt;
+    color: var(--brand-blue);
+    font-weight: 600;
+  }
+
+  /* check list */
+  ul.checks { list-style: none; padding: 0; margin: 6pt 0; }
+  ul.checks li {
+    position: relative;
+    padding-left: 22px;
+    margin-bottom: 6px;
+    font-size: 10pt;
+    line-height: 1.5;
+  }
+  ul.checks li::before {
+    content: "✓";
+    position: absolute; left: 0; top: 0;
+    width: 16px; height: 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand-cyan), var(--brand-blue));
+    color: #fff;
+    font-size: 8pt;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,85,255,0.25);
+  }
+  ul.x li::before { background: #94A3B8; content: "·"; box-shadow: none; }
+
+  /* permission grid */
+  .perm-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6pt;
+    font-size: 9pt;
+  }
+  .perm-table th, .perm-table td {
+    text-align: left;
+    padding: 5px 9px;
+    border-bottom: 1px solid var(--line);
+    page-break-inside: avoid;
+  }
+  .perm-table th {
+    background: var(--paper-2);
+    font-family: var(--font-display);
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .perm-table .endpoint {
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    color: var(--ink-2);
+  }
+  .perm-table .method {
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    min-width: 38px;
+    text-align: center;
+  }
+  .m-get { background: #DBEAFE; color: #1D4ED8; }
+  .m-post { background: #D1FAE5; color: #047857; }
+  .m-put { background: #FEF3C7; color: #B45309; }
+
+  /* security block */
+  .sec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 6pt;
+  }
+  .sec-card {
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+  .sec-card .label {
+    font-family: var(--font-mono);
+    font-size: 7pt;
+    color: var(--brand-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .sec-card .body {
+    font-size: 8pt;
+    line-height: 1.3;
+    color: var(--ink-2);
+  }
+
+  /* footer */
+  .footer {
+    position: absolute;
+    bottom: 8mm;
+    left: 18mm;
+    right: 18mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--line);
+    padding-top: 6pt;
+    font-family: var(--font-mono);
+    font-size: 7.5pt;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .footer strong { color: var(--ink); font-weight: 700; }
+
+  /* paste-ready callout */
+  .paste {
+    background: #0B0F1A;
+    color: #E2E8F0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 8pt 0;
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    line-height: 1.55;
+    position: relative;
+  }
+  .paste::before {
+    content: "PASTE-READY · forward this to your Sicon admin";
+    position: absolute;
+    top: -7pt;
+    left: 12px;
+    background: var(--brand-blue);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .paste strong { color: var(--brand-cyan); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<section class="page">
+  <div class="crest-bar"></div>
+
+  <div class="head">
+    <div class="logo">
+      <img src="gymaxis-logo.png" alt="GymAxis" />
+      <span class="tag">· Integrations</span>
+    </div>
+    <div class="meta">
+      <div class="conf">Commercial in Confidence</div>
+      <div>Ref. GA-PULSE-SICON-2026-Q2-01</div>
+      <div>Issued: Spring 2026</div>
+    </div>
+  </div>
+
+  <div class="eyebrow">Sicon Sage 200 WebAPI · Access Request</div>
+  <h1 class="title">What we need to connect GymAxis to the<br/>Pulse Fitness Test environment.</h1>
+  <p class="lead">
+    A short, specific brief for Pulse Fitness's Sicon / Sage 200 administrator.
+    Read time: 90 seconds. Action required: create one read-only API user
+    and confirm three details.
+  </p>
+
+  <!-- ─── §1 SUMMARY ─── -->
+  <h2 class="section"><span class="n">§1</span> The ask, in one sentence</h2>
+  <p>
+    Please create a <strong>dedicated, read-only Sicon WebAPI user</strong>
+    against the <strong>Pulse Fitness Test</strong> company on
+    <span style="font-family: var(--font-mono); color: var(--brand-blue);">service.pulsefitness.com</span>,
+    with access to the <strong>Service Case</strong> and <strong>Service Appointment</strong>
+    endpoints. GymAxis will use these credentials only to read fault &amp;
+    engineer-job data into our maintenance platform — no writes to your live
+    Sage 200 environment, ever, until we both sign off on a UAT plan.
+  </p>
+
+  <!-- ─── §2 EXACTLY WHAT TO CREATE ─── -->
+  <h2 class="section"><span class="n">§2</span> Exactly what to create in Sage</h2>
+  <p style="margin-bottom: 6pt;">
+    In Sage 200 → <em>Sicon WebAPI → Maintain WebAPI Users</em>, create:
+  </p>
+  <div class="spec-card">
+    <table>
+      <tr><td>WebAPI username</td><td class="val">gymaxis-readonly</td></tr>
+      <tr><td>Password</td><td>Generated by you · sent to GymAxis via a password-manager share link or password-protected PDF (not plain email).</td></tr>
+      <tr><td>Company</td><td class="val">Pulse Fitness Test</td></tr>
+      <tr><td>Authentication scheme</td><td>HTTP Basic (per Sicon WebAPI standard)</td></tr>
+      <tr><td>Account state</td><td>Enabled · password set to <em>never expire</em> for the duration of integration testing (we'll rotate together at go-live)</td></tr>
+    </table>
+  </div>
+
+  <!-- ─── §3 PERMISSIONS ─── -->
+  <h2 class="section"><span class="n">§3</span> Permissions — least-privilege scope</h2>
+  <p>Only these endpoints are required. Everything else can stay locked down.</p>
+  <table class="perm-table">
+    <thead>
+      <tr><th style="width: 60%;">Endpoint</th><th>Methods</th><th>Why we need it</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="endpoint">/api/SMConnectivity/Ping</td>
+        <td><span class="method m-get">GET</span></td>
+        <td>Health check — we hit this every 60 s.</td>
+      </tr>
+      <tr>
+        <td class="endpoint">/api/service/cases &amp; /api/service/cases/{id}</td>
+        <td><span class="method m-get">GET</span></td>
+        <td>Read existing service cases &amp; their detail.</td>
+      </tr>
+      <tr>
+        <td class="endpoint">/api/service/case-types · case-tracking-statuses · priorities</td>
+        <td><span class="method m-get">GET</span></td>
+        <td>Pull dropdown lists so GymAxis maps to Sicon's exact values.</td>
+      </tr>
+      <tr>
+        <td class="endpoint">/api/service/trackingnotes/{id}</td>
+        <td><span class="method m-get">GET</span></td>
+        <td>Read engineer progress notes on a case.</td>
+      </tr>
+      <tr>
+        <td class="endpoint">/api/service/appointments &amp; /api/service/appointments/{id}</td>
+        <td><span class="method m-get">GET</span></td>
+        <td>Read engineer visits / time bookings.</td>
+      </tr>
+      <tr>
+        <td class="endpoint">/api/service/appointments/resources</td>
+        <td><span class="method m-get">GET</span></td>
+        <td>List engineers, vans, sub-contractors.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="margin-top: 6pt; font-size: 9.5pt; color: var(--muted); font-style: italic;">
+    Note: at this stage we are <strong>not</strong> requesting any POST/PUT/DELETE access.
+    When we're ready to write back to Sicon (engineer notes, time-bookings), we'll
+    submit a second, narrower request for those specific endpoints only.
+  </p>
+
+  <div class="footer">
+    <div>GymAxis · Sicon Access Request · Page 1 of 2</div>
+    <div><strong>gymaxis.ai</strong> · mod@gymaxis.ai</div>
+  </div>
+</section>
+
+
+<section class="page">
+  <div class="crest-bar"></div>
+  <div class="head">
+    <div class="logo">
+      <img src="gymaxis-logo.png" alt="GymAxis" />
+      <span class="tag">· Integrations</span>
+    </div>
+    <div class="meta">
+      <div class="conf">Commercial in Confidence</div>
+      <div>Ref. GA-PULSE-SICON-2026-Q2-01</div>
+      <div>Issued: Spring 2026</div>
+    </div>
+  </div>
+
+  <!-- ─── §4 WHAT WE DON'T NEED ─── -->
+  <h2 class="section"><span class="n">§4</span> What we do <em>not</em> need (reassurance)</h2>
+  <p>To keep the scope as small as possible, we are explicitly <strong>not</strong> requesting:</p>
+  <ul class="checks x">
+    <li>Access to your <strong>Live</strong> Sage 200 company — Test only at this stage.</li>
+    <li>Access to <strong>Finance</strong> ledgers (Sales/Purchase/Nominal/Cashbook) — out of scope.</li>
+    <li>Access to <strong>Stock</strong>, <strong>Manufacturing</strong>, <strong>SFDC</strong> mobile endpoints — these are factory-floor controllers, not relevant to gym maintenance.</li>
+    <li>Any <strong>write</strong> access during the initial integration window — read-only only.</li>
+    <li>Any of your <strong>customer or supplier personal data</strong> beyond what's already in service cases — we don't pull master records.</li>
+  </ul>
+
+  <!-- ─── §5 ONE-OFF DETAILS WE NEED CONFIRMED ─── -->
+  <h2 class="section"><span class="n">§5</span> Three details to confirm with the user/password</h2>
+  <div class="spec-card">
+    <table>
+      <tr><td>Company ID</td><td>The numeric <code style="background: var(--paper); padding: 1px 5px; border-radius: 3px; font-family: var(--font-mono); font-size: 9pt;">companyID</code> for "Pulse Fitness Test" (usually 1–10).</td></tr>
+      <tr><td>IP allowlist</td><td>If the WebAPI is IP-restricted, please add GymAxis production egress IPs (we'll send under separate cover when you confirm).</td></tr>
+      <tr><td>Rate limits</td><td>Any per-user request-rate cap we should respect (we'll default to ≤ 2 requests/second per controller if unspecified).</td></tr>
+    </table>
+  </div>
+
+  <!-- ─── §6 SECURITY ─── -->
+  <h2 class="section"><span class="n">§6</span> Our security commitments to Pulse</h2>
+  <div class="sec-grid">
+    <div class="sec-card">
+      <div class="label">Credential storage</div>
+      <div class="body">Stored encrypted at rest in a UK-hosted secrets vault. Never logged, never appears in error reports.</div>
+    </div>
+    <div class="sec-card">
+      <div class="label">Transport</div>
+      <div class="body">TLS 1.3 only. We pin the Sicon hostname &amp; reject downgraded connections.</div>
+    </div>
+    <div class="sec-card">
+      <div class="label">Audit trail</div>
+      <div class="body">Every Sicon call is logged with timestamp, endpoint, status, and the GymAxis operator who triggered it. We'll share the log on request.</div>
+    </div>
+    <div class="sec-card">
+      <div class="label">Rotation</div>
+      <div class="body">We'll rotate this credential <strong>jointly</strong> at the end of integration testing, and at any cadence Pulse requires thereafter.</div>
+    </div>
+    <div class="sec-card">
+      <div class="label">Breach response</div>
+      <div class="body">If we suspect the credential is compromised, we notify Pulse IT inside 4 hours and stop using it.</div>
+    </div>
+    <div class="sec-card">
+      <div class="label">Data residency</div>
+      <div class="body">Any data fetched from Sicon stays inside the GymAxis UK tenant boundary — no offshoring, no third-party processors.</div>
+    </div>
+  </div>
+
+  <!-- ─── §7 PASTE-READY EMAIL + CONTACT ─── -->
+  <h2 class="section"><span class="n">§7</span> Paste-ready email for Pulse's Sicon admin</h2>
+  <div class="paste">
+    Hi <strong>{admin first name}</strong>, could you create a Sicon WebAPI user for GymAxis on the <strong>Pulse Fitness Test</strong> company please?<br/><br/>
+    &nbsp;&nbsp;Username <strong>gymaxis-readonly</strong> · Company <strong>Pulse Fitness Test</strong> · Auth <strong>HTTP Basic</strong> · Permissions <strong>read-only</strong> on Service Case + Service Appointment controllers only (see PDF §3).<br/><br/>
+    Could you also confirm the numeric <strong>companyID</strong> for Pulse Fitness Test, plus any IP allowlist / rate limit we need to honour? Send the password via <strong>1Password / LastPass / Bitwarden share</strong> (not plain email).<br/><br/>
+    Thanks, <strong>{your name}</strong>
+  </div>
+
+  <!-- ─── §8 CONTACT (one-liner) ─── -->
+  <h2 class="section" style="margin-top: 8pt;"><span class="n">§8</span> Send the credentials to</h2>
+  <p style="font-size: 9pt; line-height: 1.4; margin-bottom: 4pt;">
+    <span style="font-family: var(--font-mono); color: var(--brand-blue);">integrations@gymaxis.ai</span>
+    &nbsp;·&nbsp; security: <span style="font-family: var(--font-mono); color: var(--brand-blue);">security@gymaxis.ai</span>
+    &nbsp;·&nbsp; <strong>password-manager share only.</strong>
+  </p>
+
+  <div class="footer">
+    <div>GymAxis · Sicon Access Request · Page 2 of 2</div>
+    <div><strong>Thank you.</strong></div>
+  </div>
+</section>
+
+</body>
+</html>
