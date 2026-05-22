@@ -103,6 +103,7 @@ regression:
 	  tests/test_iter_216h290_unavailable_autoreply.py \
 	  tests/test_iter_216h291_precommit_hook.py \
 	  tests/test_iter_216h293_ci_gating.py \
+	  tests/test_iter_216h294_predeploy_lint_gate.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
@@ -117,8 +118,15 @@ regression-full:
 	@cd /app/backend && python3 -m pytest tests/regression -q --tb=line --no-header
 
 # Iter 216c — full deploy gate. Runs:
-#   regression suite → ruff/bandit → Stripe live keys → Mongo ping → frontend lint.
+#   make lint → regression suite → ruff/bandit → Stripe live keys → Mongo ping → frontend lint.
+# Iter 216h294 — `lint` is now a hard prerequisite. Previously you
+# could ship lint-dirty code through `pre-deploy` because the
+# script's own frontend-lint step only scanned files changed in
+# HEAD (so a stale warning in an untouched file slid through). The
+# Makefile-level dependency runs strict ruff + ESLint over the
+# whole tree first, then hands off to the script for the heavier
+# Stripe / Mongo / regression checks.
 # In preview / staging where Stripe is in test mode, prefix with
 #   SKIP_LIVE_CHECK=1 make pre-deploy
-pre-deploy:
+pre-deploy: lint
 	@bash /app/scripts/pre-deploy.sh

@@ -1,3 +1,69 @@
+## Iter 216h294 — `make pre-deploy` now hard-depends on `make lint` (Feb 21, 2026) ✅ P1
+
+Closed the last bypass in the deploy gate. The shell script
+(`/app/scripts/pre-deploy.sh`) only linted files **changed in
+HEAD**, so a stale ESLint warning in an untouched file would slip
+straight to production. The Makefile-level dependency now runs
+strict ruff + ESLint over the whole tree first, then hands off to
+the script for the heavier Stripe / Mongo / regression checks.
+
+### Behaviour change
+
+```diff
+-pre-deploy:
++pre-deploy: lint
+        @bash /app/scripts/pre-deploy.sh
+```
+
+`make lint` already chains `lint-integrations` → `lint-backend`
+(strict ruff, no `|| true` swallow) → `lint-frontend` (strict
+ESLint `--max-warnings 0`). All three are inherited transitively.
+
+### Verification
+
+* `tests/test_iter_216h294_predeploy_lint_gate.py` — **6 tests**
+  pin: `pre-deploy` lists `lint` as a prerequisite, `lint`
+  itself chains all three sub-linters, `pre-deploy` stays in
+  `.PHONY`, neither `lint-backend` nor `lint-frontend` carries
+  the `|| true` swallow, and **`make -n pre-deploy` actually
+  walks the lint targets in the correct order before the
+  deploy script**.
+* `make -n pre-deploy` (dry-run) prints the resolved invocation:
+  ```
+  python3 /app/backend/scripts/check_integration_mapping.py
+  cd /app/backend && ruff check .
+  cd /app/frontend && yarn -s eslint src --ext .js,.jsx --max-warnings 0
+  bash /app/scripts/pre-deploy.sh
+  ```
+  ESLint runs before the deploy script — order pinned.
+* Full regression: **527 passed, 14 skipped** in 12.2s.
+* `make lint` → exit 0.
+
+### Defence-in-depth picture (final)
+
+```
+Layer 1 — pre-commit hook        (.githooks/pre-commit, h291)
+Layer 2 — `make lint`             (h289 + h292 strict gates)
+Layer 3 — CI on every PR          (.github/workflows/*.yml, h293)
+Layer 4 — `make pre-deploy`       (h294 — lint hard-required)
+              ↓ make lint (whole tree, both linters)
+              ↓ regression suite (527 tests)
+              ↓ ruff/bandit baseline
+              ↓ Stripe live keys + price IDs
+              ↓ webhook handler tests
+              ↓ Mongo ping
+              ↓ frontend lint on HEAD diff
+              ↓ frontend jest
+              = "safe to deploy" iff every gate green
+```
+
+There is no longer any path from "lint-dirty repo" to
+"production deploy" without an explicit `--no-verify` +
+manual override.
+
+---
+
+
 ## Iter 216h293 — CI gating tightened (Feb 21, 2026) ✅ P1
 
 Closed the last quiet bypass in the GitHub-Actions CI workflow so
