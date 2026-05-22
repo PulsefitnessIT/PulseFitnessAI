@@ -181,3 +181,97 @@ async def send_compliance_reminder(
         subject=f"Action needed — your {kind} {'has expired' if days_remaining <= 0 else f'expires in {days_remaining} days'}",
         html=_wrap(headline, body, cta_label="Update your profile", cta_url=_partner_dashboard_url()),
     )
+
+
+
+# ── 6. Engineer-on-leave autoreply (iter 216h290) ───────────────────
+
+
+def _format_leave_date(iso: str | None) -> str | None:
+    """Render a 'YYYY-MM-DD' as '5 March' for the email body."""
+    if not iso:
+        return None
+    try:
+        from datetime import date
+        return date.fromisoformat(iso).strftime("%-d %B")
+    except Exception:  # noqa: BLE001
+        return iso
+
+
+def _alternatives_block(alternatives: list[dict]) -> str:
+    """Render a tiny list of alternative engineers, or empty string
+    when there are none — keeps the email lean either way."""
+    if not alternatives:
+        return ""
+    rows: list[str] = []
+    for alt in alternatives[:3]:
+        name = alt.get("full_name") or "GymAxis Engineer"
+        company = alt.get("company_name")
+        area = alt.get("service_postcode_area") or ""
+        bits = [f"<strong>{name}</strong>"]
+        if company:
+            bits.append(company)
+        if area:
+            bits.append(area)
+        rows.append(
+            f'<li style="margin:4px 0;">{" · ".join(bits)}</li>'
+        )
+    return (
+        '<p style="margin-top:18px;font-size:13px;color:#475569;">In the meantime,'
+        " these in-area engineers are accepting work:</p>"
+        f'<ul style="padding-left:18px;margin:6px 0;">{"".join(rows)}</ul>'
+    )
+
+
+async def send_engineer_unavailable_autoreply(
+    *,
+    to_email: str,
+    requester_first_name: str | None,
+    engineer_first_name: str,
+    engineer_company: str | None,
+    resumes_on: str | None,
+    leave_note: str | None,
+    alternatives: list[dict] | None = None,
+) -> bool:
+    """Iter 216h290 — Gap 10 follow-up: when a customer expresses
+    interest in an engineer who's currently on leave, fire a polite
+    autoreply so they're not left wondering. Includes a short list of
+    in-area alternatives if we have any.
+
+    All inputs are pre-validated by the caller. Failures are caught
+    upstream so this never blocks the contact-request flow.
+    """
+    if not to_email:
+        return False
+    salutation = (requester_first_name or "").strip().split(" ")[0] or "there"
+    company_suffix = f" of {engineer_company}" if engineer_company else ""
+    back_phrase = (
+        f"is back on <strong>{_format_leave_date(resumes_on)}</strong>"
+        if resumes_on else "is currently on leave (no return date set)"
+    )
+    note_block = (
+        f'<p style="background:#FEF3C7;border-left:3px solid #F59E0B;padding:12px 14px;'
+        f'border-radius:6px;font-size:13px;color:#78350F;">'
+        f"<strong>{engineer_first_name} says:</strong> {leave_note}</p>"
+        if leave_note else ""
+    )
+    body = (
+        f"<p>Hi {salutation},</p>"
+        f"<p>Thanks for getting in touch about <strong>{engineer_first_name}</strong>"
+        f"{company_suffix} on the GymAxis Engineer Network. {engineer_first_name} {back_phrase} "
+        f"and will respond as soon as they're back.</p>"
+        f"{note_block}"
+        f"{_alternatives_block(alternatives or [])}"
+        f'<p style="margin-top:20px;font-size:13px;color:#475569;">No further action is needed '
+        f'— your enquiry is logged and will be picked up automatically.</p>'
+    )
+    subject = (
+        f"{engineer_first_name} is on leave — we've logged your enquiry"
+        if resumes_on
+        else f"{engineer_first_name} is currently on leave"
+    )
+    return await send_email(
+        to=to_email,
+        subject=subject,
+        html=_wrap(f"{engineer_first_name} is on leave", body),
+    )

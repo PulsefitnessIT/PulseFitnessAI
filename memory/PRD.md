@@ -1,3 +1,64 @@
+## Iter 216h290 — Engineer auto-on-leave responder (Feb 21, 2026) ✅ P1
+
+Closes the **Gap-10 follow-up**: when a customer hits
+`/partners/find-engineers/{id}/request-contact` and the targeted
+engineer is currently flagged unavailable, the platform now fires
+a polite Resend autoreply with up to 3 in-area alternatives. The
+contact-request row is still persisted so the engineer can pick
+the lead up when they're back — this is purely an additive
+courtesy email that closes the silence on "no reply" complaints.
+
+### Backend
+
+* **`utils/partner_emails.py`** — new
+  `send_engineer_unavailable_autoreply(...)` builder. Uses the
+  existing co-branded GymAxis email shell. Subject varies on
+  whether a return date is set ("E1 is on leave — we've logged
+  your enquiry" vs "E1 is currently on leave"). Body includes:
+  * a salutation pulled from the requester's first name
+  * the engineer's first name + company
+  * a "back on" date rendered as "5 March"
+  * an amber leave-note callout when the engineer set one
+  * up to 3 alternatives in a tidy `<ul>` (or nothing)
+  * `_format_leave_date()` and `_alternatives_block()` helpers
+    factored out for unit-testable rendering.
+* **`routes/partners.py`**:
+  * `_alternative_engineers_for(partner_id, postcode, limit=3)` —
+    queries the same outcode-prefix matcher as the public widget.
+    Defensively skips the requested engineer themselves AND any
+    other unavailable engineer (we never recommend two people on
+    leave back-to-back).
+  * `_maybe_send_unavailable_autoreply(partner, requester,
+    request_id)` — gates on the engineer's effective availability,
+    no-ops when the requester has no email, fires the email, and
+    stamps `auto_reply_sent_at` on the contact-request row only
+    when the email genuinely went out (so a future polling worker
+    can retry on Resend dips).
+  * `request_engineer_contact` — wider partner projection (now
+    pulls `service_postcode`, `company_name`, `availability`),
+    calls the autoreply helper inside `try/except` so a Resend
+    hiccup never blocks the customer's form submission.
+
+### Verification
+
+* `tests/test_iter_216h290_unavailable_autoreply.py` — **13 tests**
+  pin date rendering, alternatives list cap + content, the
+  postcode-and-availability filter, defensive self-skip, the
+  early-return guards for available engineers and missing
+  emails, the stamp-only-on-success behaviour, and the
+  request_engineer_contact swallow-the-error path.
+* Full regression: **501 passed, 14 skipped** in 12.4s.
+* End-to-end smoke against real Mongo (mocked Resend): set the
+  test partner unavailable until 4 Jun → autoreply fires with
+  subject "E1 is on leave — we've logged your enquiry", body
+  contains "Hi Bob", "On annual leave" callout, "4 June" return
+  date. `auto_reply_sent_at` stamp landed on the contact-request
+  row. Test data cleaned.
+* `make lint-frontend` → 0 warnings, strict gate intact.
+
+---
+
+
 ## Iter 216h289 — Frontend lint debt cleanup (Feb 21, 2026) ✅ P1
 
 Cleared the **27 pre-existing ESLint errors + 3 warnings** that

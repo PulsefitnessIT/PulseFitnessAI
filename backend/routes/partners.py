@@ -3071,7 +3071,8 @@ async def request_engineer_contact(
     partner = await db.partner_engineers.find_one(
         {"id": partner_id, "status": "approved",
          "level": {"$in": ["verified_partner", "strategic_partner"]}},
-        {"_id": 0, "id": 1, "email": 1, "full_name": 1},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "company_name": 1,
+         "service_postcode": 1, "availability": 1},
     )
     if not partner:
         raise HTTPException(404, "Engineer is not available")
@@ -3087,7 +3088,90 @@ async def request_engineer_contact(
     }
     await db.partner_contact_requests.insert_one(req)
     req.pop("_id", None)
+    # Iter 216h290 — Gap 10 follow-up: if the engineer is currently on
+    # leave, fire a polite autoreply to the customer with up to 3
+    # in-area alternatives. Wrapped in try/except so a Resend hiccup
+    # never breaks the contact-request flow — the row is already
+    # persisted by this point.
+    try:
+        await _maybe_send_unavailable_autoreply(partner=partner, requester=user, request_id=req["id"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Engineer-unavailable autoreply failed for partner=%s: %s", partner_id, exc)
     return {"ok": True, "request": req}
+
+
+async def _alternative_engineers_for(partner_id: str, postcode: str, limit: int = 3) -> list[dict]:
+    """Iter 216h290 — find up to ``limit`` AVAILABLE in-area engineers
+    to suggest as alternatives to a leave-stricken partner. Reuses the
+    same outcode-prefix matcher as the public widget so the suggestions
+    line up with what the customer would see if they searched the
+    network themselves.
+    """
+    if not postcode:
+        return []
+    cur = db.partner_engineers.find(
+        {"status": "approved",
+         "level": {"$in": ["verified_partner", "strategic_partner"]},
+         "id": {"$ne": partner_id}},
+        {"_id": 0, "id": 1, "full_name": 1, "company_name": 1,
+         "service_postcode": 1, "availability": 1},
+    )
+    rows = await cur.to_list(length=200)
+    out: list[dict] = []
+    for r in rows:
+        # Defensive: never recommend the engineer back to themselves,
+        # even if the mongo $ne filter is somehow bypassed.
+        if r.get("id") == partner_id:
+            continue
+        # Skip other unavailable engineers — never recommend someone
+        # else who's also on leave.
+        if _effective_availability(r).get("status") != "available":
+            continue
+        if not _postcode_match(r.get("service_postcode") or "", postcode):
+            continue
+        out.append({
+            "id": r["id"],
+            "full_name": r["full_name"],
+            "company_name": r.get("company_name"),
+            "service_postcode_area": _outcode(r.get("service_postcode") or ""),
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+async def _maybe_send_unavailable_autoreply(*, partner: dict, requester: dict, request_id: str) -> None:
+    """Iter 216h290 — fire the autoreply only when the engineer is in
+    fact on leave. Stamps the partner_contact_requests row with
+    ``auto_reply_sent_at`` so a future polling worker knows it's
+    already been handled.
+    """
+    av = _effective_availability(partner)
+    if av.get("status") != "unavailable":
+        return
+    to_email = requester.get("email")
+    if not to_email:
+        return
+    alternatives = await _alternative_engineers_for(
+        partner_id=partner["id"], postcode=partner.get("service_postcode") or "",
+    )
+    eng_first = (partner.get("full_name") or "").strip().split(" ")[0] or "Your engineer"
+    requester_first = (requester.get("full_name") or "").strip().split(" ")[0] or None
+    from utils.partner_emails import send_engineer_unavailable_autoreply
+    sent = await send_engineer_unavailable_autoreply(
+        to_email=to_email,
+        requester_first_name=requester_first,
+        engineer_first_name=eng_first,
+        engineer_company=partner.get("company_name"),
+        resumes_on=av.get("resumes_on"),
+        leave_note=av.get("note"),
+        alternatives=alternatives,
+    )
+    if sent:
+        await db.partner_contact_requests.update_one(
+            {"id": request_id},
+            {"$set": {"auto_reply_sent_at": _now()}},
+        )
 
 
 # ─── End of iter 216h80 additions ───
