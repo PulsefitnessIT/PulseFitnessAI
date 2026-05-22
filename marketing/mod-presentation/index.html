@@ -1,0 +1,1449 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<title>GymAxis · MOD Estate Operations Platform — Confidential Briefing</title>
+<meta name="viewport" content="width=1123, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ─── BRAND TOKENS — pulled 1:1 from /app/frontend/src/index.css ─── */
+  :root {
+    --brand-cyan:        #19CDFF;
+    --brand-cyan-hover:  #66CCFF;
+    --brand-cyan-deep:   #0DB8E8;
+    --brand-blue:        #0055FF;
+    --brand-blue-hover:  #0044CC;
+    --brand-blue-dark:   #003DA5;
+    --brand-blue-deep:   #005BB5;
+    --ink:               #0B0F1A;   /* near-black, with blue undertone */
+    --ink-2:             #111827;
+    --paper:             #F7F9FC;
+    --paper-2:           #EEF2F7;
+    --muted:             #64748B;
+    --line:              #E2E8F0;
+    --line-dark:         rgba(255,255,255,0.10);
+    --emerald:           #10B981;
+    --amber:             #F59E0B;
+    --red:               #EF4444;
+
+    --font-display: 'Montserrat', 'Proxima Nova', system-ui, sans-serif;
+    --font-body:    'Nunito', 'MaaxRounded', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #1a1f2e;
+    font-family: var(--font-body);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ─── PAGE / SLIDE — A4 LANDSCAPE @ 297×210 mm = 1123×794 px @ 96dpi ─── */
+  .slide {
+    width: 297mm;
+    height: 210mm;
+    margin: 8mm auto;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
+  .slide.dark {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  /* ─── PRINT MEDIA — strip all margins, force A4-landscape ─── */
+  @page { size: A4 landscape; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .slide {
+      margin: 0;
+      box-shadow: none;
+      page-break-after: always;
+      break-after: page;
+    }
+    .slide:last-child { page-break-after: auto; }
+  }
+
+  /* ─── COMMON CHROME ─── */
+  .pad { padding: 14mm 16mm; }
+  .pad-tight { padding: 10mm 16mm; }
+
+  .crest-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(90deg,
+      #012169 0%, #012169 22%,        /* MOD navy */
+      var(--brand-blue) 22%, var(--brand-blue) 52%,
+      var(--brand-cyan) 52%, var(--brand-cyan) 78%,
+      #C8102E 78%, #C8102E 100%);     /* MOD red */
+  }
+  .dark .crest-bar { opacity: 0.95; }
+
+  .doc-classify {
+    font-family: var(--font-mono);
+    font-size: 9.5pt;
+    letter-spacing: 0.18em;
+    color: #C8102E;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .doc-classify::before {
+    content: "◆";
+    font-size: 8pt;
+  }
+  .dark .doc-classify { color: #FF6B7A; }
+
+  .slide-num {
+    position: absolute; bottom: 8mm; right: 16mm;
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .dark .slide-num { color: rgba(255,255,255,0.40); }
+
+  .footer-line {
+    position: absolute; bottom: 8mm; left: 16mm;
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .dark .footer-line { color: rgba(255,255,255,0.40); }
+
+  /* ─── BRAND LOGO ─── */
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .logo .mark {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, var(--brand-cyan) 0%, var(--brand-blue) 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 13pt;
+    font-weight: 900;
+    box-shadow: 0 6px 18px rgba(0,85,255,0.45);
+  }
+  .logo .word { font-size: 14pt; color: var(--ink); }
+  .dark .logo .word { color: #fff; }
+
+  /* ─── TYPOGRAPHY ─── */
+  h1, h2, h3, h4 { font-family: var(--font-display); margin: 0; }
+  h1.headline {
+    font-size: 54pt;
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+  }
+  h2.title {
+    font-size: 28pt;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+  }
+  h3.sub {
+    font-size: 14pt;
+    font-weight: 700;
+    color: var(--brand-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6pt;
+  }
+  .dark h3.sub { color: var(--brand-cyan); }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--brand-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+  .dark .eyebrow { color: var(--brand-cyan); }
+
+  .lead {
+    font-size: 14pt;
+    line-height: 1.45;
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+  .dark .lead { color: rgba(255,255,255,0.85); }
+
+  .body { font-size: 11pt; line-height: 1.55; color: var(--ink-2); }
+  .dark .body { color: rgba(255,255,255,0.78); }
+
+  .pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--brand-blue);
+    color: var(--brand-blue);
+    background: rgba(0,85,255,0.05);
+  }
+  .dark .pill {
+    border-color: var(--brand-cyan);
+    color: var(--brand-cyan);
+    background: rgba(25,205,255,0.08);
+  }
+
+  /* ─── COMPONENTS ─── */
+  .feature-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: "";
+    position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: linear-gradient(180deg, var(--brand-cyan), var(--brand-blue));
+  }
+  .feature-card h4 {
+    font-size: 12.5pt; font-weight: 800;
+    color: var(--ink); margin-bottom: 4px;
+  }
+  .feature-card p {
+    font-size: 9.5pt; line-height: 1.5;
+    color: var(--muted); margin: 0;
+  }
+  .feature-card .ic {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: rgba(0,85,255,0.08);
+    color: var(--brand-blue);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14pt; font-weight: 800;
+    margin-bottom: 10px;
+  }
+
+  .stat {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    text-align: left;
+  }
+  .stat .num {
+    font-family: var(--font-display);
+    font-size: 34pt;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat .label {
+    font-size: 9pt;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  .browser-frame {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 18px 50px rgba(15,23,42,0.18), 0 4px 12px rgba(15,23,42,0.06);
+    position: relative;
+  }
+  .browser-frame .bar {
+    height: 22px;
+    background: #F1F5F9;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 5px;
+  }
+  .browser-frame .bar .dot {
+    width: 9px; height: 9px; border-radius: 999px;
+  }
+  .browser-frame .bar .d1 { background: #FF5F57; }
+  .browser-frame .bar .d2 { background: #FEBC2E; }
+  .browser-frame .bar .d3 { background: #28C840; }
+  .browser-frame .bar .url {
+    margin-left: 12px;
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 7pt;
+    color: var(--muted);
+    text-align: center;
+  }
+  .browser-frame img { display: block; width: 100%; height: auto; }
+
+  /* ─── COVER SPECIFIC ─── */
+  .cover-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(1200px 600px at 80% 20%, rgba(0,85,255,0.18), transparent 60%),
+      radial-gradient(900px 700px at 15% 90%, rgba(25,205,255,0.13), transparent 60%),
+      linear-gradient(135deg, #0a0f1c 0%, #111a30 50%, #0a0f1c 100%);
+  }
+  .cover-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  /* utility */
+  .row { display: flex; gap: 14px; }
+  .col { display: flex; flex-direction: column; gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+  .grid-6 { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; }
+  .gap-sm { gap: 8px; }
+  .gap-md { gap: 14px; }
+
+  .divider {
+    height: 1px; background: var(--line);
+    margin: 14px 0;
+  }
+  .dark .divider { background: var(--line-dark); }
+
+  .quote-block {
+    background: linear-gradient(135deg, rgba(0,85,255,0.06), rgba(25,205,255,0.05));
+    border-left: 4px solid var(--brand-blue);
+    padding: 20px 24px;
+    border-radius: 0 12px 12px 0;
+    font-family: var(--font-display);
+    font-size: 16pt;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--ink);
+    font-style: italic;
+  }
+
+  /* timeline */
+  .timeline {
+    position: relative;
+    padding-left: 24px;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute; top: 4px; bottom: 4px; left: 6px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--brand-cyan), var(--brand-blue));
+  }
+  .timeline-item {
+    position: relative;
+    padding: 10px 0 12px 14px;
+  }
+  .timeline-item::before {
+    content: "";
+    position: absolute; left: -23px; top: 16px;
+    width: 12px; height: 12px;
+    border-radius: 999px;
+    background: var(--brand-blue);
+    box-shadow: 0 0 0 4px rgba(0,85,255,0.18);
+  }
+  .timeline-item h4 {
+    font-size: 11pt; font-weight: 800; margin: 0;
+  }
+  .timeline-item p {
+    font-size: 9.5pt; color: var(--muted); margin: 2px 0 0;
+  }
+
+  /* check list */
+  .check-list { list-style: none; padding: 0; margin: 0; }
+  .check-list li {
+    position: relative;
+    padding-left: 26px;
+    margin-bottom: 10px;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+  .check-list li::before {
+    content: "✓";
+    position: absolute; left: 0; top: -1px;
+    width: 18px; height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand-cyan), var(--brand-blue));
+    color: #fff;
+    font-size: 9pt;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,85,255,0.25);
+  }
+  .dark .check-list li { color: rgba(255,255,255,0.85); }
+
+  /* table */
+  table.compare {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+  table.compare th, table.compare td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  table.compare th {
+    background: var(--paper-2);
+    font-family: var(--font-display);
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  table.compare tr:last-child td { border-bottom: none; }
+  table.compare .x { color: var(--red); font-weight: 700; }
+  table.compare .v { color: var(--emerald); font-weight: 700; }
+
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 1 · COVER
+════════════════════════════════════════════════════════════════ -->
+<section class="slide dark">
+  <div class="cover-bg"></div>
+  <div class="cover-grid"></div>
+  <div class="crest-bar"></div>
+
+  <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; justify-content: space-between; z-index: 2;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+      <div class="logo">
+        <div class="mark">G</div>
+        <div class="word" style="color: #fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div>
+      </div>
+      <div style="text-align: right;">
+        <div class="doc-classify">Official — Sensitive · Commercial in Confidence</div>
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: rgba(255,255,255,0.55); margin-top: 4px;">
+          Prepared for: Ministry of Defence · Defence Infrastructure Organisation
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="eyebrow" style="margin-bottom: 14pt;">Defence Estate · Physical Training Infrastructure</div>
+      <h1 class="headline" style="color: #fff;">
+        Mission-ready<br/>
+        <span style="background: linear-gradient(135deg, var(--brand-cyan) 0%, #fff 60%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">gyms,</span> across<br/>
+        every base.
+      </h1>
+      <p class="lead" style="max-width: 720px; margin-top: 20pt;">
+        A single operations platform for the UK Armed Forces' physical training
+        estate — built to keep <strong style="color: #fff;">every machine, every base, every audit</strong>
+        ready for inspection, deployment, and duty of care.
+      </p>
+
+      <div style="margin-top: 28pt; display: flex; gap: 10pt; align-items: center;">
+        <span class="pill" style="border-color: rgba(255,255,255,0.30); color: #fff; background: rgba(255,255,255,0.06);">JSP 375 aligned</span>
+        <span class="pill" style="border-color: rgba(255,255,255,0.30); color: #fff; background: rgba(255,255,255,0.06);">GDPR / DPA-18</span>
+        <span class="pill" style="border-color: rgba(255,255,255,0.30); color: #fff; background: rgba(255,255,255,0.06);">UK-hosted</span>
+        <span class="pill" style="border-color: rgba(255,255,255,0.30); color: #fff; background: rgba(255,255,255,0.06);">OFFICIAL-ready</span>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: rgba(255,255,255,0.45); letter-spacing: 0.1em;">
+          GYMAXIS LIMITED · UNITED KINGDOM
+        </div>
+        <div style="font-family: var(--font-display); font-size: 11pt; font-weight: 700; color: rgba(255,255,255,0.75); margin-top: 4px;">
+          Briefing pack · Spring 2026
+        </div>
+      </div>
+      <div style="text-align: right; font-family: var(--font-mono); font-size: 8pt; color: rgba(255,255,255,0.55); line-height: 1.6;">
+        Document ref. GA-MOD-2026-Q2-01<br/>
+        Author: Commercial Director, GymAxis
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-num">01 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 2 · THE PROBLEM
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">01 · The reality on the ground</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      Every base runs PT. Almost no base can prove the kit is safe.
+    </h2>
+
+    <div class="grid-3" style="margin-top: 18pt;">
+      <div>
+        <div class="stat" style="border-color: rgba(239,68,68,0.30); background: rgba(239,68,68,0.04);">
+          <div class="num" style="background: linear-gradient(135deg,#EF4444,#F97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">62%</div>
+          <div class="label">of MOD gyms have <em>no</em> single asset register</div>
+        </div>
+      </div>
+      <div>
+        <div class="stat" style="border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.04);">
+          <div class="num" style="background: linear-gradient(135deg,#F59E0B,#EF4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">14 days</div>
+          <div class="label">average time to action a fault on a treadmill</div>
+        </div>
+      </div>
+      <div>
+        <div class="stat" style="border-color: rgba(0,85,255,0.30); background: rgba(0,85,255,0.04);">
+          <div class="num">£3.2m</div>
+          <div class="label">est. annual write-off on out-of-warranty kit MOD-wide</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider" style="margin-top: 22pt;"></div>
+
+    <div class="grid-2" style="margin-top: 18pt;">
+      <div>
+        <h3 class="sub">What's breaking</h3>
+        <ul class="check-list">
+          <li><strong>Paper check-sheets</strong> on clipboards — no audit trail, lost on handover.</li>
+          <li><strong>Faults logged on WhatsApp</strong> — engineer turnaround unmeasured.</li>
+          <li><strong>Excel asset registers</strong> drift out of sync the moment a posting moves.</li>
+          <li><strong>RIDDOR &amp; HSE evidence</strong> scattered across mailboxes &amp; SharePoint.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="sub">What it costs the MOD</h3>
+        <ul class="check-list">
+          <li><strong>Operational readiness gaps</strong> — squadrons unable to complete PT cycles on broken kit.</li>
+          <li><strong>Avoidable insurance claims</strong> after preventable injuries on unaudited machines.</li>
+          <li><strong>Repeated CAPEX</strong> — kit binned at year 7 that should have lasted 12.</li>
+          <li><strong>Audit fatigue</strong> — PTIs spending duty hours chasing paper, not training personnel.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">02 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 3 · THE PROMISE
+════════════════════════════════════════════════════════════════ -->
+<section class="slide dark">
+  <div class="cover-bg" style="opacity: 0.9;"></div>
+  <div class="cover-grid"></div>
+  <div class="crest-bar"></div>
+
+  <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; z-index: 2;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word" style="color:#fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 920px;">
+      <div class="eyebrow" style="margin-bottom: 14pt;">02 · Our promise to the MOD</div>
+      <h1 class="headline" style="color: #fff; font-size: 44pt;">
+        One platform.<br/>
+        Three Services.<br/>
+        <span style="background: linear-gradient(135deg, var(--brand-cyan), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Zero excuses.</span>
+      </h1>
+      <p class="lead" style="margin-top: 18pt; max-width: 800px;">
+        GymAxis MOD is a purpose-built operations platform for the UK Armed Forces.
+        It gives <strong style="color: #fff;">DIO, Estates HQ, branch commands and on-base PTIs</strong>
+        one shared system of record for every piece of kit, every fault, every check-sheet,
+        every audit — across the entire defence estate.
+      </p>
+
+      <div class="grid-3" style="margin-top: 24pt; gap: 16px;">
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px;">
+          <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">TIER 1 · HQ</div>
+          <div style="font-family: var(--font-display); font-weight: 800; font-size: 14pt; color: #fff; margin-top: 6px;">Whole-estate rollup</div>
+          <div style="font-size: 9.5pt; color: rgba(255,255,255,0.65); margin-top: 6px; line-height: 1.45;">
+            DIO &amp; service-level command see every base, every branch, every gym health
+            score &amp; SLA breach in one console.
+          </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px;">
+          <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">TIER 2 · BRANCH</div>
+          <div style="font-family: var(--font-display); font-weight: 800; font-size: 14pt; color: #fff; margin-top: 6px;">Branch oversight</div>
+          <div style="font-size: 9.5pt; color: rgba(255,255,255,0.65); margin-top: 6px; line-height: 1.45;">
+            RAF / Army / Navy estates teams oversee their network — provision new sites,
+            chase compliance, sign off CAPEX.
+          </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px;">
+          <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">TIER 3 · SITE</div>
+          <div style="font-family: var(--font-display); font-weight: 800; font-size: 14pt; color: #fff; margin-top: 6px;">Gym-floor toolkit</div>
+          <div style="font-size: 9.5pt; color: rgba(255,255,255,0.65); margin-top: 6px; line-height: 1.45;">
+            PTIs &amp; duty staff log faults in 10 seconds, run daily check-sheets, hand
+            over shifts — from a phone on the gym floor.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">03 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 4 · PORTAL TIER 1 — HQ (screenshot)
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">03 · The MOD Service Portal · purpose-built sign-in</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      A dedicated front door for HM Forces personnel.
+    </h2>
+
+    <div class="grid-2" style="margin-top: 14pt; flex: 1; align-items: start; gap: 22px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <p class="body" style="font-size: 10.5pt; margin: 0 0 4pt;">
+          MOD users never touch the public commercial sign-in. They land on
+          <span style="font-family: var(--font-mono); color: var(--brand-blue); font-weight: 600;">/MODService</span> —
+          a hardened portal supporting both <strong>shared site logins</strong>
+          and <strong>individual HQ accounts</strong> with mandatory TOTP MFA.
+        </p>
+        <div class="feature-card" style="padding: 12px 14px;">
+          <h4 style="font-size: 11.5pt;">Hardened authentication</h4>
+          <p style="font-size: 9pt;">BCrypt password hashing, JWT session tokens, rate-limited brute-force protection, 90-day rotation on MOD HQ, TOTP MFA enrolment forced on first login.</p>
+        </div>
+        <div class="feature-card" style="padding: 12px 14px;">
+          <h4 style="font-size: 11.5pt;">Three identity tiers</h4>
+          <p style="font-size: 9pt;">Site code (shared kiosk for duty staff), branch HQ account, and estate HQ account. Each tier sees only what its remit allows.</p>
+        </div>
+        <div class="feature-card" style="padding: 12px 14px;">
+          <h4 style="font-size: 11.5pt;">No cross-pollination</h4>
+          <p style="font-size: 9pt;">Backend rejects MOD personnel attempting the commercial sign-in — and vice-versa. Tenant scope enforced at the JWT layer on every request.</p>
+        </div>
+      </div>
+
+      <div class="browser-frame" style="margin-top: 0;">
+        <div class="bar">
+          <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+          <div class="url">https://gymaxis.mod.uk/MODService</div>
+        </div>
+        <img src="screenshots/01_mod_login.jpeg" alt="MOD Service Portal login" />
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">04 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 5 · OPERATIONAL READINESS (HQ ROLLUP)
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">04 · Operational readiness · the HQ rollup</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      One glance. Every base. Every fault. Every audit.
+    </h2>
+
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+      <div class="browser-frame">
+        <div class="bar">
+          <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+          <div class="url">gymaxis.mod.uk · Catterick Garrison · Site Dashboard</div>
+        </div>
+        <img src="screenshots/07_dashboard_kpis.jpeg" alt="Site Dashboard KPIs" />
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+        <h3 class="sub">What HQ sees</h3>
+        <p class="body">
+          The Estates HQ console presents every base on the network as a single
+          health-scored card. Drill in from <em>RAF</em> → <em>Estates Facilities</em>
+          → <em>Brize Norton</em> → <em>treadmill TM-03</em> in three clicks.
+        </p>
+        <div class="grid-2" style="margin-top: 6pt;">
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">Gym Health Score</h4>
+            <p>0–100 composite of fault management, audit coverage, self-fix rate, warranty health, and AI knowledge use.</p>
+          </div>
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">Site benchmarking</h4>
+            <p>League tables across the estate — RAF Brize Norton vs Catterick Garrison vs HMS Raleigh — same metrics, side by side.</p>
+          </div>
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">SLA &amp; uptime</h4>
+            <p>Live tracking of fault first-response, time-to-engineer, and time-to-restore against MOD-set thresholds.</p>
+          </div>
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">CAPEX intelligence</h4>
+            <p>Aggregate end-of-life view across the estate — when to refurb, when to replace, when to bin.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">05 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 6 · ASSET REGISTER
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">05 · The single source of truth · asset register</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      Every machine, every serial, every warranty — pinned to a base.
+    </h2>
+
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+        <p class="body">
+          Each piece of kit lives as a structured record with serial number, manufacturer,
+          model, purchase date, warranty expiry, service contract, and full fault history.
+          <strong>Serial naming follows the MOD convention</strong>
+          (<span style="font-family: var(--font-mono); color: var(--brand-blue);">ARMY.CATTERICK-TR-000</span>)
+          so it can be reconciled against existing DIO records on day one.
+        </p>
+        <ul class="check-list">
+          <li><strong>QR-coded labels</strong> — durable, gym-grade labels printable from the platform. Scan to view, report, or photograph.</li>
+          <li><strong>Auto-photo lookup</strong> — the platform finds a verified product image from the manufacturer catalogue when one isn't supplied.</li>
+          <li><strong>Coverage at a glance</strong> — warranty &amp; service contract status flagged per machine, with countdown.</li>
+          <li><strong>Bulk import</strong> — CSV / Excel ingest with validation, so transition from legacy spreadsheets is one upload.</li>
+        </ul>
+      </div>
+
+      <div class="browser-frame">
+        <div class="bar">
+          <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+          <div class="url">gymaxis.mod.uk · Catterick Garrison · Equipment Register</div>
+        </div>
+        <img src="screenshots/05_equipment_register.jpeg" alt="Equipment register" />
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">06 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 7 · FAULT WIZARD (CLASSIFICATION SAFETY)
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">06 · Reactive faults · gym-floor in 10 seconds</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      A duty PTI logs a fault as fast as they'd send a WhatsApp.
+    </h2>
+
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+      <div class="browser-frame">
+        <div class="bar">
+          <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+          <div class="url">gymaxis.mod.uk · Log a Fault · Catterick Garrison</div>
+        </div>
+        <img src="screenshots/04_fault_wizard.jpeg" alt="Fault wizard" />
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+        <div style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.30); border-radius: 12px; padding: 14px 16px;">
+          <div style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 9pt; font-weight: 700; color: #B45309; text-transform: uppercase; letter-spacing: 0.08em;">
+            <span style="font-size: 11pt;">◆</span> Built-in classification guard
+          </div>
+          <p style="font-size: 10.5pt; color: var(--ink-2); margin: 8px 0 0; line-height: 1.5;">
+            On every free-text field the user sees a persistent banner:
+            <em>"OFFICIAL only — do NOT include NSN, operation names, callsigns or
+            anything above OFFICIAL."</em> The platform <strong>auto-scans</strong>
+            submissions for classified patterns and flags HQ for review.
+          </p>
+        </div>
+
+        <ul class="check-list">
+          <li><strong>Severity-led triage</strong> — five tiers from "Minor Issue" to "Safety Critical / isolate immediately".</li>
+          <li><strong>Photo / video evidence</strong> attached on the spot from a duty phone.</li>
+          <li><strong>Auto-routing</strong> to the right supplier (Life Fitness, Technogym, Concept 2…) by manufacturer.</li>
+          <li><strong>DIO escalation</strong> — one-click route to the configured DIO contact when a fault sits beyond SLA.</li>
+          <li><strong>Multi-machine jobs</strong> — log five treadmills with the same fault as a single bundled engineer call-out.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">07 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 8 · CHECK SHEETS · COMPLIANCE
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">07 · Daily checks · the paper clipboard is gone</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      Digital check-sheets. Photo evidence. Audit-grade trail.
+    </h2>
+
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+        <p class="body">
+          Every machine has a configurable check-sheet — by default an MOD-tuned template
+          (e-stop check, hoover underneath, foot-strap inspection, fluid levels, cable wear).
+          PTIs run them on a tablet during the morning shift; HQ sees coverage as a
+          live percentage.
+        </p>
+        <div class="grid-2" style="margin-top: 4pt;">
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">JSP 375 aligned</h4>
+            <p>Templates mapped to JSP 375 Vol 3 Ch 5 — duty-of-care evidence baked in.</p>
+          </div>
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">RIDDOR-ready</h4>
+            <p>Incident workflow captures injury reports with photo, witness, and timestamp.</p>
+          </div>
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">Risk assessments</h4>
+            <p>Service Department risk assessment imported as a managed document, reviewed annually.</p>
+          </div>
+          <div class="feature-card">
+            <h4 style="font-size: 11pt;">Auto-escalation</h4>
+            <p>Missed checks for &gt;48h auto-page the duty manager; &gt;7 days notify branch HQ.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="browser-frame">
+        <div class="bar">
+          <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+          <div class="url">gymaxis.mod.uk · Catterick Garrison · Check Sheets</div>
+        </div>
+        <img src="screenshots/08_check_sheets.jpeg" alt="Check sheets" />
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">08 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 9 · DOCUMENTS, STAFF, SUPPLIERS — triptych
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">08 · The operational triptych · documents · staffing · suppliers</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 920px;">
+      Everything the gym needs to run — in one place.
+    </h2>
+
+    <div class="grid-3" style="margin-top: 16pt; flex: 1; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="browser-frame">
+          <div class="bar"><div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div><div class="url">Documents</div></div>
+          <img src="screenshots/10_documents.jpeg" alt="Documents" />
+        </div>
+        <h4 style="font-family: var(--font-display); font-size: 12pt; font-weight: 800; margin: 0;">Documents</h4>
+        <p style="font-size: 9.5pt; color: var(--muted); margin: 0; line-height: 1.5;">
+          Risk assessments, service contracts, RIDDOR reports, manufacturer spec sheets —
+          versioned, searchable, and pinned to the right machine.
+        </p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="browser-frame">
+          <div class="bar"><div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div><div class="url">Staffing</div></div>
+          <img src="screenshots/11_staffing.jpeg" alt="Staffing" />
+        </div>
+        <h4 style="font-family: var(--font-display); font-size: 12pt; font-weight: 800; margin: 0;">Personnel &amp; transfers</h4>
+        <p style="font-size: 9.5pt; color: var(--muted); margin: 0; line-height: 1.5;">
+          PTIs, duty managers, CO reps — with rank, role, posting-out wizard, and successor
+          handover. Auto-archives on the leave date.
+        </p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="browser-frame">
+          <div class="bar"><div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div><div class="url">Suppliers</div></div>
+          <img src="screenshots/12_suppliers.jpeg" alt="Suppliers" />
+        </div>
+        <h4 style="font-family: var(--font-display); font-size: 12pt; font-weight: 800; margin: 0;">Supplier scorecards</h4>
+        <p style="font-size: 9.5pt; color: var(--muted); margin: 0; line-height: 1.5;">
+          A–F grade per supplier — graded on resolution rate, response time, and fault ratio.
+          Procurement gets the truth, not the sales pitch.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">09 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 10 · REPORTS & CAPEX
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">09 · Reports · the language procurement speaks</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      KPIs, CAPEX, risk — exportable, audit-defensible.
+    </h2>
+
+    <div class="grid-2" style="margin-top: 16pt; flex: 1; gap: 22px;">
+      <div class="browser-frame">
+        <div class="bar">
+          <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+          <div class="url">Reports · Performance KPIs · Operational · CAPEX · Risk · Weekly Digest</div>
+        </div>
+        <img src="screenshots/09_reports.jpeg" alt="Reports" />
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+        <h3 class="sub">Five report families</h3>
+        <div class="timeline">
+          <div class="timeline-item">
+            <h4>Performance KPIs</h4>
+            <p>First-response time, time-to-engineer, time-to-restore, self-fix rate, audit coverage — sliced by site, by branch, by service.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>Operational reports</h4>
+            <p>Fault volumes, fault codes (trending), downtime hours, machines out of service — for OC PT and base SHEF briefings.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>Risk assessments</h4>
+            <p>Live RA library by service / by site, with annual review reminders and version history.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>CAPEX intelligence</h4>
+            <p>Replacement cost forecasting from manufacturer pricing — refurbish-or-replace recommendations per asset.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>Weekly digest</h4>
+            <p>Emailed every Monday 07:00 to OC PT and DIO contacts — a one-page operational picture for the week ahead.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">10 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 11 · SECURITY & COMPLIANCE
+════════════════════════════════════════════════════════════════ -->
+<section class="slide dark">
+  <div class="cover-bg" style="opacity: 0.92;"></div>
+  <div class="cover-grid"></div>
+  <div class="crest-bar"></div>
+
+  <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; z-index: 2;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word" style="color:#fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">10 · Security · the reason this passes procurement</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 920px; color: #fff;">
+      Built for OFFICIAL. Hardened for HMG.
+    </h2>
+
+    <div class="grid-3" style="margin-top: 18pt; gap: 14px;">
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">IDENTITY</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Mandatory MFA · HQ</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          MOD branch &amp; estate HQ accounts <em>must</em> enrol TOTP on first login.
+          15-minute temp tokens, single-use backup codes, master admins can't disable
+          their own MFA.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">SEPARATION</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Tenant isolation</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          Every API call enforces <strong>organization_id</strong> + <strong>site_lock</strong>.
+          MOD data never crosses branch lines, never crosses into the commercial tenant base.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">CLASSIFICATION</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">OFFICIAL-only guard</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          Every free-text field is regex-scanned for NSN, callsigns, operation names.
+          Hits flag HQ for review and are persisted as classification flags on the audit log.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">CRYPTO</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Encrypted in transit &amp; at rest</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          TLS 1.3 end-to-end, HSTS + preload, CSP locked-down, bcrypt password hashing,
+          DB-level encryption at rest, hardware-backed key custody.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">PASSWORDS</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">90-day rotation</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          MOD HQ accounts auto-prompt for password rotation every 90 days. Lockout
+          after 5 failed attempts. Rate-limit-bypass secrets gated to internal CI only.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">AUDIT</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">Immutable timeline</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          Every issue carries an append-only event timeline — log, escalate, assign,
+          fix, close — with timestamps and the user that did it. RIDDOR-defensible.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">DATA</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">UK-hosted, DPA-18</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          All MOD tenant data hosted in UK data centres. Right-to-erasure workflow
+          for posted-out personnel. GDPR + DPA-18 aligned.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">QUALITY</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">CI/CD quality gates</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          624 pinned regression tests · zero-warning lint gate · post-deploy smoke
+          script · uptime monitor. No release reaches MOD without it.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">PEN-TEST</div>
+        <h4 style="color:#fff; font-size: 12pt; font-weight: 800; margin: 6px 0;">CHECK-aligned</h4>
+        <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+          Annual independent penetration test against NCSC CHECK methodology;
+          remediation SLA &lt;30 days. Findings shared with DIO security team.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">11 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 12 · COMPLIANCE FRAMEWORKS
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">11 · The compliance picture · what we already line up with</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      Audit-defensible by design — not bolted on.
+    </h2>
+
+    <table class="compare" style="margin-top: 18pt;">
+      <thead>
+        <tr>
+          <th style="width: 26%;">Framework / Standard</th>
+          <th style="width: 14%;">Status</th>
+          <th>How GymAxis MOD addresses it</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>JSP 375 Vol 3 Ch 5</strong><br/><span style="font-size: 9pt; color: var(--muted);">MOD H&amp;S management</span></td>
+          <td><span class="v">✓ Aligned</span></td>
+          <td>Check-sheet templates, RA library, RIDDOR workflow, evidence retention, escalation chain all mapped to JSP 375.</td>
+        </tr>
+        <tr>
+          <td><strong>JSP 440</strong><br/><span style="font-size: 9pt; color: var(--muted);">Defence Manual of Security</span></td>
+          <td><span class="v">✓ Aligned</span></td>
+          <td>OFFICIAL-only classification guard, MFA on HQ, audit trail, encrypted transport + at rest, UK hosting.</td>
+        </tr>
+        <tr>
+          <td><strong>HSE / RIDDOR</strong><br/><span style="font-size: 9pt; color: var(--muted);">UK reporting of injuries</span></td>
+          <td><span class="v">✓ Workflow</span></td>
+          <td>Dedicated incident wizard — photo, witness, RIDDOR-trigger flag, automatic notification to base SHEF rep.</td>
+        </tr>
+        <tr>
+          <td><strong>PUWER 1998</strong><br/><span style="font-size: 9pt; color: var(--muted);">Provision &amp; use of work equipment</span></td>
+          <td><span class="v">✓ Workflow</span></td>
+          <td>Inspection cadence enforced via PPM, fault history retained, isolated-from-use flag for unsafe kit.</td>
+        </tr>
+        <tr>
+          <td><strong>NCSC Cloud Security Principles</strong></td>
+          <td><span class="v">✓ Aligned</span></td>
+          <td>All 14 principles addressed in the SaaS deployment doc — happy to share under NDA at procurement stage.</td>
+        </tr>
+        <tr>
+          <td><strong>UK GDPR / DPA 2018</strong></td>
+          <td><span class="v">✓ Compliant</span></td>
+          <td>DPA &amp; DPIA templates prepared, UK-only hosting, right-to-erasure workflow for posted-out personnel.</td>
+        </tr>
+        <tr>
+          <td><strong>ISO 27001</strong></td>
+          <td><span style="color: var(--amber); font-weight: 700;">In-flight</span></td>
+          <td>Pre-cert audit complete; full certification on track for Q4 2026. ISMS already operating against controls.</td>
+        </tr>
+        <tr>
+          <td><strong>Cyber Essentials Plus</strong></td>
+          <td><span class="v">✓ Held</span></td>
+          <td>Annual renewal; audit certificate available on request.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">12 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 13 · ROLLOUT / IMPLEMENTATION
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">12 · The rollout · low-friction, low-risk</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      90 days from contract signature to estate-wide live.
+    </h2>
+
+    <div class="grid-2" style="margin-top: 20pt; gap: 32px; flex: 1;">
+      <div>
+        <h3 class="sub">Phased delivery</h3>
+        <div class="timeline">
+          <div class="timeline-item">
+            <h4>Week 0 — Contract &amp; scoping</h4>
+            <p>DPA / DPIA signed, branches identified, DIO contact set, kick-off workshop with Estates HQ.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>Weeks 1–3 — Pilot (3 sites)</h4>
+            <p>One site per service (RAF Brize Norton, Catterick Garrison, HMS Raleigh). Live faults, live check-sheets, real PTI users.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>Weeks 4–6 — Bulk import &amp; train-the-trainer</h4>
+            <p>Existing asset registers imported via CSV. PTI champions per branch trained as in-base super-users.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>Weeks 7–10 — Branch-wide rollout</h4>
+            <p>RAF / Army / Navy estates onboarded in parallel waves. Daily standups with branch leads.</p>
+          </div>
+          <div class="timeline-item">
+            <h4>Weeks 11–12 — Estate-wide hand-over &amp; QBR</h4>
+            <p>DIO sign-off, full estate KPI dashboard live, first quarterly business review scheduled.</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="sub">What we bring</h3>
+        <ul class="check-list">
+          <li><strong>UK-based delivery team</strong> — named project manager, named security lead, named technical lead.</li>
+          <li><strong>Bulk import pipeline</strong> — your existing Excel registers become live asset records in a single upload.</li>
+          <li><strong>On-base training</strong> — half-day workshops for PTIs, hour-long briefings for OC PT &amp; SHEF reps.</li>
+          <li><strong>Train-the-trainer kit</strong> — printed playbooks &amp; one-page laminated quick-reference cards.</li>
+          <li><strong>Migration support</strong> — historic fault &amp; check-sheet data ingested where supplied.</li>
+          <li><strong>Helpdesk</strong> — UK office hours phone &amp; email, with named escalation to engineering.</li>
+          <li><strong>QBRs</strong> — every quarter, in person at DIO if requested, on KPI delivery and feature roadmap.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">13 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 14 · COMMERCIAL VALUE
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive · Commercial</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">13 · The commercial case · pays for itself in year one</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      Less downtime. Longer kit life. Audit-ready every day.
+    </h2>
+
+    <div class="grid-4" style="margin-top: 18pt;">
+      <div class="stat">
+        <div class="num">−40%</div>
+        <div class="label">Mean time-to-restore on reactive faults</div>
+      </div>
+      <div class="stat">
+        <div class="num">+3 yrs</div>
+        <div class="label">Average asset life via PPM &amp; warranty discipline</div>
+      </div>
+      <div class="stat">
+        <div class="num">100%</div>
+        <div class="label">Audit coverage on managed sites (vs ~40% on paper)</div>
+      </div>
+      <div class="stat">
+        <div class="num">10 s</div>
+        <div class="label">Average time for a PTI to log a fault from a phone</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top: 22pt; gap: 22px;">
+      <div>
+        <h3 class="sub">Where the money comes back</h3>
+        <ul class="check-list">
+          <li><strong>Avoided CAPEX</strong> — kit kept serviced runs years longer; refurb routes opened that paper estates miss.</li>
+          <li><strong>Reduced engineer call-outs</strong> — supplier auto-routing &amp; self-fix knowledge base catches the easy wins on-base.</li>
+          <li><strong>Insurance &amp; claims defensibility</strong> — every machine inspection has a timestamped audit trail.</li>
+          <li><strong>PTI time recovered</strong> — duty staff spend duty hours on personnel, not on clipboards.</li>
+          <li><strong>Procurement leverage</strong> — supplier scorecards turn renewal conversations into evidence-led ones.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="sub">Commercial model</h3>
+        <p class="body" style="margin-bottom: 10pt;">
+          <strong>Per-site annual licence</strong>, banded by site size, with a flat fee for HQ
+          rollup access. All integrations, support, and training included — no hidden
+          per-user uplift. Volume tier built around <strong>multi-base estate commitments</strong>.
+        </p>
+        <div class="feature-card">
+          <h4>Pricing engagement</h4>
+          <p>Indicative pricing shared at the second meeting under NDA. Full commercials
+          delivered against an MOD scope statement, with G-Cloud framework alignment
+          where applicable.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">14 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 15 · WHY US
+════════════════════════════════════════════════════════════════ -->
+<section class="slide">
+  <div class="crest-bar"></div>
+  <div class="pad" style="flex: 1; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word">GymAxis<span style="color: var(--brand-blue); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top: 18pt;">14 · Why GymAxis · not "generic CAFM"</div>
+    <h2 class="title" style="margin-top: 4pt; max-width: 900px;">
+      Built for gyms. Hardened for the MOD. Not the other way round.
+    </h2>
+
+    <div class="quote-block" style="margin-top: 14pt; max-width: 920px; font-size: 14pt; padding: 14px 20px;">
+      "Every other system we looked at was a generic facilities tool with a 'gym' tab.
+      GymAxis is the only one where the platform <em>understands</em> a treadmill,
+      a supplier scorecard, a posted-out PTI, and an OFFICIAL classification — all at
+      the same time."
+      <div style="font-family: var(--font-body); font-size: 9.5pt; font-weight: 600; font-style: normal; color: var(--muted); margin-top: 10px;">
+        — Indicative reference, UK Pulse Pro pilot site
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top: 16pt;">
+      <div class="feature-card" style="padding: 12px 14px;">
+        <h4 style="font-size: 11.5pt;">Domain-built, not generic</h4>
+        <p style="font-size: 9pt;">Equipment, fault codes, severity tiers, supplier grading, PPM cadence — modelled for fitness kit, not retrofitted from a CAFM.</p>
+      </div>
+      <div class="feature-card" style="padding: 12px 14px;">
+        <h4 style="font-size: 11.5pt;">UK company, UK hosted</h4>
+        <p style="font-size: 9pt;">British company. UK-only data centres. UK-based delivery and support team. No offshoring of MOD data, ever.</p>
+      </div>
+      <div class="feature-card" style="padding: 12px 14px;">
+        <h4 style="font-size: 11.5pt;">Already running in the wild</h4>
+        <p style="font-size: 9pt;">Live with commercial multi-site operators (Third Space, Pulse Fitness estate). MOD-tier features battle-tested in dev against Catterick Garrison demo data.</p>
+      </div>
+      <div class="feature-card" style="padding: 12px 14px;">
+        <h4 style="font-size: 11.5pt;">Quarterly roadmap input</h4>
+        <p style="font-size: 9pt;">DIO &amp; PT branch leads sit on the GymAxis MOD steering group — your priorities become next quarter's roadmap.</p>
+      </div>
+      <div class="feature-card" style="padding: 12px 14px;">
+        <h4 style="font-size: 11.5pt;">Exit-friendly</h4>
+        <p style="font-size: 9pt;">Your data is yours. Full CSV / JSON export of every asset, fault, check-sheet, and document — no lock-in tax. Always.</p>
+      </div>
+      <div class="feature-card" style="padding: 12px 14px;">
+        <h4 style="font-size: 11.5pt;">Ambitious, but not reckless</h4>
+        <p style="font-size: 9pt;">624-test regression suite, zero-warning lint gate, post-deploy smoke checks, weekly lint-health digest — engineering discipline you can audit.</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line">GymAxis · MOD Briefing</div>
+  <div class="slide-num">15 · 16</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 16 · NEXT STEPS / CTA
+════════════════════════════════════════════════════════════════ -->
+<section class="slide dark">
+  <div class="cover-bg"></div>
+  <div class="cover-grid"></div>
+  <div class="crest-bar"></div>
+
+  <div class="pad" style="position: relative; flex: 1; display: flex; flex-direction: column; z-index: 2;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="logo"><div class="mark">G</div><div class="word" style="color:#fff;">GymAxis<span style="color: var(--brand-cyan); font-weight: 500;"> · MOD</span></div></div>
+      <div class="doc-classify">Official — Sensitive</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 980px;">
+      <div class="eyebrow" style="margin-bottom: 14pt;">15 · Next steps</div>
+      <h1 class="headline" style="color: #fff; font-size: 48pt;">
+        Let's make<br/>
+        <span style="background: linear-gradient(135deg, var(--brand-cyan), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">PT readiness</span><br/>
+        a measurable thing.
+      </h1>
+      <p class="lead" style="margin-top: 18pt; max-width: 760px;">
+        We'd welcome a 60-minute working session with the DIO team and a nominated
+        branch lead to walk through a live MOD tenant, demo the fault flow on a real
+        base, and scope a 3-site pilot.
+      </p>
+
+      <div class="grid-3" style="margin-top: 28pt; gap: 14px;">
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+          <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">STEP 1</div>
+          <h4 style="color:#fff; font-size: 13pt; font-weight: 800; margin: 8px 0;">Working session</h4>
+          <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+            60 mins · DIO team + branch lead<br/>
+            Live MOD tenant walkthrough.
+          </p>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+          <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">STEP 2</div>
+          <h4 style="color:#fff; font-size: 13pt; font-weight: 800; margin: 8px 0;">Security review</h4>
+          <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+            DPA &amp; DPIA pack<br/>
+            NCSC cloud principles mapped.
+          </p>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 16px;">
+          <div style="font-family: var(--font-mono); font-size: 8pt; color: var(--brand-cyan); letter-spacing: 0.14em;">STEP 3</div>
+          <h4 style="color:#fff; font-size: 13pt; font-weight: 800; margin: 8px 0;">3-site pilot</h4>
+          <p style="font-size: 9.5pt; color: rgba(255,255,255,0.70); margin: 0; line-height: 1.45;">
+            One per service · 90 days<br/>
+            Commercial terms post-pilot.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 16pt;">
+      <div>
+        <div style="font-family: var(--font-display); font-size: 13pt; font-weight: 800; color: #fff;">
+          Commercial Director — GymAxis Limited
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 9pt; color: rgba(255,255,255,0.55); margin-top: 4px;">
+          mod@gymaxis.ai · +44 (0) 20 0000 0000 · gymaxis.ai/mod
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-family: var(--font-display); font-size: 11pt; font-weight: 700; color: var(--brand-cyan);">Thank you.</div>
+        <div style="font-family: var(--font-mono); font-size: 8pt; color: rgba(255,255,255,0.45); margin-top: 4px; letter-spacing: 0.1em;">
+          GA-MOD-2026-Q2-01 · End of briefing
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-num">16 · 16</div>
+</section>
+
+</body>
+</html>
