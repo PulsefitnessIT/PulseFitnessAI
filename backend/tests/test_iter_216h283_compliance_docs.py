@@ -146,7 +146,8 @@ def test_ai_check_handles_garbage_llm_response(monkeypatch):
         async def send_message(self, _msg):
             return "I cannot verify this document because..."
 
-    import sys, types
+    import sys
+    import types
     mod = types.ModuleType("emergentintegrations.llm.chat")
     mod.LlmChat = FakeChat
     mod.UserMessage = lambda **kw: kw
@@ -177,7 +178,8 @@ def test_ai_check_parses_valid_json_and_flags_match(monkeypatch):
                     ' "issue_date": "2024-01-15", "expiry_date": null,'
                     ' "certificate_number": "001122334455", "confidence": 0.92,'
                     ' "notes": ""}')
-    import sys, types
+    import sys
+    import types
     mod = types.ModuleType("emergentintegrations.llm.chat")
     mod.LlmChat = FakeChat
     mod.UserMessage = lambda **kw: kw
@@ -303,9 +305,8 @@ def test_admin_verify_blocks_when_no_file():
         "id": "p1", "compliance_docs": {"dbs": {}},
     })
     with patch("routes.partners.db", fake_db), \
-         patch("routes.partners._audit", AsyncMock()):
-        with pytest.raises(Exception) as exc:
-            _run(admin_verify_compliance_doc(
-                "p1", body={"kind": "dbs", "verified": True}, user=_admin(),
-            ))
+         patch("routes.partners._audit", AsyncMock()), pytest.raises(Exception) as exc:
+        _run(admin_verify_compliance_doc(
+            "p1", body={"kind": "dbs", "verified": True}, user=_admin(),
+        ))
     assert "must upload first" in str(exc.value.detail)

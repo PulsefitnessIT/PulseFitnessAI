@@ -1,3 +1,128 @@
+## Iter 216h292 — Backend ruff debt cleanup (Feb 21, 2026) ✅ P3
+
+Cleared all **47 ruff issues** that had been swallowed behind
+`make lint-backend`'s `|| true` workaround, removed the swallow,
+and confirmed both lint gates (`make lint-backend` + `make
+lint-frontend`) now run strictly.
+
+### Triage
+
+```
+23  SIM117  multiple-with-statements          ← auto-fixable
+16  E702    multiple-statements-on-one-line   ← manual, in test fixtures
+ 5  E701    multiple-statements-on-one-line
+ 2  E401    multiple-imports-on-one-line      ← auto-fixable
+ 1  SIM300  yoda-conditions                   ← auto-fixable
+```
+
+### Fixes applied
+
+* **`ruff check . --fix`** — auto-fixed 26 issues (all SIM117
+  nested-`with` blocks across new test files, the 2 E401
+  multiple-imports, and the 1 SIM300 yoda).
+* **Manual reformat** of the recurring `_Cur` async-iterator test
+  fixture across 5 files (`test_iter_216h275`, `h276`, `h278`,
+  `h279`, `h281`). Same shape — single-line method bodies with
+  `;` separators — split into proper multi-line methods. Pure
+  whitespace change, no behaviour delta.
+
+### Tooling
+
+* **`Makefile`** — `lint-backend` target no longer ends in
+  `|| true`. Strict ruff gate is now genuinely enforced; CI will
+  fail on regression. Pairs with the ESLint strict gate from
+  iter 216h289.
+
+### Verification
+
+* `cd backend && ruff check .` → "All checks passed!"
+* `make lint-backend` → exit 0, no findings.
+* `make lint-frontend` → exit 0, no findings.
+* `make lint` → both targets pass cleanly.
+* Full regression: **511 passed, 14 skipped** in 12.4s. The
+  SIM117 nested-`with` rewrites in test files preserved exact
+  behaviour (composed `patch()` contexts work identically).
+
+### What's NOT covered
+
+* The `pre-commit` hook's `ruff check . --quiet --select F401`
+  unused-imports check still flags the legitimate
+  `from utils.capex_intelligence import build_executive_summary`
+  inside `routes/capex.py:890` (it's used in the function below
+  but the analyzer only scans top-level imports). Out of scope —
+  the function's import is intentional and the rule misfires.
+  Worth a future pass to add a proper `# noqa: F401` or
+  refactor the import to module-level.
+* Pre-existing `passlib`-from-`crypt` Python 3.13 deprecation
+  warning — not a ruff issue, dependency-driven.
+
+---
+
+
+## Iter 216h291 — Pre-commit ESLint hook (Feb 21, 2026) ✅ P1
+
+Tightened the existing `.githooks/pre-commit` so dark-mode leakage,
+inline-hex literals and unused imports get caught at **write-time**
+instead of slipping through to PR review and forcing a chase round
+the codebase later.
+
+### Behaviour change
+
+The hook already ran ESLint pre-h291 — but with `--quiet` and over
+the whole `src/` tree. That was slow (≈30s on every commit) and
+silently ignored warnings, so `gymaxis/no-dark-mode-leakage` and
+`unused-imports/no-unused-imports` could land unnoticed. We swapped
+the ESLint section for:
+
+* **Staged-files only** — `git diff --cached --name-only` filtered
+  to `frontend/src/.*\.(js|jsx)$`. Typical commit lints in <1s.
+* **Strict gate** — `--max-warnings 0`, matching the freshly-
+  re-enforced `make lint-frontend`. A single warning blocks the
+  commit.
+* **Clean skip** — if the commit touches no JS/JSX at all (backend
+  / docs / config-only), the section prints "skipped (no JS/JSX
+  staged)" and the hook moves on.
+
+The other checks the hook already ran (ruff, F401 unused imports,
+hardcoded-secrets scan) are unchanged.
+
+### Plumbing
+
+* **`Makefile`** — new `install-hooks` target wired into `.PHONY`
+  and `make help`. Wraps the existing `scripts/install_hooks.sh`
+  (which copies `.githooks/pre-commit` into `.git/hooks/`).
+  Idempotent.
+* **`.githooks/pre-commit`** — chmod +x'd so the install script
+  can preserve the executable bit.
+
+### Verification
+
+* `tests/test_iter_216h291_precommit_hook.py` — **10 tests** pin:
+  the file is executable, `--max-warnings 0` is present, the
+  staged-only filter is wired, the skip branch short-circuits
+  before ESLint runs, failures bump the `ERRORS` counter, the
+  pre-existing ruff + secrets-scan checks survived, the
+  `--no-verify` escape hatch is documented, and the Makefile +
+  installer wiring is correct.
+* Live behaviour smoke (PATH-shimmed `git` to fake staged files):
+  * No staged JS → "skipped". ✅
+  * Clean staged JSX → "OK". ✅
+  * Warning-laden staged JSX → hook prints the rule + "FAILED" +
+    bumps `ERRORS`, exits non-zero, blocks the commit. ✅
+* Full regression: **511 passed, 14 skipped** in 12.5s.
+* `make help` lists the new `install-hooks` target.
+
+To activate locally:
+
+```
+make install-hooks   # one-time
+git commit ...       # hook runs automatically
+git commit --no-verify ...   # emergency bypass
+```
+
+---
+
+
 ## Iter 216h290 — Engineer auto-on-leave responder (Feb 21, 2026) ✅ P1
 
 Closes the **Gap-10 follow-up**: when a customer hits

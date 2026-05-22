@@ -28,11 +28,19 @@ def _run(coro):
 
 def _async_iter(items):
     class _Cur:
-        def __init__(self, xs): self._xs = list(xs)
-        def __aiter__(self): self._i = 0; return self
+        def __init__(self, xs):
+            self._xs = list(xs)
+
+        def __aiter__(self):
+            self._i = 0
+            return self
+
         async def __anext__(self):
-            if self._i >= len(self._xs): raise StopAsyncIteration
-            x = self._xs[self._i]; self._i += 1; return x
+            if self._i >= len(self._xs):
+                raise StopAsyncIteration
+            x = self._xs[self._i]
+            self._i += 1
+            return x
     return _Cur(items)
 
 
@@ -235,9 +243,8 @@ def test_manual_reconcile_endpoint_requires_master_admin():
     def deny(_):
         raise HTTPException(403, "Master admin access required")
 
-    with patch("routes.master_admin_integrity.require_master_admin", side_effect=deny):
-        with pytest.raises(HTTPException) as exc:
-            _run(reconcile_tenant_mirror(user={"is_master_admin": False}))
+    with patch("routes.master_admin_integrity.require_master_admin", side_effect=deny), pytest.raises(HTTPException) as exc:
+        _run(reconcile_tenant_mirror(user={"is_master_admin": False}))
     assert exc.value.status_code == 403
 
 

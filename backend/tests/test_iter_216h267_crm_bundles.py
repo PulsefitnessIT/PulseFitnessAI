@@ -257,12 +257,11 @@ def test_expand_unknown_product_raises_404():
     fake_db = MagicMock()
     fake_db.crm_products.find_one = AsyncMock(return_value=None)
 
-    with patch("routes.crm_products.db", fake_db):
-        with pytest.raises(HTTPException) as exc:
-            _run(expand_product(
-                product_id="nope",
-                user={"id": "u", "organization_id": "org-1", "role": "admin"},
-            ))
+    with patch("routes.crm_products.db", fake_db), pytest.raises(HTTPException) as exc:
+        _run(expand_product(
+            product_id="nope",
+            user={"id": "u", "organization_id": "org-1", "role": "admin"},
+        ))
     assert exc.value.status_code == 404
 
 

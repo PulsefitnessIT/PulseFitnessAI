@@ -107,9 +107,8 @@ def test_set_availability_requires_partner():
     from routes.partners import set_my_availability
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value=None)
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(set_my_availability(body={"available": False}, user=_user()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(set_my_availability(body={"available": False}, user=_user()))
     assert exc.value.status_code == 404
 
 
@@ -117,9 +116,8 @@ def test_set_availability_requires_available_flag():
     from routes.partners import set_my_availability
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value={"id": "p1", "user_id": "u-jane"})
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(set_my_availability(body={"note": "blah"}, user=_user()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(set_my_availability(body={"note": "blah"}, user=_user()))
     assert exc.value.status_code == 400
     assert "available" in str(exc.value.detail)
 

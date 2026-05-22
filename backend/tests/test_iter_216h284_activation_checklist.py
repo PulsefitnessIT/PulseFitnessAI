@@ -127,7 +127,7 @@ def test_only_referral_link_copied_is_user_ackable():
     assert is_ackable("referral_link_copied") is True
     assert is_ackable("subscribed") is False
     assert is_ackable("first_referral") is False
-    assert ACKABLE_KEYS == {"referral_link_copied"}
+    assert {"referral_link_copied"} == ACKABLE_KEYS
 
 
 def test_ack_field_name_uses_dotted_path():
@@ -195,7 +195,6 @@ def test_get_checklist_404s_for_non_partner():
     from routes.partners import get_my_checklist
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value=None)
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(get_my_checklist(user=_partner_user()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(get_my_checklist(user=_partner_user()))
     assert "apply first" in str(exc.value.detail)

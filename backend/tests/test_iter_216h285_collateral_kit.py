@@ -123,9 +123,8 @@ def test_endpoint_blocks_non_approved_partner():
         "id": "p1", "user_id": "u-jane", "status": "pending",
         "referral_code": "X", "full_name": "Jane",
     })
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(get_my_collateral("pdf-pitch", user=_user()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(get_my_collateral("pdf-pitch", user=_user()))
     assert "Approved partners only" in str(exc.value.detail)
 
 
@@ -133,9 +132,8 @@ def test_endpoint_404s_for_non_partner():
     from routes.partners import get_my_collateral
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value=None)
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(get_my_collateral("pdf-pitch", user=_user()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(get_my_collateral("pdf-pitch", user=_user()))
     assert "apply first" in str(exc.value.detail)
 
 

@@ -173,13 +173,12 @@ def test_patch_endpoint_404s_on_unknown_contact():
     fake_db = MagicMock()
     fake_db.crm2_contacts.find_one = AsyncMock(return_value=None)
 
-    with patch("routes.crm_stakeholders.db", fake_db):
-        with pytest.raises(HTTPException) as exc:
-            _run(update_contact_miller_heiman(
-                contact_id="ghost",
-                data={"adoption_sentiment": "neutral"},
-                user={"id": "u", "organization_id": "o", "role": "admin"},
-            ))
+    with patch("routes.crm_stakeholders.db", fake_db), pytest.raises(HTTPException) as exc:
+        _run(update_contact_miller_heiman(
+            contact_id="ghost",
+            data={"adoption_sentiment": "neutral"},
+            user={"id": "u", "organization_id": "o", "role": "admin"},
+        ))
     assert exc.value.status_code == 404
 
 
@@ -189,13 +188,12 @@ def test_patch_endpoint_rejects_self_reports_to():
     fake_db = MagicMock()
     fake_db.crm2_contacts.find_one = AsyncMock(return_value={"id": "c1", "organization_id": "o"})
 
-    with patch("routes.crm_stakeholders.db", fake_db):
-        with pytest.raises(HTTPException) as exc:
-            _run(update_contact_miller_heiman(
-                contact_id="c1",
-                data={"reports_to_id": "c1"},   # self-reference
-                user={"id": "u", "organization_id": "o", "role": "admin"},
-            ))
+    with patch("routes.crm_stakeholders.db", fake_db), pytest.raises(HTTPException) as exc:
+        _run(update_contact_miller_heiman(
+            contact_id="c1",
+            data={"reports_to_id": "c1"},   # self-reference
+            user={"id": "u", "organization_id": "o", "role": "admin"},
+        ))
     assert exc.value.status_code == 400
     assert "themselves" in exc.value.detail
 
@@ -210,13 +208,12 @@ def test_patch_endpoint_validates_reports_to_exists_in_same_org():
         None,
     ])
 
-    with patch("routes.crm_stakeholders.db", fake_db):
-        with pytest.raises(HTTPException) as exc:
-            _run(update_contact_miller_heiman(
-                contact_id="c1",
-                data={"reports_to_id": "c-outside"},
-                user={"id": "u", "organization_id": "o", "role": "admin"},
-            ))
+    with patch("routes.crm_stakeholders.db", fake_db), pytest.raises(HTTPException) as exc:
+        _run(update_contact_miller_heiman(
+            contact_id="c1",
+            data={"reports_to_id": "c-outside"},
+            user={"id": "u", "organization_id": "o", "role": "admin"},
+        ))
     assert exc.value.status_code == 404
     assert "reports_to_id" in exc.value.detail
 

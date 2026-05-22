@@ -79,9 +79,8 @@ def test_submit_review_validates_rating():
     from routes.partners import submit_review
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value={"id": "p1", "full_name": "Jane"})
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(submit_review("p1", body={"rating": 0, "reviewer_name": "X", "body": "y"}, request=_request()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(submit_review("p1", body={"rating": 0, "reviewer_name": "X", "body": "y"}, request=_request()))
     assert "between 1 and 5" in str(exc.value.detail)
 
 
@@ -148,13 +147,12 @@ def test_submit_review_24h_cooldown_blocks_duplicate():
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value={"id": "p1", "full_name": "Jane"})
     fake_db.partner_reviews.find_one = AsyncMock(return_value={"id": "prev-review"})
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(submit_review(
-                "p1",
-                body={"rating": 5, "reviewer_name": "Tom", "reviewer_email": "tom@x", "body": "good"},
-                request=_request(),
-            ))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(submit_review(
+            "p1",
+            body={"rating": 5, "reviewer_name": "Tom", "reviewer_email": "tom@x", "body": "good"},
+            request=_request(),
+        ))
     assert exc.value.status_code == 429
 
 
@@ -162,9 +160,8 @@ def test_submit_review_partner_must_be_approved():
     from routes.partners import submit_review
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value=None)  # find_one queries status:approved
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(submit_review("p1", body={"rating": 5, "reviewer_name": "X", "body": "y"}, request=_request()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(submit_review("p1", body={"rating": 5, "reviewer_name": "X", "body": "y"}, request=_request()))
     assert exc.value.status_code == 404
 
 
@@ -218,9 +215,8 @@ def test_engineer_respond_requires_ownership():
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value={"id": "p1", "user_id": "u-jane"})
     fake_db.partner_reviews.find_one = AsyncMock(return_value=None)  # review not on this partner
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(respond_to_review("r-not-mine", body={"response": "thanks"}, user=_user()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(respond_to_review("r-not-mine", body={"response": "thanks"}, user=_user()))
     assert "not found" in str(exc.value.detail).lower()
 
 

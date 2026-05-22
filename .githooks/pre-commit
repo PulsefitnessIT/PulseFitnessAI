@@ -51,17 +51,27 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# ── Frontend: ESLint (errors only) ───────────────────────────
-echo -n "  Frontend lint (ESLint)... "
-cd /app/frontend
-if npx eslint src/ --quiet 2>/dev/null; then
-    echo -e "${GREEN}OK${NC}"
+# ── Frontend: ESLint on staged JS/JSX (strict 0-warning gate) ─────
+# Iter 216h291 — only lint staged files for speed, but enforce the
+# same `--max-warnings 0` gate `make lint-frontend` uses so dark-mode
+# leakage and inline-hex slip-ups are caught at write-time, not at PR.
+echo -n "  Frontend lint (staged JS/JSX, max-warnings 0)... "
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '^frontend/src/.*\.(js|jsx)$' \
+    | sed 's|^frontend/||' || true)
+if [ -z "$STAGED_JS" ]; then
+    echo -e "${GREEN}skipped (no JS/JSX staged)${NC}"
 else
-    echo -e "${RED}FAILED${NC}"
-    npx eslint src/ 2>&1 | tail -5
-    ERRORS=$((ERRORS + 1))
+    cd /app/frontend
+    if echo "$STAGED_JS" | xargs -r yarn -s eslint --max-warnings 0 2>/tmp/eslint-precommit.log; then
+        echo -e "${GREEN}OK${NC}"
+    else
+        echo -e "${RED}FAILED${NC}"
+        tail -20 /tmp/eslint-precommit.log
+        ERRORS=$((ERRORS + 1))
+    fi
+    cd /app
 fi
-cd /app
 
 # ── Result ───────────────────────────────────────────────────
 if [ "$ERRORS" -gt 0 ]; then

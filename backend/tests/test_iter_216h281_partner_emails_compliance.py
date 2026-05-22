@@ -186,11 +186,19 @@ def test_update_my_compliance_rejects_empty_body():
 
 def _async_iter(items):
     class _C:
-        def __init__(self, xs): self.xs = list(xs)
-        def __aiter__(self): self._i = 0; return self
+        def __init__(self, xs):
+            self.xs = list(xs)
+
+        def __aiter__(self):
+            self._i = 0
+            return self
+
         async def __anext__(self):
-            if self._i >= len(self.xs): raise StopAsyncIteration
-            x = self.xs[self._i]; self._i += 1; return x
+            if self._i >= len(self.xs):
+                raise StopAsyncIteration
+            x = self.xs[self._i]
+            self._i += 1
+            return x
     return _C(items)
 
 

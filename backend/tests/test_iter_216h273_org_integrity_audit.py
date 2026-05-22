@@ -117,9 +117,8 @@ def test_integrity_report_requires_master_admin():
     fake_db.users.find = MagicMock(return_value=_async_iter([]))
 
     with patch("routes.master_admin_integrity.db", fake_db), \
-         patch("routes.master_admin_integrity.require_master_admin", side_effect=deny):
-        with pytest.raises(HTTPException) as exc:
-            _run(org_integrity_report(user={"is_master_admin": False}))
+         patch("routes.master_admin_integrity.require_master_admin", side_effect=deny), pytest.raises(HTTPException) as exc:
+        _run(org_integrity_report(user={"is_master_admin": False}))
     assert exc.value.status_code == 403
 
 
@@ -139,9 +138,8 @@ def test_delete_orphan_refuses_when_org_actually_exists():
     fake_db.organizations.find_one = AsyncMock(return_value={"id": "now-exists"})
 
     with patch("routes.master_admin_integrity.db", fake_db), \
-         patch("routes.master_admin_integrity.require_master_admin", return_value=None):
-        with pytest.raises(HTTPException) as exc:
-            _run(delete_orphan_user(user_id="u1", user={"is_master_admin": True}))
+         patch("routes.master_admin_integrity.require_master_admin", return_value=None), pytest.raises(HTTPException) as exc:
+        _run(delete_orphan_user(user_id="u1", user={"is_master_admin": True}))
     assert exc.value.status_code == 409
     assert "NOT an orphan" in exc.value.detail
     # No delete call was issued
@@ -162,9 +160,8 @@ def test_delete_orphan_refuses_to_delete_a_master_admin():
     })
 
     with patch("routes.master_admin_integrity.db", fake_db), \
-         patch("routes.master_admin_integrity.require_master_admin", return_value=None):
-        with pytest.raises(HTTPException) as exc:
-            _run(delete_orphan_user(user_id="m1", user={"is_master_admin": True}))
+         patch("routes.master_admin_integrity.require_master_admin", return_value=None), pytest.raises(HTTPException) as exc:
+        _run(delete_orphan_user(user_id="m1", user={"is_master_admin": True}))
     assert exc.value.status_code == 403
     assert "master admin" in exc.value.detail.lower()
 
@@ -196,7 +193,6 @@ def test_delete_orphan_404s_on_unknown_user():
     fake_db = MagicMock()
     fake_db.users.find_one = AsyncMock(return_value=None)
     with patch("routes.master_admin_integrity.db", fake_db), \
-         patch("routes.master_admin_integrity.require_master_admin", return_value=None):
-        with pytest.raises(HTTPException) as exc:
-            _run(delete_orphan_user(user_id="nope", user={"is_master_admin": True}))
+         patch("routes.master_admin_integrity.require_master_admin", return_value=None), pytest.raises(HTTPException) as exc:
+        _run(delete_orphan_user(user_id="nope", user={"is_master_admin": True}))
     assert exc.value.status_code == 404

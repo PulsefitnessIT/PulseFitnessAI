@@ -3,10 +3,11 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
-.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy
+.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy install-hooks
 
 help:
 	@echo "GymAxis make targets:"
+	@echo "  make install-hooks       # install git pre-commit hook (lint staged JS/JSX strictly)"
 	@echo "  make lint-integrations   # validate Sicon/Sage field mapping docs"
 	@echo "  make lint-backend        # ruff over backend/"
 	@echo "  make lint-frontend       # eslint over frontend/src/"
@@ -17,11 +18,18 @@ help:
 	@echo "  make regression-full     # h211 trust-recovery suite (84 tests, 6 modules)"
 	@echo "  make pre-deploy          # full deploy gate — regressions + security + Stripe + lint"
 
+# Iter 216h291 — install the git pre-commit hook so ESLint warnings
+# can't sneak past local commits. Idempotent — re-running just
+# refreshes the symlink.
+install-hooks:
+	@bash /app/scripts/install_hooks.sh
+	@echo "  Tip: run 'git commit --no-verify' to bypass in emergencies"
+
 lint-integrations:
 	@python3 /app/backend/scripts/check_integration_mapping.py
 
 lint-backend:
-	@cd /app/backend && ruff check . || true
+	@cd /app/backend && ruff check .
 
 lint-frontend:
 	@cd /app/frontend && yarn -s eslint src --ext .js,.jsx --max-warnings 0
@@ -93,6 +101,7 @@ regression:
 	  tests/test_iter_216h287_engineer_referrals.py \
 	  tests/test_iter_216h288_engineer_availability.py \
 	  tests/test_iter_216h290_unavailable_autoreply.py \
+	  tests/test_iter_216h291_precommit_hook.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

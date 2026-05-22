@@ -248,9 +248,8 @@ def test_public_eref_lookup_404s_unknown_code():
     from routes.partners import public_eref_lookup
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value=None)
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(public_eref_lookup("UNKNOWN"))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(public_eref_lookup("UNKNOWN"))
     assert exc.value.status_code == 404
 
 
@@ -286,9 +285,8 @@ def test_list_my_engineer_referrals_404_when_not_a_partner():
     from routes.partners import list_my_engineer_referrals
     fake_db = MagicMock()
     fake_db.partner_engineers.find_one = AsyncMock(return_value=None)
-    with patch("routes.partners.db", fake_db):
-        with pytest.raises(Exception) as exc:
-            _run(list_my_engineer_referrals(user=_user()))
+    with patch("routes.partners.db", fake_db), pytest.raises(Exception) as exc:
+        _run(list_my_engineer_referrals(user=_user()))
     assert exc.value.status_code == 404
 
 

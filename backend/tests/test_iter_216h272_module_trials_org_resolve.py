@@ -79,13 +79,12 @@ def test_resolve_org_still_404s_for_non_master_when_org_missing():
 
     fake_db = MagicMock()
     fake_db.organizations.find_one = AsyncMock(return_value=None)
-    with patch("routes.module_trials.db", fake_db):
-        with pytest.raises(HTTPException) as exc:
-            _run(_resolve_org({
-                "id": "u2",
-                "organization_id": "missing",
-                "is_master_admin": False,
-            }))
+    with patch("routes.module_trials.db", fake_db), pytest.raises(HTTPException) as exc:
+        _run(_resolve_org({
+            "id": "u2",
+            "organization_id": "missing",
+            "is_master_admin": False,
+        }))
     assert exc.value.status_code == 404
     assert exc.value.detail == "Organisation not found"
 

@@ -201,12 +201,19 @@ def test_marketing_addons_seeder_skips_codes_already_present():
 
     class _Cur:
         def __init__(self, items):
-            self._items = list(items); self._i = 0
+            self._items = list(items)
+            self._i = 0
+
         def __aiter__(self):
-            self._i = 0; return self
+            self._i = 0
+            return self
+
         async def __anext__(self):
-            if self._i >= len(self._items): raise StopAsyncIteration
-            x = self._items[self._i]; self._i += 1; return x
+            if self._i >= len(self._items):
+                raise StopAsyncIteration
+            x = self._items[self._i]
+            self._i += 1
+            return x
 
     fake_db.marketing_addons.find = MagicMock(
         return_value=_Cur([{"code": c} for c in present]),

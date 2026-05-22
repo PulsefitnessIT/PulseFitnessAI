@@ -270,12 +270,11 @@ def test_recognize_from_website_404s_when_no_data_extracted():
         return ({}, [])
 
     with patch("routes.crm_website_recognize.db", fake_db), \
-         patch("routes.crm_website_recognize._scrape_url", new=AsyncMock(side_effect=empty_scrape)):
-        with pytest.raises(HTTPException) as exc:
-            _run(recognize_from_website(
-                data={"url": "https://blocked.test"},
-                user={"id": "u", "organization_id": "org-1", "role": "admin"},
-            ))
+         patch("routes.crm_website_recognize._scrape_url", new=AsyncMock(side_effect=empty_scrape)), pytest.raises(HTTPException) as exc:
+        _run(recognize_from_website(
+            data={"url": "https://blocked.test"},
+            user={"id": "u", "organization_id": "org-1", "role": "admin"},
+        ))
     assert exc.value.status_code == 404
 
 
