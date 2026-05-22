@@ -1,3 +1,69 @@
+## Iter 216h295 — Required-checks doc for branch protection (Feb 21, 2026) ✅ P1
+
+Closed the documentation gap from h291–h294. The CI workflows now
+fire on every PR and go red on regressions, but **GitHub branch
+protection settings still need a human to flip "Required" on each
+new check** — without that, a maintainer can hit "Merge anyway"
+and undo every hardening pass. This iter ships a paste-to-PR
+guide a teammate can follow in 5 minutes.
+
+### Deliverable
+
+* **`docs/CI_REQUIRED_CHECKS.md`** — step-by-step guide:
+  * Why required checks matter (a 4-row table mapping each
+    hardening iter to the layer it added)
+  * Path through GitHub Settings → Branches → Branch protection
+  * **Verbatim list of all 6 status check display names** the
+    teammate needs to add: 2 from `ci.yml` (precommit gates,
+    backend regression) + 4 from `quality-gate.yml` (python
+    quality, gitleaks, frontend quality, pip-audit)
+  * Call-out for the no.1 GitHub gotcha — the dropdown stays
+    empty until the workflow has run at least once
+  * Recommended additions (≥1 reviewer, no admin bypass,
+    require linear history)
+  * Verification recipe: open a fresh PR with a deliberate
+    `bg-white` (no `dark:` variant) lint warning, confirm the
+    Merge button is greyed out
+  * "When a check legitimately can't pass" emergency-bypass
+    guidance for `pip-audit` CVEs / gitleaks false positives /
+    real hotfixes
+  * Cross-links to `Makefile`, `docs/PRE_COMMIT.md`, and both
+    workflow files
+
+### Verification
+
+* `tests/test_iter_216h295_required_checks_doc.py` — **7 tests**:
+  * Doc exists at the documented path
+  * Mentions the dropdown-first-run gotcha (specific phrases)
+  * References boundary iters h291 + h294 so historical context
+    survives a search
+  * Cross-links to `Makefile` + `PRE_COMMIT.md`
+  * **Drift pin**: parses both workflow YAMLs with `yaml.safe_load`
+    and asserts every `jobs.<id>.name` value appears verbatim in
+    the doc. A future workflow rename will fail this test until
+    the doc is updated — no more silent doc rot.
+  * Distinguishes the two source workflow filenames
+* Full regression: **534 passed, 14 skipped** in 12.1s.
+* `make lint` clean.
+
+### Hardening saga — final state
+
+```
+h289  Frontend lint debt cleared (27 errors → 0)
+h291  Pre-commit hook strict on staged JS/JSX
+h292  Backend ruff debt cleared (47 errors → 0), strict gate
+h293  CI workflows: --max-warnings 0, make regression in CI
+h294  make pre-deploy hard-depends on make lint
+h295  Required-checks doc — paste-to-PR guide  ← we are here
+```
+
+Five iters, ~6 hours of focused work, end-state: lint-dirty code
+cannot reach `main` without an explicit, audited bypass at
+multiple layers.
+
+---
+
+
 ## Iter 216h294 — `make pre-deploy` now hard-depends on `make lint` (Feb 21, 2026) ✅ P1
 
 Closed the last bypass in the deploy gate. The shell script
