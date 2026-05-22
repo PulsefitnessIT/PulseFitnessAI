@@ -707,8 +707,15 @@ const LiteDialogs = ({
   };
 
   const handleConfirmAfterTriage = () => {
+    // Iter 216h300 — pass the triage payload through to the parent
+    // so it lands on the persisted issue record. Without this the
+    // fault detail page renders no AI section even though the
+    // assessment was generated. Stored as a JSON string because
+    // `IssueCreate.ai_triage` is `Optional[str]` (the backend's
+    // `_parse_ai_triage` then re-hydrates it into a dict).
+    const triagePayload = triageResult ? { ai_triage: JSON.stringify(triageResult) } : {};
     setTriageResult(null);
-    onFaultSubmit();
+    onFaultSubmit(triagePayload);
   };
 
   const handleCloseDialog = (open) => {

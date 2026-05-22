@@ -1,3 +1,98 @@
+## Iter 216h300 — AI triage now persists to the fault detail page (Feb 22, 2026) ✅ user-reported
+
+User-reported follow-up to h299: even after the in-form dropdown
+fix shipped, the **fault detail page** (`IssueDetailPanel.js`)
+still showed no AI section. Triage was being generated, rendered
+in the submission form, then **discarded at submit time**.
+
+### Root cause
+
+`handleConfirmAfterTriage` in `LiteDialogs.js` was:
+
+```js
+const handleConfirmAfterTriage = () => {
+  setTriageResult(null);   // clear local state
+  onFaultSubmit();          // ← no arguments — triage is gone
+};
+```
+
+The parent's `_buildMachinePayload` had no `ai_triage` field. The
+payload reached `POST /api/issues` with nothing to persist, and the
+detail page (which has rendered `issue.ai_triage_parsed` since iter
+216a) showed nothing.
+
+### Fix
+
+**`pages/LiteDashboard/LiteDialogs.js`** — forward the triage as a
+JSON-stringified payload (since `IssueCreate.ai_triage` is
+`Optional[str]`):
+
+```diff
+ const handleConfirmAfterTriage = () => {
++  const triagePayload = triageResult ? { ai_triage: JSON.stringify(triageResult) } : {};
+   setTriageResult(null);
+-  onFaultSubmit();
++  onFaultSubmit(triagePayload);
+ };
+```
+
+**`pages/LiteDashboardPage.js`** — thread the field through the
+payload builder, preferring `overrides.ai_triage` (set by the
+above) then falling back to `form.ai_triage` (for the batch path
+where each staged machine may have had its own triage run):
+
+```diff
+ const _buildMachinePayload = (form, media, overrides = {}) => {
+   const base = {
+     ...
+     fault_code: form.fault_code || null,
+     media,
++    ai_triage: overrides.ai_triage || form.ai_triage || null,
+     ...overrides,
+   };
+```
+
+The backend pipeline didn't change — `IssueCreate.ai_triage`,
+`_build_issue_doc("ai_triage": …)`, and `_parse_ai_triage()` were
+already correct; they just never got called with a real payload.
+
+### Verification
+
+* `tests/test_iter_216h300_ai_triage_persistence.py` — **9 tests**
+  pin: handler forwards a JSON-stringified payload, local state
+  cleared before submission, payload builder threads the field
+  through, schema still accepts `ai_triage`, `_build_issue_doc`
+  still writes it to Mongo, `_parse_ai_triage` still hydrates
+  it on reads, `IssueDetailPanel` still renders
+  `ai_triage_parsed`, JSON round-trip sanity, and the h299
+  dropdown is still present.
+* **Full e2e against the live preview**: POST `/api/issues` with
+  the structured triage payload + token → GET back the same
+  issue → response includes `ai_triage_parsed` with the
+  diagnosis, fault code and 2 repair steps fully hydrated. Test
+  issue cleaned up.
+* Full regression: **618 passed, 14 skipped** in 11.7s.
+* `make lint` clean.
+
+### How to verify on preview
+
+1. From any equipment with an existing photo, click "Log Fault
+   for this Machine" — modal stays open (h299 fix #1).
+2. Fill description + severity, click "Get AI Triage & Submit" —
+   triage dropdown appears under Steps Already Taken (h299 fix #2).
+3. Confirm the submission — fault is created.
+4. Open the fault from the Faults list → the AI Assessment
+   section now appears on the detail page with priority,
+   diagnosis, fault code, repair steps, parts likely, est.
+   downtime. ✅
+
+Note: applies to **new faults logged after this fix**. Existing
+faults submitted via the old code path still have no triage
+data — that's a historical gap, not a fix-time bug.
+
+---
+
+
 ## Iter 216h299 — Lite-dashboard three-bug fix pack (Feb 22, 2026) ✅ user-reported
 
 Three user-reported regressions on the Lite Dashboard preview,

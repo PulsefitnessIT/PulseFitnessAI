@@ -288,6 +288,11 @@ const LiteDashboardPage = () => {
       steps_taken: form.steps_taken || '',
       fault_code: form.fault_code || null,
       media,
+      // Iter 216h300 — forward the AI triage payload (set by
+      // `handleConfirmAfterTriage` in LiteDialogs) so the fault
+      // detail page can render the assessment. Without this, the
+      // triage result was discarded at submission time.
+      ai_triage: overrides.ai_triage || form.ai_triage || null,
       ...overrides,
     };
     if (overrides.resolution_type === 'self_fix') base.status = 'resolved';
