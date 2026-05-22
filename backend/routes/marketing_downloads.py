@@ -25,6 +25,11 @@ DOWNLOADS: dict[str, tuple[str, str]] = {
         "mod-presentation/GymAxis_MOD_Briefing.pdf",
         "GymAxis_MOD_Briefing.pdf",
     ),
+    # Iter 216h302a — short alias, easier to type on mobile.
+    "mod.pdf": (
+        "mod-presentation/GymAxis_MOD_Briefing.pdf",
+        "GymAxis_MOD_Briefing.pdf",
+    ),
 }
 
 
