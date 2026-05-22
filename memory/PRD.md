@@ -1,3 +1,59 @@
+## Iter 216h301 — Pulse Lite "Log a fault" submit + AI hint copy (Feb 22, 2026) ✅ user-reported
+
+User-reported follow-up to h300. On the **Pulse Fitness Lite**
+portal variant (non-AI tenants — `isPro === false`):
+
+1. **Submission failed** with toast *"Couldn't log the fault.
+   Please check your connection and try again."*
+
+2. **"helps AI diagnose faster"** copy appeared under *Any steps
+   already taken?* even though the Lite portal has no AI Triage
+   button.
+
+### Root cause
+
+`<Button onClick={onFaultSubmit}>` (the non-Pro submit button) was
+bound directly. React passes the click event as the first arg, so
+`handleFaultSubmit(event)` ran with `overrides = SyntheticEvent`,
+and `_buildMachinePayload` spread the event into the POST body via
+`...overrides`. The synthetic-event spread leaked DOM nodes /
+circular refs into the JSON serialization, breaking the request
+silently (the user saw the generic "check your connection" fallback
+because `err.response` was undefined).
+
+The placeholder string was a static literal that mentioned AI for
+all tenants — a leftover from when only Pro variants existed.
+
+### Fix
+
+`pages/LiteDashboard/LiteDialogs.js`:
+
+```diff
+- <Button onClick={onFaultSubmit} disabled={...}>
++ <Button onClick={() => onFaultSubmit()} disabled={...}>
+
+- placeholder="Have you tried anything to fix this? (helps AI diagnose faster)"
++ placeholder={isPro
++   ? 'Have you tried anything to fix this? (helps AI diagnose faster)'
++   : 'Have you tried anything to fix this? (gives the engineer a head start)'}
+```
+
+### Verification
+
+- ✅ `make regression`: **624 passing** (+6 new pins) / 14 skipped.
+- ✅ `make lint-frontend` + `make lint-backend`: zero warnings.
+- ✅ E2E (Playwright): logged into `jack.ottey@thirdspace.london`
+  with `?view=lite`, opened Log Fault, picked machine, typed
+  description, clicked **Submit Fault Report** → got success modal
+  with reference `FLT-D34DC7B2` and new row in fault list. Placeholder
+  on Lite read "(gives the engineer a head start)" — no AI mention.
+
+New test file: `backend/tests/test_iter_216h301_pulse_lite_fault_submission.py`
+(6 pins) — registered under `regression:` target in `/app/Makefile`.
+
+---
+
+
 ## Iter 216h300 — AI triage now persists to the fault detail page (Feb 22, 2026) ✅ user-reported
 
 User-reported follow-up to h299: even after the in-form dropdown

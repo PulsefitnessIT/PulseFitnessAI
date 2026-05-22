@@ -835,7 +835,19 @@ const LiteDialogs = ({
             </div>
             <div>
               <Label className="text-[var(--color-text-muted)] font-medium">Any Steps Already Taken?</Label>
-              <Textarea value={faultForm.steps_taken || ''} onChange={e => setFaultForm({ ...faultForm, steps_taken: e.target.value })} placeholder="Have you tried anything to fix this? (helps AI diagnose faster)" className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[60px]" data-testid="lite-fault-steps-taken" />
+              <Textarea
+                value={faultForm.steps_taken || ''}
+                onChange={e => setFaultForm({ ...faultForm, steps_taken: e.target.value })}
+                /* Iter 216h301 — AI hint only when the tenant actually
+                   has AI (Pulse Pro / trial / MOD-HQ). Pulse Lite users
+                   were seeing "(helps AI diagnose faster)" even though
+                   their portal has no AI features, which is confusing. */
+                placeholder={isPro
+                  ? 'Have you tried anything to fix this? (helps AI diagnose faster)'
+                  : 'Have you tried anything to fix this? (gives the engineer a head start)'}
+                className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)] mt-1.5 min-h-[60px]"
+                data-testid="lite-fault-steps-taken"
+              />
               {/* Iter 216h299 — AI Triage Assessment dropdown. Lives
                   directly under Steps Already Taken (per BA request)
                   so the engineer sees the AI's read on what's
@@ -1000,7 +1012,12 @@ const LiteDialogs = ({
               </div>
             ) : (
               <div className="space-y-2">
-                <Button onClick={onFaultSubmit} disabled={submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
+                {/* Iter 216h301 — wrap onFaultSubmit so React's click
+                    event isn't passed in as `overrides`. The synthetic
+                    event was spread into the payload by
+                    `_buildMachinePayload(...overrides)`, leading to
+                    POST failures (and confusing toast on Pulse Lite). */}
+                <Button onClick={() => onFaultSubmit()} disabled={submitting || !faultForm.serial_number || !faultForm.issue_description} className="w-full h-12 bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white font-medium text-base" data-testid="lite-fault-submit">
                   {submitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <AlertTriangle size={18} className="mr-2" />}
                   {stagedMachines.length > 0
                     ? `Submit job (${stagedMachines.length + 1} machines)`
