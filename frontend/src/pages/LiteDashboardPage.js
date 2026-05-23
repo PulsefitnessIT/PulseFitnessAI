@@ -36,6 +36,7 @@ import SiteSwitcher from '../components/shared/SiteSwitcher';
 import DocumentQA from '../components/shared/DocumentQA';
 import ProductTour from '../components/shared/ProductTour';
 import NudgeBanner from '../components/shared/NudgeBanner';
+import PulseScoreCard from '../components/PulseScoreCard';
 import ModuleSwitcher from '../components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '../components/shared/CrossModuleTipsBanner';
 import PulseProUpgradeCta from '../components/shared/PulseProUpgradeCta';
@@ -756,6 +757,10 @@ const LiteDashboardPage = () => {
 
           {/* Proactive nudges surfaced to owners/managers */}
           <NudgeBanner canDismiss={userRole === 'owner' || userRole === 'manager'} />
+
+          {/* Iter 217 — The Pulse Score. Single hero metric, animated
+              ring with heartbeat. Click to expand the breakdown. */}
+          {!allSitesActive && <PulseScoreCard siteId={activeSite?.id} />}
 
           {/* Iter 216i — All-Sites overview short-circuits the per-site
               tabs when an owner/manager picks "All sites" from the
