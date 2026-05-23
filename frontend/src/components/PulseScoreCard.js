@@ -1,22 +1,19 @@
 /**
- * The Pulse Score — signature hero metric.
+ * The Pulse · today — the platform's signature hero metric.
  *
- * Iter 217 — one number, one promise. Composes 5 sub-scores into a
- * single 0-100 operational pulse, rendered as an animated ring with
- * a slow heartbeat. Click anywhere on the card to expand a drawer
- * showing each component, its weight, and the raw inputs.
+ * Iter 217 — wraps the existing /api/gym-health-score endpoint
+ * (merged in this iter from the previously-duplicate pulse_score
+ * route) and renders it as a single animated card on the dashboard
+ * header.
  *
- * Why we built it this way:
- *   - The "ring" is two concentric SVG circles: a faint track + an
- *     arc that sweeps in proportion to the score. No external lib.
- *   - The pulse is a CSS @keyframes scale+opacity loop on the
- *     inner halo. Restarts cleanly on score changes because we key
- *     the wrapper on `score`.
- *   - Band colour is computed in JS once; we pass three CSS vars
- *     down (--pulse-bg, --pulse-fg, --pulse-glow) so the ring +
- *     glow + label all stay in sync.
- *   - Drawer rows are bog-standard divs — keeps the bundle thin
- *     and the design owned by us, not by a chart lib's defaults.
+ * Design notes (post-feedback):
+ *   - Light, paper-toned card — no dark surfaces. Inherits the
+ *     same "calm widget" feel as the other dashboard tiles, with
+ *     a subtle brand-tinted gradient + soft cyan halo behind the
+ *     ring (NOT a heavy glow).
+ *   - The ring sweeps in brand cyan → blue and the heartbeat is
+ *     a slow, gentle scale loop on the inner halo. No box-shadow.
+ *   - Component bars inside the breakdown sit on pure white.
  */
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -24,19 +21,35 @@ import axios from 'axios';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const BAND = {
-  excellent: { bg: 'rgba(16,185,129,0.10)', fg: '#10B981', glow: 'rgba(16,185,129,0.45)', label: 'Excellent' },
-  good:      { bg: 'rgba(25,205,255,0.10)', fg: '#19CDFF', glow: 'rgba(25,205,255,0.45)', label: 'Good' },
-  fair:      { bg: 'rgba(245,158,11,0.10)', fg: '#F59E0B', glow: 'rgba(245,158,11,0.45)', label: 'Fair' },
-  poor:      { bg: 'rgba(239,68,68,0.10)',  fg: '#EF4444', glow: 'rgba(239,68,68,0.45)',  label: 'Needs attention' },
+/* Bands map the existing endpoint's `rating` field straight through. */
+const BAND_STYLES = {
+  Excellent:         { fg: '#10B981', soft: 'rgba(16,185,129,0.10)' },
+  Good:              { fg: '#19CDFF', soft: 'rgba(25,205,255,0.12)' },
+  Fair:              { fg: '#F59E0B', soft: 'rgba(245,158,11,0.10)' },
+  'Needs Attention': { fg: '#F97316', soft: 'rgba(249,115,22,0.10)' },
+  Critical:          { fg: '#EF4444', soft: 'rgba(239,68,68,0.10)' },
 };
 
-const COMPONENT_META = {
-  fault_freshness: { label: 'Fault freshness',  hint: 'Median age of open faults', detailFmt: (d) => d.open_faults === 0 ? 'No open faults' : `${d.open_faults} open · median ${d.median_age_days}d` },
-  self_fix_rate:   { label: 'Self-fix rate',    hint: 'Resolved on-base, no call-out', detailFmt: (d) => d.resolved_30d === 0 ? 'No closures in last 30d' : `${d.self_fix_pct}% of ${d.resolved_30d} closures` },
-  audit_coverage:  { label: 'Audit coverage',   hint: 'Machines checked in last 7 days', detailFmt: (d) => d.equipment_count === 0 ? 'No equipment' : `${d.covered_pct}% of ${d.equipment_count} machines` },
-  warranty_health: { label: 'Warranty health',  hint: 'Equipment under cover',  detailFmt: (d) => d.equipment_count === 0 ? 'No equipment' : `${d.in_warranty_pct}% in warranty / service contract` },
-  sla_adherence:   { label: 'SLA adherence',    hint: 'Acknowledged within 24h', detailFmt: (d) => d.faults_30d === 0 ? 'No faults in last 30d' : `${d.ack_within_24h_pct}% of ${d.faults_30d} faults` },
+/* Curated order — Fault freshness leads because it answers
+   "what's hurting me right now?" — the most useful read in a glance. */
+const ORDER = [
+  'fault_freshness',
+  'fault_management',
+  'sla_adherence',
+  'self_fix_rate',
+  'audit_coverage',
+  'warranty_health',
+  'ai_knowledge',
+];
+
+const LABEL = {
+  fault_management: 'Fault backlog',
+  fault_freshness:  'Fault freshness',
+  self_fix_rate:    'Self-fix rate',
+  audit_coverage:   'Audit coverage',
+  warranty_health:  'Warranty health',
+  sla_adherence:    'SLA adherence',
+  ai_knowledge:     'Knowledge base',
 };
 
 export const PulseScoreCard = ({ siteId }) => {
@@ -49,101 +62,124 @@ export const PulseScoreCard = ({ siteId }) => {
     const token = localStorage.getItem('token');
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
-    const url = `${API}/pulse-score/me${siteId ? `?site_id=${siteId}` : ''}`;
+    const url = `${API}/gym-health-score${siteId ? `?site_id=${siteId}` : ''}`;
     setLoading(true);
     axios.get(url, { headers })
       .then(r => { setData(r.data); setError(null); })
-      .catch(e => setError(e.response?.data?.detail || 'Could not load Pulse Score'))
+      .catch(e => setError(e.response?.data?.detail || 'Could not load The Pulse'))
       .finally(() => setLoading(false));
   }, [siteId]);
 
-  if (loading || error || !data) {
+  if (loading) {
     return (
       <div
         data-testid="pulse-score-card"
-        className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 mb-4"
+        className="rounded-2xl border border-[#E2E8F0] bg-white p-5 mb-4 text-sm text-slate-500"
       >
-        <div className="text-sm text-[var(--theme-text-muted)] pulse-font-body">
-          {error ? error : 'Reading your Pulse…'}
+        Reading your Pulse…
+      </div>
+    );
+  }
+  if (error || !data) {
+    return (
+      <div
+        data-testid="pulse-score-card"
+        className="rounded-2xl border border-[#E2E8F0] bg-white p-5 mb-4 text-sm text-slate-500"
+      >
+        {error || 'Could not load The Pulse'}
+      </div>
+    );
+  }
+
+  // Not-ready (onboarding incomplete) — soft, encouraging state.
+  if (data.not_ready) {
+    return (
+      <div
+        data-testid="pulse-score-card"
+        className="rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-[#F0F9FF] via-white to-[#EFF6FF] p-5 mb-4"
+      >
+        <div className="text-xs uppercase tracking-[0.18em] font-mono font-semibold mb-1 text-[#0055FF]">
+          The Pulse · waking up
+        </div>
+        <div className="text-lg font-bold text-slate-800 mb-1 pulse-font-heading">
+          We're getting to know your site.
+        </div>
+        <div className="text-sm text-slate-600 pulse-font-body">
+          {data.message || 'Your Pulse will appear once you\'ve added equipment and logged a little activity.'}
         </div>
       </div>
     );
   }
 
-  const band = BAND[data.band] || BAND.fair;
-  // SVG ring: r=58, circumference = 2πr ≈ 364.4. Sweep length = score%.
+  const band = BAND_STYLES[data.rating] || BAND_STYLES.Fair;
+
+  // SVG ring geometry — r=58, circumference ≈ 364.4.
   const R = 58;
   const C = 2 * Math.PI * R;
   const sweep = (data.score / 100) * C;
 
+  // Breakdown rows in our preferred order, filtered to what the API returned.
+  const rows = ORDER
+    .filter(k => data.breakdown && data.breakdown[k])
+    .map(k => ({ key: k, ...data.breakdown[k] }));
+
   return (
     <div
       data-testid="pulse-score-card"
-      style={{
-        // Brand-token vars consumed by the inline SVG + halo
-        '--pulse-bg': band.bg,
-        '--pulse-fg': band.fg,
-        '--pulse-glow': band.glow,
-      }}
-      className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface)] mb-4 overflow-hidden"
+      style={{ '--pulse-fg': band.fg, '--pulse-soft': band.soft }}
+      className="rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-white via-[#F8FBFF] to-[#F0F9FF] mb-4 overflow-hidden"
     >
-      {/* keyframes scoped to this component */}
       <style>{`
-        @keyframes pulse-heartbeat {
-          0%   { transform: scale(1);    opacity: 0.7; }
-          25%  { transform: scale(1.08); opacity: 0.95; }
-          50%  { transform: scale(1);    opacity: 0.7; }
-          70%  { transform: scale(1.04); opacity: 0.85; }
-          100% { transform: scale(1);    opacity: 0.7; }
+        @keyframes pulse-breath {
+          0%, 100% { transform: scale(1);    opacity: 0.55; }
+          25%      { transform: scale(1.06); opacity: 0.85; }
+          50%      { transform: scale(1);    opacity: 0.55; }
+          70%      { transform: scale(1.03); opacity: 0.75; }
         }
-        .pulse-halo { animation: pulse-heartbeat 2.4s ease-in-out infinite; }
+        .pulse-breath { animation: pulse-breath 2.6s ease-in-out infinite; }
       `}</style>
 
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
         data-testid="pulse-score-toggle"
-        className="w-full flex items-center justify-between gap-5 p-5 text-left hover:bg-[var(--theme-surface-hover)] transition-colors"
+        className="w-full flex items-center justify-between gap-5 p-5 text-left hover:bg-[#F0F9FF]/60 transition-colors"
       >
         <div className="flex items-center gap-5 min-w-0">
           {/* Animated ring */}
-          <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
-            {/* breathing halo behind the ring */}
+          <div className="relative shrink-0" style={{ width: 128, height: 128 }}>
             <div
-              className="absolute inset-2 rounded-full pulse-halo"
-              style={{
-                background: 'var(--pulse-bg)',
-                boxShadow: `0 0 32px 6px var(--pulse-glow)`,
-              }}
+              className="absolute inset-3 rounded-full pulse-breath"
+              style={{ background: 'var(--pulse-soft)' }}
             />
-            <svg width="132" height="132" viewBox="0 0 132 132" className="relative">
-              <circle cx="66" cy="66" r={R} fill="none" stroke="var(--theme-border)" strokeWidth="6" />
+            <svg width="128" height="128" viewBox="0 0 128 128" className="relative">
+              <circle cx="64" cy="64" r={R} fill="none" stroke="#E2E8F0" strokeWidth="6" />
               <circle
-                cx="66" cy="66" r={R}
+                cx="64" cy="64" r={R}
                 fill="none"
                 stroke="var(--pulse-fg)"
                 strokeWidth="6"
                 strokeLinecap="round"
                 strokeDasharray={`${sweep} ${C}`}
-                transform="rotate(-90 66 66)"
+                transform="rotate(-90 64 64)"
                 style={{ transition: 'stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)' }}
               />
               <text
-                x="66" y="64"
+                x="64" y="62"
                 textAnchor="middle"
                 style={{
-                  fill: 'var(--theme-text)',
+                  fill: '#0B0F1A',
                   fontFamily: 'Montserrat, system-ui, sans-serif',
                   fontWeight: 900,
-                  fontSize: 36,
+                  fontSize: 34,
                   letterSpacing: '-0.02em',
                 }}
               >{data.score}</text>
               <text
-                x="66" y="84"
+                x="64" y="82"
                 textAnchor="middle"
                 style={{
-                  fill: 'var(--theme-text-muted)',
+                  fill: '#94A3B8',
                   fontFamily: 'JetBrains Mono, monospace',
                   fontSize: 9,
                   letterSpacing: '0.14em',
@@ -157,19 +193,19 @@ export const PulseScoreCard = ({ siteId }) => {
               The Pulse · today
             </div>
             <h3
-              className="text-2xl sm:text-3xl font-bold pulse-font-heading leading-tight mb-1"
-              style={{ color: 'var(--theme-text)' }}
+              className="text-2xl sm:text-3xl font-bold leading-tight mb-1 pulse-font-heading"
+              style={{ color: '#0B0F1A' }}
               data-testid="pulse-score-band"
             >
-              {band.label}.
+              {data.rating}.
             </h3>
-            <p className="text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
-              A single live read of how well this site is running. {open ? 'Hiding' : 'Tap'} the breakdown to see why.
+            <p className="text-sm text-slate-600 pulse-font-body">
+              A live read of how well this site is running. {open ? 'Hiding' : 'Tap'} the breakdown to see why.
             </p>
           </div>
         </div>
 
-        <div className="shrink-0 rounded-full p-2" style={{ background: 'var(--pulse-bg)' }}>
+        <div className="shrink-0 rounded-full p-2" style={{ background: 'var(--pulse-soft)' }}>
           {open
             ? <ChevronUp size={20} style={{ color: 'var(--pulse-fg)' }} />
             : <ChevronDown size={20} style={{ color: 'var(--pulse-fg)' }} />
@@ -178,41 +214,44 @@ export const PulseScoreCard = ({ siteId }) => {
       </button>
 
       {open && (
-        <div data-testid="pulse-score-breakdown" className="border-t border-[var(--theme-border)] p-5 pt-4 grid sm:grid-cols-2 gap-3">
-          {Object.entries(data.components).map(([key, comp]) => {
-            const meta = COMPONENT_META[key] || { label: key, hint: '', detailFmt: () => '' };
-            const sweepW = Math.max(2, comp.score);
+        <div
+          data-testid="pulse-score-breakdown"
+          className="border-t border-[#E2E8F0] bg-white/70 p-5 pt-4 grid sm:grid-cols-2 gap-3"
+        >
+          {rows.map(r => {
+            const pct = r.max > 0 ? (r.score / r.max) * 100 : 0;
+            const widthPct = Math.max(2, Math.min(100, pct));
             return (
               <div
-                key={key}
-                data-testid={`pulse-component-${key}`}
-                className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] p-3"
+                key={r.key}
+                data-testid={`pulse-component-${r.key}`}
+                className="rounded-xl border border-[#E2E8F0] bg-white p-3"
               >
                 <div className="flex items-baseline justify-between gap-3 mb-1">
-                  <div className="font-semibold text-sm pulse-font-heading" style={{ color: 'var(--theme-text)' }}>
-                    {meta.label}
+                  <div className="font-semibold text-sm text-slate-900 pulse-font-heading">
+                    {LABEL[r.key] || r.key}
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-mono" style={{ color: 'var(--theme-text-muted)' }}>
-                      ×{Math.round(comp.weight * 100)}%
+                    <span className="text-xs font-mono text-slate-400">
+                      / {r.max}
                     </span>
                     <span className="font-bold text-base pulse-font-heading" style={{ color: 'var(--pulse-fg)' }}>
-                      {comp.score}
+                      {r.score}
                     </span>
                   </div>
                 </div>
-                <div className="h-1.5 rounded-full bg-[var(--theme-border)] overflow-hidden mb-2">
+                <div className="h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden mb-2">
                   <div
                     className="h-full rounded-full"
                     style={{
-                      width: `${sweepW}%`,
-                      background: `linear-gradient(90deg, var(--pulse-fg), var(--pulse-fg))`,
+                      width: `${widthPct}%`,
+                      background: 'linear-gradient(90deg, #19CDFF, #0055FF)',
                       transition: 'width 1s cubic-bezier(.4,0,.2,1)',
                     }}
                   />
                 </div>
-                <div className="text-xs pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
-                  {meta.hint} · <span style={{ color: 'var(--theme-text)' }}>{meta.detailFmt(comp.detail)}</span>
+                <div className="text-xs text-slate-500 pulse-font-body">
+                  {r.detail}
                 </div>
               </div>
             );

@@ -22,7 +22,6 @@ from routes.ui_errors import router as ui_errors_router
 from routes.client_errors import router as client_errors_router
 from routes.platform_issues import router as platform_issues_router
 from routes.marketing_downloads import router as marketing_downloads_router
-from routes.pulse_score import router as pulse_score_router
 
 
 def register_core(api_router: APIRouter) -> None:
@@ -33,6 +32,6 @@ def register_core(api_router: APIRouter) -> None:
         payments_router, sites_router, fault_codes_router, fault_templates_router,
         support_router, support_escalate_router, nudges_router, security_manifest_router,
         sso_router, gym_floor_router, ui_errors_router, client_errors_router, platform_issues_router,
-        marketing_downloads_router, pulse_score_router,
+        marketing_downloads_router,
     ):
         api_router.include_router(r)

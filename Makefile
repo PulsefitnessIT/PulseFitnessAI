@@ -114,6 +114,7 @@ regression:
 	  tests/test_iter_216h299_lite_dashboard_bugs.py \
 	  tests/test_iter_216h300_ai_triage_persistence.py \
 	  tests/test_iter_216h301_pulse_lite_fault_submission.py \
+	  tests/test_iter_217_pulse_score_merge.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

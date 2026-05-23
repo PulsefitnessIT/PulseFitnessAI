@@ -6,15 +6,21 @@ import { AlertCircle, CheckCircle, Clock, MessageSquare, Upload, Shield } from '
 
 // Iter 216h192 — Concrete, in-product next steps surfaced when the
 // Gym Health Score is dragged down by one of these sub-categories.
+// Iter 217 — added fault_freshness + sla_adherence tips (merged from
+// the previously-duplicate Pulse Score endpoint).
 const HEALTH_IMPROVE_TIPS = {
   fault_management:
     'Close out any open faults from the Faults tab — each fix lifts this score, and resolved faults stay on record for trend reporting.',
+  fault_freshness:
+    'Old open faults drag this down fastest. Open the Faults tab, sort by oldest, and either close, escalate, or add a tracking note to the top 3.',
   self_fix_rate:
     'When a fault has a recommended self-fix, log the outcome via "Resolve → I fixed it myself". The AI learns from each one and your score rises.',
   audit_coverage:
     'Run a quick audit on each piece of equipment from the Equipment tab. Audit Coverage = audits / total equipment, so a single sweep tops it up.',
   warranty_health:
-    'Open the Equipment tab and add or extend warranty dates. Expired warranties drag this score; keeping cover live keeps you near 15/15.',
+    'Open the Equipment tab and add or extend warranty dates. Expired warranties drag this score; keeping cover live keeps you near 10/10.',
+  sla_adherence:
+    'Acknowledge new faults within 24 hours of being logged. The Faults tab shows you what\'s waiting — a one-tap "Acknowledge" keeps this score high.',
   ai_knowledge:
     'Every time you (or your team) log a successful fix, the platform stores it in your Knowledge Base. After ~5 logged fixes you hit the max 15 pts.',
 };
