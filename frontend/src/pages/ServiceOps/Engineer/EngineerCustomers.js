@@ -8,13 +8,13 @@
  *
  * Routes: GET/POST/PATCH/DELETE /api/svc/engineer/customers
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   ArrowLeft, Users, Plus, Search, Loader2, Mail, Phone, MapPin,
   Trash2, Edit3, Save, X, Wrench, FileText, CalendarClock,
-  Upload, Download, Receipt,
+  Receipt,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -76,8 +76,6 @@ export default function EngineerCustomers() {
   const [activeId, setActiveId] = useState(null);
   const [activeDetail, setActiveDetail] = useState(null); // { id, recent_quotes, recent_invoices }
   const [activeDetailLoading, setActiveDetailLoading] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const importRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -200,57 +198,6 @@ export default function EngineerCustomers() {
     }
   };
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const r = await axios.get(`${API}/svc/engineer/customers/template.csv`, {
-        ...auth(),
-        responseType: 'blob',
-      });
-      const blob = new Blob([r.data], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'engineer-customers-template.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      notify.error('Could not download template', err?.response?.data?.detail || err?.message);
-    }
-  };
-
-  const handleImportClick = () => {
-    importRef.current?.click();
-  };
-
-  const handleImportFile = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setImporting(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', f);
-      const r = await axios.post(`${API}/svc/engineer/customers/import-csv`, fd, {
-        ...auth(),
-        headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
-      });
-      const d = r.data || {};
-      const summary = `${d.imported || 0} new · ${d.merged || 0} merged · ${(d.skipped || []).length} skipped`;
-      notify.success('Import complete', summary);
-      if ((d.errors || []).length) {
-        notify.error(`${d.errors.length} row(s) failed`, d.errors.slice(0, 3).map((e) => `Row ${e.row}: ${e.error}`).join('\n'));
-      }
-      await load();
-    } catch (err) {
-      notify.error('Import failed', err?.response?.data?.detail || err?.message);
-    } finally {
-      setImporting(false);
-      // Reset input so the same file can be re-selected
-      if (importRef.current) importRef.current.value = '';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50" data-testid="engineer-customers-page">
       <header className="sticky top-0 z-20 bg-white border-b border-slate-200">
@@ -271,33 +218,6 @@ export default function EngineerCustomers() {
               Shared with your team — save once, reuse on every quote.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleDownloadTemplate}
-            className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50"
-            data-testid="customers-template-btn"
-            title="Download CSV template"
-          >
-            <Download size={14} /> Template
-          </button>
-          <button
-            type="button"
-            onClick={handleImportClick}
-            disabled={importing}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-50"
-            data-testid="customers-import-btn"
-            title="Import customers from CSV"
-          >
-            {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Import
-          </button>
-          <input
-            type="file"
-            ref={importRef}
-            accept=".csv,text/csv"
-            onChange={handleImportFile}
-            className="hidden"
-            data-testid="customers-import-input"
-          />
           <button
             type="button"
             onClick={openNew}

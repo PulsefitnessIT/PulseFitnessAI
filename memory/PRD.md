@@ -14850,3 +14850,58 @@ if `senders` is empty (e.g. when an older backend is deployed).
 - `frontend/src/pages/MasterAdmin/EmailHealthPill.js` (senders list)
 - `backend/tests/test_iter_216h258_email_pipeline_all_senders.py`
 - `Makefile`
+
+
+---
+
+## Iter 217a — Engineer App hamburger + Account Settings drawer (Feb 25, 2026)
+
+The Engineer App's primary surface (`EngineerHomeV2`) was cluttered with
+onboarding-only items (Stripe Connect amber banner, Connect Stripe quick
+action, Support shortcut) and the Customers page header carried a CSV
+Import + Template pair that field engineers rarely use day-to-day.
+
+### Changes
+- **New component** `frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js`
+  — slide-out drawer triggered by the hamburger icon in the engineer home
+  header. Sections: Payouts (Stripe Connect status + CTA), Customers
+  (Import CSV, Download template, Open my customers), Help (Support),
+  Account (Sign out). Each row has its own `data-testid`. CSV import
+  reuses the same `/api/svc/engineer/customers/import-csv` endpoint as
+  before and now also lives in this menu.
+- `EngineerHomeV2.js`:
+  - Added `<Menu>` hamburger button in the header (`engineer-home-menu-btn`)
+    with an amber dot indicator when Stripe payouts aren't ready.
+  - Removed the standalone Support icon button (moved into the drawer).
+  - Removed the Stripe Connect amber banner block from the main column.
+  - Removed the "Connect Stripe" Quick Action when payouts aren't ready
+    (handled by the drawer). The Quick Action is now shown only as a
+    "Payouts" tile once Stripe is ready.
+  - Mounted `<EngineerAccountSettings />` at the end of the page,
+    controlled by `settingsOpen` state.
+- `EngineerCustomers.js`:
+  - Removed the Import / Template buttons + hidden file input from the
+    header.
+  - Dropped `handleImportFile`, `handleImportClick`,
+    `handleDownloadTemplate`, the `importing` state, and the `importRef`
+    ref — now lives in the new drawer.
+  - Dropped unused `Upload`, `Download`, `useRef` imports.
+
+### Verification
+- ESLint clean on all three files (0 warnings).
+- Frontend webpack build: `Compiled successfully!`.
+- Visual smoke test with a freshly-seeded `partner_engineer`
+  (`engineer.smoke@gymaxisai.com` / `EngTest123!`) confirms:
+  - Hamburger renders in the header.
+  - Drawer opens with all four sections (Payouts / Customers / Help /
+    Account) and every expected `data-testid`.
+  - Old Stripe banner and standalone Support icon are gone from
+    `EngineerHomeV2`.
+  - Import / Template buttons are gone from `EngineerCustomers`.
+
+### Files changed
+- `frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js` (new)
+- `frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js`
+- `frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js`
+- `memory/test_credentials.md` (smoke-test partner credentials)
+

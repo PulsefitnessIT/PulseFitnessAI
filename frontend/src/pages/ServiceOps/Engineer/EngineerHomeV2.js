@@ -23,9 +23,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
-  CreditCard, Inbox, Hand, Users, LifeBuoy,
+  CreditCard, Inbox, Hand, Users, Menu,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import EngineerAccountSettings from './EngineerAccountSettings';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -163,6 +164,7 @@ export default function EngineerHomeV2() {
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [payouts, setPayouts] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -215,16 +217,6 @@ export default function EngineerHomeV2() {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/support')}
-              className="p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
-              data-testid="engineer-home-support-btn"
-              title="Support"
-              aria-label="Support"
-            >
-              <LifeBuoy size={16} className="text-blue-600" />
-            </button>
-            <button
-              type="button"
               onClick={() => navigate('/svc/engineer/notifications')}
               className="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
               data-testid="engineer-home-notifications-btn"
@@ -244,6 +236,22 @@ export default function EngineerHomeV2() {
               data-testid="engineer-home-refresh"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
+              data-testid="engineer-home-menu-btn"
+              aria-label="Open account settings"
+              title="Account settings"
+            >
+              <Menu size={16} />
+              {payouts && !payouts.ready ? (
+                <span
+                  className="absolute -top-0.5 -right-0.5 bg-amber-500 ring-2 ring-white rounded-full w-2.5 h-2.5"
+                  aria-hidden="true"
+                />
+              ) : null}
             </button>
           </div>
         </div>
@@ -265,32 +273,9 @@ export default function EngineerHomeV2() {
               />
             ) : null}
 
-            {/* Stripe Connect onboarding nudge — only shows until ready */}
-            {payouts && !payouts.ready ? (
-              <button
-                type="button"
-                onClick={() => navigate('/svc/engineer/payouts')}
-                className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3 hover:border-amber-300 transition-colors"
-                data-testid="engineer-home-connect-stripe-banner"
-              >
-                <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <CreditCard size={18} className="text-amber-700" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-amber-900">
-                    {payouts.connected
-                      ? 'Finish Stripe onboarding to take card payments'
-                      : 'Accept card payments on your invoices'}
-                  </p>
-                  <p className="text-xs text-amber-800">
-                    {payouts.connected
-                      ? "Stripe still needs a few details — usually ID or bank account."
-                      : 'Connect your Stripe (3 min) so customers can pay invoices by card.'}
-                  </p>
-                </div>
-                <ChevronRight size={18} className="text-amber-700" />
-              </button>
-            ) : null}
+            {/* Stripe Connect onboarding moved to the Account Settings drawer
+                (hamburger menu, top-right). The hamburger shows an amber dot
+                while payouts aren't ready so the nudge stays visible. */}
 
             {/* Iter 216h257 — Earnings hero card removed per user feedback.
                 Earnings live in the KPI grid + the new Analytics page. */}
@@ -354,9 +339,11 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Users} label="My customers"
                              testid="qa-customers"
                              onClick={() => navigate('/svc/engineer/customers')} />
-                <QuickAction icon={CreditCard} label={payouts?.ready ? 'Payouts' : 'Connect Stripe'}
-                             testid="qa-payouts"
-                             onClick={() => navigate('/svc/engineer/payouts')} />
+                {payouts?.ready ? (
+                  <QuickAction icon={CreditCard} label="Payouts"
+                               testid="qa-payouts"
+                               onClick={() => navigate('/svc/engineer/payouts')} />
+                ) : null}
                 {/* Iter 216h257 — Analytics surface with filtered KPI breakdowns. */}
                 <QuickAction icon={TrendingUp} label="Analytics"
                              testid="qa-analytics"
@@ -413,6 +400,13 @@ export default function EngineerHomeV2() {
           </>
         )}
       </main>
+
+      <EngineerAccountSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        payouts={payouts}
+        onChanged={load}
+      />
     </div>
   );
 }
