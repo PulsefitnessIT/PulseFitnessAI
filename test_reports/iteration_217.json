@@ -1,0 +1,107 @@
+{
+  "summary": "Comprehensive testing of Engineer App (iter 217) completed. All 25 backend API tests passed. Frontend UI testing confirmed EngineerHomeV2 with new hamburger menu and Account Settings drawer working correctly. Old Stripe banner and Support button removed from home, old Import/Template buttons removed from Customers page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_217_engineer_app_full.py",
+    "/app/test_reports/pytest/pytest_results_217.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_217_engineer_app_full.py"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": "engineer.smoke@gymaxisai.com / EngTest123!",
+  "seed_data_creation": "Test quotes and invoices created during backend testing (prefixed with TEST_)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Engineer App is release-ready. All core flows tested: login, dashboard KPIs, hamburger menu with Account Settings drawer (Stripe Connect, CSV import/template, customers, support, sign out), quotes lifecycle with PDF, invoices lifecycle with PDF, Stripe Connect status, queue, job requests, notifications, diary, analytics. The test user engineer.smoke@gymaxisai.com has 2 accepted quotes and 2 draft invoices from testing.",
+  "backend_tests_summary": {
+    "TestEngineerAuth": {
+      "test_engineer_login": "PASSED - Token obtained successfully",
+      "test_engineer_me_endpoint": "PASSED - Returns engineer profile + stats + active_timer"
+    },
+    "TestEngineerDashboard": {
+      "test_dashboard_returns_kpis": "PASSED - Returns kpis (integers), today_jobs[], pending_quotes[]"
+    },
+    "TestEngineerCustomers": {
+      "test_list_customers": "PASSED - Returns customers array",
+      "test_create_customer": "PASSED - Creates with id, merged=false for new",
+      "test_get_customer_detail": "PASSED - Returns recent_quotes + recent_invoices arrays",
+      "test_update_customer": "PASSED - PATCH updates fields",
+      "test_csv_template_download": "PASSED - Returns text/csv with correct columns",
+      "test_csv_import": "PASSED - Returns imported, merged, skipped, errors"
+    },
+    "TestEngineerQuotes": {
+      "test_list_quotes": "PASSED - Returns quotes array",
+      "test_create_quote_with_totals": "PASSED - Correct totals (subtotal=125, VAT=25, total=150)",
+      "test_quote_pdf": "PASSED - Returns application/pdf",
+      "test_send_quote": "PASSED - Transitions to sent (or returns expected error if email not configured)",
+      "test_mark_quote_accepted": "PASSED - Status changes to accepted"
+    },
+    "TestEngineerInvoices": {
+      "test_list_invoices": "PASSED - Returns invoices array",
+      "test_create_invoice_with_totals": "PASSED - Correct totals (subtotal=200, VAT=40, total=240)",
+      "test_invoice_pdf": "PASSED - Returns application/pdf"
+    },
+    "TestEngineerStripeConnect": {
+      "test_stripe_connect_status": "PASSED - Returns connected, ready, charges_enabled, payouts_enabled",
+      "test_stripe_onboarding_link": "PASSED - Returns URL or structured response (no 5xx)"
+    },
+    "TestEngineerOtherEndpoints": {
+      "test_queue_list": "PASSED - /queue/unassigned returns jobs array",
+      "test_inbox_list": "PASSED - /job-requests returns requests array",
+      "test_notifications_list": "PASSED - Returns notifications array",
+      "test_diary_list": "PASSED - Returns slots array",
+      "test_analytics": "PASSED - Returns aggregated stats"
+    },
+    "TestEngineerJobs": {
+      "test_jobs_list": "PASSED - Returns jobs array"
+    }
+  },
+  "frontend_tests_summary": {
+    "EngineerHomeV2": {
+      "data_testid_engineer_home_v2": "FOUND - Component renders correctly",
+      "kpi_grid": "FOUND - Shows Today, Upcoming, Overdue, Awaiting Parts, Pending Quotes, Accepted, Awaiting Customer, Invoiced",
+      "hamburger_menu_btn": "FOUND - data-testid='engineer-home-menu-btn'",
+      "old_stripe_banner_removed": "VERIFIED - data-testid='engineer-home-connect-stripe-banner' NOT in DOM",
+      "old_support_btn_removed": "VERIFIED - data-testid='engineer-home-support-btn' NOT in DOM"
+    },
+    "EngineerAccountSettings": {
+      "drawer_opens": "VERIFIED - data-testid='engineer-settings-drawer'",
+      "stripe_row": "FOUND - data-testid='engineer-settings-stripe-row'",
+      "import_row": "FOUND - data-testid='engineer-settings-import-row'",
+      "template_row": "FOUND - data-testid='engineer-settings-template-row'",
+      "customers_row": "FOUND - data-testid='engineer-settings-customers-row'",
+      "support_row": "FOUND - data-testid='engineer-settings-support-row'",
+      "signout_row": "FOUND - data-testid='engineer-settings-signout-row'"
+    },
+    "EngineerCustomers": {
+      "old_import_btn_removed": "VERIFIED - data-testid='customers-import-btn' NOT in DOM",
+      "old_template_btn_removed": "VERIFIED - data-testid='customers-template-btn' NOT in DOM",
+      "new_btn_present": "FOUND - New customer button works"
+    },
+    "OtherPages": {
+      "quotes_page": "LOADS - Shows pipeline stats, New quote button",
+      "invoices_page": "LOADS - Shows 2 invoices, status filters",
+      "payouts_page": "LOADS - Shows Stripe Connect CTA for unconnected user",
+      "analytics_page": "LOADS - Shows KPIs (Jobs, Earnings, Avg Quote Value)",
+      "diary_page": "LOADS - Shows week view with navigation"
+    }
+  },
+  "mocked_apis": {
+    "stripe_connect": "Stripe Connect onboarding URL is generated but cannot be completed end-to-end in test environment",
+    "email_send": "Resend email may use a sink in dev environment"
+  }
+}
