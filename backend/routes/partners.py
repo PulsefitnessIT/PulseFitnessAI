@@ -706,6 +706,68 @@ async def approve_partner_application(
     return {"ok": True, "partner_id": partner_id, "application_id": application_id, "level": level}
 
 
+@router.post("/partners/applications/{application_id}/resend-approval-email")
+async def resend_partner_application_approval_email(
+    application_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 219d — Manually re-fire the welcome email for an already-
+    approved application.
+
+    Context: iter 219c fixed a TypeError that had been silently
+    swallowing the approval email for every engineer approved via the
+    application drawer. Existing approved engineers therefore never
+    received their welcome / referral code. This endpoint lets the
+    master admin retroactively send it.
+
+    Returns 400 if the application isn't approved yet (use /approve
+    instead) or if no partner row is attached (data integrity issue).
+    """
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+    if app.get("status") != "approved":
+        raise HTTPException(400, f"Application is not approved (status={app.get('status')})")
+    partner_id = app.get("partner_id")
+    if not partner_id:
+        raise HTTPException(400, "Approved application has no partner record attached")
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(400, "Partner record missing — cannot resolve referral code")
+    if not (partner.get("email") or app.get("email")):
+        raise HTTPException(400, "No email address on file for this engineer")
+
+    target_email = partner.get("email") or app["email"]
+    full_name = partner.get("full_name") or app.get("full_name") or ""
+    referral_code = partner.get("referral_code")
+
+    from utils.partner_emails import send_application_approved
+    try:
+        ok = await send_application_approved(
+            email=target_email,
+            full_name=full_name,
+            referral_code=referral_code,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Manual resend of approval email failed: %s", exc)
+        raise HTTPException(502, "Email send failed — please retry shortly") from exc
+
+    await _audit(
+        partner_id=partner_id,
+        actor_id=user.get("id") or "",
+        action="resend_approval_email",
+        before=None,
+        after={"to": target_email, "delivered": bool(ok)},
+    )
+    return {
+        "ok": bool(ok),
+        "application_id": application_id,
+        "partner_id": partner_id,
+        "sent_to": target_email,
+    }
+
+
 @router.post("/partners/applications/{application_id}/reject")
 async def reject_partner_application(
     application_id: str,

@@ -15094,3 +15094,64 @@ brand region, coverage-gap fit, etc.).
 - `backend/tests/test_iter_219b_partner_application_ai_suggest.py` (new, 9 tests)
 - `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js`
 - `Makefile`
+
+---
+
+## Iter 219d — Manual "Resend approval email" + applications status filter (Feb 25, 2026)
+
+Operator question after iter 219c: *"I need the ability to resend
+approval email as the email wouldn't have gone out to the engineer
+that has just been approved"* — because iter 219c had been silently
+swallowing welcome emails for every engineer approved via the
+application drawer, the existing approved cohort never received their
+referral code. This iter adds a manual resend lever.
+
+### Changes
+- **New endpoint** `POST /api/partners/applications/{id}/resend-approval-email`
+  - Master admin only.
+  - Validates the application is `status=approved` (returns 400 otherwise).
+  - Loads the linked `partner_engineers` row to get the **correct referral
+    code** so the engineer receives a usable email (not just the welcome
+    boilerplate).
+  - Fires `send_application_approved` and **writes an audit log entry**
+    (`resend_approval_email` action) so we can prove the resend
+    happened + who triggered it.
+  - 502 if Resend / SMTP is down; the decision state is unchanged.
+- **Drawer footer update** (`PartnerApplicationDrawer.js`)
+  - When `app.status === 'approved'`, the footer now renders an emerald
+    "**Resend approval email**" button (Mail icon) instead of the
+    previous "no further actions available" copy.
+  - After successful approval, the drawer **no longer closes** —
+    it reloads in place so the Resend button is immediately accessible
+    (covers the "just-approved" case from the user's request).
+- **Applications panel status filter** (`AdminPartners.js`)
+  - Three filter pills above the table: Pending / Approved / Rejected.
+    Default is Pending. Lets an admin re-open a previously-decided
+    application to resend its email (or audit a rejection).
+  - Panel title changed from "Pending applications" to
+    "Applications · N" so the count reflects whichever view is active.
+
+### Verification
+- Ruff 0 warnings on `partners.py`; ESLint 0 warnings on the two
+  changed FE files.
+- New pytest suite `test_iter_219d_resend_approval_email.py` (7 tests,
+  all pass): endpoint contract (200/400/404/403), audit-log entry
+  written, helper integration with referral code embedded, route
+  source-pin (no regression to the `partner_id=` bug).
+- **Full iter 217-219 backend regression: 64/64 pass** when run
+  together (added `X-RateLimit-Bypass` to all iter 219 test files so
+  the rate-limit cascade doesn't bite during `make regression`).
+- Live UI smoke test: filter pills render, switching to "Approved"
+  shows 38 approved applications, clicking into one opens the
+  drawer with the Resend button visible in the footer + the
+  Approve/Reject buttons correctly hidden.
+
+### Files changed
+- `backend/routes/partners.py` (new resend endpoint)
+- `backend/tests/test_iter_219d_resend_approval_email.py` (new, 7 tests)
+- `backend/tests/test_iter_219_partner_application_drawer.py` (rate-limit bypass)
+- `backend/tests/test_iter_219b_partner_application_ai_suggest.py` (rate-limit bypass)
+- `backend/tests/test_iter_219c_partner_application_emails.py` (rate-limit bypass)
+- `frontend/src/pages/MasterAdmin/AdminPartners.js` (filter pills, dynamic title, status-filter wiring)
+- `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js` (resend btn, keep open after approve)
+- `Makefile`

@@ -113,7 +113,7 @@ export default function PartnerApplicationDrawer({
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);   // { application, referrer }
   const [savingNotes, setSavingNotes] = useState(false);
-  const [busy, setBusy] = useState(null); // 'approve' | 'reject'
+  const [busy, setBusy] = useState(null); // 'approve' | 'reject' | 'resend'
   const [notes, setNotes] = useState('');
   const [level, setLevel] = useState('engineer_partner');
   /* Iter 219b — AI decision helper. Auto-loads on drawer open so the
@@ -205,7 +205,10 @@ export default function PartnerApplicationDrawer({
       );
       notify.success(`${app.full_name || 'Applicant'} approved as ${level.replace('_', ' ')}`);
       if (onApproved) onApproved();
-      onClose();
+      // Iter 219d — keep drawer open and reload so the "Resend
+      // approval email" button is immediately accessible (covers the
+      // case where the welcome email needs a manual re-send).
+      await load();
     } catch (e) {
       notifyApiError(notify, e, 'Approve failed');
     } finally {
@@ -229,6 +232,29 @@ export default function PartnerApplicationDrawer({
       onClose();
     } catch (e) {
       notifyApiError(notify, e, 'Reject failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /* Iter 219d — resend the welcome email for an already-approved
+     application. Needed because iter 219c uncovered a TypeError that
+     had been silently swallowing the approval email for every
+     engineer approved via the drawer — so the existing approved
+     cohort never received their referral code. */
+  const resendApprovalEmail = async () => {
+    if (!applicationId) return;
+    setBusy('resend');
+    try {
+      const r = await axios.post(
+        `${API}/api/partners/applications/${applicationId}/resend-approval-email`,
+        {},
+        { headers },
+      );
+      const sentTo = r.data?.sent_to || app.email || 'engineer';
+      notify.success(`Approval email resent to ${sentTo}`);
+    } catch (e) {
+      notifyApiError(notify, e, 'Resend failed');
     } finally {
       setBusy(null);
     }
@@ -533,8 +559,23 @@ export default function PartnerApplicationDrawer({
               </button>
             </>
           ) : (
-            <div className="text-xs text-zinc-500">
-              This application has already been {app.status}. No further actions available.
+            <div className="flex items-center gap-2 w-full">
+              <div className="text-xs text-zinc-500 flex-1">
+                This application has already been {app.status}.
+              </div>
+              {app.status === 'approved' ? (
+                <button
+                  type="button"
+                  onClick={resendApprovalEmail}
+                  disabled={busy !== null || loading}
+                  className="px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-sm font-bold inline-flex items-center gap-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
+                  data-testid="partner-application-resend-email-btn"
+                  title="Manually re-send the welcome email + referral code to this engineer"
+                >
+                  {busy === 'resend' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                  Resend approval email
+                </button>
+              ) : null}
             </div>
           )}
         </footer>

@@ -50,13 +50,18 @@ export default function AdminPartners() {
      master admin can see every field + paperwork the applicant
      uploaded. Approve / Reject buttons live in the drawer footer. */
   const [drawerAppId, setDrawerAppId] = useState(null);
+  /* Iter 219d — application status filter. Default is `pending` (the
+     reviewer's day-to-day view), but `approved` and `rejected` are
+     needed so an admin can re-open a previously-decided application
+     (e.g. to resend the welcome email after the iter 219c email bug). */
+  const [appStatusFilter, setAppStatusFilter] = useState('pending');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [pRes, aRes, qRes, sRes, lbRes] = await Promise.all([
         axios.get(`${API}/api/master-admin/partners`, { headers }),
-        axios.get(`${API}/api/partners/applications?status=pending`, { headers })
+        axios.get(`${API}/api/partners/applications?status=${appStatusFilter}`, { headers })
           .catch(() => ({ data: { applications: [] } })),
         axios.get(`${API}/api/master-admin/partners/commission/queue`, { headers }),
         axios.get(`${API}/api/master-admin/partners/reports/summary`, { headers }),
@@ -77,7 +82,7 @@ export default function AdminPartners() {
     } finally {
       setLoading(false);
     }
-  }, [headers]);
+  }, [headers, appStatusFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -192,12 +197,41 @@ export default function AdminPartners() {
           a master admin sees brand-new applicants the moment they
           arrive. */}
       <Section
-        title={`Pending applications${applications.length ? ` · ${applications.length}` : ''}`}
+        title={`Applications${applications.length ? ` · ${applications.length}` : ''}`}
         icon={Users}
         testId="admin-partner-applications-pending"
       >
+        {/* Iter 219d — status filter pills. Approved + Rejected views
+            let an admin re-open a past application (e.g. to resend the
+            welcome email after the iter 219c email bug). */}
+        <div className="mb-3 flex items-center gap-1.5 flex-wrap" data-testid="admin-applications-filter">
+          {[
+            { id: 'pending',  label: 'Pending' },
+            { id: 'approved', label: 'Approved' },
+            { id: 'rejected', label: 'Rejected' },
+          ].map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setAppStatusFilter(opt.id)}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider border transition-colors ${
+                appStatusFilter === opt.id
+                  ? 'bg-purple-600 border-purple-600 text-white'
+                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
+              data-testid={`admin-applications-filter-${opt.id}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         {applications.length === 0 ? (
-          <p className="text-xs text-zinc-500">No pending applications. Approved engineers appear in the table below.</p>
+          <p className="text-xs text-zinc-500">
+            No {appStatusFilter} applications.
+            {appStatusFilter === 'pending'
+              ? ' Approved engineers appear in the table below.'
+              : ''}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

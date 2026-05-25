@@ -31,6 +31,12 @@ BASE = os.environ.get(
 _CACHE: dict[str, str] = {}
 
 
+def _bypass_headers() -> dict[str, str]:
+    """Optional rate-limit bypass — see iter 219d test file for context."""
+    secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET")
+    return {"X-RateLimit-Bypass": secret} if secret else {}
+
+
 def _login(email: str, password: str) -> str:
     key = f"login::{email}"
     if _CACHE.get(key):
@@ -39,6 +45,7 @@ def _login(email: str, password: str) -> str:
         r = c.post(
             f"{BASE}/api/auth/login",
             json={"email": email, "password": password},
+            headers=_bypass_headers(),
         )
         r.raise_for_status()
     _CACHE[key] = r.json()["token"]
