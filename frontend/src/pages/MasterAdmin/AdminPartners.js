@@ -33,6 +33,12 @@ export default function AdminPartners() {
   const token = useMemo(() => localStorage.getItem('token'), []);
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
   const [partners, setPartners] = useState([]);
+  /* Iter 218 — applications live in a separate collection
+     (`partner_applications`) — the previous UI only fetched
+     `partner_engineers`, so the very first real applicant (Dan Thomas)
+     was invisible despite the row being persisted. Now loaded here
+     and rendered in its own panel above the existing partners list. */
+  const [applications, setApplications] = useState([]);
   const [queue, setQueue] = useState([]);
   const [summary, setSummary] = useState(null);
   const [leaderboard, setLeaderboard] = useState({});  // {partner_id: performance}
@@ -42,14 +48,17 @@ export default function AdminPartners() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, qRes, sRes, lbRes] = await Promise.all([
+      const [pRes, aRes, qRes, sRes, lbRes] = await Promise.all([
         axios.get(`${API}/api/master-admin/partners`, { headers }),
+        axios.get(`${API}/api/partners/applications?status=pending`, { headers })
+          .catch(() => ({ data: { applications: [] } })),
         axios.get(`${API}/api/master-admin/partners/commission/queue`, { headers }),
         axios.get(`${API}/api/master-admin/partners/reports/summary`, { headers }),
         axios.get(`${API}/api/master-admin/partners/performance/leaderboard?window_days=90`, { headers })
           .catch(() => ({ data: { partners: [] } })),
       ]);
       setPartners(pRes.data?.partners || []);
+      setApplications(aRes.data?.applications || []);
       setQueue(qRes.data?.queue || []);
       setSummary(sRes.data || null);
       const lbMap = {};
@@ -109,6 +118,40 @@ export default function AdminPartners() {
     finally { setBusy(null); }
   };
 
+  /* Iter 218 — application approve/reject. Distinct from the
+     partner approve/reject above (which operate on rows that already
+     live in `partner_engineers`). These hit the application route
+     which promotes an application → engineer record on approve. */
+  const approveApplication = async (app, level = 'engineer_partner') => {
+    setBusy(app.id);
+    try {
+      await axios.post(
+        `${API}/api/partners/applications/${app.id}/approve`,
+        { level },
+        { headers },
+      );
+      notify.success(`${app.full_name} approved as ${level.replace('_', ' ')}`);
+      await load();
+    } catch (e) { notifyApiError(notify, e, 'Approve failed'); }
+    finally { setBusy(null); }
+  };
+
+  const rejectApplication = async (app) => {
+    const reason = window.prompt('Reason for rejection (sent to applicant, optional):', '');
+    if (reason === null) return;
+    setBusy(app.id);
+    try {
+      await axios.post(
+        `${API}/api/partners/applications/${app.id}/reject`,
+        { reason },
+        { headers },
+      );
+      notify.success(`${app.full_name} rejected`);
+      await load();
+    } catch (e) { notifyApiError(notify, e, 'Reject failed'); }
+    finally { setBusy(null); }
+  };
+
   const approveLedger = async (row) => {
     setBusy(row.id);
     try {
@@ -165,10 +208,103 @@ export default function AdminPartners() {
         </div>
       )}
 
-      {/* Applications */}
-      <Section title="Partner applications" icon={Users} testId="admin-partners-applications">
+      {/* Iter 218 — Pending applications (public-apply form).
+          Critical first-customer fix: applications used to be
+          invisible because the panel below queried the wrong
+          collection. They have their own table here, on top, so
+          a master admin sees brand-new applicants the moment they
+          arrive. */}
+      <Section
+        title={`Pending applications${applications.length ? ` · ${applications.length}` : ''}`}
+        icon={Users}
+        testId="admin-partner-applications-pending"
+      >
+        {applications.length === 0 ? (
+          <p className="text-xs text-zinc-500">No pending applications. Approved engineers appear in the table below.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="text-left py-2 pr-3">Engineer</th>
+                  <th className="text-left py-2 pr-3">Coverage</th>
+                  <th className="text-left py-2 pr-3">Skills &amp; brands</th>
+                  <th className="text-left py-2 pr-3">Submitted</th>
+                  <th className="text-right py-2 pl-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {applications.map((app) => (
+                  <tr
+                    key={app.id}
+                    className="border-b border-zinc-100 dark:border-zinc-900 align-top"
+                    data-testid={`admin-application-row-${app.id}`}
+                  >
+                    <td className="py-2 pr-3">
+                      <div className="font-bold text-zinc-900 dark:text-zinc-100">{app.full_name || '—'}</div>
+                      <div className="text-[11px] text-zinc-500">
+                        {app.email}{app.company_name ? ` · ${app.company_name}` : ''}
+                        {app.phone ? ` · ${app.phone}` : ''}
+                      </div>
+                      {app.years_experience != null && (
+                        <div className="text-[11px] text-zinc-400 mt-0.5">{app.years_experience} yrs experience</div>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 text-xs">
+                      {app.service_postcode || '—'}
+                      {app.travel_radius_km ? <span className="text-zinc-400"> · {app.travel_radius_km} km</span> : null}
+                    </td>
+                    <td className="py-2 pr-3 text-xs">
+                      <div className="flex flex-wrap gap-1 max-w-md">
+                        {(app.brands_supported || []).slice(0, 6).map((b, i) => (
+                          <span key={`b-${i}`} className="px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-200 text-[10px]">{b}</span>
+                        ))}
+                        {(app.skills || []).slice(0, 4).map((s, i) => (
+                          <span key={`s-${i}`} className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px]">{s}</span>
+                        ))}
+                      </div>
+                      {(app.qualifications || []).length > 0 && (
+                        <div className="text-[10px] text-zinc-400 mt-1">
+                          Quals: {(app.qualifications || []).slice(0, 3).join(', ')}
+                          {(app.qualifications || []).length > 3 ? '…' : ''}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-zinc-500">
+                      {app.submitted_at ? new Date(app.submitted_at).toLocaleString() : '—'}
+                    </td>
+                    <td className="py-2 pl-2 text-right">
+                      <div className="inline-flex gap-1">
+                        <button
+                          onClick={() => approveApplication(app)}
+                          disabled={busy === app.id}
+                          className="px-2 py-1 text-[10px] font-bold uppercase rounded bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1 disabled:opacity-50"
+                          data-testid={`admin-application-approve-${app.id}`}
+                        >
+                          <CheckCircle2 size={10} /> Approve
+                        </button>
+                        <button
+                          onClick={() => rejectApplication(app)}
+                          disabled={busy === app.id}
+                          className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 inline-flex items-center gap-1 disabled:opacity-50"
+                          data-testid={`admin-application-reject-${app.id}`}
+                        >
+                          <X size={10} /> Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
+      {/* Active partners */}
+      <Section title="Active partners" icon={Users} testId="admin-partners-applications">
         {partners.length === 0 ? (
-          <p className="text-xs text-zinc-500">No partner applications yet.</p>
+          <p className="text-xs text-zinc-500">No active partners yet. Approve an application above to get started.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

@@ -434,6 +434,159 @@ async def list_partner_applications(
     return {"applications": items, "total": len(items)}
 
 
+@router.post("/partners/applications/{application_id}/approve")
+async def approve_partner_application(
+    application_id: str,
+    body: dict = Body(default_factory=dict),
+    user: dict = Depends(get_current_user),
+):
+    """Iter 218 — promote a `partner_applications` row to a real
+    `partner_engineers` row.
+
+    First-customer bug: the master-admin UI was wiring its Partner
+    Applications panel to `/api/master-admin/partners` which returns
+    `partner_engineers`, so public-applied engineers (who land in
+    `partner_applications`) were invisible. The application persisted
+    fine — Dan Thomas's row is sitting in production. This endpoint
+    is the missing piece to convert it.
+    """
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+    if app.get("status") in {"approved", "rejected"}:
+        raise HTTPException(400, f"Application already {app['status']}")
+
+    level = (body or {}).get("level") or "engineer_partner"
+    if level not in {"engineer_partner", "verified_partner", "strategic_partner", "customer_added"}:
+        raise HTTPException(400, "Invalid level")
+
+    # Idempotent — if a partner row already exists for this email
+    # (e.g. they self-claimed via the authed flow earlier) just attach
+    # the application to it rather than creating a duplicate.
+    existing_partner = await db.partner_engineers.find_one({"email": app["email"]}, {"_id": 0})
+
+    if existing_partner:
+        await db.partner_engineers.update_one(
+            {"id": existing_partner["id"]},
+            {"$set": {
+                "status": "approved",
+                "level": level,
+                "application_id": application_id,
+                "updated_at": _now(),
+            }},
+        )
+        partner_id = existing_partner["id"]
+    else:
+        partner_id = _new_id()
+        referral_code = await _new_referral_code()
+        # Note: `partner_engineers` has a non-sparse unique index on
+        # `user_id` — passing null (or omitting the field, treated as
+        # null by the index) collides between unclaimed approvals.
+        # We stamp a unique pending-claim placeholder; the magic-link
+        # claim flow overwrites it with the real user_id on first
+        # sign-in.
+        doc = {
+            "id": partner_id,
+            "user_id": f"pending:{partner_id}",
+            "email": app["email"],
+            "owner_organization_id": None,
+            "status": "approved",
+            "level": level,
+            "referral_code": referral_code,
+            "active_referral_count": 0,
+            "app_fee_tier": _app_fee_tier(0),
+            "enhanced_review_required": False,
+            "subscription": {"status": "trialing", "stripe_subscription_id": None, "current_period_end": None},
+            "payout": {"method": "manual_csv", "stripe_account_id": None, "bank_name": None,
+                       "sort_code": None, "account_number_last4": None},
+            "created_at": _now(),
+            "updated_at": _now(),
+            "application_id": application_id,
+            # Carry profile fields across from the application.
+            "full_name": app.get("full_name"),
+            "company_name": app.get("company_name"),
+            "phone": app.get("phone"),
+            "service_postcode": app.get("service_postcode"),
+            "travel_radius_km": app.get("travel_radius_km") or 25,
+            "brands_supported": app.get("brands_supported") or [],
+            "skills": app.get("skills") or [],
+            "qualifications": app.get("qualifications") or [],
+            "years_experience": app.get("years_experience"),
+            "has_insurance": bool(app.get("has_insurance")),
+            "insurance_provider": app.get("insurance_provider"),
+            "insurance_expires_at": app.get("insurance_expires_at"),
+            "qualifications_expires_at": app.get("qualifications_expires_at"),
+            "terms_accepted_at": app.get("terms_accepted_at"),
+            "terms_version": app.get("terms_version") or TERMS_VERSION,
+        }
+        await db.partner_engineers.insert_one(doc)
+
+    await db.partner_applications.update_one(
+        {"id": application_id},
+        {"$set": {
+            "status": "approved",
+            "approved_at": _now(),
+            "approved_by": user.get("id"),
+            "partner_id": partner_id,
+            "level_assigned": level,
+            "updated_at": _now(),
+        }},
+    )
+    await _audit(
+        partner_id=partner_id, actor_id=user.get("id") or "", action="approve_application",
+        before={"application_id": application_id, "status": app.get("status")},
+        after={"status": "approved", "level": level},
+    )
+
+    # Approval email — wrapped so a mail outage never blocks the promotion.
+    try:
+        from utils.partner_emails import send_application_approved
+        await send_application_approved(
+            email=app["email"],
+            full_name=app.get("full_name") or "",
+            partner_id=partner_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Partner application-approved email failed: %s", exc)
+
+    return {"ok": True, "partner_id": partner_id, "application_id": application_id, "level": level}
+
+
+@router.post("/partners/applications/{application_id}/reject")
+async def reject_partner_application(
+    application_id: str,
+    body: dict = Body(default_factory=dict),
+    user: dict = Depends(get_current_user),
+):
+    """Iter 218 — reject an application with an optional reason. No
+    partner row is ever created on this path."""
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+    if app.get("status") in {"approved", "rejected"}:
+        raise HTTPException(400, f"Application already {app['status']}")
+
+    reason = ((body or {}).get("reason") or "").strip()[:1000]
+    await db.partner_applications.update_one(
+        {"id": application_id},
+        {"$set": {
+            "status": "rejected",
+            "rejected_at": _now(),
+            "rejected_by": user.get("id"),
+            "reviewer_notes": reason or None,
+            "updated_at": _now(),
+        }},
+    )
+    await _audit(
+        partner_id=application_id, actor_id=user.get("id") or "", action="reject_application",
+        before={"status": app.get("status")}, after={"status": "rejected"},
+        note=reason,
+    )
+    return {"ok": True, "application_id": application_id, "status": "rejected"}
+
+
 async def _get_partner_by_user(user_id: str) -> Optional[dict]:
     return _public(await db.partner_engineers.find_one({"user_id": user_id}))
 
