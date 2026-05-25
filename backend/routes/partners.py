@@ -624,6 +624,7 @@ async def approve_partner_application(
             }},
         )
         partner_id = existing_partner["id"]
+        referral_code = existing_partner.get("referral_code")
     else:
         partner_id = _new_id()
         referral_code = await _new_referral_code()
@@ -687,12 +688,17 @@ async def approve_partner_application(
     )
 
     # Approval email — wrapped so a mail outage never blocks the promotion.
+    # Iter 219c — fix: previously called with `partner_id=` which is not a
+    # parameter on `send_application_approved`, so the call raised TypeError
+    # and was silently swallowed → engineers approved via the application
+    # flow never received the welcome email. Now passes `referral_code`
+    # correctly so the new partner gets their code in-inbox.
     try:
         from utils.partner_emails import send_application_approved
         await send_application_approved(
             email=app["email"],
             full_name=app.get("full_name") or "",
-            partner_id=partner_id,
+            referral_code=referral_code,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Partner application-approved email failed: %s", exc)
@@ -731,6 +737,21 @@ async def reject_partner_application(
         before={"status": app.get("status")}, after={"status": "rejected"},
         note=reason,
     )
+
+    # Iter 219c — fix: rejection email was missing entirely on this path,
+    # so engineers we declined never heard back. Now sends a polite
+    # rejection with the optional reason. Wrapped so an SMTP outage
+    # doesn't undo the rejection.
+    try:
+        from utils.partner_emails import send_application_rejected
+        await send_application_rejected(
+            email=app["email"],
+            full_name=app.get("full_name") or "",
+            reason=reason or None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Partner application-rejected email failed: %s", exc)
+
     return {"ok": True, "application_id": application_id, "status": "rejected"}
 
 

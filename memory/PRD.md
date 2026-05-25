@@ -14985,6 +14985,58 @@ I currently can't see anything."
 
 ---
 
+## Iter 219c — Partner application approval/rejection email FIX (Feb 25, 2026)
+
+In response to operator question: "Do the engineers in the partner plan
+receive an email once the application is accepted?" — answer was no, two
+bugs were swallowing the emails. Now both flows email the engineer.
+
+### Bugs found
+- `routes/partners.py /partners/applications/{id}/approve` — was calling
+  `send_application_approved(email=..., full_name=..., partner_id=partner_id)`
+  but the helper signature is `(email, full_name, referral_code)`. The
+  call raised `TypeError: unexpected keyword argument 'partner_id'`,
+  but was wrapped in `except Exception` so it logged a warning and
+  the approval succeeded silently → **engineers approved via the new
+  application drawer never received the welcome email or their
+  referral code**.
+- `routes/partners.py /partners/applications/{id}/reject` — no email
+  was sent at all → **rejected engineers never heard back**.
+
+### Fixes
+- Approve route now passes `referral_code=`. We also capture the
+  referral code in the existing-partner branch by reading
+  `existing_partner.get("referral_code")`, so both code paths populate
+  the kwarg correctly.
+- Reject route now calls `send_application_rejected(email, full_name,
+  reason)` with the optional reason. Wrapped in try/except so SMTP
+  outages don't undo the rejection.
+
+### Verification
+- New pytest suite `test_iter_219c_partner_application_emails.py`
+  (7 tests, all pass) pinning:
+  - Helper `send_application_approved` accepts `referral_code=` and
+    embeds the code in the HTML body.
+  - Helper `send_application_rejected` echoes the reason when given,
+    omits the "Reason given" block when null.
+  - Route source contains `send_application_approved(referral_code=...)`
+    and NOT `partner_id=` (proper regex over the call block, not the
+    audit call which legitimately uses `partner_id=`).
+  - Route source contains `send_application_rejected(` in the reject
+    block.
+  - End-to-end approve + reject both return 200 against the live
+    preview server.
+- Existing iter 218 and iter 216h281 partner-email tests still pass
+  (no regressions).
+- Wired into `make regression`.
+
+### Files changed
+- `backend/routes/partners.py` (approve email kwargs fix, reject email added)
+- `backend/tests/test_iter_219c_partner_application_emails.py` (new, 7 tests)
+- `Makefile`
+
+---
+
 ## Iter 219b — Partner Application AI "Suggest decision" helper (Feb 25, 2026)
 
 Builds on the iter 219 drawer. Surfaces a one-line decision recommendation
