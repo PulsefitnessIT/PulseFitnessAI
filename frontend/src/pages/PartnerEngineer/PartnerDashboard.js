@@ -68,6 +68,29 @@ export default function PartnerDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
+  /* Iter 219e — Auto-fire the Stripe Checkout when the engineer
+     lands here via the approval email CTA (`?action=subscribe`).
+     We only trigger once partner data is loaded and the engineer
+     does NOT already have an active subscription, so a returning
+     engineer isn't bounced back into Stripe. */
+  useEffect(() => {
+    if (loading || !data?.partner) return;
+    if (params.get('action') !== 'subscribe') return;
+    const sub = data.partner.subscription || {};
+    if (sub.stripe_subscription_id) {
+      // Already subscribed — just clear the flag, no toast (avoids spam).
+      params.delete('action');
+      setParams(params, { replace: true });
+      return;
+    }
+    // Strip the flag first so a back/forward doesn't re-trigger.
+    params.delete('action');
+    setParams(params, { replace: true });
+    notify.success('Taking you to Stripe to start your £30/mo Partner Plan…');
+    startSubscription();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, data?.partner, params]);
+
   // Handle the post-Stripe-checkout return.
   useEffect(() => {
     const status = params.get('subscription');

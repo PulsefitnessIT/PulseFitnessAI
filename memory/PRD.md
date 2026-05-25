@@ -15155,3 +15155,93 @@ referral code. This iter adds a manual resend lever.
 - `frontend/src/pages/MasterAdmin/AdminPartners.js` (filter pills, dynamic title, status-filter wiring)
 - `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js` (resend btn, keep open after approve)
 - `Makefile`
+
+---
+
+## Iter 219e — Stripe-guided approval onboarding + auto-claim + checklist (Feb 25, 2026)
+
+Operator request: *"Once the application is approved the engineer
+should receive the email to say approved and then they should be
+guided to Stripe to pay and set up the £30 a month subscription fee
+for GymAxis. [+option B — add Stripe Connect to the checklist]"*
+
+While auditing the existing flow we found **a critical pre-existing
+blocker**: 37 of 40 already-approved engineers had a
+`partner_engineers.user_id` stuck at `pending:<partner_id>` because
+the public-apply path doesn't create a user account, and there was
+**no claim-on-login hook**. Every one of those engineers would have
+hit a brick wall on their first login. We bundled the fix in.
+
+### Changes
+- **New util** `backend/utils/partner_claim.py`
+  - `claim_pending_partner_for_user(email, user_id)` — sweeps
+    `partner_engineers` for rows whose `email` matches
+    (case-insensitive) and whose `user_id` still starts with
+    `pending:`, sets `user_id` to the real authenticated user. Best-
+    effort, never raises (auth must never fail because of a partner-
+    side hiccup).
+- **Auth wiring** (`backend/routes/auth.py`)
+  - `/auth/register` calls the claim helper after the user row is
+    created. Also now honours `X-RateLimit-Bypass` so the CI suite
+    can register multiple test users from one IP.
+  - `_finalise_successful_login` (the shared post-login finaliser)
+    calls the claim helper on every successful login, so the
+    existing 37 stranded partners self-heal on their next login.
+- **Approval email rewrite** (`backend/utils/partner_emails.py`)
+  - Subject: *"You're approved — start your £30/mo Partner Plan
+    with Stripe"*.
+  - Body leads with the Stripe subscription pitch and a single
+    primary CTA button: **"Start Partner Plan with Stripe
+    (£30/mo)"**.
+  - CTA URL: `/partner-engineer?action=subscribe` (new helper
+    `_partner_subscribe_url`) — the dashboard reads the
+    query-string and fires Stripe Checkout automatically once the
+    engineer is authenticated.
+  - Next-steps now sequenced: Subscribe → Connect Stripe Express →
+    Upload compliance → Open Engineer App. Referral code still
+    embedded.
+- **Dashboard auto-trigger** (`frontend/.../PartnerEngineer/PartnerDashboard.js`)
+  - On mount, when `?action=subscribe` is present and the engineer
+    has no `stripe_subscription_id` yet, we strip the flag from the
+    URL, toast "Taking you to Stripe…" and immediately call
+    `startSubscription()` → Stripe Checkout. Idempotent: a
+    returning subscriber is silently no-op'd.
+- **Activation checklist** (`backend/utils/partner_checklist.py`)
+  - 7-step checklist instead of 6 — new `stripe_connect_ready`
+    step lives between *Subscribe to Partner Plan* and *Upload
+    compliance doc*. Auto-resolves from
+    `partner.payout.stripe_connect.charges_enabled` so the
+    Engineer-app Stripe-Connect onboarding callback turns it
+    green automatically.
+  - Trophy banner copy bumped from "6/6" → "7/7".
+
+### Verification
+- Ruff 0 warnings on every changed Python file. ESLint 0 warnings
+  on the two changed FE files.
+- New pytest `test_iter_219e_stripe_guided_approval.py` (10 tests,
+  all pass):
+  - Email subject mentions Stripe + £30.
+  - CTA deep-links to `?action=subscribe`, body sequences
+    subscription before Stripe Connect Express.
+  - Auto-claim relinks a pending partner row through the real
+    `/auth/register` route (end-to-end against preview).
+  - Case-insensitive email match for auto-claim.
+  - Already-claimed rows are NOT re-assigned (idempotent / safe).
+  - Null-input handling.
+  - `/auth/register` and `_finalise_successful_login` source-pin
+    asserts so we don't regress the wiring.
+  - Checklist now has 7 keys; step 3 is `stripe_connect_ready`;
+    auto-resolves from the payout flag; trophy banner only fires
+    at 7/7.
+- **Full iter 217–219 suite: 74/74 pass** when run together.
+
+### Files changed
+- `backend/utils/partner_claim.py` (new)
+- `backend/utils/partner_emails.py` (subject + body + CTA + new
+  `_partner_subscribe_url` helper)
+- `backend/utils/partner_checklist.py` (added 7th step)
+- `backend/routes/auth.py` (claim hooks + register rate-limit bypass)
+- `backend/tests/test_iter_219e_stripe_guided_approval.py` (new, 10 tests)
+- `frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (auto-fire Stripe)
+- `frontend/src/pages/PartnerEngineer/PartnerActivationChecklist.js` (copy bump)
+- `Makefile`

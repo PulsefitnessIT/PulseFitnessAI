@@ -107,9 +107,15 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
     ip = request.client.host if request.client else "unknown"
     from utils.security import rate_limit
     import os
-    max_req = int(os.environ.get("REGISTER_RATE_LIMIT_MAX", "5"))
-    window = int(os.environ.get("REGISTER_RATE_LIMIT_WINDOW", "900"))
-    rate_limit(f"register:{ip}", max_requests=max_req, window_seconds=window)
+    # Iter 219e — honour the same `X-RateLimit-Bypass` header that
+    # `/auth/login` accepts so the CI / `make regression` suite can
+    # legitimately register multiple test users from one IP without
+    # tripping the production-tight 5/15min ceiling.
+    bypass = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "").strip()
+    if not (bypass and request.headers.get("x-ratelimit-bypass", "") == bypass):
+        max_req = int(os.environ.get("REGISTER_RATE_LIMIT_MAX", "5"))
+        window = int(os.environ.get("REGISTER_RATE_LIMIT_WINDOW", "900"))
+        rate_limit(f"register:{ip}", max_requests=max_req, window_seconds=window)
 
     # Turnstile captcha — required for landing-page trial signups only.
     # Existing CRM / gym-employee registration flows are untouched.
@@ -175,6 +181,17 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
         await attach_referral_to_org(organization_id=organization_id, ref_code=getattr(user, "ref_code", None))
     except Exception:
         logger.exception("[partners] referral attribution failed")
+
+    # Iter 219e — claim any pending partner_engineer rows that were
+    # waiting for this email. Without this, every engineer approved
+    # via the application drawer would stay locked out of the
+    # partner dashboard because the `user_id` field on their row
+    # stays as `pending:<partner_id>` until first auth.
+    try:
+        from utils.partner_claim import claim_pending_partner_for_user
+        await claim_pending_partner_for_user(user.email, user_id)
+    except Exception:
+        logger.exception("[partners] pending-claim on register failed")
 
     return {
         "token": token,
@@ -383,6 +400,16 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
             )
         except Exception:
             pass
+
+    # Iter 219e — claim any pending partner_engineer rows that were
+    # waiting for this email. Without this, the 37 already-approved
+    # engineers whose user_id sits at `pending:<partner_id>` cannot
+    # see any partner UI after login. Idempotent + best-effort.
+    try:
+        from utils.partner_claim import claim_pending_partner_for_user
+        await claim_pending_partner_for_user(user.get("email"), user["id"])
+    except Exception:
+        logger.exception("[partners] pending-claim on login failed")
 
     from utils.trial_lifecycle import compute_trial_state
     from utils.feature_guard import get_enabled_features

@@ -30,6 +30,14 @@ def _partner_dashboard_url() -> str:
     return f"{base}/partner-engineer"
 
 
+def _partner_subscribe_url() -> str:
+    """Iter 219e — deep-link straight to the Partner Plan Stripe
+    Checkout flow. The dashboard reads ``?action=subscribe`` and
+    auto-fires the checkout once the engineer is authenticated."""
+    base = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+    return f"{base}/partner-engineer?action=subscribe"
+
+
 def _apply_again_url() -> str:
     base = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
     return f"{base}/partners/engineers/apply"
@@ -94,6 +102,11 @@ async def send_application_received(email: str, full_name: str, application_id: 
 
 
 async def send_application_approved(email: str, full_name: str, referral_code: str | None) -> bool:
+    """Iter 219e — restructured to lead with the Stripe £30/mo Partner
+    Plan subscription. The CTA now deep-links to a Stripe Checkout
+    flow (via the dashboard) so a brand-new engineer starts paying
+    in 2 clicks. Stripe Connect Express (for receiving customer
+    invoice payouts) is step 3, the Engineer App is step 4."""
     first = (full_name or "").split(" ")[0] or "there"
     ref_block = ""
     if referral_code:
@@ -107,18 +120,28 @@ async def send_application_approved(email: str, full_name: str, referral_code: s
     body = (
         f"<p>Hi {first},</p>"
         f"<p>You're in. Welcome to the GymAxis Engineer Partner Network.</p>"
-        f"<p>Here's what to do next:</p>"
-        f"<ol>"
-        f"<li><strong>Open your dashboard</strong> — copy your referral link and start sharing.</li>"
-        f"<li><strong>Start your Partner Plan subscription</strong> (£30/mo, drops automatically as you refer gyms — free at 10).</li>"
-        f"<li><strong>Download the Engineer App</strong> from the same dashboard — mobile-first PWA with offline support.</li>"
+        f"<p><strong>Next step — set up your £30/month Partner Plan with Stripe.</strong> "
+        f"It takes about a minute and unlocks every engineer feature on the platform. "
+        f"The fee drops automatically as you refer gyms — free once you reach 10.</p>"
+        f"<p>Tap the button below to go straight to Stripe Checkout "
+        f"(you'll be asked to sign in or register with this email address first).</p>"
+        f"<p style=\"font-size:13px;color:#475569;margin-top:18px;\">After that, you'll be guided to:</p>"
+        f"<ol style=\"font-size:13px;color:#1f2937;\">"
+        f"<li><strong>Connect Stripe Express</strong> so customers can pay your invoices by card — typically 3 minutes.</li>"
+        f"<li><strong>Upload your compliance documents</strong> (Insurance, DBS, Right-to-Work).</li>"
+        f"<li><strong>Open the Engineer App</strong> — mobile-first PWA with offline support.</li>"
         f"</ol>"
         f"{ref_block}"
     )
     return await send_email(
         to=email,
-        subject="You're approved — welcome to the GymAxis Engineer Network",
-        html=_wrap("You're approved.", body, cta_label="Open your dashboard", cta_url=_partner_dashboard_url()),
+        subject="You're approved — start your £30/mo Partner Plan with Stripe",
+        html=_wrap(
+            "You're approved.",
+            body,
+            cta_label="Start Partner Plan with Stripe (£30/mo)",
+            cta_url=_partner_subscribe_url(),
+        ),
     )
 
 

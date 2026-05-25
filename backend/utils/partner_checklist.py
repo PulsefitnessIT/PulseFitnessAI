@@ -29,6 +29,7 @@ from typing import Optional
 CHECKLIST_KEYS = (
     "approved",
     "subscribed",
+    "stripe_connect_ready",
     "compliance_uploaded",
     "referral_link_copied",
     "first_referral",
@@ -59,6 +60,15 @@ def build_checklist(partner: dict, referrals_count: int) -> dict:
         isinstance(blob, dict) and blob.get("file") for blob in compliance.values()
     )
     has_service_area = bool(partner.get("service_postcode")) and bool(partner.get("travel_radius_km"))
+    # Iter 219e — Stripe Connect Express readiness. The Engineer App's
+    # invoice / payouts flow needs `payout.stripe_connect.charges_enabled`
+    # to be true before the engineer can take card payments. We use the
+    # same field the `/api/svc/engineer/stripe/connect/status` route
+    # reads, so any onboarding callback that flips it green also flips
+    # this checklist step green on next dashboard load.
+    payout = partner.get("payout") or {}
+    stripe_connect = payout.get("stripe_connect") or {}
+    stripe_connect_ready = bool(stripe_connect.get("charges_enabled"))
 
     steps = [
         _step("approved", "Approved as a Partner",
@@ -67,6 +77,9 @@ def build_checklist(partner: dict, referrals_count: int) -> dict:
         _step("subscribed", "Start your Partner Plan",
               "£30/mo · drops automatically as you refer gyms — free at 10. Powers the engineer features.",
               done=bool(sub.get("stripe_subscription_id"))),
+        _step("stripe_connect_ready", "Connect Stripe Express for payouts",
+              "Takes about 3 minutes — required to take card payments from customers on your invoices.",
+              done=stripe_connect_ready),
         _step("compliance_uploaded", "Upload your first compliance doc",
               "DBS, Right-to-Work, Safeguarding or Public Liability. Any one of the four counts here.",
               done=any_compliance_uploaded),

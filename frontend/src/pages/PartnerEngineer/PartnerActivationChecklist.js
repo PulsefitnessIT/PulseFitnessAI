@@ -44,7 +44,7 @@ export default function PartnerActivationChecklist({ onCopyLink, onSubscribeClic
       >
         <Trophy size={18} className="text-emerald-700 shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-emerald-900">You're fully set up — 6/6 milestones cleared.</p>
+          <p className="text-sm font-bold text-emerald-900">You're fully set up — 7/7 milestones cleared.</p>
           <p className="text-[11px] text-emerald-800">Time to focus on referrals. The next reward unlocks at 5 referred gyms.</p>
         </div>
         <button
