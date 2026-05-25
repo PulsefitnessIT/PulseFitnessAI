@@ -1,3 +1,99 @@
+## Iter 220 — Work Report custom fields + "Send sign-in link" toast UX (May 25, 2026) ✅ user-reported
+
+Two user-reported items handled in one push:
+
+### 1. Production "Send sign-in link" toast says `Send failed: Not found: Not Found`
+
+**Root cause.** The Preview build now exposes
+`POST /api/partners/applications/{id}/send-signin-link` (added in iter 219g),
+but the production deployment at `gymaxisai.com` is still running an older
+backend image that doesn't have the route registered yet. FastAPI's default
+404 body is `{"detail": "Not Found"}` (capital `F`) — distinct from this
+endpoint's own `{"detail": "Application not found"}` 404, which is what the
+formatter renders when the route exists but the row is missing. So the
+toast text `Not found: Not Found` is a 1:1 signal that production needs a
+redeploy.
+
+**Fix.** No backend change needed — the endpoint already works in Preview
+(curl + 8-case pytest suite both pass). To stop the unhelpful toast we
+taught `lib/formatApiError.js` to distinguish FastAPI's generic
+`Not Found` (capital F) from a hand-rolled "X not found" message: the
+former now surfaces a clearer hint:
+
+> "This endpoint is missing on the server — usually fixed by redeploying
+> the backend. Hard-refresh first, and contact support if it persists."
+
+**Action required from operator:** redeploy `gymaxisai.com` from the
+latest Preview build. The Send sign-in link button will work the moment
+the new bundle is live.
+
+### 2. New feature: Machine-specific custom Work Report fields
+
+Engineers can now attach machine-specific questions (e.g. *Current
+Software*, *Drag Factor*) to their work reports. Fields appear on the
+Complete tab of any job whose asset matches the configured scope and
+flow through to the customer Service Report PDF.
+
+**Backend.**
+
+* New module `routes/svc/work_report_fields.py` (rate-limit-friendly,
+  no LLM calls, no storage churn).
+* Collection `svc_work_report_field_defs` with shape:
+  `{id, organization_id, name, key, field_type, scope_kind, scope_value, options[], required, position, archived, created_*}`.
+* Field types: `text`, `number`, `dropdown`, `checkbox`, `date`, `file`
+  (file uploads reuse the existing `/api/files/upload?category=work-report-fields`
+  pipeline).
+* Scope hierarchy (most-specific wins): `global` → `equipment_type` →
+  `manufacturer` → `model` → `asset`. `for-case/{id}` resolves to the
+  applicable union by joining `equipment` to the case's `asset_id`.
+* Endpoints:
+  * `GET    /api/svc/work-report-fields`              (list, optional `include_archived`)
+  * `GET    /api/svc/work-report-fields/for-case/{id}` (resolved set + persisted values)
+  * `POST   /api/svc/work-report-fields`              (create)
+  * `PATCH  /api/svc/work-report-fields/{id}`         (rename / toggle required / options / unarchive)
+  * `DELETE /api/svc/work-report-fields/{id}`         (soft-archive)
+* `engineer.py:engineer_complete` now accepts `custom_fields: dict` and
+  validates each value against the applicable defs **before** the case
+  state transitions, so a missing required field can't leave a
+  half-completed job behind. Clean values are persisted to
+  `svc_cases.work_report_custom_fields`.
+* The customer Service Report PDF (`routes/svc/service_report.py`) now
+  renders a *Machine readings & details* table immediately after the
+  Work completed block when the case has any custom values.
+
+**Frontend.**
+
+* `pages/ServiceOps/Engineer/EngineerWorkReportFields.js` — full
+  manager UI (list / new / edit / archive / restore / show-archived
+  toggle). Mounted at `/svc/engineer/work-report-fields`.
+* `pages/ServiceOps/Engineer/WorkReportCustomFields.js` — inline
+  widget rendered on the Engineer App's Complete tab. Renders dynamic
+  inputs per type and exposes a `+ New field` quick-create so engineers
+  can self-serve from the job itself.
+* `EngineerAccountSettings.js` (hamburger drawer) gains a *Work reports
+  → Custom report fields* row.
+* `EngineerJobDetailV2.js` Complete tab now sends `custom_fields` in
+  the `/complete` payload alongside `summary` / `target`.
+
+**Test coverage** (`tests/test_iter_220_work_report_custom_fields.py`, 10
+isolated cases — all green):
+
+* `test_create_text_field_persists_with_slug_key`
+* `test_create_dropdown_requires_at_least_two_options`
+* `test_patch_archive_unarchive_round_trip`
+* `test_scope_value_required_when_not_global`
+* `test_for_case_returns_only_matching_scope`
+* `test_for_case_404_when_missing`
+* `test_complete_persists_clean_custom_fields`
+* `test_complete_rejects_missing_required_field`
+* `test_complete_rejects_non_numeric_for_number_field`
+* `test_complete_accepts_dropdown_value_only_when_in_options`
+
+Wired into `Makefile:regression`. Lint clean (0 ruff / 0 eslint warnings).
+
+---
+
+
 ## Iter 216h301 — Pulse Lite "Log a fault" submit + AI hint copy (Feb 22, 2026) ✅ user-reported
 
 User-reported follow-up to h300. On the **Pulse Fitness Lite**

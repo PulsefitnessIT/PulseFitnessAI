@@ -100,6 +100,15 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
     # Get post-visit rating if captured (iter 216h81).
     rating = case.get("customer_rating")
     rating_comment = case.get("customer_rating_comment")
+    # Iter 220 — Custom-field defs referenced by the persisted values so
+    # the PDF can render labels in declaration order.
+    cf_values = case.get("work_report_custom_fields") or {}
+    custom_field_defs: list[dict] = []
+    if cf_values:
+        custom_field_defs = await db.svc_work_report_field_defs.find(
+            {"organization_id": of["organization_id"], "key": {"$in": list(cf_values.keys())}},
+            {"_id": 0},
+        ).to_list(200)
     return {
         "case": case,
         "photos": photos,
@@ -110,6 +119,7 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         "safety_signoff": safety_signoff,
         "rating": rating,
         "rating_comment": rating_comment,
+        "custom_field_defs": custom_field_defs,
     }
 
 
@@ -316,6 +326,41 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
         if work_summary:
             story.append(Paragraph(work_summary, body))
         story.append(Spacer(1, 4 * mm))
+
+    # ── Iter 220 · Machine-specific custom fields ─────────────────
+    custom_fields = case.get("work_report_custom_fields") or {}
+    field_defs = payload.get("custom_field_defs") or []
+    if custom_fields and field_defs:
+        defs_by_key = {d["key"]: d for d in field_defs if d.get("key")}
+        ordered = [k for k in custom_fields.keys() if k in defs_by_key]
+        if ordered:
+            story.append(Paragraph("MACHINE READINGS &amp; DETAILS", h_section))
+            rows = [["Field", "Value"]]
+            for k in ordered:
+                d = defs_by_key[k]
+                raw = custom_fields.get(k)
+                ftype = d.get("field_type", "text")
+                if ftype == "checkbox":
+                    val = "Yes" if raw else "No"
+                elif ftype == "file" and isinstance(raw, dict):
+                    val = raw.get("original_filename") or raw.get("storage_path") or "—"
+                elif raw in (None, ""):
+                    val = "—"
+                else:
+                    val = str(raw)
+                rows.append([d.get("name") or k, val[:200]])
+            cf_table = Table(rows, colWidths=[70 * mm, 105 * mm])
+            cf_table.setStyle(TableStyle([
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F1F5F9")),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#CBD5E1")),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            story.append(cf_table)
+            story.append(Spacer(1, 4 * mm))
 
     # ── Photos ────────────────────────────────────────────────────
     valid_images = []

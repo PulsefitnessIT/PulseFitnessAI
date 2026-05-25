@@ -100,14 +100,24 @@ export function formatApiError(err, fallback = 'Something went wrong') {
         detail: serverDetail || 'You don\'t have access to this action — ask a master admin.',
         status,
       };
-    case 404:
+    case 404: {
+      // Iter 220a — FastAPI returns the literal string "Not Found" (capital
+      // F) when a route isn't registered at all, vs. a custom server message
+      // (e.g. "Application not found") when the handler ran and the row is
+      // missing. The first case almost always means the deployed build is
+      // older than the frontend — surface a friendlier hint instead of the
+      // useless "Not found: Not Found" toast.
+      const isGenericFastApi404 = (serverDetail || '').trim().toLowerCase() === 'not found';
       return {
         title: fallback,
-        detail: serverDetail
-          ? `Not found: ${serverDetail}`
-          : 'Resource not found — it may have been deleted by another admin. Refresh and retry.',
+        detail: isGenericFastApi404
+          ? 'This endpoint is missing on the server — usually fixed by redeploying the backend. Hard-refresh first, and contact support if it persists.'
+          : (serverDetail
+            ? `Not found: ${serverDetail}`
+            : 'Resource not found — it may have been deleted by another admin. Refresh and retry.'),
         status,
       };
+    }
     case 409:
       return {
         title: 'Conflict',

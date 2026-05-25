@@ -33,6 +33,7 @@ import { notify } from '@/components/notifications';
 import { engineerSendOrQueue } from '@/utils/engineerOfflineQueue';
 import SignatureCanvas from './SignatureCanvas';
 import EngineerDictationButton from './EngineerDictationButton';
+import WorkReportCustomFields from './WorkReportCustomFields';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -962,6 +963,9 @@ function CompleteTab({ job, locked, onChange, navigate }) {
   const [busy, setBusy] = useState(false);
   const [autoInvoice, setAutoInvoice] = useState(true);
   const [draft, setDraft] = useState(null);
+  // Iter 220 — Machine-specific custom fields. Stored as a flat dict
+  // {key: value} that we pass through to /complete in one go.
+  const [customFields, setCustomFields] = useState({});
 
   const complete = async () => {
     if (!summary.trim()) { notify.error('Add a work summary'); return; }
@@ -975,6 +979,7 @@ function CompleteTab({ job, locked, onChange, navigate }) {
       }
       await axios.post(`${API}/svc/engineer/jobs/${job.id}/complete`, {
         summary: summary.trim(), target, chargeable: true,
+        custom_fields: customFields,
       }, auth());
       notify.success('Job completed');
       if (autoInvoice) {
@@ -1025,6 +1030,13 @@ function CompleteTab({ job, locked, onChange, navigate }) {
           if (data?.summary) setSummary(data.summary);
           else if (data?.transcript) setSummary(data.transcript);
         }}
+      />
+
+      {/* Iter 220 — Machine-specific custom fields (engineer-managed) */}
+      <WorkReportCustomFields
+        caseId={job.id}
+        values={customFields}
+        onChange={setCustomFields}
       />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-signature-card">

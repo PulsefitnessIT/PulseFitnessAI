@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
+  Sliders,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -232,6 +233,19 @@ export default function EngineerAccountSettings({ open, onClose, payouts, onChan
                 testid="engineer-settings-customers-row"
               />
             </div>
+          </section>
+
+          {/* Iter 220 — Work-report custom fields */}
+          <section data-testid="engineer-settings-section-work-reports">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Work reports</p>
+            <Row
+              icon={Sliders}
+              accent="#7c3aed"
+              title="Custom report fields"
+              subtitle="Add machine-specific questions (e.g. Drag Factor, Current Software)."
+              onClick={() => { onClose(); navigate('/svc/engineer/work-report-fields'); }}
+              testid="engineer-settings-work-report-fields-row"
+            />
           </section>
 
           {/* Support */}

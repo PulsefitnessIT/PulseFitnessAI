@@ -154,6 +154,8 @@ from routes.svc.inbound_email import (
 )
 # Iter 216h259 — Engineer Lite CRM (saved customers, shared org-wide)
 from routes.svc.engineer_customers import router as svc_engineer_customers_router
+# Iter 220 — Work Report custom fields (engineer + admin configurable)
+from routes.svc.work_report_fields import router as svc_work_report_fields_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -281,6 +283,8 @@ _UNGATED_ROUTERS = (
     svc_inbound_email_engineer_router,
     # Iter 216h259 — Engineer Lite CRM
     svc_engineer_customers_router,
+    # Iter 220 — Work Report custom fields
+    svc_work_report_fields_router,
 )
 
 

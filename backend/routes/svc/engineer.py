@@ -577,6 +577,19 @@ async def engineer_complete(
     if target not in (REPAIRED, AWAITING_SIGN_OFF, CLOSED):
         raise HTTPException(400, "target must be repaired | awaiting_sign_off | closed")
 
+    # Iter 220 — Validate & normalise work-report custom fields before any
+    # state transitions, so required-field errors don't leave half-applied
+    # side effects (timer stop, status change) behind.
+    raw_custom_fields = data.get("custom_fields")
+    custom_fields_clean: dict | None = None
+    if raw_custom_fields is not None:
+        from routes.svc.work_report_fields import validate_and_normalise_custom_field_values
+        custom_fields_clean = await validate_and_normalise_custom_field_values(
+            organization_id=of["organization_id"],
+            case=case,
+            raw_values=raw_custom_fields,
+        )
+
     # Stop any open timer first.
     await db.svc_time_entries.update_many(
         {**of, "engineer_id": user["id"], "end_at": None},
@@ -593,6 +606,16 @@ async def engineer_complete(
     if data.get("chargeable") is not None:
         await db.svc_cases.update_one(
             {"id": case_id}, {"$set": {"chargeable": bool(data["chargeable"]), "updated_at": _now()}},
+        )
+    # Iter 220 — Persist sanitised work-report custom fields onto the case.
+    if custom_fields_clean is not None:
+        await db.svc_cases.update_one(
+            {"id": case_id, **of},
+            {"$set": {
+                "work_report_custom_fields": custom_fields_clean,
+                "work_report_custom_fields_updated_at": _now(),
+                "updated_at": _now(),
+            }},
         )
     # If the engineer is still en_route or assigned, walk through on_site
     # first — the engineer is clearly on site (about to complete).

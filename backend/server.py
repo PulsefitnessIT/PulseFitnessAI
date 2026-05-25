@@ -559,6 +559,9 @@ async def _create_indexes() -> None:
     # Iter 216h259 — Engineer Lite CRM indexes
     from routes.svc.engineer_customers import ensure_indexes as ensure_engineer_customer_indexes
     await ensure_engineer_customer_indexes()
+    # Iter 220 — Work Report custom fields indexes
+    from routes.svc.work_report_fields import ensure_indexes as ensure_work_report_fields_indexes
+    await ensure_work_report_fields_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()
