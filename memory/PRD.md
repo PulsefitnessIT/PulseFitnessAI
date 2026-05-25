@@ -15324,3 +15324,82 @@ Engineer App → invoicing customers.**
 - `frontend/src/pages/PartnerEngineer/PartnerEngineerActivate.js` (new)
 - `frontend/src/routes/AppRoutes.js` (public `/partner-engineer/activate` route)
 - `Makefile`
+
+---
+
+## Iter 219g — Smart "Send sign-in link" + Stripe success celebration (Feb 25, 2026)
+
+Two ship-list items in one cut:
+
+1. **Operator request**: *"I need to be able to send the partner
+   engineers a reset password link. As this new engineer hasn't has
+   the chance to create a login yet."* — needed because the engineer
+   approved before iter 219f never received an activation link, and
+   there was no master-admin lever to send them either an activation
+   link *or* a password reset.
+
+2. **Continuation of the celebration enhancement suggested at the
+   end of iter 219f** — give the engineer a clear "you just paid →
+   here's the next step" hero so they don't go cold after Stripe
+   Checkout.
+
+### Changes
+- **New smart endpoint** `POST /api/partners/applications/{id}/send-signin-link`
+  (master admin only). Auto-routes:
+  - User account exists → mints a `password_reset_tokens` row (1-hour
+    TTL, `issued_via=admin_partner_drawer`) and sends the standard
+    password-reset email (`utils.email.send_password_reset_email`).
+  - User account doesn't exist yet → reuses an existing valid
+    activation token or mints a fresh one, then sends the welcome
+    email with the "Set up your sign-in" CTA.
+  - Returns `{ok, kind, sent_to}` so the FE toast can say exactly
+    what was sent.
+  - Audit log entries are kind-specific (`send_activation_link` /
+    `send_password_reset`) so we can prove which kind of email went
+    out.
+- **Drawer button rename** — `PartnerApplicationDrawer.js`:
+  "Resend approval email" → **"Send sign-in link"**. Hovers tooltip
+  explains the smart routing. Same `data-testid` so existing tests
+  continue to pass.
+- **Celebration hero** — `PartnerDashboard.js`:
+  New `SubscriptionCelebration` component (CSS-only confetti, no
+  new deps). Triggered when the dashboard mounts with
+  `?subscription=success` in the URL (the success_url Stripe Checkout
+  returns to). Shows:
+  - Subscription-active eyebrow, "You're in, {firstName}." headline.
+  - Body explaining the next 3-minute step.
+  - Primary CTA **"Connect Stripe Express (3 min)"** → navigates to
+    `/svc/engineer/payouts`.
+  - Secondary "Skip for now" and dismiss X.
+  - The `subscription=success` flag stays in the URL until the
+    engineer interacts with the hero, then it's stripped (so a
+    refresh doesn't re-fire).
+- **Param-clone fix** — both this iter and iter 219e relied on
+  `params.delete(...)` followed by `setParams(params)` to mutate the
+  URLSearchParams in place. React Router 6 silently dropped the
+  remaining params in some cases. Now both call sites clone via
+  `new URLSearchParams(params)` first.
+
+### Verification
+- Ruff 0 warnings, ESLint 0 warnings.
+- New pytest `test_iter_219g_send_signin_link.py` (8 tests, all pass):
+  activation path; activation reissue when token missing/expired;
+  password-reset path with `password_reset_tokens` row written;
+  400 if application still pending; 404 unknown; 403 non-admin;
+  kind-specific audit-log entry; route source-pin (uses
+  `send_password_reset_email` for reset branch + `send_application_approved`
+  for activation branch).
+- **Full iter 217–219 regression: 92/92 pass** when run together.
+- Live UI smoke confirms: celebration hero renders with confetti +
+  all 4 testids on `/partner-engineer?subscription=success`;
+  drawer footer button now reads "Send sign-in link" with the smart
+  routing tooltip.
+
+### Files changed
+- `backend/routes/partners.py` (new `send-signin-link` endpoint)
+- `backend/tests/test_iter_219g_send_signin_link.py` (new, 8 tests)
+- `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js`
+  (button rename + handler swap to smart endpoint)
+- `frontend/src/pages/PartnerEngineer/PartnerDashboard.js`
+  (celebration hero, param-clone fix)
+- `Makefile`

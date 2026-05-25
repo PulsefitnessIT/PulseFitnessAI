@@ -16,7 +16,7 @@ import axios from 'axios';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Copy, ExternalLink, Wrench, Users, PoundSterling, Sparkles, Loader2,
-  CheckCircle2, AlertTriangle, CreditCard, X,
+  CheckCircle2, AlertTriangle, CreditCard, X, PartyPopper, ArrowRight,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -44,6 +44,9 @@ export default function PartnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [subBusy, setSubBusy] = useState(false);
   const [params, setParams] = useSearchParams();
+  // Iter 219g — celebration hero shown immediately after a successful
+  // Stripe Checkout return. Drives the "Connect Stripe Express" nudge.
+  const [celebration, setCelebration] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,17 +98,38 @@ export default function PartnerDashboard() {
   useEffect(() => {
     const status = params.get('subscription');
     if (status === 'success') {
-      notify.success('Subscription active — welcome to the Partner Engineer Plan');
-      params.delete('subscription'); params.delete('session_id');
-      setParams(params, { replace: true });
+      // Iter 219g — celebration: keep the `?subscription=success`
+      // flag in the URL just long enough to render the celebration
+      // hero; the hero itself dismisses it once the engineer clicks
+      // "Connect Stripe Express" or "Skip for now". This gives the
+      // engineer a single clear next step instead of a silent toast
+      // and a back-to-normal dashboard.
+      setCelebration(true);
+      // Clone before mutating so React Router's internal ref doesn't
+      // race the re-render and drop other params on the floor.
+      if (params.has('session_id')) {
+        const next = new URLSearchParams(params);
+        next.delete('session_id');
+        setParams(next, { replace: true });
+      }
       load();
     } else if (status === 'cancelled') {
       notify.error('Checkout cancelled — no charge made');
-      params.delete('subscription');
-      setParams(params, { replace: true });
+      const next = new URLSearchParams(params);
+      next.delete('subscription');
+      setParams(next, { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [params]);
+
+  const dismissCelebration = () => {
+    setCelebration(false);
+    if (params.has('subscription')) {
+      const next = new URLSearchParams(params);
+      next.delete('subscription');
+      setParams(next, { replace: true });
+    }
+  };
 
   const startSubscription = async () => {
     setSubBusy(true);
@@ -190,6 +214,22 @@ export default function PartnerDashboard() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-10 px-4">
       <div className="max-w-5xl mx-auto space-y-5" data-testid="partner-dashboard">
+        {/* Iter 219g — Stripe-success celebration hero. Shown only
+            immediately after a successful subscription Checkout
+            return. Gives the engineer a clear single next step
+            (Connect Stripe Express) so they don't go cold after
+            paying. */}
+        {celebration ? (
+          <SubscriptionCelebration
+            firstName={(partner.full_name || '').split(' ')[0] || 'there'}
+            onConnectStripeExpress={() => {
+              dismissCelebration();
+              window.location.href = '/svc/engineer/payouts';
+            }}
+            onDismiss={dismissCelebration}
+          />
+        ) : null}
+
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -471,5 +511,94 @@ function SubscriptionCard({ partner, tier, activeCount, busy, onStart, onCancel,
         </div>
       )}
     </Card>
+  );
+}
+
+
+/**
+ * SubscriptionCelebration — iter 219g.
+ *
+ * Big, warm "you just paid Stripe — here's the next step" hero shown
+ * once on return from Stripe Checkout. CSS-only confetti so we don't
+ * have to add a dependency. Two CTAs: primary "Connect Stripe Express
+ * now (3 min)" hits /svc/engineer/payouts (the Stripe Connect onboarding
+ * page); secondary "Skip for now" just dismisses the hero.
+ *
+ * Stripe Connect Express is the next critical step — without it, the
+ * engineer can take a £30/mo subscription seat but can't actually
+ * receive customer card payments on invoices.
+ */
+function SubscriptionCelebration({ firstName, onConnectStripeExpress, onDismiss }) {
+  return (
+    <section
+      className="relative overflow-hidden rounded-3xl border border-emerald-400/40 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 text-white shadow-2xl p-6 sm:p-8"
+      data-testid="partner-dashboard-celebration"
+    >
+      {/* Confetti — purely decorative; 24 staggered absolutely-positioned dots. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <span
+            key={i}
+            className="absolute block rounded-sm animate-bounce"
+            style={{
+              left: `${(i * 4.3) % 100}%`,
+              top: `${(i * 7.7) % 100}%`,
+              width: '6px',
+              height: i % 3 === 0 ? '10px' : '6px',
+              backgroundColor: ['#FDE68A', '#FCA5A5', '#A7F3D0', '#BFDBFE', '#FBCFE8'][i % 5],
+              transform: `rotate(${i * 17}deg)`,
+              animationDelay: `${(i % 6) * 0.18}s`,
+              animationDuration: `${1.6 + (i % 4) * 0.3}s`,
+              opacity: 0.85,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="relative flex items-start gap-4">
+        <div className="hidden sm:flex w-12 h-12 rounded-full bg-white/15 backdrop-blur items-center justify-center flex-shrink-0">
+          <PartyPopper size={22} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-emerald-100" data-testid="celebration-eyebrow">
+            Subscription active
+          </p>
+          <h2 className="text-2xl sm:text-3xl font-black mt-1" data-testid="celebration-headline">
+            You're in, {firstName}.
+          </h2>
+          <p className="mt-2 text-sm text-emerald-50 max-w-xl">
+            Your £30/mo Partner Plan is live. One more 3-minute step unlocks card payments on
+            your invoices — connect Stripe Express so customers can pay you directly.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={onConnectStripeExpress}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-emerald-700 text-sm font-bold shadow hover:shadow-lg transition-shadow"
+              data-testid="celebration-connect-stripe-btn"
+            >
+              <CreditCard size={14} /> Connect Stripe Express (3 min) <ArrowRight size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-50/90 hover:text-white"
+              data-testid="celebration-skip-btn"
+            >
+              Skip for now
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="relative w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center"
+          data-testid="celebration-dismiss"
+        >
+          <X size={14} />
+        </button>
+      </div>
+    </section>
   );
 }

@@ -237,24 +237,30 @@ export default function PartnerApplicationDrawer({
     }
   };
 
-  /* Iter 219d — resend the welcome email for an already-approved
-     application. Needed because iter 219c uncovered a TypeError that
-     had been silently swallowing the approval email for every
-     engineer approved via the drawer — so the existing approved
-     cohort never received their referral code. */
-  const resendApprovalEmail = async () => {
+  /* Iter 219g — One smart button for all sign-in problems. Calls
+     the server-side `send-signin-link` endpoint which auto-routes
+     between a fresh activation link (engineer hasn't activated yet)
+     and a password-reset link (engineer activated but lost the
+     password — the case the operator hit when their newly-approved
+     engineer asked "how do I sign in?"). The toast message changes
+     to reflect what actually went out. */
+  const sendSigninLink = async () => {
     if (!applicationId) return;
     setBusy('resend');
     try {
       const r = await axios.post(
-        `${API}/api/partners/applications/${applicationId}/resend-approval-email`,
+        `${API}/api/partners/applications/${applicationId}/send-signin-link`,
         {},
         { headers },
       );
+      const kind = r.data?.kind;
       const sentTo = r.data?.sent_to || app.email || 'engineer';
-      notify.success(`Approval email resent to ${sentTo}`);
+      const msg = kind === 'password_reset'
+        ? `Password-reset link sent to ${sentTo}`
+        : `Activation link sent to ${sentTo}`;
+      notify.success(msg);
     } catch (e) {
-      notifyApiError(notify, e, 'Resend failed');
+      notifyApiError(notify, e, 'Send failed');
     } finally {
       setBusy(null);
     }
@@ -566,14 +572,14 @@ export default function PartnerApplicationDrawer({
               {app.status === 'approved' ? (
                 <button
                   type="button"
-                  onClick={resendApprovalEmail}
+                  onClick={sendSigninLink}
                   disabled={busy !== null || loading}
                   className="px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-sm font-bold inline-flex items-center gap-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
                   data-testid="partner-application-resend-email-btn"
-                  title="Manually re-send the welcome email + referral code to this engineer"
+                  title="Sends an activation link if the engineer hasn't signed up yet, or a password-reset link if they already have an account."
                 >
                   {busy === 'resend' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                  Resend approval email
+                  Send sign-in link
                 </button>
               ) : null}
             </div>

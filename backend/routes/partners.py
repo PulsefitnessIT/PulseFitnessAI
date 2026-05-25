@@ -815,6 +815,146 @@ async def resend_partner_application_approval_email(
     }
 
 
+@router.post("/partners/applications/{application_id}/send-signin-link")
+async def send_partner_signin_link(
+    application_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 219g — One smart button that always lands the engineer
+    back in a working sign-in state, whether they've activated yet or
+    not.
+
+      • Application not yet activated (no user account exists)
+        → re-issue the activation token and send the welcome email
+          with the "Set up your sign-in" CTA.
+
+      • User account exists (engineer already activated)
+        → mint a password-reset token (1-hour TTL, same shape as
+          /auth/forgot-password) and send a password-reset email.
+
+    Returns `{ok, kind, sent_to}` so the FE toast can say exactly
+    what landed in the engineer's inbox.
+    """
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+    if app.get("status") != "approved":
+        raise HTTPException(400, f"Application is not approved (status={app.get('status')})")
+    target_email = (app.get("email") or "").strip()
+    if not target_email:
+        raise HTTPException(400, "Application has no email address on file")
+    full_name = app.get("full_name") or ""
+
+    # Does the engineer already have a GymAxis account? Case-insensitive.
+    existing_user = await db.users.find_one(
+        {"email": {"$regex": f"^{target_email}$", "$options": "i"}},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1},
+    )
+
+    if existing_user:
+        # ── Password-reset path ────────────────────────────────
+        import secrets
+        token = secrets.token_urlsafe(32)
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        await db.password_reset_tokens.insert_one({
+            "token": token,
+            "user_id": existing_user["id"],
+            "email": existing_user["email"],
+            "expires_at": expires_at,
+            "used": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "issued_by": user.get("id"),
+            "issued_via": "admin_partner_drawer",
+        })
+        from utils.brand_urls import app_url_for_org
+        org = None
+        if existing_user.get("organization_id"):
+            org = await db.organizations.find_one(
+                {"id": existing_user["organization_id"]},
+                {"_id": 0, "account_type": 1},
+            )
+        frontend_url = app_url_for_org(org)
+        reset_url = f"{frontend_url}/reset-password?token={token}"
+        try:
+            from utils.email import send_password_reset_email
+            ok = await send_password_reset_email(
+                existing_user["email"],
+                existing_user.get("full_name") or full_name,
+                reset_url,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Partner password-reset email failed: %s", exc)
+            raise HTTPException(502, "Email send failed — please retry shortly") from exc
+        await _audit(
+            partner_id=app.get("partner_id") or "",
+            actor_id=user.get("id") or "",
+            action="send_password_reset",
+            after={"to": existing_user["email"], "delivered": bool(ok)},
+        )
+        return {
+            "ok": bool(ok),
+            "kind": "password_reset",
+            "sent_to": existing_user["email"],
+            "application_id": application_id,
+        }
+
+    # ── Activation path ────────────────────────────────────────
+    # Reuse existing token if still valid; otherwise mint a fresh one.
+    import secrets
+    activation_token = app.get("activation_token")
+    expires_dt = app.get("activation_token_expires_at")
+    if isinstance(expires_dt, str):
+        try:
+            expires_dt = datetime.fromisoformat(expires_dt.replace("Z", "+00:00"))
+        except ValueError:
+            expires_dt = None
+    now = datetime.now(timezone.utc)
+    needs_new = (
+        not activation_token
+        or app.get("activation_completed_at") is not None
+        or (isinstance(expires_dt, datetime) and expires_dt < now)
+    )
+    if needs_new:
+        activation_token = secrets.token_urlsafe(32)
+        await db.partner_applications.update_one(
+            {"id": application_id},
+            {"$set": {
+                "activation_token": activation_token,
+                "activation_token_expires_at": (now + timedelta(days=14)).isoformat(),
+                "activation_completed_at": None,
+                "updated_at": _now(),
+            }},
+        )
+    partner = await db.partner_engineers.find_one(
+        {"id": app.get("partner_id")}, {"_id": 0, "referral_code": 1},
+    ) if app.get("partner_id") else None
+    referral_code = (partner or {}).get("referral_code")
+    try:
+        from utils.partner_emails import send_application_approved
+        ok = await send_application_approved(
+            email=target_email,
+            full_name=full_name,
+            referral_code=referral_code,
+            activation_token=activation_token,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Partner activation email failed: %s", exc)
+        raise HTTPException(502, "Email send failed — please retry shortly") from exc
+    await _audit(
+        partner_id=app.get("partner_id") or "",
+        actor_id=user.get("id") or "",
+        action="send_activation_link",
+        after={"to": target_email, "delivered": bool(ok), "token_reissued": needs_new},
+    )
+    return {
+        "ok": bool(ok),
+        "kind": "activation",
+        "sent_to": target_email,
+        "application_id": application_id,
+    }
+
+
 # ═══════════════════════════════════════════════════════════════
 # Iter 219f — Activation flow.
 # After approval, the welcome email points to /partner-engineer/activate
