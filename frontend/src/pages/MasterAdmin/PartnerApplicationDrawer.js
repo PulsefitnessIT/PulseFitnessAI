@@ -32,7 +32,7 @@ import axios from 'axios';
 import {
   X, Loader2, Mail, Phone, MapPin, Calendar, ShieldCheck, FileText,
   Download, CheckCircle2, XCircle, Award, Briefcase, MessageSquare,
-  Sparkles, ChevronDown, Wrench, Tag, AlertTriangle,
+  Sparkles, ChevronDown, Wrench, Tag, AlertTriangle, RefreshCw, Wand2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -116,6 +116,12 @@ export default function PartnerApplicationDrawer({
   const [busy, setBusy] = useState(null); // 'approve' | 'reject'
   const [notes, setNotes] = useState('');
   const [level, setLevel] = useState('engineer_partner');
+  /* Iter 219b — AI decision helper. Auto-loads on drawer open so the
+     admin sees the recommendation immediately. Never blocks the page;
+     the deterministic fallback in the backend keeps `suggestion`
+     populated even when the LLM is offline. */
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
 
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -135,7 +141,33 @@ export default function PartnerApplicationDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId]);
 
+  const loadSuggestion = useCallback(async () => {
+    if (!applicationId) return;
+    setSuggestionLoading(true);
+    try {
+      const r = await axios.post(
+        `${API}/api/partners/applications/${applicationId}/ai-suggest`,
+        {},
+        { headers },
+      );
+      const s = r.data?.suggestion || null;
+      setSuggestion(s);
+      // Pre-select the suggested level in the footer picker so the
+      // admin can act in one click. We don't auto-approve — the human
+      // remains the source of truth.
+      if (s?.level) setLevel(s.level);
+    } catch (e) {
+      // Silent — the panel just collapses if the helper is unavailable.
+      // eslint-disable-next-line no-console
+      console.debug('AI suggestion failed', e?.response?.status);
+    } finally {
+      setSuggestionLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadSuggestion(); }, [loadSuggestion]);
 
   const saveNotes = async () => {
     if (!applicationId) return;
@@ -287,6 +319,18 @@ export default function PartnerApplicationDrawer({
             </div>
           ) : (
             <>
+              {/* Iter 219b — AI decision helper. Always renders so the
+                  admin sees the model's recommendation up-front. The
+                  backend's deterministic fallback keeps this populated
+                  even when the LLM is offline. */}
+              <AISuggestPanel
+                suggestion={suggestion}
+                loading={suggestionLoading}
+                onRefresh={loadSuggestion}
+                onApplyLevel={(lvl) => setLevel(lvl)}
+                currentLevel={level}
+              />
+
               {/* Applicant */}
               <Section icon={Briefcase} title="Applicant" testid="partner-application-applicant">
                 <FieldRow icon={Mail} label="Email" value={app.email} mono testid="pa-email" />
@@ -496,5 +540,123 @@ export default function PartnerApplicationDrawer({
         </footer>
       </aside>
     </div>
+  );
+}
+
+
+const DECISION_STYLES = {
+  approve:    { cls: 'from-emerald-500 to-emerald-600 text-white', label: 'Suggest approve', icon: CheckCircle2 },
+  reject:     { cls: 'from-rose-500 to-rose-600 text-white',       label: 'Suggest reject',  icon: XCircle },
+  needs_info: { cls: 'from-amber-500 to-amber-600 text-white',     label: 'Needs more info', icon: AlertTriangle },
+};
+
+const LEVEL_LABELS = {
+  engineer_partner:  'Engineer Partner',
+  verified_partner:  'Verified Partner',
+  strategic_partner: 'Strategic Partner',
+};
+
+function AISuggestPanel({ suggestion, loading, onRefresh, onApplyLevel, currentLevel }) {
+  if (loading && !suggestion) {
+    return (
+      <section
+        className="rounded-xl border border-purple-200 dark:border-purple-900 bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-950/40 dark:to-fuchsia-950/30 p-4"
+        data-testid="partner-application-ai-suggest"
+      >
+        <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-300">
+          <Loader2 size={13} className="animate-spin" />
+          Analysing application against the partner roster…
+        </div>
+      </section>
+    );
+  }
+  if (!suggestion) return null;
+  const style = DECISION_STYLES[suggestion.decision] || DECISION_STYLES.needs_info;
+  const Icon = style.icon;
+  const confidencePct = Math.round((suggestion.confidence || 0) * 100);
+  const isFallback = suggestion.model === 'deterministic-fallback';
+  const sameLevel = (suggestion.level || '') === currentLevel;
+
+  return (
+    <section
+      className="rounded-xl border border-purple-200 dark:border-purple-900 bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-950/40 dark:to-fuchsia-950/30 p-4"
+      data-testid="partner-application-ai-suggest"
+    >
+      <div className="flex items-start gap-3">
+        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-br ${style.cls} text-[10px] font-extrabold uppercase tracking-wider shadow-sm`}
+             data-testid="partner-application-ai-decision">
+          <Icon size={11} /> {style.label}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1">
+              <Wand2 size={10} /> AI Suggest decision
+            </span>
+            <span className="text-[10px] text-purple-700 dark:text-purple-300 font-mono" data-testid="partner-application-ai-confidence">
+              {confidencePct}% confident
+            </span>
+            {isFallback ? (
+              <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                Heuristic
+              </span>
+            ) : (
+              <span className="text-[10px] text-zinc-500">gpt-4o-mini</span>
+            )}
+          </div>
+          <p className="mt-1 text-sm font-bold text-zinc-900 dark:text-zinc-100" data-testid="partner-application-ai-headline">
+            {suggestion.headline || '—'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          aria-label="Refresh AI suggestion"
+          className="p-1.5 rounded-full border border-purple-200 dark:border-purple-800 bg-white/60 dark:bg-zinc-900/60 hover:bg-white dark:hover:bg-zinc-900 disabled:opacity-50"
+          data-testid="partner-application-ai-refresh"
+        >
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      <div className="mt-3 grid sm:grid-cols-2 gap-3">
+        <div data-testid="partner-application-ai-reasons">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">Why</div>
+          {(suggestion.reasons || []).length ? (
+            <ul className="list-disc list-inside text-xs text-zinc-700 dark:text-zinc-200 space-y-0.5">
+              {suggestion.reasons.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          ) : <div className="text-xs text-zinc-400">No reasoning provided.</div>}
+        </div>
+        <div data-testid="partner-application-ai-red-flags">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">Red flags</div>
+          {(suggestion.red_flags || []).length ? (
+            <ul className="list-disc list-inside text-xs text-rose-700 dark:text-rose-300 space-y-0.5">
+              {suggestion.red_flags.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          ) : <div className="text-xs text-emerald-700 dark:text-emerald-300">None spotted.</div>}
+        </div>
+      </div>
+
+      {suggestion.coverage_value ? (
+        <div className="mt-3 text-xs text-zinc-700 dark:text-zinc-300 flex items-start gap-2" data-testid="partner-application-ai-coverage">
+          <MapPin size={12} className="mt-0.5 text-purple-500" />
+          <span><b className="text-purple-700 dark:text-purple-300">Coverage:</b> {suggestion.coverage_value}</span>
+        </div>
+      ) : null}
+
+      {suggestion.level && !sameLevel ? (
+        <div className="mt-3 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => onApplyLevel(suggestion.level)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold"
+            data-testid="partner-application-ai-apply-level"
+          >
+            <Sparkles size={11} /> Apply suggested level: {LEVEL_LABELS[suggestion.level] || suggestion.level}
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }

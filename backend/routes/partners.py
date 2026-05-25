@@ -553,6 +553,34 @@ async def download_partner_application_attachment(
     )
 
 
+@router.post("/partners/applications/{application_id}/ai-suggest")
+async def suggest_partner_application_decision(
+    application_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 219b — AI decision helper. Returns a structured
+    recommendation (approve / reject / needs_info), suggested level,
+    confidence, headline, reasons, red flags and a coverage-value note
+    so the master admin can decide faster.
+
+    Advisory only — the human reviewer remains the source of truth.
+    Falls back to a deterministic recommendation when the LLM is
+    offline so the UI never breaks.
+    """
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+    # Pull a slim slice of active partners for coverage-gap reasoning.
+    roster = await db.partner_engineers.find(
+        {"status": "approved"},
+        {"_id": 0, "brands_supported": 1, "service_postcode": 1},
+    ).to_list(length=500)
+    from utils.partner_application_ai import suggest_decision
+    suggestion = await suggest_decision(app, roster)
+    return {"application_id": application_id, "suggestion": suggestion}
+
+
 @router.post("/partners/applications/{application_id}/approve")
 async def approve_partner_application(
     application_id: str,

@@ -14982,3 +14982,63 @@ I currently can't see anything."
 - `frontend/src/pages/MasterAdmin/AdminPartners.js`
 - `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js` (new)
 - `Makefile`
+
+---
+
+## Iter 219b — Partner Application AI "Suggest decision" helper (Feb 25, 2026)
+
+Builds on the iter 219 drawer. Surfaces a one-line decision recommendation
+at the top of the drawer so the master admin can act faster and never miss
+structural signals (expired insurance, single-brand engineer in a multi-
+brand region, coverage-gap fit, etc.).
+
+### Changes
+- **New util** `backend/utils/partner_application_ai.py`
+  - `suggest_decision(app, roster)` — gpt-4o-mini (Emergent LLM Key) via
+    the same `emergentintegrations.llm.chat.LlmChat` pattern used by
+    `memberships_ai_insights.py`. Returns strict JSON with `decision`
+    (approve / reject / needs_info), `level`, `confidence` (0–1),
+    `headline`, `reasons[]`, `red_flags[]` and a `coverage_value`
+    sentence. `_coerce()` clamps every field so the FE is bulletproof.
+  - `_fallback(app)` — deterministic rule-based decision so the UI
+    is always populated even when the LLM is offline.
+  - `_summarise_roster()` — compact aggregation of brand and postcode
+    coverage across approved partners so the LLM can reason about gaps
+    without us shipping the full roster.
+- **New endpoint** `POST /api/partners/applications/{id}/ai-suggest`
+  (master admin only). Reads the application + slim partner roster
+  and calls `suggest_decision`.
+- **Drawer update** `PartnerApplicationDrawer.js`
+  - New `AISuggestPanel` rendered at the very top of the drawer body.
+  - Auto-loads on open via a second `useEffect`. A refresh button
+    re-runs the suggestion.
+  - Pre-selects the AI's suggested level in the footer picker so the
+    admin can act in one click. "Apply suggested level" button appears
+    only when the suggestion differs from the current picker value.
+  - Displays decision pill (emerald/amber/rose), headline, confidence
+    %, reasons list, red flags list and a coverage sentence.
+  - Shows a "Heuristic" badge when the deterministic fallback was used.
+
+### Verification
+- ESLint clean on the updated drawer (0 warnings).
+- Ruff clean on `partners.py` and the new `partner_application_ai.py`.
+- Backend pytest (`test_iter_219b_partner_application_ai_suggest.py`,
+  9 tests): all pass. Wired into `make regression`.
+  - Endpoint contract: 200 with full payload, 404 unknown app, 403
+    non-admin.
+  - `_fallback` reject / needs_info / approve+verified_partner branches.
+  - `_coerce` clamps confidence and rejects unknown decision strings.
+  - `_summarise_roster` buckets brands and postcode areas correctly.
+- Live UI smoke test: drawer auto-loads suggestion; for the test
+  applicant (8 yrs, SW1A, Life Fitness + Technogym, IPAF + C&G) the
+  LLM returned "NEEDS MORE INFO · 70% confident · Potential for
+  partnership, but requires further clarification." with 3 reasons,
+  2 red flags (no company, no multi-brand quals for seniority) and a
+  coverage note flagging the SW1A under-coverage.
+
+### Files changed
+- `backend/utils/partner_application_ai.py` (new)
+- `backend/routes/partners.py` (new endpoint)
+- `backend/tests/test_iter_219b_partner_application_ai_suggest.py` (new, 9 tests)
+- `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js`
+- `Makefile`
