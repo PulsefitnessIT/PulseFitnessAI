@@ -15,10 +15,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, CheckCircle2, X, PoundSterling, Users,
-  Download, Star, TrendingUp,
+  Download, Star, TrendingUp, ChevronRight,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import PartnerApplicationDrawer from './PartnerApplicationDrawer';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -44,6 +45,11 @@ export default function AdminPartners() {
   const [leaderboard, setLeaderboard] = useState({});  // {partner_id: performance}
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null); // partner_id or ledger_id mid-action
+  /* Iter 219 — drawer-driven application review.
+     Clicking an application row opens the full-detail drawer so the
+     master admin can see every field + paperwork the applicant
+     uploaded. Approve / Reject buttons live in the drawer footer. */
+  const [drawerAppId, setDrawerAppId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,39 +124,10 @@ export default function AdminPartners() {
     finally { setBusy(null); }
   };
 
-  /* Iter 218 — application approve/reject. Distinct from the
-     partner approve/reject above (which operate on rows that already
-     live in `partner_engineers`). These hit the application route
-     which promotes an application → engineer record on approve. */
-  const approveApplication = async (app, level = 'engineer_partner') => {
-    setBusy(app.id);
-    try {
-      await axios.post(
-        `${API}/api/partners/applications/${app.id}/approve`,
-        { level },
-        { headers },
-      );
-      notify.success(`${app.full_name} approved as ${level.replace('_', ' ')}`);
-      await load();
-    } catch (e) { notifyApiError(notify, e, 'Approve failed'); }
-    finally { setBusy(null); }
-  };
-
-  const rejectApplication = async (app) => {
-    const reason = window.prompt('Reason for rejection (sent to applicant, optional):', '');
-    if (reason === null) return;
-    setBusy(app.id);
-    try {
-      await axios.post(
-        `${API}/api/partners/applications/${app.id}/reject`,
-        { reason },
-        { headers },
-      );
-      notify.success(`${app.full_name} rejected`);
-      await load();
-    } catch (e) { notifyApiError(notify, e, 'Reject failed'); }
-    finally { setBusy(null); }
-  };
+  /* Iter 219 — application approve/reject moved into the
+     PartnerApplicationDrawer so the master admin must open the
+     drawer (and therefore see the full paperwork) before they can
+     act. The drawer hits the same /approve and /reject endpoints. */
 
   const approveLedger = async (row) => {
     setBusy(row.id);
@@ -228,16 +205,17 @@ export default function AdminPartners() {
                 <tr className="text-[10px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">
                   <th className="text-left py-2 pr-3">Engineer</th>
                   <th className="text-left py-2 pr-3">Coverage</th>
-                  <th className="text-left py-2 pr-3">Skills &amp; brands</th>
+                  <th className="text-left py-2 pr-3">Skills, brands &amp; paperwork</th>
                   <th className="text-left py-2 pr-3">Submitted</th>
-                  <th className="text-right py-2 pl-2">Actions</th>
+                  <th className="text-right py-2 pl-2">Review</th>
                 </tr>
               </thead>
               <tbody>
                 {applications.map((app) => (
                   <tr
                     key={app.id}
-                    className="border-b border-zinc-100 dark:border-zinc-900 align-top"
+                    onClick={() => setDrawerAppId(app.id)}
+                    className="border-b border-zinc-100 dark:border-zinc-900 align-top cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
                     data-testid={`admin-application-row-${app.id}`}
                   >
                     <td className="py-2 pr-3">
@@ -263,35 +241,29 @@ export default function AdminPartners() {
                           <span key={`s-${i}`} className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px]">{s}</span>
                         ))}
                       </div>
-                      {(app.qualifications || []).length > 0 && (
-                        <div className="text-[10px] text-zinc-400 mt-1">
-                          Quals: {(app.qualifications || []).slice(0, 3).join(', ')}
-                          {(app.qualifications || []).length > 3 ? '…' : ''}
-                        </div>
-                      )}
+                      <div className="text-[10px] text-zinc-400 mt-1 flex flex-wrap gap-2">
+                        {(app.qualifications || []).length > 0 ? (
+                          <span>Quals: {(app.qualifications || []).slice(0, 3).join(', ')}{(app.qualifications || []).length > 3 ? '…' : ''}</span>
+                        ) : null}
+                        {(app.attachments || []).length > 0 ? (
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400">{app.attachments.length} file{app.attachments.length === 1 ? '' : 's'} attached</span>
+                        ) : (
+                          <span className="text-rose-700 dark:text-rose-400">No paperwork yet</span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2 pr-3 text-xs text-zinc-500">
                       {app.submitted_at ? new Date(app.submitted_at).toLocaleString() : '—'}
                     </td>
                     <td className="py-2 pl-2 text-right">
-                      <div className="inline-flex gap-1">
-                        <button
-                          onClick={() => approveApplication(app)}
-                          disabled={busy === app.id}
-                          className="px-2 py-1 text-[10px] font-bold uppercase rounded bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1 disabled:opacity-50"
-                          data-testid={`admin-application-approve-${app.id}`}
-                        >
-                          <CheckCircle2 size={10} /> Approve
-                        </button>
-                        <button
-                          onClick={() => rejectApplication(app)}
-                          disabled={busy === app.id}
-                          className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 inline-flex items-center gap-1 disabled:opacity-50"
-                          data-testid={`admin-application-reject-${app.id}`}
-                        >
-                          <X size={10} /> Reject
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setDrawerAppId(app.id); }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md bg-purple-600 hover:bg-purple-700 text-white"
+                        data-testid={`admin-application-review-${app.id}`}
+                      >
+                        Review <ChevronRight size={11} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -433,6 +405,19 @@ export default function AdminPartners() {
           </div>
         )}
       </Section>
+      {/* Iter 219 — Application detail drawer. Opens when a row in
+          the Pending applications panel is clicked. Approve/Reject
+          live inside the drawer so the master admin must read the
+          full submission (insurance, paperwork, terms acceptance)
+          before they can act. */}
+      {drawerAppId ? (
+        <PartnerApplicationDrawer
+          applicationId={drawerAppId}
+          onClose={() => setDrawerAppId(null)}
+          onApproved={load}
+          onRejected={load}
+        />
+      ) : null}
     </div>
   );
 }

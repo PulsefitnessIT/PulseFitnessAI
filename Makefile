@@ -117,6 +117,7 @@ regression:
 	  tests/test_iter_217_pulse_score_merge.py \
 	  tests/test_iter_217_engineer_app_full.py \
 	  tests/test_iter_218_partner_application_approve.py \
+	  tests/test_iter_219_partner_application_drawer.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

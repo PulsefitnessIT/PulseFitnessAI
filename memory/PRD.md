@@ -14905,3 +14905,80 @@ Import + Template pair that field engineers rarely use day-to-day.
 - `frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js`
 - `memory/test_credentials.md` (smoke-test partner credentials)
 
+
+---
+
+## Iter 219 — Partner Engineers promoted + full application drawer (Feb 25, 2026)
+
+Operator feedback: "Move Partner Engineers into the main sidebar — it's too
+hidden away when this could be a main source of revenue." and "I need to be
+able to click into the engineer's application and see all the details of
+the application and paperwork that has been submitted by the engineer.
+I currently can't see anything."
+
+### Changes
+- **Sidebar promotion** (`frontend/src/pages/MasterAdmin/SidebarConfig.js`)
+  - "Partner Engineers" is now a **top-level** entry (between Growth and
+    Integrations) with the `BadgeCheck` icon and its own section title
+    ("Partner Engineers") + description.
+  - Removed from the Growth sub-tab list.
+- **New endpoints** (`backend/routes/partners.py`)
+  - `GET  /api/partners/applications/{id}` — full detail (every submitted
+    field + referrer denormalised). Rewrites each attachment's
+    `download_url` to point at our own auth-gated streaming endpoint so
+    the raw object-store URL is never exposed.
+  - `PATCH /api/partners/applications/{id}/notes` — persist reviewer
+    notes (master admin only).
+  - `GET  /api/partners/applications/{id}/attachments/{aid}` — auth-gated
+    streaming download for CV / cert PDFs (uses `utils.database.get_object`).
+- **New component** `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js`
+  - Slide-out drawer with 5 sections: Applicant, Coverage, Skills/Brands
+    /Qualifications, Compliance & terms, Cover letter, Paperwork &
+    attachments (with auth-gated Download buttons), Reviewer notes
+    (auto-saves on blur).
+  - Sticky footer with level picker + Approve / Reject buttons.
+  - Insurance expiry chip turns amber/rose when within 30 days / expired.
+- **`AdminPartners.js` rewired**
+  - Application rows now clickable (whole row + dedicated "Review" CTA)
+    → opens `PartnerApplicationDrawer`.
+  - Inline Approve/Reject removed from the table — moved into the
+    drawer so the admin must read the paperwork before deciding.
+  - Row now shows attachment count (`N files attached` in emerald, or
+    "No paperwork yet" in rose) as a quick filter signal.
+
+### Verification
+- ESLint clean on all three changed FE files (0 warnings).
+- Ruff clean on `partners.py` (0 warnings).
+- Backend pytest suite (`test_iter_219_partner_application_drawer.py`,
+  9 tests): all pass. Wired into `make regression`.
+  - Full-detail round-trip (`full_name`, `phone`, `company_name`,
+    `service_postcode`, `travel_radius_km`, `brands_supported`, `skills`,
+    `qualifications`, `years_experience`, `has_insurance`,
+    `insurance_provider`, `insurance_expires_at`,
+    `qualifications_expires_at`, `terms_accepted_at`, `cover_letter`,
+    `status`).
+  - Attachment URLs rewritten to `/api/partners/applications/{id}/attachments/{aid}`.
+  - 404 on unknown application / unknown attachment.
+  - 403 boundary verified with `engineer.smoke@gymaxisai.com` (non
+    master-admin).
+  - Reviewer notes round-trip + empty-string clears.
+  - Attachment stream returns the original bytes + correct
+    `Content-Disposition`.
+- Live UI smoke test (master admin): sidebar shows top-level "Partner
+  Engineers"; clicking any of the 65 pending rows opens the drawer with
+  every expected `data-testid` (`partner-application-drawer`,
+  `partner-application-applicant`, `partner-application-coverage`,
+  `partner-application-skills`, `partner-application-compliance`,
+  `partner-application-attachments`, `partner-application-notes`,
+  `partner-application-approve-btn`, `partner-application-reject-btn`,
+  `partner-application-level-select`, `pa-brands`, `pa-skills`,
+  `pa-quals`, `pa-insurance-provider`, `pa-insurance-expiry`,
+  `pa-terms-accepted`, and per-attachment download buttons).
+
+### Files changed
+- `backend/routes/partners.py` (3 new endpoints)
+- `backend/tests/test_iter_219_partner_application_drawer.py` (new, 9 tests)
+- `frontend/src/pages/MasterAdmin/SidebarConfig.js`
+- `frontend/src/pages/MasterAdmin/AdminPartners.js`
+- `frontend/src/pages/MasterAdmin/PartnerApplicationDrawer.js` (new)
+- `Makefile`

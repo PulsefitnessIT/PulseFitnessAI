@@ -105,8 +105,19 @@ export const SIDEBAR_ITEMS = [
       { id: 'trials',          label: 'Trials',           icon: Timer },
       { id: 'sales-insights',  label: 'Sales insights',   icon: Sparkles },
       { id: 'pulse-sales',     label: 'Pulse Sales (CAPEX)', icon: TrendingUp },
-      { id: 'partners',        label: 'Partner Engineers', icon: BadgeCheck },
       { id: 'analytics',       label: 'Global analytics', icon: BarChart3 },
+    ],
+  },
+  // 7. Partner Engineers — promoted to top-level (iter 219).
+  //    Was buried as a Growth sub-tab even though it's a primary revenue
+  //    stream (£30/mo seat fees + 50%-first-month signup rewards +
+  //    recurring referral commission). Operator feedback:
+  //    "Move Partner Engineers into the main sidebar — it's too hidden
+  //    away when this could be a main source of revenue."
+  {
+    id: 'partners', label: 'Partner Engineers', icon: BadgeCheck, group: 'main',
+    subTabs: [
+      { id: 'partners', label: 'Applications & partners', icon: BadgeCheck },
     ],
   },
   // 7. Integrations — Hub + sub-pages (Iter 216h22 — Hub is now default).
@@ -263,6 +274,7 @@ export const sectionTitles = {
   'custom-properties': 'Custom properties',
   organizations: 'Organisations',
   backfills: 'Maintenance jobs',                // Iter 216h17 — terminology cleanup
+  partners: 'Partner Engineers',                // Iter 219 — promoted to top-level
   // Group-level titles when no sub-tab is yet selected
   finance: 'Finance',
   security: 'Security',
@@ -313,6 +325,7 @@ export const sectionDescriptions = {
   'integrations-hub': 'All third-party connections in one screen — Stripe Connect, Sicon, Orbit 4 and Sage 200. Click any card to manage.',
   organizations: 'Customer organisations — Pulse Fitness, GymAxis. Click any row for a full drawer.',
   backfills: 'One-off maintenance jobs — preview, then commit. Powers data clean-up.',
+  partners: 'Approve incoming partner engineer applications, manage active partners, and queue commission payouts — a core revenue stream.',
   finance: 'Pricing, billing, payments, Stripe and CAPEX in one place.',
   security: 'Login events plus the platform-health & trust dashboard.',
   growth: 'Marketing Suite plus active-trial conversion tracking.',

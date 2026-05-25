@@ -434,6 +434,125 @@ async def list_partner_applications(
     return {"applications": items, "total": len(items)}
 
 
+@router.get("/partners/applications/{application_id}")
+async def get_partner_application(
+    application_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 219 — Full application detail for the master admin drawer.
+
+    Returns every field captured at submission (personal, coverage, skills,
+    compliance, attachments metadata, terms acceptance) plus a denormalised
+    referrer block when the applicant arrived via an existing engineer's
+    eref code. Attachments are returned with a backend-relative
+    `download_url` (`/api/partners/applications/{id}/attachments/{aid}`)
+    that the FE can fetch with the admin's bearer token — we never expose
+    the raw object-store URL.
+    """
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+
+    # Rewrite attachment URLs to our own auth-gated download endpoint so
+    # the admin's browser doesn't try to hit the raw object-store path
+    # (which 403s without the storage key).
+    rewritten: list[dict] = []
+    for att in app.get("attachments") or []:
+        if not isinstance(att, dict):
+            continue
+        att_id = att.get("id")
+        rewritten.append({
+            **att,
+            "download_url": (
+                f"/api/partners/applications/{application_id}/attachments/{att_id}"
+                if att_id else att.get("download_url")
+            ),
+        })
+    app["attachments"] = rewritten
+
+    # Denormalise referrer info for the drawer header.
+    referrer = None
+    eref = (app.get("referred_by_eref") or "").strip().upper()
+    if eref:
+        ref_doc = await _resolve_eref_partner(eref)
+        if ref_doc:
+            referrer = {
+                "id": ref_doc.get("id"),
+                "full_name": ref_doc.get("full_name"),
+                "email": ref_doc.get("email"),
+                "referral_code": ref_doc.get("referral_code"),
+            }
+
+    return {"application": app, "referrer": referrer}
+
+
+@router.patch("/partners/applications/{application_id}/notes")
+async def update_partner_application_notes(
+    application_id: str,
+    body: dict = Body(default_factory=dict),
+    user: dict = Depends(get_current_user),
+):
+    """Iter 219 — persist reviewer notes on a pending application.
+
+    Saved on every blur from the drawer so a reviewer's draft notes
+    survive page reloads. Audited so we can prove what the reviewer
+    saw at the moment of approve/reject.
+    """
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one({"id": application_id}, {"_id": 0})
+    if not app:
+        raise HTTPException(404, "Application not found")
+    notes = (body.get("notes") or "").strip()[:4000] or None
+    await db.partner_applications.update_one(
+        {"id": application_id},
+        {"$set": {"reviewer_notes": notes, "updated_at": _now()}},
+    )
+    return {"ok": True, "reviewer_notes": notes}
+
+
+@router.get("/partners/applications/{application_id}/attachments/{attachment_id}")
+async def download_partner_application_attachment(
+    application_id: str,
+    attachment_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Iter 219 — auth-gated streaming download for an application's
+    uploaded files (CV / certifications). Master admin only. We never
+    surface the raw object-store URL because it requires an X-Storage-Key
+    header that the browser doesn't have.
+    """
+    _require_master_admin(user)
+    app = await db.partner_applications.find_one(
+        {"id": application_id}, {"_id": 0, "attachments": 1},
+    )
+    if not app:
+        raise HTTPException(404, "Application not found")
+    target = None
+    for att in app.get("attachments") or []:
+        if isinstance(att, dict) and att.get("id") == attachment_id:
+            target = att
+            break
+    if not target:
+        raise HTTPException(404, "Attachment not found")
+    storage_path = target.get("storage_path")
+    if not storage_path:
+        raise HTTPException(410, "Attachment is missing its storage path")
+    try:
+        from utils.database import get_object
+        body, content_type = get_object(storage_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to fetch partner attachment %s: %s", storage_path, exc)
+        raise HTTPException(502, "Attachment storage unavailable") from exc
+    filename = target.get("original_filename") or "attachment"
+    safe_name = filename.replace('"', "")
+    return Response(
+        content=body,
+        media_type=target.get("content_type") or content_type or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+    )
+
+
 @router.post("/partners/applications/{application_id}/approve")
 async def approve_partner_application(
     application_id: str,
