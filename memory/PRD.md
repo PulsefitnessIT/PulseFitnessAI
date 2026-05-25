@@ -15245,3 +15245,82 @@ hit a brick wall on their first login. We bundled the fix in.
 - `frontend/src/pages/PartnerEngineer/PartnerDashboard.js` (auto-fire Stripe)
 - `frontend/src/pages/PartnerEngineer/PartnerActivationChecklist.js` (copy bump)
 - `Makefile`
+
+---
+
+## Iter 219f — Single-use activation link ("How do I sign in?") (Feb 25, 2026)
+
+User-reported gap from the **first** approved engineer: *"How do I sign
+in?"*. There was no clear path from the approval email to a working
+account. Engineers were expected to find /register on their own, guess
+they had to use the same email, and hope the auto-claim hook (iter 219e)
+worked. This iter closes the loop end-to-end.
+
+### Flow now
+**Apply → Approved (master admin clicks Approve in drawer) → Welcome email
+with "Set up your sign-in (1 min)" CTA → activation page (email
+pre-filled & locked, password field) → account created + partner
+record auto-linked + token consumed → auto-redirect to Stripe Checkout
+for £30/mo Partner Plan → return to dashboard with subscription active
+→ 7-step activation checklist shows Stripe Connect Express as next step
+→ engineer onboards Stripe Connect for taking customer card payments →
+Engineer App → invoicing customers.**
+
+### Changes
+- **Approval endpoint** (`POST /api/partners/applications/{id}/approve`):
+  generates a `secrets.token_urlsafe(32)` single-use activation token
+  and writes it (+ 14-day TTL) onto `partner_applications`.
+- **Resend endpoint** (`/resend-approval-email`): re-uses the existing
+  token while it's valid + unused; mints a fresh one only when
+  expired or already consumed.
+- **New endpoint** `POST /api/partners/activation/info` — public; takes
+  `{token}` and returns `{email, full_name, has_existing_account}`.
+  Used by the FE to pre-fill the form and decide whether to show the
+  password-set flow or a "Sign in to claim" prompt.
+- **New endpoint** `POST /api/partners/activation/complete` — public;
+  takes `{token, password}`. Validates token via `_find_active_activation`,
+  enforces 8-char minimum + `validate_password_strength`, creates the
+  user, calls `claim_pending_partner_for_user` to link the partner row,
+  burns the token, mints a JWT, and returns `next_url` pointing at the
+  Stripe Checkout deep-link.
+- **Conflict handling**: if a user with the same email already exists,
+  the activation endpoint returns **409** with a message asking them to
+  sign in (where the iter 219e auto-claim hook picks up the partner
+  row). The FE swaps to a "Sign in to claim" view when
+  `has_existing_account=true`.
+- **Email helper** (`send_application_approved`): now accepts
+  `activation_token` and switches CTA copy/URL when provided:
+  - Subject: "You're approved — set up your sign-in (1 min)".
+  - CTA: "Set up your sign-in (1 min)" → `/partner-engineer/activate?token=…`.
+  - Body sequences: Set up sign-in → Pay Partner Plan → Connect Stripe
+    Express → Compliance → Engineer App.
+- **New page** `frontend/.../PartnerEngineer/PartnerEngineerActivate.js`
+  (public route `/partner-engineer/activate`). Dark theme, three
+  states: loading / error / form. Email is read-only with a "contact
+  support" note for changes. Show/hide password toggle. After successful
+  submit, persists JWT to localStorage and hard-redirects to Stripe
+  Checkout deep-link via `window.location` so the new auth is honored.
+
+### Verification
+- Ruff 0 warnings. ESLint 0 warnings.
+- New pytest `test_iter_219f_partner_activation_flow.py` (10 tests):
+  approval writes token w/ 14-day expiry; info endpoint round-trip;
+  404 on unknown/empty token; complete creates user + links partner +
+  returns Stripe URL; token cannot be replayed; rejects short password
+  (token still valid for retry); 409 when user already exists;
+  info flags existing account; email body uses activation URL when
+  token provided.
+- **Full iter 217–219 regression: 84/84 pass** when run together.
+- Live UI smoke: activation page renders form (valid token), and "Link
+  unavailable" rose card (invalid token). Sample resent to
+  leersomers@gmail.com with the new subject + CTA.
+
+### Files changed
+- `backend/routes/partners.py` (token gen in approve+resend, +2 new
+  endpoints, `_find_active_activation` helper)
+- `backend/utils/partner_emails.py` (CTA switching, new
+  `_partner_activation_url`)
+- `backend/tests/test_iter_219f_partner_activation_flow.py` (new, 10 tests)
+- `frontend/src/pages/PartnerEngineer/PartnerEngineerActivate.js` (new)
+- `frontend/src/routes/AppRoutes.js` (public `/partner-engineer/activate` route)
+- `Makefile`

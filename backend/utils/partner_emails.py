@@ -38,6 +38,15 @@ def _partner_subscribe_url() -> str:
     return f"{base}/partner-engineer?action=subscribe"
 
 
+def _partner_activation_url(token: str) -> str:
+    """Iter 219f — single-use activation deep-link. The engineer
+    lands on a "Set up your sign-in" page that creates their user
+    account, links the partner row, then auto-redirects to Stripe
+    Checkout for the £30/mo plan."""
+    base = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+    return f"{base}/partner-engineer/activate?token={token}"
+
+
 def _apply_again_url() -> str:
     base = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
     return f"{base}/partners/engineers/apply"
@@ -101,12 +110,23 @@ async def send_application_received(email: str, full_name: str, application_id: 
 # ── 2. Application approved ────────────────────────────────────────
 
 
-async def send_application_approved(email: str, full_name: str, referral_code: str | None) -> bool:
-    """Iter 219e — restructured to lead with the Stripe £30/mo Partner
-    Plan subscription. The CTA now deep-links to a Stripe Checkout
-    flow (via the dashboard) so a brand-new engineer starts paying
-    in 2 clicks. Stripe Connect Express (for receiving customer
-    invoice payouts) is step 3, the Engineer App is step 4."""
+async def send_application_approved(
+    email: str,
+    full_name: str,
+    referral_code: str | None,
+    activation_token: str | None = None,
+) -> bool:
+    """Iter 219f — single welcome email that funnels the engineer
+    straight to a "Set up your sign-in" page (1-minute password
+    form) which then auto-redirects to Stripe Checkout for the
+    £30/mo Partner Plan. The page also creates the user account
+    and links it to the partner row so the engineer is signed in
+    by the time they land back on the dashboard.
+
+    Stripe Connect Express (for *receiving* customer invoice
+    payouts) is step 3 in the body — it's wired into the activation
+    checklist on the dashboard so progression is visible there too.
+    """
     first = (full_name or "").split(" ")[0] or "there"
     ref_block = ""
     if referral_code:
@@ -117,30 +137,57 @@ async def send_application_approved(email: str, full_name: str, referral_code: s
             f'<span style="font-size:12px;color:#475569;">Share this with any gym owner — every gym that signs up under your code earns you a one-off reward + £3/site/mo recurring (released after 3 months on the platform).</span>'
             f"</p>"
         )
+    # If we have a single-use activation token, the CTA is a 1-click
+    # set-password link. Fallback to the dashboard URL keeps the email
+    # useful even when token plumbing is offline (extreme defence in
+    # depth — every production approval generates a token).
+    if activation_token:
+        cta_url = _partner_activation_url(activation_token)
+        cta_label = "Set up your sign-in (1 min)"
+        sign_in_line = (
+            "<p><strong>Step 1 — set up your sign-in.</strong> Click the button below to "
+            "choose your password. We'll create your account, then take you straight to "
+            "Stripe to start your £30/mo Partner Plan.</p>"
+        )
+    else:
+        cta_url = _partner_subscribe_url()
+        cta_label = "Start Partner Plan with Stripe (£30/mo)"
+        sign_in_line = (
+            "<p><strong>Next step — set up your £30/month Partner Plan with Stripe.</strong> "
+            "Click below to go to Stripe Checkout (you'll be asked to sign in or register "
+            "with this email first).</p>"
+        )
+
     body = (
         f"<p>Hi {first},</p>"
         f"<p>You're in. Welcome to the GymAxis Engineer Partner Network.</p>"
-        f"<p><strong>Next step — set up your £30/month Partner Plan with Stripe.</strong> "
-        f"It takes about a minute and unlocks every engineer feature on the platform. "
-        f"The fee drops automatically as you refer gyms — free once you reach 10.</p>"
-        f"<p>Tap the button below to go straight to Stripe Checkout "
-        f"(you'll be asked to sign in or register with this email address first).</p>"
-        f"<p style=\"font-size:13px;color:#475569;margin-top:18px;\">After that, you'll be guided to:</p>"
+        f"{sign_in_line}"
+        f"<p style=\"font-size:13px;color:#475569;margin-top:18px;\">After that, we'll guide you through:</p>"
         f"<ol style=\"font-size:13px;color:#1f2937;\">"
+        f"<li><strong>Pay your £30/mo Partner Plan</strong> (drops automatically as you refer gyms — free at 10).</li>"
         f"<li><strong>Connect Stripe Express</strong> so customers can pay your invoices by card — typically 3 minutes.</li>"
         f"<li><strong>Upload your compliance documents</strong> (Insurance, DBS, Right-to-Work).</li>"
         f"<li><strong>Open the Engineer App</strong> — mobile-first PWA with offline support.</li>"
         f"</ol>"
         f"{ref_block}"
+        f"<p style=\"font-size:11px;color:#94a3b8;margin-top:20px;\">"
+        f"This activation link is valid for 14 days. If it expires, reply to this email "
+        f"and we'll send a fresh one."
+        f"</p>"
+    )
+    subject = (
+        "You're approved — set up your sign-in (1 min)"
+        if activation_token
+        else "You're approved — start your £30/mo Partner Plan with Stripe"
     )
     return await send_email(
         to=email,
-        subject="You're approved — start your £30/mo Partner Plan with Stripe",
+        subject=subject,
         html=_wrap(
             "You're approved.",
             body,
-            cta_label="Start Partner Plan with Stripe (£30/mo)",
-            cta_url=_partner_subscribe_url(),
+            cta_label=cta_label,
+            cta_url=cta_url,
         ),
     )
 

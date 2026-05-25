@@ -627,8 +627,7 @@ async def approve_partner_application(
         referral_code = existing_partner.get("referral_code")
     else:
         partner_id = _new_id()
-        referral_code = await _new_referral_code()
-        # Note: `partner_engineers` has a non-sparse unique index on
+        referral_code = await _new_referral_code()        # Note: `partner_engineers` has a non-sparse unique index on
         # `user_id` — passing null (or omitting the field, treated as
         # null by the index) collides between unclaimed approvals.
         # We stamp a unique pending-claim placeholder; the magic-link
@@ -670,6 +669,13 @@ async def approve_partner_application(
         }
         await db.partner_engineers.insert_one(doc)
 
+    # Iter 219f — generate a single-use activation token so the email
+    # CTA can take the engineer straight to a "set my password" page
+    # (no scavenger hunt for /register). Stored on the application
+    # row with a 14-day TTL so a stale link can't be replayed forever.
+    import secrets
+    activation_token = secrets.token_urlsafe(32)
+    activation_expires_at = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
     await db.partner_applications.update_one(
         {"id": application_id},
         {"$set": {
@@ -678,6 +684,9 @@ async def approve_partner_application(
             "approved_by": user.get("id"),
             "partner_id": partner_id,
             "level_assigned": level,
+            "activation_token": activation_token,
+            "activation_token_expires_at": activation_expires_at,
+            "activation_completed_at": None,
             "updated_at": _now(),
         }},
     )
@@ -693,12 +702,15 @@ async def approve_partner_application(
     # and was silently swallowed → engineers approved via the application
     # flow never received the welcome email. Now passes `referral_code`
     # correctly so the new partner gets their code in-inbox.
+    # Iter 219f — additionally pass `activation_token` so the email CTA
+    # is a single-use deep link to the activation page.
     try:
         from utils.partner_emails import send_application_approved
         await send_application_approved(
             email=app["email"],
             full_name=app.get("full_name") or "",
             referral_code=referral_code,
+            activation_token=activation_token,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Partner application-approved email failed: %s", exc)
@@ -742,12 +754,47 @@ async def resend_partner_application_approval_email(
     full_name = partner.get("full_name") or app.get("full_name") or ""
     referral_code = partner.get("referral_code")
 
+    # Iter 219f — Re-issue the activation token if expired or already
+    # consumed, so the resend email always carries a working CTA. We
+    # reuse the existing token when it's still valid and unused, so a
+    # well-meaning admin clicking "resend" twice doesn't invalidate
+    # the engineer's previous link.
+    import secrets
+    activation_token = app.get("activation_token")
+    activation_expires_at = app.get("activation_token_expires_at")
+    activation_completed_at = app.get("activation_completed_at")
+    now = datetime.now(timezone.utc)
+    expires_dt = activation_expires_at
+    if isinstance(expires_dt, str):
+        try:
+            expires_dt = datetime.fromisoformat(expires_dt.replace("Z", "+00:00"))
+        except ValueError:
+            expires_dt = None
+    needs_new = (
+        not activation_token
+        or activation_completed_at is not None
+        or (isinstance(expires_dt, datetime) and expires_dt < now)
+    )
+    if needs_new:
+        activation_token = secrets.token_urlsafe(32)
+        activation_expires_at = (now + timedelta(days=14)).isoformat()
+        await db.partner_applications.update_one(
+            {"id": application_id},
+            {"$set": {
+                "activation_token": activation_token,
+                "activation_token_expires_at": activation_expires_at,
+                "activation_completed_at": None,
+                "updated_at": _now(),
+            }},
+        )
+
     from utils.partner_emails import send_application_approved
     try:
         ok = await send_application_approved(
             email=target_email,
             full_name=full_name,
             referral_code=referral_code,
+            activation_token=activation_token,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Manual resend of approval email failed: %s", exc)
@@ -758,13 +805,177 @@ async def resend_partner_application_approval_email(
         actor_id=user.get("id") or "",
         action="resend_approval_email",
         before=None,
-        after={"to": target_email, "delivered": bool(ok)},
+        after={"to": target_email, "delivered": bool(ok), "token_reissued": needs_new},
     )
     return {
         "ok": bool(ok),
         "application_id": application_id,
         "partner_id": partner_id,
         "sent_to": target_email,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# Iter 219f — Activation flow.
+# After approval, the welcome email points to /partner-engineer/activate
+# ?token=<single-use>. The page hits these two endpoints to:
+#   1. GET-style POST `/partners/activation/info` — validate the token and
+#      return the applicant's name/email so the form can be pre-filled.
+#   2. POST `/partners/activation/complete` — create the user account (or
+#      mint a login token for an existing matching user) and consume the
+#      token. The new user is auto-linked to the partner row via the
+#      iter 219e claim helper so the dashboard works immediately.
+# ═══════════════════════════════════════════════════════════════
+
+
+async def _find_active_activation(token: str) -> Optional[dict]:
+    """Token lookup with all the safety rails — returns None for any
+    invalid/expired/consumed token. Public-facing so we deliberately
+    keep the error messages generic."""
+    if not token or not isinstance(token, str) or len(token) < 16:
+        return None
+    app = await db.partner_applications.find_one({"activation_token": token}, {"_id": 0})
+    if not app:
+        return None
+    if app.get("activation_completed_at"):
+        return None
+    expires = app.get("activation_token_expires_at")
+    if isinstance(expires, str):
+        try:
+            expires = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+        except ValueError:
+            expires = None
+    if isinstance(expires, datetime) and expires < datetime.now(timezone.utc):
+        return None
+    if app.get("status") != "approved":
+        return None
+    return app
+
+
+@router.post("/partners/activation/info")
+async def get_partner_activation_info(body: dict = Body(default_factory=dict)):
+    """Public — token → {email, full_name, has_existing_account}.
+    Used by the activation page to pre-fill the form and decide
+    whether to show the password-set flow or a "sign in to claim"
+    flow when the email already has a GymAxis account."""
+    token = (body.get("token") or "").strip()
+    app = await _find_active_activation(token)
+    if not app:
+        raise HTTPException(404, "This activation link is invalid or has expired. Ask the GymAxis team for a new one.")
+    email = app.get("email") or ""
+    has_account = bool(await db.users.find_one(
+        {"email": {"$regex": f"^{email}$", "$options": "i"}},
+        {"_id": 0, "id": 1},
+    )) if email else False
+    return {
+        "email": email,
+        "full_name": app.get("full_name") or "",
+        "has_existing_account": has_account,
+    }
+
+
+@router.post("/partners/activation/complete")
+async def complete_partner_activation(
+    body: dict = Body(default_factory=dict),
+    request: Request = None,  # type: ignore[assignment]
+    response: Response = None,  # type: ignore[assignment]
+):
+    """Public — consumes the token, creates the user account (or
+    authenticates an existing one), runs the partner-claim hook so
+    the user is linked to their `partner_engineers` row, then returns
+    a fresh JWT + a `next_url` that points at Stripe Checkout for the
+    £30/mo Partner Plan.
+
+    Body shape:
+      { token: <str>, password: <str> }
+    """
+    token = (body.get("token") or "").strip()
+    password = (body.get("password") or "").strip()
+    if not password or len(password) < 8:
+        raise HTTPException(400, "Choose a password of at least 8 characters.")
+    app = await _find_active_activation(token)
+    if not app:
+        raise HTTPException(404, "This activation link is invalid or has expired. Ask the GymAxis team for a new one.")
+
+    email = (app.get("email") or "").strip()
+    full_name = app.get("full_name") or ""
+    if not email:
+        raise HTTPException(400, "Application is missing an email address — contact support.")
+
+    # Lazy import so circular deps don't bite cold-start.
+    from utils.auth import hash_password, create_token, set_auth_cookie
+    from utils.security import validate_password_strength
+    validate_password_strength(password)
+
+    existing_user = await db.users.find_one(
+        {"email": {"$regex": f"^{email}$", "$options": "i"}}, {"_id": 0},
+    )
+    if existing_user:
+        # User already exists — refuse to silently overwrite their
+        # password from a token. Send them to /login with email
+        # pre-filled and a `?next` that resumes the subscribe flow.
+        raise HTTPException(409, (
+            "An account already exists for this email. Please sign in to claim your "
+            "partner approval (we'll then take you to Stripe to set up your £30/mo plan)."
+        ))
+
+    # Fresh account creation — mirror the minimum path from /auth/register.
+    user_id = _new_id()
+    user_doc = {
+        "id": user_id,
+        "email": email,
+        "password": hash_password(password),
+        "full_name": (full_name or "").strip(),
+        "organization_id": None,
+        "role": "engineer_partner",
+        "account_type": "partner_engineer",
+        "is_partner_engineer": True,
+        "created_at": _now(),
+        "password_updated_at": _now(),
+        "activated_via": "partner_application",
+        "activated_from_application_id": app["id"],
+    }
+    await db.users.insert_one(user_doc)
+
+    # Claim the pending partner row immediately (don't wait for next login).
+    try:
+        from utils.partner_claim import claim_pending_partner_for_user
+        await claim_pending_partner_for_user(email, user_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("[partners] post-activation claim failed")
+
+    # Burn the token so the link can't be replayed.
+    await db.partner_applications.update_one(
+        {"id": app["id"]},
+        {"$set": {
+            "activation_completed_at": _now(),
+            "activated_user_id": user_id,
+            "updated_at": _now(),
+        }},
+    )
+
+    # Audit trail.
+    try:
+        await _audit(
+            partner_id=app.get("partner_id") or "",
+            actor_id=user_id,
+            action="activation_completed",
+            after={"email": email, "application_id": app["id"]},
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("[partners] activation audit failed")
+
+    token_str = create_token(user_id)
+    if response is not None:
+        set_auth_cookie(response, token_str)
+
+    # Frontend deep-link that auto-fires Stripe Checkout.
+    base = (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+    next_url = f"{base}/partner-engineer?action=subscribe" if base else "/partner-engineer?action=subscribe"
+    return {
+        "token": token_str,
+        "user": {"id": user_id, "email": email, "full_name": full_name, "role": "engineer_partner"},
+        "next_url": next_url,
     }
 
 
