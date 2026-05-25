@@ -115,6 +115,7 @@ regression:
 	  tests/test_iter_216h300_ai_triage_persistence.py \
 	  tests/test_iter_216h301_pulse_lite_fault_submission.py \
 	  tests/test_iter_217_pulse_score_merge.py \
+	  tests/test_iter_217_engineer_app_full.py \
 	  tests/test_iter_218_partner_application_approve.py \
 	  -q --tb=line --no-header
 
