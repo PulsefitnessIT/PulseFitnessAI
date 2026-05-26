@@ -89,10 +89,16 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
     # Pull engineer profile if a primary one is assigned.
     eng_id = case.get("assigned_engineer_id") or ""
     engineer = None
+    engineer_user = None
     if eng_id:
         engineer = await db.svc_engineers.find_one(
             {"id": eng_id, **of}, {"_id": 0, "password": 0},
         ) or {}
+        # Iter 220i — pick up the engineer's branding override (logo/colours)
+        # from their user record so per-engineer brand carries onto the PDF.
+        engineer_user = await db.users.find_one(
+            {"id": eng_id}, {"_id": 0, "branding": 1},
+        )
     # Iter 216h89 — H&S signoff
     safety_signoff = await db.svc_case_safety_signoffs.find_one(
         {"case_id": case_id, **of}, {"_id": 0}, sort=[("signed_at", -1)],
@@ -140,6 +146,7 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         "rating_comment": rating_comment,
         "custom_field_defs": custom_field_defs,
         "machines": machines,
+        "engineer_branding": (engineer_user or {}).get("branding") or {},
     }
 
 
@@ -174,7 +181,7 @@ async def _fetch_image_bytes(url: str) -> bytes | None:
         return None
 
 
-def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes | None) -> bytes:
+def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes | None, logo_bytes: bytes | None = None) -> bytes:
     """Render the branded service report PDF.
 
     Layout is deliberately one-page-target with overflow tolerated.
@@ -195,9 +202,12 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     rating = payload["rating"]
     rating_comment = payload["rating_comment"]
     safety = payload.get("safety_signoff")
-
+    # Iter 220i — engineer override beats org default for brand colour.
+    eng_brand = payload.get("engineer_branding") or {}
     brand_primary = _hex(
-        org.get("brand_primary_color") or (org.get("brand_kit") or {}).get("primary_color"),
+        eng_brand.get("primary_color")
+        or org.get("brand_primary_color")
+        or (org.get("brand_kit") or {}).get("primary_color"),
         "#0055FF",
     )
     brand_dark = "#0F172A"
@@ -237,7 +247,24 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
 
     # ── Header band ────────────────────────────────────────────────
     org_name = org.get("name") or "GymAxis"
-    header_left = Paragraph(f"<b>{org_name}</b>", h_title)
+    # Iter 220i — when a custom logo is provided (engineer override or
+    # org default), float it on the left of the title row.
+    if logo_bytes:
+        try:
+            logo_img = Image(io.BytesIO(logo_bytes), width=24 * mm, height=12 * mm, kind="proportional")
+            header_left = Table(
+                [[logo_img, Paragraph(f"<b>{org_name}</b>", h_title)]],
+                colWidths=[28 * mm, 82 * mm],
+            )
+            header_left.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]))
+        except Exception:
+            header_left = Paragraph(f"<b>{org_name}</b>", h_title)
+    else:
+        header_left = Paragraph(f"<b>{org_name}</b>", h_title)
     header_right = Paragraph(
         "<b>Service Report</b><br/>"
         f"Ref: {case.get('reference', case.get('id', '')[:8])}<br/>"
@@ -678,7 +705,17 @@ async def _build_report(case_id: str, user: dict) -> tuple[bytes, dict]:
     if payload["signature"] and payload["signature"].get("image_data"):
         sig_bytes = await _fetch_image_bytes(payload["signature"]["image_data"])
 
-    pdf = _build_pdf(payload, photo_bytes, sig_bytes)
+    # Iter 220i — resolve effective logo bytes (engineer override > org)
+    eng_brand = payload.get("engineer_branding") or {}
+    org_doc = payload.get("org") or {}
+    logo_src = (
+        eng_brand.get("logo_url")
+        or org_doc.get("logo_url")
+        or (f"/api/account/logo/{org_doc.get('id')}" if org_doc.get("id") and org_doc.get("logo_path") else None)
+    )
+    logo_bytes = await _fetch_image_bytes(logo_src) if logo_src else None
+
+    pdf = _build_pdf(payload, photo_bytes, sig_bytes, logo_bytes=logo_bytes)
     return pdf, payload
 
 

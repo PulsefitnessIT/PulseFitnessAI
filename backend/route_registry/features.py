@@ -160,6 +160,8 @@ from routes.svc.work_report_fields import router as svc_work_report_fields_route
 from routes.svc.per_machine_reports import router as svc_per_machine_reports_router
 # Iter 220g — Smart scheduling suggestions (proximity-based)
 from routes.svc.scheduling_suggestions import router as svc_scheduling_router
+# Iter 220i — Engineer / org branding (logo + colours for PDF + portal)
+from routes.svc.branding import router as svc_branding_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -293,6 +295,8 @@ _UNGATED_ROUTERS = (
     svc_per_machine_reports_router,
     # Iter 220g — Smart scheduling suggestions
     svc_scheduling_router,
+    # Iter 220i — Engineer/org branding for PDFs + portal
+    svc_branding_router,
 )
 
 

@@ -20,10 +20,25 @@ PUBLIC_BASE_URL = (
     or ""
 ).rstrip("/")
 
-GYMAXIS_LOGO_MARK = (
-    "https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/"
-    "gymaxis-mark-tight.png"
-)
+# Iter 220i — the previous external `customer-assets.emergentagent.com`
+# mark started 403-ing in late 2026, breaking the logo on every
+# customer-facing email (service reports, lifecycle, etc). Pull the
+# mark from our own /brand/ path which is served by the frontend
+# (mounted at the same origin as the API ingress). Fallback to the
+# absolute public URL so dev / offline previews still resolve.
+_DEFAULT_GYMAXIS_MARK = "/brand/gymaxis-mark-tight.png"
+
+
+def _resolve_gymaxis_mark() -> str:
+    explicit = os.environ.get("EMAIL_GYMAXIS_LOGO_URL", "").strip()
+    if explicit:
+        return explicit
+    if PUBLIC_BASE_URL:
+        return f"{PUBLIC_BASE_URL}{_DEFAULT_GYMAXIS_MARK}"
+    return _DEFAULT_GYMAXIS_MARK
+
+
+GYMAXIS_LOGO_MARK = _resolve_gymaxis_mark()
 PULSE_FITNESS_LOGO = (
     "https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/"
     "iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"

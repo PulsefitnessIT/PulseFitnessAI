@@ -137,6 +137,7 @@ const ServiceOpsEngineerCustomers = lazy(() => import('@/pages/ServiceOps/Engine
 const ServiceOpsEngineerWorkReportFields = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerWorkReportFields'));
 // Iter 220i — Upcoming jobs list (drill-in from home tile)
 const ServiceOpsEngineerUpcoming = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerUpcomingList'));
+const ServiceOpsEngineerBranding = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerBrandingSettings'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const _MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const _MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
@@ -387,6 +388,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/svc/engineer/work-report-fields" element={user ? <ServiceOpsEngineerWorkReportFields /> : <Navigate to="/login" replace />} />
       {/* Iter 220i — Upcoming jobs list */}
       <Route path="/svc/engineer/upcoming" element={user ? <ServiceOpsEngineerUpcoming /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/branding" element={user ? <ServiceOpsEngineerBranding /> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />

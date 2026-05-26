@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
-  Sliders,
+  Sliders, Palette,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -245,6 +245,19 @@ export default function EngineerAccountSettings({ open, onClose, payouts, onChan
               subtitle="Add machine-specific questions (e.g. Drag Factor, Current Software)."
               onClick={() => { onClose(); navigate('/svc/engineer/work-report-fields'); }}
               testid="engineer-settings-work-report-fields-row"
+            />
+          </section>
+
+          {/* Iter 220i — Branding (logo + colours for PDFs + portal) */}
+          <section data-testid="engineer-settings-section-branding">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Brand</p>
+            <Row
+              icon={Palette}
+              accent="#db2777"
+              title="Logo & colours"
+              subtitle="Used on every PDF you email and across your engineer portal."
+              onClick={() => { onClose(); navigate('/svc/engineer/branding'); }}
+              testid="engineer-settings-branding-row"
             />
           </section>
 

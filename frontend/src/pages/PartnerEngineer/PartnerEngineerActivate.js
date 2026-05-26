@@ -97,8 +97,8 @@ export default function PartnerEngineerActivate() {
 
   // ─── Frame ────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100 text-slate-900 flex flex-col">
-      <header className="border-b border-purple-100 bg-white/70 backdrop-blur px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-900 text-slate-900 flex flex-col">
+      <header className="border-b border-white/10 bg-white/95 backdrop-blur px-6 py-4 flex items-center justify-between shadow-sm">
         <Link to="/" className="text-sm font-extrabold tracking-tight text-slate-900">
           GymAxis · <span className="text-purple-600">Engineer Partners</span>
         </Link>
@@ -111,8 +111,8 @@ export default function PartnerEngineerActivate() {
         <div className="w-full max-w-md">
           {loading ? (
             <div className="flex flex-col items-center gap-3 py-12" data-testid="activate-loading">
-              <Loader2 size={22} className="animate-spin text-purple-600" />
-              <p className="text-sm text-slate-500">Checking your activation link…</p>
+              <Loader2 size={22} className="animate-spin text-purple-300" />
+              <p className="text-sm text-white/80">Checking your activation link…</p>
             </div>
           ) : error && !info ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center" data-testid="activate-error-state">
@@ -254,8 +254,8 @@ export default function PartnerEngineerActivate() {
         </div>
       </main>
 
-      <footer className="text-center text-[11px] text-slate-500 py-6">
-        GymAxis · You can email <a href="mailto:support@gymaxisai.com" className="underline text-purple-600">support@gymaxisai.com</a> any time.
+      <footer className="text-center text-[11px] text-white/70 py-6">
+        GymAxis · You can email <a href="mailto:support@gymaxisai.com" className="underline text-purple-200 hover:text-white">support@gymaxisai.com</a> any time.
       </footer>
     </div>
   );
