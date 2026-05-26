@@ -1,3 +1,89 @@
+## Iter 220i — Engineer Branding · Upcoming list · Per-machine custom fields · Email logo fix (May 26, 2026) ✅ user-requested batch (6 items)
+
+User asked the previous agent to ship 6 UX/feature items in one batch.
+The previous session ran out of context mid-flight; this iteration
+completes and tests the whole batch end-to-end.
+
+**Backend.**
+
+* New `routes/svc/branding.py` (registered in `route_registry/features.py`).
+  Two-layer branding model:
+    * `organizations.branding` — master admin default for the tenant.
+    * `users.branding` — engineer-level override (logo, primary +
+      accent hex). Falls back to the org defaults when unset.
+  Endpoints: `GET /api/svc/branding`, `PUT /api/svc/branding/me`,
+  `DELETE /api/svc/branding/me`, `PUT /api/svc/branding/organization`
+  (master admin only). Hex inputs are normalised (short `#abc` → `#AABBCC`).
+* `routes/svc/service_report.py::_build_report` now resolves the
+  effective logo (engineer override → `org.logo_url` → org logo proxy
+  via `/api/account/logo/{org_id}`) and passes the bytes into
+  `_build_pdf(... , logo_bytes=...)`. The PDF header places the logo
+  on the left of the org name and switches the primary brand colour
+  to the engineer override when present.
+* `utils/email.py` — **P0 broken-image fix.** The hard-coded
+  `customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/gymaxis-mark-tight.png`
+  URL started returning **403 Forbidden**, so every customer-facing email
+  (service reports, lifecycle emails, partner emails) was rendering with
+  a broken right-hand logo in Gmail/Outlook. Replaced with our own
+  `/brand/gymaxis-mark-tight.png` asset, resolved against
+  `EMAIL_PUBLIC_BASE_URL` / `FRONTEND_URL` so it survives Gmail/Outlook
+  caching. Operators can also point at a different mark via
+  `EMAIL_GYMAXIS_LOGO_URL`.
+* `routes/svc/work_report_fields.py::fields_for_machine_row` (added
+  in this iter by previous agent) was already wired into the registry
+  — confirmed with a 404 smoke test.
+
+**Frontend.**
+
+* New `pages/ServiceOps/Engineer/EngineerBrandingSettings.js`
+  (`/svc/engineer/branding`). Logo upload (uses
+  `/api/files/upload?category=branding` → `/api/public/files/{id}`),
+  primary + accent colour pickers, Save / Reset. Reset reverts to
+  org defaults via DELETE.
+* Linked from `EngineerAccountSettings` drawer under a new **Brand**
+  section (`data-testid="engineer-settings-branding-row"`).
+* `EngineerUpcomingList.js` (`/svc/engineer/upcoming`) — full list
+  view triggered by tapping the Upcoming KPI tile on
+  `EngineerHomeV2`. Groups jobs by ISO day, links each row straight
+  to the job detail.
+* `MachineRowCustomFields.js` — per-machine custom-field block,
+  rendered inside the expanded row of `WorkVisitMachinesCard.js`.
+  Pulls defs scoped to the row's `equipment_type` /
+  `manufacturer` / `model` / `asset_id` from
+  `/api/svc/work-report-fields/for-machine-row/{row_id}`, persists
+  via `PATCH /machines/{row_id}` on every edit, and offers a
+  "+ Custom field" affordance that auto-scopes the new def to the
+  row's equipment_type — so the SAME field auto-loads next time
+  that machine type is logged.
+* `WorkVisitMachinesCard.js::MachineAssetPicker` — pressing **Enter**
+  now correctly closes the dropdown (auto-picks the single match
+  when there's exactly one; closes silently when there are no
+  matches so free-text input is accepted).
+* `PartnerEngineerActivate.js` — switched from washed-out
+  `from-slate-50 via-purple-50 to-indigo-100` pastels to a rich
+  dark `from-slate-950 via-indigo-950 to-purple-900` gradient.
+  Header is still a clean white surface; loading + error states
+  rebalanced for legibility on the dark frame.
+
+**Testing.**
+
+* New `backend/tests/test_iter_220i_branding_and_email.py` (5 tests,
+  all green): email mark regression, branding round-trip, hex
+  validation, PDF builder with `logo_bytes=` kwarg, per-machine-row
+  endpoint reachability, wrap_branded HTML assertion.
+* Added to `Makefile::regression`.
+* Testing agent v3 e2e: **12/12 backend pass, 100% frontend pass.**
+  Report at `/app/test_reports/iteration_220i.json`.
+
+**Operator notes.**
+
+* Production should set `EMAIL_PUBLIC_BASE_URL=https://gymaxisai.com`
+  (or the actual marketing domain) so the email mark resolves to a
+  fully-qualified URL across mail clients.
+
+---
+
+
 ## Iter 220h — Proactive "save new customer" prompt (May 26, 2026) ✅ user-requested
 
 User asked: *"If the engineer types in a customer into new job that
