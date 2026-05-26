@@ -1,3 +1,78 @@
+## Iter 220d — Per-machine work reports + quick-add note presets (May 26, 2026) ✅ user-requested
+
+User requested: *"engineers need to be able to write reports against
+individual machines… the easiest method to capture detail against
+individual machines so the engineer hasn't got to keep typing the same
+words multiple times and is instinctive and intuitive."* Real-world
+spreadsheet supplied by the engineer (dan_starr) showed: row-per-machine
+with Date · Erg type · Serial · Serviced (Y) · Cleaned (Y) · Notes /
+Recommendations.
+
+**Backend.**
+
+* New collection `svc_work_visit_machines` — row-per-machine sub-doc on
+  a case. Fields: `{id, case_id, asset_id (optional), asset_name,
+  asset_serial, asset_type, serviced, cleaned, notes, custom_fields,
+  order_index, created_*}`. Capped at 80 rows/case.
+* New endpoints under `/api/svc/engineer/jobs/{case_id}`:
+  * `GET /machines` — ordered list.
+  * `POST /machines` — add a row (auto-snapshots asset name/serial/type
+    when `asset_id` is supplied).
+  * `PATCH /machines/{row_id}` — update fields.
+  * `DELETE /machines/{row_id}` — remove.
+  * `POST /machines/{row_id}/copy-down` — applies the selected fields
+    (serviced/cleaned/notes/custom_fields) to every row whose
+    `order_index > source`. Returns the count of rows updated. Saves
+    8× retyping when every BikeErg gets the same calibration note.
+* New collection `svc_note_presets` — shared (org-wide) + personal
+  (per-engineer) quick-add chip library. Fields: `{id, scope, engineer_id,
+  text, pinned, use_count, archived, created_*}`. CRUD via
+  `/svc/engineer/note-presets` with auto-dedupe: re-posting identical
+  text in the same scope bumps `use_count` instead of duplicating.
+* Service Report PDF (`routes/svc/service_report.py`) now renders a
+  *"MACHINES ON THIS VISIT"* table when the case has any rows.
+
+**Frontend.**
+
+* `pages/ServiceOps/Engineer/WorkVisitMachinesCard.js` — new card on
+  the Complete tab. Each row collapses to a one-line summary
+  (machine name + serviced/cleaned chips) and expands to reveal
+  Machine name picker (typeahead against `/api/equipment` for serial
+  auto-fill), Notes textarea with the chip palette attached, and
+  Apply-to-rows-below + Remove actions.
+* `pages/ServiceOps/Engineer/NotePresetChips.js` — quick-add palette.
+  Tap a chip = inserts text into the bound textarea + bumps server
+  use_count (re-sorts pinned + most-used first). "Save current note as:
+  Personal / Shared (org)" buttons curate the library inline. Search
+  box filters the long-tail.
+* CompleteTab now renders `<WorkVisitMachinesCard caseId={job.id} />`
+  below the existing custom-fields card.
+
+**Tests added** (`tests/test_iter_220d_per_machine_reports.py`, 11
+cases — all green):
+
+* `test_create_then_list_returns_rows_in_order`
+* `test_patch_updates_serviced_cleaned_notes`
+* `test_delete_removes_row`
+* `test_copy_down_propagates_to_subsequent_rows_only`
+* `test_copy_down_from_last_row_updates_zero`
+* `test_create_with_asset_id_snapshots_equipment`
+* `test_preset_create_lists_pinned_first`
+* `test_preset_dedupes_same_text_bumps_use_count`
+* `test_preset_used_endpoint_increments_count`
+* `test_preset_archive_via_delete_hides_from_list`
+* `test_max_machines_per_case_enforced`
+
+**testing_agent_v3_fork report** (`/app/test_reports/iteration_220d.json`):
+PASS — 11/11 new backend tests, 20/20 regression tests
+(iter 220c autosave + iter 220 custom fields), frontend UI verified
+end-to-end. 0 issues found.
+
+Wired into `Makefile:regression`. Lint clean.
+
+---
+
+
 ## Iter 220c — Engineer App autosave (P0 data-loss bug) (May 26, 2026) ✅ user-reported
 
 User-reported P0: engineer types "Testing 123" in Work summary, switches
