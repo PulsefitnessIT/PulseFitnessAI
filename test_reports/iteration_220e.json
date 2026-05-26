@@ -1,0 +1,59 @@
+{
+  "summary": "Iter 220e per-machine photo upload feature - All tests pass. Backend: 37/37 pytest tests pass (iter 220 + 220c + 220d + 220e). Frontend: Photo upload UI mounts correctly with Add photo button, photo grid, and per-row isolation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220e_per_machine_photos.py",
+    "/app/test_reports/pytest/pytest_results_220e.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (37/37 tests)",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Created 2 machine rows and 2 test photos for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 220e adds per-machine photo upload. Key data-testids: machine-photos-{rowId}, machine-photo-add-{rowId}, machine-photo-input-{rowId}, machine-photo-grid-{rowId}, machine-photo-{photoId}, machine-photo-remove-{photoId}. Photo upload flow: 1) Upload file via /api/files/upload, 2) Attach to machine via POST /api/svc/engineer/photos with machine_row_id. DELETE /api/svc/engineer/photos/{id} removes photo.",
+  "tests_verified": {
+    "backend": [
+      "POST /api/svc/engineer/photos with machine_row_id correctly tags photo - PASS",
+      "Photo appears in GET /api/svc/engineer/jobs/{case_id}/machines photos array - PASS",
+      "Bogus machine_row_id returns 404 - PASS",
+      "Photo POST without machine_row_id still works (backwards compat) - PASS",
+      "Photo without machine_row_id does NOT appear in any machine's photos - PASS",
+      "DELETE /api/svc/engineer/photos/{id} removes photo - PASS",
+      "DELETE non-existent photo returns 404 - PASS",
+      "GET /api/svc/cases/{case_id}/service-report.pdf returns valid PDF (>2KB, %PDF- header, %%EOF footer) - PASS"
+    ],
+    "frontend": [
+      "Login as admin@gymaxisai.com - PASS",
+      "Navigate to Engineer App job detail - PASS",
+      "COMPLETE tab shows Machines on this visit card - PASS",
+      "Add machine button works - PASS",
+      "Machine row expands with PHOTOS section - PASS",
+      "Add photo button visible with data-testid - PASS",
+      "No photos attached placeholder text visible - PASS",
+      "Per-row photo isolation (each machine has own photo section) - PASS",
+      "SERVICED/CLEANED chips clickable - PASS",
+      "Quick-add preset chips work - PASS",
+      "Copy-down button works (Applied to 1 row below toast) - PASS"
+    ]
+  },
+  "regression_tests": {
+    "iter_220_custom_fields": "14/14 PASS",
+    "iter_220c_autosave": "6/6 PASS",
+    "iter_220d_per_machine_reports": "11/11 PASS",
+    "iter_220e_per_machine_photos": "6/6 PASS"
+  }
+}

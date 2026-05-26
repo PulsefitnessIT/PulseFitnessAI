@@ -143,6 +143,20 @@ async def list_machines(case_id: str, user=Depends(get_current_user)):
         .sort([("order_index", 1), ("created_at", 1)])
         .to_list(MAX_MACHINES_PER_CASE)
     )
+    # Iter 220e — fan in any per-machine photos so the engineer can see
+    # what they've already attached without an extra round-trip.
+    if rows:
+        row_ids = [r["id"] for r in rows]
+        photos = await db.svc_engineer_photos.find(
+            {**of, "case_id": case_id, "machine_row_id": {"$in": row_ids}},
+            {"_id": 0, "id": 1, "machine_row_id": 1, "file_url": 1,
+             "mime_type": 1, "kind": 1, "caption": 1, "taken_at": 1},
+        ).sort([("taken_at", 1)]).to_list(500)
+        bucket: dict[str, list[dict]] = {}
+        for p in photos:
+            bucket.setdefault(p["machine_row_id"], []).append(p)
+        for r in rows:
+            r["photos"] = bucket.get(r["id"], [])
     return {"machines": rows, "count": len(rows)}
 
 

@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   Plus, Loader2, Trash2, Copy, Wrench, Sparkles, ChevronDown,
-  ChevronUp,
+  ChevronUp, Camera, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import NotePresetChips from './NotePresetChips';
@@ -136,6 +136,47 @@ export default function WorkVisitMachinesCard({ caseId }) {
     }
   };
 
+  const attachPhoto = async (rowId, file, caption = '') => {
+    if (!file) return;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const u = await axios.post(`${API}/files/upload?category=service-media`, fd, {
+        ...auth(),
+        headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
+      });
+      const fileUrl = u.data?.download_url || u.data?.storage_path;
+      const r = await axios.post(`${API}/svc/engineer/photos`, {
+        case_id: caseId,
+        machine_row_id: rowId,
+        file_url: fileUrl,
+        mime_type: u.data?.content_type || 'image/jpeg',
+        caption: caption || '',
+      }, auth());
+      // Optimistic insert into the row.
+      setRows((prev) => prev.map(r2 => r2.id === rowId
+        ? { ...r2, photos: [...(r2.photos || []), r.data] }
+        : r2,
+      ));
+      notify.success('Photo attached');
+    } catch (e) {
+      notify.error('Upload failed', e?.response?.data?.detail || e?.message);
+    }
+  };
+
+  const removePhoto = async (rowId, photoId) => {
+    if (!window.confirm('Remove this photo?')) return;
+    try {
+      await axios.delete(`${API}/svc/engineer/photos/${photoId}`, auth());
+      setRows((prev) => prev.map(r => r.id === rowId
+        ? { ...r, photos: (r.photos || []).filter(p => p.id !== photoId) }
+        : r,
+      ));
+    } catch (e) {
+      notify.error('Could not remove', e?.response?.data?.detail || e?.message);
+    }
+  };
+
   const filteredAssets = useMemo(() => {
     const needle = assetSearch.trim().toLowerCase();
     if (!needle) return assetOptions.slice(0, 50);
@@ -192,6 +233,8 @@ export default function WorkVisitMachinesCard({ caseId }) {
               onPatch={(patch) => patchRow(row.id, patch)}
               onDelete={() => deleteRow(row.id)}
               onCopyDown={(fields) => copyDown(row.id, fields)}
+              onAttachPhoto={(file) => attachPhoto(row.id, file)}
+              onRemovePhoto={(photoId) => removePhoto(row.id, photoId)}
               showCopyDown={idx < rows.length - 1}
               assetOptions={filteredAssets}
               assetSearch={assetSearch}
@@ -206,9 +249,11 @@ export default function WorkVisitMachinesCard({ caseId }) {
 
 function MachineRow({
   row, index, expanded, onExpand, onPatch, onDelete, onCopyDown,
+  onAttachPhoto, onRemovePhoto,
   showCopyDown, assetOptions, assetSearch, setAssetSearch,
 }) {
   const notesRef = useRef(null);
+  const photoInputRef = useRef(null);
   const insertNote = (text) => {
     const existing = (row.notes || '').trim();
     const next = existing ? `${existing}\n${text}` : text;
@@ -311,6 +356,66 @@ function MachineRow({
               data-testid={`machine-notes-${row.id}`}
             />
             <NotePresetChips onInsert={insertNote} currentText={row.notes || ''} />
+          </div>
+
+          <div data-testid={`machine-photos-${row.id}`}>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Photos {(row.photos || []).length > 0 ? `· ${(row.photos || []).length}` : ''}
+              </label>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) onAttachPhoto(f);
+                }}
+                data-testid={`machine-photo-input-${row.id}`}
+              />
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 px-2 py-1 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100"
+                data-testid={`machine-photo-add-${row.id}`}
+              >
+                <Camera size={10} /> Add photo
+              </button>
+            </div>
+            {(row.photos || []).length > 0 ? (
+              <div className="grid grid-cols-3 gap-1.5" data-testid={`machine-photo-grid-${row.id}`}>
+                {(row.photos || []).map((p) => (
+                  <div
+                    key={p.id}
+                    className="relative aspect-square rounded-lg overflow-hidden bg-slate-100 border border-slate-200 group"
+                    data-testid={`machine-photo-${p.id}`}
+                  >
+                    <img
+                      src={p.file_url}
+                      alt={p.caption || 'machine'}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onRemovePhoto(p.id)}
+                      className="absolute top-1 right-1 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Remove photo"
+                      data-testid={`machine-photo-remove-${p.id}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-400 italic">
+                No photos attached. Tap "Add photo" to snap one — it'll print on the customer report.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-1">

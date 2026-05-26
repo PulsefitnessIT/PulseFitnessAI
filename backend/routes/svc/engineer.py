@@ -462,11 +462,23 @@ async def add_photo(
         raise HTTPException(404, "Case not found")
     mime = (data.get("mime_type") or "image/jpeg").lower()
     kind = "video" if mime.startswith("video/") else "photo"
+    # Iter 220e — optional per-machine tagging. Engineers can attach a
+    # photo to a specific row in the Machines card so the Service Report
+    # PDF prints it next to that machine's notes.
+    machine_row_id = (data.get("machine_row_id") or "").strip() or None
+    if machine_row_id:
+        existing = await db.svc_work_visit_machines.find_one(
+            {"id": machine_row_id, "case_id": case_id, **of},
+            {"_id": 0, "id": 1},
+        )
+        if not existing:
+            raise HTTPException(404, "Machine row not found")
     photo = {
         "id": str(uuid.uuid4()),
         "organization_id": of["organization_id"],
         "case_id": case_id,
         "case_reference": case.get("reference"),
+        "machine_row_id": machine_row_id,
         "file_url": file_url,
         "mime_type": mime,
         "kind": kind,
@@ -488,6 +500,19 @@ async def add_photo(
     )
     await sicon_sync.push_attachment(photo, case_reference=case.get("reference"))
     return photo
+
+
+@router.delete("/photos/{photo_id}")
+async def delete_photo(photo_id: str, user=Depends(get_current_user)):
+    """Iter 220e — Soft delete: remove the photo doc from
+    `svc_engineer_photos`. The underlying file in object storage stays
+    around (so audit history isn't broken); only the link disappears.
+    """
+    of = _of(user)
+    res = await db.svc_engineer_photos.delete_one({"id": photo_id, **of})
+    if not res.deleted_count:
+        raise HTTPException(404, "Photo not found")
+    return {"ok": True, "id": photo_id}
 
 
 @router.post("/signature")

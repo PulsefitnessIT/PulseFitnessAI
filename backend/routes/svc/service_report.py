@@ -109,11 +109,25 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
             {"organization_id": of["organization_id"], "key": {"$in": list(cf_values.keys())}},
             {"_id": 0},
         ).to_list(200)
-    # Iter 220d — per-machine work report rows.
+    # Iter 220d/e — per-machine work report rows.
     machines = await db.svc_work_visit_machines.find(
         {"organization_id": of["organization_id"], "case_id": case_id},
         {"_id": 0},
     ).sort([("order_index", 1), ("created_at", 1)]).to_list(80)
+    if machines:
+        row_ids = [m["id"] for m in machines]
+        machine_photos = await db.svc_engineer_photos.find(
+            {"organization_id": of["organization_id"], "case_id": case_id,
+             "machine_row_id": {"$in": row_ids}},
+            {"_id": 0, "id": 1, "machine_row_id": 1, "file_url": 1,
+             "mime_type": 1, "caption": 1, "taken_at": 1, "kind": 1},
+        ).sort([("taken_at", 1)]).to_list(500)
+        bucket: dict[str, list[dict]] = {}
+        for p in machine_photos:
+            if (p.get("kind") or "photo") == "photo":
+                bucket.setdefault(p["machine_row_id"], []).append(p)
+        for m in machines:
+            m["photos"] = bucket.get(m["id"], [])
     return {
         "case": case,
         "photos": photos,
@@ -368,32 +382,110 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             story.append(cf_table)
             story.append(Spacer(1, 4 * mm))
 
-    # ── Iter 220d · Per-machine work report rows ───────────────────
+    # ── Iter 220d/e · Per-machine work report cards (with photos) ────
     machines = payload.get("machines") or []
     if machines:
         story.append(Paragraph("MACHINES ON THIS VISIT", h_section))
-        rows = [["#", "Machine", "Serial", "Serviced", "Cleaned", "Notes / Recommendations"]]
         for idx, m in enumerate(machines, start=1):
-            name = (m.get("asset_name") or "—")[:80]
-            serial = (m.get("asset_serial") or "")[:30]
-            serv = "Yes" if m.get("serviced") else "—"
-            clean = "Yes" if m.get("cleaned") else "—"
-            notes = (m.get("notes") or "").strip()[:600]
-            rows.append([str(idx), name, serial, serv, clean, notes])
-        m_table = Table(rows, colWidths=[8 * mm, 45 * mm, 25 * mm, 18 * mm, 18 * mm, 61 * mm])
-        m_table.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F1F5F9")),
-            ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#CBD5E1")),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (0, 0), (0, -1), "CENTER"),
-            ("ALIGN", (3, 0), (4, -1), "CENTER"),
-        ]))
-        story.append(m_table)
-        story.append(Spacer(1, 4 * mm))
+            name = (m.get("asset_name") or "Unnamed machine")[:120]
+            serial = (m.get("asset_serial") or "").strip()
+            mtype = (m.get("asset_type") or "").strip()
+            chips_html = []
+            if m.get("serviced"):
+                chips_html.append("<font color='#047857'><b>✓ SERVICED</b></font>")
+            if m.get("cleaned"):
+                chips_html.append("<font color='#0369A1'><b>✓ CLEANED</b></font>")
+            chip_line = " &nbsp;·&nbsp; ".join(chips_html) if chips_html else "<font color='#94A3B8'><i>No work ticked</i></font>"
+
+            meta_bits = []
+            if mtype:
+                meta_bits.append(mtype)
+            if serial:
+                meta_bits.append(f"S/N {serial}")
+            meta_line = " · ".join(meta_bits) if meta_bits else ""
+
+            # Header row inside the card: number badge + name + chips.
+            header_html = (
+                f"<font color='{brand_primary}'><b>#{idx}</b></font> &nbsp; "
+                f"<b>{name}</b>"
+                + (f"  <font color='#64748B' size='8'>{meta_line}</font>" if meta_line else "")
+            )
+            header_para = Paragraph(header_html, body)
+            chip_para = Paragraph(chip_line, muted)
+
+            block_rows: list = [[header_para], [chip_para]]
+
+            notes_txt = (m.get("notes") or "").strip()
+            if notes_txt:
+                # Convert simple newlines to <br/> for paragraph rendering.
+                safe_notes = (
+                    notes_txt
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;").replace(">", "&gt;")
+                    .replace("\n", "<br/>")
+                )
+                block_rows.append([Paragraph(safe_notes, body)])
+
+            # Photos: render up to 4 as a 2-col strip beneath this card.
+            photos = [p for p in (m.get("photos") or []) if p.get("_bytes")]
+            if photos:
+                imgs: list = []
+                for p in photos[:4]:
+                    try:
+                        img = Image(io.BytesIO(p["_bytes"]), width=78 * mm, height=52 * mm, kind="proportional")
+                        cap = (p.get("caption") or "").strip()
+                        if cap:
+                            cap_p = Paragraph(
+                                f"<font color='#64748B' size='8'>{cap[:140]}</font>",
+                                muted,
+                            )
+                            imgs.append([img, cap_p])
+                        else:
+                            imgs.append([img])
+                    except Exception as exc:
+                        logger.warning(f"service-report machine photo invalid: {exc!r}")
+                if imgs:
+                    # 2 photos per row in the strip.
+                    photo_grid_rows = []
+                    for i in range(0, len(imgs), 2):
+                        pair = imgs[i:i + 2]
+                        # Flatten captions onto same cell as image stack.
+                        cells = []
+                        for stack in pair:
+                            inner = Table([[el] for el in stack], colWidths=[80 * mm])
+                            inner.setStyle(TableStyle([
+                                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                            ]))
+                            cells.append(inner)
+                        while len(cells) < 2:
+                            cells.append("")
+                        photo_grid_rows.append(cells)
+                    photo_grid = Table(photo_grid_rows, colWidths=[85 * mm, 85 * mm])
+                    photo_grid.setStyle(TableStyle([
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                        ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ]))
+                    block_rows.append([photo_grid])
+
+            # Wrap each card in a 1-col table with a soft border.
+            card = Table(block_rows, colWidths=[175 * mm])
+            card.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F8FAFC")),
+                ("LINEABOVE", (0, 0), (-1, 0), 0.5, colors.HexColor("#CBD5E1")),
+                ("LINEBELOW", (0, -1), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("LINEBEFORE", (0, 0), (0, -1), 2, colors.HexColor(brand_primary)),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            story.append(card)
+            story.append(Spacer(1, 3 * mm))
+        story.append(Spacer(1, 1 * mm))
 
     # ── Photos ────────────────────────────────────────────────────
     valid_images = []
@@ -406,7 +498,8 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
         except Exception as e:
             logger.warning(f"service-report: invalid image bytes: {e!r}")
     if valid_images:
-        story.append(Paragraph(f"PHOTOS ({len(valid_images)})", h_section))
+        section_title = "ADDITIONAL PHOTOS" if (payload.get("machines") and any((m.get("photos") or []) for m in payload["machines"])) else f"PHOTOS ({len(valid_images)})"
+        story.append(Paragraph(section_title, h_section))
         # 2-column grid
         grid_rows = []
         for i in range(0, len(valid_images), 2):
@@ -505,8 +598,31 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     )
     story.append(footer)
 
-    doc.build(story)
+    doc.build(story, onFirstPage=_paint_page_chrome, onLaterPages=_paint_page_chrome)
     return buf.getvalue()
+
+
+def _paint_page_chrome(canv, doc) -> None:
+    """Iter 220e — Add a subtle footer with page numbers + a generation
+    timestamp so a printed/PDF copy never looks like an unsigned draft.
+    Called by ReportLab for every page."""
+    from reportlab.lib import colors as _colors
+    canv.saveState()
+    width, _ = doc.pagesize
+    page_num = canv.getPageNumber()
+    # Hairline separator above the footer
+    canv.setStrokeColor(_colors.HexColor("#E2E8F0"))
+    canv.setLineWidth(0.4)
+    canv.line(15, 14, width - 15, 14)
+    # Footer text
+    canv.setFont("Helvetica", 7.5)
+    canv.setFillColor(_colors.HexColor("#94A3B8"))
+    canv.drawString(15, 6, f"GymAxis Service Report · Page {page_num}")
+    canv.drawRightString(
+        width - 15, 6,
+        datetime.now(timezone.utc).strftime("%d %b %Y · %H:%M UTC"),
+    )
+    canv.restoreState()
 
 
 def _resolve_brand_dark() -> str:
@@ -543,9 +659,20 @@ async def _build_report(case_id: str, user: dict) -> tuple[bytes, dict]:
 
     payload["fix_summary"] = await _resolve_fix_summary(case_id, of)
 
-    # Fetch image bytes for photos + signature in parallel-ish (sequential is fine for ≤6).
+    # Iter 220e — Resolve image bytes for per-machine photos in parallel
+    # with the global photos. Also exclude any already-tagged photo from
+    # the global PHOTOS section to avoid duplication on the PDF.
+    tagged_photo_ids: set[str] = set()
+    for m in payload.get("machines") or []:
+        for p in (m.get("photos") or []):
+            tagged_photo_ids.add(p["id"])
+            p["_bytes"] = await _fetch_image_bytes(p.get("file_url") or "")
+
+    # Fetch image bytes for the global photo strip (un-tagged only).
     photo_bytes: list[bytes | None] = []
     for p in payload["photos"]:
+        if p.get("id") in tagged_photo_ids:
+            continue
         photo_bytes.append(await _fetch_image_bytes(p.get("file_url") or ""))
     sig_bytes = None
     if payload["signature"] and payload["signature"].get("image_data"):
