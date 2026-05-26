@@ -260,6 +260,99 @@ async def search_customers(
     return {"results": rows}
 
 
+@router.get("/typeahead")
+async def typeahead_customers(
+    user=Depends(get_current_user),
+    q: str = Query(..., min_length=1, max_length=200),
+    limit: int = Query(default=8, ge=1, le=30),
+):
+    """Iter 220f — Combined typeahead used by the New Job card.
+
+    Sources (merged, deduped on name+site, max `limit` rows):
+      1. `svc_engineer_customers` — the saved address book (highest
+         priority, gets `source='saved'`).
+      2. `svc_cases` distinct customer_name / site_name matches —
+         covers customers logged via the email-parse flow, an admin,
+         or the public intake card that haven't been promoted into the
+         saved book yet. `source='history'`.
+
+    Postcode is pulled from the most recent matching case so the
+    engineer doesn't have to type the postcode either.
+    """
+    org_id = _of(user)
+    needle = re.escape(q.strip())
+    if not needle:
+        return {"results": []}
+
+    # 1. Saved customers
+    saved = await db.svc_engineer_customers.find(
+        {
+            "organization_id": org_id,
+            "$or": [
+                {"name":      {"$regex": needle, "$options": "i"}},
+                {"email":     {"$regex": needle, "$options": "i"}},
+                {"phone":     {"$regex": needle, "$options": "i"}},
+                {"site_name": {"$regex": needle, "$options": "i"}},
+            ],
+        },
+        {
+            "_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1,
+            "site_name": 1, "site_address": 1, "last_job_at": 1,
+        },
+    ).sort("updated_at", -1).limit(limit).to_list(limit)
+    results: list[dict] = []
+    dedupe: set[tuple] = set()
+    for r in saved:
+        key = ((r.get("name") or "").lower(), (r.get("site_name") or "").lower())
+        dedupe.add(key)
+        results.append({**r, "source": "saved", "site_postcode": None})
+
+    # 2. Case-history fallback — only if we still need more rows.
+    remaining = limit - len(results)
+    if remaining > 0:
+        cases = await db.svc_cases.find(
+            {
+                "organization_id": org_id,
+                "$or": [
+                    {"customer_name":  {"$regex": needle, "$options": "i"}},
+                    {"customer_email": {"$regex": needle, "$options": "i"}},
+                    {"customer_phone": {"$regex": needle, "$options": "i"}},
+                    {"site_name":      {"$regex": needle, "$options": "i"}},
+                    {"site_postcode":  {"$regex": needle, "$options": "i"}},
+                ],
+            },
+            {
+                "_id": 0, "id": 1,
+                "customer_name": 1, "customer_email": 1, "customer_phone": 1,
+                "site_name": 1, "site_address": 1, "site_postcode": 1,
+                "created_at": 1, "updated_at": 1,
+            },
+        ).sort([("updated_at", -1), ("created_at", -1)]).limit(remaining * 5).to_list(remaining * 5)
+
+        for c in cases:
+            name = (c.get("customer_name") or "").strip()
+            if not name:
+                continue
+            key = (name.lower(), (c.get("site_name") or "").lower())
+            if key in dedupe:
+                continue
+            dedupe.add(key)
+            results.append({
+                "id": None,
+                "name": name,
+                "email": c.get("customer_email"),
+                "phone": c.get("customer_phone"),
+                "site_name": c.get("site_name"),
+                "site_address": c.get("site_address"),
+                "site_postcode": c.get("site_postcode"),
+                "last_job_at": c.get("updated_at") or c.get("created_at"),
+                "source": "history",
+            })
+            if len(results) >= limit:
+                break
+    return {"results": results[:limit]}
+
+
 @router.get("/template.csv")
 async def template_csv(_user=Depends(get_current_user)):
     """Canonical CSV template for the bulk-import workflow."""

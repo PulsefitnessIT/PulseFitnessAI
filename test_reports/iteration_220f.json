@@ -1,0 +1,63 @@
+{
+  "summary": "Iter 220f customer typeahead on New Job card - All tests pass. Backend: 45/45 pytest tests pass (iter 220 + 220c + 220d + 220e + 220f). Frontend: Customer typeahead UI works correctly with search, auto-fill, keyboard navigation, and save-to-customers toggle.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220f_customer_typeahead.py",
+    "/app/test_reports/pytest/pytest_results_220f.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (45/45 tests)",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Used existing case-history data for typeahead testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 220f adds customer typeahead on New Job card. Key data-testids: newjob-customer-typeahead (wrapper), newjob-customer-search-input (search box), newjob-customer-results (dropdown), newjob-customer-result-{idx} (each row), newjob-customer-no-results, newjob-customer-selected-pill, newjob-customer-clear, newjob-save-customer-toggle. Typeahead merges svc_engineer_customers (source='saved') with svc_cases (source='history'), deduped on name+site. Auto-fill populates all 6 customer/site fields. Save toggle auto-enables when typing ≥2 chars in customer name without selecting a saved customer.",
+  "tests_verified": {
+    "backend": [
+      "GET /api/svc/engineer/customers/typeahead?q=Pulse returns matches from BOTH saved customers AND case-history - PASS",
+      "typeahead?q=<phone digits> matches by phone - PASS",
+      "typeahead enforces limit param - PASS",
+      "typeahead org isolation (cross-org leak test) - PASS",
+      "typeahead dedupes saved over history - PASS",
+      "typeahead finds saved by site_name - PASS",
+      "typeahead empty query returns 422 - PASS",
+      "typeahead falls back to case history when no saved match - PASS"
+    ],
+    "frontend": [
+      "Login as admin@gymaxisai.com - PASS",
+      "Navigate to /svc/engineer/jobs/new - PASS",
+      "Customer typeahead wrapper found with data-testid - PASS",
+      "Search input with correct placeholder - PASS",
+      "Typing 'Pulse' shows dropdown with results - PASS",
+      "Results show 'PAST JOB' badge for history-sourced customers - PASS",
+      "Clicking result auto-fills all 6 fields (customer_name, email, phone, site_name, site_address, site_postcode) - PASS",
+      "Selected pill appears with customer name and source badge - PASS",
+      "Keyboard navigation (ArrowDown/ArrowUp) works - PASS",
+      "Escape key closes dropdown - PASS",
+      "Enter key selects highlighted result - PASS",
+      "Clear button wipes all 6 fields after confirm dialog - PASS",
+      "'No matches' message appears for non-existent search - PASS",
+      "'Save to my customers' checkbox auto-enables when typing ≥2 chars - PASS"
+    ]
+  },
+  "regression_tests": {
+    "iter_220_custom_fields": "14/14 PASS",
+    "iter_220c_autosave": "6/6 PASS",
+    "iter_220d_per_machine_reports": "11/11 PASS",
+    "iter_220e_per_machine_photos": "6/6 PASS",
+    "iter_220f_customer_typeahead": "8/8 PASS"
+  }
+}

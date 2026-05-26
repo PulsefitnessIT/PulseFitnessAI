@@ -13,12 +13,13 @@
  * Submit → POST /api/svc/engineer/jobs/self-create with an Idempotency-Key.
  * Lands on the new job's detail page on success.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Loader2, Sparkles, Wand2, ClipboardPaste,
   Wrench, Building2, AlertCircle, CheckCircle2,
+  Search, BookmarkPlus, History, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -60,6 +61,8 @@ export default function EngineerNewJob() {
   const [aiBusy, setAiBusy] = useState(false);
   const [emailText, setEmailText] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [saveAsCustomer, setSaveAsCustomer] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', priority: 'P3',
     customer_name: '', customer_email: '', customer_phone: '',
@@ -68,7 +71,15 @@ export default function EngineerNewJob() {
     intake_channel: 'manual', source_note: '',
   });
 
-  const set = (k, v) => setForm((s) => ({ ...s, [k]: v }));
+  const set = (k, v) => setForm((s) => {
+    const next = { ...s, [k]: v };
+    // Iter 220f — auto-enable the "save as customer" tickbox the first
+    // time the engineer types a name when no saved customer was picked.
+    if (k === 'customer_name' && !selectedCustomer && !saveAsCustomer && (v || '').trim().length >= 2) {
+      setSaveAsCustomer(true);
+    }
+    return next;
+  });
 
   const aiParse = async () => {
     if (!emailText.trim()) {
@@ -144,6 +155,23 @@ export default function EngineerNewJob() {
         },
       );
       notify.success(`Job ${r.data.reference} created`);
+      // Iter 220f — Save customer to the address book if the engineer
+      // didn't pick one and ticked the box. Non-blocking — a save
+      // failure here shouldn't stop the navigation.
+      if (saveAsCustomer && !selectedCustomer && form.customer_name.trim()) {
+        try {
+          await axios.post(`${API}/svc/engineer/customers`, {
+            name:         form.customer_name.trim(),
+            email:        form.customer_email.trim() || null,
+            phone:        form.customer_phone.trim() || null,
+            site_name:    form.site_name.trim() || null,
+            site_address: form.site_address.trim() || null,
+          }, auth());
+        } catch (e) {
+          // Soft fail — non-blocking. Most common cause: duplicate email
+          // already saved, which is fine.
+        }
+      }
       navigate(`/svc/engineer/jobs/${r.data.case_id}`);
     } catch (e) {
       notify.error('Create failed', e?.response?.data?.detail || e.message);
@@ -235,10 +263,66 @@ export default function EngineerNewJob() {
           </div>
 
           <div className="pt-2">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
-              <Building2 size={12} /> Customer & site
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Building2 size={12} /> Customer & site
+              </p>
+              {(form.customer_name || form.customer_email || form.site_name) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm('Clear customer & site fields?')) return;
+                    setForm((s) => ({
+                      ...s,
+                      customer_name: '', customer_email: '', customer_phone: '',
+                      site_name: '', site_address: '', site_postcode: '',
+                    }));
+                    setSelectedCustomer(null);
+                  }}
+                  className="text-[10px] font-bold text-slate-500 hover:text-rose-600"
+                  data-testid="newjob-customer-clear"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <CustomerTypeahead
+              onPick={(c) => {
+                // Auto-fill from the selected customer/case row.
+                setForm((s) => ({
+                  ...s,
+                  customer_name:  c.name          || s.customer_name,
+                  customer_email: c.email         || s.customer_email,
+                  customer_phone: c.phone         || s.customer_phone,
+                  site_name:      c.site_name     || s.site_name,
+                  site_address:   c.site_address  || s.site_address,
+                  site_postcode:  c.site_postcode || s.site_postcode,
+                }));
+                setSelectedCustomer(c);
+                notify.success(`Loaded ${c.name}`);
+              }}
+            />
+
+            {selectedCustomer && (
+              <div className="mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900" data-testid="newjob-customer-selected-pill">
+                <CheckCircle2 size={11} className="text-emerald-600" />
+                <span className="font-bold">{selectedCustomer.name}</span>
+                {selectedCustomer.source === 'history' && (
+                  <span className="text-[10px] uppercase font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">history</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCustomer(null)}
+                  className="opacity-60 hover:opacity-100"
+                  aria-label="Clear pinned customer"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <Field label="Customer name">
                 <input value={form.customer_name} onChange={(e) => set('customer_name', e.target.value)} className={inputCls} data-testid="newjob-customer-name" />
               </Field>
@@ -276,6 +360,22 @@ export default function EngineerNewJob() {
               <input value={form.source_note} onChange={(e) => set('source_note', e.target.value)} placeholder="Referred by ..., supplier rep ..., etc." className={inputCls} data-testid="newjob-source-note" />
             </Field>
           </div>
+
+          {/* Iter 220f — Offer to save this customer to the address book
+              after creation, so the same engineer doesn't retype it next
+              week. Default ON when no saved customer was picked AND the
+              engineer typed enough detail for it to be worth saving. */}
+          {!selectedCustomer && form.customer_name.trim().length >= 2 && (
+            <label className="flex items-center gap-2 pt-1 text-xs text-slate-700 select-none cursor-pointer" data-testid="newjob-save-customer-toggle">
+              <input
+                type="checkbox"
+                checked={saveAsCustomer}
+                onChange={(e) => setSaveAsCustomer(e.target.checked)}
+              />
+              <BookmarkPlus size={12} className="text-blue-600" />
+              Save <b className="mx-0.5">{form.customer_name.trim()}</b> to my customers so I don't have to retype next time
+            </label>
+          )}
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
             <button type="button" onClick={() => navigate('/svc/engineer')} className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold">
@@ -361,6 +461,147 @@ export default function EngineerNewJob() {
           </p>
         </aside>
       </main>
+    </div>
+  );
+}
+
+// Iter 220f — Customer typeahead used by the New Job card.
+// Hits /api/svc/engineer/customers/typeahead with a 250ms debounce, shows
+// up to 8 matches (saved address-book first, then case-history fallback).
+function CustomerTypeahead({ onPick }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const inputRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (!q.trim()) {
+      setResults([]);
+      return undefined;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/customers/typeahead?q=${encodeURIComponent(q.trim())}`,
+          auth(),
+        );
+        setResults(r.data?.results || []);
+        setOpen(true);
+        setActiveIdx(0);
+      } catch (e) {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [q]);
+
+  // Close on outside click.
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const pick = (r) => {
+    onPick?.(r);
+    setQ('');
+    setResults([]);
+    setOpen(false);
+  };
+
+  const onKeyDown = (e) => {
+    if (!open || !results.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      pick(results[activeIdx]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative" data-testid="newjob-customer-typeahead">
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          ref={inputRef}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onFocus={() => results.length && setOpen(true)}
+          onKeyDown={onKeyDown}
+          placeholder="Search saved customers or past jobs — type name, site, postcode, phone…"
+          className={`${inputCls} pl-9`}
+          data-testid="newjob-customer-search-input"
+          autoComplete="off"
+        />
+        {loading && (
+          <Loader2 size={12} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        )}
+      </div>
+      {open && results.length > 0 && (
+        <div
+          className="absolute left-0 right-0 mt-1 max-h-72 overflow-auto bg-white border border-slate-200 rounded-xl shadow-lg z-20"
+          data-testid="newjob-customer-results"
+        >
+          {results.map((r, idx) => {
+            const subtitle = [r.site_name, r.site_postcode, r.email, r.phone].filter(Boolean).join(' · ');
+            const isHistory = r.source === 'history';
+            return (
+              <button
+                type="button"
+                key={`${r.id || 'h'}-${idx}`}
+                onClick={() => pick(r)}
+                onMouseEnter={() => setActiveIdx(idx)}
+                className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-b-0 flex items-start gap-2 ${idx === activeIdx ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                data-testid={`newjob-customer-result-${idx}`}
+              >
+                <span className="mt-0.5">
+                  {isHistory ? (
+                    <History size={12} className="text-amber-600" />
+                  ) : (
+                    <CheckCircle2 size={12} className="text-emerald-600" />
+                  )}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="text-sm font-bold text-slate-900 block truncate">{r.name || '—'}</span>
+                  {subtitle && <span className="text-[11px] text-slate-500 block truncate">{subtitle}</span>}
+                </span>
+                {isHistory && (
+                  <span className="text-[9px] uppercase font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">past job</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {open && !loading && q.trim() && results.length === 0 && (
+        <div
+          className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 px-3 py-2 text-xs text-slate-500"
+          data-testid="newjob-customer-no-results"
+        >
+          No matches — fill the fields below and we'll save them as a new customer.
+        </div>
+      )}
     </div>
   );
 }
