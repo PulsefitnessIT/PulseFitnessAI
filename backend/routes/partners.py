@@ -2040,6 +2040,105 @@ async def handle_partner_checkout_completed(session_data: dict) -> Optional[dict
     return {"partner_id": partner_id, "subscription_id": sub_id}
 
 
+async def _handle_partner_loss_of_access(partner_id: str, reason: str) -> dict:
+    """Iter 220k — Mid-job recovery. When an engineer loses access
+    (subscription cancelled, suspended), the in-flight cases they were
+    assigned to must be flipped back to the dispatch queue so the
+    case-owning org can reassign them — otherwise the customer is
+    stranded.
+
+    "In-flight" = any of the active engineering states. Closed,
+    invoiced and rejected cases are left untouched (they're already
+    historical).
+
+    Returns ``{cases_reassigned: int, notified_orgs: int}`` for audit.
+    """
+    from utils.svc_state import (
+        ASSIGNED, EN_ROUTE, ON_SITE, PAUSED_PARTS, PAUSED_CUSTOMER,
+        REPAIRED, AWAITING_SIGN_OFF, NEW, append_event,
+    )
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0, "user_id": 1, "full_name": 1})
+    if not partner or not partner.get("user_id"):
+        return {"cases_reassigned": 0, "notified_orgs": 0}
+    user_id = partner["user_id"]
+    in_flight_states = [ASSIGNED, EN_ROUTE, ON_SITE, PAUSED_PARTS, PAUSED_CUSTOMER, REPAIRED, AWAITING_SIGN_OFF]
+    cursor = db.svc_cases.find(
+        {"assigned_engineer_id": user_id, "status": {"$in": in_flight_states}},
+        {"_id": 0, "id": 1, "organization_id": 1, "reference": 1, "title": 1, "status": 1},
+    )
+    cases = await cursor.to_list(500)
+    if not cases:
+        return {"cases_reassigned": 0, "notified_orgs": 0}
+    eng_name = partner.get("full_name") or "the engineer"
+    now_iso = _now()
+    orgs_touched: set[str] = set()
+    for c in cases:
+        await db.svc_cases.update_one(
+            {"id": c["id"]},
+            {
+                "$set": {
+                    "status": NEW,
+                    "assigned_engineer_id": None,
+                    "assigned_engineer_name": None,
+                    "needs_reassignment": True,
+                    "needs_reassignment_reason": reason,
+                    "updated_at": now_iso,
+                },
+            },
+        )
+        try:
+            await append_event(
+                case_id=c["id"],
+                organization_id=c.get("organization_id"),
+                event_type="system",
+                actor=None,
+                body=f"Engineer {eng_name} lost access ({reason}). Case unassigned and returned to dispatch queue.",
+                extra={"kind": "partner_access_lost", "reason": reason, "previous_status": c.get("status")},
+            )
+        except Exception:
+            logger.warning(f"[partners] could not append reassignment audit event for case {c['id']!r}")
+        if c.get("organization_id"):
+            orgs_touched.add(c["organization_id"])
+
+    # Best-effort notify the dispatch admin of each affected org.
+    try:
+        from utils.email import send_email
+        for org_id in orgs_touched:
+            org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "id": 1, "name": 1, "support_email": 1})
+            if not org:
+                continue
+            org_cases = [c for c in cases if c.get("organization_id") == org_id]
+            to_addr = (org.get("support_email") or "").strip()
+            if not to_addr:
+                # Fall back to the org owner's email.
+                owner = await db.users.find_one(
+                    {"organization_id": org_id, "role": "owner"},
+                    {"_id": 0, "email": 1},
+                )
+                to_addr = (owner or {}).get("email", "")
+            if not to_addr:
+                continue
+            rows = "".join(
+                f"<li><b>{c.get('reference') or c['id'][:8]}</b> — {c.get('title') or 'Untitled job'}</li>"
+                for c in org_cases
+            )
+            html = (
+                f"<p>{eng_name} has lost Partner Engineer access ({reason}) and the following in-flight "
+                f"jobs have been returned to your dispatch queue. Please reassign them.</p>"
+                f"<ul>{rows}</ul>"
+            )
+            await send_email(
+                to=to_addr,
+                subject=f"Action needed: {len(org_cases)} job(s) need reassignment",
+                html=html,
+                organization_id=org_id,
+            )
+    except Exception:
+        logger.exception("[partners] reassignment notification email failed")
+
+    return {"cases_reassigned": len(cases), "notified_orgs": len(orgs_touched)}
+
+
 async def handle_partner_subscription_event(sub_data: dict) -> Optional[dict]:
     """Hook from `customer.subscription.{updated,deleted}` webhooks. Keeps
     the partner profile in sync with Stripe (status, period end, cancel flag)."""
@@ -2072,6 +2171,14 @@ async def handle_partner_subscription_event(sub_data: dict) -> Optional[dict]:
                  action="subscription_event",
                  after={"status": status, "price_id": current_price,
                         "cancel_at_period_end": update["subscription.cancel_at_period_end"]})
+    # Iter 220k — Mid-job recovery. If the engineer has just lost
+    # access, return their in-flight cases to the dispatch queue and
+    # notify the affected orgs so the customer isn't stranded.
+    if status in ("canceled", "unpaid", "incomplete_expired"):
+        try:
+            await _handle_partner_loss_of_access(partner_id, reason=f"subscription_{status}")
+        except Exception:
+            logger.exception("[partners] mid-job recovery failed for partner %s", partner_id)
     return {"partner_id": partner_id, "status": status}
 
 
@@ -3415,7 +3522,102 @@ _BLOCK_MESSAGES = {
     "application_rejected":   "Your Partner Engineer application was not approved. Update your details and resubmit.",
     "suspended":              "Your Partner Engineer access has been suspended. Contact GymAxis support.",
     "needs_subscription":     "Start the £30/mo Partner Engineer Plan to unlock the Engineer App. Discounts kick in automatically at 5 active referrals.",
+    # Iter 220k — claim-time gates (read-only access still works so the
+    # engineer can see what's blocking them).
+    "compliance_paused":      "Your compliance status is paused — re-upload your expired documents to take new jobs.",
+    "compliance_required":    "Upload your DBS (or Right-to-Work) document before claiming jobs. This protects you, the gym, and their members.",
 }
+
+
+# Iter 220k — claim-time compliance gate. Layered on top of the existing
+# access guard so the engineer can still SEE the dashboard, settings,
+# and compliance uploader — they just can't claim or self-create paid
+# work until their KYC is on file and unpaused.
+#
+# Exempt cohorts (return immediately without compliance checks):
+#   • internal_engineer  (employed directly by an organisation)
+#   • customer_grant     (granted access for a single case by a gym)
+#
+# Required for partner-track engineers:
+#   • partner.compliance_paused == False, AND
+#   • at least one of {dbs, rtw} has a file uploaded with no expiry,
+#     or an expiry strictly in the future.
+_CLAIM_REQUIRED_KINDS = ("dbs", "rtw")
+
+
+def _has_valid_claim_doc(partner: dict) -> bool:
+    docs = (partner or {}).get("compliance_docs") or {}
+    now = datetime.now(timezone.utc)
+    for kind in _CLAIM_REQUIRED_KINDS:
+        blob = docs.get(kind) or {}
+        if not isinstance(blob, dict) or not blob.get("file"):
+            continue
+        expires_at_raw = blob.get("expires_at")
+        if not expires_at_raw:
+            return True  # no expiry = treated as currently valid
+        try:
+            s = str(expires_at_raw)
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            exp = datetime.fromisoformat(s)
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if exp > now:
+                return True
+        except Exception:
+            continue
+    return False
+
+
+async def require_engineer_compliance_to_claim(user: dict = Depends(get_current_user)) -> dict:
+    """Stricter gate applied to *claim-time* endpoints (queue claim,
+    self-create-job).
+
+    Engineers can still hit the dashboard / settings / compliance
+    uploader under the looser `require_engineer_app_access` — they're
+    only blocked from picking up NEW paid work until they're
+    compliant. In-flight jobs are NOT affected (those have their own
+    routes that don't carry this dependency).
+    """
+    decision = await evaluate_engineer_app_access(user)
+    if not decision["allowed"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "code": "engineer_app_blocked",
+                "reason": decision["reason"],
+                "subscription_status": decision["subscription"].get("status"),
+                "app_fee_tier_gbp": decision["app_fee_tier"].get("price_gbp"),
+                "message": _BLOCK_MESSAGES.get(decision["reason"], "Engineer App access is restricted."),
+            },
+        )
+    # Internal employees / customer-granted engineers / master admins
+    # are exempt — they are not signed onto the Partner Engineer
+    # contract. (Master admins still get a useful 200 so they can
+    # support / test claim flows.)
+    if decision["reason"] in ("master_admin", "internal_engineer", "customer_grant"):
+        return user
+    partner = decision.get("partner") or {}
+    if partner.get("compliance_paused"):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "engineer_app_blocked",
+                "reason": "compliance_paused",
+                "message": _BLOCK_MESSAGES["compliance_paused"],
+            },
+        )
+    if not _has_valid_claim_doc(partner):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "engineer_app_blocked",
+                "reason": "compliance_required",
+                "message": _BLOCK_MESSAGES["compliance_required"],
+                "required_one_of": list(_CLAIM_REQUIRED_KINDS),
+            },
+        )
+    return user
 
 
 @router.get("/partners/me/engineer-access")

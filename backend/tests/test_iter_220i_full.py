@@ -144,6 +144,12 @@ class TestMachineRowFields:
                 pytest.skip("Could not fetch engineer jobs - endpoint may not be available for this user")
             
             jobs = r.json().get("jobs") or r.json() or []
+            # /svc/engineer/jobs returns {by_day: {...}} when when=today/upcoming
+            # — flatten to a list if we got that shape.
+            if isinstance(jobs, dict) and "by_day" in jobs:
+                jobs = [c for day in jobs["by_day"].values() for c in day]
+            if not isinstance(jobs, list):
+                jobs = []
             if not jobs:
                 # Try to create a case
                 r = c.post(f"{BASE}/api/svc/cases", json={
@@ -212,6 +218,10 @@ class TestServiceReportPDF:
                 pytest.skip("Could not fetch cases")
             
             jobs = r.json().get("jobs") or r.json().get("cases") or r.json() or []
+            if isinstance(jobs, dict) and "by_day" in jobs:
+                jobs = [c for day in jobs["by_day"].values() for c in day]
+            if not isinstance(jobs, list):
+                jobs = []
             if not jobs:
                 pytest.skip("No cases available for PDF test")
             

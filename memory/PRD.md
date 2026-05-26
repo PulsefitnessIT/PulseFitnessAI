@@ -1,3 +1,81 @@
+## Iter 220k — Release-blocking P0 gates (May 26, 2026) ✅
+
+Following the pre-release journey audit, three real gaps could
+strand customers, expose the platform to liability, or admit
+non-KYC'd engineers onto gym floors. All three are now closed.
+
+**P0-1 / P0-3 — Compliance-to-claim gate (combined).**
+
+* New `require_engineer_compliance_to_claim` dependency in
+  `routes/partners.py`. Layered on top of `require_engineer_app_access`
+  so the engineer can still see the dashboard + upload docs, but
+  cannot pick up *new* paid work until:
+    * `partner.compliance_paused` is **False**, AND
+    * at least one of `{dbs, rtw}` has a `file` on record whose
+      `expires_at` is either absent or strictly in the future.
+* Applied to the only two endpoints that create/claim a paid
+  case for a partner engineer:
+    * `POST /api/svc/engineer/queue/{case_id}/claim` (queue claim)
+    * `POST /api/svc/engineer/jobs/self-create` (self-create)
+* Bypass cohorts: `master_admin`, `internal_engineer`,
+  `customer_grant` — these engineers aren't on the Partner
+  Engineer contract so the compliance gate doesn't apply.
+* New `_BLOCK_MESSAGES` entries: `compliance_paused`,
+  `compliance_required`. Returned alongside the structured 403
+  payload so the frontend can surface a precise reason +
+  `required_one_of`.
+
+**P0-2 — Mid-job cancellation recovery.**
+
+New `_handle_partner_loss_of_access(partner_id, reason)` invoked
+automatically from `handle_partner_subscription_event` whenever
+the partner's Stripe subscription flips to `canceled`,
+`unpaid`, or `incomplete_expired`. For every in-flight
+`svc_cases` assigned to the engineer (status ∈
+`{assigned, en_route, on_site, paused_parts, paused_customer,
+repaired, awaiting_sign_off}`):
+
+1. Unassign the engineer (`assigned_engineer_id = null`) and flip
+   back to `new` with `needs_reassignment = True` plus a
+   structured `needs_reassignment_reason`.
+2. Append a `partner_access_lost` audit event so the dispatch
+   admin has a paper trail.
+3. Email the org's `support_email` (or fallback to the owner) a
+   single digest listing every affected case, asking them to
+   reassign.
+
+This protects the customer experience — they no longer get
+stranded mid-visit by an unrelated billing event between GymAxis
+and the engineer.
+
+**Testing.**
+
+* New `tests/test_iter_220k_release_gates.py` (8 tests, all green):
+    * `_has_valid_claim_doc` unit tests across edge cases.
+    * Direct gate invocations: no docs → 403, paused → 403, dbs
+      valid → pass, master_admin → pass, no subscription → 402
+      (inheritance from upstream guard).
+    * HTTP-level: master admin claim endpoint still 404s on bogus
+      case_id (regression — admin support flow not broken).
+    * Mid-job recovery: in-flight case → NEW + needs_reassignment;
+      closed case untouched; audit event written.
+* Added to `Makefile::regression`. Fixed two pre-existing
+  `KeyError: 0` bugs in `test_iter_220i_full.py` (mishandled the
+  `/svc/engineer/jobs?when=...` `{by_day: {...}}` shape).
+* Full iter-220 regression: **87 passed, 2 skipped** (skips are
+  graceful "no test data" branches). Zero new linter warnings.
+
+**Operator notes.**
+
+* When deploying, dispatch admins will start receiving "Action
+  needed: N job(s) need reassignment" emails the moment a
+  subscription cancels. The email uses `org.support_email` if set,
+  otherwise the org owner. Configure `support_email` in
+  Organisation Settings if you want a shared inbox to receive these.
+
+---
+
+
 ## Iter 220j — Engineer hamburger attention badge (May 26, 2026) ✅ user-requested
 
 Engineers had no in-app way to know something off-screen needed their

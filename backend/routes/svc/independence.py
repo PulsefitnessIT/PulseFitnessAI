@@ -50,7 +50,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 
-from routes.partners import require_engineer_app_access
+from routes.partners import require_engineer_app_access, require_engineer_compliance_to_claim
 from routes.svc.integrations import sicon_sync
 from utils.audit import audit_log
 from utils.auth import get_current_user
@@ -143,7 +143,7 @@ class SelfCreateIn(BaseModel):
     source_note: Optional[str] = Field(None, max_length=400)
 
 
-@engineer_router.post("/jobs/self-create", status_code=201)
+@engineer_router.post("/jobs/self-create", status_code=201, dependencies=[Depends(require_engineer_compliance_to_claim)])
 async def jobs_self_create(
     body: SelfCreateIn,
     user=Depends(get_current_user),

@@ -24,7 +24,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from routes.partners import require_engineer_app_access
+from routes.partners import require_engineer_app_access, require_engineer_compliance_to_claim
 from routes.svc.integrations import sicon_sync
 from utils.audit import audit_log
 from utils.auth import get_current_user
@@ -213,7 +213,7 @@ class ClaimIn(BaseModel):
     estimated_minutes: Optional[int] = Field(None, ge=15, le=600)
 
 
-@router.post("/{case_id}/claim")
+@router.post("/{case_id}/claim", dependencies=[Depends(require_engineer_compliance_to_claim)])
 async def claim_case(
     case_id: str,
     body: ClaimIn = Body(default_factory=ClaimIn),
