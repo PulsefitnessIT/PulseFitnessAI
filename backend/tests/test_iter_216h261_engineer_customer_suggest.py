@@ -45,7 +45,7 @@ def test_lookup_returns_not_found_when_blank():
     fake_db.svc_engineer_customers.find_one = AsyncMock(return_value=None)
     with patch("routes.svc.engineer_customers.db", fake_db):
         res = _run(lookup_customer(user={"id": "u-1", "organization_id": "org-1"},
-                                    email=None, phone=None))
+                                    email=None, phone=None, name=None, site_name=None))
     assert res == {"found": False}
 
 
@@ -55,7 +55,7 @@ def test_lookup_returns_not_found_when_no_match():
     fake_db.svc_engineer_customers.find_one = AsyncMock(return_value=None)
     with patch("routes.svc.engineer_customers.db", fake_db):
         res = _run(lookup_customer(user={"id": "u-1", "organization_id": "org-1"},
-                                    email="newperson@nowhere.com", phone=None))
+                                    email="newperson@nowhere.com", phone=None, name=None, site_name=None))
     assert res == {"found": False}
 
 
@@ -70,7 +70,7 @@ def test_lookup_returns_match_with_customer_payload():
     fake_db.svc_engineer_customers.find_one = AsyncMock(return_value=existing)
     with patch("routes.svc.engineer_customers.db", fake_db):
         res = _run(lookup_customer(user={"id": "u-1", "organization_id": "org-1"},
-                                    email="MATCH@Example.com", phone=None))
+                                    email="MATCH@Example.com", phone=None, name=None, site_name=None))
     assert res["found"] is True
     assert res["customer"]["id"] == "cust-1"
     assert res["customer"]["name"] == "Acme Returning Customer"
@@ -86,7 +86,7 @@ def test_lookup_matches_by_phone_alone():
     fake_db.svc_engineer_customers.find_one = AsyncMock(return_value=existing)
     with patch("routes.svc.engineer_customers.db", fake_db):
         res = _run(lookup_customer(user={"id": "u-1", "organization_id": "org-1"},
-                                    email=None, phone="+44 7700 900111"))
+                                    email=None, phone="+44 7700 900111", name=None, site_name=None))
     # _find_duplicate gets called with the normalised phone — assert call args
     args, _ = fake_db.svc_engineer_customers.find_one.call_args
     query = args[0]

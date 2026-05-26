@@ -54,7 +54,10 @@ def test_build_checklist_keys_in_stable_order():
     out = build_checklist(_empty_partner(), referrals_count=0)
     keys = [s["key"] for s in out["steps"]]
     assert keys == list(CHECKLIST_KEYS)
-    assert out["total"] == 6
+    # Iter 220m hardening: live CHECKLIST_KEYS is now 7 (added
+    # `stripe_connect_ready` between `subscribed` and `compliance_uploaded`).
+    # Pin against the source of truth so the count auto-tracks.
+    assert out["total"] == len(CHECKLIST_KEYS)
 
 
 def test_build_checklist_approved_step_always_done_for_approved_partners():
@@ -107,16 +110,19 @@ def test_service_area_step_needs_postcode_and_radius():
 def test_complete_flag_only_true_when_all_steps_done():
     p = _empty_partner()
     p["subscription"] = {"stripe_subscription_id": "sub_1"}
+    # Iter 220m — Stripe Connect Express now a separately-resolved step.
+    p["payout"] = {"stripe_connect": {"charges_enabled": True}}
     p["compliance_docs"] = {"dbs": {"file": {"original_filename": "dbs.png"}}}
     p["checklist"] = {"referral_link_copied_at": datetime.now(timezone.utc)}
     p["service_postcode"] = "SW1A 1AA"
     p["travel_radius_km"] = 25
-    # 5/6 — missing first_referral
+    total = len(CHECKLIST_KEYS)
+    # All-but-first_referral done
     out = build_checklist(p, 0)
-    assert out["done"] == 5
+    assert out["done"] == total - 1
     assert out["complete"] is False
     out2 = build_checklist(p, 1)
-    assert out2["done"] == 6
+    assert out2["done"] == total
     assert out2["complete"] is True
 
 
@@ -144,7 +150,8 @@ def test_get_checklist_endpoint_returns_six_steps():
     fake_db.partner_referrals.count_documents = AsyncMock(return_value=0)
     with patch("routes.partners.db", fake_db):
         out = _run(get_my_checklist(user=_partner_user()))
-    assert out["checklist"]["total"] == 6
+    # Iter 220m — CHECKLIST_KEYS grew to 7; assert against the canon.
+    assert out["checklist"]["total"] == len(CHECKLIST_KEYS)
     assert out["checklist"]["done"] == 1  # only "approved"
 
 

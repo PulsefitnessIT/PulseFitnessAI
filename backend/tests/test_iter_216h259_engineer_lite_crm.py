@@ -210,15 +210,22 @@ def test_card_stats_quickaction_removed():
 
 
 def test_support_moved_to_top_nav():
-    src = _strip_js(pathlib.Path(
+    """Iter 220m — Support row was relocated AGAIN, from EngineerHomeV2
+    header into the EngineerAccountSettings drawer's Help section. The
+    invariants we care about (Support reachable, routes to /support)
+    are unchanged — only the home file is.
+    """
+    home_src = _strip_js(pathlib.Path(
         "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text())
-    # Removed from QuickActions grid
-    assert 'testid="qa-support"' not in src
-    # Added as a header icon button
-    assert 'data-testid="engineer-home-support-btn"' in src
-    # Still routes to /support
-    assert "navigate('/support')" in src
+    # Still removed from the QuickActions grid (the original h259 invariant)
+    assert 'testid="qa-support"' not in home_src
+    # Lives in the hamburger drawer now — Help section with a navigate('/support')
+    settings_src = _strip_js(pathlib.Path(
+        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js"
+    ).read_text())
+    assert 'testid="engineer-settings-support-row"' in settings_src
+    assert "navigate('/support')" in settings_src
 
 
 def test_customers_quickaction_present():

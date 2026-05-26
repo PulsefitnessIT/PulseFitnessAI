@@ -1,3 +1,90 @@
+## Iter 220m (cont.) — Test-hygiene sprint: 28 → 0 regression failures (May 26, 2026) ✅ user-requested
+
+User asked to run the dedicated test-hygiene sprint to fix the 21
+pre-existing real regressions surfaced after the brand-canon work.
+Net result: **`make regression` is now 100% green — 828 passed, 15
+skipped, 0 failures, 0 errors — across 3 consecutive back-to-back
+runs.**
+
+**Stale assertion fixes (9 tests).**
+
+* `test_iter_216h284_activation_checklist` (3 tests) — the live
+  `CHECKLIST_KEYS` tuple grew from 6 → 7 (added `stripe_connect_ready`
+  between `subscribed` and `compliance_uploaded`). Tests now assert
+  against `len(CHECKLIST_KEYS)` so the count auto-tracks future
+  additions instead of needing a manual bump each time.
+* `test_iter_216h261_engineer_customer_suggest` (4 tests) — the
+  `/svc/engineer/customers/lookup` route grew `name` + `site_name`
+  `Query()` params. Tests called the route fn directly without
+  providing those, so Python used the `Query(default=None, ...)`
+  defaults verbatim (Query *object*, not `None`), and the route's
+  `(name or "").strip()` crashed. Added explicit `name=None,
+  site_name=None` to every direct-call.
+* `test_iter_216h259_engineer_lite_crm::test_support_moved_to_top_nav`
+  — the Support button moved AGAIN, from EngineerHomeV2's header
+  into the EngineerAccountSettings drawer's Help section. Updated
+  the assertion to point at the new home + still verify the
+  invariant ("Support reachable via navigate('/support')").
+* `test_iter_216h260_engineer_customers_csv_history::test_customers_page_has_csv_buttons`
+  — CSV import + template-download moved from EngineerCustomers
+  into the same settings drawer. Updated assertions to
+  `engineer-settings-template-row` / `engineer-settings-import-row`.
+
+**Event-loop cascade fix (12 tests).** Two new autouse fixtures in
+`backend/tests/conftest.py`:
+
+1. `_ensure_event_loop` (function-scope) — guarantees every test
+   sees a usable thread-default asyncio loop before it runs. On
+   Python 3.11+, `asyncio.get_event_loop()` raises `RuntimeError:
+   There is no current event loop in thread 'MainThread'` once any
+   earlier `asyncio.run(...)` has cleared the thread-default. Was
+   producing the cascade of ~13 pseudo-failures: tests that pass
+   in isolation but trip the moment they run after another test's
+   `asyncio.run`. Fixture creates a fresh loop if `get_event_loop()`
+   raises or returns a closed one.
+
+2. `_rebind_motor_to_current_loop` (function-scope) — spins up a
+   fresh `AsyncIOMotorClient` per-test and re-publishes it into
+   `utils.database.client/db` plus every downstream module that
+   imported `db` by value (`routes.partners`,
+   `utils.reputation_reports`, `routes.svc.engineer_customers`).
+   Motor v3 lazy-binds its connection pool to whichever event loop
+   drives the first I/O; the binding survives a `close()` (close
+   is permanent). Per-test rebind drops any pool stranded on a
+   closed loop and yields a `maxPoolSize=8` client so 800+ tests
+   don't exhaust MongoDB's connection ceiling. Teardown restores
+   the originals and closes the per-test client.
+
+**Bonus fix — httpx rate-limit cascade.** The existing
+`_patch_requests_with_ratelimit_bypass` autouse fixture only patched
+`requests`, but the 220k/l/m + 217 + 218 suites all use `httpx.Client`
+directly for auth calls. Three consecutive `make regression` runs
+were tripping the `/api/auth/login` brute-force guard (5 req / 5 min)
+and cascading into 108 setup-errors on the third run. Extended the
+fixture to also monkey-patch `httpx.Client.request` with the same
+`X-RateLimit-Bypass` header. All three back-to-back runs now green.
+
+**Files touched.**
+
+* `backend/tests/conftest.py` — two new autouse fixtures + httpx
+  rate-limit patch.
+* `backend/tests/test_iter_216h284_activation_checklist.py` —
+  assert vs `len(CHECKLIST_KEYS)` instead of hard-coded `6`.
+* `backend/tests/test_iter_216h261_engineer_customer_suggest.py` —
+  pass `name=None, site_name=None` to direct route-fn calls.
+* `backend/tests/test_iter_216h259_engineer_lite_crm.py` —
+  point support-row assertion at EngineerAccountSettings.
+* `backend/tests/test_iter_216h260_engineer_customers_csv_history.py` —
+  point CSV-button assertion at EngineerAccountSettings.
+
+**Quality gates (all green).** `make regression` ✓ 828 pass × 3
+runs. `make docs-verify` ✓ 46 docs. `make brand-preview` ✓.
+`ruff check` on every touched file ✓.
+
+---
+
+
+
 ## Iter 220m (cont.) — Pulse brand canon + live preview + test-isolation fix (May 26, 2026) ✅ user-requested
 
 User asked to: (1) continue the "heads-up" on the 21 regression failures,

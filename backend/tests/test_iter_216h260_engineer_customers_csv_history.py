@@ -250,12 +250,16 @@ def _strip_js(src: str) -> str:
 
 
 def test_customers_page_has_csv_buttons():
+    """Iter 220m — the CSV import / template-download flow moved from the
+    EngineerCustomers page into the EngineerAccountSettings hamburger
+    drawer (cleaner home screen, consolidated settings UX). Assert on
+    the drawer + assert the API contracts the buttons hit are still
+    the same. Both backend routes haven't moved."""
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js"
+        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js"
     ).read_text())
-    assert 'data-testid="customers-template-btn"' in src
-    assert 'data-testid="customers-import-btn"' in src
-    assert 'data-testid="customers-import-input"' in src
+    assert 'testid="engineer-settings-template-row"' in src
+    assert 'testid="engineer-settings-import-row"' in src
     assert "/svc/engineer/customers/template.csv" in src
     assert "/svc/engineer/customers/import-csv" in src
 

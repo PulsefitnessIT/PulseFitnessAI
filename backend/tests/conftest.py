@@ -11,21 +11,38 @@ test suite doesn't trip the login brute-force guard mid-run. The bypass
 secret is read from the backend's own `.env` — tests run on the same host
 so no credential exchange is needed.
 
-The `_shared_event_loop` autouse session fixture (iter 220m) gives the
-whole pytest session ONE shared asyncio event loop. Many of our tests
-call `asyncio.get_event_loop().run_until_complete(...)` to drive a
-coroutine synchronously. On Python 3.11+, `get_event_loop()` raises
-`RuntimeError: There is no current event loop in thread 'MainThread'`
-as soon as any earlier `asyncio.run(...)` closes the previous loop —
-which is what was producing the cascading regression-suite failures.
-Pre-registering a single session-wide loop also keeps every Motor
-connection pool bound to the same loop, eliminating the
-`Future attached to a different loop` errors we'd otherwise hit.
+`drive_async(coro)` (iter 220m) is the canonical way for sync tests to
+drive an async coroutine. It gracefully handles the Python 3.11+ case
+where `asyncio.get_event_loop()` raises `RuntimeError: There is no
+current event loop in thread 'MainThread'` once any earlier
+`asyncio.run(...)` cleans up the global loop. The helper installs a
+fresh loop if needed and returns the coroutine's result.
 """
 import asyncio
 import os
 import pytest
 import requests
+
+
+def drive_async(coro):
+    """Run *coro* to completion on a usable event loop.
+
+    Prefers the thread-default loop if one already exists and is open;
+    otherwise installs a fresh loop and registers it as the thread
+    default. Safe to call repeatedly in the same test session.
+
+    This is a drop-in replacement for the legacy
+    ``asyncio.get_event_loop().run_until_complete(coro)`` idiom that
+    breaks on Python 3.11+ after any earlier ``asyncio.run`` call.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError("loop closed")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
 
 API_BASE_URL = os.environ.get("TEST_API_URL", "https://maintenance-hub-357.preview.emergentagent.com")
 
@@ -46,16 +63,97 @@ CRM_ADMIN_PASSWORD = os.environ.get("TEST_CRM_ADMIN_PASSWORD", "CRMAdmin123!")
 TOTTENHAM_GREEN_ORG_ID = "156c8dc4-8683-4cb4-8a74-facd811655ad"
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _shared_event_loop():
-    """Install a single shared asyncio event loop for the entire pytest
-    session. See module docstring for the full rationale (iter 220m)."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+@pytest.fixture(autouse=True)
+def _ensure_event_loop():
+    """Iter 220m — guarantee every test sees a usable thread-default
+    asyncio loop before it runs. On Python 3.11+, `get_event_loop()`
+    raises `RuntimeError: There is no current event loop in thread
+    'MainThread'` once any earlier `asyncio.run(...)` has cleared the
+    thread default. That was producing the cascade of ~13
+    pseudo-failures in `make regression` — tests that pass in
+    isolation but trip the moment they run after an asyncio.run call.
+
+    Function-scope (cheap) so motor's per-test connection pool stays
+    bound to the same loop within a single test, and tests that mock
+    out the motor `db` reference don't care about loop identity at
+    all.
+
+    Pairs with `_rebind_motor_to_current_loop` below — together they
+    keep motor's connection pool aligned with the freshly-installed
+    loop and prevent the
+    ``RuntimeError: ... attached to a different loop`` cascade in
+    220k/l/m."""
     try:
-        yield loop
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError("loop closed")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    yield loop
+
+
+@pytest.fixture(autouse=True)
+def _rebind_motor_to_current_loop():
+    """Iter 220m — refresh the shared Motor `client` and `db` so any
+    pending future from a closed/different loop is dropped and the
+    new pool binds to the *current* loop on next I/O. Motor v3's
+    connection pool is lazy-bound to whichever loop drives the first
+    query; the binding is not reset by `client.close()` alone (close
+    is permanent). The robust pattern is to spin up a *fresh*
+    AsyncIOMotorClient per-test and re-publish it to every module
+    that imported the original. We patch the two we actually depend
+    on (`utils.database`, `routes.partners`, `utils.reputation_reports`)
+    — anything else that has a stale reference will get a working
+    motor as soon as it goes through the canonical `utils.database`
+    import path.
+
+    Teardown closes the spun-up client so we don't leak MongoDB
+    connection pools across the ~840-test session (which would
+    otherwise blow past the server's pool ceiling)."""
+    fresh = None
+    previous_client = None
+    previous_db = None
+    try:
+        import os as _os
+        from motor.motor_asyncio import AsyncIOMotorClient
+        import utils.database as _db_mod
+        previous_client = _db_mod.client
+        previous_db = _db_mod.db
+        fresh = AsyncIOMotorClient(_os.environ["MONGO_URL"], maxPoolSize=8)
+        _db_mod.client = fresh
+        _db_mod.db = fresh[_os.environ["DB_NAME"]]
+        # Re-publish to downstream modules that imported `db` by value.
+        for _mod_name in (
+            "routes.partners",
+            "utils.reputation_reports",
+            "routes.svc.engineer_customers",
+        ):
+            try:
+                _m = __import__(_mod_name, fromlist=["db"])
+                if hasattr(_m, "db"):
+                    _m.db = _db_mod.db
+            except Exception:
+                pass
+    except Exception:
+        # Tests that don't import the backend at all can safely ignore.
+        pass
+    try:
+        yield
     finally:
-        loop.close()
+        # Restore the originally-imported client/db so the next test's
+        # fixture sees a stable starting point, then close the temp
+        # client we created to release its connection pool.
+        try:
+            if fresh is not None:
+                import utils.database as _db_mod
+                if previous_client is not None:
+                    _db_mod.client = previous_client
+                if previous_db is not None:
+                    _db_mod.db = previous_db
+                fresh.close()
+        except Exception:
+            pass
 
 
 def _test_backend_url() -> str:
@@ -100,10 +198,37 @@ def _patch_requests_with_ratelimit_bypass():
         return original_request(self, method, url, **kwargs)
 
     requests.Session.request = _patched
+
+    # Iter 220m — the 220k/l/m + several earlier suites use `httpx.Client`
+    # instead of `requests`. Patch httpx too or the auth endpoint chokes
+    # under the brute-force guard during regression-suite back-to-back
+    # runs. We only need the sync client; no async paths in tests today.
+    httpx_orig = None
+    try:
+        import httpx as _httpx
+        httpx_orig = _httpx.Client.request
+
+        def _httpx_patched(self, method, url, **kwargs):
+            headers = kwargs.get("headers") or {}
+            if isinstance(headers, dict):
+                headers.setdefault("X-RateLimit-Bypass", secret)
+                kwargs["headers"] = headers
+            return httpx_orig(self, method, url, **kwargs)
+
+        _httpx.Client.request = _httpx_patched
+    except Exception:
+        pass
+
     try:
         yield
     finally:
         requests.Session.request = original_request
+        if httpx_orig is not None:
+            try:
+                import httpx as _httpx
+                _httpx.Client.request = httpx_orig
+            except Exception:
+                pass
 
 
 @pytest.fixture(scope="session", autouse=True)
