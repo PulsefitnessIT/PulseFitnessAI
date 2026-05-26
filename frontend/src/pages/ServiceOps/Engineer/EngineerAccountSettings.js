@@ -15,13 +15,13 @@
  * banner copy stays consistent, and exposes an `onChanged` callback that the
  * parent can fire to refresh dashboard data after an import.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
-  Sliders, Palette,
+  Sliders, Palette, Sparkles,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -64,6 +64,32 @@ export default function EngineerAccountSettings({ open, onClose, payouts, onChan
   const navigate = useNavigate();
   const [importing, setImporting] = useState(false);
   const importRef = useRef(null);
+  // Iter 220i — lightweight live partner status so the drawer can
+  // surface "Active · £30/mo" or "Pending review" without forcing
+  // the engineer to open the Partner Dashboard.
+  const [partner, setPartner] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [partnerLoading, setPartnerLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let alive = true;
+    setPartnerLoading(true);
+    axios
+      .get(`${API}/partners/me`, auth())
+      .then((r) => {
+        if (!alive) return;
+        const p = r.data?.partner || null;
+        setPartner(p);
+        // Subscription lives nested on the partner doc (see PartnerDashboard).
+        setSubscription((p && p.subscription) || null);
+      })
+      .catch(() => {
+        if (alive) { setPartner(null); setSubscription(null); }
+      })
+      .finally(() => { if (alive) setPartnerLoading(false); });
+    return () => { alive = false; };
+  }, [open]);
 
   if (!open) return null;
 
@@ -160,6 +186,51 @@ export default function EngineerAccountSettings({ open, onClose, payouts, onChan
         </header>
 
         <div className="p-4 space-y-5 flex-1">
+          {/* Iter 220i — Partner Engineer hub link. Closes the loop so
+              engineers can see compliance, referral code + plan from
+              inside the Engineer App. */}
+          <section data-testid="engineer-settings-section-partner">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Partner Engineer</p>
+            <Row
+              icon={Sparkles}
+              accent="#7c3aed"
+              title={
+                partnerLoading
+                  ? 'Loading your plan…'
+                  : partner
+                    ? 'Plan, referrals & compliance'
+                    : 'Partner Engineer Network'
+              }
+              subtitle={(() => {
+                if (partnerLoading) return 'Pulling latest status…';
+                if (!partner) return 'Apply to take paid jobs through the Engineer App.';
+                const subStatus = subscription?.status;
+                const partnerStatus = partner.status;
+                const tierLabel = partner.app_fee_tier?.label || '£30/mo';
+                if (partnerStatus === 'pending') return 'Application under review · view referral link + upload compliance docs.';
+                if (partnerStatus === 'rejected') return 'Application not approved · tap to update & resubmit.';
+                if (partnerStatus === 'suspended') return 'Access suspended · contact GymAxis support.';
+                if (subStatus === 'active' || subStatus === 'trialing') {
+                  return `Plan: Active · ${tierLabel} · view referrals & compliance.`;
+                }
+                if (subStatus === 'past_due') return 'Plan: Payment failed · tap to resolve.';
+                if (subStatus === 'canceled') return 'Plan: Cancelled · tap to reactivate.';
+                return `Activate the ${tierLabel} Partner Plan to unlock the Engineer App.`;
+              })()}
+              onClick={() => { onClose(); navigate('/partner-engineer'); }}
+              testid="engineer-settings-partner-row"
+              right={
+                partnerLoading
+                  ? <Loader2 size={16} className="animate-spin text-purple-500 flex-shrink-0" />
+                  : subscription?.status === 'active'
+                    ? <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
+                    : partner && partner.status !== 'approved'
+                      ? <AlertTriangle size={18} className="text-amber-500 flex-shrink-0" />
+                      : <ChevronRight size={16} className="text-slate-400 flex-shrink-0" />
+              }
+            />
+          </section>
+
           {/* Payouts / Stripe */}
           <section data-testid="engineer-settings-section-payouts">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Payouts</p>

@@ -1,3 +1,36 @@
+## Iter 220i (cont.) — Partner Engineer hub link inside Engineer Settings (May 26, 2026) ✅ user-requested
+
+User flagged that approved engineers had no in-app path back to the
+Partner Dashboard (`/partner-engineer`) — meaning they couldn't view
+their referral code, manage their £30/mo Stripe subscription, or
+upload compliance docs (DBS, insurance, etc.) without manually
+typing the URL.
+
+**Frontend.** Added a new **Partner Engineer** section at the *top*
+of the `EngineerAccountSettings` drawer:
+
+* Fetches `/api/partners/me` on drawer open and surfaces a live,
+  context-aware subtitle:
+    * Non-partner: *"Apply to take paid jobs through the Engineer App."*
+    * Pending: *"Application under review · view referral link + upload compliance docs."*
+    * Rejected / Suspended: actionable copy + correct next step.
+    * Active subscription: *"Plan: Active · £30/mo · view referrals & compliance."*
+      (pulls `partner.app_fee_tier.label` so it auto-displays £15 / Free
+      tiers when the engineer crosses 5/10 active referrals.)
+    * Past due / cancelled: amber warning with reactivate prompt.
+* Right-side glyph: green check (active), amber triangle (action needed),
+  spinner (loading), chevron (default).
+* Closes the drawer + navigates to `/partner-engineer` on tap.
+
+**Why it matters.** Closes the only remaining navigation dead-end in
+the engineer journey. Engineers can now reach compliance uploads,
+referral code, plan management, and the activation checklist from any
+screen in the Engineer App via the hamburger → "Partner Engineer
+Network" row.
+
+---
+
+
 ## Iter 220i — Engineer Branding · Upcoming list · Per-machine custom fields · Email logo fix (May 26, 2026) ✅ user-requested batch (6 items)
 
 User asked the previous agent to ship 6 UX/feature items in one batch.
