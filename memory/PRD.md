@@ -1,3 +1,69 @@
+## Iter 220f — Customer typeahead on the New Job card (May 26, 2026) ✅ user-requested
+
+User requested: *"The new job card needs to be able to search for
+customers, once the customer is selected all fields are populated with
+their information, again to save the engineer typing."* Confirmed
+source: engineer's saved customers + org-wide customers list.
+
+**Backend.**
+
+* New endpoint `GET /api/svc/engineer/customers/typeahead?q=…&limit=N`
+  that merges two data sources, deduped on (name + site):
+  1. `svc_engineer_customers` — the saved address book.
+     `source="saved"`, sorted by `updated_at desc`.
+  2. `svc_cases` distinct `customer_name / customer_email / customer_phone
+     / site_name / site_postcode` matches.
+     `source="history"`, sorted by `updated_at desc`. Surfaces customers
+     captured via the email-parse flow / public intake card that
+     haven't been promoted into the saved book yet.
+* Returned shape: `[{id, name, email, phone, site_name, site_address,
+  site_postcode, last_job_at, source}]`. Saved entries win on dedupe.
+
+**Frontend.**
+
+* `EngineerNewJob.js` gained a `CustomerTypeahead` component above the
+  *Customer & site* section:
+  * 250 ms debounced search → hits the new typeahead endpoint.
+  * Dropdown shows up to 8 results with name + subtitle (site,
+    postcode, email, phone).
+  * Saved customers get a green check icon. History-only entries get
+    an amber history icon + "past job" badge so the engineer knows
+    that customer isn't in their book yet.
+  * Tap or `Enter` → all 6 customer/site fields are populated in one
+    go. Keyboard nav: ↑ ↓ Esc.
+  * Green selected-pill at the bottom shows the chosen customer; a
+    small X clears the lock.
+* `Clear` button at the top-right of the *Customer & site* section
+  wipes all 6 fields with a confirm.
+* New "Save *<name>* to my customers" tickbox auto-enables when the
+  engineer types ≥2 chars in `customer_name` AND no saved customer was
+  picked. On successful job creation, POSTs to
+  `/api/svc/engineer/customers` so next time the typeahead finds them.
+  Non-blocking — a save failure (e.g. duplicate) doesn't abort the
+  navigation.
+
+**Tests added** (`tests/test_iter_220f_customer_typeahead.py`, 8 cases
+— all green):
+
+* `test_typeahead_finds_saved_customer_by_name`
+* `test_typeahead_finds_saved_by_site_name`
+* `test_typeahead_finds_saved_by_phone`
+* `test_typeahead_falls_back_to_case_history`
+* `test_typeahead_dedupes_saved_over_history`
+* `test_typeahead_limit_respected`
+* `test_typeahead_org_isolation`
+* `test_typeahead_empty_query_400`
+
+**testing_agent_v3_fork report** (`/app/test_reports/iteration_220f.json`):
+PASS — 45/45 tests across iter 220 (14) + 220c (6) + 220d (11) +
+220e (6) + 220f (8). Frontend UI verified end-to-end (search, auto-fill,
+keyboard nav, save-to-customers toggle). 0 issues found.
+
+Wired into `Makefile:regression`. Lint clean (0 ruff / 0 eslint warnings).
+
+---
+
+
 ## Iter 220e — Per-machine photos + beautified PDF layout (May 26, 2026) ✅ user-requested
 
 User asked: *"The engineer may need to add photos to the machine lines
