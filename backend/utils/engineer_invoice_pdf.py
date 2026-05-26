@@ -148,8 +148,14 @@ def _totals_block(s, inv):
     if inv.get("discount_amount"):
         rows.append([Paragraph(f"Discount ({inv.get('discount_pct', 0):g}%)", s["total_label"]),
                      Paragraph(f"-£{float(inv['discount_amount']):,.2f}", s["total_value"])])
-    rows.append([Paragraph(f"VAT ({inv.get('vat_rate', 0):g}%)", s["total_label"]),
-                 Paragraph(f"£{float(inv.get('vat_amount', 0)):,.2f}", s["total_value"])])
+    # Iter 220l — if the engineer is VAT-exempt (below £85k threshold),
+    # show a clarifying row instead of "VAT (0%): £0.00".
+    if inv.get("vat_exempt"):
+        rows.append([Paragraph("VAT", s["total_label"]),
+                     Paragraph("Not chargeable", s["total_value"])])
+    else:
+        rows.append([Paragraph(f"VAT ({inv.get('vat_rate', 0):g}%)", s["total_label"]),
+                     Paragraph(f"£{float(inv.get('vat_amount', 0)):,.2f}", s["total_value"])])
     rows.append([Paragraph("<b>TOTAL DUE</b>", s["total_label"]),
                  Paragraph(f"£{float(inv.get('total', 0)):,.2f}", s["grand_value"])])
     t = Table(rows, colWidths=[60 * mm, 40 * mm], hAlign="RIGHT")

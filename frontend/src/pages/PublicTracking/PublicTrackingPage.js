@@ -12,7 +12,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  MapPin, Clock, CheckCircle, Wrench, Loader2, Truck, Star, AlertCircle, Send,
+  MapPin, Clock, CheckCircle, CheckCircle2, Wrench, Loader2, Truck, Star, AlertCircle, Send,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -63,6 +63,23 @@ export default function PublicTrackingPage() {
   const [fbComment, setFbComment] = useState('');
   const [fbBusy, setFbBusy] = useState(false);
   const [fbThanks, setFbThanks] = useState(false);
+  // Iter 220l — "Request this engineer again" CTA state.
+  const [preferRequested, setPreferRequested] = useState(false);
+  const [preferBusy, setPreferBusy] = useState(false);
+  const requestPreferredEngineer = useCallback(async () => {
+    setPreferBusy(true);
+    try {
+      await axios.post(
+        `${API}/svc/public/track/${encodeURIComponent(token)}/preferred-engineer`,
+        {},
+      );
+      setPreferRequested(true);
+    } catch (_err) {
+      // Stay silent on 409 (no engineer) — button is only shown when one is present
+    } finally {
+      setPreferBusy(false);
+    }
+  }, [token]);
 
   const fetchTracking = useCallback(async () => {
     try {
@@ -409,9 +426,38 @@ export default function PublicTrackingPage() {
               <p className="text-xs text-emerald-700 mt-1">A copy of your service report has been emailed to you.</p>
             ) : null}
             {data.feedback_captured || fbThanks ? (
-              <div className="mt-3 pt-3 border-t border-emerald-200 flex items-center gap-2 text-sm text-emerald-800" data-testid="track-feedback-thanks">
-                <Star size={14} fill="currentColor" className="text-amber-500" />
-                <span>Thank you — your feedback has been recorded.</span>
+              <div className="mt-3 pt-3 border-t border-emerald-200 space-y-3" data-testid="track-feedback-thanks">
+                <div className="flex items-center gap-2 text-sm text-emerald-800">
+                  <Star size={14} fill="currentColor" className="text-amber-500" />
+                  <span>Thank you — your feedback has been recorded.</span>
+                </div>
+                {/* Iter 220l — Request this engineer again. Only when an
+                    engineer is attached AND the customer has just left
+                    feedback (so they've reflected on the experience). */}
+                {data.engineer && data.engineer.first_name ? (
+                  preferRequested ? (
+                    <p
+                      className="inline-flex items-center gap-2 text-xs text-emerald-900 bg-emerald-100 border border-emerald-300 px-3 py-2 rounded-lg"
+                      data-testid="track-engineer-requested-confirm"
+                    >
+                      <CheckCircle2 size={12} />
+                      <span>
+                        We've let <b>{data.engineer.first_name}</b> know you'd like them
+                        for your next job.
+                      </span>
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={requestPreferredEngineer}
+                      disabled={preferBusy}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 text-xs font-bold disabled:opacity-50 transition-colors"
+                      data-testid="track-engineer-request-again"
+                    >
+                      {preferBusy ? 'Sending…' : `Request ${data.engineer.first_name} for next time →`}
+                    </button>
+                  )
+                ) : null}
               </div>
             ) : (
               <div className="mt-3 pt-3 border-t border-emerald-200 space-y-3" data-testid="track-feedback-form">

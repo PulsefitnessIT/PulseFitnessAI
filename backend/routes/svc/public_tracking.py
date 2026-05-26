@@ -411,4 +411,88 @@ async def public_feedback(token: str, body: dict | None = None):
     return {"ok": True, "captured_at": update["customer_feedback_at"]}
 
 
+# ── Iter 220l — Customer "Request this engineer again" CTA ────
+#
+# Lets a happy customer flag the engineer who serviced their last
+# visit as their preferred engineer for next time. Creates a row
+# in `svc_engineer_preferences` so the dispatch admin can see the
+# request on the org dashboard + (best-effort) emails the engineer
+# so they can reach out personally.
+
+@router.post("/svc/public/track/{token}/preferred-engineer")
+async def public_request_preferred_engineer(token: str, body: dict | None = None):
+    """Customer-side CTA — no auth, token is the gate. Idempotent on
+    `(track_token, engineer_id)` so a customer can't spam-create rows."""
+    if not token or len(token) < 8:
+        raise HTTPException(404, "Tracking link not found")
+    case = await db.svc_cases.find_one(
+        {"track_token": token},
+        {
+            "_id": 0, "id": 1, "reference": 1,
+            "assigned_engineer_id": 1, "assigned_engineer_name": 1,
+            "customer_name": 1, "customer_email": 1, "customer_phone": 1,
+            "organization_id": 1,
+        },
+    )
+    if not case:
+        raise HTTPException(404, "Tracking link not found")
+    eng_id = case.get("assigned_engineer_id")
+    if not eng_id:
+        raise HTTPException(409, "No engineer attached to this case to request.")
+
+    body = body or {}
+    note = (body.get("note") or "").strip()[:500]
+
+    pref_doc = {
+        "track_token": token,
+        "case_id": case["id"],
+        "case_reference": case.get("reference"),
+        "engineer_id": eng_id,
+        "engineer_name": case.get("assigned_engineer_name"),
+        "customer_name": case.get("customer_name"),
+        "customer_email": case.get("customer_email"),
+        "customer_phone": case.get("customer_phone"),
+        "organization_id": case.get("organization_id"),
+        "note": note,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "status": "open",
+    }
+    # Idempotent upsert by (track_token, engineer_id) — repeated
+    # taps from the same customer just refresh the timestamp.
+    await db.svc_engineer_preferences.update_one(
+        {"track_token": token, "engineer_id": eng_id},
+        {"$set": pref_doc},
+        upsert=True,
+    )
+
+    # Best-effort notify the engineer.
+    try:
+        engineer = await db.users.find_one({"id": eng_id}, {"_id": 0, "email": 1, "full_name": 1})
+        if engineer and engineer.get("email"):
+            from utils.email import send_email
+            customer = case.get("customer_name") or "A customer"
+            ref = case.get("reference") or case["id"][:8]
+            note_html = (
+                f'<blockquote style="border-left:3px solid #6366f1;padding:6px 12px;'
+                f'background:#f5f3ff;color:#475569;margin:14px 0;">{note}</blockquote>'
+                if note else ""
+            )
+            html = (
+                f"<p>Great news — <b>{customer}</b> just requested that you handle their next "
+                f"job on case <b>{ref}</b>.</p>"
+                f"{note_html}"
+                f"<p>You'll automatically appear at the top of their dispatch shortlist next time.</p>"
+            )
+            await send_email(
+                to=engineer["email"],
+                subject="A customer asked for you again",
+                html=html,
+                organization_id=case.get("organization_id"),
+            )
+    except Exception:
+        pass
+
+    return {"ok": True, "requested_at": pref_doc["requested_at"]}
+
+
 __all__ = ["router"]

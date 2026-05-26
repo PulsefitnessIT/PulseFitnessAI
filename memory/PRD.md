@@ -1,3 +1,71 @@
+## Iter 220l — Pre-launch polish (4 items) (May 26, 2026) ✅
+
+All four P1 polish items from the journey audit shipped together
+as one tested batch.
+
+### 1. VAT-exempt engineer toggle
+
+* **Backend**: New `PUT /api/partners/me/tax-settings` body
+  `{vat_registered, vat_number?}`. Field stored on
+  `partner_engineers` (default `vat_registered=True`).
+* New helper `_engineer_vat_settings(user)` on
+  `engineer_invoices.py`. `_build_invoice_payload` now accepts a
+  `vat_settings` kwarg, forces `vat_rate=0` + stamps `vat_exempt`
+  on the invoice doc when the engineer is exempt. Snapshot is
+  frozen so a later toggle doesn't retro-rewrite history.
+* PATCH /invoices/:id honours the snapshot — engineer can't
+  accidentally re-add VAT to a zero-rated invoice.
+* PDF builder (`utils/engineer_invoice_pdf.py`): replaces the
+  "VAT (0%): £0.00" row with "VAT — Not chargeable" when exempt.
+* Email body switches "Total due (incl. VAT)" → "Total due".
+* **Frontend**: New `VatToggle` component inside
+  `EngineerAccountSettings` drawer (Tax section). One-tick UX.
+
+### 2. Engineer self-service ratings view
+
+* **Backend**: New `routes/svc/engineer_ratings.py` registered
+  in features registry. `GET /api/svc/engineer/me/ratings`
+  returns `{summary: {avg, count, distribution, last_30d_avg,
+  last_30d_count}, ratings: [...]}`.
+* **Frontend**: New `EngineerRatings.js` page at
+  `/svc/engineer/ratings` — big avg + star histogram + 30-day
+  trend pill + reverse-chronological review list with the case
+  reference deep-linking back to the job detail.
+* Linked from the Account Settings drawer under a new
+  **Reputation** section.
+
+### 3. Customer "Request this engineer again"
+
+* **Backend**: New `POST /api/svc/public/track/{token}/preferred-engineer`
+  endpoint in `public_tracking.py`. Token-gated (no auth).
+  Idempotent upsert on `(track_token, engineer_id)` so a customer
+  can't spam-create rows. Stores in new
+  `svc_engineer_preferences` collection with full snapshot of
+  the engineer + customer + organisation context. Best-effort
+  email notification to the engineer.
+* **Frontend**: New "Request {Name} for next time →" button
+  appears on `PublicTrackingPage` immediately after the customer
+  leaves their rating. Replaces itself with a green
+  confirmation pill on success.
+
+### 4. Job grant max-age
+
+* **Backend**: Grants now created with `expires_at = now +
+  expires_in_days` (default 30, capped at 365).
+* `_has_access_via_grant` now requires `expires_at` to be either
+  unset or in the future — stale grants no longer count.
+* Existing grants without `expires_at` still work (backward-compat).
+
+### Testing
+
+* `tests/test_iter_220l_pre_launch_polish.py` — 11 tests
+  (10 passed, 1 gracefully skipped for thin envs).
+* Full iter-220 regression: **97 passed, 3 skipped**.
+* All linters clean. No new ruff/ESLint warnings.
+
+---
+
+
 ## Iter 220k — Release-blocking P0 gates (May 26, 2026) ✅
 
 Following the pre-release journey audit, three real gaps could

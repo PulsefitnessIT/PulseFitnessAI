@@ -60,6 +60,23 @@ def _new_invoice_number() -> str:
     return f"EI-{today}-{uuid.uuid4().hex[:4].upper()}"
 
 
+async def _engineer_vat_settings(user: dict) -> dict:
+    """Iter 220l — fetch the engineer's VAT settings from the partner
+    record. Defaults to `{vat_registered: True, vat_number: None}` so
+    existing behaviour is preserved for unflagged partners.
+    """
+    partner = await db.partner_engineers.find_one(
+        {"user_id": user["id"]},
+        {"_id": 0, "vat_registered": 1, "vat_number": 1},
+    )
+    if not partner:
+        return {"vat_registered": True, "vat_number": None}
+    return {
+        "vat_registered": partner.get("vat_registered", True),
+        "vat_number": partner.get("vat_number"),
+    }
+
+
 def _compute_totals(lines: list[dict], vat_rate: float, discount_pct: float = 0) -> dict:
     subtotal = 0.0
     for ln in lines:
@@ -179,6 +196,7 @@ def _build_invoice_payload(
     *, user: dict, engineer: dict,
     issue_date: datetime, payment_terms_days: int,
     body: dict, case_snapshot: dict | None = None,
+    vat_settings: dict | None = None,
 ) -> dict:
     case = case_snapshot or {}
     due_date = (issue_date + timedelta(days=payment_terms_days)).date().isoformat()
@@ -186,7 +204,13 @@ def _build_invoice_payload(
         ln if isinstance(ln, dict) else ln.model_dump()
         for ln in (body.get("lines") or [])
     ]
-    totals = _compute_totals(lines_dicts, body.get("vat_rate", 20) or 20,
+    # Iter 220l — honour the engineer's VAT-registered flag. If they
+    # ticked "Not VAT registered", force vat_rate=0 on the invoice so
+    # they can't accidentally charge VAT they aren't entitled to.
+    vat = vat_settings or {"vat_registered": True, "vat_number": None}
+    requested_rate = body.get("vat_rate", 20) or 20
+    effective_rate = 0 if not vat.get("vat_registered") else requested_rate
+    totals = _compute_totals(lines_dicts, effective_rate,
                               body.get("discount_pct", 0) or 0)
     return {
         "id": str(uuid.uuid4()),
@@ -211,6 +235,10 @@ def _build_invoice_payload(
         "description_of_work": body.get("description_of_work") or "",
         "lines": lines_dicts,
         **totals,
+        # Iter 220l — VAT exemption snapshot (frozen at issue time so
+        # later toggles don't retroactively rewrite history).
+        "vat_exempt": not vat.get("vat_registered"),
+        "vat_number": vat.get("vat_number"),
         "issue_date": issue_date.date().isoformat(),
         "payment_terms_days": payment_terms_days,
         "due_date": due_date,
@@ -244,6 +272,7 @@ async def create_invoice(body: InvoiceCreate, user=Depends(get_current_user)):
          "asset_serial": 1},
     ) if body.case_id else {}
     engineer = await _engineer_profile(user)
+    vat_settings = await _engineer_vat_settings(user)
     issue_date = datetime.now(timezone.utc)
     inv = _build_invoice_payload(
         user=user, engineer=engineer,
@@ -251,6 +280,7 @@ async def create_invoice(body: InvoiceCreate, user=Depends(get_current_user)):
         payment_terms_days=body.payment_terms_days or 14,
         body=body.model_dump(),
         case_snapshot=case or {},
+        vat_settings=vat_settings,
     )
     await db.svc_engineer_invoices.insert_one({**inv})
     inv.pop("_id", None)
@@ -283,6 +313,7 @@ async def create_invoice_from_quote(quote_id: str, user=Depends(get_current_user
     if quote["status"] not in ("accepted", "sent"):
         raise HTTPException(409, "Only accepted (or sent) quotes can be invoiced")
     engineer = await _engineer_profile(user)
+    vat_settings = await _engineer_vat_settings(user)
     issue_date = datetime.now(timezone.utc)
     body = {
         "case_id": quote.get("case_id"),
@@ -307,6 +338,7 @@ async def create_invoice_from_quote(quote_id: str, user=Depends(get_current_user
         user=user, engineer=engineer,
         issue_date=issue_date, payment_terms_days=14,
         body=body, case_snapshot=case_snapshot,
+        vat_settings=vat_settings,
     )
     await db.svc_engineer_invoices.insert_one({**inv})
     # Mark quote as invoiced
@@ -393,9 +425,13 @@ async def update_invoice(invoice_id: str, body: InvoiceUpdate, user=Depends(get_
             patch[k] = payload[k]
     merged = {**inv, **patch}
     if any(k in patch for k in ("lines", "vat_rate", "discount_pct")):
+        # Iter 220l — respect the snapshot vat_exempt flag on the invoice
+        # so a PATCH from the engineer can't suddenly re-add VAT to a
+        # zero-rated invoice.
+        effective_rate = 0 if merged.get("vat_exempt") else float(merged.get("vat_rate") or 20)
         totals = _compute_totals(
             merged.get("lines") or [],
-            float(merged.get("vat_rate") or 20),
+            effective_rate,
             float(merged.get("discount_pct") or 0),
         )
         patch.update(totals)
@@ -560,7 +596,7 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
         <p style="margin:6px 0 0;font-size:14px;color:#0f172a;line-height:1.5;">{description or '—'}</p>
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:14px 0;">
         <table style="width:100%;font-size:13px;color:#334155;">
-          <tr><td>Total due (incl. VAT)</td><td style="text-align:right;font-weight:700;color:{primary};">£{total:,.2f}</td></tr>
+          <tr><td>{"Total due" if invoice.get('vat_exempt') else "Total due (incl. VAT)"}</td><td style="text-align:right;font-weight:700;color:{primary};">£{total:,.2f}</td></tr>
           <tr><td>Due by</td><td style="text-align:right;">{due_date}</td></tr>
         </table>
       </div>

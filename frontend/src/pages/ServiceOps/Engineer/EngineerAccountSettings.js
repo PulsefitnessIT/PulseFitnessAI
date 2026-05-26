@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
-  Sliders, Palette, Sparkles,
+  Sliders, Palette, Sparkles, Star, Percent,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -379,6 +379,33 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             />
           </section>
 
+          {/* Iter 220l — Reputation: customer ratings */}
+          <section data-testid="engineer-settings-section-ratings">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Reputation</p>
+            <Row
+              icon={Star}
+              accent="#f59e0b"
+              title="My ratings"
+              subtitle="See every star + comment customers have left."
+              onClick={() => { onClose(); navigate('/svc/engineer/ratings'); }}
+              testid="engineer-settings-ratings-row"
+            />
+          </section>
+
+          {/* Iter 220l — Tax / VAT toggle */}
+          {partner && (
+            <section data-testid="engineer-settings-section-tax">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Tax</p>
+              <VatToggle
+                partner={partner}
+                onSaved={(updatedPartner) => {
+                  setPartner(updatedPartner);
+                  onChanged?.();
+                }}
+              />
+            </section>
+          )}
+
           {/* Support */}
           <section data-testid="engineer-settings-section-support">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Help</p>
@@ -411,6 +438,88 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           GymAxis Engineer · v2
         </footer>
       </aside>
+    </div>
+  );
+}
+
+
+// ─── VatToggle ───────────────────────────────────────────────────
+// Iter 220l. Lets sole-trader engineers below the £85k VAT threshold
+// flag themselves as not-VAT-registered so every invoice + quote PDF
+// from them hides the VAT line. One-time tick → everything Just Works.
+function VatToggle({ partner, onSaved }) {
+  const initialReg = partner?.vat_registered !== false; // default True
+  const [registered, setRegistered] = useState(initialReg);
+  const [vatNumber, setVatNumber] = useState(partner?.vat_number || '');
+  const [saving, setSaving] = useState(false);
+  const dirty = (
+    registered !== initialReg
+    || (registered && (vatNumber || '').trim() !== (partner?.vat_number || ''))
+  );
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await axios.put(`${API}/partners/me/tax-settings`, {
+        vat_registered: registered,
+        vat_number: registered ? vatNumber : null,
+      }, auth());
+      notify.success('Tax settings saved', 'Your future invoices will use this.');
+      onSaved?.(r.data?.partner || null);
+    } catch (e) {
+      notify.error('Save failed', e?.response?.data?.detail || e?.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 space-y-3" data-testid="engineer-vat-toggle">
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={registered}
+          onChange={(e) => setRegistered(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          data-testid="engineer-vat-registered-checkbox"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-slate-900">I am VAT-registered</p>
+          <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+            Uncheck if you trade below the £85k VAT threshold — your invoice PDFs
+            will hide VAT and read "Not chargeable".
+          </p>
+        </div>
+        <Percent size={14} className="text-slate-400 mt-1" />
+      </label>
+      {registered && (
+        <div data-testid="engineer-vat-number-block">
+          <label htmlFor="vat-num" className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            VAT registration number
+          </label>
+          <input
+            id="vat-num"
+            type="text"
+            value={vatNumber}
+            onChange={(e) => setVatNumber(e.target.value.toUpperCase())}
+            placeholder="GB123456789"
+            className="mt-1 w-full text-xs font-mono border border-slate-200 rounded px-2 py-1.5"
+            data-testid="engineer-vat-number-input"
+          />
+        </div>
+      )}
+      {dirty && (
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+          data-testid="engineer-vat-save"
+        >
+          {saving ? <Loader2 size={12} className="animate-spin" /> : null}
+          {saving ? 'Saving…' : 'Save tax settings'}
+        </button>
+      )}
     </div>
   );
 }
