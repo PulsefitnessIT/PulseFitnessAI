@@ -1,3 +1,67 @@
+## Iter 220g — Smart scheduling suggestions (P2) (May 26, 2026) ✅ user-requested
+
+User requested: *"Intuitive scheduling, if the engineer already has
+jobs booked around the same area as the new job that's being scheduled
+recommend this day, but also let them manually book."* Confirmed radius:
+10 miles (UK-tight).
+
+**Backend.**
+
+* New module `routes/svc/scheduling_suggestions.py`.
+* `GET /api/svc/engineer/scheduling-suggestions?postcode=…&days=14&radius_miles=10`.
+* Geocoding via the free public **postcodes.io** API (no key, no auth).
+  Results cached in `postcode_cache` so we hit the API at most once per
+  postcode per pod lifetime. Misses are cached too (to dodge repeated
+  fetches for typos).
+* Distance via haversine formula → 10-mile filter.
+* Graceful degradation: if geocoder unreachable for either side,
+  outward-postcode-code match (e.g. `CV1` ≈ `CV1` → ~3 miles) lets the
+  feature still work offline / in tests.
+* Returns top 5 dates sorted by `job_count desc, min_distance asc, date asc`.
+* Engineer scoped (only sees their own jobs), org-isolated.
+* Path is `/svc/engineer/scheduling-suggestions` (NOT nested under
+  `/jobs/` — would have collided with `/jobs/{case_id}`).
+
+**Frontend.**
+
+* `EngineerNewJob.js` gained `SmartSchedulingPanel` rendered above the
+  *Scheduled for* input.
+* 350 ms debounced — fires only once the engineer's postcode is ≥5 chars.
+* States:
+  * **Loading** — small blue strip with spinner.
+  * **No nearby jobs** — muted slate strip, "feel free to pick any date".
+  * **Has matches** — amber panel "You already have jobs near here
+    within 10 miles" with tappable chips for each suggested date.
+* Each chip shows weekday + DD MMM + a job-count badge + the
+  minimum-distance mile pill. Tap → pre-fills *Scheduled for* with the
+  picked date at 09:00. Tapped chips turn green with a checkmark.
+* Manual booking always still works.
+
+**Tests added** (`tests/test_iter_220g_scheduling_suggestions.py`, 8
+cases — all green):
+
+* `test_suggests_dates_with_nearby_jobs_grouped_and_sorted`
+* `test_returns_empty_when_postcode_has_no_nearby_jobs`
+* `test_outward_code_fallback_when_geocoder_says_miss`
+* `test_jobs_outside_window_are_excluded`
+* `test_radius_param_tightens_results`
+* `test_invalid_postcode_returns_empty_with_reason`
+* `test_org_isolation`
+* `test_max_5_suggestions`
+
+Tests pre-seed `postcode_cache` directly so they don't depend on the
+live postcodes.io API.
+
+**testing_agent_v3_fork report** (`/app/test_reports/iteration_220g.json`):
+PASS — 53/53 tests across iter 220 (14) + 220c (6) + 220d (11) + 220e
+(6) + 220f (8) + 220g (8). Frontend SmartSchedulingPanel verified
+end-to-end. 0 issues found.
+
+Wired into `Makefile:regression`. Lint clean.
+
+---
+
+
 ## Iter 220f — Customer typeahead on the New Job card (May 26, 2026) ✅ user-requested
 
 User requested: *"The new job card needs to be able to search for
