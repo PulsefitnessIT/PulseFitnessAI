@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0   # full history for pre-commit's --from-ref/--to-ref
 
@@ -118,7 +118,7 @@ jobs:
     # bypass it. The sister `quality-gate.yml` still owns the heavier
     # mongo-backed regression directory + production build smoke.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
