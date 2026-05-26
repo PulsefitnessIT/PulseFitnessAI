@@ -1,8 +1,18 @@
 # GymAxis · MOD Estate Operations Platform — Briefing Pack
 
+## Iter 220m (Brand canon refresh · May 26, 2026)
+
 Production-grade leave-behind deck for the UK Ministry of Defence.
 A4 landscape (297 × 210 mm), 16 slides, brand-aligned with the
-GymAxis public site (`#0055FF` → `#19CDFF`, Montserrat / Nunito).
+GymAxis public site (navy `#2563EB` → purple `#9D4CDD` gradient,
+light slate canvas, Satoshi / Inter — see
+[`/app/BRAND_PALETTE.md`](../../BRAND_PALETTE.md) for the canon).
+
+> **Note:** earlier revisions of this README referenced `#0055FF` and
+> `#19CDFF`. Those are **legacy / Pulse Fitness tokens** and must not
+> be reused on any 2026+ GymAxis surface. If `index.html` still
+> contains them, re-render against the canonical palette before
+> sending out.
 
 ## Files
 

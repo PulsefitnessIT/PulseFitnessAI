@@ -58,7 +58,7 @@ A single-page React application served at the root domain. Pages are split clean
 - **Shared components** — `Footer`, `NudgeBanner`, `CaptchaWidget`, `MFASetupCard`, `DigestPreferencesCard` — all at `/components/shared/`.
 - **UI primitives** — Shadcn UI at `/components/ui/` (Button, Card, Dialog, Input, etc.) — consistent look across every screen.
 
-All brand colours (Core Blue `#19CDFF`, Soft Black `#1B1D1D`, Slate `#6E7476`) are configured via design guidelines and applied through Tailwind tokens + scoped CSS. Framer Motion drives every scroll-triggered reveal and hover state.
+All brand colours are configured via design guidelines and applied through Tailwind tokens + scoped CSS. The canonical GymAxis palette (navy `#2563EB` → purple `#9D4CDD` gradient on a light slate `#F8FAFC` canvas) lives in `.theme-gymaxis` inside `/app/frontend/src/index.css`; the legacy Pulse Fitness portal retains its own Core Blue `#19CDFF` / Soft Black `#1B1D1D` / Slate `#6E7476` set under `data-brand="pulse"`. Framer Motion drives every scroll-triggered reveal and hover state.
 
 ### 2.3 Backend Architecture
 

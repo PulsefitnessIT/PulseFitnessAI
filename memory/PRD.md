@@ -1,3 +1,79 @@
+## Iter 220m (cont.) — Brand palette canon + regression pin (May 26, 2026) ✅ user-requested
+
+User asked: *"Can you ensure that all design documents are up to date
+to ensure that we don't [hit] this issue again."* — referring to the
+twice-repeated wrong-colour bug on the Instagram launch assets, which
+recurred because the legacy Pulse tokens (`#0055FF` / `#19CDFF` /
+`#0A0C10`) were baked into prose across five different docs. Every
+fresh agent who crawled `/marketing/` or `/memory/` was being
+*pre-instructed* to use the wrong palette.
+
+**Single canonical source.** New `/app/BRAND_PALETTE.md` is now the
+**only** doc that lists hex codes for GymAxis surfaces. Three sections:
+
+1. Real palette — light slate `#F8FAFC` canvas + navy `#2563EB` →
+   indigo `#5B5BF5` → purple `#9D4CDD` gradient + slate-900 type,
+   sourced verbatim from `.theme-gymaxis` (`/app/frontend/src/index.css`
+   lines 1353-1373) and `/app/frontend/src/pages/Marketing/marketing.css`.
+2. **DO NOT USE** anti-pattern table calling out every legacy hex
+   (`#0055FF`, `#19CDFF`, `#0A0C10`, `#003DA5`, `#66CCFF`, `#1B1D1D`)
+   by name so a future agent's grep lands on the warning instead of
+   the wrong value.
+3. Where the canon lives in code · 6-bullet visual checklist for
+   verifying any new tile / PDF / email surface before ship.
+
+**Doc updates.** All five trapped docs now defer to the canon:
+
+* `/app/DESIGN_SYSTEM.md` — top banner refreshed to iter 220m, primary
+  button vocab fixed from "Brand cyan" → "Brand navy→purple gradient",
+  `#0055FF` reference flagged as legacy.
+* `/app/marketing/partner_engineer_launch/README.md` — rewritten end-to-end
+  with the correct palette table, the silhouette-logo footgun, the
+  "no testimonials" rule, and a `DO NOT` warning before any legacy
+  hex appears.
+* `/app/marketing/mod-presentation/README.md` — corrected the
+  "GymAxis public site (#0055FF → #19CDFF)" line to the navy→purple
+  gradient with an explicit legacy warning.
+* `/app/memory/MARKETING_SUITE_PRD.md` — corrected the iter-220m
+  campaign-brand block to call the legacy hexes out by name.
+* `/app/frontend/public/downloads/gymaxis-executive-review.md` —
+  separated the GymAxis canon from the Pulse Fitness palette which
+  were previously co-mingled in the same sentence.
+
+**Regression pin (so this can't drift silently).** New test file
+`backend/tests/test_iter_220m_brand_canon.py` — 5 tests, all green:
+
+* `test_brand_palette_md_exists_and_contains_every_canonical_hex` —
+  every canonical hex (`#F8FAFC`, `#2563EB`, `#5B5BF5`, `#9D4CDD`,
+  `#0F172A`) appears in BRAND_PALETTE.md.
+* `test_brand_palette_md_explicitly_lists_legacy_hexes_in_do_not_use_section` —
+  every legacy hex (`#0055FF`, `#19CDFF`, `#0A0C10`) is in the
+  DO NOT USE table so a future grep finds the warning.
+* `test_generator_uses_canonical_hexes_and_no_legacy_hexes` — the
+  marketing renderer uses the canonical hexes AND has zero
+  colour-assignment references to legacy hexes. (Strips Python
+  comments first so doc/anti-pattern notes are exempt.)
+* `test_partner_engineer_readme_defers_to_brand_palette_md` — verifies
+  the README links to the canon and any legacy hex appears only
+  after a `DO NOT` warning.
+* `test_design_system_md_defers_to_brand_palette_md` — same check
+  for the master design system doc.
+
+Wired into `Makefile::regression`. `make docs-verify` passes (**45
+docs scanned, all consistent at iter 220m**).
+
+**Workflow for future agents.** From this point forward, the contract
+is: any code or doc touching colour MUST cite `/app/BRAND_PALETTE.md`
+as the source of truth. If `generate.py` (or any future renderer) is
+ever rewritten with a wrong palette, the regression test fires
+*before* the assets ship. The 5-doc trail of stale prose is gone, and
+the new doc has a banner stamp so `make docs-verify` will catch any
+future stale revisions of the canon itself.
+
+---
+
+
+
 ## Iter 220m (cont.) — Marketing assets repalette to live GymAxis brand (May 26, 2026) ✅ user-reported
 
 User reported (twice) that the Instagram launch assets were using

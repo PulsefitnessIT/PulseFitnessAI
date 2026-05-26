@@ -12,11 +12,15 @@
 >   – 19 feed posts across 4 weeks (carousels + single tiles + reel covers)
 >   – 8 story frames (with poll / slider / link sticker / countdown placement notes)
 >   – 5 highlight covers (Apply · Demo · Engineers · Reviews · FAQ)
-> * **Brand-locked** — every colour pulled from the same CSS vars the live
->   product uses (`#0055FF` brand blue, `#19CDFF` cyan accent, `#0A0C10`
->   ink). Headlines in Outfit 800/900 (Satoshi-style), body in Inter,
->   stats in JetBrains Mono. Google Fonts loaded at render time so
->   typography is crisp at any zoom.
+> * **Brand-locked** — every colour pulled from the canonical
+>   `.theme-gymaxis` CSS vars in `/app/frontend/src/index.css`:
+>   light slate canvas `#F8FAFC`, navy `#2563EB` → purple `#9D4CDD`
+>   gradient, slate-900 headlines. **Do not** reintroduce the legacy
+>   `#0055FF` / `#19CDFF` / `#0A0C10` Pulse-era tokens here — they
+>   broke the v1 and v2 renders. See `/app/BRAND_PALETTE.md` for the
+>   full canon. Headlines in Outfit 800/900 (Satoshi-style), body in
+>   Inter, stats in JetBrains Mono. Google Fonts loaded at render
+>   time so typography is crisp at any zoom.
 > * **Regeneratable** — `python3 marketing/partner_engineer_launch/generate.py` rebuilds
 >   every asset from the HTML templates in ~30s. Editors can change a
 >   price, a hashtag, a stat globally in one find/replace.

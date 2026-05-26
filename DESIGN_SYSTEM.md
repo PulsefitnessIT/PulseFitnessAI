@@ -1,5 +1,13 @@
 # GymAxis Design System — Master Admin + Operator portals
-*Iter 216h27 · Feb 11, 2026*
+## Iter 220m (Brand canon refresh · May 26, 2026)
+
+> **Brand palette → see [`/app/BRAND_PALETTE.md`](BRAND_PALETTE.md).**
+> That doc is the **single source of truth** for hex codes, gradients,
+> and "do not use" anti-patterns. Do not reproduce hex values here.
+> This file covers component vocabulary (empty states, button hierarchy,
+> shared primitives) only.
+
+*Original iter: 216h27 · Feb 11, 2026*
 
 Single canonical reference for empty states and button hierarchy. This doc was created as the deliverable for the **D2 Empty-state pass** and **D3 Button-hierarchy audit** items in `/app/memory/UX_AND_PROCESS_BACKLOG.md`. Whenever a new panel, tab, list, drawer or wizard is added, use the patterns below.
 
@@ -48,7 +56,7 @@ Use the shared `<Button>` component at `/app/frontend/src/components/shared/Butt
 
 | Variant | Visual | Use for | Rule of thumb |
 |---|---|---|---|
-| `primary` | Brand cyan filled, dark text, bold | The *one* "do the thing" action on the screen | **Exactly one per screen**. If you reach for two, the screen has two CTAs — split into a sub-task or demote one. |
+| `primary` | Brand navy→purple gradient filled, white text, bold | The *one* "do the thing" action on the screen | **Exactly one per screen**. If you reach for two, the screen has two CTAs — split into a sub-task or demote one. |
 | `secondary` | Outline + neutral background | Supporting actions next to the primary | Refresh, Cancel, Bulk import, Export. Pluralisable — 2-3 max next to a primary. |
 | `tertiary` | Text-only with underline-on-hover | Low-emphasis links and inline navigation | "View all", "Manage", "Reset filter". No more than 4 visible at once. |
 | `destructive` | Soft red filled | Delete / Archive / Revoke / Disconnect | Always confirm via `useConfirm()`. Never use as primary for first-render screens. |
@@ -158,7 +166,7 @@ Parent row **must** have the Tailwind `group` class.
 
 ### Anti-patterns we replaced (iter 216h27)
 - Multiple `inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-3 py-1.5 bg-white hover:bg-zinc-50` repeated everywhere → use `<Button variant="secondary">`.
-- Custom blue-filled `style={{ background: '#0055FF' }}` for the "Generate" / "Save" CTA → use `<Button variant="primary">`.
+- Custom blue-filled `style={{ background: '#0055FF' }}` (a **legacy / Pulse-only** hex — see `/app/BRAND_PALETTE.md`) for the "Generate" / "Save" CTA → use `<Button variant="primary">` which applies the canonical navy→purple gradient.
 - 6+ variants of "View / Open / Manage" text links — collapse to `<Button variant="tertiary">`.
 
 ### Migration plan
