@@ -1,3 +1,61 @@
+## Iter 220c — Engineer App autosave (P0 data-loss bug) (May 26, 2026) ✅ user-reported
+
+User-reported P0: engineer types "Testing 123" in Work summary, switches
+to Parts tab to look at fitted parts, comes back — text is GONE. Root
+cause: `CompleteTab` is conditionally rendered (only when active tab is
+`complete`), so React unmounts it on every tab switch, dropping all
+local component state. The fix is two-tier persistence:
+
+**Backend.**
+
+* New collection `svc_engineer_job_drafts` keyed by
+  `(organization_id, engineer_id, case_id)` (unique index).
+* New endpoints under `/api/svc/engineer/jobs/{case_id}`:
+  * `GET /draft` — fetch latest persisted draft.
+  * `PUT /draft` — upsert. Body `{draft: {...}}` is opaque; capped at
+    32 KB to keep one runaway client from flooding the collection.
+  * `DELETE /draft` — clear (called on successful complete).
+* `engineer_complete` now deletes the engineer's draft on success so
+  re-opening a closed case never shows stale text.
+
+**Frontend.**
+
+* New `useJobDraft(caseId)` hook — localStorage write on every
+  keystroke (sync, instant — survives mid-typing tab switches) +
+  debounced 1-second backend PUT (durable — survives device loss).
+  Reconciles local vs remote on mount: server wins if its `updated_at`
+  is newer (cross-device).
+* `EngineerJobDetailV2` now lifts the draft state OUT of `CompleteTab`
+  so it survives unmount. New `DraftStatusPill` in the header shows
+  *Saving… / ● Unsaved / ✓ Saved*.
+* `goBack` confirms with the engineer when the draft is dirty
+  ("You have unsaved work — leave anyway?"). The draft is still safe
+  locally, so accidentally hitting the back button doesn't actually
+  lose anything — the dialog is a reassurance + a chance to cancel.
+* `window.beforeunload` hooked to show the browser's native
+  "unsaved changes" warning when the user reloads / closes the tab.
+
+**Tests added** (`tests/test_iter_220c_engineer_draft_autosave.py`,
+6 cases — all green):
+
+* `test_draft_round_trip_persists_and_returns_typed_summary`
+* `test_draft_subsequent_put_overwrites_previous_payload`
+* `test_draft_delete_clears_storage`
+* `test_complete_clears_draft_after_success`
+* `test_draft_rejects_payload_larger_than_32_kb`
+* `test_draft_404_for_unknown_case`
+
+**testing_agent_v3_fork report** (`/app/test_reports/iteration_220c.json`):
+PASS — critical tab-switch persistence verified end-to-end, page-reload
+persistence verified, autosave indicator transitions confirmed, back-button
+warning fires correctly. 28/28 backend tests (6 iter 220c + 14 iter 220
++ 8 iter 219g). 0 issues found.
+
+Wired into `Makefile:regression`. Lint clean.
+
+---
+
+
 ## Iter 220b — Asset reading sparkline (trend view) for custom Work Report fields (May 25, 2026) ✅
 
 Now that engineers are capturing structured machine readings on every
