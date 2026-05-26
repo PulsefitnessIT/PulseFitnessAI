@@ -95,7 +95,7 @@ _iter 220m: Monthly engineer reputation report email — fires on the 1st via as
 
 - `/partner-engineer` — application + dashboard for self-employed engineers (£30/mo plan, £15/mo at 5 referrals, free at 10).
 - Access guard `require_engineer_app_access` enforces approved status + active subscription on every `/api/svc/engineer/*` route. Master admins / internal employees / customer-grant engineers bypass.
-- **Release-ready as of iter 220m** (May 26 2026). Soft-launch target: 50 verified Partner Engineers via the Instagram campaign (assets in `/app/backend/marketing/`).
+- **Release-ready as of iter 220m** (May 26 2026). Soft-launch target: 50 verified Partner Engineers via the Instagram campaign (assets in `/app/marketing/partner_engineer_launch/`).
 - Compliance docs gate: `dbs` OR `rtw` (file uploaded, expiry future-or-absent) required to claim paid work. `compliance_paused` flag set by nightly sweep also blocks claims.
 - Branding: engineer-level override (logo + primary/accent hex) beats org default on every PDF + portal.
 - Ratings: customer rates from the public tracking page; engineer sees their reputation at `/svc/engineer/ratings`; happy customers can tap "Request {name} again" to flag the engineer for next time (stored in `svc_engineer_preferences`).

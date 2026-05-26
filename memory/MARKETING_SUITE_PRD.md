@@ -7,7 +7,7 @@
 >
 > Full 4-week social campaign for the Partner Engineer soft launch:
 >
-> * **32 pixel-perfect assets** rendered into `/app/backend/marketing/instagram/`
+> * **32 pixel-perfect assets** rendered into `/app/marketing/partner_engineer_launch/instagram/`
 >   via Playwright (HTML templates → 1080×1080 PNGs at device-scale 2x).
 >   – 19 feed posts across 4 weeks (carousels + single tiles + reel covers)
 >   – 8 story frames (with poll / slider / link sticker / countdown placement notes)
@@ -17,10 +17,10 @@
 >   ink). Headlines in Outfit 800/900 (Satoshi-style), body in Inter,
 >   stats in JetBrains Mono. Google Fonts loaded at render time so
 >   typography is crisp at any zoom.
-> * **Regeneratable** — `python3 backend/marketing/generate.py` rebuilds
+> * **Regeneratable** — `python3 marketing/partner_engineer_launch/generate.py` rebuilds
 >   every asset from the HTML templates in ~30s. Editors can change a
 >   price, a hashtag, a stat globally in one find/replace.
-> * **Ready-to-publish copy** — `/app/backend/marketing/CAPTIONS.md`
+> * **Ready-to-publish copy** — `/app/marketing/partner_engineer_launch/CAPTIONS.md`
 >   holds the full 4-week posting schedule with caption + hashtags +
 >   suggested UK time slots for every asset.
 > * **KPI targets**: 50 verified Partner Engineer applications in 4

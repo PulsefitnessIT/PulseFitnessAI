@@ -8,12 +8,12 @@ so designers can tweak any slide independently without touching the
 renderer.
 
 Run:
-    cd /app/backend && python3 marketing/generate.py
+    cd /app && python3 marketing/partner_engineer_launch/generate.py
 
 Output:
-    /app/backend/marketing/instagram/feed/post_NN_slide_M.png
-    /app/backend/marketing/instagram/stories/frame_NN.png
-    /app/backend/marketing/instagram/highlights/cover_NAME.png
+    /app/marketing/partner_engineer_launch/instagram/feed/post_NN_slide_M.png
+    /app/marketing/partner_engineer_launch/instagram/stories/frame_NN.png
+    /app/marketing/partner_engineer_launch/instagram/highlights/cover_NAME.png
 
 Why HTML+Playwright (not AI image gen): we need EXACT brand colours
 (#0055FF / #19CDFF / #0A0C10), real Satoshi+Inter fonts loaded via

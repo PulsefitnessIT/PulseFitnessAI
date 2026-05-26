@@ -17,10 +17,14 @@ backend/                  FastAPI + Motor (async Mongo) + Stripe Connect
   utils/                  Cross-cutting helpers (email, auth, attention, …)
   route_registry/         Single source of truth for which routers are mounted
   tests/                  Pytest — `test_iter_*.py` per shipped feature
-  marketing/              ★ Instagram campaign + image generator (iter 220m)
 frontend/                 React 18 + Vite-style CRA + Tailwind + Shadcn UI
   src/pages/              Domain-grouped (CRM, ServiceOps, PartnerEngineer, …)
   src/components/ui/      Shadcn primitives
+marketing/                ★ Marketing campaigns (root, NOT inside backend/)
+  partner_engineer_launch/  ★ Iter 220m — 32 Instagram tiles (current launch)
+  instagram_campaign/       Gym-operator "9 Reasons" mosaic (earlier)
+  sicon-access/             Sicon partner access request hand-off PDF
+  mod-presentation/         MOD briefing deck
 memory/                   ★ The source-of-truth product docs (READ FIRST)
   PRD.md                  Full session-by-session changelog
   ROADMAP.md              Prioritised backlog (P0 → P3)
@@ -70,10 +74,10 @@ Full detail in `/memory/PRD.md`.
 ## Marketing campaign assets
 
 The Partner Engineer launch ships with a fully-rendered Instagram
-campaign in `backend/marketing/instagram/`:
+campaign in `marketing/partner_engineer_launch/`:
 
 ```
-backend/marketing/
+marketing/partner_engineer_launch/
 ├── README.md            Brand system + how to regenerate
 ├── CAPTIONS.md          4-week schedule + ready-to-paste copy
 ├── generate.py          Playwright renderer (re-run any time)
@@ -86,8 +90,14 @@ backend/marketing/
 Regenerate any tile after a copy tweak:
 
 ```bash
-cd backend && python3 marketing/generate.py
+cd /app && python3 marketing/partner_engineer_launch/generate.py
 ```
+
+Earlier campaigns live alongside it:
+
+* `marketing/instagram_campaign/` — gym-operator "9 Reasons" mosaic.
+* `marketing/sicon-access/` — Sicon partner hand-off PDF.
+* `marketing/mod-presentation/` — MOD briefing deck.
 
 ---
 

@@ -1,6 +1,6 @@
 > **📋 Status — Iter 220m (May 26, 2026)** — Partner Engineer program RELEASE-READY for soft launch
 >
-> This refresh follows the Partner Engineer pre-launch sprint (iters 220i → 220m). The three structural risks from the May 26 journey audit have all been sealed; the four P1 polish items shipped together; the monthly reputation report fires on autopilot. The Instagram marketing campaign is rendered and ready in `/app/backend/marketing/`.
+> This refresh follows the Partner Engineer pre-launch sprint (iters 220i → 220m). The three structural risks from the May 26 journey audit have all been sealed; the four P1 polish items shipped together; the monthly reputation report fires on autopilot. The Instagram marketing campaign is rendered and ready in `/app/marketing/partner_engineer_launch/`.
 >
 > | Aspect | State |
 > | --- | --- |
@@ -13,7 +13,7 @@
 > | Partner Engineer P1 polish | ✅ All four shipped (iter 220l): VAT-exempt toggle, My Ratings view, "Request again" CTA, 30-day grant max-age. |
 > | Monthly Reputation Report | ✅ Async loop wired in `server.py` (`utils/reputation_reports.run_forever`). Idempotent via `reputation_reports.last_sent_period`. Admin trigger at `POST /api/partners/admin/{id}/send-reputation-report`. |
 > | Customer-email broken image | ✅ Fixed (iter 220i) — self-hosted `/brand/gymaxis-mark-tight.png`. |
-> | Marketing campaign | ✅ 32 pixel-perfect Instagram tiles + 8 stories + 5 highlight covers rendered into `/app/backend/marketing/instagram/`. Generator + captions doc shipped. |
+> | Marketing campaign | ✅ 32 pixel-perfect Instagram tiles + 8 stories + 5 highlight covers rendered into `/app/marketing/partner_engineer_launch/instagram/`. Generator + captions doc shipped. |
 > | Outlook / Sicon / DocuSign | ⚠️ Code + admin UI ready; blocked on user-provided credentials. |
 
 ---

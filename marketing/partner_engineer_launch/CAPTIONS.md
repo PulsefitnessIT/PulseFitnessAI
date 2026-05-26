@@ -236,5 +236,5 @@ Files: `instagram/highlights/highlight_*.png`
 ## To regenerate any tile after a copy tweak
 
 ```bash
-cd /app/backend && python3 marketing/generate.py
+cd /app && python3 marketing/partner_engineer_launch/generate.py
 ```

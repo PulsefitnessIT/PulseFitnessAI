@@ -9,7 +9,7 @@ from happening again on the next big sprint.
 * Reads the canonical current iter from `/app/memory/.current_iter`
   (single line, currently `220m`).
 * Scans every shipped `.md` under `/app/memory`, `/app/docs`,
-  `/app/*.md`, `/app/backend/marketing/*.md`.
+  `/app/*.md`, `/app/marketing/partner_engineer_launch/*.md`.
 * Pulls the FIRST status banner from each file (matches both shapes
   we emit: `> **📋 Status — Iter XXX (...)**` and
   `## Iter XXX (...)`).

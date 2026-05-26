@@ -14,7 +14,7 @@ _Last refreshed: Iter 220m · May 26, 2026._
 - **iter 220k** — Release-blocking P0s sealed: compliance-to-claim gate (DBS or RTW required + `compliance_paused` blocks claims), mid-job cancellation recovery (auto-unassign + dispatch-admin email).
 - **iter 220l** — Pre-launch polish: VAT-exempt engineer toggle, engineer "My Ratings" view, customer "Request this engineer again" CTA, 30-day job-grant max-age.
 - **iter 220m** — Monthly Reputation Report email (auto-fires on the 1st, includes Share-on-LinkedIn CTA, admin trigger endpoint for resends).
-- **Marketing campaign assets** (May 26) — 32 pixel-perfect Instagram tiles + 8 stories + 5 highlight covers rendered into `/app/backend/marketing/instagram/`. Generator + captions doc included.
+- **Marketing campaign assets** (May 26) — 32 pixel-perfect Instagram tiles + 8 stories + 5 highlight covers rendered into `/app/marketing/partner_engineer_launch/instagram/`. Generator + captions doc included.
 
 **Partner Engineer journey is now release-ready** (see `/app/memory/PRODUCTION_READINESS.md`).
 

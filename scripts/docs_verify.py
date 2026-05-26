@@ -49,7 +49,7 @@ SCAN_GLOBS = [
     ROOT / "memory" / "*.md",
     ROOT / "docs" / "*.md",
     ROOT / "*.md",
-    ROOT / "backend" / "marketing" / "*.md",
+    ROOT / "marketing" / "**/*.md",  # iter 220m sweep — marketing campaigns
 ]
 
 # Files allowed to skip (canonical changelogs that *should* reference
@@ -95,7 +95,15 @@ def main() -> int:
     stale: list[tuple[pathlib.Path, str]] = []
     checked = 0
     for glob in SCAN_GLOBS:
-        for p in sorted(glob.parent.glob(glob.name)):
+        if "**" in glob.parts:
+            # Recursive glob — use rglob from the parent that precedes the **.
+            star_idx = glob.parts.index("**")
+            anchor = pathlib.Path(*glob.parts[:star_idx])
+            pattern = "/".join(glob.parts[star_idx + 1:])
+            results = sorted(anchor.rglob(pattern))
+        else:
+            results = sorted(glob.parent.glob(glob.name))
+        for p in results:
             if p in _SKIP:
                 continue
             checked += 1
