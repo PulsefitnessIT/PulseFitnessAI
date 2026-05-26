@@ -1,3 +1,75 @@
+## Iter 220e — Per-machine photos + beautified PDF layout (May 26, 2026) ✅ user-requested
+
+User asked: *"The engineer may need to add photos to the machine lines
+too, ensure they have the ability to and the report looks beautiful
+even when they are printed out."*
+
+**Backend.**
+
+* `POST /api/svc/engineer/photos` now accepts an optional
+  `machine_row_id`. When supplied, the photo is validated against
+  `svc_work_visit_machines` and tagged so it can render under that
+  specific machine on the Service Report PDF.
+* New `DELETE /api/svc/engineer/photos/{photo_id}` — needed so
+  engineers can remove a misplaced shot from a machine row.
+* `GET /api/svc/engineer/jobs/{case_id}/machines` now fans in each
+  row's tagged photos in one query (avoids per-row round trips).
+
+**Service Report PDF redesign.**
+
+* "MACHINES ON THIS VISIT" replaced its old monolithic table with a
+  **card-per-machine layout**:
+  * Numbered badge (`#1`, `#2`, …) in brand colour.
+  * Machine name + type · serial sub-line.
+  * Bold green/blue **✓ SERVICED / ✓ CLEANED chips** beneath.
+  * Notes paragraph (preserves newlines).
+  * Up to 4 photos rendered as a 2-up strip beneath, with captions.
+  * Left-edge brand-coloured rule + soft outline for visual rhythm.
+* Photos already tagged to a machine are excluded from the global
+  PHOTOS section (re-titled "ADDITIONAL PHOTOS" when machine photos
+  exist) so the same image never appears twice.
+* New `_paint_page_chrome` callback adds a footer to every page:
+  `"GymAxis Service Report · Page N"` on the left,
+  generated UTC timestamp on the right, hairline rule above. Makes
+  printed copies look like a finished document, not a draft.
+
+**Frontend.**
+
+* `WorkVisitMachinesCard.js` gained a **Photos** section inside every
+  expanded machine row:
+  * "Add photo" button → opens the device's native camera/gallery
+    picker (`capture="environment"`).
+  * 3-up thumbnail grid with hover-to-remove (X) on each tile.
+  * Empty-state copy hints "it'll print on the customer report."
+* Reuses the existing `/api/files/upload?category=service-media` →
+  `/api/svc/engineer/photos` pipeline (Sicon sync, AI tagging etc. all
+  continue to work).
+
+**PDF quality check.** Generated a preview PDF with 3 machines + chips
++ notes and ran it through `analyze_file_tool` (Gemini 2.5):
+*"polished and professional… clean two-column layout… machines section
+effectively separates information for each machine… footer with page
+numbers and timestamps adhering to best practices."* Confidence 95%.
+
+**Tests added** (`tests/test_iter_220e_per_machine_photos.py`, 6 cases
+— all green):
+
+* `test_photo_attached_to_machine_row_returns_in_list`
+* `test_photo_machine_row_id_must_exist`
+* `test_photo_without_machine_row_id_still_works`
+* `test_delete_photo_removes_link_from_machine`
+* `test_delete_photo_404_when_missing`
+* `test_service_report_pdf_renders_with_per_machine_block`
+
+**testing_agent_v3_fork report** (`/app/test_reports/iteration_220e.json`):
+PASS — 37/37 tests across iter 220 (14) + 220c (6) + 220d (11) +
+220e (6). Frontend UI verified. 0 issues.
+
+Wired into `Makefile:regression`. Lint clean (0 ruff / 0 eslint warnings).
+
+---
+
+
 ## Iter 220d — Per-machine work reports + quick-add note presets (May 26, 2026) ✅ user-requested
 
 User requested: *"engineers need to be able to write reports against
