@@ -562,6 +562,12 @@ async def _create_indexes() -> None:
     # Iter 220 — Work Report custom fields indexes
     from routes.svc.work_report_fields import ensure_indexes as ensure_work_report_fields_indexes
     await ensure_work_report_fields_indexes()
+    # Iter 220c — Engineer job-draft autosave (unique per engineer×case)
+    await db.svc_engineer_job_drafts.create_index(
+        [("organization_id", 1), ("engineer_id", 1), ("case_id", 1)],
+        unique=True,
+        name="svc_engineer_job_drafts_unique",
+    )
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()

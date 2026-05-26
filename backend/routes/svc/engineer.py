@@ -638,8 +638,88 @@ async def engineer_complete(
     await sicon_sync.push_case(case)
     if target == CLOSED:
         await sage_invoice.enqueue_invoice_for_case(case)
+    # Iter 220c — successful complete → drop the engineer's in-flight
+    # draft so the form isn't pre-filled with old text the next time
+    # they open the case.
+    await db.svc_engineer_job_drafts.delete_one(
+        {**of, "case_id": case_id, "engineer_id": user["id"]},
+    )
     case.pop("_id", None)
     return case
+
+
+# ─────────────────────────────────────────────────────────────────
+# Iter 220c — Engineer draft autosave (data-loss prevention)
+# ─────────────────────────────────────────────────────────────────
+# Engineers were losing their Work Summary text when switching between
+# tabs in the job detail (the React component unmounts on tab change).
+# We persist a debounced draft per (engineer, case) here so an offline
+# device crash, app close, or tab navigation never wipes mid-job notes.
+
+
+@router.get("/jobs/{case_id}/draft")
+async def get_engineer_draft(case_id: str, user=Depends(get_current_user)):
+    of = _of(user)
+    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0, "id": 1})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    doc = await db.svc_engineer_job_drafts.find_one(
+        {**of, "case_id": case_id, "engineer_id": user["id"]},
+        {"_id": 0},
+    )
+    return doc or {"case_id": case_id, "engineer_id": user["id"], "draft": {}}
+
+
+@router.put("/jobs/{case_id}/draft")
+async def upsert_engineer_draft(
+    case_id: str,
+    data: dict,
+    user=Depends(get_current_user),
+):
+    """Body: {draft: {summary?, target?, signature_name?, custom_fields?, ...}}
+
+    The draft blob is opaque to the backend — the frontend owns its
+    shape — but we cap the size to keep one runaway client from
+    flooding the collection. 32 KB is plenty for the longest plausible
+    work-summary + custom-fields blob.
+    """
+    of = _of(user)
+    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0, "id": 1})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    draft = (data or {}).get("draft") or {}
+    if not isinstance(draft, dict):
+        raise HTTPException(400, "draft must be an object")
+    import json as _json
+    try:
+        payload_size = len(_json.dumps(draft).encode("utf-8"))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(400, "draft is not JSON-serialisable") from exc
+    if payload_size > 32 * 1024:
+        raise HTTPException(413, "draft too large (max 32 KB)")
+    now_iso = _now()
+    await db.svc_engineer_job_drafts.update_one(
+        {**of, "case_id": case_id, "engineer_id": user["id"]},
+        {"$set": {
+            **of,
+            "case_id": case_id,
+            "engineer_id": user["id"],
+            "draft": draft,
+            "updated_at": now_iso,
+            "bytes": payload_size,
+        }, "$setOnInsert": {"created_at": now_iso}},
+        upsert=True,
+    )
+    return {"ok": True, "case_id": case_id, "saved_at": now_iso, "bytes": payload_size}
+
+
+@router.delete("/jobs/{case_id}/draft")
+async def clear_engineer_draft(case_id: str, user=Depends(get_current_user)):
+    of = _of(user)
+    await db.svc_engineer_job_drafts.delete_one(
+        {**of, "case_id": case_id, "engineer_id": user["id"]},
+    )
+    return {"ok": True, "case_id": case_id}
 
 
 __all__ = ["router"]

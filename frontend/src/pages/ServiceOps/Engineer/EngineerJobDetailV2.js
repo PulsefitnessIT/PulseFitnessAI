@@ -34,6 +34,7 @@ import { engineerSendOrQueue } from '@/utils/engineerOfflineQueue';
 import SignatureCanvas from './SignatureCanvas';
 import EngineerDictationButton from './EngineerDictationButton';
 import WorkReportCustomFields from './WorkReportCustomFields';
+import useJobDraft from './useJobDraft';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -61,6 +62,19 @@ export default function EngineerJobDetailV2() {
   const [activeTab, setActiveTab] = useState('time');
   const [mileage, setMileage] = useState({ items: [], total_miles: 0, total_amount_gbp: 0 });
   const [busy, setBusy] = useState(false);
+  // Iter 220c — Lift the draft state OUT of CompleteTab so it survives
+  // tab switches (the component unmounts on every switch and was wiping
+  // mid-typed work summaries). The hook also dual-writes to localStorage
+  // + the backend so a page reload or device kill can't lose work.
+  const { draft, setDraft, clearDraft, saving: savingDraft, lastSavedAt, dirty: draftDirty } = useJobDraft(caseId);
+
+  const goBack = useCallback(() => {
+    if (draftDirty) {
+      const ok = window.confirm('You have unsaved work on this job. The draft is saved locally and will still be here when you return — leave anyway?');
+      if (!ok) return;
+    }
+    navigate('/svc/engineer');
+  }, [draftDirty, navigate]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,7 +116,7 @@ export default function EngineerJobDetailV2() {
     <div className="min-h-screen bg-slate-50" data-testid="engineer-job-detail-v2">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/svc/engineer')} className="p-2 rounded-full hover:bg-slate-100" aria-label="Back" data-testid="job-back">
+          <button onClick={goBack} className="p-2 rounded-full hover:bg-slate-100" aria-label="Back" data-testid="job-back">
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
@@ -112,6 +126,8 @@ export default function EngineerJobDetailV2() {
               {job.site_name || 'Unknown site'}{job.asset_name ? ` · ${job.asset_name}` : ''} · <span className="capitalize">{job.status}</span>
             </p>
           </div>
+          {/* Iter 220c — autosave indicator. Lets engineers know the draft is safe. */}
+          <DraftStatusPill saving={savingDraft} lastSavedAt={lastSavedAt} dirty={draftDirty} />
           <button onClick={load} aria-label="Refresh" className="p-2 rounded-full border border-slate-200 bg-white" data-testid="job-refresh">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -159,10 +175,46 @@ export default function EngineerJobDetailV2() {
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
         {activeTab === 'photos' && <PhotosTab job={job} onChange={load} />}
         {activeTab === 'parts'  && <PartsTab job={job} onChange={load} />}
-        {activeTab === 'complete' && <CompleteTab job={job} locked={lockedComplete} onChange={load} navigate={navigate} />}
+        {activeTab === 'complete' && (
+          <CompleteTab
+            job={job}
+            locked={lockedComplete}
+            onChange={load}
+            navigate={navigate}
+            draft={draft}
+            setDraft={setDraft}
+            clearDraft={clearDraft}
+          />
+        )}
       </main>
     </div>
   );
+}
+
+// Iter 220c — header pill that mirrors the autosave state.
+function DraftStatusPill({ saving, lastSavedAt, dirty }) {
+  if (saving) {
+    return (
+      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-blue-700" data-testid="draft-status-saving">
+        <Loader2 size={10} className="animate-spin" /> Saving…
+      </span>
+    );
+  }
+  if (dirty) {
+    return (
+      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-600" data-testid="draft-status-dirty">
+        ● Unsaved
+      </span>
+    );
+  }
+  if (lastSavedAt) {
+    return (
+      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-emerald-600" data-testid="draft-status-saved">
+        ✓ Saved
+      </span>
+    );
+  }
+  return null;
 }
 
 // ─────────────────────────── Active timer bar ───────────────────────────
@@ -954,18 +1006,31 @@ function PartsRequestModal({ sku, name, onCancel, onSubmit, busy }) {
 
 // ─────────────────────────── Complete tab ───────────────────────────
 
-function CompleteTab({ job, locked, onChange, navigate }) {
-  const [summary, setSummary] = useState(job.resolution_notes || '');
-  const [signatureName, setSignatureName] = useState('');
+function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDraft }) {
+  // Iter 220c — Use the parent's lifted draft so tab switches NEVER
+  // lose typed text. Falls back to the case's stored values on first
+  // open so engineers see what was previously persisted.
+  const summary = draft.summary !== undefined ? draft.summary : (job.resolution_notes || '');
+  const signatureName = draft.signature_name || '';
+  const target = draft.target || 'awaiting_sign_off';
+  const customFields = draft.custom_fields || {};
+  const autoInvoice = draft.auto_invoice === undefined ? true : !!draft.auto_invoice;
+
   const [signatureData, setSignatureData] = useState('');
   const [showSignature, setShowSignature] = useState(false);
-  const [target, setTarget] = useState('awaiting_sign_off');
   const [busy, setBusy] = useState(false);
-  const [autoInvoice, setAutoInvoice] = useState(true);
-  const [draft, setDraft] = useState(null);
-  // Iter 220 — Machine-specific custom fields. Stored as a flat dict
-  // {key: value} that we pass through to /complete in one go.
-  const [customFields, setCustomFields] = useState({});
+  const [draftResult, setDraftResult] = useState(null);
+
+  const setSummary = (v) => setDraft({ summary: v });
+  const setSignatureName = (v) => setDraft({ signature_name: v });
+  const setTarget = (v) => setDraft({ target: v });
+  const setCustomFields = (patchOrFn) => setDraft((prev) => ({
+    ...prev,
+    custom_fields: typeof patchOrFn === 'function'
+      ? patchOrFn(prev?.custom_fields || {})
+      : patchOrFn,
+  }));
+  const setAutoInvoice = (v) => setDraft({ auto_invoice: !!v });
 
   const complete = async () => {
     if (!summary.trim()) { notify.error('Add a work summary'); return; }
@@ -987,13 +1052,15 @@ function CompleteTab({ job, locked, onChange, navigate }) {
           const r = await axios.post(
             `${API}/svc/engineer/jobs/${job.id}/generate-invoice-draft`, {}, auth(),
           );
-          setDraft(r.data);
+          setDraftResult(r.data);
           notify.success(`Draft ${r.data.invoice_number} created`);
         } catch (e) {
           const m = e?.response?.data?.detail || 'No chargeable lines yet';
           notify.error(`Invoice draft skipped: ${m}`);
         }
       }
+      // Iter 220c — flush the autosave draft now that the job is wrapped.
+      await clearDraft?.();
       await onChange();
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Could not complete job');
@@ -1074,14 +1141,14 @@ function CompleteTab({ job, locked, onChange, navigate }) {
         </label>
       </div>
 
-      {draft && (
+      {draftResult && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3" data-testid="complete-draft-banner">
           <CheckCircle2 size={20} className="text-emerald-600" />
           <div className="flex-1">
-            <p className="text-sm font-bold text-emerald-900">Invoice draft {draft.invoice_number} created</p>
-            <p className="text-[11px] text-emerald-800">{(draft.lines || []).length} line(s) · total {fmtGBP(draft.total)}</p>
+            <p className="text-sm font-bold text-emerald-900">Invoice draft {draftResult.invoice_number} created</p>
+            <p className="text-[11px] text-emerald-800">{(draftResult.lines || []).length} line(s) · total {fmtGBP(draftResult.total)}</p>
           </div>
-          <button onClick={() => navigate(`/svc/engineer/invoices/${draft.id}`)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold" data-testid="complete-open-draft">
+          <button onClick={() => navigate(`/svc/engineer/invoices/${draftResult.id}`)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold" data-testid="complete-open-draft">
             <ChevronRight size={12} /> Open
           </button>
         </div>

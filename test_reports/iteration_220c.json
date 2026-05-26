@@ -1,0 +1,63 @@
+{
+  "summary": "Iter 220c Engineer App autosave bug fix VERIFIED. Critical P0 bug (data loss when switching tabs) is FIXED. All 6 backend pytest tests passed. Frontend UI testing confirmed: (1) Text persists after tab switch, (2) Text persists after page reload, (3) Autosave indicator shows Saving/Unsaved/Saved states correctly, (4) Back button warning dialog appears when dirty. Regression tests for iter 219g (8/8) and iter 220 (14/14) all passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220c_engineer_draft_autosave.py",
+    "/app/backend/tests/test_iter_220_work_report_custom_fields.py",
+    "/app/backend/tests/test_iter_219g_send_signin_link.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (28/28 tests passed: 6 iter 220c + 14 iter 220 + 8 iter 219g)",
+    "frontend": "100% (all critical flows verified)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Created temporary test case autosave-test-21cba4bf for UI testing (cleaned up after tests)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 220c autosave bug fix is complete and verified. The useJobDraft hook persists draft state to both localStorage (instant) and backend /api/svc/engineer/jobs/{case_id}/draft (debounced 1s). DraftStatusPill shows Saving/Unsaved/Saved states. Back button triggers confirm dialog when dirty. Draft is cleared on successful job complete.",
+  "tests_verified": {
+    "critical_bug_fix_tab_switch": {
+      "status": "PASSED",
+      "description": "Type 'Testing 123' in Work Summary, switch to Parts tab, switch back - text persists"
+    },
+    "page_reload_persistence": {
+      "status": "PASSED",
+      "description": "Type text, wait for autosave, reload page - text returns when Complete tab reopened"
+    },
+    "autosave_indicator": {
+      "status": "PASSED",
+      "description": "Header shows 'Saving...' briefly after typing, then '✓ Saved' once persisted, '● Unsaved' while typing fast"
+    },
+    "back_button_warning": {
+      "status": "PASSED",
+      "description": "Confirm dialog appears when clicking back with unsaved changes"
+    },
+    "backend_draft_endpoints": {
+      "status": "PASSED",
+      "description": "GET/PUT/DELETE /api/svc/engineer/jobs/{case_id}/draft all working (6 pytest tests)"
+    },
+    "complete_clears_draft": {
+      "status": "PASSED",
+      "description": "Successful complete wipes the draft (verified in pytest)"
+    },
+    "work_report_fields_regression": {
+      "status": "PASSED",
+      "description": "/svc/engineer/work-report-fields page loads, shows 3 custom fields with CRUD"
+    },
+    "send_signin_link_regression": {
+      "status": "PASSED",
+      "description": "iter 219g formatApiError 404 hint preserved (8 pytest tests)"
+    }
+  }
+}
