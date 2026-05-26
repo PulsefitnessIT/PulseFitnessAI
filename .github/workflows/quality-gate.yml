@@ -69,6 +69,12 @@ jobs:
         working-directory: backend
         run: ruff check .
 
+      - name: Docs verify (no stale Iter banners)
+        # Iter 220m — fail PRs that update code without bumping the
+        # status banners on /memory or /docs Markdown to the current
+        # iter (or skiplisting them in scripts/docs_verify.py).
+        run: python3 scripts/docs_verify.py
+
       - name: Bandit (SAST, Medium+ blocks)
         working-directory: backend
         run: bandit -r routes utils models scripts -ll -q

@@ -11,6 +11,7 @@ help:
 	@echo "  make lint-integrations   # validate Sicon/Sage field mapping docs"
 	@echo "  make lint-backend        # ruff over backend/"
 	@echo "  make lint-frontend       # eslint over frontend/src/"
+	@echo "  make docs-verify         # fail if any /memory or /docs MD is stamped against a stale Iter"
 	@echo "  make lint                # all of the above"
 	@echo "  make smoke               # quick health curl against \$$REACT_APP_BACKEND_URL"
 	@echo "  make security-scan       # ruff + bandit baseline (fail on Medium+)"
@@ -37,7 +38,13 @@ lint-backend:
 lint-frontend:
 	@cd /app/frontend && yarn -s eslint src --ext .js,.jsx --max-warnings 0
 
-lint: lint-integrations lint-backend lint-frontend
+# Iter 220m — fail CI if any shipped Markdown doc carries a stale
+# `Iter XXX` status banner. Canonical current iter lives in
+# /app/memory/.current_iter — bump it when you cut a release.
+docs-verify:
+	@cd /app && python3 scripts/docs_verify.py
+
+lint: lint-integrations lint-backend lint-frontend docs-verify
 
 smoke:
 	@URL=$$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d'=' -f2); \

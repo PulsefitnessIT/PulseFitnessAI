@@ -1,3 +1,53 @@
+## Iter 220m (cont.) — Doc drift guard (May 26, 2026) ✅
+
+Prevents the doc drift problem we just fixed (iters 216h232 → 220m
+where 19+ docs accumulated stale "Status — Iter 216h232" banners)
+from happening again on the next big sprint.
+
+**New script.** `/app/scripts/docs_verify.py` (~95 lines):
+
+* Reads the canonical current iter from `/app/memory/.current_iter`
+  (single line, currently `220m`).
+* Scans every shipped `.md` under `/app/memory`, `/app/docs`,
+  `/app/*.md`, `/app/backend/marketing/*.md`.
+* Pulls the FIRST status banner from each file (matches both shapes
+  we emit: `> **📋 Status — Iter XXX (...)**` and
+  `## Iter XXX (...)`).
+* Exits 1 with a per-file diff table if any banner doesn't match
+  the current iter. Untagged docs are allowed; PRD.md +
+  CHANGELOG.md are skiplisted (they're meant to carry historical
+  iter labels in their bodies).
+
+**Makefile wiring.**
+
+* New `make docs-verify` target.
+* Folded into the existing `make lint` aggregate so every local
+  `make lint` invocation now also verifies the docs.
+* Help text updated.
+
+**CI wiring.**
+
+* `quality-gate.yml` now runs `python3 scripts/docs_verify.py` as a
+  Python-job step between Ruff and Bandit. PRs to `main` that
+  touch code without bumping the doc banners (or skiplisting the
+  affected files) fail immediately.
+
+**Smoke test result.** 41 docs scanned, 0 stale. Simulated drift
+(set `.current_iter` to `999z`) correctly fails with a 25-row diff
+table; restoring to `220m` returns to ✓ in a single second.
+
+**Bump workflow for next sprint.** When you cut iter 220n:
+
+1. Edit `/app/memory/.current_iter` → `220n`.
+2. Run `make docs-verify` — it'll list every doc still stamped
+   `220m`.
+3. Either bump the banner in those docs to `220n` (preferred), or
+   add them to `_SKIP` in `docs_verify.py` if they're now pure
+   changelogs.
+
+---
+
+
 ## Iter 220m — Monthly Reputation Report email (May 26, 2026) ✅
 
 Turns happy customers into engineer marketing on autopilot, on a
