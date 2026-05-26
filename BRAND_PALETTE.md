@@ -6,6 +6,10 @@
 > template, or `.theme-gymaxis` stylesheet.** It is the *only* doc you
 > should trust for hex codes. Every other doc in this repo defers to this
 > one and is regenerated against it.
+>
+> **For Pulse Fitness branding** (Pulse Lite portal, `data-brand="pulse"`
+> surfaces), see [`/app/PULSE_BRAND_PALETTE.md`](PULSE_BRAND_PALETTE.md).
+> The two brands intentionally do NOT share tokens.
 
 ---
 

@@ -26,9 +26,12 @@ from pathlib import Path
 
 ROOT = Path("/app")
 BRAND_PALETTE_MD = ROOT / "BRAND_PALETTE.md"
+PULSE_BRAND_PALETTE_MD = ROOT / "PULSE_BRAND_PALETTE.md"
 DESIGN_SYSTEM_MD = ROOT / "DESIGN_SYSTEM.md"
 PARTNER_README = ROOT / "marketing" / "partner_engineer_launch" / "README.md"
 GENERATOR_PY = ROOT / "marketing" / "partner_engineer_launch" / "generate.py"
+BRAND_PREVIEW_SCRIPT = ROOT / "scripts" / "build_brand_preview.py"
+BRAND_PREVIEW_HTML = ROOT / "BRAND_PALETTE_PREVIEW.html"
 
 CANONICAL_HEXES = {
     "#F8FAFC",  # gx-bg
@@ -36,6 +39,15 @@ CANONICAL_HEXES = {
     "#5B5BF5",  # gx-brand-mid (indigo)
     "#9D4CDD",  # gx-brand-to (purple)
     "#0F172A",  # gx-text (slate-900)
+}
+
+# Pulse Fitness canonical hexes (sourced from PulseDesignTab.js)
+PULSE_CANONICAL_HEXES = {
+    "#19CDFF",  # color-brand-cyan (primary CTA)
+    "#0BB0DD",  # color-brand-cyan-deep
+    "#212721",  # color-pulse-black
+    "#F8F9FA",  # pulse-bg
+    "#0B1220",  # pulse ink heading
 }
 
 LEGACY_PULSE_HEXES = {
@@ -130,3 +142,53 @@ def test_design_system_md_defers_to_brand_palette_md():
         "DESIGN_SYSTEM.md must link to /app/BRAND_PALETTE.md — that is the "
         "canonical source of truth for hex codes."
     )
+
+
+def test_pulse_brand_palette_md_exists_and_contains_canonical_hexes():
+    assert PULSE_BRAND_PALETTE_MD.exists(), "/app/PULSE_BRAND_PALETTE.md missing — it is the canonical source of truth for Pulse Fitness"
+    text = PULSE_BRAND_PALETTE_MD.read_text()
+    missing = sorted(h for h in PULSE_CANONICAL_HEXES if h not in text)
+    assert not missing, f"PULSE_BRAND_PALETTE.md is missing canonical hex(es): {missing}"
+
+
+def test_pulse_palette_cross_links_to_gymaxis_canon():
+    text = PULSE_BRAND_PALETTE_MD.read_text()
+    assert "BRAND_PALETTE.md" in text, (
+        "PULSE_BRAND_PALETTE.md must link back to /app/BRAND_PALETTE.md so a "
+        "fresh agent crawling either doc lands on the full two-brand picture."
+    )
+
+
+def test_gymaxis_palette_cross_links_to_pulse_canon():
+    text = BRAND_PALETTE_MD.read_text()
+    assert "PULSE_BRAND_PALETTE.md" in text, (
+        "BRAND_PALETTE.md must link to /app/PULSE_BRAND_PALETTE.md so the "
+        "two-brand split is discoverable from either side."
+    )
+
+
+def test_brand_preview_script_pins_all_canonical_hexes():
+    """The preview script keeps an in-file mirror of each canon for
+    deterministic rendering — pin both GymAxis + Pulse hexes are present
+    so any future drift in the script is caught immediately."""
+    text = BRAND_PREVIEW_SCRIPT.read_text()
+    for hx in CANONICAL_HEXES | PULSE_CANONICAL_HEXES:
+        assert hx in text, (
+            f"build_brand_preview.py must pin the canonical hex `{hx}` so the "
+            "rendered preview matches the canon docs verbatim."
+        )
+
+
+def test_brand_preview_html_is_generated_and_contains_both_brands():
+    assert BRAND_PREVIEW_HTML.exists(), (
+        "/app/BRAND_PALETTE_PREVIEW.html missing — run `make brand-preview` "
+        "to generate it from the canon docs."
+    )
+    html = BRAND_PREVIEW_HTML.read_text()
+    # Both brand sections must be present in the live preview.
+    assert "GymAxis tokens" in html, "preview HTML missing the GymAxis section"
+    assert "Pulse Fitness tokens" in html, "preview HTML missing the Pulse Fitness section"
+    assert "DO NOT USE" in html, "preview HTML must include the DO NOT USE guard table"
+    # Every canonical hex from BOTH brands must render in the swatch grid.
+    for hx in CANONICAL_HEXES | PULSE_CANONICAL_HEXES:
+        assert hx in html, f"preview HTML missing canonical hex `{hx}` — re-run `make brand-preview`"

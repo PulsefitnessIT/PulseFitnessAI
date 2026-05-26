@@ -10,7 +10,19 @@ attaches the `X-RateLimit-Bypass` header to every `requests` call so the
 test suite doesn't trip the login brute-force guard mid-run. The bypass
 secret is read from the backend's own `.env` — tests run on the same host
 so no credential exchange is needed.
+
+The `_shared_event_loop` autouse session fixture (iter 220m) gives the
+whole pytest session ONE shared asyncio event loop. Many of our tests
+call `asyncio.get_event_loop().run_until_complete(...)` to drive a
+coroutine synchronously. On Python 3.11+, `get_event_loop()` raises
+`RuntimeError: There is no current event loop in thread 'MainThread'`
+as soon as any earlier `asyncio.run(...)` closes the previous loop —
+which is what was producing the cascading regression-suite failures.
+Pre-registering a single session-wide loop also keeps every Motor
+connection pool bound to the same loop, eliminating the
+`Future attached to a different loop` errors we'd otherwise hit.
 """
+import asyncio
 import os
 import pytest
 import requests
@@ -32,6 +44,18 @@ CRM_ADMIN_PASSWORD = os.environ.get("TEST_CRM_ADMIN_PASSWORD", "CRMAdmin123!")
 
 # Org ID for tier toggle test
 TOTTENHAM_GREEN_ORG_ID = "156c8dc4-8683-4cb4-8a74-facd811655ad"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _shared_event_loop():
+    """Install a single shared asyncio event loop for the entire pytest
+    session. See module docstring for the full rationale (iter 220m)."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        yield loop
+    finally:
+        loop.close()
 
 
 def _test_backend_url() -> str:

@@ -3,7 +3,7 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
-.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health uptime-check install-hooks
+.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health uptime-check install-hooks docs-verify brand-preview
 
 help:
 	@echo "GymAxis make targets:"
@@ -12,6 +12,7 @@ help:
 	@echo "  make lint-backend        # ruff over backend/"
 	@echo "  make lint-frontend       # eslint over frontend/src/"
 	@echo "  make docs-verify         # fail if any /memory or /docs MD is stamped against a stale Iter"
+	@echo "  make brand-preview       # regenerate /app/BRAND_PALETTE_PREVIEW.html from canonical brand docs"
 	@echo "  make lint                # all of the above"
 	@echo "  make smoke               # quick health curl against \$$REACT_APP_BACKEND_URL"
 	@echo "  make security-scan       # ruff + bandit baseline (fail on Medium+)"
@@ -44,7 +45,13 @@ lint-frontend:
 docs-verify:
 	@cd /app && python3 scripts/docs_verify.py
 
-lint: lint-integrations lint-backend lint-frontend docs-verify
+# Iter 220m — regenerate /app/BRAND_PALETTE_PREVIEW.html from the
+# canonical brand docs. Run any time BRAND_PALETTE.md or
+# PULSE_BRAND_PALETTE.md changes so the live preview stays in sync.
+brand-preview:
+	@cd /app && python3 scripts/build_brand_preview.py
+
+lint: lint-integrations lint-backend lint-frontend docs-verify brand-preview
 
 smoke:
 	@URL=$$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d'=' -f2); \

@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>GymAxis · Brand Palette Preview</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 48px 32px 96px;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #F8FAFC; color: #0F172A;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    h1 {
+      font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px;
+      background: linear-gradient(90deg, #2563EB 0%, #9D4CDD 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stamp {
+      font-size: 13px; color: #64748B; margin: 0 0 40px;
+    }
+    h2 { font-size: 24px; font-weight: 700; margin: 48px 0 4px; }
+    h2 .badge {
+      font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+      letter-spacing: 0.08em; text-transform: uppercase; vertical-align: middle;
+      margin-left: 8px;
+    }
+    h2 .badge.gymaxis { background: rgba(37,99,235,0.08); color: #2563EB; }
+    h2 .badge.pulse { background: rgba(25,205,255,0.12); color: #0BB0DD; }
+    .subtitle { color: #64748B; font-size: 14px; margin: 0 0 24px; max-width: 720px; line-height: 1.5; }
+    .grid {
+      display: grid; gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+    .swatch {
+      background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+    }
+    .swatch .chip {
+      height: 96px; display: flex; align-items: flex-end;
+      padding: 12px 14px; font-family: ui-monospace, 'JetBrains Mono', monospace;
+      font-size: 14px; font-weight: 700;
+    }
+    .swatch .meta { padding: 12px 14px 14px; }
+    .swatch .name { font-weight: 700; font-size: 14px; margin: 0; }
+    .swatch .token {
+      display: inline-block; margin-top: 4px; font-size: 12px; color: #334155;
+      font-family: ui-monospace, 'JetBrains Mono', monospace;
+    }
+    .swatch .note { font-size: 12px; color: #64748B; margin: 6px 0 0; line-height: 1.4; }
+    .hero-gymaxis {
+      margin-top: 24px; padding: 48px 32px;
+      border-radius: 18px; color: #FFFFFF;
+      background: linear-gradient(135deg, #2563EB 0%, #5B5BF5 50%, #9D4CDD 100%);
+      box-shadow: 0 20px 50px -15px rgba(37,99,235,0.4),
+                  0 12px 30px -10px rgba(157,76,221,0.3);
+    }
+    .hero-gymaxis .eyebrow {
+      text-transform: uppercase; letter-spacing: 0.18em; font-size: 13px;
+      font-weight: 700; opacity: 0.85; margin: 0;
+    }
+    .hero-gymaxis h3 { font-size: 40px; font-weight: 800; margin: 12px 0 8px; letter-spacing: -0.02em; }
+    .hero-gymaxis p { opacity: 0.9; margin: 0; font-size: 16px; max-width: 640px; line-height: 1.5; }
+    .hero-pulse {
+      margin-top: 24px; padding: 48px 32px;
+      border-radius: 18px;
+      background: #FFFFFF; color: #0B1220;
+      border: 1px solid #E4E4E7;
+      box-shadow: 0 8px 24px -12px rgba(15,23,42,0.08);
+    }
+    .hero-pulse .eyebrow {
+      text-transform: uppercase; letter-spacing: 0.18em; font-size: 13px;
+      font-weight: 800; color: #19CDFF; margin: 0;
+    }
+    .hero-pulse h3 { font-size: 40px; font-weight: 800; margin: 12px 0 8px; letter-spacing: -0.02em; }
+    .hero-pulse p { color: #475569; margin: 0; font-size: 16px; max-width: 640px; line-height: 1.5; }
+    .hero-pulse .cta {
+      display: inline-flex; padding: 12px 22px; border-radius: 10px;
+      background: #19CDFF; color: #0B1220; font-weight: 700; margin-top: 20px;
+    }
+    .donot {
+      margin-top: 48px; background: #FFFFFF; border: 1px solid #FCA5A5;
+      border-radius: 14px; padding: 24px 28px;
+    }
+    .donot h3 { margin: 0 0 6px; color: #B91C1C; font-size: 20px; font-weight: 800; }
+    .donot p { color: #64748B; font-size: 13px; margin: 0 0 16px; }
+    .donot table { width: 100%; border-collapse: collapse; }
+    .donot td {
+      padding: 10px 0; border-top: 1px solid #FEE2E2;
+      font-size: 14px; color: #0F172A;
+    }
+    .donot td:first-child { width: 220px; }
+    .donot td code {
+      font-family: ui-monospace, 'JetBrains Mono', monospace;
+      font-size: 13px; color: #B91C1C;
+    }
+    .legacy-chip {
+      display: inline-block; width: 16px; height: 16px; border-radius: 4px;
+      vertical-align: middle; margin-right: 8px;
+      border: 1px solid rgba(15,23,42,0.12);
+    }
+    footer {
+      margin-top: 64px; padding-top: 24px; border-top: 1px solid #E2E8F0;
+      font-size: 13px; color: #64748B; text-align: center;
+    }
+    footer code {
+      background: #F1F5F9; padding: 2px 8px; border-radius: 6px;
+      font-family: ui-monospace, monospace; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Brand Palette · live preview</h1>
+    <p class="stamp" data-testid="brand-preview-stamp">
+      Auto-generated 2026-05-26 20:06 UTC from
+      <code>/app/BRAND_PALETTE.md</code> +
+      <code>/app/PULSE_BRAND_PALETTE.md</code> ·
+      regenerate with <code>make brand-preview</code>.
+    </p>
+
+    <div class="hero-gymaxis" data-testid="hero-gymaxis">
+      <p class="eyebrow">GymAxis · platform brand</p>
+      <h3>Fix the kit. Skip the admin.</h3>
+      <p>Light slate canvas with the signature 135° navy → indigo → purple gradient.
+        This is the surface every authenticated GymAxis screen renders against.</p>
+    </div>
+
+    <h2 data-testid="gymaxis-section">GymAxis tokens <span class="badge gymaxis">.theme-gymaxis</span></h2>
+    <p class="subtitle">
+      Canonical values from <code>.theme-gymaxis</code> in
+      <code>/app/frontend/src/index.css</code> (lines 1353-1373) and
+      <code>marketing.css</code>. Use these on every GymAxis surface
+      (CRM, Service Ops, marketing site, emails, PDFs, social).
+    </p>
+    <div class="grid" data-testid="gymaxis-grid">
+
+<div class="swatch" data-testid="swatch---gx-bg">
+  <div class="chip" style="background:#F8FAFC;color:#0F172A;">#F8FAFC</div>
+  <div class="meta">
+    <p class="name">Canvas</p>
+    <code class="token">--gx-bg</code>
+    <p class="note">Page background (slate-50)</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-bg-paper">
+  <div class="chip" style="background:#FFFFFF;color:#0F172A;">#FFFFFF</div>
+  <div class="meta">
+    <p class="name">Card</p>
+    <code class="token">--gx-bg-paper</code>
+    <p class="note">Surface / panel fill</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-bg-soft">
+  <div class="chip" style="background:#F1F5F9;color:#0F172A;">#F1F5F9</div>
+  <div class="meta">
+    <p class="name">Hover soft</p>
+    <code class="token">--gx-bg-soft</code>
+    <p class="note">Input + hover backdrop</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-brand-from">
+  <div class="chip" style="background:#2563EB;color:#FFFFFF;">#2563EB</div>
+  <div class="meta">
+    <p class="name">Brand from</p>
+    <code class="token">--gx-brand-from</code>
+    <p class="note">Navy — gradient start, solid CTAs</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-brand-mid">
+  <div class="chip" style="background:#5B5BF5;color:#FFFFFF;">#5B5BF5</div>
+  <div class="meta">
+    <p class="name">Brand mid</p>
+    <code class="token">--gx-brand-mid</code>
+    <p class="note">Indigo — gradient midpoint</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-brand-to">
+  <div class="chip" style="background:#9D4CDD;color:#FFFFFF;">#9D4CDD</div>
+  <div class="meta">
+    <p class="name">Brand to</p>
+    <code class="token">--gx-brand-to</code>
+    <p class="note">Premium purple — gradient end</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-text">
+  <div class="chip" style="background:#0F172A;color:#FFFFFF;">#0F172A</div>
+  <div class="meta">
+    <p class="name">Text</p>
+    <code class="token">--gx-text</code>
+    <p class="note">Headlines (slate-900)</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-text-body">
+  <div class="chip" style="background:#334155;color:#FFFFFF;">#334155</div>
+  <div class="meta">
+    <p class="name">Text body</p>
+    <code class="token">--gx-text-body</code>
+    <p class="note">Body copy (slate-700)</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-text-muted">
+  <div class="chip" style="background:#64748B;color:#FFFFFF;">#64748B</div>
+  <div class="meta">
+    <p class="name">Text muted</p>
+    <code class="token">--gx-text-muted</code>
+    <p class="note">Labels (slate-500)</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---gx-border">
+  <div class="chip" style="background:#E2E8F0;color:#0F172A;">#E2E8F0</div>
+  <div class="meta">
+    <p class="name">Border</p>
+    <code class="token">--gx-border</code>
+    <p class="note">Hairline rules (slate-200)</p>
+  </div>
+</div>
+
+    </div>
+
+    <div class="hero-pulse" data-testid="hero-pulse">
+      <p class="eyebrow">Pulse Fitness · customer portal</p>
+      <h3>Log faults in seconds.</h3>
+      <p>Light surface with Pulse Fitness's signature cyan accent and Proxima
+        Nova typography. Pulse customers never see GymAxis branding — and vice versa.</p>
+      <span class="cta">Get started →</span>
+    </div>
+
+    <h2 data-testid="pulse-section">Pulse Fitness tokens <span class="badge pulse">data-brand="pulse"</span></h2>
+    <p class="subtitle">
+      Canonical values from
+      <code>/app/frontend/src/pages/MasterAdmin/PulseDesignTab.js</code> +
+      the <code>:root</code> block of <code>index.css</code>.
+      Use these <strong>only</strong> on Pulse Fitness surfaces.
+    </p>
+    <div class="grid" data-testid="pulse-grid">
+
+<div class="swatch" data-testid="swatch---color-brand-cyan">
+  <div class="chip" style="background:#19CDFF;color:#0F172A;">#19CDFF</div>
+  <div class="meta">
+    <p class="name">Cyan</p>
+    <code class="token">--color-brand-cyan</code>
+    <p class="note">Primary CTA + accent</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-brand-cyan-deep">
+  <div class="chip" style="background:#0BB0DD;color:#FFFFFF;">#0BB0DD</div>
+  <div class="meta">
+    <p class="name">Cyan deep</p>
+    <code class="token">--color-brand-cyan-deep</code>
+    <p class="note">Gradient end / hover</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-brand-cyan-hover">
+  <div class="chip" style="background:#66CCFF;color:#0F172A;">#66CCFF</div>
+  <div class="meta">
+    <p class="name">Cyan hover</p>
+    <code class="token">--color-brand-cyan-hover</code>
+    <p class="note">Lighter hover on dark</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---pulse-bg">
+  <div class="chip" style="background:#F8F9FA;color:#0F172A;">#F8F9FA</div>
+  <div class="meta">
+    <p class="name">Canvas</p>
+    <code class="token">--pulse-bg</code>
+    <p class="note">Page background</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-white">
+  <div class="chip" style="background:#FFFFFF;color:#0F172A;">#FFFFFF</div>
+  <div class="meta">
+    <p class="name">Surface white</p>
+    <code class="token">--color-white</code>
+    <p class="note">Cards</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-slate-50">
+  <div class="chip" style="background:#F1F5F9;color:#0F172A;">#F1F5F9</div>
+  <div class="meta">
+    <p class="name">Section band</p>
+    <code class="token">--color-slate-50</code>
+    <p class="note">Hover / muted backdrop</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-surface-dark-panel-alt">
+  <div class="chip" style="background:#0B1220;color:#FFFFFF;">#0B1220</div>
+  <div class="meta">
+    <p class="name">Ink heading</p>
+    <code class="token">--color-surface-dark-panel-alt</code>
+    <p class="note">Headings on light</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-pulse-black">
+  <div class="chip" style="background:#212721;color:#FFFFFF;">#212721</div>
+  <div class="meta">
+    <p class="name">Ink (Pulse)</p>
+    <code class="token">--color-pulse-black</code>
+    <p class="note">Soft black for text/logo</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-text-slate">
+  <div class="chip" style="background:#475569;color:#FFFFFF;">#475569</div>
+  <div class="meta">
+    <p class="name">Slate body</p>
+    <code class="token">--color-text-slate</code>
+    <p class="note">Body copy</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---pulse-text-xs">
+  <div class="chip" style="background:#A2ACAB;color:#0F172A;">#A2ACAB</div>
+  <div class="meta">
+    <p class="name">Muted</p>
+    <code class="token">--pulse-text-xs</code>
+    <p class="note">Caption / fine print</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---pulse-border">
+  <div class="chip" style="background:#E4E4E7;color:#0F172A;">#E4E4E7</div>
+  <div class="meta">
+    <p class="name">Border</p>
+    <code class="token">--pulse-border</code>
+    <p class="note">Hairline rules</p>
+  </div>
+</div>
+
+
+<div class="swatch" data-testid="swatch---color-neutral-900">
+  <div class="chip" style="background:#0F172A;color:#FFFFFF;">#0F172A</div>
+  <div class="meta">
+    <p class="name">Ink dark CTA</p>
+    <code class="token">--color-neutral-900</code>
+    <p class="note">Dark CTAs / final hero</p>
+  </div>
+</div>
+
+    </div>
+
+    <div class="donot" data-testid="donot-table">
+      <h3>DO NOT USE on GymAxis surfaces</h3>
+      <p>Every recurring "your colours are wrong" complaint has come from
+        an agent reaching for one of these. They belong to Pulse Fitness
+        or the legacy pre-2026 GymAxis palette — never to the current
+        GymAxis brand.</p>
+      <table>
+        <tbody>
+
+<tr>
+  <td><span class="legacy-chip" style="background:#0055FF;"></span> <code>#0055FF</code></td>
+  <td>Legacy GymAxis electric blue (pre-2026 reset)</td>
+</tr>
+
+
+<tr>
+  <td><span class="legacy-chip" style="background:#19CDFF;"></span> <code>#19CDFF</code></td>
+  <td>Pulse Fitness cyan — fine on Pulse, NEVER on GymAxis</td>
+</tr>
+
+
+<tr>
+  <td><span class="legacy-chip" style="background:#0A0C10;"></span> <code>#0A0C10</code></td>
+  <td>Pulse Fitness dark ink — GymAxis is light-canvas only</td>
+</tr>
+
+
+<tr>
+  <td><span class="legacy-chip" style="background:#003DA5;"></span> <code>#003DA5</code></td>
+  <td>Legacy GymAxis blue-deep</td>
+</tr>
+
+
+<tr>
+  <td><span class="legacy-chip" style="background:#66CCFF;"></span> <code>#66CCFF</code></td>
+  <td>Pulse pastel — Pulse-only</td>
+</tr>
+
+
+<tr>
+  <td><span class="legacy-chip" style="background:#1B1D1D;"></span> <code>#1B1D1D</code></td>
+  <td>Pulse soft black — use #0F172A on GymAxis instead</td>
+</tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      Maintained by the GymAxis platform team · canon lives in
+      <code>BRAND_PALETTE.md</code> + <code>PULSE_BRAND_PALETTE.md</code> ·
+      regression pin <code>tests/test_iter_220m_brand_canon.py</code>
+    </footer>
+  </div>
+</body>
+</html>
