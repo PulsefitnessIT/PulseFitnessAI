@@ -215,19 +215,44 @@ async def lookup_customer(
     user=Depends(get_current_user),
     email: Optional[str] = Query(default=None, max_length=200),
     phone: Optional[str] = Query(default=None, max_length=80),
+    name: Optional[str] = Query(default=None, max_length=200),
+    site_name: Optional[str] = Query(default=None, max_length=200),
 ):
-    """Cheap probe used by the Quote/Invoice builders to decide whether
-    to nudge the engineer to save a new customer. Returns the matching
-    row if one exists, else `{found: false}`."""
+    """Cheap probe used by the Quote/Invoice builders + New Job card to
+    decide whether to nudge the engineer to save a new customer.
+    Returns the matching row if one exists, else `{found: false}`.
+
+    Iter 220h — also matches on case-insensitive `name` (and optionally
+    `site_name`) so the New Job card can prompt the engineer the moment
+    they type a customer who isn't in the saved book.
+    """
     org_id = _of(user)
     norm_email = _norm_email(email)
     norm_phone = _norm_phone(phone)
-    if not norm_email and not norm_phone:
-        return {"found": False}
-    match = await _find_duplicate(org_id, norm_email, norm_phone)
-    if not match:
-        return {"found": False}
-    return {"found": True, "customer": _strip(match)}
+    needle_name = (name or "").strip()
+    needle_site = (site_name or "").strip()
+
+    # Pass 1 — strong signals (email/phone). Always wins if it matches.
+    if norm_email or norm_phone:
+        strong = await _find_duplicate(org_id, norm_email, norm_phone)
+        if strong:
+            return {"found": True, "match_via": "contact", "customer": _strip(strong)}
+
+    # Pass 2 — name match. Case-insensitive exact-name (with optional
+    # site disambiguation). We don't do fuzzy here — the typeahead
+    # already covers "looks similar".
+    if needle_name:
+        q: dict = {
+            "organization_id": org_id,
+            "name": {"$regex": f"^{re.escape(needle_name)}$", "$options": "i"},
+        }
+        if needle_site:
+            q["site_name"] = {"$regex": f"^{re.escape(needle_site)}$", "$options": "i"}
+        match = await db.svc_engineer_customers.find_one(q)
+        if match:
+            return {"found": True, "match_via": "name", "customer": _strip(match)}
+
+    return {"found": False}
 
 
 @router.get("/search")

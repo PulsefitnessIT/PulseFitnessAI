@@ -374,6 +374,26 @@ export default function EngineerNewJob() {
               after creation, so the same engineer doesn't retype it next
               week. Default ON when no saved customer was picked AND the
               engineer typed enough detail for it to be worth saving. */}
+          {/* Iter 220h — Proactive "save new customer" prompt. The moment
+              the engineer types a customer that isn't already in their
+              database, we show an explicit confirm strip rather than
+              relying on the engineer to spot the passive checkbox. */}
+          <NewCustomerPrompt
+            name={form.customer_name}
+            siteName={form.site_name}
+            email={form.customer_email}
+            phone={form.customer_phone}
+            address={form.site_address}
+            selectedCustomer={selectedCustomer}
+            onSaved={(saved) => {
+              // Pretend they picked this customer so the next prompt
+              // doesn't re-fire and the save-on-submit doesn't double up.
+              setSelectedCustomer({ ...saved, source: 'saved' });
+              setSaveAsCustomer(false);
+              notify.success(`${saved.name} added to your customers`);
+            }}
+          />
+
           {!selectedCustomer && form.customer_name.trim().length >= 2 && (
             <label className="flex items-center gap-2 pt-1 text-xs text-slate-700 select-none cursor-pointer" data-testid="newjob-save-customer-toggle">
               <input
@@ -723,6 +743,115 @@ function SmartSchedulingPanel({ postcode, currentScheduledAt, onPick }) {
       <p className="text-[10px] text-amber-800/70 mt-1.5">
         Tap to book that day, or pick any date below manually.
       </p>
+    </div>
+  );
+}
+
+
+// Iter 220h — Proactive new-customer prompt.
+// Watches the customer name/site (450ms debounce). When the engineer
+// types a name that doesn't match anything in their saved book, an
+// inline amber strip appears asking "Save <name> to my customers?".
+// Picking Yes saves immediately so the engineer doesn't need to
+// remember at submit time. "Not now" dismisses for this session.
+function NewCustomerPrompt({
+  name, siteName, email, phone, address, selectedCustomer, onSaved,
+}) {
+  const [state, setState] = useState({ checking: false, isNew: false });
+  const [dismissed, setDismissed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const debounceRef = useRef(null);
+  const lastNameRef = useRef('');
+
+  useEffect(() => {
+    // Reset dismissal whenever the engineer types a meaningfully
+    // different name (so they get re-prompted for the next customer).
+    const cleaned = (name || '').trim();
+    if (cleaned !== lastNameRef.current) {
+      setDismissed(false);
+      lastNameRef.current = cleaned;
+    }
+  }, [name]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const cleaned = (name || '').trim();
+    if (selectedCustomer || cleaned.length < 2) {
+      setState({ checking: false, isNew: false });
+      return undefined;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setState({ checking: true, isNew: false });
+      try {
+        const params = new URLSearchParams({ name: cleaned });
+        if ((siteName || '').trim()) params.set('site_name', siteName.trim());
+        if ((email || '').trim()) params.set('email', email.trim());
+        if ((phone || '').trim()) params.set('phone', phone.trim());
+        const r = await axios.get(
+          `${API}/svc/engineer/customers/lookup?${params.toString()}`,
+          auth(),
+        );
+        const found = !!r.data?.found;
+        setState({ checking: false, isNew: !found });
+      } catch (e) {
+        setState({ checking: false, isNew: false });
+      }
+    }, 450);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [name, siteName, email, phone, selectedCustomer]);
+
+  if (selectedCustomer) return null;
+  if ((name || '').trim().length < 2) return null;
+  if (dismissed) return null;
+  if (state.checking || !state.isNew) return null;
+
+  const onSave = async () => {
+    setSaving(true);
+    try {
+      const r = await axios.post(`${API}/svc/engineer/customers`, {
+        name: name.trim(),
+        email: (email || '').trim() || null,
+        phone: (phone || '').trim() || null,
+        site_name: (siteName || '').trim() || null,
+        site_address: (address || '').trim() || null,
+      }, auth());
+      onSaved?.(r.data);
+    } catch (e) {
+      notify.error('Could not save customer', e?.response?.data?.detail || e?.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="mt-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 flex items-start gap-2"
+      data-testid="newjob-new-customer-prompt"
+    >
+      <BookmarkPlus size={14} className="text-amber-700 flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-amber-900">
+          <span className="font-bold">{name.trim()}</span> isn't in your customer database yet — save them so you don't have to retype next time?
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saving}
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold disabled:opacity-50"
+        data-testid="newjob-new-customer-save"
+      >
+        {saving ? <Loader2 size={10} className="animate-spin" /> : <BookmarkPlus size={10} />}
+        Save
+      </button>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-amber-200 text-amber-800 text-[11px] font-bold hover:bg-amber-50"
+        data-testid="newjob-new-customer-dismiss"
+      >
+        Not now
+      </button>
     </div>
   );
 }

@@ -1,3 +1,59 @@
+## Iter 220h — Proactive "save new customer" prompt (May 26, 2026) ✅ user-requested
+
+User asked: *"If the engineer types in a customer into new job that
+they don't have in their customers, ask if they would like to add to
+their database for future use."* (Iter 220f had a passive checkbox at
+the bottom of the form — easy to miss.)
+
+**Backend.**
+
+* `GET /api/svc/engineer/customers/lookup` now also matches on
+  `?name=…&site_name=…`. Case-insensitive exact name match (no
+  fuzzy — the typeahead already covers similar). When email or phone
+  also matches, contact-match wins (single source of truth).
+* Response now includes `match_via: "contact" | "name"` so the
+  frontend can decide whether to suppress the prompt with high
+  confidence.
+
+**Frontend.**
+
+* New `NewCustomerPrompt` component in `EngineerNewJob.js`.
+* Watches `customer_name` with a 450 ms debounce. The moment the typed
+  name returns `{found: false}` from `/lookup`, an inline **amber
+  confirm strip** appears between the Customer & site form and the
+  saved-customer checkbox:
+  > *"<name> isn't in your customer database yet — save them so you
+  > don't have to retype next time?"*
+  with **Save** (immediate POST to `/svc/engineer/customers`) and
+  **Not now** (dismiss for this session) buttons.
+* On Save, the customer is added to the address book, the engineer is
+  toast-confirmed, and the form treats them as the picked customer
+  (green pill appears + the on-submit save shortcut suppresses to
+  avoid double-creating).
+* Dismissal is **per-typed-name** — typing a different customer
+  re-fires the prompt automatically.
+* Passive checkbox is retained as a fallback for engineers who
+  dismiss the prompt but still want to save later.
+
+**Tests added** (`tests/test_iter_220h_new_customer_prompt.py`, 6
+cases — all green):
+
+* `test_lookup_finds_customer_by_exact_name_case_insensitive`
+* `test_lookup_returns_not_found_for_unknown_name`
+* `test_lookup_distinguishes_same_name_different_site`
+* `test_lookup_contact_match_wins_over_name`
+* `test_lookup_with_no_inputs_returns_not_found`
+* `test_lookup_org_isolation`
+
+**Full iter 220 regression**: 59/59 tests across iter 220 (14) + 220c
+(6) + 220d (11) + 220e (6) + 220f (8) + 220g (8) + 220h (6).
+
+Self-tested via curl (round-trip seed→lookup→cleanup). Lint clean.
+Wired into `Makefile:regression`.
+
+---
+
+
 ## Iter 220g — Smart scheduling suggestions (P2) (May 26, 2026) ✅ user-requested
 
 User requested: *"Intuitive scheduling, if the engineer already has
