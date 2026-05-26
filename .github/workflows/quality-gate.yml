@@ -75,6 +75,15 @@ jobs:
         # iter (or skiplisting them in scripts/docs_verify.py).
         run: python3 scripts/docs_verify.py
 
+      - name: Brand preview drift check
+        # Iter 220m — BRAND_PALETTE_PREVIEW.html is a deterministic
+        # render of BRAND_PALETTE.md + PULSE_BRAND_PALETTE.md. Regenerate
+        # it on every PR; fail if the committed copy differs (someone
+        # bumped a canonical hex without running `make brand-preview`).
+        run: |
+          python3 scripts/build_brand_preview.py
+          git diff --exit-code BRAND_PALETTE_PREVIEW.html
+
       - name: Bandit (SAST, Medium+ blocks)
         working-directory: backend
         run: bandit -r routes utils models scripts -ll -q

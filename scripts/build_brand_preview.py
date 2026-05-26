@@ -22,9 +22,9 @@ pinned by `tests/test_iter_220m_brand_canon.py` so it cannot drift.
 """
 from __future__ import annotations
 
+import hashlib
 import pathlib
 import textwrap
-from datetime import datetime, timezone
 
 
 # ── Canonical palette (mirror — pinned by test_iter_220m_brand_canon.py) ──
@@ -100,8 +100,18 @@ def _is_light(hex_value: str) -> bool:
     return (0.299 * r + 0.587 * g + 0.114 * b) > 140
 
 
+def _canon_fingerprint() -> str:
+    """Short hash of the two canonical brand docs. Replaces a wall-clock
+    timestamp so the rendered preview only changes when the canon
+    actually does — keeps the CI drift check deterministic."""
+    h = hashlib.sha256()
+    for p in (ROOT / "BRAND_PALETTE.md", ROOT / "PULSE_BRAND_PALETTE.md"):
+        h.update(p.read_bytes())
+    return h.hexdigest()[:12]
+
+
 def render() -> str:
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    fingerprint = _canon_fingerprint()
     gx_swatches = "\n".join(
         _swatch(name, hx, tok, note, _is_light(hx))
         for name, hx, tok, note in GYMAXIS_TOKENS
@@ -233,9 +243,10 @@ def render() -> str:
       <div class="wrap">
         <h1>Brand Palette · live preview</h1>
         <p class="stamp" data-testid="brand-preview-stamp">
-          Auto-generated {timestamp} from
+          Auto-generated from
           <code>/app/BRAND_PALETTE.md</code> +
-          <code>/app/PULSE_BRAND_PALETTE.md</code> ·
+          <code>/app/PULSE_BRAND_PALETTE.md</code>
+          (canon fingerprint <code>{fingerprint}</code>) ·
           regenerate with <code>make brand-preview</code>.
         </p>
 

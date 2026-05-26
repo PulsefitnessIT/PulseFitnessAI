@@ -1,3 +1,48 @@
+## Iter 220m (cont.) — Brand preview wired into CI quality gate (May 26, 2026) ✅ user-requested
+
+Wired `make brand-preview` into the GitHub Actions quality gate so any
+PR that bumps a canonical hex without regenerating
+`BRAND_PALETTE_PREVIEW.html` fails CI.
+
+**Workflow change** (`.github/workflows/quality-gate.yml`, in the
+existing `python-quality` job, immediately after the docs-verify
+step):
+
+```yaml
+- name: Brand preview drift check
+  run: |
+    python3 scripts/build_brand_preview.py
+    git diff --exit-code BRAND_PALETTE_PREVIEW.html
+```
+
+If the freshly-rendered preview differs from the committed copy, the
+job fails with a non-zero git-diff exit code. Fix is one-line:
+`make brand-preview && git commit -am "..."`.
+
+**Deterministic stamp.** The previous stamp had a UTC wall-clock
+timestamp that would have made every CI run fail the drift check.
+Swapped it for a 12-char SHA-256 fingerprint of the concatenated
+canon docs — so the rendered HTML only changes when the canon
+actually does. Re-running `build_brand_preview.py` twice in a row
+now produces byte-identical output.
+
+**Files touched.**
+
+* `.github/workflows/quality-gate.yml` — 8-line step inserted into
+  the `python-quality` job.
+* `scripts/build_brand_preview.py` — replaced `datetime.now()` stamp
+  with `hashlib.sha256(canon).hexdigest()[:12]` fingerprint.
+* `BRAND_PALETTE_PREVIEW.html` — regenerated with the new stamp.
+
+**Quality gates.** Brand-canon regression suite (`make regression
+tests/test_iter_220m_brand_canon.py`) ✓ 10/10. `make docs-verify` ✓
+46 docs. `ruff check scripts/` ✓. `python3 -c "import yaml;
+yaml.safe_load(...)"` confirms the workflow YAML parses.
+
+---
+
+
+
 ## Iter 220m (cont.) — Test-hygiene sprint: 28 → 0 regression failures (May 26, 2026) ✅ user-requested
 
 User asked to run the dedicated test-hygiene sprint to fix the 21
