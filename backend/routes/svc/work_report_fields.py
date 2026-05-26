@@ -338,6 +338,87 @@ async def archive_work_report_field(field_id: str, user=Depends(get_current_user
     return {"ok": True, "id": field_id, "archived": True}
 
 
+@router.get("/work-report-fields/history/{case_id}")
+async def field_history_for_case(
+    case_id: str,
+    limit: int = Query(8, ge=2, le=30),
+    user=Depends(get_current_user),
+):
+    """Iter 220b — per-asset time-series for numeric custom fields.
+
+    Returns the last `limit` readings for each numeric/checkbox field
+    applicable to the case's asset, oldest-first, so the engineer can
+    spot drift (e.g. Drag Factor 122 → 118 → 114) before it becomes a
+    breakdown. Excludes the current case from the series.
+    """
+    of = _of(user)
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of},
+        {"_id": 0, "id": 1, "asset_id": 1, "asset_name": 1},
+    )
+    if not case:
+        raise HTTPException(404, "Case not found")
+    asset_id = case.get("asset_id") or ""
+    asset_name = (case.get("asset_name") or "").strip()
+    if not asset_id and not asset_name:
+        return {"series": {}, "count": 0}
+
+    q: dict = {
+        **of,
+        "id": {"$ne": case_id},
+        "work_report_custom_fields": {"$exists": True, "$ne": {}},
+        "status": {"$in": ["repaired", "awaiting_sign_off", "closed", "invoiced"]},
+    }
+    if asset_id:
+        q["asset_id"] = asset_id
+    else:
+        q["asset_name"] = asset_name
+
+    rows = (
+        await db.svc_cases.find(
+            q,
+            {"_id": 0, "id": 1, "reference": 1, "closed_at": 1,
+             "updated_at": 1, "work_report_custom_fields": 1,
+             "work_report_custom_fields_updated_at": 1},
+        )
+        .sort([("closed_at", -1), ("updated_at", -1)])
+        .limit(limit)
+        .to_list(limit)
+    )
+
+    series: dict[str, list[dict]] = {}
+    for r in rows:
+        cf = r.get("work_report_custom_fields") or {}
+        when = (
+            r.get("work_report_custom_fields_updated_at")
+            or r.get("closed_at")
+            or r.get("updated_at")
+        )
+        for k, v in cf.items():
+            if v in (None, ""):
+                continue
+            # Only trend-worthy types: numbers & booleans (rendered as 0/1).
+            if isinstance(v, bool):
+                num = 1.0 if v else 0.0
+            elif isinstance(v, (int, float)):
+                num = float(v)
+            else:
+                try:
+                    num = float(v)
+                except (TypeError, ValueError):
+                    continue
+            series.setdefault(k, []).append({
+                "value": num,
+                "captured_at": when,
+                "case_id": r.get("id"),
+                "case_reference": r.get("reference"),
+            })
+    # Sort each series oldest-first for chart rendering.
+    for k in series:
+        series[k] = list(reversed(series[k]))
+    return {"series": series, "count": sum(len(v) for v in series.values())}
+
+
 # ─────────────────────────────────────────────────────────────────
 # Helper used by engineer_complete to validate + persist values.
 # ─────────────────────────────────────────────────────────────────

@@ -1,3 +1,42 @@
+## Iter 220b — Asset reading sparkline (trend view) for custom Work Report fields (May 25, 2026) ✅
+
+Now that engineers are capturing structured machine readings on every
+visit, surface the drift trend right next to the input so a slow drift
+(Drag Factor 122 → 118 → 114) becomes obvious *before* the next call-out.
+
+**Backend.**
+
+* `GET /api/svc/work-report-fields/history/{case_id}?limit=N` returns
+  `{series: {key: [{value, captured_at, case_id, case_reference}, ...]}}`,
+  oldest-first, scoped to the same `asset_id` (or `asset_name`
+  fallback). Default limit=8, range 2-30.
+* Only numeric/boolean readings are surfaced — text/date/file values
+  are silently skipped because they don't trend; booleans are coerced
+  to 0/1 so the sparkline can render them.
+* Reuses the same status filter as the last-reading lookup
+  (`closed | repaired | awaiting_sign_off | invoiced`).
+
+**Frontend.**
+
+* New `AssetReadingSparkline.js` component — pure SVG, no library.
+  Renders the trend, appends the engineer's current input value as a
+  highlighted dot, and prints a colour-coded label:
+  * 🔻 Trending down (rose)
+  * 🟢 Trending up (emerald)
+  * — Steady (slate) when the swing is < 5% of the range.
+  * Tooltip lists the last 5 values + dates.
+* Wired into `WorkReportCustomFields.js` — sparkline appears under
+  numeric / checkbox fields when the asset has ≥2 prior readings.
+  Text / date / dropdown / file fields stay untouched.
+
+**Tests added** (2 cases, all green — 14/14 now in this file):
+
+* `test_history_returns_oldest_first_series_for_numeric_fields`
+* `test_history_excludes_non_numeric_and_empty_values`
+
+---
+
+
 ## Iter 220a — Last-reading pre-fill for custom Work Report fields (May 25, 2026) ✅
 
 Follow-on enhancement to iter 220. Engineers shouldn't have to retype

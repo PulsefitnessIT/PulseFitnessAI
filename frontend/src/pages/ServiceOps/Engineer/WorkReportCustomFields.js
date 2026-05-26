@@ -15,6 +15,7 @@ import axios from 'axios';
 import { Plus, Loader2, Sliders } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { FieldEditor } from './EngineerWorkReportFields';
+import AssetReadingSparkline from './AssetReadingSparkline';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -32,6 +33,8 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
   // touched yet.
   const [lastValues, setLastValues] = useState({});
   const [lastValuesMeta, setLastValuesMeta] = useState({});
+  // Iter 220b — per-field history series for sparkline rendering.
+  const [history, setHistory] = useState({});
 
   const load = useCallback(async () => {
     if (!caseId) { setLoading(false); return; }
@@ -45,12 +48,17 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
       const lastMeta = r.data?.last_values_meta || {};
       setLastValues(lastV);
       setLastValuesMeta(lastMeta);
-      // Seed parent state with stored values (re-edit) merged with the
-      // last-reading fallbacks. Stored wins over last_values; what the
-      // engineer typed in this session wins over both.
       const seed = { ...lastV, ...stored };
       if (Object.keys(seed).length) {
         onChange?.((prev) => ({ ...seed, ...(prev || {}) }));
+      }
+      // Fetch trend history in parallel — non-blocking, fallback to {}.
+      try {
+        const h = await axios.get(`${API}/svc/work-report-fields/history/${caseId}`, auth());
+        setHistory(h.data?.series || {});
+      } catch (he) {
+        console.warn('[work-report-fields] history failed', he);
+        setHistory({});
       }
     } catch (e) {
       console.warn('[work-report-fields] load failed', e);
@@ -202,6 +210,21 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
               {f.help_text && f.field_type !== 'checkbox' && (
                 <p className="text-[10px] text-slate-400 mt-1">{f.help_text}</p>
               )}
+              {(() => {
+                // Iter 220b — sparkline below numeric / checkbox fields
+                // when the asset has ≥2 prior readings. Suppressed for
+                // text / date / dropdown / file since they don't trend.
+                if (!['number', 'checkbox'].includes(f.field_type)) return null;
+                const series = history[f.key];
+                if (!series || series.length < 2) return null;
+                return (
+                  <AssetReadingSparkline
+                    points={series}
+                    currentValue={(values || {})[f.key]}
+                    testid={`wrf-sparkline-${f.key}`}
+                  />
+                );
+              })()}
               {(() => {
                 // Iter 220a — last-reading hint surfaces the value the
                 // engineer captured on the previous visit. Suppressed

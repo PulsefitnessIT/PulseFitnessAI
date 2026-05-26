@@ -559,3 +559,138 @@ def test_for_case_last_values_ignores_other_assets(db, admin_user, field_cleanup
         db.svc_cases.delete_many({"id": {"$in": [closed_on_a, open_on_b]}})
         db.equipment.delete_many({"id": {"$in": [asset_a, asset_b]}})
 
+
+
+# ─────────────────── Iter 220b — history sparkline series ───────────────────
+
+
+def test_history_returns_oldest_first_series_for_numeric_fields(db, admin_user, field_cleanup):
+    """3 prior closed cases on the same asset → /history returns the
+    drag-factor values in oldest-first order so a sparkline can render
+    left→right correctly."""
+    org_id = admin_user["organization_id"]
+    asset_id = f"asset-{uuid.uuid4().hex[:8]}"
+    case_ids = [f"hist-{i}-{uuid.uuid4().hex[:6]}" for i in range(3)]
+    open_id = f"open-{uuid.uuid4().hex[:8]}"
+    db.equipment.insert_one({
+        "id": asset_id, "organization_id": org_id,
+        "equipment_type": "Rower", "manufacturer": "Concept 2",
+        "model": "Model D", "name": "Rower 9",
+    })
+    db.svc_cases.insert_many([
+        {
+            "id": case_ids[0], "organization_id": org_id,
+            "reference": "H-1", "title": "Old visit",
+            "asset_id": asset_id, "status": "closed",
+            "closed_at": "2026-01-15T10:00:00+00:00",
+            "work_report_custom_fields": {"df_220b": 122},
+            "created_at": "2026-01-15T08:00:00+00:00",
+        },
+        {
+            "id": case_ids[1], "organization_id": org_id,
+            "reference": "H-2", "title": "Middle visit",
+            "asset_id": asset_id, "status": "closed",
+            "closed_at": "2026-02-20T10:00:00+00:00",
+            "work_report_custom_fields": {"df_220b": 118},
+            "created_at": "2026-02-20T08:00:00+00:00",
+        },
+        {
+            "id": case_ids[2], "organization_id": org_id,
+            "reference": "H-3", "title": "Most recent",
+            "asset_id": asset_id, "status": "closed",
+            "closed_at": "2026-04-05T10:00:00+00:00",
+            "work_report_custom_fields": {"df_220b": 114},
+            "created_at": "2026-04-05T08:00:00+00:00",
+        },
+        {
+            "id": open_id, "organization_id": org_id,
+            "reference": "TODAY", "title": "Today",
+            "asset_id": asset_id, "status": "on_site",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+    ])
+    try:
+        f = _create_field({
+            "name": "DF 220b",
+            "field_type": "number",
+            "scope_kind": "manufacturer",
+            "scope_value": "Concept 2",
+        })
+        field_cleanup.append(f["id"])
+
+        with httpx.Client(timeout=15.0) as c:
+            r = c.get(
+                f"{BASE}/api/svc/work-report-fields/history/{open_id}",
+                headers=_admin_headers(),
+            )
+        assert r.status_code == 200, r.text
+        series = r.json()["series"]
+        assert "df_220b" in series
+        values = [p["value"] for p in series["df_220b"]]
+        assert values == [122.0, 118.0, 114.0]
+        # Oldest first → first ref is H-1.
+        assert series["df_220b"][0]["case_reference"] == "H-1"
+        assert series["df_220b"][-1]["case_reference"] == "H-3"
+    finally:
+        db.svc_cases.delete_many({"id": {"$in": case_ids + [open_id]}})
+        db.equipment.delete_one({"id": asset_id})
+
+
+def test_history_excludes_non_numeric_and_empty_values(db, admin_user, field_cleanup):
+    """Text / date readings are silently dropped from the trend series.
+    Booleans are kept (coerced to 0/1)."""
+    org_id = admin_user["organization_id"]
+    asset_id = f"asset-{uuid.uuid4().hex[:8]}"
+    prev_id = f"prev-{uuid.uuid4().hex[:8]}"
+    open_id = f"open-{uuid.uuid4().hex[:8]}"
+    db.equipment.insert_one({
+        "id": asset_id, "organization_id": org_id,
+        "equipment_type": "Treadmill", "manufacturer": "Pulse",
+        "model": "Run X", "name": "Treadmill Z",
+    })
+    db.svc_cases.insert_many([
+        {
+            "id": prev_id, "organization_id": org_id,
+            "reference": "P-1", "title": "Prior",
+            "asset_id": asset_id, "status": "closed",
+            "closed_at": "2026-02-01T10:00:00+00:00",
+            "work_report_custom_fields": {
+                "current_software_220b": "v1.0",  # text — should be dropped
+                "wheel_check_220b": True,          # bool — coerced to 1.0
+            },
+            "created_at": "2026-02-01T08:00:00+00:00",
+        },
+        {
+            "id": open_id, "organization_id": org_id,
+            "reference": "TODAY", "title": "Today",
+            "asset_id": asset_id, "status": "on_site",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+    ])
+    try:
+        f_txt = _create_field({
+            "name": "Current Software 220b",
+            "field_type": "text",
+            "scope_kind": "global",
+        })
+        field_cleanup.append(f_txt["id"])
+        f_chk = _create_field({
+            "name": "Wheel Check 220b",
+            "field_type": "checkbox",
+            "scope_kind": "global",
+        })
+        field_cleanup.append(f_chk["id"])
+
+        with httpx.Client(timeout=15.0) as c:
+            r = c.get(
+                f"{BASE}/api/svc/work-report-fields/history/{open_id}",
+                headers=_admin_headers(),
+            )
+        assert r.status_code == 200
+        series = r.json()["series"]
+        assert "current_software_220b" not in series
+        assert series["wheel_check_220b"][0]["value"] == 1.0
+    finally:
+        db.svc_cases.delete_many({"id": {"$in": [prev_id, open_id]}})
+        db.equipment.delete_one({"id": asset_id})
+
