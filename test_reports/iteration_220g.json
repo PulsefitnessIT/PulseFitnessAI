@@ -1,0 +1,62 @@
+{
+  "summary": "Iter 220g Smart Scheduling Suggestions - All tests pass. Backend: 8/8 pytest tests pass. Frontend: SmartSchedulingPanel works correctly with postcode input, date chip selection, and manual booking override.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220g_scheduling_suggestions.py",
+    "/app/test_reports/pytest/pytest_results_220g.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iter_220g_scheduling_suggestions.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests)",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Test seeded 2 scheduled jobs near SW1A 2AA for admin user to verify suggestions panel. Cleaned up after test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 220g adds SmartSchedulingPanel to EngineerNewJob.js. Key data-testids: smart-sched-loading (loading state), smart-sched-empty (no nearby jobs), smart-sched-panel (amber panel with suggestions), smart-sched-chip-list (chip container), smart-sched-chip-{ISO_DATE} (e.g. smart-sched-chip-2026-05-29). Panel debounces 350ms after postcode input. Clicking a chip pre-fills scheduled_at to that date at 09:00 and turns the chip green (emerald). Backend endpoint: GET /api/svc/engineer/scheduling-suggestions?postcode=... uses postcodes.io for geocoding (cached in postcode_cache collection) and haversine distance to find jobs within 10 miles in next 14 days.",
+  "tests_verified": {
+    "backend": [
+      "GET /api/svc/engineer/scheduling-suggestions?postcode=CV1+1AA returns grouped date suggestions sorted by job_count desc - PASS",
+      "Empty suggestions when no nearby jobs - PASS",
+      "Outward-code fallback when geocoder returns miss - PASS",
+      "Jobs outside 14-day window excluded - PASS",
+      "radius_miles param tightens results - PASS",
+      "Invalid postcode returns reason=invalid_postcode - PASS",
+      "Org isolation (other engineer's jobs not shown) - PASS",
+      "Max 5 suggestions cap - PASS"
+    ],
+    "frontend": [
+      "Login as admin@gymaxisai.com - PASS",
+      "Navigate to /svc/engineer/jobs/new - PASS",
+      "Postcode field triggers smart scheduling panel after 350ms debounce - PASS",
+      "Empty panel shows 'No nearby jobs in your next 14 days' message - PASS",
+      "Suggestions panel shows 'YOU ALREADY HAVE JOBS NEAR HERE' with amber styling - PASS",
+      "Date chips show weekday, date, job_count badge, and distance - PASS",
+      "Clicking chip pre-fills scheduled_at to that date at 09:00 - PASS",
+      "Chip turns green (emerald) with checkmark after selection - PASS",
+      "Manual booking override still works - PASS"
+    ]
+  },
+  "regression_tests": {
+    "iter_220f_customer_typeahead": "8/8 PASS",
+    "iter_220e_per_machine_photos": "6/6 PASS"
+  },
+  "postcodes_io_integration": {
+    "status": "working",
+    "note": "postcodes.io is a real free public API. Some postcodes like CV1 1AA are terminated (404) but SW1A 1AA works. Tests bypass live API by pre-seeding postcode_cache collection."
+  },
+  "test_fix_applied": "Fixed _seed_geo() in test file to $unset the 'miss' field when seeding geocodes, ensuring tests don't fail due to stale cache entries."
+}

@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Loader2, Sparkles, Wand2, ClipboardPaste,
   Wrench, Building2, AlertCircle, CheckCircle2,
-  Search, BookmarkPlus, History, X,
+  Search, BookmarkPlus, History, X, MapPin, Calendar,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -346,6 +346,15 @@ export default function EngineerNewJob() {
             </div>
           </div>
 
+          <SmartSchedulingPanel
+            postcode={form.site_postcode}
+            currentScheduledAt={form.scheduled_at}
+            onPick={(isoDate) => {
+              // Default to 9 AM on the suggested day.
+              set('scheduled_at', `${isoDate}T09:00`);
+            }}
+          />
+
           <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Scheduled for">
               <input type="datetime-local" value={form.scheduled_at} onChange={(e) => set('scheduled_at', e.target.value)} className={inputCls} data-testid="newjob-scheduled" />
@@ -605,3 +614,116 @@ function CustomerTypeahead({ onPick }) {
     </div>
   );
 }
+
+// Iter 220g — Smart scheduling suggestions.
+// Once the engineer enters a UK postcode (≥5 chars), hit the backend
+// to find days they already have nearby jobs (≤ 10 miles). 350ms
+// debounce. Surfaced as tappable date chips that pre-fill the
+// "Scheduled for" field at 9 AM. Manual booking still always works.
+function SmartSchedulingPanel({ postcode, currentScheduledAt, onPick }) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [meta, setMeta] = useState(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const cleaned = (postcode || '').replace(/\s+/g, '').toUpperCase();
+    if (cleaned.length < 5) {
+      setSuggestions([]);
+      setMeta(null);
+      return undefined;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/scheduling-suggestions?postcode=${encodeURIComponent(postcode)}`,
+          auth(),
+        );
+        setSuggestions(r.data?.suggestions || []);
+        setMeta({
+          radius: r.data?.radius_miles,
+          window: r.data?.window_days,
+          geocoded: r.data?.target_geocoded,
+        });
+      } catch (e) {
+        setSuggestions([]);
+        setMeta(null);
+      } finally {
+        setLoading(false);
+      }
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [postcode]);
+
+  if (!postcode || postcode.trim().length < 5) return null;
+  if (loading) {
+    return (
+      <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-center gap-2 text-xs text-blue-900" data-testid="smart-sched-loading">
+        <Loader2 size={12} className="animate-spin" />
+        Checking your diary for nearby jobs…
+      </div>
+    );
+  }
+  if (!suggestions.length) {
+    return (
+      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 flex items-center gap-2" data-testid="smart-sched-empty">
+        <MapPin size={12} className="text-slate-400" />
+        No nearby jobs in your next {meta?.window || 14} days — feel free to pick any date below.
+      </div>
+    );
+  }
+  const currentDay = (currentScheduledAt || '').slice(0, 10);
+  return (
+    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3" data-testid="smart-sched-panel">
+      <div className="flex items-center gap-2 mb-2">
+        <MapPin size={13} className="text-amber-700" />
+        <p className="text-[11px] font-bold uppercase tracking-wide text-amber-900">
+          You already have jobs near here
+        </p>
+        <span className="text-[10px] text-amber-800/70">
+          within {meta?.radius || 10} miles
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2" data-testid="smart-sched-chip-list">
+        {suggestions.map((s) => {
+          const d = new Date(`${s.date}T09:00:00`);
+          const friendly = d.toLocaleDateString(undefined, {
+            weekday: 'short', day: '2-digit', month: 'short',
+          });
+          const isPicked = currentDay === s.date;
+          return (
+            <button
+              type="button"
+              key={s.date}
+              onClick={() => onPick?.(s.date)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+                isPicked
+                  ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                  : 'bg-white border-amber-200 text-amber-900 hover:bg-amber-100'
+              }`}
+              data-testid={`smart-sched-chip-${s.date}`}
+            >
+              <Calendar size={11} />
+              {friendly}
+              <span className="ml-0.5 inline-flex items-center justify-center min-w-[1.25rem] h-4 rounded-full bg-amber-200/70 text-amber-900 text-[9px] px-1">
+                {s.job_count}
+              </span>
+              {Number.isFinite(s.min_distance_miles) && (
+                <span className="text-[10px] text-amber-800/70">
+                  · {s.min_distance_miles} mi
+                </span>
+              )}
+              {isPicked && <CheckCircle2 size={11} className="text-emerald-700" />}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-amber-800/70 mt-1.5">
+        Tap to book that day, or pick any date below manually.
+      </p>
+    </div>
+  );
+}
+

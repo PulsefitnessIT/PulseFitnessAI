@@ -571,6 +571,9 @@ async def _create_indexes() -> None:
     # Iter 220d — Per-machine reports + note presets
     from routes.svc.per_machine_reports import ensure_indexes as ensure_per_machine_indexes
     await ensure_per_machine_indexes()
+    # Iter 220g — Postcode geocode cache
+    from routes.svc.scheduling_suggestions import ensure_indexes as ensure_scheduling_indexes
+    await ensure_scheduling_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()

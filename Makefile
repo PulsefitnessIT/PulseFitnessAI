@@ -129,6 +129,7 @@ regression:
 	  tests/test_iter_220d_per_machine_reports.py \
 	  tests/test_iter_220e_per_machine_photos.py \
 	  tests/test_iter_220f_customer_typeahead.py \
+	  tests/test_iter_220g_scheduling_suggestions.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
