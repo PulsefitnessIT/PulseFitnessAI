@@ -139,6 +139,65 @@ async def list_work_report_fields(
     return {"fields": rows, "count": len(rows)}
 
 
+@router.get("/work-report-fields/for-machine-row/{row_id}")
+async def fields_for_machine_row(row_id: str, user=Depends(get_current_user)):
+    """Iter 220i — resolve applicable custom-field defs for a single
+    machine row in the Machines card. Same scoping rules as
+    `for-case`, but anchored to the row's own asset link rather than
+    the case-level asset.
+
+    Returns the set of defs PLUS the row's already-saved values and
+    the last-reading map keyed by field key, so the UI can pre-fill.
+    """
+    of = _of(user)
+    row = await db.svc_work_visit_machines.find_one(
+        {"id": row_id, **of},
+        {"_id": 0},
+    )
+    if not row:
+        raise HTTPException(404, "Machine row not found")
+    asset_id = row.get("asset_id") or ""
+    asset = None
+    if asset_id:
+        asset = await db.equipment.find_one(
+            {"id": asset_id, **of},
+            {"_id": 0, "id": 1, "equipment_type": 1, "manufacturer": 1, "model": 1},
+        )
+    equipment_type = (asset or {}).get("equipment_type") or row.get("asset_type") or ""
+    manufacturer = (asset or {}).get("manufacturer") or ""
+    model = (asset or {}).get("model") or ""
+
+    or_clauses: list[dict] = [{"scope_kind": "global"}]
+    if equipment_type:
+        or_clauses.append({"scope_kind": "equipment_type", "scope_value": equipment_type})
+    if manufacturer:
+        or_clauses.append({"scope_kind": "manufacturer", "scope_value": manufacturer})
+    if model:
+        or_clauses.append({"scope_kind": "model", "scope_value": model})
+    if asset_id:
+        or_clauses.append({"scope_kind": "asset", "scope_value": asset_id})
+
+    defs = await db.svc_work_report_field_defs.find(
+        {**of, "archived": {"$ne": True}, "$or": or_clauses},
+        {"_id": 0},
+    ).sort([("position", 1), ("created_at", 1)]).to_list(MAX_FIELDS_PER_ORG)
+    defs.sort(key=lambda r: (
+        SCOPE_SPECIFICITY.get(r.get("scope_kind", "global"), 0),
+        r.get("position", 0),
+        r.get("created_at", ""),
+    ))
+    return {
+        "fields": defs,
+        "values": row.get("custom_fields") or {},
+        "context": {
+            "asset_id": asset_id,
+            "equipment_type": equipment_type,
+            "manufacturer": manufacturer,
+            "model": model,
+        },
+    }
+
+
 @router.get("/work-report-fields/for-case/{case_id}")
 async def fields_for_case(case_id: str, user=Depends(get_current_user)):
     of = _of(user)

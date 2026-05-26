@@ -285,7 +285,7 @@ export default function EngineerHomeV2() {
               <KPITile icon={Calendar} label="Today" value={kpis.today_jobs} accent="#1d4ed8"
                        testid="kpi-today" onClick={() => navigate('/svc/engineer?tab=today')} />
               <KPITile icon={Clock} label="Upcoming" value={kpis.upcoming_jobs} accent="#6366f1"
-                       testid="kpi-upcoming" onClick={() => navigate('/svc/engineer?tab=upcoming')} />
+                       testid="kpi-upcoming" onClick={() => navigate('/svc/engineer/upcoming')} />
               <KPITile icon={AlertTriangle} label="Overdue" value={kpis.overdue_jobs} accent="#dc2626"
                        testid="kpi-overdue" onClick={() => navigate('/svc/engineer?tab=open')} />
               <KPITile icon={Package} label="Awaiting parts" value={kpis.awaiting_parts} accent="#f59e0b"

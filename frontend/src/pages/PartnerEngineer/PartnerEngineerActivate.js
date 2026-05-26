@@ -97,12 +97,12 @@ export default function PartnerEngineerActivate() {
 
   // ─── Frame ────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-      <header className="border-b border-zinc-800/80 px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-sm font-extrabold tracking-tight">
-          GymAxis · <span className="text-purple-400">Engineer Partners</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100 text-slate-900 flex flex-col">
+      <header className="border-b border-purple-100 bg-white/70 backdrop-blur px-6 py-4 flex items-center justify-between">
+        <Link to="/" className="text-sm font-extrabold tracking-tight text-slate-900">
+          GymAxis · <span className="text-purple-600">Engineer Partners</span>
         </Link>
-        <Link to="/login" className="text-xs text-zinc-400 hover:text-white" data-testid="activate-sign-in-link">
+        <Link to="/login" className="text-xs text-slate-500 hover:text-purple-600 font-bold" data-testid="activate-sign-in-link">
           Already have an account? Sign in
         </Link>
       </header>
@@ -111,34 +111,34 @@ export default function PartnerEngineerActivate() {
         <div className="w-full max-w-md">
           {loading ? (
             <div className="flex flex-col items-center gap-3 py-12" data-testid="activate-loading">
-              <Loader2 size={22} className="animate-spin text-purple-400" />
-              <p className="text-sm text-zinc-400">Checking your activation link…</p>
+              <Loader2 size={22} className="animate-spin text-purple-600" />
+              <p className="text-sm text-slate-500">Checking your activation link…</p>
             </div>
           ) : error && !info ? (
-            <div className="rounded-2xl border border-rose-700/40 bg-rose-900/20 p-6 text-center" data-testid="activate-error-state">
-              <AlertTriangle size={28} className="text-rose-300 mx-auto" />
-              <h1 className="text-lg font-extrabold mt-3">Link unavailable</h1>
-              <p className="text-sm text-rose-100/80 mt-2">{error}</p>
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center" data-testid="activate-error-state">
+              <AlertTriangle size={28} className="text-rose-500 mx-auto" />
+              <h1 className="text-lg font-extrabold mt-3 text-slate-900">Link unavailable</h1>
+              <p className="text-sm text-rose-700 mt-2">{error}</p>
               <a
                 href="mailto:support@gymaxisai.com?subject=Partner%20Engineer%20activation%20link"
-                className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-white text-zinc-900 text-sm font-bold"
+                className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-bold"
               >
                 <Mail size={14} /> Email support for a new link
               </a>
             </div>
           ) : info?.has_existing_account ? (
-            <div className="rounded-2xl border border-zinc-700/60 bg-zinc-900/70 p-6" data-testid="activate-existing-account">
-              <ShieldCheck size={24} className="text-emerald-300" />
-              <h1 className="text-xl font-extrabold mt-3">Sign in to claim your approval</h1>
-              <p className="text-sm text-zinc-400 mt-2">
-                We already have a GymAxis account for <b className="text-white">{info.email}</b>.
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-xl p-6" data-testid="activate-existing-account">
+              <ShieldCheck size={24} className="text-emerald-500" />
+              <h1 className="text-xl font-extrabold mt-3 text-slate-900">Sign in to claim your approval</h1>
+              <p className="text-sm text-slate-600 mt-2">
+                We already have a GymAxis account for <b className="text-slate-900">{info.email}</b>.
                 Sign in there — we'll link your Partner Engineer record automatically and then
                 take you straight to Stripe to start your £30/mo plan.
               </p>
               <button
                 type="button"
                 onClick={() => navigate(`/login?email=${encodeURIComponent(info.email)}&next=/partner-engineer?action=subscribe`)}
-                className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-bold"
+                className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold shadow-lg shadow-purple-600/20"
                 data-testid="activate-go-to-login"
               >
                 Sign in <ArrowRight size={14} />
@@ -147,45 +147,45 @@ export default function PartnerEngineerActivate() {
           ) : (
             <form
               onSubmit={submit}
-              className="rounded-2xl border border-zinc-700/60 bg-zinc-900/70 p-6 space-y-4"
+              className="rounded-2xl border border-slate-200 bg-white shadow-xl p-6 space-y-4"
               data-testid="activate-form"
             >
               <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-purple-400">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-purple-600">
                   Engineer Partner · Welcome
                 </p>
-                <h1 className="text-2xl font-extrabold mt-1" data-testid="activate-headline">
+                <h1 className="text-2xl font-extrabold mt-1 text-slate-900" data-testid="activate-headline">
                   Set up your sign-in, {((info?.full_name || '').split(' ')[0]) || 'there'}.
                 </h1>
-                <p className="text-sm text-zinc-400 mt-2">
+                <p className="text-sm text-slate-600 mt-2">
                   Choose a password — we'll create your GymAxis account and take you straight to
-                  Stripe to start your <b className="text-white">£30/mo Partner Plan</b>.
+                  Stripe to start your <b className="text-slate-900">£30/mo Partner Plan</b>.
                 </p>
               </div>
 
               {/* Email — pre-filled, read-only — applicants should not be able to
                   switch it without going via support. */}
               <label className="block">
-                <span className="text-[11px] uppercase font-bold tracking-wider text-zinc-400">Email</span>
+                <span className="text-[11px] uppercase font-bold tracking-wider text-slate-500">Email</span>
                 <div className="mt-1 relative">
                   <input
                     type="email"
                     value={info?.email || ''}
                     readOnly
-                    className="w-full px-3 py-2.5 rounded-lg border border-zinc-700 bg-zinc-800/60 text-zinc-300 text-sm font-mono"
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 text-sm font-mono"
                     data-testid="activate-email"
                   />
-                  <Mail size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Mail size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 </div>
-                <p className="text-[11px] text-zinc-500 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   This is the email you applied with. Need to change it?
                   {' '}
-                  <a href="mailto:support@gymaxisai.com" className="underline">contact support</a>.
+                  <a href="mailto:support@gymaxisai.com" className="underline text-purple-600">contact support</a>.
                 </p>
               </label>
 
               <label className="block">
-                <span className="text-[11px] uppercase font-bold tracking-wider text-zinc-400">
+                <span className="text-[11px] uppercase font-bold tracking-wider text-slate-500">
                   Choose a password
                 </span>
                 <div className="mt-1 relative">
@@ -198,26 +198,26 @@ export default function PartnerEngineerActivate() {
                     autoFocus
                     autoComplete="new-password"
                     placeholder="At least 8 characters"
-                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none focus:border-purple-400"
+                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     data-testid="activate-password"
                   />
-                  <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <button
                     type="button"
                     onClick={() => setShowPwd((s) => !s)}
                     aria-label={showPwd ? 'Hide password' : 'Show password'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                   >
                     {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
-                <p className="text-[11px] text-zinc-500 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   Aim for at least 12 characters with a mix of letters, numbers, and symbols.
                 </p>
               </label>
 
               {error ? (
-                <p className="text-xs text-rose-300 bg-rose-900/30 border border-rose-800/50 rounded-md px-3 py-2" data-testid="activate-error">
+                <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-md px-3 py-2" data-testid="activate-error">
                   {error}
                 </p>
               ) : null}
@@ -225,7 +225,7 @@ export default function PartnerEngineerActivate() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white text-sm font-bold transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-bold transition-colors shadow-lg shadow-purple-600/20"
                 data-testid="activate-submit"
               >
                 {submitting ? (
@@ -235,17 +235,17 @@ export default function PartnerEngineerActivate() {
                 )}
               </button>
 
-              <div className="pt-2 border-t border-zinc-800/80 mt-2 text-[11px] text-zinc-500 space-y-1">
+              <div className="pt-2 border-t border-slate-100 mt-2 text-[11px] text-slate-500 space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={11} className="text-emerald-400" />
+                  <CheckCircle2 size={11} className="text-emerald-600" />
                   Your application is already approved — this just creates your sign-in.
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={11} className="text-emerald-400" />
+                  <CheckCircle2 size={11} className="text-emerald-600" />
                   Stripe handles all payment details — we never see your card.
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={11} className="text-emerald-400" />
+                  <CheckCircle2 size={11} className="text-emerald-600" />
                   The £30/mo fee drops as you refer gyms — free at 10 active sites.
                 </div>
               </div>
@@ -254,8 +254,8 @@ export default function PartnerEngineerActivate() {
         </div>
       </main>
 
-      <footer className="text-center text-[11px] text-zinc-600 py-6">
-        GymAxis · You can email <a href="mailto:support@gymaxisai.com" className="underline">support@gymaxisai.com</a> any time.
+      <footer className="text-center text-[11px] text-slate-500 py-6">
+        GymAxis · You can email <a href="mailto:support@gymaxisai.com" className="underline text-purple-600">support@gymaxisai.com</a> any time.
       </footer>
     </div>
   );
