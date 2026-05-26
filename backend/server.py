@@ -568,6 +568,9 @@ async def _create_indexes() -> None:
         unique=True,
         name="svc_engineer_job_drafts_unique",
     )
+    # Iter 220d — Per-machine reports + note presets
+    from routes.svc.per_machine_reports import ensure_indexes as ensure_per_machine_indexes
+    await ensure_per_machine_indexes()
     # Security hardening indexes (rate-limit TTL, JWT revocations, LLM budgets)
     from utils.security_plus import ensure_security_indexes
     await ensure_security_indexes()

@@ -156,6 +156,8 @@ from routes.svc.inbound_email import (
 from routes.svc.engineer_customers import router as svc_engineer_customers_router
 # Iter 220 — Work Report custom fields (engineer + admin configurable)
 from routes.svc.work_report_fields import router as svc_work_report_fields_router
+# Iter 220d — Per-machine work reports + quick-add note presets
+from routes.svc.per_machine_reports import router as svc_per_machine_reports_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -285,6 +287,8 @@ _UNGATED_ROUTERS = (
     svc_engineer_customers_router,
     # Iter 220 — Work Report custom fields
     svc_work_report_fields_router,
+    # Iter 220d — Per-machine work reports + quick-add presets
+    svc_per_machine_reports_router,
 )
 
 

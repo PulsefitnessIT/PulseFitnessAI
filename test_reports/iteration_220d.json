@@ -1,0 +1,75 @@
+{
+  "summary": "Completed comprehensive testing of iter 220d per-machine work reports feature. All 11 backend pytest tests pass. All 20 regression tests (iter 220c autosave + iter 220 custom fields) pass. Frontend UI verified: Machines card displays on Complete tab with empty state, Add machine button, machine rows with serviced/cleaned chips, notes textarea, quick-add note preset palette with pinned presets sorting to top, copy-down button, and delete functionality.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220d_per_machine_reports.py",
+    "/app/backend/tests/test_iter_220c_engineer_draft_autosave.py",
+    "/app/backend/tests/test_iter_220_work_report_custom_fields.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "Created test machines via API: BikeErg #1, BikeErg #2, BikeErg #3. Created test note presets for dedupe verification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 220d per-machine reports feature is fully functional. Backend tests at /app/backend/tests/test_iter_220d_per_machine_reports.py cover CRUD, copy-down, asset snapshot, and note preset dedupe. Frontend WorkVisitMachinesCard.js and NotePresetChips.js components are working correctly. All data-testid attributes are in place for automated testing.",
+  "features_tested": {
+    "backend_per_machine_crud": {
+      "status": "PASS",
+      "details": "GET/POST/PATCH/DELETE /api/svc/engineer/jobs/{case_id}/machines all working with proper org isolation. 11 pytest cases pass."
+    },
+    "copy_down_behaviour": {
+      "status": "PASS",
+      "details": "POST /machines/{id}/copy-down with fields=[serviced,cleaned,notes] correctly propagates to rows with order_index > source. Tested: updated 2 rows when copying from row 1 to rows 2 and 3."
+    },
+    "asset_snapshot": {
+      "status": "PASS",
+      "details": "Asset picker dropdown shows available equipment. Selecting an asset auto-populates manufacturer/model/serial fields."
+    },
+    "note_preset_dedupe": {
+      "status": "PASS",
+      "details": "POSTing same text twice returns SAME preset id with use_count bumped (1 -> 2). Pinned presets sort to top of list."
+    },
+    "frontend_machines_card": {
+      "status": "PASS",
+      "details": "Machines card appears on Complete tab with empty state message, Add machine button, and proper data-testid attributes."
+    },
+    "add_machine_flow": {
+      "status": "PASS",
+      "details": "Clicking Add machine creates new row (auto-expanded). Machine name input, Serviced/Cleaned chips, Notes textarea all functional."
+    },
+    "quick_add_chip_palette": {
+      "status": "PASS",
+      "details": "Quick-add notes palette visible below Notes textarea. Save as Shared/Personal buttons work. Chips appear after saving. Search box present."
+    },
+    "copy_down_ui": {
+      "status": "PASS",
+      "details": "'Apply to rows below' button visible on machine rows. Copy-down propagates serviced/cleaned/notes to subsequent rows."
+    },
+    "delete_machine": {
+      "status": "PASS",
+      "details": "Remove button visible on each row. Delete API returns 200 and removes machine from list."
+    },
+    "regression_autosave": {
+      "status": "PASS",
+      "details": "Iter 220c autosave still works - draft PUT/GET endpoints functional. 6 pytest tests pass."
+    },
+    "regression_custom_fields": {
+      "status": "PASS",
+      "details": "Iter 220 custom fields page (/svc/engineer/work-report-fields) API endpoints working. 14 pytest tests pass."
+    }
+  }
+}

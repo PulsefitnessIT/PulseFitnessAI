@@ -34,6 +34,7 @@ import { engineerSendOrQueue } from '@/utils/engineerOfflineQueue';
 import SignatureCanvas from './SignatureCanvas';
 import EngineerDictationButton from './EngineerDictationButton';
 import WorkReportCustomFields from './WorkReportCustomFields';
+import WorkVisitMachinesCard from './WorkVisitMachinesCard';
 import useJobDraft from './useJobDraft';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -1105,6 +1106,9 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         values={customFields}
         onChange={setCustomFields}
       />
+
+      {/* Iter 220d — Per-machine work report (row-per-Erg, copy-down) */}
+      <WorkVisitMachinesCard caseId={job.id} />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-signature-card">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Customer signature (optional)</p>

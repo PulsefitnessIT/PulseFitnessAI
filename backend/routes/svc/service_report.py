@@ -109,6 +109,11 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
             {"organization_id": of["organization_id"], "key": {"$in": list(cf_values.keys())}},
             {"_id": 0},
         ).to_list(200)
+    # Iter 220d — per-machine work report rows.
+    machines = await db.svc_work_visit_machines.find(
+        {"organization_id": of["organization_id"], "case_id": case_id},
+        {"_id": 0},
+    ).sort([("order_index", 1), ("created_at", 1)]).to_list(80)
     return {
         "case": case,
         "photos": photos,
@@ -120,6 +125,7 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         "rating": rating,
         "rating_comment": rating_comment,
         "custom_field_defs": custom_field_defs,
+        "machines": machines,
     }
 
 
@@ -361,6 +367,33 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             ]))
             story.append(cf_table)
             story.append(Spacer(1, 4 * mm))
+
+    # ── Iter 220d · Per-machine work report rows ───────────────────
+    machines = payload.get("machines") or []
+    if machines:
+        story.append(Paragraph("MACHINES ON THIS VISIT", h_section))
+        rows = [["#", "Machine", "Serial", "Serviced", "Cleaned", "Notes / Recommendations"]]
+        for idx, m in enumerate(machines, start=1):
+            name = (m.get("asset_name") or "—")[:80]
+            serial = (m.get("asset_serial") or "")[:30]
+            serv = "Yes" if m.get("serviced") else "—"
+            clean = "Yes" if m.get("cleaned") else "—"
+            notes = (m.get("notes") or "").strip()[:600]
+            rows.append([str(idx), name, serial, serv, clean, notes])
+        m_table = Table(rows, colWidths=[8 * mm, 45 * mm, 25 * mm, 18 * mm, 18 * mm, 61 * mm])
+        m_table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F1F5F9")),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#CBD5E1")),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (0, 0), (0, -1), "CENTER"),
+            ("ALIGN", (3, 0), (4, -1), "CENTER"),
+        ]))
+        story.append(m_table)
+        story.append(Spacer(1, 4 * mm))
 
     # ── Photos ────────────────────────────────────────────────────
     valid_images = []
