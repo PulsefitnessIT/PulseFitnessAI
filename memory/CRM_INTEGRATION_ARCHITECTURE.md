@@ -1,4 +1,6 @@
-> **📋 Status — Iter 216h232 update (Feb 19, 2026)**
+> **📋 Status — Iter 220m refresh (May 26, 2026)**
+>
+> Doc content below remains canonical for its domain. For platform-level deltas since the 2026-05-26 Partner Engineer release, see `PRD.md`, `ROADMAP.md` and `PRODUCTION_READINESS.md`.
 >
 > The single-source-of-truth model below remains the canonical
 > design. Post-h225 additions worth surfacing in any future revision

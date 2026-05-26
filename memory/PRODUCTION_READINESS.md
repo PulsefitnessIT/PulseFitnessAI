@@ -1,19 +1,20 @@
-> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+> **📋 Status — Iter 220m (May 26, 2026)** — Partner Engineer program RELEASE-READY for soft launch
 >
-> This document was last refreshed during the **GitHub Actions CI repair + mobile audit + module-tailored onboarding** sprint. See `PRD.md` § iter 216h225–232 for the canonical session log. The Production Readiness baseline below remains accurate; the table at the bottom adds the new realities.
+> This refresh follows the Partner Engineer pre-launch sprint (iters 220i → 220m). The three structural risks from the May 26 journey audit have all been sealed; the four P1 polish items shipped together; the monthly reputation report fires on autopilot. The Instagram marketing campaign is rendered and ready in `/app/backend/marketing/`.
 >
 > | Aspect | State |
 > | --- | --- |
 > | ESLint warnings budget | **0** (`--max-warnings 0`, strictly enforced in CI) |
 > | Ruff / Bandit / Xenon | Clean, pinned versions (`ruff==0.15.10`, `bandit==1.9.4`, `xenon==0.9.3`) |
 > | Pip-audit | Clean (3 accepted CVEs whitelisted in `quality-gate.yml`) |
-> | `make regression` | **37 passed, 14 skipped** (live-server tests skip in CI via `pytest_collection_modifyitems`) |
-> | GitHub Actions workflows | `ci.yml` (push+PR) + `quality-gate.yml` (PR-to-main). Both green as of iter 216h232. Mongo sidecar added to `python-quality` job. |
-> | Frontend mobile rails | Global `[data-fab-rail]` stacking, `html, body { overflow-x: hidden }` below `lg:`, Radix popover viewport clamp, fixed trial banner spacer |
-> | Module-tailored trial onboarding | `primary_module` captured at signup, narrows `/activation/me` + `/account/onboarding` to the operator's intent (operations/memberships/crm/marketing) |
-> | Activation event types | 16 (was 8) — added CRM (lead/deal/quote), Marketing (brand/audience/campaign), Operations (fault). Emit hooks wired into 7 route handlers. |
-> | CRM Phase 3 | Territory tree (drag-drop), AI next-best-action, cross-module timeline, reports suite with date filters — all shipped |
-> | Mobile audit Wave 1+2+3 | Cross-cutting CSS rails + 9 MasterAdmin tables wrapped + EngineerDiary scroll + CreativeStudio 2-col mobile + Add Equipment CTA in `EquipmentInfoTab` |
+> | `make regression` (iter-220 suite) | **103 passed, 3 skipped** (live-server tests skip in CI via `pytest_collection_modifyitems`) |
+> | GitHub Actions workflows | `ci.yml` (push+PR) + `quality-gate.yml` (PR-to-main). Both green. |
+> | Partner Engineer P0 release gates | ✅ All three sealed (iter 220k): compliance-to-claim, mid-job cancellation recovery, KYC required to claim. |
+> | Partner Engineer P1 polish | ✅ All four shipped (iter 220l): VAT-exempt toggle, My Ratings view, "Request again" CTA, 30-day grant max-age. |
+> | Monthly Reputation Report | ✅ Async loop wired in `server.py` (`utils/reputation_reports.run_forever`). Idempotent via `reputation_reports.last_sent_period`. Admin trigger at `POST /api/partners/admin/{id}/send-reputation-report`. |
+> | Customer-email broken image | ✅ Fixed (iter 220i) — self-hosted `/brand/gymaxis-mark-tight.png`. |
+> | Marketing campaign | ✅ 32 pixel-perfect Instagram tiles + 8 stories + 5 highlight covers rendered into `/app/backend/marketing/instagram/`. Generator + captions doc shipped. |
+> | Outlook / Sicon / DocuSign | ⚠️ Code + admin UI ready; blocked on user-provided credentials. |
 
 ---
 

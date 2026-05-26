@@ -1,11 +1,16 @@
-> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+> **📋 Status — Iter 220m (May 26, 2026)**
 >
 > Hand-over package status unchanged: code path complete + tested with
-> mocked Sicon endpoints. Awaiting partner credentials. The
-> `/master-admin/integrations → Sicon` mapping panel is now mobile-
+> mocked Sicon endpoints. Awaiting partner credentials from Pulse IT.
+> The `/master-admin/integrations → Sicon` mapping panel is mobile-
 > friendly (iter 216h229) — the field-mapping read-only table wraps
 > in `overflow-x-auto` with `min-w-[420px]` so it stays readable on
 > phones during partner demos.
+>
+> No changes to the proof package since v1.0. Once Pulse IT returns
+> with credentials, flipping from mocked to live is a single env-var
+> change (`SICON_LIVE_MODE=true` + `SICON_API_KEY=…`) — the rest of
+> the code path is already production-shaped.
 
 ---
 

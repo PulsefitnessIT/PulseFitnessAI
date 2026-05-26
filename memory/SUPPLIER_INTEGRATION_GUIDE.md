@@ -1,6 +1,10 @@
-> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+> **📋 Status — Iter 220m (May 26, 2026)**
 >
-> Quick-start flows unchanged. New activation events available for
+> Quick-start flows unchanged. Still pending live credentials from
+> Pulse IT to flip from mocked to production-bound endpoints. The
+> admin field-mapping UI (`/master-admin/integrations`) and the
+> end-to-end test harness are stable and green. New activation events
+> available for
 > supplier-facing operations (these fire automatically when the
 > matching action happens, see `routes/activation_events.py`):
 >

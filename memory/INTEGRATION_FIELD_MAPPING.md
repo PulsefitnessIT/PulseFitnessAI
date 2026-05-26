@@ -1,6 +1,7 @@
-> **📋 Status — Iter 216h240 (Feb 19, 2026)**
+> **📋 Status — Iter 220m (May 26, 2026)**
 >
-> Field mapping below remains the canonical reference. Iter 216h240
+> Field mapping below remains the canonical reference. No new mappings
+> introduced since the original iter 216h240 baseline. Iter 220m
 > closed the import-surface gaps that prevented end-to-end Sicon /
 > Sage / Orbit 4 round-trips at migration time. **No additional
 > sections** are introduced — the existing §19, §22, §23, §29

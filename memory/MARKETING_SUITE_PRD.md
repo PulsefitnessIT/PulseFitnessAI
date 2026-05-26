@@ -1,9 +1,37 @@
-> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+> **📋 Status — Iter 220m (May 26, 2026)** — Partner Engineer Instagram campaign assets generated
 >
-> The PRD below remains the canonical Marketing roadmap. Net new
-> capabilities since the original April 2026 doc:
+> The PRD below remains the canonical Marketing roadmap. Recent additions
+> stacked on top of the original April 2026 baseline:
 >
-> **Module-intent capture at trial signup (iter 216h227)**
+> ## Partner Engineer Instagram launch campaign (iter 220m)
+>
+> Full 4-week social campaign for the Partner Engineer soft launch:
+>
+> * **32 pixel-perfect assets** rendered into `/app/backend/marketing/instagram/`
+>   via Playwright (HTML templates → 1080×1080 PNGs at device-scale 2x).
+>   – 19 feed posts across 4 weeks (carousels + single tiles + reel covers)
+>   – 8 story frames (with poll / slider / link sticker / countdown placement notes)
+>   – 5 highlight covers (Apply · Demo · Engineers · Reviews · FAQ)
+> * **Brand-locked** — every colour pulled from the same CSS vars the live
+>   product uses (`#0055FF` brand blue, `#19CDFF` cyan accent, `#0A0C10`
+>   ink). Headlines in Outfit 800/900 (Satoshi-style), body in Inter,
+>   stats in JetBrains Mono. Google Fonts loaded at render time so
+>   typography is crisp at any zoom.
+> * **Regeneratable** — `python3 backend/marketing/generate.py` rebuilds
+>   every asset from the HTML templates in ~30s. Editors can change a
+>   price, a hashtag, a stat globally in one find/replace.
+> * **Ready-to-publish copy** — `/app/backend/marketing/CAPTIONS.md`
+>   holds the full 4-week posting schedule with caption + hashtags +
+>   suggested UK time slots for every asset.
+> * **KPI targets**: 50 verified Partner Engineer applications in 4
+>   weeks · ≥45% story completion · ≥12s avg reel watch time.
+>
+> Operator workflow: hand the `/instagram/` folder + `CAPTIONS.md` to
+> the social-media manager. They paste the captions, attach UTM
+> `?utm_source=instagram&utm_medium=social&utm_campaign=partner_launch_2026`
+> to the bio link, and post on the recommended cadence.
+>
+> ## Module-intent capture at trial signup (iter 216h227)
 > Marketing module landing pages (`/modules/marketing`) now dispatch
 > `openTrial('marketing')` so the new operator's primary_module is
 > set to `marketing` at signup. The `/activation/me` funnel then

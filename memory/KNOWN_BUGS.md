@@ -3,7 +3,31 @@
 > Read this **first** when picking up work. Re-introducing one of these
 > wastes a session. Update on every fix / new finding.
 
-_Last refreshed: Iter 216h232 · Feb 19, 2026_
+_Last refreshed: Iter 220m · May 26, 2026_
+
+---
+
+## ✅ Fixed since h232 (iter 220i → 220m)
+
+- **P0 broken customer-email image** (iter 220i) — every customer-facing email (service reports, lifecycle, partner emails) was rendering with a broken GymAxis mark in Gmail/Outlook. Root cause: the external `customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/gymaxis-mark-tight.png` URL started returning **403 Forbidden** in late 2026. Fixed by self-hosting at `/brand/gymaxis-mark-tight.png` resolved against `EMAIL_PUBLIC_BASE_URL` / `FRONTEND_URL`. Override via `EMAIL_GYMAXIS_LOGO_URL` env var.
+
+- **P0 data-loss: engineer drafts wiping on tab switch** (iter 220c) — Per-machine work-report draft autosaving via `svc_engineer_drafts` + tab-switch warnings.
+
+- **Partner Sign-up washed-out theme** (iter 220i) — Replaced pastel `slate-50 → purple-50 → indigo-100` with rich dark `slate-950 → indigo-950 → purple-900` gradient. Loading + error states rebalanced for legibility.
+
+- **Asset dropdown not closing on Enter** (iter 220i) — `MachineAssetPicker` in `WorkVisitMachinesCard.js` now auto-picks single match on Enter, closes silently when no match so free-text is accepted.
+
+- **Engineers had no path back to Partner Dashboard from inside the Engineer App** (iter 220i+ ad-hoc fix) — Added Partner Engineer row at the top of `EngineerAccountSettings` drawer with live status subtitle.
+
+- **Stranded customer risk on mid-job subscription cancellation** (iter 220k) — When Stripe subscription flips to `canceled`/`unpaid`/`incomplete_expired`, any in-flight `svc_cases` assigned to that engineer auto-unassign + flip to `new` with `needs_reassignment=true` + `partner_access_lost` audit event + dispatch-admin email digest.
+
+- **KYC bypass on first job claim** (iter 220k) — New `require_engineer_compliance_to_claim` dependency blocks `/queue/{id}/claim` + `/jobs/self-create` until partner has DBS OR RTW on file (non-expired) AND `compliance_paused` is False. Master admins / internal employees / customer-grant engineers exempt.
+
+- **Stale job grants reusable forever** (iter 220l) — Grants now get `expires_at = now + expires_in_days` (default 30, capped 365). `_has_access_via_grant` filters expired entries out.
+
+- **VAT charged by sole-trader engineers below £85k threshold** (iter 220l) — New `vat_registered` flag on `partner_engineers` (default True for backward compat). When false, every invoice/quote PDF + email auto-applies `vat_rate=0` and shows "Not chargeable" in place of the VAT row.
+
+- **Pre-existing iter 220i test fixtures**: `test_iter_220i_full.py` was mishandling the `/svc/engineer/jobs?when=...` `{by_day: {...}}` response shape and 0-indexing into a dict (`KeyError: 0`). Fixed in iter 220k.
 
 ---
 
@@ -82,7 +106,9 @@ _Last refreshed: Iter 216h232 · Feb 19, 2026_
 |-------------|-------|------------|--------------|
 | Twilio SMS | ❌ MOCKED | Send-attempt logs to console | Real delivery, delivery receipts |
 | Sage 200 | ❌ MOCKED | Schema + endpoints stubbed | Live posting on payment / lead-convert |
-| Sicon (CAPEX) | ❌ MOCKED | Schema only | Live cost lookups — needs user credentials |
+| Sicon (CAPEX) | ⚠️ READY — awaiting creds | Full integration code path + admin field-mapping UI in `/master-admin/integrations` shipped. Unit tests green. See `/app/memory/SICON_INTEGRATION_SPEC.md` + `/app/memory/SICON_INTEGRATION_PROOF.md`. | Live API calls — needs Pulse IT to provide credentials. |
+| Microsoft Graph (Outlook) | ❌ MOCKED | Code paths designed | Live push — needs `MS_CLIENT_ID` + `MS_CLIENT_SECRET`. |
+| DocuSign | ❌ MOCKED | PDF generation works | Live signature flow — awaiting credentials. |
 | Stripe Connect | ⚠️ GATED | Test mode works with sk_test_emergent | Production checkout requires Express onboarding per tenant |
 | Resend Email | ⚠️ GATED | SDK wired | No API key in env → emails log to console only |
 | PostHog analytics | ⚠️ CSP-blocked | Client embeds it | CSP `script-src` rejects the third-party CDN — sees console errors (cosmetic) |
@@ -119,6 +145,13 @@ _Last refreshed: Iter 216h232 · Feb 19, 2026_
 
 ### F-8 — Edit-drawer vs Create-modal validation drift
 - Drift between POST and PATCH endpoints causes data to enter the DB in inconsistent states. **Rule**: every PATCH should mirror its POST's validation (h207 fixed Members + Instructors).
+
+### F-9 — External `customer-assets.emergentagent.com` URLs go 403 over time
+- The Emergent customer-assets bucket revokes access to artifacts intermittently. Any image hard-coded against `https://customer-assets.emergentagent.com/...` in a customer-facing email or PDF will silently break in Gmail / Outlook.
+- **Rule (iter 220i)**: serve all brand assets from `/app/frontend/public/brand/` resolved against `EMAIL_PUBLIC_BASE_URL` or `FRONTEND_URL`. Use `customer-assets.emergentagent.com` only for one-off internal artifacts that won't be referenced from production emails.
+
+### F-10 — `_id: 0` projection alone isn't enough for nested partner.subscription docs
+- `_public()` in `routes/partners.py` strips the top-level `_id` but nested subdocs returned from aggregations can still carry one. When in doubt, materialise the response into a typed dict and explicitly include only the keys you want.
 
 ---
 

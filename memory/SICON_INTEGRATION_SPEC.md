@@ -1,14 +1,26 @@
-> **📋 Status — Iter 216h232 (Feb 19, 2026)**
+> **📋 Status — Iter 220m (May 26, 2026)**
 >
 > Still **P1 — waiting on live Sicon credentials** to switch from
-> mocked endpoints to production. The code path described below is
-> implemented and unit-tested; the companion `docs/SICON_INTEGRATION_PROOF.md`
-> tracks the hand-over package for the Sicon partner team. The
-> field-mapping admin UI (`/master-admin/integrations` ⇒ Sicon panel)
-> ships its own horizontal-scroll wrapper since iter 216h229's mobile
-> audit so the read-only field mapping table is usable on phones.
+> mocked endpoints to production. The integration code path, admin
+> field-mapping UI (`/master-admin/integrations` → Sicon panel) and
+> unit tests are all in place and stable. The companion
+> `docs/SICON_INTEGRATION_PROOF.md` tracks the hand-over package
+> for the Pulse IT / Sicon partner team.
 >
-> No model / endpoint changes since v1.0 below; only awaiting creds.
+> Recent operational context:
+>
+> - The 2026-05 Partner Engineer release (iter 220i → 220m) shipped
+>   **independently** of Sicon — none of the Partner Engineer flow
+>   blocks on Sicon being live. Operators can keep self-managing
+>   parts/labour while we await credentials.
+> - The admin field-mapping UI ships with its own horizontal-scroll
+>   wrapper (iter 216h229 mobile audit) so the read-only mapping
+>   table is usable on phones.
+>
+> No model / endpoint changes since v1.0 below; only awaiting
+> credentials. Once Pulse IT returns with the keys, switching from
+> the mocked adapter to the live one is a single env-var flip
+> (`SICON_LIVE_MODE=true` + `SICON_API_KEY=…`).
 
 ---
 

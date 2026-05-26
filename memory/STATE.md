@@ -6,7 +6,7 @@
 >
 > **Status legend**: ✅ live & verified · 🟡 live but rough · ⚠️ partial / gated · ❌ broken / mocked
 
-_Last refreshed: Iter 216h218 · Feb 19 2026_
+_Last refreshed: Iter 220m · May 26 2026 — Partner Engineer journey RELEASE-READY (P0 gates + P1 polish + monthly reputation reports shipped)._
 
 ---
 
@@ -21,9 +21,9 @@ _Last refreshed: Iter 216h218 · Feb 19 2026_
 | MOD Portal           | `/dashboard` (mod_*)         | `/MODService`                        | `/api/mod/*`                  | ✅ |
 | Master Admin         | `/master-admin`              | n/a                                  | `/api/master-admin/*`         | ✅ |
 | Marketing Suite      | `/marketing`                 | `/p/:slug`, `/forms/:slug`           | `/api/marketing/*`            | 🟡 |
-| Engineer App         | `/svc/engineer/*`            | `/r/:slug`, `/engineer`              | `/api/svc/engineer/*`         | 🟡 |
+| Engineer App         | `/svc/engineer/*`            | `/r/:slug`, `/engineer`              | `/api/svc/engineer/*`         | ✅ |
 | Gym Floor            | `/gym-floor`                 | n/a                                  | `/api/gym-floor/*`            | ✅ |
-| Partner Engineers    | `/partner-engineer`          | `/partners/engineers`                | `/api/partners/*`             | 🟡 |
+| Partner Engineers    | `/partner-engineer`          | `/partners/engineers`                | `/api/partners/*`             | ✅ release-ready (iter 220k/l/m) |
 | **Diagnostics**      | `/master-admin?section=login-events` & `?section=client-errors` · Home tile (h215): 24h platform-issues aggregator at `/master-admin?section=overview` | n/a | `/api/master-admin/{login-events,client-errors,platform-issues-24h}` | ✅ NEW h210/h215 |
 
 ---
@@ -82,6 +82,25 @@ _h218: Pinned the strict per-site scope contract for `apply_site_lock` in tests 
 - Master admin + `is_service_desk` grant → access. Members granted via `POST /api/master-admin/service-desk/members/grant`.
 - Engineer mobile app: `/svc/engineer/*` (jobs, quotes, invoices, payouts, diary, workspace, notifications, inbox, queue, sync panel).
 - Public engineer card: `/r/:slug` (Iter 216h144) · Quote-accept landing `/q/:shortcode`.
+
+_iter 220i: Per-machine work reports with custom-field templates, branded service-report PDFs (engineer logo + colours override org defaults), engineer branding upload UI at `/svc/engineer/branding`, fixed broken email logo (was 403 on dead `customer-assets.emergentagent.com` URL), `/svc/engineer/upcoming` interactive list._
+_iter 220j: Pulsing attention badge on hamburger — single endpoint `GET /api/svc/engineer/attention` aggregates compliance expiries (<14d), past_due subscription, missing Stripe Connect, application status. Red pulse blocks paid work, amber is time-sensitive._
+_iter 220k: Release-blocking P0 gates — `require_engineer_compliance_to_claim` dependency on `/queue/{id}/claim` + `/jobs/self-create` blocks engineers without DBS/RTW or with `compliance_paused`. Mid-job recovery: subscription cancellation auto-unassigns in-flight cases and emails dispatch admin._
+_iter 220l: VAT-exempt toggle on partner record (auto-applies vat_rate=0 + "Not chargeable" on every invoice/quote PDF), engineer "My Ratings" page at `/svc/engineer/ratings` (avg / count / 30-day trend / distribution / per-case comments), customer "Request this engineer again" CTA on `/track/:token` post-rating, job-grant max-age (30 days default, capped 365)._
+_iter 220m: Monthly engineer reputation report email — fires on the 1st via async background loop (`utils/reputation_reports.py`), includes avg / trend pill / star histogram / quote of the month / "Share on LinkedIn" CTA. Admin trigger at `POST /api/partners/admin/{id}/send-reputation-report` for manual resends._
+
+---
+
+## Partner Engineer Program
+
+- `/partner-engineer` — application + dashboard for self-employed engineers (£30/mo plan, £15/mo at 5 referrals, free at 10).
+- Access guard `require_engineer_app_access` enforces approved status + active subscription on every `/api/svc/engineer/*` route. Master admins / internal employees / customer-grant engineers bypass.
+- **Release-ready as of iter 220m** (May 26 2026). Soft-launch target: 50 verified Partner Engineers via the Instagram campaign (assets in `/app/backend/marketing/`).
+- Compliance docs gate: `dbs` OR `rtw` (file uploaded, expiry future-or-absent) required to claim paid work. `compliance_paused` flag set by nightly sweep also blocks claims.
+- Branding: engineer-level override (logo + primary/accent hex) beats org default on every PDF + portal.
+- Ratings: customer rates from the public tracking page; engineer sees their reputation at `/svc/engineer/ratings`; happy customers can tap "Request {name} again" to flag the engineer for next time (stored in `svc_engineer_preferences`).
+- Job Grants: customer-issued time-bound access to a specific case (30-day default expiry).
+- Email: monthly reputation report on the 1st (idempotent via `reputation_reports.last_sent_period`).
 
 ---
 
