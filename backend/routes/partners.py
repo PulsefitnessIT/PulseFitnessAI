@@ -1451,6 +1451,47 @@ async def update_my_tax_settings(body: dict = Body(...), user: dict = Depends(ge
     return {"ok": True, "partner": refreshed}
 
 
+# Iter 220m — Master-admin trigger for the monthly reputation report.
+# Operational hook for manual resends + a smoke target for tests.
+@router.post("/partners/admin/{partner_id}/send-reputation-report")
+async def admin_send_reputation_report(
+    partner_id: str,
+    body: dict | None = Body(default=None),
+    user: dict = Depends(get_current_user),
+):
+    """Body (optional): `{period: "YYYY-MM"}`. Defaults to previous
+    calendar month. Master-admin only."""
+    _require_master_admin(user)
+    partner = await db.partner_engineers.find_one({"id": partner_id}, {"_id": 0})
+    if not partner:
+        raise HTTPException(404, "Partner not found")
+    from utils.reputation_reports import (
+        _previous_period as _rr_prev,
+        send_monthly_report_to,
+    )
+    body = body or {}
+    period = (body.get("period") or "").strip()
+    if period:
+        try:
+            year_s, month_s = period.split("-")
+            year, month = int(year_s), int(month_s)
+        except ValueError:
+            raise HTTPException(400, "period must be YYYY-MM")
+    else:
+        today = datetime.now(timezone.utc).date()
+        year, month = _rr_prev(today.year, today.month)
+    result = await send_monthly_report_to(partner, year, month)
+    if result.get("sent"):
+        await db.partner_engineers.update_one(
+            {"id": partner_id},
+            {"$set": {
+                "reputation_reports.last_sent_period": f"{year:04d}-{month:02d}",
+                "reputation_reports.last_sent_at": _now(),
+            }},
+        )
+    return result
+
+
 def _is_doc_valid(expires_at) -> bool:
     """A doc is "valid" if its expiry is unset (we haven't asked) or in
     the future. None means we never collected it — we treat that as

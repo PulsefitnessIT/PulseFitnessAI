@@ -883,6 +883,16 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"partner compliance loop start failed: {e}")
 
+    # Iter 220m — Monthly engineer reputation reports.
+    # Fires on the 1st of each month with avg / trend / top quote /
+    # LinkedIn-share CTA. Loop wakes every 6 hours; sweep is idempotent.
+    try:
+        from utils.reputation_reports import run_forever as _reputation_reports_loop
+        asyncio.create_task(_reputation_reports_loop(6))
+        logger.info("[reputation-reports] loop started (6h)")
+    except Exception as e:
+        logger.error(f"reputation reports loop start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:

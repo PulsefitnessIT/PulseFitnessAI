@@ -1,3 +1,68 @@
+## Iter 220m — Monthly Reputation Report email (May 26, 2026) ✅
+
+Turns happy customers into engineer marketing on autopilot, on a
+fully automated monthly cadence with zero new operator workload.
+
+**Backend.**
+
+* New `utils/reputation_reports.py`:
+    * `build_monthly_report(engineer_user_id, year, month)` —
+      aggregates `svc_cases.customer_rating` for the calendar month
+      into `{avg, count, distribution[1..5], best_quote,
+      prev_avg, prev_count, delta}`. Returns `None` when the
+      engineer collected zero ratings (caller skips).
+    * `render_monthly_report_html(engineer, report, ratings_url)` —
+      branded HTML email with:
+        – Big avg in an amber gradient hero card.
+        – Star-string render of the avg.
+        – Trend pill (▲ +1.67 / ▼ −0.4 / — Stable / First month
+          tracked) coloured emerald / rose / indigo / slate.
+        – "Quote of the month" pull-quote card (highest-rated, longest
+          comment first).
+        – Star-distribution histogram with amber bars.
+        – Two CTAs side-by-side: **"See every review →"** (deep-link
+          to `/svc/engineer/ratings`) and **"Share on LinkedIn"**
+          (LinkedIn `sharing/share-offsite` URL pre-filled with
+          `⭐ {avg} avg from {count} review(s) this month. Proud
+          of the work via @GymAxis…`).
+    * `run_monthly_reputation_reports(force_period?)` — one sweep
+      over `partner_engineers (status=approved)`. Idempotency via
+      `reputation_reports.last_sent_period = "YYYY-MM"`. Without
+      `force_period`, the sweep is a no-op unless `today.day == 1`.
+    * `run_forever(interval_hours=6)` — async background loop. The
+      6-hour interval is a robustness padding so a missed minute
+      around midnight UTC on the 1st doesn't skip the entire run.
+* New admin endpoint
+  `POST /api/partners/admin/{partner_id}/send-reputation-report`
+  body `{period?: "YYYY-MM"}` — master-admin-only. Resends on demand;
+  defaults to the previous calendar month.
+* Loop wired in `server.py` on startup (log: `[reputation-reports]
+  loop started (6h)`).
+
+**Testing.**
+
+* `tests/test_iter_220m_reputation_reports.py` — 6 tests, all
+  green:
+    * Empty period → `None`.
+    * Population + delta + best-quote selection logic.
+    * Rendered HTML contains the LinkedIn share URL + avg + delta.
+    * Idempotency stamp lands on the partner record.
+    * Admin trigger endpoint works against the live preview.
+    * Non-first-of-month sweep is a no-op (`reason: not_first_of_month`).
+* Added to `Makefile::regression`.
+* Full iter-220 suite: **103 passed, 3 skipped.** Zero new linter
+  warnings.
+
+**Operator notes.**
+
+* The first natural firing happens at the next month-end (1st of
+  next month UTC, ~04:00 → 06:00 depending on the loop wake
+  cadence). You can dry-run it any time via the admin endpoint by
+  passing a `period` of your choice.
+
+---
+
+
 ## Iter 220l — Pre-launch polish (4 items) (May 26, 2026) ✅
 
 All four P1 polish items from the journey audit shipped together
