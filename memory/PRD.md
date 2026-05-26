@@ -1,3 +1,38 @@
+## Iter 220a — Last-reading pre-fill for custom Work Report fields (May 25, 2026) ✅
+
+Follow-on enhancement to iter 220. Engineers shouldn't have to retype
+machine readings that haven't changed since their last visit.
+
+**Backend.**
+
+* `GET /api/svc/work-report-fields/for-case/{id}` now also returns
+  `last_values: {key: value}` and `last_values_meta: {key: {case_id,
+  case_reference, captured_at}}`.
+* Lookup window: most-recent prior case on the same `asset_id`
+  (or `asset_name` when the case isn't asset-linked) with status in
+  `{repaired, awaiting_sign_off, closed, invoiced}` AND a non-empty
+  `work_report_custom_fields` map. Bounded to 10 candidates to keep the
+  query cheap; takes the first non-empty value per key.
+* Asset-scoped only — readings from a different asset never leak.
+
+**Frontend.**
+
+* `WorkReportCustomFields.js` consumes `last_values` to seed the parent
+  state on first load (stored values win, then last-values, then
+  whatever the engineer types in this session).
+* Each field gains a one-line hint under it:
+  *↺ Last reading: **122** · 01 Apr 2026 (PRIOR-7)* (blue, value not
+  yet confirmed) → *✓ Last reading: 122 · 01 Apr 2026* (emerald, value
+  matches what's in the input). Suppressed for `file` fields.
+
+**Tests added** (2 cases, all green — 12/12 now in this file):
+
+* `test_for_case_returns_last_values_from_prior_case_on_same_asset`
+* `test_for_case_last_values_ignores_other_assets`
+
+---
+
+
 ## Iter 220 — Work Report custom fields + "Send sign-in link" toast UX (May 25, 2026) ✅ user-reported
 
 Two user-reported items handled in one push:

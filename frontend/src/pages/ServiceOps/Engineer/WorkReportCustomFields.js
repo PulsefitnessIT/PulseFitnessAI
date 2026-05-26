@@ -27,21 +27,32 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  // Iter 220a — last reading per field, surfaced as a subtle hint AND
+  // used to seed the parent state for any field the engineer hasn't
+  // touched yet.
+  const [lastValues, setLastValues] = useState({});
+  const [lastValuesMeta, setLastValuesMeta] = useState({});
 
   const load = useCallback(async () => {
     if (!caseId) { setLoading(false); return; }
     setLoading(true);
     try {
       const r = await axios.get(`${API}/svc/work-report-fields/for-case/${caseId}`, auth());
-      setFields(r.data?.fields || []);
-      // Pre-seed previously-saved values into the parent state so the
-      // engineer sees what they entered last time around.
+      const defs = r.data?.fields || [];
+      setFields(defs);
       const stored = r.data?.values || {};
-      if (Object.keys(stored).length) {
-        onChange?.((prev) => ({ ...stored, ...(prev || {}) }));
+      const lastV = r.data?.last_values || {};
+      const lastMeta = r.data?.last_values_meta || {};
+      setLastValues(lastV);
+      setLastValuesMeta(lastMeta);
+      // Seed parent state with stored values (re-edit) merged with the
+      // last-reading fallbacks. Stored wins over last_values; what the
+      // engineer typed in this session wins over both.
+      const seed = { ...lastV, ...stored };
+      if (Object.keys(seed).length) {
+        onChange?.((prev) => ({ ...seed, ...(prev || {}) }));
       }
     } catch (e) {
-      // Non-blocking — the job still completes without custom fields.
       console.warn('[work-report-fields] load failed', e);
       setFields([]);
     } finally {
@@ -191,6 +202,42 @@ export default function WorkReportCustomFields({ caseId, values, onChange }) {
               {f.help_text && f.field_type !== 'checkbox' && (
                 <p className="text-[10px] text-slate-400 mt-1">{f.help_text}</p>
               )}
+              {(() => {
+                // Iter 220a — last-reading hint surfaces the value the
+                // engineer captured on the previous visit. Suppressed
+                // for file fields (the path isn't useful as a hint).
+                const lv = lastValues[f.key];
+                if (lv === undefined || lv === null || lv === '') return null;
+                if (f.field_type === 'file') return null;
+                const meta = lastValuesMeta[f.key] || {};
+                const display = f.field_type === 'checkbox'
+                  ? (lv ? 'Yes' : 'No')
+                  : String(lv);
+                let when = '';
+                if (meta.captured_at) {
+                  try {
+                    const d = new Date(meta.captured_at);
+                    if (!Number.isNaN(d.getTime())) {
+                      when = ` · ${d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}`;
+                    }
+                  } catch { /* ignore */ }
+                }
+                const refStr = meta.case_reference ? ` (${meta.case_reference})` : '';
+                const current = (values || {})[f.key];
+                const matches = current !== undefined
+                  && current !== null
+                  && current !== ''
+                  && String(current) === String(lv);
+                return (
+                  <p
+                    className={`text-[10px] mt-1 ${matches ? 'text-emerald-600' : 'text-blue-600'}`}
+                    data-testid={`wrf-lastreading-${f.key}`}
+                  >
+                    {matches ? '✓ ' : '↺ '}
+                    Last reading: <span className="font-bold">{display}</span>{when}{refStr}
+                  </p>
+                );
+              })()}
             </div>
           ))}
         </div>

@@ -182,9 +182,60 @@ async def fields_for_case(case_id: str, user=Depends(get_current_user)):
         r.get("position", 0),
         r.get("created_at", ""),
     ))
+    # Iter 220a — last-reading pre-fill. Pull the most recent prior case
+    # on the same asset (or asset_name when the row isn't asset-linked)
+    # that has a non-empty `work_report_custom_fields` map, and surface
+    # those values so the engineer only has to update what changed.
+    last_values: dict = {}
+    last_values_meta: dict = {}
+    field_keys = {r["key"] for r in rows}
+    if field_keys:
+        history_q: dict = {
+            **of,
+            "id": {"$ne": case_id},
+            "work_report_custom_fields": {"$exists": True, "$ne": {}},
+            "status": {"$in": ["repaired", "awaiting_sign_off", "closed", "invoiced"]},
+        }
+        asset_name = case.get("asset_name") or ""
+        if asset_id:
+            history_q["asset_id"] = asset_id
+        elif asset_name:
+            history_q["asset_name"] = asset_name
+        else:
+            history_q = {}  # no anchor → don't seed anything
+        if history_q:
+            prior = (
+                await db.svc_cases.find(
+                    history_q,
+                    {"_id": 0, "id": 1, "reference": 1, "closed_at": 1,
+                     "updated_at": 1, "work_report_custom_fields": 1,
+                     "work_report_custom_fields_updated_at": 1},
+                )
+                .sort([("closed_at", -1), ("updated_at", -1)])
+                .limit(10)
+                .to_list(10)
+            )
+            for p in prior:
+                cf = p.get("work_report_custom_fields") or {}
+                for k, v in cf.items():
+                    if k in field_keys and k not in last_values and v not in (None, ""):
+                        last_values[k] = v
+                        last_values_meta[k] = {
+                            "case_id": p.get("id"),
+                            "case_reference": p.get("reference"),
+                            "captured_at": (
+                                p.get("work_report_custom_fields_updated_at")
+                                or p.get("closed_at")
+                                or p.get("updated_at")
+                            ),
+                        }
+                if len(last_values) >= len(field_keys):
+                    break
     return {
         "fields": rows,
         "values": case.get("work_report_custom_fields") or {},
+        "last_values": last_values,
+        "last_values_meta": last_values_meta,
         "context": {
             "asset_id": asset_id,
             "equipment_type": equipment_type,

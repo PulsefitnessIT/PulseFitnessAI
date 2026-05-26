@@ -440,3 +440,122 @@ def test_complete_accepts_dropdown_value_only_when_in_options(db, admin_user, fi
     finally:
         db.svc_cases.delete_one({"id": case_id})
         db.equipment.delete_one({"id": asset_id})
+
+
+# ─────────────────── Iter 220a — last-reading pre-fill ───────────────────
+
+
+def test_for_case_returns_last_values_from_prior_case_on_same_asset(db, admin_user, field_cleanup):
+    """A prior CLOSED case on the same asset that captured custom-field
+    values should surface those values via `last_values` on the next
+    case's /for-case payload, so the engineer doesn't retype unchanged
+    readings."""
+    org_id = admin_user["organization_id"]
+    asset_id = f"asset-{uuid.uuid4().hex[:8]}"
+    prev_case_id = f"prev-{uuid.uuid4().hex[:8]}"
+    next_case_id = f"next-{uuid.uuid4().hex[:8]}"
+    db.equipment.insert_one({
+        "id": asset_id, "organization_id": org_id,
+        "name": "Rower 7", "equipment_type": "Rower",
+        "manufacturer": "Concept 2", "model": "Model D",
+    })
+    db.svc_cases.insert_one({
+        "id": prev_case_id, "organization_id": org_id,
+        "reference": "PRIOR-7", "title": "Previous visit",
+        "asset_id": asset_id, "status": "closed",
+        "closed_at": "2026-04-01T10:00:00+00:00",
+        "work_report_custom_fields": {
+            "drag_factor_220a": 122,
+            "wheel_check_220a": True,
+        },
+        "work_report_custom_fields_updated_at": "2026-04-01T10:00:00+00:00",
+        "created_at": "2026-04-01T08:00:00+00:00",
+    })
+    db.svc_cases.insert_one({
+        "id": next_case_id, "organization_id": org_id,
+        "reference": "NEXT-7", "title": "Today",
+        "asset_id": asset_id, "status": "on_site",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    try:
+        f_drag = _create_field({
+            "name": "Drag Factor 220a",
+            "field_type": "number",
+            "scope_kind": "manufacturer",
+            "scope_value": "Concept 2",
+        })
+        field_cleanup.append(f_drag["id"])
+        f_wheel = _create_field({
+            "name": "Wheel Check 220a",
+            "field_type": "checkbox",
+            "scope_kind": "global",
+        })
+        field_cleanup.append(f_wheel["id"])
+
+        with httpx.Client(timeout=15.0) as c:
+            r = c.get(
+                f"{BASE}/api/svc/work-report-fields/for-case/{next_case_id}",
+                headers=_admin_headers(),
+            )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["last_values"]["drag_factor_220a"] == 122
+        assert body["last_values"]["wheel_check_220a"] is True
+        meta = body["last_values_meta"]["drag_factor_220a"]
+        assert meta["case_reference"] == "PRIOR-7"
+        assert meta["case_id"] == prev_case_id
+        assert meta["captured_at"] == "2026-04-01T10:00:00+00:00"
+        # Existing `values` (this case hasn't been completed yet) stays empty.
+        assert body["values"] == {}
+    finally:
+        db.svc_cases.delete_many({"id": {"$in": [prev_case_id, next_case_id]}})
+        db.equipment.delete_one({"id": asset_id})
+
+
+def test_for_case_last_values_ignores_other_assets(db, admin_user, field_cleanup):
+    """Last-reading lookup must be scoped to the same asset — a closed
+    case on a DIFFERENT asset must NOT leak its readings."""
+    org_id = admin_user["organization_id"]
+    asset_a = f"asset-a-{uuid.uuid4().hex[:8]}"
+    asset_b = f"asset-b-{uuid.uuid4().hex[:8]}"
+    closed_on_a = f"closed-{uuid.uuid4().hex[:8]}"
+    open_on_b = f"open-{uuid.uuid4().hex[:8]}"
+    db.equipment.insert_many([
+        {"id": asset_a, "organization_id": org_id, "equipment_type": "Rower",
+         "manufacturer": "Concept 2", "model": "Model D", "name": "Rower A"},
+        {"id": asset_b, "organization_id": org_id, "equipment_type": "Rower",
+         "manufacturer": "Concept 2", "model": "Model D", "name": "Rower B"},
+    ])
+    db.svc_cases.insert_one({
+        "id": closed_on_a, "organization_id": org_id,
+        "reference": "A-CLOSED", "title": "Old",
+        "asset_id": asset_a, "status": "closed",
+        "closed_at": "2026-04-01T10:00:00+00:00",
+        "work_report_custom_fields": {"drag_factor_220a_iso": 119},
+        "created_at": "2026-04-01T08:00:00+00:00",
+    })
+    db.svc_cases.insert_one({
+        "id": open_on_b, "organization_id": org_id,
+        "reference": "B-OPEN", "title": "New",
+        "asset_id": asset_b, "status": "on_site",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    try:
+        f = _create_field({
+            "name": "Drag Factor 220a iso",
+            "field_type": "number",
+            "scope_kind": "manufacturer",
+            "scope_value": "Concept 2",
+        })
+        field_cleanup.append(f["id"])
+        with httpx.Client(timeout=15.0) as c:
+            r = c.get(
+                f"{BASE}/api/svc/work-report-fields/for-case/{open_on_b}",
+                headers=_admin_headers(),
+            )
+        assert r.status_code == 200
+        assert r.json()["last_values"] == {}
+    finally:
+        db.svc_cases.delete_many({"id": {"$in": [closed_on_a, open_on_b]}})
+        db.equipment.delete_many({"id": {"$in": [asset_a, asset_b]}})
+
