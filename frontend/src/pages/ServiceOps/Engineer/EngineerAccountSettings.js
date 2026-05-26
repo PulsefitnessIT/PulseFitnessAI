@@ -60,7 +60,7 @@ const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#1d4ed8', testid,
   </button>
 );
 
-export default function EngineerAccountSettings({ open, onClose, payouts, onChanged }) {
+export default function EngineerAccountSettings({ open, onClose, payouts, attention, onChanged }) {
   const navigate = useNavigate();
   const [importing, setImporting] = useState(false);
   const importRef = useRef(null);
@@ -70,6 +70,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, onChan
   const [partner, setPartner] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [partnerLoading, setPartnerLoading] = useState(false);
+  const attentionItems = (attention?.items) || [];
 
   useEffect(() => {
     if (!open) return undefined;
@@ -186,6 +187,52 @@ export default function EngineerAccountSettings({ open, onClose, payouts, onChan
         </header>
 
         <div className="p-4 space-y-5 flex-1">
+          {/* Iter 220j — Attention digest (only renders when something needs
+              the engineer's eye). Mirrors the pulsing dot on the hamburger. */}
+          {attentionItems.length > 0 && (
+            <section data-testid="engineer-settings-section-attention">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">
+                Needs your attention
+              </p>
+              <div className="space-y-2">
+                {attentionItems.map((it) => {
+                  const isRed = it.severity === 'red';
+                  return (
+                    <button
+                      key={it.key}
+                      type="button"
+                      onClick={() => {
+                        if (it.cta_to) { onClose(); navigate(it.cta_to); }
+                      }}
+                      className={`w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-xl border transition-colors ${
+                        isRed
+                          ? 'border-rose-200 bg-rose-50 hover:bg-rose-100'
+                          : 'border-amber-200 bg-amber-50 hover:bg-amber-100'
+                      }`}
+                      data-testid={`engineer-attention-item-${it.key}`}
+                    >
+                      <AlertTriangle
+                        size={14}
+                        className={`mt-0.5 flex-shrink-0 ${isRed ? 'text-rose-600' : 'text-amber-600'}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-bold ${isRed ? 'text-rose-900' : 'text-amber-900'}`}>
+                          {it.label}
+                        </p>
+                        {it.hint ? (
+                          <p className={`text-[11px] mt-0.5 ${isRed ? 'text-rose-700' : 'text-amber-700'}`}>
+                            {it.hint}
+                          </p>
+                        ) : null}
+                      </div>
+                      <ChevronRight size={14} className={isRed ? 'text-rose-400' : 'text-amber-400'} />
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* Iter 220i — Partner Engineer hub link. Closes the loop so
               engineers can see compliance, referral code + plan from
               inside the Engineer App. */}

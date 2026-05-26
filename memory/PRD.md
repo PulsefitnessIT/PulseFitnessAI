@@ -1,3 +1,60 @@
+## Iter 220j — Engineer hamburger attention badge (May 26, 2026) ✅ user-requested
+
+Engineers had no in-app way to know something off-screen needed their
+eye — they'd discover a past-due Stripe payment or an expired
+insurance cert only when a customer complained or a job got blocked.
+This iter adds a single source of truth + visual nudge.
+
+**Backend.**
+
+* New `routes/svc/attention.py` (registered in
+  `route_registry/features.py`). Single read-only endpoint
+  `GET /api/svc/engineer/attention` aggregates everything that
+  needs an approved engineer's eye:
+    * Partner application state (pending/rejected/suspended)
+    * Stripe subscription (past_due / canceled / inactive)
+    * Compliance docs expired or expiring in &lt;14 days (any kind
+      under `partner.compliance_docs`)
+    * `compliance_paused` flag set by the nightly compliance job
+    * Stripe Connect Express not finished (`charges_enabled` false)
+* Returns `{count, severity, items[]}` where severity is the highest
+  of any item: `red` (blocks paid work) &gt; `amber` (time-sensitive)
+  &gt; `green` (nothing).
+* Items sort red-first; each carries a stable `key`, label, hint,
+  and `cta_to` deep-link.
+
+**Frontend.**
+
+* New hook `pages/ServiceOps/Engineer/hooks/useEngineerAttention.js`
+  — fetches the digest, optional 90 s polling, silent fallback on
+  network errors (so the menu never shows a spurious dot when the
+  API is down).
+* `EngineerHomeV2`'s hamburger dot is now unified:
+    * **Red, pulsing** (`animate-ping`) when severity = red.
+    * **Amber, solid** when severity = amber OR legacy `payouts.ready`
+      false.
+    * **No dot** otherwise.
+* The attention digest is passed into `EngineerAccountSettings` so
+  the drawer renders an inline "Needs your attention" card at the
+  very top (above the Partner Engineer row), with each item as a
+  tap-to-fix button styled red/amber per severity. Closing the
+  drawer + navigating happens on a single tap.
+* The `onChanged` callback on the drawer now also refreshes the
+  attention digest, so resolving an item (e.g. uploading a doc)
+  clears the dot the moment they re-open the drawer.
+
+**Testing.**
+
+* New `backend/tests/test_iter_220j_engineer_attention.py` (5 tests):
+  default-green, past_due subscription → red, expired+expiring
+  compliance, Stripe Connect amber, auth required. All green.
+* Added to `Makefile::regression`.
+* Full iter-220 suite: **81/81 pass** (up from 76).
+* No new ruff / ESLint warnings.
+
+---
+
+
 ## Iter 220i (cont.) — Partner Engineer hub link inside Engineer Settings (May 26, 2026) ✅ user-requested
 
 User flagged that approved engineers had no in-app path back to the

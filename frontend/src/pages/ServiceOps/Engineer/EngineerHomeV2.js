@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
+import useEngineerAttention from './hooks/useEngineerAttention';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -165,6 +166,8 @@ export default function EngineerHomeV2() {
   const [loading, setLoading] = useState(true);
   const [payouts, setPayouts] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Iter 220j — pulsing-dot attention digest (compliance, sub, app status).
+  const attention = useEngineerAttention({ poll: true });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -246,12 +249,31 @@ export default function EngineerHomeV2() {
               title="Account settings"
             >
               <Menu size={16} />
-              {payouts && !payouts.ready ? (
-                <span
-                  className="absolute -top-0.5 -right-0.5 bg-amber-500 ring-2 ring-white rounded-full w-2.5 h-2.5"
-                  aria-hidden="true"
-                />
-              ) : null}
+              {(() => {
+                // Iter 220j — unified attention dot. RED beats AMBER beats
+                // legacy "payouts not ready" amber. Pulses on red so the
+                // engineer notices a blocked subscription / expired doc
+                // before opening the drawer.
+                const dotSev = attention.severity === 'red'
+                  ? 'red'
+                  : (attention.severity === 'amber' || (payouts && !payouts.ready))
+                    ? 'amber'
+                    : null;
+                if (!dotSev) return null;
+                const cls = dotSev === 'red' ? 'bg-rose-500' : 'bg-amber-500';
+                const pulse = dotSev === 'red' ? 'animate-ping' : '';
+                return (
+                  <span
+                    className={`absolute -top-0.5 -right-0.5 rounded-full w-2.5 h-2.5 ring-2 ring-white ${cls}`}
+                    aria-hidden="true"
+                    data-testid={`engineer-menu-attention-${dotSev}`}
+                  >
+                    {pulse && (
+                      <span className={`absolute inset-0 rounded-full ${cls} opacity-75 ${pulse}`} />
+                    )}
+                  </span>
+                );
+              })()}
             </button>
           </div>
         </div>
@@ -405,7 +427,8 @@ export default function EngineerHomeV2() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         payouts={payouts}
-        onChanged={load}
+        attention={attention}
+        onChanged={() => { load(); attention.refresh(); }}
       />
     </div>
   );

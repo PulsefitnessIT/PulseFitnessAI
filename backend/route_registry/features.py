@@ -162,6 +162,8 @@ from routes.svc.per_machine_reports import router as svc_per_machine_reports_rou
 from routes.svc.scheduling_suggestions import router as svc_scheduling_router
 # Iter 220i — Engineer / org branding (logo + colours for PDF + portal)
 from routes.svc.branding import router as svc_branding_router
+# Iter 220j — Engineer attention digest (pulsing-dot data source)
+from routes.svc.attention import router as svc_attention_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -297,6 +299,8 @@ _UNGATED_ROUTERS = (
     svc_scheduling_router,
     # Iter 220i — Engineer/org branding for PDFs + portal
     svc_branding_router,
+    # Iter 220j — Engineer attention digest
+    svc_attention_router,
 )
 
 
