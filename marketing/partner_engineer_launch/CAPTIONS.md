@@ -141,15 +141,19 @@ header of each entry. All links should carry the UTM:
 
 ---
 
-### POST 9 — Customer testimonial
-**Best time:** Fri · 07:30 UK · **File:** `09_testimonial.png`
+### POST 9 — Verified Engineer Card (product feature)
+**Best time:** Fri · 07:30 UK · **File:** `09_engineer_card.png`
 
-> Your work has always been world-class.
-> Now the service experience around it is too.
+> This is the card the gym sees when they pick you. ⭐
 >
-> Apply for the Partner Engineer Plan → link in bio. ⭐
+> Verified. Rated. Skill-tagged. Cert-stamped. Yours.
 >
-> #testimonial #fitnesstech #fieldservice #customerlove
+> The same craft Uber gave their drivers — applied to engineers
+> who actually know one end of a treadmill belt from the other.
+>
+> Apply for the Partner Engineer Plan → link in bio.
+>
+> #fitnesstech #fieldservice #engineerprofile #verified
 
 ---
 

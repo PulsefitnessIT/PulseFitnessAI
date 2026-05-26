@@ -1,3 +1,71 @@
+## Iter 220m (cont.) — Marketing assets repalette to live GymAxis brand (May 26, 2026) ✅ user-reported
+
+User reported (twice) that the Instagram launch assets were using
+the wrong colour palette — dark canvas + cyan glow instead of the
+real GymAxis identity. Root cause: the previous agent crawled the
+wrong section of the codebase and locked in the **legacy Pulse
+Fitness** tokens (`:root` lines 68-70 of `/app/frontend/src/index.css`,
+`#0A0C10` / `#19CDFF`) instead of the actual `.theme-gymaxis`
+tokens (lines 1353-1373) that drive every marketing surface +
+`/app/frontend/src/pages/Marketing/marketing.css`.
+
+**Correct palette (now baked into generate.py).**
+
+```
+--gx-bg:         #F8FAFC   page canvas (slate-50)
+--gx-brand-from: #2563EB   navy-blue   ─┐
+--gx-brand-mid:  #5B5BF5   indigo       │ 135° linear gradient
+--gx-brand-to:   #9D4CDD   premium purple ─┘
+--gx-text:       #0F172A   slate-900 (headlines)
+--gx-text-body:  #334155   slate-700
+--gx-text-muted: #64748B   slate-500
+```
+
+Plus the subtle 1px grid in `rgba(15,23,42,.04)` + the two radial
+glows the live `/partners/engineers` hero uses verbatim.
+
+**Generator rewrite (`/app/marketing/partner_engineer_launch/generate.py`).**
+
+* All 32 assets (19 feed + 8 stories + 5 highlights) now render on
+  the correct light canvas with navy→purple gradient accents.
+* Removed every cyan token, glow class, and dark-canvas variant
+  that was inherited from the v2 file.
+* **Logo silhouette fix** for dark gradient slides: the source
+  PNG (`gymaxis-full-tight.png`) has a 100%-opaque white
+  background, so the previous `filter: brightness(0) invert(1)`
+  CSS produced a solid white block (visual regression flagged
+  by analyze_file_tool). Added `_to_white_silhouette()` helper
+  that colour-keys near-white pixels to transparent in PIL at
+  import time, then embeds the result as a base64 data URI.
+  Result: a crisp white wordmark + GA glyph + tagline on every
+  gradient slide.
+* `CAPTIONS.md` POST 9 caption swapped from "Customer
+  testimonial" (we have no customers yet — fabrication risk)
+  to "Verified Engineer Card" (product feature showcase).
+* Tile economics verified verbatim against the live page:
+  £30/mo → £15 at 5 referrals → free at 10, + £3/site/mo
+  recurring + 50% of the gym's first cleared Operations payment.
+
+**Verification.**
+
+* Light hook slide (`01_1_hook.png`) → analyze_file_tool 100%
+  confidence: "light, subtly gridded background … £4,200 in a
+  blue-to-purple gradient. Crucially, this is NOT cyan."
+* Engineer card slide (`09_engineer_card.png`) → "no fake
+  testimonial — clearly framed as 'The card customers will
+  see' product feature."
+* Tier maths (`05_tier_maths.png`) → all three tiers correct,
+  FREE rendered on navy→purple gradient row, footnote includes
+  £3/site/mo + 50% of first cleared payment.
+* Dark gradient slide (`04_1_hook.png`) → "GymAxis logo in
+  top-left is a readable white wordmark showing GYMAXIS + GA
+  glyph + tagline. It is not a solid white block or rectangle."
+* `ruff check` clean.
+
+---
+
+
+
 ## Iter 220m (cont.) — Doc drift guard (May 26, 2026) ✅
 
 Prevents the doc drift problem we just fixed (iters 216h232 → 220m
