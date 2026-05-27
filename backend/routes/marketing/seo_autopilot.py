@@ -817,4 +817,81 @@ async def asyncio_gather(*coros):
     return await asyncio.gather(*coros)
 
 
-__all__ = ["router", "public_router", "init_seo_indexes"]
+# ── Daily autopilot scheduler — Iter 220af ────────────────────────
+#
+# Fires ``run_autopilot`` once a day at 09:00 Europe/London. Uses a
+# bare asyncio loop (matches the existing partner_compliance /
+# reputation / welcome-back patterns — no new APScheduler dependency
+# needed). The loop is idempotent: a "last fired on YYYY-MM-DD" stamp
+# in the ``seo_autopilot_runs`` collection prevents double-fires if
+# the process restarts mid-day.
+
+
+def _london_now() -> "datetime":
+    """Wall clock in Europe/London, used for the 09:00 trigger."""
+    from datetime import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo  # py3.9+
+        return _dt.now(ZoneInfo("Europe/London"))
+    except Exception:  # pragma: no cover — fallback to UTC
+        return _dt.now(timezone.utc)
+
+
+async def _autopilot_already_ran_today(date_str: str) -> bool:
+    doc = await db.seo_autopilot_runs.find_one(
+        {"date": date_str}, {"_id": 0, "date": 1},
+    )
+    return bool(doc)
+
+
+async def _stamp_autopilot_run(date_str: str, result: dict) -> None:
+    await db.seo_autopilot_runs.update_one(
+        {"date": date_str},
+        {"$set": {"date": date_str, "result": result, "ran_at": _now()}},
+        upsert=True,
+    )
+
+
+async def _autopilot_run_as_master_admin() -> dict:
+    """Server-side wrapper that bypasses the HTTP auth dep + finds the
+    GymAxis master admin to use as `created_by` on generated articles."""
+    user = await db.users.find_one(
+        {"is_master_admin": True},
+        {"_id": 0, "id": 1, "email": 1, "is_master_admin": 1},
+        sort=[("created_at", 1)],
+    )
+    if not user:
+        return {"ok": False, "reason": "no master admin found"}
+    try:
+        return await run_autopilot(user)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[seo-autopilot] daily run failed: %s", exc)
+        return {"ok": False, "reason": str(exc)[:200]}
+
+
+async def run_daily_autopilot_loop(*, hour: int = 9) -> None:
+    """Background loop — checks every 15 minutes whether it's the
+    configured London-time hour AND we haven't yet fired today. When
+    both are true, calls ``run_autopilot``. Cron-quality without the
+    cron daemon."""
+    while True:
+        try:
+            london = _london_now()
+            today = london.date().isoformat()
+            if london.hour == hour and not await _autopilot_already_ran_today(today):
+                logger.info(
+                    "[seo-autopilot] firing daily run for %s @ 09:00 Europe/London",
+                    today,
+                )
+                result = await _autopilot_run_as_master_admin()
+                await _stamp_autopilot_run(today, result)
+                logger.info("[seo-autopilot] daily result: %s", result)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[seo-autopilot] loop iteration error: %s", exc)
+        await asyncio.sleep(15 * 60)  # 15 min cadence
+
+
+__all__ = [
+    "router", "public_router", "init_seo_indexes",
+    "run_daily_autopilot_loop", "_london_now",
+]
