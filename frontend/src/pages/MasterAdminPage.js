@@ -19,6 +19,9 @@ const FinancialOpsPanel = lazy(() => import('./FinancialOpsPanel'));
 const AdminOnboardingHub = lazy(() => import('./MasterAdmin/AdminOnboardingHub'));
 const AdminTrials = lazy(() => import('./MasterAdmin/AdminTrials'));
 const AdminMarketingSuite = lazy(() => import('./MasterAdmin/AdminMarketingSuite'));
+// Iter 220ac — Growth → Marketing Studio (embeds the customer Marketing
+// Suite but scoped to the master-admin org for self-promotion).
+const GrowthStudio = lazy(() => import('./MasterAdmin/GrowthStudio'));
 const AdminArchive = lazy(() => import('./MasterAdmin/AdminArchive'));
 const AdminTasks = lazy(() => import('./MasterAdmin/AdminTasks'));
 const AdminRoles = lazy(() => import('./MasterAdmin/AdminRoles'));
@@ -442,6 +445,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <AdminTasks API={API} setSection={setSection} />;
       case 'marketing-suite':
         return <AdminMarketingSuite API={API} />;
+      case 'marketing-studio':
+        return <GrowthStudio />;
       case 'roles':
         return (
           <AdminRoles

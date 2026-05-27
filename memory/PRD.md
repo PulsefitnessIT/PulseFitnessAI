@@ -18013,3 +18013,66 @@ their company marketing site.
 
 ### Files changed
 - ``frontend/src/pages/CRM/CRMSettings.js`` (sidebar tab + section)
+
+---
+
+## Iter 220ac — Growth → Marketing Studio (Phase 1, May 27, 2026)
+
+### Context
+User feedback: "I have been looking at various marketing websites to
+help us promote GymAxis, but they cost a fortune. We have a marketing
+module! Need to access my own AI marketing tool within Master Admin
+(Growth) to help us scale."
+
+After crawling TrySoro.com (SEO autopilot, $200/mo) and surveying our
+existing Marketing module (12 tabs: Start, Dashboard, Insights,
+Campaigns, Journeys, Contacts, Audiences, Dynamic Lists,
+Forms & Pages, Creative Studio, Brand Kit, Social), the leverage move
+is to **expose the same toolkit we sell to customers inside Master
+Admin Growth — scoped to the GymAxis master org for self-promotion**.
+
+### Phase 1 implementation
+- ``frontend/src/pages/MarketingSuite.js``:
+  - Added ``embedded`` prop. When true: skips Navbar, unified header,
+    ModuleSwitcher, CrossModuleTipsBanner; drops the ``min-h-screen``
+    and outer padding so it sits flush inside an existing chrome.
+  - Default-export wrapper grants ``is_master_admin`` users
+    ungated access (no marketing seat purchase required).
+- ``frontend/src/pages/MasterAdmin/GrowthStudio.js`` (new):
+  - Rocket-iconed hero card with "GROWTH · MASTER ADMIN" eyebrow,
+    "GymAxis Marketing Studio" title, explainer, and an
+    "Open full-screen" deep link to ``/marketing``.
+  - Lazy-loads and embeds ``<MarketingSuite embedded />`` so every
+    existing tab (campaigns, journeys, creative studio, brand kit,
+    forms, social, …) is reachable inside the master-admin chrome.
+- ``SidebarConfig.js``: Added ``marketing-studio`` sub-tab as the
+  FIRST entry under Growth (Megaphone icon) ahead of
+  Communications inbox.
+- ``MasterAdminPage.js``: Wired ``case 'marketing-studio'`` →
+  ``<GrowthStudio />``.
+
+### Verification
+- Screenshot of ``/master-admin?section=marketing-studio`` (admin login)
+  shows:
+  - Growth sidebar active.
+  - Marketing Studio top tab active.
+  - Hero card rendering.
+  - Full Marketing Suite tabs + content rendering inline.
+  - Zero duplicate "Welcome back" / Navbar / ModuleSwitcher
+    (``marketing-app-header`` count = 0).
+- ``mcp_lint_javascript`` clean on all four touched files.
+
+### Files changed
+- ``frontend/src/pages/MarketingSuite.js`` (embedded prop + master-admin bypass)
+- ``frontend/src/pages/MasterAdmin/GrowthStudio.js`` (new)
+- ``frontend/src/pages/MasterAdmin/SidebarConfig.js`` (sub-tab)
+- ``frontend/src/pages/MasterAdminPage.js`` (route case)
+
+### Phase 2 (queued — pending Phase 1 sign-off)
+SEO Autopilot (Soro-style):
+- Keyword research (Claude/Gemini analysis of gymaxis.com + competitors)
+- AI article writer (UK-English, 1500 words, fitness tone, Brand Kit
+  voice, Nano Banana hero images)
+- Daily auto-publish to ``frontend/src/pages/Marketing/Blog/``
+- Rank dashboard (clicks, impressions, position)
+- AI overview optimisation for ChatGPT/Perplexity citations

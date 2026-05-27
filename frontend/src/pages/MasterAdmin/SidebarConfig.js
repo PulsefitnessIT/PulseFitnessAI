@@ -99,6 +99,9 @@ export const SIDEBAR_ITEMS = [
   {
     id: 'growth', label: 'Growth', icon: Megaphone, group: 'main',
     subTabs: [
+      // Iter 220ac — Marketing Studio (full Marketing Suite, master-admin
+      // scoped, used to promote GymAxis itself).
+      { id: 'marketing-studio', label: 'Marketing Studio',   icon: Megaphone },
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
       { id: 'canned-replies',  label: 'Canned replies',   icon: FileText },
       { id: 'emails',          label: 'Outbound emails',  icon: Mail },
@@ -221,6 +224,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'sales-insights':     'growth',
   'pulse-sales':        'growth',
   'analytics':          'growth',
+  'marketing-studio':   'growth',
   'marketing-suite':    'growth',
   'communications':     'growth',
   'canned-replies':     'growth',

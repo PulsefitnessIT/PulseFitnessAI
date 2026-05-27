@@ -71,7 +71,7 @@ const TABS = [
   { id: 'social',        label: 'Social',          icon: Share2,     feature: 'social_scheduling' },
 ];
 
-const MarketingSuite = () => {
+const MarketingSuite = ({ embedded = false } = {}) => {
   const { user, logout, theme, toggleTheme } = useAuth();
   const navigate = useNavigate();
   // Tabs and the entitlement call here all build their own `${API}/api/...`
@@ -211,43 +211,50 @@ const MarketingSuite = () => {
 
   return (
     <div
-      className={`min-h-screen ${!isPulseBrandedMkt && theme === 'light' ? 'theme-gymaxis' : ''}`}
-      style={{ background: 'var(--theme-bg)', color: 'var(--theme-text)' }}
+      className={`${embedded ? '' : 'min-h-screen'} ${!isPulseBrandedMkt && theme === 'light' ? 'theme-gymaxis' : ''}`}
+      style={embedded
+        ? { color: 'var(--theme-text)' }
+        : { background: 'var(--theme-bg)', color: 'var(--theme-text)' }}
       data-testid="marketing-suite"
     >
-      <Navbar user={user} logout={logout} theme={theme} toggleTheme={toggleTheme} />
+      {!embedded && <Navbar user={user} logout={logout} theme={theme} toggleTheme={toggleTheme} />}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-24 md:pb-8 module-fade-in">
+      <main className={embedded
+        ? 'module-fade-in'
+        : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-24 md:pb-8 module-fade-in'}>
         {/* Unified app header — byte-for-byte parity with Operations / Memberships
             so the ModuleSwitcher pill bar sits in the same screen position when
-            users toggle modules. */}
-        <div className="mb-6" data-testid="marketing-app-header">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <h1 className="text-3xl sm:text-4xl tracking-tight font-bold mb-1 pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>
-                {isPulseBrandedMkt
-                  ? brandLabel
-                  : <span className="gx-grad-text">{brandLabel}</span>
-                }{' '}
-                {(user?.account_type === 'pulse_pro' || user?.account_type === 'full' || user?.is_master_admin) && (
-                  <span style={{ color: isPulseBrandedMkt ? 'var(--color-brand-cyan-hover)' : 'var(--gx-brand-to)' }}>Pro</span>
-                )}
-                {user?.company_name && (
-                  <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
-                    · {user.company_name}
-                  </span>
-                )}
-              </h1>
-              <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>Welcome back, {user?.full_name}</p>
+            users toggle modules. Suppressed in embedded mode (Master Admin →
+            Growth → Marketing Studio supplies its own chrome). */}
+        {!embedded && (
+          <div className="mb-6" data-testid="marketing-app-header">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <h1 className="text-3xl sm:text-4xl tracking-tight font-bold mb-1 pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>
+                  {isPulseBrandedMkt
+                    ? brandLabel
+                    : <span className="gx-grad-text">{brandLabel}</span>
+                  }{' '}
+                  {(user?.account_type === 'pulse_pro' || user?.account_type === 'full' || user?.is_master_admin) && (
+                    <span style={{ color: isPulseBrandedMkt ? 'var(--color-brand-cyan-hover)' : 'var(--gx-brand-to)' }}>Pro</span>
+                  )}
+                  {user?.company_name && (
+                    <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
+                      · {user.company_name}
+                    </span>
+                  )}
+                </h1>
+                <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>Welcome back, {user?.full_name}</p>
+              </div>
+              <div className="text-sm pulse-font-body shrink-0 mt-1.5" style={{ color: 'var(--theme-text-muted)' }} data-testid="module-today-date">
+                {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
             </div>
-            <div className="text-sm pulse-font-body shrink-0 mt-1.5" style={{ color: 'var(--theme-text-muted)' }} data-testid="module-today-date">
-              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </div>
+            <ModuleSwitcher user={user} current="marketing" />
           </div>
-          <ModuleSwitcher user={user} current="marketing" />
-        </div>
+        )}
 
-        <CrossModuleTipsBanner mode="marketing" />
+        {!embedded && <CrossModuleTipsBanner mode="marketing" />}
 
         {/* Desktop pill tab bar — canonical PillTabBar so overflow
             auto-scrolls the active tab into view and fades edges. */}
@@ -375,7 +382,14 @@ const MarketingSuite = () => {
   );
 };
 
-export default function MarketingSuiteGated() {
+export default function MarketingSuiteGated({ embedded = false } = {}) {
+  const { user } = useAuth();
+  // Iter 220ac — master admin gets the suite ungated so the Growth →
+  // Marketing Studio surface inside Master Admin can promote GymAxis
+  // itself without buying a marketing seat.
+  if (user?.is_master_admin || embedded) {
+    return <MarketingSuite embedded={embedded} />;
+  }
   return (
     <ModuleAccessGate module="marketing">
       <MarketingSuite />
