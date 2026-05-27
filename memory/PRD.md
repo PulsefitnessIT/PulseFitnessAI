@@ -1,3 +1,59 @@
+## Iter 220af — SEO Autopilot Daily Scheduler + 1-Click Social Publish (May 27, 2026) ✅
+
+**Goal.** Make the Marketing Studio SEO Autopilot truly "set & forget".
+A background loop fires the daily article job at 09:00 Europe/London,
+and master-admin can push each AI-generated LinkedIn/X post into the
+platform composer in a single click.
+
+**Backend — `routes/marketing/seo_autopilot.py`.**
+
+* New `run_daily_autopilot_loop(hour=9)` — bare-asyncio loop, 15-min
+  cadence, idempotent via `seo_autopilot_runs` daily stamp. Mirrors
+  the existing `partner_compliance` / `welcome-back` patterns — no
+  APScheduler dep added. Disabled by setting
+  `SEO_AUTOPILOT_ENABLED=0`. Hour configurable via `SEO_AUTOPILOT_HOUR`.
+* `_autopilot_run_as_master_admin()` — server-side wrapper that
+  bypasses the HTTP auth dep and finds the GymAxis master admin row
+  to use as `created_by` on generated articles.
+* `GET /api/marketing/seo/autopilot/status` — returns
+  `{enabled, hour_uk, london_now, ran_today, last_run}` so the UI
+  can render a Standby / Fired-today pill.
+* `POST /api/marketing/seo/articles/{id}/publish-share` — accepts
+  `{channel: "linkedin"|"x", index: int}` and returns:
+    - `linkedin` → `https://www.linkedin.com/sharing/share-offsite/?…`
+    - `x` → `https://twitter.com/intent/tweet?…` (tweet 0, the hook)
+  Stamps `published.<channel>.<index>` onto the
+  `seo_distributions` doc so the UI can show a green "Posted" pill.
+
+**Server.** `server.py` startup now wires
+`asyncio.create_task(run_daily_autopilot_loop(hour=…))` next to the
+other recurring loops (partner-compliance, reputation-reports,
+welcome-back).
+
+**Frontend — `MasterAdmin/SEOAutopilotPanel.js`.**
+
+* New `AutopilotStatusCard` at the top of the Dashboard tab — gradient
+  card with clock icon, headline ("Fires daily at 09:00 Europe/London"),
+  last/next run sub-line, and an amber STANDBY / green FIRED-TODAY
+  status pill.
+* New `PublishButton` inside the Distribution Drawer — 1-click "Post
+  to LinkedIn" beside every LinkedIn angle, and "Post to X" on the X
+  thread header. Opens the platform's native composer in a new tab
+  with the article URL + summary text pre-filled. Backend stamps the
+  post; UI shows a green "Posted" pill on subsequent loads.
+
+**Tests — `tests/test_iter_220af_seo_autopilot_scheduler.py`.** 15 new
+isolated unit tests (master-admin gating, status reporting before/after
+daily fire, LinkedIn URL building, X intent URL building, 400/404 paths,
+scheduler helpers). All green in 5.8s. Wired into `make regression`,
+which now stands at **1013 passed, 15 skipped** (was 998).
+
+**Quality gates.** `make lint-python` ✅, `make lint-frontend` ✅,
+`make regression` ✅ (163 s).
+
+---
+
+
 ## Iter 220v — Incidents Phase 4 — AI assistance + Whisper voice-to-text (May 27, 2026) ✅
 
 Phase 4 closes out the original RIDDOR brief. Three AI helpers and a

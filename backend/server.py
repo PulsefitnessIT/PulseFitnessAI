@@ -932,6 +932,19 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"welcome-back digest loop start failed: {e}")
 
+    # Iter 220af — Daily SEO Autopilot. Picks the next queued keyword
+    # at 09:00 Europe/London and generates + publishes an article.
+    # Idempotent via the ``seo_autopilot_runs`` daily stamp. Disable
+    # by setting ``SEO_AUTOPILOT_ENABLED=0`` in the env.
+    try:
+        if os.environ.get("SEO_AUTOPILOT_ENABLED", "1") != "0":
+            from routes.marketing.seo_autopilot import run_daily_autopilot_loop
+            _hour = int(os.environ.get("SEO_AUTOPILOT_HOUR", "9"))
+            asyncio.create_task(run_daily_autopilot_loop(hour=_hour))
+            logger.info("[seo-autopilot] daily loop started (fires @ %02d:00 Europe/London)", _hour)
+    except Exception as e:
+        logger.error(f"seo autopilot loop start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:

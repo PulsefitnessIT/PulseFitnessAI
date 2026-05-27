@@ -15,7 +15,7 @@ import axios from 'axios';
 import {
   Sparkles, Rocket, BookOpen, Loader2, Plus, RefreshCw,
   ListChecks, AlertTriangle, Eye, Send, Search, FileText, X,
-  Share2, Copy, Check, Linkedin, MessageSquare,
+  Share2, Copy, Check, Linkedin, MessageSquare, Clock, ExternalLink,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -48,6 +48,76 @@ function StatusPill({ status }) {
 
 // ── Dashboard ────────────────────────────────────────────────────
 
+function AutopilotStatusCard() {
+  const [s, setS] = useState(null);
+  const [err, setErr] = useState(null);
+  const load = async () => {
+    try {
+      const r = await axios.get(`${API}/api/marketing/seo/autopilot/status`, { headers: auth() });
+      setS(r.data);
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Could not load autopilot status');
+    }
+  };
+  useEffect(() => { load(); }, []);
+
+  if (err) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm" data-testid="seo-autopilot-status-error">
+        {err}
+      </div>
+    );
+  }
+  if (!s) {
+    return (
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-sm text-zinc-500 inline-flex items-center gap-2">
+        <Loader2 size={13} className="animate-spin"/> Loading autopilot status…
+      </div>
+    );
+  }
+  const lastDate = s.last_run?.date || '—';
+  return (
+    <div
+      className="rounded-2xl border border-fuchsia-200 dark:border-fuchsia-900 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-5 py-4 flex items-center gap-4"
+      data-testid="seo-autopilot-status"
+    >
+      <span className="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-fuchsia-600 text-white flex items-center justify-center">
+        <Clock size={16}/>
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] uppercase tracking-wider font-bold text-fuchsia-700 dark:text-fuchsia-400">
+          Daily Autopilot
+        </p>
+        <p className="text-sm font-bold mt-0.5" data-testid="seo-autopilot-status-headline">
+          {s.enabled ? (
+            <>Fires daily at <span className="tabular-nums">{String(s.hour_uk).padStart(2, '0')}:00</span> Europe/London</>
+          ) : (
+            <>Autopilot disabled in env</>
+          )}
+        </p>
+        <p className="text-[11px] text-zinc-500 mt-0.5">
+          {s.ran_today
+            ? <>Already fired today ({lastDate}) — next run tomorrow</>
+            : <>Last run: {lastDate}{s.enabled ? ' · Next: today @ 09:00' : ''}</>
+          }
+        </p>
+      </div>
+      <span
+        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+          s.ran_today
+            ? 'bg-green-100 text-green-800'
+            : s.enabled
+              ? 'bg-amber-100 text-amber-800'
+              : 'bg-zinc-100 text-zinc-600'
+        }`}
+        data-testid="seo-autopilot-status-pill"
+      >
+        {s.ran_today ? 'Fired today' : s.enabled ? 'Standby' : 'Off'}
+      </span>
+    </div>
+  );
+}
+
 function DashboardTab() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -73,6 +143,7 @@ function DashboardTab() {
 
   return (
     <div className="space-y-5" data-testid="seo-dashboard">
+      <AutopilotStatusCard />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {tiles.map((t) => (
           <div key={t.label} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4">
@@ -272,7 +343,7 @@ function KeywordsTab({ onArticleGenerated }) {
 // ── Articles ─────────────────────────────────────────────────────
 
 // CopyableBlock — reused for every distribution snippet.
-function CopyableBlock({ value, label, testIdBase, hint }) {
+function CopyableBlock({ value, label, testIdBase, hint, postedAt }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -288,7 +359,18 @@ function CopyableBlock({ value, label, testIdBase, hint }) {
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-3 relative">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">{label}</span>
-        {hint ? <span className="text-[10px] text-zinc-400">{hint}</span> : null}
+        <div className="flex items-center gap-2">
+          {postedAt ? (
+            <span
+              className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800 inline-flex items-center gap-1"
+              data-testid={`${testIdBase}-posted-pill`}
+              title={`Opened share window at ${postedAt}`}
+            >
+              <Check size={9}/> Posted
+            </span>
+          ) : null}
+          {hint ? <span className="text-[10px] text-zinc-400">{hint}</span> : null}
+        </div>
       </div>
       <pre
         className="text-[12px] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words font-sans leading-relaxed pr-10"
@@ -303,6 +385,47 @@ function CopyableBlock({ value, label, testIdBase, hint }) {
         {copied ? 'Copied' : 'Copy'}
       </button>
     </div>
+  );
+}
+
+// PublishButton — Iter 220af. 1-click open of the platform-native share
+// intent URL. The backend also stamps a "posted" record so the UI can
+// show the green "Posted" pill on subsequent loads.
+function PublishButton({ articleId, channel, index, onPosted, label }) {
+  const [busy, setBusy] = useState(false);
+  const publish = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.post(
+        `${API}/api/marketing/seo/articles/${articleId}/publish-share`,
+        { channel, index },
+        { headers: auth() },
+      );
+      const url = r.data?.share_url;
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        notify.success(`Opening ${label} composer — tap "Post" there to finish.`);
+        onPosted?.();
+      } else {
+        notify.error('No share URL returned');
+      }
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Publish failed');
+    } finally { setBusy(false); }
+  };
+  const colour = channel === 'linkedin'
+    ? 'bg-[#0a66c2] hover:bg-[#084d92]'
+    : 'bg-zinc-900 hover:bg-black';
+  return (
+    <button
+      type="button" onClick={publish} disabled={busy}
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold text-white ${colour} disabled:opacity-50`}
+      data-testid={`seo-publish-${channel}-${index}`}
+      title={`Open ${label} composer with this post pre-filled`}
+    >
+      {busy ? <Loader2 size={10} className="animate-spin"/> : <ExternalLink size={10}/>}
+      Post to {label}
+    </button>
   );
 }
 
@@ -399,12 +522,24 @@ function DistributionDrawer({ article, onClose }) {
                   </div>
                   <div className="space-y-3">
                     {dist.content.linkedin.map((post, i) => (
-                      <CopyableBlock
-                        key={i} value={post}
-                        label={`Post ${i + 1}`}
-                        hint={`${post.length} chars`}
-                        testIdBase={`seo-distribution-linkedin-${i}`}
-                      />
+                      <div key={i} className="space-y-1.5">
+                        <CopyableBlock
+                          value={post}
+                          label={`Post ${i + 1}`}
+                          hint={`${post.length} chars`}
+                          testIdBase={`seo-distribution-linkedin-${i}`}
+                          postedAt={dist.published?.linkedin?.[i]?.posted_at}
+                        />
+                        <div className="flex justify-end">
+                          <PublishButton
+                            articleId={article.id}
+                            channel="linkedin"
+                            index={i}
+                            label="LinkedIn"
+                            onPosted={load}
+                          />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </section>
@@ -412,15 +547,25 @@ function DistributionDrawer({ article, onClose }) {
 
               {dist.content?.x_thread?.length ? (
                 <section data-testid="seo-distribution-x-thread">
-                  <div className="flex items-center gap-2 mb-3">
-                    <MessageSquare size={14} className="text-zinc-900 dark:text-zinc-100"/>
-                    <h3 className="text-sm font-bold">X · {dist.content.x_thread.length}-tweet thread</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare size={14} className="text-zinc-900 dark:text-zinc-100"/>
+                      <h3 className="text-sm font-bold">X · {dist.content.x_thread.length}-tweet thread</h3>
+                    </div>
+                    <PublishButton
+                      articleId={article.id}
+                      channel="x"
+                      index={0}
+                      label="X"
+                      onPosted={load}
+                    />
                   </div>
                   <CopyableBlock
                     value={dist.content.x_thread.map((t, i) => `${i + 1}/ ${t}`).join('\n\n')}
                     label="Full thread"
                     hint="Paste each tweet separately on X"
                     testIdBase="seo-distribution-x-full"
+                    postedAt={dist.published?.x?.['0']?.posted_at}
                   />
                   <div className="mt-2 space-y-2">
                     {dist.content.x_thread.map((tweet, i) => (

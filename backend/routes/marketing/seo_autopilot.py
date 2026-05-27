@@ -569,7 +569,90 @@ async def get_article_distribution(
     return {"distribution": doc}
 
 
-# ── End Iter 220ae distribution block ───────────────────────────────
+# ── Iter 220af — 1-click publish share-URLs ──────────────────────────
+#
+# We don't store LinkedIn / X OAuth tokens (those are user-specific,
+# need consent flows, and would require us to host the public-blog URL
+# behind a real domain). Instead we generate the canonical platform
+# share-intent URLs and record a "posted" stamp the moment the master
+# admin opens them. The browser-side window.open() takes 1 click;
+# clicking "Share" inside LinkedIn / X is the 2nd. Net = 2-click post.
+
+class PublishSharePayload(BaseModel):
+    channel: str = Field(..., pattern="^(linkedin|x)$")
+    index: int = Field(0, ge=0, le=8)
+
+
+def _linkedin_share_url(text: str, blog_url: str) -> str:
+    import urllib.parse as _u
+    params = {"url": blog_url, "summary": text[:1200]}
+    return "https://www.linkedin.com/sharing/share-offsite/?" + _u.urlencode(params)
+
+
+def _x_share_url(text: str, blog_url: str) -> str:
+    import urllib.parse as _u
+    # X (Twitter) intent: 280 chars incl. URL, give 25 char headroom for URL.
+    snippet = text[:240]
+    params = {"text": snippet, "url": blog_url}
+    return "https://twitter.com/intent/tweet?" + _u.urlencode(params)
+
+
+@router.post("/articles/{article_id}/publish-share")
+async def publish_share(
+    article_id: str,
+    payload: PublishSharePayload,
+    user: dict = Depends(get_current_user),
+):
+    """Return a platform-native share-intent URL for the given channel +
+    post index AND stamp it as 'posted' in ``seo_distributions``. The
+    caller (browser) opens the returned URL in a new tab — the master
+    admin then taps the platform's own Share/Post button to publish."""
+    _require_master_admin(user)
+
+    article = await db.seo_articles.find_one({"id": article_id}, {"_id": 0})
+    if not article:
+        raise HTTPException(404, "Article not found")
+
+    dist = await db.seo_distributions.find_one({"article_id": article_id}, {"_id": 0})
+    if not dist:
+        raise HTTPException(400, "Spin posts first — no distribution found.")
+
+    blog_url = f"https://www.gymaxisai.com/blog/{article.get('slug')}"
+
+    if payload.channel == "linkedin":
+        posts = (dist.get("content") or {}).get("linkedin") or []
+        if not posts:
+            raise HTTPException(400, "No LinkedIn posts to publish.")
+        idx = min(payload.index, len(posts) - 1)
+        text = str(posts[idx])
+        share_url = _linkedin_share_url(text, blog_url)
+        stamp_key = f"published.linkedin.{idx}"
+    else:  # x
+        thread = (dist.get("content") or {}).get("x_thread") or []
+        if not thread:
+            raise HTTPException(400, "No X thread to publish.")
+        # For X we always post tweet 1 (the hook). The thread is best
+        # posted manually as a reply chain on X — link goes in the last
+        # tweet, which we still expose via the Copy buttons.
+        idx = 0
+        text = str(thread[0])
+        share_url = _x_share_url(text, blog_url)
+        stamp_key = "published.x.0"
+
+    now = _now()
+    await db.seo_distributions.update_one(
+        {"article_id": article_id},
+        {"$set": {
+            stamp_key: {"posted_at": now, "posted_by": user.get("id"),
+                        "share_url": share_url},
+            "updated_at": now,
+        }},
+    )
+    return {"share_url": share_url, "channel": payload.channel,
+            "index": idx, "posted_at": now}
+
+
+# ── End Iter 220ae/af distribution block ────────────────────────────
 
 
 @router.post("/articles/generate")
@@ -703,8 +786,6 @@ async def delete_article(
     return {"ok": True}
 
 
-# ── Daily autopilot ────────────────────────────────────────────────
-
 @router.post("/autopilot/run")
 async def run_autopilot(user: dict = Depends(get_current_user)):
     """Pick the next queued keyword and generate + publish an article.
@@ -733,6 +814,35 @@ async def run_autopilot(user: dict = Depends(get_current_user)):
                   "updated_at": _now()}},
     )
     return {"ok": True, "keyword_id": next_kw["id"], "article": article}
+
+
+# ── Daily autopilot status (Iter 220af) ────────────────────────────
+
+
+@router.get("/autopilot/status")
+async def autopilot_status(user: dict = Depends(get_current_user)):
+    """Return the configured scheduler hour, today's London date, and
+    whether the daily job has already fired today."""
+    _require_master_admin(user)
+    hour_env = os.environ.get("SEO_AUTOPILOT_HOUR", "9")
+    try:
+        hour = int(hour_env)
+    except ValueError:
+        hour = 9
+    enabled = os.environ.get("SEO_AUTOPILOT_ENABLED", "1") != "0"
+    london = _london_now()
+    today = london.date().isoformat()
+    last = await db.seo_autopilot_runs.find_one(
+        {}, {"_id": 0}, sort=[("date", -1)],
+    )
+    ran_today = bool(last and last.get("date") == today)
+    return {
+        "enabled": enabled,
+        "hour_uk": hour,
+        "london_now": london.isoformat(),
+        "ran_today": ran_today,
+        "last_run": last or None,
+    }
 
 
 # ── Dashboard ──────────────────────────────────────────────────────
