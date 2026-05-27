@@ -1,3 +1,114 @@
+## Iter 220t — Incidents Phase 2 — PDFs · Signatures · Witness workflow · HSE dashboard (May 27, 2026) ✅
+
+Ships the legally-defensible artefacts on top of the Phase 1
+foundation: six branded PDFs, digital signature capture (typed +
+drawn), a token-based witness statement workflow that a witness can
+fill in from their phone without any GymAxis login, and an HSE
+dashboard v1 with severity / kind / category / top-asset bar charts.
+
+**Backend — new files.**
+
+* `utils/incident_pdf.py` — branded PDF generators built on ReportLab.
+  Shared header / footer / theming module so all six PDFs feel like
+  one product:
+  - `accident_report_pdf` — full incident detail with status pills,
+    description, injured-party block, witnesses, corrective actions,
+    signature block at the foot.
+  - `witness_statement_pdf` — single witness's statement with their
+    drawn signature (when present).
+  - `investigation_report_pdf` — investigator + findings + root
+    causes + linked actions.
+  - `riddor_report_pdf` — F2508-style cover sheet with status pill,
+    assessment metadata, reasoning bullets, incident summary.
+  - `corrective_action_log_pdf` — table of all actions in scope.
+  - `management_summary_pdf` — period dashboard (counts + RIDDOR +
+    top equipment).
+  - PIL-validated signature rendering so a truncated base64 PNG can
+    never crash the PDF builder.
+
+**Backend — endpoints added to `routes/incidents.py`.**
+
+* `POST /incidents/{id}/signatures` — typed + drawn digital signature
+  capture with role validation (`injured_person` / `witness` /
+  `manager` / `investigator` / `hse_lead` / `other`). 200 KB image
+  cap, max 12 signatures per incident, IP captured for audit.
+* `POST /incidents/{id}/witness-invite` — mints a 30-day, single-use
+  token, emails the witness a public statement link, audit row.
+* `GET /incidents/witness-statement/{token}` — **public, no auth**.
+  Returns minimal context (name, ref, location, org name, expiry).
+* `POST /incidents/witness-statement/{token}` — **public**. Appends
+  statement + signature to incident, flips token used, writes
+  witness-attributed audit row. 410 on reuse.
+* `GET /incidents/{id}/pdf/accident` · `/pdf/riddor` ·
+  `/pdf/investigation` · `/pdf/witness/{i}` ·
+  `/incidents/pdf/actions-log` · `/incidents/pdf/management-summary`
+  — branded PDF endpoints with proper `Content-Disposition` headers.
+  RIDDOR PDF refuses to render until the assessment has been run
+  (forces the manager to think before paperwork).
+* `GET /incidents/hse/dashboard?days=N` — aggregated dashboard
+  (by_status / by_severity / by_kind / by_category / by_day /
+  top_assets joined to `db.equipment` / RIDDOR counts / fatalities).
+  Same RBAC scope as the list endpoints.
+
+**Indexes ensured at startup**: `incident_witness_tokens` on
+`token` (unique), `incident_id`, `expires_at`.
+
+**Frontend — new files.**
+
+* `pages/IncidentSignaturePad.js` — touch- and mouse-capable HTML5
+  canvas signature pad with hi-DPI scaling, "Sign here" hint, and a
+  `Clear` button. Emits a PNG data URL. No external library —
+  ~80 lines.
+* `pages/WitnessStatementPage.js` — public page mounted at
+  `/witness-statement/:token`. Loads context, renders a textarea
+  + signature pad + submit button. Three end states: loading /
+  error / form / done.
+
+**Frontend — `pages/IncidentsTab.js` extensions.**
+
+* PDF download buttons on Overview: Accident · RIDDOR (conditional)
+  · Investigation (conditional) · per-witness statement.
+* "Invite witness" CTA → modal collects name/email/role/contact,
+  POSTs to `/witness-invite`, copies the public link.
+* "Sign" CTA → modal with typed name, role select, drawn signature
+  pad. POSTs to `/signatures`.
+* List-level export bar: **Management summary (30d)** and
+  **Corrective actions log** PDF downloads.
+* **HSE dashboard strip** (collapsible) with period buttons
+  (7d/30d/90d/365d) and four bar-chart panels (severity / kind /
+  category / top assets). Built with pure CSS bars — no chart
+  library, fast.
+
+**Routes wired** in `routes/AppRoutes.js`:
+`/witness-statement/:token` → `WitnessStatementPage` (lazy).
+
+**Tests — `tests/test_iter_220s_incidents_riddor.py` (now 28 total).**
+
+10 new Phase 2 tests:
+* `pdf_accident_returns_pdf` — verifies `%PDF` magic + ≥1.5 KB.
+* `pdf_management_summary` — same.
+* `pdf_actions_log` — same.
+* `pdf_riddor_requires_assessment_first` — 400 until the wizard runs.
+* `signature_capture_appends_to_incident` — sig persisted, count
+  returned.
+* `signature_capture_rejects_invalid_role` — role enum gate.
+* `witness_invite_returns_token_and_landing_pulls_minimal_context`
+  — public landing works without auth.
+* `witness_statement_submit_and_idempotency` — submit happy path,
+  410 on reuse, audit row attributed to witness.
+* `witness_invalid_token_returns_404`.
+* `hse_dashboard_returns_aggregates` — all expected keys present.
+
+**End-to-end smoke** (`/tmp/incidents_smoke.py`) extended to toggle
+the HSE dashboard after the existing flow. Screenshot saved to
+`/tmp/incidents_phase2.png` and analysed: dashboard renders with
+98 Minor / 17 Moderate severity bars, 27 Accident / 4 Near-miss
+kind bars, period buttons, and the new export bar.
+
+**Regression.** `make regression` reports **909 passed, 15 skipped**
+(was 899 before this iter). Lint clean across all touched files.
+
+
 ## Iter 220s — Unified Accident, Near-Miss, Hazard, RIDDOR module — Phase 1 (May 27, 2026) ✅ enterprise-grade foundation
 
 Built the **enterprise H&S incident management foundation** the user

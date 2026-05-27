@@ -60,11 +60,13 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -926,6 +928,425 @@ async def incidents_summary(user: dict = Depends(get_current_user)) -> dict:
     }
 
 
+# ── Phase 2 — Signatures + Witness workflow + PDFs + HSE dashboard ──
+
+
+def _aware(dt: datetime | None) -> datetime | None:
+    if not dt:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _safe_b64(s: str | None) -> str | None:
+    """Validate a base64-encoded PNG ≤ 200 KB. Strip data-URL prefix."""
+    if not s:
+        return None
+    if isinstance(s, str) and s.startswith("data:"):
+        s = s.split(",", 1)[1] if "," in s else s
+    if len(s) > 280_000:  # ~210 KB raw → ~280 KB base64
+        raise HTTPException(400, "Signature image too large (max 200 KB)")
+    return s
+
+
+@router.post("/incidents/{incident_id}/signatures")
+async def add_signature(
+    incident_id: str,
+    body: dict = Body(...),
+    request: Request = None,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Capture a digital signature against an incident. ``role`` can be
+    ``injured_person`` / ``witness`` / ``manager`` / ``investigator``
+    / ``hse_lead`` — used both for the PDF rendering and the audit row.
+    Up to 12 signatures per incident (defensive cap)."""
+    name = ((body or {}).get("name") or "").strip()
+    role = ((body or {}).get("role") or "").strip().lower()
+    image = _safe_b64((body or {}).get("image_b64"))
+    if not name:
+        raise HTTPException(400, "Signer name required")
+    if role not in {"injured_person", "witness", "manager", "investigator",
+                    "hse_lead", "other"}:
+        raise HTTPException(400, "Invalid role")
+    existing = await db.incidents.find_one({"id": incident_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "Incident not found")
+    if not user.get("is_master_admin") and existing.get("organization_id") != user.get("organization_id"):
+        raise HTTPException(403, "Not your incident")
+    sigs = list(existing.get("signatures") or [])
+    if len(sigs) >= 12:
+        raise HTTPException(400, "Signature cap reached (12)")
+    sig = {
+        "id": _new_id(),
+        "name": name,
+        "role": role,
+        "image_b64": image,
+        "signed_at": _now(),
+        "signed_by_user_id": user.get("id"),
+        "signed_by_ip": (request.client.host if request and request.client else None),
+    }
+    sigs.append(sig)
+    await db.incidents.update_one({"id": incident_id},
+                                  {"$set": {"signatures": sigs, "updated_at": _now()}})
+    await _audit(incident_id=incident_id, user=user, action="signature_added",
+                 after={"role": role, "name": name}, request=request)
+    return {"signature": sig, "count": len(sigs)}
+
+
+# ── Witness statement workflow (token-based external signing) ────
+
+
+class _WitnessInvite(BaseModel):
+    name: str = Field(..., max_length=200)
+    email: Optional[str] = Field(default=None, max_length=200)
+    role: Optional[str] = Field(default=None, max_length=80)
+    contact: Optional[str] = Field(default=None, max_length=200)
+
+
+@router.post("/incidents/{incident_id}/witness-invite")
+async def invite_witness(
+    incident_id: str,
+    payload: _WitnessInvite,
+    request: Request = None,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Mint a single-use witness statement token and email it to the
+    witness. The token has a 30-day expiry; on submit the witness's
+    statement + drawn signature are appended to the incident."""
+    if not _user_can_view_all(user):
+        raise HTTPException(403, "Only managers/H&S leads can invite witnesses")
+    incident = await db.incidents.find_one({"id": incident_id}, {"_id": 0})
+    if not incident:
+        raise HTTPException(404, "Incident not found")
+    if not user.get("is_master_admin") and incident.get("organization_id") != user.get("organization_id"):
+        raise HTTPException(403, "Not your incident")
+    token = secrets.token_urlsafe(28)
+    doc = {
+        "token": token,
+        "incident_id": incident_id,
+        "organization_id": incident["organization_id"],
+        "incident_reference": incident.get("reference"),
+        "name": payload.name.strip(),
+        "email": (payload.email or "").strip() or None,
+        "role": (payload.role or "").strip() or None,
+        "contact": (payload.contact or "").strip() or None,
+        "created_at": _now(),
+        "expires_at": _now() + timedelta(days=30),
+        "used_at": None,
+        "invited_by": user.get("full_name") or user.get("email"),
+    }
+    await db.incident_witness_tokens.insert_one(doc)
+    sent = False
+    if doc["email"]:
+        try:
+            from utils.email import send_email
+            base = (
+                os.environ.get("EMAIL_PUBLIC_BASE_URL")
+                or os.environ.get("FRONTEND_URL")
+                or os.environ.get("REACT_APP_BACKEND_URL")
+                or ""
+            ).rstrip("/")
+            link = f"{base}/witness-statement/{token}" if base else f"/witness-statement/{token}"
+            html = (
+                f'<div style="font-family:Arial,sans-serif;color:#0F172A;line-height:1.55;max-width:560px;margin:0 auto;">'
+                f'<h2 style="margin:0 0 12px;font-size:22px;font-weight:800;">Witness statement requested.</h2>'
+                f"<p>Hi {_esc_html(payload.name)},</p>"
+                f"<p>You were named as a witness for incident "
+                f"<strong>{incident.get('reference')}</strong> at "
+                f"<strong>{(await _org_name(incident['organization_id']))}</strong>.</p>"
+                f"<p>Please take a moment to record what you saw using the secure link below. "
+                f"It's one-time-use and expires in 30 days.</p>"
+                f'<p style="margin:18px 0;"><a href="{link}" '
+                f'style="background:#1d4ed8;color:#fff;padding:10px 18px;border-radius:8px;'
+                f'text-decoration:none;font-weight:700;font-size:14px;">Provide statement →</a></p>'
+                f'<p style="font-size:11px;color:#94a3b8;">Sent by {_esc_html(doc["invited_by"])} on behalf of '
+                f'{_esc_html(await _org_name(incident["organization_id"]))}.</p>'
+                f"</div>"
+            )
+            sent = bool(await send_email(
+                to=doc["email"],
+                subject=f"Witness statement requested · {incident.get('reference')}",
+                html=html,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[incidents] witness invite email failed: %s", exc)
+    await _audit(incident_id=incident_id, user=user, action="witness_invited",
+                 after={"witness_name": payload.name, "emailed": sent},
+                 request=request)
+    return {"token": token, "emailed": sent, "expires_at": doc["expires_at"]}
+
+
+def _esc_html(s) -> str:
+    if s is None:
+        return ""
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+async def _org_name(org_id: str) -> str:
+    try:
+        o = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1})
+        return (o or {}).get("name") or "your site"
+    except Exception:
+        return "your site"
+
+
+@router.get("/incidents/witness-statement/{token}")
+async def witness_statement_landing(token: str) -> dict:
+    """Public — no auth. Returns the minimal context a witness needs
+    to record their statement without leaking the full incident."""
+    row = await db.incident_witness_tokens.find_one({"token": token}, {"_id": 0})
+    if not row:
+        raise HTTPException(404, "Link not recognised")
+    if row.get("used_at"):
+        raise HTTPException(410, "This link has already been used")
+    if row.get("expires_at") and _aware(row["expires_at"]) < _now():
+        raise HTTPException(410, "This link has expired")
+    incident = await db.incidents.find_one(
+        {"id": row["incident_id"]},
+        {"_id": 0, "reference": 1, "occurred_at": 1, "location": 1, "kind": 1, "organization_id": 1},
+    )
+    return {
+        "name": row.get("name"),
+        "email": row.get("email"),
+        "incident_reference": row.get("incident_reference") or (incident or {}).get("reference"),
+        "incident_occurred_at": (incident or {}).get("occurred_at"),
+        "incident_location": ((incident or {}).get("location") or {}).get("area"),
+        "incident_kind": (incident or {}).get("kind"),
+        "org_name": await _org_name((incident or {}).get("organization_id") or row.get("organization_id")),
+        "expires_at": row.get("expires_at"),
+    }
+
+
+@router.post("/incidents/witness-statement/{token}")
+async def witness_statement_submit(token: str, body: dict = Body(...), request: Request = None) -> dict:
+    row = await db.incident_witness_tokens.find_one({"token": token}, {"_id": 0})
+    if not row:
+        raise HTTPException(404, "Link not recognised")
+    if row.get("used_at"):
+        raise HTTPException(410, "This link has already been used")
+    if row.get("expires_at") and _aware(row["expires_at"]) < _now():
+        raise HTTPException(410, "This link has expired")
+    statement = ((body or {}).get("statement") or "").strip()
+    if len(statement) < 20:
+        raise HTTPException(400, "Statement must be at least 20 characters")
+    signature_b64 = _safe_b64((body or {}).get("signature_b64"))
+    incident = await db.incidents.find_one({"id": row["incident_id"]}, {"_id": 0})
+    if not incident:
+        raise HTTPException(404, "Incident no longer exists")
+    new_witness = {
+        "id": _new_id(),
+        "name": row.get("name"),
+        "role": row.get("role"),
+        "contact": row.get("contact") or row.get("email"),
+        "statement": statement,
+        "statement_at": _now(),
+        "signature": {
+            "name": row.get("name"),
+            "role": "witness",
+            "image_b64": signature_b64,
+            "signed_at": _now(),
+            "signed_by_ip": (request.client.host if request and request.client else None),
+        } if signature_b64 else None,
+        "submitted_via_token": True,
+    }
+    witnesses = list(incident.get("witnesses") or [])
+    witnesses.append(new_witness)
+    await db.incidents.update_one(
+        {"id": row["incident_id"]},
+        {"$set": {"witnesses": witnesses, "updated_at": _now()}},
+    )
+    await db.incident_witness_tokens.update_one(
+        {"token": token},
+        {"$set": {"used_at": _now()}},
+    )
+    # Audit row attributed to the witness, not a user.
+    await db.incident_audit_log.insert_one({
+        "id": _new_id(),
+        "incident_id": row["incident_id"],
+        "at": _now(),
+        "actor_user_id": None,
+        "actor_name": row.get("name"),
+        "actor_role": "witness",
+        "action": "witness_statement_received",
+        "after": {"witness_name": row.get("name")},
+        "ip": (request.client.host if request and request.client else None),
+    })
+    return {"ok": True, "incident_reference": row.get("incident_reference")}
+
+
+# ── PDF endpoints ─────────────────────────────────────────────────
+
+
+async def _load_incident_and_actions(incident_id: str, user: dict) -> tuple[dict, list]:
+    incident = await db.incidents.find_one({"id": incident_id}, {"_id": 0})
+    if not incident:
+        raise HTTPException(404, "Incident not found")
+    if not user.get("is_master_admin") and incident.get("organization_id") != user.get("organization_id"):
+        raise HTTPException(403, "Not your incident")
+    actions = await db.incident_corrective_actions.find(
+        {"incident_id": incident_id}, {"_id": 0},
+    ).sort("created_at", 1).to_list(200)
+    return incident, actions
+
+
+@router.get("/incidents/{incident_id}/pdf/accident")
+async def pdf_accident(incident_id: str, user: dict = Depends(get_current_user)) -> Response:
+    from utils.incident_pdf import accident_report_pdf
+    incident, actions = await _load_incident_and_actions(incident_id, user)
+    pdf = accident_report_pdf(incident, org_name=await _org_name(incident["organization_id"]), actions=actions)
+    return _pdf_response(pdf, f"{incident['reference']}-accident.pdf")
+
+
+@router.get("/incidents/{incident_id}/pdf/riddor")
+async def pdf_riddor(incident_id: str, user: dict = Depends(get_current_user)) -> Response:
+    from utils.incident_pdf import riddor_report_pdf
+    incident, _ = await _load_incident_and_actions(incident_id, user)
+    if not (incident.get("riddor") or {}).get("status") or incident["riddor"]["status"] == "not_assessed":
+        raise HTTPException(400, "Run the RIDDOR assessment first")
+    pdf = riddor_report_pdf(incident, org_name=await _org_name(incident["organization_id"]))
+    return _pdf_response(pdf, f"{incident['reference']}-riddor.pdf")
+
+
+@router.get("/incidents/{incident_id}/pdf/investigation")
+async def pdf_investigation(incident_id: str, user: dict = Depends(get_current_user)) -> Response:
+    from utils.incident_pdf import investigation_report_pdf
+    incident, actions = await _load_incident_and_actions(incident_id, user)
+    if not incident.get("investigation"):
+        raise HTTPException(400, "No investigation started")
+    pdf = investigation_report_pdf(incident, actions=actions, org_name=await _org_name(incident["organization_id"]))
+    return _pdf_response(pdf, f"{incident['reference']}-investigation.pdf")
+
+
+@router.get("/incidents/{incident_id}/pdf/witness/{witness_index}")
+async def pdf_witness(incident_id: str, witness_index: int,
+                     user: dict = Depends(get_current_user)) -> Response:
+    from utils.incident_pdf import witness_statement_pdf
+    incident, _ = await _load_incident_and_actions(incident_id, user)
+    witnesses = incident.get("witnesses") or []
+    if witness_index < 0 or witness_index >= len(witnesses):
+        raise HTTPException(404, "Witness not found")
+    pdf = witness_statement_pdf(incident, witnesses[witness_index],
+                                org_name=await _org_name(incident["organization_id"]))
+    safe = (witnesses[witness_index].get("name") or "witness").replace(" ", "_")
+    return _pdf_response(pdf, f"{incident['reference']}-witness-{safe}.pdf")
+
+
+@router.get("/incidents/pdf/actions-log")
+async def pdf_actions_log(user: dict = Depends(get_current_user)) -> Response:
+    """All corrective actions in the user's scope — open + closed."""
+    from utils.incident_pdf import corrective_action_log_pdf
+    f: dict = {}
+    if not user.get("is_master_admin"):
+        f["organization_id"] = user.get("organization_id")
+    actions = await db.incident_corrective_actions.find(f, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    org_name = await _org_name(user.get("organization_id") or "")
+    pdf = corrective_action_log_pdf(actions, org_name=org_name)
+    return _pdf_response(pdf, "corrective-actions-log.pdf")
+
+
+@router.get("/incidents/pdf/management-summary")
+async def pdf_management_summary(days: int = Query(default=30, ge=1, le=365),
+                                  user: dict = Depends(get_current_user)) -> Response:
+    from utils.incident_pdf import management_summary_pdf
+    stats = await _hse_dashboard_aggregates(user, days=days, include_categories=True, include_top_assets=True)
+    org_name = await _org_name(user.get("organization_id") or "")
+    pdf = management_summary_pdf(stats, org_name=org_name, period_label=f"Last {days} days")
+    return _pdf_response(pdf, f"management-summary-{days}d.pdf")
+
+
+def _pdf_response(pdf_bytes: bytes, filename: str) -> Response:
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── HSE dashboard v1 ──────────────────────────────────────────────
+
+
+async def _hse_dashboard_aggregates(user: dict, days: int = 30,
+                                     include_categories: bool = True,
+                                     include_top_assets: bool = True) -> dict:
+    """Reusable aggregator. Returns the same shape as
+    ``/incidents/stats/summary`` plus trend, top assets, and category
+    breakdowns."""
+    f = await _scope_filter(user)
+    since = _now() - timedelta(days=days)
+    f["created_at"] = {"$gte": since}
+    rows = await db.incidents.find(
+        f,
+        {"_id": 0, "status": 1, "severity": 1, "riddor.status": 1, "kind": 1,
+         "category": 1, "asset_id": 1, "created_at": 1, "fatality": 1},
+    ).to_list(5000)
+    by_status: dict = {}
+    by_severity: dict = {}
+    by_kind: dict = {}
+    by_category: dict = {}
+    by_day: dict = {}
+    asset_counts: dict = {}
+    riddor_potential = 0
+    riddor_confirmed = 0
+    riddor_submitted = 0
+    fatalities = 0
+    for r in rows:
+        by_status[r.get("status", "unknown")] = by_status.get(r.get("status", "unknown"), 0) + 1
+        by_severity[r.get("severity", "unknown")] = by_severity.get(r.get("severity", "unknown"), 0) + 1
+        by_kind[r.get("kind", "unknown")] = by_kind.get(r.get("kind", "unknown"), 0) + 1
+        by_category[r.get("category", "other")] = by_category.get(r.get("category", "other"), 0) + 1
+        rs = (r.get("riddor") or {}).get("status")
+        if rs == "potential":
+            riddor_potential += 1
+        elif rs == "confirmed":
+            riddor_confirmed += 1
+        elif rs == "submitted":
+            riddor_submitted += 1
+        if r.get("fatality"):
+            fatalities += 1
+        ca = r.get("created_at")
+        if isinstance(ca, datetime):
+            key = ca.date().isoformat()
+            by_day[key] = by_day.get(key, 0) + 1
+        if include_top_assets and r.get("asset_id"):
+            asset_counts[r["asset_id"]] = asset_counts.get(r["asset_id"], 0) + 1
+
+    out = {
+        "period_days": days,
+        "total": len(rows),
+        "by_status": by_status,
+        "by_severity": by_severity,
+        "by_kind": by_kind,
+        "by_category": by_category if include_categories else {},
+        "by_day": [{"date": d, "count": by_day[d]} for d in sorted(by_day)],
+        "riddor_potential": riddor_potential,
+        "riddor_confirmed": riddor_confirmed,
+        "riddor_submitted": riddor_submitted,
+        "fatalities": fatalities,
+    }
+    if include_top_assets and asset_counts:
+        ids = sorted(asset_counts.items(), key=lambda x: -x[1])[:8]
+        equip = await db.equipment.find(
+            {"id": {"$in": [aid for aid, _ in ids]}},
+            {"_id": 0, "id": 1, "name": 1, "manufacturer": 1, "model": 1},
+        ).to_list(50)
+        names = {e["id"]: (e.get("name") or f"{e.get('manufacturer','')} {e.get('model','')}".strip())
+                 for e in equip}
+        out["top_assets"] = [
+            {"asset_id": aid, "asset_name": names.get(aid) or aid, "count": cnt}
+            for aid, cnt in ids
+        ]
+    return out
+
+
+@router.get("/incidents/hse/dashboard")
+async def hse_dashboard(days: int = Query(default=30, ge=1, le=365),
+                         user: dict = Depends(get_current_user)) -> dict:
+    """Aggregated HSE dashboard for managers/H&S leads.
+    Same scope rules as /incidents (staff see their own; manager+ org-wide)."""
+    return await _hse_dashboard_aggregates(user, days=days,
+                                            include_categories=True,
+                                            include_top_assets=True)
+
+
 # ── Indexes ──────────────────────────────────────────────────────
 
 
@@ -941,3 +1362,6 @@ async def ensure_incident_indexes() -> None:
     await db.incident_corrective_actions.create_index([("organization_id", 1), ("status", 1)])
     await db.incident_corrective_actions.create_index([("due_date", 1)])
     await db.incident_audit_log.create_index([("incident_id", 1), ("at", 1)])
+    await db.incident_witness_tokens.create_index([("token", 1)], unique=True)
+    await db.incident_witness_tokens.create_index([("incident_id", 1)])
+    await db.incident_witness_tokens.create_index([("expires_at", 1)])

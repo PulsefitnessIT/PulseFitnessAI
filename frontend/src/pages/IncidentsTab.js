@@ -28,8 +28,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { notify } from '@/components/notifications';
 import {
   AlertTriangle, Plus, Shield, Activity, Loader2, ChevronRight,
-  ClipboardCheck, Wrench, FileWarning, Search,
+  ClipboardCheck, Wrench, FileWarning, Search, FileDown, UserPlus, BarChart3,
 } from 'lucide-react';
+import IncidentSignaturePad from './IncidentSignaturePad';
 
 const SEVERITY_TONE = {
   minor: { bg: 'bg-slate-100', text: 'text-slate-700', dot: '#94A3B8' },
@@ -68,6 +69,21 @@ export default function IncidentsTab() {
   const [filters, setFilters] = useState({ kind: '', severity: '', riddor: '', q: '' });
   const [showQuickLog, setShowQuickLog] = useState(false);
   const [activeIncidentId, setActiveIncidentId] = useState(null);
+  const [showDashboard, setShowDashboard] = useState(false);
+
+  const downloadListPdf = useCallback((suffix) => {
+    axios.get(`${API}/incidents/pdf/${suffix}`, { headers, responseType: 'blob' })
+      .then((res) => {
+        const blob = new Blob([res.data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = suffix.replace(/[?=]/g, '-') + '.pdf';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      })
+      .catch((e) => notify.error(e.response?.data?.detail || 'Could not generate PDF'));
+  }, [API, headers]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -118,6 +134,26 @@ export default function IncidentsTab() {
           <Plus size={16} className="mr-1" /> Log incident
         </Button>
       </div>
+
+      {/* HSE quick exports + dashboard toggle */}
+      <div className="flex items-center gap-2 flex-wrap" data-testid="incident-exports-bar">
+        <Button size="sm" variant="outline" onClick={() => downloadListPdf('management-summary?days=30')}
+                data-testid="export-mgmt-summary">
+          <BarChart3 size={12} className="mr-1" /> Management summary (30d)
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => downloadListPdf('actions-log')}
+                data-testid="export-actions-log">
+          <FileDown size={12} className="mr-1" /> Corrective actions log
+        </Button>
+        <Button size="sm" variant={showDashboard ? 'default' : 'outline'}
+                className={showDashboard ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
+                onClick={() => setShowDashboard((v) => !v)}
+                data-testid="toggle-hse-dashboard">
+          <BarChart3 size={12} className="mr-1" /> {showDashboard ? 'Hide HSE dashboard' : 'HSE dashboard'}
+        </Button>
+      </div>
+
+      {showDashboard ? <HseDashboardStrip /> : null}
 
       {/* Stat strip */}
       {summary ? (
@@ -431,7 +467,7 @@ function IncidentDetailDialog({ incidentId, onClose, picklists }) {
                 </button>
               ))}
             </div>
-            {tab === 'overview' && <OverviewPane incident={incident} />}
+            {tab === 'overview' && <OverviewPane incident={incident} onChanged={load} />}
             {tab === 'riddor' && <RiddorPane incident={incident} picklists={picklists} onChanged={load} />}
             {tab === 'investigation' && <InvestigationPane incident={incident} picklists={picklists} onChanged={load} />}
             {tab === 'actions' && <ActionsPane incident={incident} actions={bundle.actions} onChanged={load} />}
@@ -444,16 +480,57 @@ function IncidentDetailDialog({ incidentId, onClose, picklists }) {
 }
 
 
-function OverviewPane({ incident }) {
+function OverviewPane({ incident, onChanged }) {
+  const { API } = useAuth();
+  const token = useMemo(() => localStorage.getItem('token'), []);
+  const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
   const sev = SEVERITY_TONE[incident.severity] || SEVERITY_TONE.minor;
   const rid = RIDDOR_TONE[(incident.riddor || {}).status || 'not_assessed'];
+  const [showWitness, setShowWitness] = useState(false);
+  const [showSig, setShowSig] = useState(false);
+
+  const downloadPdf = (suffix) => {
+    // axios + blob → trigger browser save
+    axios.get(`${API}/incidents/${incident.id}/pdf/${suffix}`, { headers, responseType: 'blob' })
+      .then((res) => {
+        const blob = new Blob([res.data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `${incident.reference}-${suffix}.pdf`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      })
+      .catch((e) => notify.error(e.response?.data?.detail || 'PDF download failed'));
+  };
+
   return (
     <div className="space-y-4 text-sm">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         <Badge className={`${sev.bg} ${sev.text} border-0 font-bold uppercase`}>{incident.severity}</Badge>
         <Badge className={`${rid.bg} ${rid.text} border-0 font-bold uppercase`}>{rid.label}</Badge>
         <Badge variant="outline" className="font-bold uppercase">{incident.status?.replace(/_/g, ' ')}</Badge>
         {incident.fatality ? <Badge className="bg-rose-200 text-rose-900 border-0 font-bold uppercase">Fatality</Badge> : null}
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => downloadPdf('accident')} data-testid="pdf-accident">
+            <FileDown size={12} className="mr-1" /> Accident PDF
+          </Button>
+          {(incident.riddor?.status && incident.riddor.status !== 'not_assessed') ? (
+            <Button size="sm" variant="outline" onClick={() => downloadPdf('riddor')} data-testid="pdf-riddor">
+              <FileDown size={12} className="mr-1" /> RIDDOR PDF
+            </Button>
+          ) : null}
+          {incident.investigation ? (
+            <Button size="sm" variant="outline" onClick={() => downloadPdf('investigation')} data-testid="pdf-investigation">
+              <FileDown size={12} className="mr-1" /> Investigation PDF
+            </Button>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={() => setShowWitness(true)} data-testid="invite-witness-btn">
+            <UserPlus size={12} className="mr-1" /> Invite witness
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowSig(true)} data-testid="sign-incident-btn">
+            <ClipboardCheck size={12} className="mr-1" /> Sign
+          </Button>
+        </div>
       </div>
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4" data-testid="incident-description">
         <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">Description</p>
@@ -472,11 +549,166 @@ function OverviewPane({ incident }) {
         <div>
           <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">Witnesses</p>
           <ul className="text-sm text-slate-700 list-disc pl-5">
-            {incident.witnesses.map((w, i) => <li key={i}>{w.name}{w.role ? ` · ${w.role}` : ''}</li>)}
+            {incident.witnesses.map((w, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span>{w.name}{w.role ? ` · ${w.role}` : ''}{w.submitted_via_token ? ' · signed externally' : ''}</span>
+                <button
+                  type="button"
+                  onClick={() => downloadPdf(`witness/${i}`)}
+                  className="text-blue-600 hover:underline text-xs font-bold"
+                  data-testid={`pdf-witness-${i}`}
+                >
+                  Download statement
+                </button>
+              </li>
+            ))}
           </ul>
         </div>
       ) : null}
+      {incident.signatures?.length ? (
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">Signatures</p>
+          <ul className="text-sm text-slate-700 list-disc pl-5">
+            {incident.signatures.map((s, i) => (
+              <li key={i}>{s.name} · {titleCase(s.role)} · {new Date(s.signed_at).toLocaleString()}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <InviteWitnessDialog
+        open={showWitness} onClose={() => setShowWitness(false)}
+        incidentId={incident.id} onSent={() => { setShowWitness(false); onChanged && onChanged(); }}
+      />
+      <SignDialog
+        open={showSig} onClose={() => setShowSig(false)}
+        incidentId={incident.id} onSigned={() => { setShowSig(false); onChanged && onChanged(); }}
+      />
     </div>
+  );
+}
+
+
+function InviteWitnessDialog({ open, onClose, incidentId, onSent }) {
+  const { API } = useAuth();
+  const token = useMemo(() => localStorage.getItem('token'), []);
+  const [form, setForm] = useState({ name: '', email: '', role: 'member', contact: '' });
+  const [sending, setSending] = useState(false);
+  const submit = async () => {
+    if (!form.name.trim()) return notify.error('Witness name required');
+    setSending(true);
+    try {
+      const r = await axios.post(`${API}/incidents/${incidentId}/witness-invite`, form,
+        { headers: { Authorization: `Bearer ${token}` } });
+      if (r.data.emailed) notify.success('Witness emailed a one-time statement link');
+      else if (form.email) notify.warning('Token created — email send may have failed');
+      else notify.info('Token created — share the link manually');
+      onSent();
+    } catch (e) {
+      notify.error(e.response?.data?.detail || 'Failed to invite witness');
+    } finally { setSending(false); }
+  };
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md" data-testid="invite-witness-dialog">
+        <DialogHeader><DialogTitle>Invite witness statement</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p className="text-slate-500 text-xs">
+            Sends a one-time, 30-day link the witness can fill in themselves — no login required.
+            Their statement + drawn signature attach directly to the incident audit trail.
+          </p>
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-wider">Witness name</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                   data-testid="invite-witness-name" />
+          </div>
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-wider">Email (optional but recommended)</Label>
+            <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                   placeholder="witness@example.com" data-testid="invite-witness-email" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs font-bold uppercase tracking-wider">Role</Label>
+              <Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+            </div>
+            <div>
+              <Label className="text-xs font-bold uppercase tracking-wider">Contact (phone)</Label>
+              <Input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={submit} disabled={sending} className="bg-blue-600 hover:bg-blue-700 text-white"
+                    data-testid="invite-witness-send">
+              {sending ? <Loader2 className="animate-spin mr-2" size={14} /> : null}
+              Send invite
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+function SignDialog({ open, onClose, incidentId, onSigned }) {
+  const { API } = useAuth();
+  const tokenLs = useMemo(() => localStorage.getItem('token'), []);
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('manager');
+  const [sig, setSig] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!name.trim()) return notify.error('Name required');
+    setSaving(true);
+    try {
+      const b64 = sig.startsWith('data:') ? sig.split(',', 2)[1] : sig;
+      await axios.post(`${API}/incidents/${incidentId}/signatures`,
+        { name: name.trim(), role, image_b64: b64 },
+        { headers: { Authorization: `Bearer ${tokenLs}` } });
+      notify.success('Signature recorded');
+      setName(''); setSig(''); onSigned();
+    } catch (e) {
+      notify.error(e.response?.data?.detail || 'Sign failed');
+    } finally { setSaving(false); }
+  };
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md" data-testid="sign-dialog">
+        <DialogHeader><DialogTitle>Sign this incident</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-wider">Your name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} data-testid="sign-name" />
+          </div>
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-wider">Role</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger data-testid="sign-role"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {['manager', 'investigator', 'hse_lead', 'injured_person', 'witness', 'other'].map((r) => (
+                  <SelectItem key={r} value={r}>{titleCase(r)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-wider">Signature</Label>
+            <IncidentSignaturePad onChange={setSig} testId="sign-pad" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={submit} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white"
+                    data-testid="sign-submit">
+              {saving ? <Loader2 className="animate-spin mr-2" size={14} /> : null}
+              Record signature
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -795,5 +1027,98 @@ function AuditPane({ rows }) {
         </div>
       ))}
     </div>
+  );
+}
+
+
+
+function HseDashboardStrip() {
+  const { API } = useAuth();
+  const token = useMemo(() => localStorage.getItem('token'), []);
+  const [data, setData] = useState(null);
+  const [days, setDays] = useState(30);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    axios.get(`${API}/incidents/hse/dashboard?days=${days}`,
+      { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setData(r.data))
+      .catch(() => notify.error('Could not load HSE dashboard'))
+      .finally(() => setLoading(false));
+  }, [API, token, days]);
+  if (loading) return (
+    <Card className="p-4 bg-white border border-slate-200" data-testid="hse-dashboard">
+      <Loader2 className="animate-spin inline mr-2" size={14} /> Loading…
+    </Card>
+  );
+  if (!data) return null;
+  const maxBy = (obj) => Math.max(1, ...Object.values(obj || {}));
+  const SEV_BAR = {
+    minor: '#94A3B8', moderate: '#F59E0B', serious: '#EA580C', major: '#DC2626', fatal: '#9F1239',
+  };
+  const renderBar = (k, v, max, color) => (
+    <div key={k} className="flex items-center gap-2 text-xs">
+      <span className="w-24 truncate text-slate-600 font-bold uppercase tracking-wider">{titleCase(k)}</span>
+      <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-full" style={{ width: `${(v / max) * 100}%`, background: color }} />
+      </div>
+      <span className="w-8 text-right font-mono text-slate-800">{v}</span>
+    </div>
+  );
+  return (
+    <Card className="p-5 bg-white border border-slate-200" data-testid="hse-dashboard">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-sm font-extrabold tracking-tight text-slate-800">HSE dashboard</h3>
+          <p className="text-xs text-slate-500">{data.total} incidents in the last {data.period_days} days · {data.riddor_confirmed} confirmed RIDDOR · {data.fatalities || 0} fatalities</p>
+        </div>
+        <div className="flex gap-1">
+          {[7, 30, 90, 365].map((d) => (
+            <button key={d} type="button"
+                    onClick={() => setDays(d)}
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${days === d ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    data-testid={`hse-period-${d}`}>
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">By severity</p>
+          <div className="space-y-1.5">
+            {Object.entries(data.by_severity || {})
+              .sort((a, b) => b[1] - a[1])
+              .map(([k, v]) => renderBar(k, v, maxBy(data.by_severity), SEV_BAR[k] || '#64748B'))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">By kind</p>
+          <div className="space-y-1.5">
+            {Object.entries(data.by_kind || {})
+              .sort((a, b) => b[1] - a[1])
+              .map(([k, v]) => renderBar(k, v, maxBy(data.by_kind), '#2563EB'))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">By category</p>
+          <div className="space-y-1.5">
+            {Object.entries(data.by_category || {})
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 8)
+              .map(([k, v]) => renderBar(k, v, maxBy(data.by_category), '#9D4CDD'))}
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">Top assets</p>
+          {data.top_assets?.length ? (
+            <div className="space-y-1.5">
+              {data.top_assets.map((r) => renderBar(r.asset_name || r.asset_id, r.count,
+                Math.max(1, ...data.top_assets.map((x) => x.count)), '#0EA5E9'))}
+            </div>
+          ) : <p className="text-xs text-slate-400">No incidents linked to assets in this period.</p>}
+        </div>
+      </div>
+    </Card>
   );
 }

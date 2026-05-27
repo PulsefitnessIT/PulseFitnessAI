@@ -269,3 +269,146 @@ def test_create_rejects_short_description(master_token):
         "kind": "accident", "description": "too short",
     }, headers=_hdrs(master_token), timeout=20)
     assert r.status_code in {400, 422}
+
+
+# ── Phase 2 — PDFs, signatures, witness workflow, HSE dashboard ──
+
+
+def test_pdf_accident_returns_pdf(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "moderate", "category": "slip_trip_fall",
+        "description": "PDF test incident — member slipped on wet floor near reception.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    r = requests.get(f"{API}/api/incidents/{create['id']}/pdf/accident",
+                     headers=_hdrs(master_token), timeout=30)
+    assert r.status_code == 200
+    assert r.headers.get("content-type") == "application/pdf"
+    assert r.content[:4] == b"%PDF"
+    assert len(r.content) > 1500
+
+
+def test_pdf_management_summary(master_token):
+    r = requests.get(f"{API}/api/incidents/pdf/management-summary?days=30",
+                     headers=_hdrs(master_token), timeout=30)
+    assert r.status_code == 200
+    assert r.content[:4] == b"%PDF"
+
+
+def test_pdf_actions_log(master_token):
+    r = requests.get(f"{API}/api/incidents/pdf/actions-log",
+                     headers=_hdrs(master_token), timeout=30)
+    assert r.status_code == 200
+    assert r.content[:4] == b"%PDF"
+
+
+def test_pdf_riddor_requires_assessment_first(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "minor", "category": "other",
+        "description": "PDF RIDDOR test - no assessment yet.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    r = requests.get(f"{API}/api/incidents/{create['id']}/pdf/riddor",
+                     headers=_hdrs(master_token), timeout=20)
+    assert r.status_code == 400
+
+
+def test_signature_capture_appends_to_incident(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "minor", "category": "other",
+        "description": "Signature capture test incident description.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    r = requests.post(
+        f"{API}/api/incidents/{create['id']}/signatures",
+        json={"name": "Test Manager", "role": "manager", "image_b64": ""},
+        headers=_hdrs(master_token), timeout=20,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] == 1
+    assert body["signature"]["role"] == "manager"
+
+
+def test_signature_capture_rejects_invalid_role(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "minor", "category": "other",
+        "description": "Signature role validation test incident.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    r = requests.post(
+        f"{API}/api/incidents/{create['id']}/signatures",
+        json={"name": "Test", "role": "imaginary_role"},
+        headers=_hdrs(master_token), timeout=20,
+    )
+    assert r.status_code == 400
+
+
+def test_witness_invite_returns_token_and_landing_pulls_minimal_context(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "minor", "category": "other",
+        "description": "Witness workflow test incident — member fell on the stairs.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    invite = requests.post(
+        f"{API}/api/incidents/{create['id']}/witness-invite",
+        json={"name": "Sarah Witness", "role": "member"},
+        headers=_hdrs(master_token), timeout=20,
+    )
+    assert invite.status_code == 200
+    token = invite.json()["token"]
+    # Public landing — NO auth header
+    landing = requests.get(f"{API}/api/incidents/witness-statement/{token}", timeout=20)
+    assert landing.status_code == 200
+    body = landing.json()
+    assert body["name"] == "Sarah Witness"
+    assert body["incident_reference"] == create["reference"]
+    # Submitting too-short statement → 400
+    bad = requests.post(f"{API}/api/incidents/witness-statement/{token}",
+                        json={"statement": "tiny"}, timeout=20)
+    assert bad.status_code == 400
+
+
+def test_witness_statement_submit_and_idempotency(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "minor", "category": "other",
+        "description": "Witness submit idempotency test incident here.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    token = requests.post(
+        f"{API}/api/incidents/{create['id']}/witness-invite",
+        json={"name": "Bob Witness", "role": "staff"},
+        headers=_hdrs(master_token), timeout=20,
+    ).json()["token"]
+    submit = requests.post(
+        f"{API}/api/incidents/witness-statement/{token}",
+        json={"statement": "I saw the fall happen exactly as described in the incident note."},
+        timeout=20,
+    )
+    assert submit.status_code == 200
+    # Re-use same token → 410
+    again = requests.post(
+        f"{API}/api/incidents/witness-statement/{token}",
+        json={"statement": "Replay attempt that should be blocked completely."},
+        timeout=20,
+    )
+    assert again.status_code == 410
+    # Witness appears on the incident.
+    detail = requests.get(f"{API}/api/incidents/{create['id']}", headers=_hdrs(master_token), timeout=20).json()
+    names = [w.get("name") for w in detail["incident"].get("witnesses") or []]
+    assert "Bob Witness" in names
+    # Audit log carries the witness_statement_received row.
+    actions = [r["action"] for r in detail["audit"]]
+    assert "witness_invited" in actions
+    assert "witness_statement_received" in actions
+
+
+def test_witness_invalid_token_returns_404(master_token):
+    r = requests.get(f"{API}/api/incidents/witness-statement/NOPE", timeout=20)
+    assert r.status_code == 404
+
+
+def test_hse_dashboard_returns_aggregates(master_token):
+    r = requests.get(f"{API}/api/incidents/hse/dashboard?days=30",
+                     headers=_hdrs(master_token), timeout=20)
+    assert r.status_code == 200
+    body = r.json()
+    assert "period_days" in body and body["period_days"] == 30
+    assert "by_status" in body and isinstance(body["by_status"], dict)
+    assert "by_day" in body and isinstance(body["by_day"], list)
+    assert "by_severity" in body
+    assert "by_category" in body
