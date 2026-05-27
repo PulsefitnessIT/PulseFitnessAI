@@ -189,6 +189,158 @@ async def growth_overview(user: dict = Depends(get_current_user)) -> dict:
 __all__ = ["router", "JOURNEY_TEMPLATES"]
 
 
+# ── Iter 220aj — 30-day sparklines for Growth Hub KPI tiles ──────
+#
+# Each metric returns a list of 30 ``{date, value}`` points (chrono
+# order, oldest first). Where we have a row-level created_at column,
+# the bucket is exact; for blog views (a running counter today) we
+# snapshot the total daily into ``seo_view_snapshots`` so the trend
+# accumulates from "now". The Hub tile renders an inline SVG sparkline
+# under the headline number.
+
+
+_SPARK_DAYS = 30
+
+
+def _bucket_dates(now: datetime) -> list[str]:
+    """Return the last 30 ISO ``YYYY-MM-DD`` date strings, oldest
+    first. Stable across timezones — we use UTC for grouping."""
+    today = now.date()
+    return [(today - timedelta(days=29 - i)).isoformat() for i in range(_SPARK_DAYS)]
+
+
+async def _bucket_count_by_day(
+    coll, *, date_field: str, query: dict | None = None,
+    is_iso_string: bool = False,
+) -> dict[str, int]:
+    """Return ``{YYYY-MM-DD: count}`` for the last 30 days. Works on
+    BSON ``Date`` fields or ISO-string fields (the platform mixes
+    both — historical inserts used ISO strings, newer code uses
+    timezone-aware datetimes)."""
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=_SPARK_DAYS)
+    buckets: dict[str, int] = {}
+    q = dict(query or {})
+    if is_iso_string:
+        q[date_field] = {"$gte": cutoff.isoformat()}
+    else:
+        q[date_field] = {"$gte": cutoff}
+    try:
+        async for doc in coll.find(q, {"_id": 0, date_field: 1}):
+            v = doc.get(date_field)
+            if not v:
+                continue
+            if isinstance(v, datetime):
+                key = v.date().isoformat()
+            else:
+                # ISO string — slice off the date portion.
+                try:
+                    key = str(v)[:10]
+                except Exception:  # pragma: no cover
+                    continue
+            buckets[key] = buckets.get(key, 0) + 1
+    except Exception:  # pragma: no cover — diagnostics, not feature
+        pass
+    return buckets
+
+
+async def _snapshot_blog_views_today(total_views: int) -> None:
+    """Persist today's running blog-view total so we can build a real
+    trend over time. Idempotent ``upsert`` on the date key."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    await db.seo_view_snapshots.update_one(
+        {"date": today},
+        {"$set": {"date": today, "total_views": int(total_views),
+                  "captured_at": _now_iso()}},
+        upsert=True,
+    )
+
+
+async def _blog_views_series() -> list[dict]:
+    """Return the 30-day blog-views series. Reads from
+    ``seo_view_snapshots`` (filled by the overview endpoint on each
+    fetch). Days without a snapshot inherit the previous day's value
+    so the line stays continuous."""
+    now = datetime.now(timezone.utc)
+    dates = _bucket_dates(now)
+    rows = await db.seo_view_snapshots.find(
+        {"date": {"$in": dates}}, {"_id": 0, "date": 1, "total_views": 1},
+    ).to_list(_SPARK_DAYS)
+    by_date = {r["date"]: int(r.get("total_views") or 0) for r in rows}
+    last = 0
+    out: list[dict] = []
+    for d in dates:
+        if d in by_date:
+            last = by_date[d]
+        out.append({"date": d, "value": last})
+    return out
+
+
+def _series_from_buckets(buckets: dict[str, int], now: datetime) -> list[dict]:
+    return [
+        {"date": d, "value": int(buckets.get(d, 0))}
+        for d in _bucket_dates(now)
+    ]
+
+
+@router.get("/master-admin/growth/sparklines")
+async def growth_sparklines(user: dict = Depends(get_current_user)) -> dict:
+    """Return per-metric 30-day daily series for the Hub KPI tiles.
+
+    Resolved fields per metric:
+      * ``trials_started`` — ``organizations.created_at`` where ``is_trial``.
+      * ``blog_views`` — daily snapshot from ``seo_view_snapshots`` (also
+        upserts today's value so the trend accumulates).
+      * ``emails_sent`` — ``email_send_events.created_at`` where ``status=sent``.
+      * ``deals_created`` — ``crm_deals.created_at`` (ISO string or datetime).
+      * ``chat_sessions`` — ``mkt_chat_sessions.created_at``.
+    """
+    require_master_admin(user)
+    now = datetime.now(timezone.utc)
+
+    # Trials — organizations.created_at, filter on is_trial.
+    trials_b = await _bucket_count_by_day(
+        db.organizations, date_field="created_at",
+        query={"is_trial": True},
+    )
+
+    # Snapshot today's running blog-view total so the series fills
+    # over time. Sum across all published articles.
+    total_views = 0
+    try:
+        async for doc in db.seo_articles.find(
+            {"status": "published"}, {"_id": 0, "metrics": 1},
+        ):
+            total_views += int((doc.get("metrics") or {}).get("views") or 0)
+    except Exception:  # pragma: no cover
+        pass
+    await _snapshot_blog_views_today(total_views)
+    blog_views_series = await _blog_views_series()
+
+    emails_b = await _bucket_count_by_day(
+        db.email_send_events, date_field="created_at",
+        query={"status": "sent"},
+    )
+    deals_b = await _bucket_count_by_day(
+        db.crm_deals, date_field="created_at", is_iso_string=True,
+    )
+    chats_b = await _bucket_count_by_day(
+        db.mkt_chat_sessions, date_field="created_at",
+    )
+
+    return {
+        "as_of": now.isoformat(),
+        "days": _SPARK_DAYS,
+        "series": {
+            "trials_started": _series_from_buckets(trials_b, now),
+            "blog_views":     blog_views_series,
+            "emails_sent":    _series_from_buckets(emails_b, now),
+            "deals_created":  _series_from_buckets(deals_b, now),
+            "chat_sessions":  _series_from_buckets(chats_b, now),
+        },
+    }
+
+
 # ── B2B Journey Templates — Iter 220ah ───────────────────────────
 #
 # Pre-canned multi-step email journeys for GymAxis self-promotion.

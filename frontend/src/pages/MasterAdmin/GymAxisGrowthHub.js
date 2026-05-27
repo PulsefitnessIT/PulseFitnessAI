@@ -51,7 +51,16 @@ const TEMPLATE_TONE_HINTS = {
   'lost-revival': 'Low-pressure, news-led',
 };
 
-function KpiTile({ label, value, hint, icon: Icon, accent = 'text-zinc-900' }) {
+function KpiTile({ label, value, hint, icon: Icon, accent = 'text-zinc-900', series, accentStroke = '#a21caf' }) {
+  // Iter 220aj — inline SVG sparkline. We render the last 30 days of
+  // the metric directly under the headline number so the master admin
+  // can answer "are we growing this month?" without clicking through.
+  const spark = Array.isArray(series) ? series : [];
+  const sparkValues = spark.map((p) => Number(p?.value ?? 0));
+  const sparkMax = Math.max(1, ...sparkValues);
+  const sparkSum = sparkValues.reduce((a, b) => a + b, 0);
+  const showSpark = spark.length > 1;
+
   return (
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4" data-testid={`growth-kpi-${label.toLowerCase().replace(/\s+/g, '-')}`}>
       <div className="flex items-center justify-between gap-2">
@@ -60,7 +69,40 @@ function KpiTile({ label, value, hint, icon: Icon, accent = 'text-zinc-900' }) {
       </div>
       <p className={`text-3xl font-extrabold mt-2 tabular-nums ${accent}`}>{value}</p>
       {hint ? <p className="text-[11px] text-zinc-500 mt-1">{hint}</p> : null}
+      {showSpark ? (
+        <div className="mt-2 -mx-1" data-testid={`growth-kpi-${label.toLowerCase().replace(/\s+/g, '-')}-spark`}>
+          <Sparkline values={sparkValues} max={sparkMax} stroke={accentStroke} />
+          <p className="text-[10px] text-zinc-400 mt-0.5">
+            {sparkSum.toLocaleString()} in last 30 days
+          </p>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+// Sparkline — pure SVG, no chart lib. 30 points, smooth polyline +
+// soft fill underneath. Stroke colour matches the tile accent.
+function Sparkline({ values, max, stroke }) {
+  const W = 120;
+  const H = 28;
+  if (!values.length) return null;
+  const step = W / Math.max(1, values.length - 1);
+  const denom = max <= 0 ? 1 : max;
+  const pts = values.map((v, i) => {
+    const x = i * step;
+    const y = H - 2 - (Math.max(0, v) / denom) * (H - 4);
+    return [x, y];
+  });
+  const linePath = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const fillPath = `${linePath} L${W},${H} L0,${H} Z`;
+  const lastY = pts[pts.length - 1][1];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-7 overflow-visible">
+      <path d={fillPath} fill={stroke} fillOpacity="0.10" />
+      <path d={linePath} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={W} cy={lastY} r="2" fill={stroke} />
+    </svg>
   );
 }
 
@@ -201,6 +243,8 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
   // whole overview payload.
   const [templates, setTemplates] = useState(null);
   const [templatesErr, setTemplatesErr] = useState(null);
+  // Iter 220aj — 30-day sparklines per KPI tile.
+  const [spark, setSpark] = useState(null);
 
   const load = useCallback(async () => {
     setBusy(true); setErr(null);
@@ -210,6 +254,17 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Could not load growth overview');
     } finally { setBusy(false); }
+  }, []);
+
+  const loadSparklines = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/api/master-admin/growth/sparklines`, { headers: auth() });
+      setSpark(r.data?.series || null);
+    } catch (_e) {
+      // Sparklines are optional — silent fail so the Hub still renders
+      // when the endpoint is mid-deploy. The tiles just hide them.
+      setSpark(null);
+    }
   }, []);
 
   const loadTemplates = useCallback(async () => {
@@ -225,7 +280,7 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
     }
   }, []);
 
-  useEffect(() => { load(); loadTemplates(); }, [load, loadTemplates]);
+  useEffect(() => { load(); loadTemplates(); loadSparklines(); }, [load, loadTemplates, loadSparklines]);
 
   // Best-effort: change section in the parent MasterAdminPage. Falls
   // back to a soft hash navigation if the prop isn't wired (e.g. when
@@ -279,7 +334,7 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
           </p>
         </div>
         <button
-          type="button" onClick={load} disabled={busy}
+          type="button" onClick={() => { load(); loadSparklines(); }} disabled={busy}
           className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400 disabled:opacity-50"
           data-testid="growth-hub-refresh"
         >
@@ -294,27 +349,37 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
           label="Active trials" value={data.trials.active}
           hint={`${data.trials.converted_30d} converted in 30d`}
           icon={Users}
+          series={spark?.trials_started}
+          accentStroke="#2563eb"
         />
         <KpiTile
           label="Blog views" value={data.seo.blog_views_total.toLocaleString()}
           hint={`${data.seo.articles_published} articles published`}
           icon={BookOpen}
+          series={spark?.blog_views}
+          accentStroke="#d946ef"
         />
         <KpiTile
           label="Emails sent (30d)" value={data.outbound.sent_30d.toLocaleString()}
           hint={`${data.outbound.failed_30d} failed`}
           icon={Mail}
+          series={spark?.emails_sent}
+          accentStroke="#e11d48"
         />
         <KpiTile
           label="Pipeline £" value={`£${Number(data.pipeline.pipeline_value_gbp || 0).toLocaleString()}`}
-          hint={`${data.pipeline.deals_open} open deals`}
+          hint={`${data.pipeline.deals_open} open · ${(spark?.deals_created || []).reduce((s,p)=>s+(p.value||0),0)} new in 30d`}
           icon={TrendingUp}
           accent="text-emerald-700"
+          series={spark?.deals_created}
+          accentStroke="#059669"
         />
         <KpiTile
           label="Site chats (30d)" value={data.sales_insights.chat_sessions_30d.toLocaleString()}
           hint={`${data.sales_insights.chat_messages_30d} messages`}
           icon={MessageSquare}
+          series={spark?.chat_sessions}
+          accentStroke="#7c3aed"
         />
       </div>
 

@@ -1,3 +1,70 @@
+## Iter 220aj — Growth Hub 30-day sparklines (May 27, 2026) ✅
+
+Every KPI tile on the GymAxis Growth Hub now carries an inline
+30-day SVG sparkline so the master admin can answer "are we growing
+this month?" in one glance — no clicking through.
+
+**Backend — `routes/master_admin_growth_hub.py`.**
+
+* New `GET /api/master-admin/growth/sparklines` returns 5 daily
+  series (30 points each, oldest first):
+    - `trials_started` — `organizations.created_at` filter
+      `is_trial=true`.
+    - `blog_views` — daily snapshot from new `seo_view_snapshots`
+      collection (also upserts today's total on every fetch — the
+      historical line accumulates from "now"). Gap-days carry the
+      previous known value forward so the line stays continuous.
+    - `emails_sent` — `email_send_events.created_at` filter
+      `status=sent`.
+    - `deals_created` — `crm_deals.created_at` (handles **both** ISO
+      strings and timezone-aware datetimes — the platform mixes
+      shapes historically).
+    - `chat_sessions` — `mkt_chat_sessions.created_at`.
+* `_bucket_count_by_day` helper — single async generator that
+  buckets either field shape into `{YYYY-MM-DD: count}`. Skips rows
+  with missing date fields.
+* `_bucket_dates(now)` returns the canonical 30 ISO date strings.
+* All helpers fail-safe to empty buckets so the endpoint never 500s
+  during a Mongo blip.
+
+**Frontend — `pages/MasterAdmin/GymAxisGrowthHub.js`.**
+
+* New `Sparkline` component — pure-SVG (no chart lib): 120×28
+  polyline + soft fill underneath + last-point circle marker.
+  Stroke colour matches the tile accent (blue / fuchsia / rose /
+  emerald / violet).
+* `KpiTile` accepts `series` + `accentStroke` props, renders the
+  spark under the headline number with a `"N in last 30 days"`
+  footer. Sparklines hidden silently if the endpoint fails.
+* Hub `Refresh` button now also refreshes the sparkline payload.
+
+**Tests — `tests/test_iter_220aj_growth_sparklines.py`.** 8 new
+isolated unit tests:
+  * Gating.
+  * Shape contract (5 series × 30 monotonic points).
+  * Datetime bucketing (today / yesterday split).
+  * **ISO-string bucketing** for `crm_deals` historical rows.
+  * Blog-view snapshot writes today's total to `seo_view_snapshots`.
+  * Blog-view series carries the last known value forward across
+    gap-days.
+  * `_bucket_dates` exact contract (30 chronological ISO strings,
+    last = today).
+  * Skips rows with missing / `None` date fields.
+* Wired into `make regression` which now stands at **1054 passed,
+  15 skipped** (was 1046).
+
+**Live verification.** Curl returned real trend data —
+`emails_sent` series shows the recent volume surge
+(`[2, 0, 548, 1571, 1875]` last 5 days). Browser screenshot confirms
+all 5 sparklines render with correct per-tile colours. Blog-view
+snapshot for today (`12`) captured on first fetch.
+
+**Quality gates.** `make lint-python` ✅, `make lint-frontend` ✅,
+`make regression` ✅ (112 s).
+
+---
+
+
 ## Iter 220ai — SEO Autopilot UX wins · Phase B (May 27, 2026) ✅
 
 Three high-impact improvements to the daily SEO Autopilot, shipped
