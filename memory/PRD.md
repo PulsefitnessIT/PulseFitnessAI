@@ -1,3 +1,85 @@
+## Iter 220u — Incidents Phase 3 — Repeat detection · Trends · Heatmap · Expanded filters (May 27, 2026) ✅
+
+The Phase 1 + 2 incident system was reactive — record what happened,
+file the paperwork. Phase 3 makes it **proactive**: surface assets
+that are quietly racking up incidents *before* the CAPEX justification
+becomes obvious, show when on the clock incidents cluster, and let
+operators slice the data by date + category.
+
+**Backend — additions to `routes/incidents.py`.**
+
+* `GET /incidents/hse/repeat-detection?window_days=N&threshold=K`
+  — manager-only. Aggregates incidents by `asset_id` over the
+  window, scores each (count × severity-weighted), joins to
+  `db.equipment` for friendly name + existing `capex.status`. Returns
+  the top 50 ranked by severity score then count. Each row carries
+  `capex_already_flagged` so the UI can show "CAPEX flagged" vs
+  "CAPEX recommended" badges.
+* `GET /incidents/hse/heatmap?days=N` — 7×24 grid of incident
+  counts (day-of-week × hour-of-day) plus a parallel
+  `grid_severity_score` for future "where do the *worst* incidents
+  cluster" heat-maps. Returns day labels in Mon→Sun order.
+* `_refresh_asset_incident_flag(asset_id, organization_id)` — pure
+  helper invoked **synchronously** from the incident-create hook.
+  Recomputes the 90-day rollup for the touched asset and writes a
+  tiny `incident_flag` document onto `db.equipment` containing
+  `count_90d`, `severity_score`, `last_incident_at`,
+  `last_incident_ref`, `capex_recommended`, `updated_at`. Means the
+  CAPEX UI sees the flag the moment the 3rd incident lands —
+  no nightly sweep needed.
+* List endpoint extended with three new query params:
+  - `date_from` / `date_to` (ISO date or datetime — filters on
+    `occurred_at` so users can drill into a specific incident week).
+  - `category` (comma-separated for multi-select; validated against
+    the public CATEGORIES enum).
+
+**Frontend — additions to `pages/IncidentsTab.js`.**
+
+* **Trend sparkline** (`TrendSparkline`) — incidents-per-day mini bar
+  chart at the top of the HSE dashboard. Uses the existing `by_day`
+  array from the dashboard endpoint, gradient bars (navy→purple)
+  matching the brand palette.
+* **Risk hot-list panel** — red-tinted card listing assets at the
+  repeat threshold with their count, severity score, and a badge
+  showing whether CAPEX is already flagged or only recommended.
+* **Heatmap** (`Heatmap`) — pure-CSS day-of-week × hour grid,
+  navy→red intensity scale, hover tooltips. Mobile-scrollable via
+  `overflow-x-auto`.
+* **Expanded filters** — date_from / date_to inputs above the
+  existing search box; filter pills + category multi via the
+  CSV-aware backend.
+
+**Headline updated**: the HSE dashboard subtitle now reads
+"`N incidents · M RIDDOR · K fatalities · P asset(s) at
+repeat-incident threshold`" — the last fragment links the operator's
+eye directly to the new hot-list.
+
+**Tests (`tests/test_iter_220s_incidents_riddor.py` → 34 total).**
+
+Six new Phase 3 tests:
+* `hse_heatmap_returns_7x24_grid` — shape + labels invariant.
+* `repeat_detection_returns_rollup` — shape + flagged-list contract.
+* `repeat_detection_flags_asset_after_three_incidents` — creates
+  3 incidents on a fresh asset and verifies they hit the rollup at
+  threshold=3 with the right count + severity score.
+* `list_filters_by_date_range` — `date_from` / `date_to` constrain
+  by `occurred_at`; out-of-range queries don't return in-range rows.
+* `list_filters_by_category_csv` — single + CSV multi-select gates.
+* `equipment_incident_flag_persists_after_third_incident` — direct
+  PyMongo read of `db.equipment[asset_id].incident_flag` after a
+  3-incident sequence; confirms `count_90d ≥ 3`,
+  `capex_recommended=True`, `severity_score` populated.
+
+**End-to-end smoke** confirms the dashboard now reports
+"4 asset(s) at repeat-incident threshold" in the headline (real
+data from the asset-flag tests above), the incidents-per-day
+sparkline renders, and the hot-list + heatmap panels appear below
+the four bar-chart panels.
+
+**Regression.** `make regression` reports **915 passed, 15 skipped**
+(was 909). Lint clean (backend + frontend).
+
+
 ## Iter 220t — Incidents Phase 2 — PDFs · Signatures · Witness workflow · HSE dashboard (May 27, 2026) ✅
 
 Ships the legally-defensible artefacts on top of the Phase 1

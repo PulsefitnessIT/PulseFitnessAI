@@ -422,6 +422,13 @@ async def create_incident(
                "status": incident["status"]},
         request=request,
     )
+    if payload.asset_id:
+        # Phase 3 — repeat-incident detection. Fires synchronously so
+        # the CAPEX flag is visible immediately after a 3rd incident.
+        try:
+            await _refresh_asset_incident_flag(payload.asset_id, org_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[incidents] repeat-flag refresh failed: %s", exc)
     if auto_escalated:
         await _notify_escalation(incident)
     return _strip_internal(incident)
@@ -435,6 +442,9 @@ async def list_incidents(
     riddor: Optional[str] = Query(default=None),
     site: Optional[str] = Query(default=None, description="organization_id"),
     asset_id: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(default=None, description="comma-separated for multi"),
+    date_from: Optional[str] = Query(default=None, description="ISO date / datetime"),
+    date_to: Optional[str] = Query(default=None, description="ISO date / datetime"),
     q: Optional[str] = Query(default=None, max_length=120),
     limit: int = Query(default=100, ge=1, le=500),
     user: dict = Depends(get_current_user),
@@ -452,6 +462,22 @@ async def list_incidents(
         base["asset_id"] = asset_id
     if site and user.get("is_master_admin"):
         base["organization_id"] = site
+    if category:
+        cats = [c.strip() for c in category.split(",") if c.strip() in CATEGORIES]
+        if cats:
+            base["category"] = {"$in": cats}
+    occ_filter: dict = {}
+    for label, key in (("$gte", date_from), ("$lte", date_to)):
+        if key:
+            try:
+                dt = datetime.fromisoformat(key.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                occ_filter[label] = dt
+            except Exception:  # noqa: BLE001
+                pass
+    if occ_filter:
+        base["occurred_at"] = occ_filter
     if q:
         # Mongo regex is fine here — incidents are bounded per-org.
         base["$or"] = [
@@ -1345,6 +1371,171 @@ async def hse_dashboard(days: int = Query(default=30, ge=1, le=365),
     return await _hse_dashboard_aggregates(user, days=days,
                                             include_categories=True,
                                             include_top_assets=True)
+
+
+# ── Phase 3 — Repeat-incident detection · Heatmap · Risk hot-list ──
+
+
+REPEAT_INCIDENT_DEFAULT_WINDOW_DAYS = 90
+REPEAT_INCIDENT_DEFAULT_THRESHOLD = 3
+
+
+async def _repeat_incident_rollup(
+    user: dict,
+    *,
+    window_days: int = REPEAT_INCIDENT_DEFAULT_WINDOW_DAYS,
+    threshold: int = REPEAT_INCIDENT_DEFAULT_THRESHOLD,
+    limit: int = 50,
+) -> list[dict]:
+    """Return assets that crossed the repeat-incident threshold in the
+    last ``window_days``. Joins onto ``db.equipment`` for friendly
+    asset names + ``capex.status`` so the UI can show whether the
+    asset is already flagged for CAPEX or whether *this* roll-up is
+    what would have triggered the flag."""
+    f = await _scope_filter(user)
+    since = _now() - timedelta(days=window_days)
+    f["created_at"] = {"$gte": since}
+    f["asset_id"] = {"$ne": None}
+    rows = await db.incidents.find(
+        f,
+        {"_id": 0, "id": 1, "asset_id": 1, "severity": 1, "created_at": 1,
+         "reference": 1, "kind": 1, "organization_id": 1},
+    ).to_list(5000)
+    by_asset: dict[str, dict] = {}
+    sev_weight = {"minor": 1, "moderate": 2, "serious": 4, "major": 6, "fatal": 10}
+    for r in rows:
+        aid = r["asset_id"]
+        slot = by_asset.setdefault(aid, {
+            "asset_id": aid, "organization_id": r.get("organization_id"),
+            "count": 0, "severity_score": 0,
+            "last_incident_at": None, "last_incident_ref": None,
+            "kinds": {}, "incident_ids": [],
+        })
+        slot["count"] += 1
+        slot["severity_score"] += sev_weight.get(r.get("severity", "minor"), 1)
+        ca = r.get("created_at")
+        if isinstance(ca, datetime) and (
+            slot["last_incident_at"] is None or _aware(ca) > _aware(slot["last_incident_at"])
+        ):
+            slot["last_incident_at"] = ca
+            slot["last_incident_ref"] = r.get("reference")
+        slot["kinds"][r.get("kind", "unknown")] = slot["kinds"].get(r.get("kind", "unknown"), 0) + 1
+        if len(slot["incident_ids"]) < 25:
+            slot["incident_ids"].append(r["id"])
+    flagged = [s for s in by_asset.values() if s["count"] >= threshold]
+    if not flagged:
+        return []
+    asset_ids = [s["asset_id"] for s in flagged]
+    equip = await db.equipment.find(
+        {"id": {"$in": asset_ids}},
+        {"_id": 0, "id": 1, "name": 1, "manufacturer": 1, "model": 1,
+         "location": 1, "capex": 1},
+    ).to_list(500)
+    equip_by_id = {e["id"]: e for e in equip}
+    for s in flagged:
+        e = equip_by_id.get(s["asset_id"]) or {}
+        s["asset_name"] = (
+            e.get("name") or f"{e.get('manufacturer','')} {e.get('model','')}".strip() or s["asset_id"]
+        )
+        s["location"] = e.get("location")
+        s["capex_status"] = (e.get("capex") or {}).get("status")
+        s["capex_already_flagged"] = (e.get("capex") or {}).get("status") in {
+            "replace_now", "replace_soon", "at_risk",
+        }
+    flagged.sort(key=lambda x: (-x["severity_score"], -x["count"]))
+    return flagged[:limit]
+
+
+@router.get("/incidents/hse/repeat-detection")
+async def repeat_detection(
+    window_days: int = Query(default=90, ge=7, le=365),
+    threshold: int = Query(default=3, ge=2, le=20),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    if not _user_can_view_all(user):
+        raise HTTPException(403, "Only managers/H&S leads can read repeat-incident detection")
+    rows = await _repeat_incident_rollup(user, window_days=window_days, threshold=threshold)
+    return {
+        "window_days": window_days,
+        "threshold": threshold,
+        "flagged": rows,
+        "total_flagged": len(rows),
+    }
+
+
+async def _refresh_asset_incident_flag(asset_id: str, organization_id: str) -> dict | None:
+    """Idempotent — recomputes the asset's repeat-incident rollup
+    (90 days, ≥3 threshold) and writes a tiny summary back onto the
+    equipment doc under ``equipment.incident_flag``. Called from the
+    incident-create hook so the CAPEX UI sees the flag the moment
+    the 3rd incident lands."""
+    since = _now() - timedelta(days=REPEAT_INCIDENT_DEFAULT_WINDOW_DAYS)
+    rows = await db.incidents.find(
+        {"asset_id": asset_id, "organization_id": organization_id,
+         "created_at": {"$gte": since}},
+        {"_id": 0, "severity": 1, "created_at": 1, "reference": 1, "id": 1},
+    ).to_list(500)
+    if not rows:
+        await db.equipment.update_one(
+            {"id": asset_id, "organization_id": organization_id},
+            {"$unset": {"incident_flag": ""}},
+        )
+        return None
+    sev_weight = {"minor": 1, "moderate": 2, "serious": 4, "major": 6, "fatal": 10}
+    score = sum(sev_weight.get(r.get("severity", "minor"), 1) for r in rows)
+    last = max(_aware(r["created_at"]) for r in rows if isinstance(r.get("created_at"), datetime))
+    flag = {
+        "count_90d": len(rows),
+        "severity_score": score,
+        "last_incident_at": last,
+        "last_incident_ref": next(
+            (r.get("reference") for r in rows
+             if isinstance(r.get("created_at"), datetime) and _aware(r["created_at"]) == last),
+            None,
+        ),
+        "capex_recommended": len(rows) >= REPEAT_INCIDENT_DEFAULT_THRESHOLD,
+        "updated_at": _now(),
+    }
+    await db.equipment.update_one(
+        {"id": asset_id, "organization_id": organization_id},
+        {"$set": {"incident_flag": flag}},
+    )
+    return flag
+
+
+@router.get("/incidents/hse/heatmap")
+async def hse_heatmap(
+    days: int = Query(default=30, ge=1, le=365),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """7×24 grid of incident counts (day-of-week × hour-of-day). The
+    UI renders this as a heatmap so operators can spot patterns
+    like "Saturday afternoon poolside" without staring at a table."""
+    f = await _scope_filter(user)
+    since = _now() - timedelta(days=days)
+    f["created_at"] = {"$gte": since}
+    rows = await db.incidents.find(
+        f, {"_id": 0, "created_at": 1, "severity": 1},
+    ).to_list(5000)
+    grid = [[0 for _ in range(24)] for _ in range(7)]  # [dow][hour]
+    sev_grid = [[0 for _ in range(24)] for _ in range(7)]
+    sev_weight = {"minor": 1, "moderate": 2, "serious": 4, "major": 6, "fatal": 10}
+    for r in rows:
+        ca = r.get("created_at")
+        if not isinstance(ca, datetime):
+            continue
+        ca = _aware(ca)
+        dow = ca.weekday()  # 0=Mon
+        hour = ca.hour
+        grid[dow][hour] += 1
+        sev_grid[dow][hour] += sev_weight.get(r.get("severity", "minor"), 1)
+    return {
+        "period_days": days,
+        "grid_counts": grid,
+        "grid_severity_score": sev_grid,
+        "day_labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "total": sum(sum(row) for row in grid),
+    }
 
 
 # ── Indexes ──────────────────────────────────────────────────────

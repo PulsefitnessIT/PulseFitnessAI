@@ -66,7 +66,7 @@ export default function IncidentsTab() {
   const [incidents, setIncidents] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ kind: '', severity: '', riddor: '', q: '' });
+  const [filters, setFilters] = useState({ kind: '', severity: '', riddor: '', q: '', date_from: '', date_to: '', category: '' });
   const [showQuickLog, setShowQuickLog] = useState(false);
   const [activeIncidentId, setActiveIncidentId] = useState(null);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -93,6 +93,9 @@ export default function IncidentsTab() {
       if (filters.severity) params.set('severity', filters.severity);
       if (filters.riddor) params.set('riddor', filters.riddor);
       if (filters.q) params.set('q', filters.q);
+      if (filters.date_from) params.set('date_from', filters.date_from);
+      if (filters.date_to) params.set('date_to', filters.date_to);
+      if (filters.category) params.set('category', filters.category);
       params.set('limit', '100');
       const [picksRes, listRes, sumRes] = await Promise.all([
         picklists ? Promise.resolve({ data: picklists }) :
@@ -184,6 +187,10 @@ export default function IncidentsTab() {
               testId={`incident-filter-riddor-${rid}`} />
           ))}
           <div className="ml-auto flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+            <Input type="date" value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
+                   className="h-9 text-xs w-36" data-testid="incident-filter-from" placeholder="From" />
+            <Input type="date" value={filters.date_to} onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
+                   className="h-9 text-xs w-36" data-testid="incident-filter-to" placeholder="To" />
             <Search size={14} className="text-slate-400" />
             <Input
               value={filters.q}
@@ -1036,13 +1043,20 @@ function HseDashboardStrip() {
   const { API } = useAuth();
   const token = useMemo(() => localStorage.getItem('token'), []);
   const [data, setData] = useState(null);
+  const [heatmap, setHeatmap] = useState(null);
+  const [hotlist, setHotlist] = useState(null);
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     setLoading(true);
-    axios.get(`${API}/incidents/hse/dashboard?days=${days}`,
-      { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => setData(r.data))
+    const hdrs = { headers: { Authorization: `Bearer ${token}` } };
+    Promise.all([
+      axios.get(`${API}/incidents/hse/dashboard?days=${days}`, hdrs),
+      axios.get(`${API}/incidents/hse/heatmap?days=${days}`, hdrs),
+      axios.get(`${API}/incidents/hse/repeat-detection?window_days=90&threshold=3`, hdrs)
+        .catch(() => ({ data: { flagged: [], total_flagged: 0 } })),
+    ])
+      .then(([d, h, r]) => { setData(d.data); setHeatmap(h.data); setHotlist(r.data); })
       .catch(() => notify.error('Could not load HSE dashboard'))
       .finally(() => setLoading(false));
   }, [API, token, days]);
@@ -1070,7 +1084,10 @@ function HseDashboardStrip() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-extrabold tracking-tight text-slate-800">HSE dashboard</h3>
-          <p className="text-xs text-slate-500">{data.total} incidents in the last {data.period_days} days · {data.riddor_confirmed} confirmed RIDDOR · {data.fatalities || 0} fatalities</p>
+          <p className="text-xs text-slate-500">
+            {data.total} incidents in the last {data.period_days} days · {data.riddor_confirmed} confirmed RIDDOR · {data.fatalities || 0} fatalities
+            {hotlist?.total_flagged ? <> · <strong className="text-red-700">{hotlist.total_flagged} asset(s) at repeat-incident threshold</strong></> : null}
+          </p>
         </div>
         <div className="flex gap-1">
           {[7, 30, 90, 365].map((d) => (
@@ -1083,7 +1100,11 @@ function HseDashboardStrip() {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      {/* Trend sparkline */}
+      <TrendSparkline points={data.by_day || []} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <div>
           <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">By severity</p>
           <div className="space-y-1.5">
@@ -1113,12 +1134,129 @@ function HseDashboardStrip() {
           <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">Top assets</p>
           {data.top_assets?.length ? (
             <div className="space-y-1.5">
-              {data.top_assets.map((r) => renderBar(r.asset_name || r.asset_id, r.count,
-                Math.max(1, ...data.top_assets.map((x) => x.count)), '#0EA5E9'))}
+              {data.top_assets.map((r) => (
+                <div key={r.asset_id} className="flex items-center gap-2 text-xs">
+                  <span className="w-24 truncate text-slate-600 font-bold uppercase tracking-wider">
+                    {r.asset_name || r.asset_id}
+                  </span>
+                  <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full"
+                         style={{
+                           width: `${(r.count / Math.max(1, ...data.top_assets.map((x) => x.count))) * 100}%`,
+                           background: '#0EA5E9',
+                         }} />
+                  </div>
+                  <span className="w-8 text-right font-mono text-slate-800">{r.count}</span>
+                </div>
+              ))}
             </div>
           ) : <p className="text-xs text-slate-400">No incidents linked to assets in this period.</p>}
         </div>
       </div>
+
+      {/* Risk hot-list */}
+      {hotlist?.flagged?.length ? (
+        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4" data-testid="hse-risk-hotlist">
+          <p className="text-[10px] uppercase tracking-wider font-bold text-red-700 mb-2">
+            Risk hot-list · 3+ incidents in 90 days
+          </p>
+          <div className="space-y-1.5">
+            {hotlist.flagged.slice(0, 8).map((row) => (
+              <div key={row.asset_id} className="flex items-center gap-2 text-xs"
+                   data-testid={`hotlist-row-${row.asset_id}`}>
+                <span className="flex-1 font-bold text-slate-800 truncate">{row.asset_name}</span>
+                <Badge className="bg-red-200 text-red-900 border-0 font-mono text-[10px]">
+                  {row.count} · score {row.severity_score}
+                </Badge>
+                {row.capex_already_flagged ? (
+                  <Badge className="bg-amber-200 text-amber-900 border-0 text-[10px]">CAPEX flagged</Badge>
+                ) : (
+                  <Badge className="bg-blue-200 text-blue-900 border-0 text-[10px]">CAPEX recommended</Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Heatmap */}
+      {heatmap?.total ? (
+        <div className="mt-5" data-testid="hse-heatmap">
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">
+            When do incidents happen? · Day of week × hour
+          </p>
+          <Heatmap heatmap={heatmap} />
+        </div>
+      ) : null}
     </Card>
+  );
+}
+
+
+function TrendSparkline({ points }) {
+  if (!points?.length) return <p className="text-xs text-slate-400">No incidents in this period.</p>;
+  const max = Math.max(1, ...points.map((p) => p.count));
+  return (
+    <div className="rounded-xl bg-slate-50 border border-slate-200 p-3" data-testid="hse-trend">
+      <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2">Incidents per day</p>
+      <div className="flex items-end gap-0.5 h-16">
+        {points.map((p) => (
+          <div key={p.date} className="flex-1 group relative">
+            <div
+              className="bg-gradient-to-t from-blue-600 to-purple-600 rounded-t"
+              style={{ height: `${(p.count / max) * 100}%`, minHeight: p.count > 0 ? '2px' : '0' }}
+              title={`${p.date}: ${p.count}`}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+        <span>{points[0]?.date}</span>
+        <span>{points[points.length - 1]?.date}</span>
+      </div>
+    </div>
+  );
+}
+
+
+function Heatmap({ heatmap }) {
+  const max = Math.max(1, ...heatmap.grid_counts.flat());
+  const color = (v) => {
+    if (!v) return '#F8FAFC';
+    const t = Math.min(1, v / max);
+    // navy → red gradient based on intensity
+    const r = Math.round(29 + (220 - 29) * t);
+    const g = Math.round(78 + (38 - 78) * t);
+    const b = Math.round(216 + (38 - 216) * t);
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+  return (
+    <div className="overflow-x-auto">
+      <table className="text-[9px] border-separate" style={{ borderSpacing: '2px' }}>
+        <thead>
+          <tr>
+            <th />
+            {[...Array(24)].map((_, h) => (
+              <th key={h} className="font-mono text-slate-400 w-5 text-center">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {heatmap.day_labels.map((label, dow) => (
+            <tr key={label}>
+              <td className="pr-1 font-bold uppercase tracking-wider text-slate-500">{label}</td>
+              {heatmap.grid_counts[dow].map((v, h) => (
+                <td key={h}
+                    className="rounded-sm cursor-default"
+                    title={`${label} ${h}:00 — ${v} incident(s)`}
+                    style={{ width: 14, height: 14, background: color(v) }}>
+                  &nbsp;
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

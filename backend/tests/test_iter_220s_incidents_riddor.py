@@ -412,3 +412,114 @@ def test_hse_dashboard_returns_aggregates(master_token):
     assert "by_day" in body and isinstance(body["by_day"], list)
     assert "by_severity" in body
     assert "by_category" in body
+
+
+
+# ── Phase 3 — Repeat-incident detection · Heatmap · Filter expansion ──
+
+
+def test_hse_heatmap_returns_7x24_grid(master_token):
+    r = requests.get(f"{API}/api/incidents/hse/heatmap?days=30",
+                     headers=_hdrs(master_token), timeout=20)
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["grid_counts"]) == 7
+    assert len(body["grid_counts"][0]) == 24
+    assert body["day_labels"] == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    assert isinstance(body["total"], int)
+
+
+def test_repeat_detection_returns_rollup(master_token):
+    r = requests.get(
+        f"{API}/api/incidents/hse/repeat-detection?window_days=90&threshold=2",
+        headers=_hdrs(master_token), timeout=20,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["window_days"] == 90
+    assert body["threshold"] == 2
+    assert isinstance(body["flagged"], list)
+
+
+def test_repeat_detection_flags_asset_after_three_incidents(master_token):
+    asset_id = f"asset-phase3-{uuid.uuid4().hex[:10]}"
+    refs = []
+    for i in range(3):
+        r = requests.post(f"{API}/api/incidents", json={
+            "kind": "accident", "severity": "moderate", "category": "equipment_failure",
+            "description": f"Phase 3 repeat-detection test incident {i+1} on the test asset.",
+            "asset_id": asset_id,
+        }, headers=_hdrs(master_token), timeout=20)
+        assert r.status_code == 200, r.text
+        refs.append(r.json()["reference"])
+    rollup = requests.get(
+        f"{API}/api/incidents/hse/repeat-detection?window_days=90&threshold=3",
+        headers=_hdrs(master_token), timeout=20,
+    ).json()
+    hit = next((row for row in rollup["flagged"] if row["asset_id"] == asset_id), None)
+    assert hit is not None
+    assert hit["count"] == 3
+    assert hit["severity_score"] >= 6
+    assert hit["last_incident_ref"] in refs
+
+
+def test_list_filters_by_date_range(master_token):
+    payload = {
+        "kind": "accident", "severity": "minor", "category": "other",
+        "description": "Date filter test incident text here.",
+        "occurred_at": "2020-01-15T12:00:00Z",
+    }
+    requests.post(f"{API}/api/incidents", json=payload, headers=_hdrs(master_token), timeout=20)
+    r = requests.get(f"{API}/api/incidents?date_from=2020-01-01&date_to=2020-01-31&limit=10",
+                     headers=_hdrs(master_token), timeout=20).json()
+    assert r["count"] >= 1
+    r2 = requests.get(f"{API}/api/incidents?date_from=2019-01-01&date_to=2019-12-31&limit=10",
+                      headers=_hdrs(master_token), timeout=20).json()
+    refs = {row["reference"] for row in r2["incidents"]}
+    in_range_refs = {row["reference"] for row in r["incidents"]}
+    assert not (in_range_refs & refs)
+
+
+def test_list_filters_by_category_csv(master_token):
+    r = requests.get(f"{API}/api/incidents?category=slip_trip_fall&limit=20",
+                     headers=_hdrs(master_token), timeout=20).json()
+    for row in r["incidents"]:
+        assert row["category"] == "slip_trip_fall"
+    r2 = requests.get(f"{API}/api/incidents?category=slip_trip_fall,equipment_failure&limit=50",
+                      headers=_hdrs(master_token), timeout=20).json()
+    for row in r2["incidents"]:
+        assert row["category"] in {"slip_trip_fall", "equipment_failure"}
+
+
+def test_equipment_incident_flag_persists_after_third_incident(master_token):
+    """After 3 incidents on the same asset, the equipment doc should
+    carry an ``incident_flag`` with ``capex_recommended=True``."""
+    import pymongo
+    asset_id = f"asset-flag-{uuid.uuid4().hex[:10]}"
+    r = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "serious", "category": "equipment_failure",
+        "description": "Flag-persistence test incident text - 1.",
+        "asset_id": asset_id,
+    }, headers=_hdrs(master_token), timeout=20).json()
+    org_id = r["organization_id"]
+    mongo_url = os.environ.get("MONGO_URL") or "mongodb://localhost:27017"
+    db_name = os.environ.get("DB_NAME") or "gymaxis_db"
+    client = pymongo.MongoClient(mongo_url)
+    client[db_name]["equipment"].update_one(
+        {"id": asset_id, "organization_id": org_id},
+        {"$set": {"id": asset_id, "organization_id": org_id, "name": "Phase 3 test rig"}},
+        upsert=True,
+    )
+    for i in range(2):
+        requests.post(f"{API}/api/incidents", json={
+            "kind": "accident", "severity": "moderate", "category": "equipment_failure",
+            "description": f"Flag-persistence test incident text - {i+2}.",
+            "asset_id": asset_id,
+        }, headers=_hdrs(master_token), timeout=20)
+    doc = client[db_name]["equipment"].find_one({"id": asset_id, "organization_id": org_id})
+    assert doc is not None
+    flag = doc.get("incident_flag") or {}
+    assert flag.get("count_90d") >= 3
+    assert flag.get("capex_recommended") is True
+    assert flag.get("severity_score", 0) >= 1
+    client.close()
