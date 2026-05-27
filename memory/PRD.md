@@ -17683,3 +17683,51 @@ Two ship-list items in one cut:
 - `frontend/src/pages/PartnerEngineer/PartnerDashboard.js`
   (celebration hero, param-clone fix)
 - `Makefile`
+
+---
+
+## Iter 220w — Quick-Log dialog expansion + filter pill brand fix (May 27, 2026)
+
+### Context
+User feedback (image-driven, two points):
+1. Filter pills on H&S Incidents tab were styled `bg-slate-900` (black),
+   visually disconnected from the brand-blue rest of the dashboard.
+2. The Quick-Log Accident dialog was too thin for accidents — gyms need
+   to capture **who was hurt, who's filling the form, what first aid
+   was given, who witnessed it**. These are legally required for any
+   serious incident report and for downstream RIDDOR submission.
+
+### Implementation
+- `/app/frontend/src/pages/IncidentsTab.js`:
+  - `FilterPill` active state now `bg-blue-600 text-white shadow-sm
+    ring-1 ring-blue-700` (was `bg-slate-900`).
+  - `QuickLogDialog` initialForm extended with:
+    `ip_name`, `ip_role`, `ip_contact`, `first_aid_given`,
+    `first_aider_name`, `hospital_treatment`,
+    `emergency_services_called`, `witness_name`, `witness_contact`,
+    `immediate_action_taken`.
+  - New "INJURED PARTY, FIRST AID & WITNESSES" collapsible section
+    that auto-expands for `kind ∈ {accident, dangerous_occurrence}`
+    (collapsed for hazard/near-miss so the 30-sec mobile flow stays
+    fast).
+  - On submit, payload now bundles `injured_party`, `witnesses[]`,
+    `first_aid_given`, `first_aider_name`, `hospital_treatment`,
+    `emergency_services_called`, `immediate_action_taken` — the
+    backend `routes/incidents.py:POST /api/incidents` already
+    persists these structured fields.
+
+### Verification (May 27, 2026)
+- `make regression` → **919 passed, 15 skipped**. Zero regressions.
+- `mcp_lint_javascript` on IncidentsTab.js → no issues.
+- Playwright UI smoke (Craig manager, `/dashboard` → Reports → H&S
+  Incidents → Log incident):
+  - Dialog renders with all 11 new testids present
+    (`incident-form-ip-name`, `-ip-role`, `-ip-contact`,
+    `-first-aid`, `-hospital`, `-emergency`,
+    `-immediate-action`, `-witness-name`,
+    `-witness-contact`, `-toggle-details`,
+    `incident-quick-log-dialog`).
+  - Filter pills render brand blue when active (no more `bg-slate-900`).
+
+### Files changed
+- `frontend/src/pages/IncidentsTab.js`
