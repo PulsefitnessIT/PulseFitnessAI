@@ -293,6 +293,116 @@ def _alternatives_block(alternatives: list[dict]) -> str:
     )
 
 
+# ── 7. Welcome-back digest (iter 220r) ─────────────────────────────
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'s' if n != 1 else ''}"
+
+
+def _welcome_back_subject(open_cases: int) -> str:
+    """Iter 220r — subject line varies with workload so the digest
+    doesn't look like a generic mass-send. An engineer with a queue
+    of waiting jobs needs a louder cue than a quiet inbox."""
+    if open_cases <= 0:
+        return "Welcome back — your GymAxis queue is clear"
+    return f"Welcome back — {_plural(open_cases, 'job')} waiting"
+
+
+async def send_welcome_back_digest(
+    *,
+    email: str,
+    full_name: str,
+    leave_note: str | None,
+    days_away: int | None,
+    my_gyms_open_count: int,
+    my_gyms_overdue_count: int,
+    compliance_warnings: list[str] | None,
+    dashboard_url: str | None = None,
+) -> bool:
+    """Iter 220r — fired once when an engineer's `resumes_on` date
+    arrives. Sends a single welcome-back digest with:
+
+    * a friendly hello (no marketing fluff)
+    * how many open fault cases are waiting in their referred-gym
+      queue (sourced from `db.supplier_cases`, iter 220p semantics)
+    * how many of those are already overdue
+    * any compliance items that expired / expire soon
+    * a single CTA → partner-engineer dashboard
+
+    All inputs are pre-validated by the caller. Failures are caught
+    upstream so this never blocks the sweep.
+    """
+    if not email:
+        return False
+    first = (full_name or "").strip().split(" ")[0] or "there"
+    away_phrase = (
+        f"You've been away for <strong>{days_away} days</strong> — "
+        if days_away and days_away >= 1
+        else "You're back — "
+    )
+    if my_gyms_open_count <= 0:
+        workload_block = (
+            f"<p>{away_phrase}your GymAxis queue is clear right now. "
+            f"Nothing urgent waiting from your referred gyms — a clean slate.</p>"
+        )
+    else:
+        overdue_phrase = (
+            f' (<span style="color:#B91C1C;font-weight:700;">'
+            f"{_plural(my_gyms_overdue_count, 'overdue')}</span>)"
+            if my_gyms_overdue_count > 0 else ""
+        )
+        workload_block = (
+            f"<p>{away_phrase}while you were out, "
+            f"<strong>{_plural(my_gyms_open_count, 'job')}</strong> "
+            f"queued up from your referred gyms{overdue_phrase}.</p>"
+        )
+
+    compliance_block = ""
+    if compliance_warnings:
+        items = "".join(
+            f'<li style="margin:4px 0;">{line}</li>' for line in compliance_warnings
+        )
+        compliance_block = (
+            f'<p style="background:#FEF3C7;border-left:3px solid #F59E0B;'
+            f'padding:12px 14px;border-radius:6px;font-size:13px;color:#78350F;'
+            f'margin-top:14px;">'
+            f"<strong>Compliance to handle this week:</strong>"
+            f'<ul style="margin:6px 0 0;padding-left:18px;">{items}</ul>'
+            f"</p>"
+        )
+
+    note_block = ""
+    if leave_note:
+        # Echo the note back so the engineer knows we kept track —
+        # tiny detail, real "we noticed" energy.
+        note_block = (
+            f'<p style="font-size:13px;color:#475569;margin-top:14px;">'
+            f'You left a note before going off: <em>"{leave_note}"</em>.</p>'
+        )
+
+    body = (
+        f"<p>Hi {first},</p>"
+        f"{workload_block}"
+        f"{compliance_block}"
+        f"{note_block}"
+        f'<p style="margin-top:18px;font-size:13px;color:#475569;">'
+        f"You're now marked <strong>available</strong> on GymAxis again — "
+        f"new contact requests will route to you straight away."
+        f"</p>"
+    )
+    return await send_email(
+        to=email,
+        subject=_welcome_back_subject(my_gyms_open_count),
+        html=_wrap(
+            f"Welcome back, {first}.",
+            body,
+            cta_label="Open your dashboard",
+            cta_url=dashboard_url or _partner_dashboard_url(),
+        ),
+    )
+
+
 async def send_engineer_unavailable_autoreply(
     *,
     to_email: str,

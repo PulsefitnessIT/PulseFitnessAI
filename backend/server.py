@@ -893,6 +893,18 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"reputation reports loop start failed: {e}")
 
+    # Iter 220r — Return-day welcome-back digest. Fires once per leave
+    # when an engineer's `availability.resumes_on` arrives, summarising
+    # the queue + compliance state and auto-flipping availability back
+    # to "available". Daily cadence is plenty — sweep is idempotent
+    # (keyed on the resumes_on ISO date) so re-runs are no-ops.
+    try:
+        from utils.partner_return_digest import run_forever as _welcome_back_loop
+        asyncio.create_task(_welcome_back_loop(24))
+        logger.info("[welcome-back] digest loop started (24h)")
+    except Exception as e:
+        logger.error(f"welcome-back digest loop start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:

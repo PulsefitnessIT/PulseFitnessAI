@@ -1,3 +1,74 @@
+## Iter 220r — Return-day welcome-back digest (May 27, 2026) ✅ user-requested
+
+When a partner engineer's `availability.resumes_on` date arrives, the
+platform now auto-flips their status back to `available` AND fires a
+single tailored welcome-back digest email that catches them up on
+what's waiting. Closes the "ghost-return" gap where engineers came
+back from leave but our gym-routing / queue UI didn't notice.
+
+**Backend — `utils/partner_return_digest.py`.**
+
+* Daily sweep (`sweep_once()`) driven by `run_forever(24)`, wired
+  into server startup alongside the existing `partner_compliance`
+  and `reputation_reports` loops.
+* Query: `partner_engineers` where `status=approved`,
+  `availability.status='unavailable'` and `availability.resumes_on`
+  is on/before today. Pulls 2000 rows worst case — fine for a daily
+  job, and the partial index on `status` already exists.
+* For each partner: counts open `supplier_cases` rows by
+  `supplier_email` + `status ∈ OPEN_CASE_STATUSES` (same open-set as
+  the iter 220p `/queue/my-gyms` endpoint, so the email matches what
+  the engineer sees on the dashboard). Also counts overdue cases
+  (`due_at` / `promised_by` in the past).
+* Collects compliance heads-ups: any of `insurance_expires_at`,
+  `qualifications_expires_at`, or nested `compliance_docs[dbs|rtw|
+  safeguarding|public_liability].expires_at` due in the next 30 days
+  (or already expired) becomes a friendly bullet in the email.
+* `days_away` derived from `availability.updated_at` so the copy
+  reads "You've been away for 14 days —" instead of generic
+  "You're back." Falls back gracefully when the field is missing.
+* **Auto-resume.** After sending, persists
+  `availability.status = 'available'`, clears `resumes_on` + `note`,
+  and stamps `availability.welcome_back_fired_on = <resumes_on iso>`.
+  The marker is the *triggering ISO date* (not "today") so taking
+  another leave with a fresh `resumes_on` will fire again, but
+  re-running the sweep for the same leave is a strict no-op.
+* **Robustness.** Engineers with no email on file still get their
+  availability flipped (so the sweep doesn't loop forever) — they
+  just don't receive the digest. All exceptions during email send
+  are logged and swallowed so a Resend outage can't crash the loop.
+
+**Email template — `utils/partner_emails.send_welcome_back_digest`.**
+
+* Subject varies with workload — "your GymAxis queue is clear" when
+  open=0 vs. "3 jobs waiting" when there's real work, so the digest
+  doesn't read like generic spam.
+* Body sections (all conditional):
+  - Welcome headline with first name + days-away phrase.
+  - Workload paragraph with **N jobs** + (M overdue) in red when
+    applicable; "clean slate" copy when 0.
+  - Compliance warning block (amber bar) listing each item with
+    its expiry phrasing ("expired on 12 Feb", "expires in 5 day(s)").
+  - Echoed leave-note (`"You left a note before going off: …"`) so
+    the engineer feels heard.
+  - Status footer: "You're now marked **available** on GymAxis again
+    — new contact requests will route to you straight away."
+  - Single navy CTA → partner-engineer dashboard.
+
+**Tests — `tests/test_iter_220r_welcome_back_digest.py` (9 tests, all green).**
+
+* Fires on return-day; passes the right open / overdue counts.
+* Fires for an overdue `resumes_on` (engineer forgot to toggle back).
+* Idempotency — won't double-fire for the same `resumes_on`.
+* Skips future-dated and available partners.
+* Surfaces both legacy and nested compliance warnings.
+* Missing-email path: no send, but availability still auto-resumes.
+* Email template smoke-tests: full-workload and quiet-inbox branches.
+
+**Regression.** `make regression` now reports **872 passed, 15 skipped**
+(up from 863), confirming no other module regressed.
+
+
 ## Iter 220q — Master Admin "Attribution" dashboard view (May 27, 2026) ✅ VERIFIED
 
 Closed out the iter 220q feature by validating that the
