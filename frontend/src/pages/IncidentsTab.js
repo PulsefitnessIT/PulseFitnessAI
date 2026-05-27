@@ -270,7 +270,7 @@ function FilterPill({ label, active, onClick, testId }) {
       data-testid={testId}
       className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
         active
-          ? 'bg-slate-900 text-white'
+          ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-700'
           : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
       }`}
     >
@@ -313,26 +313,67 @@ function IncidentRow({ incident, onOpen }) {
 function QuickLogDialog({ open, onClose, picklists, onCreated }) {
   const { API } = useAuth();
   const token = useMemo(() => localStorage.getItem('token'), []);
-  const [form, setForm] = useState({
+  const initialForm = {
     kind: 'accident', severity: 'minor', category: 'other', description: '',
-    location_area: '', first_aid_given: false, hospital_treatment: false,
-  });
+    location_area: '',
+    // Iter 220w — injured party block
+    ip_name: '', ip_role: 'member', ip_contact: '',
+    // First aid + emergency response
+    first_aid_given: false, first_aider_name: '',
+    hospital_treatment: false, emergency_services_called: false,
+    // Witness (single — managers can invite more via the detail dialog)
+    witness_name: '', witness_contact: '',
+    immediate_action_taken: '',
+  };
+  const [form, setForm] = useState(initialForm);
   const [saving, setSaving] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  // Accident / dangerous_occurrence default to expanded details (legal +
+  // duty-of-care reasons). Hazard / near-miss stay collapsed so the
+  // 30-second mobile flow still works.
+  useEffect(() => {
+    if (open) {
+      setShowDetails(form.kind === 'accident' || form.kind === 'dangerous_occurrence');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form.kind]);
 
   const submit = async () => {
     if ((form.description || '').trim().length < 10) {
       notify.error('Describe the incident in at least 10 characters');
       return;
     }
+    const payload = {
+      kind: form.kind, severity: form.severity, category: form.category,
+      description: form.description.trim(),
+      location_area: form.location_area || null,
+      immediate_action_taken: form.immediate_action_taken || null,
+      first_aid_given: form.first_aid_given || null,
+      first_aider_name: form.first_aider_name || null,
+      hospital_treatment: form.hospital_treatment || null,
+      emergency_services_called: form.emergency_services_called || null,
+    };
+    if (form.ip_name || form.ip_role || form.ip_contact) {
+      payload.injured_party = {
+        name: form.ip_name || null,
+        role: form.ip_role || null,
+        contact: form.ip_contact || null,
+      };
+    }
+    if (form.witness_name) {
+      payload.witnesses = [{
+        name: form.witness_name,
+        contact: form.witness_contact || null,
+      }];
+    }
     setSaving(true);
     try {
-      const res = await axios.post(`${API}/incidents`, form, {
+      const res = await axios.post(`${API}/incidents`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
       notify.success(`Incident ${res.data.reference} logged`);
       onCreated(res.data);
-      setForm({ kind: 'accident', severity: 'minor', category: 'other', description: '',
-        location_area: '', first_aid_given: false, hospital_treatment: false });
+      setForm(initialForm);
     } catch (e) {
       notify.error(e.response?.data?.detail || 'Failed to log incident');
     } finally {
@@ -341,13 +382,19 @@ function QuickLogDialog({ open, onClose, picklists, onCreated }) {
   };
 
   if (!picklists) return null;
+  const needsInjuredParty = form.kind === 'accident' || form.kind === 'dangerous_occurrence';
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="incident-quick-log-dialog">
+      <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto" data-testid="incident-quick-log-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Plus size={16} /> Log incident</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {/* Reporter callout — auth context already captures it server-side. */}
+          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-900">
+            You're filing this report. Your name, role, and timestamp are captured in the audit trail automatically.
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-bold uppercase tracking-wider">Kind</Label>
@@ -399,6 +446,99 @@ function QuickLogDialog({ open, onClose, picklists, onCreated }) {
               data-testid="incident-form-location"
             />
           </div>
+
+          {/* Details collapse: shown automatically for accidents */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              className="w-full text-left text-xs font-bold uppercase tracking-wider text-blue-700 hover:underline flex items-center justify-between"
+              data-testid="incident-form-toggle-details"
+            >
+              <span>{needsInjuredParty ? 'Injured party, first aid & witnesses' : 'Optional details'}</span>
+              <span className="text-slate-400">{showDetails ? '−' : '+'}</span>
+            </button>
+            {showDetails ? (
+              <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                {/* Injured party */}
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">Injured party</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input value={form.ip_name} onChange={(e) => setForm({ ...form, ip_name: e.target.value })}
+                           placeholder="Full name" data-testid="incident-form-ip-name" />
+                    <Select value={form.ip_role} onValueChange={(v) => setForm({ ...form, ip_role: v })}>
+                      <SelectTrigger data-testid="incident-form-ip-role"><SelectValue placeholder="Role" /></SelectTrigger>
+                      <SelectContent>
+                        {(picklists.injured_roles || []).map((r) => (
+                          <SelectItem key={r} value={r}>{titleCase(r)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Input
+                    className="mt-2"
+                    value={form.ip_contact}
+                    onChange={(e) => setForm({ ...form, ip_contact: e.target.value })}
+                    placeholder="Phone or email (for follow-up)"
+                    data-testid="incident-form-ip-contact"
+                  />
+                </div>
+
+                {/* First aid + emergency response */}
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Response</p>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={form.first_aid_given}
+                           onChange={(e) => setForm({ ...form, first_aid_given: e.target.checked })}
+                           data-testid="incident-form-first-aid" />
+                    First aid given
+                  </label>
+                  {form.first_aid_given ? (
+                    <Input value={form.first_aider_name}
+                           onChange={(e) => setForm({ ...form, first_aider_name: e.target.value })}
+                           placeholder="First aider's name"
+                           data-testid="incident-form-first-aider-name" />
+                  ) : null}
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={form.hospital_treatment}
+                           onChange={(e) => setForm({ ...form, hospital_treatment: e.target.checked })}
+                           data-testid="incident-form-hospital" />
+                    Taken to hospital for treatment
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={form.emergency_services_called}
+                           onChange={(e) => setForm({ ...form, emergency_services_called: e.target.checked })}
+                           data-testid="incident-form-emergency" />
+                    Emergency services attended
+                  </label>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider">Immediate action taken</Label>
+                  <Textarea rows={2} value={form.immediate_action_taken}
+                            onChange={(e) => setForm({ ...form, immediate_action_taken: e.target.value })}
+                            placeholder="What was done on the spot? E.g. wet floor sign placed, machine isolated, area cordoned off."
+                            data-testid="incident-form-immediate-action" />
+                </div>
+
+                {/* Single witness fast-capture — invite more from the detail dialog */}
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">Witness (you can invite more later)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input value={form.witness_name}
+                           onChange={(e) => setForm({ ...form, witness_name: e.target.value })}
+                           placeholder="Witness name"
+                           data-testid="incident-form-witness-name" />
+                    <Input value={form.witness_contact}
+                           onChange={(e) => setForm({ ...form, witness_contact: e.target.value })}
+                           placeholder="Phone or email"
+                           data-testid="incident-form-witness-contact" />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button
@@ -1168,7 +1308,7 @@ function HseDashboardStrip() {
           {[7, 30, 90, 365].map((d) => (
             <button key={d} type="button"
                     onClick={() => setDays(d)}
-                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${days === d ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${days === d ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                     data-testid={`hse-period-${d}`}>
               {d}d
             </button>
