@@ -17981,3 +17981,35 @@ Yes — and turned it into a major acquisition lever for the platform.
 - ``frontend/src/routes/AppRoutes.js`` (lazy route)
 - ``frontend/src/pages/PartnerEngineer/PartnerDashboard.js`` (mount card)
 - ``Makefile`` (regression target)
+
+---
+
+## Iter 220ab — Website Embed tab on CRM Settings (May 27, 2026)
+
+### Context
+Quick follow-up to Iter 220aa. The widget engine already supports
+both partner_engineer AND organization owner flavours, but only the
+engineer side had a UI surface (Partner Dashboard). Gym owners need
+the snippet builder too, so they can drop a "Get a Quote" iframe on
+their company marketing site.
+
+### Implementation
+- ``pages/CRM/CRMSettings.js``:
+  - Added a new sidebar tab "Website Embed" (Code icon) between
+    Security and Sage 200.
+  - Rendered ``<WidgetEmbedCard ownerType="organization" />`` in the
+    content pane.
+
+### Verification (May 27, 2026)
+- Master admin opens CRM → Settings (toolbar gear) → "Website Embed".
+- Empty state renders cleanly with the dashed placeholder.
+- Clicking "New embed" creates an organization-owned widget — the
+  same backend endpoint that engineers use, but with
+  ``owner_type=organization`` selected by the
+  ``_resolve_owner_context`` helper.
+- Snippet builder shows the iframe HTML with the live preview URL
+  and Preview / Revoke actions.
+- ``mcp_lint_javascript`` clean.
+
+### Files changed
+- ``frontend/src/pages/CRM/CRMSettings.js`` (sidebar tab + section)

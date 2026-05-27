@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Upload, FileSpreadsheet, Shield, Clock, User, ChevronRight, Loader2,
-  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package
+  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package, Code
 } from 'lucide-react';
 import axios from 'axios';
 import CRMPermissions from './CRMPermissions';
 import CRMPicklistsSection from './CRMPicklistsSection';
 import CRMProductsSection from './CRMProductsSection';
+// Iter 220ab — Embeddable "Get a Quote" widget snippet builder
+import WidgetEmbedCard from '@/components/shared/WidgetEmbedCard';
 
 const ROLE_COLORS = { owner: 'var(--color-accent-amber)', admin: 'var(--color-danger-alt)', manager: 'var(--color-info-ios)', sales_rep: 'var(--color-success-alt)' };
 
@@ -467,6 +469,8 @@ export default function CRMSettings() {
     { id: 'picklists', label: 'Picklists', icon: Edit2 },
     { id: 'products', label: 'Price List', icon: Package },
     { id: 'security', label: 'Security', icon: Lock },
+    // Iter 220ab — Embed "Get a Quote" widget on the company website
+    { id: 'embed', label: 'Website Embed', icon: Code },
     { id: 'sage200', label: 'Sage 200', icon: Link2 },
     { id: 'audit', label: 'Audit Log', icon: Shield },
   ];
@@ -620,6 +624,16 @@ export default function CRMSettings() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Website Embed — Iter 220ab. Lets gym owners drop a
+              "Get a Quote" iframe on their marketing site so enquiries
+              land directly in their CRM as leads. Uses the same widget
+              engine as the Partner Engineer "Log a Fault" form. */}
+          {activeSection === 'embed' && (
+            <div data-testid="settings-embed">
+              <WidgetEmbedCard ownerType="organization" />
             </div>
           )}
 
