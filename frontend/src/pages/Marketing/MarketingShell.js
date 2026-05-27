@@ -175,6 +175,7 @@ export function MarketingFooter() {
           <ul className="space-y-2 text-sm text-slate-600">
             <li><Link to="/pricing" className="hover:text-slate-900 dark:text-zinc-100">Pricing</Link></li>
             <li><Link to="/security" className="hover:text-slate-900 dark:text-zinc-100">Security</Link></li>
+            <li><Link to="/demo-request" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-demo">Book a demo</Link></li>
             <li><Link to="/contact" className="hover:text-slate-900 dark:text-zinc-100">Contact</Link></li>
           </ul>
         </div>

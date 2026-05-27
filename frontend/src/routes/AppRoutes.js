@@ -36,6 +36,7 @@ import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import EngineerOfflineIndicator from '@/components/engineer/EngineerOfflineIndicator';
 
 // Lazy-loaded authenticated app + secondary marketing pages.
+const DemoRequestPage = lazy(() => import('@/pages/DemoRequestPage'));
 const FeaturesPage = lazy(() => import('@/pages/FeaturesPage'));
 const PricingPage = lazy(() => import('@/pages/PricingPage'));
 const AboutPage = lazy(() => import('@/pages/AboutPage'));
@@ -278,6 +279,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/legacy-pricing" element={<PricingPage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/contact" element={<ContactMarketingPage />} />
+      <Route path="/demo-request" element={<DemoRequestPage />} />
       <Route path="/legacy-contact" element={<ContactPage />} />
       {/* Iter 216h280 — renamed from `/api-docs` (which Kubernetes
           ingress routes to the backend due to the `/api*` prefix

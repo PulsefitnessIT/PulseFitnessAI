@@ -189,6 +189,38 @@ async def growth_overview(user: dict = Depends(get_current_user)) -> dict:
 __all__ = ["router", "JOURNEY_TEMPLATES"]
 
 
+# ── Iter 220ak — Growth Hub alerts feed ──────────────────────────
+#
+# Backed by the ``growth_alerts`` collection that the public demo-
+# request endpoint writes into on every inbound. Surfaced at the top
+# of the Growth Hub so the master admin sees new prospects without
+# leaving the dashboard.
+
+
+@router.get("/master-admin/growth/alerts")
+async def list_growth_alerts(user: dict = Depends(get_current_user)) -> dict:
+    require_master_admin(user)
+    org_id = await _master_admin_org_id()
+    rows = await db.growth_alerts.find(
+        {"organization_id": org_id}, {"_id": 0},
+    ).sort("created_at", -1).limit(25).to_list(25)
+    unread = await db.growth_alerts.count_documents(
+        {"organization_id": org_id, "read": False},
+    )
+    return {"alerts": rows, "unread": unread}
+
+
+@router.post("/master-admin/growth/alerts/mark-read")
+async def mark_growth_alerts_read(user: dict = Depends(get_current_user)) -> dict:
+    require_master_admin(user)
+    org_id = await _master_admin_org_id()
+    result = await db.growth_alerts.update_many(
+        {"organization_id": org_id, "read": False},
+        {"$set": {"read": True, "read_at": _now_iso()}},
+    )
+    return {"ok": True, "marked": int(getattr(result, "modified_count", 0) or 0)}
+
+
 # ── Iter 220aj — 30-day sparklines for Growth Hub KPI tiles ──────
 #
 # Each metric returns a list of 30 ``{date, value}`` points (chrono

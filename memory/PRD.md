@@ -1,3 +1,85 @@
+## Iter 220ak — Public Demo Request landing + inbound feed (May 27, 2026) ✅
+
+Closes the inbound funnel loop: SEO Autopilot publishes blog →
+visitor lands → `/demo-request` form → CRM lead + alert + journey
+enrolment. Without this, the SEO traffic dead-ended at "read article".
+
+**Backend — new `routes/public_demo_request.py`.**
+
+* `POST /api/public/demo-request` (no auth) — single endpoint that:
+    - Validates name (regex-checked, rejects all-numeric / symbol-
+      only), work email, company, site_count (1–999), message
+      (≤2000 chars).
+    - **Honeypot**: if the hidden `website` field is populated, returns
+      `{ok:true, queued:true, receipt_id: <fake-uuid>}` and writes
+      **nothing** — bots can't detect the rejection.
+    - **Rate-limit**: 5 submits / IP / hour using a dedicated
+      `demo-request:<ip>` key (isolated from the global per-IP
+      buckets).
+    - Inserts a contact (`crm_contacts`, tagged `inbound-demo-request`,
+      lead score 50), a deal in stage `lead` (`crm_deals`, source
+      tagged), an activity row (`crm_activities` type
+      `demo_requested`), and a Growth Hub alert (`growth_alerts`).
+    - Auto-enrols the contact into the `cold-to-demo` B2B journey
+      (Iter 220ah) if launched. Enrolment failure is logged but
+      non-fatal — never blocks lead capture.
+    - Sends an email notification to the sales inbox (best-effort).
+    - Returns a stable receipt id (the deal id) for the SPA to show.
+* UTM passthrough (`utm_source`, `utm_medium`, `utm_campaign`)
+  captured into the contact row for attribution.
+
+**Growth Hub alerts — `routes/master_admin_growth_hub.py`.**
+
+* `GET /api/master-admin/growth/alerts` — last 25 alerts + `unread`
+  counter.
+* `POST /api/master-admin/growth/alerts/mark-read` — bulk clears the
+  unread badge.
+
+**Frontend — new `pages/DemoRequestPage.js`.**
+
+* Public route `/demo-request` — two-column hero (social-proof bullets
+  left, form right) with brand gradient. Hidden honeypot field, UTM
+  capture from query params, inline validation. Success state shows
+  the receipt id + return-to-site CTA.
+* Marketing footer (`MarketingShell.js`) gets a new "Book a demo" link.
+
+**Growth Hub UI — `pages/MasterAdmin/GymAxisGrowthHub.js`.**
+
+* New amber **"New inbound demo requests"** banner with unread pill,
+  per-alert bell rows ("New demo request · Company"), per-row
+  "Open deal" deep-link to the CRM, and "Mark all read" bulk button.
+  Hidden when there are no alerts.
+
+**Tests — `tests/test_iter_220ak_public_demo_request.py`.** 11 new
+isolated unit tests:
+  * Honeypot rejects + returns fake receipt + zero writes.
+  * Happy path writes contact + deal + activity + alert + enrolment.
+  * Skip enrolment when journey not launched.
+  * 422 for all-numeric / symbol-only names.
+  * 429 after 5 same-IP submits within the window.
+  * Growth alerts list — master-admin gating, payload shape.
+  * Mark-read — master-admin gating, $set write shape.
+  * Name splitter handles single-word + multi-space cases.
+  * Router exposes `/public/demo-request`.
+
+* Wired into `make regression` which now stands at **1065 passed,
+  15 skipped** (was 1054).
+
+**Live verification.** Two POSTs to the preview endpoint:
+  * Real submit → `{ok:true, queued:false, receipt_id:<uuid>}`. CRM
+    deal + alert visible in the Hub. Pipeline £ tile flipped to
+    "1 new in 30d".
+  * Honeypot submit → `{ok:true, queued:true}`, zero DB writes.
+  * Growth alerts endpoint returns `unread: 1` with the new row.
+  * Browser screenshot: Hub banner rendering with the amber unread
+    pill and the deal deep-link.
+
+**Quality gates.** `make lint-python` ✅, `make lint-frontend` ✅,
+`make regression` ✅ (100 s).
+
+---
+
+
 ## Iter 220aj — Growth Hub 30-day sparklines (May 27, 2026) ✅
 
 Every KPI tile on the GymAxis Growth Hub now carries an inline

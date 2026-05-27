@@ -26,7 +26,7 @@ import axios from 'axios';
 import {
   Rocket, Loader2, ArrowRight, Sparkles, BookOpen, Mail,
   TrendingUp, MessageSquare, Users, Workflow, RefreshCw, Building2,
-  Check, RotateCcw, Send,
+  Check, RotateCcw, Send, Bell, Inbox,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -245,6 +245,8 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
   const [templatesErr, setTemplatesErr] = useState(null);
   // Iter 220aj — 30-day sparklines per KPI tile.
   const [spark, setSpark] = useState(null);
+  // Iter 220ak — inbound demo-request alerts feed.
+  const [alerts, setAlerts] = useState({ rows: [], unread: 0 });
 
   const load = useCallback(async () => {
     setBusy(true); setErr(null);
@@ -267,6 +269,25 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
     }
   }, []);
 
+  const loadAlerts = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/api/master-admin/growth/alerts`, { headers: auth() });
+      setAlerts({
+        rows: r.data?.alerts || [],
+        unread: Number(r.data?.unread || 0),
+      });
+    } catch (_e) {
+      setAlerts({ rows: [], unread: 0 });
+    }
+  }, []);
+
+  const markAlertsRead = async () => {
+    try {
+      await axios.post(`${API}/api/master-admin/growth/alerts/mark-read`, {}, { headers: auth() });
+      await loadAlerts();
+    } catch (_e) { /* silent */ }
+  };
+
   const loadTemplates = useCallback(async () => {
     setTemplatesErr(null);
     try {
@@ -280,7 +301,7 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
     }
   }, []);
 
-  useEffect(() => { load(); loadTemplates(); loadSparklines(); }, [load, loadTemplates, loadSparklines]);
+  useEffect(() => { load(); loadTemplates(); loadSparklines(); loadAlerts(); }, [load, loadTemplates, loadSparklines, loadAlerts]);
 
   // Best-effort: change section in the parent MasterAdminPage. Falls
   // back to a soft hash navigation if the prop isn't wired (e.g. when
@@ -342,6 +363,66 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
           Refresh
         </button>
       </header>
+
+      {/* Iter 220ak — inbound demo-request alerts. Rendered only when
+          there's at least one row; mark-read clears the unread badge. */}
+      {alerts.rows.length ? (
+        <section
+          className="rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 px-5 py-4"
+          data-testid="growth-hub-alerts"
+        >
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="shrink-0 w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center">
+              <Inbox size={15}/>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-extrabold tracking-tight inline-flex items-center gap-2">
+                New inbound demo requests
+                {alerts.unread ? (
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-600 text-white"
+                    data-testid="growth-hub-alerts-unread"
+                  >
+                    {alerts.unread} unread
+                  </span>
+                ) : null}
+              </p>
+              <p className="text-[12px] text-zinc-600 dark:text-zinc-300">
+                From the public <code>/demo-request</code> landing page · auto-enrolled
+                into the cold-to-demo journey.
+              </p>
+            </div>
+            {alerts.unread ? (
+              <button
+                type="button" onClick={markAlertsRead}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-amber-200 text-amber-800 hover:bg-amber-100"
+                data-testid="growth-hub-alerts-mark-read"
+              >
+                <Check size={11}/> Mark all read
+              </button>
+            ) : null}
+          </div>
+          <ul className="mt-3 divide-y divide-amber-200/60 dark:divide-amber-900/60" data-testid="growth-hub-alerts-list">
+            {alerts.rows.slice(0, 5).map((a) => (
+              <li key={a.id} className="py-2 flex items-center gap-3" data-testid={`growth-hub-alert-${a.id}`}>
+                <Bell size={12} className={`shrink-0 ${a.read ? 'text-zinc-400' : 'text-amber-600'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate">{a.title}</p>
+                  <p className="text-[11px] text-zinc-500">{a.summary}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => jump('crm-deals')}
+                  className="text-[11px] font-bold text-fuchsia-700 hover:text-fuchsia-900 inline-flex items-center gap-0.5"
+                  data-testid={`growth-hub-alert-${a.id}-open`}
+                >
+                  Open deal <ArrowRight size={10}/>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* Top KPI band */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3" data-testid="growth-hub-kpis">
