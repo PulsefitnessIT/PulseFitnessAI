@@ -33,6 +33,10 @@ DEFAULT_PREFS: dict[str, Any] = {
         "warranty_expiring": True,
         "ppm_overdue": True,
         "supplier_sla_drift": True,
+        # Iter 220x — Health & Safety incidents (RIDDOR-grade accidents,
+        # dangerous occurrences, and any incident escalated to "serious+").
+        # ON by default — managers always want visibility on safety items.
+        "health_safety_incidents": True,
     },
     "teams_enabled": False,
     "teams_webhook_url": "",
@@ -135,17 +139,76 @@ async def build_digest_payload(user: dict, prefs: dict) -> Optional[dict]:
     org_id = user.get("organization_id")
     if not org_id:
         return None
-    enabled_types = [f"nudge.{k}" for k, v in prefs["channels"].items() if v]
-    if not enabled_types:
+    channels = prefs.get("channels") or {}
+    enabled_types = [f"nudge.{k}" for k, v in channels.items()
+                     if v and k != "health_safety_incidents"]
+    hs_enabled = bool(channels.get("health_safety_incidents"))
+    if not enabled_types and not hs_enabled:
         return None
-    cursor = db.trust_events.find(
-        {"org_id": org_id, "type": {"$in": enabled_types}, "state": "open"},
-        {"_id": 0, "id": 1, "type": 1, "severity": 1, "summary": 1,
-         "customer_safe_message": 1, "payload": 1},
-    ).sort("severity", -1)
-    items = await cursor.to_list(50)
+
+    items: list[dict] = []
+
+    # Nudges (warranty / PPM / supplier drift)
+    if enabled_types:
+        cursor = db.trust_events.find(
+            {"org_id": org_id, "type": {"$in": enabled_types}, "state": "open"},
+            {"_id": 0, "id": 1, "type": 1, "severity": 1, "summary": 1,
+             "customer_safe_message": 1, "payload": 1},
+        ).sort("severity", -1)
+        items.extend(await cursor.to_list(50))
+
+    # Health & Safety incidents (Iter 220x — fold into the existing digest
+    # instead of a dedicated HSE digest report). Window scales with the
+    # digest frequency: daily=24h, weekly=7d, monthly=30d. Surfaces only
+    # rows that need eyeballs from a manager — open accidents / dangerous
+    # occurrences, RIDDOR-flagged items, or anything auto-escalated.
+    if hs_enabled:
+        freq = prefs.get("frequency") or "weekly"
+        window_days = {"daily": 1, "weekly": 7, "monthly": 30}.get(freq, 7)
+        since = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+        hs_query = {
+            "organization_id": org_id,
+            "created_at": {"$gte": since},
+            "$or": [
+                {"kind": {"$in": ["accident", "dangerous_occurrence"]}},
+                {"riddor.status": {"$in": ["potential", "confirmed"]}},
+                {"severity": {"$in": ["serious", "major", "fatal"]}},
+                {"auto_escalated": True},
+            ],
+        }
+        hs_docs = await db.incidents.find(
+            hs_query,
+            {"_id": 0, "id": 1, "reference": 1, "kind": 1, "severity": 1,
+             "status": 1, "description": 1, "riddor": 1, "fatality": 1,
+             "auto_escalated": 1, "created_at": 1},
+        ).sort("created_at", -1).to_list(20)
+        for doc in hs_docs:
+            riddor_state = (doc.get("riddor") or {}).get("status") or "not_assessed"
+            sev = doc.get("severity") or "moderate"
+            if doc.get("fatality") or riddor_state == "confirmed":
+                tone = "high"
+            elif sev in ("serious", "major") or riddor_state == "potential":
+                tone = "med"
+            else:
+                tone = "low"
+            type_key = "incident.riddor" if riddor_state in ("potential", "confirmed") else \
+                       f"incident.{doc.get('kind', 'accident')}"
+            short = (doc.get("description") or "").strip()
+            if len(short) > 180:
+                short = short[:177].rstrip() + "…"
+            items.append({
+                "id": doc.get("id"),
+                "type": type_key,
+                "severity": tone,
+                "summary": doc.get("reference") or "Incident",
+                "customer_safe_message": (
+                    f"[{doc.get('reference')}] {short}" if doc.get("reference") else short
+                ),
+            })
+
     if not items:
         return None
+
     summary = f"{len(items)} item(s) need your attention at " + (
         user.get("company_name") or "your organisation"
     )
@@ -196,7 +259,13 @@ def _humanise_type(t: str) -> str:
         "nudge.ppm_overdue": "Planned maintenance overdue",
         "nudge.supplier_sla_drift": "Supplier performance drift",
         "nudge.password_rotation": "Password rotation due",
-    }.get(t or "", (t or "Nudge").replace("nudge.", "").replace("_", " ").title())
+        # Iter 220x — H&S incident folds in the same digest
+        "incident.accident": "Accident reported",
+        "incident.near_miss": "Near miss logged",
+        "incident.hazard": "Hazard logged",
+        "incident.dangerous_occurrence": "Dangerous occurrence",
+        "incident.riddor": "RIDDOR reportable incident",
+    }.get(t or "", (t or "Nudge").replace("nudge.", "").replace("incident.", "").replace("_", " ").title())
 
 
 # ─── Dispatcher ──────────────────────────────────────────────────

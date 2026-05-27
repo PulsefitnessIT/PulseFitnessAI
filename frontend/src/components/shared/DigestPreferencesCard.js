@@ -31,6 +31,7 @@ const CHANNELS = [
   { key: 'warranty_expiring', label: 'Warranty expiring', desc: 'Equipment with warranty inside 30 days' },
   { key: 'ppm_overdue', label: 'Planned maintenance overdue', desc: 'Any scheduled PPM task past due' },
   { key: 'supplier_sla_drift', label: 'Supplier performance drift', desc: 'Suppliers trending below 3.0 / 5' },
+  { key: 'health_safety_incidents', label: 'H&S incidents (RIDDOR + accidents)', desc: 'Recent accidents, dangerous occurrences, and RIDDOR-flagged items' },
 ];
 
 export default function DigestPreferencesCard() {

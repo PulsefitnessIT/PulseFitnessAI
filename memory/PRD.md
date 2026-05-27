@@ -17731,3 +17731,46 @@ User feedback (image-driven, two points):
 
 ### Files changed
 - `frontend/src/pages/IncidentsTab.js`
+
+---
+
+## Iter 220x — HSE folded into the existing Weekly Digest (May 27, 2026)
+
+### Context
+User declined the proposed standalone HSE Digest:
+> "Dont think we need a dedicated HSE digest report, could this be added
+> to the Weekly Digest report."
+
+### Implementation
+- `/app/backend/utils/digest.py`:
+  - Added `health_safety_incidents: True` to `DEFAULT_PREFS["channels"]`
+    (default ON — safety items are always wanted by owners/managers).
+  - `build_digest_payload` now folds incident rows into the same `items`
+    array as the existing nudges. Window scales with frequency:
+    daily=24h, weekly=7d, monthly=30d (default 7d for any unknown
+    frequency). Surfaces only incidents where one of these is true:
+    `kind ∈ {accident, dangerous_occurrence}`,
+    `riddor.status ∈ {potential, confirmed}`,
+    `severity ∈ {serious, major, fatal}`, or `auto_escalated == True`.
+  - Severity tone mapping:
+    `fatality | riddor.confirmed → high`,
+    `serious/major | riddor.potential → med`, otherwise `low`.
+  - `_humanise_type` extended for `incident.accident`,
+    `incident.near_miss`, `incident.hazard`,
+    `incident.dangerous_occurrence`, `incident.riddor`.
+- `/app/frontend/src/components/shared/DigestPreferencesCard.js`:
+  - New checkbox row "H&S incidents (RIDDOR + accidents)" in the
+    channels list, wired to the same per-channel save plumbing.
+
+### Verification
+- `make regression` → **929 passed, 15 skipped** (+10 new tests, zero
+  regressions on the 919 baseline).
+- Live `GET /api/digest/preferences` returns
+  `channels: [..., 'health_safety_incidents']`.
+- `mcp_lint_python` + `mcp_lint_javascript` both clean.
+
+### Files changed
+- `backend/utils/digest.py`
+- `frontend/src/components/shared/DigestPreferencesCard.js`
+- `backend/tests/test_iter_220x_digest_hs_channel.py` (new, 10 tests)
+- `Makefile` (regression target)
