@@ -309,6 +309,58 @@ def _welcome_back_subject(open_cases: int) -> str:
     return f"Welcome back — {_plural(open_cases, 'job')} waiting"
 
 
+def _while_away_block(activity: list[dict] | None) -> str:
+    """Iter 220r-2 — "While you were away" recap with per-gym
+    one-click thanks CTAs. Each activity row carries:
+      {gym_name, opened_during_leave, resolved_during_leave,
+       thanks_url}
+    Rows with both counts at 0 are filtered upstream so we never
+    render a quiet gym here.
+    """
+    if not activity:
+        return ""
+    rows: list[str] = []
+    for row in activity[:6]:  # cap to keep the email short
+        name = row.get("gym_name") or "A referred gym"
+        opened = int(row.get("opened_during_leave", 0) or 0)
+        resolved = int(row.get("resolved_during_leave", 0) or 0)
+        bits = []
+        if opened:
+            bits.append(f"{_plural(opened, 'new fault')}")
+        if resolved:
+            bits.append(f"{_plural(resolved, 'fault')} resolved")
+        line = " · ".join(bits) if bits else "kept things ticking over"
+        thanks_url = row.get("thanks_url") or ""
+        thanks_btn = (
+            f'<a href="{thanks_url}" style="color:#2563EB;font-weight:700;'
+            f'text-decoration:none;font-size:12px;">Send thanks →</a>'
+            if thanks_url else ""
+        )
+        rows.append(
+            f'<li style="margin:8px 0;">'
+            f'<strong>{name}</strong> — '
+            f'<span style="color:#475569;">{line}</span>'
+            f'{f"<br/>{thanks_btn}" if thanks_btn else ""}'
+            f"</li>"
+        )
+    return (
+        f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;'
+        f'border-radius:8px;padding:14px 16px;margin-top:16px;">'
+        f'<p style="margin:0 0 8px;font-size:13px;font-weight:700;'
+        f'letter-spacing:0.02em;text-transform:uppercase;color:#0F172A;">'
+        f"While you were away"
+        f"</p>"
+        f'<ul style="margin:0;padding-left:18px;font-size:13px;color:#0F172A;">'
+        f'{"".join(rows)}'
+        f"</ul>"
+        f'<p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">'
+        f"One-click thanks goes to the gym's primary contact. "
+        f"We keep your name on it — no surprises."
+        f"</p>"
+        f"</div>"
+    )
+
+
 async def send_welcome_back_digest(
     *,
     email: str,
@@ -318,6 +370,7 @@ async def send_welcome_back_digest(
     my_gyms_open_count: int,
     my_gyms_overdue_count: int,
     compliance_warnings: list[str] | None,
+    recent_activity: list[dict] | None = None,
     dashboard_url: str | None = None,
 ) -> bool:
     """Iter 220r — fired once when an engineer's `resumes_on` date
@@ -328,6 +381,9 @@ async def send_welcome_back_digest(
       queue (sourced from `db.supplier_cases`, iter 220p semantics)
     * how many of those are already overdue
     * any compliance items that expired / expire soon
+    * iter 220r-2: a "While you were away" recap of each referred
+      gym's activity during the leave window, with one-click
+      "Send thanks" CTAs per gym
     * a single CTA → partner-engineer dashboard
 
     All inputs are pre-validated by the caller. Failures are caught
@@ -381,10 +437,13 @@ async def send_welcome_back_digest(
             f'You left a note before going off: <em>"{leave_note}"</em>.</p>'
         )
 
+    activity_block = _while_away_block(recent_activity)
+
     body = (
         f"<p>Hi {first},</p>"
         f"{workload_block}"
         f"{compliance_block}"
+        f"{activity_block}"
         f"{note_block}"
         f'<p style="margin-top:18px;font-size:13px;color:#475569;">'
         f"You're now marked <strong>available</strong> on GymAxis again — "

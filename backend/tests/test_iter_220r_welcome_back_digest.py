@@ -51,15 +51,37 @@ def _make_cursor(items):
     return cur
 
 
-def _fake_db(*, partners, open_count=0, overdue_count=0):
+def _fake_db(
+    *,
+    partners,
+    open_count=0,
+    overdue_count=0,
+    suppliers=None,
+    organizations=None,
+    issues_opened=0,
+    issues_resolved=0,
+):
     """Return a MagicMock-based fake `db` that mimics motor's async API
     for the queries the sweep makes (partner_engineers.find /
-    partner_engineers.update_one / supplier_cases.count_documents)."""
+    partner_engineers.update_one / supplier_cases.count_documents /
+    suppliers.find / organizations.find / issues.count_documents /
+    partner_welcome_thanks_tokens.find_one + insert_one)."""
     fake = MagicMock()
     fake.partner_engineers.find = MagicMock(return_value=_make_cursor(partners))
     fake.partner_engineers.update_one = AsyncMock()
     # First call (base filter) → open_count; second (overdue filter) → overdue_count.
     fake.supplier_cases.count_documents = AsyncMock(side_effect=[open_count, overdue_count])
+    fake.suppliers.find = MagicMock(return_value=_make_cursor(suppliers or []))
+    fake.organizations.find = MagicMock(return_value=_make_cursor(organizations or []))
+    # issues.count_documents alternates opened/resolved per gym; provide
+    # a stable side_effect list that's long enough for two calls per
+    # supplier row in tests.
+    n = max(2, len(suppliers or []) * 2)
+    fake.issues.count_documents = AsyncMock(
+        side_effect=([issues_opened, issues_resolved] * n),
+    )
+    fake.partner_welcome_thanks_tokens.find_one = AsyncMock(return_value=None)
+    fake.partner_welcome_thanks_tokens.insert_one = AsyncMock()
     return fake
 
 
@@ -323,3 +345,308 @@ def test_welcome_back_email_template_handles_quiet_inbox():
     # When no leave note + no compliance warnings, those blocks omitted entirely.
     assert "Back from" not in captured["html"]
     assert "Compliance to handle" not in captured["html"]
+
+
+
+# ── Iter 220r-2 — "While you were away" recap + thanks tokens ────
+
+
+def test_sweep_surfaces_per_gym_activity_and_mints_thanks_token():
+    """When a referred gym had any issue activity during the leave
+    window, the digest receives a `recent_activity` row with
+    opened/resolved counts and a one-click thanks_url. A token is
+    persisted for the gym."""
+    partners = [{
+        "id": "p1",
+        "status": "approved",
+        "email": "jane@x.io",
+        "full_name": "Jane Doe",
+        "availability": {
+            "status": "unavailable",
+            "resumes_on": _today_iso(),
+            "updated_at": datetime.now(timezone.utc) - timedelta(days=10),
+        },
+    }]
+    suppliers = [{"organization_id": "org-acme"}]
+    organizations = [{"id": "org-acme", "name": "Acme Gym"}]
+    fake = _fake_db(
+        partners=partners,
+        suppliers=suppliers,
+        organizations=organizations,
+        issues_opened=2,
+        issues_resolved=1,
+    )
+    with patch("utils.partner_return_digest.db", fake), \
+         patch("utils.partner_return_digest.send_welcome_back_digest",
+               AsyncMock(return_value=True)) as send:
+        _run(partner_return_digest.sweep_once())
+
+    kwargs = send.call_args.kwargs
+    activity = kwargs["recent_activity"]
+    assert isinstance(activity, list) and len(activity) == 1
+    row = activity[0]
+    assert row["gym_name"] == "Acme Gym"
+    assert row["organization_id"] == "org-acme"
+    assert row["opened_during_leave"] == 2
+    assert row["resolved_during_leave"] == 1
+    assert row["thanks_url"].endswith("/api/partners/welcome-back/thanks/" + row["thanks_url"].rsplit("/", 1)[1])
+    # Thanks-token persisted.
+    fake.partner_welcome_thanks_tokens.insert_one.assert_called_once()
+    token_doc = fake.partner_welcome_thanks_tokens.insert_one.call_args[0][0]
+    assert token_doc["partner_id"] == "p1"
+    assert token_doc["organization_id"] == "org-acme"
+    assert token_doc["gym_name"] == "Acme Gym"
+    assert token_doc["engineer_name"] == "Jane Doe"
+    assert token_doc["engineer_email"] == "jane@x.io"
+    assert token_doc["used_at"] is None
+    # 60-day expiry on the token.
+    assert (token_doc["expires_at"] - token_doc["created_at"]).days == 60
+
+
+def test_sweep_skips_quiet_referred_gyms_in_recap():
+    """Gyms with zero issue activity during the leave window must NOT
+    appear in `recent_activity` (no point thanking a silent gym)."""
+    partners = [{
+        "id": "p1",
+        "status": "approved",
+        "email": "jane@x.io",
+        "full_name": "Jane Doe",
+        "availability": {
+            "status": "unavailable",
+            "resumes_on": _today_iso(),
+            "updated_at": datetime.now(timezone.utc) - timedelta(days=10),
+        },
+    }]
+    suppliers = [{"organization_id": "org-quiet"}]
+    organizations = [{"id": "org-quiet", "name": "Quiet Gym"}]
+    fake = _fake_db(
+        partners=partners,
+        suppliers=suppliers,
+        organizations=organizations,
+        issues_opened=0,
+        issues_resolved=0,
+    )
+    with patch("utils.partner_return_digest.db", fake), \
+         patch("utils.partner_return_digest.send_welcome_back_digest",
+               AsyncMock(return_value=True)) as send:
+        _run(partner_return_digest.sweep_once())
+    kwargs = send.call_args.kwargs
+    assert kwargs["recent_activity"] == []
+    fake.partner_welcome_thanks_tokens.insert_one.assert_not_called()
+
+
+def test_sweep_reuses_existing_thanks_token_when_present():
+    """If the engineer already has an unused, unexpired thanks token
+    for a gym, the sweep reuses it instead of minting another."""
+    partners = [{
+        "id": "p1",
+        "status": "approved",
+        "email": "jane@x.io",
+        "full_name": "Jane Doe",
+        "availability": {
+            "status": "unavailable",
+            "resumes_on": _today_iso(),
+            "updated_at": datetime.now(timezone.utc) - timedelta(days=5),
+        },
+    }]
+    suppliers = [{"organization_id": "org-acme"}]
+    organizations = [{"id": "org-acme", "name": "Acme Gym"}]
+    fake = _fake_db(
+        partners=partners,
+        suppliers=suppliers,
+        organizations=organizations,
+        issues_opened=1,
+        issues_resolved=0,
+    )
+    fake.partner_welcome_thanks_tokens.find_one = AsyncMock(
+        return_value={"token": "PRE-EXISTING-TOKEN"},
+    )
+    with patch("utils.partner_return_digest.db", fake), \
+         patch("utils.partner_return_digest.send_welcome_back_digest",
+               AsyncMock(return_value=True)) as send:
+        _run(partner_return_digest.sweep_once())
+    fake.partner_welcome_thanks_tokens.insert_one.assert_not_called()
+    activity = send.call_args.kwargs["recent_activity"]
+    assert activity[0]["thanks_url"].endswith("/PRE-EXISTING-TOKEN")
+
+
+def test_while_away_block_renders_thanks_buttons_in_email():
+    """Email body should include the gym name + a clickable
+    'Send thanks →' link for each entry in `recent_activity`."""
+    from utils import partner_emails
+    captured = {}
+
+    async def _capture(*, to, subject, html):
+        captured["html"] = html
+        return True
+
+    with patch("utils.partner_emails.send_email", _capture):
+        _run(partner_emails.send_welcome_back_digest(
+            email="jane@x.io",
+            full_name="Jane Doe",
+            leave_note=None,
+            days_away=7,
+            my_gyms_open_count=1,
+            my_gyms_overdue_count=0,
+            compliance_warnings=None,
+            recent_activity=[
+                {
+                    "gym_name": "Acme Gym",
+                    "organization_id": "org-acme",
+                    "opened_during_leave": 2,
+                    "resolved_during_leave": 1,
+                    "thanks_url": "https://api.test/api/partners/welcome-back/thanks/TKN-1",
+                },
+                {
+                    "gym_name": "FitHQ",
+                    "organization_id": "org-fithq",
+                    "opened_during_leave": 1,
+                    "resolved_during_leave": 0,
+                    "thanks_url": "https://api.test/api/partners/welcome-back/thanks/TKN-2",
+                },
+            ],
+            dashboard_url="https://api.test/partner-engineer",
+        ))
+    html = captured["html"]
+    assert "While you were away" in html
+    assert "Acme Gym" in html
+    assert "FitHQ" in html
+    assert "2 new faults" in html
+    assert "1 fault resolved" in html
+    assert "TKN-1" in html and "TKN-2" in html
+    assert "Send thanks" in html
+
+
+# ── Iter 220r-2 — thanks endpoint ────────────────────────────────
+
+
+def test_thanks_endpoint_fires_email_and_marks_token_used():
+    from routes.partners import welcome_back_send_thanks
+    token_row = {
+        "token": "TKN-1",
+        "partner_id": "p1",
+        "organization_id": "org-acme",
+        "gym_name": "Acme Gym",
+        "engineer_name": "Jane Doe",
+        "engineer_email": "jane@x.io",
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
+        "used_at": None,
+    }
+    fake_db = MagicMock()
+    fake_db.partner_welcome_thanks_tokens.find_one = AsyncMock(return_value=token_row)
+    fake_db.partner_welcome_thanks_tokens.update_one = AsyncMock()
+    fake_db.organizations.find_one = AsyncMock(return_value={
+        "id": "org-acme", "name": "Acme Gym", "primary_contact_email": "ops@acme.test",
+    })
+
+    sent_emails = []
+
+    async def _capture(*, to, subject, html):
+        sent_emails.append({"to": to, "subject": subject, "html": html})
+        return True
+
+    with patch("routes.partners.db", fake_db), \
+         patch("utils.email.send_email", _capture):
+        resp = _run(welcome_back_send_thanks("TKN-1"))
+
+    assert resp.status_code == 200
+    body = resp.body.decode("utf-8")
+    assert "Thanks sent" in body or "Acme Gym" in body
+    assert len(sent_emails) == 1
+    assert sent_emails[0]["to"] == "ops@acme.test"
+    assert "Jane Doe" in sent_emails[0]["html"]
+    assert "Acme Gym" in sent_emails[0]["html"]
+    # Token flipped to used.
+    update_set = fake_db.partner_welcome_thanks_tokens.update_one.call_args[0][1]["$set"]
+    assert update_set["outcome"] == "sent"
+    assert update_set["recipient"] == "ops@acme.test"
+    assert update_set["used_at"] is not None
+
+
+def test_thanks_endpoint_rejects_unknown_token():
+    from routes.partners import welcome_back_send_thanks
+    fake_db = MagicMock()
+    fake_db.partner_welcome_thanks_tokens.find_one = AsyncMock(return_value=None)
+    with patch("routes.partners.db", fake_db):
+        resp = _run(welcome_back_send_thanks("NOPE"))
+    assert resp.status_code == 404
+    assert "not recognised" in resp.body.decode("utf-8").lower()
+
+
+def test_thanks_endpoint_idempotent_after_used():
+    """Already-used tokens render a friendly confirmation rather than
+    re-firing the email."""
+    from routes.partners import welcome_back_send_thanks
+    fake_db = MagicMock()
+    fake_db.partner_welcome_thanks_tokens.find_one = AsyncMock(return_value={
+        "token": "TKN-2",
+        "partner_id": "p1",
+        "organization_id": "org-acme",
+        "gym_name": "Acme Gym",
+        "engineer_name": "Jane Doe",
+        "engineer_email": "jane@x.io",
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
+        "used_at": datetime.now(timezone.utc),
+    })
+    fake_db.partner_welcome_thanks_tokens.update_one = AsyncMock()
+    captured = []
+
+    async def _capture(*args, **kwargs):
+        captured.append((args, kwargs))
+        return True
+
+    with patch("routes.partners.db", fake_db), \
+         patch("utils.email.send_email", _capture):
+        resp = _run(welcome_back_send_thanks("TKN-2"))
+    assert resp.status_code == 200
+    assert "Already sent" in resp.body.decode("utf-8")
+    assert captured == []
+    fake_db.partner_welcome_thanks_tokens.update_one.assert_not_called()
+
+
+def test_thanks_endpoint_rejects_expired_token():
+    from routes.partners import welcome_back_send_thanks
+    fake_db = MagicMock()
+    fake_db.partner_welcome_thanks_tokens.find_one = AsyncMock(return_value={
+        "token": "TKN-OLD",
+        "partner_id": "p1",
+        "organization_id": "org-acme",
+        "gym_name": "Acme Gym",
+        "engineer_name": "Jane Doe",
+        "engineer_email": "jane@x.io",
+        "expires_at": datetime.now(timezone.utc) - timedelta(days=1),
+        "used_at": None,
+    })
+    with patch("routes.partners.db", fake_db):
+        resp = _run(welcome_back_send_thanks("TKN-OLD"))
+    assert resp.status_code == 410
+    assert "expired" in resp.body.decode("utf-8").lower()
+
+
+def test_thanks_endpoint_handles_missing_recipient():
+    """Gym without a primary contact → token still marked used,
+    response explains why no email went out."""
+    from routes.partners import welcome_back_send_thanks
+    fake_db = MagicMock()
+    fake_db.partner_welcome_thanks_tokens.find_one = AsyncMock(return_value={
+        "token": "TKN-NO-EMAIL",
+        "partner_id": "p1",
+        "organization_id": "org-acme",
+        "gym_name": "Acme Gym",
+        "engineer_name": "Jane Doe",
+        "engineer_email": "jane@x.io",
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
+        "used_at": None,
+    })
+    fake_db.partner_welcome_thanks_tokens.update_one = AsyncMock()
+    fake_db.organizations.find_one = AsyncMock(return_value={
+        "id": "org-acme", "name": "Acme Gym",
+        # No primary_contact_email / admin_email / owner_email
+    })
+    with patch("routes.partners.db", fake_db):
+        resp = _run(welcome_back_send_thanks("TKN-NO-EMAIL"))
+    assert resp.status_code == 200
+    body = resp.body.decode("utf-8")
+    assert "No contact" in body or "doesn't have a primary contact" in body
+    update_set = fake_db.partner_welcome_thanks_tokens.update_one.call_args[0][1]["$set"]
+    assert update_set["outcome"] == "no-recipient"

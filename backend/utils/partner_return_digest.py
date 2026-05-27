@@ -25,6 +25,15 @@ Design notes
   in the next 30 days, so a returning engineer doesn't trip the
   compliance pause unknowingly.
 
+* **Iter 220r-2 "While you were away".** For each referred gym
+  (``db.suppliers`` rows where ``partner_engineer_id == partner.id``),
+  count issues opened + resolved between the leave-start and
+  now. Skip quiet gyms. For active gyms, mint a single-use thanks
+  token (``db.partner_welcome_thanks_tokens``) and embed a one-click
+  "Send thanks" URL in the digest. The GET endpoint
+  ``/api/partners/welcome-back/thanks/{token}`` emails the gym's
+  primary contact with a courtesy "thanks from your engineer" note.
+
 * **Auto-resume.** After firing, we explicitly flip
   ``availability.status = 'available'`` and clear the
   ``resumes_on`` / ``note`` fields. ``_effective_availability``
@@ -35,6 +44,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import secrets
 from datetime import date as _date
 from datetime import datetime, timedelta, timezone
 
@@ -150,6 +161,143 @@ async def _open_case_counts(partner: dict) -> tuple[int, int]:
     return int(open_count), int(overdue_count)
 
 
+def _public_base_url() -> str:
+    base = (
+        os.environ.get("EMAIL_PUBLIC_BASE_URL")
+        or os.environ.get("FRONTEND_URL")
+        or os.environ.get("REACT_APP_BACKEND_URL")
+        or ""
+    ).rstrip("/")
+    return base
+
+
+def _thanks_url(token: str) -> str:
+    """Build the absolute one-click thanks URL surfaced in the digest.
+    The endpoint is registered on the backend router as
+    ``/api/partners/welcome-back/thanks/{token}``."""
+    base = _public_base_url()
+    return f"{base}/api/partners/welcome-back/thanks/{token}" if base else f"/api/partners/welcome-back/thanks/{token}"
+
+
+async def _mint_thanks_token(
+    *,
+    partner_id: str,
+    organization_id: str,
+    gym_name: str,
+    engineer_name: str,
+    engineer_email: str,
+) -> str:
+    """Persist a single-use, 60-day thanks token bound to (partner, gym).
+    Re-uses an existing un-used non-expired token if one already
+    exists so a re-sent digest doesn't fan out duplicates."""
+    now = datetime.now(timezone.utc)
+    existing = await db.partner_welcome_thanks_tokens.find_one(
+        {
+            "partner_id": partner_id,
+            "organization_id": organization_id,
+            "used_at": None,
+            "expires_at": {"$gt": now},
+        },
+        {"_id": 0, "token": 1},
+    )
+    if existing and existing.get("token"):
+        return str(existing["token"])
+    token = secrets.token_urlsafe(24)
+    await db.partner_welcome_thanks_tokens.insert_one({
+        "token": token,
+        "partner_id": partner_id,
+        "organization_id": organization_id,
+        "gym_name": gym_name,
+        "engineer_name": engineer_name,
+        "engineer_email": engineer_email,
+        "created_at": now,
+        "expires_at": now + timedelta(days=60),
+        "used_at": None,
+    })
+    return token
+
+
+async def _while_away_activity(
+    partner: dict,
+    leave_start: datetime,
+    leave_end: datetime,
+) -> list[dict]:
+    """Iter 220r-2 — list each referred gym that had issue activity
+    between ``leave_start`` and ``leave_end`` (open or resolved),
+    with a per-gym one-click thanks URL.
+
+    Returns ``[]`` when the engineer has no referred gyms, or none
+    of them logged a single fault during the leave window.
+    """
+    partner_id = partner.get("id")
+    if not partner_id:
+        return []
+    try:
+        suppliers = await db.suppliers.find(
+            {"partner_engineer_id": partner_id, "organization_id": {"$ne": None}},
+            {"_id": 0, "organization_id": 1},
+        ).to_list(500)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("welcome-back: supplier lookup failed for %s: %s", partner_id, exc)
+        return []
+    if not suppliers:
+        return []
+
+    org_ids = list({s["organization_id"] for s in suppliers if s.get("organization_id")})
+    if not org_ids:
+        return []
+
+    # Fetch org name (and contact) once — drives the email body too.
+    orgs = await db.organizations.find(
+        {"id": {"$in": org_ids}},
+        {"_id": 0, "id": 1, "name": 1},
+    ).to_list(500)
+    name_by_id = {o["id"]: (o.get("name") or "A referred gym") for o in orgs}
+
+    activity: list[dict] = []
+    for org_id in org_ids:
+        try:
+            opened = await db.issues.count_documents({
+                "organization_id": org_id,
+                "created_at": {"$gte": leave_start, "$lte": leave_end},
+            })
+            resolved = await db.issues.count_documents({
+                "organization_id": org_id,
+                "resolved_at": {"$gte": leave_start, "$lte": leave_end},
+            })
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("welcome-back: activity counts failed org=%s err=%s", org_id, exc)
+            continue
+        if not opened and not resolved:
+            continue  # quiet gym — skip
+        try:
+            token = await _mint_thanks_token(
+                partner_id=partner_id,
+                organization_id=org_id,
+                gym_name=name_by_id.get(org_id, "A referred gym"),
+                engineer_name=partner.get("full_name") or "Your engineer",
+                engineer_email=partner.get("email") or "",
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("welcome-back: token mint failed org=%s err=%s", org_id, exc)
+            token = ""
+        activity.append({
+            "gym_name": name_by_id.get(org_id, "A referred gym"),
+            "organization_id": org_id,
+            "opened_during_leave": int(opened),
+            "resolved_during_leave": int(resolved),
+            "thanks_url": _thanks_url(token) if token else "",
+        })
+    # Loudest first so the engineer sees the busiest gym at the top.
+    activity.sort(
+        key=lambda r: (
+            -(r["opened_during_leave"] + r["resolved_during_leave"]),
+            r["gym_name"],
+        ),
+    )
+    return activity
+
+
 def _parse_iso_date(s) -> _date | None:
     if not s:
         return None
@@ -207,6 +355,16 @@ async def _process_partner(partner: dict, today: _date) -> dict | None:
         if delta >= 1:
             days_away = delta
 
+    # Iter 220r-2 — referred-gym activity during the leave + one-click
+    # thanks tokens. Leave-start defaults to availability.updated_at;
+    # if absent we fall back to 30 days ago (longest sensible leave).
+    leave_end = datetime.now(timezone.utc)
+    if isinstance(updated_at, datetime):
+        leave_start = _aware(updated_at)
+    else:
+        leave_start = leave_end - timedelta(days=30)
+    recent_activity = await _while_away_activity(partner, leave_start, leave_end)
+
     sent = False
     try:
         sent = await send_welcome_back_digest(
@@ -217,6 +375,7 @@ async def _process_partner(partner: dict, today: _date) -> dict | None:
             my_gyms_open_count=open_count,
             my_gyms_overdue_count=overdue_count,
             compliance_warnings=compliance,
+            recent_activity=recent_activity,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("welcome-back digest send failed for %s: %s", email, exc)

@@ -55,7 +55,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 
 from utils.auth import get_current_user
 from utils.database import db, put_object, APP_NAME
@@ -2995,6 +2995,138 @@ async def set_my_availability(body: dict = Body(...), user: dict = Depends(get_c
 
 
 # ── End iter 216h288 availability block ────────────────────────────
+
+
+# ── Iter 220r-2 — Welcome-back "Send thanks" one-click flow ────────
+#
+# Sweep ``utils.partner_return_digest`` pre-mints one short-lived
+# token per referred gym that had activity during the leave. The
+# digest email surfaces a "Send thanks → " button per gym; the
+# button hits this GET endpoint, which validates the token, fires
+# a thank-you email to the gym's primary contact (with the
+# engineer's name on it), marks the token used, and renders a
+# tiny confirmation page.
+#
+# Token storage lives in ``db.partner_welcome_thanks_tokens``.
+# Fields: ``token, partner_id, organization_id, gym_name,
+# engineer_name, engineer_email, created_at, expires_at, used_at``.
+#
+# Why GET and not POST? The link sits in an email body — most
+# email clients only follow GET. We tolerate the slightly weaker
+# semantics because (a) the token is single-use, (b) it carries
+# no input from the user, and (c) the audit row + the
+# ``used_at`` flip make replay a no-op.
+
+
+@router.get("/partners/welcome-back/thanks/{token}", response_class=HTMLResponse)
+async def welcome_back_send_thanks(token: str) -> HTMLResponse:
+    """One-click thanks. Email link → fires a thanks email to the
+    gym's primary contact, then returns a small HTML confirmation."""
+    token = (token or "").strip()
+    if not token or len(token) > 200:
+        return HTMLResponse(_thanks_page_html("Invalid link", "This thanks link looks malformed."), status_code=400)
+    row = await db.partner_welcome_thanks_tokens.find_one({"token": token}, {"_id": 0})
+    if not row:
+        return HTMLResponse(_thanks_page_html("Link not recognised", "This thanks link was never issued, or has been retired."), status_code=404)
+    # Expiry — 60-day window so an engineer who reads the digest
+    # late still has a chance to click. Past that the data drift
+    # makes the recap stale.
+    expires_at = row.get("expires_at")
+    if isinstance(expires_at, datetime) and expires_at < datetime.now(timezone.utc):
+        return HTMLResponse(_thanks_page_html("This link has expired", "Welcome-back thanks links expire after 60 days."), status_code=410)
+    if row.get("used_at"):
+        return HTMLResponse(_thanks_page_html("Already sent", f"You've already sent thanks to {row.get('gym_name') or 'this gym'}."))
+    # Resolve the gym's primary contact lazily — the org could have
+    # rotated owners since the token was minted.
+    org = await db.organizations.find_one({"id": row["organization_id"]}, {"_id": 0})
+    if not org:
+        await db.partner_welcome_thanks_tokens.update_one(
+            {"token": token},
+            {"$set": {"used_at": _now(), "outcome": "org-missing"}},
+        )
+        return HTMLResponse(_thanks_page_html("Gym not found", "We couldn't find this gym anymore — it may have been archived."), status_code=410)
+    recipient = (
+        org.get("primary_contact_email") or org.get("admin_email") or org.get("owner_email") or ""
+    ).strip()
+    sent = False
+    if recipient:
+        try:
+            from utils.email import send_email
+            engineer_name = row.get("engineer_name") or "Your service engineer"
+            gym_name = row.get("gym_name") or org.get("name") or "your team"
+            html = (
+                f'<div style="font-family:Arial,sans-serif;color:#0F172A;line-height:1.55;max-width:560px;margin:0 auto;">'
+                f'<h2 style="margin:0 0 12px;font-size:22px;font-weight:800;">A quick thank you from {engineer_name}.</h2>'
+                f"<p>Hi team,</p>"
+                f"<p><strong>{engineer_name}</strong> was off the tools recently and wanted to say thanks "
+                f"to <strong>{gym_name}</strong> for keeping things running — and for your patience while they were away.</p>"
+                f"<p>{engineer_name} is back on GymAxis and picking up any open faults now. "
+                f"You shouldn't notice any change in service.</p>"
+                f'<p style="margin-top:18px;font-size:13px;color:#475569;">'
+                f"This is a one-tap thanks sent directly from {engineer_name}'s welcome-back digest. "
+                f"No reply needed — just a courtesy note."
+                f"</p>"
+                f"</div>"
+            )
+            sent = bool(await send_email(
+                to=recipient,
+                subject=f"{row.get('engineer_name') or 'Your engineer'} says thanks",
+                html=html,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[welcome-thanks] send failed token=%s err=%s", token, exc)
+    await db.partner_welcome_thanks_tokens.update_one(
+        {"token": token},
+        {"$set": {
+            "used_at": _now(),
+            "outcome": "sent" if sent else ("no-recipient" if not recipient else "send-failed"),
+            "recipient": recipient or None,
+        }},
+    )
+    if sent:
+        return HTMLResponse(_thanks_page_html(
+            "Thanks sent",
+            f"We just emailed your thanks to {row.get('gym_name') or 'the gym'}. Nice touch.",
+        ))
+    if not recipient:
+        return HTMLResponse(_thanks_page_html(
+            "No contact on file",
+            "This gym doesn't have a primary contact email on file yet — we couldn't deliver the thanks. "
+            "Mention it to them next time you're on site.",
+        ), status_code=200)
+    return HTMLResponse(_thanks_page_html(
+        "We couldn't send right now",
+        "Our email provider had a hiccup. Your link is still valid — try again in a minute.",
+    ), status_code=200)
+
+
+def _thanks_page_html(headline: str, sub: str) -> str:
+    """Tiny inline confirmation page — keeps the user in their email
+    client without bouncing them through the SPA. Brand-light so it
+    survives any future palette refresh."""
+    return (
+        '<!doctype html><html><head><meta charset="utf-8"/>'
+        '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+        f"<title>{headline} · GymAxis</title>"
+        '<style>body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;'
+        "background:linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 100%);min-height:100vh;"
+        "display:flex;align-items:center;justify-content:center;color:#0F172A;}"
+        ".card{background:#fff;border-radius:18px;padding:32px 28px;max-width:440px;"
+        "box-shadow:0 12px 30px rgba(15,23,42,0.08);text-align:center;}"
+        "h1{margin:0 0 10px;font-size:22px;font-weight:800;letter-spacing:-0.01em;}"
+        "p{margin:0;color:#475569;font-size:14px;line-height:1.55;}"
+        ".dot{width:54px;height:54px;border-radius:50%;margin:0 auto 18px;"
+        "background:linear-gradient(135deg,#2563EB 0%,#9D4CDD 100%);display:flex;"
+        "align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:800;}"
+        "</style></head><body>"
+        '<div class="card">'
+        '<div class="dot">✓</div>'
+        f"<h1>{headline}</h1><p>{sub}</p>"
+        "</div></body></html>"
+    )
+
+
+# ── End iter 220r-2 ───────────────────────────────────────────────
 
 
 async def attach_referral_to_org(*, organization_id: str, ref_code: Optional[str]) -> Optional[dict]:

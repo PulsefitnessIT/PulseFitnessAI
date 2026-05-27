@@ -1,3 +1,72 @@
+## Iter 220r-2 — "Who covered for me" thanks workflow (May 27, 2026) ✅ enhancement
+
+Extends iter 220r so the welcome-back digest doesn't just tell the
+engineer what's waiting — it also recaps what happened at each of
+their **referred gyms** while they were off, and lets them send a
+courtesy thanks to those gyms in a single click. Real network effect,
+zero ambient guilt.
+
+**Backend — `utils/partner_return_digest.py`.**
+
+* New `_while_away_activity(partner, leave_start, leave_end)` joins
+  the engineer's referred gyms (`db.suppliers` where
+  `partner_engineer_id == partner.id`) to `db.issues` and counts
+  faults opened + resolved per gym during the leave window. Quiet
+  gyms (0 + 0) are filtered out — never thank a silent gym. Loudest
+  first so the busiest gym sits at the top of the recap.
+* New `_mint_thanks_token(partner_id, organization_id, gym_name,
+  engineer_name, engineer_email)` persists a 60-day single-use token
+  in `db.partner_welcome_thanks_tokens`. Idempotent: if an unused,
+  unexpired token already exists for `(partner, gym)` we reuse it,
+  so a re-sent digest never fans out duplicates.
+* Sweep passes `recent_activity=[…]` into `send_welcome_back_digest`.
+
+**Email — `_while_away_block` in `partner_emails.py`.**
+
+* Renders a soft-grey "WHILE YOU WERE AWAY" panel inside the digest.
+* Per gym: gym name + a humanised activity line (e.g. "2 new faults
+  · 1 fault resolved") + a `Send thanks →` link wired to the
+  tokenised URL.
+* Capped at 6 gyms to keep the email scannable on mobile. A tiny
+  reassurance footer: "One-click thanks goes to the gym's primary
+  contact. We keep your name on it — no surprises."
+
+**Backend — `GET /api/partners/welcome-back/thanks/{token}` in `routes/partners.py`.**
+
+* No auth headers — the token is the auth. Single-use, 60-day
+  expiry, validated against `db.partner_welcome_thanks_tokens`.
+* Resolves the gym's primary contact via
+  `primary_contact_email` / `admin_email` / `owner_email` (same
+  precedence as archive_lifecycle).
+* Sends a co-branded "thanks from your engineer" email to the
+  contact, naming the engineer.
+* Flips `used_at` + writes an `outcome` audit field
+  (`sent` / `no-recipient` / `send-failed` / `org-missing`).
+* Returns a small inline confirmation HTML page (gradient checkmark
+  card) — keeps the engineer in their email client instead of
+  bouncing them through the SPA. Friendly fallback copy for missing
+  contact / org-archived / expired-link states.
+
+**Tests (`tests/test_iter_220r_welcome_back_digest.py` → 18 total now).**
+
+* Sweep surfaces per-gym activity + mints token (recap data + token
+  body + 60-day expiry).
+* Sweep skips quiet gyms (no insert, empty recap).
+* Sweep reuses existing unused token instead of re-minting.
+* Email body includes per-gym thanks button + gym name + activity
+  copy + token URL.
+* Thanks endpoint: fires email on happy path, flips `used_at`,
+  records `outcome=sent`.
+* Thanks endpoint: 404 for unknown token, 410 for expired token,
+  200 + idempotent "Already sent" for used token, 200 + no-contact
+  copy when gym has no admin email.
+
+**Regression.** `make regression` now reports **881 passed, 15
+skipped** (was 872 before this iter). Lint clean across all four
+touched files. No frontend changes — the entire workflow lives in
+the email + the backend endpoint, keeping the deploy surface tiny.
+
+
 ## Iter 220r — Return-day welcome-back digest (May 27, 2026) ✅ user-requested
 
 When a partner engineer's `availability.resumes_on` date arrives, the
