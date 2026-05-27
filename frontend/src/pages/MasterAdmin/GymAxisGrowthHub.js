@@ -1,6 +1,6 @@
 /**
  * GymAxisGrowthHub — Master Admin → Growth → Marketing Studio
- * (Iter 220ag, replaces GrowthStudio.js).
+ * (Iter 220ag/220ah, replaces GrowthStudio.js).
  *
  * The previous implementation embedded the operator-facing
  * `MarketingSuite` ("Fill empty classes", "Re-engage inactive members"
@@ -17,52 +17,39 @@
  *   2. KPI tiles row — at-a-glance numbers per funnel stage.
  *   3. Funnel cards — one per module group, each with the right
  *      "Open …" button that jumps the user to the existing module.
- *   4. B2B Journey Templates — preset library (read-only for now);
- *      the underlying journey runner already exists in Marketing.
+ *   4. B2B Journey Templates — Launch (one-click) materialises the
+ *      template into ``marketing_journeys`` and surfaces the
+ *      resulting status; the runner stays in Marketing → Journeys.
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Rocket, Loader2, ArrowRight, Sparkles, BookOpen, Mail,
   TrendingUp, MessageSquare, Users, Workflow, RefreshCw, Building2,
+  Check, RotateCcw, Send,
 } from 'lucide-react';
+import { notify } from '@/components/notifications';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const auth = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
-// B2B journey templates — pre-canned for the master admin. The
-// Marketing module's existing JourneysTab is where they actually run;
-// this list is a quick-launch surface that points there.
-const JOURNEY_TEMPLATES = [
-  {
-    id: 'cold-to-demo',
-    name: 'Cold prospect → demo',
-    desc: '7 emails over 14 days. Hook → value → social proof → CTA.',
-    audience: 'New CRM contacts in target ICP (gym chains, 3+ sites)',
-    tone: 'B2B SaaS · GymAxis brand voice',
-  },
-  {
-    id: 'demo-booked',
-    name: 'Demo booked → close',
-    desc: 'Recap email + 2 follow-ups (T+1d, T+5d) with mutual-action plan.',
-    audience: 'CRM deals in "Demo Booked" stage',
-    tone: 'Personal, partnership-first',
-  },
-  {
-    id: 'trial-conversion',
-    name: 'Trial day 1 / 7 / 13 → paid',
-    desc: 'Activation nudge, value reminder, conversion push (PoC ROI).',
-    audience: 'Orgs with `is_trial = true`',
-    tone: 'Helpful, urgency only on day 13',
-  },
-  {
-    id: 'lost-revival',
-    name: 'Lost deal → 90-day re-engagement',
-    desc: 'Quarterly "what\'s new" digest + relevant case study.',
-    audience: 'CRM deals stage = lost in last 12 months',
-    tone: 'Low-pressure, news-led',
-  },
-];
+// B2B journey templates — server-driven so we can show "existing
+// journey" state (already launched + status + run-count) right on the
+// card. The launch button materialises the template into
+// ``marketing_journeys`` for the master-admin org via
+// ``POST /master-admin/growth/journey-templates/{id}/launch``.
+const TEMPLATE_AUDIENCE_HINTS = {
+  'cold-to-demo': 'New CRM contacts in target ICP (gym chains, 3+ sites)',
+  'demo-booked': 'CRM deals in "Demo Booked" stage',
+  'trial-conversion': 'Orgs with `is_trial = true`',
+  'lost-revival': 'CRM deals stage = lost in last 12 months',
+};
+const TEMPLATE_TONE_HINTS = {
+  'cold-to-demo': 'B2B SaaS · GymAxis brand voice',
+  'demo-booked': 'Personal, partnership-first',
+  'trial-conversion': 'Helpful, urgency only on day 13',
+  'lost-revival': 'Low-pressure, news-led',
+};
 
 function KpiTile({ label, value, hint, icon: Icon, accent = 'text-zinc-900' }) {
   return (
@@ -73,6 +60,102 @@ function KpiTile({ label, value, hint, icon: Icon, accent = 'text-zinc-900' }) {
       </div>
       <p className={`text-3xl font-extrabold mt-2 tabular-nums ${accent}`}>{value}</p>
       {hint ? <p className="text-[11px] text-zinc-500 mt-1">{hint}</p> : null}
+    </div>
+  );
+}
+
+// JourneyTemplateCard — Iter 220ah. Materialise a B2B journey via
+// POST /master-admin/growth/journey-templates/{id}/launch and surface
+// the resulting status. Re-create archives the existing copy and
+// spawns a fresh one.
+const JOURNEY_RUNNER_URL = '/marketing?tab=journeys';
+
+function JourneyTemplateCard({ t, onLaunched }) {
+  const [busy, setBusy] = useState(false);
+  const existing = t.existing_journey;
+
+  const openInRunner = () => {
+    try { window.open(JOURNEY_RUNNER_URL, '_blank', 'noopener,noreferrer'); }
+    catch { window.location.href = JOURNEY_RUNNER_URL; }
+  };
+
+  const launch = async (mode) => {
+    setBusy(true);
+    try {
+      const url = mode === 'recreate'
+        ? `${API}/api/master-admin/growth/journey-templates/${t.id}/recreate`
+        : `${API}/api/master-admin/growth/journey-templates/${t.id}/launch`;
+      const r = await axios.post(url, {}, { headers: auth() });
+      const created = r.data?.created;
+      if (created) {
+        notify.success(`Journey created: ${t.name}`);
+      } else {
+        notify.info('Journey already exists — opening in Journeys.');
+      }
+      onLaunched?.(r.data?.journey);
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Launch failed');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div
+      className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 flex flex-col gap-3"
+      data-testid={`growth-journey-${t.id}`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-extrabold">{t.name}</p>
+          <p className="text-[12px] text-zinc-600 dark:text-zinc-300 mt-1">{t.description}</p>
+        </div>
+        {existing ? (
+          <span
+            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-100 text-green-800 inline-flex items-center gap-1 shrink-0"
+            data-testid={`growth-journey-${t.id}-existing-pill`}
+            title={`Created ${existing.created_at || ''}`}
+          >
+            <Check size={9}/> Launched
+          </span>
+        ) : null}
+      </div>
+      <div className="grid gap-1 text-[11px] text-zinc-500">
+        <p><span className="font-bold text-zinc-700 dark:text-zinc-200">Audience:</span> {TEMPLATE_AUDIENCE_HINTS[t.id] || '—'}</p>
+        <p><span className="font-bold text-zinc-700 dark:text-zinc-200">Tone:</span> {TEMPLATE_TONE_HINTS[t.id] || '—'}</p>
+        <p><span className="font-bold text-zinc-700 dark:text-zinc-200">Steps:</span> {t.node_count} email{t.node_count === 1 ? '' : 's'}</p>
+        {existing?.metrics ? (
+          <p><span className="font-bold text-zinc-700 dark:text-zinc-200">Entered:</span> {existing.metrics.entered || 0} contact{existing.metrics.entered === 1 ? '' : 's'}</p>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap gap-2 mt-1">
+        {existing ? (
+          <>
+            <button
+              type="button" onClick={openInRunner}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-fuchsia-600 text-white hover:bg-fuchsia-700"
+              data-testid={`growth-journey-${t.id}-open`}
+            >
+              <Send size={11}/> Open in Journeys <ArrowRight size={11}/>
+            </button>
+            <button
+              type="button" onClick={() => launch('recreate')} disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400 disabled:opacity-50"
+              data-testid={`growth-journey-${t.id}-recreate`}
+            >
+              {busy ? <Loader2 size={11} className="animate-spin"/> : <RotateCcw size={11}/>}
+              Re-create
+            </button>
+          </>
+        ) : (
+          <button
+            type="button" onClick={() => launch('launch')} disabled={busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-gradient-to-r from-fuchsia-600 to-blue-600 text-white hover:opacity-90 disabled:opacity-50"
+            data-testid={`growth-journey-${t.id}-launch`}
+          >
+            {busy ? <Loader2 size={11} className="animate-spin"/> : <Rocket size={11}/>}
+            Launch journey
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -113,6 +196,11 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Iter 220ah — server-driven B2B journey template list. We keep it
+  // in its own state slot so launching a template doesn't reload the
+  // whole overview payload.
+  const [templates, setTemplates] = useState(null);
+  const [templatesErr, setTemplatesErr] = useState(null);
 
   const load = useCallback(async () => {
     setBusy(true); setErr(null);
@@ -123,7 +211,21 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
       setErr(e?.response?.data?.detail || 'Could not load growth overview');
     } finally { setBusy(false); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+
+  const loadTemplates = useCallback(async () => {
+    setTemplatesErr(null);
+    try {
+      const r = await axios.get(
+        `${API}/api/master-admin/growth/journey-templates`,
+        { headers: auth() },
+      );
+      setTemplates(r.data?.templates || []);
+    } catch (e) {
+      setTemplatesErr(e?.response?.data?.detail || 'Could not load journey templates');
+    }
+  }, []);
+
+  useEffect(() => { load(); loadTemplates(); }, [load, loadTemplates]);
 
   // Best-effort: change section in the parent MasterAdminPage. Falls
   // back to a soft hash navigation if the prop isn't wired (e.g. when
@@ -307,36 +409,50 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
         />
       </div>
 
-      {/* B2B Journey templates — preset launcher pointing at the
-          existing Marketing → Journeys runner. We don't duplicate it
-          here; we just give the master admin a quick-launch list. */}
+      {/* B2B Journey templates — server-driven launcher. The "Launch"
+          button materialises the template into ``marketing_journeys``
+          for the master-admin org via the growth-hub launch endpoint.
+          Re-create archives the previous copy and spawns a fresh one.
+          The journey runs in Marketing → Journeys — we don't duplicate
+          the canvas here. */}
       <section data-testid="growth-hub-journeys">
         <div className="flex items-center gap-2 mb-3">
           <Workflow size={14} className="text-fuchsia-600"/>
           <h3 className="text-sm font-extrabold">B2B journey templates</h3>
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-            Preset launcher · runs in Marketing → Journeys
+            One-click launch · runs in Marketing → Journeys
           </span>
+          <button
+            type="button" onClick={loadTemplates}
+            className="ml-auto text-[11px] inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-900"
+            data-testid="growth-hub-journeys-refresh"
+            title="Refresh launch status"
+          >
+            <RefreshCw size={11}/> Refresh
+          </button>
         </div>
-        <div className="grid md:grid-cols-2 gap-3">
-          {JOURNEY_TEMPLATES.map((t) => (
-            <div key={t.id}
-              className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4"
-              data-testid={`growth-journey-${t.id}`}
-            >
-              <p className="text-sm font-extrabold">{t.name}</p>
-              <p className="text-[12px] text-zinc-600 dark:text-zinc-300 mt-1">{t.desc}</p>
-              <div className="mt-3 grid gap-1 text-[11px] text-zinc-500">
-                <p><span className="font-bold text-zinc-700 dark:text-zinc-200">Audience:</span> {t.audience}</p>
-                <p><span className="font-bold text-zinc-700 dark:text-zinc-200">Tone:</span> {t.tone}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {templatesErr ? (
+          <div className="rounded-md border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2 text-sm" data-testid="growth-hub-journeys-error">
+            {templatesErr}
+          </div>
+        ) : !templates ? (
+          <div className="text-zinc-500 text-sm inline-flex items-center gap-2" data-testid="growth-hub-journeys-loading">
+            <Loader2 size={14} className="animate-spin"/> Loading templates…
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-3">
+            {templates.map((t) => (
+              <JourneyTemplateCard
+                key={t.id} t={t} onLaunched={loadTemplates}
+              />
+            ))}
+          </div>
+        )}
         <p className="text-[11px] text-zinc-400 mt-3">
-          These templates are a preview. When journeys are ready to fire,
-          we&apos;ll wire each one to <code>/api/marketing/journeys</code> with the
-          GymAxis brand voice locked in.
+          Each &quot;Launch&quot; creates a multi-step email journey in
+          <code className="mx-1">marketing_journeys</code>
+          scoped to the master-admin org. Edit the steps in
+          Marketing &rarr; Journeys, then test-send or enrol contacts there.
         </p>
       </section>
     </div>

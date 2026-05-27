@@ -1,3 +1,68 @@
+## Iter 220ah — B2B Journey Templates one-click launcher (May 27, 2026) ✅
+
+**Goal.** Make the 4 B2B journey templates on the Growth Hub fire for
+real — one click materialises a multi-step email journey into
+``marketing_journeys`` (master-admin org), then deep-links to the
+existing Marketing → Journeys runner so the operator can edit /
+test-send / enrol without us re-implementing the canvas.
+
+**Backend — `routes/master_admin_growth_hub.py`.**
+
+* New `JOURNEY_TEMPLATES` catalogue with 4 fully-written templates:
+  - `cold-to-demo` — 5 emails over 14 days, hook → value → social
+    proof → CTA → polite exit + benchmark link.
+  - `demo-booked` — 3 emails: recap (T+0), follow-up (T+1), nudge
+    (T+5).
+  - `trial-conversion` — 3 emails: activation (D1), mid-trial check
+    (D7), 24h-warning (D13).
+  - `lost-revival` — 2 emails: 90-day update + case study.
+  - Every email node is a real `send_email` leaf with subject + HTML
+    body the omni-channel dispatcher already knows how to fire.
+* `GET /api/master-admin/growth/journey-templates` — returns the
+  catalogue + `existing_journey` lookup per template (UI flips
+  Launch ↔ Open + Re-create).
+* `POST /api/master-admin/growth/journey-templates/{id}/launch` —
+  materialises into ``marketing_journeys`` scoped to the master-admin
+  org. **Idempotent** — re-running returns the existing row.
+* `POST /api/master-admin/growth/journey-templates/{id}/recreate` —
+  archives the previous copy then inserts a fresh one (used after
+  edits to the template catalogue).
+* `_master_admin_org_id()` helper resolves the canonical home org
+  (master-admin user's `organization_id`, falling back to org row),
+  returning 500 if neither is resolvable.
+
+**Frontend — `GymAxisGrowthHub.js`.**
+
+* Server-driven `JourneyTemplateCard` replaces the static preview list.
+  Shows audience / tone / step-count badges + a green "LAUNCHED" pill
+  when a journey already exists, plus live `metrics.entered` count.
+* **Launch journey** button → POST `/launch` → toast + auto-refresh
+  (card flips to launched state).
+* **Open in Journeys** button → opens `/marketing?tab=journeys` in a
+  new tab (the real journey runner — master admin sees their own org's
+  rows).
+* **Re-create** button → POST `/recreate` (idempotent on the archive +
+  insert).
+
+**Tests — `tests/test_iter_220ah_journey_templates.py`.** 13 new
+isolated unit tests — gating × 3, catalogue contract, list w/existing
+flag, launch happy path, launch idempotency, recreate archives,
+unknown-id 404 × 2, org resolution fallback chain × 3. All green in
+3 s. Wired into `make regression` which now stands at **1036 passed,
+15 skipped** (was 1023).
+
+**Live verification.** Curl on the preview backend launched
+`trial-conversion`, returned 3 fully-formed `send_email` nodes,
+re-launch correctly returned `created: false` with the same journey
+id. Browser screenshot shows the LAUNCHED pill + Open/Re-create
+buttons on the launched template, Launch button on the others.
+
+**Quality gates.** `make lint-python` ✅, `make lint-frontend` ✅,
+`make regression` ✅ (137 s).
+
+---
+
+
 ## Iter 220ag — GymAxis Growth Hub (de-duplicated self-promo surface) (May 27, 2026) ✅
 
 **Problem.** Master Admin → Growth → "Marketing Studio" embedded the

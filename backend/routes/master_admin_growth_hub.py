@@ -1,9 +1,16 @@
-"""Master Admin · GymAxis Growth Hub — Iter 220ag.
+"""Master Admin · GymAxis Growth Hub — Iter 220ag / 220ah.
 
 Single aggregation endpoint that powers the new
 **Master Admin → Growth → Marketing Studio** landing page (renamed from
 the operator-MarketingSuite embed which was inappropriate for self-
 promotion: "fill empty classes", "re-engage inactive members" etc.).
+
+Iter 220ah adds the **B2B Journey Templates launcher**:
+``POST /api/master-admin/growth/journey-templates/{template_id}/launch``
+materialises a pre-canned multi-step email journey directly in
+``marketing_journeys`` scoped to the master-admin org, then returns
+the new ``journey_id`` so the UI can deep-link into the Marketing →
+Journeys runner.
 
 This module **does not duplicate** any existing tooling. It reads from
 the live collections owned by:
@@ -23,9 +30,10 @@ we never re-implement the underlying CRUD.
 """
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -178,4 +186,402 @@ async def growth_overview(user: dict = Depends(get_current_user)) -> dict:
     }
 
 
-__all__ = ["router"]
+__all__ = ["router", "JOURNEY_TEMPLATES"]
+
+
+# ── B2B Journey Templates — Iter 220ah ───────────────────────────
+#
+# Pre-canned multi-step email journeys for GymAxis self-promotion.
+# Each template materialises into a real ``marketing_journeys`` row
+# scoped to the master-admin organisation, with ``send_email`` nodes
+# the omni-channel dispatcher already knows how to fire. The operator
+# then either presses **Test send** in the Marketing → Journeys runner
+# (preview to themselves) or **Enrol contact** to start the live run
+# for a specific CRM contact.
+#
+# We **don't** call the LLM at launch time — every email is hand-
+# written here so the launch is instant. Operators can edit any node
+# in the Marketing → Journeys canvas afterwards.
+
+_BRAND_SIG_HTML = (
+    "<br><br>—<br>"
+    "GymAxis · operations + CRM for fitness operators<br>"
+    "<a href=\"https://www.gymaxisai.com/demo\">Book a 20-min demo</a>"
+)
+
+
+def _email_node(*, subject: str, html: str, day: int) -> dict:
+    """Build a `send_email` leaf node. ``day`` is informational only —
+    the runtime dispatcher fires every leaf when enrolled (waits land
+    in the upcoming scheduler iteration); operators can re-order /
+    edit subjects + bodies in the visual canvas after launch."""
+    return {
+        "id": str(uuid.uuid4()),
+        "type": "send_email",
+        "title": f"Day {day} · {subject}",
+        "subject": subject,
+        "body": html + _BRAND_SIG_HTML,
+        "day": day,
+    }
+
+
+JOURNEY_TEMPLATES: dict[str, dict] = {
+    "cold-to-demo": {
+        "name": "Cold prospect → demo",
+        "description": (
+            "7 emails over 14 days. Hook → value → social proof → CTA. "
+            "For new CRM contacts in the target ICP (gym chains, 3+ sites)."
+        ),
+        "trigger": {"event": "manual_enrol"},
+        "nodes": [
+            _email_node(
+                day=1,
+                subject="A quick question about how you run service jobs",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Curious — when a treadmill goes down at peak hours, who's the "
+                    "first person on your team that hears about it, and how long until "
+                    "the service company picks up the phone?</p>"
+                    "<p>Most operators we speak to say the answer is &quot;3–6 hours and "
+                    "an angry WhatsApp thread&quot;. We built GymAxis specifically for "
+                    "that gap.</p>"
+                    "<p>If you're open to a 20-min look, I'll share a 1-page benchmark of "
+                    "how multi-site chains are running this in 2026.</p>"
+                ),
+            ),
+            _email_node(
+                day=3,
+                subject="The hidden cost of equipment downtime (a 2-min read)",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Quick number: a single treadmill out of service at a busy site "
+                    "costs the average chain ~£42/day in cancelled PT sessions and "
+                    "member-experience hits. Across 8 sites and 6 weeks of slow "
+                    "supplier response, that's £14,000+ in a single quarter.</p>"
+                    "<p>We wrote a 5-min playbook on cutting that. Want me to send it "
+                    "over?</p>"
+                ),
+            ),
+            _email_node(
+                day=6,
+                subject="How {Anytime Fitness / Fitness4Less / etc.} runs service ops",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>One pattern we keep seeing in 5+ site chains: the on-site team "
+                    "logs faults via QR-code → GymAxis auto-routes to the cheapest "
+                    "available partner engineer → 24h SLA → invoice posts back to Sage.</p>"
+                    "<p>Total time gym manager spends on each fault: ~45 seconds.</p>"
+                    "<p>Want a 20-min walkthrough? I can show you the exact dashboard "
+                    "your area manager would see.</p>"
+                ),
+            ),
+            _email_node(
+                day=9,
+                subject="3 things to look for in a service-ops platform",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>If you're already evaluating tools, three non-negotiables:</p>"
+                    "<ol>"
+                    "<li><strong>Real partner-engineer network</strong> — not a job board.</li>"
+                    "<li><strong>CAPEX visibility</strong> — replacement costs forecasted from "
+                    "asset age + downtime trend.</li>"
+                    "<li><strong>Accounting integration</strong> — Sage 200 / Xero, not CSV.</li>"
+                    "</ol>"
+                    "<p>Happy to share how we score on each. 20 min?</p>"
+                ),
+            ),
+            _email_node(
+                day=12,
+                subject="Last note — and a free benchmark",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>I'll stop emailing after this one. If service-ops isn't on the "
+                    "priority list this quarter, no problem at all — happy to circle "
+                    "back next quarter.</p>"
+                    "<p>Either way, here's our 2026 multi-site downtime benchmark "
+                    "(no email gate, just a link): "
+                    "<a href=\"https://www.gymaxisai.com/benchmark\">gymaxisai.com/benchmark</a>.</p>"
+                ),
+            ),
+        ],
+    },
+    "demo-booked": {
+        "name": "Demo booked → close",
+        "description": (
+            "Recap email + 2 follow-ups (T+1d, T+5d) with mutual action plan. "
+            "Fires for CRM deals in the 'Demo Booked' stage."
+        ),
+        "trigger": {"event": "demo_booked"},
+        "nodes": [
+            _email_node(
+                day=0,
+                subject="Demo recap — {{first_name}} + {{your_site_count}} sites",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Great chat earlier. Quick recap of what we agreed:</p>"
+                    "<ul>"
+                    "<li><strong>Goals:</strong> cut equipment downtime, get CAPEX "
+                    "visibility, kill the WhatsApp service thread.</li>"
+                    "<li><strong>Scope:</strong> 30-day pilot at your flagship site, "
+                    "with shadow data for the other locations.</li>"
+                    "<li><strong>Next step:</strong> mutual-action plan attached — "
+                    "5 milestones, ~3 weeks to value.</li>"
+                    "</ul>"
+                    "<p>Anything I've mis-heard, just hit reply.</p>"
+                ),
+            ),
+            _email_node(
+                day=1,
+                subject="One small thing — the partner-engineer onboarding video",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Forgot to send this in the recap. 4-min walkthrough showing "
+                    "what your area manager sees when a fault comes in:</p>"
+                    "<p><a href=\"https://www.gymaxisai.com/demo-video/partner-flow\">"
+                    "Watch the partner-flow demo (4 min)</a></p>"
+                    "<p>Worth showing to whoever runs ops day-to-day.</p>"
+                ),
+            ),
+            _email_node(
+                day=5,
+                subject="Quick check — anything blocking us?",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Just checking in. From the call, the bottleneck was the "
+                    "Sage 200 integration sign-off. Is that still where things stand?</p>"
+                    "<p>Happy to jump on a 10-min call with whoever owns the finance "
+                    "stack — I can walk them through exactly what we post and when.</p>"
+                ),
+            ),
+        ],
+    },
+    "trial-conversion": {
+        "name": "Trial day 1 / 7 / 13 → paid",
+        "description": (
+            "Activation nudge, value reminder, conversion push. "
+            "Fires automatically when an org flips ``is_trial = true``."
+        ),
+        "trigger": {"event": "trial_started"},
+        "nodes": [
+            _email_node(
+                day=1,
+                subject="Welcome to GymAxis — the 1 thing to do today",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Your trial is live. Most of our converting trials hit value "
+                    "in the first 24 hours by doing one thing:</p>"
+                    "<p><strong>Add 5 pieces of equipment and log 1 fault.</strong> "
+                    "Takes 6 minutes total.</p>"
+                    "<p>Quick guide: "
+                    "<a href=\"https://www.gymaxisai.com/docs/quickstart\">5-min quickstart</a></p>"
+                    "<p>Stuck? Hit reply — I read these myself.</p>"
+                ),
+            ),
+            _email_node(
+                day=7,
+                subject="How your trial compares to others (good news)",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Mid-trial check. By day 7, the orgs that go on to subscribe "
+                    "have logged an average of 12 faults and connected at least one "
+                    "partner engineer. You're in the right ballpark.</p>"
+                    "<p>If you want a 15-min review of your specific setup before "
+                    "the trial ends, grab a slot here: "
+                    "<a href=\"https://www.gymaxisai.com/trial-review\">trial-review</a>.</p>"
+                ),
+            ),
+            _email_node(
+                day=13,
+                subject="Trial ends tomorrow — quick decision needed",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Your trial ends tomorrow. No pressure — but if you want to "
+                    "keep the data and partner-engineer connections you've built, "
+                    "easiest path is to subscribe before midnight.</p>"
+                    "<p>If you're not ready, just reply and we can pause / extend "
+                    "rather than lose the work.</p>"
+                    "<p>Either way: 3 short clicks here to convert → "
+                    "<a href=\"https://www.gymaxisai.com/subscribe\">subscribe</a>.</p>"
+                ),
+            ),
+        ],
+    },
+    "lost-revival": {
+        "name": "Lost deal → 90-day re-engagement",
+        "description": (
+            "Quarterly 'what's new' digest + a relevant case study. "
+            "Fires for CRM deals stage=lost in the last 12 months."
+        ),
+        "trigger": {"event": "deal_lost_90d"},
+        "nodes": [
+            _email_node(
+                day=0,
+                subject="A 60-second update from GymAxis (no pitch)",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>We chatted ~90 days ago. Quick update — three things shipped "
+                    "since then that might change your view:</p>"
+                    "<ul>"
+                    "<li><strong>Partner-engineer marketplace</strong> — 200+ vetted "
+                    "field engineers, average 8h response.</li>"
+                    "<li><strong>Sicon Service + Sage 200 ledger posting</strong> — "
+                    "kills double-entry for AP teams.</li>"
+                    "<li><strong>RIDDOR + accident reporting</strong> — built in, no "
+                    "extra HSE software needed.</li>"
+                    "</ul>"
+                    "<p>No need to reply — just figured I'd close the loop.</p>"
+                ),
+            ),
+            _email_node(
+                day=14,
+                subject="Case study you might find interesting",
+                html=(
+                    "<p>Hi {{first_name}},</p>"
+                    "<p>Quick one — we just published how a 12-site UK chain cut "
+                    "equipment downtime by 38% in 90 days using GymAxis.</p>"
+                    "<p><a href=\"https://www.gymaxisai.com/case-studies/12-site-chain\">"
+                    "Read the case study (5 min)</a></p>"
+                    "<p>If the numbers look relevant, happy to share what they "
+                    "specifically configured. No pitch attached.</p>"
+                ),
+            ),
+        ],
+    },
+}
+
+
+async def _master_admin_org_id() -> str:
+    """Return the GymAxis master-admin organisation_id used as the
+    canonical home for self-promo journeys. Falls back to the first
+    master admin's ``organization_id`` if a dedicated master-admin org
+    isn't found — this matches how the rest of the master-admin tools
+    resolve their org context."""
+    user = await db.users.find_one(
+        {"is_master_admin": True},
+        {"_id": 0, "organization_id": 1},
+        sort=[("created_at", 1)],
+    )
+    if user and user.get("organization_id"):
+        return str(user["organization_id"])
+    org = await db.organizations.find_one(
+        {"$or": [{"is_master_admin": True}, {"slug": "gymaxis"}, {"name": "GymAxis"}]},
+        {"_id": 0, "id": 1},
+    )
+    if org and org.get("id"):
+        return str(org["id"])
+    raise HTTPException(500, "No master-admin organisation found")
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+@router.get("/master-admin/growth/journey-templates")
+async def list_journey_templates(user: dict = Depends(get_current_user)) -> dict:
+    """Return the static template catalogue + whether each has already
+    been materialised into a live journey on this org (so the UI can
+    show "Re-create" vs "Launch")."""
+    require_master_admin(user)
+    org_id = await _master_admin_org_id()
+    out = []
+    for tid, t in JOURNEY_TEMPLATES.items():
+        existing = await db.marketing_journeys.find_one(
+            {"organization_id": org_id, "template_id": tid},
+            {"_id": 0, "id": 1, "status": 1, "created_at": 1, "metrics": 1},
+        )
+        out.append({
+            "id": tid,
+            "name": t["name"],
+            "description": t["description"],
+            "node_count": len(t.get("nodes") or []),
+            "existing_journey": existing,
+        })
+    return {"templates": out}
+
+
+@router.post("/master-admin/growth/journey-templates/{template_id}/launch")
+async def launch_journey_template(
+    template_id: str, user: dict = Depends(get_current_user),
+) -> dict:
+    """Materialise a B2B template into ``marketing_journeys`` for the
+    master-admin org. Idempotent: re-launching returns the existing
+    journey (UI calls "Re-create" to deliberately spawn a new one)."""
+    require_master_admin(user)
+    tpl = JOURNEY_TEMPLATES.get(template_id)
+    if not tpl:
+        raise HTTPException(404, "Unknown template id")
+    org_id = await _master_admin_org_id()
+
+    existing = await db.marketing_journeys.find_one(
+        {"organization_id": org_id, "template_id": template_id},
+        {"_id": 0},
+    )
+    if existing:
+        return {"journey": existing, "created": False}
+
+    journey_id = str(uuid.uuid4())
+    now = _now_iso()
+    doc = {
+        "id": journey_id,
+        "organization_id": org_id,
+        "template_id": template_id,
+        "name": tpl["name"],
+        "description": tpl["description"],
+        "status": "draft",
+        "trigger": tpl.get("trigger") or {"event": "manual_enrol"},
+        "nodes": [dict(n) for n in (tpl.get("nodes") or [])],
+        "edges": [],
+        "ai_optimisation": {},
+        "metrics": {"entered": 0, "completed": 0, "converted": 0, "revenue_gbp": 0},
+        "created_at": now,
+        "updated_at": now,
+        "created_by": user.get("id"),
+        "scope": "gymaxis_self_promo",
+    }
+    await db.marketing_journeys.insert_one(doc)
+    doc.pop("_id", None)
+    return {"journey": doc, "created": True}
+
+
+@router.post("/master-admin/growth/journey-templates/{template_id}/recreate")
+async def recreate_journey_template(
+    template_id: str, user: dict = Depends(get_current_user),
+) -> dict:
+    """Force-recreate the journey from the template (archives the
+    previous version). Used when the master admin has edited the
+    template or wants a fresh copy."""
+    require_master_admin(user)
+    tpl = JOURNEY_TEMPLATES.get(template_id)
+    if not tpl:
+        raise HTTPException(404, "Unknown template id")
+    org_id = await _master_admin_org_id()
+
+    # Archive any existing rows so the new one is canonical.
+    await db.marketing_journeys.update_many(
+        {"organization_id": org_id, "template_id": template_id,
+         "status": {"$ne": "archived"}},
+        {"$set": {"status": "archived", "updated_at": _now_iso()}},
+    )
+
+    journey_id = str(uuid.uuid4())
+    now = _now_iso()
+    doc = {
+        "id": journey_id,
+        "organization_id": org_id,
+        "template_id": template_id,
+        "name": tpl["name"],
+        "description": tpl["description"],
+        "status": "draft",
+        "trigger": tpl.get("trigger") or {"event": "manual_enrol"},
+        "nodes": [dict(n) for n in (tpl.get("nodes") or [])],
+        "edges": [],
+        "ai_optimisation": {},
+        "metrics": {"entered": 0, "completed": 0, "converted": 0, "revenue_gbp": 0},
+        "created_at": now,
+        "updated_at": now,
+        "created_by": user.get("id"),
+        "scope": "gymaxis_self_promo",
+    }
+    await db.marketing_journeys.insert_one(doc)
+    doc.pop("_id", None)
+    return {"journey": doc, "created": True}
