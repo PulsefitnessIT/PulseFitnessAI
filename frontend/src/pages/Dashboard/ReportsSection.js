@@ -7,6 +7,7 @@ import OperationalReportsTab from '../OperationalReportsTab';
 import CapexIntelligenceTab from '../CapexIntelligenceTab';
 import KPIPerformanceDashboard from '../KPIPerformanceDashboard';
 import AuditDetailPanel from '../AuditDetailPanel';
+import IncidentsTab from '../IncidentsTab';
 
 const ReportsSection = ({
  reportSubTab, onSubTabChange, auditHistory, viewAudit, onViewAudit, user, t
@@ -38,6 +39,7 @@ const ReportsSection = ({
  {kpiEnabled && <SubTabBtn id="performance" label="Performance KPIs" testId="report-sub-performance" />}
  <SubTabBtn id="operational" label={t('dashboard.operational_reports')} testId="report-sub-operational" />
  <SubTabBtn id="risk" label={t('dashboard.risk_assessments')} testId="report-sub-risk" />
+ <SubTabBtn id="incidents" label="H&S Incidents" testId="report-sub-incidents" />
  <SubTabBtn id="audits" label={t('dashboard.machine_audit')} testId="report-sub-audits" />
  {(user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin) && (
  <SubTabBtn id="capex" label="CAPEX Intelligence" testId="report-sub-capex" />
@@ -47,6 +49,7 @@ const ReportsSection = ({
  {reportSubTab === 'performance' && kpiEnabled && <KPIPerformanceDashboard />}
  {reportSubTab === 'operational' && <OperationalReportsTab />}
  {reportSubTab === 'risk' && <RiskAssessmentTab />}
+ {reportSubTab === 'incidents' && <IncidentsTab />}
  {reportSubTab === 'capex' && <CapexIntelligenceTab />}
 
  {reportSubTab === 'audits' && (

@@ -1,3 +1,123 @@
+## Iter 220s — Unified Accident, Near-Miss, Hazard, RIDDOR module — Phase 1 (May 27, 2026) ✅ enterprise-grade foundation
+
+Built the **enterprise H&S incident management foundation** the user
+asked for — one source of truth across all tenant profiles (gym /
+leisure / council / university / MOD / hotel / school / studio /
+service engineer). Phase 1 ships the full backend + a complete,
+mobile-first frontend control surface. Phases 2–4 build on top.
+
+**Backend — new files.**
+
+* `utils/riddor.py` — pure decision engine for the UK HSE RIDDOR 2013
+  regulations. 9-question wizard (2 context gates + 7 qualifying
+  triggers). Conservative on unknowns (any ``None`` answer escalates
+  to ``potential`` for human review). Maps to the correct HSE form
+  (``F2508`` / ``F2508A`` / ``F2508G``) and statutory deadline
+  (10 / 14 / 15 days). Public ``WIZARD_QUESTIONS`` constant drives
+  the frontend declaratively so the legal wording lives in one place.
+
+* `routes/incidents.py` — unified module covering accident /
+  near-miss / hazard / dangerous-occurrence with strict typed
+  payloads (Pydantic). Endpoints:
+  - `GET /incidents/picklists` — static enums + RIDDOR questions.
+  - `POST /incidents` — full create (typed) with severity
+    auto-escalation on serious/major/fatal.
+  - `POST /incidents/quick` — mobile-first thin-payload create.
+  - `GET /incidents` — list with filter (kind/severity/RIDDOR
+    status/asset/free-text), RBAC-scoped.
+  - `GET /incidents/{id}` — 360° bundle (incident + actions + audit).
+  - `PATCH /incidents/{id}` — partial update (manager only).
+  - `POST /incidents/{id}/status` — status transitions w/ sign-off.
+  - `POST /incidents/{id}/riddor/assess` — runs the engine, persists
+    verdict, auto-escalates status on Potential/Confirmed, fires
+    escalation email.
+  - `POST /incidents/{id}/riddor/submit` — records HSE submission ref.
+  - `POST /incidents/{id}/investigation` — upsert with auto status
+    transitions (`reported → investigating → actions_pending`).
+  - `POST /incidents/{id}/actions` — add corrective action.
+  - `PATCH /incidents/{id}/actions/{aid}` — update / complete.
+  - `GET /incidents/stats/summary` — dashboard tiles.
+* Reference numbering: per-org counter (`db.counters`) → `IR-YYYY-NNNNN`.
+* Immutable audit log (`db.incident_audit_log`) — every state
+  mutation writes a row (created / status_changed / riddor_assessed /
+  riddor_submitted / investigation_started / investigation_completed
+  / action_added / action_updated). Never updated, never deleted.
+* RBAC: master_admin → all orgs; owner/admin/manager/hse_lead →
+  org-wide; staff/engineer → own submissions only. Edit / close /
+  RIDDOR-assess gated to manager+.
+* Escalation: Serious/Major/Fatal + Potential/Confirmed RIDDOR fire
+  an HTML email to `hs_officer_email` (with sensible fallbacks).
+  Best-effort — never blocks the API.
+* Existing-collection re-use: `asset_id`, `service_case_id`,
+  `related_issue_id` link to existing assets / svc / issues so
+  Phase 3 dashboards can surface repeat-incident analytics.
+* MOD tenant profile preserved (`tenant_profile: 'mod'` field on the
+  payload) so the existing `mod_incidents.py` can graduate to this
+  unified module in a follow-up without data migration.
+* Indexes ensured on startup: `(organization_id, created_at)`,
+  `(id)` unique, `reference`, `status`, `severity`, `riddor.status`,
+  `asset_id`, action `(incident_id)`, action `(organization_id,
+  status)`, action `due_date`, audit `(incident_id, at)`.
+
+**Frontend — `pages/IncidentsTab.js`.**
+
+* Mounted as a new **"H&S Incidents"** sub-tab inside Reports for
+  both portals — GymAxis (`Dashboard/ReportsSection.js`) and Pulse
+  Pro (`PulseReportsTab.js`).
+* Stats strip (Total / Open / Potential RIDDOR / Confirmed RIDDOR)
+  with severity-toned cards.
+* Filter pills (kind + RIDDOR status) and free-text search.
+* List view with severity dot, kind/severity/RIDDOR badges,
+  reference number, category, location, occurred-at.
+* **Quick-Log** dialog — kind / severity / category / description /
+  location. Submits to `/incidents` and opens the detail dialog
+  inline.
+* **Detail dialog** with 5 tabs:
+  - **Overview** — description block + key facts grid + witnesses.
+  - **RIDDOR Wizard** — every question with Yes/No/Don't-know
+    chip-buttons + help text + statutory deadline display +
+    HSE submission ref capture.
+  - **Investigation** — findings textarea + multi-select root-cause
+    chips + Save / Save-and-close.
+  - **Actions** — corrective action board (priority, due date,
+    one-click "Mark done").
+  - **Audit** — append-only timeline, every event timestamped + user
+    + role.
+* Every interactive element has a `data-testid`. Responsive — tested
+  at 1440×900 and works on mobile widths.
+
+**Tests — `tests/test_iter_220s_incidents_riddor.py` (18 tests, all green).**
+
+* 9 RIDDOR engine unit tests (no answers / context gate / each
+  qualifying question / multi-trigger tightest-deadline / unknown
+  branch / wizard schema pin).
+* 9 HTTP integration tests against the live preview backend
+  (picklists / create / serious-auto-escalation / RIDDOR assess /
+  investigation + actions workflow / quick-log / stats / payload
+  validation).
+
+**End-to-end frontend smoke** — standalone Playwright script logs in
+as `craig.henshall@pulsefitness.com`, opens Reports → H&S Incidents,
+quick-logs an incident, runs the RIDDOR wizard with Yes-Yes flow,
+clicks through all 5 detail tabs. Screenshot analysed and confirmed
+professional/clean rendering with the RIDDOR-confirmed banner +
+audit trail. Saved at `/tmp/incidents_smoke.png`.
+
+**Regression.** `make regression` reports **899 passed, 15 skipped**
+(was 881). Lint clean across all touched files. Frontend lint also
+clean.
+
+**What ships next (Phases 2–4).**
+
+* Phase 2: Branded PDF exports · digital signatures · witness
+  statement workflow with token-based external signing · HSE
+  dashboard v1.
+* Phase 3: HSE compliance dashboard with trend charts +
+  repeat-incident detection + CAPEX trigger.
+* Phase 4: AI summarisation / root-cause suggestion / RIDDOR
+  qualification hint · voice-to-text (Whisper).
+
+
 ## Iter 220r-2 — "Who covered for me" thanks workflow (May 27, 2026) ✅ enhancement
 
 Extends iter 220r so the welcome-back digest doesn't just tell the

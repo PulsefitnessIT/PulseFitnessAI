@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import RiskAssessmentTab from './RiskAssessmentTab';
 import CapexIntelligenceTab from './CapexIntelligenceTab';
+import IncidentsTab from './IncidentsTab';
 import KpiTile from '@/components/shared/KpiTile';
 import PageHeader from '@/components/shared/PageHeader';
 
@@ -99,6 +100,7 @@ const PulseReportsTab = () => {
           { id: 'performance', label: 'Performance KPIs', icon: TrendingUp },
           { id: 'operational', label: 'Operational Reports', icon: BarChart3 },
           { id: 'risk', label: 'Risk Assessments', icon: Shield },
+          { id: 'incidents', label: 'H&S Incidents', icon: AlertTriangle },
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'capex', label: 'CAPEX Intelligence', icon: PoundSterling }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'weekly-digest', label: 'Weekly Digest', icon: Mail }] : []),
         ].map(tab => {
@@ -119,6 +121,7 @@ const PulseReportsTab = () => {
 
       {subTab === 'performance' && <KPIPerformanceDashboard />}
       {subTab === 'risk' && <RiskAssessmentTab />}
+      {subTab === 'incidents' && <IncidentsTab />}
       {subTab === 'capex' && <CapexIntelligenceTab />}
       {subTab === 'weekly-digest' && (
         <div className="space-y-4" data-testid="pulse-weekly-digest">

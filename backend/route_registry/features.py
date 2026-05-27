@@ -166,6 +166,8 @@ from routes.svc.branding import router as svc_branding_router
 from routes.svc.attention import router as svc_attention_router
 # Iter 220l — Engineer self-service ratings view
 from routes.svc.engineer_ratings import router as svc_engineer_ratings_router
+# Iter 220s — Unified Accident, Near-Miss, Hazard, RIDDOR module
+from routes.incidents import router as incidents_router
 
 
 # Routers that require a specific `account_type` feature to be enabled.
@@ -305,6 +307,8 @@ _UNGATED_ROUTERS = (
     svc_attention_router,
     # Iter 220l — Engineer ratings (self-view)
     svc_engineer_ratings_router,
+    # Iter 220s — Unified Accident, Near-Miss, Hazard, RIDDOR
+    incidents_router,
 )
 
 
