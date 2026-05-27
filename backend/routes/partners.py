@@ -2912,6 +2912,58 @@ async def attach_referral_to_org(*, organization_id: str, ref_code: Optional[str
         {"$set": {"referred_by_partner_id": partner["id"], "referred_by_code": code_up,
                   "referred_at": _now()}},
     )
+
+    # Iter 220n — Auto-add the referring engineer as a service supplier for
+    # the new gym. The whole point of the Partner Plan economics is that
+    # every gym you bring in is recurring revenue AND recurring work —
+    # we deliver both halves here. The gym keeps full agency (can disable
+    # auto_dispatch, swap primary, add more suppliers) via the existing
+    # Supplier Dashboard. Idempotent: skip if a supplier row already
+    # links to this partner engineer for this org.
+    try:
+        existing_supplier = await db.suppliers.find_one(
+            {"organization_id": organization_id, "partner_engineer_id": partner["id"]},
+            {"_id": 0, "id": 1},
+        )
+        if not existing_supplier:
+            supplier_id = _new_id()
+            await db.suppliers.insert_one({
+                "id": supplier_id,
+                "organization_id": organization_id,
+                "partner_engineer_id": partner["id"],
+                "name": partner.get("full_name") or partner.get("trading_name") or "Service Engineer",
+                "email": partner.get("email", ""),
+                "phone": partner.get("phone", ""),
+                "contact_person": partner.get("full_name", ""),
+                "address": partner.get("address", ""),
+                "notes": "Auto-added — your referring engineer. Faults logged "
+                         "here route to them by default. Edit anytime.",
+                "supplier_types": ["service_engineer"],
+                "supplier_type": "service_engineer",
+                "callout_fee": float((partner.get("rates") or {}).get("callout_fee", 0) or 0),
+                "labour_rate_per_hour": float((partner.get("rates") or {}).get("labour_rate_per_hour", 0) or 0),
+                "mileage_rate": float((partner.get("rates") or {}).get("mileage_rate", 0) or 0),
+                "parts_markup_pct": float((partner.get("rates") or {}).get("parts_markup_pct", 0) or 0),
+                "custom_items": [],
+                "auto_dispatch": True,        # faults route here by default
+                "is_primary_supplier": True,  # first one ⇒ default supplier
+                "auto_created_from_referral": True,
+                "created_at": _now(),
+            })
+            await _audit(
+                partner_id=partner["id"], actor_id="system",
+                action="supplier_auto_attached",
+                after={"organization_id": organization_id, "supplier_id": supplier_id},
+            )
+    except Exception as supplier_exc:
+        # Best-effort — never block a successful referral on a supplier
+        # auto-attach failure. The referral itself is what matters
+        # commercially; the gym can always add the engineer manually.
+        logger.warning(
+            "Auto-supplier attach failed for partner=%s org=%s: %s",
+            partner.get("id"), organization_id, supplier_exc,
+        )
+
     await _audit(partner_id=partner["id"], actor_id="system", action="referral_attributed",
                  after={"organization_id": organization_id, "code": code_up})
     return ref_doc

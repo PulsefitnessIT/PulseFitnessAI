@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import axios from 'axios';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
-import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users } from 'lucide-react';
+import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import MobileBottomNav from '../components/shared/MobileBottomNav';
@@ -20,6 +20,7 @@ import PullToRefresh from '../components/shared/PullToRefresh';
 import PulseUpgradePage from './PulseUpgradePage';
 import PulseSettingsTab from './PulseSettingsTab';
 import PulseGymLayoutTab from './PulseGymLayoutTab';
+import PulseAIDiagnosisTab from './PulseAIDiagnosisTab';
 import SupplierDashboardTab from './SupplierDashboardTab';
 import OnboardingWizard from './OnboardingWizard';
 import AddEquipmentDialog from '../components/equipment/AddEquipmentDialog';
@@ -618,6 +619,11 @@ const LiteDashboardPage = () => {
     // Pulse Pro tab bar — Documents is reinstated per Iter 216i (operators
     // still need quick access to certifications, RAMS and supplier docs
     // without diving into Reports).
+    // Iter 220n — AI Triage tab now visible to Pulse Pro AND GymAxis ops
+    // users (was previously dormant — wired in but never surfaced).
+    // Brand-aware label: "AI Triage" on GymAxis, "AI Diagnosis" on Pulse.
+    const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
+    const aiTabLabel = isPulseAccount ? 'AI Diagnosis' : 'AI Triage';
     const proBase = [
       ...start,
       { id: 'overview',     label: 'Dashboard',    icon: LayoutDashboard },
@@ -628,6 +634,7 @@ const LiteDashboardPage = () => {
       // underlying components stay separate (each is brand-tuned for
       // its portal); only the user-facing label is unified.
       { id: 'check-sheets', label: 'Check Sheets', icon: ClipboardCheck },
+      { id: 'ai-triage',    label: aiTabLabel,     icon: Brain },
       { id: 'documents',    label: 'Documents',    icon: FileText },
       // Managers & owners see 'Staffing' (full workforce suite).
       // Staff see the same module labelled 'Gym Floor' (their limited
@@ -892,6 +899,11 @@ const LiteDashboardPage = () => {
             {isPro && (
               <TabsContent value="check-sheets" data-testid="check-sheets-content">
                 <PulseCheckSheetsTab equipment={equipment} />
+              </TabsContent>
+            )}
+            {isPro && (
+              <TabsContent value="ai-triage" data-testid="ai-triage-content">
+                <PulseAIDiagnosisTab equipment={equipment} />
               </TabsContent>
             )}
             {isPro && (userRole === 'manager' || userRole === 'owner') && (

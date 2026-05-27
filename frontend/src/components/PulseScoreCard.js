@@ -18,8 +18,38 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '@/App';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+/* Iter 220n — brand-aware copy. The component is shared between
+ * Pulse Fitness and GymAxis dashboards; only the visible labels +
+ * the ring gradient differ. Account type drives the switch:
+ *   - 'pulse_pro' / 'lite' → "The Pulse · today" (cyan ring)
+ *   - everyone else        → "Gym Health · today" (GymAxis navy→purple)
+ */
+const BRAND_COPY = {
+  pulse: {
+    eyebrow: 'The Pulse',
+    eyebrow_today: 'The Pulse · today',
+    eyebrow_waking: 'The Pulse · waking up',
+    loading: 'Reading your Pulse…',
+    error: 'Could not load The Pulse',
+    not_ready_fallback: "Your Pulse will appear once you've added equipment and logged a little activity.",
+    ring_gradient: 'linear-gradient(90deg, #19CDFF, #0055FF)',
+    eyebrow_color: '#0055FF',
+  },
+  gymaxis: {
+    eyebrow: 'Gym Health',
+    eyebrow_today: 'Gym Health · today',
+    eyebrow_waking: 'Gym Health · waking up',
+    loading: 'Reading Gym Health…',
+    error: 'Could not load Gym Health',
+    not_ready_fallback: "Your Gym Health score will appear once you've added equipment and logged a little activity.",
+    ring_gradient: 'linear-gradient(90deg, #2563EB, #9D4CDD)',
+    eyebrow_color: '#2563EB',
+  },
+};
 
 /* Bands map the existing endpoint's `rating` field straight through. */
 const BAND_STYLES = {
@@ -57,6 +87,11 @@ export const PulseScoreCard = ({ siteId }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth() || {};
+  // Iter 220n — switch copy + ring gradient by brand. Pulse customers
+  // see "The Pulse"; everyone else (GymAxis ops) sees "Gym Health".
+  const isPulse = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
+  const COPY = isPulse ? BRAND_COPY.pulse : BRAND_COPY.gymaxis;
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -66,7 +101,7 @@ export const PulseScoreCard = ({ siteId }) => {
     setLoading(true);
     axios.get(url, { headers })
       .then(r => { setData(r.data); setError(null); })
-      .catch(e => setError(e.response?.data?.detail || 'Could not load The Pulse'))
+      .catch(e => setError(e.response?.data?.detail || COPY.error))
       .finally(() => setLoading(false));
   }, [siteId]);
 
@@ -76,7 +111,7 @@ export const PulseScoreCard = ({ siteId }) => {
         data-testid="pulse-score-card"
         className="rounded-2xl border border-[#E2E8F0] bg-white p-5 mb-4 text-sm text-slate-500"
       >
-        Reading your Pulse…
+        {COPY.loading}
       </div>
     );
   }
@@ -86,7 +121,7 @@ export const PulseScoreCard = ({ siteId }) => {
         data-testid="pulse-score-card"
         className="rounded-2xl border border-[#E2E8F0] bg-white p-5 mb-4 text-sm text-slate-500"
       >
-        {error || 'Could not load The Pulse'}
+        {error || COPY.error}
       </div>
     );
   }
@@ -98,14 +133,14 @@ export const PulseScoreCard = ({ siteId }) => {
         data-testid="pulse-score-card"
         className="rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-[#F0F9FF] via-white to-[#EFF6FF] p-5 mb-4"
       >
-        <div className="text-xs uppercase tracking-[0.18em] font-mono font-semibold mb-1 text-[#0055FF]">
-          The Pulse · waking up
+        <div className="text-xs uppercase tracking-[0.18em] font-mono font-semibold mb-1" style={{ color: COPY.eyebrow_color }}>
+          {COPY.eyebrow_waking}
         </div>
         <div className="text-lg font-bold text-slate-800 mb-1 pulse-font-heading">
           We're getting to know your site.
         </div>
         <div className="text-sm text-slate-600 pulse-font-body">
-          {data.message || 'Your Pulse will appear once you\'ve added equipment and logged a little activity.'}
+          {data.message || COPY.not_ready_fallback}
         </div>
       </div>
     );
@@ -190,7 +225,7 @@ export const PulseScoreCard = ({ siteId }) => {
 
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-[0.18em] font-mono font-semibold mb-1" style={{ color: 'var(--pulse-fg)' }}>
-              The Pulse · today
+              {COPY.eyebrow_today}
             </div>
             <h3
               className="text-2xl sm:text-3xl font-bold leading-tight mb-1 pulse-font-heading"
@@ -245,7 +280,7 @@ export const PulseScoreCard = ({ siteId }) => {
                     className="h-full rounded-full"
                     style={{
                       width: `${widthPct}%`,
-                      background: 'linear-gradient(90deg, #19CDFF, #0055FF)',
+                      background: COPY.ring_gradient,
                       transition: 'width 1s cubic-bezier(.4,0,.2,1)',
                     }}
                   />

@@ -917,11 +917,11 @@ function GymFloorPhoneFrame({ step }) {
                 transition={{ duration: 2, repeat: Infinity }}
                 className="h-8 rounded-md border border-white/10 px-2 flex items-center justify-between text-[11px] text-white"
               >
-                <span className="font-semibold">Sarah Johnson</span>
+                <span className="font-semibold">Floor Member</span>
                 <ChevronRight size={10} className="rotate-90 text-white/40" />
               </motion.div>
               <p className="text-[8px] text-white/50 mt-1.5 leading-tight">
-                We'll attach Sarah's contact details to the supplier ticket.
+                We'll attach the member's contact details to the supplier ticket.
               </p>
             </div>
             <div className="space-y-2 opacity-50">
@@ -942,7 +942,7 @@ function GymFloorPhoneFrame({ step }) {
           >
             <div className="rounded-md bg-[rgb(var(--rgb-pulse-primary)/0.1)] border border-[rgb(var(--rgb-pulse-primary)/0.3)] px-2 py-1.5 mb-2 flex items-center gap-1.5">
               <CheckCircle2 size={10} className="text-[var(--pulse-primary)]" />
-              <span className="text-[9px] text-[var(--pulse-primary)] font-semibold">Sarah Johnson</span>
+              <span className="text-[9px] text-[var(--pulse-primary)] font-semibold">Floor Member</span>
             </div>
             <div className="space-y-2">
               <div className="h-7 rounded-md bg-white/5 border border-white/10 px-2 flex items-center text-[10px] text-white">
@@ -993,7 +993,7 @@ function GymFloorPhoneFrame({ step }) {
             </div>
             <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
               <div className="bg-[var(--color-ink-alt)] px-3 py-2">
-                <p className="text-white text-[10px] font-bold m-0">Tottenham Green — Fault Communication</p>
+                <p className="text-white text-[10px] font-bold m-0">Example Gym — Fault Communication</p>
                 <p className="text-white/50 text-[7px] m-0">via Pulse Fitness</p>
               </div>
               <div className="p-2.5 space-y-2">
@@ -1009,17 +1009,17 @@ function GymFloorPhoneFrame({ step }) {
                 >
                   <p className="text-[7px] font-bold text-sky-700 uppercase tracking-wider mb-0.5">Reported by</p>
                   <p className="text-[10px] font-bold text-slate-900 m-0">
-                    Sarah Johnson
+                    Floor Member
                     <span className="ml-1 inline-block bg-sky-100 text-sky-700 text-[6px] font-bold px-1 py-0.5 rounded uppercase">Gym Floor</span>
                   </p>
                   <p className="text-[8px] text-slate-700 mt-0.5">
-                    <span className="text-sky-600 underline">sarah@gymtest.com</span>
+                    <span className="text-sky-600 underline">member@example.com</span>
                     <span className="mx-1">·</span>
-                    <span className="text-sky-600 underline">+44 7700 900001</span>
+                    <span className="text-sky-600 underline">+44 7700 900000</span>
                   </p>
                 </motion.div>
                 <div className="rounded-md bg-slate-50 border-l-2 border-blue-400 px-2 py-1.5">
-                  <p className="text-[7px] font-bold text-slate-600 m-0">Lee Somers — Gym</p>
+                  <p className="text-[7px] font-bold text-slate-600 m-0">Gym Manager</p>
                   <p className="text-[8px] text-slate-800 mt-0.5">Hi, please look into this when possible.</p>
                 </div>
               </div>

@@ -18,7 +18,16 @@ import {
 const EQUIPMENT_TYPES = ['Treadmill', 'Exercise Bike', 'Cross Trainer', 'Rowing Machine', 'Spin Bike', 'Strength Equipment', 'Free Weights', 'StepMill', 'Cable Machine'];
 
 const PulseAIDiagnosisTab = ({ equipment }) => {
-  const { API } = useAuth();
+  const { API, user } = useAuth();
+  // Iter 220n — brand-aware copy. Pulse customers see "AI Fault
+  // Diagnosis"; GymAxis ops customers see "AI Triage". Same component,
+  // same backend — just the user-facing language matches the brand.
+  const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
+  const COPY = isPulseAccount
+    ? { hero: 'AI Fault Diagnosis', tab: 'Fault Diagnosis',
+        sub: 'Describe a fault and our AI will help diagnose the issue and suggest repairs.' }
+    : { hero: 'AI Triage', tab: 'AI Triage',
+        sub: 'Describe a fault and our AI will triage the issue, suggest likely causes, and recommend next steps.' };
   const [subTab, setSubTab] = useState('chat');
   const [chatHistory, setChatHistory] = useState([]);
   const [chatMessage, setChatMessage] = useState('');
@@ -74,7 +83,7 @@ const PulseAIDiagnosisTab = ({ equipment }) => {
     <div className="space-y-5" data-testid="pulse-ai-diagnosis">
       {/* Sub-tabs */}
       <div className="flex gap-2">
-        {[{ key: 'chat', label: 'Fault Diagnosis', icon: Brain }, { key: 'audit', label: 'Audit Reports', icon: FileText }].map(tab => (
+        {[{ key: 'chat', label: COPY.tab, icon: Brain }, { key: 'audit', label: 'Audit Reports', icon: FileText }].map(tab => (
           <button key={tab.key} onClick={() => setSubTab(tab.key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${subTab === tab.key ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300 dark:bg-zinc-900 dark:border-zinc-800'}`} data-testid={`pulse-ai-tab-${tab.key}`}>
             <tab.icon size={15} />{tab.label}
           </button>
@@ -87,7 +96,7 @@ const PulseAIDiagnosisTab = ({ equipment }) => {
           <Card className="bg-blue-50 border-blue-200 p-5">
             <div className="flex items-center gap-3">
               <Brain size={20} className="text-blue-600" />
-              <div><p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">AI Fault Diagnosis</p><p className="text-xs text-zinc-500">Describe a fault and our AI will help diagnose the issue and suggest repairs.</p></div>
+              <div><p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{COPY.hero}</p><p className="text-xs text-zinc-500">{COPY.sub}</p></div>
             </div>
           </Card>
 

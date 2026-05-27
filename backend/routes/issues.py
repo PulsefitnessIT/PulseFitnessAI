@@ -473,6 +473,75 @@ async def _mirror_job_to_svc_case(issue_docs: list[dict], job_id: str, user: dic
         logger.warning(f"_mirror_job_to_svc_case failed: {e}")
 
 
+async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> None:
+    """Iter 220n — when a gym logs a fault that's escalated to an engineer,
+    automatically dispatch the case to their *primary* service supplier
+    (typically the Partner Engineer who referred them) so it shows up in
+    the engineer's queue + inbox without a human in the loop.
+
+    Falls back silently when:
+      * The issue isn't being escalated to an engineer (in-house fix etc).
+      * The gym has zero `auto_dispatch=True` suppliers on file.
+      * No issue_id (defensive — shouldn't happen post-insert).
+
+    Idempotent — `create_supplier_case` is keyed by token uuid + we
+    skip if a supplier_case already exists for this (issue_id,
+    supplier_id) pair.
+    """
+    try:
+        if (issue_doc.get("resolution_type") or "") != "engineer":
+            return
+        org_id = issue_doc.get("organization_id")
+        issue_id = issue_doc.get("id")
+        if not org_id or not issue_id:
+            return
+        # Pick the highest-priority auto-dispatch supplier.
+        # Sort: is_primary_supplier desc, created_at asc (first one wins ties).
+        supplier = await db.suppliers.find_one(
+            {"organization_id": org_id, "auto_dispatch": True, "email": {"$ne": ""}},
+            {"_id": 0, "id": 1, "name": 1, "email": 1, "partner_engineer_id": 1},
+            sort=[("is_primary_supplier", -1), ("created_at", 1)],
+        )
+        if not supplier:
+            return
+        # Replay-safe: skip if a supplier_case already exists for this
+        # (issue, supplier) pair — guards against retries / multi-machine
+        # batch flows already calling out to the same supplier.
+        already = await db.supplier_cases.find_one(
+            {"issue_id": issue_id, "supplier_email": supplier["email"]},
+            {"_id": 0, "id": 1},
+        )
+        if already:
+            return
+        # Resolve org name for the supplier-facing case page.
+        org = await db.organizations.find_one(
+            {"id": org_id}, {"_id": 0, "name": 1},
+        )
+        org_name = (org or {}).get("name") or "Customer"
+        from routes.supplier_portal import create_supplier_case
+        await create_supplier_case(
+            issue_id=issue_id,
+            supplier_name=supplier.get("name") or "Service Engineer",
+            supplier_email=supplier["email"],
+            organization_name=org_name,
+            base_url="",  # ignored — create_supplier_case derives via app_url_for
+        )
+        # Tag the issue so the dashboard can render the "auto-dispatched
+        # to <engineer>" badge without a second lookup.
+        await db.issues.update_one(
+            {"id": issue_id},
+            {"$set": {
+                "auto_dispatched_supplier_id": supplier["id"],
+                "auto_dispatched_supplier_name": supplier.get("name"),
+                "auto_dispatched_partner_engineer_id": supplier.get("partner_engineer_id"),
+                "auto_dispatched_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+    except Exception as e:
+        # Never block intake on a dispatch failure.
+        logger.warning(f"_auto_dispatch_to_primary_supplier failed: {e}")
+
+
 @router.post("/issues")
 async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
     issue_doc = _build_issue_doc(issue, user)
@@ -498,6 +567,11 @@ async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user
     await _publish_issue_event(issue_doc, user)
     # Bridge: if escalated to engineer, mirror to Service Desk (best-effort).
     await _mirror_issue_to_svc_case(issue_doc, user)
+    # Iter 220n — auto-dispatch to the gym's primary service supplier
+    # (set up either by the gym manually OR auto-attached when they
+    # signed up with a Partner Engineer's referral code). Best-effort —
+    # never blocks intake.
+    await _auto_dispatch_to_primary_supplier(issue_doc, user)
 
     # Iter 216h227 — Operations trial first-win milestone for logging
     # the org's very first fault. Best-effort — never block intake.

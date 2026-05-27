@@ -1,3 +1,98 @@
+## Iter 220n — Partner Engineer auto-supplier + brand parity (May 26, 2026) ✅ user-directed
+
+User direction was:
+* **(1)** Drop the "GymAxis Pro upgrade page" idea — GymAxis is ops-base
+  with module bolt-ons, no Pro tier.
+* **(2)** Build the supplier auto-dispatch feature so referred-gym faults
+  flow to the referring engineer.
+* **(3)** Rename the in-dashboard score from "Pulse Score" to **"Gym
+  Health"** in GymAxis-branded contexts.
+* **(4)** AI Triage tab — "a must, should already have been included."
+* **(5)** Strip any testimonial / customer-attribution copy because we
+  have no real customers yet.
+* **(6)** Skip master-admin parity work (user has what they need).
+* **(7)** Polish landing page where required (audit showed
+  `MarketingHome.js` was already on-brand with no fabricated proof).
+
+**1. Partner Engineer → auto-supplier auto-dispatch (the headline
+feature).** The Partner Plan promise — *"every gym you bring in is
+recurring revenue AND recurring work"* — now delivers both halves:
+
+* `routes/partners.py::attach_referral_to_org` — when a gym signs up
+  with a Partner Engineer's referral code, idempotently insert a row
+  into `db.suppliers` with `partner_engineer_id` link,
+  `auto_dispatch=True`, `is_primary_supplier=True`,
+  `auto_created_from_referral=True`. Rates (callout fee, labour rate,
+  mileage, parts markup) are carried over from the partner profile.
+  Failures are best-effort logged — never block a successful referral.
+* `routes/issues.py::_auto_dispatch_to_primary_supplier` — new helper
+  invoked from `create_issue` after the case is mirrored to Service
+  Desk. Triggers ONLY when `resolution_type == 'engineer'` (in-house
+  faults stay in-house). Picks the top-priority auto-dispatch supplier
+  (sort: `is_primary_supplier desc, created_at asc`), calls the
+  existing `routes.supplier_portal.create_supplier_case` to mint a
+  token + send the supplier-portal email, and stamps the issue with
+  `auto_dispatched_supplier_id/name/partner_engineer_id/at`.
+  Idempotent — skips if a `supplier_cases` row already exists for the
+  (issue_id, supplier_email) pair (covers retries + multi-machine
+  batch flows).
+* **Gym keeps full agency.** The existing Supplier Dashboard tab lets
+  the gym disable `auto_dispatch`, swap the primary, or add more
+  suppliers — nothing forced. Auto-created rows carry a flag the
+  dashboard can render as an "Auto-added from your referral signup"
+  badge in future polish.
+
+**2 + 3. Brand-aware UI (Pulse Score → Gym Health, AI Triage tab).**
+
+* `frontend/src/components/PulseScoreCard.js` — wired in `useAuth()`,
+  branched on `account_type`. `pulse_pro` / `lite` accounts see "The
+  Pulse · today" with the cyan→navy gradient ring; everyone else
+  (GymAxis ops) sees "Gym Health · today" with the canonical navy
+  `#2563EB` → purple `#9D4CDD` gradient. Loading + error strings also
+  brand-switch.
+* `frontend/src/pages/PulseAIDiagnosisTab.js` — un-orphaned (was
+  imported nowhere). Wired into `LiteDashboardPage`'s `proBase` tab
+  list as **"AI Triage"** (GymAxis) / **"AI Diagnosis"** (Pulse).
+  Component-internal headings + tab labels also brand-switch via the
+  same `account_type` probe.
+* `LiteDashboardPage.js` — added the new TabsContent wrapper, imported
+  `PulseAIDiagnosisTab`, added `Brain` icon for the tab.
+
+**5. Fabricated customer names removed from PulseLandingPage.**
+
+The mockup-email preview used "Sarah Johnson", "Lee Somers", and
+"Tottenham Green" — all sufficiently plausible that a visitor could
+reasonably mistake them for real customer references. Replaced with
+"Floor Member", "Gym Manager", and "Example Gym" — clearly placeholder
+strings. Pinned by regression test
+`test_pulse_landing_has_no_fabricated_customer_names` so the banned
+names can never silently return.
+
+**Regression coverage.** New `backend/tests/test_iter_220n_supplier_auto_dispatch.py`
+adds **9 tests** (all green), wired into `Makefile::regression`:
+
+| Test | Invariant pinned |
+|---|---|
+| `test_attach_referral_creates_auto_dispatch_supplier` | Right shape: org_id, partner_engineer_id, auto_dispatch=True, is_primary_supplier=True, rates carried, name/email from partner. |
+| `test_attach_referral_skips_supplier_when_already_linked` | Idempotency on re-activation. |
+| `test_engineer_escalated_fault_dispatches_to_primary_supplier` | End-to-end: engineer-fault → create_supplier_case + issue stamped. |
+| `test_in_house_resolution_does_not_trigger_dispatch` | Critical guard — in-house faults stay in-house. |
+| `test_no_dispatch_when_org_has_no_auto_dispatch_supplier` | No supplier on file → no dispatch + no issue tagging. |
+| `test_idempotent_when_supplier_case_already_exists` | Replay-safe — skips if (issue, supplier) already dispatched. |
+| `test_pulse_score_card_imports_useauth_for_brand_switch` | Source-level pin: useAuth + "Gym Health" + canonical gradient hexes present. |
+| `test_ai_triage_tab_wired_into_dashboard_for_both_brands` | AI Triage tab is reachable + brand labels present. |
+| `test_pulse_landing_has_no_fabricated_customer_names` | Banned names cannot silently return. |
+
+**Quality gates.** `make regression` ✓ **837 passed, 15 skipped, 0
+failed** (was 828; +9 new). `ruff check` clean on all touched backend
+files. ESLint clean on all 4 touched frontend files (`PulseScoreCard`,
+`LiteDashboardPage`, `PulseAIDiagnosisTab`, `PulseLandingPage`).
+`make docs-verify` ✓ 46 docs.
+
+---
+
+
+
 ## Iter 220m (cont.) — Brand preview wired into CI quality gate (May 26, 2026) ✅ user-requested
 
 Wired `make brand-preview` into the GitHub Actions quality gate so any
