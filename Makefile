@@ -161,6 +161,7 @@ regression:
 	  tests/test_iter_220y_engineer_reviews_wall.py \
 	  tests/test_iter_220z_partner_wall_share.py \
 	  tests/test_iter_220aa_widget_embed.py \
+	  tests/test_iter_220ad_seo_autopilot.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

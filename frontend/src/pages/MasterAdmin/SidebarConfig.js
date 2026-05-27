@@ -102,13 +102,24 @@ export const SIDEBAR_ITEMS = [
       // Iter 220ac — Marketing Studio (full Marketing Suite, master-admin
       // scoped, used to promote GymAxis itself).
       { id: 'marketing-studio', label: 'Marketing Studio',   icon: Megaphone },
+      // Iter 220ad — SEO Autopilot (keyword research → article → publish)
+      { id: 'seo-autopilot',    label: 'SEO Autopilot',      icon: Sparkles },
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
       { id: 'canned-replies',  label: 'Canned replies',   icon: FileText },
       { id: 'emails',          label: 'Outbound emails',  icon: Mail },
       { id: 'trials',          label: 'Trials',           icon: Timer },
       { id: 'sales-insights',  label: 'Sales insights',   icon: Sparkles },
       { id: 'pulse-sales',     label: 'Pulse Sales (CAPEX)', icon: TrendingUp },
-      { id: 'analytics',       label: 'Global analytics', icon: BarChart3 },
+    ],
+  },
+  // Iter 220ad — Analytics promoted from a Growth sub-tab to a top-level
+  // entry. Operator feedback: "Global Analytics doesn't belong inside
+  // Growth — it spans Finance, Service Ops, CRM, Marketing, Memberships
+  // and Engineers. Surface it on the main rail."
+  {
+    id: 'analytics-section', label: 'Analytics', icon: BarChart3, group: 'main',
+    subTabs: [
+      { id: 'analytics', label: 'Global analytics', icon: BarChart3 },
     ],
   },
   // 7. Partner Engineers — promoted to top-level (iter 219).
@@ -223,9 +234,10 @@ export const LEGACY_SECTION_REDIRECTS = {
   'trials':             'growth',
   'sales-insights':     'growth',
   'pulse-sales':        'growth',
-  'analytics':          'growth',
+  'analytics':          'analytics-section',
   'marketing-studio':   'growth',
   'marketing-suite':    'growth',
+  'seo-autopilot':      'growth',
   'communications':     'growth',
   'canned-replies':     'growth',
   'emails':             'growth',
@@ -283,6 +295,7 @@ export const sectionTitles = {
   finance: 'Finance',
   security: 'Security',
   growth: 'Growth',
+  'analytics-section': 'Analytics',
   'support-hub': 'Support',
   'settings-compliance': 'Settings & Compliance',
 };

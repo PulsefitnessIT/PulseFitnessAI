@@ -18076,3 +18076,86 @@ SEO Autopilot (Soro-style):
 - Daily auto-publish to ``frontend/src/pages/Marketing/Blog/``
 - Rank dashboard (clicks, impressions, position)
 - AI overview optimisation for ChatGPT/Perplexity citations
+
+---
+
+## Iter 220ad — SEO Autopilot (Phase 2) + Analytics promoted to top-level
+## (May 27, 2026)
+
+### Context
+User signed off Phase 1 ("Marketing Studio") and asked for the
+Soro-style SEO Autopilot next. Also asked to move "Global Analytics"
+out of Growth and to its own top-level sidebar slot (it spans Finance,
+Service Ops, CRM, Marketing — doesn't belong under Growth).
+
+### Implementation — SEO Autopilot
+- **Backend** (``routes/marketing/seo_autopilot.py``, new ~530 LOC):
+  - 11 endpoints under ``/api/marketing/seo`` (admin) and 2 under
+    ``/api/blog`` (public):
+    - ``POST keywords/research`` — Claude Sonnet 4.6 (via emergentintegrations
+      + Emergent LLM key) brainstorms 5–40 long-tail keywords with
+      intent/difficulty/volume/rationale, persists each to
+      ``seo_keywords`` (status=queued).
+    - ``GET keywords`` / ``PATCH keywords/{id}`` / ``DELETE``.
+    - ``POST articles/generate`` — Claude produces a 1500-word UK-English
+      fitness-tone article (H1, 5–7 H2, FAQ Q&A pairs, on-brand tone)
+      then Gemini 3.1 Flash Nano Banana renders a 16:9 hero image. JSON
+      parse is fence-aware (handles ```json fences, prose-wrapped,
+      naked).
+    - ``GET articles`` / ``GET articles/{id}`` / ``PATCH`` / ``DELETE``
+      (soft-archive). PATCH stamps ``published_at`` on first transition
+      to ``published`` (won't overwrite on republish) and recomputes
+      ``word_count`` + ``read_time_min`` on body edits.
+    - ``POST autopilot/run`` — picks oldest queued keyword → calls
+      ``generate_article(publish_now=True)`` → marks keyword as
+      ``status=published`` with ``target_article_id``. Cron-ready
+      (1 article/day at the default tier).
+    - ``GET dashboard`` — rollup tiles + 10 most recent articles.
+    - ``GET /api/blog/posts`` (public, lists published).
+    - ``GET /api/blog/posts/{slug}`` (public, increments view counter).
+  - All admin endpoints guarded with ``_require_master_admin``.
+  - LLM unavailable / key missing → graceful fallback path so the UI
+    never breaks (seeds 1 fallback keyword, fallback article body).
+  - Slug collisions resolved by appending a 6-char id suffix.
+  - Indexes on ``seo_articles.slug`` (unique sparse) + status, and
+    ``seo_keywords.status``.
+- **Frontend**:
+  - ``pages/MasterAdmin/SEOAutopilotPanel.js`` (new ~400 LOC) — 3 sub-
+    tabs (Dashboard, Keywords, Articles), inline article editor modal
+    with markdown body, Publish / Save-draft footer actions, word-count
+    pill. Hero card explains the saving vs. Soro.
+  - ``pages/Marketing/Blog/BlogIndex.js`` — merges DB published posts
+    (newest first) with the file-based legacy ``./posts/`` registry.
+  - ``pages/Marketing/Blog/BlogPost.js`` — falls back to DB lookup
+    when slug isn't in the static registry, renders Markdown body,
+    hero image, FAQ section + injects ``schema.org FAQPage`` JSON-LD
+    so ChatGPT / Perplexity / Google AI overviews cite us.
+
+### Implementation — Analytics promoted to top-level
+- ``SidebarConfig.js``: removed ``analytics`` from Growth.subTabs; added
+  new top-level section ``{ id: 'analytics-section', label: 'Analytics',
+  icon: BarChart3 }`` with one sub-tab ``analytics`` (Global analytics).
+  Section group label registered. Deep-link map updated.
+
+### Verification
+- ``make regression`` → **986 passed**, 15 skipped (+18 new tests, zero
+  regressions on the 968 baseline).
+- Live screenshot ``/master-admin?section=seo-autopilot`` confirms:
+  - Sidebar Growth highlighted; Analytics now a top-level entry.
+  - SEO Autopilot tab active.
+  - All 5 testids render (panel, 3 sub-tab buttons, dashboard).
+  - 4 zero-state KPI tiles + "Recent activity" empty state.
+  - Marketing Studio sub-tab still visible (Phase 1 preserved).
+- ``mcp_lint_python`` + ``mcp_lint_javascript`` both clean (7 files).
+
+### Files changed
+- ``backend/routes/marketing/seo_autopilot.py`` (new module, ~530 LOC)
+- ``backend/server.py`` (router registration + index init)
+- ``backend/tests/test_iter_220ad_seo_autopilot.py`` (new, 18 tests)
+- ``frontend/src/pages/MasterAdmin/SEOAutopilotPanel.js`` (new)
+- ``frontend/src/pages/MasterAdmin/SidebarConfig.js`` (Analytics promoted)
+- ``frontend/src/pages/MasterAdminPage.js`` (route case)
+- ``frontend/src/pages/Marketing/Blog/BlogIndex.js`` (DB merge)
+- ``frontend/src/pages/Marketing/Blog/BlogPost.js`` (DB fallback +
+  FAQPage JSON-LD)
+- ``Makefile`` (regression target)

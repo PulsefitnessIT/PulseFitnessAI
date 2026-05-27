@@ -323,6 +323,14 @@ from routes.widget_embed import (
 app.include_router(_widget_public_router)
 app.include_router(_widget_owner_router)
 
+# Iter 220ad — SEO Autopilot (admin + public blog endpoints)
+from routes.marketing.seo_autopilot import (
+    router as _seo_router,
+    public_router as _seo_public_router,
+)
+app.include_router(_seo_router)
+app.include_router(_seo_public_router)
+
 
 async def _seed_master_admin() -> None:
     """Seed/heal master admin account on every startup.
@@ -560,6 +568,9 @@ async def _create_indexes() -> None:
     # Iter 220aa — Embeddable Widget (iframe Log-a-Fault) indexes
     from routes.widget_embed import init_widget_embed_indexes
     await init_widget_embed_indexes()
+    # Iter 220ad — SEO Autopilot indexes
+    from routes.marketing.seo_autopilot import init_seo_indexes
+    await init_seo_indexes()
     # Iter 216h140 — Engineer Diary indexes
     from routes.svc.diary import ensure_diary_indexes
     await ensure_diary_indexes()
