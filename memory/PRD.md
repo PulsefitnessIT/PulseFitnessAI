@@ -17897,3 +17897,87 @@ a prominent share kit on their dashboard.
 - ``frontend/src/pages/PartnerEngineer/PartnerDashboard.js`` (import + render)
 - ``Makefile`` (regression target)
 - ``memory/test_credentials.md`` (E1 user re-seed note)
+
+---
+
+## Iter 220aa — Embeddable Widget: Log a Fault / Get a Quote (May 27, 2026)
+
+### Context
+User asked: "If an engineer or company have their own website, would
+it be possible for us to implant an enquiry form or Log a Fault directly
+into their website? The fault then goes straight into their app?"
+
+Yes — and turned it into a major acquisition lever for the platform.
+
+### Choices (user-confirmed)
+* Both owner flavours: partner_engineer (Log a Fault → svc_job_requests)
+  AND organization (Get a Quote → crm2_contacts lead).
+* iframe snippet only (no JS SDK).
+* Honeypot + per-IP rate limiting (5/hour/token/ip), no CAPTCHA.
+* Branded confirmation + 5-second auto redirect/close.
+* Engineer review badge shown on the widget header.
+
+### Implementation
+- **Backend** (``routes/widget_embed.py``, new ~370 LOC):
+  - Public, token-gated:
+    - ``GET /api/widget/embed/{token}`` — config (owner, badge,
+      branding).
+    - ``POST /api/widget/embed/{token}/submit`` — accept fault/lead,
+      route to the right collection.
+  - Auth'd owner CRUD:
+    - ``GET /api/widget/my-embeds``
+    - ``POST /api/widget/embeds``
+    - ``PATCH /api/widget/embeds/{id}``
+    - ``DELETE /api/widget/embeds/{id}`` (soft-revoke)
+  - Anti-abuse: ``website`` honeypot field (silent 200 if filled);
+    ``widget_submission_log`` collection backs a per-token/IP rolling
+    1-hour rate limit (5 max).
+  - Submission-count + last_submission_at incremented on the embed
+    for dashboard display.
+  - New indexes on ``widget_embeds.token`` (unique) and the log table.
+- **Frontend**:
+  - ``pages/Public/EmbedFaultForm.js`` at ``/embed/log-fault/:token``
+    — branded header (engineer photo or initial badge, name, company,
+    review badge, "Powered by GymAxis" pill), responsive form, hidden
+    honeypot, branded "Thanks" panel with 5s countdown that either
+    posts ``window.parent.postMessage({source:'gymaxis-widget',
+    event:'close'})`` or redirects to ``redirect_url``.
+  - ``components/shared/WidgetEmbedCard.js`` — dashboard snippet
+    builder: list existing embeds (with counts), create new, preview,
+    copy ``<iframe>`` snippet to clipboard, soft-revoke.
+  - Card mounted on Partner Dashboard for approved engineers
+    (``ownerType="partner_engineer"``); ready to drop on the
+    CRM org-settings page with ``ownerType="organization"``.
+- **Tests** (``test_iter_220aa_widget_embed.py``, 18 tests):
+  - Public config — engineer + org owner shapes, badge skip,
+    404 on bad/revoked tokens, 404 on non-approved partner.
+  - Public submit — creates svc_job_requests, creates crm2_contacts
+    lead, honeypot silent discard, rate-limit 429, revoked 404.
+  - Owner CRUD — partner / org owner path, list isolation,
+    soft-revoke, 404 on someone else's widget.
+  - Live API round trip (auth → create → public read → public submit
+    → revoke → confirm 404).
+
+### Verification
+- ``make regression`` → **968 passed**, 15 skipped (+18 new tests,
+  zero regressions on the 950 baseline).
+- Full live API round trip (E1 engineer): created widget → public
+  config returned engineer name + log_fault kind + badge → public
+  submit returned ``{ok:true, ref:'cedde507'}`` → honeypot returned
+  ``{ok:true, ref:'spam-discarded'}`` → list_my_embeds showed
+  count=1 (honeypot did NOT increment).
+- Frontend smoke at ``/embed/log-fault/9UE08PZ8Gk7Dcyoo``: renders
+  branded header + 8 testids + complete form.
+- Partner Dashboard smoke: snippet-builder card visible with the
+  live ``<iframe>`` snippet, Preview/Revoke actions.
+- ``mcp_lint_python`` + ``mcp_lint_javascript`` both clean.
+
+### Files changed
+- ``backend/routes/widget_embed.py`` (new module)
+- ``backend/server.py`` (router registration + index init)
+- ``backend/tests/test_iter_220aa_widget_embed.py`` (new, 18 tests)
+- ``frontend/src/pages/Public/EmbedFaultForm.js`` (new public page)
+- ``frontend/src/components/shared/WidgetEmbedCard.js`` (new dashboard card)
+- ``frontend/src/routes/AppRoutes.js`` (lazy route)
+- ``frontend/src/pages/PartnerEngineer/PartnerDashboard.js`` (mount card)
+- ``Makefile`` (regression target)

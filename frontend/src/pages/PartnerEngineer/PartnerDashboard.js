@@ -26,6 +26,8 @@ import PartnerCollateralCard from './PartnerCollateralCard';
 import PartnerReviewsCard from './PartnerReviewsCard';
 // Iter 220z — Public Wall of Reviews share card
 import PartnerWallShareCard from './PartnerWallShareCard';
+// Iter 220aa — Embeddable Log-a-Fault widget snippet builder
+import WidgetEmbedCard from '@/components/shared/WidgetEmbedCard';
 import PartnerEngineerReferralCard from './PartnerEngineerReferralCard';
 import PartnerAvailabilityCard from './PartnerAvailabilityCard';
 
@@ -337,6 +339,13 @@ export default function PartnerDashboard() {
             the engineer has zero reviews yet (early-days encouragement
             + acquisition channel). */}
         {partner.status === 'approved' && <PartnerWallShareCard />}
+
+        {/* Iter 220aa — Embeddable "Log a Fault" widget. Lets the
+            engineer drop a form on their own marketing site →
+            submissions land in the engineer inbox. */}
+        {partner.status === 'approved' && (
+          <WidgetEmbedCard ownerType="partner_engineer" />
+        )}
 
         {/* Iter 216h286 — Gap 8: customer reviews on the engineer.
             Hides itself silently if the engineer has no reviews yet. */}

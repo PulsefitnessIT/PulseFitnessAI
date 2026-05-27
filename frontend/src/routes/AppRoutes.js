@@ -130,6 +130,8 @@ const PublicEngineerLanding    = lazy(() => import('@/pages/Public/EngineerLandi
 const PartnerReviewPublic      = lazy(() => import('@/pages/Public/PartnerReviewPublic'));
 // Iter 220y — Public Wall of Reviews
 const EngineerReviewsWall      = lazy(() => import('@/pages/Public/EngineerReviewsWall'));
+// Iter 220aa — Embeddable widget (Log-a-Fault / Get-a-Quote)
+const EmbedFaultForm           = lazy(() => import('@/pages/Public/EmbedFaultForm'));
 const WitnessStatementPage     = lazy(() => import('@/pages/WitnessStatementPage'));
 const EngineerReferralLanding  = lazy(() => import('@/pages/Public/EngineerReferralLanding'));
 // Iter 216h159 — Engineer card-conversion analytics
@@ -254,6 +256,10 @@ export default function AppRoutes({ user, login }) {
           by human-readable slug. Linked from the engineer's email
           signature / business card / LinkedIn. */}
       <Route path="/engineers/:slug/reviews" element={<EngineerReviewsWall />} />
+      {/* Iter 220aa — Embedded "Log a Fault" / "Get a Quote" form.
+          Designed to be loaded inside an iframe on an engineer's or
+          company's marketing website. Public, token-gated. */}
+      <Route path="/embed/log-fault/:token" element={<EmbedFaultForm />} />
       <Route path="/witness-statement/:token" element={<WitnessStatementPage />} />
       {/* Iter 216h287 — Gap 9: engineer-of-engineer recruit landing.
           Branded one-pager from a peer engineer's referral link. */}

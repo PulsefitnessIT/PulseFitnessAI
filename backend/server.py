@@ -312,6 +312,17 @@ supplier_external_router.include_router(supplier_api_router)
 app.include_router(api_router)
 app.include_router(supplier_external_router)
 
+# Iter 220aa — Embeddable Widget (iframe-based Log a Fault / Get a
+# Quote form for engineer & company websites). Public + owner routers
+# are bound directly to the app because their prefixes already include
+# ``/api`` and they're a self-contained module.
+from routes.widget_embed import (
+    public_router as _widget_public_router,
+    owner_router as _widget_owner_router,
+)
+app.include_router(_widget_public_router)
+app.include_router(_widget_owner_router)
+
 
 async def _seed_master_admin() -> None:
     """Seed/heal master admin account on every startup.
@@ -546,6 +557,9 @@ async def _create_indexes() -> None:
     # Iter 216h75 — Partner Engineer Network indexes
     from routes.partners import ensure_partner_indexes
     await ensure_partner_indexes()
+    # Iter 220aa — Embeddable Widget (iframe Log-a-Fault) indexes
+    from routes.widget_embed import init_widget_embed_indexes
+    await init_widget_embed_indexes()
     # Iter 216h140 — Engineer Diary indexes
     from routes.svc.diary import ensure_diary_indexes
     await ensure_diary_indexes()
