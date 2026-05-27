@@ -1,3 +1,72 @@
+## Iter 220ai — SEO Autopilot UX wins · Phase B (May 27, 2026) ✅
+
+Three high-impact improvements to the daily SEO Autopilot, shipped
+together so the master admin no longer has to touch env vars or wait
+24h to see results.
+
+**B1 — "Run now" manual trigger.**
+
+* `POST /api/marketing/seo/autopilot/run-now` (master-admin gated).
+* Refuses with `{ok: false, reason: "already ran today"}` if the day
+  has already been stamped — protects against double-fire.
+* On success, stamps `seo_autopilot_runs` with `manual: true` so the
+  daily background loop's idempotency check still works.
+* UI: purple **Run now** button on the Daily Autopilot card, disabled
+  while a run is in flight and after the daily stamp is written.
+
+**B2 — In-UI schedule toggle + time picker.**
+
+* New `seo_autopilot_config` collection (singleton row).
+* `_load_config()` reads DB first, falls back to env on first boot so
+  existing installs upgrade cleanly.
+* `PUT /api/marketing/seo/autopilot/config` (master-admin gated)
+  upserts `{enabled, hour_uk}`; `hour_uk` is Pydantic-validated 0–23.
+* `GET /autopilot/status` now reports the DB-resolved config + who/when
+  last edited.
+* `run_daily_autopilot_loop()` re-reads the config on every 15-min
+  iteration so the toggle takes effect without a backend restart.
+* UI: **Schedule** button reveals an inline editor (Enabled checkbox
+  + hour `<select>` 00:00–23:00 + Save) right inside the status card.
+
+**B3 — Per-article performance tracking.**
+
+* `GET /api/marketing/seo/dashboard` now returns a `performance` block:
+    - `total_views` — sum of `metrics.views` across all published.
+    - `top` — top-5 articles sorted by `metrics.views` desc.
+* UI:
+    - Dashboard headline tile replaced: was "Keywords used", now
+      **Total blog views** with the cross-article sum.
+    - New **Top performers** table on the Dashboard — rank pill,
+      slug, primary keyword, read-time, view count.
+    - Articles tab gains a **Recent / Views** sort toggle and a
+      view-count column per row.
+
+**Tests — `tests/test_iter_220ai_seo_autopilot_ux.py`.** 10 new
+isolated unit tests covering:
+  * `autopilot/status` DB-vs-env precedence (2 cases).
+  * `autopilot/config` PUT — gating, upsert shape + stamps,
+    hour-range validation.
+  * `autopilot/run-now` — gating, double-fire refusal, manual stamp.
+  * Dashboard `performance` block — top sort + total view sum.
+  * Daily loop honours the DB `enabled=false` flag mid-flight.
+* Also patched `test_iter_220af_seo_autopilot_scheduler.py` fixture
+  to include the new `seo_autopilot_config` collection.
+* Wired into `make regression` which now stands at **1046 passed,
+  15 skipped** (was 1036).
+
+**Live verification.** Curl confirmed:
+  * PUT `hour_uk: 7` → status returns `hour_uk: 7` + new
+    `config_updated_by` user id.
+  * Dashboard `performance.total_views: 12` matches the 1 published
+    article on the master-admin tenant.
+  * Reset to `hour_uk: 9` after testing.
+
+**Quality gates.** `make lint-python` ✅, `make lint-frontend` ✅,
+`make regression` ✅ (99 s).
+
+---
+
+
 ## Iter 220ah — B2B Journey Templates one-click launcher (May 27, 2026) ✅
 
 **Goal.** Make the 4 B2B journey templates on the Growth Hub fire for

@@ -35,7 +35,7 @@ def _fake_db():
     fdb = MagicMock()
     for coll in (
         "seo_keywords", "seo_articles", "seo_distributions",
-        "seo_autopilot_runs", "users",
+        "seo_autopilot_runs", "seo_autopilot_config", "users",
     ):
         for op in ("insert_one", "update_one", "delete_one", "delete_many"):
             setattr(getattr(fdb, coll), op, AsyncMock())

@@ -14,8 +14,9 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   Sparkles, Rocket, BookOpen, Loader2, Plus, RefreshCw,
-  ListChecks, AlertTriangle, Eye, Send, Search, FileText, X,
+  AlertTriangle, Eye, Send, Search, FileText, X,
   Share2, Copy, Check, Linkedin, MessageSquare, Clock, ExternalLink,
+  PlayCircle, Settings2, TrendingUp,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -51,15 +52,51 @@ function StatusPill({ status }) {
 function AutopilotStatusCard() {
   const [s, setS] = useState(null);
   const [err, setErr] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ enabled: true, hour_uk: 9 });
+  const [saving, setSaving] = useState(false);
+
   const load = async () => {
     try {
       const r = await axios.get(`${API}/api/marketing/seo/autopilot/status`, { headers: auth() });
       setS(r.data);
+      setDraft({ enabled: !!r.data.enabled, hour_uk: Number(r.data.hour_uk ?? 9) });
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Could not load autopilot status');
     }
   };
   useEffect(() => { load(); }, []);
+
+  const runNow = async () => {
+    if (running) return;
+    setRunning(true);
+    try {
+      const r = await axios.post(`${API}/api/marketing/seo/autopilot/run-now`, {}, { headers: auth() });
+      if (r.data?.ok) {
+        notify.success('Autopilot run started — fresh article will appear in Articles tab.');
+      } else {
+        notify.info(r.data?.reason || 'Autopilot already ran today');
+      }
+      await load();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Run-now failed');
+    } finally { setRunning(false); }
+  };
+
+  const saveConfig = async () => {
+    setSaving(true);
+    try {
+      await axios.put(`${API}/api/marketing/seo/autopilot/config`,
+        { enabled: !!draft.enabled, hour_uk: Number(draft.hour_uk) || 9 },
+        { headers: auth() });
+      notify.success('Schedule saved — loop picks it up within 15 minutes.');
+      setEditing(false);
+      await load();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Save failed');
+    } finally { setSaving(false); }
+  };
 
   if (err) {
     return (
@@ -78,42 +115,98 @@ function AutopilotStatusCard() {
   const lastDate = s.last_run?.date || '—';
   return (
     <div
-      className="rounded-2xl border border-fuchsia-200 dark:border-fuchsia-900 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-5 py-4 flex items-center gap-4"
+      className="rounded-2xl border border-fuchsia-200 dark:border-fuchsia-900 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-5 py-4"
       data-testid="seo-autopilot-status"
     >
-      <span className="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-fuchsia-600 text-white flex items-center justify-center">
-        <Clock size={16}/>
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] uppercase tracking-wider font-bold text-fuchsia-700 dark:text-fuchsia-400">
-          Daily Autopilot
-        </p>
-        <p className="text-sm font-bold mt-0.5" data-testid="seo-autopilot-status-headline">
-          {s.enabled ? (
-            <>Fires daily at <span className="tabular-nums">{String(s.hour_uk).padStart(2, '0')}:00</span> Europe/London</>
-          ) : (
-            <>Autopilot disabled in env</>
-          )}
-        </p>
-        <p className="text-[11px] text-zinc-500 mt-0.5">
-          {s.ran_today
-            ? <>Already fired today ({lastDate}) — next run tomorrow</>
-            : <>Last run: {lastDate}{s.enabled ? ' · Next: today @ 09:00' : ''}</>
-          }
-        </p>
+      <div className="flex items-center gap-4 flex-wrap">
+        <span className="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-fuchsia-600 text-white flex items-center justify-center">
+          <Clock size={16}/>
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] uppercase tracking-wider font-bold text-fuchsia-700 dark:text-fuchsia-400">
+            Daily Autopilot
+          </p>
+          <p className="text-sm font-bold mt-0.5" data-testid="seo-autopilot-status-headline">
+            {s.enabled ? (
+              <>Fires daily at <span className="tabular-nums">{String(s.hour_uk).padStart(2, '0')}:00</span> Europe/London</>
+            ) : (
+              <>Autopilot is paused</>
+            )}
+          </p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">
+            {s.ran_today
+              ? <>Already fired today ({lastDate}){s.last_run?.manual ? ' · manual run' : ''} — next run tomorrow</>
+              : <>Last run: {lastDate}{s.enabled ? ` · Next: today @ ${String(s.hour_uk).padStart(2, '0')}:00` : ''}</>
+            }
+          </p>
+        </div>
+        <span
+          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+            s.ran_today
+              ? 'bg-green-100 text-green-800'
+              : s.enabled
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-zinc-100 text-zinc-600'
+          }`}
+          data-testid="seo-autopilot-status-pill"
+        >
+          {s.ran_today ? 'Fired today' : s.enabled ? 'Standby' : 'Off'}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button" onClick={runNow}
+            disabled={running || s.ran_today}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="seo-autopilot-run-now"
+            title={s.ran_today ? 'Already fired today' : 'Generate today\'s article now'}
+          >
+            {running ? <Loader2 size={11} className="animate-spin"/> : <PlayCircle size={11}/>}
+            Run now
+          </button>
+          <button
+            type="button" onClick={() => setEditing((v) => !v)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400"
+            data-testid="seo-autopilot-edit-schedule"
+          >
+            <Settings2 size={11}/> {editing ? 'Close' : 'Schedule'}
+          </button>
+        </div>
       </div>
-      <span
-        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-          s.ran_today
-            ? 'bg-green-100 text-green-800'
-            : s.enabled
-              ? 'bg-amber-100 text-amber-800'
-              : 'bg-zinc-100 text-zinc-600'
-        }`}
-        data-testid="seo-autopilot-status-pill"
-      >
-        {s.ran_today ? 'Fired today' : s.enabled ? 'Standby' : 'Off'}
-      </span>
+      {editing ? (
+        <div className="mt-4 pt-4 border-t border-fuchsia-200 dark:border-fuchsia-900 grid sm:grid-cols-[auto_auto_1fr] gap-3 items-end" data-testid="seo-autopilot-schedule-editor">
+          <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-200 cursor-pointer">
+            <input
+              type="checkbox" checked={!!draft.enabled}
+              onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+              data-testid="seo-autopilot-enabled-toggle"
+            />
+            Enabled
+          </label>
+          <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-200">
+            Fire at
+            <select
+              value={Number(draft.hour_uk)} onChange={(e) => setDraft({ ...draft, hour_uk: Number(e.target.value) })}
+              className="text-sm rounded-md border border-zinc-300 px-2 py-1.5"
+              data-testid="seo-autopilot-hour-select"
+            >
+              {Array.from({ length: 24 }).map((_, h) => (
+                <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+              ))}
+            </select>
+            <span className="text-[11px] font-normal text-zinc-500">Europe/London</span>
+          </label>
+          <div className="flex justify-end">
+            <button
+              type="button" onClick={saveConfig} disabled={saving}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              data-testid="seo-autopilot-save-config"
+            >
+              {saving ? <Loader2 size={11} className="animate-spin"/> : <Check size={11}/>}
+              Save schedule
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -138,8 +231,9 @@ function DashboardTab() {
     { label: 'Keywords queued',  value: data.keywords.queued,   icon: Search,     hint: `${data.keywords.total} total` },
     { label: 'Articles published', value: data.articles.published, icon: BookOpen, hint: `${data.articles.draft} drafts` },
     { label: 'Articles total',    value: data.articles.total,    icon: FileText,   hint: 'incl. drafts' },
-    { label: 'Keywords used',     value: data.keywords.published,icon: ListChecks, hint: 'covered by an article' },
+    { label: 'Total blog views',  value: (data.performance?.total_views || 0).toLocaleString(), icon: Eye, hint: 'across all published articles' },
   ];
+  const topPerformers = data.performance?.top || [];
 
   return (
     <div className="space-y-5" data-testid="seo-dashboard">
@@ -155,6 +249,46 @@ function DashboardTab() {
             <p className="text-[11px] text-zinc-500 mt-1">{t.hint}</p>
           </div>
         ))}
+      </div>
+
+      {/* Iter 220ai — Top-performing published articles, sorted by
+          metrics.views. Empty until the public blog has accumulated
+          traffic. */}
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden" data-testid="seo-top-performers">
+        <div className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2">
+          <TrendingUp size={14} className="text-emerald-600" />
+          <p className="text-sm font-bold">Top performers</p>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            Most-viewed published articles
+          </span>
+        </div>
+        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          {topPerformers.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-zinc-500" data-testid="seo-top-performers-empty">
+              No traffic yet — once the public blog starts getting views, the most-read articles surface here.
+            </p>
+          ) : topPerformers.map((a, idx) => (
+            <div key={a.id} className="px-5 py-3 flex items-center gap-3" data-testid={`seo-top-${idx}`}>
+              <span className="shrink-0 w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-fuchsia-950 text-fuchsia-700 dark:text-fuchsia-300 text-xs font-extrabold inline-flex items-center justify-center">
+                {idx + 1}
+              </span>
+              <div className="flex-1 min-w-0">
+                <a href={`/blog/${a.slug}`} target="_blank" rel="noreferrer noopener"
+                  className="text-sm font-bold truncate hover:underline block"
+                >
+                  {a.title}
+                </a>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  /{a.slug} · {a.read_time_min} min read · {a.primary_keyword || '—'}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-base font-extrabold tabular-nums">{(a.metrics?.views || 0).toLocaleString()}</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">views</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
@@ -709,6 +843,10 @@ function ArticlesTab() {
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
   const [distributing, setDistributing] = useState(null);
+  // Iter 220ai — view-sortable list. Default to "recent" so the
+  // operator sees just-published work first; toggle to "views" to
+  // surface the most-trafficked articles.
+  const [sortBy, setSortBy] = useState('recent');
 
   const load = async () => {
     try {
@@ -727,23 +865,48 @@ function ArticlesTab() {
     }
   };
 
+  const sorted = [...list].sort((a, b) => {
+    if (sortBy === 'views') {
+      return (b.metrics?.views || 0) - (a.metrics?.views || 0);
+    }
+    return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+  });
+
   return (
     <div className="space-y-5" data-testid="seo-articles">
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
-        <div className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-sm font-bold">Articles</p>
-          <button onClick={load} className="text-[11px] inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-900">
-            <RefreshCw size={11}/> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden" data-testid="seo-articles-sort">
+              <button
+                type="button" onClick={() => setSortBy('recent')}
+                className={`px-2.5 py-1 text-[11px] font-bold ${sortBy === 'recent' ? 'bg-fuchsia-600 text-white' : 'text-zinc-600 hover:text-zinc-900'}`}
+                data-testid="seo-articles-sort-recent"
+              >
+                Recent
+              </button>
+              <button
+                type="button" onClick={() => setSortBy('views')}
+                className={`px-2.5 py-1 text-[11px] font-bold inline-flex items-center gap-1 ${sortBy === 'views' ? 'bg-fuchsia-600 text-white' : 'text-zinc-600 hover:text-zinc-900'}`}
+                data-testid="seo-articles-sort-views"
+              >
+                <Eye size={10}/> Views
+              </button>
+            </div>
+            <button onClick={load} className="text-[11px] inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-900">
+              <RefreshCw size={11}/> Refresh
+            </button>
+          </div>
         </div>
         {error ? <p className="px-5 py-3 text-sm text-rose-600" data-testid="seo-articles-error">{error}</p> : null}
-        {list.length === 0 ? (
+        {sorted.length === 0 ? (
           <p className="px-5 py-10 text-sm text-zinc-500 text-center">
             No articles yet. Generate one from the Keywords tab.
           </p>
         ) : (
           <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {list.map((a) => (
+            {sorted.map((a) => (
               <div key={a.id} className="px-5 py-3 flex items-center gap-3" data-testid={`seo-article-${a.id}`}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -751,8 +914,13 @@ function ArticlesTab() {
                     <StatusPill status={a.status} />
                   </div>
                   <p className="text-[11px] text-zinc-500 mt-0.5">
-                    /{a.slug} · {a.read_time_min} min · {a.metrics?.views || 0} views · {a.word_count} words
+                    /{a.slug} · {a.read_time_min} min · {a.word_count} words
                   </p>
+                </div>
+                {/* Iter 220ai — per-article view tally as a sortable column */}
+                <div className="text-right shrink-0 min-w-[58px]" data-testid={`seo-article-views-${a.id}`}>
+                  <p className="text-sm font-extrabold tabular-nums">{(a.metrics?.views || 0).toLocaleString()}</p>
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-zinc-400">views</p>
                 </div>
                 {a.status === 'published' ? (
                   <a href={`/blog/${a.slug}`} target="_blank" rel="noreferrer noopener"

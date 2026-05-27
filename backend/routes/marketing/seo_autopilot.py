@@ -816,7 +816,39 @@ async def run_autopilot(user: dict = Depends(get_current_user)):
     return {"ok": True, "keyword_id": next_kw["id"], "article": article}
 
 
-# ── Daily autopilot status (Iter 220af) ────────────────────────────
+# ── Daily autopilot status (Iter 220af) + config (Iter 220ai) ─────
+
+
+def _config_collection():
+    return db.seo_autopilot_config
+
+
+async def _load_config() -> dict:
+    """Return the live autopilot config. DB-backed so the master admin
+    can flip enabled / change hour without redeploying. Falls back to
+    env vars on first run so existing installs upgrade cleanly."""
+    doc = await _config_collection().find_one({"id": "singleton"}, {"_id": 0})
+    if doc:
+        return doc
+    # Seed from env on first read so the toggle UI shows the current
+    # deployment behaviour.
+    hour_env = os.environ.get("SEO_AUTOPILOT_HOUR", "9")
+    try:
+        hour = int(hour_env)
+    except ValueError:
+        hour = 9
+    return {
+        "id": "singleton",
+        "enabled": os.environ.get("SEO_AUTOPILOT_ENABLED", "1") != "0",
+        "hour_uk": max(0, min(23, hour)),
+        "updated_at": None,
+        "updated_by": None,
+    }
+
+
+class AutopilotConfigPayload(BaseModel):
+    enabled: Optional[bool] = None
+    hour_uk: Optional[int] = Field(None, ge=0, le=23)
 
 
 @router.get("/autopilot/status")
@@ -824,12 +856,7 @@ async def autopilot_status(user: dict = Depends(get_current_user)):
     """Return the configured scheduler hour, today's London date, and
     whether the daily job has already fired today."""
     _require_master_admin(user)
-    hour_env = os.environ.get("SEO_AUTOPILOT_HOUR", "9")
-    try:
-        hour = int(hour_env)
-    except ValueError:
-        hour = 9
-    enabled = os.environ.get("SEO_AUTOPILOT_ENABLED", "1") != "0"
+    cfg = await _load_config()
     london = _london_now()
     today = london.date().isoformat()
     last = await db.seo_autopilot_runs.find_one(
@@ -837,12 +864,61 @@ async def autopilot_status(user: dict = Depends(get_current_user)):
     )
     ran_today = bool(last and last.get("date") == today)
     return {
-        "enabled": enabled,
-        "hour_uk": hour,
+        "enabled": bool(cfg.get("enabled")),
+        "hour_uk": int(cfg.get("hour_uk", 9)),
         "london_now": london.isoformat(),
         "ran_today": ran_today,
         "last_run": last or None,
+        "config_updated_at": cfg.get("updated_at"),
+        "config_updated_by": cfg.get("updated_by"),
     }
+
+
+@router.put("/autopilot/config")
+async def update_autopilot_config(
+    payload: AutopilotConfigPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Update the daily-autopilot schedule from the UI. Persists to
+    ``seo_autopilot_config`` (read by the background loop on every
+    iteration). Setting ``enabled = false`` cleanly pauses the loop
+    without restarting the backend."""
+    _require_master_admin(user)
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items()
+               if v is not None}
+    if not updates:
+        return await _load_config()
+    updates["updated_at"] = _now()
+    updates["updated_by"] = user.get("id")
+    await _config_collection().update_one(
+        {"id": "singleton"},
+        {"$set": updates, "$setOnInsert": {"id": "singleton"}},
+        upsert=True,
+    )
+    return await _load_config()
+
+
+# ── Manual "Run now" trigger (Iter 220ai) ─────────────────────────
+
+
+@router.post("/autopilot/run-now")
+async def run_autopilot_now(user: dict = Depends(get_current_user)):
+    """Manually trigger today's autopilot run. Same logic as the daily
+    loop — but stamps ``seo_autopilot_runs`` with ``manual=true`` so the
+    daily loop's idempotency check prevents a double-fire later today."""
+    _require_master_admin(user)
+    london = _london_now()
+    today = london.date().isoformat()
+    if await _autopilot_already_ran_today(today):
+        return {"ok": False, "reason": "already ran today", "date": today}
+    result = await run_autopilot(user)
+    stamp = {"manual": True, "ran_at": _now(), "result": result}
+    await db.seo_autopilot_runs.update_one(
+        {"date": today},
+        {"$set": {"date": today, **stamp}},
+        upsert=True,
+    )
+    return {"ok": True, "date": today, "result": result}
 
 
 # ── Dashboard ──────────────────────────────────────────────────────
@@ -865,9 +941,28 @@ async def dashboard(user: dict = Depends(get_current_user)):
          "metrics": 1, "word_count": 1, "read_time_min": 1,
          "hero_image_url": 1},
     ).sort("updated_at", -1).limit(10).to_list(10)
+    # Iter 220ai — top 5 published articles by view count, for the
+    # Dashboard "Top performers" tile.
+    top_performers = await db.seo_articles.find(
+        {"status": "published"},
+        {"_id": 0, "id": 1, "slug": 1, "title": 1,
+         "metrics": 1, "primary_keyword": 1, "published_at": 1,
+         "read_time_min": 1},
+    ).sort("metrics.views", -1).limit(5).to_list(5)
+    # Sum total views across all published articles — useful headline
+    # tile separate from per-article performance.
+    total_views = 0
+    async for doc in db.seo_articles.find(
+        {"status": "published"}, {"_id": 0, "metrics": 1},
+    ):
+        total_views += int((doc.get("metrics") or {}).get("views") or 0)
     return {
         "keywords": {"total": kw_total, "queued": kw_queued, "published": kw_pub},
         "articles": {"total": art_total, "published": art_pub, "draft": art_draft},
+        "performance": {
+            "total_views": total_views,
+            "top": top_performers,
+        },
         "recent": recent,
     }
 
@@ -983,15 +1078,27 @@ async def run_daily_autopilot_loop(*, hour: int = 9) -> None:
     """Background loop — checks every 15 minutes whether it's the
     configured London-time hour AND we haven't yet fired today. When
     both are true, calls ``run_autopilot``. Cron-quality without the
-    cron daemon."""
+    cron daemon.
+
+    Iter 220ai — reads ``seo_autopilot_config`` on every iteration so
+    the UI's "Enabled" toggle + hour picker take effect without a
+    backend restart. The ``hour`` kwarg is the env-var fallback used
+    on cold boots before the master admin saves a config row."""
     while True:
         try:
+            cfg = await _load_config()
+            cfg_enabled = bool(cfg.get("enabled", True))
+            cfg_hour = int(cfg.get("hour_uk") or hour)
             london = _london_now()
             today = london.date().isoformat()
-            if london.hour == hour and not await _autopilot_already_ran_today(today):
+            if (
+                cfg_enabled
+                and london.hour == cfg_hour
+                and not await _autopilot_already_ran_today(today)
+            ):
                 logger.info(
-                    "[seo-autopilot] firing daily run for %s @ 09:00 Europe/London",
-                    today,
+                    "[seo-autopilot] firing daily run for %s @ %02d:00 Europe/London",
+                    today, cfg_hour,
                 )
                 result = await _autopilot_run_as_master_admin()
                 await _stamp_autopilot_run(today, result)
