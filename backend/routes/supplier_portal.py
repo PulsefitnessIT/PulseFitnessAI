@@ -637,6 +637,15 @@ def _build_eq_suppliers(supplier_map: dict, faults_by_supplier: dict) -> list:
             "open_faults": sum(1 for f in faults if f["status"] not in ("resolved", "closed")),
             "avg_time_to_fix_hours": avg_ttf,
             "resolved_faults": sum(1 for f in faults if f.get("status") == "resolved"),
+            # Iter 220n — decorate with the db.suppliers metadata so the
+            # frontend can render the "Auto-added from referral" badge,
+            # the auto-dispatch toggle, and the primary-supplier crown.
+            "id": s.get("id"),
+            "email": s.get("email"),
+            "auto_dispatch": s.get("auto_dispatch", False),
+            "is_primary_supplier": s.get("is_primary_supplier", False),
+            "auto_created_from_referral": s.get("auto_created_from_referral", False),
+            "partner_engineer_id": s.get("partner_engineer_id"),
         })
     eq_suppliers.sort(key=lambda x: -x["equipment_count"])
     return eq_suppliers
@@ -780,6 +789,37 @@ async def get_supplier_dashboard(
     eq_fields = {"_id": 0, "id": 1, "supplier_name": 1, "manufacturer": 1, "equipment_type": 1, "name": 1, "serial_number": 1}
     equipment = await db.equipment.find(org_filter, eq_fields).to_list(5000)
     supplier_map = _build_supplier_map(equipment)
+    # Iter 220n — surface explicit `db.suppliers` rows too so a freshly
+    # auto-added Partner Engineer (no equipment bound yet) still appears
+    # on the dashboard with the "Auto-added from referral" badge. Also
+    # decorates every supplier (even those with equipment) with the
+    # auto_dispatch + auto_created_from_referral + partner_engineer_id
+    # flags so the UI can render the badge + the routing toggle.
+    supplier_rows = await db.suppliers.find(
+        {**org_filter},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "auto_dispatch": 1,
+         "is_primary_supplier": 1, "auto_created_from_referral": 1,
+         "partner_engineer_id": 1, "supplier_types": 1, "created_at": 1},
+    ).to_list(500)
+    for row in supplier_rows:
+        name = (row.get("name") or "").strip()
+        if not name:
+            continue
+        if name not in supplier_map:
+            # Fresh referral with no equipment yet — show as ready-to-route.
+            supplier_map[name] = {
+                "name": name, "equipment_count": 0,
+                "types": set(), "type_counts": {}, "model_counts": {},
+            }
+        # Decorate (works for both fresh + already-engaged suppliers).
+        supplier_map[name].update({
+            "id": row.get("id"),
+            "email": row.get("email"),
+            "auto_dispatch": bool(row.get("auto_dispatch")),
+            "is_primary_supplier": bool(row.get("is_primary_supplier")),
+            "auto_created_from_referral": bool(row.get("auto_created_from_referral")),
+            "partner_engineer_id": row.get("partner_engineer_id"),
+        })
     faults_by_supplier = _match_faults_to_suppliers(issues, equipment)
     eq_suppliers = _build_eq_suppliers(supplier_map, faults_by_supplier)
     # Iter 216h121 — league table scoring (computed after building the

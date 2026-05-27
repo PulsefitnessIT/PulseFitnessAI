@@ -389,3 +389,53 @@ def test_pulse_landing_has_no_fabricated_customer_names():
         f"Found fabricated customer names in the Pulse landing page: {found}. "
         "Replace with clearly-placeholder strings until we have real customers."
     )
+
+
+# ── Test 4 — Supplier Dashboard "Auto-added from referral" badge ────
+
+
+def test_supplier_dashboard_endpoint_returns_auto_dispatch_fields():
+    """The /supplier-dashboard endpoint must decorate each
+    equipment_supplier with the db.suppliers metadata
+    (auto_dispatch / is_primary_supplier / auto_created_from_referral /
+    partner_engineer_id / id / email) so the UI can render the badge
+    + the routing toggle. Pinned at the source level so a future
+    refactor that drops the decoration can't regress the feature."""
+    import pathlib
+    src = pathlib.Path("/app/backend/routes/supplier_portal.py").read_text()
+    assert "auto_created_from_referral" in src
+    assert "auto_dispatch" in src
+    assert "is_primary_supplier" in src
+    assert "partner_engineer_id" in src
+    # The endpoint must reach into db.suppliers to grab those fields —
+    # the equipment-only path can't surface them.
+    assert "db.suppliers.find" in src, (
+        "supplier-dashboard endpoint must pull from db.suppliers so the "
+        "auto-attached referral metadata reaches the UI."
+    )
+
+
+def test_supplier_dashboard_card_renders_auto_referral_badge():
+    """The supplier card in SupplierDashboardTab must render an
+    'Auto-added from referral' badge when
+    `supplier.auto_created_from_referral === true`. Also pins the
+    'Primary' badge when `is_primary_supplier` is set."""
+    import pathlib
+    src = pathlib.Path("/app/frontend/src/pages/SupplierDashboardTab.js").read_text()
+    assert "auto_created_from_referral" in src, (
+        "SupplierDashboardTab must read auto_created_from_referral from the API"
+    )
+    assert "Auto-added from referral" in src, (
+        "Badge copy must match the API contract"
+    )
+    assert "supplier-auto-referral-" in src, (
+        "Badge must have a data-testid for E2E + screenshot snapshotting"
+    )
+    assert "is_primary_supplier" in src and "supplier-primary-" in src, (
+        "Primary-supplier crown badge must be wired in too"
+    )
+    # Uses the canonical violet/cyan brand palette tones — not the
+    # legacy Pulse cyan as a primary brand-blue. We allow a violet
+    # tint here because it's a *status* badge, not a brand surface.
+    assert "violet-500" in src, "Auto-referral badge should use the violet status tint"
+    assert "cyan-500" in src, "Primary badge should use the cyan status tint"

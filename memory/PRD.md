@@ -1,3 +1,60 @@
+## Iter 220n (cont.) — "Auto-added from referral" supplier badge (May 26, 2026) ✅ user-requested
+
+User-requested polish: when a Partner Engineer is auto-attached as a
+service supplier on the referred gym (the iter 220n headline feature),
+surface that explicitly on the gym's Supplier Dashboard card so the
+operator can see at a glance where this supplier came from and that
+auto-routing is set up.
+
+**Backend — `routes/supplier_portal.py::get_supplier_dashboard`** —
+augmented the dashboard endpoint to:
+
+1. **Pull from `db.suppliers` directly** (not just from equipment
+   records). A freshly auto-added engineer has no equipment bound yet,
+   so the equipment-derived `_build_supplier_map` would have skipped
+   them entirely. Now: a `suppliers.find({org_filter})` runs alongside
+   the existing equipment scan; suppliers with zero equipment get a
+   ready-to-route card with `equipment_count: 0`.
+2. **Decorate every supplier** (fresh + already-engaged) with the new
+   metadata: `id`, `email`, `auto_dispatch`, `is_primary_supplier`,
+   `auto_created_from_referral`, `partner_engineer_id`. Passed through
+   the existing `_build_eq_suppliers` builder.
+
+**Frontend — `pages/SupplierDashboardTab.js`** — added two badge
+pieces next to the supplier name on every card:
+
+* **`Auto-added from referral`** (violet, star icon) — rendered when
+  `supplier.auto_created_from_referral === true`. Title attribute
+  carries the full explanation: *"Auto-added when you signed up with
+  this engineer's referral code. Faults route here by default — you
+  can disable in Settings."*
+* **`Primary`** (cyan) — rendered when `supplier.is_primary_supplier`
+  is set. Title: *"Faults log here first. Add more suppliers in
+  Settings to set up a fallback chain."*
+
+Both badges use canonical status tints (violet for "auto/system"
+provenance, cyan for "primary action"), not legacy brand-blues. Both
+carry `data-testid` attributes (`supplier-auto-referral-{name}` /
+`supplier-primary-{name}`) for E2E + visual snapshotting.
+
+**Regression coverage.** Two new tests appended to
+`test_iter_220n_supplier_auto_dispatch.py` (now **11 tests** total):
+
+* `test_supplier_dashboard_endpoint_returns_auto_dispatch_fields` —
+  source-level pin that the endpoint reads from `db.suppliers` and
+  surfaces all four flag fields.
+* `test_supplier_dashboard_card_renders_auto_referral_badge` — pins
+  the React badge wiring (both badges + both testids + the canonical
+  tint colours).
+
+**Quality gates.** `make regression` ✓ **839 passed, 15 skipped, 0
+failed** (was 828 at iter start; +11 over this batch). `ruff check
+supplier_portal.py` ✓. ESLint on `SupplierDashboardTab.js` ✓.
+
+---
+
+
+
 ## Iter 220n — Partner Engineer auto-supplier + brand parity (May 26, 2026) ✅ user-directed
 
 User direction was:

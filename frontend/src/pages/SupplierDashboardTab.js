@@ -291,6 +291,25 @@ const SupplierDashboardTab = () => {
    Grade {supplier.grade}
  </span>
  )}
+ {/* Iter 220n — auto-added from a Partner Engineer referral. */}
+ {supplier.auto_created_from_referral && (
+ <span
+   className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-violet-500/15 text-violet-300 border border-violet-500/30 inline-flex items-center gap-1"
+   data-testid={`supplier-auto-referral-${supplier.name}`}
+   title="Auto-added when you signed up with this engineer's referral code. Faults route here by default — you can disable in Settings."
+ >
+   <span aria-hidden>★</span> Auto-added from referral
+ </span>
+ )}
+ {supplier.is_primary_supplier && (
+ <span
+   className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+   data-testid={`supplier-primary-${supplier.name}`}
+   title="Faults log here first. Add more suppliers in Settings to set up a fallback chain."
+ >
+   Primary
+ </span>
+ )}
  </div>
  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
  {supplier.equipment_types.map(t => (
