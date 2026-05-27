@@ -20,6 +20,7 @@ import {
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import PartnerApplicationDrawer from './PartnerApplicationDrawer';
+import AdminPartnerAttribution from './AdminPartnerAttribution';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -189,6 +190,11 @@ export default function AdminPartners() {
           <Stat label="Paid lifetime" value={`£${(summary.commission.paid_gbp || 0).toFixed(2)}`} testId="admin-partners-stat-paid" />
         </div>
       )}
+
+      {/* Iter 220q — Marketing attribution. Sits above the Applications
+          list because it answers the question every marketing huddle
+          starts with: "where are this week's applications coming from?". */}
+      <AdminPartnerAttribution />
 
       {/* Iter 218 — Pending applications (public-apply form).
           Critical first-customer fix: applications used to be
