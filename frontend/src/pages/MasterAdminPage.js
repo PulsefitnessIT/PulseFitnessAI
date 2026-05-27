@@ -29,6 +29,8 @@ const GrowthStudio = lazy(() => import('./MasterAdmin/GymAxisGrowthHub'));
 // Iter 220ad — Growth → SEO Autopilot
 const SEOAutopilotPanel = lazy(() => import('./MasterAdmin/SEOAutopilotPanel'));
 const AdminArchive = lazy(() => import('./MasterAdmin/AdminArchive'));
+// Iter 220ao — GDPR Article 17 Data Subject Erasure Requests
+const GdprErasurePanel = lazy(() => import('../components/GDPR/GdprErasurePanel'));
 const AdminTasks = lazy(() => import('./MasterAdmin/AdminTasks'));
 const AdminRoles = lazy(() => import('./MasterAdmin/AdminRoles'));
 const AdminPayments = lazy(() => import('./MasterAdmin/AdminPayments'));
@@ -403,6 +405,9 @@ const MasterAdminPage = ({ _onBack }) => {
         // Overview → Archive. Archive is a data-lifecycle concern, not
         // a customer-support concern, so it sits alongside System Health.
         return <AdminArchive />;
+      case 'gdpr-erasure':
+        // Iter 220ao — GDPR Article 17 Data Subject Erasure workflow.
+        return <GdprErasurePanel />;
       case 'ask-support':
         return <AskSupportDesk />;
       case 'analytics':

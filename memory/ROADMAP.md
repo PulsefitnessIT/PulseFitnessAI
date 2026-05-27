@@ -54,8 +54,8 @@ _Last refreshed: Iter 220m · May 26, 2026._
 
 ## P3
 
-- **Right-to-erasure workflow** for personnel records.
-- **Tenders module deepening** — log + track tenders deeply linked to companies / opportunities. Audit lives in `/app/memory/CRM_TENDERS_AUDIT.md`.
+- **Right-to-erasure workflow** for personnel records. ✅ **Shipped Iter 220ao (27 May 2026)** — `/api/gdpr/erasure/*` + Master Admin & CRM Settings UI.
+- **Tenders module deepening** — log + track tenders deeply linked to companies / opportunities. ✅ **Shipped Iter 220an (27 May 2026)** — see PRD. Audit in `/app/memory/CRM_TENDERS_AUDIT.md`.
 - Schedulable AI digests — weekly Reports envelope to managers' inbox.
 - Territory tree: server-side bulk re-parent endpoint.
 - Reports tab: per-user remembered date range via `localStorage`.

@@ -1,3 +1,80 @@
+## Iter 220ao — GDPR Article 17 · Right-to-Erasure Workflow (May 27, 2026) ✅
+
+Closes the long-standing P2 compliance gap: the platform now has a
+fully-pinned **Data Subject Erasure Request** workflow for the three
+PII-bearing record types — gym members, instructors and CRM contacts.
+Anonymises PII in place (Art. 17(3)(b) — invoices/bookings survive),
+master-admin-gated, with a 30-day ICO-aligned cooling-off window.
+
+**Backend — new `routes/gdpr_erasure.py`** (prefix `/api/gdpr/erasure`)
+
+* `POST /preview` — returns `{label, already_erased, plan, retains}`
+  without touching the DB. `plan` shows current PII → planned post-
+  scrub value per field. Used by the create-request modal.
+* `POST /requests` — files a pending request, stamps a 30-day
+  `execute_after`. 409s on duplicate pending for the same subject;
+  400s if the subject is already erased.
+* `GET  /requests` — paginated list with `status` + `subject_type`
+  filters.
+* `GET  /requests/{id}` — refreshes the plan against the live row
+  in case PII was edited between create + execute.
+* `POST /requests/{id}/execute` — performs the in-place anonymisation
+  (`first_name`/`last_name` → `[REDACTED]`, `email` →
+  `erased+{sha8}@gdpr.local`, phone/dob/address/postcode/notes →
+  `None`). Stamps `gdpr_erased`, `gdpr_erased_at`, `gdpr_erased_by`,
+  `gdpr_erasure_request_id`. Refuses to fire before
+  `execute_after` unless `force=true` (operator fast-track when the
+  data subject explicitly requests immediate action).
+* `POST /requests/{id}/cancel` — cancels a pending request.
+* Every endpoint is `_require_master_admin` gated.
+
+Subject specs (`_SUBJECT_SPEC`):
+  - `member` → `db.members` — hashable `email`; redact names; clear
+    phone, dob, addresses, emergency contacts, notes, photo_url.
+  - `instructor` → `db.membership_instructors` — same shape +
+    headline/bio/specialties/photo_url.
+  - `crm_contact` → `db.crm2_contacts` — hashable email; redact
+    names; clear phone, dob, addresses, job_title, notes, socials.
+
+**Frontend** — new shared
+`components/GDPR/GdprErasurePanel.js` (lazy-loaded)
+
+* Hero banner explaining policy + 30-day window.
+* Status filter strip (`All / Pending / Executed / Cancelled`).
+* Per-row icons (clock for pending, check for executed) + subject-
+  type + status badges.
+* **New Erasure Request modal** — Subject Type dropdown, Subject Id
+  input, **Preview** button that surfaces the scrub plan inline,
+  optional reason field, and a 30-day-window warning.
+* **Detail modal** — shows status/timestamps/reason, refreshed
+  plan, scrub_summary (post-execution), and the right action set
+  given current state. Master Admin can **Force execute (skip
+  cooling-off)** while pending, **Execute now** once the cooling
+  window has elapsed, or **Cancel request**.
+* Mounted in **two** surfaces (user-confirmed scope):
+  - **Master Admin → Settings & Compliance → Data Subject
+    Erasure** (new sub-tab in `SidebarConfig.js`).
+  - **CRM Settings → Privacy & GDPR** (new section in
+    `CRMSettings.js`).
+
+**Tests** —
+`backend/tests/test_iter_220ao_gdpr_erasure.py` (16 tests, all
+green) pinned and registered in `Makefile`.
+
+**Verification**
+
+* `make regression` → **1107 passed, 15 skipped, 0 failed** in
+  146 s.
+* `ruff` / `eslint` clean on every touched file (no new warnings
+  vs. main).
+* Live smoke confirmed: the hero panel renders inside
+  `/master-admin?section=gdpr-erasure`, the empty list shows the
+  empty state, and the New Erasure Request modal opens with all
+  three subject types, ID input, Preview button and Reason field.
+
+---
+
+
 ## Iter 220an — Tenders · deep linking to Companies + Opportunities (May 27, 2026) ✅
 
 Closes the long-standing P1 gap that tenders were "floating" records:

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Upload, FileSpreadsheet, Shield, Clock, User, ChevronRight, Loader2,
-  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package, Code
+  CheckCircle, AlertTriangle, Link2, RefreshCw, ArrowLeftRight, UserPlus, Copy, Trash2, X, Lock, Key, Smartphone, Edit2, Ban, Package, Code, ShieldOff
 } from 'lucide-react';
 import axios from 'axios';
 import CRMPermissions from './CRMPermissions';
@@ -10,6 +10,8 @@ import CRMPicklistsSection from './CRMPicklistsSection';
 import CRMProductsSection from './CRMProductsSection';
 // Iter 220ab — Embeddable "Get a Quote" widget snippet builder
 import WidgetEmbedCard from '@/components/shared/WidgetEmbedCard';
+// Iter 220ao — GDPR Article 17 Data Subject Erasure workflow
+import GdprErasurePanel from '@/components/GDPR/GdprErasurePanel';
 
 const ROLE_COLORS = { owner: 'var(--color-accent-amber)', admin: 'var(--color-danger-alt)', manager: 'var(--color-info-ios)', sales_rep: 'var(--color-success-alt)' };
 
@@ -472,6 +474,7 @@ export default function CRMSettings() {
     // Iter 220ab — Embed "Get a Quote" widget on the company website
     { id: 'embed', label: 'Website Embed', icon: Code },
     { id: 'sage200', label: 'Sage 200', icon: Link2 },
+    { id: 'gdpr-erasure', label: 'Privacy & GDPR', icon: ShieldOff },
     { id: 'audit', label: 'Audit Log', icon: Shield },
   ];
 
@@ -634,6 +637,13 @@ export default function CRMSettings() {
           {activeSection === 'embed' && (
             <div data-testid="settings-embed">
               <WidgetEmbedCard ownerType="organization" />
+            </div>
+          )}
+
+          {/* Iter 220ao — GDPR Article 17 Right-to-Erasure */}
+          {activeSection === 'gdpr-erasure' && (
+            <div data-testid="settings-gdpr-erasure">
+              <GdprErasurePanel />
             </div>
           )}
 

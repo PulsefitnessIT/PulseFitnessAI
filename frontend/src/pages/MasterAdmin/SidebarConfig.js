@@ -5,6 +5,7 @@ import {
   Wallet, Megaphone, Lock, FolderArchive, AlertCircle,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
   Plug, MapPin, Building, Settings, BadgeCheck, Inbox, FileText, Globe,
+  ShieldOff,
 } from 'lucide-react';
 
 /**
@@ -159,6 +160,8 @@ export const SIDEBAR_ITEMS = [
       // tooling), so it sits naturally alongside the audit log and
       // database tooling rather than the operator dashboard.
       { id: 'archive',            label: 'Archive',            icon: FolderArchive },
+      // Iter 220ao — GDPR Art. 17 Data Subject Erasure Requests
+      { id: 'gdpr-erasure',       label: 'Data Subject Erasure', icon: ShieldOff },
       { id: 'ask-support',        label: 'Ask Support Desk',   icon: Sparkles },
       { id: 'support',            label: 'Support tools',      icon: Headphones },
       { id: 'db-viewer',          label: 'Database viewer',    icon: Database },

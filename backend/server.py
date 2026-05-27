@@ -331,6 +331,10 @@ from routes.marketing.seo_autopilot import (
 app.include_router(_seo_router)
 app.include_router(_seo_public_router)
 
+# Iter 220ao — GDPR Article 17 right-to-erasure workflow (master-admin only).
+from routes.gdpr_erasure import router as _gdpr_erasure_router
+app.include_router(_gdpr_erasure_router)
+
 
 async def _seed_master_admin() -> None:
     """Seed/heal master admin account on every startup.
