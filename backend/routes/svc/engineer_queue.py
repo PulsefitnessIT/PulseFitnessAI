@@ -213,6 +213,104 @@ class ClaimIn(BaseModel):
     estimated_minutes: Optional[int] = Field(None, ge=15, le=600)
 
 
+@router.get("/my-gyms")
+async def my_gyms_queue(user=Depends(get_current_user)):
+    """Iter 220p — "My gyms" queue for Partner Engineers.
+
+    Returns open supplier_cases the engineer has been dispatched to —
+    i.e. faults from the gyms they referred (auto-attached as primary
+    supplier on signup, iter 220n) plus any gym that has explicitly
+    added them as a supplier afterwards.
+
+    Joins:
+      * `partner_engineers` (via user_id) → partner_engineer.id
+      * `suppliers`   (partner_engineer_id == partner.id) → list of
+        gyms where this engineer is the dispatched supplier
+      * `supplier_cases` (issue_id linked, supplier_email match) →
+        the actual jobs
+
+    Distinct from the org-wide `/queue/unassigned` flow — those are
+    cases the engineer has an authenticated org-membership for. My-gyms
+    cases come in via the public supplier-portal token flow (the
+    engineer isn't actually a user of the gym's org).
+
+    Response shape mirrors `/queue/unassigned` `jobs[]` as closely as
+    possible so the same row component can render both lists.
+    """
+    # 1. Resolve this engineer's partner record. If they're not a
+    #    Partner Engineer, return an empty list — non-fatal.
+    partner = await db.partner_engineers.find_one(
+        {"user_id": user["id"]},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1},
+    )
+    if not partner:
+        return {"jobs": [], "total": 0, "is_partner_engineer": False}
+
+    # 2. Find every gym this engineer is the auto-dispatch supplier for.
+    supplier_rows = await db.suppliers.find(
+        {"partner_engineer_id": partner["id"]},
+        {"_id": 0, "id": 1, "organization_id": 1, "name": 1, "email": 1,
+         "is_primary_supplier": 1, "auto_created_from_referral": 1},
+    ).to_list(500)
+    if not supplier_rows:
+        return {"jobs": [], "total": 0, "is_partner_engineer": True,
+                "no_gyms_yet": True}
+
+    org_ids = sorted({r["organization_id"] for r in supplier_rows if r.get("organization_id")})
+    supplier_org_by_name = {r["name"]: r["organization_id"] for r in supplier_rows if r.get("name")}
+
+    # 3. Query the engineer's open supplier_cases. Filter:
+    #    - supplier_email == engineer.email (covers cases dispatched
+    #      before the partner_engineer_id link was stable too), AND
+    #    - status open (not closed/resolved).
+    open_statuses = ["new", "in_progress", "awaiting_parts", "scheduled",
+                     "awaiting_customer", "viewed"]
+    sc_filter = {
+        "supplier_email": partner.get("email"),
+        "status": {"$in": open_statuses},
+    }
+    supplier_cases = await db.supplier_cases.find(
+        sc_filter,
+        {"_id": 0, "id": 1, "token": 1, "issue_id": 1, "supplier_email": 1,
+         "organization_name": 1, "status": 1, "created_at": 1,
+         "title": 1, "priority": 1, "machine_name": 1, "equipment_name": 1,
+         "sla_resolve_at": 1, "site_id": 1, "site_name": 1},
+        sort=[("created_at", -1)],
+    ).to_list(500)
+
+    # 4. Decorate each row with provenance flags so the UI can render
+    #    the "Auto-referred gym" badge on the row.
+    jobs = []
+    for sc in supplier_cases:
+        org_name = sc.get("organization_name") or ""
+        sup_row = next((r for r in supplier_rows
+                        if (r.get("name") or "") == org_name
+                        or r.get("organization_id") == supplier_org_by_name.get(org_name)),
+                       None) or {}
+        jobs.append({
+            "id": sc.get("id"),
+            "supplier_case_token": sc.get("token"),
+            "issue_id": sc.get("issue_id"),
+            "title": sc.get("title") or sc.get("equipment_name") or "Service request",
+            "priority": sc.get("priority") or "P3",
+            "status": sc.get("status"),
+            "created_at": sc.get("created_at"),
+            "sla_resolve_at": sc.get("sla_resolve_at"),
+            "organization_name": org_name,
+            "site_name": sc.get("site_name"),
+            "machine_name": sc.get("machine_name") or sc.get("equipment_name"),
+            "from_referred_gym": bool(sup_row.get("auto_created_from_referral")),
+            "is_primary_supplier": bool(sup_row.get("is_primary_supplier")),
+        })
+
+    return {
+        "jobs": jobs,
+        "total": len(jobs),
+        "gyms_count": len(org_ids),
+        "is_partner_engineer": True,
+    }
+
+
 @router.post("/{case_id}/claim", dependencies=[Depends(require_engineer_compliance_to_claim)])
 async def claim_case(
     case_id: str,

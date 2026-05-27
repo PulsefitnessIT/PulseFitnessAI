@@ -1,3 +1,81 @@
+## Iter 220p — Engineer queue "My gyms" filter pill (May 26, 2026) ✅ user-requested
+
+Shipped the engineer-side counterpart to the iter 220n supplier
+auto-dispatch feature. Partner Engineers now have a unified inbox
+for all the cases auto-routed to them from gyms they referred —
+distinct from the org-wide "Up for grabs" queue.
+
+**Backend — `GET /api/svc/engineer/queue/my-gyms`.**
+
+* Resolves the calling user → `partner_engineers` row via `user_id`.
+  Non-engineer users get a soft `{"jobs": [], "is_partner_engineer":
+  False}` (no 500 — gates exist higher up too).
+* Finds every `db.suppliers` row where
+  `partner_engineer_id == partner.id`. Those are the gyms this
+  engineer is auto-dispatched to. Empty list → returns
+  `no_gyms_yet: true` for the friendly empty state copy.
+* Queries `db.supplier_cases` filtered to:
+  - `supplier_email == partner.email`
+  - `status ∈ ["new", "in_progress", "awaiting_parts", "scheduled",
+    "awaiting_customer", "viewed"]` (open work only)
+* Decorates each row with `from_referred_gym` + `is_primary_supplier`
+  flags (sourced from the supplier row) so the UI can render the
+  "★ Referred" provenance badge. Carries `supplier_case_token` so
+  the row CTA can deeplink into the public supplier portal.
+* Returns `gyms_count` for the pill's badge counter.
+
+**Frontend — `EngineerQueue.js`.**
+
+* New `viewMode` state (`'queue' | 'my-gyms'`). Default is `'queue'`.
+  Toggling switches the data source that feeds the row list.
+* Mount-time fetch is parallel — `/queue/unassigned` + `/queue/stats`
+  + the new `/queue/my-gyms` all in one `Promise.all` so the pill
+  has an instant count without a second roundtrip.
+* **View-switcher pill** (data-testid `queue-view-switcher`) is
+  conditionally rendered on `myGyms.is_partner_engineer === true`,
+  so non-engineer users still get the queue UX unchanged. Two pills:
+  - "Up for grabs · {N}" (default slate, black active state)
+  - "★ My gyms · {N} [N gyms]" — active state uses the canonical
+    GymAxis navy→purple gradient (#2563EB → #9D4CDD), the gyms-count
+    sub-badge tints to white-on-gradient when active and to violet
+    when inactive.
+* **Row component branches on `viewMode`**:
+  - Always renders the existing priority chip + SLA chip + ETA chip.
+  - When `from_referred_gym === true`, renders a violet **★ Referred**
+    badge (data-testid `queue-row-referred-{ref}`) with the
+    explanation in the title attribute.
+  - When `viewMode === 'my-gyms'`, the row's right-side CTA is
+    "Open ticket" (violet) linking to `/supplier/case/{token}`
+    in a new tab — NOT the claim button. These cases are already
+    dispatched; the engineer manages them via the supplier portal.
+* **Empty-state copy** is now view-aware:
+  - "Up for grabs" empty → "All caught up · No unassigned jobs in your
+    org…"
+  - "My gyms" empty → either "Your gyms are all clear right now" OR
+    (when `no_gyms_yet`) "You haven't been added as a supplier yet.
+    Share your referral link to onboard gyms."
+
+**Regression coverage.** New `test_iter_220p_my_gyms_queue.py` adds
+**7 tests** (all green), wired into `Makefile::regression`:
+
+| Test | Invariant pinned |
+|---|---|
+| `test_my_gyms_returns_empty_when_user_not_partner_engineer` | Defensive empty (no 500) for non-engineer callers. |
+| `test_my_gyms_returns_no_gyms_yet_when_partner_has_no_supplier_rows` | Friendly empty state for fresh partners. |
+| `test_my_gyms_returns_decorated_jobs_for_referred_gyms` | End-to-end shape — tokens, badges, gyms_count, org names. |
+| `test_my_gyms_filters_to_open_statuses_only` | Closed cases must NOT appear. |
+| `test_engineer_queue_imports_and_renders_view_switcher` | Pill is wired in + gated on `is_partner_engineer`. |
+| `test_engineer_queue_row_handles_my_gyms_view` | Row deeplinks to `/supplier/case/{token}`, NOT the claim modal. |
+| `test_engineer_queue_my_gyms_uses_brand_gradient_not_legacy_cyan` | Brand canon enforcement — navy→purple gradient, never cyan. |
+
+**Quality gates.** `make regression` ✓ **855 passed, 15 skipped, 0
+failed** (was 848; +7 new). `ruff check engineer_queue.py` ✓.
+ESLint clean on `EngineerQueue.js`.
+
+---
+
+
+
 ## Iter 220o — Instagram-attributed apply form (May 26, 2026) ✅ user-requested
 
 Shipped the "Instagram-attributed apply form" P1 — end-to-end UTM

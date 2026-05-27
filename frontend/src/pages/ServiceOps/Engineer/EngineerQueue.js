@@ -163,34 +163,52 @@ const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
 // for each visible row; we accept the full props bag, look up the
 // job by index from the `jobs` array, and apply the absolute-positioned
 // `style` the windowing engine hands us.
-const Row = ({ index, style, ariaAttributes, jobs, onClaim, showDistance }) => {
+const Row = ({ index, style, ariaAttributes, jobs, onClaim, viewMode, showDistance }) => {
   const job = jobs[index];
   if (!job) return null;
+  // Iter 220p — "My gyms" rows are supplier_cases routed via the
+  // public supplier-portal token flow; the engineer doesn't claim
+  // them through this queue (they're already dispatched). The row's
+  // CTA opens the token page instead.
+  const isMyGymRow = viewMode === 'my-gyms';
+  const rowKey = job.reference || job.id || `row-${index}`;
   return (
   <div
     style={style}
     {...ariaAttributes}
     className="p-3 sm:p-4 flex items-start gap-3 border-b border-slate-100 bg-white"
-    data-testid={`queue-row-${job.reference}`}
+    data-testid={`queue-row-${rowKey}`}
   >
     <span
       className={`w-1.5 self-stretch rounded-full ${PRIO[job.priority] || PRIO.P3} flex-shrink-0`}
       aria-hidden
     />
     <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-1 flex-wrap">
         <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold text-white ${PRIO[job.priority] || PRIO.P3}`}>
           {job.priority || 'P3'}
         </span>
         <p className="text-[11px] font-bold text-slate-500 tabular-nums truncate">
-          {job.reference}
+          {job.reference || (job.issue_id ? `#${String(job.issue_id).slice(0, 8)}` : '')}
         </p>
+        {/* Iter 220p — provenance badge: this fault came from a gym
+            the engineer referred (auto-attached as supplier on signup). */}
+        {job.from_referred_gym ? (
+          <span
+            className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 border"
+            style={{ background: 'rgba(157,76,221,0.08)', borderColor: 'rgba(157,76,221,0.3)', color: '#7C3AED' }}
+            data-testid={`queue-row-referred-${rowKey}`}
+            title="From a gym you referred. You're their primary auto-dispatched supplier."
+          >
+            <span aria-hidden>★</span> Referred
+          </span>
+        ) : null}
         {fmtSLA(job.sla_resolve_at)}
         {showDistance ? (
-          <span className="ml-auto inline-flex items-center gap-1" data-testid={`queue-row-near-${job.reference}`}>
+          <span className="ml-auto inline-flex items-center gap-1" data-testid={`queue-row-near-${rowKey}`}>
             <span
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums bg-emerald-50 text-emerald-700"
-              data-testid={`queue-row-distance-${job.reference}`}
+              data-testid={`queue-row-distance-${rowKey}`}
             >
               <Navigation size={10} />
               {job.distance_km != null ? `${job.distance_km} km` : '—'}
@@ -198,7 +216,7 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, showDistance }) => {
             {job.eta_minutes != null ? (
               <span
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums bg-slate-100 text-slate-700"
-                data-testid={`queue-row-eta-${job.reference}`}
+                data-testid={`queue-row-eta-${rowKey}`}
                 title="Estimated drive time at 50 km/h average"
               >
                 <Clock size={10} />
@@ -216,7 +234,8 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, showDistance }) => {
       </div>
       <p className="text-sm font-semibold text-slate-900 truncate">{job.title}</p>
       <p className="text-xs text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
-        <MapPin size={10} /> {job.site_name || job.customer_name || 'Site TBC'}
+        <MapPin size={10} />
+        {job.site_name || job.customer_name || job.organization_name || 'Site TBC'}
         {job.site_postcode ? ` · ${job.site_postcode}` : ''}
         {job.intake_channel ? <span className="text-slate-400">· {job.intake_channel}</span> : null}
       </p>
@@ -224,14 +243,26 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, showDistance }) => {
         <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-snug">{job.description}</p>
       ) : null}
     </div>
-    <button
-      type="button"
-      onClick={() => onClaim(job)}
-      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 flex-shrink-0"
-      data-testid={`queue-claim-${job.reference}`}
-    >
-      <Hand size={12} /> Allocate to me
-    </button>
+    {isMyGymRow ? (
+      <a
+        href={job.supplier_case_token ? `/supplier/case/${job.supplier_case_token}` : '#'}
+        target="_blank"
+        rel="noreferrer"
+        className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 flex-shrink-0"
+        data-testid={`queue-open-supplier-case-${rowKey}`}
+      >
+        Open ticket
+      </a>
+    ) : (
+      <button
+        type="button"
+        onClick={() => onClaim && onClaim(job)}
+        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 flex-shrink-0"
+        data-testid={`queue-claim-${rowKey}`}
+      >
+        <Hand size={12} /> Allocate to me
+      </button>
+    )}
   </div>
   );
 };
@@ -249,6 +280,11 @@ export default function EngineerQueue() {
   const [origin, setOrigin] = useState(null);            // { lat, lon } | { postcode }
   const [originSource, setOriginSource] = useState(null); // 'geolocation' | 'postcode' | null
   const [locating, setLocating] = useState(false);
+  // Iter 220p — "My gyms" view. When toggled on, swap data source
+  // from org-wide /queue/unassigned to /queue/my-gyms (supplier_cases
+  // dispatched directly to this engineer from the gyms they referred).
+  const [viewMode, setViewMode] = useState('queue'); // 'queue' | 'my-gyms'
+  const [myGyms, setMyGyms] = useState({ jobs: [], total: 0, gyms_count: 0, is_partner_engineer: null });
 
   const load = useCallback(async (sortOverride, originOverride) => {
     setLoading(true);
@@ -265,13 +301,19 @@ export default function EngineerQueue() {
           params.postcode = effectiveOrigin.postcode;
         }
       }
-      const [j, s] = await Promise.all([
+      const [j, s, g] = await Promise.all([
         axios.get(`${API}/svc/engineer/queue/unassigned`, { ...auth(), params }),
         axios.get(`${API}/svc/engineer/queue/stats`, auth()),
+        // Iter 220p — fetch "My gyms" alongside so we have an instant
+        // count for the pill badge without a second roundtrip when
+        // the user toggles it.
+        axios.get(`${API}/svc/engineer/queue/my-gyms`, auth())
+          .catch(() => ({ data: { jobs: [], total: 0, is_partner_engineer: null } })),
       ]);
       setJobs(j.data?.jobs || []);
       setOriginSource(j.data?.origin_source || null);
       setStats(s.data || stats);
+      setMyGyms(g.data || { jobs: [], total: 0, is_partner_engineer: null });
       // Iter 216h176 — Warm the engineer's "active week" cache so the
       // diary + notifications survive going offline. Throttled to once
       // every 5 minutes; no-op if the SW isn't installed.
@@ -337,6 +379,11 @@ export default function EngineerQueue() {
   }, [sortMode, load]);
 
   const filtered = useMemo(() => {
+    // Iter 220p — when viewing "My gyms", show the engineer's
+    // supplier_cases. These aren't claimable through the normal queue
+    // (they came via the supplier portal token flow), so the row
+    // component routes the user to the supplier_case page instead.
+    if (viewMode === 'my-gyms') return myGyms.jobs || [];
     if (filter === 'all') return jobs;
     if (filter === 'p1') return jobs.filter((j) => (j.priority || '').toUpperCase() === 'P1');
     if (filter === 'risk') return jobs.filter((j) => {
@@ -345,7 +392,7 @@ export default function EngineerQueue() {
       return ms < 2 * 3600 * 1000;
     });
     return jobs;
-  }, [jobs, filter]);
+  }, [jobs, filter, viewMode, myGyms.jobs]);
 
   const onClaim = async (payload) => {
     if (!claimFor) return;
@@ -425,6 +472,52 @@ export default function EngineerQueue() {
           <Stat label="SLA risk" value={stats.sla_breached_or_due} accent={stats.sla_breached_or_due ? 'bg-amber-50 border-amber-200' : ''} />
         </section>
 
+        {/* Iter 220p — view mode switcher: org-wide queue ↔ My gyms.
+            The "My gyms" pill is only shown for Partner Engineers (i.e.
+            users we've found a partner_engineers row for). For everyone
+            else it stays hidden so the queue UX is unchanged. */}
+        {myGyms.is_partner_engineer ? (
+          <div className="flex items-center gap-2" data-testid="queue-view-switcher">
+            <button
+              type="button"
+              onClick={() => setViewMode('queue')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                viewMode === 'queue'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+              data-testid="queue-view-org"
+            >
+              Up for grabs{jobs.length ? ` · ${jobs.length}` : ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('my-gyms')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors inline-flex items-center gap-1.5 ${
+                viewMode === 'my-gyms'
+                  ? 'text-white shadow-sm'
+                  : 'bg-white border text-slate-700 hover:bg-slate-50'
+              }`}
+              style={viewMode === 'my-gyms'
+                ? { background: 'linear-gradient(135deg, #2563EB 0%, #9D4CDD 100%)' }
+                : { borderColor: '#9D4CDD33' }
+              }
+              data-testid="queue-view-my-gyms"
+              title="Faults from gyms where you're the auto-dispatched supplier"
+            >
+              <span aria-hidden>★</span>
+              My gyms{myGyms.total ? ` · ${myGyms.total}` : ''}
+              {myGyms.gyms_count ? (
+                <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                  viewMode === 'my-gyms' ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-700'
+                }`}>
+                  {myGyms.gyms_count} gym{myGyms.gyms_count === 1 ? '' : 's'}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        ) : null}
+
         {/* Filters */}
         <div className="bg-white border border-slate-200 rounded-2xl px-3 py-2 flex items-center gap-1 flex-wrap">
           {[
@@ -474,9 +567,15 @@ export default function EngineerQueue() {
         {!loading && filtered.length === 0 ? (
           <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center" data-testid="queue-empty">
             <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-2" />
-            <p className="text-sm font-semibold text-slate-700">All caught up</p>
+            <p className="text-sm font-semibold text-slate-700">
+              {viewMode === 'my-gyms' ? 'No open jobs from your gyms' : 'All caught up'}
+            </p>
             <p className="text-xs text-slate-500 mt-1">
-              No unassigned jobs in your org right now. We refresh this every 30 seconds.
+              {viewMode === 'my-gyms'
+                ? (myGyms.no_gyms_yet
+                    ? "You haven't been added as a supplier yet. Share your referral link to onboard gyms."
+                    : "Your gyms are all clear right now. New faults will appear here automatically.")
+                : "No unassigned jobs in your org right now. We refresh this every 30 seconds."}
             </p>
           </div>
         ) : (
@@ -494,7 +593,8 @@ export default function EngineerQueue() {
                   style={{ position: 'relative' }}
                   ariaAttributes={{}}
                   jobs={filtered}
-                  onClaim={setClaimFor}
+                  onClaim={viewMode === 'my-gyms' ? null : setClaimFor}
+                  viewMode={viewMode}
                   showDistance={sortMode === 'nearest'}
                 />
               ))}
@@ -511,7 +611,8 @@ export default function EngineerQueue() {
                 rowComponent={Row}
                 rowProps={{
                   jobs: filtered,
-                  onClaim: setClaimFor,
+                  onClaim: viewMode === 'my-gyms' ? null : setClaimFor,
+                  viewMode,
                   showDistance: sortMode === 'nearest',
                 }}
                 overscanCount={3}
