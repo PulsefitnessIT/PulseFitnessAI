@@ -17774,3 +17774,62 @@ User declined the proposed standalone HSE Digest:
 - `frontend/src/components/shared/DigestPreferencesCard.js`
 - `backend/tests/test_iter_220x_digest_hs_channel.py` (new, 10 tests)
 - `Makefile` (regression target)
+
+---
+
+## Iter 220y — Public Wall of Reviews at /engineers/{slug}/reviews (May 27, 2026)
+
+### Context
+Partner engineers had a review *submit* page (`/engineer/:partnerId/review`)
+but no shareable, beautiful *wall* to surface their trust signals.
+Engineers needed a clean URL to link from email signatures, business
+cards, and LinkedIn.
+
+### Implementation
+- **Backend** (`routes/partners.py`):
+  - New endpoint `GET /api/engineers/{slug}/reviews` — public,
+    read-only, no auth.
+  - `_slugify_partner_name` + `_ensure_partner_public_slug` —
+    idempotently mint a human-readable slug
+    (e.g. `sarah-patel-a1b2`) on `partner_engineers.public_slug`.
+  - Endpoint resolves in this priority order:
+    1. `public_slug` match (primary)
+    2. `id` UUID fallback (legacy share links)
+    3. Unambiguous name-based fallback (one match only)
+  - Returns: `partner` (id, public_slug, first_name, full_name,
+    company_name, level, availability, member_since),
+    `summary` (average, count), `distribution` (1–5★ histogram),
+    `reviews[]` with engineer responses inlined.
+  - Strips PII (`reviewer_email`, `ip_hash`) from every public row.
+- **Frontend** (`pages/Public/EngineerReviewsWall.js`, new):
+  - Asymmetric hero with name, company, level badge, member-since
+    pill, on-leave amber pill, large 4.8 average + star row + 1–5★
+    distribution bars.
+  - Two-column grid of review cards on desktop; single column on
+    mobile. Each card surfaces rating, headline, body, reviewer
+    name + gym, and the engineer's response in a blue inset block.
+  - "Leave a review →" CTA in the hero AND empty-state CTA when
+    no reviews exist yet, both deep-linking to
+    `/engineer/:partnerId/review`.
+  - Lazy-loaded into `routes/AppRoutes.js` at
+    `/engineers/:slug/reviews`.
+
+### Verification
+- `make regression` → **942 passed, 15 skipped** (+13 new tests, zero
+  regressions on the 929 baseline).
+- Live API: `GET /api/engineers/40c2b861-6f04-4377-894b-0507055bff79/reviews`
+  (UUID fallback) → resolved + minted slug `e1-test-engineer-5325`.
+- Live API: `GET /api/engineers/e1-test-engineer-5325/reviews`
+  → resolved by slug, same partner_id. Round-trip works.
+- Playwright smoke at `/engineers/e1-test-engineer-5325/reviews`
+  rendered the wall with all 7 testids (page, hero, summary, name,
+  dist-5, dist-1, list) and the "No reviews yet" empty state with
+  CTA to the submit page.
+- `mcp_lint_python` + `mcp_lint_javascript` both clean.
+
+### Files changed
+- `backend/routes/partners.py`
+- `backend/tests/test_iter_220y_engineer_reviews_wall.py` (new, 13 tests)
+- `frontend/src/pages/Public/EngineerReviewsWall.js` (new, ~270 LOC)
+- `frontend/src/routes/AppRoutes.js`
+- `Makefile` (regression target)

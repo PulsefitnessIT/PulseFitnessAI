@@ -128,6 +128,8 @@ const ServiceOpsEngineerQueue  = lazy(() => import('@/pages/ServiceOps/Engineer/
 // Iter 216h148 — Public Engineer landing/login page
 const PublicEngineerLanding    = lazy(() => import('@/pages/Public/EngineerLanding'));
 const PartnerReviewPublic      = lazy(() => import('@/pages/Public/PartnerReviewPublic'));
+// Iter 220y — Public Wall of Reviews
+const EngineerReviewsWall      = lazy(() => import('@/pages/Public/EngineerReviewsWall'));
 const WitnessStatementPage     = lazy(() => import('@/pages/WitnessStatementPage'));
 const EngineerReferralLanding  = lazy(() => import('@/pages/Public/EngineerReferralLanding'));
 // Iter 216h159 — Engineer card-conversion analytics
@@ -248,6 +250,10 @@ export default function AppRoutes({ user, login }) {
           Linked from the find-engineer card; surfaces star + body
           ratings the engineer dashboard then responds to. */}
       <Route path="/engineer/:partnerId/review" element={<PartnerReviewPublic />} />
+      {/* Iter 220y — Public Wall of Reviews (read-only) addressed
+          by human-readable slug. Linked from the engineer's email
+          signature / business card / LinkedIn. */}
+      <Route path="/engineers/:slug/reviews" element={<EngineerReviewsWall />} />
       <Route path="/witness-statement/:token" element={<WitnessStatementPage />} />
       {/* Iter 216h287 — Gap 9: engineer-of-engineer recruit landing.
           Branded one-pager from a peer engineer's referral link. */}

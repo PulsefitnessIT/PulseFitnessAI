@@ -2655,6 +2655,145 @@ async def admin_moderate_review(
 # ── End iter 216h286 reviews block ──────────────────────────────────
 
 
+# ── Iter 220y — Public Wall of Reviews at /engineers/{slug}/reviews ──
+#
+# The engineer's review submit form already lives at
+# `/engineer/{partner_id}/review`. This adds a *read-only* public WALL
+# of all approved reviews, addressed by a human-readable slug instead
+# of an opaque UUID, so engineers can share a clean link in their
+# email signature / business card.
+#
+# Slug strategy:
+#   • Stored as ``public_slug`` on ``partner_engineers``. Auto-minted on
+#     first read if the engineer doesn't have one yet. Idempotent.
+#   • Derived from ``full_name`` with a 4-hex disambiguator to avoid
+#     collisions on common names ("john-smith-a1b2"). Lowercased,
+#     hyphen-delimited, max 64 chars.
+#
+# Endpoint:
+#   GET /api/engineers/{slug}/reviews
+#     → public — no auth
+#     → returns: partner card + summary + rating distribution + reviews
+
+def _slugify_partner_name(name: str) -> str:
+    s = (name or "engineer").strip().lower()
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    return (s or "engineer")[:48]
+
+
+async def _ensure_partner_public_slug(partner: dict) -> str:
+    """Idempotent — returns the partner's ``public_slug``, minting one
+    on first call. The disambiguator keeps slugs unique even when two
+    partners share the same name."""
+    existing = partner.get("public_slug")
+    if existing:
+        return existing
+    base = _slugify_partner_name(partner.get("full_name"))
+    for _ in range(8):
+        candidate = f"{base}-{secrets.token_hex(2)}"
+        clash = await db.partner_engineers.find_one(
+            {"public_slug": candidate}, {"_id": 0, "id": 1},
+        )
+        if not clash:
+            await db.partner_engineers.update_one(
+                {"id": partner["id"]},
+                {"$set": {"public_slug": candidate}},
+            )
+            return candidate
+    fallback = f"{base}-{uuid.uuid4().hex[:6]}"
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {"public_slug": fallback}},
+    )
+    return fallback
+
+
+@router.get("/engineers/{slug}/reviews")
+async def public_engineer_reviews_wall(slug: str, limit: int = 100):
+    """Public Wall of Reviews — read-only, no auth.
+
+    Resolves *slug* to an approved partner engineer and returns a
+    bundle the frontend can render into a beautiful trust-signal wall:
+
+        {
+          "partner":  { id, first_name, company_name, level,
+                         availability, public_slug, member_since },
+          "summary":  { average, count },
+          "distribution": { "1": n, "2": n, ..., "5": n },
+          "reviews":  [ ...same shape as /partners/{id}/reviews... ]
+        }
+    """
+    slug_norm = (slug or "").strip().lower()
+    if not slug_norm:
+        raise HTTPException(404, "Engineer not found")
+    partner = await db.partner_engineers.find_one(
+        {"public_slug": slug_norm, "status": "approved"},
+        {"_id": 0},
+    )
+    if not partner:
+        # Fall-back path #1 — UUID-shaped slug (legacy share links).
+        partner = await db.partner_engineers.find_one(
+            {"id": slug_norm, "status": "approved"},
+            {"_id": 0},
+        )
+        # Fall-back path #2 — name-based slug match (engineer never
+        # opened the wall, so we haven't minted a slug yet). Limit
+        # this to exactly one match to avoid leaking across namesakes.
+        if not partner:
+            base_match = re.sub(r"-[0-9a-f]{4}$", "", slug_norm)
+            candidates = await db.partner_engineers.find(
+                {"status": "approved", "full_name": {"$exists": True}},
+                {"_id": 0, "id": 1, "full_name": 1, "public_slug": 1},
+            ).to_list(500)
+            matches = [
+                p for p in candidates
+                if _slugify_partner_name(p.get("full_name")) == base_match
+            ]
+            if len(matches) == 1:
+                partner = await db.partner_engineers.find_one(
+                    {"id": matches[0]["id"], "status": "approved"},
+                    {"_id": 0},
+                )
+        if not partner:
+            raise HTTPException(404, "Engineer not found")
+
+    public_slug = await _ensure_partner_public_slug(partner)
+
+    rows = await db.partner_reviews.find(
+        {"partner_id": partner["id"], "status": "approved"},
+        {"_id": 0, "ip_hash": 0, "reviewer_email": 0},
+    ).sort("created_at", -1).limit(min(max(int(limit), 1), 200)).to_list(length=200)
+
+    distribution = {str(n): 0 for n in range(1, 6)}
+    for r in rows:
+        key = str(int(r.get("rating") or 0))
+        if key in distribution:
+            distribution[key] += 1
+    average = (
+        round(sum(r.get("rating") or 0 for r in rows) / len(rows), 2)
+        if rows else None
+    )
+
+    return {
+        "partner": {
+            "id": partner["id"],
+            "public_slug": public_slug,
+            "first_name": (partner.get("full_name") or "").split(" ")[0],
+            "full_name": partner.get("full_name"),
+            "company_name": partner.get("company_name"),
+            "level": partner.get("level"),
+            "availability": _effective_availability(partner),
+            "member_since": partner.get("approved_at") or partner.get("created_at"),
+        },
+        "summary": {"average": average, "count": len(rows)},
+        "distribution": distribution,
+        "reviews": [_public_review(r) for r in rows],
+    }
+
+
+# ── End iter 220y reviews wall block ────────────────────────────────
+
+
 # ── Iter 216h287 — Gap 9: engineer-of-engineer referrals ────────────
 #
 # An approved Partner Engineer can share their referral_code under a
