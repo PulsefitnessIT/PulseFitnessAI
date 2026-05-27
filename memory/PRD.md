@@ -1,3 +1,44 @@
+## Iter 220q — Master Admin "Attribution" dashboard view (May 27, 2026) ✅ VERIFIED
+
+Closed out the iter 220q feature by validating that the
+`AdminPartnerAttribution.js` panel renders correctly inside the
+Master Admin → Partners section in the live preview environment.
+
+**Resume context.** The previous fork ended with the panel built,
+mounted in `AdminPartners.js`, and the backend regression suite green
+(863 tests). The only outstanding item was the visual screenshot
+verification — the prior Playwright run timed out because the screenshot
+tool's auto-capture fires earlier than expected and was reporting the
+React Suspense "Loading…" fallback instead of the final render.
+
+**What I did.**
+
+* Wrote a standalone Playwright sync script
+  (`/tmp/verify_admin_attribution.py`) that logs in as
+  `admin@gymaxisai.com`, deep-links to `/master-admin?section=partners`,
+  waits on `data-testid="admin-partner-attribution"` + the inner
+  `data-testid="admin-attribution-table"`, and then evaluates JS in-page
+  to dump the rendered stats and rows.
+* Verified the live API (`GET /api/partners/attribution-summary`)
+  returns rich UTM data (instagram 27, linkedin 5, email 5, instagram
+  partner-launch 2 = 39 landings total).
+* Captured a full-page screenshot
+  (`/tmp/admin_attribution_screen.png`) and confirmed via image
+  analysis: stat tiles render (UTM Landings 39, Applications Attributed
+  0, Overall Conversion 0.00%), the table renders all four UTM rows
+  with their per-source glyphs (📷 instagram, 💼 linkedin, 📧 email),
+  and the gradient mini-bar chart paints correctly above the existing
+  Applications list.
+* Hard assertions in the verification script enforce the panel,
+  stats, and at least one row are present — so the script doubles as
+  a regression smoke-test we can rerun later.
+
+**Why this matters.** Master admins can now answer the "where are
+this week's applications coming from?" question in one glance,
+without leaving the platform. The data is sourced from the iter 220o
+UTM tracking endpoint and gated server-side to master admins only.
+
+
 ## Iter 220p — Engineer queue "My gyms" filter pill (May 26, 2026) ✅ user-requested
 
 Shipped the engineer-side counterpart to the iter 220n supplier
