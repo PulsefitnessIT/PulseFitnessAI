@@ -409,6 +409,14 @@ async def get_company(company_id: str, user=Depends(get_crm_user)):
     c["assets"] = await db.crm2_assets.find({"company_id": company_id, **of}, {"_id": 0}).to_list(100)
     c["contracts"] = await db.crm2_contracts.find({"company_id": company_id, **of}, {"_id": 0}).to_list(50)
     c["activities"] = await db.crm2_activities.find({"company_id": company_id, **of}, {"_id": 0}).sort("created_at", -1).limit(30).to_list(30)
+    # Iter 220an — deep-linking: surface tenders raised against this company
+    # so the 360° view shows every revenue stream (deals + tenders + quotes).
+    c["tenders"] = await db.crm2_tenders.find(
+        {"company_id": company_id, **of},
+        {"_id": 0, "id": 1, "title": 1, "type": 1, "status": 1, "issuer": 1,
+         "deadline": 1, "opportunity_id": 1, "total_questions": 1,
+         "answered_questions": 1, "created_at": 1},
+    ).sort("created_at", -1).to_list(50)
     # Revenue summary
     won_opps = await db.crm2_opportunities.find({"company_id": company_id, "stage": "closed_won", **of}, {"_id": 0, "value": 1}).to_list(500)
     c["total_revenue"] = sum(o.get("value", 0) for o in won_opps)
@@ -1146,6 +1154,13 @@ async def get_opportunity(opp_id: str, user=Depends(get_crm_user)):
     of = _of(user)
     o["activities"] = await db.crm2_activities.find({"opportunity_id": opp_id, **of}, {"_id": 0}).sort("created_at", -1).limit(30).to_list(30)
     o["quotes"] = await db.crm2_quotes.find({"opportunity_id": opp_id, **of}, {"_id": 0}).to_list(20)
+    # Iter 220an — deep-linking: surface tenders raised under this deal.
+    o["tenders"] = await db.crm2_tenders.find(
+        {"opportunity_id": opp_id, **of},
+        {"_id": 0, "id": 1, "title": 1, "type": 1, "status": 1, "issuer": 1,
+         "deadline": 1, "total_questions": 1, "answered_questions": 1,
+         "created_at": 1},
+    ).sort("created_at", -1).to_list(20)
     if o.get("company_id"):
         o["company"] = await db.crm2_companies.find_one({"id": o["company_id"], **of}, {"_id": 0, "name": 1, "sector": 1})
     if o.get("contact_id"):
@@ -2356,11 +2371,59 @@ async def list_tenders(skip: int = 0, limit: int = 50, user=Depends(get_crm_user
     q = {**_of(user)}
     total = await db.crm2_tenders.count_documents(q)
     items = await db.crm2_tenders.find(q, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    # Iter 220an — deep-linking: hydrate each tender row with the linked
+    # company + opportunity names so the list grid can render clickable
+    # badges without N+1 round-trips from the frontend.
+    of = _of(user)
+    co_ids = {t["company_id"] for t in items if t.get("company_id")}
+    opp_ids = {t["opportunity_id"] for t in items if t.get("opportunity_id")}
+    co_map: dict = {}
+    opp_map: dict = {}
+    if co_ids:
+        async for co in db.crm2_companies.find(
+            {"id": {"$in": list(co_ids)}, **of},
+            {"_id": 0, "id": 1, "name": 1},
+        ):
+            co_map[co["id"]] = co["name"]
+    if opp_ids:
+        async for op in db.crm2_opportunities.find(
+            {"id": {"$in": list(opp_ids)}, **of},
+            {"_id": 0, "id": 1, "title": 1, "stage": 1},
+        ):
+            opp_map[op["id"]] = {"title": op["title"], "stage": op.get("stage")}
+    for t in items:
+        if t.get("company_id") and t["company_id"] in co_map:
+            t["company_name"] = co_map[t["company_id"]]
+        if t.get("opportunity_id") and t["opportunity_id"] in opp_map:
+            t["opportunity_title"] = opp_map[t["opportunity_id"]]["title"]
+            t["opportunity_stage"] = opp_map[t["opportunity_id"]]["stage"]
     return {"tenders": items, "total": total}
 
 
 @router.post("/tenders")
 async def create_tender(data: dict, user=Depends(get_crm_user)):
+    # Iter 220an — deep-linking: validate company + opportunity belong to
+    # the same org before persisting, so we can never silently leak across
+    # tenants.
+    of = _of(user)
+    if data.get("company_id"):
+        co = await db.crm2_companies.find_one(
+            {"id": data["company_id"], **of}, {"_id": 0, "id": 1},
+        )
+        if not co:
+            raise HTTPException(400, "Linked company not found in this organisation")
+    if data.get("opportunity_id"):
+        op = await db.crm2_opportunities.find_one(
+            {"id": data["opportunity_id"], **of},
+            {"_id": 0, "id": 1, "company_id": 1},
+        )
+        if not op:
+            raise HTTPException(400, "Linked opportunity not found in this organisation")
+        if data.get("company_id") and op.get("company_id") and op["company_id"] != data["company_id"]:
+            raise HTTPException(400, "Opportunity does not belong to the linked company")
+        # Auto-link the company from the opportunity for convenience.
+        if not data.get("company_id") and op.get("company_id"):
+            data["company_id"] = op["company_id"]
     tender = {
         "id": _id(), "organization_id": user.get("organization_id"),
         "title": data.get("title", ""),
@@ -2400,6 +2463,20 @@ async def get_tender(tender_id: str, user=Depends(get_crm_user)):
         {"tender_id": tender_id, **_of(user)}, {"_id": 0, "data_b64": 0}
     ).to_list(50)
     t["tender_documents"] = docs
+    # Iter 220an — deep-linking: enrich with company + opportunity stubs so
+    # the UI can render clickable badges without a second round-trip.
+    of = _of(user)
+    if t.get("company_id"):
+        t["company"] = await db.crm2_companies.find_one(
+            {"id": t["company_id"], **of},
+            {"_id": 0, "id": 1, "name": 1, "sector": 1, "website": 1},
+        )
+    if t.get("opportunity_id"):
+        t["opportunity"] = await db.crm2_opportunities.find_one(
+            {"id": t["opportunity_id"], **of},
+            {"_id": 0, "id": 1, "title": 1, "stage": 1, "value": 1,
+             "close_date": 1, "company_id": 1},
+        )
     return t
 
 
@@ -2408,6 +2485,29 @@ async def update_tender(tender_id: str, data: dict, user=Depends(get_crm_user)):
     existing = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)})
     if not existing:
         raise HTTPException(404, "Tender not found")
+    # Iter 220an — deep-linking: when re-pointing a tender to a different
+    # company / opportunity we must enforce same-org ownership so a tender
+    # can't be silently leaked to another tenant via a crafted PUT.
+    of = _of(user)
+    if "company_id" in data and data["company_id"]:
+        co = await db.crm2_companies.find_one(
+            {"id": data["company_id"], **of}, {"_id": 0, "id": 1},
+        )
+        if not co:
+            raise HTTPException(400, "Linked company not found in this organisation")
+    if "opportunity_id" in data and data["opportunity_id"]:
+        op = await db.crm2_opportunities.find_one(
+            {"id": data["opportunity_id"], **of}, {"_id": 0, "id": 1, "company_id": 1},
+        )
+        if not op:
+            raise HTTPException(400, "Linked opportunity not found in this organisation")
+        # If we have a company_id (either incoming or already on the tender)
+        # we expect the opportunity to belong to it; otherwise auto-link.
+        target_company = data.get("company_id") or existing.get("company_id")
+        if target_company and op.get("company_id") and op["company_id"] != target_company:
+            raise HTTPException(400, "Opportunity does not belong to the linked company")
+        if not target_company and op.get("company_id"):
+            data["company_id"] = op["company_id"]
     updates = {k: v for k, v in data.items() if k not in ("id", "organization_id", "created_at")}
     updates["updated_at"] = _now()
     await db.crm2_tenders.update_one({"id": tender_id}, {"$set": updates})

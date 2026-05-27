@@ -4,7 +4,7 @@ import {
   Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
   Shield, Phone, Mail, Globe, MapPin, Tag, ArrowLeft,
   FileText, Calendar, Activity, CheckCircle, Edit2, Trash2, X,
-  Upload, Download, Sparkles, Loader2, Hash
+  Upload, Download, Sparkles, Loader2, Hash, Award
 } from 'lucide-react';
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
@@ -1056,6 +1056,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'sites_equipment', label: 'Sites & Equipment' },
     { id: 'assets', label: `Assets (${company.assets?.length || 0})` },
     { id: 'quotes', label: `Quotes (${company.quotes?.length || 0})` },
+    { id: 'tenders', label: `Tenders (${company.tenders?.length || 0})` },
     { id: 'drawings', label: 'Drawings' },
     { id: 'surveys', label: 'Site Surveys' },
     { id: 'invoices', label: 'Invoices' },
@@ -1334,6 +1335,67 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                   <p className="text-sm" style={{ color: c.textDim }}>No quotes for this company</p>
                   <button onClick={() => setShowAddQuote(true)} className="text-xs text-[var(--color-info-ios)] mt-1 hover:underline">Create the first quote</button>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Iter 220an — Tenders deep-linked from the company 360 view */}
+        {activeSection === 'tenders' && (
+          <div data-testid="company-tenders-section">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold" style={{ color: c.text }}>Tenders</h3>
+              <button
+                onClick={() => navigateTo && navigateTo('tender', null)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-info-ios)] text-white text-xs font-medium rounded-md hover:bg-[var(--color-brand-blue-deep)]"
+                data-testid="company-open-tenders-btn"
+              >
+                <Award size={12} /> Open Tenders module
+              </button>
+            </div>
+            <div className="space-y-2">
+              {(company.tenders || []).map(t => {
+                const sc = {
+                  draft: 'var(--color-text-faint-alt)', parsing: 'var(--color-info-ios)',
+                  in_progress: 'var(--color-warning)', review: 'var(--color-accent-magenta)',
+                  submitted: 'var(--color-success-alt)', won: 'var(--color-success-alt-2)',
+                  lost: 'var(--color-danger)',
+                }[t.status] || 'var(--color-text-faint-alt)';
+                const progress = t.total_questions > 0
+                  ? Math.round((t.answered_questions / t.total_questions) * 100)
+                  : 0;
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => navigateTo && navigateTo('tender', t.id)}
+                    className="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-all hover:scale-[1.005]"
+                    style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}
+                    data-testid={`company-tender-${t.id}`}
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${sc}15` }}>
+                      <Award size={14} style={{ color: sc }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium truncate" style={{ color: c.text }}>{t.title}</p>
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${sc}20`, color: sc }}>{t.status?.replace('_', ' ')}</span>
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textDim }}>{t.type}</span>
+                      </div>
+                      <p className="text-[10px] mt-0.5" style={{ color: c.textDim }}>
+                        {t.issuer && <>{t.issuer} &middot; </>}
+                        {t.total_questions || 0} questions &middot; {t.answered_questions || 0} answered
+                        {t.deadline && <> &middot; Due: {new Date(t.deadline).toLocaleDateString('en-GB')}</>}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold shrink-0" style={{ color: progress >= 80 ? 'var(--color-success-alt)' : progress >= 40 ? 'var(--color-warning)' : c.textDim }}>
+                      {progress}%
+                    </span>
+                    <ChevronRight size={14} style={{ color: c.textDim }} />
+                  </div>
+                );
+              })}
+              {(company.tenders || []).length === 0 && (
+                <p className="text-sm text-center py-6" style={{ color: c.textDim }} data-testid="company-tenders-empty">No tenders linked to this company yet</p>
               )}
             </div>
           </div>

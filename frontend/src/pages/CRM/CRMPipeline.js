@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
   Plus, Search, Target, DollarSign, Calendar, User, Building2, ArrowLeft, GripVertical, List, LayoutGrid, X, Activity, FileText, Phone, Mail, CheckCircle, Edit2, Printer,
-  GitBranch,
+  GitBranch, Award,
 } from 'lucide-react';
 import axios from 'axios';
 import HelpHint from '@/components/HelpHint';
@@ -21,7 +21,7 @@ const STAGE_COLORS = {
 const fmt = (n) => `£${(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}`;
 
 /* ═══ OPPORTUNITY DETAIL ═══ */
-function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveTab }) {
+function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveTab, navigateTo }) {
   const [opp, setOpp] = useState(null);
   const [tab, setTab] = useState('overview');
   const [showAddNote, setShowAddNote] = useState(false);
@@ -124,7 +124,7 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-        {['overview', `quotes (${opp.quotes?.length || 0})`, 'stage history', 'timeline', 'audit'].map(t => {
+        {['overview', `quotes (${opp.quotes?.length || 0})`, `tenders (${opp.tenders?.length || 0})`, 'stage history', 'timeline', 'audit'].map(t => {
           const id = t.split(' ')[0];
           return (
             <button key={id} onClick={() => setTab(id)} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap ${tab === id ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
@@ -176,6 +176,48 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
               </div>
             ))}
             {(opp.quotes || []).length === 0 && <p className="text-center py-6 text-sm" style={{ color: c.textDim }}>No quotes linked</p>}
+          </div>
+        )}
+
+        {/* Iter 220an — Tenders linked to this opportunity */}
+        {tab === 'tenders' && (
+          <div className="space-y-2" data-testid="opportunity-tenders-section">
+            {(opp.tenders || []).map(t => {
+              const sc = {
+                draft: 'var(--color-text-faint-alt)', parsing: 'var(--color-info-ios)',
+                in_progress: 'var(--color-warning)', review: 'var(--color-accent-magenta)',
+                submitted: 'var(--color-success-alt)', won: 'var(--color-success-alt-2)',
+                lost: 'var(--color-danger)',
+              }[t.status] || 'var(--color-text-faint-alt)';
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => navigateTo && navigateTo('tender', t.id)}
+                  className="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-all hover:scale-[1.005]"
+                  style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}
+                  data-testid={`opportunity-tender-${t.id}`}
+                >
+                  <Award size={16} style={{ color: sc }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate" style={{ color: c.text }}>{t.title}</p>
+                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${sc}20`, color: sc }}>{t.status?.replace('_', ' ')}</span>
+                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textDim }}>{t.type}</span>
+                    </div>
+                    <p className="text-[11px]" style={{ color: c.textDim }}>
+                      {t.issuer && <>{t.issuer} &middot; </>}
+                      {t.total_questions || 0} questions
+                      {t.deadline && <> &middot; Due: {new Date(t.deadline).toLocaleDateString('en-GB')}</>}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            {(opp.tenders || []).length === 0 && (
+              <p className="text-center py-6 text-sm" style={{ color: c.textDim }} data-testid="opportunity-tenders-empty">
+                No tenders linked to this deal yet
+              </p>
+            )}
           </div>
         )}
 

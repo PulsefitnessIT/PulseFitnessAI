@@ -671,7 +671,7 @@ export default function CRMApp() {
   const [navTarget, setNavTarget] = useState(null); // {type: 'company', id: '...'}
 
   const navigateTo = useCallback((entityType, entityId) => {
-    const tabMap = { company: 'companies', contact: 'contacts', opportunity: 'pipeline', deal: 'pipeline', case: 'dashboard', task: 'inbox', quote: 'quotes', contract: 'contracts' };
+    const tabMap = { company: 'companies', contact: 'contacts', opportunity: 'pipeline', deal: 'pipeline', case: 'dashboard', task: 'inbox', quote: 'quotes', contract: 'contracts', tender: 'tenders' };
     const tab = tabMap[entityType] || 'dashboard';
     setNavTarget({ type: entityType, id: entityId });
     setActiveTab(tab);

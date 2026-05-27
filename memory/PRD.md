@@ -1,3 +1,71 @@
+## Iter 220an — Tenders · deep linking to Companies + Opportunities (May 27, 2026) ✅
+
+Closes the long-standing P1 gap that tenders were "floating" records:
+they always stored ``company_id`` / ``opportunity_id`` but neither end
+of the relationship surfaced the other in the UI. This iter wires the
+bidirectional 360°.
+
+**Backend (`/app/backend/routes/crm_v2.py`)**
+
+* `GET /crm/v2/tenders` — list now hydrates each row with
+  ``company_name``, ``opportunity_title`` and ``opportunity_stage``
+  in a single batched fetch (one ``find`` per resolved-id set, no
+  N+1 trips).
+* `GET /crm/v2/tenders/{id}` — enriches with ``company`` (id, name,
+  sector, website) and ``opportunity`` (id, title, stage, value,
+  close_date, company_id) stubs.
+* `POST /crm/v2/tenders` — validates that ``company_id`` and
+  ``opportunity_id`` (if supplied) belong to the same org and that
+  the opp's parent company matches; auto-links the company from the
+  opp when only the opp is given. Cross-tenant attempts return 400.
+* `PUT  /crm/v2/tenders/{id}` — same validation when re-pointing a
+  tender to a different company / opp.
+* `GET /crm/v2/companies/{id}` — now surfaces a ``tenders`` array
+  (id, title, type, status, issuer, deadline, opportunity_id,
+  question counts).
+* `GET /crm/v2/opportunities/{id}` — now surfaces a ``tenders``
+  array (id, title, type, status, issuer, deadline, question
+  counts).
+
+**Frontend**
+
+* `pages/CRM/CRMTenders.js`
+  - New ``TenderLinkedRecordsPanel`` rendered on the tender detail
+    Overview tab. Shows the linked Company + Deal as clickable
+    cards (deep-link via ``navigateTo``). Inline editor with same-
+    org-scoped Company / Opportunity dropdowns, server-side error
+    surfacing, and idempotent save.
+  - Tender list rows now render coloured Company / Opportunity
+    badges that ``e.stopPropagation()`` and ``navigateTo`` straight
+    to the linked record.
+  - New-tender dialog now has a "Link to Deal (Opportunity)"
+    dropdown that filters by the selected Company; switching
+    Company auto-clears the opp to prevent inconsistent saves.
+  - Main component listens to ``navTarget.type === 'tender'`` so
+    deep links from Company → Tenders or Opportunity → Tenders
+    open the right detail page.
+* `pages/CRM/CRMApp.js` — ``navigateTo`` tab-map gains
+  ``tender → tenders``.
+* `pages/CRM/CRMCompanies.js` — new **Tenders** section in the
+  company 360 with clickable rows (deep-link via ``navigateTo``).
+* `pages/CRM/CRMPipeline.js` — new **Tenders** tab on the deal
+  detail with clickable tender rows.
+
+**Tests** — `backend/tests/test_iter_220an_tender_deep_linking.py`
+(10 tests, all green) pinned and registered in `Makefile`.
+
+**Verification**
+
+* `make regression` → **1091 passed, 15 skipped, 0 failed** in 166 s.
+* `ruff` / `eslint` clean on every touched file.
+* Live smoke confirmed:
+  - Tender detail Overview shows the new Linked Records panel.
+  - Edit-links inline form renders Company + Deal dropdowns plus
+    Save / Cancel actions.
+
+---
+
+
 ## Iter 220am — Per-article view trend · verified (May 27, 2026) ✅
 
 Closes the Iter 220am loop: the daily snapshot writer (in

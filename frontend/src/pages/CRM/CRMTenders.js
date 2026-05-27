@@ -3,7 +3,7 @@ import { useCRM } from './CRMApp';
 import {
   Plus, FileText, Upload, Trash2, ChevronRight, ArrowLeft, Award,
   Sparkles, Edit3, Eye, Copy, BookOpen, Loader2, X, TrendingUp,
-  Download, Presentation, Lightbulb
+  Download, Presentation, Lightbulb, Building2, Target, Link as LinkIcon
 } from 'lucide-react';
 import axios from 'axios';
 import ListPanel from '@/components/shared/ListPanel';
@@ -22,15 +22,18 @@ const TONES = ['professional', 'persuasive', 'formal', 'technical'];
 const Q_CATEGORIES = ['technical', 'commercial', 'social_value', 'health_safety', 'service_delivery', 'mobilisation', 'general'];
 
 /* ═══ TENDER LIST ═══ */
-function TenderList({ onSelect, c, isDark, API, headers }) {
+function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
   const [tenders, setTenders] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [companies, setCompanies] = useState([]);
-  const [form, setForm] = useState({ title: '', type: 'ITT', issuer: '', company_id: '', deadline: '', ai_mode: 'assist', tone: 'professional' });
+  const [form, setForm] = useState({ title: '', type: 'ITT', issuer: '', company_id: '', opportunity_id: '', deadline: '', ai_mode: 'assist', tone: 'professional' });
   const [saving, setSaving] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  // Iter 220an — deep-linking: load deals so the create dialog can offer
+  // an "Opportunity" dropdown filtered by the selected company.
+  const [opportunities, setOpportunities] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +52,16 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
     } catch (e) { console.error(e); }
   }, [API, headers]);
 
+  const loadOpportunities = useCallback(async (companyId) => {
+    try {
+      const url = companyId
+        ? `${API}/crm/v2/opportunities?company_id=${companyId}&limit=100`
+        : `${API}/crm/v2/opportunities?limit=100`;
+      const res = await axios.get(url, { headers: headers() });
+      setOpportunities(res.data.opportunities || []);
+    } catch (e) { console.error(e); setOpportunities([]); }
+  }, [API, headers]);
+
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
@@ -59,7 +72,7 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
     setSaving(false);
   };
 
-  const openCreate = () => { loadCompanies(); setShowCreate(true); };
+  const openCreate = () => { loadCompanies(); loadOpportunities(''); setShowCreate(true); };
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
 
   return (
@@ -129,11 +142,36 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
                 <Award size={18} style={{ color: statusColor }} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{t.title}</p>
                   <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{t.status}</span>
                   <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textDim }}>{t.type}</span>
                   {t.company_id && <CoverageBadge companyId={t.company_id} compact testId={`tender-coverage-${t.id}`} />}
+                  {/* Iter 220an — deep-linking: clickable company + opp badges */}
+                  {t.company_name && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); navigateTo && navigateTo('company', t.company_id); }}
+                      className="text-[10px] font-medium px-1.5 py-0.5 rounded inline-flex items-center gap-1 hover:underline"
+                      style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-info-ios-15)', color: 'var(--color-info-ios)' }}
+                      data-testid={`tender-row-${t.id}-company-link`}
+                      title="Open linked company"
+                    >
+                      <Building2 size={10} />{t.company_name}
+                    </button>
+                  )}
+                  {t.opportunity_title && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); navigateTo && navigateTo('opportunity', t.opportunity_id); }}
+                      className="text-[10px] font-medium px-1.5 py-0.5 rounded inline-flex items-center gap-1 hover:underline"
+                      style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-accent-magenta-15, #f3e8ff)', color: 'var(--color-accent-magenta)' }}
+                      data-testid={`tender-row-${t.id}-opportunity-link`}
+                      title={`Open linked deal · ${t.opportunity_stage || ''}`}
+                    >
+                      <Target size={10} />{t.opportunity_title}
+                    </button>
+                  )}
                 </div>
                 <p className="text-[11px] mt-0.5" style={{ color: c.textDim }}>
                   {t.issuer && <>{t.issuer} &middot; </>}
@@ -185,15 +223,42 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Link to Company</label>
-                  <select value={form.company_id || ''} onChange={e => setForm({ ...form, company_id: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle}>
+                  <select
+                    value={form.company_id || ''}
+                    onChange={(e) => {
+                      const cid = e.target.value;
+                      // Iter 220an — reset opportunity when switching company
+                      // so we never persist an inconsistent link.
+                      setForm({ ...form, company_id: cid, opportunity_id: '' });
+                      loadOpportunities(cid);
+                    }}
+                    className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                    style={inputStyle}
+                    data-testid="create-tender-company-select"
+                  >
                     <option value="">None</option>
                     {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Deadline</label>
-                  <input type="date" value={form.deadline || ''} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} />
+                  <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Link to Deal (Opportunity)</label>
+                  <select
+                    value={form.opportunity_id || ''}
+                    onChange={e => setForm({ ...form, opportunity_id: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                    style={inputStyle}
+                    data-testid="create-tender-opportunity-select"
+                  >
+                    <option value="">None</option>
+                    {opportunities.map(op => (
+                      <option key={op.id} value={op.id}>{op.title} {op.stage ? `· ${op.stage}` : ''}</option>
+                    ))}
+                  </select>
                 </div>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Deadline</label>
+                <input type="date" value={form.deadline || ''} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} />
               </div>
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>AI Mode</label>
@@ -234,8 +299,193 @@ function TenderList({ onSelect, c, isDark, API, headers }) {
   );
 }
 
+/* ═══ TENDER LINKED RECORDS PANEL (Iter 220an) ═══ */
+function TenderLinkedRecordsPanel({ tender, tenderId, API, headers, c, isDark, navigateTo, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [opportunities, setOpportunities] = useState([]);
+  const [companyId, setCompanyId] = useState(tender?.company_id || '');
+  const [opportunityId, setOpportunityId] = useState(tender?.opportunity_id || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadCompanies = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/crm/v2/companies?limit=200`, { headers: headers() });
+      setCompanies(r.data.companies || []);
+    } catch (e) { console.error(e); }
+  }, [API, headers]);
+
+  const loadOpportunities = useCallback(async (cid) => {
+    try {
+      const url = cid
+        ? `${API}/crm/v2/opportunities?company_id=${cid}&limit=100`
+        : `${API}/crm/v2/opportunities?limit=100`;
+      const r = await axios.get(url, { headers: headers() });
+      setOpportunities(r.data.opportunities || []);
+    } catch (e) { console.error(e); setOpportunities([]); }
+  }, [API, headers]);
+
+  const openEdit = () => {
+    setCompanyId(tender?.company_id || '');
+    setOpportunityId(tender?.opportunity_id || '');
+    setError('');
+    loadCompanies();
+    loadOpportunities(tender?.company_id || '');
+    setEditing(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await axios.put(`${API}/crm/v2/tenders/${tenderId}`, {
+        company_id: companyId || null,
+        opportunity_id: opportunityId || null,
+      }, { headers: headers() });
+      setEditing(false);
+      onSaved && onSaved();
+    } catch (e) {
+      setError(e?.response?.data?.detail || 'Failed to update links');
+    }
+    setSaving(false);
+  };
+
+  const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
+  const linkedCo = tender?.company;
+  const linkedOpp = tender?.opportunity;
+
+  return (
+    <div
+      className="rounded-lg border p-4"
+      style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}
+      data-testid="tender-linked-records-panel"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: c.text }}>
+          <LinkIcon size={14} /> Linked Records
+        </h3>
+        {!editing && (
+          <button
+            type="button"
+            onClick={openEdit}
+            className="text-[11px] font-medium px-2.5 py-1 rounded-md border hover:opacity-80"
+            style={{ borderColor: c.border, color: c.textMuted }}
+            data-testid="tender-links-edit-btn"
+          >
+            <Edit3 size={11} className="inline -mt-0.5 mr-1" /> Edit links
+          </button>
+        )}
+      </div>
+
+      {!editing && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-3 rounded-md border" style={{ borderColor: c.border }} data-testid="tender-linked-company">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>
+              <Building2 size={11} /> Company
+            </div>
+            {linkedCo ? (
+              <button
+                type="button"
+                onClick={() => navigateTo && navigateTo('company', linkedCo.id)}
+                className="text-sm font-semibold hover:underline text-left"
+                style={{ color: 'var(--color-info-ios)' }}
+                data-testid="tender-linked-company-link"
+              >
+                {linkedCo.name}
+                {linkedCo.sector && <span className="text-[11px] font-normal ml-2" style={{ color: c.textDim }}>· {linkedCo.sector}</span>}
+              </button>
+            ) : (
+              <p className="text-sm" style={{ color: c.textDim }}>Not linked</p>
+            )}
+          </div>
+          <div className="p-3 rounded-md border" style={{ borderColor: c.border }} data-testid="tender-linked-opportunity">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>
+              <Target size={11} /> Deal (Opportunity)
+            </div>
+            {linkedOpp ? (
+              <button
+                type="button"
+                onClick={() => navigateTo && navigateTo('opportunity', linkedOpp.id)}
+                className="text-sm font-semibold hover:underline text-left"
+                style={{ color: 'var(--color-accent-magenta)' }}
+                data-testid="tender-linked-opportunity-link"
+              >
+                {linkedOpp.title}
+                <span className="text-[11px] font-normal ml-2 capitalize" style={{ color: c.textDim }}>
+                  · {linkedOpp.stage?.replace('_', ' ') || ''}{linkedOpp.value ? ` · £${linkedOpp.value.toLocaleString()}` : ''}
+                </span>
+              </button>
+            ) : (
+              <p className="text-sm" style={{ color: c.textDim }}>Not linked</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="space-y-3" data-testid="tender-links-edit-form">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Company</label>
+            <select
+              value={companyId}
+              onChange={(e) => {
+                const cid = e.target.value;
+                setCompanyId(cid);
+                setOpportunityId('');
+                loadOpportunities(cid);
+              }}
+              className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+              style={inputStyle}
+              data-testid="tender-links-company-select"
+            >
+              <option value="">None</option>
+              {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Deal (Opportunity)</label>
+            <select
+              value={opportunityId}
+              onChange={e => setOpportunityId(e.target.value)}
+              className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+              style={inputStyle}
+              data-testid="tender-links-opportunity-select"
+            >
+              <option value="">None</option>
+              {opportunities.map(op => (
+                <option key={op.id} value={op.id}>{op.title} {op.stage ? `· ${op.stage}` : ''}</option>
+              ))}
+            </select>
+          </div>
+          {error && (
+            <p className="text-xs" style={{ color: 'var(--color-danger-alt)' }} data-testid="tender-links-error">{error}</p>
+          )}
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => { setEditing(false); setError(''); }}
+              className="px-3 py-1.5 text-xs"
+              style={{ color: c.textMuted }}
+              data-testid="tender-links-cancel"
+            >Cancel</button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="px-3 py-1.5 bg-[var(--color-info-ios)] text-white text-xs font-medium rounded-md disabled:opacity-50"
+              data-testid="tender-links-save"
+            >{saving ? 'Saving…' : 'Save links'}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 /* ═══ TENDER DETAIL ═══ */
-function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
+function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo }) {
   const [tender, setTender] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddQ, setShowAddQ] = useState(false);
@@ -527,7 +777,8 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
       <div className="rounded-lg border p-5" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
         {/* Overview */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <h3 className="text-sm font-semibold" style={{ color: c.text }}>Tender Details</h3>
               {[
@@ -558,6 +809,19 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers }) {
                 </div>
               )}
             </div>
+            </div>
+
+            {/* Iter 220an — Deep linking: Linked Records panel */}
+            <TenderLinkedRecordsPanel
+              tender={tender}
+              API={API}
+              headers={headers}
+              c={c}
+              isDark={isDark}
+              navigateTo={navigateTo}
+              onSaved={load}
+              tenderId={tenderId}
+            />
           </div>
         )}
 
@@ -1160,6 +1424,15 @@ function TenderAnalyticsTab({ API, headers, c, isDark }) {
 export default function CRMTenders() {
   const crm = useCRM();
   const [selectedId, setSelectedId] = useState(null);
+
+  // Iter 220an — react to navigateTo('tender', id) deep links from other
+  // CRM modules (Company → Tenders, Opportunity → Tenders, global search).
+  useEffect(() => {
+    if (crm.navTarget && crm.navTarget.type === 'tender' && crm.navTarget.id) {
+      setSelectedId(crm.navTarget.id);
+      crm.setNavTarget && crm.setNavTarget(null);
+    }
+  }, [crm]);
 
   if (selectedId) {
     return <TenderDetail tenderId={selectedId} onBack={() => setSelectedId(null)} {...crm} />;
