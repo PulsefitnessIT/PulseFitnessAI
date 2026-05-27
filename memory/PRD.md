@@ -1,3 +1,40 @@
+## Iter 220am — Per-article view trend · verified (May 27, 2026) ✅
+
+Closes the Iter 220am loop: the daily snapshot writer (in
+`routes/marketing/seo_autopilot.py::dashboard`) is now exercised by
+its own test file (`test_iter_220am_per_article_view_trend.py`, 8
+tests) **and** all upstream fixtures
+(`test_iter_220ai_seo_autopilot_ux.py`, `test_iter_220ad_seo_autopilot.py`)
+were patched to register `seo_article_view_snapshots` as an `AsyncMock`
+collection so the new `find_one` / `update_one` calls don't blow up
+the existing regression rows.
+
+**Verification**
+* `make regression` — **1081 passed, 15 skipped, 0 failed** in
+  163 s. No new pytest warnings.
+* Lint diff vs `main`: identical (no new lint warnings introduced
+  by this iteration).
+* Live smoke on `/master-admin?section=marketing-studio` →
+  Growth Hub renders all 5 sparkline KPI tiles; Inbound demo
+  request alert still surfacing.
+* Live smoke on `/master-admin?section=marketing-studio` →
+  **SEO Autopilot · Dashboard** — top performer row now shows
+  the new purple **`+ N NEW`** trend badge alongside the
+  `N VIEWS` running counter.
+
+**Files touched this iter**
+* `backend/tests/test_iter_220ad_seo_autopilot.py` — `_fake_db`
+  now also wires `seo_article_view_snapshots` (`insert_one`,
+  `update_one`, `delete_one`, `find_one`, `count_documents`,
+  `find`) so dashboard tests pass after the snapshot writer
+  was added.
+* `backend/tests/test_iter_220ai_seo_autopilot_ux.py` (already
+  patched at end of previous session) — `_fake_db` registers
+  `seo_article_view_snapshots`.
+
+---
+
+
 ## Iter 220al — CRM Contacts · Enrol in journey quick-action (May 27, 2026) ✅
 
 Closes the last gap in the GymAxis self-promo funnel: the 4 launched
