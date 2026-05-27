@@ -1,3 +1,106 @@
+## Iter 220o — Instagram-attributed apply form (May 26, 2026) ✅ user-requested
+
+Shipped the "Instagram-attributed apply form" P1 — end-to-end UTM
+attribution flow from the launch campaign all the way through to
+the master-admin conversion summary.
+
+**Frontend — `hooks/useUtmAttribution.js` (new shared hook).**
+
+* Reads `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`,
+  `utm_term`, plus `document.referrer` on mount.
+* Persists to `sessionStorage` under `gx_utm_attribution` with
+  **first-touch semantics** (matches GA — Instagram still gets
+  credit even if the user comes back later via a bookmark).
+* Fires a `POST /api/partners/track-source` ping with `keepalive: true`
+  on the first tagged landing. Errors swallow — analytics never
+  blocks UX.
+* Returns `{ utm, isInstagram, applyHref }`. `applyHref` is
+  `/partners/engineers/apply` with the UTM params re-attached so any
+  CTA that uses it carries attribution into the apply form regardless
+  of which button the visitor taps.
+
+**Frontend — `PartnerEngineerLanding` hero swap.** When `isInstagram`
+is true:
+
+* Eyebrow: "Partner Engineer Network" → **"Saw us on Instagram"**
+* Headline: "For independent fitness engineers." → **"You found us. Now let's talk shop."**
+* Sub-copy: opens with "Welcome from Instagram. Everything you saw
+  in the campaign is real — £30/mo that drops to free at 10
+  referrals…"
+* Primary CTA text: "Start application" → **"Claim your Instagram spot"**
+* `data-attribution-source` attribute on the section (E2E hook).
+* Both the hero and the final-CTA buttons use `applyHref` so
+  attribution is preserved regardless of which one converts.
+
+**Frontend — `PartnerApplyPublic` carries attribution forward.**
+On submit, reads UTM first from the apply URL's query params, then
+falls back to `sessionStorage`. If found, appends six Form fields
+(`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`,
+`utm_term`, `referrer_url`) to the multipart POST. If the user
+didn't manually type a referral source, pre-fills it from
+`utm_source` so master admin sees something useful.
+
+**Backend — three new/updated endpoints in `routes/partners.py`.**
+
+1. `POST /api/partners/track-source` (public, anonymous) — increments
+   a per-(source|medium|campaign) counter in
+   `db.partner_attribution_landings`. Upsert with `$inc`,
+   `$setOnInsert`, `$set` on last-seen timestamps. Skips silently
+   on no-UTM payloads so organic traffic doesn't pollute the bucket.
+   Inputs lowercased + capped at 200 chars at the boundary.
+2. `POST /api/partners/public-apply` — extended with six new Form
+   fields (`utm_source`/medium/campaign/content/term + `referrer_url`),
+   persisted onto the `partner_applications` doc with the same
+   normalisation rules.
+3. `GET /api/partners/attribution-summary` (master-admin only) — rolls
+   up landings + applications per source. Each row gets enriched with
+   `applications` count + `conversion_rate_pct`. Totals across all
+   tagged channels included.
+
+**Live smoke test.** Hit
+`/partners/engineers?utm_source=instagram&utm_medium=social&utm_campaign=partner_launch_2026`
+on the preview env via Playwright:
+
+* `data-attribution-source` = `'instagram'` ✓
+* Eyebrow = `SAW US ON INSTAGRAM` ✓
+* Headline = `You found us. Now let's talk shop.` ✓
+* Hero CTA text = `Claim your Instagram spot` ✓
+* Hero CTA href = `/partners/engineers/apply?utm_source=instagram&utm_medium=social&utm_campaign=partner_launch_2026` ✓
+
+Hit `POST /api/partners/track-source` with the same payload via curl:
+
+```json
+{"ok":true,"key":"instagram|social|partner_launch_2026"}
+```
+
+Hit it with `{}` → `{"ok":true,"skipped":"no-utm-source"}` (organic
+filter working). Hit `GET /api/partners/attribution-summary` without
+auth → HTTP 401 (master-admin gate working).
+
+**Regression coverage.** New `test_iter_220o_instagram_attribution.py`
+— **9 tests** (all green), wired into `Makefile::regression`:
+
+| Test | Invariant pinned |
+|---|---|
+| `test_track_source_increments_counter_with_utm_source` | Right $inc + $setOnInsert + $set shape, upsert=True |
+| `test_track_source_skips_when_no_utm_source` | Organic traffic must NEVER hit the counter |
+| `test_track_source_normalises_utm_to_lowercase_and_caps_length` | Case-insensitive bucketing + 200-char cap |
+| `test_attribution_summary_decorates_landings_with_conversion_rate` | applications + conversion_rate_pct math |
+| `test_public_apply_signature_accepts_utm_fields` | Endpoint Form signature pin |
+| `test_public_apply_doc_includes_utm_fields_in_source` | Persisted doc shape pin |
+| `test_use_utm_attribution_hook_exists_with_first_touch_semantics` | Hook docstring + sessionStorage key pin |
+| `test_apply_form_reads_session_storage_key` | E2E contract: same sessionStorage key on both sides |
+| `test_partner_engineer_landing_swaps_hero_for_instagram` | All swap branches present + applyHref used ≥2× |
+
+**Quality gates.** `make regression` ✓ **848 passed, 15 skipped, 0
+failed** (was 839; +9 new). `ruff check partners.py` ✓. ESLint
+clean on `useUtmAttribution.js`, `PartnerEngineerLanding.js`,
+`PartnerApplyPublic.js`.
+
+---
+
+
+
 ## Iter 220n (cont.) — "Auto-added from referral" supplier badge (May 26, 2026) ✅ user-requested
 
 User-requested polish: when a Partner Engineer is auto-attached as a

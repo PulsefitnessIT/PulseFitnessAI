@@ -154,6 +154,42 @@ export default function PartnerApplyPublic() {
       if (certFile) fd.append('cert_file', certFile);
       // Iter 216h287 — forward the eref attribution code if present
       if (erefCode) fd.append('referred_by_eref', erefCode);
+      // Iter 220o — forward Instagram (or other) UTM attribution if
+      // present so master admin can see which channel converted.
+      // First-touch wins: read from the URL on this form first, then
+      // fall back to whatever the landing page captured into session.
+      try {
+        let utm = null;
+        // 1) Honour query params on the apply URL (carried forward by
+        //    the landing-page hook + any direct link a user shared).
+        const sp = new URLSearchParams(window.location.search);
+        const fromUrl = {};
+        ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach((k) => {
+          const v = sp.get(k);
+          if (v) fromUrl[k] = String(v).toLowerCase().slice(0, 200);
+        });
+        if (Object.keys(fromUrl).length) utm = fromUrl;
+        // 2) Fall back to first-touch in sessionStorage.
+        if (!utm) {
+          try {
+            const raw = sessionStorage.getItem('gx_utm_attribution');
+            if (raw) utm = JSON.parse(raw);
+          } catch { /* ignore */ }
+        }
+        if (utm) {
+          if (utm.utm_source) fd.append('utm_source', utm.utm_source);
+          if (utm.utm_medium) fd.append('utm_medium', utm.utm_medium);
+          if (utm.utm_campaign) fd.append('utm_campaign', utm.utm_campaign);
+          if (utm.utm_content) fd.append('utm_content', utm.utm_content);
+          if (utm.utm_term) fd.append('utm_term', utm.utm_term);
+          if (utm.referrer_url) fd.append('referrer_url', utm.referrer_url);
+          // If the user didn't manually type a referral source, prefill
+          // it from utm_source so master admin sees something useful.
+          if (utm.utm_source && !(profile.referral_source || '').trim()) {
+            fd.set('referral_source', utm.utm_source);
+          }
+        }
+      } catch { /* attribution best-effort; never blocks the submit */ }
       const r = await axios.post(`${API}/api/partners/public-apply`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

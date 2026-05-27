@@ -23,6 +23,7 @@ import './marketing.css';
 import MarketingShell from './MarketingShell';
 import LiveEngineerAppPreview from './LiveEngineerAppPreview';
 import { useSeo } from '@/utils/seo';
+import { useUtmAttribution } from '@/hooks/useUtmAttribution';
 
 const TIER_TABLE = [
   { refs: '0',     fee: '£30',  badge: 'Starter',  hint: 'Standard tier — most new partners start here' },
@@ -129,27 +130,46 @@ export default function PartnerEngineerLanding() {
 
 /* ── Hero ──────────────────────────────────────────────── */
 function Hero() {
+  // Iter 220o — Instagram-attributed landing. When the visitor arrives
+  // via `?utm_source=instagram` (e.g. from one of the launch campaign
+  // posts), swap the hero copy so it greets them in context. The
+  // attribution itself is captured + persisted by the hook so the
+  // apply form receives it regardless of which CTA they tap.
+  const { isInstagram, applyHref } = useUtmAttribution();
+  const eyebrowText = isInstagram ? 'Saw us on Instagram' : 'Partner Engineer Network';
+  const headlineLine1 = isInstagram ? 'You found us.' : 'For independent';
+  const headlineLine2 = isInstagram ? 'Now let\'s talk shop.' : 'fitness engineers.';
+  const subCopy = isInstagram
+    ? <>
+        Welcome from Instagram. Everything you saw in the campaign is real —
+        £30/mo that drops to <strong className="text-slate-800">free at 10 referrals</strong>,
+        50% of each gym's first cleared payment, and £3/site/mo recurring.
+        Apply in 5 minutes; we'll come back within 2 working days.
+      </>
+    : <>
+        Run your own business — but plug into the gym-operator network that already trusts GymAxis. Steady jobs, a powerful mobile app, and a fair monthly fee that drops to <strong className="text-slate-800">free</strong> once you refer 10 active gym sites.
+      </>;
   return (
-    <section className="gx-grid-bg relative overflow-hidden" data-testid="pe-hero">
+    <section className="gx-grid-bg relative overflow-hidden" data-testid="pe-hero" data-attribution-source={isInstagram ? 'instagram' : 'organic'}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-20 lg:pt-20 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800" data-testid="pe-hero-eyebrow">
-            <HardHat size={12} /> Partner Engineer Network
+            <HardHat size={12} /> {eyebrowText}
           </span>
           <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.04]" data-testid="pe-hero-headline">
-            For independent<br />
-            <span className="gx-gradient-text">fitness engineers.</span>
+            {headlineLine1}<br />
+            <span className="gx-gradient-text">{headlineLine2}</span>
           </h1>
           <p className="mt-5 text-base sm:text-lg md:text-xl text-slate-600 leading-relaxed max-w-xl" data-testid="pe-hero-sub">
-            Run your own business — but plug into the gym-operator network that already trusts GymAxis. Steady jobs, a powerful mobile app, and a fair monthly fee that drops to <strong className="text-slate-800">free</strong> once you refer 10 active gym sites.
+            {subCopy}
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
-              to="/partners/engineers/apply"
+              to={applyHref}
               className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap"
               data-testid="pe-hero-apply"
             >
-              Start application <ArrowRight size={15} />
+              {isInstagram ? 'Claim your Instagram spot' : 'Start application'} <ArrowRight size={15} />
             </Link>
             <a
               href="#how-it-works"
@@ -482,6 +502,10 @@ function FAQ() {
 
 /* ── Final CTA ─────────────────────────────────────────── */
 function FinalCta() {
+  // Iter 220o — carry attribution into the apply form from the bottom
+  // CTA too, so attribution doesn't depend on which button the
+  // visitor taps.
+  const { applyHref, isInstagram } = useUtmAttribution();
   return (
     <section className="py-24 md:py-32" data-testid="pe-final-cta">
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
@@ -497,11 +521,11 @@ function FinalCta() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link
-                to="/partners/engineers/apply"
+                to={applyHref}
                 className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100"
                 data-testid="pe-final-apply"
               >
-                Start application <ArrowRight size={15} />
+                {isInstagram ? 'Claim your Instagram spot' : 'Start application'} <ArrowRight size={15} />
               </Link>
               <Link
                 to="/contact"

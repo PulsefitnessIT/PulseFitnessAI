@@ -269,6 +269,115 @@ async def _store_application_attachment(file: UploadFile, application_id: str) -
     }
 
 
+@router.post("/partners/track-source")
+async def track_partner_attribution_source(payload: dict | None = None):
+    """Iter 220o — Top-of-funnel attribution counter.
+
+    Called by the public Partner Engineer landing page when a visitor
+    arrives with UTM-tagged parameters (e.g. from the Instagram launch
+    campaign). Increments a per-(source, medium, campaign) counter so
+    master admin can see how many landings each channel produced —
+    independent of whether they converted into an application.
+
+    Storage layout (`db.partner_attribution_landings`):
+
+        {
+          "_id": auto,
+          "key": "instagram|paid|partner-launch-may26",   # source|medium|campaign
+          "utm_source": "instagram",
+          "utm_medium": "paid",
+          "utm_campaign": "partner-launch-may26",
+          "landings": 1247,            # ← $inc'd each call
+          "last_landing_at": "2026-05-26T18:11Z",
+          "last_referrer_url": "https://www.instagram.com/...",
+        }
+
+    The endpoint is *deliberately* anonymous — no auth, no IP capture,
+    no fingerprinting. We only count totals per channel-tag. Apply-form
+    submissions carry their own attribution (`utm_source` on the
+    `partner_applications` doc) for the conversion side.
+    """
+    payload = payload or {}
+    utm_source = (payload.get("utm_source") or "").strip().lower()[:200]
+    if not utm_source:
+        # We only care about tagged landings — organic traffic is
+        # tracked elsewhere (web analytics) and would otherwise drown
+        # the per-channel counts.
+        return {"ok": True, "skipped": "no-utm-source"}
+    utm_medium = (payload.get("utm_medium") or "").strip().lower()[:200]
+    utm_campaign = (payload.get("utm_campaign") or "").strip().lower()[:200]
+    utm_content = (payload.get("utm_content") or "").strip().lower()[:200]
+    referrer_url = (payload.get("referrer_url") or "").strip()[:500] or None
+    landing_path = (payload.get("landing_path") or "").strip()[:200] or None
+    key = f"{utm_source}|{utm_medium}|{utm_campaign}"
+    now_iso = _now()
+    try:
+        await db.partner_attribution_landings.update_one(
+            {"key": key},
+            {
+                "$inc": {"landings": 1},
+                "$setOnInsert": {
+                    "utm_source": utm_source,
+                    "utm_medium": utm_medium or None,
+                    "utm_campaign": utm_campaign or None,
+                    "utm_content": utm_content or None,
+                    "first_landing_at": now_iso,
+                },
+                "$set": {
+                    "last_landing_at": now_iso,
+                    "last_referrer_url": referrer_url,
+                    "last_landing_path": landing_path,
+                },
+            },
+            upsert=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("track_partner_attribution_source upsert failed: %s", exc)
+        return {"ok": False}
+    return {"ok": True, "key": key}
+
+
+@router.get("/partners/attribution-summary")
+async def partner_attribution_summary(user: dict = Depends(get_current_user)):
+    """Iter 220o — Master-admin only: top-of-funnel counts per
+    (source, medium, campaign) plus the conversion count (applications
+    received) for each tagged source. Lets the team see which
+    Instagram post / channel drove the most applications.
+    """
+    _require_master_admin(user)
+    # Landings: total visitors that landed with a UTM-tagged URL.
+    landings = await db.partner_attribution_landings.find(
+        {}, {"_id": 0},
+    ).sort("landings", -1).to_list(500)
+    # Conversions: count applications keyed by utm_source.
+    pipeline = [
+        {"$match": {"utm_source": {"$ne": None}}},
+        {"$group": {"_id": "$utm_source", "applications": {"$sum": 1}}},
+    ]
+    conv_rows = await db.partner_applications.aggregate(pipeline).to_list(200)
+    conversions_by_source = {r["_id"]: r["applications"] for r in conv_rows if r.get("_id")}
+    # Decorate each landing row with its conversion count + rate.
+    enriched = []
+    for row in landings:
+        src = row.get("utm_source")
+        apps = conversions_by_source.get(src, 0)
+        enriched.append({
+            **row,
+            "applications": apps,
+            "conversion_rate_pct": (
+                round(100.0 * apps / row["landings"], 2)
+                if row.get("landings") else 0.0
+            ),
+        })
+    return {
+        "rows": enriched,
+        "totals": {
+            "landings": sum(r.get("landings", 0) for r in landings),
+            "applications_attributed": sum(conversions_by_source.values()),
+        },
+    }
+
+
 @router.post("/partners/public-apply")
 async def public_apply_partner(
     full_name: str = Form(...),
@@ -287,6 +396,15 @@ async def public_apply_partner(
     qualifications_expires_at: str = Form(""),
     referral_source: str = Form(""),
     referred_by_eref: str = Form(""),
+    # Iter 220o — Instagram-attributed (and any other UTM-tagged)
+    # landing. Stored on the application so master admin can see at
+    # a glance which marketing channel converted this engineer.
+    utm_source: str = Form(""),
+    utm_medium: str = Form(""),
+    utm_campaign: str = Form(""),
+    utm_content: str = Form(""),
+    utm_term: str = Form(""),
+    referrer_url: str = Form(""),
     cover_letter: str = Form(""),
     terms_accepted: str = Form("false"),
     cv_file: Optional[UploadFile] = File(None),
@@ -336,6 +454,17 @@ async def public_apply_partner(
         # at-a-glance. The `engineer_referrals` ledger row is written
         # below once we know the applicant's email is valid.
         "referred_by_eref": (referred_by_eref or "").strip().upper()[:32] or None,
+        # Iter 220o — UTM attribution (Instagram, etc.). Flattened onto
+        # the application doc so the master-admin list view can filter
+        # by source and master-admin analytics can count conversions
+        # per channel without a join. All five UTM fields are lowercased
+        # + capped at 200 chars.
+        "utm_source": (utm_source or "").strip().lower()[:200] or None,
+        "utm_medium": (utm_medium or "").strip().lower()[:200] or None,
+        "utm_campaign": (utm_campaign or "").strip().lower()[:200] or None,
+        "utm_content": (utm_content or "").strip().lower()[:200] or None,
+        "utm_term": (utm_term or "").strip().lower()[:200] or None,
+        "referrer_url": (referrer_url or "").strip()[:500] or None,
         "cover_letter": (cover_letter or "").strip()[:4000] or None,
         "terms_accepted_at": _now(),
         "terms_version": TERMS_VERSION,
