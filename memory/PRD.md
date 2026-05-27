@@ -17833,3 +17833,67 @@ cards, and LinkedIn.
 - `frontend/src/pages/Public/EngineerReviewsWall.js` (new, ~270 LOC)
 - `frontend/src/routes/AppRoutes.js`
 - `Makefile` (regression target)
+
+---
+
+## Iter 220z — Share your Wall of Reviews (May 27, 2026)
+
+### Context
+The shiny new public Wall of Reviews built in Iter 220y was invisible
+to engineers — they had no way to discover their own URL. This iter
+turns the wall into a viral acquisition channel by giving engineers
+a prominent share kit on their dashboard.
+
+### Implementation
+- **Backend** (``routes/partners.py``):
+  - ``GET /api/partners/me/public-wall`` — returns
+    ``{public_slug, public_url, summary{average, count}, share_text}``.
+  - Mints ``public_slug`` on first call (idempotent via the same
+    ``_ensure_partner_public_slug`` helper). 404 for non-partners,
+    403 for pending/rejected applicants.
+  - ``share_text`` adapts to review count: ≥3 reviews → brag copy
+    ("Sarah has 37 ★ reviews on GymAxis — averaging 4.8/5..."); else
+    a neutral "verified Partner Engineer" line so newcomers get a
+    clean LinkedIn caption from day one.
+- **Frontend** (``PartnerWallShareCard.js``, new):
+  - Sits on the Partner Dashboard just above ``PartnerReviewsCard``.
+  - Header includes a live rating summary pill (4.8 · 37 reviews).
+  - URL row: clickable host-only display + Copy button with
+    Check-icon confirmation.
+  - Action row: "Open my wall", "Share on LinkedIn" (brand-blue
+    button targeting LinkedIn's ``sharing/share-offsite`` intent
+    URL with the pre-baked ``share_text``), and "Show/Hide QR".
+  - QR drawer renders a 320px PNG via the existing ``qrcode`` lib,
+    with a "Download PNG" button that names the file
+    ``gymaxis-wall-<slug>.png`` for printed-collateral use.
+- **Tests** (``test_iter_220z_partner_wall_share.py``, 8 tests):
+  - Happy path → slug + URL + stats + share_text.
+  - Share text adapts to count threshold.
+  - Mints slug when missing.
+  - 404 on non-partner, 403 on pending/rejected.
+  - Live: anonymous → 401/403, master-admin → 404.
+
+### Verification
+- ``make regression`` → **950 passed**, 15 skipped (+8 new tests,
+  zero regressions on the 942 baseline).
+- Live API as E1 partner user:
+  ```
+  {
+    "public_slug": "e1-test-engineer-5325",
+    "public_url": ".../engineers/e1-test-engineer-5325/reviews",
+    "summary": {"average": null, "count": 0},
+    "share_text": "E1 is a verified GymAxis Partner Engineer — ..."
+  }
+  ```
+- Playwright smoke at ``/partner-engineer`` rendered all 6 testids
+  (card, url, copy-btn, open-btn, linkedin-btn, qr-toggle) and the
+  QR PNG generated correctly when expanded.
+- ``mcp_lint_python`` + ``mcp_lint_javascript`` both clean.
+
+### Files changed
+- ``backend/routes/partners.py`` (new endpoint)
+- ``backend/tests/test_iter_220z_partner_wall_share.py`` (new, 8 tests)
+- ``frontend/src/pages/PartnerEngineer/PartnerWallShareCard.js`` (new)
+- ``frontend/src/pages/PartnerEngineer/PartnerDashboard.js`` (import + render)
+- ``Makefile`` (regression target)
+- ``memory/test_credentials.md`` (E1 user re-seed note)

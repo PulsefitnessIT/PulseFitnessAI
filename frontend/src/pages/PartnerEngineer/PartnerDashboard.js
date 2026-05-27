@@ -24,6 +24,8 @@ import PartnerComplianceCard from './PartnerComplianceCard';
 import PartnerActivationChecklist from './PartnerActivationChecklist';
 import PartnerCollateralCard from './PartnerCollateralCard';
 import PartnerReviewsCard from './PartnerReviewsCard';
+// Iter 220z — Public Wall of Reviews share card
+import PartnerWallShareCard from './PartnerWallShareCard';
 import PartnerEngineerReferralCard from './PartnerEngineerReferralCard';
 import PartnerAvailabilityCard from './PartnerAvailabilityCard';
 
@@ -329,6 +331,12 @@ export default function PartnerDashboard() {
             approved recruit drops the partner's plan fee — same tier
             ladder as gym referrals. */}
         {partner.status === 'approved' && <PartnerEngineerReferralCard />}
+
+        {/* Iter 220z — Share the public Wall of Reviews. Sits ABOVE
+            the reviews list because the share CTA matters even when
+            the engineer has zero reviews yet (early-days encouragement
+            + acquisition channel). */}
+        {partner.status === 'approved' && <PartnerWallShareCard />}
 
         {/* Iter 216h286 — Gap 8: customer reviews on the engineer.
             Hides itself silently if the engineer has no reviews yet. */}

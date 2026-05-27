@@ -2794,6 +2794,64 @@ async def public_engineer_reviews_wall(slug: str, limit: int = 100):
 # ── End iter 220y reviews wall block ────────────────────────────────
 
 
+# ── Iter 220z — Engineer "Share your wall" endpoint ───────────────
+#
+# Logged-in engineer's dashboard needs to know its own public wall URL
+# (mint on first call). Returns the slug + a ready-to-share URL +
+# summary stats so the dashboard card can show "37 reviews · 4.8★"
+# alongside a copy-to-clipboard / QR / LinkedIn share UI.
+
+@router.get("/partners/me/public-wall")
+async def my_public_wall(user: dict = Depends(get_current_user)):
+    """Return the calling engineer's public wall URL + summary stats.
+
+    Mints ``public_slug`` on first call. 403 if the caller is not an
+    approved partner engineer (pending / rejected applicants don't get
+    a public wall yet)."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    if partner.get("status") != "approved":
+        raise HTTPException(403, "Wall is published once your application is approved.")
+
+    slug = await _ensure_partner_public_slug(partner)
+
+    rows = await db.partner_reviews.find(
+        {"partner_id": partner["id"], "status": "approved"},
+        {"_id": 0, "rating": 1},
+    ).to_list(length=500)
+    average = (
+        round(sum(r.get("rating") or 0 for r in rows) / len(rows), 2)
+        if rows else None
+    )
+
+    base = (os.environ.get("FRONTEND_URL") or "").rstrip("/") \
+        or "https://app.gymaxis.ai"
+    public_url = f"{base}/engineers/{slug}/reviews"
+
+    first_name = (partner.get("full_name") or "").split(" ")[0] or "your engineer"
+    if average is not None and len(rows) >= 3:
+        share_text = (
+            f"{first_name} has {len(rows)} ★ reviews on GymAxis — "
+            f"averaging {average:.1f}/5. Find a trusted gym engineer here:"
+        )
+    else:
+        share_text = (
+            f"{first_name} is a verified GymAxis Partner Engineer — "
+            f"see the full profile and book here:"
+        )
+
+    return {
+        "public_slug": slug,
+        "public_url": public_url,
+        "summary": {"average": average, "count": len(rows)},
+        "share_text": share_text,
+    }
+
+
+# ── End iter 220z share-wall block ────────────────────────────────
+
+
 # ── Iter 216h287 — Gap 9: engineer-of-engineer referrals ────────────
 #
 # An approved Partner Engineer can share their referral_code under a
