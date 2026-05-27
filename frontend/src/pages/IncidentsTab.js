@@ -14,7 +14,7 @@
  * owns reference numbering, audit log immutability, RIDDOR engine,
  * and escalation emails — this component is a pure view + dispatcher.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -29,6 +29,7 @@ import { notify } from '@/components/notifications';
 import {
   AlertTriangle, Plus, Shield, Activity, Loader2, ChevronRight,
   ClipboardCheck, Wrench, FileWarning, Search, FileDown, UserPlus, BarChart3,
+  Sparkles, Mic, Square,
 } from 'lucide-react';
 import IncidentSignaturePad from './IncidentSignaturePad';
 
@@ -377,7 +378,10 @@ function QuickLogDialog({ open, onClose, picklists, onCreated }) {
             </Select>
           </div>
           <div>
-            <Label className="text-xs font-bold uppercase tracking-wider">Description</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold uppercase tracking-wider">Description</Label>
+              <VoiceDictate onTranscript={(t) => setForm((p) => ({ ...p, description: ((p.description || '') + ' ' + t).trim() }))} />
+            </div>
             <Textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -760,6 +764,21 @@ function RiddorPane({ incident, picklists, onChanged }) {
     }
   };
 
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiReasoning, setAiReasoning] = useState('');
+  const aiPrefill = async () => {
+    setAiLoading(true);
+    try {
+      const r = await axios.post(`${API}/incidents/${incident.id}/ai/riddor-hint`,
+        {}, { headers: { Authorization: `Bearer ${token}` } });
+      setAnswers((prev) => ({ ...prev, ...(r.data.answers || {}) }));
+      setAiReasoning(r.data.reasoning || '');
+      notify.success('AI pre-filled the wizard — review each answer before assessing');
+    } catch (e) {
+      notify.error(e.response?.data?.detail || 'AI hint unavailable');
+    } finally { setAiLoading(false); }
+  };
+
   const submit = async () => {
     if (!submissionRef.trim()) return notify.error('HSE submission reference required');
     setSubmitting(true);
@@ -830,12 +849,24 @@ function RiddorPane({ incident, picklists, onChanged }) {
         ))}
       </div>
       <div className="flex justify-end gap-2">
+        <Button onClick={aiPrefill} variant="outline" disabled={aiLoading}
+                className="text-blue-700 border-blue-300 hover:bg-blue-50"
+                data-testid="riddor-ai-prefill">
+          {aiLoading ? <Loader2 className="animate-spin mr-2" size={14} /> : <Sparkles size={14} className="mr-2" />}
+          Pre-fill with AI
+        </Button>
         <Button onClick={runAssess} disabled={running} className="bg-blue-600 hover:bg-blue-700 text-white"
                 data-testid="riddor-run-assess">
           {running ? <Loader2 className="animate-spin mr-2" size={14} /> : null}
           Run RIDDOR assessment
         </Button>
       </div>
+      {aiReasoning ? (
+        <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+          <p className="font-bold mb-1 uppercase tracking-wider text-[10px]">AI reasoning (advisory only)</p>
+          <p>{aiReasoning}</p>
+        </div>
+      ) : null}
 
       {riddor.status === 'confirmed' || riddor.status === 'potential' ? (
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex flex-col sm:flex-row sm:items-end gap-2">
@@ -867,6 +898,7 @@ function InvestigationPane({ incident, picklists, onChanged }) {
   const [findings, setFindings] = useState(inv.findings || '');
   const [rootCauses, setRootCauses] = useState(inv.root_causes || []);
   const [saving, setSaving] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
 
   const toggleCause = (c) => {
     setRootCauses((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
@@ -884,16 +916,59 @@ function InvestigationPane({ incident, picklists, onChanged }) {
     } finally { setSaving(false); }
   };
 
+  const aiSuggestCauses = async () => {
+    setAiBusy(true);
+    try {
+      const r = await axios.post(`${API}/incidents/${incident.id}/ai/root-causes`,
+        {}, { headers: { Authorization: `Bearer ${token}` } });
+      const suggested = r.data.root_causes || [];
+      setRootCauses((prev) => Array.from(new Set([...prev, ...suggested])));
+      notify.success(`AI suggested ${suggested.length} root cause(s) — review before saving`);
+    } catch (e) {
+      notify.error(e.response?.data?.detail || 'AI suggestion unavailable');
+    } finally { setAiBusy(false); }
+  };
+
+  const aiSummarise = async () => {
+    setAiBusy(true);
+    try {
+      const r = await axios.post(`${API}/incidents/${incident.id}/ai/summarise`,
+        {}, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.data.summary) {
+        setFindings((prev) => (prev ? `${prev}\n\n— AI summary —\n${r.data.summary}` : r.data.summary));
+        notify.success('AI summary drafted into the findings');
+      }
+    } catch (e) {
+      notify.error(e.response?.data?.detail || 'AI summary unavailable');
+    } finally { setAiBusy(false); }
+  };
+
   return (
     <div className="space-y-3 text-sm" data-testid="investigation-pane">
       <div>
-        <Label className="text-xs font-bold uppercase tracking-wider">Investigator findings</Label>
+        <div className="flex items-center justify-between mb-1">
+          <Label className="text-xs font-bold uppercase tracking-wider">Investigator findings</Label>
+          <Button size="sm" variant="ghost" onClick={aiSummarise} disabled={aiBusy}
+                  className="text-blue-700 hover:bg-blue-50 h-7 px-2"
+                  data-testid="investigation-ai-summarise">
+            {aiBusy ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />}
+            <span className="ml-1 text-xs">AI summarise</span>
+          </Button>
+        </div>
         <Textarea rows={5} value={findings} onChange={(e) => setFindings(e.target.value)}
                   placeholder="What did the investigation reveal? Witness statements, equipment checks, environmental factors…"
                   data-testid="investigation-findings" />
       </div>
       <div>
-        <Label className="text-xs font-bold uppercase tracking-wider">Root cause(s)</Label>
+        <div className="flex items-center justify-between mb-1">
+          <Label className="text-xs font-bold uppercase tracking-wider">Root cause(s)</Label>
+          <Button size="sm" variant="ghost" onClick={aiSuggestCauses} disabled={aiBusy}
+                  className="text-blue-700 hover:bg-blue-50 h-7 px-2"
+                  data-testid="investigation-ai-causes">
+            {aiBusy ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />}
+            <span className="ml-1 text-xs">AI suggest</span>
+          </Button>
+        </div>
         <div className="flex flex-wrap gap-2 mt-1.5">
           {(picklists?.root_causes || []).map((c) => (
             <button key={c} type="button" onClick={() => toggleCause(c)}
@@ -1260,3 +1335,76 @@ function Heatmap({ heatmap }) {
     </div>
   );
 }
+
+
+function VoiceDictate({ onTranscript }) {
+  const { API } = useAuth();
+  const token = useMemo(() => localStorage.getItem('token'), []);
+  const [state, setState] = useState('idle'); // idle | recording | uploading
+  const mediaRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRef.current = rec;
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        setState('uploading');
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const fd = new FormData();
+        fd.append('file', blob, 'incident-dictation.webm');
+        try {
+          const r = await axios.post(`${API}/incidents/ai/transcribe`, fd, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (r.data.transcript) {
+            onTranscript(r.data.transcript);
+            notify.success('Voice note transcribed');
+          } else {
+            notify.warning('Could not transcribe — please retype');
+          }
+        } catch (e) {
+          notify.error(e.response?.data?.detail || 'Transcription failed');
+        } finally {
+          setState('idle');
+        }
+      };
+      rec.start();
+      setState('recording');
+    } catch (e) {
+      notify.error('Microphone permission denied or unavailable');
+      setState('idle');
+    }
+  };
+
+  const stop = () => {
+    if (mediaRef.current && mediaRef.current.state === 'recording') {
+      mediaRef.current.stop();
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={state === 'idle' ? start : state === 'recording' ? stop : undefined}
+      disabled={state === 'uploading'}
+      className={`text-xs font-bold px-2 py-1 rounded-full inline-flex items-center gap-1 ${
+        state === 'recording'
+          ? 'bg-red-600 text-white animate-pulse'
+          : state === 'uploading'
+          ? 'bg-slate-300 text-slate-600'
+          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+      }`}
+      data-testid="incident-voice-dictate"
+      title="Dictate the incident with your voice — saved as text via Whisper"
+    >
+      {state === 'recording' ? <Square size={12} /> : state === 'uploading' ? <Loader2 className="animate-spin" size={12} /> : <Mic size={12} />}
+      {state === 'recording' ? 'Stop & transcribe' : state === 'uploading' ? 'Transcribing…' : 'Dictate'}
+    </button>
+  );
+}
+

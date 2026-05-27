@@ -523,3 +523,80 @@ def test_equipment_incident_flag_persists_after_third_incident(master_token):
     assert flag.get("capex_recommended") is True
     assert flag.get("severity_score", 0) >= 1
     client.close()
+
+
+
+# ── Phase 4 — AI assistance + Whisper voice-to-text ──────────────
+
+
+def test_ai_summarise_returns_prose(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "moderate", "category": "slip_trip_fall",
+        "description": "Member slipped on wet floor near treadmill row 3 after the morning cleaning crew left the area without putting up a wet floor sign.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    r = requests.post(
+        f"{API}/api/incidents/{create['id']}/ai/summarise",
+        headers=_hdrs(master_token), timeout=60,
+    )
+    if r.status_code == 503:
+        pytest.skip("AI service unavailable (Emergent LLM key may be empty)")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body.get("summary"), str)
+    assert len(body["summary"]) >= 30
+    assert "." in body["summary"]
+
+
+def test_ai_root_causes_returns_canonical_keys(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "moderate", "category": "equipment_failure",
+        "description": "Treadmill emergency stop failed mid-session because the maintenance team never replaced the worn safety key after last month's service call.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    r = requests.post(
+        f"{API}/api/incidents/{create['id']}/ai/root-causes",
+        headers=_hdrs(master_token), timeout=60,
+    )
+    if r.status_code == 503:
+        pytest.skip("AI service unavailable")
+    assert r.status_code == 200
+    causes = r.json()["root_causes"]
+    assert isinstance(causes, list) and 1 <= len(causes) <= 3
+    canonical = {
+        "equipment_failure", "maintenance_issue", "user_error",
+        "training_gap", "environmental", "process_failure",
+        "contractor_issue", "communication", "inadequate_supervision",
+        "other",
+    }
+    assert all(c in canonical for c in causes)
+
+
+def test_ai_riddor_hint_returns_only_wizard_keys(master_token):
+    create = requests.post(f"{API}/api/incidents", json={
+        "kind": "accident", "severity": "moderate", "category": "manual_handling",
+        "description": "Member of public lifted a heavy weight off the rack, dropped it on their foot, and was taken to hospital A&E for treatment of a suspected fracture.",
+    }, headers=_hdrs(master_token), timeout=20).json()
+    r = requests.post(
+        f"{API}/api/incidents/{create['id']}/ai/riddor-hint",
+        headers=_hdrs(master_token), timeout=60,
+    )
+    if r.status_code == 503:
+        pytest.skip("AI service unavailable")
+    assert r.status_code == 200
+    answers = r.json()["answers"]
+    wizard_keys = {
+        "arose_from_work", "person_at_work", "fatality", "specified_injury",
+        "over_7_day_incapacitation", "non_worker_to_hospital",
+        "dangerous_occurrence", "occupational_disease", "gas_incident",
+    }
+    assert set(answers.keys()) == wizard_keys
+    for v in answers.values():
+        assert v is True or v is False or v is None
+
+
+def test_ai_transcribe_rejects_empty_upload(master_token):
+    r = requests.post(
+        f"{API}/api/incidents/ai/transcribe",
+        files={},
+        headers=_hdrs(master_token), timeout=20,
+    )
+    assert r.status_code in {400, 422}

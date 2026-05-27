@@ -1,3 +1,96 @@
+## Iter 220v — Incidents Phase 4 — AI assistance + Whisper voice-to-text (May 27, 2026) ✅
+
+Phase 4 closes out the original RIDDOR brief. Three AI helpers and a
+voice-to-text dictation flow turn the incident form from a typing
+exercise into a 30-second field report.
+
+**Backend — new `utils/incident_ai.py`.**
+
+* `summarise_incident(incident)` — Claude Sonnet 4.5 via the
+  Emergent LLM key. Returns a 2–3 sentence management briefing
+  (plain UK English, no jargon, no speculation).
+* `suggest_root_causes(incident)` — returns up to 3 keys drawn
+  **strictly from the canonical `ROOT_CAUSE_KEYS` enum**. Server-side
+  validation drops anything the model hallucinated outside the enum
+  so the chips can be pre-selected safely in the Investigation pane.
+* `hint_riddor_qualification(incident)` — pre-fills the RIDDOR
+  wizard with Yes/No/Don't-know answers. Conservative by design:
+  ambiguous descriptions return `null` (don't-know) so a human is
+  still forced to confirm. Returns `{answers: {key: bool|None},
+  reasoning: str}`.
+* `transcribe_audio(file_obj)` — Whisper-1 wrapper via
+  `emergentintegrations.llm.openai.OpenAISpeechToText`. Handles
+  both string and object return types from the library.
+* All helpers return `None` on any failure (network, parse,
+  rate-limit) so the calling endpoint can degrade gracefully —
+  AI is a nice-to-have, never a hard dependency.
+
+**Backend — new endpoints in `routes/incidents.py`.**
+
+* `POST /incidents/{id}/ai/summarise` — manager+ only.
+* `POST /incidents/{id}/ai/root-causes` — manager+ only.
+* `POST /incidents/{id}/ai/riddor-hint` — manager+ only.
+  **Strictly advisory** — does NOT mutate the incident's RIDDOR
+  status. The wizard still has to be run by a human.
+* `POST /incidents/ai/transcribe` — multipart upload, ≤25 MB,
+  returns plain transcript. Caller decides whether to drop it into
+  the description textarea or discard.
+* All AI endpoints return 503 (not 500) when the LLM is unavailable
+  so the UI can show a friendly "try again or write manually"
+  message instead of a crash banner.
+
+**Frontend — additions to `pages/IncidentsTab.js`.**
+
+* **Voice dictate button** on the Quick-Log description field
+  (`VoiceDictate` component): start → records via `MediaRecorder`
+  with `audio/webm` mime → stop → uploads to
+  `/incidents/ai/transcribe` → appends transcript to the textarea.
+  Microphone permission requested on demand; clear visual states
+  (idle / recording / uploading), red pulsing while recording.
+* **"Pre-fill with AI" CTA** on the RIDDOR wizard tab. Pulls the
+  hint, updates the local Yes/No/Don't-know state for every
+  question the AI gave an answer for, and surfaces the model's
+  one-line reasoning in a blue advisory panel below the
+  "Run RIDDOR assessment" button.
+* **"AI suggest" button** beside the Investigation root-cause
+  chips. Merges suggested causes into the existing selection so
+  the human can still curate before saving.
+* **"AI summarise" button** beside the Investigator findings
+  textarea. Appends a separated "— AI summary —" block so the
+  investigator can see what the AI inferred without overwriting
+  their own notes.
+* All AI buttons share the navy `Sparkles` lucide icon for a
+  consistent visual cue.
+
+**Tests (`tests/test_iter_220s_incidents_riddor.py` → 38 total).**
+
+Four new Phase 4 tests:
+* `ai_summarise_returns_prose` — confirms 30+ char string + full stop.
+* `ai_root_causes_returns_canonical_keys` — all returned keys are
+  in the public enum.
+* `ai_riddor_hint_returns_only_wizard_keys` — every key in the
+  response matches the wizard schema; values are strictly
+  `bool | None`.
+* `ai_transcribe_rejects_empty_upload` — 400/422 contract.
+
+All AI tests `pytest.skip` cleanly if the LLM is unavailable in the
+test env, so the regression suite stays portable.
+
+**End-to-end smoke.** `/tmp/incidents_smoke.py` extended:
+* Clicks `riddor-ai-prefill` and confirms the `/ai/riddor-hint`
+  POST returns 200 with the model-suggested wizard answers in the
+  network log.
+* Opens the Quick-Log dialog and verifies the
+  `incident-voice-dictate` button renders.
+
+**Regression.** `make regression` reports **919 passed, 15 skipped**
+(was 915 before this iter). Backend + frontend lint clean.
+
+**Integration playbook honoured.** `integration_playbook_expert_v2`
+consulted for both the LLM and Whisper installations; the Emergent
+LLM key (already in `.env`) was reused — no new keys requested.
+
+
 ## Iter 220u — Incidents Phase 3 — Repeat detection · Trends · Heatmap · Expanded filters (May 27, 2026) ✅
 
 The Phase 1 + 2 incident system was reactive — record what happened,

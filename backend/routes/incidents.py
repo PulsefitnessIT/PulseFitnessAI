@@ -1538,6 +1538,76 @@ async def hse_heatmap(
     }
 
 
+# ── Phase 4 — AI assistance + Whisper voice-to-text ──────────────
+
+
+@router.post("/incidents/{incident_id}/ai/summarise")
+async def ai_summarise(incident_id: str, user: dict = Depends(get_current_user)) -> dict:
+    if not _user_can_view_all(user):
+        raise HTTPException(403, "Only managers/H&S leads can use AI summarisation")
+    incident, _ = await _load_incident_and_actions(incident_id, user)
+    from utils.incident_ai import summarise_incident
+    summary = await summarise_incident(incident)
+    if not summary:
+        raise HTTPException(503, "AI summary unavailable — try again or write one manually")
+    return {"summary": summary}
+
+
+@router.post("/incidents/{incident_id}/ai/root-causes")
+async def ai_root_causes(incident_id: str, user: dict = Depends(get_current_user)) -> dict:
+    if not _user_can_view_all(user):
+        raise HTTPException(403, "Only managers/H&S leads can use AI suggestions")
+    incident, _ = await _load_incident_and_actions(incident_id, user)
+    from utils.incident_ai import suggest_root_causes
+    causes = await suggest_root_causes(incident)
+    if causes is None:
+        raise HTTPException(503, "AI root-cause hint unavailable")
+    return {"root_causes": causes}
+
+
+@router.post("/incidents/{incident_id}/ai/riddor-hint")
+async def ai_riddor_hint(incident_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Returns pre-filled Yes/No/Don't-know answers for the RIDDOR
+    wizard. **Strictly advisory** — the wizard still has to be run
+    by a human."""
+    if not _user_can_view_all(user):
+        raise HTTPException(403, "Only managers/H&S leads can use the RIDDOR hint")
+    incident, _ = await _load_incident_and_actions(incident_id, user)
+    from utils.incident_ai import hint_riddor_qualification
+    hint = await hint_riddor_qualification(incident)
+    if not hint:
+        raise HTTPException(503, "AI RIDDOR hint unavailable")
+    return hint
+
+
+@router.post("/incidents/ai/transcribe")
+async def ai_transcribe(request: Request, user: dict = Depends(get_current_user)) -> dict:
+    """Whisper voice-to-text endpoint. Accepts ``multipart/form-data``
+    with a single ``file`` field (≤25 MB, mp3/m4a/wav/webm/mp4). Returns
+    the transcript so the frontend can drop it into the description
+    textarea for the user to edit before submitting."""
+    from utils.incident_ai import transcribe_audio
+    form = await request.form()
+    file = form.get("file")
+    if not file or not hasattr(file, "read"):
+        raise HTTPException(400, "file upload required")
+    # SpooledTemporaryFile-compatible — read into BytesIO so the
+    # emergentintegrations client sees a proper file-like object.
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty audio file")
+    if len(raw) > 25 * 1024 * 1024:
+        raise HTTPException(400, "Audio file exceeds 25 MB limit")
+    import io
+    buf = io.BytesIO(raw)
+    # Preserve a sensible filename so the API has a file extension hint.
+    buf.name = getattr(file, "filename", None) or "audio.webm"
+    text = await transcribe_audio(buf)
+    if not text:
+        raise HTTPException(503, "Transcription failed — please retype the description")
+    return {"transcript": text}
+
+
 # ── Indexes ──────────────────────────────────────────────────────
 
 
