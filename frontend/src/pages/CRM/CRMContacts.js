@@ -4,7 +4,7 @@ import { useCRM } from './CRMApp';
 import {
   Users, Plus, ChevronRight, Phone, Mail, Building2, ArrowLeft, ArrowRightLeft,
   FileText, Calendar, Activity, Target, CheckCircle, Star, Shield, Tag, Globe, Edit2, X, Loader2, Database, Sparkles,
-  TrendingUp, Heart, Crown, Save, ChevronUp
+  TrendingUp, Heart, Crown, Save, ChevronUp, Workflow, Check, Send,
 } from 'lucide-react';
 import axios from 'axios';
 import CustomFieldsPanel from '@/components/shared/CustomFieldsPanel';
@@ -13,6 +13,181 @@ import CRMAuditTrail from './CRMAuditTrail';
 import HelpHint from '@/components/HelpHint';
 import ListPanel from '@/components/shared/ListPanel';
 import PicklistSelect from '@/components/shared/PicklistSelect';
+
+// Iter 220al — Enrol-in-journey quick action. Drop-in button that
+// fetches the org's available marketing_journeys for this contact,
+// shows a small picker drawer, and fires the enrolment in one click.
+// Renders nothing if the org has no journeys (silent no-op so tenants
+// without the Marketing module don't see dead UI).
+function EnrolJourneyButton({ contactId, API, headers, c, isDark, onEnrolled }) {
+  // Note: ``headers`` is a *function* in the CRM context (it builds
+  // fresh auth headers on each call so the CRM token stays current).
+  // We call ``headers()`` at the request site rather than storing.
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [err, setErr] = useState(null);
+
+  const loadOptions = useCallback(async () => {
+    setErr(null);
+    try {
+      const r = await axios.get(
+        `${API}/crm/contacts/${contactId}/journey-options`,
+        { headers: headers() },
+      );
+      setOptions(r.data?.journeys || []);
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Could not load journeys');
+      setOptions([]);
+    }
+  }, [API, contactId, headers]);
+
+  useEffect(() => {
+    if (open && options === null) { loadOptions(); }
+  }, [open, options, loadOptions]);
+
+  // Pre-load once so we can hide the button entirely for non-CRM
+  // contacts (members list shares the same row component) and orgs
+  // with no journeys launched. Cheap call — fires once per detail
+  // page mount.
+  const [preloaded, setPreloaded] = useState(null);
+  const [hide, setHide] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await axios.get(
+          `${API}/crm/contacts/${contactId}/journey-options`,
+          { headers: headers() },
+        );
+        if (cancelled) return;
+        const rows = r.data?.journeys || [];
+        setPreloaded(rows);
+        if (r.data?.non_crm_contact || rows.length === 0) setHide(true);
+      } catch { if (!cancelled) setHide(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [API, contactId, headers]);
+  if (hide) return null;
+  // Avoid showing a flash of the button while we're still resolving.
+  if (preloaded === null) return null;
+
+  const enrol = async (j) => {
+    setBusyId(j.id);
+    setErr(null);
+    try {
+      await axios.post(
+        `${API}/crm/contacts/${contactId}/enrol`,
+        { journey_id: j.id },
+        { headers: headers() },
+      );
+      // Refresh options so the launched journey flips to "Enrolled".
+      await loadOptions();
+      onEnrolled?.(j);
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Enrolment failed');
+    } finally { setBusyId(null); }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="px-3 py-1.5 text-xs font-bold rounded-md transition-all hover:opacity-90 flex items-center gap-1.5"
+        style={{ background: 'var(--color-accent-indigo, #6366f1)', color: '#fff' }}
+        data-testid="contact-enrol-journey-btn"
+        title="Enrol this contact into a B2B email journey"
+      >
+        <Workflow size={12} /> Enrol in journey
+      </button>
+      {open ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setOpen(false)}
+          data-testid="contact-enrol-journey-backdrop"
+        >
+          <div
+            className="w-full max-w-lg rounded-xl p-6 shadow-2xl relative max-h-[calc(100vh-6rem)] overflow-y-auto"
+            style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog" aria-modal="true"
+            data-testid="contact-enrol-journey-dialog"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-500 flex items-center justify-center">
+                  <Workflow size={14} />
+                </span>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: c.text }}>Enrol in journey</p>
+                  <p className="text-[11px]" style={{ color: c.textDim }}>Pick a B2B template — first email fires within 15 minutes.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="p-1 hover:opacity-70"
+                style={{ color: c.textDim }}
+                data-testid="contact-enrol-journey-close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {err ? (
+              <div className="rounded-md border border-rose-200 bg-rose-50 text-rose-700 text-sm px-3 py-2 mb-3" data-testid="contact-enrol-journey-error">
+                {err}
+              </div>
+            ) : null}
+            {options === null ? (
+              <div className="py-8 flex items-center justify-center gap-2 text-sm" style={{ color: c.textDim }} data-testid="contact-enrol-journey-loading">
+                <Loader2 size={14} className="animate-spin" /> Loading journeys…
+              </div>
+            ) : options.length === 0 ? (
+              <p className="text-sm py-8 text-center" style={{ color: c.textDim }} data-testid="contact-enrol-journey-empty">
+                No journeys available yet. Launch one from
+                {' '}<span className="font-bold">Master Admin → Growth → Growth Hub</span>.
+              </p>
+            ) : (
+              <ul className="divide-y" style={{ borderColor: c.border }} data-testid="contact-enrol-journey-list">
+                {options.map((j) => (
+                  <li key={j.id} className="py-3 flex items-start gap-3" data-testid={`enrol-journey-option-${j.id}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold" style={{ color: c.text }}>{j.name}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: c.textDim }}>{j.description}</p>
+                      <p className="text-[10px] mt-1 font-bold uppercase tracking-wider" style={{ color: c.textDim }}>
+                        {j.node_count} step{j.node_count === 1 ? '' : 's'} · {j.metrics?.entered || 0} enrolled
+                      </p>
+                    </div>
+                    {j.already_enrolled ? (
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 inline-flex items-center gap-1"
+                        data-testid={`enrol-journey-${j.id}-enrolled`}
+                      >
+                        <Check size={9} /> Enrolled
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => enrol(j)}
+                        disabled={busyId === j.id}
+                        className="px-3 py-1.5 text-xs font-bold rounded-md transition-all hover:opacity-90 flex items-center gap-1.5 disabled:opacity-50"
+                        style={{ background: 'var(--color-accent-indigo, #6366f1)', color: '#fff' }}
+                        data-testid={`enrol-journey-${j.id}-launch`}
+                      >
+                        {busyId === j.id ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                        Enrol
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 function ContactList({ onSelect, c, isDark, API, headers }) {
   const [contacts, setContacts] = useState([]);
@@ -577,6 +752,7 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
           </div>
         </div>
         <button onClick={openEdit} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="contact-edit-btn"><Edit2 size={12} className="inline mr-1" /> Edit</button>
+        <EnrolJourneyButton contactId={contactId} API={API} headers={headers} c={c} isDark={isDark} />
         {contact.lifecycle === 'lead' && (
           <button
             onClick={() => setShowConvert(true)}

@@ -22,6 +22,7 @@ from routes.crm_products import router as crm_products_router
 from routes.crm_website_recognize import router as crm_website_recognize_router
 from routes.crm_reports import router as crm_reports_router
 from routes.crm_phase3 import router as crm_phase3_router
+from routes.crm_journey_enrol import router as crm_journey_enrol_router
 from routes.integration_hub import router as integration_hub_router
 
 
@@ -35,6 +36,7 @@ def register_crm(api_router: APIRouter) -> None:
         crm_picklists_router, crm_stakeholders_router, crm_products_router,
         crm_website_recognize_router,
         crm_reports_router, crm_phase3_router,
+        crm_journey_enrol_router,
         integration_hub_router,
     ):
         api_router.include_router(r)

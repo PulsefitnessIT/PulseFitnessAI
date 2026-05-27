@@ -1,3 +1,71 @@
+## Iter 220al — CRM Contacts · Enrol in journey quick-action (May 27, 2026) ✅
+
+Closes the last gap in the GymAxis self-promo funnel: the 4 launched
+B2B journeys (Iter 220ah) are now fireable from any CRM contact
+detail in **one click** — without leaving the rep's inbox or the
+master admin having to drive every enrolment manually.
+
+**Backend — new `routes/crm_journey_enrol.py`.**
+
+* `GET /api/crm/contacts/{id}/journey-options` (CRM-auth scoped).
+  Returns the org's non-archived `marketing_journeys` with per-row
+  `already_enrolled` flag and node count. Looks up the contact in
+  **both** `crm2_contacts` (v2 schema the UI uses) and the legacy
+  `crm_contacts` (where the public demo-request endpoint writes).
+  Returns `{journeys: [], non_crm_contact: true}` instead of 404
+  when the row is a non-CRM contact (e.g. member-portal user
+  rendered by the same list) so the UI can silently hide the button.
+* `POST /api/crm/contacts/{id}/enrol` — accepts `{journey_id}`.
+    - Idempotent: 409 on duplicate active enrolment.
+    - Cross-tenant safe: 404 when journey or contact belongs to a
+      different org.
+    - Inserts a `marketing_journey_enrolments` row with
+      `source: "crm-contact-enrol"` + `enrolled_by` user id.
+    - Stamps a `journey_enrolled` activity on the contact's timeline,
+      writing to `crm2_activities` when the contact is v2 and
+      `crm_activities` when it's legacy.
+    - Increments `metrics.entered` on the journey row so the Growth
+      Hub journey cards update live without rebuilding stats from
+      scratch.
+
+**Frontend — `pages/CRM/CRMContacts.js`.**
+
+* New `EnrolJourneyButton` component in the ContactDetail action row.
+  Pre-loads the org's journey options once per detail mount; silently
+  hides for non-CRM contacts or empty orgs.
+* On click, opens a modal showing each journey with description,
+  step count, current enrolment count + a green "Enrolled" pill or
+  purple "Enrol" launch button. Refresh after enrolment flips the
+  badge live without page reload.
+* Note: the CRM `headers` is a function (`headers()`) not a value —
+  fixed the call sites to invoke it. Also dropped the leading `/api/`
+  from URLs since CRMApp's `API` constant already includes it (this
+  is what caused the initial 404s during smoke testing).
+
+**Tests — `tests/test_iter_220al_crm_journey_enrol.py`.** 8 new
+isolated unit tests:
+  * Soft lookup for non-CRM contact (no 404, flag set).
+  * Happy-path option list with per-row `already_enrolled`.
+  * Enrol writes enrolment + activity (v2 path).
+  * **New**: Legacy contact path writes to `crm_activities` instead.
+  * 409 on duplicate enrolment (no double-charge of metrics).
+  * 404 when journey or contact belongs to other org × 2.
+  * Router exposes both endpoints.
+* Wired into `make regression` which now stands at **1073 passed,
+  15 skipped** (was 1065).
+
+**Live verification.** Browser screenshot shows the "Enrol in journey"
+button rendering on the Biz Test contact detail with the
+"Trial day 1/7/13 → paid" template visible in the dialog
+("3 STEPS · 1 ENROLLED"). Curl-verified the full round-trip
+(list → enrol → 409 on re-enrol → metrics.entered bumped to 1).
+
+**Quality gates.** `make lint-python` ✅, `make lint-frontend` ✅,
+`make regression` ✅ (126 s).
+
+---
+
+
 ## Iter 220ak — Public Demo Request landing + inbound feed (May 27, 2026) ✅
 
 Closes the inbound funnel loop: SEO Autopilot publishes blog →
