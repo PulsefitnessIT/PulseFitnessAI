@@ -1,3 +1,74 @@
+## Iter 220ag — GymAxis Growth Hub (de-duplicated self-promo surface) (May 27, 2026) ✅
+
+**Problem.** Master Admin → Growth → "Marketing Studio" embedded the
+operator-facing `MarketingSuite` ("Fill empty classes", "Re-engage
+inactive members" etc.) — completely wrong context for marketing
+GymAxis as a B2B SaaS. Also worth noting: standing up a separate
+"Pipeline / Prospects / Outbound" stack would have duplicated the
+existing **CRM**, **Trials**, **Outbound Emails**, **Sales Insights**
+and **SEO Autopilot** modules that already live in Master Admin.
+
+**Solution.** Replace the operator-suite embed with a brand-new
+**GymAxisGrowthHub** that is a pure *aggregation surface* — every
+metric is read live from existing collections, and every drill-down
+deep-links into the existing module rather than re-implementing it.
+
+**Backend — new `routes/master_admin_growth_hub.py`.**
+
+* `GET /api/master-admin/growth/overview` (master-admin gated).
+  Returns 5 module groups in one payload:
+    - `trials` — active + 30-day conversions (reads from
+      `organizations` mirroring `master_admin_trials`).
+    - `seo` — articles published / draft / queued + summed
+      `metrics.views` across published posts (from `seo_articles`,
+      `seo_keywords`, `seo_autopilot_runs`).
+    - `outbound` — sent / failed counts (30d) from `email_send_events`.
+    - `pipeline` — open / won / lost deals (30d) + summed open
+      pipeline £ + total CRM companies.
+    - `sales_insights` — public-site chat sessions / messages (30d).
+  Every group includes a `deep_link` string matching the sidebar
+  section id so the UI knows exactly where to jump.
+* All counters fail-safe to `0` (never `None`) via `_safe_count`
+  helper — protects the React tiles from a Mongo index hiccup
+  during deploys.
+
+**Frontend — new `pages/MasterAdmin/GymAxisGrowthHub.js`.**
+
+* Hero card naming the surface "GymAxis Growth Hub" — purpose-built
+  copy ("How we're marketing GymAxis to fitness operators · pulls
+  live numbers from Trials, SEO Autopilot, Outbound Emails, CRM
+  Pipeline and Sales Insights — no module is rebuilt here").
+* 5-tile KPI band (Active trials · Blog views · Emails 30d · Pipeline £ · Site chats 30d).
+* 6 funnel cards with stat-grid + 1-click "Open …" deep-link buttons
+  that invoke the parent `setSection` to jump to the existing
+  Trials / SEO Autopilot / Outbound emails / CRM / Sales Insights
+  panels — zero new CRUD UI.
+* B2B journey templates section (Cold-to-demo · Demo-booked · Trial
+  conversion · Lost-deal revival) — preset preview only; the
+  underlying runner stays in Marketing → Journeys.
+* Old `GrowthStudio.js` deleted; sidebar label renamed
+  "Marketing Studio" → "Growth Hub" with a clearer description.
+
+**Tests — `tests/test_iter_220ag_growth_hub.py`.** 10 new isolated
+unit tests (master-admin gating, shape contract, deep-link id
+constants, ISO + datetime trial-conversion comparison, blog-view
+summing, pipeline-value summing with bad-string tolerance, as_of
+timestamp, resilient empty-state behaviour). All green in 4 s.
+Wired into `make regression` which now stands at **1023 passed,
+15 skipped** (was 1013).
+
+**Live verification.** Curl on the preview backend returned a real
+payload (3,796 outbound emails sent, 1 published SEO article with
+12 views, 11 CRM companies). Browser screenshot confirms the Hub
+renders correctly and the "Open SEO Autopilot" deep-link jumps to
+the existing panel.
+
+**Quality gates.** `make lint-python` ✅, `make lint-frontend` ✅,
+`make regression` ✅ (141 s).
+
+---
+
+
 ## Iter 220af — SEO Autopilot Daily Scheduler + 1-Click Social Publish (May 27, 2026) ✅
 
 **Goal.** Make the Marketing Studio SEO Autopilot truly "set & forget".

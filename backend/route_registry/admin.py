@@ -14,6 +14,7 @@ from routes.master_admin_integrity import router as master_admin_integrity_route
 from routes.master_admin_org_branding import router as master_admin_org_branding_router
 from routes.master_admin_ops import router as master_admin_ops_router
 from routes.master_admin_trials import router as master_admin_trials_router
+from routes.master_admin_growth_hub import router as master_admin_growth_hub_router
 from routes.master_admin_integrations import router as master_admin_integrations_router
 from routes.master_admin_analytics_panel import router as master_admin_analytics_panel_router
 from routes.master_admin_memberships import router as master_admin_memberships_router
@@ -96,6 +97,7 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_org_branding_router,
         master_admin_ops_router,
         master_admin_trials_router,
+        master_admin_growth_hub_router,
         master_admin_integrations_router,
         master_admin_analytics_panel_router,
         master_admin_memberships_router,

@@ -19,9 +19,13 @@ const FinancialOpsPanel = lazy(() => import('./FinancialOpsPanel'));
 const AdminOnboardingHub = lazy(() => import('./MasterAdmin/AdminOnboardingHub'));
 const AdminTrials = lazy(() => import('./MasterAdmin/AdminTrials'));
 const AdminMarketingSuite = lazy(() => import('./MasterAdmin/AdminMarketingSuite'));
-// Iter 220ac — Growth → Marketing Studio (embeds the customer Marketing
-// Suite but scoped to the master-admin org for self-promotion).
-const GrowthStudio = lazy(() => import('./MasterAdmin/GrowthStudio'));
+// Iter 220ag — Growth → Marketing Studio is now the GymAxis Growth Hub
+// (aggregation surface for self-promo metrics) — replaces the previous
+// GrowthStudio.js which embedded the operator-facing MarketingSuite
+// with class-fill / member-engagement copy inappropriate for B2B SaaS
+// self-promotion. The Hub deep-links into Trials, SEO Autopilot,
+// Outbound emails, CRM and Sales Insights instead of duplicating them.
+const GrowthStudio = lazy(() => import('./MasterAdmin/GymAxisGrowthHub'));
 // Iter 220ad — Growth → SEO Autopilot
 const SEOAutopilotPanel = lazy(() => import('./MasterAdmin/SEOAutopilotPanel'));
 const AdminArchive = lazy(() => import('./MasterAdmin/AdminArchive'));
@@ -448,7 +452,7 @@ const MasterAdminPage = ({ _onBack }) => {
       case 'marketing-suite':
         return <AdminMarketingSuite API={API} />;
       case 'marketing-studio':
-        return <GrowthStudio />;
+        return <GrowthStudio onJumpSection={setSection} />;
       case 'seo-autopilot':
         return <SEOAutopilotPanel />;
       case 'roles':

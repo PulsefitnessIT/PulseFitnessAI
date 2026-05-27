@@ -99,9 +99,9 @@ export const SIDEBAR_ITEMS = [
   {
     id: 'growth', label: 'Growth', icon: Megaphone, group: 'main',
     subTabs: [
-      // Iter 220ac — Marketing Studio (full Marketing Suite, master-admin
-      // scoped, used to promote GymAxis itself).
-      { id: 'marketing-studio', label: 'Marketing Studio',   icon: Megaphone },
+      // Iter 220ag — Growth Hub (aggregation of trials, SEO, outbound,
+      // CRM pipeline + sales insights — GymAxis self-promotion lens).
+      { id: 'marketing-studio', label: 'Growth Hub',   icon: Rocket },
       // Iter 220ad — SEO Autopilot (keyword research → article → publish)
       { id: 'seo-autopilot',    label: 'SEO Autopilot',      icon: Sparkles },
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
@@ -268,6 +268,7 @@ export const sectionTitles = {
   'canned-replies': 'Canned replies',
   analytics: 'Global analytics',
   'marketing-suite': 'Marketing suite',
+  'marketing-studio': 'GymAxis Growth Hub',
   orbit4: 'Orbit 4',
   'sicon-integration': 'Sicon Service',
   'integrations-hub': 'Integrations hub',
@@ -316,6 +317,7 @@ export const sectionDescriptions = {
   payments: 'Revenue tracking and subscription management',
   analytics: 'Cross-gym analytics and trends',
   'marketing-suite': 'Marketing Suite — plans, subscriptions, platform-wide KPIs',
+  'marketing-studio': 'GymAxis Growth Hub — funnel view across trials, SEO, outbound, CRM pipeline and sales insights.',
   onboarding: 'Onboard a new customer organisation, send shareable packets, or bulk-load CSV rosters',
   trials: 'Track active trials, extend deadlines, convert to paid',
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',
