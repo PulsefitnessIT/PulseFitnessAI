@@ -27,7 +27,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -952,19 +952,111 @@ async def dashboard(user: dict = Depends(get_current_user)):
     # Sum total views across all published articles — useful headline
     # tile separate from per-article performance.
     total_views = 0
+    # Iter 220am — snapshot each published article's running view
+    # total once per day so we can show "+47% this week" on the
+    # dashboard. Two cheap ops per published article (find_one +
+    # update_one) — fine at our scale.
+    today_iso = _london_now().date().isoformat()
+    views_today: dict[str, int] = {}
     async for doc in db.seo_articles.find(
-        {"status": "published"}, {"_id": 0, "metrics": 1},
+        {"status": "published"}, {"_id": 0, "id": 1, "metrics": 1},
     ):
-        total_views += int((doc.get("metrics") or {}).get("views") or 0)
+        v = int((doc.get("metrics") or {}).get("views") or 0)
+        total_views += v
+        views_today[doc["id"]] = v
+
+    # Bulk-write today's snapshot rows (idempotent upsert).
+    for aid, v in views_today.items():
+        try:
+            await db.seo_article_view_snapshots.update_one(
+                {"article_id": aid, "date": today_iso},
+                {"$set": {"article_id": aid, "date": today_iso,
+                          "views": v, "captured_at": _now()}},
+                upsert=True,
+            )
+        except Exception:  # pragma: no cover — diagnostics only
+            pass
+
+    # Decorate each top performer with last-7-day delta. We compare
+    # today's running total to the snapshot taken 7 days ago — if no
+    # snapshot exists (article published <7d ago), we treat its baseline
+    # as 0 so the delta correctly shows "all views in last 7d".
+    week_cutoff = (_london_now().date() - timedelta(days=7)).isoformat()
+    decorated = []
+    for a in top_performers:
+        snap = await db.seo_article_view_snapshots.find_one(
+            {"article_id": a["id"], "date": {"$lte": week_cutoff}},
+            {"_id": 0, "views": 1, "date": 1},
+            sort=[("date", -1)],
+        )
+        baseline = int((snap or {}).get("views") or 0)
+        current = int((a.get("metrics") or {}).get("views") or 0)
+        delta_abs = current - baseline
+        # Percent change (None when baseline=0 *and* current=0; otherwise
+        # `None` for "brand new article, no prior data").
+        if baseline == 0:
+            delta_pct = None
+        else:
+            delta_pct = round((delta_abs / baseline) * 100, 1)
+        decorated.append({
+            **a,
+            "trend": {
+                "views_7d_ago": baseline,
+                "delta_abs": delta_abs,
+                "delta_pct": delta_pct,
+                "is_new": snap is None,
+            },
+        })
+
     return {
         "keywords": {"total": kw_total, "queued": kw_queued, "published": kw_pub},
         "articles": {"total": art_total, "published": art_pub, "draft": art_draft},
         "performance": {
             "total_views": total_views,
-            "top": top_performers,
+            "top": decorated,
         },
         "recent": recent,
     }
+
+
+# ── Iter 220am — per-article view trend ──────────────────────────
+
+
+@router.get("/articles/{article_id}/view-trend")
+async def article_view_trend(
+    article_id: str, days: int = 30,
+    user: dict = Depends(get_current_user),
+):
+    """Return the daily view series for a single article over the
+    last ``days`` (default 30). Days without a snapshot inherit the
+    previous known value so the line stays continuous."""
+    _require_master_admin(user)
+    n = max(1, min(int(days), 90))
+    article = await db.seo_articles.find_one(
+        {"id": article_id}, {"_id": 0, "id": 1, "metrics": 1},
+    )
+    if not article:
+        raise HTTPException(404, "Article not found")
+    today = _london_now().date()
+    dates = [(today - timedelta(days=n - 1 - i)).isoformat() for i in range(n)]
+    rows = await db.seo_article_view_snapshots.find(
+        {"article_id": article_id, "date": {"$in": dates}},
+        {"_id": 0, "date": 1, "views": 1},
+    ).to_list(n)
+    by_date = {r["date"]: int(r.get("views") or 0) for r in rows}
+    series: list[dict] = []
+    last = 0
+    for d in dates:
+        if d in by_date:
+            last = by_date[d]
+        series.append({"date": d, "views": last})
+    # Tail-snap today's running total so the very last point is live
+    # (the dashboard refresh writes today's row, but the article-detail
+    # page may load before that runs today).
+    current_views = int((article.get("metrics") or {}).get("views") or 0)
+    if series:
+        series[-1] = {"date": series[-1]["date"], "views": current_views}
+    return {"article_id": article_id, "days": n, "series": series}
 
 
 # ── Public blog endpoint (no auth) — used by /blog/<slug> ─────────

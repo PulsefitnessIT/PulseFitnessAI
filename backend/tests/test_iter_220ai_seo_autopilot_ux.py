@@ -28,7 +28,8 @@ def _fake_db():
     fdb = MagicMock()
     for coll in (
         "seo_keywords", "seo_articles", "seo_distributions",
-        "seo_autopilot_runs", "seo_autopilot_config", "users",
+        "seo_autopilot_runs", "seo_autopilot_config",
+        "seo_article_view_snapshots", "users",
     ):
         for op in ("insert_one", "update_one", "delete_one", "delete_many"):
             setattr(getattr(fdb, coll), op, AsyncMock())
@@ -226,7 +227,10 @@ def test_dashboard_returns_top_performers_and_total_views():
     # The total_views async iteration cursor — sums metrics.views.
     class _SumCur:
         def __init__(self):
-            self._items = [{"metrics": {"views": v}} for v in (50, 40, 30, 20, 10)]
+            self._items = [
+                {"id": f"a{i}", "metrics": {"views": v}}
+                for i, v in enumerate([50, 40, 30, 20, 10])
+            ]
         def __aiter__(self):
             return self
         async def __anext__(self):

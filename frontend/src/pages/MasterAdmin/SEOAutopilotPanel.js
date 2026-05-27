@@ -267,27 +267,53 @@ function DashboardTab() {
             <p className="px-5 py-6 text-sm text-zinc-500" data-testid="seo-top-performers-empty">
               No traffic yet — once the public blog starts getting views, the most-read articles surface here.
             </p>
-          ) : topPerformers.map((a, idx) => (
-            <div key={a.id} className="px-5 py-3 flex items-center gap-3" data-testid={`seo-top-${idx}`}>
-              <span className="shrink-0 w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-fuchsia-950 text-fuchsia-700 dark:text-fuchsia-300 text-xs font-extrabold inline-flex items-center justify-center">
-                {idx + 1}
-              </span>
-              <div className="flex-1 min-w-0">
-                <a href={`/blog/${a.slug}`} target="_blank" rel="noreferrer noopener"
-                  className="text-sm font-bold truncate hover:underline block"
+          ) : topPerformers.map((a, idx) => {
+            const trend = a.trend || {};
+            const pct = trend.delta_pct;
+            const isNew = !!trend.is_new;
+            const isUp = (trend.delta_abs || 0) > 0;
+            const isDown = (trend.delta_abs || 0) < 0;
+            const trendStyle = isNew
+              ? 'bg-fuchsia-100 text-fuchsia-700'
+              : isUp
+                ? 'bg-emerald-100 text-emerald-700'
+                : isDown
+                  ? 'bg-rose-100 text-rose-700'
+                  : 'bg-zinc-100 text-zinc-600';
+            const trendLabel = isNew
+              ? `+${trend.delta_abs || 0} new`
+              : pct === null
+                ? `${isUp ? '+' : ''}${trend.delta_abs}`
+                : `${pct > 0 ? '+' : ''}${pct}% wk`;
+            return (
+              <div key={a.id} className="px-5 py-3 flex items-center gap-3" data-testid={`seo-top-${idx}`}>
+                <span className="shrink-0 w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-fuchsia-950 text-fuchsia-700 dark:text-fuchsia-300 text-xs font-extrabold inline-flex items-center justify-center">
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <a href={`/blog/${a.slug}`} target="_blank" rel="noreferrer noopener"
+                    className="text-sm font-bold truncate hover:underline block"
+                  >
+                    {a.title}
+                  </a>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    /{a.slug} · {a.read_time_min} min read · {a.primary_keyword || '—'}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${trendStyle}`}
+                  data-testid={`seo-top-${idx}-trend`}
+                  title={isNew ? 'Published in the last 7 days' : `${trend.views_7d_ago || 0} views 7 days ago`}
                 >
-                  {a.title}
-                </a>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  /{a.slug} · {a.read_time_min} min read · {a.primary_keyword || '—'}
-                </p>
+                  {trendLabel}
+                </span>
+                <div className="text-right">
+                  <p className="text-base font-extrabold tabular-nums">{(a.metrics?.views || 0).toLocaleString()}</p>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">views</p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-base font-extrabold tabular-nums">{(a.metrics?.views || 0).toLocaleString()}</p>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">views</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
