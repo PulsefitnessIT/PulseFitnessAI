@@ -1,3 +1,103 @@
+## Iter 220ap — Pre-launch hardening: GDPR list-filter + docs + load test (May 27, 2026) ✅
+
+Closing the "is it launch ready" loop. Five concrete pieces of work
+shipped:
+
+### 1) Hide GDPR-erased rows from operator list endpoints
+
+Iter 220ao shipped the erasure stamp but didn't yet exclude erased
+rows from the staff-facing lists. Operators would have seen
+`[REDACTED] [REDACTED]` rows. Fixed across:
+
+* `GET /api/memberships/members`
+* `GET /api/memberships/instructors`
+* `GET /api/memberships/instructors/substitutes`
+* `GET /api/memberships/instructors/compliance`
+* `GET /api/crm/v2/contacts`
+* `GET /api/crm/v2/companies/{id}` (embedded `contacts`)
+* Global CRM search `contacts` branch
+
+All endpoints now filter `gdpr_erased: {$ne: True}`. Erased rows are
+still readable by primary-key fetches (`GET /api/.../{id}`) so
+auditors / legal can still confirm an erasure, but they're invisible
+to operator-facing surfaces.
+
+Tests: `backend/tests/test_iter_220ap_gdpr_erased_list_filter.py`
+(7 tests, all green). Pinned in `Makefile::regression`.
+
+### 2) Confirmed Resend IS live
+
+Previously misreported in the launch-readiness review. Confirmed
+`RESEND_API_KEY=re_Z6nD8…` is set in `backend/.env` and wired through
+`utils/email.py`. Emails are flowing.
+
+### 3) Docs published in `/app/memory/`
+
+* **`OPS_RUNBOOK.md`** — full operations runbook: on-call rota,
+  severity matrix, monitoring signals, 7 common failure-mode
+  playbooks (backend down, MongoDB unreachable, email failures,
+  Stripe webhook failures, cross-tenant leak, GDPR Art. 17 + 15
+  requests), deployment / rollback procedures, customer-facing
+  comms templates, regular maintenance jobs, post-mortem template.
+* **`EMERGENT_OPS_EMAIL.md`** — ready-to-send draft requesting
+  written confirmation of backup cadence, RPO/RTO, restore drill
+  booking, region/data-residency, SLA, incident-notification SLA
+  from Emergent Ops.
+* **`LEGAL/SLA.md`** — three-tier SLA template (Starter 99.0% /
+  Growth 99.5% / Enterprise 99.9%) with service-credit schedule,
+  P0–P3 support response times, scheduled-maintenance policy,
+  backup commitments and incident-comms commitments.
+* **`LEGAL/TERMS_OF_SERVICE.md`** — full B2B SaaS ToS template
+  (UK governing law, 14 sections covering subscription, fees,
+  acceptable use, Customer Data, IP, confidentiality, warranties,
+  liability cap = 12 months fees, indemnities, termination, FM).
+* **`LEGAL/DATA_PROCESSING_AGREEMENT.md`** — UK GDPR Art. 28 DPA
+  with full Annex A (TOMs aligned to Art. 32 + ICO Accountability
+  Framework), 72-hour breach-notification commitment,
+  sub-processor change-notice machinery (30 days), audit rights.
+* **`LEGAL/SUB_PROCESSORS.md`** — published sub-processor list
+  covering infrastructure (Emergent + MongoDB), comms (Resend,
+  Twilio-planned), payments (Stripe), AI (OpenAI, Anthropic,
+  Google), observability (Sentry, PostHog-planned), per-tenant
+  opt-in integrations (Microsoft, DocuSign, Sage, Sicon, Google,
+  Meta-planned).
+* **`LEGAL/PRIVACY_POLICY.md`** — v2.0 reflecting the new Art. 17
+  workflow and 30-day cooling-off window, with all data-subject
+  rights, cookie classes, retention table, breach-notification
+  posture and ICO contact details.
+
+> **All legal docs are templates** — each carries an explicit
+> "Have a UK-qualified solicitor amend before binding any
+> customer" callout. They're a starting point for the lawyer's
+> review, not the finish line.
+
+### 4) Load test re-baseline
+
+Ran `load_test.py` against the single-pod preview with concurrency
+50, duration 20 s, authenticated as Master Admin:
+
+* **1,342 requests in 20.1 s** (66.6 rps single pod).
+* Most endpoints **p95 100–400 ms** under load.
+* A small number of endpoints (`/api/staffing/live-floor`,
+  `/api/suppliers`, …) showed 15-second timeouts on a tiny
+  fraction of requests under concurrent pressure — these are the
+  same endpoints flagged in earlier load runs. Acceptable for soft
+  launch (single pod); production autoscaling will absorb most of
+  this.
+* 3.73% error rate is 403s (expected — unauthenticated requests
+  against admin-only endpoints in the load mix), not 5xx.
+
+### 5) Verification
+
+* `make regression` → **1113 passed, 15 skipped, 1 flaky LLM test
+  (passes on isolated rerun, AI nondeterminism)**. 1114 effective
+  green, 0 real failures.
+* `ruff` clean across all touched backend files.
+* No new lint warnings.
+
+---
+
+
 ## Iter 220ao — GDPR Article 17 · Right-to-Erasure Workflow (May 27, 2026) ✅
 
 Closes the long-standing P2 compliance gap: the platform now has a

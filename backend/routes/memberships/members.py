@@ -71,7 +71,13 @@ async def members_list(
     user: dict = Depends(get_current_user),
 ):
     org_id = await _require_operator_org(user)
-    query: dict = {"organization_id": org_id}
+    # Iter 220ao++ — Exclude GDPR-erased rows from operator-facing
+    # lists. Erased members keep their id (so financial history works)
+    # but their PII is anonymised; surfacing them in the staff list
+    # would just show rows of "[REDACTED]" which is both ugly and a
+    # privacy risk if an operator can still see the original member
+    # number / linked-from links.
+    query: dict = {"organization_id": org_id, "gdpr_erased": {"$ne": True}}
     if status_f:
         query["status"] = status_f
     if q:

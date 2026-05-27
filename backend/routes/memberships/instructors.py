@@ -214,8 +214,10 @@ def _public_view(doc: dict) -> dict:
 )
 async def list_instructors(user: dict = Depends(get_current_user)):
     org_id = await _require_operator_org(user)
+    # Iter 220ao++ — exclude GDPR-erased instructors from operator lists.
     rows = await db.membership_instructors.find(
-        {"organization_id": org_id, "archived": {"$ne": True}}, {"_id": 0},
+        {"organization_id": org_id, "archived": {"$ne": True},
+         "gdpr_erased": {"$ne": True}}, {"_id": 0},
     ).sort("name", 1).to_list(500)
     return {"instructors": rows}
 
@@ -277,6 +279,7 @@ async def list_substitutes(
     rows = await db.membership_instructors.find(
         {"organization_id": org_id,
          "archived": {"$ne": True},
+         "gdpr_erased": {"$ne": True},
          "substitute_available": {"$ne": False}},
         {"_id": 0},
     ).sort("name", 1).to_list(500)
@@ -304,7 +307,8 @@ async def list_instructor_compliance(user: dict = Depends(get_current_user)):
     and by an operator KPI strip."""
     org_id = await _require_operator_org(user)
     rows = await db.membership_instructors.find(
-        {"organization_id": org_id, "archived": {"$ne": True}},
+        {"organization_id": org_id, "archived": {"$ne": True},
+         "gdpr_erased": {"$ne": True}},
         {"_id": 0, "id": 1, "name": 1, "dbs_expires_on": 1,
          "safeguarding_expires_on": 1, "first_aid_expires_on": 1,
          "substitute_available": 1},

@@ -402,7 +402,7 @@ async def get_company(company_id: str, user=Depends(get_crm_user)):
         raise HTTPException(404, "Company not found")
     # Enrich with linked data
     of = _of(user)
-    c["contacts"] = await db.crm2_contacts.find({"company_id": company_id, **of}, {"_id": 0}).to_list(100)
+    c["contacts"] = await db.crm2_contacts.find({"company_id": company_id, "gdpr_erased": {"$ne": True}, **of}, {"_id": 0}).to_list(100)
     c["opportunities"] = await db.crm2_opportunities.find({"company_id": company_id, **of}, {"_id": 0}).sort("created_at", -1).to_list(50)
     c["quotes"] = await db.crm2_quotes.find({"company_id": company_id, **of}, {"_id": 0}).sort("created_at", -1).to_list(50)
     c["cases"] = await db.crm2_cases.find({"company_id": company_id, **of}, {"_id": 0}).sort("created_at", -1).to_list(50)
@@ -459,6 +459,11 @@ async def list_contacts(
     user=Depends(get_crm_user),
 ):
     q = await compute_visibility(user, "contact")
+    # Iter 220ao++ — Exclude GDPR-erased contacts from list responses so
+    # operators don't see rows of "[REDACTED] [REDACTED]". The row still
+    # exists (preserves linked deals/quotes/activities) but is hidden
+    # from CRM surfaces.
+    q["gdpr_erased"] = {"$ne": True}
     if search:
         q["$or"] = [
             {"first_name": {"$regex": search, "$options": "i"}},
@@ -1633,7 +1638,7 @@ async def global_search(q: str = Query("", min_length=1), user=Depends(get_crm_u
         results.append({"type": "company", "id": c["id"], "label": c["name"]})
 
     # Contacts
-    contacts = await db.crm2_contacts.find({**of, "$or": [{"first_name": regex}, {"last_name": regex}, {"email": regex}]}, {"_id": 0, "id": 1, "first_name": 1, "last_name": 1}).limit(5).to_list(5)
+    contacts = await db.crm2_contacts.find({**of, "gdpr_erased": {"$ne": True}, "$or": [{"first_name": regex}, {"last_name": regex}, {"email": regex}]}, {"_id": 0, "id": 1, "first_name": 1, "last_name": 1}).limit(5).to_list(5)
     for c in contacts:
         results.append({"type": "contact", "id": c["id"], "label": f"{c['first_name']} {c['last_name']}"})
 
