@@ -15,6 +15,7 @@ import axios from 'axios';
 import {
   Sparkles, Rocket, BookOpen, Loader2, Plus, RefreshCw,
   ListChecks, AlertTriangle, Eye, Send, Search, FileText, X,
+  Share2, Copy, Check, Linkedin, MessageSquare,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -270,6 +271,217 @@ function KeywordsTab({ onArticleGenerated }) {
 
 // ── Articles ─────────────────────────────────────────────────────
 
+// CopyableBlock — reused for every distribution snippet.
+function CopyableBlock({ value, label, testIdBase, hint }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      notify.success(`${label} copied`);
+      setTimeout(() => setCopied(false), 2200);
+    } catch (_e) {
+      notify.error('Could not copy — select manually');
+    }
+  };
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-3 relative">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">{label}</span>
+        {hint ? <span className="text-[10px] text-zinc-400">{hint}</span> : null}
+      </div>
+      <pre
+        className="text-[12px] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words font-sans leading-relaxed pr-10"
+        data-testid={`${testIdBase}-text`}
+      >{value}</pre>
+      <button
+        type="button" onClick={copy}
+        className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90"
+        data-testid={`${testIdBase}-copy`}
+      >
+        {copied ? <Check size={9} /> : <Copy size={9} />}
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  );
+}
+
+// DistributionDrawer — Iter 220ae. Spins one article into 5 LinkedIn
+// posts + 1 X thread + 1 Reddit summary using Claude on the server.
+function DistributionDrawer({ article, onClose }) {
+  const [dist, setDist] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [spinning, setSpinning] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(
+        `${API}/api/marketing/seo/articles/${article.id}/distributions`,
+        { headers: auth() },
+      );
+      setDist(r.data?.distribution || null);
+    } catch (_e) {
+      setDist(null);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [article.id]);
+
+  const spin = async () => {
+    setSpinning(true);
+    try {
+      const r = await axios.post(
+        `${API}/api/marketing/seo/articles/${article.id}/distribute`,
+        { channels: ['linkedin', 'x_thread', 'reddit'] },
+        { headers: auth() },
+      );
+      setDist(r.data);
+      notify.success('Spun into LinkedIn + X + Reddit');
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Spin failed');
+    } finally { setSpinning(false); }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex justify-end"
+      data-testid="seo-distribution-drawer"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+    >
+      <div className="bg-white dark:bg-zinc-950 w-full max-w-2xl h-full flex flex-col">
+        <header className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-3">
+          <Share2 size={16} className="text-fuchsia-600"/>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold truncate">Distribute · {article.title}</p>
+            <p className="text-[11px] text-zinc-500">5 LinkedIn posts · 1 X thread · 1 Reddit summary</p>
+          </div>
+          <button
+            onClick={spin} disabled={spinning}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50"
+            data-testid="seo-distribution-spin-btn"
+          >
+            {spinning ? <Loader2 size={11} className="animate-spin"/> : <Sparkles size={11}/>}
+            {dist ? 'Re-spin' : 'Spin posts'}
+          </button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-900" aria-label="Close">
+            <X size={16}/>
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {loading ? (
+            <div className="text-zinc-500 text-sm inline-flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin"/> Loading…
+            </div>
+          ) : !dist ? (
+            <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-6 text-center">
+              <Share2 size={20} className="text-zinc-300 mx-auto mb-1"/>
+              <p className="text-sm font-bold">No distribution yet</p>
+              <p className="text-[12px] text-zinc-500 mt-1 mb-3">
+                Click "Spin posts" to generate channel-native content from this article.
+              </p>
+              <button
+                onClick={spin} disabled={spinning}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50"
+                data-testid="seo-distribution-first-spin-btn"
+              >
+                {spinning ? <Loader2 size={11} className="animate-spin"/> : <Sparkles size={11}/>}
+                Spin posts
+              </button>
+            </div>
+          ) : (
+            <>
+              {dist.content?.linkedin?.length ? (
+                <section data-testid="seo-distribution-linkedin">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Linkedin size={14} className="text-[#0a66c2]"/>
+                    <h3 className="text-sm font-bold">LinkedIn · 5 angles</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {dist.content.linkedin.map((post, i) => (
+                      <CopyableBlock
+                        key={i} value={post}
+                        label={`Post ${i + 1}`}
+                        hint={`${post.length} chars`}
+                        testIdBase={`seo-distribution-linkedin-${i}`}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {dist.content?.x_thread?.length ? (
+                <section data-testid="seo-distribution-x-thread">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare size={14} className="text-zinc-900 dark:text-zinc-100"/>
+                    <h3 className="text-sm font-bold">X · {dist.content.x_thread.length}-tweet thread</h3>
+                  </div>
+                  <CopyableBlock
+                    value={dist.content.x_thread.map((t, i) => `${i + 1}/ ${t}`).join('\n\n')}
+                    label="Full thread"
+                    hint="Paste each tweet separately on X"
+                    testIdBase="seo-distribution-x-full"
+                  />
+                  <div className="mt-2 space-y-2">
+                    {dist.content.x_thread.map((tweet, i) => (
+                      <CopyableBlock
+                        key={i} value={tweet}
+                        label={`Tweet ${i + 1}/${dist.content.x_thread.length}`}
+                        hint={`${tweet.length} chars`}
+                        testIdBase={`seo-distribution-x-${i}`}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {dist.content?.reddit ? (
+                <section data-testid="seo-distribution-reddit">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare size={14} className="text-orange-600"/>
+                    <h3 className="text-sm font-bold">Reddit · long-form summary</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <CopyableBlock
+                      value={dist.content.reddit.title}
+                      label="Title"
+                      testIdBase="seo-distribution-reddit-title"
+                    />
+                    <CopyableBlock
+                      value={dist.content.reddit.body}
+                      label="Body (Markdown)"
+                      testIdBase="seo-distribution-reddit-body"
+                    />
+                    {dist.content.reddit.subreddits?.length ? (
+                      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-2">
+                          Suggested subreddits
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {dist.content.reddit.subreddits.map((s) => (
+                            <a
+                              key={s}
+                              href={`https://www.reddit.com/r/${s}`}
+                              target="_blank" rel="noreferrer noopener"
+                              className="text-[11px] font-bold px-2 py-1 rounded-md bg-orange-50 text-orange-700 hover:bg-orange-100"
+                            >
+                              r/{s}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ArticleEditor({ article, onClose, onSaved }) {
   const [doc, setDoc] = useState(article);
   const [saving, setSaving] = useState(false);
@@ -351,6 +563,7 @@ function ArticlesTab() {
   const [list, setList] = useState([]);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [distributing, setDistributing] = useState(null);
 
   const load = async () => {
     try {
@@ -404,6 +617,14 @@ function ArticlesTab() {
                     <Eye size={11}/> View
                   </a>
                 ) : null}
+                {/* Iter 220ae — distribution drawer launcher */}
+                <button onClick={() => setDistributing(a)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border border-fuchsia-200 text-fuchsia-700 hover:bg-fuchsia-50"
+                  data-testid={`seo-article-distribute-${a.id}`}
+                  title="Spin into LinkedIn / X / Reddit posts"
+                >
+                  <Share2 size={11}/> Distribute
+                </button>
                 <button onClick={() => open(a)}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-fuchsia-600 text-white hover:bg-fuchsia-700"
                   data-testid={`seo-article-edit-${a.id}`}
@@ -416,6 +637,7 @@ function ArticlesTab() {
         )}
       </div>
       {editing ? <ArticleEditor article={editing} onClose={() => setEditing(null)} onSaved={() => load()} /> : null}
+      {distributing ? <DistributionDrawer article={distributing} onClose={() => setDistributing(null)} /> : null}
     </div>
   );
 }

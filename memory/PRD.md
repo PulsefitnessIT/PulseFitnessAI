@@ -18159,3 +18159,64 @@ Service Ops, CRM, Marketing — doesn't belong under Growth).
 - ``frontend/src/pages/Marketing/Blog/BlogPost.js`` (DB fallback +
   FAQPage JSON-LD)
 - ``Makefile`` (regression target)
+
+---
+
+## Iter 220ae — SEO Distribution Engine (Phase 3, May 27, 2026)
+
+### Context
+After Phase 2 published articles, the next bottleneck was reach.
+User asked for the Distribution Engine — turn each article into
+5 LinkedIn posts + 1 X thread + 1 Reddit summary so a single article
+multiplies into ~10× audience without extra writing effort.
+
+### Implementation
+- **Backend** — extended ``routes/marketing/seo_autopilot.py``:
+  - ``POST /api/marketing/seo/articles/{id}/distribute`` — Claude
+    spins the article into channel-native content using strict-JSON
+    output (handles fence/prose wrappers). LinkedIn arrays are padded
+    to exactly 5 even when Claude under-delivers; X-thread tweets are
+    capped at 280 chars; Reddit comes back with title + Markdown body
+    + suggested subreddits. **Idempotent** — re-running deletes the
+    previous distribution row so operators can re-spin freely.
+  - ``GET /api/marketing/seo/articles/{id}/distributions`` — returns
+    the existing spin or ``{distribution: null}``.
+  - New ``seo_distributions`` collection with unique index on
+    ``article_id``.
+  - Channel allow-list ({linkedin, x_thread, reddit}); bogus channels
+    silently dropped; ``400`` when no valid channels remain.
+  - ``404`` when source article missing; ``400`` when archived.
+- **Frontend** — extended ``SEOAutopilotPanel.js``:
+  - New "Distribute" button on every Articles-tab row.
+  - New side drawer ``DistributionDrawer``:
+    - Header with article title, "5 LinkedIn posts · 1 X thread ·
+      1 Reddit summary" subline, "Spin posts" / "Re-spin" action.
+    - 3 sections rendered cleanly when present:
+      • LinkedIn — 5 copy-blocks with char count.
+      • X — single "Full thread" copy-block AND per-tweet copy-blocks
+        for incremental posting.
+      • Reddit — Title / Body / subreddit chips that deep-link to
+        ``reddit.com/r/<name>``.
+    - Empty state with a CTA when no spin yet exists.
+  - Reusable ``CopyableBlock`` micro-component with check-icon
+    confirmation toast.
+
+### Verification
+- ``make regression`` → **998 passed**, 15 skipped (+12 new tests,
+  zero regressions on the 986 baseline).
+- Live API call with the real Claude key: 10 KB response with
+  5 LinkedIn posts + X thread + Reddit summary. First post begins
+  "One broken treadmill costs you more than you think." — proves
+  the brand-voice + operator-tone instructions worked.
+- Live screenshot of the drawer rendering correctly in the
+  Articles tab.
+- ``mcp_lint_python`` + ``mcp_lint_javascript`` both clean.
+
+### Files changed
+- ``backend/routes/marketing/seo_autopilot.py`` (+~150 LOC: distribute
+  endpoints + ``_spin_distributions`` helper + index for
+  ``seo_distributions``)
+- ``backend/tests/test_iter_220ae_seo_distribution.py`` (new, 12 tests)
+- ``frontend/src/pages/MasterAdmin/SEOAutopilotPanel.js`` (+~200 LOC:
+  ``CopyableBlock``, ``DistributionDrawer``, ``Distribute`` button)
+- ``Makefile`` (regression target)

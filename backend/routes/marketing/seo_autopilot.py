@@ -402,6 +402,176 @@ async def _generate_article_payload(
     }
 
 
+# ── Distribution Engine — Iter 220ae ────────────────────────────────
+#
+# Given a published article, generate ready-to-post snippets for each
+# channel. We store everything in ``seo_distributions`` so the operator
+# can copy/edit/republish without re-spending LLM tokens. Channels:
+#
+#   * linkedin   — 5 hooks-first posts, 1 per "angle" we ask Claude
+#                  to riff on (problem framing, contrarian take,
+#                  data point, mini case-study, direct CTA).
+#   * x_thread   — 1 X thread of 6-9 tweets, each ≤270 chars,
+#                  punchy and scroll-stopping.
+#   * reddit     — 1 long-form summary written in a "you-tone" suitable
+#                  for r/gymsnark, r/personaltraining, r/smallbusiness;
+#                  includes subreddit suggestions.
+
+
+class DistributePayload(BaseModel):
+    channels: list[str] = Field(
+        default_factory=lambda: ["linkedin", "x_thread", "reddit"],
+        max_length=3,
+    )
+
+
+async def _spin_distributions(article: dict, channels: list[str]) -> dict:
+    """Ask Claude to spin a single article into channel-tailored posts.
+    Returns ``{linkedin: [str,...], x_thread: [str,...], reddit: {...}}``
+    with safe fallbacks when the LLM is unreachable."""
+    title = article.get("title") or "Untitled"
+    excerpt = article.get("excerpt") or ""
+    body_excerpt = (article.get("body_md") or "")[:6000]
+    primary = article.get("primary_keyword") or ""
+    blog_url = f"https://www.gymaxisai.com/blog/{article.get('slug')}"
+
+    prompt = (
+        f"You are spinning a published GymAxis blog article into channel-"
+        f"native social posts to drive readers back to it. "
+        f"{DEFAULT_BRAND_BLURB}\n\n"
+        f"Tone: {DEFAULT_TONE}\n\n"
+        f"Article title: {title}\n"
+        f"Excerpt: {excerpt}\n"
+        f"Primary keyword: {primary}\n"
+        f"Link to use at the end of each post: {blog_url}\n\n"
+        f"Article body (excerpt):\n{body_excerpt}\n\n"
+        "Produce STRICT JSON only — no prose, no fences — with this shape:\n"
+        "{\n"
+        '  "linkedin": [ string, string, string, string, string ],\n'
+        '  "x_thread": [ string, ... ] (6-9 tweets, each ≤270 chars),\n'
+        '  "reddit": { "title": string (≤95 chars), '
+        '"body": string (350-600 words), "subreddits": [string,...] }\n'
+        "}\n\n"
+        "LinkedIn rules:\n"
+        "  • Each post is independent — same article, different angle.\n"
+        "  • Start with a 1-line hook on its own line.\n"
+        "  • 120-300 words.\n"
+        "  • End with the link on its own line.\n"
+        "  • 3-5 hashtags max, last line, lower-case if possible.\n"
+        "X rules:\n"
+        "  • Tweet 1 = bold hook.\n"
+        "  • Last tweet = link + 1-line CTA.\n"
+        "  • No tweet exceeds 270 characters.\n"
+        "Reddit rules:\n"
+        "  • Title is a sincere question or insight, never clickbait.\n"
+        "  • Body has 2-3 sub-headlines (use ## markdown).\n"
+        "  • Reference the article naturally, never spam-shilling.\n"
+        "  • Include 3-5 subreddit names without the 'r/' prefix."
+    )
+
+    raw = await _llm_text(
+        "You are a social-media copywriter that outputs ONLY valid JSON.",
+        prompt, session_id=f"seo-dist-{_id()}",
+    )
+    data = _safe_json_extract(raw or "")
+    if not isinstance(data, dict):
+        data = {}
+
+    out: dict = {}
+    if "linkedin" in channels:
+        linkedin = data.get("linkedin") if isinstance(data.get("linkedin"), list) else []
+        # Always 5 — pad with a basic templated post if Claude under-delivers.
+        while len(linkedin) < 5:
+            linkedin.append(
+                f"{title}\n\n"
+                f"We just published a deep-dive on {primary or 'gym operations'}. "
+                f"If you're tackling this in 2026, this is worth 7 minutes:\n\n"
+                f"{blog_url}\n\n#gymoperations #fitnesstech"
+            )
+        out["linkedin"] = [str(x)[:3000] for x in linkedin[:5]]
+
+    if "x_thread" in channels:
+        thread = data.get("x_thread") if isinstance(data.get("x_thread"), list) else []
+        if not thread:
+            thread = [
+                f"{title} — the playbook 🧵",
+                f"1/ Most gym operators we talk to are losing 6-8 hours/week to "
+                f"{primary or 'this exact problem'}.",
+                "2/ The fix isn't more software. It's clearer ownership.",
+                f"3/ Full write-up here → {blog_url}",
+            ]
+        out["x_thread"] = [str(x)[:280] for x in thread[:9]]
+
+    if "reddit" in channels:
+        reddit = data.get("reddit") if isinstance(data.get("reddit"), dict) else {}
+        out["reddit"] = {
+            "title": (reddit.get("title") or title)[:120],
+            "body": (reddit.get("body") or
+                     f"We just published a deep-dive on this. Curious what others think.\n\n{blog_url}")[:8000],
+            "subreddits": (reddit.get("subreddits") if isinstance(reddit.get("subreddits"), list)
+                           else ["gymsnark", "personaltraining", "smallbusiness"])[:6],
+        }
+    return out
+
+
+@router.post("/articles/{article_id}/distribute")
+async def distribute_article(
+    article_id: str,
+    payload: DistributePayload,
+    user: dict = Depends(get_current_user),
+):
+    """Spin a published article into channel-native social posts.
+
+    Idempotent on (article_id) — re-running OVERWRITES the existing
+    distribution document so operators can re-spin if they don't like
+    Claude's first take."""
+    _require_master_admin(user)
+
+    article = await db.seo_articles.find_one({"id": article_id}, {"_id": 0})
+    if not article:
+        raise HTTPException(404, "Article not found")
+    if article.get("status") not in ("published", "draft"):
+        raise HTTPException(400, "Only draft or published articles can be distributed.")
+
+    channels = list({c for c in payload.channels
+                     if c in ("linkedin", "x_thread", "reddit")})
+    if not channels:
+        raise HTTPException(400, "Pick at least one channel.")
+
+    content = await _spin_distributions(article, channels)
+
+    now = _now()
+    doc = {
+        "id": _id(),
+        "article_id": article_id,
+        "article_slug": article.get("slug"),
+        "article_title": article.get("title"),
+        "channels": channels,
+        "content": content,
+        "created_by": user.get("id"),
+        "created_at": now, "updated_at": now,
+    }
+    # Idempotent — overwrite previous spin for this article.
+    await db.seo_distributions.delete_many({"article_id": article_id})
+    await db.seo_distributions.insert_one(doc)
+    return _scrub(dict(doc))
+
+
+@router.get("/articles/{article_id}/distributions")
+async def get_article_distribution(
+    article_id: str,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    doc = await db.seo_distributions.find_one({"article_id": article_id}, {"_id": 0})
+    if not doc:
+        return {"distribution": None}
+    return {"distribution": doc}
+
+
+# ── End Iter 220ae distribution block ───────────────────────────────
+
+
 @router.post("/articles/generate")
 async def generate_article(
     payload: ArticleGeneratePayload,
@@ -634,6 +804,8 @@ async def init_seo_indexes() -> None:
         await db.seo_articles.create_index("slug", unique=True, sparse=True)
         await db.seo_articles.create_index("status")
         await db.seo_keywords.create_index("status")
+        # Iter 220ae — distributions are 1-per-article, store + retrieve fast
+        await db.seo_distributions.create_index("article_id", unique=True)
     except Exception as exc:  # pragma: no cover
         logger.warning("[seo] index init failed: %s", exc)
 
