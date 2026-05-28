@@ -35,6 +35,13 @@ from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.ai_guardrails import (
+    enforce_token_budget,
+    record_ai_action,
+    record_token_usage,
+    sanitize_llm_markdown,
+    sanitize_prompt,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/marketing/seo", tags=["marketing-seo"])
@@ -378,6 +385,13 @@ async def _generate_article_payload(
 ) -> dict:
     """Return a structured article dict {title, excerpt, body_md,
     meta_description, qa_blocks, tags}."""
+    # Iter 220at / F-11 — sanitise free-form caller input even though
+    # it's master-admin-only. Strips control chars, clamps length so
+    # a smuggled "ignore previous instructions" payload at least can't
+    # be 60 KB long.
+    primary_keyword = sanitize_prompt(primary_keyword, max_chars=200)
+    angle = sanitize_prompt(angle, max_chars=400) if angle else angle
+    secondary_keywords = [sanitize_prompt(s, max_chars=160) for s in (secondary_keywords or [])]
     sec_block = (
         f"Also weave in these secondary keywords naturally (at most twice each, "
         f"never stuffed): {', '.join(secondary_keywords)}.\n"
@@ -448,6 +462,20 @@ async def _generate_article_payload(
     qa_blocks = [
         {"question": _scrub_brand_domain(str(q.get("question", ""))),
          "answer": _scrub_brand_domain(str(q.get("answer", "")))}
+        for q in qa_blocks if isinstance(q, dict)
+    ]
+
+    # Iter 220at / F-14 — strip dangerous tags (<script>, <iframe>,
+    # on*= handlers, javascript: URLs) from LLM-generated markdown so
+    # the blog renderer, PDF export, and email digests can't be used
+    # to ship XSS even if the model gets jailbroken into emitting HTML.
+    title = sanitize_llm_markdown(title)
+    excerpt = sanitize_llm_markdown(excerpt)
+    body_md = sanitize_llm_markdown(body_md)
+    meta_description = sanitize_llm_markdown(meta_description)
+    qa_blocks = [
+        {"question": sanitize_llm_markdown(q.get("question", "")),
+         "answer": sanitize_llm_markdown(q.get("answer", ""))}
         for q in qa_blocks if isinstance(q, dict)
     ]
 
@@ -731,6 +759,10 @@ async def generate_article(
     the inserted ``seo_articles`` row."""
     _require_master_admin(user)
 
+    # Iter 220at / F-16 — per-tenant daily token budget. Long-form
+    # articles burn ~4 k tokens each; guard against runaway costs.
+    await enforce_token_budget(user.get("organization_id"), est_tokens=4000)
+
     text = await _generate_article_payload(
         payload.primary_keyword, payload.secondary_keywords,
         payload.angle, payload.target_words,
@@ -772,6 +804,18 @@ async def generate_article(
         "created_at": now, "updated_at": now,
     }
     await db.seo_articles.insert_one(doc)
+    # Iter 220at — token-spend telemetry + AI action audit.
+    await record_token_usage(
+        user.get("organization_id"),
+        tokens=max(2000, (text.get("word_count") or 0) * 4),
+        surface="seo.generate_article",
+    )
+    await record_ai_action(
+        user, action="seo.generate_article",
+        payload={"primary_keyword": payload.primary_keyword,
+                 "article_id": doc["id"], "slug": slug,
+                 "publish_now": bool(payload.publish_now)},
+    )
     return _scrub(dict(doc))
 
 

@@ -37,8 +37,8 @@ _(none in Pass 1)_
 | F-04 | DOM-XSS via stored rich text in PDF/email rendering | Backend | W4 | open | Add `bleach` allowlist on write for CRM notes / activities / tender drafts / blog body. Cache cleaned HTML. |
 | F-06 | IDOR sweep on equipment / integrations / staffing_clock / mod_portal | Backend | W1 | open | 25+ `find_one({id})` without org filter. Audit each, add org scope or master-admin gate. |
 | F-09 | Stripe webhook idempotency (no `processed_event_ids` dedupe) | Backend | W1 | **done** (Iter 220as) | `utils/stripe_idempotency.py` + 4 handlers wired. Source-level test pinned. |
-| F-11 | LLM01 — Prompt-injection guardrails missing | Backend + AI | W2 | open | Central `sanitize_prompt()` + injection-detector + per-tool permission scoping. |
-| F-13 | LLM08 — Excessive agency in Engineer App / CRM AI / SEO Autopilot | Backend + AI | W2 | open | Add `require_human_approval` decorator for high-risk tools (send_email, publish_post, update_pricing). |
+| F-11 | LLM01 — Prompt-injection guardrails missing | Backend + AI | W2 | **done** (Iter 220at) | `utils/ai_guardrails.sanitize_prompt` + `detect_injection` (score ≥80 rejects); wired into `assistant.chat`, `seo_autopilot.generate_article`, `mod_portal._ai_triage`, `equipment_import._ai_extract_invoice`. |
+| F-13 | LLM08 — Excessive agency in Engineer App / CRM AI / SEO Autopilot | Backend + AI | W2 | **done** (Iter 220at) | `HIGH_RISK_TOOLS` + `mint_approval_token` / `verify_approval_token` / `require_human_approval` decorator. |
 | F-17 | MFA not enforced for Master Admin | Backend | W3 | open | `require_mfa(role="master_admin")` decorator on every master-admin endpoint. 401 if MFA not enabled. |
 | F-26 | SSRF in URL fetchers (Companies House, AI URL summariser, public widget) | Backend | W5 | open | CIDR allowlist; block IMDS + RFC1918 + loopback + link-local. |
 
@@ -52,9 +52,9 @@ _(none in Pass 1)_
 | F-07 | List endpoints with `to_list(500+)` and no client cap | Backend | W1 | **done** (Iter 220as) | `utils/pagination.safe_limit/safe_skip` applied to mod_portal, pulse_sales, service_desk. |
 | F-08 | Possible PII over-share on `/api/users/me` | Backend | W3 | open | Audit projection — strip `password`, `mfa_secret`, `stripe_customer_id`. |
 | F-10 | Bulk-action endpoints lack per-call row cap + per-row audit | Backend | W1 | open | Cap at 200/call; audit row id for each. |
-| F-12 | LLM06 — AI assistant doesn't filter gdpr_erased rows from context | Backend + AI | W2 | open | Pass `gdpr_erased: {$ne: true}` into every RAG context fetch. |
-| F-14 | LLM02 — Insecure handling of LLM-generated markdown in PDFs/emails | Backend + AI | W2 | open | Sanitise LLM output through the same `bleach` pipeline as F-04. |
-| F-16 | LLM10 — No per-tenant token-budget cap on AI endpoints | Backend + AI | W2 | open | Add daily/weekly per-org token budget; surface in Master Admin. |
+| F-12 | LLM06 — AI assistant doesn't filter gdpr_erased rows from context | Backend + AI | W2 | **done** (Iter 220at) | `rag_context_filter` adds `gdpr_erased: {$ne: True}` — idempotent, composable. |
+| F-14 | LLM02 — Insecure handling of LLM-generated markdown in PDFs/emails | Backend + AI | W2 | **done** (Iter 220at) | `sanitize_llm_markdown` strips `<script>/<iframe>/<svg>/<style>`, `on*=` handlers, and `javascript:` URLs; wired into seo_autopilot output. |
+| F-16 | LLM10 — No per-tenant token-budget cap on AI endpoints | Backend + AI | W2 | **done** (Iter 220at) | `enforce_token_budget` (default 500k tok/org/day, env-tunable) + `record_token_usage` rolling counter; wired into assistant + seo_autopilot + mod_portal. |
 | F-18 | Frontend-only access control on a handful of destructive buttons | Backend | W3 | open | Server-side `require_role` on every delete/export route. |
 | F-19 | Sessions not invalidated on RBAC change | Backend | W3 | open | Revoke all JWTs for that user_id on role/perm change. |
 | F-20 | Exports not consistently audit-logged | Backend | W6 | open | Single decorator `@audit_export(kind="invoice_pdf")` wrapping every export route. |

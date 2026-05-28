@@ -29,6 +29,12 @@ from utils.database import db, APP_NAME, put_object, get_object
 from utils.aggregate_cache import cache_aggregate
 from utils.email import send_email
 from utils.security import sanitise_string
+from utils.ai_guardrails import (
+    detect_injection,
+    record_ai_action,
+    record_token_usage,
+    sanitize_prompt,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -275,6 +281,22 @@ async def _ai_triage(
     key = os.environ.get("EMERGENT_LLM_KEY")
     if not key:
         return {"cause": None, "quick_fix": None, "model": None, "skipped": True}
+    # Iter 220at / F-11 — sanitise the user-supplied fault description
+    # before it lands in the LLM prompt. Strips control chars + clamps
+    # length. We then run the dedicated injection detector — if the
+    # text looks like a jailbreak we skip AI triage entirely (the
+    # operator still gets to log the fault, just without AI suggestions).
+    description = sanitize_prompt(description, max_chars=2000)
+    risk = detect_injection(description)
+    if risk["score"] >= 80:
+        logger.warning(
+            "[mod_triage] AI skipped — injection flags=%s eq=%s",
+            risk["flags"], equipment.get("id"),
+        )
+        return {
+            "cause": None, "quick_fix": None, "model": None,
+            "skipped": True, "reason": "prompt_rejected",
+        }
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
         session = f"mod-triage-{uuid.uuid4().hex[:8]}"
@@ -306,6 +328,13 @@ async def _ai_triage(
             )
         prompt += "Return JSON only, no prose wrapper."
         reply = await chat.send_message(UserMessage(text=prompt))
+        # Iter 220at / F-16 — record token-spend telemetry (rough
+        # estimate). Cheap insert; helps surface runaway AI cost in
+        # the Master Admin growth-hub.
+        await record_token_usage(
+            org_id, tokens=(len(prompt) + len(reply or "")) // 4,
+            surface="mod.triage",
+        )
         import json
         import re
         match = re.search(r"\{.*\}", reply, re.DOTALL)

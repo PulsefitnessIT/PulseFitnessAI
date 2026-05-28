@@ -26,6 +26,14 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.ai_guardrails import (
+    detect_injection,
+    enforce_token_budget,
+    record_ai_action,
+    record_token_usage,
+    sanitize_prompt,
+    wrap_user_input,
+)
 from routes.help_data import search_guides as _search_help_guides
 
 logger = logging.getLogger(__name__)
@@ -415,11 +423,38 @@ async def assistant_chat(body: dict = Body(...), user: dict = Depends(get_curren
     if mode not in MODE_REGISTRY:
         raise HTTPException(400, f"Unsupported mode: {mode!r}. Allowed: {list(MODE_REGISTRY)}")
     session_id = (body.get("session_id") or "").strip() or _new_id()
-    message = (body.get("message") or "").strip()
-    if not message:
+    message_raw = (body.get("message") or "").strip()
+    if not message_raw:
         raise HTTPException(400, "Message is required")
 
+    # ── F-11 / LLM01 — prompt-injection guardrails (Iter 220at) ──
+    # Strip control chars + clamp to 8k chars, score the input
+    # against a known-bad-pattern list, reject obvious jailbreaks.
+    message = sanitize_prompt(message_raw)
+    risk = detect_injection(message)
+    if risk["score"] >= 80:
+        logger.warning(
+            "[assistant] prompt rejected — injection flags=%s user=%s mode=%s",
+            risk["flags"], user.get("email"), mode,
+        )
+        await record_ai_action(
+            user, action=f"assistant.chat.{mode}.rejected",
+            payload={"flags": risk["flags"], "score": risk["score"]},
+            risk_score=risk["score"],
+        )
+        raise HTTPException(
+            400,
+            "That request looks like a prompt-injection attempt and was blocked. "
+            "Please rephrase the question without instructing the AI to ignore its "
+            "system prompt or reveal hidden data.",
+        )
+
     org_id = await _org_id(user)
+    # ── F-16 / LLM10 — per-tenant daily token budget ─────────────
+    # Conservative estimate: a typical chat turn ≈ 2k tokens combined
+    # (system+context+message+answer). Surfaces a 429 long before any
+    # tenant blows the per-org budget.
+    await enforce_token_budget(org_id, est_tokens=2000)
     ctx_fn = MODE_REGISTRY[mode].get("context_fn")
     context = await ctx_fn(org_id) if ctx_fn else ""
 
@@ -444,9 +479,23 @@ async def assistant_chat(body: dict = Body(...), user: dict = Depends(get_curren
     ) or {"session_id": session_id, "user_id": user["id"], "organization_id": org_id, "mode": mode, "turns": []}
 
     answer = await _call_chat_llm(
-        session_id=session_id, system_message=system_message, message=message, mode=mode,
+        session_id=session_id, system_message=system_message,
+        message=wrap_user_input(message), mode=mode,
     )
     answer_clean, action = _extract_action_block(answer, mode)
+
+    # Track token spend (rough estimate — 1 token ≈ 4 chars). Cheap
+    # write, used by ``enforce_token_budget`` on subsequent turns.
+    await record_token_usage(
+        org_id,
+        tokens=(len(message) + len(system_message) + len(answer)) // 4,
+        surface=f"assistant.{mode}",
+    )
+    await record_ai_action(
+        user, action=f"assistant.chat.{mode}",
+        payload={"action_emitted": (action or {}).get("type")},
+        risk_score=risk["score"],
+    )
 
     now = _now()
     history.setdefault("turns", []).extend([

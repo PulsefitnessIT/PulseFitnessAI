@@ -539,6 +539,12 @@ async def _create_indexes() -> None:
         await _ensure_stripe_idemp()
     except Exception:
         pass
+    # Iter 220at — AI guardrails (token-usage rollup + ai_actions audit).
+    try:
+        from utils.ai_guardrails import ensure_indexes as _ensure_ai_guardrails
+        await _ensure_ai_guardrails()
+    except Exception:
+        pass
     # CRM indexes
     await db.crm_users.create_index("email", unique=True)
     await db.crm_contacts.create_index([("email", 1)])

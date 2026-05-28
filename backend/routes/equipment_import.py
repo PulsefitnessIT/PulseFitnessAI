@@ -10,6 +10,7 @@ import logging
 
 from utils.database import db, EMERGENT_LLM_KEY
 from utils.auth import get_current_user
+from utils.ai_guardrails import sanitize_prompt
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/equipment-import", tags=["Equipment Import"])
@@ -237,6 +238,14 @@ async def _ai_extract_invoice(pdf_text: str) -> dict:
        gpt-4o-mini single-shot      → 55–60 s
     """
     from emergentintegrations.llm.chat import LlmChat, UserMessage
+    # Iter 220at / F-11 — strip control chars from extracted PDF text
+    # so any embedded "ignore prev instructions" payload at least
+    # can't smuggle null bytes / BOMs through the JSON contract.
+    # We DO NOT injection-score here: invoice text often contains
+    # vendor boilerplate that triggers false positives, and the
+    # downstream parser only accepts strict JSON anyway (XSS surface
+    # is zero).
+    pdf_text = sanitize_prompt(pdf_text, max_chars=120_000)
     prompt = _build_extraction_prompt(pdf_text)
     llm = LlmChat(
         api_key=EMERGENT_LLM_KEY,

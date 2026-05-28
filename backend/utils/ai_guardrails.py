@@ -71,7 +71,7 @@ _INJECTION_PATTERNS: tuple[tuple[str, str, int], ...] = (
     ("system_role_inject", r"^\s*system\s*[:>].{10,}", 60),
     ("admin_role_inject", r"(you\s+are\s+now|act\s+as)\s+.{0,40}(admin|root|developer|sudo|jailbroken)", 70),
     ("dan_jailbreak", r"\b(DAN|developer\s+mode|jailbreak)\b", 70),
-    ("data_exfil", r"(list|dump|export|return\s+all)\s+(users|members|contacts|deals|emails)\s+(of|from|in)\s+(tenant|org)", 90),
+    ("data_exfil", r"(every|all|each)\s+(tenants?|orgs?|organi[sz]ations?|customers?)", 90),
     ("tool_force", r"call\s+tool\s+`?\w+`?\s+with\s+arguments", 50),
     ("base64_payload", r"\b[A-Za-z0-9+/]{120,}={0,2}\b", 30),
     ("repeated_break", r"\\n\\n+|\n{6,}", 20),

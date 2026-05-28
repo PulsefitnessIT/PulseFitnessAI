@@ -1,3 +1,82 @@
+## Iter 220at — Security Wave 2: AI Prompt-Injection Guardrails (May 28, 2026) ✅
+
+### Five OWASP-for-LLM findings closed in one wave
+
+* **F-11 / LLM01 — Prompt injection** — `utils/ai_guardrails.sanitize_prompt()` strips
+  control chars + clamps length; `detect_injection()` scores against 12 known-bad
+  pattern families (ignore-instructions, reveal-system, DAN/jailbreak, data-exfil,
+  HTML/XML injection, base64 payloads, repeated control breaks). Score ≥80 →
+  reject with 400 and audit-log. Wired into:
+  - `routes/assistant.py::assistant_chat` (every chat turn)
+  - `routes/marketing/seo_autopilot.py::_generate_article_payload` (free-form caller input)
+  - `routes/mod_portal.py::_ai_triage` (fault descriptions; AI silently skipped on bad input)
+  - `routes/equipment_import.py::_ai_extract_invoice` (PDF text; control-char strip only)
+* **F-12 / LLM06 — Sensitive disclosure (gdpr_erased)** — `rag_context_filter()` decorates any
+  RAG-style context fetch with `gdpr_erased: {$ne: True}`. Idempotent + composable.
+* **F-13 / LLM08 — Excessive agency** — `HIGH_RISK_TOOLS` registry (send_email,
+  publish_post, delete_*, update_pricing, process_refund, grant_admin_role,
+  impersonate_user, …) + `mint_approval_token()` / `verify_approval_token()` HMAC-signed
+  one-shot tokens (10-min TTL) + `require_human_approval()` decorator. Frontend confirms
+  via UI dialog before any high-risk AI action fires.
+* **F-14 / LLM02 — Insecure output handling** — `sanitize_llm_markdown()` strips
+  `<script>/<iframe>/<svg>/<style>/<embed>/<object>`, all `on*=` event handlers,
+  `javascript:`/`vbscript:`/`data:` URLs from LLM markdown. Wired into SEO Autopilot
+  output (blog body + meta + Q&A blocks) ahead of DB write.
+* **F-16 / LLM10 — Per-tenant token budget** — `enforce_token_budget()` aggregates
+  daily token spend per `organization_id` from `db.ai_token_usage` (env-tunable
+  `AI_DAILY_TOKEN_BUDGET`, default 500 k tok/org/day); raises 429 when projected
+  spend would exceed cap. `record_token_usage()` writes one row per LLM round-trip.
+  Wired into assistant.chat + seo.generate_article + mod.triage.
+
+### Audit + indexes
+
+* New collections (auto-indexed on startup via
+  `utils.ai_guardrails.ensure_indexes`):
+  - `ai_token_usage` — `(organization_id, day)` + `ts`
+  - `ai_actions` — `(organization_id, ts)` + `(actor_id, ts)`
+* Every guardrail invocation that rejects (or every AI tool call) is fire-and-forget
+  audited via `record_ai_action()` — best-effort, swallows DB failures so the AI
+  feature itself never breaks on a logging blip.
+
+### Tests
+
+* **32 new pure-unit tests** in `tests/test_iter_220at_ai_guardrails.py`:
+  - sanitize_prompt strip/clamp/None handling
+  - wrap_user_input delimiter
+  - detect_injection scoring + flag union for jailbreaks, data-exfil, html-inject
+  - rag_context_filter add + idempotency
+  - HIGH_RISK_TOOLS registry coverage
+  - mint/verify approval token round-trip + tamper detection + TTL expiry
+  - sanitize_llm_markdown strips script/iframe/event handlers / javascript: URLs
+  - is_safe_url whitelist
+  - enforce_token_budget allows anon, blocks over cap, falls open on DB error
+  - record_token_usage writes row + no-ops on zero/anon
+  - record_ai_action persists row + handles anon + swallows DB errors
+  - ensure_indexes builds 4 indexes + swallows errors
+  - End-to-end smokes: seo_autopilot scrubs `<script>` from `body_md`;
+    mod_portal._ai_triage skips when injection score ≥80.
+* All 32 green; added to Makefile regression block with TAB.
+* `ruff` clean across every touched file (assistant, seo_autopilot, mod_portal,
+  equipment_import, ai_guardrails, test file).
+* Full `make regression` → **1162 passed, 15 skipped, 0 introduced regressions**
+  (1 transient flake in `partner_application_ai_suggest` — passes on isolated rerun).
+
+### Risk register update (W2 row block)
+
+| F-ID | Status |
+|---|---|
+| F-11 (H) | **done** (Iter 220at) |
+| F-12 (M) | **done** (Iter 220at) |
+| F-13 (H) | **done** (Iter 220at) |
+| F-14 (M) | **done** (Iter 220at) |
+| F-16 (M) | **done** (Iter 220at) |
+
+W2 complete. **Pen-test posture: 2 waves down (W1 + W2), 5 to go (W3 auth,
+W4 stored-XSS, W5 SSRF/AV, W6 audit hygiene, W7 pen-test handover).**
+
+---
+
+
 ## Iter 220ar–220as — Security Wave 1: Audit + Idempotency + Pagination + Public RL (May 28, 2026) ✅
 
 ### 220ar — Audit Pass 1 (read-only)
