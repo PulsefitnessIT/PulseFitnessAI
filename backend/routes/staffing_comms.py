@@ -353,6 +353,38 @@ async def list_messages(
         q["sent_at"] = {"$lt": before}
     rows = await db.staffing_messages.find(q, {"_id": 0}).sort("sent_at", -1).limit(limit).to_list(limit)
     rows.reverse()  # ascending for the UI
+    # Iter 220bb — Hydrate `author_name` so the UI can render iMessage-style
+    # name headers above each non-mine bubble in group / channel / broadcast
+    # threads (DMs already know the other participant). Resolves via
+    # `staff_members` first (the canonical roster), falls back to `users`
+    # for system / pulse-master-admin senders that have no staff row.
+    sid_set = {r.get("author_staff_id") for r in rows if r.get("author_staff_id")}
+    uid_set = {r.get("author_id") for r in rows if r.get("author_id")}
+    by_sid: dict[str, str] = {}
+    by_uid: dict[str, str] = {}
+    if sid_set:
+        async for p in db.staff_members.find(
+            {"id": {"$in": list(sid_set)}, "organization_id": org_id},
+            {"_id": 0, "id": 1, "full_name": 1},
+        ):
+            if p.get("full_name"):
+                by_sid[p["id"]] = p["full_name"]
+    if uid_set:
+        async for u in db.users.find(
+            {"id": {"$in": list(uid_set)}},
+            {"_id": 0, "id": 1, "full_name": 1, "name": 1, "email": 1},
+        ):
+            label = u.get("full_name") or u.get("name") or (u.get("email") or "").split("@")[0]
+            if label:
+                by_uid[u["id"]] = label
+    for r in rows:
+        name = by_sid.get(r.get("author_staff_id")) or by_uid.get(r.get("author_id"))
+        if not name:
+            # Last-ditch: derive a readable handle from the recorded email
+            email = (r.get("author_email") or "").strip()
+            if email:
+                name = email.split("@")[0]
+        r["author_name"] = name or "Unknown"
     return {"messages": rows, "count": len(rows)}
 
 

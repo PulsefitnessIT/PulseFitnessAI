@@ -39,6 +39,40 @@ function timeShort(iso) {
   } catch { return iso; }
 }
 
+// Iter 220bb — Group messages by calendar day for iMessage-style date
+// separators. Returns "Today" / "Yesterday" / weekday-name (last 7 days)
+// / full date otherwise. Used by the Conversation pane.
+function dayLabel(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const today = new Date();
+    const yest = new Date(today);
+    yest.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 6);
+    if (d >= weekAgo) {
+      return d.toLocaleDateString([], { weekday: 'long' });
+    }
+    return d.toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short', year: today.getFullYear() === d.getFullYear() ? undefined : 'numeric' });
+  } catch { return ''; }
+}
+
+// Full timestamp tooltip — surfaced on hover so the handover diary
+// reads like an audit trail. Falls back to the raw ISO string if the
+// Date constructor chokes.
+function timeTooltip(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString([], {
+      weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return iso; }
+}
+
 // ─────────────────── Compose new thread modal ───────────────────
 
 function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreated }) {
@@ -182,7 +216,7 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
 
 // ─────────────────── Conversation pane ───────────────────
 
-function MessageRow({ msg, mine, isManager, onEdit, onDelete }) {
+function MessageRow({ msg, mine, isManager, showAuthor, onEdit, onDelete }) {
   const deleted = !!msg.deleted_at;
   const align = mine ? 'items-end' : 'items-start';
   const tint = msg.urgent
@@ -191,6 +225,19 @@ function MessageRow({ msg, mine, isManager, onEdit, onDelete }) {
   const txtColour = (msg.urgent || mine) ? '#001219' : 'var(--theme-text)';
   return (
     <div className={`flex flex-col ${align} gap-0.5 group`} data-testid={`msg-${msg.id}`}>
+      {/* Iter 220bb — Author name above non-mine bubbles in group /
+          channel / broadcast threads, so the handover diary reads
+          like an iMessage group chat ("Sarah Johnson") instead of
+          anonymous floating bubbles. */}
+      {showAuthor && !mine && msg.author_name && (
+        <span
+          className="text-[10px] font-bold px-2"
+          style={{ color: 'var(--color-brand-cyan)' }}
+          data-testid={`msg-author-${msg.id}`}
+        >
+          {msg.author_name}
+        </span>
+      )}
       <div className="flex items-end gap-1.5">
         {msg.urgent && !deleted && (
           <span className="inline-flex items-center gap-0.5 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
@@ -212,7 +259,7 @@ function MessageRow({ msg, mine, isManager, onEdit, onDelete }) {
         </div>
       </div>
       <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-        <span>{timeShort(msg.sent_at)}</span>
+        <span title={timeTooltip(msg.sent_at)}>{timeShort(msg.sent_at)}</span>
         {msg.edited_at && <span>· edited</span>}
         {!deleted && mine && (
           <RowActions gap={0.5}>
@@ -309,13 +356,48 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2" data-testid="conversation-messages">
         {messages.length === 0 ? (
           <p className="text-center text-xs py-8" style={{ color: 'var(--theme-text-muted)' }}>No messages yet — say hi.</p>
-        ) : messages.map((m) => (
-          <MessageRow key={m.id} msg={m}
-            mine={m.author_staff_id === myStaffId || m.author_id === myStaffId}
-            isManager={isManager}
-            onEdit={startEdit}
-            onDelete={remove} />
-        ))}
+        ) : (() => {
+          // Iter 220bb — Inject day separators between messages on
+          // different calendar days so the handover diary reads like an
+          // iMessage group chat. Author names sit on each non-mine
+          // bubble for group / channel / broadcast threads (DMs already
+          // know who the other party is from the thread header).
+          const showAuthor = thread.kind !== 'dm';
+          const out = [];
+          let prevDay = null;
+          for (const m of messages) {
+            const day = (m.sent_at || '').slice(0, 10);
+            if (day && day !== prevDay) {
+              out.push(
+                <div
+                  key={`sep-${day}`}
+                  className="flex items-center justify-center py-2"
+                  data-testid={`conversation-day-${day}`}
+                >
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-[0.18em] px-3 py-1 rounded-full"
+                    style={{ background: 'var(--theme-surface)', color: 'var(--theme-text-muted)', border: '1px solid var(--theme-border)' }}
+                  >
+                    {dayLabel(m.sent_at)}
+                  </span>
+                </div>,
+              );
+              prevDay = day;
+            }
+            out.push(
+              <MessageRow
+                key={m.id}
+                msg={m}
+                mine={m.author_staff_id === myStaffId || m.author_id === myStaffId}
+                isManager={isManager}
+                showAuthor={showAuthor}
+                onEdit={startEdit}
+                onDelete={remove}
+              />,
+            );
+          }
+          return out;
+        })()}
       </div>
       {canSend ? (
         <div className="border-t p-3 space-y-2" style={{ borderColor: 'var(--theme-border)' }}>

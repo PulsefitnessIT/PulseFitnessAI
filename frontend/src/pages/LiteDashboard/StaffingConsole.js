@@ -59,7 +59,7 @@ const TABS_ALL = [
   { id: 'performance',  label: 'Performance',   icon: BarChart3,   roles: ['owner','manager','master_admin'] },
   { id: 'payroll',      label: 'Payroll',       icon: PoundSterling,  roles: ['owner','manager','master_admin'] },
   { id: 'announce',     label: 'Announcements', icon: Megaphone,   roles: ['owner','manager','master_admin','staff'] },
-  { id: 'comms',        label: 'Comms Hub',     icon: MessageSquare, roles: ['owner','manager','master_admin','staff'] },
+  { id: 'comms',        label: 'Handover Diary',     icon: MessageSquare, roles: ['owner','manager','master_admin','staff'] },
   { id: 'operations',   label: 'Ops · Forms',   icon: ClipboardList, roles: ['owner','manager','master_admin','staff'] },
   { id: 'hr',           label: 'HR',            icon: IdCard,      roles: ['owner','manager','master_admin'] },
   { id: 'rules',        label: 'Rules',         icon: Shield,      roles: ['owner','manager','master_admin'] },
