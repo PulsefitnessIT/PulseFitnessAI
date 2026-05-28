@@ -107,7 +107,19 @@ export default function StaffingConsole() {
           .filter((t) => ids.has(t.id))
           .map((t) => ({ ...t, roles: ['owner', 'manager', 'master_admin', 'staff'] }));
       }
-      return TABS_ALL.filter((t) => t.roles.includes(role) && !t.modOnly);
+      const filtered = TABS_ALL.filter((t) => t.roles.includes(role) && !t.modOnly);
+      // Iter 220bb — Staff view (Operations → Gym Floor sub-menu) uses
+      // Comms Hub as its handover diary, so it must be the FIRST tab
+      // for quick access during shift change-overs. Manager order is
+      // unchanged (still follows the TABS_ALL "people → schedule →
+      // daily ops → performance → comms" flow).
+      if (role === 'staff') {
+        const comms = filtered.find((t) => t.id === 'comms');
+        if (comms) {
+          return [comms, ...filtered.filter((t) => t.id !== 'comms')];
+        }
+      }
+      return filtered;
     },
     [role, isMOD],
   );
