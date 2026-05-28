@@ -155,6 +155,9 @@
   transform-origin: 50% 50%;
 }
 .gx-orbit-ring:hover { animation-play-state: paused; }
+/* Iter 220bc — Also pause the counter-spin so the feature constellation
+   doesn't drift with the ring while the user is reading it. */
+.gx-orbit-ring:hover .gx-orbit-counter { animation-play-state: paused; }
 
 /* Counter-spin so text stays upright */
 @keyframes gx-orbit-counter {
@@ -170,12 +173,27 @@
 .gx-orbit-node {
   border-color: rgb(226 232 240); /* slate-200 */
 }
-.gx-marketing .group:hover .gx-orbit-node {
+.gx-marketing .group:hover .gx-orbit-node,
+.gx-orbit-node-active {
   border-color: var(--gx-node-accent, #2563EB);
   box-shadow:
     0 14px 32px -10px var(--gx-node-accent, #2563EB),
     0 0 0 1px rgba(15, 23, 42, .04);
   background-color: #ffffff;
+}
+
+/* Iter 220bc — Feature constellation pop-in. Each pill scales + fades
+   from below its final position so the reveal feels like the module
+   "blooming". The transform origin sits at the pill's centre so the
+   anchor lines (CSS-only via the parent translate) stay accurate. */
+@keyframes gx-orbit-feature-pop {
+  0%   { opacity: 0; transform: translate(-50%, -45%) scale(0.6); }
+  60%  { opacity: 1; transform: translate(-50%, -52%) scale(1.06); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.gx-orbit-feature-pop {
+  opacity: 0;
+  animation: gx-orbit-feature-pop 0.45s cubic-bezier(.2, .9, .3, 1.2) forwards;
 }
 
 /* Soft grid background pattern for hero */

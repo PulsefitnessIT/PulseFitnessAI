@@ -18,12 +18,15 @@ import StickyCtaBar from './StickyCtaBar';
 import MarketingChat from './MarketingChat';
 
 const NAV = [
+  // Iter 220bc — Six-modules → four-modules consolidation. Staffing
+  // and Reporting fold into Operations / CRM as sub-features per the
+  // user's mind-map. Their /platform/staffing + /platform/reporting
+  // deep-link pages remain reachable via the module deep-dives + the
+  // orbit feature pills, but the top-nav stays clean.
   { to: '/platform/service',     label: 'Operations' },
   { to: '/platform/crm',         label: 'CRM' },
   { to: '/platform/memberships', label: 'Memberships' },
   { to: '/platform/marketing',   label: 'Marketing' },
-  { to: '/platform/staffing',    label: 'Staffing' },
-  { to: '/platform/reporting',   label: 'Reporting' },
   { to: '/partners/engineers',   label: 'Engineers' },
   { to: '/pricing',              label: 'Pricing' },
 ];

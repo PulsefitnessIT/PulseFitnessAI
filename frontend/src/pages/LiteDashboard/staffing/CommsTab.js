@@ -73,6 +73,61 @@ function timeTooltip(iso) {
   } catch { return iso; }
 }
 
+// Iter 220bb — Initials + deterministic colour for author avatar chips.
+// Pure functions so React can render in a single pass without state.
+function initials(name) {
+  if (!name) return '?';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// Tuned palette — high-contrast against both light and dark surfaces
+// and shifted away from the brand cyan so the avatar reads as "person"
+// rather than "system tile".
+const AVATAR_PALETTE = [
+  { bg: '#FCA5A5', fg: '#7F1D1D' }, // red-300 / red-900
+  { bg: '#FDBA74', fg: '#7C2D12' }, // orange-300 / orange-900
+  { bg: '#FCD34D', fg: '#78350F' }, // amber-300 / amber-900
+  { bg: '#86EFAC', fg: '#14532D' }, // green-300 / green-900
+  { bg: '#67E8F9', fg: '#164E63' }, // cyan-300 / cyan-900
+  { bg: '#93C5FD', fg: '#1E3A8A' }, // blue-300 / blue-900
+  { bg: '#C4B5FD', fg: '#4C1D95' }, // violet-300 / violet-900
+  { bg: '#F0ABFC', fg: '#701A75' }, // fuchsia-300 / fuchsia-900
+  { bg: '#F9A8D4', fg: '#831843' }, // pink-300 / pink-900
+];
+
+function colorForKey(key) {
+  const s = String(key || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+}
+
+function Avatar({ name, authorKey, size = 28 }) {
+  const c = colorForKey(authorKey || name);
+  return (
+    <div
+      className="rounded-full flex items-center justify-center font-bold flex-shrink-0"
+      style={{
+        width: size,
+        height: size,
+        background: c.bg,
+        color: c.fg,
+        fontSize: size <= 28 ? 10 : 12,
+      }}
+      title={name || 'Unknown'}
+      aria-label={`Avatar for ${name || 'Unknown'}`}
+      data-testid="msg-avatar"
+    >
+      {initials(name)}
+    </div>
+  );
+}
+
 // ─────────────────── Compose new thread modal ───────────────────
 
 function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreated }) {
@@ -216,29 +271,20 @@ function NewThreadModal({ open, onClose, headers, isManager, staffList, onCreate
 
 // ─────────────────── Conversation pane ───────────────────
 
-function MessageRow({ msg, mine, isManager, showAuthor, onEdit, onDelete }) {
+function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelete }) {
   const deleted = !!msg.deleted_at;
   const align = mine ? 'items-end' : 'items-start';
   const tint = msg.urgent
     ? 'rgba(239,68,68,0.15)'
     : mine ? 'var(--color-brand-cyan)' : 'var(--theme-surface-hover, rgba(255,255,255,0.04))';
   const txtColour = (msg.urgent || mine) ? '#001219' : 'var(--theme-text)';
-  return (
-    <div className={`flex flex-col ${align} gap-0.5 group`} data-testid={`msg-${msg.id}`}>
-      {/* Iter 220bb — Author name above non-mine bubbles in group /
-          channel / broadcast threads, so the handover diary reads
-          like an iMessage group chat ("Sarah Johnson") instead of
-          anonymous floating bubbles. */}
-      {showAuthor && !mine && msg.author_name && (
-        <span
-          className="text-[10px] font-bold px-2"
-          style={{ color: 'var(--color-brand-cyan)' }}
-          data-testid={`msg-author-${msg.id}`}
-        >
-          {msg.author_name}
-        </span>
-      )}
-      <div className="flex items-end gap-1.5">
+
+  // Iter 220bb — Bubble + meta (timestamp, edited tag, row actions). The
+  // chunk is shared between the avatar-with-name path and the
+  // continuation path so consecutive bubbles from the same author align.
+  const bubble = (
+    <div className={`flex flex-col ${align} gap-0.5 min-w-0`}>
+      <div className={`flex items-end gap-1.5 ${mine ? 'flex-row-reverse' : ''}`}>
         {msg.urgent && !deleted && (
           <span className="inline-flex items-center gap-0.5 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
             <AlertTriangle size={9} /> Urgent
@@ -249,7 +295,7 @@ function MessageRow({ msg, mine, isManager, showAuthor, onEdit, onDelete }) {
             <Pin size={9} /> Pinned
           </span>
         )}
-        <div className="rounded-lg px-3 py-2 text-sm max-w-[75ch] whitespace-pre-wrap break-words" style={{
+        <div className="rounded-2xl px-3 py-2 text-sm max-w-[75ch] whitespace-pre-wrap break-words" style={{
           background: deleted ? 'transparent' : tint,
           color: deleted ? 'var(--theme-text-muted)' : txtColour,
           border: deleted ? '1px dashed var(--theme-border)' : 'none',
@@ -258,7 +304,7 @@ function MessageRow({ msg, mine, isManager, showAuthor, onEdit, onDelete }) {
           {deleted ? 'Message deleted' : msg.body}
         </div>
       </div>
-      <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
+      <div className={`flex items-center gap-1 text-[10px] ${mine ? 'justify-end' : 'justify-start'}`} style={{ color: 'var(--theme-text-muted)' }}>
         <span title={timeTooltip(msg.sent_at)}>{timeShort(msg.sent_at)}</span>
         {msg.edited_at && <span>· edited</span>}
         {!deleted && mine && (
@@ -272,6 +318,46 @@ function MessageRow({ msg, mine, isManager, showAuthor, onEdit, onDelete }) {
             <Button variant="ghostDestructive" size="iconSm" onClick={() => onDelete(msg)} icon={Trash2} title="Delete message" data-testid={`msg-delete-${msg.id}`} />
           </RowActions>
         )}
+      </div>
+    </div>
+  );
+
+  // Iter 220bb — Avatar column on the left for group/channel/broadcast
+  // threads. Hidden when:
+  //   • Message is mine (right-aligned, no own avatar — iMessage style).
+  //   • Thread is a DM (other party is implicit from the header).
+  //   • Previous message was from the same author within the same day
+  //     (continuation; alignment is preserved with a 28px gutter).
+  if (mine) {
+    return (
+      <div className="flex justify-end" data-testid={`msg-${msg.id}`}>
+        {bubble}
+      </div>
+    );
+  }
+
+  const authorKey = msg.author_staff_id || msg.author_id || msg.author_email;
+  return (
+    <div className="flex items-start gap-2" data-testid={`msg-${msg.id}`}>
+      {isGroup ? (
+        showAuthor ? (
+          <Avatar name={msg.author_name} authorKey={authorKey} />
+        ) : (
+          // 28px gutter so continuation bubbles align under the avatar.
+          <div style={{ width: 28 }} aria-hidden="true" />
+        )
+      ) : null}
+      <div className="flex flex-col items-start gap-0.5 min-w-0">
+        {isGroup && showAuthor && msg.author_name && (
+          <span
+            className="text-[11px] font-bold px-1"
+            style={{ color: 'var(--theme-text)' }}
+            data-testid={`msg-author-${msg.id}`}
+          >
+            {msg.author_name}
+          </span>
+        )}
+        {bubble}
       </div>
     </div>
   );
@@ -359,12 +445,14 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
         ) : (() => {
           // Iter 220bb — Inject day separators between messages on
           // different calendar days so the handover diary reads like an
-          // iMessage group chat. Author names sit on each non-mine
-          // bubble for group / channel / broadcast threads (DMs already
-          // know who the other party is from the thread header).
-          const showAuthor = thread.kind !== 'dm';
+          // iMessage group chat. Author names + avatar chips sit on
+          // each non-mine bubble's FIRST appearance in a run (DMs
+          // already know who the other party is from the thread header,
+          // so we skip the avatar there entirely).
+          const isGroup = thread.kind !== 'dm';
           const out = [];
           let prevDay = null;
+          let prevAuthorKey = null;
           for (const m of messages) {
             const day = (m.sent_at || '').slice(0, 10);
             if (day && day !== prevDay) {
@@ -383,18 +471,24 @@ function Conversation({ thread, headers, isManager, myStaffId, onUpdate }) {
                 </div>,
               );
               prevDay = day;
+              prevAuthorKey = null;  // new day → always show avatar again
             }
+            const mine = m.author_staff_id === myStaffId || m.author_id === myStaffId;
+            const authorKey = m.author_staff_id || m.author_id || m.author_email;
+            const showAuthor = isGroup && !mine && authorKey !== prevAuthorKey;
             out.push(
               <MessageRow
                 key={m.id}
                 msg={m}
-                mine={m.author_staff_id === myStaffId || m.author_id === myStaffId}
+                mine={mine}
                 isManager={isManager}
+                isGroup={isGroup}
                 showAuthor={showAuthor}
                 onEdit={startEdit}
                 onDelete={remove}
               />,
             );
+            prevAuthorKey = authorKey;
           }
           return out;
         })()}

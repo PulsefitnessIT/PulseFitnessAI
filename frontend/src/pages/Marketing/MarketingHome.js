@@ -1,11 +1,21 @@
 /**
  * GymAxis homepage — hero with AXIS orbit, platform overview, module
  * preview grid, social proof, final CTA. Iter 215an.
+ *
+ * Iter 220bc — 6 modules → 4 (Operations, CRM, Memberships, Marketing).
+ * Staffing + Reporting fold into Operations / CRM as sub-features per
+ * the user's mind-map sketch. Each module now exposes a `features`
+ * array which renders as a constellation on hover (orbit) and as a
+ * pill grid (module card).
  */
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, Wrench, Users, Calendar, Megaphone, UserCog, BarChart3,
+  ArrowRight, Wrench, Users, Calendar, Megaphone,
   ClipboardCheck, Sparkles, Zap, CheckCircle2, HardHat, Star,
+  Wallet, AlertTriangle, ListChecks, UserCog,
+  Building2, GitBranch, LineChart,
+  CalendarClock, Receipt, Smartphone, BookOpen,
+  Image as ImageIcon, MailPlus, Heart,
 } from 'lucide-react';
 
 import './marketing.css';
@@ -15,13 +25,72 @@ import LiveCustomerAppPreview from './LiveCustomerAppPreview';
 import { openTrial } from './TrialSignupModal';
 import { useSeo } from '@/utils/seo';
 
-const MODULES = [
-  { id: 'service',     icon: Wrench,    color: '#06B6D4', to: '/platform/service',     name: 'Operations',  tagline: 'Stop equipment downtime.', body: 'Asset register, AI fault triage, supplier auto-routing, scheduled risk assessments, warranty tracking and full lifecycle cost — every machine on the floor accounted for.' },
-  { id: 'crm',         icon: Users,     color: '#6366F1', to: '/platform/crm',         name: 'CRM',         tagline: 'Turn leads into members.', body: 'Pipeline view, AI lead scoring + reply assistant, churn early-warning, revenue forecasting and a unified contact timeline.' },
-  { id: 'memberships', icon: Calendar,  color: '#8B5CF6', to: '/platform/memberships', name: 'Memberships', tagline: 'Classes, plans, walk-ins.', body: 'Six selling models (recurring, fixed-term, class packs, courses, PAYG, bundles), family Auto-Bill with sibling discounts, embeddable booking widgets, and Studio Mode for solo operators.' },
-  { id: 'marketing',   icon: Megaphone, color: '#D946EF', to: '/platform/marketing',   name: 'Marketing',   tagline: 'Campaigns that convert.',   body: 'AI-written email + SMS sequences, win-back, referral campaigns, Instagram-ready class previews, and a Marketing Director that grades every send.' },
-  { id: 'staffing',    icon: UserCog,   color: '#A855F7', to: '/platform/staffing',    name: 'Staffing',    tagline: 'Run the gym floor.',        body: 'Rota + swap marketplace, time-off, mobile clock-in, live floor view, instructor performance KPIs and a one-click payroll export.' },
-  { id: 'reporting',   icon: BarChart3, color: '#2563EB', to: '/platform/reporting',   name: 'Reporting',   tagline: 'See the whole business.',   body: 'Cohort retention, LTV, capex pipeline, wage ratio, NPS, lead-source ROI and a tamper-evident audit log built for SOC 2 evidence.' },
+// Iter 220bc — Canonical 4-module structure. Each module carries the
+// feature constellation surfaced by the hero orbit on hover AND the
+// module-grid card body below. Single source of truth so the hover
+// hint and the deep-dive card never drift.
+export const MODULES = [
+  {
+    id: 'service',
+    icon: Wrench,
+    color: '#06B6D4',
+    to: '/platform/service',
+    name: 'Operations',
+    tagline: 'Stop equipment downtime.',
+    body: 'Asset register, AI fault triage, supplier auto-routing, capex tracking, and the rota + payroll engine that runs your gym floor.',
+    features: [
+      { icon: AlertTriangle, label: 'Fault Logging' },
+      { icon: ListChecks,    label: 'Check Sheets' },
+      { icon: Wallet,        label: 'CAPEX' },
+      { icon: UserCog,       label: 'Staffing' },
+      { icon: LineChart,     label: 'Reporting' },
+    ],
+  },
+  {
+    id: 'crm',
+    icon: Users,
+    color: '#6366F1',
+    to: '/platform/crm',
+    name: 'CRM',
+    tagline: 'Turn leads into members.',
+    body: 'Pipeline view, AI lead scoring + reply assistant, churn early-warning, revenue forecasting and a unified contact timeline.',
+    features: [
+      { icon: Building2,  label: 'Companies' },
+      { icon: GitBranch,  label: 'Pipeline' },
+      { icon: LineChart,  label: 'Forecast' },
+      { icon: Users,      label: 'Contacts' },
+    ],
+  },
+  {
+    id: 'memberships',
+    icon: Calendar,
+    color: '#8B5CF6',
+    to: '/platform/memberships',
+    name: 'Memberships',
+    tagline: 'Classes, plans, walk-ins.',
+    body: 'Six selling models, embeddable booking widgets, branded member app and the timetable + invoicing engine for any studio shape.',
+    features: [
+      { icon: CalendarClock, label: 'Timetable' },
+      { icon: Receipt,       label: 'Invoicing' },
+      { icon: Smartphone,    label: 'Custom App' },
+      { icon: BookOpen,      label: 'Bookings' },
+    ],
+  },
+  {
+    id: 'marketing',
+    icon: Megaphone,
+    color: '#D946EF',
+    to: '/platform/marketing',
+    name: 'Marketing',
+    tagline: 'Campaigns that convert.',
+    body: 'AI-written email + SMS sequences, win-back, referral campaigns, an in-app Poster Maker and a Marketing Director that grades every send.',
+    features: [
+      { icon: MailPlus,  label: 'Campaigns' },
+      { icon: ImageIcon, label: 'Poster Maker' },
+      { icon: Heart,     label: 'Member Jam' },
+      { icon: Megaphone, label: 'Social' },
+    ],
+  },
 ];
 
 export default function MarketingHome() {
@@ -50,7 +119,7 @@ function Hero() {
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800" data-testid="gx-hero-eyebrow">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }} />
-            One platform · Six modules
+            One platform · Four modules
           </span>
           <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.04]" data-testid="gx-hero-headline">
             Smarter Fitness.<br />
@@ -87,7 +156,7 @@ function PlatformOverview() {
         <div className="lg:col-span-5">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Why GymAxis</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">One platform.<br /><span className="gx-gradient-text">Everything connected.</span></h2>
-          <p className="mt-5 text-lg text-slate-600 leading-relaxed">Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. GymAxis is one system, six modules, zero handoff bugs.</p>
+          <p className="mt-5 text-lg text-slate-600 leading-relaxed">Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. GymAxis is one system, four modules, zero handoff bugs.</p>
         </div>
         <div className="lg:col-span-7 grid sm:grid-cols-2 gap-4">
           <OverviewCard icon={<Sparkles size={18} />} title="AI built in everywhere" body="Lead scoring in CRM, churn prediction in Memberships, copywriter in Marketing, fault triage in Operations." />
@@ -117,10 +186,10 @@ function ModuleGrid() {
     <section className="py-24 md:py-32 bg-slate-50/60" data-testid="gx-module-grid">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">The six modules</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">The four modules</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">Built for every part of your business</h2>
         </div>
-        <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="mt-12 grid md:grid-cols-2 gap-5" data-testid="gx-module-grid-list">
           {MODULES.map((m) => <ModuleCard key={m.id} m={m} />)}
         </div>
       </div>
@@ -138,6 +207,24 @@ function ModuleCard({ m }) {
       <h3 className="mt-5 text-xl font-bold tracking-tight">{m.name}</h3>
       <p className="mt-1 text-sm font-semibold" style={{ color: m.color }}>{m.tagline}</p>
       <p className="mt-3 text-sm text-slate-600 leading-relaxed">{m.body}</p>
+      {/* Iter 220bc — Feature pills mirror the orbit's on-hover constellation
+          so the messaging is consistent between the hero and the deep-dive
+          card. */}
+      <div className="mt-5 flex flex-wrap gap-1.5" data-testid={`gx-module-${m.id}-features`}>
+        {m.features.map((f) => {
+          const FIcon = f.icon;
+          return (
+            <span
+              key={f.label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:border-zinc-800 dark:text-zinc-200"
+              style={{ background: `${m.color}0d` }}
+            >
+              <FIcon size={11} style={{ color: m.color }} />
+              {f.label}
+            </span>
+          );
+        })}
+      </div>
       <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold" style={{ color: m.color }}>
         Learn more <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
       </span>
@@ -184,7 +271,7 @@ function SocialProof() {
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">What the platform delivers on day one</h2>
         </div>
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <Stat value="6 modules" label="Operations · CRM · Memberships · Marketing · Staffing · Reporting" />
+          <Stat value="4 modules" label="Operations · CRM · Memberships · Marketing" />
           <Stat value="AI-first" label="Lead scoring, churn prediction, copywriter, fault triage — all built in" />
           <Stat value="Multi-site" label="Head-office onboarding wizard handles unlimited child sites in one pass" />
           <Stat value="GDPR-ready" label="UK GDPR DPA, UK-only data residency, tamper-evident audit log" />
@@ -281,7 +368,7 @@ function FinalCta() {
           <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,.6), transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,.4), transparent 50%)' }} />
           <div className="relative">
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-[1.04]">Run your entire fitness business<br />from one platform</h2>
-            <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">3-day free trial — all six modules unlocked. No credit card. We're always reachable, but you don't need to wait for us.</p>
+            <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">3-day free trial — all four modules unlocked. No credit card. We're always reachable, but you don't need to wait for us.</p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100" data-testid="gx-final-trial">
                 Start Free Trial <ArrowRight size={15} />

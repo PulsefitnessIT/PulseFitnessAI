@@ -1,3 +1,92 @@
+## Iter 220bc — Homepage modules consolidation (6 → 4) ✅
+
+The hero orbit and module grid claimed six modules (Operations, CRM,
+Memberships, Marketing, **Staffing, Reporting**) — but Staffing +
+Reporting are really sub-features of Operations / CRM, not standalone
+sell-able modules. The user's hand-drawn mind-map asked for **4
+modules with hover-expanding feature constellations**.
+
+### What changed
+
+**`MarketingHome.js`** —
+
+* New exported `MODULES` single-source-of-truth list with 4 entries,
+  each carrying a `features: [{ icon, label }]` array that mirrors the
+  user's sketch:
+  * **Operations** → Fault Logging, Check Sheets, CAPEX, Staffing,
+    Reporting
+  * **CRM** → Companies, Pipeline, Forecast, Contacts
+  * **Memberships** → Timetable, Invoicing, Custom App, Bookings
+  * **Marketing** → Campaigns, Poster Maker, Member Jam, Social
+* `ModuleCard` now renders feature pills (icon + label) under the
+  body copy so the deep-dive grid mirrors what the orbit shows on
+  hover.
+* Hero badge: "One platform · Six modules" → "**One platform · Four
+  modules**". Stat tile updated, CTA copy updated.
+
+**`AxisOrbit.js`** —
+
+* Reduced to 4 nodes at the cardinal compass points (12, 3, 6, 9
+  o'clock) so each module gets equal visual weight.
+* React `activeId` state — hovering any node:
+  * Lifts that node (`translateY(-4px) scale(1.05)`) and accents the
+    border + glow with the module's brand colour.
+  * Dims the other 3 nodes to 35% opacity.
+  * Pauses the orbit + counter-spin (CSS rule).
+  * Fans the module's sub-features out in a 150° arc as small
+    icon+label pills (the `FeatureConstellation` component) with a
+    staggered 60 ms pop-in animation.
+* Each pill links back to the module deep-dive page (Operations →
+  `/platform/service`, etc.) — clickable, keyboard-focusable.
+
+**`MarketingShell.js` nav** —
+
+* Dropped `/platform/staffing` and `/platform/reporting` from the top
+  nav. The deep-dive pages still exist and are reachable via the
+  Operations / CRM module pages, so SEO + deep-linking are
+  preserved.
+
+**`marketing.css`** —
+
+* New `@keyframes gx-orbit-feature-pop` (scale + fade + slight Y-pop).
+* `.gx-orbit-ring:hover .gx-orbit-counter` now pauses the counter-spin
+  alongside the ring so the constellation stays readable.
+* `.gx-orbit-node-active` accent style added.
+
+### Tests
+
+* **7 new regression-lock tests** in
+  `tests/test_iter_220bc_homepage_modules_consolidation.py`:
+  - `MODULES` export has exactly 4 entries; Staffing/Reporting are
+    not top-level.
+  - Each module carries the user's required feature set.
+  - AxisOrbit renders 4 nodes + a `FeatureConstellation` component
+    + uses `useState` for hover state.
+  - Non-hovered nodes dim (`dimmed` flag + `activeId !== null &&
+    !isActive` guard).
+  - MarketingShell `NAV` no longer mentions Staffing / Reporting.
+  - Homepage copy says "Four modules" / "four modules" everywhere
+    (legacy "Six" copy gone).
+  - CSS pauses the counter-spin on hover + carries the pop-in
+    keyframes.
+* All 7 green. Added to Makefile regression block with TAB.
+
+### Verification
+
+* Live screenshot proves hover-driven constellation:
+  Operations hover → 5 cyan pills (Fault Logging, Check Sheets,
+  CAPEX, Staffing, Reporting) fan out; other 3 nodes dimmed; orbit
+  paused.
+  CRM hover → 4 indigo pills (Companies, Pipeline, Forecast,
+  Contacts) fan out.
+* ESLint clean. Ruff clean.
+* Full `make regression` → **1290 passed, 15 skipped, 0 failures**
+  (182 s).
+
+---
+
+
+
 ## Iter 220ba — Pre-Pen-Test "Full Set" Polish (May 28, 2026) ✅
 
 Finishes the non-security platform-credibility loop started after the
