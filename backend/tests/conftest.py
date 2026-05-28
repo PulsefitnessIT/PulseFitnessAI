@@ -24,6 +24,23 @@ import pytest
 import requests
 
 
+# ── Iter 220ay+ · F-17 / F-22 / F-24 — prod gates off for tests ──
+# The Emergent native deploy reads env vars from /app/backend/.env.
+# That same file is loaded by every pytest run, which would otherwise
+# force every single test to pre-arrange MFA / known-recipient context.
+#
+# We force these flags to "false" at conftest-load time (before any
+# test module imports the backend code that reads them) so the
+# regression suite stays green while the SAME flags remain ON in the
+# deployed pod. Production behaviour is unchanged.
+for _prod_flag in (
+    "ENFORCE_MASTER_ADMIN_MFA",            # F-17 · utils/auth_guards.py
+    "ENFORCE_EMAIL_RECIPIENT_VALIDATION",  # F-22 · utils/web_security.py
+    "STRICT_AV_MODE",                      # F-24 · utils/malware_scan.py
+):
+    os.environ[_prod_flag] = "false"
+
+
 def drive_async(coro):
     """Run *coro* to completion on a usable event loop.
 
