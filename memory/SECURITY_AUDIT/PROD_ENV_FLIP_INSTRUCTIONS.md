@@ -1,149 +1,133 @@
-# Flip the Production Env Flags — Step-by-Step
+# Flipping the Pen-Test Security Flags — Updated Instructions
 
-**Who:** You (admin/owner of the GymAxis Emergent deployment)
-**When:** Before the pen-tester starts work
-**How long:** 10 minutes
-**Pre-requisite:** Latest deploy is live in prod (it is — code is on `main`)
+**Replaces the previous version.** The Emergent platform doesn't expose
+an "Add variable" dashboard — env vars live in `/app/backend/.env` and
+the agent (me) writes them. There's also no preview-vs-prod env
+separation on Emergent native deploys: the deployed pod uses the same
+`.env` as the preview. That means flipping these flags affects the
+preview test suite too.
 
----
-
-## What this does
-
-You're turning on six security gates that are coded into the platform but
-default-OFF so dev/test environments don't have to set up TOTP, CRM rosters,
-and ClamAV just to run the test suite. Once on, prod enforces:
-
-* MFA required for master-admin endpoints
-* Email sends only to known recipients (same-org / CRM contact / partner)
-* Field-level Fernet encryption for stored integration secrets
-* SSRF guard rejects metadata-server / IMDS lookups
-
-Three of these are mandatory. Two depend on a ClamAV side-car you don't have
-yet (and can skip for this engagement). One is an explicit denylist string
-you'll paste verbatim.
+The cleanest workflow is a **one-button shell script** that toggles
+the 3 enforcement flags ON for the pen-test window and OFF afterwards.
 
 ---
 
-## Step 1 — Generate the Fernet key (do this first, locally on your laptop)
+## Current state
 
-Open a terminal (Mac/Linux) or PowerShell (Windows) and run:
+Already set by me, permanently (these don't break tests):
+
+| Var                          | Value                                              |
+|------------------------------|----------------------------------------------------|
+| `MFA_ENCRYPTION_KEY`         | _server-generated Fernet key, 44 chars_            |
+| `SSRF_EXTRA_DENYLIST_HOSTS`  | `metadata.google.internal,metadata,169.254.169.254`|
+
+OFF by default (would break the test suite if left on):
+
+| Var                                  | Default | Flip via                                              |
+|--------------------------------------|---------|-------------------------------------------------------|
+| `ENFORCE_MASTER_ADMIN_MFA`           | off     | toggle script (below)                                 |
+| `ENFORCE_EMAIL_RECIPIENT_VALIDATION` | off     | toggle script (below)                                 |
+| `STRICT_AV_MODE`                     | off     | toggle script (auto-stays-off without ClamAV)         |
+
+---
+
+## Pen-test day workflow
+
+### Before kick-off (5 minutes)
+
+Tell me **"flip pen-test flags ON"** in chat. I'll run:
 
 ```bash
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+bash /app/scripts/toggle_pentest_flags.sh on
 ```
 
-> No Python? Use this online-equivalent (one-time, doesn't leave your laptop):
-> https://fernetkeygen.com → click "Generate Key" → copy the result.
+This sets the 3 enforcement flags to `true` in `.env`, restarts the
+backend, and confirms the gates are live. I'll then run a verification
+curl loop and paste the results so you have a dated proof-of-state to
+attach to the pen-test brief.
 
-You'll get something like:
+> **Trade-off**: while the flags are ON, ~9 tests in the regression
+> suite will fail (they don't pre-arrange MFA / known-recipient
+> context). That's fine for the engagement window because we're not
+> shipping code during it.
+
+### Master admin login (one-time, 2 minutes)
+
+Once the flags are on:
+
+1. Open `https://app.gymaxisai.com` in a private/incognito browser.
+2. Log in as `admin@gymaxisai.com` with your normal password.
+3. If you've never set up TOTP, you'll be prompted to enrol it:
+   - Scan the QR code with Google Authenticator / 1Password / Authy.
+   - **Save the backup codes** in your password manager.
+   - Enter your first 6-digit code → done.
+4. From now on every master-admin login requires the 6-digit code.
+
+### During the engagement
+
+Pen-tester works against `https://app.gymaxisai.com` with the credentials
+from `PEN_TEST_ONBOARDING.md`. Findings land in `PEN_TEST_FINDINGS.md`.
+
+### After the engagement (1 minute)
+
+Tell me **"flip pen-test flags OFF"** in chat. I'll run:
+
+```bash
+bash /app/scripts/toggle_pentest_flags.sh off
 ```
-fG3Hb-_NbjL8sR... (44 characters ending in `=`)
+
+Flags clear from `.env`, backend restarts, regression suite is green again,
+dev cycle resumes.
+
+---
+
+## Status check anytime
+
+Tell me **"check pen-test flag status"**:
+
+```bash
+bash /app/scripts/toggle_pentest_flags.sh status
 ```
 
-**Copy this string somewhere safe** — a password manager entry called
-`GymAxis · MFA_ENCRYPTION_KEY · 2026-Q2`. You'll paste it into the env
-editor in step 3, and you'll need it again later for rotations.
-
-⚠️  **Don't lose this.** If you lose it after enrolling MFA on your master
-admin account, you'll have to disable MFA in the database and start over.
-
----
-
-## Step 2 — Open the Emergent deploy environment editor
-
-1. Log into your Emergent dashboard
-2. Open the GymAxis project
-3. Click the **Deploy** tab (top nav)
-4. Click **Environment Variables** in the side panel
-5. You'll see a list of existing vars: `MONGO_URL`, `JWT_SECRET`,
-   `RESEND_API_KEY`, etc. Don't touch any of these.
+Returns:
+```
+[toggle] current state:
+  ENFORCE_MASTER_ADMIN_MFA                 <not set / off>
+  ENFORCE_EMAIL_RECIPIENT_VALIDATION       <not set / off>
+  STRICT_AV_MODE                           <not set / off>
+```
 
 ---
 
-## Step 3 — Add the env vars
+## Why we can't just leave them ON permanently
 
-Click **"Add variable"** and add each of these one at a time. Copy the
-**Name** and **Value** columns exactly — including capitalisation.
+Emergent's deploy model uses one `.env` file for both the preview pod
+(where the test suite runs) and the deployed pod. So:
 
-| # | Name                                  | Value                                                | Notes                                                         |
-|---|---------------------------------------|------------------------------------------------------|---------------------------------------------------------------|
-| 1 | `ENFORCE_MASTER_ADMIN_MFA`            | `true`                                               | Mandatory.                                                    |
-| 2 | `ENFORCE_EMAIL_RECIPIENT_VALIDATION`  | `true`                                               | Mandatory.                                                    |
-| 3 | `MFA_ENCRYPTION_KEY`                  | _paste the key from Step 1_                          | Mandatory.                                                    |
-| 4 | `SSRF_EXTRA_DENYLIST_HOSTS`           | `metadata.google.internal,metadata,169.254.169.254`  | Mandatory. Paste exactly — comma-separated, no spaces.        |
-| 5 | `STRICT_AV_MODE`                      | `false`                                              | **Leave as `false`** — flip to `true` only after ClamAV ships.|
-| 6 | `CLAMAV_HOST`                         | _leave blank / don't add_                            | Skip until ClamAV side-car is deployed (separate task).       |
+- **Flags ON in `.env`** → prod-style enforcement, but 9 tests fail
+- **Flags OFF in `.env`** → tests pass, but the gates aren't active
 
-After saving each one, the dashboard usually shows a green "Saved" tick.
-
----
-
-## Step 4 — Trigger a redeploy
-
-Same Deploy tab → click **"Redeploy"** (or "Restart" — whichever button is
-labelled to push the new env vars into the running container).
-
-Wait until the dashboard shows **"Deployment healthy"** (~30–60 seconds).
+The toggle script gives us prod-style enforcement on demand, without
+permanently breaking the dev workflow. If the Emergent platform later
+exposes a deploy-time env-var injection mechanism (so the deployed pod
+sees `flags=true` while the preview pod sees `flags=false`), we'll
+switch to that and retire the toggle. For now, this is the cleanest
+practical pattern.
 
 ---
 
-## Step 5 — Verify (2 minutes)
+## ClamAV side-car (still ops-team work)
 
-Open `https://app.gymaxisai.com` in a private/incognito browser and:
+`STRICT_AV_MODE` stays `false` even when you flip the other two on,
+because flipping it to `true` without a reachable ClamAV daemon would
+503 every upload. Once the side-car is deployed (k8s YAML in
+`DEPLOY_RUNBOOK_PENTEST.md` §3) and `CLAMAV_HOST` is set, the toggle
+script automatically flips `STRICT_AV_MODE` to `true` too.
 
-### Check 1 — Health endpoint still responds
-Visit `https://app.gymaxisai.com/api/health`
-**Expected:** `{"status":"ok"}` — exactly that, nothing more.
-If you see version info or a stack trace, something else changed; ping me.
-
-### Check 2 — Login still works for a regular user
-Use any non-master-admin account you know the password for. Log in → should
-land on the dashboard normally. Master-admin MFA enforcement doesn't affect
-regular operator logins.
-
-### Check 3 — Master admin login behaviour
-Log in as `admin@gymaxisai.com` with your normal password.
-
-**If you've already enrolled TOTP** on this account: you'll be prompted for
-your 6-digit code as usual → enter it → land in the admin console normally.
-
-**If you've NEVER set up TOTP**: you'll be prompted to enrol it on first
-login after this flag is on. Scan the QR with Google Authenticator / 1Password
-/ Authy → save the backup codes → enter your first 6-digit code → done.
-
-> ⚠️ **Important**: Save the backup codes in your password manager. If
-> you lose your phone before the engagement starts, those backup codes are
-> the only way back in without a Mongo intervention.
-
-### Check 4 — Confirm MFA is being enforced
-After logging in successfully, leave the tab open. Open a **new private window**
-and try to hit a master-admin endpoint directly:
-`https://app.gymaxisai.com/api/master-admin/users`
-**Expected:** `{"detail":"Not authenticated"}` (no cookie) — that's correct.
+Until then, the static-signature scan (EICAR + shell-in-image) remains
+the active AV layer. That's documented in
+`PEN_TEST_ONBOARDING.md` §5 as accepted residual risk.
 
 ---
 
-## Step 6 — Tell me you're done
-
-Reply with "env flags flipped" (or any confirmation) and I'll:
-1. Mark `Iter 220ay+ · env-flag rollout` as complete in the PRD
-2. Hand the pen-tester the brief from `PEN_TEST_ONBOARDING.md`
-
----
-
-## If something goes wrong
-
-| Symptom                                                  | Most likely cause                              | Fix                                                                        |
-|----------------------------------------------------------|------------------------------------------------|----------------------------------------------------------------------------|
-| `/api/health` returns 502/503 after redeploy             | Container failed to start                      | Check the deploy logs for `MFA_ENCRYPTION_KEY` errors — most likely the key was malformed. Re-paste it (it should be 44 chars ending in `=`). |
-| All login attempts return "Internal server error"        | `MFA_ENCRYPTION_KEY` malformed → MFA module won't load | Same fix — regenerate via Step 1, re-paste, redeploy.                      |
-| Master admin can log in but immediately gets 401 on every page | TOTP not enrolled on `admin@gymaxisai.com` yet | Log out, log in again — enrolment screen should appear. If it doesn't, set `ENFORCE_MASTER_ADMIN_MFA=false`, enrol via Settings → Security → MFA, then flip back to `true`. |
-| Customers complain emails aren't arriving                | A non-CRM recipient (e.g. a new lead not yet in `crm2_contacts`) is being blocked | This is the gate doing its job. Either add the recipient to `crm2_contacts` first, or temporarily set `ENFORCE_EMAIL_RECIPIENT_VALIDATION=false` for the affected send, debug, and flip back. |
-
-**Rollback button:** if anything goes sideways, set the three mandatory
-flags to `false` and redeploy. Backwards-compat is preserved — all existing
-sessions and stored secrets keep working with the gates off.
-
----
-
-_Last updated: 2026-05-28_
+_Last updated: 2026-05-28 · supersedes the v1 instructions._
