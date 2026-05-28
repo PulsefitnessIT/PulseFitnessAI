@@ -1,3 +1,82 @@
+## Iter 220ay — Security Wave 7: Pen-Test Handover (May 28, 2026) ✅
+
+### Deliverables
+
+* **Pen-tester onboarding brief** — `/app/memory/SECURITY_AUDIT/PEN_TEST_ONBOARDING.md`
+  Seven sections:
+  1. Scope (in/out-of-scope hosts, permitted/forbidden attack classes)
+  2. Test-tenant credentials (4 roles + master admin + seed command)
+  3. Six production env-flags to flip pre-engagement
+     (`ENFORCE_MASTER_ADMIN_MFA`, `ENFORCE_EMAIL_RECIPIENT_VALIDATION`,
+     `STRICT_AV_MODE`, `CLAMAV_HOST`, `MFA_ENCRYPTION_KEY`,
+     `SSRF_EXTRA_DENYLIST_HOSTS`)
+  4. Expected-behaviour cheat sheet (19 attack classes × what enforces it)
+  5. Known limitations + accepted risk
+  6. How to report (severity rubric, PoC format, hand-off file location)
+  7. Cumulative posture summary (W1–W6, 27 of 33 findings closed)
+
+* **Pen-test sandbox seeder** — `/app/backend/scripts/seed_pentest_tenant.py`
+  Idempotent. Hard-coded to `pentest-org-001`. Refuses to run without
+  `ALLOW_PENTEST_SEED=true`. Creates:
+  - 1 organisation (tagged `pentest_tenant: true` for cleanup)
+  - 4 users (owner, manager, staff, owner-with-MFA-enrolled)
+  - 2 CRM companies, 3 CRM contacts, 2 opportunities
+  - 5 members (one with `gdpr_erased=True` for F-12 coverage)
+
+* **`test_credentials.md` updated** with the pen-test tenant credentials
+  block + link to the onboarding brief so the testing subagent + any
+  future agent can find them.
+
+### Tests
+
+* **10 new regression-lock tests** in `tests/test_iter_220ay_pen_test_handover.py`:
+  - Onboarding doc exists, lists all 6 production flags, includes all
+    test-tenant credentials + `pentest-org-001`, lists in-scope +
+    out-of-scope sections, links the risk register + audit baseline.
+  - Seeder exists, refuses to run without env flag, pins
+    `pentest-org-001` + `pentest_tenant` tag, includes a `gdpr_erased`
+    member.
+  - `test_credentials.md` references the sandbox tenant + the
+    onboarding brief filename.
+* All 10 green. Added to Makefile regression block with TAB.
+
+### Verification
+
+* `ruff` clean on both new Python files (seeder + test).
+* Full `make regression` → **1263 passed, 15 skipped, 0 new regressions**
+  (139 s). Only failure is the chronic `test_iter_220s_incidents_riddor`
+  LLM flake.
+
+### Cumulative findings closed across W1–W7
+
+| Wave | Iter   | Findings                                    | Status |
+|------|--------|---------------------------------------------|--------|
+| W1   | 220as  | rate-limits, Stripe idempotency, list caps  | ✅     |
+| W2   | 220at  | F-11 F-12 F-13 F-14 F-16 (LLM01–10)         | ✅     |
+| W3   | 220au  | F-02 F-03 F-08 F-17 F-18 F-19 (auth)        | ✅     |
+| W4   | 220av  | F-04 F-05 F-22 (web scrubbers)              | ✅     |
+| W5   | 220aw  | F-24 F-26 F-27 (SSRF + AV + Fernet)         | ✅     |
+| W6   | 220ax  | F-20 F-23 F-25 F-28 F-29 F-31 F-32 F-33     | ✅     |
+| W7   | 220ay  | onboarding doc + sandbox tenant + tests     | ✅     |
+
+**Platform is pen-test-ready.** All 7 hardening waves landed across
+~140 new tests added to the regression suite, 0 regressions
+introduced, full ruff/eslint cleanliness preserved.
+
+### Remaining work (post-pen-test)
+
+* Roll-out of `@audit_export`, `assert_engineer_owns`, and
+  `not_found_unless_owned` to the long-tail of routes — opportunistic,
+  driven by pen-test findings.
+* Sicon / Outlook / DocuSign live integration — blocked on upstream
+  credentials.
+* Public `/security` page (sub-processors + CVD + AV/SSRF/Fernet
+  posture summary) — marketing / sales-engineering work, not
+  hardening.
+
+---
+
+
 ## Iter 220ax — Security Wave 6: Audit Hygiene + 404/403 (May 28, 2026) ✅
 
 ### Eight risk-register findings closed (or confirmed N/A)

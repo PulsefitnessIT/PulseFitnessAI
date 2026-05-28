@@ -108,7 +108,7 @@ _(none in Pass 1)_
 | W4 | 220av | F-04, F-05, F-22 | M |
 | W5 | 220aw | F-24, F-26, F-27 | M |
 | W6 | 220ax | F-20, F-23, F-25, F-28, F-29, F-31, F-32, F-33 | S |
-| W7 | 220ay | Pen-test scope doc + isolated test tenant + sample data | S |
+| W7 | 220ay | Pen-test scope doc + isolated test tenant + sample data | S — **done** |
 
 ---
 
