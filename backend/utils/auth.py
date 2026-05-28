@@ -50,15 +50,29 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 
-def create_token(user_id: str, expires_hours: int = 24) -> str:
+def create_token(
+    user_id: str,
+    expires_hours: int = 24,
+    *,
+    mfa_verified: bool = False,
+    extra_claims: Optional[dict] = None,
+) -> str:
     # P1+.11 — include jti so tokens can be revoked on logout/compromise
     from utils.security_plus import new_jti
+    now = datetime.now(timezone.utc)
     payload = {
         'user_id': user_id,
         'jti': new_jti(),
-        'exp': datetime.now(timezone.utc) + timedelta(hours=expires_hours),
-        'iat': datetime.now(timezone.utc),
+        'exp': now + timedelta(hours=expires_hours),
+        'iat': now,
+        # Iter 220au · F-17 — pin the MFA-verification state into the
+        # access token so high-privilege endpoints can decide whether
+        # the session is sufficiently authenticated without re-checking
+        # against the DB on every request.
+        'mfa_verified': bool(mfa_verified),
     }
+    if extra_claims:
+        payload.update(extra_claims)
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
@@ -103,9 +117,32 @@ async def get_current_user(
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # Iter 220au · F-19 — server-side bulk session invalidation. Any
+    # mutation that touches role / permissions / status writes a
+    # ``tokens_revoked_before`` epoch to the user doc; reject any
+    # JWT minted before that cutoff.
+    revoked_before = user.get("tokens_revoked_before")
+    iat_claim = payload.get("iat")
+    if revoked_before and iat_claim:
+        try:
+            # JWT iat may be int (epoch) or datetime depending on
+            # encoder version; coerce both into seconds-since-epoch.
+            if isinstance(iat_claim, datetime):
+                iat_epoch = int(iat_claim.timestamp())
+            else:
+                iat_epoch = int(iat_claim)
+            if iat_epoch < int(revoked_before):
+                raise HTTPException(status_code=401, detail="Session revoked by admin")
+        except (TypeError, ValueError):
+            pass
     # Stash jti on the user dict so routes can revoke the active token
     user["_jwt_jti"] = payload.get("jti")
     user["_jwt_exp"] = payload.get("exp")
+    user["_jwt_iat"] = payload.get("iat")
+    # Iter 220au · F-17 — surface the MFA-verified claim so
+    # ``require_mfa_verified`` / ``enforce_master_admin_mfa`` can
+    # short-circuit without re-reading the JWT.
+    user["_jwt_mfa_verified"] = bool(payload.get("mfa_verified"))
     # Iter 216h124 — MOD HQ users see their entire estate by default.
     # Stash the child mod_site org ids on the user dict so the
     # synchronous `get_organization_filter` can fan out queries

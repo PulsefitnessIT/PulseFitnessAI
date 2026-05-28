@@ -197,3 +197,5 @@ websockets==16.0
 xenon==0.9.3
 yarl==1.23.0
 zipp==3.23.0
+bleach==6.3.0
+webencodings==0.5.1

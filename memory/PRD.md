@@ -1,3 +1,202 @@
+## Iter 220av — Security Wave 4: Web-surface scrubbers (May 28, 2026) ✅
+
+### Three risk-register findings closed
+
+* **F-04 — Bleach allow-list on stored rich text.** New
+  `utils/web_security.sanitize_rich_text()` runs every persisted HTML
+  string through bleach with a conservative tag/attr/protocol set.
+  Strips `<script>`, `<iframe>`, `<svg>`, `<style>`, `<object>`,
+  `<embed>`, `<form>`, `<link>`, `<meta>`, every `on*=` event handler,
+  and `javascript:` / `data:` / `vbscript:` URLs. Clamped to 200 KB
+  per field so the DB can't store 1 MB of attacker markup. Wired into:
+  - `routes/crm_v2.py`: `create_activity` / `update_activity`
+    (subject + body), `create_tender` / `update_tender` (title +
+    issuer + executive_summary), `add_tender_question` /
+    `update_tender_question` (text + response + ai_draft).
+  - `routes/marketing/seo_autopilot.py`: second-pass over
+    `sanitize_llm_markdown` on title / excerpt / body_md /
+    meta_description / qa_blocks before persist.
+* **F-05 — Open-redirect on `?next=` param.**
+  `utils/web_security.is_safe_next_url()` + `safe_next_or()` reject
+  every classic bypass: protocol-relative `//evil.com`, backslash
+  tricks `/\evil.com`, embedded schemes (`javascript:`, `data:`),
+  netloc-bearing absolute URLs, control chars (`\r\n\t\0`),
+  > 512-char inputs, missing leading slash. Frontend `LoginPage.js`
+  + `LoginRedirectPage.js` tightened to the exact same rule-set so a
+  malicious deep-link can't survive the auth bounce.
+* **F-22 — Email recipient validation.** New
+  `utils/web_security.validate_email_recipient()` gates every
+  `send_email()` call (the helper accepts an optional `kind=`
+  argument identifying the transactional family). Trust ladder:
+    1. Transactional kinds (auth/system/public/supplier/engineer/
+       partner — full list in `_TRANSACTIONAL_KINDS`) → pass.
+    2. Same-org user → pass.
+    3. CRM contact in `crm2_contacts` / `crm_contacts` / `members`
+       (same-org) → pass.
+    4. Partner / supplier / engineer-customer (same-org) → pass.
+    5. Otherwise → 400 with a redacted reason.
+  Off-by-default in dev (`ENFORCE_EMAIL_RECIPIENT_VALIDATION=false`)
+  so the existing ~1200-test regression doesn't have to set up CRM
+  rosters for every send_email call site. Flip on in production.
+
+### New module
+
+* `/app/backend/utils/web_security.py` — single home for all three
+  helpers. Bleach installed via `pip` (now pinned in
+  `requirements.txt` as `bleach==6.3.0` + `webencodings==0.5.1`).
+
+### Modified files
+
+* `routes/crm_v2.py` — 6 endpoints scrubbed.
+* `routes/marketing/seo_autopilot.py` — second-pass bleach over LLM output.
+* `utils/email.py` — `send_email()` now accepts a `kind=` arg and
+  routes through `validate_email_recipient` (no-op when env flag off).
+* `frontend/src/pages/LoginPage.js` + `LoginRedirectPage.js` —
+  tightened `?next=` guard.
+
+### Tests
+
+* **23 new unit tests** in `tests/test_iter_220av_web_security.py`:
+  - bleach strips script / iframe / svg / style / object / embed / form / link / meta
+  - bleach strips `on*=` handlers + `javascript:` URLs
+  - bleach preserves safe HTML (`<p><strong><ul><li>`)
+  - bleach clamps to `max_chars`, handles None / empty
+  - `sanitize_rich_text_dict` mutates in place, skips missing/None fields
+  - `is_safe_next_url` accepts relative paths, rejects protocol-relative,
+    backslash, schemes, control chars, oversize, garbage
+  - `safe_next_or` falls back when input unsafe
+  - `validate_email_recipient` off by default; allows transactional
+    kinds; rejects ad-hoc-without-org, bad email format, unknown
+    addresses; allows same-org user + CRM contact
+  - End-to-end smoke: CRM `create_activity` body containing `<script>` +
+    `<iframe>` is stripped on persist; safe `<p>` survives.
+* All 23 green; added to Makefile regression block with TAB.
+
+### Verification
+
+* `ruff` + ESLint clean across every touched file (web_security, email,
+  crm_v2, seo_autopilot, LoginPage.js, LoginRedirectPage.js, test).
+* Full `make regression` → **1208 passed, 15 skipped, 0 new regressions**
+  (172 s). The 2 failures in that run are both pre-existing flakes
+  (`test_iter_220s_incidents_riddor` and `test_iter_220k_release_gates`)
+  — both pass on isolated rerun.
+
+### Risk register update (W4 row block)
+
+| F-ID | Status |
+|---|---|
+| F-04 (H) | **done** (Iter 220av) |
+| F-05 (L) | **done** (Iter 220av) |
+| F-22 (M) | **done** (Iter 220av) |
+
+W4 complete. **Pen-test posture: 4 waves down (W1 + W2 + W3 + W4), 3 to go
+(W5 SSRF / AV / Fernet, W6 audit hygiene + 404/403, W7 pen-test
+handover doc).**
+
+---
+
+
+## Iter 220au — Security Wave 3: Auth Hardening (May 28, 2026) ✅
+
+### Six risk-register findings closed in one wave
+
+* **F-02 — Password-reset TTL** — tightened 1 h → 15 min via env-tunable
+  `auth_guards.PASSWORD_RESET_TTL_MINUTES`. One-shot + sibling-archive
+  logic was already in place; just shortened the window.
+* **F-03 — JWT TTL / refresh** — role-tiered access-token TTL:
+  master_admin + pulse_master_admin = 1 h; everyone else = 24 h
+  (`auth_guards.access_token_ttl_hours()`). `/auth/refresh` preserves
+  the `mfa_verified` claim and applies the same role-tier TTL on
+  rotation. No global logout — existing 24h sessions ride out their
+  current expiry then get the role-tier on next login.
+* **F-08 — PII strip on `/auth/me`** — new `sanitize_me_response()`
+  allow-list strips password / password_hash / mfa_secret / mfa_backup_codes /
+  stripe_customer_id / stripe_subscription_id / reset_token /
+  tokens_revoked_before / internal `_jwt_*` flags. The existing `/auth/me`
+  endpoint already explicitly cherry-picks fields; this helper is the
+  belt-and-braces for any future route that returns a raw user doc.
+* **F-17 — MFA enforcement for master_admin** — JWT now carries an
+  `mfa_verified` claim (set True after a successful TOTP challenge or
+  enrolment-complete). `require_master_admin` / `require_gymaxis_master_only`
+  call `enforce_master_admin_mfa()`. Off-by-default in dev
+  (`ENFORCE_MASTER_ADMIN_MFA=false`); flip on in prod to gate every
+  master-admin route on MFA.
+* **F-18 — Server-side role gates** — new `utils/auth_guards.require_role(*roles)`
+  FastAPI dependency factory + `assert_role(user, roles)` inline helper.
+  Master / Pulse admins always pass. Roll-out is opportunistic — any
+  destructive route currently relying on frontend gating can drop the
+  dep in without breaking compatibility.
+* **F-19 — Session invalidation on RBAC change** — new
+  `revoke_user_sessions(user_id)` stamps `users.tokens_revoked_before`
+  to "now"; `get_current_user` 401s any JWT with `iat < tokens_revoked_before`.
+  Wired into `admin_edit_user` (when role / is_master_admin /
+  allowed_site_ids / module_overrides / permissions / disabled /
+  archived changes), `disable_user`, `archive_user`.
+
+### New module
+
+* `/app/backend/utils/auth_guards.py` — single home for all six
+  helpers + constants. No FastAPI app-level changes required —
+  existing routes import via `from utils.auth_guards import …`.
+
+### Modified files
+
+* `utils/auth.py` — `create_token` accepts `mfa_verified` + `extra_claims`;
+  `get_current_user` checks `iat < tokens_revoked_before` and stashes
+  `_jwt_mfa_verified` on the user dict.
+* `routes/auth.py` — `_finalise_successful_login` (mfa_verified flag +
+  role-tier TTL), `/auth/refresh` (preserves mfa claim + role-tier TTL),
+  `/auth/mfa/verify` (mfa_verified=True on success), `forgot-password`
+  (15-min TTL).
+* `routes/master_admin.py` — `require_master_admin` /
+  `require_gymaxis_master_only` call `enforce_master_admin_mfa`.
+* `routes/master_admin_users.py` — `admin_edit_user`, `disable_user`,
+  `archive_user` call `revoke_user_sessions` when authorisation-relevant
+  fields change.
+
+### Tests
+
+* **24 new pure-unit tests** in `tests/test_iter_220au_auth_hardening.py`:
+  - password-reset TTL default + env override
+  - role-tier access-token TTL (dict / string / case-insensitive / None)
+  - `create_token` records `mfa_verified` claim
+  - `sanitize_me_response` strips every PII field, idempotent, None-safe
+  - `enforce_master_admin_mfa` off-by-default, blocks/passes with env on, no-op for non-admins
+  - `assert_role` allows master_admin / matching role, rejects others
+  - `require_role` returns a callable FastAPI dep that defers to user
+  - `revoke_user_sessions` stamps users + crm_users, no-ops on empty id, swallows DB errors
+  - End-to-end smoke: `get_current_user` rejects pre-revoke iat, accepts post-revoke iat
+
+* All 24 green. Added to Makefile regression block with TAB.
+
+### Verification
+
+* `ruff` clean across every touched file (auth_guards, auth, routes/auth,
+  master_admin, master_admin_users, test file).
+* Full `make regression` → **1187 passed, 15 skipped, 0 failures, 0 errors**
+  (160s).
+* No global logout — backwards-compat preserved. Existing 24h sessions
+  continue to work until expiry; new logins get role-tier TTL + mfa_verified
+  claim.
+
+### Risk register update (W3 row block)
+
+| F-ID | Status |
+|---|---|
+| F-02 (M) | **done** (Iter 220au) |
+| F-03 (M) | **done** (Iter 220au) |
+| F-08 (M) | **done** (Iter 220au) |
+| F-17 (H) | **done** (Iter 220au) |
+| F-18 (M) | **done** (Iter 220au) |
+| F-19 (M) | **done** (Iter 220au) |
+
+W3 complete. **Pen-test posture: 3 waves down (W1 + W2 + W3), 4 to go
+(W4 stored-XSS / open-redirect / email recipient, W5 SSRF / AV / Fernet,
+W6 audit hygiene + 404/403, W7 pen-test handover doc).**
+
+---
+
+
 ## Iter 220at — Security Wave 2: AI Prompt-Injection Guardrails (May 28, 2026) ✅
 
 ### Five OWASP-for-LLM findings closed in one wave

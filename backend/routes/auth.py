@@ -169,8 +169,14 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
             logger.warning(f"trial signup notification dispatch failed: {e}")
 
     org = await db.organizations.find_one({"id": organization_id}, {"_id": 0})
-    token = create_token(user_id)
-    set_auth_cookie(response, token)
+    # Iter 220au · F-03 — role-tiered TTL even for self-registered
+    # users. Brand-new accounts are never master admins so this is
+    # effectively the 24h default, but keeping the helper aligned
+    # avoids drift between login and register paths.
+    from utils.auth_guards import access_token_ttl_hours
+    _ttl_hours = access_token_ttl_hours({"role": "owner"})
+    token = create_token(user_id, expires_hours=_ttl_hours, mfa_verified=False)
+    set_auth_cookie(response, token, max_age_hours=_ttl_hours)
 
     # Iter 216h75 — Partner Engineer Network referral attribution. The
     # ref_code is bound write-once to the new org so the next cleared
@@ -374,13 +380,19 @@ async def _maybe_issue_mfa_step1(user: dict) -> dict | None:
     }
 
 
-async def _finalise_successful_login(user: dict, request: Request, response: Response) -> dict:
+async def _finalise_successful_login(user: dict, request: Request, response: Response, *, mfa_verified: bool = False) -> dict:
     """Mint the JWT, set the cookie, write the audit row, refresh
     ``last_login`` and return the public response payload.
+
+    Iter 220au — accepts an ``mfa_verified`` flag (set True after a
+    successful TOTP challenge or when the account doesn't require MFA)
+    and uses role-tiered TTL via ``utils.auth_guards.access_token_ttl_hours``.
     """
+    from utils.auth_guards import access_token_ttl_hours
     org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0})
-    token = create_token(user["id"])
-    set_auth_cookie(response, token)
+    ttl_hours = access_token_ttl_hours(user)
+    token = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=mfa_verified)
+    set_auth_cookie(response, token, max_age_hours=ttl_hours)
 
     ip = request.client.host if request.client else ""
     from utils.audit import audit_log
@@ -631,7 +643,10 @@ async def forgot_password(body: dict, request: Request) -> dict:
         return {"message": "If an account exists with that email, a reset link has been sent."}
 
     token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    # Iter 220au · F-02 — tighten password-reset TTL from 1 h to 15 min.
+    # ``utils.auth_guards.PASSWORD_RESET_TTL_MINUTES`` is env-tunable.
+    from utils.auth_guards import PASSWORD_RESET_TTL_MINUTES
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_TTL_MINUTES)).isoformat()
     await db.password_reset_tokens.insert_one({
         "token": token,
         "user_id": user["id"],
@@ -774,11 +789,21 @@ async def refresh_token(user: dict = Depends(get_current_user)) -> dict:
     so any in-flight requests that already captured the old token
     (App.js loadSites / loadBranding / freshly-mounted dashboards)
     can complete cleanly before the deny list kicks in.
+
+    Iter 220au · F-03 / F-17 — refresh now preserves the
+    ``mfa_verified`` claim and uses role-tier TTL so master admins
+    always rotate into a fresh 1-hour token.
     """
     from utils.security_plus import revoke_jwt
+    from utils.auth_guards import access_token_ttl_hours
     old_jti = user.get("_jwt_jti")
     old_exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
-    new_token = create_token(user['id'])
+    ttl_hours = access_token_ttl_hours(user)
+    new_token = create_token(
+        user['id'],
+        expires_hours=ttl_hours,
+        mfa_verified=bool(user.get("_jwt_mfa_verified")),
+    )
     if old_jti:
         await revoke_jwt(old_jti, int(old_exp), reason="refresh", grace_seconds=60)
     return {"token": new_token}
@@ -903,7 +928,7 @@ async def mfa_enrol_complete(body: dict, request: Request, response: Response) -
         "event": "mfa.enrolled_during_login",
         "actor_id": user_id, "actor_email": user.get("email"),
     })
-    finalised = await _finalise_successful_login(user, request, response)
+    finalised = await _finalise_successful_login(user, request, response, mfa_verified=True)
     finalised["backup_codes"] = codes
     finalised["enrolment_complete"] = True
     return finalised
@@ -949,10 +974,13 @@ async def mfa_verify(body: dict, request: Request, response: Response) -> dict:
     org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0})
     from utils.trial_lifecycle import compute_trial_state
     from utils.feature_guard import get_enabled_features
+    from utils.auth_guards import access_token_ttl_hours
     trial_state = compute_trial_state(org) if org else {"is_trial": False}
     features = await get_enabled_features(user)
-    token = create_token(user["id"])
-    set_auth_cookie(response, token)
+    # Iter 220au · F-03 + F-17 — role-tiered TTL + mfa_verified claim.
+    ttl_hours = access_token_ttl_hours(user)
+    token = create_token(user["id"], expires_hours=ttl_hours, mfa_verified=True)
+    set_auth_cookie(response, token, max_age_hours=ttl_hours)
     return {"token": token, "user": _build_login_user_payload(user, org, trial_state, features)}
 
 

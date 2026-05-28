@@ -3,6 +3,8 @@ import logging
 import os
 from datetime import datetime, timezone
 
+from fastapi import HTTPException
+
 from utils.database import RESEND_API_KEY, SENDER_EMAIL, db
 
 logger = logging.getLogger(__name__)
@@ -254,6 +256,7 @@ async def send_email(
     attachments: list[dict] | None = None,
     *,
     organization_id: str | None = None,
+    kind: str | None = None,
 ):
     """Send an email via Resend.
 
@@ -263,7 +266,28 @@ async def send_email(
     GymAxis sender domain (so SPF/DKIM/DMARC keep passing) while
     showing the operator's brand to their customers and routing replies
     back to the operator.
+
+    Iter 220av · F-22 — when the env flag
+    ``ENFORCE_EMAIL_RECIPIENT_VALIDATION=true`` is set, every send is
+    validated by ``utils.web_security.validate_email_recipient``.
+    Transactional kinds (auth flows, system alerts) pass through
+    unconditionally; ad-hoc / CRM sends must target an address that
+    belongs to the same organisation, a CRM contact, or a partner /
+    supplier contact for the org. Pass ``kind=`` to identify the
+    transactional family (see ``web_security._TRANSACTIONAL_KINDS``).
     """
+    # Iter 220av · F-22 — recipient validation gate (no-op when env flag off).
+    try:
+        from utils.web_security import validate_email_recipient
+        await validate_email_recipient(
+            to_email=to, kind=kind or "adhoc",
+            organization_id=organization_id, db=db,
+        )
+    except HTTPException:
+        # Re-raise so the caller learns the recipient was rejected.
+        raise
+    except Exception:
+        logger.exception("validate_email_recipient failed (non-fatal)")
     if not RESEND_API_KEY:
         logger.warning(f"Email NOT sent (RESEND_API_KEY missing in env): to={to}, subject={subject!r}")
         await _record_email_event(to=to, subject=subject, status="no_api_key", error="RESEND_API_KEY missing")

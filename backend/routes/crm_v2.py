@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from utils.database import db
 from routes.crm_auth import get_crm_user
 from utils.crm_audit import record_audit
+from utils.web_security import sanitize_rich_text, sanitize_rich_text_dict
 from routes.crm_permissions import compute_visibility, redact
 import uuid
 import re
@@ -149,6 +150,10 @@ async def create_activity(data: dict, user=Depends(get_crm_user)):
         "metadata": data.get("metadata", {}),
         "created_at": _now(), "updated_at": _now(),
     }
+    # Iter 220av · F-04 — scrub stored rich text through the bleach
+    # allow-list so any future render (timeline UI, tender PDF, email
+    # digest) can't be used to ship XSS.
+    sanitize_rich_text_dict(activity, fields=("subject", "body"))
     await db.crm2_activities.insert_one(activity)
     return {k: v for k, v in activity.items() if k != "_id"}
 
@@ -159,6 +164,8 @@ async def update_activity(activity_id: str, data: dict, user=Depends(get_crm_use
     if not existing:
         raise HTTPException(404, "Activity not found")
     updates = {k: v for k, v in data.items() if k not in ("id", "organization_id", "created_at")}
+    # Iter 220av · F-04 — same scrub on every update.
+    sanitize_rich_text_dict(updates, fields=("subject", "body"))
     updates["updated_at"] = _now()
     await db.crm2_activities.update_one({"id": activity_id}, {"$set": updates})
     return {"success": True}
@@ -2451,6 +2458,8 @@ async def create_tender(data: dict, user=Depends(get_crm_user)):
         "created_by": user.get("full_name", ""),
         "created_at": _now(), "updated_at": _now(),
     }
+    # Iter 220av · F-04 — scrub stored rich text before persist.
+    sanitize_rich_text_dict(tender, fields=("title", "issuer", "executive_summary"))
     await db.crm2_tenders.insert_one(tender)
     return {k: v for k, v in tender.items() if k != "_id"}
 
@@ -2514,6 +2523,8 @@ async def update_tender(tender_id: str, data: dict, user=Depends(get_crm_user)):
         if not target_company and op.get("company_id"):
             data["company_id"] = op["company_id"]
     updates = {k: v for k, v in data.items() if k not in ("id", "organization_id", "created_at")}
+    # Iter 220av · F-04 — scrub stored rich text on tender update too.
+    sanitize_rich_text_dict(updates, fields=("title", "issuer", "executive_summary"))
     updates["updated_at"] = _now()
     await db.crm2_tenders.update_one({"id": tender_id}, {"$set": updates})
     return {"success": True}
@@ -2587,6 +2598,8 @@ async def add_tender_question(tender_id: str, data: dict, user=Depends(get_crm_u
         "version": 1,
         "created_at": _now(), "updated_at": _now(),
     }
+    # Iter 220av · F-04 — scrub stored tender question text.
+    sanitize_rich_text_dict(question, fields=("text",))
     await db.crm2_tender_questions.insert_one(question)
     await db.crm2_tenders.update_one(
         {"id": tender_id}, {"$inc": {"total_questions": 1}, "$set": {"updated_at": _now()}}
@@ -2597,6 +2610,9 @@ async def add_tender_question(tender_id: str, data: dict, user=Depends(get_crm_u
 @router.put("/tenders/{tender_id}/questions/{q_id}")
 async def update_tender_question(tender_id: str, q_id: str, data: dict, user=Depends(get_crm_user)):
     updates = {k: v for k, v in data.items() if k not in ("id", "organization_id", "tender_id")}
+    # Iter 220av · F-04 — scrub user-supplied rich text on every update
+    # (operators sometimes paste in formatted HTML from Word).
+    sanitize_rich_text_dict(updates, fields=("text", "response", "ai_draft"))
     updates["updated_at"] = _now()
     if "response" in updates and updates.get("status") == "not_started":
         updates["status"] = "draft"

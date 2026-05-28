@@ -18,7 +18,16 @@ const LoginRedirectPage = () => {
   if (user) {
     const sp = new URLSearchParams(location.search);
     const raw = sp.get('next');
-    const safeNext = (raw && raw.startsWith('/') && !raw.startsWith('//')) ? raw : null;
+    // Iter 220av · F-05 — tightened open-redirect guard. Reject any
+    // backslash / CR / LF / NUL / tab, protocol-relative `//host`,
+    // and embedded URI schemes (`javascript:`, `data:` etc).
+    const safeNext = (() => {
+      if (!raw || raw.length > 512) return null;
+      if (/[\\\r\n\t\0]/.test(raw)) return null;
+      if (!raw.startsWith('/') || raw.startsWith('//')) return null;
+      if (/^[A-Za-z][A-Za-z0-9+\-.]*:/.test(raw)) return null;
+      return raw;
+    })();
     const fallback = (user.is_master_admin || user.is_pulse_admin)
       ? '/master-admin'
       : (user.account_type === 'lite' || user.account_type === 'pulse_pro')

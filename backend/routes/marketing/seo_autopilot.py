@@ -42,6 +42,7 @@ from utils.ai_guardrails import (
     sanitize_llm_markdown,
     sanitize_prompt,
 )
+from utils.web_security import sanitize_rich_text
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/marketing/seo", tags=["marketing-seo"])
@@ -476,6 +477,21 @@ async def _generate_article_payload(
     qa_blocks = [
         {"question": sanitize_llm_markdown(q.get("question", "")),
          "answer": sanitize_llm_markdown(q.get("answer", ""))}
+        for q in qa_blocks if isinstance(q, dict)
+    ]
+
+    # Iter 220av / F-04 — second-pass bleach allow-list. Even after the
+    # regex scrub above, run the bleach allow-list against any HTML the
+    # LLM tried to slip in via Markdown's inline-HTML feature. Bleach
+    # is the canonical OWASP-recommended sanitiser and gives us a
+    # belt-and-braces guarantee for the blog renderer.
+    title = sanitize_rich_text(title)
+    excerpt = sanitize_rich_text(excerpt)
+    body_md = sanitize_rich_text(body_md)
+    meta_description = sanitize_rich_text(meta_description)
+    qa_blocks = [
+        {"question": sanitize_rich_text(q.get("question", "")),
+         "answer": sanitize_rich_text(q.get("answer", ""))}
         for q in qa_blocks if isinstance(q, dict)
     ]
 

@@ -146,10 +146,18 @@ def require_master_admin(user: dict) -> None:
     """Either the GymAxis Master Admin OR a delegated Pulse Master Admin is
     allowed past this gate. Endpoints that need to lock out Pulse admins
     explicitly should call ``require_gymaxis_master_only(user)`` instead.
+
+    Iter 220au · F-17 — when the ``ENFORCE_MASTER_ADMIN_MFA`` env flag
+    is set, also require the caller's session to have completed MFA
+    (raises 401, not 403, so the frontend prompts a re-login).
     """
     if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
+        from utils.auth_guards import enforce_master_admin_mfa
+        enforce_master_admin_mfa(user)
         return
     if user.get("is_pulse_admin") or user.get("role") == "pulse_master_admin":
+        from utils.auth_guards import enforce_master_admin_mfa
+        enforce_master_admin_mfa(user)
         return
     raise HTTPException(status_code=403, detail="Master admin access required")
 
@@ -157,6 +165,8 @@ def require_master_admin(user: dict) -> None:
 def require_gymaxis_master_only(user: dict) -> None:
     """Strict gate — only the GymAxis platform Master Admin (not Pulse admins)."""
     if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
+        from utils.auth_guards import enforce_master_admin_mfa
+        enforce_master_admin_mfa(user)
         return
     raise HTTPException(status_code=403, detail="GymAxis master admin access required")
 

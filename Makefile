@@ -177,6 +177,8 @@ regression:
 	  tests/test_iter_220aq_growth_hub_fixes.py \
 	  tests/test_iter_220as_security_wave_1.py \
 	  tests/test_iter_220at_ai_guardrails.py \
+	  tests/test_iter_220au_auth_hardening.py \
+	  tests/test_iter_220av_web_security.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

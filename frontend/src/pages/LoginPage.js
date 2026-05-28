@@ -31,12 +31,23 @@ export default function LoginPage() {
   // (and any other deep-link sender) bounce the user back to where
   // they were AFTER successful re-auth. We only honour relative
   // paths to avoid open-redirect abuse.
+  //
+  // Iter 220av · F-05 — tightened against the famous open-redirect
+  // bypasses: protocol-relative `//evil.com`, backslash tricks
+  // `/\evil.com`, control chars, embedded scheme prefixes.
   const nextParam = (() => {
     try {
       const sp = new URLSearchParams(location.search);
       const raw = sp.get('next');
       if (!raw) return null;
-      if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
+      if (raw.length > 512) return null;
+      // Reject anything that contains a backslash, CRLF, NUL or tab.
+      if (/[\\\r\n\t\0]/.test(raw)) return null;
+      // Must be a single-leading-slash relative path.
+      if (!raw.startsWith('/') || raw.startsWith('//')) return null;
+      // Must not look like a URI scheme.
+      if (/^[A-Za-z][A-Za-z0-9+\-.]*:/.test(raw)) return null;
+      return raw;
     } catch { /* ignore */ }
     return null;
   })();

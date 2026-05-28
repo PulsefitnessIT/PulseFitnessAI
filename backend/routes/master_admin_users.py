@@ -440,6 +440,15 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
         result = await db.crm_users.update_one({"id": user_id}, {"$set": updates})
     if result.modified_count == 0:
         raise HTTPException(404, "User not found")
+    # Iter 220au · F-19 — kill every active session for the edited user
+    # whenever a field that affects authorisation has been mutated.
+    # Without this, a user whose role was just demoted could keep
+    # using their existing access token for the rest of its TTL.
+    _rbac_keys = {"role", "is_master_admin", "is_pulse_admin", "allowed_site_ids",
+                  "module_overrides", "permissions", "disabled", "archived"}
+    if _rbac_keys & set(updates.keys()):
+        from utils.auth_guards import revoke_user_sessions
+        await revoke_user_sessions(user_id, reason="role_or_permissions_changed")
     await log_activity("user_edited", f"Edited user {user_id}: {list(updates.keys())}", user["email"], "user", user_id)
     return {"success": True}
 
@@ -454,6 +463,9 @@ async def disable_user(user_id: str, body: dict = Body(...), user: dict = Depend
         result = await db.crm_users.update_one({"id": user_id}, {"$set": {"disabled": disabled}})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    if disabled:
+        from utils.auth_guards import revoke_user_sessions
+        await revoke_user_sessions(user_id, reason="user_disabled")
     await log_activity("user_disable" if disabled else "user_enable", f"{'Disabled' if disabled else 'Enabled'} user {user_id}", user["email"], "user", user_id)
     return {"success": True}
 
@@ -468,6 +480,9 @@ async def archive_user(user_id: str, body: dict = Body(...), user: dict = Depend
         result = await db.crm_users.update_one({"id": user_id}, {"$set": {"archived": archived}})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    if archived:
+        from utils.auth_guards import revoke_user_sessions
+        await revoke_user_sessions(user_id, reason="user_archived")
     action = "user_archived" if archived else "user_unarchived"
     await log_activity(action, f"{'Archived' if archived else 'Unarchived'} user {user_id}", user["email"], "user", user_id)
     return {"success": True}
