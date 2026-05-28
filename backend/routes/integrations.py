@@ -39,8 +39,19 @@ async def verify_admin(user: dict):
 
 
 async def get_integration_config(integration_id: str) -> Optional[Dict]:
+    """Fetch the integration doc and decrypt any Fernet-stored secrets
+    so internal callers get the plaintext they need to call upstream
+    APIs. The matching /GET endpoints redact this before returning to
+    the operator UI (see ``list_integrations`` / ``get_integration``).
+
+    Iter 220aw / F-27 — decryption is idempotent so legacy plaintext
+    rows continue to work until they're next written and migrated.
+    """
     config = await db.integrations.find_one({"integration_id": integration_id}, {"_id": 0})
-    return config
+    if not config:
+        return None
+    from utils.secret_vault import decrypt_secrets_in_dict
+    return decrypt_secrets_in_dict(config)
 
 
 async def log_integration_event(
@@ -72,6 +83,8 @@ async def list_integrations(user: dict = Depends(get_current_user)):
     await verify_admin(user)
     integrations = await db.integrations.find({}, {"_id": 0}).to_list(100)
     # Add log counts
+    from utils.secret_vault import redact_secrets_in_dict
+    out = []
     for integ in integrations:
         integ["total_events"] = await db.integration_logs.count_documents(
             {"integration_id": integ["integration_id"]}
@@ -79,7 +92,11 @@ async def list_integrations(user: dict = Depends(get_current_user)):
         integ["recent_errors"] = await db.integration_logs.count_documents(
             {"integration_id": integ["integration_id"], "success": False}
         )
-    return {"integrations": integrations}
+        # Iter 220aw / F-27 — never surface ciphertext (or worse, plaintext)
+        # secrets through a list endpoint. The operator UI only needs to
+        # know the integration has a token; the mask conveys that.
+        out.append(redact_secrets_in_dict(integ))
+    return {"integrations": out}
 
 
 @router.get("/integrations/{integration_id}")
@@ -94,7 +111,11 @@ async def get_integration(integration_id: str, user: dict = Depends(get_current_
     config["recent_errors"] = await db.integration_logs.count_documents(
         {"integration_id": integration_id, "success": False}
     )
-    return config
+    # Iter 220aw / F-27 — mask secrets in the detail view too. Internal
+    # consumers that NEED the plaintext call ``get_integration_config``
+    # directly and decrypt at use-time via ``decrypt_secrets_in_dict``.
+    from utils.secret_vault import redact_secrets_in_dict
+    return redact_secrets_in_dict(config)
 
 
 @router.put("/integrations/{integration_id}")
@@ -107,6 +128,13 @@ async def update_integration(integration_id: str, body: Dict[str, Any], user: di
     allowed_fields = ["enabled", "api_token", "webhook_secret", "base_url", "credentials", "field_mappings", "settings", "branding"]
     update = {k: v for k, v in body.items() if k in allowed_fields}
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Iter 220aw / F-27 — encrypt every secret field at rest with
+    # Fernet before persisting. ``encrypt_secrets_in_dict`` is
+    # idempotent (already-encrypted blobs pass through) so a partial
+    # update that omits a secret won't double-encrypt anything.
+    from utils.secret_vault import encrypt_secrets_in_dict
+    encrypt_secrets_in_dict(update)
 
     await db.integrations.update_one(
         {"integration_id": integration_id},

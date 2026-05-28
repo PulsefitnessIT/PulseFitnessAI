@@ -1,3 +1,107 @@
+## Iter 220aw — Security Wave 5: SSRF / AV / Secret-Vault (May 28, 2026) ✅
+
+### Three risk-register findings closed
+
+* **F-24 — AV scan provider.** Two-stage scan in
+  `utils/malware_scan.scan_bytes`:
+  1. Always-on static-signature scan (EICAR + `#!/bin/sh` / `#!/bin/bash`
+     headers smuggled into binary uploads). Fires regardless of ClamAV
+     availability — closes the test-signature class of pen-test
+     probes even when no AV daemon is running.
+  2. ClamAV daemon scan when `CLAMAV_HOST` is set.
+  Behaviour matrix:
+  - Static hit → 400 always.
+  - No ClamAV, dev → return (open).
+  - No ClamAV, prod → 503 (`STRICT_AV_MODE` env opt-in forces this in dev too).
+  - ClamAV unreachable, dev → return; prod / strict → 503.
+  - ClamAV virus → 400 with signature.
+* **F-26 — SSRF guard.** New `utils/ssrf_guard.py` exports
+  `assert_safe_external_url(url)` (raises `SSRFBlocked` HTTPException(400))
+  + `is_safe_external_url()` boolean wrapper. Rejects:
+  - Schemes other than `http`/`https` (no `ftp://`, `file://`, `gopher://`)
+  - RFC1918 / loopback / link-local / multicast / reserved / unspecified IPs
+  - AWS / GCP IMDS (`169.254.169.254`, hostname `metadata.google.internal`)
+  - Userinfo-bearing URLs (`http://attacker@host`)
+  - URLs > 2 KB
+  - DNS-rebind: every resolved A/AAAA checked, not just one.
+  Wired into `routes/crm_website_recognize._fetch` (CRM auto-recognise
+  fetches user-supplied URLs) and
+  `routes/marketing/brand_discovery._fetch` / `_fetch_bytes`
+  (competitor-site brand crawler).
+* **F-27 — Fernet field-level encryption for integration secrets.**
+  New `utils/secret_vault.py` exports `encrypt_value` / `decrypt_value` /
+  `encrypt_secrets_in_dict` / `decrypt_secrets_in_dict` /
+  `redact_secrets_in_dict`. Reuses the `MFA_ENCRYPTION_KEY`-derived
+  Fernet key (one secret to rotate, not two). Self-describing
+  `{"__enc": "v1", "data": "<fernet>"}` sentinel — both encrypt + decrypt
+  are idempotent so we can migrate gradually (plaintext legacy rows
+  pass through; first PUT after deploy encrypts them). Default secret
+  field allow-list covers `api_token`, `webhook_secret`, `client_secret`,
+  `refresh_token`, `access_token`, `private_key`, `signing_secret`,
+  `password`, `secret`, `auth_token`, `consumer_secret`. The whole
+  `credentials` sub-dict is encrypted as one blob to avoid leaking new
+  field names as plaintext.
+  Wired into `routes/integrations.py`:
+  - `update_integration` encrypts on write.
+  - `get_integration_config` decrypts for internal upstream-API calls.
+  - `list_integrations` + `get_integration` redact to a static `••••••`
+    mask for the operator UI (operators don't need to see their own
+    token, only that it's set).
+
+### New modules
+
+* `/app/backend/utils/ssrf_guard.py` (full SSRF allow-/deny-list)
+* `/app/backend/utils/secret_vault.py` (Fernet field-level enc)
+
+### Modified files
+
+* `utils/malware_scan.py` — static-signature scan + `STRICT_AV_MODE`.
+* `routes/integrations.py` — encrypt on write, decrypt at use-time,
+  redact at API surface.
+* `routes/crm_website_recognize.py` — SSRF guard around URL fetch.
+* `routes/marketing/brand_discovery.py` — SSRF guard around URL fetch.
+
+### Tests
+
+* **25 new unit tests** in `tests/test_iter_220aw_ssrf_av_vault.py`:
+  - F-24: static scan detects EICAR, detects shell-in-image, misses
+    clean PDF/JPEG, raises 400 in scan_bytes, clean bytes pass in dev,
+    STRICT_AV_MODE fails-closed without ClamAV.
+  - F-26: rejects non-http schemes, literal private IPs (IPv4 + IPv6
+    + IMDS), metadata hostnames, userinfo URLs, garbage / oversize;
+    allows public URLs (mocked DNS); rebind-detection (public host →
+    private DNS); `assert_safe_external_url` raises SSRFBlocked.
+  - F-27: encrypt → sentinel dict, roundtrip string + dict,
+    idempotent on blob, decrypt-plain-unchanged, encrypt_secrets_in_dict
+    covers default fields, encrypt→decrypt full roundtrip, redact
+    masks values (encrypted + plain), masks empty token correctly.
+  - End-to-end smoke: PUT /integrations encrypts api_token + webhook_secret
+    so plaintext never reaches mongo.
+* All 25 green; added to Makefile regression block with TAB.
+
+### Verification
+
+* `ruff` clean on every touched file (ssrf_guard, secret_vault,
+  malware_scan, integrations, crm_website_recognize, brand_discovery,
+  test file).
+* Full `make regression` → **1234 passed, 15 skipped, 0 new regressions**
+  (160 s). Only failure is the pre-existing `test_iter_220s_incidents_riddor`
+  LLM flake that has been intermittent since W1.
+
+### Risk register update (W5 row block)
+
+| F-ID | Status |
+|---|---|
+| F-24 (M) | **done** (Iter 220aw) |
+| F-26 (M) | **done** (Iter 220aw) |
+| F-27 (M) | **done** (Iter 220aw) |
+
+W5 complete. **Pen-test posture: 5 waves down (W1 + W2 + W3 + W4 + W5),
+2 to go (W6 audit hygiene + 404/403, W7 pen-test handover doc).**
+
+---
+
+
 ## Iter 220av — Security Wave 4: Web-surface scrubbers (May 28, 2026) ✅
 
 ### Three risk-register findings closed

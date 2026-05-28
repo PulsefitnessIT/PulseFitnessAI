@@ -101,6 +101,14 @@ def _same_domain(a: str, b: str) -> bool:
 
 async def _fetch(client: httpx.AsyncClient, url: str) -> Optional[str]:
     try:
+        # Iter 220aw / F-26 — SSRF guard for brand discovery (crawls
+        # user-supplied competitor URLs).
+        from utils.ssrf_guard import assert_safe_external_url, SSRFBlocked
+        try:
+            assert_safe_external_url(url)
+        except SSRFBlocked as exc:
+            logger.warning("[brand-discovery] fetch blocked by SSRF guard url=%s reason=%s", url, exc.detail)
+            return None
         r = await client.get(url, timeout=CRAWL_TIMEOUT, follow_redirects=True)
         if r.status_code >= 400:
             return None
@@ -115,6 +123,12 @@ async def _fetch(client: httpx.AsyncClient, url: str) -> Optional[str]:
 
 async def _fetch_bytes(client: httpx.AsyncClient, url: str) -> Optional[bytes]:
     try:
+        from utils.ssrf_guard import assert_safe_external_url, SSRFBlocked
+        try:
+            assert_safe_external_url(url)
+        except SSRFBlocked as exc:
+            logger.warning("[brand-discovery] fetch_bytes blocked by SSRF guard url=%s reason=%s", url, exc.detail)
+            return None
         r = await client.get(url, timeout=CRAWL_TIMEOUT, follow_redirects=True)
         if r.status_code >= 400 or len(r.content) > 8 * 1024 * 1024:
             return None

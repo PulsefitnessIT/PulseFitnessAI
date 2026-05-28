@@ -78,8 +78,18 @@ async def _write_cache(url: str, payload: dict) -> None:
 
 
 async def _fetch(client: httpx.AsyncClient, url: str) -> str | None:
-    """Fetch a page with a hard byte cap. Returns None on any error."""
+    """Fetch a page with a hard byte cap. Returns None on any error.
+
+    Iter 220aw / F-26 — SSRF guard. Refuse any URL whose hostname
+    resolves to a private / loopback / link-local / metadata address.
+    """
     try:
+        from utils.ssrf_guard import assert_safe_external_url, SSRFBlocked
+        try:
+            assert_safe_external_url(url)
+        except SSRFBlocked as exc:
+            logger.warning("website fetch blocked by SSRF guard url=%s reason=%s", url, exc.detail)
+            return None
         resp = await client.get(url)
         resp.raise_for_status()
     except (httpx.HTTPError, httpx.TimeoutException) as exc:
