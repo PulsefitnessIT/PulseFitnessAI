@@ -129,17 +129,51 @@ async def growth_overview(user: dict = Depends(get_current_user)) -> dict:
     )
 
     # ── CRM pipeline ─────────────────────────────────────────────────
-    deals_open = await _safe_count(db.crm_deals, {"stage": {"$nin": ["won", "lost"]}})
-    deals_won_30d = await _safe_count(
-        db.crm_deals, {"stage": "won", "updated_at": {"$gte": cutoff_30d_iso}},
+    # Iter 220aq — Scope pipeline to the master-admin org only, and
+    # union both legacy ``crm_deals`` and the live ``crm2_opportunities``
+    # collection (the v2 CRM portal writes to crm2_opportunities, the
+    # public /demo-request landing page still creates a ``crm_deals``
+    # row). Before this fix, the tile aggregated ALL tenants' deals
+    # globally — a £50k deal in any customer's CRM bled into the
+    # GymAxis self-promo Growth Hub.
+    ma_org = await _master_admin_org_id()
+    of = {"organization_id": ma_org}
+    deals_open = (
+        await _safe_count(db.crm_deals, {**of, "stage": {"$nin": ["won", "lost"]}})
+        + await _safe_count(
+            db.crm2_opportunities, {**of, "stage": {"$nin": ["closed_won", "closed_lost"]}},
+        )
     )
-    deals_lost_30d = await _safe_count(
-        db.crm_deals, {"stage": "lost", "updated_at": {"$gte": cutoff_30d_iso}},
+    deals_won_30d = (
+        await _safe_count(
+            db.crm_deals, {**of, "stage": "won", "updated_at": {"$gte": cutoff_30d_iso}},
+        )
+        + await _safe_count(
+            db.crm2_opportunities,
+            {**of, "stage": "closed_won", "updated_at": {"$gte": cutoff_30d_iso}},
+        )
     )
-    pipeline_value = await _sum_value_field(
-        db.crm_deals, {"stage": {"$nin": ["won", "lost"]}},
+    deals_lost_30d = (
+        await _safe_count(
+            db.crm_deals, {**of, "stage": "lost", "updated_at": {"$gte": cutoff_30d_iso}},
+        )
+        + await _safe_count(
+            db.crm2_opportunities,
+            {**of, "stage": "closed_lost", "updated_at": {"$gte": cutoff_30d_iso}},
+        )
     )
-    companies_total = await _safe_count(db.crm_companies, {})
+    pipeline_value = (
+        await _sum_value_field(
+            db.crm_deals, {**of, "stage": {"$nin": ["won", "lost"]}},
+        )
+        + await _sum_value_field(
+            db.crm2_opportunities,
+            {**of, "stage": {"$nin": ["closed_won", "closed_lost"]}},
+        )
+    )
+    companies_total = await _safe_count(
+        db.crm_companies, of,
+    ) + await _safe_count(db.crm2_companies, of)
 
     # ── Sales insights (public-chat sessions, 30d) ──────────────────
     chat_sessions_30d = await _safe_count(
@@ -353,9 +387,20 @@ async def growth_sparklines(user: dict = Depends(get_current_user)) -> dict:
         db.email_send_events, date_field="created_at",
         query={"status": "sent"},
     )
-    deals_b = await _bucket_count_by_day(
+    # Iter 220aq — scope deal-creation sparkline to the master-admin
+    # org. Same fix as the overview endpoint above. Note we also union
+    # crm2_opportunities so deals filed via the v2 CRM portal count.
+    ma_org = await _master_admin_org_id()
+    deals_v1 = await _bucket_count_by_day(
         db.crm_deals, date_field="created_at", is_iso_string=True,
+        query={"organization_id": ma_org},
     )
+    deals_v2 = await _bucket_count_by_day(
+        db.crm2_opportunities, date_field="created_at", is_iso_string=True,
+        query={"organization_id": ma_org},
+    )
+    deals_b = {d: deals_v1.get(d, 0) + deals_v2.get(d, 0)
+               for d in set(deals_v1) | set(deals_v2)}
     chats_b = await _bucket_count_by_day(
         db.mkt_chat_sessions, date_field="created_at",
     )

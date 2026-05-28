@@ -52,9 +52,50 @@ DEFAULT_BRAND_BLURB = (
     "GymAxis is an operations + CRM platform for gyms and fitness "
     "operators — service-desk, equipment downtime tracking, member "
     "lifecycle CRM, and a Partner Engineer network of vetted "
-    "field engineers."
+    "field engineers. The canonical brand URL is "
+    "https://gymaxisai.com — NEVER use any other domain (in particular "
+    "do not invent 'gymaxis.io', 'gym-axis.com', 'gymaxis.co.uk' or "
+    "similar). The marketing site lives at https://gymaxisai.com, "
+    "the app at https://app.gymaxisai.com, and the demo-request "
+    "landing page at https://gymaxisai.com/demo-request."
 )
+GYMAXIS_DOMAIN = "gymaxisai.com"
+GYMAXIS_BASE_URL = "https://gymaxisai.com"
 TARGET_WORDS = 1500
+
+
+# Iter 220aq — domain-scrub safety net. Even with strong prompt
+# constraints the LLM occasionally hallucinates "gymaxis.io" /
+# "gym-axis.com" / "gymaxis.co.uk". Rewrite any such mention to the
+# canonical ``gymaxisai.com``. Operates on Markdown + plain text;
+# preserves the path / fragment portion of the URL where present.
+_BAD_DOMAINS = (
+    "gymaxis.io",
+    "gym-axis.io",
+    "gym-axis.com",
+    "gymaxis.co.uk",
+    "gymaxis.co",
+    "gymaxis.net",
+    "gymaxis.app",
+)
+
+
+def _scrub_brand_domain(text: str | None) -> str:
+    if not text:
+        return text or ""
+    out = text
+    for bad in _BAD_DOMAINS:
+        # Case-insensitive replace while preserving the rest of the URL.
+        # We rebuild via a regex to catch ``www.<bad>`` too.
+        import re as _re
+        pattern = _re.compile(
+            r"(?:https?://)?(?:www\.)?" + _re.escape(bad),
+            flags=_re.IGNORECASE,
+        )
+        out = pattern.sub(GYMAXIS_BASE_URL, out)
+    # Collapse accidental double protocols left after the rewrite.
+    out = out.replace("https://https://", "https://").replace("http://https://", "https://")
+    return out
 
 
 def _now() -> str:
@@ -357,7 +398,10 @@ async def _generate_article_payload(
         "  • Open with a concrete operator-life scenario (not 'In today's…').\n"
         "  • At least one numbered list and one bullet list.\n"
         "  • Close with a single 1-line CTA inviting the reader to book a "
-        "GymAxis demo at /demo.\n"
+        f"GymAxis demo at {GYMAXIS_BASE_URL}/demo-request.\n"
+        "  • Never use any domain other than gymaxisai.com — in "
+        "particular do NOT write gymaxis.io, gymaxis.com, or any other "
+        "variation. The only valid URLs are under gymaxisai.com.\n"
         "  • End with 4 FAQ Q&A pairs — concise, scannable, optimised for "
         "ChatGPT / Perplexity citation.\n\n"
         "Return STRICT JSON only (no prose, no fences) with this shape:\n"
@@ -393,6 +437,19 @@ async def _generate_article_payload(
     qa_blocks = data.get("qa_blocks") or []
     if not isinstance(qa_blocks, list):
         qa_blocks = []
+
+    # Iter 220aq — domain-scrub safety net. The LLM occasionally invents
+    # ``gymaxis.io`` / ``gym-axis.com`` even when the prompt forbids it.
+    # Rewrite any such mention to the canonical ``gymaxisai.com``.
+    title = _scrub_brand_domain(title)
+    excerpt = _scrub_brand_domain(excerpt)
+    body_md = _scrub_brand_domain(body_md)
+    meta_description = _scrub_brand_domain(meta_description)
+    qa_blocks = [
+        {"question": _scrub_brand_domain(str(q.get("question", ""))),
+         "answer": _scrub_brand_domain(str(q.get("answer", "")))}
+        for q in qa_blocks if isinstance(q, dict)
+    ]
 
     return {
         "title": title, "excerpt": excerpt, "body_md": body_md,
@@ -511,6 +568,16 @@ async def _spin_distributions(article: dict, channels: list[str]) -> dict:
             "subreddits": (reddit.get("subreddits") if isinstance(reddit.get("subreddits"), list)
                            else ["gymsnark", "personaltraining", "smallbusiness"])[:6],
         }
+
+    # Iter 220aq — scrub any hallucinated domain across every channel
+    # so the public-facing post never leaks ``gymaxis.io`` etc.
+    if "linkedin" in out:
+        out["linkedin"] = [_scrub_brand_domain(s) for s in out["linkedin"]]
+    if "x_thread" in out:
+        out["x_thread"] = [_scrub_brand_domain(s) for s in out["x_thread"]]
+    if "reddit" in out and isinstance(out["reddit"], dict):
+        out["reddit"]["title"] = _scrub_brand_domain(out["reddit"].get("title"))
+        out["reddit"]["body"] = _scrub_brand_domain(out["reddit"].get("body"))
     return out
 
 

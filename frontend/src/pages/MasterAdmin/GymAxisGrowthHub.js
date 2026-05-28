@@ -306,7 +306,26 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
   // Best-effort: change section in the parent MasterAdminPage. Falls
   // back to a soft hash navigation if the prop isn't wired (e.g. when
   // rendered in isolation by Jest).
+  //
+  // Iter 220aq — Some Growth Hub tiles deep-link to surfaces that live
+  // OUTSIDE Master Admin (the CRM portal at `/crm`). For those keys we
+  // perform a full URL navigation with `?tab=` so the CRM lands on the
+  // right inner tab. Without this, clicking "Open CRM" / "Open
+  // Companies" routed to a Master Admin section id that didn't exist
+  // and the content area went blank.
+  const CRM_TAB_MAP = {
+    'crm-deals': 'pipeline',
+    'crm-analytics': 'pipeline',
+    'crm-companies': 'companies',
+    'crm-contacts': 'contacts',
+  };
   const jump = (sectionId) => {
+    if (CRM_TAB_MAP[sectionId]) {
+      try {
+        window.location.assign(`/crm?tab=${CRM_TAB_MAP[sectionId]}`);
+        return;
+      } catch { /* fall through */ }
+    }
     if (typeof onJumpSection === 'function') {
       onJumpSection(sectionId);
       return;
@@ -522,7 +541,7 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
             { label: 'Lost (30d)', value: data.pipeline.deals_lost_30d },
           ]}
           ctaLabel="Open CRM"
-          deepLink="crm-analytics"
+          deepLink="crm-deals"
           onJump={jump}
           testId="growth-card-pipeline"
         />

@@ -1,3 +1,107 @@
+## Iter 220aq — Production bug-fix triplet: Growth Hub deep-links, pipeline scoping, SEO domain (May 28, 2026) ✅
+
+User reported three production bugs from gymaxisai.com:
+
+### 1) Growth Hub "Open ..." buttons → blank screen
+
+Root cause: ``jump(sectionId)`` called ``setSection(deep_link)`` where
+the deep_link IDs ``crm-deals``, ``crm-analytics``, ``crm-companies``
+had no corresponding ``case`` in ``MasterAdminPage`` — the content
+area silently rendered nothing. The CRM doesn't live under Master
+Admin (it's a separate portal at ``/crm``).
+
+Fix in ``pages/MasterAdmin/GymAxisGrowthHub.js``:
+* New ``CRM_TAB_MAP`` translates CRM deep_links to ``/crm?tab=<x>``
+  URL navigations (``crm-deals → pipeline``, ``crm-companies →
+  companies``, ``crm-contacts → contacts``, ``crm-analytics →
+  pipeline``).
+* Hard-coded ``crm-analytics`` on the CRM card replaced with
+  ``crm-deals`` so the deep_link matches both backend + frontend
+  expectations.
+
+Fix in ``pages/CRM/CRMApp.js``:
+* ``activeTab`` now lazy-reads ``?tab=<id>`` from
+  ``window.location.search`` synchronously on first render so the
+  Master Admin deep-link lands on the right inner tab. We leave the
+  query param in the URL on purpose — stripping it in a useEffect
+  raced React 18 StrictMode's dev-only double-mount and wiped the
+  requested tab on the second pass.
+
+### 2) Pipeline £ showed £50,000 (cross-tenant data leak)
+
+Root cause: ``GET /api/master-admin/growth-hub/overview`` was
+summing ALL tenants' ``crm_deals`` globally — any £50k deal in any
+customer's CRM bled into the master-admin self-promo Growth Hub.
+
+Fix in ``routes/master_admin_growth_hub.py``:
+* Both the overview AND the sparklines endpoints now scope every
+  pipeline read to the **master-admin org** via
+  ``_master_admin_org_id``.
+* Union ``crm_deals`` + ``crm2_opportunities`` (v2 CRM portal
+  writes only to the latter; v1 demo-request landing page still
+  writes to the former). So ``pipeline_value_gbp``,
+  ``deals_open``, ``deals_won_30d``, ``deals_lost_30d``,
+  ``companies_total`` and the ``deals_created`` 30-day sparkline
+  all return correct master-admin-org-only data.
+
+### 3) SEO Autopilot used wrong domain (``gymaxis.io``)
+
+Root cause: the article-generation prompt mentioned ``/demo`` as a
+relative path; the LLM filled in the brand domain itself and
+sometimes invented ``gymaxis.io``.
+
+Fix in ``routes/marketing/seo_autopilot.py``:
+* ``DEFAULT_BRAND_BLURB`` now hard-codes the canonical domain
+  ``gymaxisai.com`` and explicitly forbids the LLM from inventing
+  alternates.
+* The article prompt's CTA line now embeds the absolute URL
+  ``https://gymaxisai.com/demo-request`` and explicitly lists
+  the bad domains to avoid.
+* New ``_scrub_brand_domain`` safety net rewrites any leak of
+  ``gymaxis.io / gym-axis.com / gymaxis.co.uk / gymaxis.net /
+  gymaxis.app / gymaxis.co / gym-axis.io`` to the canonical
+  ``https://gymaxisai.com``. Applied to every article field
+  (``title``, ``excerpt``, ``body_md``, ``meta_description``,
+  ``qa_blocks``) AND every distribution snippet (LinkedIn posts, X
+  thread tweets, Reddit title + body).
+* Production retro-fix script (not committed; run once after
+  redeploy) provided to scrub any existing bad-domain articles.
+
+### Tests
+
+* 8 new pinned tests in
+  ``backend/tests/test_iter_220aq_growth_hub_fixes.py`` covering:
+  - domain scrub for ``gymaxis.io`` + 6 other variants
+  - canonical domain preservation (no double-rewrites)
+  - None / empty input handling
+  - collapsed double-protocol URLs
+  - master-admin org scoping on pipeline value
+  - union of crm_deals + crm2_opportunities counts
+  - sparkline deal buckets scoped to master-admin org
+* Existing fixtures in ``test_iter_220ag_growth_hub.py`` +
+  ``test_iter_220aj_growth_sparklines.py`` patched to add
+  ``users`` + ``organizations.find_one`` + ``crm2_opportunities``
+  mocks so they survive the new master-admin-org resolver path.
+
+### Verification
+
+* ``make regression`` → **1122 passed, 15 skipped, 0 failed** in 135 s.
+* ``ruff`` / ``eslint`` clean on every touched file.
+* Live smoke from Master Admin Growth Hub → "Open CRM" button now
+  routes to ``/crm?tab=pipeline`` and lands on the live Pipeline
+  view with 3 lead deals (£12k each, £36k total). Pipeline £ tile
+  on the Growth Hub now reads **£36,000** in preview (the real
+  master-admin-org figure), confirming the cross-tenant leak is
+  closed.
+
+> **Production redeploy required** — user's redeploy step will
+> push these fixes to gymaxisai.com. The ``gymaxis.io`` article
+> already published in prod needs a manual regenerate (or run the
+> ``_scrub_brand_domain`` retro-script against the prod DB).
+
+---
+
+
 ## Iter 220ap — Pre-launch hardening: GDPR list-filter + docs + load test (May 27, 2026) ✅
 
 Closing the "is it launch ready" loop. Five concrete pieces of work

@@ -451,7 +451,24 @@ export default function CRMApp() {
   const unifiedAuth = useUnifiedAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('start');
+  // Iter 220aq — Read ?tab=<id> from the URL synchronously on first
+  // render so deep-links from the Master Admin Growth Hub
+  // (/crm?tab=pipeline, /crm?tab=companies, etc.) land on the right
+  // tab.
+  //
+  // We leave the param in the URL on purpose: stripping it inside a
+  // useEffect raced React 18 StrictMode's dev-only double-mount and
+  // wiped the requested tab on the second pass. The param is harmless
+  // post-mount — once the user clicks any other tab, the activeTab
+  // state diverges from the URL and the param becomes vestigial.
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab');
+      if (urlTab) return urlTab;
+    } catch { /* SSR / Jest fallback */ }
+    return 'start';
+  });
   const [collapsed, _setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');

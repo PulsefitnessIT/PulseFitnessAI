@@ -42,7 +42,8 @@ def _fake_db():
     fdb = MagicMock()
     for coll in (
         "users", "organizations", "seo_articles", "seo_view_snapshots",
-        "email_send_events", "crm_deals", "mkt_chat_sessions",
+        "email_send_events", "crm_deals", "crm2_opportunities",
+        "mkt_chat_sessions",
     ):
         c = getattr(fdb, coll)
         c.count_documents = AsyncMock(return_value=0)
@@ -50,6 +51,12 @@ def _fake_db():
         c.find = MagicMock(return_value=_async_iter([]))
         c.insert_one = AsyncMock()
         c.update_one = AsyncMock()
+
+    # Iter 220aq — sparklines now scope deal-creation buckets to the
+    # master-admin org via ``_master_admin_org_id``; stub the resolver
+    # path so tests don't need to opt in.
+    fdb.users.find_one = AsyncMock(return_value={"organization_id": "ma-org"})
+    fdb.organizations.find_one = AsyncMock(return_value={"id": "ma-org"})
 
     # `seo_view_snapshots.find(...).to_list(...)` is used directly.
     snap_cur = MagicMock()

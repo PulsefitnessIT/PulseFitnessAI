@@ -49,6 +49,8 @@ def _fake_db(**overrides):
     for coll in (
         "organizations", "seo_articles", "seo_keywords", "seo_autopilot_runs",
         "email_send_events", "crm_deals", "crm_companies",
+        "crm2_opportunities", "crm2_companies",
+        "seo_article_view_snapshots", "users",
         "mkt_chat_sessions", "mkt_chat_messages",
     ):
         c = getattr(fdb, coll)
@@ -56,6 +58,13 @@ def _fake_db(**overrides):
         c.find_one = AsyncMock(return_value=None)
         # Default cursor is empty
         c.find = MagicMock(return_value=_async_iter([]))
+
+    # Iter 220aq — the growth-hub endpoint now scopes pipeline reads
+    # to the master-admin org via ``_master_admin_org_id`` which calls
+    # ``organizations.find_one({"is_master_admin_org": True})``. Stub
+    # that here so existing fixtures don't need to opt in.
+    fdb.organizations.find_one = AsyncMock(return_value={"id": "ma-org"})
+    fdb.users.find_one = AsyncMock(return_value={"organization_id": "ma-org"})
 
     # `organizations.find().to_list()` is used directly.
     org_cursor = MagicMock()
@@ -217,7 +226,7 @@ def test_growth_overview_sums_pipeline_value_field():
     fdb = _fake_db()
     # 3 open deals worth £1000, £2500, £500 → £4000.
     def _find_side(query, projection=None):
-        if query == {"stage": {"$nin": ["won", "lost"]}}:
+        if query.get("stage") == {"$nin": ["won", "lost"]}:
             return _async_iter([
                 {"value": 1000},
                 {"value": 2500},
@@ -240,7 +249,7 @@ def test_growth_overview_pipeline_value_tolerates_bad_strings():
 
     fdb = _fake_db()
     def _find_side(query, projection=None):
-        if query == {"stage": {"$nin": ["won", "lost"]}}:
+        if query.get("stage") == {"$nin": ["won", "lost"]}:
             return _async_iter([
                 {"value": "1000"},      # numeric string — sum
                 {"value": "not-a-num"},  # garbage — skip
