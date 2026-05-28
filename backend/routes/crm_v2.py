@@ -9,6 +9,7 @@ from utils.database import db
 from routes.crm_auth import get_crm_user
 from utils.crm_audit import record_audit
 from utils.web_security import sanitize_rich_text, sanitize_rich_text_dict
+from utils.audit_log import audit_export
 from routes.crm_permissions import compute_visibility, redact
 import uuid
 import re
@@ -2832,6 +2833,7 @@ async def ai_suggest_snippets(tender_id: str, q_id: str, user=Depends(get_crm_us
 
 
 @router.get("/tenders/{tender_id}/export/submission")
+@audit_export("tender.submission.pdf", resource_kwarg="tender_id")
 async def export_submission_pdf(tender_id: str, user=Depends(get_crm_user)):
     """Generate the formal tender submission PDF."""
     from fastapi.responses import StreamingResponse
@@ -2855,6 +2857,7 @@ async def export_submission_pdf(tender_id: str, user=Depends(get_crm_user)):
 
 
 @router.get("/tenders/{tender_id}/export/pitch")
+@audit_export("tender.pitch.pdf", resource_kwarg="tender_id")
 async def export_pitch_pdf(tender_id: str, user=Depends(get_crm_user)):
     """Generate the 8-slide pitch deck PDF."""
     from fastapi.responses import StreamingResponse

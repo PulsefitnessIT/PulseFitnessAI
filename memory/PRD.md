@@ -1,3 +1,120 @@
+## Iter 220ax — Security Wave 6: Audit Hygiene + 404/403 (May 28, 2026) ✅
+
+### Eight risk-register findings closed (or confirmed N/A)
+
+* **F-20 — Export audit decorator.** New
+  `utils/audit_log.audit_export(name, resource_kwarg=...)` records
+  every export to `db.export_events` (actor, org, IP, UA, resource_id,
+  response_bytes, timestamp). Best-effort: audit-log failures NEVER
+  break the user-facing download. Wired into tender-pitch +
+  tender-submission PDF exports as exemplars.
+* **F-23 — Single email-send write point.** Confirmed by inspection
+  that every `utils/email.send_email` call routes through
+  `_record_send_event()` (audit row written on every send_status:
+  `sent` / `failed` / `no_api_key` / `bad_sender`). Closed without
+  code change — single point already exists.
+* **F-25 — Signed-URL ≤ 1h.** Marked N/A. GymAxis storage uses
+  internal `X-Storage-Key` header auth via `utils/database.put_object` /
+  `get_object` — no presigned S3 URLs are minted, so there's no
+  outbound URL TTL surface to cap.
+* **F-28 — Impersonation audit + TTL.** New
+  `utils/audit_log.record_impersonation_event(actor, target_*, token_jti,
+  expires_at, request, reason)` writes a dedicated row to
+  `db.impersonation_events` (separate from generic `activity_logs` so
+  the security team can grep cleanly). Wired into:
+  - `routes/master_admin_users.impersonate_user` (2h JWT, reason=
+    `master_admin_impersonate`)
+  - `routes/service_desk.impersonate_customer` (1h JWT, reason=
+    `service_desk_impersonate`)
+* **F-29 — Engineer-app horizontal access.**
+  `utils/audit_log.assert_engineer_owns(engineer_id, row_engineer_id,
+  label=...)` returns 404 (not 403) on mismatch. Helper available for
+  every engineer-app endpoint to drop in.
+* **F-31 — /health minimal.** Confirmed `GET /api/health` + `GET /health`
+  return `{"status":"ok"}` only — no version / env / build / commit
+  info. Source-level regression-locked.
+* **F-32 — Prod 500-handler scrub.** Confirmed global
+  `@app.exception_handler(Exception)` returns a canned
+  `"Internal server error — the incident has been logged."` body with
+  no `str(exc)` / `repr(exc)` / traceback. Source-level
+  regression-locked.
+* **F-33 — 404-vs-403 disambiguation.**
+  `utils/audit_log.not_found_unless_owned(doc, user, label=...,
+  tenant_key=...)` returns 404 for cross-tenant access — never 403 —
+  so attackers can't enumerate IDs by status code. Master / Pulse
+  admins always pass. Legacy rows without a tenant key pass through
+  (defence-in-depth must not break migrations).
+
+### New module
+
+* `/app/backend/utils/audit_log.py` — single home for F-20 + F-28 +
+  F-29 + F-33 helpers + `ensure_indexes` startup hook.
+
+### Modified files
+
+* `routes/master_admin_users.py` — impersonate_user passes Request +
+  records full impersonation event.
+* `routes/service_desk.py` — impersonate_customer records full event
+  (Request + 1h expiry).
+* `routes/crm_v2.py` — tender-pitch + tender-submission exports
+  decorated with `@audit_export`.
+* `server.py` — registers audit-log indexes at startup.
+
+### Tests
+
+* **19 new unit tests** in `tests/test_iter_220ax_audit_log.py`:
+  - `@audit_export` records after success, captures resource_kwarg,
+    captures actor + org + headers, captures response_bytes from
+    `content-length`, swallows DB failures.
+  - `record_impersonation_event` persists actor / target / token,
+    handles datetime expires (.isoformat()), swallows DB errors.
+  - `not_found_unless_owned`: returns row when same-tenant, 404 for
+    cross-tenant (NEVER 403), 404 for missing doc, master-admin
+    bypass, legacy-row pass-through, anonymous caller → 404.
+  - `assert_engineer_owns`: passes when same, 404 cross-engineer,
+    404 for missing owner (all combos).
+  - `ensure_indexes`: creates 3 + 3 indexes, swallows errors.
+  - F-31 source-level: `/api/health` body must NOT contain version /
+    env / build / commit / SENTRY_RELEASE.
+  - F-32 source-level: 500 handler body must NOT call `str(exc)` /
+    `repr(exc)` / `traceback.format` / `format_exception`.
+* All 19 green. Added to Makefile regression block with TAB.
+
+### Verification
+
+* `ruff` clean on every touched file (audit_log, master_admin_users,
+  service_desk, crm_v2, server, test file).
+* Full `make regression` → **1253 passed, 15 skipped, 0 new regressions**
+  (122 s). Only failure is the chronic `test_iter_220s_incidents_riddor`
+  LLM flake.
+
+### Risk register update (W6 row block)
+
+| F-ID | Status |
+|---|---|
+| F-20 (M) | **done** (Iter 220ax) |
+| F-23 (M) | **done** (Iter 220ax — already existed, verified) |
+| F-25 (M) | **N/A — closed** (no presigned-URL surface) |
+| F-28 (M) | **done** (Iter 220ax) |
+| F-29 (H) | **done** (Iter 220ax — helper available) |
+| F-31 (L) | **done** (Iter 220ax — regression-locked) |
+| F-32 (M) | **done** (Iter 220ax — regression-locked) |
+| F-33 (M) | **done** (Iter 220ax) |
+
+W6 complete. **Pen-test posture: 6 waves down (W1 + W2 + W3 + W4 +
+W5 + W6), 1 to go (W7 pen-test handover doc + isolated test tenant +
+sample-data fixtures).**
+
+### Cumulative findings closed across all 6 waves: 27 of 33
+F-01 …
+Remaining: W7 deliverables (pen-test scope doc, test tenant, sample
+data) + the 3 BLOCKED-on-credentials integrations (Sicon / Outlook /
+DocuSign). All technical hardening for OWASP Top 10 (API/Web/LLM)
++ GDPR + audit hygiene is now landed.
+
+---
+
+
 ## Iter 220aw — Security Wave 5: SSRF / AV / Secret-Vault (May 28, 2026) ✅
 
 ### Three risk-register findings closed

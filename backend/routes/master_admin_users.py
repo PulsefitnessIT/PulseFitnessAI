@@ -27,7 +27,7 @@ import secrets
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -673,7 +673,7 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
 
 
 @router.post("/master-admin/impersonate/{user_id}")
-async def impersonate_user(user_id: str, user: dict = Depends(get_current_user)):
+async def impersonate_user(user_id: str, request: Request, user: dict = Depends(get_current_user)):
     require_master_admin(user)
     await assert_user_in_pulse_scope(user, user_id)
     target = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0, "password_hash": 0})
@@ -683,15 +683,28 @@ async def impersonate_user(user_id: str, user: dict = Depends(get_current_user))
     import jwt
     from utils.database import JWT_SECRET as _JWT_SECRET, JWT_ALGORITHM as _JWT_ALGO
     from utils.security_plus import new_jti
+    jti = new_jti()
+    exp = datetime.now(timezone.utc) + timedelta(hours=2)
     token = jwt.encode({
         "user_id": target["id"],
         "email": target["email"],
         "organization_id": target.get("organization_id", ""),
         "role": target.get("role", "member"),
         "impersonated_by": user["email"],
-        "jti": new_jti(),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=2),
+        "jti": jti,
+        "exp": exp,
     }, _JWT_SECRET, algorithm=_JWT_ALGO)
 
     await log_activity("impersonate", f"Impersonated user {target['email']}", user["email"], "user", user_id)
+    # Iter 220ax · F-28 — dedicated impersonation audit collection.
+    # Captures actor + target + IP + UA + token jti so the session
+    # can be killed later if needed.
+    from utils.audit_log import record_impersonation_event
+    await record_impersonation_event(
+        actor=user, target_user_id=target["id"],
+        target_email=target.get("email"),
+        target_organization_id=target.get("organization_id"),
+        token_jti=jti, expires_at=exp, request=request,
+        reason="master_admin_impersonate",
+    )
     return {"token": token, "user": target}

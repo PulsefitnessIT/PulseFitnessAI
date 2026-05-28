@@ -2,7 +2,7 @@
 
 All mutating endpoints write a row to `service_desk_audit_log` via `log_desk_action`.
 """
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
 
@@ -517,6 +517,7 @@ async def _resolve_impersonation_target(org_id: str) -> dict:
 @router.post("/customers/{org_id}/impersonate")
 async def impersonate_customer(
     org_id: str,
+    request: Request,
     user: dict = Depends(require_service_desk),
 ) -> dict:
     """Issue a short-lived token scoped to the customer org's owner user.
@@ -531,6 +532,17 @@ async def impersonate_customer(
         user, "org.impersonate", "organization", org_id,
         f"Impersonation session started for {target.get('email')}",
         impersonating_org_id=org_id,
+    )
+    # Iter 220ax · F-28 — dedicated impersonation audit row.
+    from utils.audit_log import record_impersonation_event
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    await record_impersonation_event(
+        actor=user, target_user_id=target["id"],
+        target_email=target.get("email"),
+        target_organization_id=org_id,
+        token_jti=None,
+        expires_at=_dt.now(_tz.utc) + _td(hours=1),
+        request=request, reason="service_desk_impersonate",
     )
     return {
         "token": token,

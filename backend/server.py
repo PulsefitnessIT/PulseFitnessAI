@@ -545,6 +545,12 @@ async def _create_indexes() -> None:
         await _ensure_ai_guardrails()
     except Exception:
         pass
+    # Iter 220ax — Audit log indexes (export_events + impersonation_events).
+    try:
+        from utils.audit_log import ensure_indexes as _ensure_audit_log
+        await _ensure_audit_log()
+    except Exception:
+        pass
     # CRM indexes
     await db.crm_users.create_index("email", unique=True)
     await db.crm_contacts.create_index([("email", 1)])
