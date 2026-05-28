@@ -1,3 +1,66 @@
+## Iter 220ay+ — Pen-Test Engagement Kick-off (May 28, 2026) ✅
+
+### Done in preview
+
+* 🧪 **Sandbox tenant seeded into preview Mongo** via
+  `ALLOW_PENTEST_SEED=true python -m scripts.seed_pentest_tenant` —
+  `pentest-org-001` + 4 users + CRM data + 5 members (1 with
+  `gdpr_erased=True`). Login smoke-tested:
+  `pentest-owner@gymaxis.test` / `PentestOwner!2026` returns a 200
+  with `role=owner`.
+* 🔑 **Seeder bug fix** — the original seed wrote `password_hash`
+  but the auth code reads `user["password"]` (legacy convention).
+  Fixed to `password` so the seeded users can actually log in.
+* 📄 **`/app/memory/SECURITY_AUDIT/PEN_TEST_FINDINGS.md`** — empty
+  triage log with finding-template, severity rubric (Critical/High/
+  Medium/Low + SLAs) and post-engagement debrief block. Pen-tester
+  appends; dev team triages in-place.
+* 📄 **`/app/memory/SECURITY_AUDIT/DEPLOY_RUNBOOK_PENTEST.md`** —
+  seven-section ops-team runbook covering pre-flight, env-flag flip
+  table, verification curls, ClamAV side-car YAML, sandbox seed,
+  hand-over checklist, post-engagement cleanup script.
+
+### NOT done (correctly deferred to prod ops)
+
+* ❌ **6 production env flags in `.env`** — initially tried setting
+  them in preview `.env` per ask_human option 1.a, but the preview
+  env IS the test env. Setting `ENFORCE_MASTER_ADMIN_MFA=true` +
+  `ENFORCE_EMAIL_RECIPIENT_VALIDATION=true` here broke 35 regression
+  tests that don't pre-arrange MFA/recipient context. **Reverted**
+  — the flags live ONLY in `DEPLOY_RUNBOOK_PENTEST.md` for the prod
+  ops team to flip in the Emergent native-deploy env editor.
+* ❌ **ClamAV side-car deployment** — Kubernetes infra change, not
+  doable from the agent. K8s YAML provided in §3 of the runbook.
+
+### Regression-locked
+
+* 5 new tests in `tests/test_iter_220ay_pen_test_handover.py` (raising
+  total from 7 to 12) now guard:
+  - `PEN_TEST_FINDINGS.md` exists + carries the template
+  - `DEPLOY_RUNBOOK_PENTEST.md` exists + covers 7 sections + names
+    all 6 prod flags + the `ALLOW_PENTEST_SEED` gate
+* All 12 green. Full `make regression` → **1265 passed, 15 skipped,
+  0 new regressions** (124 s). Only failure is the chronic
+  `test_iter_220s_incidents_riddor` LLM flake.
+
+### What ops needs to do next
+
+Hand `DEPLOY_RUNBOOK_PENTEST.md` to the prod ops team. They:
+
+1. Flip the 6 env flags in prod (one of them — `STRICT_AV_MODE` — only
+   flips to `true` AFTER ClamAV side-car is up; until then static-sig
+   scan remains the active AV layer).
+2. Deploy the ClamAV side-car (k8s YAML in §3).
+3. Run the seeder against prod Mongo with `ALLOW_PENTEST_SEED=true`.
+4. Hand `PEN_TEST_ONBOARDING.md` + the test-user credentials to the
+   pen-tester via your secure-share channel.
+5. As findings arrive, append them to `PEN_TEST_FINDINGS.md`. Dev team
+   triages in-place + lands fixes as `Iter 220az+` with Pytest
+   regression coverage.
+
+---
+
+
 ## Iter 220ay — Security Wave 7: Pen-Test Handover (May 28, 2026) ✅
 
 ### Deliverables

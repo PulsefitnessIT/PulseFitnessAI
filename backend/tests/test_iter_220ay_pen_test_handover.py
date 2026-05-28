@@ -95,3 +95,41 @@ def test_test_credentials_md_references_pentest_tenant():
     text = creds.read_text(encoding="utf-8")
     assert "pentest-owner@gymaxis.test" in text
     assert "PEN_TEST_ONBOARDING.md" in text
+
+
+def test_findings_triage_doc_exists_and_is_empty():
+    """The triage log starts empty — pen-tester appends as findings
+    are reported, dev team triages in place."""
+    p = pathlib.Path(__file__).resolve().parents[2] / "memory" / "SECURITY_AUDIT" / "PEN_TEST_FINDINGS.md"
+    assert p.exists(), f"missing {p}"
+    text = p.read_text(encoding="utf-8")
+    # Must contain the canonical template + severity rubric so it's
+    # usable on day 1.
+    assert "F-PT-NN" in text  # template id placeholder
+    assert "Severity rubric" in text
+    assert "No findings reported yet" in text
+
+
+def test_deploy_runbook_exists_and_covers_seven_steps():
+    p = pathlib.Path(__file__).resolve().parents[2] / "memory" / "SECURITY_AUDIT" / "DEPLOY_RUNBOOK_PENTEST.md"
+    assert p.exists(), f"missing {p}"
+    text = p.read_text(encoding="utf-8")
+    # Must walk through pre-flight + env-flag flip + verify +
+    # ClamAV + seed + hand-over + cleanup.
+    for section in (
+        "Pre-flight checklist",
+        "Flip the production env flags",
+        "Verify the flags are live",
+        "Deploy ClamAV side-car",
+        "Seed the sandbox tenant",
+        "Hand the brief over",
+        "Post-engagement cleanup",
+    ):
+        assert section in text, f"deploy runbook missing section {section!r}"
+    # Must reference all six production flags + the ALLOW_PENTEST_SEED gate.
+    for flag in (
+        "ENFORCE_MASTER_ADMIN_MFA", "ENFORCE_EMAIL_RECIPIENT_VALIDATION",
+        "STRICT_AV_MODE", "CLAMAV_HOST", "MFA_ENCRYPTION_KEY",
+        "SSRF_EXTRA_DENYLIST_HOSTS", "ALLOW_PENTEST_SEED",
+    ):
+        assert flag in text, f"deploy runbook missing flag {flag!r}"
