@@ -66,6 +66,18 @@ const Footer = () => {
             <FooterLink to="/trust" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-trust-link">
               Trust posture
             </FooterLink>
+            <span className="text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>|</span>
+            <FooterLink to="/legal/dpa" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-dpa-link">
+              DPA
+            </FooterLink>
+            <span className="text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>|</span>
+            <FooterLink to="/sla" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-sla-link">
+              SLA
+            </FooterLink>
+            <span className="text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>|</span>
+            <FooterLink to="/sub-processors" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-subprocessors-link">
+              Sub-processors
+            </FooterLink>
           </div>
           <p className="text-xs text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>{t('footer.copyright')}</p>
         </div>

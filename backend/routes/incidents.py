@@ -1450,14 +1450,16 @@ async def _repeat_incident_rollup(
 async def repeat_detection(
     window_days: int = Query(default=90, ge=7, le=365),
     threshold: int = Query(default=3, ge=2, le=20),
+    limit: int = Query(default=200, ge=10, le=2000),
     user: dict = Depends(get_current_user),
 ) -> dict:
     if not _user_can_view_all(user):
         raise HTTPException(403, "Only managers/H&S leads can read repeat-incident detection")
-    rows = await _repeat_incident_rollup(user, window_days=window_days, threshold=threshold)
+    rows = await _repeat_incident_rollup(user, window_days=window_days, threshold=threshold, limit=limit)
     return {
         "window_days": window_days,
         "threshold": threshold,
+        "limit": limit,
         "flagged": rows,
         "total_flagged": len(rows),
     }
