@@ -270,8 +270,11 @@ async def _get_quote_or_404(quote_id: str, user: dict) -> dict:
     )
     if not quote:
         raise HTTPException(404, "Quote not found")
-    if quote.get("engineer_id") != user.get("id"):
-        raise HTTPException(403, "Not your quote")
+    # Iter 220az · F-29 / F-33 — return 404 (not 403) on cross-engineer
+    # access so the caller can't enumerate quote IDs by status code.
+    # Master admins always pass.
+    if quote.get("engineer_id") != user.get("id") and not user.get("is_master_admin"):
+        raise HTTPException(404, "Quote not found")
     return quote
 
 

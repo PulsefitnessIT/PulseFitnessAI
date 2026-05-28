@@ -65,8 +65,9 @@ async def _get_invoice(invoice_id: str, user: dict) -> dict:
     )
     if not inv:
         raise HTTPException(404, "Invoice not found")
-    if inv.get("engineer_id") != user.get("id"):
-        raise HTTPException(403, "Not your invoice")
+    # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer access.
+    if inv.get("engineer_id") != user.get("id") and not user.get("is_master_admin"):
+        raise HTTPException(404, "Invoice not found")
     return inv
 
 

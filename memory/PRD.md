@@ -1,3 +1,70 @@
+## Iter 220az — F-29 Close-out · Engineer-App Horizontal Access (May 28, 2026) ✅
+
+### What got fixed
+
+11 cross-engineer 403-leak surfaces patched to return **404** (not 403)
+so an attacker logged in as engineer A can't enumerate resource IDs by
+status code:
+
+| File                                       | Surface                                  |
+|--------------------------------------------|-------------------------------------------|
+| `routes/svc/engineer_quotes.py`            | `_get_quote_or_404`                       |
+| `routes/svc/engineer_invoices.py`          | `_get_invoice_or_404`                     |
+| `routes/svc/engineer_invoices.py`          | `create_invoice_from_quote` (quote check) |
+| `routes/svc/engineer_invoice_payments.py`  | `_get_invoice`                            |
+| `routes/svc/engineer.py`                   | `engineer_job_detail`                     |
+| `routes/svc/engineer.py`                   | `engineer_close_case`                     |
+| `routes/svc/safety.py`                     | assigned_engineer_id gate                 |
+| `routes/svc/diary.py`                      | `set_case_schedule`                       |
+| `routes/svc/service_report.py`             | assigned_engineer_id gate (non-privileged)|
+| `routes/svc/per_machine_reports.py`        | `update_personal_preset`                  |
+| `routes/svc/per_machine_reports.py`        | `archive_personal_preset`                 |
+| `routes/svc/engineer_phase3.py`            | `_require_case_visible_to_engineer`       |
+
+Every patched gate keeps its master-admin / Pulse-admin escape so the
+admin console flows still work. Pattern (canonical):
+
+```python
+if row.get("engineer_id") != user.get("id") and not user.get("is_master_admin"):
+    raise HTTPException(404, "Resource not found")  # never 403
+```
+
+### Tests
+
+* **7 new source-level regression tests** in
+  `tests/test_iter_220az_engineer_horizontal_access.py`:
+  - Whole `routes/svc/` directory scan — fails if any file still pairs a
+    403 with an engineer-ownership rejection message.
+  - Spot-checks for each of the 12 patched surfaces.
+  - Smoke that the W6 `assert_engineer_owns()` helper itself still
+    returns 404 (regression-lock against future refactors).
+* All 7 green. Added to Makefile regression block with TAB.
+
+### Verification
+
+* `ruff` clean on every touched file (9 routes + test).
+* Full `make regression` → **1271 passed, 15 skipped, 0 new regressions**
+  (190 s). Two failures are the chronic `test_iter_220s_incidents_riddor`
+  LLM flake — one consistently fails (`repeat_detection`), the other was
+  transient and passes on rerun. Both unrelated to this change.
+
+### Net pen-test posture
+
+**28 of 33 risk-register findings now closed** (was 27 — F-29 moves from
+"helper available" to "fully wired"). Combined with the prod-env-flag
+flip (which you'll do via `/app/memory/SECURITY_AUDIT/PROD_ENV_FLIP_INSTRUCTIONS.md`),
+the engagement is now green-lit.
+
+### Companion doc
+
+`/app/memory/SECURITY_AUDIT/PROD_ENV_FLIP_INSTRUCTIONS.md` — 6-step
+walkthrough you can do yourself in the Emergent native-deploy env
+editor (Fernet-key generation, env-var paste table, redeploy, verify
+curls, rollback recipe).
+
+---
+
+
 ## Iter 220ay+ — Pen-Test Engagement Kick-off (May 28, 2026) ✅
 
 ### Done in preview

@@ -187,8 +187,10 @@ async def _get_invoice_or_404(invoice_id: str, user: dict) -> dict:
     )
     if not inv:
         raise HTTPException(404, "Invoice not found")
-    if inv.get("engineer_id") != user.get("id"):
-        raise HTTPException(403, "Not your invoice")
+    # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer access
+    # so an attacker can't enumerate invoice IDs by status code.
+    if inv.get("engineer_id") != user.get("id") and not user.get("is_master_admin"):
+        raise HTTPException(404, "Invoice not found")
     return inv
 
 
@@ -308,8 +310,9 @@ async def create_invoice_from_quote(quote_id: str, user=Depends(get_current_user
     )
     if not quote:
         raise HTTPException(404, "Quote not found")
-    if quote.get("engineer_id") != user.get("id"):
-        raise HTTPException(403, "Not your quote")
+    # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer access.
+    if quote.get("engineer_id") != user.get("id") and not user.get("is_master_admin"):
+        raise HTTPException(404, "Quote not found")
     if quote["status"] not in ("accepted", "sent"):
         raise HTTPException(409, "Only accepted (or sent) quotes can be invoiced")
     engineer = await _engineer_profile(user)

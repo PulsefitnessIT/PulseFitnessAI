@@ -182,7 +182,8 @@ async def engineer_safety_signoff(case_id: str, body: dict, user=Depends(get_cur
         raise HTTPException(404, "Case not found")
     if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"] \
             and not user.get("is_master_admin"):
-        raise HTTPException(403, "Not assigned to this job")
+        # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer.
+        raise HTTPException(404, "Job not found")
 
     tpl = await _resolve_template(of["organization_id"])
     required_ids = {i["id"] for i in tpl["items"] if i.get("required")}

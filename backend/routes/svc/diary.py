@@ -247,8 +247,9 @@ async def my_reschedule(
     )
     if not case:
         raise HTTPException(404, "Job not found")
-    if case.get("assigned_engineer_id") != user["id"]:
-        raise HTTPException(403, "Not assigned to this job")
+    if case.get("assigned_engineer_id") != user["id"] and not user.get("is_master_admin"):
+        # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer.
+        raise HTTPException(404, "Job not found")
     await db.svc_cases.update_one(
         {"id": case_id, **of},
         {"$set": {"scheduled_at": body.scheduled_at, "updated_at": _now()}},

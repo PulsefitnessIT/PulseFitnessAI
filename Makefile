@@ -182,6 +182,7 @@ regression:
 	  tests/test_iter_220aw_ssrf_av_vault.py \
 	  tests/test_iter_220ax_audit_log.py \
 	  tests/test_iter_220ay_pen_test_handover.py \
+	  tests/test_iter_220az_engineer_horizontal_access.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

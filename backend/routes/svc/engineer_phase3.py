@@ -87,7 +87,8 @@ async def _case_for_engineer(case_id: str, user: dict) -> dict:
     assigned = case.get("assigned_engineer_id")
     is_admin = bool(user.get("is_master_admin") or user.get("is_pulse_admin"))
     if assigned and assigned != user["id"] and not is_admin:
-        raise HTTPException(403, "Not assigned to this job")
+        # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer.
+        raise HTTPException(404, "Job not found")
     return case
 
 

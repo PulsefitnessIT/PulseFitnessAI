@@ -223,9 +223,12 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
     case = _strip(await db.svc_cases.find_one({"id": case_id, **of}))
     if not case:
         raise HTTPException(404, "Job not found")
-    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"]:
-        # Engineers may only see their own jobs.
-        raise HTTPException(403, "Not assigned to this job")
+    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"] \
+            and not user.get("is_master_admin"):
+        # Iter 220az · F-29 / F-33 — engineers may only see their own
+        # jobs. Return 404 (not 403) so attackers can't enumerate
+        # case IDs by status code.
+        raise HTTPException(404, "Job not found")
     events = (
         await db.svc_case_events
         .find({"case_id": case_id, **of}, {"_id": 0})
@@ -593,8 +596,10 @@ async def engineer_complete(
     case = await db.svc_cases.find_one({"id": case_id, **of})
     if not case:
         raise HTTPException(404, "Case not found")
-    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"]:
-        raise HTTPException(403, "Not assigned to this job")
+    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"] \
+            and not user.get("is_master_admin"):
+        # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer.
+        raise HTTPException(404, "Case not found")
     summary = ((data or {}).get("summary") or "").strip()
     if not summary:
         raise HTTPException(400, "summary required")

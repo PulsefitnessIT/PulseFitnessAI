@@ -682,7 +682,8 @@ async def _build_report(case_id: str, user: dict) -> tuple[bytes, dict]:
     if not is_privileged:
         case = payload["case"]
         if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"]:
-            raise HTTPException(403, "Not assigned to this job")
+            # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer.
+            raise HTTPException(404, "Job not found")
 
     payload["fix_summary"] = await _resolve_fix_summary(case_id, of)
 

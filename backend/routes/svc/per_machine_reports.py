@@ -383,7 +383,9 @@ async def update_note_preset(
     # Personal presets can only be edited by their owner. Shared presets
     # can be edited by anyone in the org (they're org-wide knowledge).
     if existing.get("scope") == "personal" and existing.get("engineer_id") != user.get("id"):
-        raise HTTPException(403, "Cannot edit another engineer's personal preset")
+        # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer
+        # access to another engineer's personal preset.
+        raise HTTPException(404, "Preset not found")
     updates: dict = {}
     if payload.text is not None:
         t = payload.text.strip()
@@ -409,7 +411,8 @@ async def archive_note_preset(preset_id: str, user=Depends(get_current_user)):
     if not existing:
         raise HTTPException(404, "Preset not found")
     if existing.get("scope") == "personal" and existing.get("engineer_id") != user.get("id"):
-        raise HTTPException(403, "Cannot archive another engineer's personal preset")
+        # Iter 220az · F-29 / F-33 — 404 (not 403) on cross-engineer.
+        raise HTTPException(404, "Preset not found")
     await db.svc_note_presets.update_one(
         {"id": preset_id, **of},
         {"$set": {"archived": True, "updated_at": _now()}},
