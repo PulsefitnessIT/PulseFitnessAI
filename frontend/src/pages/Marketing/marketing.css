@@ -19,6 +19,10 @@
   --gx-accent-marketing: #D946EF;
   --gx-accent-staffing: #A855F7;
   --gx-accent-reporting: #2563EB;
+  /* Iter 220bd — Engineers high-vis amber, distinct from the existing
+     cool palette so the 5th node reads as "partner / on-site contractor"
+     instead of another core SaaS module. */
+  --gx-accent-engineers: #F59E0B;
 
   font-family: 'Inter', system-ui, sans-serif;
   background: var(--gx-bg);

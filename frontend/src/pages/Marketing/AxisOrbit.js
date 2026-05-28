@@ -18,11 +18,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Wrench, Users, Calendar, Megaphone,
+  Wrench, Users, Calendar, Megaphone, HardHat,
   Wallet, AlertTriangle, ListChecks, UserCog,
   Building2, GitBranch, LineChart,
   CalendarClock, Receipt, Smartphone, BookOpen,
   Image as ImageIcon, MailPlus, Heart,
+  MapPin, Camera, PoundSterling,
 } from 'lucide-react';
 
 import GymAxisMark from './GymAxisMark';
@@ -83,6 +84,21 @@ const ORBIT_MODULES = [
       { icon: ImageIcon, label: 'Poster Maker' },
       { icon: Heart,     label: 'Member Jam' },
       { icon: Megaphone, label: 'Social' },
+    ],
+  },
+  // Iter 220bd — Engineers as 5th orbital node. The partner-engineer
+  // network gets equal billing alongside the four core SaaS modules.
+  {
+    id: 'engineers',
+    icon: HardHat,
+    color: 'var(--gx-accent-engineers)',
+    to: '/partners/engineers',
+    label: 'Engineers',
+    features: [
+      { icon: MapPin,        label: 'Job Routing' },
+      { icon: Smartphone,    label: 'Mobile App' },
+      { icon: Camera,        label: 'AI Photo Triage' },
+      { icon: PoundSterling, label: 'Earnings' },
     ],
   },
 ];

@@ -16,6 +16,7 @@ import {
   Building2, GitBranch, LineChart,
   CalendarClock, Receipt, Smartphone, BookOpen,
   Image as ImageIcon, MailPlus, Heart,
+  MapPin, Camera, PoundSterling,
 } from 'lucide-react';
 
 import './marketing.css';
@@ -91,6 +92,24 @@ export const MODULES = [
       { icon: Megaphone, label: 'Social' },
     ],
   },
+  // Iter 220bd — Engineers as 5th module. Maps to /partners/engineers
+  // (the partner-engineer landing page). High-vis amber accent
+  // distinguishes "partner network" from the four core SaaS modules.
+  {
+    id: 'engineers',
+    icon: HardHat,
+    color: '#F59E0B',
+    to: '/partners/engineers',
+    name: 'Engineers',
+    tagline: 'Your partner network on the ground.',
+    body: 'A vetted UK-wide engineer network — Uber-style live tracking, mobile-first job dispatch, AI photo triage, signed service reports and a referral revenue share.',
+    features: [
+      { icon: MapPin,        label: 'Job Routing' },
+      { icon: Smartphone,    label: 'Mobile App' },
+      { icon: Camera,        label: 'AI Photo Triage' },
+      { icon: PoundSterling, label: 'Earnings' },
+    ],
+  },
 ];
 
 export default function MarketingHome() {
@@ -119,7 +138,7 @@ function Hero() {
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800" data-testid="gx-hero-eyebrow">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }} />
-            One platform · Four modules
+            One platform · Five modules
           </span>
           <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.04]" data-testid="gx-hero-headline">
             Smarter Fitness.<br />
@@ -156,7 +175,7 @@ function PlatformOverview() {
         <div className="lg:col-span-5">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Why GymAxis</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">One platform.<br /><span className="gx-gradient-text">Everything connected.</span></h2>
-          <p className="mt-5 text-lg text-slate-600 leading-relaxed">Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. GymAxis is one system, four modules, zero handoff bugs.</p>
+          <p className="mt-5 text-lg text-slate-600 leading-relaxed">Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. GymAxis is one system, five modules, zero handoff bugs.</p>
         </div>
         <div className="lg:col-span-7 grid sm:grid-cols-2 gap-4">
           <OverviewCard icon={<Sparkles size={18} />} title="AI built in everywhere" body="Lead scoring in CRM, churn prediction in Memberships, copywriter in Marketing, fault triage in Operations." />
@@ -186,10 +205,10 @@ function ModuleGrid() {
     <section className="py-24 md:py-32 bg-slate-50/60" data-testid="gx-module-grid">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">The four modules</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">The five modules</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">Built for every part of your business</h2>
         </div>
-        <div className="mt-12 grid md:grid-cols-2 gap-5" data-testid="gx-module-grid-list">
+        <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-5" data-testid="gx-module-grid-list">
           {MODULES.map((m) => <ModuleCard key={m.id} m={m} />)}
         </div>
       </div>
@@ -271,7 +290,7 @@ function SocialProof() {
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">What the platform delivers on day one</h2>
         </div>
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <Stat value="4 modules" label="Operations · CRM · Memberships · Marketing" />
+          <Stat value="5 modules" label="Operations · CRM · Memberships · Marketing · Engineers" />
           <Stat value="AI-first" label="Lead scoring, churn prediction, copywriter, fault triage — all built in" />
           <Stat value="Multi-site" label="Head-office onboarding wizard handles unlimited child sites in one pass" />
           <Stat value="GDPR-ready" label="UK GDPR DPA, UK-only data residency, tamper-evident audit log" />
@@ -368,7 +387,7 @@ function FinalCta() {
           <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,.6), transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,.4), transparent 50%)' }} />
           <div className="relative">
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-[1.04]">Run your entire fitness business<br />from one platform</h2>
-            <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">3-day free trial — all four modules unlocked. No credit card. We're always reachable, but you don't need to wait for us.</p>
+            <p className="mt-5 text-lg text-white/90 max-w-xl mx-auto">3-day free trial — all five modules unlocked. No credit card. We're always reachable, but you don't need to wait for us.</p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <button type="button" onClick={openTrial} className="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-900 px-7 py-3.5 text-sm font-bold shadow-xl hover:shadow-2xl transition-shadow dark:bg-zinc-900 dark:text-zinc-100" data-testid="gx-final-trial">
                 Start Free Trial <ArrowRight size={15} />
