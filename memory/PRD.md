@@ -1,3 +1,81 @@
+## Iter 220ar–220as — Security Wave 1: Audit + Idempotency + Pagination + Public RL (May 28, 2026) ✅
+
+### 220ar — Audit Pass 1 (read-only)
+
+Three artifacts published to `/app/memory/SECURITY_AUDIT/`:
+
+* `SECURITY_AUDIT_PASS_1.md` — full audit against OWASP Web Top 10 /
+  API Top 10 / LLM Top 10 + UK GDPR Art. 32. Confirms 19 controls
+  already shipped (tight CSP, HSTS, CORS allowlist, bcrypt+JWT
+  with `jti` revocation, TOTP module, Stripe signature verification
+  on 6 webhooks, brute-force lockout, magic-byte upload sniffing,
+  7 audit-log domains, GDPR erasure, body-size guard, master-admin
+  IP allowlist, slow-request telemetry, Sentry no-PII).
+* `RISK_REGISTER.md` — 33 findings (0 Critical · 7 High · 18 Medium
+  · 6 Low · 1 N/A) in tracker shape with wave + status columns.
+* `PEN_TEST_SCOPE.md` — ready-to-hand-over scope doc for the
+  external vendor: 12 test-role accounts, in-scope / out-of-scope
+  surfaces, known limitations, reporting expectations, disclosure
+  window.
+
+### 220as — Wave 1 hardening (3 risk-register findings closed)
+
+* **F-09 — Stripe webhook idempotency** — new
+  `utils/stripe_idempotency.py` exports `mark_event_processed(event_id)`
+  backed by a unique-index'd `db.stripe_webhook_events` collection
+  with 30-day TTL. Wired into 4 webhook handlers
+  (stripe_connect, engineer_invoice_payments, engineer_stripe_connect,
+  public_signup). The other two webhook handlers
+  (financial_ops, memberships_payments) already had session-level
+  idempotency; the event-id helper is belt-and-braces.
+* **F-07 — Pagination caps** — new `utils/pagination.py` exports
+  `safe_limit()` / `safe_skip()` that clamp client-supplied values
+  to a configurable hard max (default 200, max-max 500). Applied to
+  `mod_portal.audit-log`, `pulse_sales.opportunities`,
+  `service_desk.feed`.
+* **F-01 — Public-route rate-limit gap** — anonymous
+  `/public/signup/{slug}/track` now applies a 60-rpm IP-keyed
+  sliding-window throttle (the funnel analytics endpoint was
+  poison-able).
+
+**Tests** — 9 new pinned tests in
+`tests/test_iter_220as_security_wave_1.py`:
+
+* `safe_limit` clamps to hard max, defaults on garbage input.
+* `safe_skip` clamps below zero.
+* `mark_event_processed` returns True on first call, False on
+  duplicate, treats races as duplicate (safe), no-op on empty id.
+* `ensure_indexes` is idempotent.
+* **Source-level guarantee**: every Stripe webhook entry-point
+  references `mark_event_processed` — if a future handler is added
+  without it, the test fails and forces the dev to wire dedupe.
+
+### Verification
+
+* `make regression` → **1,130 passed, 15 skipped, 1 flaky LLM test
+  (`test_iter_220s_incidents_riddor.py::test_repeat_detection_flags_asset_after_three_incidents`,
+  passes 4/5 on isolated rerun — pre-existing nondeterminism, not
+  W1 regression)**.
+* `ruff` clean across every touched file.
+* Performance budget intact: idempotency check is a single
+  indexed `find_one_and_update` (≈ 200 µs), pagination clamp is
+  pure-Python (≈ 0 µs).
+
+### Risk Register status
+
+| Severity | Count | Closed in W1 | Remaining |
+|---|---|---|---|
+| **C** | 0 | – | 0 |
+| **H** | 7 | F-09 | 6 |
+| **M** | 18 | F-07, F-01 | 16 |
+| **L** | 6 | – | 6 |
+
+Next: **Wave 2 (Iter 220at) — AI prompt-injection guardrails**
+(F-11, F-12, F-13, F-14, F-16).
+
+---
+
+
 ## Iter 220aq — Production bug-fix triplet: Growth Hub deep-links, pipeline scoping, SEO domain (May 28, 2026) ✅
 
 User reported three production bugs from gymaxisai.com:

@@ -42,7 +42,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import RedirectResponse
 
 from routes.auth import get_current_user
@@ -464,8 +464,18 @@ async def _try_schedule_for_pending_events():
 async def track_event(
     slug: str = Path(...),
     body: dict = Body(default={}),
+    request: Request = None,
 ):
     """Anonymous funnel tracking. Logs a page-view or step event."""
+    # Iter 220as — public surface; rate-limit per-IP so a script can't
+    # poison the funnel KPIs by emitting 100k view events.
+    try:
+        from utils.security import rate_limit, _client_ip
+        await rate_limit(f"public_signup_track:{_client_ip(request)}", limit=60, window_seconds=60)
+    except HTTPException:
+        return {"ok": True, "throttled": True}
+    except Exception:
+        pass
     gym = await db.organizations.find_one(
         {"$or": [{"slug": slug.lower()}, {"id": slug}]}, {"_id": 0, "id": 1},
     )

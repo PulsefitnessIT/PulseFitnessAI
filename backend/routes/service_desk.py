@@ -557,6 +557,10 @@ async def list_audit_log(
 ) -> dict:
     """Immutable feed of Service Desk actions. Any Service Desk agent can read;
     nobody (including Master Admin) can delete or edit rows."""
+    # Iter 220as — clamp client-supplied limit to MAX_LIMIT.
+    from utils.pagination import safe_limit, safe_skip
+    limit = safe_limit(limit, default=200, hard_max=500)
+    skip = safe_skip(skip)
     query: dict = {}
     for field, value in (
         ("actor_id", actor_id), ("target_type", target_type),

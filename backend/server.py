@@ -533,6 +533,12 @@ async def _create_indexes() -> None:
     await db.purchase_orders.create_index([("organization_id", 1), ("created_at", -1)])
     await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
     await db.password_reset_tokens.create_index("token")
+    # Iter 220as — Stripe webhook idempotency (event_id unique + 30-day TTL).
+    try:
+        from utils.stripe_idempotency import ensure_indexes as _ensure_stripe_idemp
+        await _ensure_stripe_idemp()
+    except Exception:
+        pass
     # CRM indexes
     await db.crm_users.create_index("email", unique=True)
     await db.crm_contacts.create_index([("email", 1)])

@@ -230,6 +230,9 @@ async def list_opportunities(
 ):
     """List Pulse-internal CAPEX opportunities. Master-admin gated."""
     _require_pulse_sales_reader(user)
+    # Iter 220as — clamp client-supplied limit to MAX_LIMIT.
+    from utils.pagination import safe_limit
+    limit = safe_limit(limit, default=200, hard_max=500)
     q: dict[str, Any] = {}
     if status:
         if status not in ALL_STATUSES:

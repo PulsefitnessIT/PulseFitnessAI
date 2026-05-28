@@ -302,6 +302,12 @@ async def stripe_engineer_invoices_webhook(request: Request):
             raise HTTPException(400, "Invalid body")
     if event["type"] != "checkout.session.completed":
         return {"ok": True, "ignored": True, "type": event["type"]}
+    # Iter 220as — Stripe webhook idempotency at the event-id layer.
+    # Belt-and-braces with the existing session-id / invoice-status
+    # checks below.
+    from utils.stripe_idempotency import mark_event_processed
+    if not await mark_event_processed(event.get("id"), handler="engineer_invoice_payments"):
+        return {"ok": True, "duplicate": True}
     session = event["data"]["object"]
     meta = session.get("metadata") or {}
     if meta.get("tenant") != "engineer_invoice":

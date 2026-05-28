@@ -233,6 +233,14 @@ async def webhook_connect(request: Request):
         log.warning("Webhook signature verification failed: %s", exc)
         raise HTTPException(400, f"Invalid signature: {exc}")
     etype = event.get("type") if isinstance(event, dict) else event["type"]
+    # Iter 220as — Stripe webhook idempotency. Stripe retries on any
+    # non-2xx, so without dedupe an ``account.updated`` would refresh
+    # the cache twice. Cheap (single indexed find+upsert) but plugs a
+    # whole class of replay attacks.
+    from utils.stripe_idempotency import mark_event_processed
+    event_id = event.get("id") if isinstance(event, dict) else event["id"]
+    if not await mark_event_processed(event_id, handler="stripe_connect"):
+        return {"received": True, "duplicate": True}
     data = event.get("data", {}).get("object", {}) if isinstance(event, dict) else event["data"]["object"]
     if etype == "account.updated":
         acct_id = data.get("id") if isinstance(data, dict) else data["id"]

@@ -274,6 +274,10 @@ async def stripe_connect_webhook(request: Request):
             raise HTTPException(400, "Invalid body")
 
     etype = event.get("type") if isinstance(event, dict) else event["type"]
+    # Iter 220as — event-id dedupe across all engineer Connect events.
+    from utils.stripe_idempotency import mark_event_processed
+    if not await mark_event_processed(event.get("id"), handler="engineer_stripe_connect"):
+        return {"ok": True, "duplicate": True}
     obj = event["data"]["object"]
     account_id = obj.get("id") if etype.startswith("account.") else None
 

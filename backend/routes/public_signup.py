@@ -452,6 +452,13 @@ async def webhook_checkout(request: Request):
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(400, f"Invalid signature: {exc}")
     etype = event["type"] if isinstance(event, dict) is False else event.get("type")
+    # Iter 220as — Stripe webhook idempotency. Without dedupe a retry
+    # of ``checkout.session.completed`` would call _finalise_signup
+    # twice and could double-bill / double-grant a new tenant.
+    from utils.stripe_idempotency import mark_event_processed
+    event_id = event["id"] if isinstance(event, dict) is False else event.get("id")
+    if not await mark_event_processed(event_id, handler="public_signup"):
+        return {"received": True, "duplicate": True}
     if etype == "checkout.session.completed":
         obj = event["data"]["object"] if isinstance(event, dict) is False else event.get("data", {}).get("object", {})
         sid = (obj or {}).get("id") if isinstance(obj, dict) else obj.id

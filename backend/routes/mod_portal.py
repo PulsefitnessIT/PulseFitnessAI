@@ -1998,6 +1998,9 @@ async def mod_hq_audit_log(
 ):
     """Return the most-recent audit rows for ``site_id``. Caller must
     be a MOD HQ user with the target site in their scope."""
+    # Iter 220as — clamp client-supplied limit to MAX_LIMIT.
+    from utils.pagination import safe_limit
+    limit = safe_limit(limit, default=500, hard_max=500)
     org = await _require_mod_pro(user)
     site = await db.organizations.find_one(
         {"id": site_id}, {"_id": 0, "mod_root_id": 1, "mod_branch": 1,
