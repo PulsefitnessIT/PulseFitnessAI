@@ -262,6 +262,57 @@ INDEXES: Sequence[Tuple[str, Sequence[Sequence[Tuple[str, int]]]]] = [
         [("organization_id", 1), ("status", 1), ("created_at", -1)],
         [("supplier_id", 1), ("status", 1)],
     ]),
+
+    # ── Iter 220ba — Pre-pen-test hot-collection sweep ─────────────────
+    # SEO Autopilot (master-admin self-promo). Lookups are NOT
+    # organization-scoped — the SEO blog is the single GymAxis-owned
+    # tenant. Status + updated_at and status + metrics.views cover the
+    # top-performer + recent list endpoints.
+    ("seo_articles", [
+        [("status", 1), ("updated_at", -1)],
+        [("status", 1), ("metrics.views", -1)],
+        [("slug", 1)],
+    ]),
+    ("seo_article_view_snapshots", [
+        [("article_id", 1), ("date", 1)],
+        [("date", -1)],
+    ]),
+    ("seo_view_snapshots", [
+        [("date", -1)],
+    ]),
+    # Growth Hub alerts (master-admin notification stream).
+    ("growth_alerts", [
+        [("created_at", -1)],
+        [("status", 1), ("created_at", -1)],
+    ]),
+    # CRM journey enrolments (B2B + inbound demo funnel).
+    ("marketing_journey_enrolments", [
+        [("organization_id", 1), ("created_at", -1)],
+        [("journey_id", 1), ("status", 1)],
+        [("contact_id", 1), ("status", 1)],
+    ]),
+    # Marketing chat sessions (assistant + funnel analytics).
+    ("mkt_chat_sessions", [
+        [("organization_id", 1), ("created_at", -1)],
+        [("created_at", -1)],
+    ]),
+    # Email send audit stream — sparklines + deliverability dashboards.
+    ("email_send_events", [
+        [("status", 1), ("created_at", -1)],
+        [("organization_id", 1), ("created_at", -1)],
+        [("recipient", 1), ("created_at", -1)],
+    ]),
+    # Service Ops case backbone (in addition to indexes set up in server.py).
+    ("svc_cases", [
+        [("organization_id", 1), ("status", 1), ("created_at", -1)],
+        [("organization_id", 1), ("updated_at", -1)],
+    ]),
+    ("svc_quotes", [
+        [("organization_id", 1), ("status", 1), ("created_at", -1)],
+    ]),
+    ("svc_invoices", [
+        [("organization_id", 1), ("status", 1), ("created_at", -1)],
+    ]),
 ]
 
 

@@ -14,22 +14,32 @@ import { openTrial } from './TrialSignupModal';
 
 const PILLARS = [
   { icon: KeyRound,    title: 'Authentication & sessions', body: 'Rotated JWT secret with cryptographic strength, HttpOnly cookies, password reset rate-limits, and brute-force protection on every auth endpoint.' },
-  { icon: Lock,        title: 'Encryption everywhere',     body: 'TLS 1.3 in transit, AES-256 at rest. Stripe handles PCI scope; we never see raw card numbers.' },
-  { icon: ShieldCheck, title: 'IDOR-tested endpoints',     body: 'Every operator endpoint filters by the caller\'s organisation_id before any read or write. Regression tests run on every deploy.' },
-  { icon: FileSearch,  title: 'Tamper-evident audit log',  body: 'Append-only master-admin audit trail with CSV export and hash-chain verification — evidence-grade for SOC 2 and pentests.' },
-  { icon: Server,      title: 'Hardened infrastructure',   body: 'Strict CSP, security headers, no debug surfaces in production, dependency CVE auditing on every release.' },
-  { icon: Bug,         title: 'Responsible disclosure',    body: 'Published security.txt with a canonical contact, expiry date and policy. Researchers welcome.' },
+  { icon: Lock,        title: 'Encryption everywhere',     body: 'TLS 1.3 in transit, AES-256 at rest. Fernet field-level encryption for integration secrets. Stripe handles PCI scope; we never see raw card numbers.' },
+  { icon: ShieldCheck, title: 'IDOR-tested endpoints',     body: 'Every operator endpoint filters by the caller\'s organisation_id before any read or write. Cross-tenant access returns 404 (never 403) so attackers can\'t enumerate IDs by status code. Regression-tested on every deploy.' },
+  { icon: FileSearch,  title: 'Tamper-evident audit log',  body: 'Append-only master-admin audit trail with CSV export, dedicated impersonation + export event streams, and hash-chain verification — evidence-grade for SOC 2 and pentests.' },
+  { icon: Server,      title: 'Hardened infrastructure',   body: 'Strict CSP, security headers, SSRF allow-list with IMDS + DNS-rebind guards, AV scanning on uploads (ClamAV + static-signature), and dependency CVE auditing on every release.' },
+  { icon: Bug,         title: 'Responsible disclosure',    body: 'Published security.txt with a canonical contact, expiry date and 90-day safe-harbour. Researchers welcome; we acknowledge within 24 hours.' },
 ];
 
 const HARDENING = [
-  'JWT_SECRET rotated to a 64-hex cryptographically random value (May 2026).',
-  'Rate-limits on every auth + money endpoint (login, register, top-up, auto-pay setup).',
-  'Stripe webhook hard-requires STRIPE_WEBHOOK_SECRET in production.',
-  'Global 500 handler — never leaks raw exception details to the client.',
-  'CORS pinned per-environment; "*" disallowed in production.',
-  'litellm 1.83.14, openai 2.24.0 — pip-audit clean as of May 2026.',
+  'Pen-test ready — 7 hardening waves landed (auth, AI guardrails, web scrubbers, SSRF, AV, audit hygiene, sandbox tenant).',
+  'AI prompt-injection guardrails on every LLM round-trip (OWASP LLM01–10) — per-tenant token budgets, jailbreak detection, output sanitisation.',
+  'JWT_SECRET rotated to a 64-hex cryptographically random value. Role-tiered access TTLs; MFA enforceable on every master-admin route.',
+  'Rate-limits on every auth + money endpoint (login, register, top-up, auto-pay, public demo-request).',
+  'Stripe webhook hard-requires STRIPE_WEBHOOK_SECRET in production; idempotency keys on every event.',
+  'Global 500 handler — never leaks raw exception details to the client. /api/health returns "ok" only (no version / build / commit info).',
+  'CORS pinned per-environment; "*" disallowed in production. HSTS preload-ready.',
   '/.well-known/security.txt published with a 12-month expiry and rolling refresh.',
-  'Pentest-ready: /security.md in repo, audit log evidence, and a dedicated walkthrough on request.',
+  'GDPR Art. 17 erasure workflow with 30-day cooling-off; gdpr_erased rows excluded from operator lists + AI RAG contexts.',
+];
+
+const POSTURE_LINKS = [
+  { label: 'Data Processing Agreement (DPA)', to: '/legal/dpa', kind: 'internal' },
+  { label: 'Sub-processors register', to: '/sub-processors', kind: 'internal' },
+  { label: 'Service Level Agreement (SLA)', to: '/sla', kind: 'internal' },
+  { label: 'Privacy Policy', to: '/privacy', kind: 'internal' },
+  { label: 'Terms of Service', to: '/terms', kind: 'internal' },
+  { label: 'security.txt (RFC 9116)', to: '/.well-known/security.txt', kind: 'external' },
 ];
 
 export default function SecurityPage() {
@@ -38,6 +48,7 @@ export default function SecurityPage() {
       <Hero />
       <Pillars />
       <Hardening />
+      <Posture />
       <Disclosure />
       <Cta />
     </MarketingShell>
@@ -143,6 +154,47 @@ function Hardening() {
             </li>
           ))}
         </ul>
+      </div>
+    </section>
+  );
+}
+
+function Posture() {
+  return (
+    <section className="py-20 md:py-24 bg-white dark:bg-zinc-900" data-testid="sec-posture">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="max-w-2xl">
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">Trust posture</p>
+          <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">Read the contracts, not the pitch.</h2>
+          <p className="mt-4 text-base md:text-lg text-slate-600 leading-relaxed">
+            Every commitment on this page is written down. Procurement and security teams can review the legal posture before talking to us.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {POSTURE_LINKS.map((p) => p.kind === 'external' ? (
+            <a
+              key={p.to}
+              href={p.to}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/40 px-5 py-4 hover:border-slate-300 hover:bg-slate-50 transition-colors dark:border-zinc-800 dark:bg-zinc-900"
+              data-testid={`sec-posture-link-${p.to.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`}
+            >
+              <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{p.label}</span>
+              <ArrowRight size={14} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
+            </a>
+          ) : (
+            <Link
+              key={p.to}
+              to={p.to}
+              className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/40 px-5 py-4 hover:border-slate-300 hover:bg-slate-50 transition-colors dark:border-zinc-800 dark:bg-zinc-900"
+              data-testid={`sec-posture-link-${p.to.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`}
+            >
+              <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{p.label}</span>
+              <ArrowRight size={14} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   );

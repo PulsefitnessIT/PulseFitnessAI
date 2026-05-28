@@ -1,3 +1,146 @@
+## Iter 220ba — Pre-Pen-Test "Full Set" Polish (May 28, 2026) ✅
+
+Finishes the non-security platform-credibility loop started after the
+W1–W7 hardening waves. Four deliverables:
+
+### 1) Public SLA + Sub-processors pages
+
+The Footer had links to `/sla` and `/sub-processors` since the last
+session, but the React pages were never created — both were 404. Fixed
+with two new lazy-loaded pages in `MarketingShell`:
+
+* `/app/frontend/src/pages/legal/SlaPage.js` — full service-level
+  agreement: 3-tier uptime targets (99.0 / 99.5 / 99.9), service-credit
+  schedule (10–75% based on tier + miss size), P0–P3 support response
+  times, scheduled-maintenance policy, RPO/RTO/backup commitments,
+  incident comms, 72-hour breach-notification cross-link to the DPA.
+* `/app/frontend/src/pages/legal/SubProcessorsPage.js` — public
+  sub-processor register: infrastructure (Emergent + MongoDB), comms
+  (Resend + Twilio-planned), payments (Stripe), AI (OpenAI / Anthropic
+  / Google), observability (Sentry / PostHog-planned), per-tenant
+  opt-in integrations (Microsoft / DocuSign / Sage / Sicon / Google /
+  Meta), 30-day change-notice obligation surfaced in an amber callout.
+
+Both pages render the markdown content from `/app/memory/LEGAL/`
+manually as Shadcn-styled tables so we don't ship a markdown renderer
+just for two static pages.
+
+### 2) AppRoutes wired
+
+`AppRoutes.js` gains lazy imports + 4 routes:
+
+* `/sla` (canonical), `/legal/sla` → redirect.
+* `/sub-processors` (canonical), `/legal/sub-processors` → redirect.
+
+The Footer links now resolve cleanly instead of 404-ing.
+
+### 3) Public `/security` page cross-links the trust posture
+
+Updated `pages/Marketing/SecurityMarketingPage.js`:
+
+* New `POSTURE_LINKS` block + `Posture()` section between the
+  hardening list and responsible-disclosure CTA — 6 cards linking
+  DPA, Sub-processors, SLA, Privacy, Terms, security.txt.
+* Pillar / hardening copy refreshed to call out the W1–W7 work
+  explicitly (Fernet field-level encryption, SSRF allow-list, ClamAV
+  + static-signature scanning, IDOR 404-not-403, MFA gates,
+  AI prompt-injection guardrails, GDPR Art. 17 erasure).
+
+Procurement teams can now self-serve every legal artefact from one
+page.
+
+### 4) Database index audit (hot-collection sweep)
+
+Extended `/app/backend/ensure_indexes.py::INDEXES` with 10 new entries
+for the collections that the SEO Autopilot, Growth Hub, B2B journeys,
+inbound demo-funnel and Service Ops touch on every page load:
+
+| Collection | Indexes added |
+|---|---|
+| `seo_articles` | (status, updated_at) · (status, metrics.views) · (slug) |
+| `seo_article_view_snapshots` | (article_id, date) · (date) |
+| `seo_view_snapshots` | (date) |
+| `growth_alerts` | (created_at) · (status, created_at) |
+| `marketing_journey_enrolments` | (organization_id, created_at) · (journey_id, status) · (contact_id, status) |
+| `mkt_chat_sessions` | (organization_id, created_at) · (created_at) |
+| `email_send_events` | (status, created_at) · (organization_id, created_at) · (recipient, created_at) |
+| `svc_cases` / `svc_quotes` / `svc_invoices` | (organization_id, status, created_at) |
+
+Idempotent — already-existing indexes are no-ops via Mongo's
+`create_index` semantics.
+
+### 5) Email deliverability runbook
+
+`/app/memory/OPS/EMAIL_DELIVERABILITY_RUNBOOK.md` — operator-side
+playbook for verifying SPF / DKIM / DMARC for `gymaxisai.com` and
+`in.gymaxis.com` before the pen-test engagement:
+
+* `dig` baseline commands for SPF / DKIM (Resend) / DMARC / MX.
+* DNS-record templates for each, with multi-include SPF guidance
+  (Resend + Outlook + Google in one record), DMARC ramp plan
+  (`p=none` → `p=quarantine` → `p=reject`).
+* MTA-STS / TLS-RPT defence-in-depth section.
+* Sender-side mail-tester.com smoke + curl-based preview-env
+  transactional smoke (`/api/public/demo-request`, `/api/auth/forgot-password`).
+* Rollback recipe + 6-item sign-off checklist.
+
+Operator work (the user does the DNS) — code-side delivery is
+unchanged.
+
+### Tests
+
+* **7 new regression-lock tests** in
+  `tests/test_iter_220ba_pre_pentest_polish.py`:
+  - `SlaPage.js` + `SubProcessorsPage.js` exist with `MarketingShell`
+    + canonical content markers.
+  - `AppRoutes.js` lazy-imports + routes both pages.
+  - `Footer.js` still links to all 5 legal targets (DPA / SLA /
+    Sub-processors / Privacy / Security).
+  - `/security` page carries the `POSTURE_LINKS` + `security@`
+    disclosure mailbox.
+  - `ensure_indexes.INDEXES` covers all 10 new hot collections with
+    well-formed specs.
+  - Email deliverability runbook exists + names SPF / DKIM / DMARC.
+* All 7 green. Added to Makefile regression block with TAB.
+
+### Verification
+
+* `ruff` clean (Python: ensure_indexes, test file).
+* `eslint` clean (3 new React files + AppRoutes + SecurityMarketingPage).
+* Full `make regression` → **1280 passed, 15 skipped, 0 failures**
+  (148 s). No new flakes.
+* Live smoke verified: `/sla`, `/sub-processors`, `/security` all
+  render cleanly with the expected `data-testid` markers.
+
+### Pen-test posture summary
+
+| Wave | Status |
+|---|---|
+| W1 — Audit / idempotency / rate-limits / pagination | ✅ |
+| W2 — AI prompt-injection guardrails | ✅ |
+| W3 — Auth hardening (MFA / TTL / revocation) | ✅ |
+| W4 — Stored-XSS / open-redirect / email-recipient | ✅ |
+| W5 — SSRF / AV / Fernet field-encryption | ✅ |
+| W6 — Audit hygiene / 404-vs-403 | ✅ |
+| W7 — Pen-test handover doc / sandbox tenant | ✅ |
+| **220ba** — **Legal posture (SLA + Sub-processors) + index audit + email DNS runbook** | ✅ |
+
+**Platform fully pen-test ready** — 28 of 33 risk-register findings
+closed, public legal posture self-serve, 1280-test regression suite
+clean, hot-collection indexes regression-locked.
+
+### Remaining work (post-pen-test)
+
+* DNS sign-off by user (SPF / DKIM / DMARC against mail-tester.com).
+* Sicon / Outlook / DocuSign live integration — blocked on upstream
+  credentials.
+* Sage 200 ledger posting (P2 backlog).
+* `backend/server.py` modularisation refactor (deprioritised by user).
+
+---
+
+
+
 ## Iter 220az — F-29 Close-out · Engineer-App Horizontal Access (May 28, 2026) ✅
 
 ### What got fixed

@@ -46,6 +46,9 @@ const WhatsNewPage = lazy(() => import('@/pages/WhatsNewPage'));
 const StatusPage = lazy(() => import('@/pages/StatusPage'));
 const DpaPage = lazy(() => import('@/pages/legal/DpaPage'));
 const DpiaPage = lazy(() => import('@/pages/legal/DpiaPage'));
+// Iter 220ba — public SLA + Sub-processors register (footer-linked)
+const SlaPage = lazy(() => import('@/pages/legal/SlaPage'));
+const SubProcessorsPage = lazy(() => import('@/pages/legal/SubProcessorsPage'));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const LiteDashboardPage = lazy(() => import('@/pages/LiteDashboardPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
@@ -309,6 +312,11 @@ export default function AppRoutes({ user, login }) {
       <Route path="/refunds" element={<RefundPolicyPage />} />
       <Route path="/legal/dpa" element={<DpaPage />} />
       <Route path="/legal/dpia" element={<DpiaPage />} />
+      {/* Iter 220ba — public SLA + Sub-processors register (footer-linked) */}
+      <Route path="/sla" element={<SlaPage />} />
+      <Route path="/legal/sla" element={<Navigate to="/sla" replace />} />
+      <Route path="/sub-processors" element={<SubProcessorsPage />} />
+      <Route path="/legal/sub-processors" element={<Navigate to="/sub-processors" replace />} />
       {/* Iter 216h280 — legacy aliases. We never had `/legal/privacy`,
           `/legal/terms`, `/forgot-password` or `/svc/engineer/parts`
           as real pages, but a handful of links/buttons pointed there
