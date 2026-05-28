@@ -202,13 +202,15 @@ function ModuleNode({ to, icon: Icon, color, label, isActive, dimmed, testId }) 
  * the center monogram.
  */
 function FeatureConstellation({ features, color }) {
-  const radius = 92; // px from node centre
-  // Arc spans 150° centred on "outward" from the orbit (i.e. radially away
-  // from the centre). Since the counter-spinning parent already keeps the
-  // label upright, "outward" within this container is just straight up
-  // (negative y). We span features symmetrically around the -y axis.
+  // Iter 220bc.1 — Wider arc + bigger radius so the pills fan out into
+  // the empty diagonals between adjacent module cards (per the user's
+  // sketch — pills should bleed into the gaps between Operations ↔
+  // Marketing and Operations ↔ CRM, not just hug the node).
+  const radius = 132; // px from node centre (was 92)
+  // Arc widens to 240° — pills wrap around like a halo, leaving the
+  // 120° "outward" sliver clear so the node icon stays readable.
   const total = features.length;
-  const arc = (Math.PI / 180) * 150;
+  const arc = (Math.PI / 180) * 240;
   const startAngle = -Math.PI / 2 - arc / 2;
   return (
     <div
