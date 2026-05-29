@@ -676,6 +676,24 @@ ORG_ALLOWED_FIELDS = {
     # complete these on the trial modal's step-2 OR later from
     # Account Settings → Organisation.
     "industry", "employee_count", "referral_source",
+    # Iter 220bz — Trial-signup mandatory profile fields.
+    # Primary contact = the human running the account. Company =
+    # the business itself. We capture both so a single account can
+    # be tied to (a) the operator's home address & mobile and (b)
+    # the gym's trading address & landline.
+    "primary_contact_name",
+    "primary_contact_address_line1", "primary_contact_address_line2",
+    "primary_contact_address_line3", "primary_contact_city",
+    "primary_contact_postcode", "primary_contact_country",
+    # Company phone — only persisted when the operator ticked
+    # "Company has a different phone number" on the signup form.
+    # If left blank we fall through to ``phone`` (the personal
+    # contact's number) for any operator outreach.
+    "company_phone",
+    # Stamped by /api/account/complete-profile once the mandatory
+    # step-2 form is filled. The ProfileCompletionGate on the
+    # frontend reads this to decide whether to block the dashboard.
+    "profile_completed_at",
 }
 
 
@@ -702,6 +720,9 @@ def _serialise_org(org: dict | None) -> dict:
         or org.get("brand_color")
         or ""
     )
+    # Iter 220bz — surface the completion stamp so the frontend
+    # ProfileCompletionGate can short-circuit on already-filled orgs.
+    payload["profile_completed_at"] = org.get("profile_completed_at") or ""
     return payload
 
 
@@ -728,6 +749,81 @@ async def update_organisation(body: dict, user: dict = Depends(get_current_user)
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.organizations.update_one({"id": org_id}, {"$set": updates})
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    return _serialise_org(org)
+
+
+# ── Iter 220bz — Mandatory profile completion (gates the dashboard) ──
+#
+# After a trial user creates their account on the marketing signup
+# modal we now REQUIRE them to fill the primary-contact + company
+# address block before the app lets them into the dashboard. The
+# frontend ProfileCompletionGate redirects to /complete-profile until
+# this endpoint stamps ``profile_completed_at`` on the org doc.
+#
+# Required keys (all non-empty strings):
+#     primary_contact_name, primary_contact_phone,
+#     primary_contact_address_line1, primary_contact_city,
+#     primary_contact_postcode, primary_contact_country,
+#     address_line1, city, postcode, country
+#
+# Optional:
+#     primary_contact_address_line2, primary_contact_address_line3,
+#     address_line2, address_line3, company_phone, website,
+#     industry, employee_count, referral_source
+
+_PROFILE_REQUIRED_FIELDS = (
+    "primary_contact_name", "primary_contact_phone",
+    "primary_contact_address_line1", "primary_contact_city",
+    "primary_contact_postcode", "primary_contact_country",
+    "address_line1", "city", "postcode", "country",
+)
+
+
+@router.post("/account/complete-profile")
+async def complete_profile(body: dict, user: dict = Depends(get_current_user)) -> dict:
+    """Persist the mandatory step-2 trial-signup payload.
+
+    Validates that all required fields are non-empty (after trim) and
+    stamps ``profile_completed_at`` so the frontend gate releases the
+    dashboard. Idempotent — re-submitting overwrites the previous
+    values without altering the original timestamp.
+    """
+    org_id = user.get("organization_id")
+    if not org_id:
+        raise HTTPException(status_code=404, detail="No organisation linked to this account")
+
+    # Trim & strip-down to the allowed-field set so a malicious caller
+    # can't sneak in extra keys (e.g. ``subscription_tier``).
+    body = body or {}
+    clean: dict[str, str] = {}
+    for k, v in body.items():
+        if k not in ORG_ALLOWED_FIELDS:
+            continue
+        clean[k] = v.strip() if isinstance(v, str) else v
+
+    missing = [k for k in _PROFILE_REQUIRED_FIELDS if not clean.get(k)]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required fields: {', '.join(missing)}",
+        )
+
+    org_existing = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "id": 1, "profile_completed_at": 1},
+    )
+    if not org_existing:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+
+    # Preserve the original completion stamp on idempotent re-submits.
+    completed_at = (
+        org_existing.get("profile_completed_at")
+        or datetime.now(timezone.utc).isoformat()
+    )
+    clean["profile_completed_at"] = completed_at
+    clean["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.organizations.update_one({"id": org_id}, {"$set": clean})
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
     return _serialise_org(org)
 

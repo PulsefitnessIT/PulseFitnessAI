@@ -168,6 +168,7 @@ const KioskCheckin = lazy(() => import('@/pages/Memberships/KioskCheckin'));
 const StaffingKioskPage = lazy(() => import('@/pages/Staffing/KioskPage'));
 const BrandedBragPage = lazy(() => import('@/pages/Memberships/BrandedBragPage'));
 const ForceChangePasswordPage = lazy(() => import('@/pages/ForceChangePasswordPage'));
+const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const HelpCentrePage = lazy(() => import('@/pages/HelpCentrePage'));
 
 /**
@@ -179,6 +180,20 @@ function DashboardRoute({ user }) {
   if (!user) return <Navigate to="/" />;
   const params = new URLSearchParams(window.location.search);
   const previewAsOperator = params.get('as') === 'operator';
+  // Iter 220bz — mandatory profile-completion gate. New trial signups
+  // collect this on the modal's step 2; legacy trials that signed up
+  // before this iter shipped get routed here on first dashboard load.
+  // Master admin + non-trial operators are exempt — we only need the
+  // KYC-style address for actively-trialling new accounts.
+  const t = user.trial;
+  const isTrialing = t && (t.is_trial || t.is_trial === undefined);
+  if (
+    isTrialing
+    && !user.is_master_admin
+    && !user.profile_completed_at
+  ) {
+    return <Navigate to="/complete-profile" replace />;
+  }
   if (user.is_master_admin && !previewAsOperator) return <Navigate to="/master-admin" />;
   // Iter 216h113 — MOD users land in the standard Pulse Fitness
   // dashboard like every other Pulse customer. Module-level gating
@@ -337,6 +352,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/sso-complete" element={<SSOCompletePage />} />
       <Route path="/change-password" element={user ? <ForceChangePasswordPage /> : <Navigate to="/login" replace />} />
+      <Route path="/complete-profile" element={user ? <CompleteProfilePage /> : <Navigate to="/" replace />} />
       <Route path="/onboarding/:token" element={<CustomerOnboardingForm />} />
       <Route path="/payment-success" element={<PaymentSuccessPage />} />
 

@@ -246,6 +246,9 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         "modules": (org or {}).get("modules") or {},
         "module_overrides": user.get("module_overrides") or {},
         "timetable_view_only": bool(user.get("timetable_view_only", False)),
+        # Iter 220bz — drives the ProfileCompletionGate; empty string
+        # = profile not yet completed, ISO timestamp = completed.
+        "profile_completed_at": (org or {}).get("profile_completed_at") or "",
     }
 
 
@@ -778,6 +781,9 @@ async def get_me(user: dict = Depends(get_current_user)) -> dict:
         "timetable_view_only": bool(user.get("timetable_view_only", False)),
         "password_needs_rotation": password_needs_rotation(user),
         "password_max_age_days": PASSWORD_MAX_AGE_DAYS,
+        # Iter 220bz — drives the ProfileCompletionGate. Empty string
+        # = profile not yet completed; ISO timestamp = completed.
+        "profile_completed_at": (org or {}).get("profile_completed_at") or "",
     }
 
 

@@ -1,3 +1,80 @@
+## Iter 220bz — Mandatory trial-signup profile completion ✅ (May 29, 2026)
+
+**User ask** (verbatim from a frustrated screenshot):
+> "Customer sign up/trial - We need to make fields Mandatory. Primary
+> Contact, Full Name, Full Address, phone number, email, date of birth,
+> Company Name, Company Address, Company Phone Number if different.
+> We've had someone sign up and I don't know anything about them!"
+
+**Chosen design** (after a clarification round):
+- DOB → dropped (not GDPR-defensible for B2B trial intake).
+- UX → two-step mandatory: Step 1 = email + password + phone (20s, account created), Step 2 = full primary-contact + company addresses (gated, no skip).
+- Company phone → conditional behind a "Company has a different phone number" toggle.
+- Backward-compat → existing trials (e.g. Waris Gym) are blocked at the dashboard route and routed to `/complete-profile` until they fill the form.
+
+### What shipped
+
+#### Backend
+1. **`POST /api/account/complete-profile`** — validates all required
+   keys, strips non-allowed payload fields through `ORG_ALLOWED_FIELDS`,
+   stamps `profile_completed_at` on the org doc, idempotent re-submits
+   preserve the original timestamp.
+2. **`ORG_ALLOWED_FIELDS`** extended with the new keys:
+   `primary_contact_name`, `primary_contact_address_line1/2/3`,
+   `primary_contact_city/postcode/country`, `company_phone`,
+   `profile_completed_at`.
+3. **`/api/auth/login`** and **`/api/auth/me`** now surface
+   `profile_completed_at` so the React gate can short-circuit without
+   an extra round-trip.
+
+#### Frontend
+4. **`TrialSignupModal.js`** — Step 1 now requires phone, Step 2
+   replaced entirely with the new `<ProfileCompletionFields>` form
+   (no skip button, must submit to proceed). Modal auto-widens to
+   `max-w-2xl` on step 2 to fit the address grid. Dead `INDUSTRY_OPTIONS`,
+   `EMPLOYEE_RANGES`, `REFERRAL_SOURCES`, `SelectField` removed.
+5. **`<ProfileCompletionFields>`** — new shared component
+   (`components/shared/ProfileCompletionFields.js`) used by both the
+   signup modal and the backward-compat gate. Two-section layout with
+   conditional "Company has a different phone number" toggle. Every
+   input has a unique `data-testid`. Exports `emptyProfileForm()` and
+   `findMissingRequired()` helpers so callers don't duplicate
+   validation logic.
+6. **`/complete-profile` route** + **`CompleteProfilePage.js`** —
+   standalone full-page gate for legacy trials. Pre-fills name + email
+   from `useAuth()`. The only escape hatch is "Sign out" (no skip).
+7. **`DashboardRoute` gate** — wraps the existing `is_master_admin`
+   redirect. When `user.trial.is_trial && !user.profile_completed_at`
+   and the user isn't master-admin, redirects to `/complete-profile`.
+
+#### Regression
+8. **`tests/test_iter_220bz_profile_completion.py`** — 7 tests
+   covering: missing-required-fields → 400 (names every missing key),
+   happy path stamps + persists, idempotent re-submit preserves the
+   original stamp, whitelist strips unallowed keys (e.g. callers
+   cannot smuggle `is_master_admin: true` through), missing org → 404,
+   `/auth/me` surfaces the stamp.
+9. **`tests/test_iter_220by_security_document.py`** refactored to
+   mount only the `security_document_router` on a throwaway FastAPI
+   app instead of importing `server.py`. Fixes a transient
+   regression-suite collection error where Stripe SDK imports failed
+   when this test ran after `sys.modules`-patching tests.
+10. Both registered in `make regression`. **Full run: 1536 passed,
+    15 skipped, 0 failures (~159s).** Frontend + backend lint clean.
+
+#### End-to-end smoke (preview)
+11. Registered a fresh trial via `/api/auth/register` → `/auth/me`
+    returns `profile_completed_at=""` → logged in via `/login` form
+    → was correctly redirected to `/complete-profile` with the
+    form pre-filled from the auth context (name + email).
+12. Submitted the full payload → `/auth/me` now returns
+    `profile_completed_at="2026-05-29T21:..."` → idempotent
+    re-submit preserves the original timestamp.
+
+---
+
+
+
 ## Iter 220by — Public SECURITY.md document (HTML / PDF / TXT) ✅ (May 29, 2026)
 
 **User ask**:

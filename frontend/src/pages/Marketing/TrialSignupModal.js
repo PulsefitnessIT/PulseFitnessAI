@@ -26,20 +26,11 @@ import { ArrowRight, X, CheckCircle2, Loader2, Zap } from 'lucide-react';
 
 import { useAuth } from '../../App';
 import Turnstile from '../../components/shared/Turnstile';
+import ProfileCompletionFields, {
+  emptyProfileForm, findMissingRequired,
+} from '../../components/shared/ProfileCompletionFields';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-// Mirrors AdminOrganizations.js so Master Admin sees a clean dropdown
-// instead of free-text fragments. Keep these two lists in sync.
-const INDUSTRY_OPTIONS = [
-  'Fitness & Leisure', 'Healthcare', 'Manufacturing', 'Technology', 'Retail',
-  'Construction', 'Education', 'Finance', 'Hospitality', 'Property', 'Other',
-];
-const EMPLOYEE_RANGES = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+'];
-const REFERRAL_SOURCES = [
-  'Google search', 'LinkedIn', 'Facebook / Instagram', 'X (Twitter)',
-  'Industry event', 'Referred by a friend', 'Press / article', 'Other',
-];
 
 /** Pluck utm_* tags from the current URL once on mount. */
 function readUtmTags() {
@@ -59,9 +50,9 @@ function readUtmTags() {
 
 export default function TrialSignupModal() {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState(1); // 1 = credentials, 2 = enrichment, 3 = success
+  const [step, setStep] = useState(1); // 1 = credentials, 2 = profile, 3 = success
   const [form, setForm] = useState({ full_name: '', email: '', company_name: '', phone: '', password: '' });
-  const [extras, setExtras] = useState({ website: '', industry: '', employee_count: '', referral_source: '' });
+  const [profile, setProfile] = useState(emptyProfileForm());
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -99,7 +90,7 @@ export default function TrialSignupModal() {
   useEffect(() => {
     if (!open) {
       setForm({ full_name: '', email: '', company_name: '', phone: '', password: '' });
-      setExtras({ website: '', industry: '', employee_count: '', referral_source: '' });
+      setProfile(emptyProfileForm());
       setStep(1);
       setShowPass(false);
       setCaptchaToken('');
@@ -122,13 +113,13 @@ export default function TrialSignupModal() {
   }, [open]);
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const updateExtra = (k) => (e) => setExtras((x) => ({ ...x, [k]: e.target.value }));
   const close = () => setOpen(false);
 
   // ── Step 1 submit: create the account + sign in. ──────────────────
   const submitStep1 = async (e) => {
     e.preventDefault();
     setError('');
+    if (!form.phone.trim())       { setError('Please enter your contact phone number.'); return; }
     if (form.password.length < 8) { setError('Choose a password of at least 8 characters.'); return; }
     if (!captchaToken)            { setError('Please complete the verification check before continuing.'); return; }
 
@@ -139,7 +130,7 @@ export default function TrialSignupModal() {
         password: form.password,
         full_name: form.full_name.trim(),
         company_name: form.company_name.trim(),
-        phone: form.phone.trim() || undefined,
+        phone: form.phone.trim(),
         is_trial: true,
         trial_duration_days: 3,
         trial_unlock_all_modules: true,
@@ -151,6 +142,14 @@ export default function TrialSignupModal() {
       });
       if (!data?.token) throw new Error('Signup failed');
       login(data.token, data.user);
+      // Pre-fill the step-2 form with what we already know so the
+      // operator doesn't retype their own contact details.
+      setProfile((p) => ({
+        ...p,
+        primary_contact_name: form.full_name.trim(),
+        primary_contact_phone: form.phone.trim(),
+        primary_contact_email: form.email.trim().toLowerCase(),
+      }));
       setStep(2);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Could not start trial. Please check your details and try again.');
@@ -176,35 +175,27 @@ export default function TrialSignupModal() {
   const submitStep2 = async (e) => {
     e?.preventDefault();
     setError('');
+    const missing = findMissingRequired(profile);
+    if (missing.length) {
+      setError(`Please fill in: ${missing.join(', ').replace(/_/g, ' ')}`);
+      return;
+    }
     setLoading(true);
     try {
-      // Only PATCH the fields the user actually filled in. Trim &
-      // skip empties so we don't overwrite the org's other defaults.
-      const payload = {};
-      Object.entries(extras).forEach(([k, v]) => {
-        const trimmed = (v || '').trim();
-        if (trimmed) payload[k] = trimmed;
+      // Strip the UI-only checkbox; clear company_phone when the
+      // toggle is off so a stale value doesn't slip through.
+      const { has_different_company_phone, ...payload } = profile;
+      if (!has_different_company_phone) payload.company_phone = '';
+      await axios.post(`${API}/account/complete-profile`, payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
-      if (Object.keys(payload).length) {
-        await axios.patch(`${API}/account/organisation`, payload, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        });
-      }
       setStep(3);
       setTimeout(() => { close(); navigate(moduleHome(), { replace: true }); }, 1200);
     } catch (err) {
-      // Soft-fail: prospect is already in. Don't block their first
-      // dashboard load over an optional profile field.
-      setStep(3);
-      setTimeout(() => { close(); navigate(moduleHome(), { replace: true }); }, 1200);
+      setError(err?.response?.data?.detail || 'Could not save profile. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const skipStep2 = () => {
-    setStep(3);
-    setTimeout(() => { close(); navigate(moduleHome(), { replace: true }); }, 700);
   };
 
   if (!open) return null;
@@ -217,7 +208,7 @@ export default function TrialSignupModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-[28px] bg-white shadow-2xl border border-white/40 overflow-hidden dark:bg-zinc-900"
+        className={`relative w-full ${step === 2 ? 'max-w-2xl' : 'max-w-md'} rounded-[28px] bg-white shadow-2xl border border-white/40 overflow-hidden dark:bg-zinc-900`}
         data-testid="trial-modal"
       >
         {/* Brand halo */}
@@ -237,7 +228,7 @@ export default function TrialSignupModal() {
               </h2>
               <p className="mt-1 text-sm text-slate-500" data-testid="trial-modal-subtitle">
                 {step === 1 && 'Every module unlocked for 3 days. No credit card required.'}
-                {step === 2 && 'Optional — helps us tailor your dashboard. Skip anytime.'}
+                {step === 2 && 'A few details to finish setting up your account — required before we unlock the dashboard.'}
                 {step === 3 && 'Taking you to your dashboard…'}
               </p>
             </div>
@@ -270,7 +261,7 @@ export default function TrialSignupModal() {
               <Field label="Full name *" value={form.full_name} onChange={update('full_name')} placeholder="Jane Smith" testid="trial-name" />
               <Field label="Work email *" type="email" value={form.email} onChange={update('email')} placeholder="jane@yourgym.com" testid="trial-email" />
               <Field label="Gym / Company name *" value={form.company_name} onChange={update('company_name')} placeholder="Acme Fitness" testid="trial-company" />
-              <Field label="Phone (optional)" type="tel" value={form.phone} onChange={update('phone')} placeholder="+44 7700 900123" testid="trial-phone" optional />
+              <Field label="Phone *" type="tel" value={form.phone} onChange={update('phone')} placeholder="+44 7700 900123" testid="trial-phone" />
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Password *</label>
                 <div className="relative">
@@ -317,60 +308,26 @@ export default function TrialSignupModal() {
             </form>
           )}
 
-          {/* ── Step 2 — org enrichment (all optional) ───────────── */}
+          {/* ── Step 2 — mandatory profile completion ────────────── */}
           {step === 2 && (
-            <form onSubmit={submitStep2} className="p-6 pt-2 space-y-3" data-testid="trial-modal-step2-form">
+            <form onSubmit={submitStep2} className="px-6 pb-6 pt-2 max-h-[70vh] overflow-y-auto space-y-3" data-testid="trial-modal-step2-form">
               {error && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" data-testid="trial-modal-step2-error">{error}</div>
               )}
-              <Field label="Website" value={extras.website} onChange={updateExtra('website')} placeholder="https://acmefitness.com" testid="trial-extra-website" optional />
-              <SelectField
-                label="Industry"
-                value={extras.industry}
-                onChange={updateExtra('industry')}
-                options={INDUSTRY_OPTIONS}
-                placeholder="Select..."
-                testid="trial-extra-industry"
-              />
-              <SelectField
-                label="Team size"
-                value={extras.employee_count}
-                onChange={updateExtra('employee_count')}
-                options={EMPLOYEE_RANGES}
-                placeholder="Select..."
-                testid="trial-extra-employees"
-              />
-              <SelectField
-                label="How did you hear about us?"
-                value={extras.referral_source}
-                onChange={updateExtra('referral_source')}
-                options={REFERRAL_SOURCES}
-                placeholder="Select..."
-                testid="trial-extra-referral"
-              />
 
-              <div className="flex items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={skipStep2}
-                  className="flex-1 rounded-full px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition dark:bg-zinc-900 dark:text-zinc-100"
-                  data-testid="trial-step2-skip"
-                  disabled={loading}
-                >
-                  Skip for now
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="gx-cta flex-1 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-60"
-                  data-testid="trial-step2-submit"
-                >
-                  {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <>Save &amp; continue <ArrowRight size={14} /></>}
-                </button>
-              </div>
+              <ProfileCompletionFields form={profile} setForm={setProfile} />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="gx-cta w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-60 mt-2"
+                data-testid="trial-step2-submit"
+              >
+                {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <>Save and unlock dashboard <ArrowRight size={14} /></>}
+              </button>
 
               <p className="text-center text-[11px] text-slate-400 pt-1">
-                You can always update these later in Account Settings.
+                Required before your trial dashboard opens. You can edit any of these later in Account Settings.
               </p>
             </form>
           )}
@@ -404,25 +361,6 @@ function Field({ label, value, onChange, type = 'text', placeholder, testid, opt
         className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
         data-testid={testid}
       />
-    </div>
-  );
-}
-
-function SelectField({ label, value, onChange, options, placeholder, testid }) {
-  return (
-    <div>
-      <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">{label}</label>
-      <select
-        value={value}
-        onChange={onChange}
-        className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-slate-400 transition appearance-none dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
-        data-testid={testid}
-      >
-        <option value="">{placeholder || 'Select...'}</option>
-        {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
-      </select>
     </div>
   );
 }
