@@ -307,4 +307,90 @@ async def legacy_library_delete(
     return {"ok": True, "id": post_id}
 
 
-__all__ = ["router"]
+__all__ = ["router", "run_daily_social_loop"]
+
+
+# ── Iter 220bn — Daily Social Autopilot scheduler ────────────────────
+
+
+import asyncio  # noqa: E402  — bottom-of-file to avoid circular imports
+import logging  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+
+def _london_now():
+    """Wall clock in Europe/London for the daily trigger."""
+    from datetime import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo  # py3.9+
+        return _dt.now(ZoneInfo("Europe/London"))
+    except Exception:  # pragma: no cover
+        return datetime.now(timezone.utc)
+
+
+async def _social_already_ran_today(date_str: str) -> bool:
+    doc = await db.social_autopilot_runs.find_one(
+        {"date": date_str}, {"_id": 0, "date": 1},
+    )
+    return bool(doc)
+
+
+async def _stamp_social_run(date_str: str, result) -> None:
+    await db.social_autopilot_runs.update_one(
+        {"date": date_str},
+        {"$set": {"date": date_str, "result": result, "ran_at": _now()}},
+        upsert=True,
+    )
+
+
+async def _social_run_as_background() -> dict:
+    """Server-side daily run — bypasses HTTP auth, honours
+    ``channels_enabled`` config, and stamps ``social_autopilot_runs``
+    so the loop is idempotent."""
+    cfg = await _load_config()
+    enabled_map = cfg.get("channels_enabled") or {}
+    channels = [c["id"] for c in CHANNELS if enabled_map.get(c["id"], True)]
+    if not channels:
+        return {"ok": False, "reason": "no channels enabled"}
+    try:
+        return {"ok": True,
+                "drafts": await generate_daily_drafts(db, channels=channels)}
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[social-autopilot] daily run failed: %s", exc)
+        return {"ok": False, "reason": str(exc)[:200]}
+
+
+async def run_daily_social_loop(*, hour: int = 9) -> None:
+    """Background loop — checks every 15 minutes whether it's the
+    configured London-time hour AND we haven't yet fired today. Mirrors
+    the SEO autopilot loop so the operator sees three fresh social
+    drafts in their morning inbox alongside the SEO article.
+
+    The hour is read from the persisted ``social_autopilot_config``
+    every iteration, so the master admin's UI toggle takes effect
+    without a backend restart. The ``hour`` kwarg is only the cold-boot
+    fallback before the first config save."""
+    while True:
+        try:
+            cfg = await _load_config()
+            cfg_enabled = bool(cfg.get("enabled", True))
+            cfg_hour = int(cfg.get("hour_uk") or hour)
+            london = _london_now()
+            today = london.date().isoformat()
+            if (
+                cfg_enabled
+                and london.hour == cfg_hour
+                and not await _social_already_ran_today(today)
+            ):
+                logger.info(
+                    "[social-autopilot] firing daily run for %s @ %02d:00 Europe/London",
+                    today, cfg_hour,
+                )
+                result = await _social_run_as_background()
+                await _stamp_social_run(today, result)
+                logger.info("[social-autopilot] daily result: %s",
+                            (result or {}).get("ok"))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[social-autopilot] loop iteration error: %s", exc)
+        await asyncio.sleep(15 * 60)

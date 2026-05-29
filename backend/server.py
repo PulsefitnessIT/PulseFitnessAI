@@ -971,6 +971,23 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"seo autopilot loop start failed: {e}")
 
+    # Iter 220bn — Daily Social Autopilot. Fires alongside the SEO
+    # loop at 09:00 Europe/London (or the hour configured in the UI)
+    # and writes one draft per enabled channel (IG / TikTok /
+    # LinkedIn). Idempotent via ``social_autopilot_runs`` daily stamp.
+    # Disable by setting ``SOCIAL_AUTOPILOT_ENABLED=0`` in the env.
+    try:
+        if os.environ.get("SOCIAL_AUTOPILOT_ENABLED", "1") != "0":
+            from routes.marketing.social_autopilot import run_daily_social_loop
+            _shour = int(os.environ.get("SOCIAL_AUTOPILOT_HOUR", "9"))
+            asyncio.create_task(run_daily_social_loop(hour=_shour))
+            logger.info(
+                "[social-autopilot] daily loop started (fires @ %02d:00 Europe/London)",
+                _shour,
+            )
+    except Exception as e:
+        logger.error(f"social autopilot loop start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:

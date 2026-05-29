@@ -1,3 +1,61 @@
+## Iter 220bn — Social Autopilot daily scheduler ✅ (Feb 2026)
+
+**Goal**: have three fresh social drafts (IG / TikTok / LinkedIn) waiting
+in the master admin's inbox every morning at 09:00 Europe/London —
+without anyone clicking "Run today".
+
+### What changed
+* **Backend** (`routes/marketing/social_autopilot.py`):
+  - New `run_daily_social_loop(hour=9)` — same proven pattern as the
+    SEO autopilot loop.
+  - Reads `social_autopilot_config` every iteration so the master
+    admin's UI toggle / hour picker takes effect **without** a backend
+    restart.
+  - 15-minute cadence; idempotent via a dedicated
+    `social_autopilot_runs` collection so the loop can't double-fire
+    even if the process restarts mid-day.
+  - `_social_run_as_background()` honours the per-channel
+    `channels_enabled` map (so a paused channel doesn't keep
+    generating).
+* **Server** (`backend/server.py`):
+  - `asyncio.create_task(run_daily_social_loop(hour=...))` registered
+    alongside the SEO loop in startup hook.
+  - Gated by `SOCIAL_AUTOPILOT_ENABLED` env var (defaults to `1`).
+* **Frontend** (`SocialAutopilotPanel.js`):
+  - Hero now shows a schedule strip:
+    `Fires daily at 09:00 Europe/London · next run today` (or
+    `already fired today` / `Daily loop is paused`).
+* **Critical isolation**: social loop uses its **own**
+  `social_autopilot_runs` collection — explicitly tested with
+  `test_separate_runs_collection_from_seo`. SEO and Social fire
+  independently.
+
+### Tests (`test_iter_220bn_social_scheduler.py`)
+- 5/5 passing — locks in loop export, server wiring,
+  config-re-read-per-iteration, 15-min cadence, separate runs
+  collection.
+
+### Verified live
+Backend boot logs show both loops side-by-side:
+```
+[seo-autopilot] daily loop started (fires @ 09:00 Europe/London)
+[social-autopilot] daily loop started (fires @ 09:00 Europe/London)
+```
+
+### Files touched
+- `backend/routes/marketing/social_autopilot.py` — daily loop + helpers
+- `backend/server.py` — startup task registration
+- `frontend/src/pages/MasterAdmin/SocialAutopilotPanel.js` — schedule
+  strip in the hero
+- `backend/tests/test_iter_220bn_social_scheduler.py` — 5 new tests
+- `Makefile` — regression registration
+
+### Cumulative this session
+**79/79** tests passing across iter 220bi/bj/bk/bl/bm/bn.
+
+---
+
+
 ## Iter 220bm — Sora 2 weekly TikTok video + legacy library cleanup ✅ (Feb 2026)
 
 **Two builds in one iteration.**

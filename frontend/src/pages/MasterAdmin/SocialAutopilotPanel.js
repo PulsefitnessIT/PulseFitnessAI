@@ -544,6 +544,14 @@ export default function SocialAutopilotPanel() {
             <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 max-w-2xl">
               Channel-aware tone (fun on IG/TikTok, decision-maker on LinkedIn), brand-coloured imagery, 50% feature promotion / 50% industry insight. Review, approve and copy/download — manual posting keeps you in full control.
             </p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5 inline-flex items-center gap-1.5" data-testid="social-schedule-strip">
+              <Clock size={10}/>
+              {status.enabled ? (
+                <>Fires daily at <b className="tabular-nums">{String(status.hour_uk ?? 9).padStart(2, '0')}:00</b> Europe/London · {status.ran_today ? 'already fired today' : 'next run today'}</>
+              ) : (
+                <>Daily loop is paused</>
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
