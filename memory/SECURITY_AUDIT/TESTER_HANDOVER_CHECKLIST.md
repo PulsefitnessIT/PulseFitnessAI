@@ -1,16 +1,26 @@
 # GymAxis / Pulse Fitness — External Tester Handover Checklist
 
-> **Iter 220bf · May 28, 2026 · v1.0**
+> **Iter 220bg · May 28, 2026 · v1.1**
 >
 > **Audience:** External penetration-test vendor.
 > **Purpose:** Concise day-1 handover sheet — every fact you need to
 > start testing, on a single page.
 
-This sheet is a **summary**. Authoritative detail lives in:
-* `PEN_TEST_SCOPE.md` — exact in-scope / out-of-scope.
-* `PEN_TEST_ONBOARDING.md` — accounts, env flags, control summary.
-* `RESIDUAL_RISK_SUMMARY.md` — accepted limitations + areas to attack.
-* `PEN_TEST_READINESS_CHECKLIST.md` — internal go/no-go state.
+## Document index — pen-test handover pack
+
+| Looking for… | Read |
+|---|---|
+| Current per-finding status | [`./RISK_REGISTER.md`](./RISK_REGISTER.md) |
+| External test readiness verdict + approval | [`./PEN_TEST_READINESS_CHECKLIST.md`](./PEN_TEST_READINESS_CHECKLIST.md) |
+| Residual risks (A/B/C/D classification) | [`./RESIDUAL_RISK_SUMMARY.md`](./RESIDUAL_RISK_SUMMARY.md) |
+| Historical baseline audit (Pass 1) | [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) |
+| What's in / out of scope for the external tester | [`./PEN_TEST_SCOPE.md`](./PEN_TEST_SCOPE.md) |
+| Day-1 vendor handover sheet | **`TESTER_HANDOVER_CHECKLIST.md`** (this file) |
+| Tester onboarding + control summary | [`./PEN_TEST_ONBOARDING.md`](./PEN_TEST_ONBOARDING.md) |
+
+This sheet is a **summary** — every fact below is also covered in
+one of the docs above. If anything conflicts, the source-of-truth
+doc above wins.
 
 ---
 
@@ -178,4 +188,4 @@ Severity rubric:
 *Hand this sheet (PDF) + the `PEN_TEST_SCOPE.md` (PDF) +
 `PEN_TEST_ONBOARDING.md` (PDF) over the 1Password share at kickoff.*
 
-*Prepared Iter 220bf (May 28, 2026) — Craig Henshall, GymAxis Founder.*
+*Prepared Iter 220bg (May 28, 2026) — Craig Henshall, GymAxis Founder.*

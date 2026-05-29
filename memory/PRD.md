@@ -1,3 +1,111 @@
+## Iter 220bg — Pen-Test Handover Pack Final Consistency Tidy ✅
+
+Pure documentation pass — zero code changes. Tightens the final pack
+so the external vendor cannot find conflicting language between
+historical findings and current readiness, and so any one of the 5
+key docs they open first points unambiguously at the same source of
+truth.
+
+### Pass 1 audit re-classified as historical baseline
+
+* **Title renamed:** "Security Audit & Pen-Test Readiness" →
+  "Security Audit Pass 1 — Baseline Findings".
+* **Top banner added** at the start of the doc with the exact
+  wording the user specified: ⚠️ historical baseline, redirects to
+  `RISK_REGISTER.md`, `PEN_TEST_READINESS_CHECKLIST.md` and
+  `RESIDUAL_RISK_SUMMARY.md` as the current source of truth.
+* **§0 verdict block rewritten:** the standalone "Verdict: ready for
+  external pen-test today" line that conflicted with the current
+  readiness verdict is now labelled "Pass 1 verdict (historical)"
+  and followed by a 3-line redirect to the live tracking docs.
+* **§7 "Next steps" → "Pass 1 follow-up (historical)":** the old
+  "approve the W1–W7 sequencing" content is replaced with a
+  redirect table pointing at the 5 live docs + the new tester
+  handover checklist, and closes with the user-requested final
+  approval statement.
+
+### Identical Document Index across all 6 pack docs
+
+A 7-row Document Index block now appears at the top of each of:
+* `RISK_REGISTER.md` (v1.6 · Iter 220bg)
+* `PEN_TEST_SCOPE.md` (v1.3 · Iter 220bg)
+* `PEN_TEST_READINESS_CHECKLIST.md` (v1.2 · Iter 220bg)
+* `RESIDUAL_RISK_SUMMARY.md` (v1.1 · Iter 220bg)
+* `TESTER_HANDOVER_CHECKLIST.md` (v1.1 · Iter 220bg)
+* `SECURITY_AUDIT_PASS_1.md` carries the same map via its banner
+  + §7 redirect
+
+Each index lists the same 7 destinations using the same wording, and
+each doc self-marks its own row as `**(this file)**` so the vendor
+knows exactly which file they're reading at a glance. Source-level
+regression-lock asserts the index rows + self-marks are consistent
+across the 5 named docs.
+
+### Source-of-truth pointers wired
+
+The user's source-of-truth map is now written in 5 places (every doc
+that carries the canonical Document Index):
+
+* **Current risk status →** `RISK_REGISTER.md`
+* **External test readiness →** `PEN_TEST_READINESS_CHECKLIST.md`
+* **Residual risks →** `RESIDUAL_RISK_SUMMARY.md`
+* **Historical baseline →** `SECURITY_AUDIT_PASS_1.md`
+* **Testing scope →** `PEN_TEST_SCOPE.md`
+
+### Final approval statement
+
+The exact wording requested — *"Based on the current Risk Register,
+Readiness Checklist and Residual Risk Summary, GymAxis / Pulse
+Fitness is ready to proceed to external penetration testing."* —
+appears (whitespace-normalised) in:
+
+* `PEN_TEST_READINESS_CHECKLIST.md` §H Internal approval statement
+  (with date 28 May 2026, approval owner Craig Henshall,
+  `security@gymaxisai.com` co-sign).
+* `RESIDUAL_RISK_SUMMARY.md` footer.
+* `SECURITY_AUDIT_PASS_1.md` §7 closing redirect.
+
+### Tests
+
+* New `tests/test_iter_220bg_handover_pack_consistency.py` — **9
+  regression-locks**:
+  - Pass 1 audit title matches the new "Pass 1 — Baseline Findings"
+    wording.
+  - Banner contains the 6 exact required phrases.
+  - Verdict is re-classified as historical and points at the 3 live
+    docs.
+  - Next-steps section is replaced with the redirect content.
+  - All 5 user-named docs carry the canonical "Document index"
+    section.
+  - All 7 index rows appear identically across docs (no drift).
+  - Each doc self-marks its own row using the same `**(this file)**`
+    pattern.
+  - Final approval statement appears in all 3 required docs
+    (readiness + residual + baseline).
+  - Iter 220bg version bumps propagated to footers (scope v1.3,
+    residual v1.1, tester v1.1, readiness Iter 220bg).
+* Relaxed the existing 220bf "Version 1.2" pin to "Version ≥ 1.2"
+  via regex so future doc bumps don't need test churn.
+* Wired into Makefile regression block (TAB-prefixed).
+* Full `make regression` → **1321 passed, 15 skipped, 0 failures**
+  (107 s).
+
+### Output confirmations (per user's deliverable list)
+
+1. ✅ `SECURITY_AUDIT_PASS_1.md` re-classified as historical baseline.
+2. ✅ Top banner added with the exact wording requested.
+3. ✅ Title renamed to "Security Audit Pass 1 — Baseline Findings".
+4. ✅ Audit verdict no longer conflicts with the readiness pack.
+5. ✅ Document index consistent across all 5 named docs (plus the
+   tester handover checklist for completeness).
+6. ✅ Source of truth pointers wired in every pack doc.
+7. ✅ Final statement present in readiness checklist, residual
+   summary, and the historical baseline.
+
+---
+
+
+
 ## Iter 220bf — Pen-Test Handover Pack Documentation Tidy ✅
 
 Pure documentation pass — zero code changes, zero behaviour delta,

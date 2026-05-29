@@ -1,9 +1,21 @@
 # GymAxis / Pulse Fitness — Penetration Test Scope
 
-> **Iter 220bf · May 28, 2026 — Version 1.2**
+> **Iter 220bg · May 28, 2026 — Version 1.3**
 >
 > **Audience:** External penetration-test vendor.
 > **Purpose:** Define a safe, productive scope so the vendor maximises real-world findings within budget.
+
+## Document index — pen-test handover pack
+
+| Looking for… | Read |
+|---|---|
+| Current per-finding status | [`./RISK_REGISTER.md`](./RISK_REGISTER.md) |
+| External test readiness verdict + approval | [`./PEN_TEST_READINESS_CHECKLIST.md`](./PEN_TEST_READINESS_CHECKLIST.md) |
+| Residual risks (A/B/C/D classification) | [`./RESIDUAL_RISK_SUMMARY.md`](./RESIDUAL_RISK_SUMMARY.md) |
+| Historical baseline audit (Pass 1) | [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) |
+| What's in / out of scope for the external tester | **`PEN_TEST_SCOPE.md`** (this file) |
+| Day-1 vendor handover sheet | [`./TESTER_HANDOVER_CHECKLIST.md`](./TESTER_HANDOVER_CHECKLIST.md) |
+| Tester onboarding + control summary | [`./PEN_TEST_ONBOARDING.md`](./PEN_TEST_ONBOARDING.md) |
 
 This document accompanies [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) (internal first-pass audit) and [`./RISK_REGISTER.md`](./RISK_REGISTER.md) (33 findings, all closed by Iter 220be). The vendor is expected to **independently verify** the audit's claims and surface anything we missed.
 
@@ -169,4 +181,4 @@ ON the entire engagement).
 
 ---
 
-*Prepared Iter 220ar (May 28, 2026), updated Iter 220bf (May 28, 2026). Re-issued before each engagement.*
+*Prepared Iter 220ar (May 28, 2026), updated Iter 220bg (May 28, 2026). Re-issued before each engagement.*

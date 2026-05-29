@@ -182,8 +182,14 @@ def test_pen_test_scope_no_tbc_or_placeholder_phone():
     # we want gone is the standalone "| TBC |" cell in the limitations
     # table.
     assert "| TBC |" not in body, "TBC table cell must be replaced with concrete guidance"
-    # Version bumped.
-    assert "Version 1.2" in body, "PEN_TEST_SCOPE.md version must be ≥ 1.2 (Iter 220bf)"
+    # Version bumped (1.2 was Iter 220bf, 1.3 was Iter 220bg, etc.)
+    # — any version ≥ 1.2 passes.
+    import re as _re
+    m = _re.search(r"Version (\d+)\.(\d+)", body)
+    assert m, "PEN_TEST_SCOPE.md must declare a Version X.Y"
+    major, minor = int(m.group(1)), int(m.group(2))
+    assert (major, minor) >= (1, 2), \
+        f"PEN_TEST_SCOPE.md version must be ≥ 1.2 (got {major}.{minor})"
 
 
 def test_pen_test_onboarding_credentials_redacted():

@@ -187,6 +187,7 @@ regression:
 	  tests/test_iter_220bc_homepage_modules_consolidation.py \
 	  tests/test_iter_220be_pentest_final_hardening.py \
 	  tests/test_iter_220bf_handover_pack_hygiene.py \
+	  tests/test_iter_220bg_handover_pack_consistency.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

@@ -1,4 +1,4 @@
-# Pen-Test Readiness — Final Checklist (Iter 220be · May 28, 2026)
+# Pen-Test Readiness — Final Checklist (Iter 220bg · May 28, 2026)
 
 > **Status: ✅ READY FOR EXTERNAL TEST**
 >
@@ -7,6 +7,18 @@
 > sweep), F-10 (bulk-action limits), F-21 (widget brute-force) and
 > F-30 (test-credentials in bundle) — were closed in this iteration
 > with regression tests + documentation.
+
+## Document index — pen-test handover pack
+
+| Looking for… | Read |
+|---|---|
+| Current per-finding status | [`./RISK_REGISTER.md`](./RISK_REGISTER.md) |
+| External test readiness verdict + approval | **`PEN_TEST_READINESS_CHECKLIST.md`** (this file) |
+| Residual risks (A/B/C/D classification) | [`./RESIDUAL_RISK_SUMMARY.md`](./RESIDUAL_RISK_SUMMARY.md) |
+| Historical baseline audit (Pass 1) | [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) |
+| What's in / out of scope for the external tester | [`./PEN_TEST_SCOPE.md`](./PEN_TEST_SCOPE.md) |
+| Day-1 vendor handover sheet | [`./TESTER_HANDOVER_CHECKLIST.md`](./TESTER_HANDOVER_CHECKLIST.md) |
+| Tester onboarding + control summary | [`./PEN_TEST_ONBOARDING.md`](./PEN_TEST_ONBOARDING.md) |
 
 ---
 
@@ -120,18 +132,21 @@ for the full classification table.)
 
 ## F · Document index (current versions)
 
+The canonical index lives at the top of this file. Per-doc current
+versions:
+
 | Document | Version | Last update |
 |---|---|---|
-| `RISK_REGISTER.md` | 1.5 | Iter 220be |
-| `PEN_TEST_SCOPE.md` | 1.2 | Iter 220bf |
+| `RISK_REGISTER.md` | 1.6 | Iter 220bg |
+| `PEN_TEST_SCOPE.md` | 1.3 | Iter 220bg |
 | `PEN_TEST_ONBOARDING.md` | 1.1 | Iter 220bf (credentials redacted) |
-| `SECURITY_AUDIT_PASS_1.md` | 1.1 | Iter 220bf |
+| `SECURITY_AUDIT_PASS_1.md` | 1.2 | Iter 220bg (re-classified as historical baseline) |
 | `PEN_TEST_FINDINGS.md` | 1.1 | Iter 220bf (template — inline credentials redacted) |
 | `DEPLOY_RUNBOOK_PENTEST.md` | 1.1 | Iter 220bf |
 | `OPS_RUNBOOK.md` | 1.0 | Iter 220ay |
-| `RESIDUAL_RISK_SUMMARY.md` | 1.0 | Iter 220bf (new) |
-| `TESTER_HANDOVER_CHECKLIST.md` | 1.0 | Iter 220bf (new) |
-| **`PEN_TEST_READINESS_CHECKLIST.md`** | **1.1 — this doc** | **Iter 220bf** |
+| `RESIDUAL_RISK_SUMMARY.md` | 1.1 | Iter 220bg |
+| `TESTER_HANDOVER_CHECKLIST.md` | 1.1 | Iter 220bg |
+| **`PEN_TEST_READINESS_CHECKLIST.md`** | **1.2 — this doc** | **Iter 220bg** |
 
 ---
 
@@ -163,11 +178,14 @@ Every finding the external vendor delivers will be:
 
 ## H · Internal approval statement
 
-**Based on the current risk register (33/33 findings closed and
-regression-tested), full `make regression` results (1301 passed,
-15 skipped, 0 failures as of 28 May 2026) and the staging readiness
-checks documented in §A–E above, GymAxis / Pulse Fitness is
-approved internally for external penetration testing.**
+**Based on the current Risk Register, Readiness Checklist and
+Residual Risk Summary, GymAxis / Pulse Fitness is ready to proceed
+to external penetration testing.**
+
+The Risk Register holds **33/33 findings closed** and regression-
+tested. The full `make regression` suite ran clean (**1312 passed,
+15 skipped, 0 failures** as of 28 May 2026). The staging
+environment readiness checks in §A–E above are met.
 
 Any findings raised by the vendor will be logged as **F-34** onward
 in the Risk Register and prioritised by severity per the process
@@ -175,7 +193,7 @@ documented in §G.
 
 | Item | Value |
 |---|---|
-| Approval date | **28 May 2026 (Iter 220bf)** |
+| Approval date | **28 May 2026 (Iter 220bg)** |
 | Approval owner | Craig Henshall · GymAxis Founder · `craig@gymaxisai.com` |
 | Co-sign (security) | `security@gymaxisai.com` |
 | Next review date | Day +1 of the external engagement (post-kickoff sanity check) |
@@ -184,4 +202,4 @@ documented in §G.
 
 ---
 
-*Iter 220bf · May 28, 2026 — Prepared for external pen-test kickoff.*
+*Iter 220bg · May 28, 2026 — Prepared for external pen-test kickoff.*

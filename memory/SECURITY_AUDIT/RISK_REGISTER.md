@@ -1,8 +1,20 @@
 # GymAxis / Pulse Fitness — Security Risk Register
 
-> **Iter 220ar · Pass 1 · May 28, 2026**
+> **Iter 220bg · May 28, 2026 — Living document**
 >
 > 33 findings, ranked by impact × likelihood. Living document — re-score after each hardening wave + after the external pen-test.
+
+## Document index — pen-test handover pack
+
+| Looking for… | Read |
+|---|---|
+| **Current per-finding status (source of truth)** | **`RISK_REGISTER.md`** (this file) |
+| External test readiness verdict + approval | [`./PEN_TEST_READINESS_CHECKLIST.md`](./PEN_TEST_READINESS_CHECKLIST.md) |
+| Residual risks (A/B/C/D classification) | [`./RESIDUAL_RISK_SUMMARY.md`](./RESIDUAL_RISK_SUMMARY.md) |
+| Historical baseline audit (Pass 1) | [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) |
+| What's in / out of scope for the external tester | [`./PEN_TEST_SCOPE.md`](./PEN_TEST_SCOPE.md) |
+| Day-1 vendor handover sheet | [`./TESTER_HANDOVER_CHECKLIST.md`](./TESTER_HANDOVER_CHECKLIST.md) |
+| Tester onboarding + control summary | [`./PEN_TEST_ONBOARDING.md`](./PEN_TEST_ONBOARDING.md) |
 
 **Scoring**
 

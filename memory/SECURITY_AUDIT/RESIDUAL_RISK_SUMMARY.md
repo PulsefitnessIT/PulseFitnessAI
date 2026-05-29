@@ -1,10 +1,22 @@
 # GymAxis / Pulse Fitness — Residual-Risk Summary
 
-> **Iter 220bf · May 28, 2026 · v1.0**
+> **Iter 220bg · May 28, 2026 · v1.1**
 >
 > **Audience:** External pen-test vendor + board / procurement review.
 > **Purpose:** Single-page snapshot of where we stand on risk the day
 > before the external engagement begins.
+
+## Document index — pen-test handover pack
+
+| Looking for… | Read |
+|---|---|
+| Current per-finding status | [`./RISK_REGISTER.md`](./RISK_REGISTER.md) |
+| External test readiness verdict + approval | [`./PEN_TEST_READINESS_CHECKLIST.md`](./PEN_TEST_READINESS_CHECKLIST.md) |
+| Residual risks (A/B/C/D classification) | **`RESIDUAL_RISK_SUMMARY.md`** (this file) |
+| Historical baseline audit (Pass 1) | [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) |
+| What's in / out of scope for the external tester | [`./PEN_TEST_SCOPE.md`](./PEN_TEST_SCOPE.md) |
+| Day-1 vendor handover sheet | [`./TESTER_HANDOVER_CHECKLIST.md`](./TESTER_HANDOVER_CHECKLIST.md) |
+| Tester onboarding + control summary | [`./PEN_TEST_ONBOARDING.md`](./PEN_TEST_ONBOARDING.md) |
 
 ---
 
@@ -155,4 +167,8 @@ post-pen-test process documented in
 
 ---
 
-*Prepared Iter 220bf (May 28, 2026) — Craig Henshall, sign-off.*
+*Prepared Iter 220bg (May 28, 2026) — Craig Henshall, sign-off.*
+
+**Final statement:** Based on the current Risk Register, Readiness
+Checklist and Residual Risk Summary, GymAxis / Pulse Fitness is
+ready to proceed to external penetration testing.
