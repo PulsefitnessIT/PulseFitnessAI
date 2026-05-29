@@ -59,6 +59,7 @@ from fastapi.responses import HTMLResponse, Response, StreamingResponse
 
 from utils.auth import get_current_user
 from utils.database import db, put_object, APP_NAME
+from utils.stripe_client_idempotency import stripe_idem_key as _stripe_idem_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -1438,7 +1439,10 @@ async def _sync_partner_subscription_to_tier(partner_id: str, tier: dict) -> Non
         if sub.get("cancel_at_period_end"):
             return
         try:
-            stripe.Subscription.modify(sub_id, cancel_at_period_end=True)
+            stripe.Subscription.modify(
+                sub_id, cancel_at_period_end=True,
+                idempotency_key=_stripe_idem_key("partner_auto_cancel", partner_id, sub_id),
+            )
         except Exception:
             logger.exception("[partners] cancel-at-period-end failed")
             return
@@ -1461,7 +1465,10 @@ async def _sync_partner_subscription_to_tier(partner_id: str, tier: dict) -> Non
         # Already correct; just clear any pending cancellation.
         if sub.get("cancel_at_period_end"):
             try:
-                stripe.Subscription.modify(sub_id, cancel_at_period_end=False)
+                stripe.Subscription.modify(
+                    sub_id, cancel_at_period_end=False,
+                    idempotency_key=_stripe_idem_key("partner_auto_uncancel", partner_id, sub_id),
+                )
                 await db.partner_engineers.update_one(
                     {"id": partner_id},
                     {"$set": {"subscription.cancel_at_period_end": False,
@@ -1476,6 +1483,7 @@ async def _sync_partner_subscription_to_tier(partner_id: str, tier: dict) -> Non
             cancel_at_period_end=False,
             proration_behavior="create_prorations",
             items=[{"id": items[0]["id"], "price": target_price_id}],
+            idempotency_key=_stripe_idem_key("partner_price_swap", partner_id, target_price_id),
         )
     except Exception:
         logger.exception("[partners] subscription price swap failed")
@@ -2150,6 +2158,10 @@ async def create_partner_subscription_checkout(
             customer_email=user.get("email"),
             metadata=metadata,
             subscription_data={"metadata": metadata},
+            # Iter 220bo · F-220bo-3 — deterministic key so a double-
+            # click / network retry within a minute lands on the same
+            # Stripe session instead of creating duplicates.
+            idempotency_key=_stripe_idem_key("partner_plan_checkout", partner["id"], price_id),
         )
     except Exception as exc:
         logger.exception("[partners] partner-plan checkout failed")
@@ -2177,7 +2189,10 @@ async def cancel_partner_subscription(user: dict = Depends(get_current_user)):
     try:
         import stripe
         stripe.api_key = os.environ.get("STRIPE_API_KEY")
-        stripe.Subscription.modify(sub_id, cancel_at_period_end=True)
+        stripe.Subscription.modify(
+            sub_id, cancel_at_period_end=True,
+            idempotency_key=_stripe_idem_key("partner_sub_cancel", partner["id"], sub_id),
+        )
     except Exception as exc:
         raise HTTPException(400, f"Stripe cancellation failed: {exc}")
     await db.partner_engineers.update_one(
@@ -2202,7 +2217,10 @@ async def resume_partner_subscription(user: dict = Depends(get_current_user)):
     try:
         import stripe
         stripe.api_key = os.environ.get("STRIPE_API_KEY")
-        stripe.Subscription.modify(sub_id, cancel_at_period_end=False)
+        stripe.Subscription.modify(
+            sub_id, cancel_at_period_end=False,
+            idempotency_key=_stripe_idem_key("partner_sub_resume", partner["id"], sub_id),
+        )
     except Exception as exc:
         raise HTTPException(400, f"Stripe resume failed: {exc}")
     await db.partner_engineers.update_one(

@@ -1,3 +1,42 @@
+## Iter 220bp — Pen-test readiness audit (security hardening) ✅ (Feb 2026)
+
+**Goal**: close the five gaps identified in `/app/memory/SECURITY_AUDIT_2026Q1.md` before the upcoming external pen test.
+
+### Findings closed
+| # | Severity | Gap | Fix |
+|---|---|---|---|
+| F-220bo-1 | HIGH | `assistant_execute_action` allowed any logged-in user (incl. Member tier) to trigger `clear_demo_data` DELETE on their org. LLM-amplified privilege risk. | Role-gated via `assert_role(["operator","owner","manager","admin","marketing_admin"])`. Master / Pulse admins still pass. |
+| F-220bo-2 | MEDIUM | `/marketing/assistant/chat` accepted unbounded `message` length — 100k char prompt would burn through LLM budget. | Hard cap at 4,000 chars (400 on overflow). |
+| F-220bo-3 | MEDIUM | Outbound Stripe SDK writes (`checkout.Session.create`, `Subscription.modify`) didn't pass `idempotency_key`. Retries on 5xx / double-clicks could create duplicate sessions / charges. | New `utils/stripe_client_idempotency.stripe_idem_key()` helper (deterministic, bucketed). Wired into 6 call sites across `partners.py`, `master_admin_trials.py`, `crm_modes.py`. |
+| F-220bo-4 | MEDIUM | New Autopilot generate endpoints had no per-user rate limit — a leaked master-admin token could burn Sora 2 / Nano Banana budget unboundedly. | `rate_limit_async` layered on top of `_require_master_admin`. Tiers: generate / run-now → 20/hr; video-gen → 5/hr. |
+| F-220bo-5 | LOW | User input concatenated into LLM prompts without delimiter framing. | `ai_guardrails.wrap_user_input()` enhanced — now emits an injection-guard header instructing the model to treat content between `<user_input>` tags as DATA, not instructions. Attacker-typed closing tags get redacted. |
+
+### Files touched
+- `backend/utils/ai_guardrails.py` — beefed-up `wrap_user_input`.
+- `backend/utils/stripe_client_idempotency.py` — new helper module.
+- `backend/routes/marketing/assistant.py` — role gate, length cap, prompt wrap.
+- `backend/routes/marketing/social_autopilot.py` — three rate-limited endpoints.
+- `backend/routes/partners.py` — 5× Stripe idempotency keys.
+- `backend/routes/master_admin_trials.py` — 1× Stripe idempotency key.
+- `backend/routes/crm_modes.py` — 1× Stripe idempotency key.
+- `backend/tests/test_iter_220bp_security_hardening.py` — 12 new tests.
+- `Makefile` — registered under `regression:`.
+- `memory/SECURITY_AUDIT_2026Q1.md` — written audit report.
+
+### Already covered (no work needed)
+Documented in the audit: A01-A03, A05, A07, A09-A10 of OWASP Top 10
+(auth, crypto, NoSQL-safe queries, CSP/HSTS/headers, JWT revocation,
+trust events, no SSRF surface), Stripe webhook idempotency
+(Iter 220as), body-size middleware, per-user LLM budget (Ask),
+rich-text bleach allow-list, open-redirect guard, email-recipient
+validation.
+
+### Verified
+- `make regression` → **1422 passed, 0 failed, 15 skipped** (was 1410 → +12).
+- Live API: `POST /api/marketing/assistant/chat` with `message = "x"*4500` → 400 `"message too long (4,500 chars); max 4,000."`
+- Live API: `GET /api/marketing/social-autopilot/status` → 200 OK (Social panel still works).
+
+
 ## Iter 220bo — SocialAutopilotPanel "Not Found" hotfix ✅ (Feb 2026)
 
 **Bug**: `SocialAutopilotPanel` (Master Admin → Growth → Social

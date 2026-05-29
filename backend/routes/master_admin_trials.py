@@ -278,6 +278,7 @@ def _build_trial_convert_session(org: dict, org_id: str, target_tier: str, origi
     """Create a Stripe Checkout session for a trial → paid conversion."""
     import stripe
     from utils.database import STRIPE_API_KEY
+    from utils.stripe_client_idempotency import stripe_idem_key
     stripe.api_key = STRIPE_API_KEY
     price_id = _resolve_stripe_price_id(target_tier)
     primary_email = (org.get("primary_contact", {}) or {}).get("email", "")
@@ -289,6 +290,8 @@ def _build_trial_convert_session(org: dict, org_id: str, target_tier: str, origi
         cancel_url=f"{origin_url.rstrip('/')}/dashboard",
         customer_email=primary_email or None,
         metadata={"trial_org_id": org_id, "trial_convert": "true", "tier": target_tier},
+        # Iter 220bo · F-220bo-3 — outbound idempotency.
+        idempotency_key=stripe_idem_key("trial_convert_checkout", org_id, target_tier),
     )
 
 

@@ -11,7 +11,9 @@ import os
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from utils.auth import get_current_user
+from utils.auth_guards import assert_role
 from utils.database import db
+from utils.ai_guardrails import sanitize_prompt, wrap_user_input
 from utils.module_guard import require_module
 
 from routes.marketing.helpers import (
@@ -168,7 +170,14 @@ async def assistant_chat(body: dict = Body(...), user: dict = Depends(get_curren
 
     org_id = await _org_id(user)
     session_id = (body.get("session_id") or "").strip() or _new_id()
-    message = (body.get("message") or "").strip()
+    # Iter 220bo · F-220bo-2 — cap user input length so a 100k-char
+    # message cannot burn through the org's LLM budget in one shot.
+    raw_message = (body.get("message") or "").strip()
+    if len(raw_message) > 4000:
+        raise HTTPException(
+            400, f"message too long ({len(raw_message):,} chars); max 4,000.",
+        )
+    message = sanitize_prompt(raw_message, max_chars=4000)
     if not message:
         raise HTTPException(400, "Message is required")
 
@@ -253,7 +262,11 @@ async def assistant_chat(body: dict = Body(...), user: dict = Depends(get_curren
                 # its own runtime memory, so this hydrates conversation state.
                 # We DON'T await responses for these; just send().
                 pass  # The library accumulates; we send only the new message.
-        answer = await chat.send_message(UserMessage(text=message))
+        # Iter 220bo · F-220bo-5 — wrap user input in a delimited
+        # block + injection-guard header so prompt-injection attempts
+        # ("ignore previous instructions...") are visibly outside the
+        # system-message authority zone.
+        answer = await chat.send_message(UserMessage(text=wrap_user_input(message)))
     except HTTPException:
         raise
     except Exception as exc:
@@ -313,6 +326,12 @@ async def assistant_chat(body: dict = Body(...), user: dict = Depends(get_curren
 async def assistant_execute_action(body: dict = Body(...), user: dict = Depends(get_current_user)):
     """Run a one-click action recommended by the AI Assistant.
     Returns metadata the frontend uses to navigate / show toasts."""
+    # Iter 220bo · F-220bo-1 — operator-only. The chat suggestion
+    # surface remains open to all members, but DB-mutating actions
+    # (notably ``clear_demo_data``) require an operator/owner/manager
+    # role so a prompt-injected suggestion cannot trick a non-operator
+    # into deleting demo data. Master / Pulse admins always pass.
+    assert_role(user, ["operator", "owner", "manager", "admin", "marketing_admin"])
     org_id = await _org_id(user)
     action_type = (body.get("type") or "").strip()
     params = body.get("params") or {}

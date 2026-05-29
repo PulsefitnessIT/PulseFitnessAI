@@ -147,7 +147,12 @@ async def create_business_crm_checkout(
         })
 
     try:
-        session = stripe.checkout.Session.create(**session_kwargs)
+        # Iter 220bo · F-220bo-3 — outbound Stripe idempotency.
+        from utils.stripe_client_idempotency import stripe_idem_key
+        session = stripe.checkout.Session.create(
+            **session_kwargs,
+            idempotency_key=stripe_idem_key("crm_business_upgrade", org["id"], user["id"]),
+        )
     except Exception as e:
         logger.exception("Stripe session creation failed")
         raise HTTPException(status_code=502, detail=f"Stripe error: {e}")

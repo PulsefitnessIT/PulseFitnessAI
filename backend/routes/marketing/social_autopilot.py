@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.security_plus import rate_limit_async
 from utils.social_autopilot import (
     CHANNELS, FEATURE_PILLARS,
     generate_post_for_channel, generate_daily_drafts,
@@ -151,6 +152,13 @@ async def generate_one(
     """Generate ONE draft for a specific channel. Used by the
     "Generate {channel} post" buttons in the UI."""
     _require_master_admin(user)
+    # Iter 220bo · F-220bo-4 — per-admin LLM-budget rate limit. Each
+    # call costs a Claude completion + a Nano Banana image; 20/hour
+    # is plenty for a human operator iterating in the UI and tight
+    # enough to block runaway scripts on a leaked token.
+    await rate_limit_async(
+        f"social_generate:{user.get('id')}", max_requests=20, window_seconds=3600,
+    )
     if payload.channel not in {c["id"] for c in CHANNELS}:
         raise HTTPException(400, "Unknown channel")
     doc = await generate_post_for_channel(db, payload.channel)
@@ -163,6 +171,13 @@ async def run_now(user: dict = Depends(get_current_user)):
     channel). Idempotent on (date) — already-fired-today returns
     early so the daily cron + manual button can't double-fire."""
     _require_master_admin(user)
+    # Iter 220bo · F-220bo-4 — same per-admin LLM-budget rate limit
+    # as /generate. The endpoint is already idempotent per-day so
+    # legitimate use won't trip the limit; abuse from a leaked token
+    # will.
+    await rate_limit_async(
+        f"social_run_now:{user.get('id')}", max_requests=20, window_seconds=3600,
+    )
     cfg = await _load_config()
     today = datetime.now(timezone.utc).date().isoformat()
     existing = await db.social_autopilot_runs.find_one({"date": today})
@@ -246,6 +261,12 @@ async def trigger_video_generation(
     operator polls ``/status`` or refreshes the post list to see it
     flip to ``ready`` (typically 2-5 minutes)."""
     _require_master_admin(user)
+    # Iter 220bo · F-220bo-4 — Sora 2 is the most expensive call in
+    # the autopilot (~$/clip), so the per-admin ceiling is the
+    # strictest of the lot: 5 video renders per hour per user.
+    await rate_limit_async(
+        f"social_video_gen:{user.get('id')}", max_requests=5, window_seconds=3600,
+    )
     post = await db.social_autopilot_posts.find_one({"id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(404, "Post not found")
