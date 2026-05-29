@@ -357,6 +357,8 @@ function PostCard({ post, onChange }) {
         <StatusPill status={post.status}/>
       </div>
 
+      <ToneCheckBanner post={post} onRecheck={onChange}/>
+
       {post.image_url ? (
         <div className="bg-zinc-100 dark:bg-zinc-900 p-2">
           <img

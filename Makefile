@@ -204,6 +204,7 @@ regression:
 	  tests/test_iter_220bu_unified_timeline.py \
 	  tests/test_iter_220bv_timeline_panel.py \
 	  tests/test_iter_220bw_launch_campaigns_and_tracker.py \
+	  tests/test_iter_220bx_social_tone_check.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

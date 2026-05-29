@@ -751,6 +751,10 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
         prompt = build_prompt(channel, topic)
     text = await _llm_chat(prompt)
 
+    # Alternate image variants A/B per post (count parity on the
+    # channel determines which one we use).
+    image_variant = "A" if n_existing % 2 == 0 else "B"
+
     image_url: Optional[str] = None
     image_model = "branded_card"
     if image_variant == "A":

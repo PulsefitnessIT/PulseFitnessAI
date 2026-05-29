@@ -1,4 +1,75 @@
-## Iter 220bw — Social Autopilot launch campaigns + IG tracker ✅ (Feb 2026)
+## Iter 220bx — Pre-publish Social Autopilot Launch-Tone checker ✅ (May 29, 2026)
+
+**User ask**:
+> "Pre-publish post-checker that warns if a generated post sounds like
+> an established brand (references case studies, claims metrics, talks
+> 'trusted by thousands') while we're still in launch week."
+
+### What shipped
+
+#### Backend
+1. **`utils/social_tone_check.py`** — heuristic launch-tone rulebook
+   (regex-based, instant, no LLM budget). 14 rules across 3 categories:
+   `metric_claim` (percentages, hours-saved, cut-by-N%), `social_proof`
+   (thousands of customers, case studies, "since we launched"), and
+   `established_voice` ("trusted by", "industry-leading", "proven",
+   "founded in YYYY"). Output is a stable dict: `{status:"ok"|
+   "warnings"|"failed", findings:[…], checked_at, checker_version,
+   on_campaign}`. Severity rollup: any "high" → `failed`; any non-"high"
+   → `warnings`; clean → `ok`.
+2. **Off-campaign downgrade** — when `on_campaign=False`, the same
+   findings surface but as `severity="low"` so the operator deliberately
+   publishing under the established voice sees a quiet stripe, not a
+   red banner.
+3. **`check_draft_tone_with_llm`** — optional Claude Sonnet 4.5 second
+   pass for borderline drafts. Fails CLOSED (returns
+   `{verdict:"ok", skipped:True}`) when the LLM key is missing or the
+   vendor errors, so the route never crashes.
+4. **`generate_post_for_channel` runs the check at draft time** —
+   every new post is stamped with `tone_check.status` so the panel can
+   render a banner without an extra round-trip.
+5. **`POST /api/marketing/social-autopilot/posts/{id}/recheck-tone`** —
+   re-runs the rulebook on demand (e.g. after the operator edits a
+   caption). `?deep=true` invokes the LLM second pass and merges its
+   findings. Rate-limited (60 rechecks per admin per 10 min). Persists
+   the new `tone_check` back onto the post.
+
+#### Frontend
+6. **`<ToneCheckBanner>` in `SocialAutopilotPanel.js`** — renders at
+   the top of every `PostCard` between the channel header and the
+   image:
+   - `status="ok"` → slim green stripe "✓ Launch tone OK · Recheck".
+   - `status="warnings"` → amber banner with the top 4 findings, each
+     showing the matched phrase + suggested rewrite, plus "Recheck"
+     and "Deep recheck (LLM)" actions.
+   - `status="failed"` → same shape, rose-coloured.
+   - Legacy posts with no `tone_check` field render nothing (silent).
+7. **`data-testid` coverage**: `tone-check-ok-{id}`,
+   `tone-check-warnings-{id}`, `tone-check-failed-{id}`,
+   `tone-check-recheck-{id}`, `tone-check-deep-{id}`,
+   `tone-check-findings-{id}`.
+
+#### Regression
+8. **`tests/test_iter_220bx_social_tone_check.py`** — 16 tests
+   covering: rule-matching for each category, off-campaign downgrade,
+   hashtag scanning, span dedup, generator-wiring (tone_check
+   persisted on insert), the recheck route happy-path / 404 / 403,
+   LLM-second-pass fail-closed paths (no key + vendor exception).
+   Wired into `make regression` (Makefile line 207, TAB-indented).
+9. **Full regression**: 1523 passed, 15 skipped, 0 failures (~159s).
+
+#### Bug fix bundled in
+10. **`image_variant` UnboundLocalError regression in `generate_post_for_channel`**
+    — the previous iter accidentally deleted the
+    `image_variant = "A" if n_existing % 2 == 0 else "B"` line, which
+    made the function crash on every call. Restored. (Iter 220bw's
+    own tests `test_generate_post_stamps_campaign_when_active` and
+    `test_generate_post_no_campaign_uses_established_prompt` were
+    silently broken before this fork — now passing again.)
+
+---
+
+
 
 **User asks**:
 > "Social media auto-pilot — We need launch content — the content
