@@ -1,3 +1,63 @@
+## Iter 220be — Pre-Pen-Test Final Hardening (F-06/10/21/30) ✅
+
+Final closure pass against the 4 open risk-register items. **All 33
+findings are now closed**; platform is ready for external pen-test
+kickoff.
+
+### Closed risks
+
+| ID | Item | What changed |
+|---|---|---|
+| F-06 | IDOR sweep | `mod_portal.mod_pre_visit_pack` tenant-scopes via master/org/engineer triad (404, not 403, on miss to defeat ID enumeration). `staffing_clock.update_kiosk` follow-up read pins `organization_id`. All `integrations.py` find-by-id calls are master-admin-gated by intent (defence-in-depth confirmed; no fix needed). |
+| F-10 | Bulk-action limits + audit | New `utils/bulk_action.py` with `validate_bulk_ids` (200 cap + dedupe + type-check), `assert_destructive_role` (owner/manager gate for delete-many), `filter_same_tenant_ids` (silently drops other-tenant IDs — no enumeration via error diffs), `record_bulk_action` (per-row row in `bulk_action_events`). Wired into `memberships/members_ops.members_bulk_action`. New `bulk_action_events` index in `ensure_indexes.py`. |
+| F-21 | Widget brute-force | Token mint upgraded 12 → 32 bytes (96 → 256 bits ≈ 43 chars URL-safe). New `_check_widget_lookup_rate` (60/min/IP) + `_log_widget_access` (every attempt, found True/False) on `GET /api/widget/embed/{token}`. Submission rate-limit (5/h/IP) + honeypot pre-existed and remain. Legacy tokens still valid for deployed embeds. New `widget_access_log` index. |
+| F-30 | Test creds in prod bundle | New `.dockerignore` + `.emergentignore` (defence-in-depth alongside `.gitignore`) both exclude `memory/`, `**/test_credentials.md`, `backend/tests/`, `.env*.local`, `frontend/node_modules/`. Source-level test scans backend for hardcoded `MasterAdmin123!` / `Test123!` — only `utils/secrets_audit.py` (the detection list) may mention them. Startup audit (`secrets_audit._findings`) already aborts prod boot on weak password. |
+
+### Documents updated
+
+* `RISK_REGISTER.md` — F-06/10/21/30 marked done with line-level
+  rationale; new "Current Known Risks" section with A/B/C/D
+  classification (Fixed-verified · Implemented-awaiting-external ·
+  Accepted-limitations · Open-risks).
+* `PEN_TEST_SCOPE.md` — v1.1: contact email/phone placeholders
+  resolved; AV/MFA "stub/post-W3" copy fixed to reflect closure;
+  new §10 Staging environment flag matrix (11 flags + toggle script
+  path); pen-test priorities 11 (bulk actions) + 12 (widget
+  brute-force) added.
+* New `PEN_TEST_READINESS_CHECKLIST.md` — final go/no-go doc with
+  module-by-module verification status (IDOR / RBAC / Audit per
+  module across all 17 modules), staging env flag matrix, pen-tester
+  readiness pack checklist, residual-risk summary, document index
+  pinning version + iter for each artefact.
+
+### Tests
+
+* New `tests/test_iter_220be_pentest_final_hardening.py` — 11
+  source-level locks (IDOR fix shape, bulk-action utility surface,
+  widget token entropy + audit wiring, ignore-file rules,
+  hard-coded credential scan).
+* Wired into `make regression` block (TAB-prefixed).
+* Full `make regression` → **1301 passed, 15 skipped, 0 failures**
+  (148 s).
+* Ruff + ESLint clean.
+
+### Verification status — A/B/C/D residual risk
+
+* **A (Fixed + regression-tested):** all 33 findings.
+* **B (Implemented, awaits external verification):** F-11/13/14/16
+  (AI prompt-injection at scale), F-21 distributed brute, F-29
+  edge surfaces, F-04 exotic payloads. Listed as priorities for
+  the external tester.
+* **C (Accepted limitations, signed off):** `/api/health/deep`
+  version info (Ops), public sub-processor list (GDPR-required),
+  engineer-app offline cache (Product), shared preview+prod env
+  values (platform constraint).
+* **D (Open):** None.
+
+---
+
+
+
 ## Iter 220bc — Homepage modules consolidation (6 → 4) ✅
 
 The hero orbit and module grid claimed six modules (Operations, CRM,

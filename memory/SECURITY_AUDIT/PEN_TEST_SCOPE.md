@@ -1,11 +1,11 @@
 # GymAxis / Pulse Fitness — Penetration Test Scope
 
-> **Iter 220ar · May 28, 2026 — Version 1.0**
+> **Iter 220be · May 28, 2026 — Version 1.1**
 >
 > **Audience:** External penetration-test vendor.
 > **Purpose:** Define a safe, productive scope so the vendor maximises real-world findings within budget.
 
-This document accompanies [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) (internal first-pass audit) and [`./RISK_REGISTER.md`](./RISK_REGISTER.md) (33 known findings). The vendor is expected to **independently verify** the audit's claims and surface anything we missed.
+This document accompanies [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) (internal first-pass audit) and [`./RISK_REGISTER.md`](./RISK_REGISTER.md) (33 findings, all closed by Iter 220be). The vendor is expected to **independently verify** the audit's claims and surface anything we missed.
 
 ---
 
@@ -16,7 +16,7 @@ This document accompanies [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1
 - **Test window:** 5 working days. Extendable in 2-day blocks by mutual agreement.
 - **Reporting:** Executive summary + technical findings + remediation guidance, delivered in PDF + CSV.
 - **Coordinated disclosure window:** 90 days from delivery before any public mention.
-- **Security contact:** `security@<your-domain>.com` · `<your-phone>` (P0 hotline).
+- **Security contact:** `security@gymaxisai.com` · `+44 (0) 0000 000000` (P0 hotline — confirmed at kickoff).
 
 ---
 
@@ -83,7 +83,9 @@ Service Desk · CRM · Memberships · Marketing · Staffing · Reporting · Cont
 7. **File-upload abuse** — upload a polyglot file (PDF with JS, GIF/PHP, HTML disguised as PNG). Confirm `validate_upload` rejects.
 8. **Public form abuse** — `/api/public/demo-request`, public widget endpoints, partner engineer application — verify rate limits + bot protection + email recipient validation.
 9. **Session / JWT** — try a JWT with `alg: none`, a swapped `kid`, a forged signature, an expired token, a revoked `jti`. Confirm all reject.
-10. **MFA bypass** — once Master Admin enables MFA (post-W3), try to access master-admin endpoints with a non-MFA token or a reused TOTP code.
+10. **MFA bypass** — Master Admin and any high-risk operator role have MFA enforceable via `ENFORCE_MASTER_ADMIN_MFA=true` (closed in W3, finding F-17). Verify a non-MFA token cannot reach `/api/master-admin/*` while the flag is on; verify TOTP reuse is rejected; verify session revocation invalidates outstanding JWTs.
+11. **Bulk-action limits (F-10 — closed in Iter 220be)** — every operator bulk endpoint MUST cap at 200 rows per call, dedupe, drop cross-tenant IDs silently (returns the same row count whether the missing IDs are absent or belong to another tenant), and write one `bulk_action_events` row per affected resource id. Attempt to bypass with a 1000-row payload, with cross-tenant IDs mixed in, with non-string entries.
+12. **Public widget brute-force (F-21 — closed in Iter 220be)** — tokens are 32 bytes (256 bits). `GET /api/widget/embed/{token}` is rate-limited to 60/min/IP and every attempt (hit or miss) is logged to `widget_access_log`. Submission rate-limit is 5/h/IP/token + honeypot. Verify distributed scans, IP-spoofing via `X-Forwarded-For`, and timing oracles.
 
 ---
 
@@ -94,9 +96,10 @@ So you don't waste time on these (we know about them):
 | Limitation | Why | When fixed |
 |---|---|---|
 | Twilio SMS is MOCKED (no real SMS sends) | Cost; awaiting investment | TBC |
-| AV malware-scan utility is a stub (no provider wired) | Cost; preview env | F-24 in W5 |
+| ClamAV running as side-car only in production; preview env uses the in-process static-signature scanner | F-24 closed in W5 — both modes reject EICAR and known polyglots. STRICT_AV_MODE=true forces rejection on any scanner failure. | **Closed.** |
 | Some integrations (DocuSign, Outlook, Sicon) are credential-blocked | Customer hasn't provided keys | Per-customer onboarding |
 | Single-pod preview env | Cost | Production runs multi-replica |
+| MFA enforcement (F-17) is opt-in via `ENFORCE_MASTER_ADMIN_MFA` env flag | Some prod tenants haven't enrolled their devices yet | **Code-side done in W3.** Operator toggles via runbook `PROD_ENV_FLIP_INSTRUCTIONS.md` step 3. |
 
 ---
 
@@ -133,10 +136,37 @@ So you don't waste time on these (we know about them):
 
 ## 9 · Contact
 
-- **Security primary:** `security@<your-domain>.com` · `<phone>`
-- **Founder / sign-off:** `<your-name>` · `<email>` · `<phone>`
-- **Out-of-hours P0 only:** `<phone>`
+- **Security primary:** `security@gymaxisai.com` · phone confirmed at kickoff via 1Password share
+- **Founder / sign-off:** `craig@gymaxisai.com` (Craig Henshall — Founder)
+- **Out-of-hours P0 only:** phone confirmed at kickoff via 1Password share
+- **Slack Connect channel:** invite issued day-1 of test window
 
 ---
 
-*Prepared Iter 220ar (May 28, 2026). Re-issued before each engagement.*
+## 10 · Staging environment — confirmed security flag state
+
+As of Iter 220be the staging tenant runs the same security posture as
+production. The pen-tester should see all of the following enabled
+out-of-the-box on day 1:
+
+| Env flag | Expected | Reason |
+|---|---|---|
+| `ENFORCE_MASTER_ADMIN_MFA` | `true` | F-17 — master admin MFA enforced |
+| `ENFORCE_EMAIL_RECIPIENT_VALIDATION` | `true` | F-22 — block freeform send-to attacks |
+| `STRICT_AV_MODE` | `true` | F-24 — uploads rejected on scanner failure |
+| `STRICT_SSRF_MODE` | `true` | F-26 — server-side fetch only to allow-listed CIDRs |
+| `DISABLE_DEBUG_SURFACES` | `true` | F-31 — no `/debug/*`, no `/test/*`, no `?debug=1` |
+| `ENFORCE_BCRYPT_ROUNDS_MIN_12` | `true` | F-02 — bcrypt cost ≥ 12 |
+| `CORS_ALLOWLIST` | comma-list of allowed origins | F-05 — no `*` |
+| `DEBUG` | `false` | F-31 — no stack traces in 500 responses |
+| `RATE_LIMIT_ENABLED` | `true` | F-09 — public + auth endpoints capped |
+| `LIVE_CUSTOMER_DATA_IN_STAGING` | **NO** — staging has seed data only | confirmed by `scripts/seed_pentest_tenant.py` |
+
+The full toggle script is `/app/backend/scripts/toggle_pentest_flags.sh`.
+Run with `--on` to enable all of the above; `--off` flips them back
+(used only during automated regression — the pen-tester will see them
+ON the entire engagement).
+
+---
+
+*Prepared Iter 220ar (May 28, 2026), updated Iter 220be (May 28, 2026). Re-issued before each engagement.*

@@ -1,0 +1,78 @@
+# GymAxis — Production Docker Bundle Exclusions (Iter 220be / F-30)
+#
+# Anything matched here is excluded from the Docker build context AND
+# any subsequent COPY commands. Mirrors the runtime-secret hygiene rules
+# from `.gitignore` so dev-only artefacts (test credentials, internal
+# memory files, security audit documents) never ship to a production
+# image.
+#
+# Defence-in-depth — `.gitignore` already keeps the truly sensitive
+# files out of source control, but a deployment platform that builds
+# from the working tree rather than `git archive` would otherwise pick
+# them up. This file is the safety net.
+
+# ── Memory / scratch / dev knowledge base ────────────────────────────
+# /memory contains design notes, PRD, security audit, legal templates,
+# operator runbooks, pen-test handover docs. None of it is referenced
+# at runtime by the backend or frontend and shipping it to prod would
+# leak operational detail to anyone who pops a shell in the container.
+memory/
+memory/**
+/app/memory/
+/app/memory/**
+
+# ── Hard rule: never ship the test-credentials file ─────────────────
+# Already in `.gitignore` but listed explicitly so an audit tool can
+# see the intent without traversing `.gitignore`'s shape.
+**/test_credentials.md
+test_credentials.md
+
+# ── Pytest / coverage artefacts ─────────────────────────────────────
+.pytest_cache/
+.ruff_cache/
+**/__pycache__/
+htmlcov/
+.coverage
+.coverage.*
+backend/tests/
+backend/.pytest_cache/
+
+# ── IDE / OS noise ─────────────────────────────────────────────────
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ── Front-end build leftovers (production image rebuilds these) ────
+frontend/node_modules/
+frontend/.cache/
+frontend/build/
+frontend/dist/
+
+# ── Local-only env files / supervisor logs ─────────────────────────
+.env.local
+.env.development.local
+.env.test
+.env.test.local
+*.env.local
+backend/.env.local
+frontend/.env.local
+*.log
+logs/
+
+# ── Git + platform metadata ────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ── Misc dev files ─────────────────────────────────────────────────
+README.md
+SECURITY.md
+CHANGELOG.md
+ROADMAP.md
+Makefile
+*.test.md
+test_reports/

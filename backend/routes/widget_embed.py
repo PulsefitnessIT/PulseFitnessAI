@@ -53,8 +53,47 @@ def _id() -> str:
 
 
 def _mint_token() -> str:
-    """Short, URL-safe, opaque token — paste-friendly in HTML."""
-    return secrets.token_urlsafe(12)
+    """Iter 220be (F-21) — 32 bytes ≈ 256 bits entropy ≈ 43 chars. The
+    legacy 12-byte tokens minted before Iter 220be remain valid (we
+    look up by exact match) but every new token cleared the
+    F-21 "32+ random chars" risk-register requirement on creation."""
+    return secrets.token_urlsafe(32)
+
+
+async def _log_widget_access(
+    *, token: str, ip: str, ua: str, found: bool, kind: str,
+) -> None:
+    """Iter 220be (F-21) — Per-attempt audit row so SOC can detect
+    brute-force token enumeration. Every public widget hit is logged
+    regardless of outcome; failed hits (``found=False``) are the ones
+    we alert on if the count exceeds the per-IP threshold.
+    """
+    try:
+        await db.widget_access_log.insert_one({
+            "token": token[:64],
+            "ip": ip,
+            "user_agent": ua[:200],
+            "found": bool(found),
+            "kind": kind,  # 'config' or 'submit'
+            "ts": _now(),
+        })
+    except Exception as e:  # never let audit break the path
+        logger.warning("widget access log failed: %s", e)
+
+
+async def _check_widget_lookup_rate(ip: str, max_per_minute: int = 60) -> None:
+    """Iter 220be (F-21) — Cap GET /embed/{token} hits to 60/min/IP so
+    attackers can't enumerate tokens in bulk. The legitimate iframe
+    only fetches its own config once on load, so 60/min is generous.
+    """
+    if not ip or ip == "unknown":
+        return  # don't penalise unknown-IP requests (private deploys)
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+    recent = await db.widget_access_log.count_documents({
+        "ip": ip, "kind": "config", "ts": {"$gte": cutoff},
+    })
+    if recent >= max_per_minute:
+        raise HTTPException(429, "Too many widget lookups — slow down.")
 
 
 # ── Routers ────────────────────────────────────────────────────
@@ -129,15 +168,32 @@ def _scrub(doc: dict) -> dict:
 # ── Public widget config + submission ──────────────────────────
 
 @public_router.get("/embed/{token}")
-async def public_widget_config(token: str):
+async def public_widget_config(token: str, request: Request = None):  # type: ignore[assignment]
     """Public, unauthenticated. Returns the metadata the iframe needs
     to render the form (owner name, photo, review summary, branding).
+
+    Iter 220be (F-21) — Per-IP enumeration guard + audit log. Each
+    lookup writes a ``widget_access_log`` row so SOC can detect
+    brute-force scanning. ``request`` is auto-injected by FastAPI
+    in production; the ``= None`` default keeps the function callable
+    by the inline unit-test suite without constructing a Request.
     """
+    if request is not None:
+        ip = _client_ip(request)
+        ua = request.headers.get("user-agent") or ""
+        await _check_widget_lookup_rate(ip)
+    else:
+        ip, ua = "unknown", ""
+
     embed = await db.widget_embeds.find_one(
         {"token": token, "is_active": True}, {"_id": 0},
     )
     if not embed:
+        if request is not None:
+            await _log_widget_access(token=token, ip=ip, ua=ua, found=False, kind="config")
         raise HTTPException(404, "Widget not found")
+    if request is not None:
+        await _log_widget_access(token=token, ip=ip, ua=ua, found=True, kind="config")
 
     base = {
         "kind": "log_fault" if embed["owner_type"] == "partner_engineer" else "get_quote",

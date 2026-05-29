@@ -313,6 +313,25 @@ INDEXES: Sequence[Tuple[str, Sequence[Sequence[Tuple[str, int]]]]] = [
     ("svc_invoices", [
         [("organization_id", 1), ("status", 1), ("created_at", -1)],
     ]),
+
+    # Bulk-action audit events (F-10 Iter 220be) — one row per
+    # affected resource id; mirrors the export_events shape so the
+    # master-admin audit dashboard can fold both streams together.
+    ("bulk_action_events", [
+        [("action", 1), ("created_at", -1)],
+        [("organization_id", 1), ("created_at", -1)],
+        [("actor_id", 1), ("created_at", -1)],
+        [("resource_id", 1)],
+    ]),
+
+    # Public widget access log (F-21 Iter 220be) — every public
+    # widget config lookup writes a row so SOC can detect brute-force
+    # token enumeration.
+    ("widget_access_log", [
+        [("ip", 1), ("ts", -1)],
+        [("token", 1), ("ts", -1)],
+        [("found", 1), ("ts", -1)],
+    ]),
 ]
 
 

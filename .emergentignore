@@ -1,0 +1,59 @@
+# GymAxis — Emergent Platform Deployment Exclusions (Iter 220be / F-30)
+#
+# Emergent's deploy step ignores any file listed here when building the
+# production container, in addition to whatever `.dockerignore` and
+# `.gitignore` already filter. Defence-in-depth — same rules as
+# `.dockerignore` but listed separately so a future platform tweak
+# can't silently drop one without the other.
+#
+# Anything that contains credentials, internal runbooks, security audit
+# state, or dev-only scratch goes here.
+
+# ── Memory / scratch / dev knowledge base ─────────────────────────
+memory/
+memory/**
+/app/memory/
+/app/memory/**
+
+# ── Test credentials (HARD RULE) ──────────────────────────────────
+**/test_credentials.md
+test_credentials.md
+
+# ── Pytest / coverage / lint caches ───────────────────────────────
+.pytest_cache/
+.ruff_cache/
+backend/tests/
+backend/.pytest_cache/
+test_reports/
+
+# ── IDE / OS noise ────────────────────────────────────────────────
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ── Dev env overlays ──────────────────────────────────────────────
+.env.local
+.env.development.local
+.env.test
+.env.test.local
+*.env.local
+
+# ── Front-end dev artefacts (rebuilt on deploy) ───────────────────
+frontend/node_modules/
+frontend/.cache/
+frontend/build/
+frontend/dist/
+
+# ── Git metadata ──────────────────────────────────────────────────
+.git/
+.github/
+
+# ── Misc dev docs ─────────────────────────────────────────────────
+README.md
+SECURITY.md
+CHANGELOG.md
+ROADMAP.md
+Makefile

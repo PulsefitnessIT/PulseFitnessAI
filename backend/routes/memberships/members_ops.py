@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -406,31 +406,39 @@ async def _bulk_add_tag(org_id: str, member_ids: list[str], user: dict, payload:
 )
 async def members_bulk_action(
     body: dict = Body(...),
+    request: Request = None,
     user: dict = Depends(get_current_user),
 ):
     """Fan-out dispatcher. Body:
       { "action": "invite_portal"|"send_reminder"|"add_tag",
         "member_ids": [...], "payload": {...} }
     """
+    # Iter 220be (F-10) — Centralised bulk-action guard. Enforces the
+    # 200-row cap + de-dupe + per-row audit. Cross-tenant ids are
+    # silently dropped via `filter_same_tenant_ids` before fan-out so
+    # an attacker mixing other-tenant IDs into the payload only sees
+    # their own tenant's results — no enumeration via error messages.
+    from utils.bulk_action import (
+        validate_bulk_ids,
+        filter_same_tenant_ids,
+        record_bulk_action,
+    )
+
     org_id = await _require_operator_org(user)
     action = (body.get("action") or "").strip().lower()
-    member_ids = body.get("member_ids") or []
+    member_ids = validate_bulk_ids(
+        body.get("member_ids"),
+        max_rows=_BULK_MAX,
+        field_label="member_ids",
+    )
     payload = body.get("payload") or {}
 
-    if not isinstance(member_ids, list) or not member_ids:
-        raise HTTPException(400, "member_ids is required")
-    if len(member_ids) > _BULK_MAX:
-        raise HTTPException(
-            400, f"Too many members ({len(member_ids)}). Max {_BULK_MAX} per batch."
-        )
-    # De-dupe preserving order and filter empties.
-    seen = set()
-    cleaned = []
-    for mid in member_ids:
-        if isinstance(mid, str) and mid and mid not in seen:
-            seen.add(mid)
-            cleaned.append(mid)
-    member_ids = cleaned
+    # Drop any IDs that don't actually belong to this org.
+    member_ids = await filter_same_tenant_ids(
+        member_ids, collection="members", org_id=org_id,
+    )
+    if not member_ids:
+        raise HTTPException(404, "No members match the supplied ids in this organisation")
 
     if action == "invite_portal":
         results = await _bulk_invite_portal(org_id, member_ids, user)
@@ -443,6 +451,16 @@ async def members_bulk_action(
 
     succeeded = sum(1 for r in results if r.get("ok"))
     failed = len(results) - succeeded
+
+    # Per-row audit: one row per member id so the master-admin audit
+    # dashboard can replay exactly who was affected.
+    succ_ids = [r.get("member_id") for r in results if r.get("ok") and r.get("member_id")]
+    fail_ids = [r.get("member_id") for r in results if not r.get("ok") and r.get("member_id")]
+    await record_bulk_action(
+        name=f"memberships.bulk.{action}",
+        actor=user, org_id=org_id, ids=member_ids,
+        succeeded_ids=succ_ids, failed_ids=fail_ids, request=request,
+    )
     return {
         "ok": True,
         "action": action,

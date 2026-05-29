@@ -1747,8 +1747,34 @@ async def mod_triage_preview(
 # ── Phase 2: Engineer pre-visit pack ──────────────────────────
 @router.get("/mod/pre-visit-pack/{issue_id}")
 async def mod_pre_visit_pack(issue_id: str, user: dict = Depends(get_current_user)):
-    issue = await db.issues.find_one({"id": issue_id}, {"_id": 0})
+    # Iter 220be (F-06) — Tenant-scope the lookup so engineers/users
+    # can't enumerate arbitrary MOD issue IDs and harvest site +
+    # equipment data. Master/Pulse admins remain unrestricted.
+    issue = None
+    if user.get("is_master_admin") or user.get("is_pulse_master_admin"):
+        issue = await db.issues.find_one({"id": issue_id}, {"_id": 0})
+    else:
+        # 1) Same-org access (the site that raised the issue).
+        org_id = user.get("organization_id")
+        if org_id:
+            issue = await db.issues.find_one(
+                {"id": issue_id, "organization_id": org_id}, {"_id": 0},
+            )
+        # 2) Assigned engineer access (their own jobs across orgs).
+        if not issue:
+            eng_id = user.get("engineer_id") or user.get("id")
+            if eng_id:
+                issue = await db.issues.find_one(
+                    {"id": issue_id,
+                     "$or": [
+                         {"assigned_engineer_id": eng_id},
+                         {"engineer_id": eng_id},
+                     ]},
+                    {"_id": 0},
+                )
     if not issue:
+        # 404 (not 403) so id-enumeration can't distinguish "missing"
+        # from "exists but not yours" — F-33 disambiguation rule.
         raise HTTPException(404, "Issue not found")
     site = await db.organizations.find_one({"id": issue["organization_id"]}, {"_id": 0})
     eq = await db.equipment.find_one({"id": issue["equipment_id"]}, {"_id": 0}) or {}

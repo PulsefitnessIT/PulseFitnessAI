@@ -788,7 +788,7 @@ async def update_kiosk(
     )
     if res.matched_count == 0:
         raise HTTPException(404, "kiosk not found")
-    doc = await db.staff_kiosks.find_one({"id": kiosk_id}, {"_id": 0, "pin": 0})
+    doc = await db.staff_kiosks.find_one({"id": kiosk_id, "organization_id": org_id}, {"_id": 0, "pin": 0})
     return doc
 
 
