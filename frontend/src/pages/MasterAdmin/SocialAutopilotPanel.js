@@ -15,6 +15,7 @@ import {
  ImageIcon, Wand2, Film, Clock, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { CampaignsSection, TrackedPostsSection } from './SocialAutopilotCampaignsAndTracker';
 
 // Match SEOAutopilotPanel convention — REACT_APP_BACKEND_URL is the
 // host root WITHOUT a trailing /api, every fetch URL prefixes the
@@ -650,6 +651,10 @@ export default function SocialAutopilotPanel() {
           ))}
         </div>
       )}
+
+      {/* Iter 220bw — Launch campaigns + tracked-post crawler */}
+      <CampaignsSection/>
+      <TrackedPostsSection/>
 
       {/* Legacy library cleanup section — only renders if there are
           orphaned rows in the old social_media_library collection. */}

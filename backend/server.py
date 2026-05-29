@@ -988,6 +988,17 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"social autopilot loop start failed: {e}")
 
+    # Iter 220bw — Public-post tracker (Instagram launch metrics, plus
+    # later TikTok / LinkedIn). Daily crawl of every active tracked URL.
+    # Disable via ``SOCIAL_TRACKER_ENABLED=0``.
+    try:
+        from utils.social_tracker import run_social_tracker_loop
+        _st_int = int(os.environ.get("SOCIAL_TRACKER_INTERVAL_SEC", "86400"))
+        asyncio.create_task(run_social_tracker_loop(db, interval_seconds=_st_int))
+        logger.info("[social-tracker] crawler registered (interval=%ds)", _st_int)
+    except Exception as e:
+        logger.error(f"social tracker loop start failed: {e}")
+
     # Iter 220bq — GDPR Article 17 auto-executor. Sweeps pending
     # erasure requests whose 30-day cooling-off window has elapsed
     # and runs the scrub. Required by UK ICO guidance (DSARs must be

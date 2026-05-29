@@ -1,3 +1,108 @@
+## Iter 220bw — Social Autopilot launch campaigns + IG tracker ✅ (Feb 2026)
+
+**User asks**:
+> "Social media auto-pilot — We need launch content — the content
+> that the AI is creating at the moment is that of an established
+> platform — We need a launch campaign and be able to use Keyword to
+> create campaigns, such as Launch content feature heavy."
+>
+> "Keep track of Instagram by regular crawls of
+> https://www.instagram.com/p/DYfu35JNbkJ/. I will post TikTok and
+> LinkedIn once created."
+
+**User-confirmed scope choices**:
+- Launch content mix: feature reveals + problem→solution + "Built by
+  ops people for ops people".
+- Schedule while active: **blend 70% launch / 30% established voice**.
+- IG crawl cadence: **daily, public preview only**.
+- Failure mode: **silent retry + log, no UI noise**.
+
+### What shipped
+
+#### Backend
+1. **3 launch archetypes** registered in `utils/social_autopilot.py`:
+   `feature_reveal`, `problem_solution_story`, `built_by_ops`. Picked
+   deterministic round-robin so a fresh feed cycles all three before
+   repeating.
+2. **`build_launch_prompt(channel, topic, campaign, archetype)`** —
+   replaces `build_prompt` when the post lands on-campaign. Includes
+   an explicit anti-hallucination preamble:
+   > GymAxis is in its LAUNCH WEEK — the platform is BRAND NEW.
+   > DO NOT write as if it has existing customers, case studies, or
+   > established usage. DO NOT invent metrics like '4 hours saved'.
+   > Lean on the ASPIRATION, not the proof.
+   Campaign name + keywords woven in.
+3. **70/30 deterministic blend** via `should_use_launch_tone(blend, n)`
+   — predictable schedule rather than random sampling (easier for the
+   operator to predict what tomorrow's feed will look like).
+4. **`generate_post_for_channel` now stamps the campaign** —
+   `generation_meta.campaign_id`, `.campaign_name`,
+   `.campaign_archetype`, `.on_campaign` on every saved draft.
+5. **6 campaign-CRUD endpoints**: list, create, activate (singleton
+   per type), pause, delete. Master-admin only.
+6. **`utils/social_tracker.py`** — public-post crawler with three
+   helpers: `parse_engagement_from_html` (OG-tag based, quote-aware
+   regex, handles IG + TikTok + LinkedIn shapes); `fetch_public_post`
+   (never raises — returns `ok`/`blocked`/`failed`); `crawl_due_tracked_posts`
+   (daily sweep, appends to `engagement_history` capped at 60 entries).
+7. **4 tracked-post endpoints**: list, add (dedupes by URL, auto-detects
+   platform), refresh (manual recrawl), delete. Rate-limited per admin.
+8. **Daily background loop** wired in `server.py` startup, gated by
+   `SOCIAL_TRACKER_ENABLED` env var.
+
+#### Frontend
+9. **`SocialAutopilotCampaignsAndTracker.js`** — two new sections on
+   the Social Autopilot Master Admin panel:
+   * **Campaigns** — list + create form (name, type, keywords,
+     blend ratio) + activate/pause/delete + collapsible "Launch
+     archetypes" reference.
+   * **Tracked posts** — list (likes/comments/views + caption snippet
+     + last-crawl status) + add URL form (pre-filled with the launch
+     teaser URL the user mentioned) + manual refresh + delete.
+10. 22 new regression tests pinning everything.
+
+### Files touched
+- `backend/utils/social_autopilot.py` — archetypes, launch prompt,
+  blend predicate, generator wiring, expanded `__all__`.
+- `backend/utils/social_tracker.py` — new module.
+- `backend/routes/marketing/social_autopilot.py` — 10 new endpoints.
+- `backend/server.py` — tracker loop startup hook.
+- `frontend/src/pages/MasterAdmin/SocialAutopilotCampaignsAndTracker.js` — new module.
+- `frontend/src/pages/MasterAdmin/SocialAutopilotPanel.js` — import + wire.
+- `backend/tests/test_iter_220bw_launch_campaigns_and_tracker.py` — 22 tests.
+- `Makefile` — registered under `regression:`.
+
+### Verified
+- `make regression` → **1507 passed, 0 failed, 15 skipped** (was 1485 → +22).
+- Live API:
+  * `GET /campaigns` → 200 with 3 archetypes.
+  * `POST /campaigns` with `{name:"GymAxis Launch Week", type:"launch", keywords:[...], blend_ratio:0.7}` → 200, status: paused.
+  * `POST /tracked-posts` with `{url:"https://www.instagram.com/p/DYfu35JNbkJ/"}` → 200, platform auto-detected.
+- Boot log:
+  * `[social-tracker] crawler registered (interval=86400s)`
+  * `[social-tracker] loop started (interval=86400s)`
+
+### Design choices
+- **Singleton invariant per campaign type** — activating a campaign
+  auto-pauses any other ACTIVE campaign of the same type. Means the
+  operator can prep multiple drafts but only one is live at a time.
+- **Soft-dedupe on tracked URLs** — adding the same URL twice
+  re-activates the existing row instead of creating a dupe.
+- **Engagement history capped at 60 entries** (2 months of daily
+  crawls) — defensive against an oversized array.
+- **The IG launch teaser URL is pre-filled** in the "Track URL" form
+  so the user's first interaction is zero-friction.
+- **Anti-hallucination preamble** in the launch prompt is the same
+  pattern as the AI assistant's prompt-injection guardrail (Iter 220bp).
+
+### Out of scope (tracked separately)
+- Inline UI to view the engagement history sparkline (current row
+  shows latest reading only; click-to-expand chart is a follow-on).
+- Auto-extracting hashtag performance from the crawled posts.
+- TikTok / LinkedIn URLs — user said they'll post these once made.
+  The crawler already accepts them when added.
+
+
 ## Iter 220bv — Frontend `<TimelinePanel/>` component ✅ (Feb 2026)
 
 **Goal**: ship the React component that consumes the new

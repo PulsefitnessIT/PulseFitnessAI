@@ -299,6 +299,151 @@ def build_prompt(channel: dict, topic: dict) -> str:
     return intro + focus + schema
 
 
+# ── Iter 220bw · Launch campaigns ─────────────────────────────────────
+
+
+# Launch-campaign archetypes. The campaign generator picks ONE per
+# post, cycling through evenly. Each archetype gives the LLM a very
+# different shape so the launch feed doesn't feel monotonous after
+# 5 posts.
+LAUNCH_ARCHETYPES: list[dict] = [
+    {
+        "id": "feature_reveal",
+        "instruction": (
+            "This is a FEATURE-REVEAL launch post. Lead with the "
+            "feature name, then 1 sentence on WHY we built it (the "
+            "operator pain), then 1 sentence on what it unlocks. End "
+            "with 'Out now in beta — DM for early access.' Tone: "
+            "confident but grounded, no hype emojis."
+        ),
+        "card_headline_hint": "Just launched: {feature}",
+    },
+    {
+        "id": "problem_solution_story",
+        "instruction": (
+            "This is a PROBLEM → SOLUTION launch post. Open with the "
+            "ugly truth (e.g. 'Most multi-site operators still chase "
+            "engineers by WhatsApp'). Then pivot — 'We built {feature} "
+            "for exactly this.' One sentence on what changes for the "
+            "ops manager. Close with: 'GymAxis is launching this "
+            "month. Comment LAUNCH to get on the early-access list.'"
+        ),
+        "card_headline_hint": "The problem we just solved",
+    },
+    {
+        "id": "built_by_ops",
+        "instruction": (
+            "This is a 'BUILT BY OPS PEOPLE FOR OPS PEOPLE' launch "
+            "post. Lead with: 'Most fitness SaaS is built by tech "
+            "people. GymAxis isn't.' One paragraph on how we shadowed "
+            "real ops managers / engineers / GMs to design {feature}. "
+            "End with: 'Launching in [month]. Want in? Comment LAUNCH.'"
+        ),
+        "card_headline_hint": "Built by ops, for ops",
+    },
+]
+
+
+def pick_launch_archetype(post_count_for_channel: int) -> dict:
+    """Round-robin through the launch archetypes by counting prior
+    posts in this channel. Deterministic so a fresh test environment
+    always gets the same first archetype."""
+    return LAUNCH_ARCHETYPES[post_count_for_channel % len(LAUNCH_ARCHETYPES)]
+
+
+async def get_active_launch_campaign(db) -> Optional[dict]:
+    """Return the single active ``social_autopilot_campaigns`` row of
+    type ``launch`` (only one is active at a time). ``None`` if no
+    active campaign — generator falls back to the established mix.
+
+    The collection schema (lazily created via insert_one in the route):
+      ``id``, ``name``, ``type`` ("launch"|"feature"|"established"),
+      ``status`` ("active"|"paused"|"finished"), ``keywords`` (list[str]),
+      ``blend_ratio`` (float 0..1 — % of generations using campaign tone),
+      ``starts_at``, ``ends_at`` (ISO 8601), ``created_at``, ``created_by``.
+    """
+    return await db.social_autopilot_campaigns.find_one(
+        {"status": "active", "type": "launch"}, {"_id": 0},
+    )
+
+
+def build_launch_prompt(channel: dict, topic: dict, campaign: dict,
+                        archetype: dict) -> str:
+    """Launch-campaign-specific prompt. Replaces the established
+    `build_prompt` when the picker decides this generation should be
+    on-campaign.
+
+    Pulls in:
+    * The launch archetype instruction (one of feature_reveal,
+      problem_solution_story, built_by_ops).
+    * The campaign keywords (user-supplied — biases the LLM towards
+      the operator's launch narrative).
+    * The chosen feature from the topic.
+    """
+    feature_name = topic.get("label", "GymAxis")
+    keywords = ", ".join(campaign.get("keywords", []) or [])
+    archetype_instruction = archetype["instruction"].format(feature=feature_name)
+    intro = (
+        f"You are a senior social-media editor for GymAxis "
+        f"({BRAND['domain']}). {BRAND['tagline']}\n\n"
+        f"GymAxis is in its LAUNCH WEEK — the platform is BRAND NEW. "
+        f"DO NOT write as if it has existing customers, case studies, "
+        f"or established usage. DO NOT invent metrics like '4 hours "
+        f"saved per week' or 'cut dispatch by 30%' — we have no track "
+        f"record yet. Lean on the ASPIRATION, not the proof.\n\n"
+        f"Write ONE launch post for {channel['label']} aimed at this "
+        f"audience: {channel['audience']}.\n\n"
+        f"Tone: {channel['tone_brief']}\n\n"
+    )
+    campaign_section = (
+        f"This post is part of the '{campaign.get('name', 'Launch')}' "
+        f"campaign. Campaign keywords to weave in tastefully (do not "
+        f"force all of them — pick 2-3): {keywords or 'no extra keywords'}.\n\n"
+    )
+    focus = archetype_instruction + "\n\n"
+    schema = (
+        "Return STRICT JSON only (no prose, no fences) with this shape:\n"
+        "{\n"
+        '  "caption": string (≤'
+        f"{channel['caption_max_chars']} chars),\n"
+        '  "hashtags": string[] '
+        f"({channel['hashtag_min']}-{channel['hashtag_max']} items, each starting with #),\n"
+        '  "image_brief": string '
+        "(2-3 sentence visual direction for a brand-coloured image — "
+        f"aspect {channel['image_aspect']}),\n"
+        '  "card_headline": string '
+        f"(≤6 words — hint: \"{archetype['card_headline_hint'].format(feature=feature_name)}\"),\n"
+    )
+    if channel["id"] == "tiktok":
+        schema += (
+            '  "video_script": string (12-15 second script with explicit '
+            'ON-SCREEN TEXT cues in [brackets], launch-energy tone)\n'
+        )
+    else:
+        schema += '  "video_script": null\n'
+    schema += "}\n"
+    return intro + campaign_section + focus + schema
+
+
+def should_use_launch_tone(blend_ratio: float, post_count: int) -> bool:
+    """Deterministic 70/30 blend without using random() — we want
+    reproducible behaviour in tests.
+
+    For blend_ratio=0.7: 7 of every 10 posts (positions 0,1,2,3,4,5,6
+    in each cycle of 10) are on-campaign; positions 7,8,9 are
+    established voice. The deterministic schedule is also easier for
+    the master admin to predict.
+    """
+    if blend_ratio <= 0:
+        return False
+    if blend_ratio >= 1:
+        return True
+    # Convert 0.7 → 7. Compare position-in-cycle of 10 against the
+    # threshold.
+    threshold = int(round(blend_ratio * 10))
+    return (post_count % 10) < threshold
+
+
 # ── Image generation ──────────────────────────────────────────────────
 
 
@@ -569,18 +714,45 @@ async def _llm_chat(prompt: str) -> dict:
 async def generate_post_for_channel(db, channel_id: str) -> dict:
     """Generate ONE draft post for the given channel. Persists to
     ``social_autopilot_posts`` with ``status='draft'`` and returns the
-    saved doc."""
+    saved doc.
+
+    Iter 220bw — if an active launch campaign exists, blends 70%
+    launch-toned posts with 30% established-tone posts deterministically
+    (see ``should_use_launch_tone``)."""
     channel = channel_by_id(channel_id)
     if not channel:
         raise ValueError(f"Unknown channel: {channel_id}")
 
+    # Iter 220bw — campaign blend.
+    n_existing = await db.social_autopilot_posts.count_documents({"channel": channel_id})
+    campaign = await get_active_launch_campaign(db)
+    is_on_campaign = False
+    archetype = None
+    if campaign:
+        blend = float(campaign.get("blend_ratio") or 0.7)
+        is_on_campaign = should_use_launch_tone(blend, n_existing)
+        if is_on_campaign:
+            archetype = pick_launch_archetype(n_existing)
+
     topic = await pick_topic_for(db, channel_id)
-    prompt = build_prompt(channel, topic)
+    if is_on_campaign:
+        # Launch posts always anchor on a feature pillar — the
+        # campaign is feature-heavy by design.
+        if topic.get("kind") != "feature":
+            # Re-pick a feature pillar (skip 14-day cooldown — launch
+            # week, anything goes).
+            feature = FEATURE_PILLARS[n_existing % len(FEATURE_PILLARS)]
+            topic = {
+                "topic_id": feature["id"], "kind": "feature",
+                "label": feature["label"], "hook": feature["hook"],
+            }
+        prompt = build_launch_prompt(channel, topic, campaign, archetype)
+    else:
+        prompt = build_prompt(channel, topic)
     text = await _llm_chat(prompt)
 
     # Alternate image variants A/B per post (count parity on the
     # channel determines which one we use).
-    n_existing = await db.social_autopilot_posts.count_documents({"channel": channel_id})
     image_variant = "A" if n_existing % 2 == 0 else "B"
 
     image_url: Optional[str] = None
@@ -626,6 +798,11 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
         "generation_meta": {
             "model_text": "claude-sonnet-4-6",
             "prompt_length": len(prompt),
+            # Iter 220bw — campaign tagging for analytics + UI badge.
+            "campaign_id": (campaign or {}).get("id"),
+            "campaign_name": (campaign or {}).get("name"),
+            "campaign_archetype": (archetype or {}).get("id"),
+            "on_campaign": bool(is_on_campaign),
         },
     }
     await db.social_autopilot_posts.insert_one(doc)
@@ -650,10 +827,15 @@ __all__ = [
     "BRAND",
     "CHANNELS",
     "FEATURE_PILLARS",
+    "LAUNCH_ARCHETYPES",
     "channel_by_id",
     "feature_pillar_by_id",
     "pick_topic_for",
     "build_prompt",
+    "build_launch_prompt",
+    "pick_launch_archetype",
+    "should_use_launch_tone",
+    "get_active_launch_campaign",
     "render_branded_card_to_data_url",
     "render_nano_banana_image",
     "generate_post_for_channel",

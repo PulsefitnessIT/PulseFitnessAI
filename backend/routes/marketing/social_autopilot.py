@@ -26,9 +26,13 @@ from utils.auth import get_current_user
 from utils.database import db
 from utils.security_plus import rate_limit_async
 from utils.social_autopilot import (
-    CHANNELS, FEATURE_PILLARS,
+    CHANNELS, FEATURE_PILLARS, LAUNCH_ARCHETYPES,
     generate_post_for_channel, generate_daily_drafts,
     generate_tiktok_video_for_post, video_path_for_post,
+)
+from utils.social_tracker import (
+    SUPPORTED_PLATFORMS, crawl_due_tracked_posts,
+    detect_platform, new_tracked_post,
 )
 
 
@@ -326,6 +330,220 @@ async def legacy_library_delete(
     if res.deleted_count == 0:
         raise HTTPException(404, "Post not found")
     return {"ok": True, "id": post_id}
+
+
+# ── Iter 220bw — Launch campaigns ────────────────────────────────────
+
+
+class CampaignPayload(BaseModel):
+    name: str = Field(..., min_length=2, max_length=80)
+    type: str = Field("launch")  # launch | feature | seasonal | established
+    keywords: list[str] = Field(default_factory=list)
+    blend_ratio: float = Field(0.7, ge=0.0, le=1.0)
+    starts_at: Optional[str] = None
+    ends_at: Optional[str] = None
+
+
+@router.get("/campaigns")
+async def list_campaigns(user: dict = Depends(get_current_user)):
+    """List every campaign (active first), so the panel can show the
+    "currently running" badge."""
+    _require_master_admin(user)
+    rows = await db.social_autopilot_campaigns.find({}, {"_id": 0}) \
+        .sort("created_at", -1).to_list(200)
+    return {"campaigns": rows, "archetypes": LAUNCH_ARCHETYPES}
+
+
+@router.post("/campaigns")
+async def create_campaign(
+    payload: CampaignPayload,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    if payload.type not in {"launch", "feature", "seasonal", "established"}:
+        raise HTTPException(400, "Invalid campaign type")
+    # Iter 220bw — only one ACTIVE campaign at a time. If the operator
+    # creates a new one it stays in `paused` until they explicitly
+    # activate it (the activate endpoint enforces the singleton).
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": f"camp-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}",
+        "name": payload.name.strip(),
+        "type": payload.type,
+        "status": "paused",
+        "keywords": [k.strip() for k in payload.keywords if k.strip()][:30],
+        "blend_ratio": float(payload.blend_ratio),
+        "starts_at": payload.starts_at,
+        "ends_at": payload.ends_at,
+        "created_at": now,
+        "created_by": user.get("id"),
+    }
+    await db.social_autopilot_campaigns.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.post("/campaigns/{campaign_id}/activate")
+async def activate_campaign(
+    campaign_id: str,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    campaign = await db.social_autopilot_campaigns.find_one(
+        {"id": campaign_id}, {"_id": 0},
+    )
+    if not campaign:
+        raise HTTPException(404, "Campaign not found")
+    # Pause whatever else is active of the same type — singleton.
+    await db.social_autopilot_campaigns.update_many(
+        {"type": campaign["type"], "status": "active", "id": {"$ne": campaign_id}},
+        {"$set": {"status": "paused"}},
+    )
+    await db.social_autopilot_campaigns.update_one(
+        {"id": campaign_id},
+        {"$set": {"status": "active",
+                  "activated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "id": campaign_id, "status": "active"}
+
+
+@router.post("/campaigns/{campaign_id}/pause")
+async def pause_campaign(
+    campaign_id: str,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    res = await db.social_autopilot_campaigns.update_one(
+        {"id": campaign_id},
+        {"$set": {"status": "paused"}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Campaign not found")
+    return {"ok": True, "id": campaign_id, "status": "paused"}
+
+
+@router.delete("/campaigns/{campaign_id}")
+async def delete_campaign(
+    campaign_id: str,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    res = await db.social_autopilot_campaigns.delete_one({"id": campaign_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Campaign not found")
+    return {"ok": True, "id": campaign_id}
+
+
+# ── Iter 220bw — Tracked public posts ────────────────────────────────
+
+
+class TrackedPostPayload(BaseModel):
+    url: str = Field(..., min_length=10, max_length=500)
+    label: Optional[str] = Field(default="", max_length=120)
+
+
+@router.get("/tracked-posts")
+async def list_tracked_posts(user: dict = Depends(get_current_user)):
+    _require_master_admin(user)
+    rows = await db.social_tracked_posts.find({}, {"_id": 0}) \
+        .sort("added_at", -1).to_list(200)
+    return {"tracked_posts": rows, "supported_platforms": list(SUPPORTED_PLATFORMS)}
+
+
+@router.post("/tracked-posts")
+async def add_tracked_post(
+    payload: TrackedPostPayload,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    if detect_platform(payload.url) is None:
+        raise HTTPException(
+            400,
+            "Unsupported platform — URL must point at Instagram, TikTok, "
+            "or LinkedIn.",
+        )
+    # Soft-dedupe — same URL already tracked? Re-activate instead.
+    existing = await db.social_tracked_posts.find_one(
+        {"url": payload.url}, {"_id": 0, "id": 1, "active": 1},
+    )
+    if existing:
+        if not existing.get("active"):
+            await db.social_tracked_posts.update_one(
+                {"id": existing["id"]},
+                {"$set": {"active": True}},
+            )
+        return {"ok": True, "id": existing["id"], "reactivated": not existing.get("active")}
+    doc = new_tracked_post(
+        payload.url, added_by=user.get("id"), label=payload.label or "",
+    )
+    await db.social_tracked_posts.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.post("/tracked-posts/{post_id}/refresh")
+async def refresh_tracked_post(
+    post_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Operator-triggered immediate crawl — useful for the
+    "I just posted, give me the first reading" UX."""
+    _require_master_admin(user)
+    await rate_limit_async(
+        f"tracked_refresh:{user.get('id')}", max_requests=20, window_seconds=600,
+    )
+    row = await db.social_tracked_posts.find_one({"id": post_id}, {"_id": 0})
+    if not row:
+        raise HTTPException(404, "Tracked post not found")
+    # Run crawl synchronously for this one row.
+    from utils.social_tracker import fetch_public_post
+    result = await fetch_public_post(row["url"])
+    history_entry = {
+        "fetched_at": result["fetched_at"],
+        "status": result["status"],
+        "http_status": result["http_status"],
+        **result["engagement"],
+    }
+    await db.social_tracked_posts.update_one(
+        {"id": post_id},
+        {
+            "$set": {
+                "last_crawled_at": result["fetched_at"],
+                "last_crawl_status": result["status"],
+                "last_engagement": result["engagement"] or row.get("last_engagement", {}),
+            },
+            "$push": {
+                "engagement_history": {"$each": [history_entry], "$slice": -60},
+            },
+        },
+    )
+    return {"ok": True, **result}
+
+
+@router.delete("/tracked-posts/{post_id}")
+async def delete_tracked_post(
+    post_id: str,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    res = await db.social_tracked_posts.update_one(
+        {"id": post_id}, {"$set": {"active": False}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Tracked post not found")
+    return {"ok": True, "id": post_id}
+
+
+@router.post("/tracked-posts/run-crawler")
+async def trigger_crawler(user: dict = Depends(get_current_user)):
+    """Manual sweep — used in tests + by the operator to force a refresh
+    on every tracked post immediately. The daily background loop calls
+    the same helper unattended."""
+    _require_master_admin(user)
+    await rate_limit_async(
+        f"tracked_run_all:{user.get('id')}", max_requests=10, window_seconds=600,
+    )
+    return await crawl_due_tracked_posts(db)
 
 
 __all__ = ["router", "run_daily_social_loop"]
