@@ -16,6 +16,7 @@ from routes.support import router as support_router
 from routes.support_escalate import router as support_escalate_router
 from routes.nudges import router as nudges_router
 from routes.security_manifest import router as security_manifest_router
+from routes.security_document import router as security_document_router
 from routes.sso import router as sso_router
 from routes.gym_floor import router as gym_floor_router
 from routes.ui_errors import router as ui_errors_router
@@ -31,6 +32,7 @@ def register_core(api_router: APIRouter) -> None:
         equipment_router, issues_router, files_router,
         payments_router, sites_router, fault_codes_router, fault_templates_router,
         support_router, support_escalate_router, nudges_router, security_manifest_router,
+        security_document_router,
         sso_router, gym_floor_router, ui_errors_router, client_errors_router, platform_issues_router,
         marketing_downloads_router,
     ):

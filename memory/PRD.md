@@ -1,3 +1,37 @@
+## Iter 220by — Public SECURITY.md document (HTML / PDF / TXT) ✅ (May 29, 2026)
+
+**User ask**:
+> "Could this [SECURITY.md] file be converted to a document that all
+> potential customers can read? A .txt file maybe?"
+
+**Chosen path**: option D — HTML page (primary) with PDF + TXT secondary actions.
+
+### What shipped
+
+#### Backend
+1. **`routes/security_document.py`** — three sibling endpoints sharing
+   one canonical source (`/app/SECURITY.md`):
+   - `GET /api/security/document` → JSON `{markdown, html, source_filename, generated_at, downloads}` (HTML rendered server-side via `markdown2` with fenced-code-blocks + tables + header-ids).
+   - `GET /api/security/document.txt` → `text/plain; charset=utf-8`, `inline` Content-Disposition (opens in-browser, not downloaded).
+   - `GET /api/security/document.pdf` → branded A4 PDF (re-uses `docs_export.DocPDF` + `_process_body_lines` + `_sanitize`), custom dark cover page with "Security · GymAxis AI — Posture & Hardening", attachment Content-Disposition.
+2. All three are IP-rate-limited via `rate_limit_by_ip` and carry the same `Cache-Control: public, max-age=300, s-maxage=600` headers as `/api/security/manifest`.
+3. Registered in `route_registry/core.py` alongside `security_manifest_router`.
+
+#### Frontend
+4. **`pages/Marketing/SecurityDocumentPage.js`** — new route `/security/details` rendering the HTML server-side response inside a `gx-prose` container. Three action buttons at the top (PDF, plain text, security.txt RFC 9116). Wired into `routes/AppRoutes.js`.
+5. **`pages/Marketing/SecurityMarketingPage.js`** — replaced the broken `https://github.com/gymaxis/security` link in the "Latest hardening" section with three actions: "Read full document" (primary, links to `/security/details`), "PDF" (downloads), "Plain text" (opens in-tab).
+
+#### Regression
+6. **`tests/test_iter_220by_security_document.py`** — 6 tests using ASGI in-memory transport: JSON shape + cache headers, TXT inline disposition + content-type, PDF magic-number validation + size floor, all three endpoints reachable without auth. Registered in `make regression` (TAB-indented).
+7. End-to-end smoke on preview: title set, document body + table render, three action `data-testid`s found, broken github link gone, PDF byte stream starts with `%PDF-1.3` and is 5KB.
+
+#### Notes
+8. The HTML uses `dangerouslySetInnerHTML` — safe because the source is a static, repo-committed markdown file rendered server-side by `markdown2`; no user input enters the pipeline.
+
+---
+
+
+
 ## Iter 220bx — Pre-publish Social Autopilot Launch-Tone checker ✅ (May 29, 2026)
 
 **User ask**:

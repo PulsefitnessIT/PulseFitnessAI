@@ -29,6 +29,7 @@ import moduleStaffing from '@/pages/Marketing/modules/staffing';
 import moduleReporting from '@/pages/Marketing/modules/reporting';
 import SecurityPage from '@/pages/SecurityPage';
 import SecurityMarketingPage from '@/pages/Marketing/SecurityMarketingPage';
+import SecurityDocumentPage from '@/pages/Marketing/SecurityDocumentPage';
 import PricingMarketingPage from '@/pages/Marketing/PricingMarketingPage';
 import ContactMarketingPage from '@/pages/Marketing/ContactMarketingPage';
 import TrustPage from '@/pages/TrustPage';
@@ -291,6 +292,7 @@ export default function AppRoutes({ user, login }) {
       {/* Legacy redirect for any external bookmarks. */}
       <Route path="/api-docs" element={<Navigate to="/developers" replace />} />
       <Route path="/security" element={<SecurityMarketingPage />} />
+      <Route path="/security/details" element={<SecurityDocumentPage />} />
       <Route path="/legacy-security" element={<SecurityPage />} />
       <Route path="/trust" element={<TrustPage />} />
       <Route path="/whats-new" element={<WhatsNewPage />} />

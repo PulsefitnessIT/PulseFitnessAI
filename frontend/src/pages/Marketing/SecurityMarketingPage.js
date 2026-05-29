@@ -5,7 +5,7 @@
 import { Link } from 'react-router-dom';
 import {
   ShieldCheck, Lock, KeyRound, FileSearch, Bug, Server, Activity, ArrowRight,
-  CheckCircle2, FileText, Mail,
+  CheckCircle2, FileText, Mail, Download, FileType2,
 } from 'lucide-react';
 
 import './marketing.css';
@@ -142,9 +142,31 @@ function Hardening() {
           <p className="mt-4 text-base md:text-lg text-slate-600 leading-relaxed">
             Security is a release item, not a marketing tagline. Every quarter we publish what we hardened, what we audited, and what changed.
           </p>
-          <a href="https://github.com/gymaxis/security" className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-slate-900 hover:underline dark:text-zinc-100">
-            <FileText size={14} />Read SECURITY.md
-          </a>
+          <div className="mt-6 flex flex-wrap items-center gap-2" data-testid="security-hardening-actions">
+            <Link
+              to="/security/details"
+              className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700 transition dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+              data-testid="security-hardening-read"
+            >
+              <FileText size={14} /> Read full document
+            </Link>
+            <a
+              href={`${process.env.REACT_APP_BACKEND_URL}/api/security/document.pdf`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-slate-400 transition dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+              data-testid="security-hardening-pdf"
+            >
+              <Download size={14} /> PDF
+            </a>
+            <a
+              href={`${process.env.REACT_APP_BACKEND_URL}/api/security/document.txt`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-slate-400 transition dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+              data-testid="security-hardening-txt"
+            >
+              <FileType2 size={14} /> Plain text
+            </a>
+          </div>
         </div>
         <ul className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 space-y-3 dark:bg-zinc-900 dark:border-zinc-800">
           {HARDENING.map((h, i) => (
