@@ -1,3 +1,85 @@
+## Iter 220bl — Social Media Autopilot V1 (IG / TikTok / LinkedIn) ✅ (Feb 2026)
+
+**Goal**: replicate the SEO autopilot pattern for social media — daily,
+channel-aware draft posts with brand-coloured imagery, half feature
+promotion and half industry insight.
+
+### What changed
+* **Menu move**: Social Media taken out of *Catalogue & Library* and
+  promoted into the **Growth** sidebar (next to SEO Autopilot), under
+  the new label "Social Autopilot".
+* **Backend**: new `utils/social_autopilot.py` module + new
+  `routes/marketing/social_autopilot.py` router (registered in
+  `server.py`).
+* **Channels**: Instagram (1:1, bold + emoji, 15-25 hashtags),
+  TikTok (9:16, ≤150 chars, 3-5 hashtags, + 12-15s video script),
+  LinkedIn (1.91:1, executive, no emoji, 3-6 hashtags).
+* **Topic blend**: 50/50 alternation between feature pillars (13
+  GymAxis features) and industry pillars (reused from SEO discovery)
+  per-channel via `pick_topic_for()`.
+* **LLM**: Claude Sonnet 4.6 via Emergent LLM key. Strict JSON output
+  with channel-aware prompt scaffold (`build_prompt()`).
+* **Images**: alternates per post.
+  * Variant A — Gemini Nano Banana (`gemini-3.1-flash-image-preview`)
+    text-free brand-coloured graphic.
+  * Variant B — deterministic Pillow PNG card with brand gradient
+    (#d946ef → #3b82f6), word-wrapped headline, GymAxis mark.
+* **Workflow**: drafts saved to `social_autopilot_posts` with
+  `status='draft'` → operator reviews → "Copy caption" / "Copy
+  hashtags" / "Download image" / Approve / Archive.
+
+### Endpoints
+- `GET    /api/marketing/social-autopilot/status` — config + per-channel draft counts.
+- `PUT    /api/marketing/social-autopilot/config` — toggle enabled / per-channel.
+- `GET    /api/marketing/social-autopilot/posts?channel=&status=` — list.
+- `POST   /api/marketing/social-autopilot/generate` — generate ONE for a channel.
+- `POST   /api/marketing/social-autopilot/run-now` — generate one per enabled channel (idempotent on date).
+- `POST   /api/marketing/social-autopilot/posts/{id}/approve`
+- `POST   /api/marketing/social-autopilot/posts/{id}/archive`
+- `DELETE /api/marketing/social-autopilot/posts/{id}`
+
+### Frontend (`SocialAutopilotPanel.js`)
+- Hero with brand gradient + "Run today" button.
+- 3 per-channel quick-generate cards (IG / TikTok / LinkedIn).
+- Channel + status filter pills.
+- Grid of `PostCard` components with channel-coloured headers, image
+  preview, caption textarea, hashtag block, video script block (TikTok),
+  and Copy / Download / Approve / Archive / Delete actions.
+
+### Tests (`test_iter_220bl_social_autopilot.py`)
+- 18/18 passing. Covers channel definitions, distinct tones, aspect
+  ratios, 50/50 alternation (incl. independent per-channel state),
+  prompt schema (LinkedIn no-emoji rule, TikTok video-script
+  requirement, hashtag count caps), branded card SVG/PNG rendering,
+  HTML-escape safety, and brand-token sanity.
+
+### Known V1 deferral → V2
+- **Sora 2 weekly TikTok video** — deferred to next iteration.
+- Live posting to Meta/TikTok/LinkedIn APIs is out of scope by user
+  choice (draft-only V1).
+
+### Files touched
+- `backend/utils/social_autopilot.py` — new module (550+ lines)
+- `backend/routes/marketing/social_autopilot.py` — new router
+- `backend/server.py` — register router
+- `backend/tests/test_iter_220bl_social_autopilot.py` — 18 tests
+- `Makefile` — regression registration
+- `frontend/src/pages/MasterAdmin/CataloguePanel.js` — remove Social Media tab
+- `frontend/src/pages/MasterAdmin/SidebarConfig.js` — add Social Autopilot under Growth
+- `frontend/src/pages/MasterAdmin/SocialAutopilotPanel.js` — new panel
+- `frontend/src/pages/MasterAdminPage.js` — route case
+
+### Verified end-to-end
+- `GET /status` returns channel config, draft counts, feature pillars.
+- `PUT /config` round-trips updates.
+- `GET /posts` returns empty list cleanly.
+- `POST /generate` reached the LLM path — currently blocked only by
+  Emergent LLM key budget cap (£20.46 / £20.40 — needs top-up in
+  Profile → Universal Key → Add Balance).
+
+---
+
+
 ## Iter 220bk — Fully autonomous SEO keyword auto-discovery (GDPR-safe) ✅ (Feb 2026)
 
 **Goal**: stop the master admin from having to keep researching seed

@@ -105,6 +105,10 @@ export const SIDEBAR_ITEMS = [
       { id: 'marketing-studio', label: 'Growth Hub',   icon: Rocket },
       // Iter 220ad — SEO Autopilot (keyword research → article → publish)
       { id: 'seo-autopilot',    label: 'SEO Autopilot',      icon: Sparkles },
+      // Iter 220bl — Social Media Autopilot (IG / TikTok / LinkedIn).
+      // Moved out of Catalogue & Library where the manual library lived;
+      // the new autopilot writes daily drafts with brand-coloured images.
+      { id: 'social-autopilot', label: 'Social Autopilot',   icon: Share2 },
       { id: 'communications',  label: 'Communications inbox', icon: Inbox },
       { id: 'canned-replies',  label: 'Canned replies',   icon: FileText },
       { id: 'emails',          label: 'Outbound emails',  icon: Mail },
@@ -241,6 +245,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'marketing-studio':   'growth',
   'marketing-suite':    'growth',
   'seo-autopilot':      'growth',
+  'social-autopilot':   'growth',
   'communications':     'growth',
   'canned-replies':     'growth',
   'emails':             'growth',
@@ -272,6 +277,7 @@ export const sectionTitles = {
   analytics: 'Global analytics',
   'marketing-suite': 'Marketing suite',
   'marketing-studio': 'GymAxis Growth Hub',
+  'social-autopilot': 'Social Media Autopilot',
   orbit4: 'Orbit 4',
   'sicon-integration': 'Sicon Service',
   'integrations-hub': 'Integrations hub',
@@ -321,6 +327,7 @@ export const sectionDescriptions = {
   analytics: 'Cross-gym analytics and trends',
   'marketing-suite': 'Marketing Suite — plans, subscriptions, platform-wide KPIs',
   'marketing-studio': 'GymAxis Growth Hub — funnel view across trials, SEO, outbound, CRM pipeline and sales insights.',
+  'social-autopilot': 'Daily auto-drafts for Instagram, TikTok and LinkedIn — channel-aware tone, brand-coloured imagery, copy & download.',
   onboarding: 'Onboard a new customer organisation, send shareable packets, or bulk-load CSV rosters',
   trials: 'Track active trials, extend deadlines, convert to paid',
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',

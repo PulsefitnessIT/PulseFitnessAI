@@ -28,6 +28,7 @@ const AdminMarketingSuite = lazy(() => import('./MasterAdmin/AdminMarketingSuite
 const GrowthStudio = lazy(() => import('./MasterAdmin/GymAxisGrowthHub'));
 // Iter 220ad — Growth → SEO Autopilot
 const SEOAutopilotPanel = lazy(() => import('./MasterAdmin/SEOAutopilotPanel'));
+const SocialAutopilotPanel = lazy(() => import('./MasterAdmin/SocialAutopilotPanel'));
 const AdminArchive = lazy(() => import('./MasterAdmin/AdminArchive'));
 // Iter 220ao — GDPR Article 17 Data Subject Erasure Requests
 const GdprErasurePanel = lazy(() => import('../components/GDPR/GdprErasurePanel'));
@@ -460,6 +461,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <GrowthStudio onJumpSection={setSection} />;
       case 'seo-autopilot':
         return <SEOAutopilotPanel />;
+      case 'social-autopilot':
+        return <SocialAutopilotPanel />;
       case 'roles':
         return (
           <AdminRoles
