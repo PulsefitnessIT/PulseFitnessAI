@@ -190,7 +190,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
 
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[60]"
+          className="md:hidden fixed inset-0 z-[60] h-screen"
           data-testid="pulse-mobile-drawer"
           role="dialog"
           aria-modal="true"
@@ -198,7 +198,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
         >
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
-            className="absolute right-0 top-0 bottom-0 w-[78%] max-w-xs bg-white shadow-2xl flex flex-col"
+            className="absolute right-0 top-0 h-full w-[78%] max-w-xs bg-white shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 h-14 border-b border-slate-200">
