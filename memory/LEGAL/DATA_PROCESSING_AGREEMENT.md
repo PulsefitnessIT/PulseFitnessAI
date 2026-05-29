@@ -183,7 +183,7 @@ See [SUB_PROCESSORS.md](SUB_PROCESSORS.md), which is incorporated into this DPA 
 
 ## Annex C — Notices
 
-- **Provider DPO / contact:** `dpo@gymaxisai.com` · `Lee Somers` (Founder & DPO — to confirm) · phone available on request
+- **Provider DPO / contact:** `dpo@gymaxisai.com` · `Lee Somers` (Founder & DPO) · phone available on request
 - **ICO** (regulator): `casework@ico.org.uk` · `0303 123 1113`
 
 ---
