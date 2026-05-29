@@ -12,7 +12,7 @@ import axios from 'axios';
 import {
  Share2, Loader2, Sparkles, Instagram, Linkedin, Music2, RefreshCw,
  Copy, Check, Download, Trash2, Archive, PlayCircle, AlertTriangle, Hash,
- ImageIcon, Wand2,
+ ImageIcon, Wand2, Film, Clock, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
@@ -88,6 +88,130 @@ function DownloadImage({ dataUrl, filename, testid }) {
   );
 }
 
+function VideoSection({ post, API, onChange }) {
+  const status = post.video_status || (post.video_url ? 'ready' : 'idle');
+  const [busy, setBusy] = useState(false);
+  // Auto-poll while a video is generating so the operator doesn't
+  // have to keep refreshing manually.
+  useEffect(() => {
+    if (status !== 'generating' && status !== 'queued') return undefined;
+    const id = setInterval(() => onChange(), 8000);
+    return () => clearInterval(id);
+  }, [status, onChange]);
+
+  const triggerGenerate = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await axios.post(`${API}/api/marketing/social-autopilot/posts/${post.id}/generate-video`,
+        { model: 'sora-2', duration: 8 }, { headers: auth() });
+      notify.success('Sora 2 render queued — typically 2-5 minutes');
+      onChange();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Video generation failed');
+    } finally { setBusy(false); }
+  };
+
+  if (status === 'ready' && post.video_url) {
+    const videoSrc = `${API}${post.video_url}`;
+    return (
+      <div className="px-3 pt-2" data-testid={`social-post-video-${post.id}`}>
+        <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1 inline-flex items-center gap-1">
+          <Film size={10}/> Sora 2 video clip
+        </p>
+        <video
+          src={`${videoSrc}?t=${encodeURIComponent(localStorage.getItem('token') || '')}`}
+          controls
+          className="w-full rounded-lg bg-black max-h-[420px]"
+          data-testid={`social-post-video-player-${post.id}`}
+          // Pass auth via header by fetching as a blob — fallback for
+          // browsers that don't allow Authorization header on video.
+          onError={async (e) => {
+            try {
+              const r = await axios.get(videoSrc, {
+                headers: auth(), responseType: 'blob',
+              });
+              e.target.src = URL.createObjectURL(r.data);
+            } catch { /* keep error state */ }
+          }}
+        />
+        <div className="mt-1 flex items-center justify-between px-1">
+          <span className="text-[10px] text-zinc-500 font-mono uppercase">
+            {post.video_model || 'sora-2'} · {post.video_duration || 8}s · {Math.round((post.video_size_bytes || 0) / 1024)} KB
+          </span>
+          <button
+            type="button" onClick={async () => {
+              try {
+                const r = await axios.get(videoSrc, { headers: auth(), responseType: 'blob' });
+                const url = URL.createObjectURL(r.data);
+                const a = document.createElement('a');
+                a.href = url; a.download = `gymaxis-tiktok-${post.id.slice(0, 8)}.mp4`;
+                a.click(); URL.revokeObjectURL(url);
+              } catch (err) {
+                notify.error('Download failed');
+              }
+            }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold border border-zinc-200 hover:border-fuchsia-400 hover:text-fuchsia-700 text-zinc-700"
+            data-testid={`social-post-download-video-${post.id}`}
+          >
+            <Download size={11}/> Video
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'generating' || status === 'queued') {
+    return (
+      <div className="px-3 pt-2" data-testid={`social-post-video-pending-${post.id}`}>
+        <div className="rounded-lg bg-fuchsia-50 dark:bg-fuchsia-950/30 border border-fuchsia-200 dark:border-fuchsia-900 p-3 flex items-center gap-2 text-xs text-fuchsia-800 dark:text-fuchsia-200">
+          <Loader2 size={13} className="animate-spin shrink-0"/>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold">Sora 2 rendering your clip…</p>
+            <p className="text-[11px] opacity-80 flex items-center gap-1">
+              <Clock size={10}/> Typically 2-5 minutes. This page auto-refreshes.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'failed') {
+    return (
+      <div className="px-3 pt-2">
+        <div className="rounded-lg bg-rose-50 border border-rose-200 p-2 text-[11px] text-rose-700 flex items-start gap-2">
+          <AlertTriangle size={12} className="shrink-0 mt-0.5"/>
+          <div className="flex-1">
+            <p className="font-bold">Video generation failed</p>
+            <p className="opacity-80 break-words">{post.video_error || 'Sora 2 returned no bytes.'}</p>
+          </div>
+          <button
+            type="button" onClick={triggerGenerate} disabled={busy}
+            className="text-[11px] font-bold underline hover:no-underline shrink-0"
+            data-testid={`social-post-video-retry-${post.id}`}
+          >Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Idle — show the "Generate video" button.
+  return (
+    <div className="px-3 pt-2">
+      <button
+        type="button" onClick={triggerGenerate} disabled={busy}
+        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-zinc-900 to-cyan-600 text-white hover:opacity-95 disabled:opacity-50"
+        data-testid={`social-post-video-generate-${post.id}`}
+        title="Render a ~8 second 9:16 vertical clip via Sora 2 (typically 2-5 minutes)"
+      >
+        {busy ? <Loader2 size={11} className="animate-spin"/> : <Film size={11}/>}
+        Generate Sora 2 clip
+      </button>
+    </div>
+  );
+}
+
 function PostCard({ post, API, onChange }) {
   const channel = post.channel;
   const visual = CHANNEL_VISUAL[channel] || {};
@@ -152,6 +276,8 @@ function PostCard({ post, API, onChange }) {
           </div>
         </div>
       ) : null}
+
+      {channel === 'tiktok' ? <VideoSection post={post} API={API} onChange={onChange}/> : null}
 
       <div className="px-4 py-3 space-y-3">
         <div>
@@ -230,6 +356,99 @@ function PostCard({ post, API, onChange }) {
         </div>
       </div>
     </article>
+  );
+}
+
+function LegacyLibrarySection({ API }) {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState(null);
+
+  const load = useCallback(async () => {
+    setErr(null);
+    try {
+      const r = await axios.get(`${API}/api/marketing/social-autopilot/legacy-library`, { headers: auth() });
+      setRows(r.data?.rows || []);
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Could not load legacy library');
+      setRows([]);
+    }
+  }, [API]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const remove = async (id) => {
+    if (!window.confirm('Delete this legacy library post? This cannot be undone.')) return;
+    setBusy(id);
+    try {
+      await axios.delete(`${API}/api/marketing/social-autopilot/legacy-library/${id}`, { headers: auth() });
+      notify.success('Deleted');
+      setRows((cur) => (cur || []).filter((r) => r.id !== id));
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Delete failed');
+    } finally { setBusy(''); }
+  };
+
+  if (rows === null) return null;
+  if (!rows.length && !err) return null;  // nothing to clean up, hide
+
+  return (
+    <section
+      className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden"
+      data-testid="social-legacy-library"
+    >
+      <button
+        type="button" onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900"
+        data-testid="social-legacy-toggle"
+      >
+        <span className="shrink-0 w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+          <Archive size={14}/>
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-extrabold">Legacy social library</p>
+          <p className="text-[11px] text-zinc-500">
+            {rows.length} post{rows.length === 1 ? '' : 's'} from the old Catalogue → Social Media tab. Delete-only — no new posts can be added here.
+          </p>
+        </div>
+        {open ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+      </button>
+      {open ? (
+        <div className="border-t border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800" data-testid="social-legacy-rows">
+          {err ? (
+            <p className="px-4 py-3 text-xs text-rose-600">{err}</p>
+          ) : null}
+          {rows.map((row) => (
+            <div key={row.id} className="flex items-center gap-3 px-4 py-2 text-sm" data-testid={`social-legacy-row-${row.id}`}>
+              {row.image_url ? (
+                <img src={row.image_url} alt={row.label || 'legacy post'}
+                  className="w-10 h-10 rounded-md object-cover bg-zinc-100"/>
+              ) : (
+                <div className="w-10 h-10 rounded-md bg-zinc-100 flex items-center justify-center text-zinc-400">
+                  <ImageIcon size={14}/>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold truncate">{row.label || 'Untitled'}</p>
+                <p className="text-[11px] text-zinc-500 truncate">
+                  {row.channel || 'unknown'} · {row.campaign || 'general'} · {row.created_at?.slice(0, 10) || ''}
+                </p>
+              </div>
+              <button
+                type="button" onClick={() => remove(row.id)}
+                disabled={busy === row.id}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                data-testid={`social-legacy-delete-${row.id}`}
+              >
+                {busy === row.id ? <Loader2 size={11} className="animate-spin"/> : <Trash2 size={11}/>}
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -420,6 +639,10 @@ export default function SocialAutopilotPanel() {
           ))}
         </div>
       )}
+
+      {/* Legacy library cleanup section — only renders if there are
+          orphaned rows in the old social_media_library collection. */}
+      <LegacyLibrarySection API={API}/>
     </div>
   );
 }

@@ -1,3 +1,66 @@
+## Iter 220bm — Sora 2 weekly TikTok video + legacy library cleanup ✅ (Feb 2026)
+
+**Two builds in one iteration.**
+
+### V2 — Sora 2 TikTok video clips
+- New backend helpers in `utils/social_autopilot.py`:
+  - `VIDEO_DIR` = `/app/backend/uploads/social_videos`
+  - `video_path_for_post()` — deterministic disk layout
+  - `_build_sora_prompt()` — brand-aware prompt; NO text overlays, NO
+    logos in-frame, NO recognisable people from any specific
+    brand/chain; brand palette used as lighting accents only
+  - `generate_tiktok_video_for_post()` — background-task entry point
+    that runs the blocking Sora 2 call in a worker thread
+- Model defaults: `sora-2`, **1024×1792** (9:16 vertical, TikTok-
+  native), **8 seconds**, `max_wait_time=600s`
+- 3 new endpoints (all master-admin only):
+  - `POST /api/marketing/social-autopilot/posts/{id}/generate-video`
+    — returns immediately with `video_status='queued'`; UI auto-polls
+  - `GET  /api/marketing/social-autopilot/posts/{id}/video` — streams
+    the MP4 from disk via `FileResponse`
+- Status flow: `idle → queued → generating → ready | failed`. Errors
+  surface in the UI with a Retry button.
+- Frontend `VideoSection` component on TikTok post cards:
+  - "Generate Sora 2 clip" button when idle
+  - Loading banner with auto-poll (every 8 s) while generating
+  - Inline `<video>` player when ready, with a working download
+    button that fetches the blob with the auth header (browsers
+    don't allow Authorization headers on `<video>` src)
+  - Error banner with retry when failed
+- Disk cleanup on post deletion — DELETE `/posts/{id}` now also
+  removes the on-disk MP4
+
+### Legacy library cleanup
+- 17 posts exist in the old `social_media_library` collection from
+  the now-removed Catalogue → Social Media tab.
+- New endpoints in the social-autopilot router (master-admin only):
+  - `GET    /api/marketing/social-autopilot/legacy-library`
+  - `DELETE /api/marketing/social-autopilot/legacy-library/{id}`
+- New `LegacyLibrarySection` component renders at the bottom of the
+  Social Autopilot panel as a collapsible card with a per-row Delete
+  button. Auto-hides if the legacy collection is empty.
+
+### Files touched
+- `backend/utils/social_autopilot.py` — Sora 2 helpers + exports
+- `backend/routes/marketing/social_autopilot.py` — 4 new endpoints
+  (`generate-video`, `video`, `legacy-library`, legacy DELETE);
+  delete also wipes disk video
+- `frontend/src/pages/MasterAdmin/SocialAutopilotPanel.js` —
+  `VideoSection` (auto-polling), `LegacyLibrarySection` (collapsible)
+- `backend/tests/test_iter_220bm_sora_video_and_legacy_cleanup.py` —
+  9 tests (prompt safety, channel guard, missing-key path, disk
+  layout, route surface lock)
+- `Makefile` — regression registration
+
+### Verified
+- 9/9 new tests pass.
+- Cumulative 73/73 across iter 220bi/bj/bk/bl/bm this session.
+- `GET /legacy-library` returns the 17 stale rows from prod DB.
+- `POST /generate-video` on a missing id correctly returns 404.
+
+---
+
+
 ## Iter 220bl — Social Media Autopilot V1 (IG / TikTok / LinkedIn) ✅ (Feb 2026)
 
 **Goal**: replicate the SEO autopilot pattern for social media — daily,

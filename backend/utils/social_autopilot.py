@@ -646,4 +646,150 @@ __all__ = [
     "render_nano_banana_image",
     "generate_post_for_channel",
     "generate_daily_drafts",
+    "VIDEO_DIR",
+    "video_path_for_post",
+    "generate_tiktok_video_for_post",
 ]
+
+
+# ── Sora 2 video generation (TikTok only, Iter 220bm) ────────────────
+
+
+VIDEO_DIR = "/app/backend/uploads/social_videos"
+
+
+def video_path_for_post(post_id: str) -> str:
+    """Where a generated MP4 lives on disk. Single-tenant; we don't
+    namespace per-org because Social Autopilot is master-admin only."""
+    os.makedirs(VIDEO_DIR, exist_ok=True)
+    return os.path.join(VIDEO_DIR, f"{post_id}.mp4")
+
+
+def _build_sora_prompt(post: dict) -> str:
+    """Translate the saved TikTok post into a Sora 2 video prompt.
+
+    We deliberately keep the description ABSTRACT and BRAND-AWARE — no
+    text overlays (Sora 2 is poor at text), no specific people, no
+    customer names. We focus on operator scenes, kit, and atmosphere
+    that match the GymAxis brand."""
+    headline = post.get("card_headline") or post.get("topic_label") or "GymAxis"
+    script = (post.get("video_script") or "")[:400]
+    brief = (post.get("image_brief") or "")[:200]
+    return (
+        f"Cinematic 9:16 vertical short for GymAxis ({BRAND['domain']}), "
+        f"a UK B2B fitness SaaS brand. Subject: {headline}. "
+        f"{brief}\n\n"
+        f"Visual treatment: editorial, modern UK commercial gym setting "
+        f"(treadmills, free weights, members in motion), warm late-"
+        f"afternoon natural light, occasional motion blur, slow "
+        f"hand-held camera. Use the GymAxis brand palette accents "
+        f"(fuchsia {BRAND['color_primary']} and blue {BRAND['color_accent']}) "
+        f"in lighting and equipment highlights — gels, screens, "
+        f"reflections, NOT in any visible logos or text.\n\n"
+        f"NO text overlays, NO captions, NO logos in frame — the "
+        f"caller will overlay branding in post. NO recognisable "
+        f"people from any specific brand or chain. Pace: contemplative "
+        f"yet energetic. Hook moment in the first second.\n\n"
+        f"Script context (for mood only, not to render as text): "
+        f"{script}"
+    )
+
+
+async def generate_tiktok_video_for_post(
+    db, post_id: str, *, model: str = "sora-2", duration: int = 8,
+) -> dict:
+    """Background-task entry point. Generates a 1024x1792 Sora 2 clip
+    for the saved TikTok post, persists to disk, and stamps the doc
+    with ``video_status='ready'`` + ``video_url`` (the API route
+    that streams the bytes back).
+
+    Designed to be invoked via ``BackgroundTasks`` from the route
+    handler — Sora 2 can take 2-5 minutes which exceeds proxy
+    timeouts."""
+    post = await db.social_autopilot_posts.find_one({"id": post_id}, {"_id": 0})
+    if not post:
+        return {"ok": False, "error": "post not found"}
+    if post.get("channel") != "tiktok":
+        return {"ok": False, "error": "video generation is TikTok-only"}
+
+    await db.social_autopilot_posts.update_one(
+        {"id": post_id},
+        {"$set": {
+            "video_status": "generating",
+            "video_started_at": _now(),
+            "video_error": None,
+            "updated_at": _now(),
+        }},
+    )
+
+    api_key = os.environ.get("EMERGENT_LLM_KEY") or os.environ.get("EMERGENT_MODEL_API_KEY")
+    if not api_key:
+        await db.social_autopilot_posts.update_one(
+            {"id": post_id},
+            {"$set": {"video_status": "failed",
+                      "video_error": "EMERGENT_LLM_KEY missing",
+                      "updated_at": _now()}},
+        )
+        return {"ok": False, "error": "EMERGENT_LLM_KEY missing"}
+
+    sora_prompt = _build_sora_prompt(post)
+    output_path = video_path_for_post(post_id)
+
+    def _do_generate() -> Optional[str]:
+        """Run the blocking Sora 2 call in a worker thread."""
+        try:
+            from emergentintegrations.llm.openai.video_generation import (  # type: ignore
+                OpenAIVideoGeneration,
+            )
+        except Exception as exc:  # pragma: no cover
+            logger.warning(f"[social] Sora 2 import failed: {exc}")
+            return None
+        try:
+            gen = OpenAIVideoGeneration(api_key=api_key)
+            video_bytes = gen.text_to_video(
+                prompt=sora_prompt,
+                model=model,
+                size="1024x1792",   # 9:16 vertical, TikTok-native
+                duration=duration,
+                max_wait_time=600,
+            )
+            if not video_bytes:
+                return None
+            gen.save_video(video_bytes, output_path)
+            return output_path
+        except Exception as exc:
+            logger.warning(f"[social] Sora 2 generation failed: {exc}")
+            return None
+
+    try:
+        import asyncio
+        result = await asyncio.to_thread(_do_generate)
+    except Exception as exc:  # pragma: no cover
+        logger.warning(f"[social] Sora 2 thread failure: {exc}")
+        result = None
+
+    if not result or not os.path.exists(output_path):
+        await db.social_autopilot_posts.update_one(
+            {"id": post_id},
+            {"$set": {
+                "video_status": "failed",
+                "video_error": "Sora 2 returned no bytes",
+                "updated_at": _now(),
+            }},
+        )
+        return {"ok": False, "error": "Sora 2 returned no bytes"}
+
+    size_bytes = os.path.getsize(output_path)
+    await db.social_autopilot_posts.update_one(
+        {"id": post_id},
+        {"$set": {
+            "video_status": "ready",
+            "video_url": f"/api/marketing/social-autopilot/posts/{post_id}/video",
+            "video_model": model,
+            "video_duration": duration,
+            "video_size_bytes": size_bytes,
+            "video_completed_at": _now(),
+            "updated_at": _now(),
+        }},
+    )
+    return {"ok": True, "size_bytes": size_bytes, "path": output_path}

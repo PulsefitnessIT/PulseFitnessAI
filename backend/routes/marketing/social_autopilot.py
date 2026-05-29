@@ -18,7 +18,8 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -26,6 +27,7 @@ from utils.database import db
 from utils.social_autopilot import (
     CHANNELS, FEATURE_PILLARS,
     generate_post_for_channel, generate_daily_drafts,
+    generate_tiktok_video_for_post, video_path_for_post,
 )
 
 
@@ -211,7 +213,95 @@ async def archive_post(post_id: str, user: dict = Depends(get_current_user)):
 @router.delete("/posts/{post_id}")
 async def delete_post(post_id: str, user: dict = Depends(get_current_user)):
     _require_master_admin(user)
+    # Also clean the on-disk video if present.
+    path = video_path_for_post(post_id)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
     res = await db.social_autopilot_posts.delete_one({"id": post_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Post not found")
+    return {"ok": True, "id": post_id}
+
+
+# ── Iter 220bm — Sora 2 TikTok video generation ──────────────────────
+
+
+class VideoGenRequest(BaseModel):
+    model: str = Field("sora-2", pattern="^(sora-2|sora-2-pro)$")
+    duration: int = Field(8, ge=4, le=12)
+
+
+@router.post("/posts/{post_id}/generate-video")
+async def trigger_video_generation(
+    post_id: str,
+    background_tasks: BackgroundTasks,
+    payload: Optional[VideoGenRequest] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Kick off a Sora 2 video render for an existing TikTok post.
+    Returns immediately with ``video_status='generating'``; the
+    operator polls ``/status`` or refreshes the post list to see it
+    flip to ``ready`` (typically 2-5 minutes)."""
+    _require_master_admin(user)
+    post = await db.social_autopilot_posts.find_one({"id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(404, "Post not found")
+    if post.get("channel") != "tiktok":
+        raise HTTPException(400, "Video generation is TikTok-only")
+    if post.get("video_status") == "generating":
+        return {"ok": True, "already_running": True, "id": post_id}
+
+    body = payload or VideoGenRequest()
+    background_tasks.add_task(
+        generate_tiktok_video_for_post,
+        db, post_id, model=body.model, duration=body.duration,
+    )
+    await db.social_autopilot_posts.update_one(
+        {"id": post_id},
+        {"$set": {"video_status": "queued", "updated_at": _now()}},
+    )
+    return {"ok": True, "id": post_id, "video_status": "queued",
+            "model": body.model, "duration": body.duration}
+
+
+@router.get("/posts/{post_id}/video")
+async def stream_video(post_id: str, user: dict = Depends(get_current_user)):
+    """Stream the generated MP4 from disk. Used by the <video> tag and
+    by the "Download video" link in the UI."""
+    _require_master_admin(user)
+    path = video_path_for_post(post_id)
+    if not os.path.exists(path):
+        raise HTTPException(404, "Video not found — generate it first")
+    return FileResponse(
+        path, media_type="video/mp4",
+        filename=f"gymaxis-tiktok-{post_id[:8]}.mp4",
+    )
+
+
+# ── Iter 220bm — Legacy library access (delete-only) ─────────────────
+
+
+@router.get("/legacy-library")
+async def legacy_library_list(user: dict = Depends(get_current_user)):
+    """Return rows from the OLD ``social_media_library`` collection so
+    operators can clean up legacy posts now that the Catalogue →
+    Social Media tab is gone. Read + delete only — no new writes."""
+    _require_master_admin(user)
+    rows = await db.social_media_library.find({}, {"_id": 0}).sort(
+        "created_at", -1,
+    ).to_list(500)
+    return {"rows": rows, "count": len(rows)}
+
+
+@router.delete("/legacy-library/{post_id}")
+async def legacy_library_delete(
+    post_id: str, user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    res = await db.social_media_library.delete_one({"id": post_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Post not found")
     return {"ok": True, "id": post_id}
