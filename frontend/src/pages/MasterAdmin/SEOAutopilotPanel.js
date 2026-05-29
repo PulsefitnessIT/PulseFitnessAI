@@ -55,14 +55,26 @@ function AutopilotStatusCard() {
   const [err, setErr] = useState(null);
   const [running, setRunning] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ enabled: true, hour_uk: 9 });
+  const [draft, setDraft] = useState({
+    enabled: true, hour_uk: 9,
+    auto_discovery_enabled: true,
+    queue_min_threshold: 3,
+    queue_target_size: 8,
+  });
   const [saving, setSaving] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
 
   const load = async () => {
     try {
       const r = await axios.get(`${API}/api/marketing/seo/autopilot/status`, { headers: auth() });
       setS(r.data);
-      setDraft({ enabled: !!r.data.enabled, hour_uk: Number(r.data.hour_uk ?? 9) });
+      setDraft({
+        enabled: !!r.data.enabled,
+        hour_uk: Number(r.data.hour_uk ?? 9),
+        auto_discovery_enabled: r.data.auto_discovery_enabled !== false,
+        queue_min_threshold: Number(r.data.queue_min_threshold ?? 3),
+        queue_target_size: Number(r.data.queue_target_size ?? 8),
+      });
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Could not load autopilot status');
     }
@@ -89,7 +101,13 @@ function AutopilotStatusCard() {
     setSaving(true);
     try {
       await axios.put(`${API}/api/marketing/seo/autopilot/config`,
-        { enabled: !!draft.enabled, hour_uk: Number(draft.hour_uk) || 9 },
+        {
+          enabled: !!draft.enabled,
+          hour_uk: Number(draft.hour_uk) || 9,
+          auto_discovery_enabled: !!draft.auto_discovery_enabled,
+          queue_min_threshold: Number(draft.queue_min_threshold) || 3,
+          queue_target_size: Number(draft.queue_target_size) || 8,
+        },
         { headers: auth() });
       notify.success('Schedule saved — loop picks it up within 15 minutes.');
       setEditing(false);
@@ -97,6 +115,22 @@ function AutopilotStatusCard() {
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  const discoverNow = async () => {
+    if (discovering) return;
+    setDiscovering(true);
+    try {
+      const r = await axios.post(`${API}/api/marketing/seo/keywords/auto-discover`, {}, { headers: auth() });
+      if (r.data?.skipped) {
+        notify.info(r.data?.reason || 'Queue already topped up');
+      } else {
+        notify.success(`Added ${r.data?.added_count || 0} keywords (GDPR-safe aggregates)`);
+      }
+      await load();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Auto-discovery failed');
+    } finally { setDiscovering(false); }
   };
 
   if (err) {
@@ -165,6 +199,16 @@ function AutopilotStatusCard() {
             Run now
           </button>
           <button
+            type="button" onClick={discoverNow}
+            disabled={discovering}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+            data-testid="seo-autopilot-discover-now"
+            title="Auto-discover keywords from platform signals + pillars (GDPR-safe, k=5)"
+          >
+            {discovering ? <Loader2 size={11} className="animate-spin"/> : <Sparkles size={11}/>}
+            Discover keywords
+          </button>
+          <button
             type="button" onClick={() => setEditing((v) => !v)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400"
             data-testid="seo-autopilot-edit-schedule"
@@ -174,28 +218,74 @@ function AutopilotStatusCard() {
         </div>
       </div>
       {editing ? (
-        <div className="mt-4 pt-4 border-t border-fuchsia-200 dark:border-fuchsia-900 grid sm:grid-cols-[auto_auto_1fr] gap-3 items-end" data-testid="seo-autopilot-schedule-editor">
-          <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-200 cursor-pointer">
-            <input
-              type="checkbox" checked={!!draft.enabled}
-              onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-              data-testid="seo-autopilot-enabled-toggle"
-            />
-            Enabled
-          </label>
-          <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-200">
-            Fire at
-            <select
-              value={Number(draft.hour_uk)} onChange={(e) => setDraft({ ...draft, hour_uk: Number(e.target.value) })}
-              className="text-sm rounded-md border border-zinc-300 px-2 py-1.5"
-              data-testid="seo-autopilot-hour-select"
-            >
-              {Array.from({ length: 24 }).map((_, h) => (
-                <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-              ))}
-            </select>
-            <span className="text-[11px] font-normal text-zinc-500">Europe/London</span>
-          </label>
+        <div className="mt-4 pt-4 border-t border-fuchsia-200 dark:border-fuchsia-900 space-y-4" data-testid="seo-autopilot-schedule-editor">
+          <div className="grid sm:grid-cols-[auto_auto_1fr] gap-3 items-end">
+            <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-200 cursor-pointer">
+              <input
+                type="checkbox" checked={!!draft.enabled}
+                onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+                data-testid="seo-autopilot-enabled-toggle"
+              />
+              Enabled
+            </label>
+            <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-200">
+              Fire at
+              <select
+                value={Number(draft.hour_uk)} onChange={(e) => setDraft({ ...draft, hour_uk: Number(e.target.value) })}
+                className="text-sm rounded-md border border-zinc-300 px-2 py-1.5"
+                data-testid="seo-autopilot-hour-select"
+              >
+                {Array.from({ length: 24 }).map((_, h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                ))}
+              </select>
+              <span className="text-[11px] font-normal text-zinc-500">Europe/London</span>
+            </label>
+            <div />
+          </div>
+
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3" data-testid="seo-autopilot-discovery-config">
+            <div className="flex items-start gap-2 mb-3">
+              <Sparkles size={14} className="text-blue-700 mt-0.5"/>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-blue-900 dark:text-blue-200">Auto keyword discovery</p>
+                <p className="text-[11px] text-blue-800/80 dark:text-blue-200/70 mt-0.5">
+                  Claude chooses meaningful, industry-relevant keywords for you using fitness-industry pillars, your own platform's anonymised aggregate signals (k-anonymity 5, no PII), and content-gap analysis. Tops up the queue automatically when it dips below the threshold.
+                </p>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <label className="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-200 cursor-pointer">
+                <input
+                  type="checkbox" checked={!!draft.auto_discovery_enabled}
+                  onChange={(e) => setDraft({ ...draft, auto_discovery_enabled: e.target.checked })}
+                  data-testid="seo-auto-discovery-toggle"
+                />
+                Enable auto-discovery
+              </label>
+              <label className="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-200">
+                Refill when below
+                <input
+                  type="number" min={0} max={20}
+                  value={draft.queue_min_threshold}
+                  onChange={(e) => setDraft({ ...draft, queue_min_threshold: Number(e.target.value) })}
+                  className="w-16 text-sm rounded-md border border-blue-300 px-2 py-1"
+                  data-testid="seo-auto-min-threshold"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-200">
+                Top up to
+                <input
+                  type="number" min={1} max={30}
+                  value={draft.queue_target_size}
+                  onChange={(e) => setDraft({ ...draft, queue_target_size: Number(e.target.value) })}
+                  className="w-16 text-sm rounded-md border border-blue-300 px-2 py-1"
+                  data-testid="seo-auto-target-size"
+                />
+              </label>
+            </div>
+          </div>
+
           <div className="flex justify-end">
             <button
               type="button" onClick={saveConfig} disabled={saving}
@@ -203,7 +293,7 @@ function AutopilotStatusCard() {
               data-testid="seo-autopilot-save-config"
             >
               {saving ? <Loader2 size={11} className="animate-spin"/> : <Check size={11}/>}
-              Save schedule
+              Save settings
             </button>
           </div>
         </div>

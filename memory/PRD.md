@@ -1,3 +1,84 @@
+## Iter 220bk — Fully autonomous SEO keyword auto-discovery (GDPR-safe) ✅ (Feb 2026)
+
+**Goal**: stop the master admin from having to keep researching seed
+topics. The autopilot now top-up the keyword queue itself by blending
+industry pillars, anonymised platform signals, and content-gap
+analysis — every aggregate guarded by k-anonymity (k=5) and number
+bucketing so no single organisation can be identified.
+
+### Three-stream discovery
+1. **Industry pillars** — 12-pillar deck (downtime, PPM, SLA, RIDDOR,
+   member retention, contract negotiation, multi-site ops, partner
+   engineers, BER/lifecycle, tender management, service desk, energy).
+   LRU rotation with a 14-day cooldown per pillar.
+2. **Platform-data signals** (GDPR-safe):
+   - Top-fault machine type (last 90d, k≥5 orgs, n≥10)
+   - Mean resolution-hours gap (rounded to nearest hour, k≥5, n≥10)
+   - Top resolution-type breakdown (percent bucketed to nearest 5)
+   - Daily rotation between signal types
+3. **Content gap** — picks the pillar with the fewest published
+   articles, ensures evergreen coverage.
+
+### GDPR/PII safeguards
+- **k-anonymity (k=5)**: every aggregate requires ≥5 distinct orgs;
+  cells below threshold are suppressed (not redacted).
+- **Number bucketing**: percentages → nearest 5, counts → nearest 5,
+  hours → nearest int.
+- **No identifier fields** in any returned dict (org_id, user_id,
+  serials, names, emails, phones, sites — all stripped at the query
+  layer).
+- **No special-category data** — RIDDOR/H&S records excluded from
+  signal queries entirely.
+- **Audit trail**: every auto-discovered keyword carries
+  `source` + `discovery_pillar_id` + `discovery_signal` +
+  `discovery_metadata` for provenance.
+- **Test coverage**: `test_signal_outputs_contain_no_pii_fields`
+  scans every returned dict for forbidden field names.
+
+### Threshold-driven top-up
+- `queue_min_threshold` (default 3): refill triggers when queued
+  keywords drop below this.
+- `queue_target_size` (default 8): refill stops when queue hits
+  this.
+- Daily autopilot calls `autodiscover_top_up_queue()` before
+  pulling the next keyword — so the queue self-replenishes
+  silently.
+
+### Endpoints
+- `POST /api/marketing/seo/keywords/auto-discover` — manual trigger.
+- `GET  /api/marketing/seo/keywords/discovery-feed` — list recent
+  auto-discovered keywords with provenance metadata.
+- `GET  /api/marketing/seo/autopilot/status` extended with
+  `auto_discovery_enabled`, `queue_min_threshold`, `queue_target_size`.
+- `PUT  /api/marketing/seo/autopilot/config` accepts the three new
+  fields (validated 0-50/1-50).
+
+### UI (SEOAutopilotPanel.js)
+- "Discover keywords" button next to "Run now" in the Dashboard
+  status card.
+- Schedule editor extended with an "Auto keyword discovery" section:
+  toggle + refill-when-below + top-up-to inputs.
+- Notification on save shows added count and "GDPR-safe aggregates".
+
+### Files touched
+- `backend/utils/seo_keyword_discovery.py` — new module
+- `backend/routes/marketing/seo_autopilot.py` — wire into
+  `run_autopilot`, add 2 endpoints, extend config schema/loader
+- `frontend/src/pages/MasterAdmin/SEOAutopilotPanel.js` — Discover
+  button + config UI
+- `backend/tests/test_iter_220bk_keyword_auto_discovery.py` — 16 tests
+- `Makefile` — registration
+
+### Verified end-to-end on preview pod
+First curl produced 3 auto-discovered keywords:
+- Pillar: "gym treadmill downtime impact on retention"
+- Signal: "why treadmills break most in UK gyms" (n=9 orgs aggregated)
+- Gap: "reducing gym equipment downtime"
+All GDPR-compliant, full provenance metadata persisted.
+
+---
+
+
 ## Iter 220bj — Blog freshness & duplicate-content guard ✅ (Feb 2026)
 
 **Problem**: The SEO autopilot was producing near-identical articles

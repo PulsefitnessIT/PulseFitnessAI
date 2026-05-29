@@ -50,6 +50,7 @@ from utils.seo_article_freshness import (
     format_recent_articles_for_prompt,
     pick_next_archetype,
 )
+from utils.seo_keyword_discovery import autodiscover_top_up_queue
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/marketing/seo", tags=["marketing-seo"])
@@ -1000,8 +1001,25 @@ async def delete_article(
 @router.post("/autopilot/run")
 async def run_autopilot(user: dict = Depends(get_current_user)):
     """Pick the next queued keyword and generate + publish an article.
-    Designed to be hit by a cron-style scheduler (1 article/day)."""
+    Designed to be hit by a cron-style scheduler (1 article/day).
+
+    Iter 220bk — before pulling the next keyword we top up the queue
+    via the GDPR-safe auto-discovery feeder, so the master admin no
+    longer has to keep manually researching seed topics."""
     _require_master_admin(user)
+
+    cfg = await _load_config()
+    auto_disc_enabled = cfg.get("auto_discovery_enabled", True)
+    if auto_disc_enabled:
+        try:
+            await autodiscover_top_up_queue(
+                db,
+                queue_min=int(cfg.get("queue_min_threshold", 3)),
+                queue_target=int(cfg.get("queue_target_size", 8)),
+            )
+        except Exception as exc:  # pragma: no cover
+            logger.warning(f"[autopilot] auto-discovery top-up failed: {exc}")
+
     next_kw = await db.seo_keywords.find_one(
         {"status": "queued"},
         {"_id": 0},
@@ -1018,6 +1036,19 @@ async def run_autopilot(user: dict = Depends(get_current_user)):
         generate_hero_image=True,
     )
     article = await generate_article(payload, user)
+    # Iter 220bk — propagate discovery provenance onto the article so
+    # gap-analysis & dashboards can attribute auto-discovered articles.
+    article_updates: dict = {}
+    if next_kw.get("discovery_pillar_id"):
+        article_updates["discovery_pillar_id"] = next_kw["discovery_pillar_id"]
+    if next_kw.get("source"):
+        article_updates["discovery_source"] = next_kw["source"]
+    if next_kw.get("discovery_signal"):
+        article_updates["discovery_signal"] = next_kw["discovery_signal"]
+    if article_updates:
+        await db.seo_articles.update_one(
+            {"id": article["id"]}, {"$set": article_updates},
+        )
     await db.seo_keywords.update_one(
         {"id": next_kw["id"]},
         {"$set": {"status": "published",
@@ -1052,6 +1083,10 @@ async def _load_config() -> dict:
         "id": "singleton",
         "enabled": os.environ.get("SEO_AUTOPILOT_ENABLED", "1") != "0",
         "hour_uk": max(0, min(23, hour)),
+        # Iter 220bk — auto-discovery feeder defaults
+        "auto_discovery_enabled": True,
+        "queue_min_threshold": 3,
+        "queue_target_size": 8,
         "updated_at": None,
         "updated_by": None,
     }
@@ -1060,6 +1095,9 @@ async def _load_config() -> dict:
 class AutopilotConfigPayload(BaseModel):
     enabled: Optional[bool] = None
     hour_uk: Optional[int] = Field(None, ge=0, le=23)
+    auto_discovery_enabled: Optional[bool] = None
+    queue_min_threshold: Optional[int] = Field(None, ge=0, le=50)
+    queue_target_size: Optional[int] = Field(None, ge=1, le=50)
 
 
 @router.get("/autopilot/status")
@@ -1077,6 +1115,9 @@ async def autopilot_status(user: dict = Depends(get_current_user)):
     return {
         "enabled": bool(cfg.get("enabled")),
         "hour_uk": int(cfg.get("hour_uk", 9)),
+        "auto_discovery_enabled": bool(cfg.get("auto_discovery_enabled", True)),
+        "queue_min_threshold": int(cfg.get("queue_min_threshold", 3)),
+        "queue_target_size": int(cfg.get("queue_target_size", 8)),
         "london_now": london.isoformat(),
         "ran_today": ran_today,
         "last_run": last or None,
@@ -1107,6 +1148,52 @@ async def update_autopilot_config(
         upsert=True,
     )
     return await _load_config()
+
+
+# ── Iter 220bk — Auto-discovery feeder (GDPR-safe) ───────────────────
+
+
+@router.post("/keywords/auto-discover")
+async def run_keyword_auto_discovery(user: dict = Depends(get_current_user)):
+    """Manually trigger the auto-discovery feeder. Used by master admin
+    when they want to top up the queue without waiting for the next
+    scheduled article run.
+
+    Honours the same ``queue_min_threshold`` + ``queue_target_size``
+    config the daily scheduler uses. All platform-data signals enforce
+    k-anonymity (k=5) and number bucketing before any aggregate leaves
+    the database."""
+    _require_master_admin(user)
+    cfg = await _load_config()
+    if not cfg.get("auto_discovery_enabled", True):
+        return {"ok": False, "reason": "auto_discovery_disabled"}
+    result = await autodiscover_top_up_queue(
+        db,
+        queue_min=int(cfg.get("queue_min_threshold", 3)),
+        queue_target=int(cfg.get("queue_target_size", 8)),
+    )
+    await record_ai_action(
+        user, action="seo.auto_discover",
+        payload={"added_count": result.get("added_count", 0),
+                 "skipped": result.get("skipped", False)},
+    )
+    return result
+
+
+@router.get("/keywords/discovery-feed")
+async def discovery_feed(
+    limit: int = 30,
+    user: dict = Depends(get_current_user),
+):
+    """List the most recent auto-discovered keywords so the admin can
+    see what Claude has been feeding the queue + the GDPR-safe
+    metadata behind each."""
+    _require_master_admin(user)
+    rows = await db.seo_keywords.find(
+        {"source": {"$in": ["auto_pillar", "auto_signal", "auto_gap"]}},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(min(max(limit, 1), 100)).to_list(100)
+    return {"keywords": rows, "count": len(rows)}
 
 
 # ── Iter 220bj — Duplicate-content audit / archive ────────────────────
