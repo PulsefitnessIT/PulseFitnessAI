@@ -47,6 +47,7 @@ from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.security_plus import audit_required
 
 router = APIRouter(prefix="/api/gdpr/erasure", tags=["gdpr-erasure"])
 
@@ -169,6 +170,12 @@ class ExecutePayload(BaseModel):
     force: bool = False  # bypass 30-day cooling window
 
 
+class CancelPayload(BaseModel):
+    # Iter 220bq — ICO best practice: persist a cancellation reason so
+    # the auditable trail captures *why* a pending erasure was killed.
+    reason: str = Field(default="", max_length=1000)
+
+
 # ── Endpoints ────────────────────────────────────────────────────
 
 @router.post("/preview")
@@ -241,6 +248,20 @@ async def create_request(
         "scrub_summary": None,
     }
     await db.gdpr_erasure_requests.insert_one(request)
+    # Iter 220bq — fail-closed audit log so the regulator-grade trail
+    # cannot silently drop a request. Same retry semantics as the
+    # rest of the audit_required call sites.
+    await audit_required("gdpr_erasure_audit", {
+        "request_id": request["id"],
+        "event": "request_created",
+        "subject_type": payload.subject_type,
+        "subject_id": payload.subject_id,
+        "subject_label": request["subject_label"],
+        "requested_by": user.get("id"),
+        "requested_by_email": user.get("email"),
+        "reason": payload.reason,
+        "execute_after": request["execute_after"],
+    })
     return {k: v for k, v in request.items() if k != "_id"}
 
 
@@ -288,25 +309,19 @@ async def get_request(
     return req
 
 
-@router.post("/requests/{request_id}/execute")
-async def execute_request(
-    request_id: str,
-    payload: ExecutePayload,
-    user: dict = Depends(get_current_user),
-):
-    _require_master_admin(user)
-    req = await db.gdpr_erasure_requests.find_one(
-        {"id": request_id}, {"_id": 0},
-    )
-    if not req:
-        raise HTTPException(404, "Request not found")
+async def _execute_request_impl(req: dict, *, force: bool, executed_by: str,
+                                 executed_by_label: str | None = None) -> dict:
+    """Core executor — used by both the manual ``/execute`` endpoint
+    and the daily auto-execute background loop. Captures a pre-scrub
+    PII snapshot inside the request row, then anonymises the subject.
+
+    Returns the updated request document.
+    """
     if req["status"] != "pending":
         raise HTTPException(
             400, f"Request is not pending (current status: {req['status']}).",
         )
-
-    # Cooling-off window enforcement.
-    if not payload.force:
+    if not force:
         execute_after = datetime.fromisoformat(req["execute_after"])
         if datetime.now(timezone.utc) < execute_after:
             raise HTTPException(
@@ -319,16 +334,25 @@ async def execute_request(
     subject = await db[spec["collection"]].find_one(
         {spec["id_field"]: req["subject_id"]}, {"_id": 0},
     )
+    pre_scrub_snapshot: dict | None = None
     if not subject:
-        # The row has been deleted out from under us — still mark the
-        # request executed so it's not stuck in pending forever.
         scrub_summary = {"note": "Subject row not found at execution time"}
     else:
+        # Iter 220bq — capture the full pre-scrub PII payload so the
+        # org keeps an auditable "what was erased" record AFTER the
+        # canonical row has lost the data. Stored on the request, not
+        # the subject — and only the fields that this spec actually
+        # touches (no need to snapshot e.g. internal counters).
+        pre_scrub_snapshot = {
+            f: subject.get(f) for f in
+            list(spec["redact"]) + list(spec["hashable"]) + list(spec["clear"])
+            if subject.get(f) not in (None, "", [], {})
+        }
         scrub_summary = _scrub_summary(spec, subject)
         updates: dict = {
             "gdpr_erased": True,
             "gdpr_erased_at": _now(),
-            "gdpr_erased_by": user.get("id"),
+            "gdpr_erased_by": executed_by,
             "gdpr_erasure_request_id": req["id"],
         }
         for f in spec["redact"]:
@@ -346,25 +370,60 @@ async def execute_request(
         )
 
     await db.gdpr_erasure_requests.update_one(
-        {"id": request_id},
+        {"id": req["id"]},
         {"$set": {
             "status": "executed",
             "executed_at": _now(),
-            "executed_by": user.get("id"),
+            "executed_by": executed_by,
+            "executed_by_label": executed_by_label or executed_by,
             "scrub_summary": scrub_summary,
-            "forced": bool(payload.force),
+            "pre_scrub_snapshot": pre_scrub_snapshot,
+            "forced": bool(force),
         }},
     )
+    # Iter 220bq — fail-closed audit trail.
+    await audit_required("gdpr_erasure_audit", {
+        "request_id": req["id"],
+        "event": "request_executed",
+        "subject_type": req.get("subject_type"),
+        "subject_id": req.get("subject_id"),
+        "subject_label": req.get("subject_label"),
+        "executed_by": executed_by,
+        "executed_by_label": executed_by_label,
+        "forced": bool(force),
+        "scrub_summary_keys": sorted(list((scrub_summary or {}).keys())),
+        "snapshot_field_count": len(pre_scrub_snapshot or {}),
+    })
     return {
-        "id": request_id,
+        "id": req["id"],
         "status": "executed",
         "scrub_summary": scrub_summary,
+        "snapshot_field_count": len(pre_scrub_snapshot or {}),
     }
+
+
+@router.post("/requests/{request_id}/execute")
+async def execute_request(
+    request_id: str,
+    payload: ExecutePayload,
+    user: dict = Depends(get_current_user),
+):
+    _require_master_admin(user)
+    req = await db.gdpr_erasure_requests.find_one(
+        {"id": request_id}, {"_id": 0},
+    )
+    if not req:
+        raise HTTPException(404, "Request not found")
+    return await _execute_request_impl(
+        req, force=payload.force, executed_by=user.get("id"),
+        executed_by_label=user.get("email"),
+    )
 
 
 @router.post("/requests/{request_id}/cancel")
 async def cancel_request(
     request_id: str,
+    payload: CancelPayload | None = None,
     user: dict = Depends(get_current_user),
 ):
     _require_master_admin(user)
@@ -378,14 +437,27 @@ async def cancel_request(
             400,
             f"Only pending requests can be cancelled (current status: {req['status']}).",
         )
+    cancel_reason = (payload.reason if payload else "") or ""
     await db.gdpr_erasure_requests.update_one(
         {"id": request_id},
         {"$set": {
             "status": "cancelled",
             "cancelled_at": _now(),
             "cancelled_by": user.get("id"),
+            "cancellation_reason": cancel_reason,
         }},
     )
+    # Iter 220bq — fail-closed audit trail for cancellations too.
+    await audit_required("gdpr_erasure_audit", {
+        "request_id": request_id,
+        "event": "request_cancelled",
+        "subject_type": req.get("subject_type"),
+        "subject_id": req.get("subject_id"),
+        "subject_label": req.get("subject_label"),
+        "cancelled_by": user.get("id"),
+        "cancelled_by_email": user.get("email"),
+        "cancellation_reason": cancel_reason,
+    })
     return {"id": request_id, "status": "cancelled"}
 
 
@@ -424,3 +496,90 @@ def _retained_fields(subject_type: str) -> list[str]:
     if subject_type == "instructor":
         return common + ["slug", "is_active"]
     return common + ["company_id", "owner_id", "lead_status"]
+
+
+
+# ── Iter 220bq · Auto-execute scheduler ──────────────────────────
+
+import asyncio  # noqa: E402  (deferred import — only needed by the loop)
+import logging  # noqa: E402
+import os  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+
+async def auto_execute_due_requests() -> dict:
+    """Execute every ``pending`` erasure whose ``execute_after`` has
+    elapsed. Idempotent — already-executed rows are skipped by the
+    status filter. Returns counts for observability.
+
+    The UK ICO requires a Data Subject Erasure Request to be fulfilled
+    **within** one month. Leaving requests in ``pending`` past
+    ``execute_after`` is a breach — this loop closes that gap.
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+    due_cursor = db.gdpr_erasure_requests.find(
+        {"status": "pending", "execute_after": {"$lte": now_iso}},
+        {"_id": 0},
+    )
+    due = await due_cursor.to_list(length=200)
+    if not due:
+        return {"executed": 0, "errors": 0}
+
+    ok = 0
+    errors = 0
+    for req in due:
+        try:
+            await _execute_request_impl(
+                req, force=False,
+                executed_by="system:auto",
+                executed_by_label="scheduler",
+            )
+            ok += 1
+        except HTTPException as e:
+            logger.warning(
+                "[gdpr-erasure] auto-execute skipped %s: %s",
+                req.get("id"), e.detail,
+            )
+            errors += 1
+        except Exception:
+            logger.exception(
+                "[gdpr-erasure] auto-execute failed for %s", req.get("id"),
+            )
+            errors += 1
+    logger.info("[gdpr-erasure] auto-execute swept %d due (ok=%d, errors=%d)",
+                len(due), ok, errors)
+    return {"executed": ok, "errors": errors, "total_due": len(due)}
+
+
+async def run_gdpr_erasure_auto_executor(interval_minutes: int = 60) -> None:
+    """Daemon — wakes every ``interval_minutes`` and calls
+    ``auto_execute_due_requests``. Hourly is plenty (ICO deadline is
+    1 month; granularity at the hour is well inside the tolerance).
+
+    Gated by env ``GDPR_ERASURE_AUTOEXEC_ENABLED`` so an operator can
+    pause it during incident-response / bulk-onboarding windows.
+    """
+    enabled = os.environ.get("GDPR_ERASURE_AUTOEXEC_ENABLED", "1") != "0"
+    if not enabled:
+        logger.info("[gdpr-erasure] auto-executor disabled by env")
+        return
+    interval = max(60, interval_minutes * 60)  # seconds — floor at 1 min
+    logger.info(
+        "[gdpr-erasure] auto-executor started (interval=%ds)", interval,
+    )
+    while True:
+        try:
+            await auto_execute_due_requests()
+        except Exception:
+            logger.exception("[gdpr-erasure] auto-executor iteration failed")
+        await asyncio.sleep(interval)
+
+
+@router.post("/auto-execute/run-now")
+async def auto_execute_run_now(user: dict = Depends(get_current_user)):
+    """Operator-triggered immediate sweep — useful in tests and when
+    the master admin wants to flush the queue without waiting for the
+    next tick. Master-admin only."""
+    _require_master_admin(user)
+    return await auto_execute_due_requests()

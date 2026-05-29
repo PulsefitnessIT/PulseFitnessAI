@@ -197,6 +197,7 @@ regression:
 	  tests/test_iter_220bn_social_scheduler.py \
 	  tests/test_iter_220bo_no_double_api_prefix.py \
 	  tests/test_iter_220bp_security_hardening.py \
+	  tests/test_iter_220bq_gdpr_polish.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

@@ -21,6 +21,20 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _patch_audit_required():
+    """Iter 220bq — the route now writes through ``audit_required``
+    which talks to the real `utils.database.db`. The tests below all
+    mock `m.db`, so we no-op the audit writer for every case in this
+    module. (Dedicated audit-behaviour tests live in
+    `test_iter_220bq_gdpr_polish.py`.)"""
+    from routes import gdpr_erasure as m
+    with patch.object(m, "audit_required", AsyncMock()):
+        yield
+
 
 def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)

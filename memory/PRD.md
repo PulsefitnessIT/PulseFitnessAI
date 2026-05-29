@@ -1,3 +1,64 @@
+## Iter 220bq — GDPR Article 17 polish ✅ (Feb 2026)
+
+**Goal**: close four genuine gaps in the existing right-to-erasure
+workflow ahead of the external pen-test / ICO audit.
+
+### Polish items closed
+
+1. **Auto-execute scheduler** — `run_gdpr_erasure_auto_executor`
+   wakes hourly (configurable via `GDPR_ERASURE_AUTOEXEC_INTERVAL_MIN`)
+   and calls `auto_execute_due_requests` which sweeps every
+   `pending` row whose `execute_after` has elapsed. Closes the ICO
+   "fulfil within one month" requirement — previously pending rows
+   could sit indefinitely. Gated by `GDPR_ERASURE_AUTOEXEC_ENABLED`
+   (default on). Also exposes `POST /api/gdpr/erasure/auto-execute/run-now`
+   for operator-triggered sweeps.
+
+2. **Fail-closed audit trail** — every create / execute / cancel now
+   writes through `audit_required("gdpr_erasure_audit", …)`, the
+   same retry-and-fail pattern used by webhooks / impersonation. If
+   the audit insert fails, the user-facing request fails with 503 —
+   regulator gets a guaranteed paper trail.
+
+3. **Pre-scrub PII snapshot** — `_execute_request_impl` now captures
+   the full pre-scrub PII payload (only fields the spec touches,
+   skipping empty values) into `gdpr_erasure_requests.pre_scrub_snapshot`.
+   The canonical row genuinely loses the data, but the org keeps an
+   auditable "what was erased" record on the request.
+
+4. **Cancellation reason** — new `CancelPayload(reason: str)`
+   accepted by `/requests/{id}/cancel`; persisted into
+   `gdpr_erasure_requests.cancellation_reason` and the audit row.
+   Backwards-compatible (payload optional, defaults to empty string).
+
+### Files touched
+- `backend/routes/gdpr_erasure.py` — `CancelPayload`, extracted
+  `_execute_request_impl`, `auto_execute_due_requests`,
+  `run_gdpr_erasure_auto_executor`, `auto_execute_run_now` endpoint,
+  3× `audit_required` calls, pre-scrub snapshot.
+- `backend/server.py` — startup hook registers the auto-executor.
+- `backend/tests/test_iter_220ao_gdpr_erasure.py` — autouse fixture
+  to mock `audit_required` (existing 16 tests stay green).
+- `backend/tests/test_iter_220bq_gdpr_polish.py` — new, 12 tests.
+- `Makefile` — registered under `regression:`.
+
+### Verified
+- `make regression` → **1434 passed, 0 failed, 15 skipped** (was 1422 → +12).
+- Boot log: `[gdpr-erasure] auto-executor registered (interval=60m)` +
+  `[gdpr-erasure] auto-executor started (interval=3600s)`.
+- `GET /api/gdpr/erasure/requests?limit=1` → 200.
+- `POST /api/gdpr/erasure/auto-execute/run-now` → 200
+  `{"executed":0,"errors":0}` (queue empty).
+
+### Out of scope (tracked separately)
+- Public/self-serve Data Subject portal (Art. 15 SAR + Art. 17 DSR
+  combo) — future work.
+- Email confirmation to data subject on request receipt + execution —
+  future work; would need a verified email channel for the subject.
+- Re-import detection (matching erased-email-hash on contact
+  insert) — future hardening item.
+
+
 ## Iter 220bp — Pen-test readiness audit (security hardening) ✅ (Feb 2026)
 
 **Goal**: close the five gaps identified in `/app/memory/SECURITY_AUDIT_2026Q1.md` before the upcoming external pen test.

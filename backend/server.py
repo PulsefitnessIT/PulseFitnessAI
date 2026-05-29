@@ -988,6 +988,20 @@ async def startup() -> None:
     except Exception as e:
         logger.error(f"social autopilot loop start failed: {e}")
 
+    # Iter 220bq — GDPR Article 17 auto-executor. Sweeps pending
+    # erasure requests whose 30-day cooling-off window has elapsed
+    # and runs the scrub. Required by UK ICO guidance (DSARs must be
+    # fulfilled WITHIN one month, not after). Idempotent — already-
+    # executed rows are skipped by the status filter. Disable via
+    # ``GDPR_ERASURE_AUTOEXEC_ENABLED=0``.
+    try:
+        from routes.gdpr_erasure import run_gdpr_erasure_auto_executor
+        _ge_int = int(os.environ.get("GDPR_ERASURE_AUTOEXEC_INTERVAL_MIN", "60"))
+        asyncio.create_task(run_gdpr_erasure_auto_executor(interval_minutes=_ge_int))
+        logger.info("[gdpr-erasure] auto-executor registered (interval=%dm)", _ge_int)
+    except Exception as e:
+        logger.error(f"gdpr erasure auto-executor start failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:
