@@ -8,6 +8,8 @@ import axios from 'axios';
 import HelpHint from '@/components/HelpHint';
 import EmptyState from '@/components/shared/EmptyState';
 import Button from '@/components/shared/Button';
+import { notify } from '@/components/notifications';
+import { notifyPicklistError } from '@/lib/picklistErrorHandler';
 import CRMAuditTrail from './CRMAuditTrail';
 import { AINextActionCard } from './CRMPhase3Panels';
 import { MEETING_LOCATION_PRESETS } from '@/utils/crmDropdowns';
@@ -75,7 +77,12 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
       }, { headers: headers() });
       setShowEdit(false);
       load();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      // Iter 220bt — surface picklist errors with "Did you mean" hint.
+      if (!notifyPicklistError(e, notify)) {
+        notify.error('Could not save opportunity', e?.response?.data?.detail || e.message);
+      }
+    }
     setSavingEdit(false);
   };
 
@@ -588,7 +595,14 @@ export default function CRMPipeline() {
       setShowCreate(false);
       setForm({ title: '', value: '', company_id: '', company_name: '', contact_id: '', contact_name: '', stage: 'lead', close_date: '', source: '', next_step: '' });
       load();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      // Iter 220bs / 220bt — surface structured picklist-validation
+      // errors as a rich "Did you mean: X?" toast so the operator
+      // can fix the offending field in one click.
+      if (!notifyPicklistError(e, notify)) {
+        notify.error('Could not create opportunity', e?.response?.data?.detail || e.message);
+      }
+    }
     setSaving(false);
   };
 

@@ -1,3 +1,70 @@
+## Iter 220bt — Frontend picklist UX polish ✅ (Feb 2026)
+
+**Goal**: turn the new strict-picklist 400 from "punitive" into
+"intelligent" — when a user submits a bogus `lead_source`, surface a
+**"Did you mean: LinkedIn?"** toast instead of a silent
+`console.error`.
+
+### What shipped
+
+1. **`frontend/src/lib/picklistErrorHandler.js`** — single source of
+   truth, exports two functions:
+   * `extractPicklistError(err)` — reads the structured 400 payload
+     (`error: "invalid_picklist_value"`, `key`, `field_label`,
+     `received`, `valid_examples`, `hint`) and returns a normalised
+     object with a fuzzy "did you mean" `suggestion` (three-tier
+     fallback: case-insensitive exact → substring → token overlap).
+   * `notifyPicklistError(err, notify)` — convenience that surfaces
+     a rich toast and returns `true` on match so callers can fall
+     through to their normal handler when it isn't a picklist error.
+
+2. **Wired into 4 CRUD call sites**:
+   * `CRMPipeline.js` → opportunity create (`handleCreate`).
+   * `CRMPipeline.js` → opportunity edit save (`saveEdit`).
+   * `CRMTenders.js` → tender create (list-page `handleCreate`).
+   * `CRMTenders.js` → tender re-link save (`save` on the
+     company/opp drawer).
+
+3. **Lint clean** — all three touched JS files pass ESLint with 0
+   warnings. The `console.error(e)` swallow pattern is gone from
+   every picklist-touching save handler.
+
+### Files touched
+- `frontend/src/lib/picklistErrorHandler.js` — new helper module.
+- `frontend/src/pages/CRM/CRMPipeline.js` — 2 save handlers wired.
+- `frontend/src/pages/CRM/CRMTenders.js` — 2 save handlers wired.
+- `backend/tests/test_iter_220bt_picklist_ux.py` — 7 new tests
+  (helper exports, suggestion logic, both pages wired, no duplicate
+  helpers, no silent swallows on save).
+- `Makefile` — registered under `regression:`.
+
+### Verified
+- `make regression` → **1465 passed, 0 failed, 15 skipped** (was 1458 → +7).
+- Live API trace: `POST /api/crm/v2/opportunities` with
+  `lead_source: "Supreme Overlord"` → **400** with full structured
+  detail (`valid_examples` has 11 entries; `hint` points at
+  `/api/crm/picklists/lead_source`).
+- CRM page loads cleanly after the wiring, no console errors.
+
+### Design choices
+- The helper is a **stand-alone pure function** so any future CRM
+  drawer (companies, contacts, cases) can drop it in as a one-liner.
+  A regression test asserts there is **exactly one** copy of the
+  helper to keep the toast behaviour consistent.
+- The suggestion uses a three-tier fallback (exact CI → substring →
+  token overlap) — no heavy Levenshtein dependency.
+- For the tender re-link save which already shows an inline banner,
+  the helper takes priority for picklist errors but the inline banner
+  still fires for other failures (consistent UX).
+
+### Out of scope (tracked separately)
+- Inline-suggestion chip below the offending input (this iteration
+  surfaces the suggestion via toast; an inline UX is the next polish
+  step if/when sales-ops feedback asks for it).
+- Picklist enforcement for `companies.sector` (schema migration first).
+- The cross-module unified timeline (still on backlog).
+
+
 ## Iter 220bs — CRM evolution: strict picklists + Tender deep-linking ✅ (Feb 2026)
 
 **Goal**: close the last unaddressed strand of the original problem

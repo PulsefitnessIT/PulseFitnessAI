@@ -9,6 +9,8 @@ import axios from 'axios';
 import ListPanel from '@/components/shared/ListPanel';
 import CoverageBadge from '@/components/CRM/CoverageBadge';
 import TenderCoveragePanel from '@/components/CRM/TenderCoveragePanel';
+import { notify } from '@/components/notifications';
+import { notifyPicklistError } from '@/lib/picklistErrorHandler';
 
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', parsing: 'var(--color-info-ios)', in_progress: 'var(--color-warning)', review: 'var(--color-accent-magenta)', submitted: 'var(--color-success-alt)', won: 'var(--color-success-alt-2)', lost: 'var(--color-danger)' };
 const Q_STATUS_COLORS = { not_started: 'var(--color-text-faint-alt)', draft: 'var(--color-warning)', reviewed: 'var(--color-accent-magenta)', final: 'var(--color-success-alt)' };
@@ -68,7 +70,13 @@ function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
     try {
       const res = await axios.post(`${API}/crm/v2/tenders`, form, { headers: headers() });
       onSelect(res.data.id);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      // Iter 220bt — surface picklist errors with "Did you mean" hint
+      // before falling back to the generic toast.
+      if (!notifyPicklistError(e, notify)) {
+        notify.error('Could not create tender', e?.response?.data?.detail || e.message);
+      }
+    }
     setSaving(false);
   };
 
@@ -346,7 +354,15 @@ function TenderLinkedRecordsPanel({ tender, tenderId, API, headers, c, isDark, n
       setEditing(false);
       onSaved && onSaved();
     } catch (e) {
-      setError(e?.response?.data?.detail || 'Failed to update links');
+      // Iter 220bt — picklist errors get the rich "Did you mean" toast;
+      // any other failure falls back to the inline banner the form
+      // already renders via `error`.
+      if (notifyPicklistError(e, notify)) {
+        setError('');
+      } else {
+        const detail = e?.response?.data?.detail;
+        setError(typeof detail === 'string' ? detail : 'Failed to update links');
+      }
     }
     setSaving(false);
   };
