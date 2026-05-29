@@ -47,10 +47,10 @@ _Plain-English description of the issue, ≤ 5 lines._
 **Reproduction (PoC)**
 
 ```bash
-# Step 1 — login
+# Step 1 — login (credentials shared via 1Password, not committed here)
 curl -s -X POST "$API/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"email":"pentest-owner@gymaxis.test","password":"PentestOwner!2026"}'
+  -d '{"email":"pentest-owner@gymaxis.test","password":"<from 1Password>"}'
 
 # Step 2 — trigger the bug
 curl -s ...

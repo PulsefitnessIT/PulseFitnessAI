@@ -1,6 +1,6 @@
 # GymAxis / Pulse Fitness — Penetration Test Scope
 
-> **Iter 220be · May 28, 2026 — Version 1.1**
+> **Iter 220bf · May 28, 2026 — Version 1.2**
 >
 > **Audience:** External penetration-test vendor.
 > **Purpose:** Define a safe, productive scope so the vendor maximises real-world findings within budget.
@@ -16,7 +16,7 @@ This document accompanies [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1
 - **Test window:** 5 working days. Extendable in 2-day blocks by mutual agreement.
 - **Reporting:** Executive summary + technical findings + remediation guidance, delivered in PDF + CSV.
 - **Coordinated disclosure window:** 90 days from delivery before any public mention.
-- **Security contact:** `security@gymaxisai.com` · `+44 (0) 0000 000000` (P0 hotline — confirmed at kickoff).
+- **Security contact:** `security@gymaxisai.com` · P0 phone number shared securely at kickoff via 1Password.
 
 ---
 
@@ -95,7 +95,7 @@ So you don't waste time on these (we know about them):
 
 | Limitation | Why | When fixed |
 |---|---|---|
-| Twilio SMS is MOCKED (no real SMS sends) | Cost; awaiting investment | TBC |
+| Twilio SMS is MOCKED (no real SMS sends) | Cost; awaiting investment | Parked. Confirm no SMS sends occur during the engagement. |
 | ClamAV running as side-car only in production; preview env uses the in-process static-signature scanner | F-24 closed in W5 — both modes reject EICAR and known polyglots. STRICT_AV_MODE=true forces rejection on any scanner failure. | **Closed.** |
 | Some integrations (DocuSign, Outlook, Sicon) are credential-blocked | Customer hasn't provided keys | Per-customer onboarding |
 | Single-pod preview env | Cost | Production runs multi-replica |
@@ -138,7 +138,7 @@ So you don't waste time on these (we know about them):
 
 - **Security primary:** `security@gymaxisai.com` · phone confirmed at kickoff via 1Password share
 - **Founder / sign-off:** `craig@gymaxisai.com` (Craig Henshall — Founder)
-- **Out-of-hours P0 only:** phone confirmed at kickoff via 1Password share
+- **Out-of-hours P0 only:** phone shared securely at kickoff via 1Password
 - **Slack Connect channel:** invite issued day-1 of test window
 
 ---
@@ -169,4 +169,4 @@ ON the entire engagement).
 
 ---
 
-*Prepared Iter 220ar (May 28, 2026), updated Iter 220be (May 28, 2026). Re-issued before each engagement.*
+*Prepared Iter 220ar (May 28, 2026), updated Iter 220bf (May 28, 2026). Re-issued before each engagement.*

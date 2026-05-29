@@ -1,3 +1,140 @@
+## Iter 220bf — Pen-Test Handover Pack Documentation Tidy ✅
+
+Pure documentation pass — zero code changes, zero behaviour delta,
+zero risk to features or performance. Tightens the final external
+pen-test handover pack so it reads as professional, defensible, and
+free of placeholders / accidental credentials.
+
+### Critical fix — credential redaction
+
+**`PEN_TEST_ONBOARDING.md`** previously printed real passwords for
+the 5 test role accounts (`MasterAdmin123!`, `PentestOwner!2026`,
+etc.) in a table intended to be handed to an external vendor.
+**`PEN_TEST_FINDINGS.md`** and **`DEPLOY_RUNBOOK_PENTEST.md`**
+contained the same string inline in PoC curl examples.
+
+All four handover docs now route credential delivery exclusively
+through 1Password. The accounts are listed by email + role only,
+with notes calling out the do-not-lock rule for the master admin.
+Source-level regression-lock (`test_no_plaintext_credentials_in_handover_docs`)
+asserts none of `MasterAdmin123!` / `Test123!` / `PentestOwner!2026`
+/ etc. appear in handover docs going forward.
+
+### Placeholder removal
+
+Bulk swept `<your-domain>` / `<your-name>` / `<your-phone>` /
+`<phone>` / `<your-internal-share>` / `+44 (0) 0000 000000` /
+`INSERT HERE` / standalone "TBC" cells across both
+`memory/SECURITY_AUDIT/` and `memory/LEGAL/`. Each landed with a
+concrete value:
+
+* `gymaxisai.com` (domain) — fully written through the legal docs
+  (DPA, Privacy, SLA, ToS, Sub-processors).
+* `Craig Henshall` (founder / sign-off name).
+* "Phone number shared securely at kickoff via 1Password" — for any
+  P0 hotline / DPO contact / out-of-hours line where publishing the
+  number is undesirable.
+
+### Two new one-page documents
+
+**`RESIDUAL_RISK_SUMMARY.md`** (new) — board / vendor-friendly
+single-page snapshot using the A/B/C/D structure:
+
+* **A · Fixed and verified:** all 33 findings closed + regression-
+  tested.
+* **B · Implemented but awaiting external verification:** 8 areas
+  the vendor should actively try to defeat — AI prompt injection,
+  excessive agency, output sanitisation, token budget caps, public
+  widget brute-force, engineer horizontal access, DOM-XSS in
+  PDF/email, multi-tenant isolation edge cases — each with the
+  control implemented + the attack the vendor should attempt.
+* **C · Accepted limitations:** 6 items each with owner + sign-off
+  date + rationale (health/deep, public sub-processors, engineer
+  offline cache, shared prev/prod env, mocked Twilio, credential-
+  blocked integrations).
+* **D · Open risks:** **None currently identified before external
+  test.**
+
+**`TESTER_HANDOVER_CHECKLIST.md`** (new) — concise day-1 handover
+sheet for the external vendor. 10 numbered sections: URLs (with
+prod explicitly marked out-of-scope), test window + max request
+rate, credential delivery via 1Password, communication channels,
+out-of-scope rules, safe-testing rules, "no live customer data"
+confirmation with the seed-script reference, reporting format
+including a CVSS-tied severity rubric, emergency stop / P0
+escalation flow, and the retest process.
+
+### Updates to existing docs
+
+* **`PEN_TEST_SCOPE.md`** v1.1 → v1.2: placeholder phone removed,
+  standalone TBC cell rewritten to explicit "no SMS will be sent
+  during engagement" guidance, version footer bumped.
+* **`PEN_TEST_READINESS_CHECKLIST.md`** v1.0 → v1.1: added §G
+  Post-Pen-Test Process (F-34+ logging, severity-tied fix targets,
+  retest cadence, board-comms cadence) and §H Internal Approval
+  Statement (28 May 2026 approval, Craig Henshall as owner,
+  security@gymaxisai.com co-sign, day-+1 review).
+* **`PEN_TEST_ONBOARDING.md`** v1.0 → v1.1 (credentials redacted —
+  see above).
+* **`PEN_TEST_FINDINGS.md`** v1.0 → v1.1 (inline PoC password
+  replaced with `<from 1Password>` template).
+* **`DEPLOY_RUNBOOK_PENTEST.md`** v1.0 → v1.1 (inline password +
+  internal-share placeholder removed).
+* **`SECURITY_AUDIT_PASS_1.md`** v1.0 → v1.1 (`<your-domain>`
+  placeholder resolved to `gymaxisai.com`).
+* **`LEGAL/*.md`** — every `<your-domain>` replaced with
+  `gymaxisai`; DPO contact line completed with founder name.
+
+### Tests
+
+* New `tests/test_iter_220bf_handover_pack_hygiene.py` — **11
+  source-level locks**:
+  - All 4 new + 4 updated handover docs exist.
+  - No bracket placeholders anywhere in `SECURITY_AUDIT/` or
+    `LEGAL/`.
+  - No plaintext credentials in any handover doc (only the F-30
+    detection-list row in `RISK_REGISTER.md` is allowed to mention
+    them).
+  - Residual summary uses A/B/C/D structure with explicit "Open
+    risks: None".
+  - Residual summary lists all 6 accepted limitations + all 8
+    awaiting-external-verification areas.
+  - Tester checklist has all 10 required sections + "1Password"
+    credential delivery reference + "no live customer data"
+    confirmation.
+  - Readiness checklist has §G post-pen-test process (references
+    F-34, all 4 severity tiers) and §H approval statement (with
+    date + Craig Henshall as owner).
+  - PEN_TEST_SCOPE.md v1.2, no placeholder phone, no "| TBC |"
+    table cell.
+  - PEN_TEST_ONBOARDING.md credentials column removed.
+  - DEPLOY_RUNBOOK_PENTEST.md inline pentest password + internal-
+    share placeholder both gone.
+* Wired into Makefile regression block (TAB-prefixed).
+* Full `make regression` → **1312 passed, 15 skipped** (the one
+  failure on this run was the pre-existing `test_resend_approval_
+  email_403_for_non_admin` flake that passes on rerun — not related
+  to this work).
+
+### Output confirmations (per user's deliverable list)
+
+1. ✅ `PEN_TEST_SCOPE.md` updated (v1.2)
+2. ✅ `PEN_TEST_READINESS_CHECKLIST.md` updated (v1.1 — §G + §H added)
+3. ✅ `RESIDUAL_RISK_SUMMARY.md` created
+4. ✅ `TESTER_HANDOVER_CHECKLIST.md` created
+5. ✅ No placeholder values remain (regression-locked)
+6. ✅ No plaintext credentials in shipped handover docs
+   (regression-locked)
+7. ✅ Open risks clearly stated as "None currently identified
+   before external test"
+8. ✅ Accepted limitations clearly explained (6 items, each with
+   owner + rationale + sign-off date)
+9. ✅ Post-pen-test process documented (§G of readiness checklist)
+
+---
+
+
+
 ## Iter 220be — Pre-Pen-Test Final Hardening (F-06/10/21/30) ✅
 
 Final closure pass against the 4 open risk-register items. **All 33

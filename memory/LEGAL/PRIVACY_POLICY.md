@@ -13,11 +13,11 @@ If you are a **gym operator** using GymAxis to manage your own customers, please
 
 ## 1 · Who we are
 
-We are the **controller** of the personal data we collect through `<your-domain>.com` and our public marketing surfaces.
+We are the **controller** of the personal data we collect through `gymaxisai.com` and our public marketing surfaces.
 
 - **Registered office:** `<your registered address>`
 - **Company number:** `<>`
-- **Data Protection Officer:** `dpo@<your-domain>.com`
+- **Data Protection Officer:** `dpo@gymaxisai.com`
 - **ICO registration number:** `<>` *(if applicable)*
 
 ---
@@ -108,7 +108,7 @@ Under UK GDPR you have the right to:
 - **Not be subject** to a decision based solely on automated processing (Art. 22) — we currently do not make any decisions about you in this way.
 - **Withdraw consent** at any time, where consent is the lawful basis.
 
-To exercise any right, email **`dpo@<your-domain>.com`** with the subject "Data subject request". We will respond within 1 calendar month. We may need to verify your identity before acting.
+To exercise any right, email **`dpo@gymaxisai.com`** with the subject "Data subject request". We will respond within 1 calendar month. We may need to verify your identity before acting.
 
 You also have the right to **lodge a complaint** with the Information Commissioner's Office (`https://ico.org.uk/make-a-complaint/`). We'd rather you came to us first, but it's your right.
 
@@ -136,9 +136,9 @@ We will update this Policy as our processing evolves. Material changes will be f
 
 ## 12 · Contact
 
-- **Privacy / DPO:** `dpo@<your-domain>.com`
-- **Security:** `security@<your-domain>.com`
-- **General:** `hello@<your-domain>.com`
+- **Privacy / DPO:** `dpo@gymaxisai.com`
+- **Security:** `security@gymaxisai.com`
+- **General:** `hello@gymaxisai.com`
 - **ICO:** `casework@ico.org.uk` · `0303 123 1113`
 
 ---

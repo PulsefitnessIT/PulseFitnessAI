@@ -38,13 +38,23 @@ DDoS / volumetric · social engineering of employees · physical-access · phish
 
 Seed with: `cd /app/backend && ALLOW_PENTEST_SEED=true python -m scripts.seed_pentest_tenant`
 
-| Role                         | Email                            | Password                |
-|------------------------------|----------------------------------|-------------------------|
-| Owner (regular session)      | `pentest-owner@gymaxis.test`     | `PentestOwner!2026`     |
-| Manager                      | `pentest-mgr@gymaxis.test`       | `PentestMgr!2026`       |
-| Staff                        | `pentest-staff@gymaxis.test`     | `PentestStaff!2026`     |
-| Owner with MFA enrolled      | `pentest-mfa@gymaxis.test`       | `PentestMfa!2026`       |
-| Master Admin (do-not-lock)   | `admin@gymaxisai.com`            | `MasterAdmin123!`       |
+**Credentials are not printed in this document.** All 5 role accounts
+are delivered to the pen-test vendor via a 1Password share at kickoff
+(security@gymaxisai.com manages the share). The accounts below are
+listed by email + role only:
+
+| Role                         | Email                            | Notes                                                            |
+|------------------------------|----------------------------------|------------------------------------------------------------------|
+| Owner (regular session)      | `pentest-owner@gymaxis.test`     | Standard operator session, no MFA.                               |
+| Manager                      | `pentest-mgr@gymaxis.test`       | Mid-tier role with bulk-action access for F-10 testing.          |
+| Staff                        | `pentest-staff@gymaxis.test`     | Lowest operator privilege; useful for vertical-escalation tests. |
+| Owner with MFA enrolled      | `pentest-mfa@gymaxis.test`       | Pre-enrolled TOTP — use for MFA bypass attempts.                 |
+| Master Admin (do-not-lock)   | `admin@gymaxisai.com`            | **Do not** brute-force-lock for > 5 minutes (P0 escalation path).|
+
+Passwords + TOTP seeds are delivered exclusively via 1Password — they
+are **never** committed to this repo, embedded in tickets, or sent over
+email. If the share is missing on day 1 of the test window, escalate
+to `security@gymaxisai.com` immediately.
 
 The seed script also creates 2 CRM companies, 3 contacts, 2 opportunities, and 5 members — one of which carries `gdpr_erased=True` so you can verify the **F-12 (LLM06) RAG-context filter**.
 

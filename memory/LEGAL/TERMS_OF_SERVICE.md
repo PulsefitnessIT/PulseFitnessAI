@@ -13,7 +13,7 @@ By signing the Order Form, clicking "I accept", or otherwise accessing the Servi
 
 ## 1 · The Service
 
-1.1 **Service** means the GymAxis software-as-a-service platform — currently comprising the Master Admin, CRM, Memberships, Service Desk, Engineer App, Public Marketing Site, and any additional modules made available to the Customer — accessed via `<your-domain>.com` and any sub-domains.
+1.1 **Service** means the GymAxis software-as-a-service platform — currently comprising the Master Admin, CRM, Memberships, Service Desk, Engineer App, Public Marketing Site, and any additional modules made available to the Customer — accessed via `gymaxisai.com` and any sub-domains.
 
 1.2 We may modify or improve the Service at any time. We will not materially reduce functionality the Customer has paid for without **60 days' written notice**.
 
@@ -145,7 +145,7 @@ Neither party is liable for delay or non-performance caused by events beyond rea
 
 Notices must be in writing and sent to:
 
-- **To Provider:** `legal@<your-domain>.com` and a copy to our registered office.
+- **To Provider:** `legal@gymaxisai.com` and a copy to our registered office.
 - **To Customer:** the primary technical contact email on file in the Service.
 
 Email notices are deemed received the next working day after sending.

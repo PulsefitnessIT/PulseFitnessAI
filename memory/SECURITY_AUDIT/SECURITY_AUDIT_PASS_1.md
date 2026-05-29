@@ -168,7 +168,7 @@ Includes:
 - Test environment URL + isolated test-tenant credentials (per role)
 - Out-of-scope systems (Emergent infra, Stripe sandbox, sub-processor APIs)
 - Known limitations (Twilio mocked, AV scan stub)
-- Security contact: `security@<your-domain>`
+- Security contact: `security@gymaxisai.com`
 - Coordinated-disclosure window: 90 days
 - Sample test data seed script (planned in W7)
 

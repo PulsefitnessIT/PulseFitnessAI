@@ -123,14 +123,65 @@ for the full classification table.)
 | Document | Version | Last update |
 |---|---|---|
 | `RISK_REGISTER.md` | 1.5 | Iter 220be |
-| `PEN_TEST_SCOPE.md` | 1.1 | Iter 220be |
-| `SECURITY_AUDIT_PASS_1.md` | 1.0 | Iter 220ar |
-| `PEN_TEST_FINDINGS.md` | 1.0 | Iter 220ay |
-| `PEN_TEST_ONBOARDING.md` | 1.0 | Iter 220ay |
-| `DEPLOY_RUNBOOK_PENTEST.md` | 1.0 | Iter 220ay |
+| `PEN_TEST_SCOPE.md` | 1.2 | Iter 220bf |
+| `PEN_TEST_ONBOARDING.md` | 1.1 | Iter 220bf (credentials redacted) |
+| `SECURITY_AUDIT_PASS_1.md` | 1.1 | Iter 220bf |
+| `PEN_TEST_FINDINGS.md` | 1.1 | Iter 220bf (template — inline credentials redacted) |
+| `DEPLOY_RUNBOOK_PENTEST.md` | 1.1 | Iter 220bf |
 | `OPS_RUNBOOK.md` | 1.0 | Iter 220ay |
-| **`PEN_TEST_READINESS_CHECKLIST.md`** | **1.0 — this doc** | **Iter 220be** |
+| `RESIDUAL_RISK_SUMMARY.md` | 1.0 | Iter 220bf (new) |
+| `TESTER_HANDOVER_CHECKLIST.md` | 1.0 | Iter 220bf (new) |
+| **`PEN_TEST_READINESS_CHECKLIST.md`** | **1.1 — this doc** | **Iter 220bf** |
 
 ---
 
-*Iter 220be · May 28, 2026 — Prepared for external pen-test kickoff.*
+## G · Post-pen-test process
+
+Every finding the external vendor delivers will be:
+
+1. **Logged into `RISK_REGISTER.md`** as `F-34` and onwards, using the
+   same row shape (id · title · area · wave · status · notes).
+2. **Triaged by severity** within 24 hours of delivery:
+
+   | Severity | Fix target | Retest target |
+   |---|---|---|
+   | **Critical** | Same day, before any further deploys to prod | Within 7 days |
+   | **High** | Within the current sprint (≤ 2 weeks) | Within 30 days |
+   | **Medium** | Prioritised before GA (general availability) milestone | Within 60 days |
+   | **Low** | Scheduled opportunistically into the security backlog | Bundled into next quarterly retest |
+3. **Critical / High findings:** a fixed-price retest within 60 days
+   of the original report — see `TESTER_HANDOVER_CHECKLIST.md` §10.
+4. **After remediation:** this readiness pack is re-issued
+   (`PEN_TEST_READINESS_CHECKLIST.md` v1.2+) reflecting the new
+   risk state. The board is notified of any Critical findings.
+5. **Communications:** the vendor's executive summary is shared with
+   the GymAxis board within 5 working days of delivery. Technical
+   findings stay confidential until the coordinated-disclosure
+   window closes (90 days, per `PEN_TEST_SCOPE.md` §1).
+
+---
+
+## H · Internal approval statement
+
+**Based on the current risk register (33/33 findings closed and
+regression-tested), full `make regression` results (1301 passed,
+15 skipped, 0 failures as of 28 May 2026) and the staging readiness
+checks documented in §A–E above, GymAxis / Pulse Fitness is
+approved internally for external penetration testing.**
+
+Any findings raised by the vendor will be logged as **F-34** onward
+in the Risk Register and prioritised by severity per the process
+documented in §G.
+
+| Item | Value |
+|---|---|
+| Approval date | **28 May 2026 (Iter 220bf)** |
+| Approval owner | Craig Henshall · GymAxis Founder · `craig@gymaxisai.com` |
+| Co-sign (security) | `security@gymaxisai.com` |
+| Next review date | Day +1 of the external engagement (post-kickoff sanity check) |
+| Retest cadence | Fixed-price retest of any Critical / High within 60 days of report delivery |
+| Quarterly review | Risk register reviewed quarterly + after every engagement |
+
+---
+
+*Iter 220bf · May 28, 2026 — Prepared for external pen-test kickoff.*

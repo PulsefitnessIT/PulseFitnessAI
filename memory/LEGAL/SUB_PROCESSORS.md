@@ -76,7 +76,7 @@ These sub-processors only receive data if the customer **explicitly enables** th
 
 GymAxis itself acts as **data processor** when handling Customer Personal Data on behalf of a Tenant. Where Tenant Personal Data ends up in our **paid sub-processors above**, we have a written DPA in place with each.
 
-A list of executed DPAs is available on request: `dpo@<your-domain>.com`.
+A list of executed DPAs is available on request: `dpo@gymaxisai.com`.
 
 ---
 
@@ -86,7 +86,7 @@ A list of executed DPAs is available on request: `dpo@<your-domain>.com`.
 |---|---|---|
 | 1.0 | 2026-05-27 | Initial publication |
 
-To subscribe to sub-processor change notifications, email `dpo@<your-domain>.com` with the subject "subscribe sub-processor".
+To subscribe to sub-processor change notifications, email `dpo@gymaxisai.com` with the subject "subscribe sub-processor".
 
 ---
 

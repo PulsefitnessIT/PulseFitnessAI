@@ -183,7 +183,7 @@ See [SUB_PROCESSORS.md](SUB_PROCESSORS.md), which is incorporated into this DPA 
 
 ## Annex C — Notices
 
-- **Provider DPO / contact:** `dpo@<your-domain>.com` · `<your name>` · `<phone>`
+- **Provider DPO / contact:** `dpo@gymaxisai.com` · `Craig Henshall` · phone available on request
 - **ICO** (regulator): `casework@ico.org.uk` · `0303 123 1113`
 
 ---

@@ -10,7 +10,7 @@ This SLA forms part of the [GymAxis Terms of Service](TERMS_OF_SERVICE.md) and a
 
 ## 1 · Definitions
 
-- **"Service"** — the GymAxis web application, including the Master Admin, CRM, Memberships, Service Desk, Engineer App and Public Marketing Site, accessed via `<your-domain>.com` and any sub-domains operated by us.
+- **"Service"** — the GymAxis web application, including the Master Admin, CRM, Memberships, Service Desk, Engineer App and Public Marketing Site, accessed via `gymaxisai.com` and any sub-domains operated by us.
 - **"Uptime"** — the percentage of minutes in a calendar month during which the Service responds to a `GET /api/health` request with HTTP 200 within 5 seconds.
 - **"Excluded Time"** — scheduled maintenance announced at least 48 hours in advance; downtime caused by Customer-side issues (Customer's network, credentials, third-party integrations they connect themselves); Force Majeure as defined in §10 of the ToS.
 - **"Incident"** — a continuous period of more than 5 minutes during which the Service is below the Uptime threshold.
@@ -56,13 +56,13 @@ If we miss the Uptime target in a calendar month, the Customer is entitled to a 
 | **P2 — Minor** | Feature degraded, workaround available | ≤ 1 business day | Daily |
 | **P3 — Cosmetic** | Non-blocking | Next sprint | On request |
 
-Support channel: `support@<your-domain>.com` (all tiers) · Slack Connect (Growth + Enterprise) · Phone (Enterprise only, OOH for P0 only).
+Support channel: `support@gymaxisai.com` (all tiers) · Slack Connect (Growth + Enterprise) · Phone (Enterprise only, OOH for P0 only).
 
 ---
 
 ## 5 · Scheduled maintenance
 
-- GymAxis will publish maintenance windows on `https://status.<your-domain>.com` at least **48 hours** in advance.
+- GymAxis will publish maintenance windows on `https://status.gymaxisai.com` at least **48 hours** in advance.
 - Routine maintenance is targeted at **02:00–05:00 UK time**, max **once per calendar month**, max **4 hours** per window.
 - Emergency maintenance (e.g. critical security patch) may be performed with **shorter notice**; this time IS counted toward Excluded Time.
 
@@ -81,7 +81,7 @@ Support channel: `support@<your-domain>.com` (all tiers) · Slack Connect (Growt
 
 Customers will be notified of any incident affecting their tenant via:
 
-1. **Status page** (`https://status.<your-domain>.com`) — within 15 minutes of detection.
+1. **Status page** (`https://status.gymaxisai.com`) — within 15 minutes of detection.
 2. **Email** to the primary technical contact for P0/P1 incidents.
 3. **Post-mortem** published within 5 working days for any P0 or any P1 lasting > 4 hours.
 
@@ -101,11 +101,11 @@ GymAxis may modify this SLA with **60 days' written notice**. If the modificatio
 
 ## 10 · Contact
 
-- Service credits: `billing@<your-domain>.com`
-- Support: `support@<your-domain>.com`
-- Status page: `https://status.<your-domain>.com`
-- Security: `security@<your-domain>.com`
-- Data Protection Officer: `dpo@<your-domain>.com`
+- Service credits: `billing@gymaxisai.com`
+- Support: `support@gymaxisai.com`
+- Status page: `https://status.gymaxisai.com`
+- Security: `security@gymaxisai.com`
+- Data Protection Officer: `dpo@gymaxisai.com`
 
 ---
 
