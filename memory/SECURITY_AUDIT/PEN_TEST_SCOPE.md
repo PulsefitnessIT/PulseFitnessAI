@@ -17,7 +17,7 @@
 | Day-1 vendor handover sheet | [`./TESTER_HANDOVER_CHECKLIST.md`](./TESTER_HANDOVER_CHECKLIST.md) |
 | Tester onboarding + control summary | [`./PEN_TEST_ONBOARDING.md`](./PEN_TEST_ONBOARDING.md) |
 
-This document accompanies [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) (internal first-pass audit) and [`./RISK_REGISTER.md`](./RISK_REGISTER.md) (33 findings, all closed by Iter 220be). The vendor is expected to **independently verify** the audit's claims and surface anything we missed.
+This document accompanies [`./SECURITY_AUDIT_PASS_1.md`](./SECURITY_AUDIT_PASS_1.md) (internal first-pass audit) and [`./RISK_REGISTER.md`](./RISK_REGISTER.md) (all 33 risk-register findings (F-01 → F-33) closed by Iter 220be). The vendor is expected to **independently verify** the audit's claims and surface anything we missed.
 
 ---
 

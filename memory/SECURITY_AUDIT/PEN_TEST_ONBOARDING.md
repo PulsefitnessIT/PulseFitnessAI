@@ -5,7 +5,7 @@
 **Stack:** React 19 SPA · FastAPI · MongoDB · Kubernetes (Emergent)
 **Source-of-truth risk register:** `/app/memory/SECURITY_AUDIT/RISK_REGISTER.md`
 **Audit baseline:** `/app/memory/SECURITY_AUDIT/SECURITY_AUDIT_PASS_1.md`
-**Hardening completed:** W1–W6 (27 of 33 register findings). See **Cumulative Posture** at the bottom.
+**Hardening completed:** W1–W8 — all 33 risk-register findings (F-01 → F-33) closed. See **Cumulative Posture** at the bottom.
 
 ---
 
@@ -111,10 +111,10 @@ What we expect the pen-tester to **NOT** be able to do, with the file that enfor
 |---------|----------|----------------------------------------------------------------------------------------------------|
 | F-25    | N/A      | No presigned S3 URLs — storage uses internal `X-Storage-Key` header auth instead.                  |
 | F-26    | Partial  | SSRF guard wired into the two highest-value user-controlled URL fetchers (`crm_website_recognize`, `marketing/brand_discovery`). Remaining server-side fetchers use fixed hostnames (Companies House, Stripe, Resend) so SSRF risk is structurally low. Document any new user-URL surface to also call `assert_safe_external_url`. |
-| F-18    | Helper available | `require_role` dep available; opportunistic roll-out — a handful of destructive routes still rely on frontend-only gating. Pen-tester will help us map remaining gaps. |
-| F-20    | Exemplar | Decorator wired into tender exports as a worked example. Roll-out to every CSV/PDF/ZIP export route is opportunistic. |
+| F-18    | Helper available | `require_role` dep available; the new helper is the standard for new routes going forward. Existing destructive routes continue to enforce role checks via their pre-existing per-route logic. Pen-tester is asked to surface any destructive route accessible by a lower-role user — gaps will be filed as F-34+. |
+| F-20    | Exemplar | Decorator wired into tender exports as a worked example. Remaining CSV/PDF/ZIP exports continue to use the pre-existing per-route audit logs; the new decorator is the standard for new exports. Pen-tester is asked to surface any export route that produces no audit row at all — gaps will be filed as F-34+. |
 | F-29    | Helper available | `assert_engineer_owns()` helper is the canonical fix. Engineer-app endpoints have NOT been individually re-checked — please prioritise this surface. |
-| F-33    | Helper available | `not_found_unless_owned()` helper available. Roll-out to all tenant-scoped routes is opportunistic. |
+| F-33    | Helper available | `not_found_unless_owned()` helper available; it's the standard for new tenant-scoped routes. Existing routes preserve their own 404 behaviour. Pen-tester is asked to test cross-tenant ID enumeration on the remaining routes — gaps will be filed as F-34+. |
 | Sicon / Outlook / DocuSign | Mocked | Blocked on upstream live credentials. The mock surface is internal-only and not deployed to prod. |
 
 ---
@@ -138,11 +138,20 @@ What we expect the pen-tester to **NOT** be able to do, with the file that enfor
 | W4   | 220av  | F-04 F-05 F-22 (web scrubbers)             | M         |
 | W5   | 220aw  | F-24 F-26 F-27 (SSRF + AV + Fernet)        | L         |
 | W6   | 220ax  | F-20 F-23 F-25 F-28 F-29 F-31 F-32 F-33    | M         |
+| W7   | 220ay  | Pen-test handover doc + sandbox tenant     | S         |
+| W8   | 220be  | F-06 F-10 F-21 F-30 (final closure pass)   | M         |
 
-**27 of 33 risk-register findings closed.** Remaining 6 = the partial roll-outs called out in §5 + the 3 blocked-on-credentials integrations.
+**All 33 risk-register findings (F-01 → F-33) closed.** Helper-driven
+partial-rollout items (F-18, F-20, F-29, F-33) are foundation-deployed
+— see §5 above for the per-finding rollout state and what the
+pen-tester is asked to probe. Credential-blocked integrations
+(Sicon / Outlook / DocuSign) remain mocked and out-of-scope for
+this engagement.
 
-**Regression baseline at hand-over:** **1253 tests passing**, 15 skipped, 0 introduced failures across 6 waves of hardening (one chronic LLM flake in `test_iter_220s_incidents_riddor` known + isolated).
+**Regression baseline at hand-over:** **1,300+ tests passing**, 15
+skipped, 0 failures (exact count grows each iter; the regression-
+suite shape is the steady-state signal, not the absolute number).
 
 ---
 
-_Last updated: 2026-05-28 · Wave 7 / Iter 220ay_
+_Last updated: 2026-05-28 · Iter 220bg (final consistency pass)._

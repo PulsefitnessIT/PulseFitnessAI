@@ -22,7 +22,7 @@
 
 ## Headline
 
-* **All 33** risk-register findings (F-01 – F-33) are **closed** and
+* **All 33 risk-register findings (F-01 → F-33)** are **closed** and
   regression-tested. See `RISK_REGISTER.md` for the per-finding
   detail.
 * **No known open High or Critical risks** remain before the external
@@ -38,7 +38,7 @@
 
 ## A · Fixed and verified
 
-All 33 findings landed across W1–W8 + Iter 220be. Each carries:
+All 33 risk-register findings (F-01 → F-33) landed across W1–W8 + Iter 220be. Each carries:
 
 * A code-level fix (file path noted in `RISK_REGISTER.md`).
 * At least one source-level regression test under

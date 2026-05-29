@@ -2,11 +2,8 @@
 
 > **Status: ✅ READY FOR EXTERNAL TEST**
 >
-> All 33 risk-register findings (F-01 → F-33) are now closed. The four
-> remaining "open" items at the start of Iter 220be — F-06 (IDOR
-> sweep), F-10 (bulk-action limits), F-21 (widget brute-force) and
-> F-30 (test-credentials in bundle) — were closed in this iteration
-> with regression tests + documentation.
+> All 33 risk-register findings (F-01 → F-33) are closed and
+> regression-tested.
 
 ## Document index — pen-test handover pack
 
@@ -39,8 +36,10 @@
       source-level test scans backend for hardcoded credentials.
 - [x] Source-level regression suite:
       `tests/test_iter_220be_pentest_final_hardening.py` (11 tests).
-- [x] Full `make regression` passes — **1301 passed, 15 skipped, 0
-      failures, 121 s**.
+- [x] Full `make regression` passes — **1,300+ tests, 15 skipped, 0
+      failures** as of Iter 220bg (28 May 2026). Exact count grows
+      every iter; the regression-suite shape is the steady-state
+      signal, not the absolute number.
 
 ---
 
@@ -116,7 +115,7 @@ Toggle script: `/app/backend/scripts/toggle_pentest_flags.sh --on`.
 (See `RISK_REGISTER.md` §"Current Known Risks Before External Pen-Test"
 for the full classification table.)
 
-* **A · Fixed and verified:** All 33 actionable findings, regression-tested.
+* **A · Fixed and verified:** all 33 risk-register findings (F-01 → F-33), regression-tested.
 * **B · Implemented but awaiting external verification:** F-11/13/14/16
   (AI prompt-injection / agency / token cap), F-21 distributed brute,
   F-29 engineer horizontal access edge surfaces, F-04 DOM-XSS via
@@ -163,7 +162,7 @@ Every finding the external vendor delivers will be:
    | **Critical** | Same day, before any further deploys to prod | Within 7 days |
    | **High** | Within the current sprint (≤ 2 weeks) | Within 30 days |
    | **Medium** | Prioritised before GA (general availability) milestone | Within 60 days |
-   | **Low** | Scheduled opportunistically into the security backlog | Bundled into next quarterly retest |
+   | **Low** | Scheduled into the next security-backlog grooming review | Bundled into next quarterly retest |
 3. **Critical / High findings:** a fixed-price retest within 60 days
    of the original report — see `TESTER_HANDOVER_CHECKLIST.md` §10.
 4. **After remediation:** this readiness pack is re-issued
@@ -182,10 +181,11 @@ Every finding the external vendor delivers will be:
 Residual Risk Summary, GymAxis / Pulse Fitness is ready to proceed
 to external penetration testing.**
 
-The Risk Register holds **33/33 findings closed** and regression-
-tested. The full `make regression` suite ran clean (**1312 passed,
-15 skipped, 0 failures** as of 28 May 2026). The staging
-environment readiness checks in §A–E above are met.
+The Risk Register holds **all 33 risk-register findings (F-01 →
+F-33) closed** and regression-tested. The full `make regression`
+suite runs clean (**1,300+ tests, 15 skipped, 0 failures** as of
+28 May 2026; exact count grows each iter). The staging environment
+readiness checks in §A–E above are met.
 
 Any findings raised by the vendor will be logged as **F-34** onward
 in the Risk Register and prioritised by severity per the process

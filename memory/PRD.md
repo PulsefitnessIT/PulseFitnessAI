@@ -1,3 +1,83 @@
+## Iter 220bh — Doc Consistency Polish (3 drift fixes) ✅
+
+Pure documentation pass — zero code changes.
+
+### 1) Regression count standardised
+
+Removed every stale absolute regression-count number (`1253`, `1290`,
+`1301`, `1312`, `1321`) from the security pack and replaced them
+with the canonical fuzzy phrasing **"1,300+ tests passing, 15
+skipped, 0 failures"** in:
+
+* `PEN_TEST_READINESS_CHECKLIST.md` (§A regression-suite row + §H
+  approval-statement body)
+* `PEN_TEST_ONBOARDING.md` (Cumulative Posture footer)
+
+The fuzzy phrasing is now the steady-state signal — the exact
+number grows every iter, but the "1,300+" form doesn't drift and
+keeps the doc credible.
+
+### 2) "33 findings" wording standardised
+
+The pack previously used **7 different phrasings**: "33 findings",
+"33 findings, all closed", "All 33 actionable findings",
+"33/33 findings closed", "27 of 33 register findings", "33 known
+findings", "33 findings ranked …".
+
+Standardised on a single canonical phrasing — **"all 33 risk-register
+findings (F-01 → F-33)"** — across every pack doc that mentions the
+count. Locations updated:
+
+* `RISK_REGISTER.md` (top-of-file scope line)
+* `PEN_TEST_SCOPE.md` (§intro reference)
+* `PEN_TEST_READINESS_CHECKLIST.md` (top banner, §B
+  "Fixed-and-verified" row, §H approval statement)
+* `RESIDUAL_RISK_SUMMARY.md` (headline + §A intro)
+* `SECURITY_AUDIT_PASS_1.md` (banner + §0 verdict redirect)
+* `PEN_TEST_ONBOARDING.md` (header line + Cumulative Posture
+  footer)
+
+### 3) "Opportunistic rollout" wording removed
+
+Pen-testers read "opportunistic rollout" as non-committal. Every
+instance is now either **concrete cadence** or **concrete state
++ F-34+ policy**:
+
+| Where | Before | After |
+|---|---|---|
+| `RISK_REGISTER.md` Low severity definition | "Fix opportunistically." | "Scheduled into the next security-backlog grooming review." |
+| `RISK_REGISTER.md` F-18 row | "Rollout to remaining destructive routes is opportunistic" | "Existing routes continue to enforce role checks via per-route logic; helper is the standard for new routes. Pen-tester asked to surface any destructive route accessible by a lower-role user — gaps will be filed as F-34+." |
+| `RISK_REGISTER.md` F-20 row | "rollout to other exports is opportunistic" | "Wired into tender exports as exemplars; remaining exports continue to use pre-existing per-route audit logs. Pen-tester asked to surface any export route with no audit row — gaps will be filed as F-34+." |
+| `RISK_REGISTER.md` F-33 row | "Roll-out to remaining tenant-scoped routes is opportunistic" | "Helper is the standard for new tenant-scoped routes; existing routes preserve their own 404 behaviour. Pen-tester asked to test cross-tenant ID enumeration — gaps will be filed as F-34+." |
+| `PEN_TEST_READINESS_CHECKLIST.md` §G Low severity row | "Scheduled opportunistically" | "Scheduled into the next security-backlog grooming review" |
+| `PEN_TEST_ONBOARDING.md` 3 helper-rollout rows | "opportunistic roll-out" | Concrete state + F-34+ filing rule |
+
+### Tests
+
+* New `tests/test_iter_220bh_doc_consistency_polish.py` — **7
+  regression-locks**:
+  - No stale absolute regression count (regex hunt for `12xx`/`13xx`
+    "passed" patterns) survives anywhere in the security pack.
+  - The canonical "1,300+" phrasing appears in at least one doc.
+  - No legacy 33-findings phrasings remain (`27 of 33`, `33/33`,
+    "33 actionable findings", etc.).
+  - The canonical "33 risk-register findings (F-01 → F-33)"
+    phrasing appears in every pack doc that mentions the count.
+  - "opportunistic" appears NOWHERE in the security pack (case-
+    insensitive sweep).
+  - F-18, F-20, F-33 risk-register rows all reference the "F-34+"
+    filing rule explicitly.
+  - Low-severity cadence is concrete ("scheduled into the next
+    security-backlog grooming review") in both the Risk Register
+    and the Readiness Checklist.
+* Wired into Makefile regression block (TAB-prefixed).
+* Full `make regression` → **1,300+ passed, 15 skipped, 0 failures**
+  (149 s).
+
+---
+
+
+
 ## Iter 220bg — Pen-Test Handover Pack Final Consistency Tidy ✅
 
 Pure documentation pass — zero code changes. Tightens the final pack

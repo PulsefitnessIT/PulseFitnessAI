@@ -35,7 +35,7 @@ CVEs / blind spots that would waste the tester's day. The current
 risk position and external-test readiness verdict are now held in
 the live tracking docs, not here:
 
-* **Current risk status →** [`./RISK_REGISTER.md`](./RISK_REGISTER.md) (33 findings, all closed)
+* **Current risk status →** [`./RISK_REGISTER.md`](./RISK_REGISTER.md) (all 33 risk-register findings (F-01 → F-33) closed)
 * **External test readiness →** [`./PEN_TEST_READINESS_CHECKLIST.md`](./PEN_TEST_READINESS_CHECKLIST.md) (approved)
 * **Residual risks →** [`./RESIDUAL_RISK_SUMMARY.md`](./RESIDUAL_RISK_SUMMARY.md) (no open High/Critical)
 
@@ -218,7 +218,7 @@ Single-pod p95 baseline before this pack: **160 ms at 100 concurrent** (per `loa
 The Pass 1 audit originally proposed a 7-wave hardening sequence
 (W1–W7). The sequence was completed and extended (W8 in Iter 220be)
 and the per-finding closure status is tracked in
-[`./RISK_REGISTER.md`](./RISK_REGISTER.md). All 33 findings are now
+[`./RISK_REGISTER.md`](./RISK_REGISTER.md). All 33 risk-register findings (F-01 → F-33) are now
 closed.
 
 If you're reading this section looking for "what to do next", you're

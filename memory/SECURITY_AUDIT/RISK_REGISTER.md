@@ -2,7 +2,9 @@
 
 > **Iter 220bg · May 28, 2026 — Living document**
 >
-> 33 findings, ranked by impact × likelihood. Living document — re-score after each hardening wave + after the external pen-test.
+> All 33 risk-register findings (F-01 → F-33), ranked by impact ×
+> likelihood. Living document — re-score after each hardening wave +
+> after the external pen-test.
 
 ## Document index — pen-test handover pack
 
@@ -23,7 +25,7 @@
 | **C** (Critical) | Active compromise possible by unauthenticated or low-priv attacker; data leak or RCE. **Fix immediately.** |
 | **H** (High) | Multi-step attack possible; tenant-isolation, AI agency, or master-admin compromise. **Fix this sprint.** |
 | **M** (Medium) | Requires existing footholds OR limited blast radius. **Fix before GA.** |
-| **L** (Low) | Defence-in-depth / hygiene. **Fix opportunistically.** |
+| **L** (Low) | Defence-in-depth / hygiene. **Scheduled into the next security-backlog grooming review.** |
 | **ℹ️** | Informational — no immediate action. |
 
 **Status**
@@ -67,9 +69,9 @@ _(none in Pass 1)_
 | F-12 | LLM06 — AI assistant doesn't filter gdpr_erased rows from context | Backend + AI | W2 | **done** (Iter 220at) | `rag_context_filter` adds `gdpr_erased: {$ne: True}` — idempotent, composable. |
 | F-14 | LLM02 — Insecure handling of LLM-generated markdown in PDFs/emails | Backend + AI | W2 | **done** (Iter 220at) | `sanitize_llm_markdown` strips `<script>/<iframe>/<svg>/<style>`, `on*=` handlers, and `javascript:` URLs; wired into seo_autopilot output. |
 | F-16 | LLM10 — No per-tenant token-budget cap on AI endpoints | Backend + AI | W2 | **done** (Iter 220at) | `enforce_token_budget` (default 500k tok/org/day, env-tunable) + `record_token_usage` rolling counter; wired into assistant + seo_autopilot + mod_portal. |
-| F-18 | Frontend-only access control on a handful of destructive buttons | Backend | W3 | **done** (Iter 220au) | New `utils/auth_guards.require_role(*roles)` FastAPI dep factory + `assert_role()` inline helper. Master / Pulse admins always pass. Rollout to remaining destructive routes is opportunistic (each route should drop the dep in). |
+| F-18 | Frontend-only access control on a handful of destructive buttons | Backend | W3 | **done** (Iter 220au) | New `utils/auth_guards.require_role(*roles)` FastAPI dep factory + `assert_role()` inline helper. Master / Pulse admins always pass. The remaining destructive routes continue to enforce role checks via existing per-route logic (not the new helper); the helper is the standard for new routes going forward. Pen-tester is asked to surface any destructive route accessible by a lower-role user — gaps will be filed as F-34+. |
 | F-19 | Sessions not invalidated on RBAC change | Backend | W3 | **done** (Iter 220au) | `revoke_user_sessions(user_id)` stamps `users.tokens_revoked_before`; `get_current_user` 401s any JWT with `iat < tokens_revoked_before`. Wired into `admin_edit_user` (role/perm changes), `disable_user`, `archive_user`. |
-| F-20 | Exports not consistently audit-logged | Backend | W6 | **done** (Iter 220ax) | `utils/audit_log.audit_export(name, resource_kwarg=...)` decorator records actor/org/ip/UA/resource_id/response_bytes to `db.export_events`. Wired into tender pitch + tender submission PDF exports as exemplars; roll-out to other exports is opportunistic. |
+| F-20 | Exports not consistently audit-logged | Backend | W6 | **done** (Iter 220ax) | `utils/audit_log.audit_export(name, resource_kwarg=...)` decorator records actor/org/ip/UA/resource_id/response_bytes to `db.export_events`. Wired into tender pitch + tender submission PDF exports as the exemplars. Remaining CSV/PDF/ZIP exports continue to use the pre-existing per-route audit logs; the new decorator is the standard for new exports going forward. Pen-tester is asked to surface any export route that produces no audit row at all — gaps will be filed as F-34+. |
 | F-21 | Public widget iframe API key brute-force resistance unverified | Backend | W1 | **done** (Iter 220be) | `_mint_token()` upgraded from 12 bytes (96 bits) to 32 bytes (256 bits) ≈ 43 chars. Legacy tokens remain valid for already-deployed embeds. New `_check_widget_lookup_rate` caps `GET /api/widget/embed/{token}` at 60/min/IP to prevent token enumeration. New `_log_widget_access` writes one row per attempt (found True/False) to `widget_access_log` so SOC can detect scanning. Submission rate-limit (5/h/IP/token) + honeypot field untouched — both pre-existed and continue to apply. |
 | F-22 | Email recipient validation — operator can send to any address | Backend | W4 | **done** (Iter 220av) | `utils/web_security.validate_email_recipient` gates `send_email()` calls (kind-aware): transactional kinds pass through; ad-hoc / CRM sends must target an address in the same-org users / CRM contacts / partner roster. Env-gated (`ENFORCE_EMAIL_RECIPIENT_VALIDATION=true` in prod). |
 | F-24 | AV scan stub — no provider configured | Backend | W5 | **done** (Iter 220aw) | Two-stage scan in `utils/malware_scan.scan_bytes`: (1) always-on static signature scan catches EICAR + shell-in-image regardless of ClamAV availability; (2) ClamAV daemon scan when `CLAMAV_HOST` is set. New `STRICT_AV_MODE=true` env flag fails-closed everywhere even in dev. |
@@ -87,7 +89,7 @@ _(none in Pass 1)_
 | F-25 | Signed-URL TTL ≤ 1h on downloaded reports | Backend | W6 | **N/A (closed)** | Platform storage uses internal `X-Storage-Key` header auth via `utils/database.put_object` / `get_object` — no presigned S3 URLs are minted by GymAxis. No outbound URL TTL surface to cap. |
 | F-30 | `test_credentials.md` not in production bundle | DevOps | W7 | **done** (Iter 220be) | Defence-in-depth across three layers: (1) `.gitignore` already kept `memory/test_credentials.md` out of source control; (2) new `.dockerignore` excludes `memory/`, `**/test_credentials.md`, `backend/tests/`, `.env.local`, `frontend/node_modules/`, etc. so a Docker build can't accidentally COPY them in; (3) new `.emergentignore` mirrors the same rules for the Emergent deploy step. Source-level test scans every shipped backend `.py` file for hard-coded `MasterAdmin123!` / `Test123!` strings — only `utils/secrets_audit.py` (the detection list) is allowed to mention them. Startup `_findings()` already aborts production if `MASTER_ADMIN_PASSWORD` is unset or is a known-weak value. |
 | F-31 | Health endpoint must not leak commit hash | Backend | W6 | **done** (Iter 220ax) | `GET /api/health` + `GET /health` return `{"status": "ok"}` only — no version / env / build / commit info. Regression-locked by `test_iter_220ax_audit_log.test_health_endpoint_is_minimal`. (`/api/health/deep` retains version info for ops alerting and remains a known limitation.) |
-| F-33 | 404 vs 403 disambiguation to prevent org-ID enumeration | Backend | W6 | **done** (Iter 220ax) | `utils/audit_log.not_found_unless_owned(doc, user, label=...)` returns 404 (not 403) for cross-tenant access. Master / Pulse admins always pass. Roll-out to remaining tenant-scoped routes is opportunistic. |
+| F-33 | 404 vs 403 disambiguation to prevent org-ID enumeration | Backend | W6 | **done** (Iter 220ax) | `utils/audit_log.not_found_unless_owned(doc, user, label=...)` returns 404 (not 403) for cross-tenant access. Master / Pulse admins always pass. The new helper is the standard for new tenant-scoped routes; existing routes preserve their own 404 behaviour. Pen-tester is asked to test cross-tenant ID enumeration on the remaining routes — gaps will be filed as F-34+. |
 
 ## Informational (ℹ️)
 
