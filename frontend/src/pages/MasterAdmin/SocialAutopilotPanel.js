@@ -633,33 +633,38 @@ export default function SocialAutopilotPanel() {
     <div className="space-y-5" data-testid="social-autopilot-panel">
       {/* Hero */}
       <header
-        className="rounded-2xl border border-fuchsia-200 dark:border-fuchsia-900 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-5 py-4"
+        className="rounded-2xl border border-fuchsia-200 dark:border-fuchsia-900 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-4 sm:px-5 py-4"
         data-testid="social-autopilot-hero"
       >
-        <div className="flex items-center gap-4 flex-wrap">
-          <span className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-blue-600 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(217,70,239,0.6)]">
-            <Share2 size={20}/>
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.18em] font-bold text-fuchsia-700 dark:text-fuchsia-400">Growth · Social Autopilot</p>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight mt-0.5">Daily IG · TikTok · LinkedIn drafts</h2>
-            <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 max-w-2xl">
-              Channel-aware tone (fun on IG/TikTok, decision-maker on LinkedIn), brand-coloured imagery, 50% feature promotion / 50% industry insight. Review, approve and copy/download — manual posting keeps you in full control.
-            </p>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5 inline-flex items-center gap-1.5" data-testid="social-schedule-strip">
-              <Clock size={10}/>
-              {status.enabled ? (
-                <>Fires daily at <b className="tabular-nums">{String(status.hour_uk ?? 9).padStart(2, '0')}:00</b> Europe/London · {status.ran_today ? 'already fired today' : 'next run today'}</>
-              ) : (
-                <>Daily loop is paused</>
-              )}
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:contents">
+            <span className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-blue-600 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(217,70,239,0.6)]">
+              <Share2 size={18}/>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.18em] font-bold text-fuchsia-700 dark:text-fuchsia-400">Growth · Social Autopilot</p>
+              <h2 className="text-lg sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight mt-0.5 leading-tight">Daily IG · TikTok · LinkedIn drafts</h2>
+              <p className="hidden sm:block text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 max-w-2xl">
+                Channel-aware tone (fun on IG/TikTok, decision-maker on LinkedIn), brand-coloured imagery, 50% feature promotion / 50% industry insight. Review, approve and copy/download — manual posting keeps you in full control.
+              </p>
+              <p className="sm:hidden text-xs text-zinc-600 dark:text-zinc-300 mt-1 leading-snug">
+                Channel-aware tone · brand imagery · 50/50 feature/insight. Review &amp; approve from here.
+              </p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1.5 inline-flex items-center gap-1.5" data-testid="social-schedule-strip">
+                <Clock size={10}/>
+                {status.enabled ? (
+                  <>Fires daily at <b className="tabular-nums">{String(status.hour_uk ?? 9).padStart(2, '0')}:00</b> · {status.ran_today ? 'fired today' : 'next run today'}</>
+                ) : (
+                  <>Daily loop is paused</>
+                )}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
             <button
               type="button" onClick={runDaily}
               disabled={busy === 'run' || status.ran_today}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-md text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50"
               data-testid="social-run-now-btn"
               title={status.ran_today ? 'Already ran today — use Generate per channel to add more' : 'Generate today\'s drafts for all 3 channels'}
             >
@@ -668,7 +673,7 @@ export default function SocialAutopilotPanel() {
             </button>
             <button
               type="button" onClick={load}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400 bg-white dark:bg-zinc-950"
               data-testid="social-refresh"
             >
               <RefreshCw size={11}/> Refresh
@@ -706,29 +711,29 @@ export default function SocialAutopilotPanel() {
       </section>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap" data-testid="social-filters">
-        <span className="text-[11px] uppercase font-bold text-zinc-500 mr-1">Channel</span>
+      <div className="flex items-center gap-x-2 gap-y-2 flex-wrap" data-testid="social-filters">
+        <span className="text-[11px] uppercase font-bold text-zinc-500 mr-1 shrink-0">Channel</span>
         {['all', 'instagram', 'tiktok', 'linkedin'].map((id) => (
           <button
             key={id} type="button" onClick={() => setChannelFilter(id)}
-            className={`text-[11px] font-bold px-2 py-1 rounded-full border ${channelFilter === id ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-700 hover:border-zinc-400'}`}
+            className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${channelFilter === id ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-700 hover:border-zinc-400'}`}
             data-testid={`social-filter-channel-${id}`}
           >
             {id === 'all' ? 'All' : (CHANNEL_VISUAL[id]?.label || id)}
           </button>
         ))}
-        <span className="text-[11px] uppercase font-bold text-zinc-500 mx-1 ml-3">Status</span>
+        <span className="text-[11px] uppercase font-bold text-zinc-500 mx-1 sm:ml-3 shrink-0">Status</span>
         {['all', 'draft', 'approved', 'archived'].map((id) => (
           <button
             key={id} type="button" onClick={() => setStatusFilter(id)}
-            className={`text-[11px] font-bold px-2 py-1 rounded-full border ${statusFilter === id ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-700 hover:border-zinc-400'}`}
+            className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${statusFilter === id ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-700 hover:border-zinc-400'}`}
             data-testid={`social-filter-status-${id}`}
           >
             {id === 'all' ? 'All' : id.charAt(0).toUpperCase() + id.slice(1)}
           </button>
         ))}
-        <div className="flex-1"/>
-        <span className="text-[11px] text-zinc-500" data-testid="social-result-count">
+        <div className="hidden sm:block flex-1"/>
+        <span className="text-[11px] text-zinc-500 ml-auto sm:ml-0" data-testid="social-result-count">
           {filtered.length} post{filtered.length === 1 ? '' : 's'}
         </span>
       </div>
