@@ -2,9 +2,13 @@
 import { useState, useMemo } from 'react';
 import {
  ClipboardList, ChevronDown, ChevronUp, User, Calendar, MapPin, Hash, CheckCircle2,
- Wrench, FileText, Shield, Users, Briefcase, Flag,
+ Wrench, FileText, Shield, Users, Briefcase, Flag, RefreshCw, AlertTriangle, Phone, Mail,
 } from 'lucide-react';
+import axios from 'axios';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { useAuth } from '@/App';
+import { notify } from '@/components/notifications';
 
 const fmtDate = (d) => {
  if (!d) return '—';
@@ -102,6 +106,9 @@ function VisitsSection({ appointments, engineerMap }) {
  .map(eid => engineerMap[eid]?.full_name || `#${eid}`).join(', ');
  const hasGps = a.arrival_latitude != null && a.arrival_longitude != null;
  const gpsLink = hasGps ? `https://maps.google.com/?q=${a.arrival_latitude},${a.arrival_longitude}` : null;
+ const hasDepGps = a.departure_latitude != null && a.departure_longitude != null;
+ const depGpsLink = hasDepGps ? `https://maps.google.com/?q=${a.departure_latitude},${a.departure_longitude}` : null;
+ const apptId = a.sicon_appointment_id ? `#${a.sicon_appointment_id}` : '';
  return (
  <div key={i} className="p-2.5 bg-[var(--color-ink-alt)] border border-white/5 rounded-md text-xs space-y-1.5"
  data-testid={`sicon-visit-${i}`}>
@@ -131,9 +138,17 @@ function VisitsSection({ appointments, engineerMap }) {
  {gpsLink && (
  <a href={gpsLink} target="_blank" rel="noopener noreferrer"
  className="inline-flex items-center gap-1 text-[var(--color-brand-blue)] hover:underline">
- <MapPin size={10} /> GPS proof
+ <MapPin size={10} /> Arrival GPS
  </a>
  )}
+ {depGpsLink && (
+ <a href={depGpsLink} target="_blank" rel="noopener noreferrer"
+ className="inline-flex items-center gap-1 text-[var(--color-brand-blue)] hover:underline">
+ <MapPin size={10} /> Departure GPS
+ </a>
+ )}
+ {apptId && <span className="font-mono">Appt {apptId}</span>}
+ {a.confirmed && <span className="text-emerald-400">Confirmed</span>}
  </div>
  </div>
  );
@@ -171,8 +186,15 @@ function CaseFactsSection({ issue }) {
  <Row icon={Flag} label="Status" value={issue.sicon_status} />
  <Row label="Sub-status" value={issue.sicon_sub_status_id ? `#${issue.sicon_sub_status_id}` : null} />
  <Row icon={Briefcase} label="Case type" value={issue.sicon_case_type_name} />
- <Row icon={Users} label="Internal team" value={issue.sicon_internal_team} />
- <Row icon={Users} label="External team" value={issue.sicon_external_team} />
+ <Row icon={User} label="Assigned to" value={issue.sicon_assigned_to
+   ? `${issue.sicon_assigned_to}${issue.sicon_assigned_to_id ? ` · #${issue.sicon_assigned_to_id}` : ''}`
+   : null} />
+ <Row icon={Users} label="Internal team" value={issue.sicon_internal_team
+   ? `${issue.sicon_internal_team}${issue.sicon_internal_team_id ? ` · #${issue.sicon_internal_team_id}` : ''}`
+   : null} />
+ <Row icon={Users} label="External team" value={issue.sicon_external_team
+   ? `${issue.sicon_external_team}${issue.sicon_external_team_id ? ` · #${issue.sicon_external_team_id}` : ''}`
+   : null} />
  <Row icon={FileText} label="Contract"
  value={issue.sicon_contract_number
  ? `${issue.sicon_contract_number}${issue.sicon_contract_line_number ? ` · Line ${issue.sicon_contract_line_number}` : ''}`
@@ -182,14 +204,34 @@ function CaseFactsSection({ issue }) {
  value={issue.sicon_sub_location_description
  ? `${issue.sicon_sub_location_description}${issue.sicon_sub_location_comment ? ` · ${issue.sicon_sub_location_comment}` : ''}`
  : null} />
+ <Row icon={User} label="Contact" value={issue.sicon_contact_name} />
+ <Row icon={Mail} label="Contact email" value={issue.sicon_contact_email} />
+ <Row icon={Phone} label="Contact phone" value={issue.sicon_contact_phone} />
  <Row label="Customer ref" mono value={issue.sicon_customer_reference} />
+ <Row label="Sage Cust ID" mono value={issue.sicon_sl_customer_account_id ? `#${issue.sicon_sl_customer_account_id}` : null} />
  <Row label="Call logged" value={fmtDate(issue.sicon_call_date)} />
  </>
  );
 }
 
+const SYNC_STATUS_TONE = {
+ synced: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30',
+ pending: 'bg-amber-500/15 text-amber-500 border-amber-500/30',
+ failed: 'bg-red-500/15 text-red-500 border-red-500/30',
+ not_synced: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+};
+
+const SYNC_STATUS_LABEL = {
+ synced: 'Synced',
+ pending: 'Pending',
+ failed: 'Failed',
+ not_synced: 'Not synced',
+};
+
 export default function SiconServicePanel({ issue, equipment, engineers = [] }) {
+ const { API } = useAuth();
  const [open, setOpen] = useState(false);
+ const [resyncing, setResyncing] = useState(false);
  const engineerMap = useMemo(() => {
  const map = {};
  (engineers || []).forEach(e => {
@@ -198,7 +240,26 @@ export default function SiconServicePanel({ issue, equipment, engineers = [] }) 
  return map;
  }, [engineers]);
 
- if (!issue?.sicon_case_id) return null;
+ const syncStatus = issue?.sicon_sync_status || (issue?.sicon_case_id ? 'synced' : 'not_synced');
+ const hasSiconContext = Boolean(issue?.sicon_case_id || issue?.sicon_sync_status || issue?.sicon_sync_error);
+ if (!hasSiconContext) return null;
+
+ const handleResync = async () => {
+   if (resyncing) return;
+   setResyncing(true);
+   const token = localStorage.getItem('token');
+   try {
+     await axios.post(`${API}/sicon/sync-case/${issue.id}`, {}, {
+       headers: { Authorization: `Bearer ${token}` },
+     });
+     notify.success('Sync triggered — refreshing in a moment');
+     setTimeout(() => { window.location.reload(); }, 1200);
+   } catch (e) {
+     notify.error('Sync failed', e?.response?.data?.detail || 'Could not push to Sicon');
+   } finally {
+     setResyncing(false);
+   }
+ };
 
  const appointments = issue.sicon_appointments || [];
  const nextAppt = appointments.find(a => !a.appointment_complete) || appointments[appointments.length - 1];
@@ -232,8 +293,33 @@ export default function SiconServicePanel({ issue, equipment, engineers = [] }) 
  {issue.sicon_status}
  </Badge>
  )}
+ <Badge variant="outline" className={`text-[10px] ${SYNC_STATUS_TONE[syncStatus] || SYNC_STATUS_TONE.not_synced}`} data-testid="sicon-sync-status-badge">
+ {SYNC_STATUS_LABEL[syncStatus] || syncStatus}
+ </Badge>
+ {(syncStatus === 'failed' || syncStatus === 'not_synced' || syncStatus === 'pending') && (
+ <Button
+   size="sm" variant="outline"
+   className="h-6 px-2 text-[10px] border-[var(--color-brand-blue)]/40 text-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue)]/10"
+   onClick={handleResync}
+   disabled={resyncing}
+   data-testid="sicon-resync-btn"
+ >
+   <RefreshCw size={10} className={`mr-1 ${resyncing ? 'animate-spin' : ''}`} />
+   {syncStatus === 'not_synced' ? 'Push to Sicon' : 'Retry sync'}
+ </Button>
+ )}
  </div>
  </div>
+
+ {issue.sicon_sync_error && syncStatus === 'failed' && (
+ <div
+   className="flex items-start gap-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-[11px] text-red-400"
+   data-testid="sicon-sync-error"
+ >
+   <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+   <span className="break-words">Sync error: {issue.sicon_sync_error}</span>
+ </div>
+ )}
 
  {/* Key-info strip: Engineer assigned · Scheduled date */}
  <div className="grid grid-cols-2 gap-3 text-xs">

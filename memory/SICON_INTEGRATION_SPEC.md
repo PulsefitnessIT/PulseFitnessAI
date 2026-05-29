@@ -1,4 +1,11 @@
-> **📋 Status — Iter 220m (May 26, 2026)**
+> **📋 Status — Iter 220bi (Feb 2026)**
+>
+> Field-mapping audit complete — every Sicon field documented below
+> is either persisted on the GymAxis `issues` doc (under the
+> `sicon_*` namespace), exposed in the Operations → Issue Detail
+> Job Card panel, or driven from a config/lookup. Blank ("—") cells
+> in the tables below have been populated with the exact GymAxis
+> persistence path so future engineers can trace every byte.
 >
 > Still **P1 — waiting on live Sicon credentials** to switch from
 > mocked endpoints to production. The integration code path, admin
@@ -80,14 +87,14 @@ GymAxis AI is the INITIATOR and INTELLIGENCE layer. Sicon Service is the EXECUTI
 | GymAxis Field | Sicon Field | Type | Source of Truth | Sync Direction | Trigger |
 |---|---|---|---|---|---|
 | `id` | — | string | GymAxis | — | Internal reference only |
-| — | `SiSMCaseId` | int64 | Sicon | Sicon → GymAxis | On case creation response |
-| — | `CaseNumber` | string | Sicon | Sicon → GymAxis | On case creation response |
+| `sicon_case_id` | `SiSMCaseId` | int64 | Sicon | Sicon → GymAxis | On case creation response |
+| `sicon_case_number` | `CaseNumber` | string | Sicon | Sicon → GymAxis | On case creation response |
 | `issue_description` | `Description` | string | GymAxis | GymAxis → Sicon | Real-time on create |
 | `machine_type` + `serial_number` | `Summary` | string | GymAxis | GymAxis → Sicon | Real-time on create |
 | `created_at` | `CallDate` | datetime | GymAxis | GymAxis → Sicon | Real-time on create |
 | `severity` | `PriorityID` / `PriorityName` | int64/string | GymAxis (initial), Sicon (ongoing) | GymAxis → Sicon | On create; Sicon can re-prioritise |
 | `fault_type` | `CaseTypeID` / `CaseTypeName` | int64/string | GymAxis | GymAxis → Sicon | Real-time on create |
-| `status` | `SiSMDocumentStatusID` / `SiSMDocumentStatusName` | int64/string | **Sicon** | Sicon → GymAxis | Polled or webhook |
+| `status` + `sicon_status` / `sicon_status_id` | `SiSMDocumentStatusID` / `SiSMDocumentStatusName` | int64/string | **Sicon** | Sicon → GymAxis | Polled or webhook |
 | `site_name` + address | `LocationPostalName`, `LocationAddressLine1-4`, `LocationCity`, `LocationCounty`, `LocationPostCode` | string | GymAxis | GymAxis → Sicon | On create |
 | `created_by_name` | `ContactName` | string | GymAxis | GymAxis → Sicon | On create |
 | User email | `ContactEmail` | string | GymAxis | GymAxis → Sicon | On create |
@@ -98,19 +105,23 @@ GymAxis AI is the INITIATOR and INTELLIGENCE layer. Sicon Service is the EXECUTI
 | Site | `SubLocation.SiconSubLocationID` | int64 | Sicon | GymAxis → Sicon (by lookup) | On create |
 | Contract `sicon_contract_id` | `SiconContractID` | int64 | **Sicon** | GymAxis → Sicon | On create (if under contract) |
 | Contract `sicon_contract_number` | `SiconContractNumber` | string | Sicon | GymAxis → Sicon (fallback) | On create |
-| — | `AssignedToSageUserID` | int64 | **Sicon** | Sicon → GymAxis | Sicon assigns engineer |
-| — | `AssignedToSageUser` | string | Sicon | Sicon → GymAxis | Read-back |
-| — | `InternalTeamID` / `InternalTeam` | int64/string | **Sicon** | Sicon → GymAxis | On case read-back |
-| — | `ExternalTeamID` / `ExternalTeam` | int64/string | **Sicon** | Sicon → GymAxis | On case read-back |
+| `sicon_assigned_to_id` | `AssignedToSageUserID` | int64 | **Sicon** | Sicon → GymAxis | Sicon assigns engineer |
+| `sicon_assigned_to` | `AssignedToSageUser` | string | Sicon | Sicon → GymAxis | Read-back |
+| `sicon_internal_team_id` / `sicon_internal_team` | `InternalTeamID` / `InternalTeam` | int64/string | **Sicon** | Sicon → GymAxis | On case read-back |
+| `sicon_external_team_id` / `sicon_external_team` | `ExternalTeamID` / `ExternalTeam` | int64/string | **Sicon** | Sicon → GymAxis | On case read-back |
 | AI triage summary | `AnalysisField1` | string | GymAxis | GymAxis → Sicon | On create |
 | AI triage severity | `AnalysisField2` | string | GymAxis | GymAxis → Sicon | On create |
 | AI recommended parts | `AnalysisField3` | string | GymAxis | GymAxis → Sicon | On create |
 | GymAxis Issue ID | `AnalysisField4` | string | GymAxis | GymAxis → Sicon | On create (cross-reference) |
 | GymAxis org name | `AnalysisField5` | string | GymAxis | GymAxis → Sicon | On create |
 | `sla_category` | `AnalysisField6` | string | GymAxis | GymAxis → Sicon | On create |
-| — | `SiconCRMCompanyID` | int64 | Sicon CRM | GymAxis → Sicon | On create (if mapped) |
-| — | `SiconCRMPersonID` | int64 | Sicon CRM | GymAxis → Sicon | On create (if mapped) |
-| — | `SiJcJobID` | int64 | Sicon | Pass 0 on create | — |
+| `organizations.sicon_crm_company_id` | `SiconCRMCompanyID` | int64 | Sicon CRM | GymAxis → Sicon | On create (if mapped) |
+| `organizations.sicon_crm_person_id` | `SiconCRMPersonID` | int64 | Sicon CRM | GymAxis → Sicon | On create (if mapped) |
+| `sicon_job_id` | `SiJcJobID` | int64 | Sicon | Sicon → GymAxis (passed `0` on create) | Read-back |
+| `sicon_sync_status` (synced/pending/failed) | — | string | GymAxis | — | UI sync state badge |
+| `sicon_sync_error` | — | string | GymAxis | — | Last sync failure message |
+| `sicon_synced_at` | — | datetime | GymAxis | — | Last successful sync timestamp |
+| `sicon_last_polled_at` | — | datetime | GymAxis | — | Last inbound poll timestamp |
 
 ### Priority Mapping
 
@@ -138,21 +149,21 @@ GymAxis AI is the INITIATOR and INTELLIGENCE layer. Sicon Service is the EXECUTI
 
 | GymAxis Field | Sicon Field | Type | Direction |
 |---|---|---|---|
-| — | `SiconAppointmentID` | int64 | Sicon → GymAxis |
-| `engineer_assigned_at` | `ScheduledStartDate` | datetime | Sicon → GymAxis |
-| `work_completed_at` | `ScheduledEndDate` | datetime | Sicon → GymAxis |
-| — | `AppointmentType` | enum: Other/Work/Travel | Sicon → GymAxis |
-| `engineer_notes` | `WorkDoneDescription` | string | Sicon → GymAxis |
-| — | `FurtherAction` | string | Sicon → GymAxis |
-| — | `ArrivalSignee` | string | Sicon → GymAxis |
-| — | `DepartureSignee` | string | Sicon → GymAxis |
-| `engineer_arrived_at` (GPS lat) | `ArrivalLatitude` / `ArrivalLongitude` | decimal | Sicon → GymAxis |
-| — | `DepartureLatitude` / `DepartureLongitude` | decimal | Sicon → GymAxis |
-| — | `AppointmentComplete` | boolean | Sicon → GymAxis |
-| — | `Confirmed` | boolean | Sicon → GymAxis |
-| — | `EmployeeIDs` | int64[] | Sicon → GymAxis |
-| — | `WorkBriefing` | string | GymAxis → Sicon (AI triage as briefing) |
-| — | `Subject` | string | GymAxis → Sicon |
+| `sicon_appointments[].sicon_appointment_id` | `SiconAppointmentID` | int64 | Sicon → GymAxis |
+| `engineer_assigned_at` + `sicon_appointments[].scheduled_start` | `ScheduledStartDate` | datetime | Sicon → GymAxis |
+| `work_completed_at` + `sicon_appointments[].scheduled_end` | `ScheduledEndDate` | datetime | Sicon → GymAxis |
+| `sicon_appointments[].appointment_type` | `AppointmentType` | enum: Other/Work/Travel | Sicon → GymAxis |
+| `engineer_notes` + `sicon_appointments[].work_done_description` | `WorkDoneDescription` | string | Sicon → GymAxis |
+| `sicon_appointments[].further_action` | `FurtherAction` | string | Sicon → GymAxis |
+| `sicon_appointments[].arrival_signee` | `ArrivalSignee` | string | Sicon → GymAxis |
+| `sicon_appointments[].departure_signee` | `DepartureSignee` | string | Sicon → GymAxis |
+| `sicon_appointments[].arrival_latitude` / `.arrival_longitude` | `ArrivalLatitude` / `ArrivalLongitude` | decimal | Sicon → GymAxis |
+| `sicon_appointments[].departure_latitude` / `.departure_longitude` | `DepartureLatitude` / `DepartureLongitude` | decimal | Sicon → GymAxis |
+| `sicon_appointments[].appointment_complete` | `AppointmentComplete` | boolean | Sicon → GymAxis |
+| `sicon_appointments[].confirmed` | `Confirmed` | boolean | Sicon → GymAxis |
+| `sicon_appointments[].employee_ids` | `EmployeeIDs` | int64[] | Sicon → GymAxis |
+| AI triage summary (outbound only — not persisted) | `WorkBriefing` | string | GymAxis → Sicon (AI triage as briefing) |
+| Derived from `machine_type` + `serial_number` (outbound only) | `Subject` | string | GymAxis → Sicon |
 
 ---
 
@@ -165,8 +176,8 @@ GymAxis AI is the INITIATOR and INTELLIGENCE layer. Sicon Service is the EXECUTI
 | `work_started_at` | `StartDate` | datetime | Sicon → GymAxis |
 | `work_completed_at` | `EndDate` | datetime | Sicon → GymAxis |
 | Downtime hours calc | `ActualHours` | decimal | Sicon → GymAxis |
-| — | `ChargeRate` | int64 | Sicon only (costing) |
-| — | `EmployeeIDs` | int64[] | Sicon → GymAxis |
+| Sicon-only (financial) — not stored | `ChargeRate` | int64 | Sicon only (costing) |
+| Derived from latest appointment `employee_ids` | `EmployeeIDs` | int64[] | Sicon → GymAxis |
 
 ---
 
@@ -176,17 +187,18 @@ GymAxis AI is the INITIATOR and INTELLIGENCE layer. Sicon Service is the EXECUTI
 
 | GymAxis Field | Sicon Field | Type | Direction |
 |---|---|---|---|
-| Timeline event `message` | `TrackingNote` | string | Bi-directional |
-| Timeline event `timestamp` | `Time` | datetime | Bi-directional |
-| Timeline event `by` | `User` / `CreatedBy` | string | Bi-directional |
-| — | `CaseTrackingStatusID` | int64 | Sicon → GymAxis |
-| — | `Status` / `StatusID` | string/int | Sicon → GymAxis |
-| — | `VisibleToEngineer` | boolean | Sicon → GymAxis |
-| — | `VisibleToCustomer` | boolean | Sicon → GymAxis |
-| — | `InternalTeamID` / `InternalTeam` | int64/string | Sicon → GymAxis |
-| — | `CaseOwner` / `CaseOwnerID` | string/int | Sicon → GymAxis |
-| — | `SiconAppointmentID` | int64 | Link to appointment |
-| GPS location | `Longitude` / `Latitude` | decimal | Sicon → GymAxis |
+| `timeline[].message` | `TrackingNote` | string | Bi-directional |
+| `timeline[].timestamp` | `Time` | datetime | Bi-directional |
+| `timeline[].by` | `User` / `CreatedBy` | string | Bi-directional |
+| `timeline[].case_tracking_status_id` | `CaseTrackingStatusID` | int64 | Sicon → GymAxis |
+| `timeline[].status` | `Status` / `StatusID` | string/int | Sicon → GymAxis |
+| `timeline[].visible_to_engineer` | `VisibleToEngineer` | boolean | Sicon → GymAxis |
+| `timeline[].visible_to_customer` | `VisibleToCustomer` | boolean | Sicon → GymAxis |
+| Sicon-side only (not persisted per-note) | `InternalTeamID` / `InternalTeam` | int64/string | Sicon → GymAxis |
+| Sicon-side only (not persisted per-note) | `CaseOwner` / `CaseOwnerID` | string/int | Sicon → GymAxis |
+| `timeline[].sicon_appointment_id` | `SiconAppointmentID` | int64 | Link to appointment |
+| `timeline[].longitude` / `.latitude` | `Longitude` / `Latitude` | decimal | Sicon → GymAxis |
+| `sicon_note_ids[]` | (note IDs, dedupe set) | int64[] | Sicon → GymAxis |
 
 ### GymAxis → Sicon Note Triggers
 
@@ -389,18 +401,32 @@ All failed sync operations are written to `sicon_sync_queue` collection:
 
 ## Per-Record Sync Status
 
-Every GymAxis issue/contract that maps to Sicon displays:
+Surfaced in **Operations → Issue Detail → Job Card panel**
+(`/app/frontend/src/pages/SiconServicePanel.js`). Every GymAxis
+issue/contract that maps to Sicon displays:
 
-| UI Element | Data |
-|---|---|
-| Sync Status Badge | "Synced" (green) / "Pending" (amber) / "Failed" (red) / "Not Synced" (gray) |
-| Sicon Case Number | `CaseNumber` from Sicon (displayed as link) |
-| Last Sync Time | Timestamp of last successful sync |
-| Error Detail | If failed, show error message with "Retry" button |
-| Manual Re-sync Button | Triggers immediate push to Sicon |
-| Sicon Status | Current `SiSMDocumentStatusName` from Sicon |
-| Engineer Assigned | `AssignedToSageUser` from Sicon |
-| Next Appointment | From appointments data |
+| UI Element | Data Source | UI Test ID |
+|---|---|---|
+| Sync Status Badge | `issue.sicon_sync_status` (synced/pending/failed/not_synced) | `sicon-sync-status-badge` |
+| Sicon Case Number | `issue.sicon_case_number` (link to Sicon) | — |
+| Last Sync Time | `issue.sicon_synced_at` | — |
+| Error Detail | `issue.sicon_sync_error` (red banner when failed) | `sicon-sync-error` |
+| Manual Re-sync Button | `POST /api/sicon/sync-case/{issue_id}` | `sicon-resync-btn` |
+| Sicon Status | `issue.sicon_status` (`SiSMDocumentStatusName`) | — |
+| Engineer Assigned | `issue.sicon_assigned_to` + `sicon_assigned_to_id` | `sicon-engineer-name` |
+| Next Appointment | `issue.sicon_appointments[0].scheduled_start` | `sicon-scheduled-date` |
+| Internal / External Team | `sicon_internal_team` / `sicon_external_team` | — |
+| Contract + Line | `sicon_contract_number` / `sicon_contract_line_number` | — |
+| Contact name / email / phone | `sicon_contact_name` / `_email` / `_phone` | — |
+| Sage Customer ID | `sicon_sl_customer_account_id` | — |
+| Sub-location | `sicon_sub_location_description` / `_comment` | — |
+| Visits (incl. GPS + signees) | `sicon_appointments[]` | `sicon-visit-{i}` |
+| Engineer notes (tracking notes) | `timeline[type=sicon_note]` | `sicon-note-{i}` |
+
+The panel renders even when the issue has **not yet** been pushed
+to Sicon — in that case it shows a "Not synced" badge and a
+"Push to Sicon" button so operators can trigger the initial sync
+manually.
 
 ---
 

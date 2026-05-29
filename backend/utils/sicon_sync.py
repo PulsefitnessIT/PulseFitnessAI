@@ -388,9 +388,25 @@ async def _sync_tracking_notes(client, issue: Dict, sicon_case_id) -> int:
             new_notes.append(mn)
     if not new_notes:
         return 0
+    # Iter 220bi — preserve every Sicon tracking-note field on the
+    # timeline entry so the UI can surface GPS, visibility flags,
+    # appointment link, status, etc. without a second fetch.
     timeline_entries = [
-        {"type": "sicon_note", "message": n.get("message", ""), "timestamp": n.get("timestamp"),
-         "by": n.get("by", "Sicon"), "source": "sicon"}
+        {
+            "type": "sicon_note",
+            "source": "sicon",
+            "sicon_note_id": n.get("sicon_note_id"),
+            "message": n.get("message", ""),
+            "timestamp": n.get("timestamp"),
+            "by": n.get("by", "Sicon"),
+            "case_tracking_status_id": n.get("case_tracking_status_id"),
+            "status": n.get("status"),
+            "visible_to_engineer": n.get("visible_to_engineer", True),
+            "visible_to_customer": n.get("visible_to_customer", False),
+            "sicon_appointment_id": n.get("sicon_appointment_id"),
+            "latitude": n.get("latitude"),
+            "longitude": n.get("longitude"),
+        }
         for n in new_notes
     ]
     await db.issues.update_one(

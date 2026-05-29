@@ -1,3 +1,61 @@
+## Iter 220bi — Sicon Integration Spec mapping + DB/UI uplift ✅ (Feb 2026)
+
+**Goal**: zero blank cells in the SICON_INTEGRATION_SPEC.md mapping
+tables, ensure every Sicon-side field we read back is persisted on
+the issue doc, and surface sync state + Sicon context to operators
+in the Operations → Issue Detail Job Card.
+
+### What changed
+* **Spec doc** (`/app/memory/SICON_INTEGRATION_SPEC.md`): all blank
+  ("—") GymAxis Field cells in §3.1 (Service Case), §3.2
+  (Appointments), §3.3 (Time Bookings) and §3.4 (Tracking Notes)
+  populated with their actual persistence paths
+  (`sicon_assigned_to_id`, `sicon_internal_team`,
+  `sicon_appointments[].sicon_appointment_id`,
+  `sicon_appointments[].departure_latitude`, etc.). Added explicit
+  sync-lifecycle rows (`sicon_sync_status`, `sicon_sync_error`,
+  `sicon_synced_at`, `sicon_last_polled_at`). §7 UI Requirements
+  rewritten with concrete data-testid references.
+* **Backend** (`utils/sicon_sync.py::_sync_tracking_notes`):
+  timeline entries now preserve `case_tracking_status_id`,
+  `status`, `visible_to_engineer`, `visible_to_customer`,
+  `sicon_appointment_id`, `latitude`, `longitude`, and
+  `sicon_note_id` so the UI can render Sicon notes without a
+  second fetch.
+* **Frontend** (`pages/SiconServicePanel.js`):
+  * Sync-status badge (synced/pending/failed/not synced)
+  * Sync-error red banner with truncated message
+  * "Retry sync" / "Push to Sicon" button calling
+    `POST /api/sicon/sync-case/{issue_id}`
+  * Job Card now renders even when the issue is **not yet** synced
+    (so operators can trigger initial push from the same panel)
+  * Case Facts section extended: Contact name/email/phone,
+    Assigned-to ID, Internal/External team IDs, Sage Customer ID
+  * Visits section now shows: Departure GPS link, appointment ID,
+    Confirmed flag.
+* **Regression test**
+  (`backend/tests/test_iter_220bi_sicon_field_mapping.py`): 11
+  assertions covering (a) zero blank cells in spec tables,
+  (b) sync-lifecycle fields documented, (c) mapper coverage for
+  cases/appointments/notes, (d) timeline preservation in
+  `_sync_tracking_notes`, (e) frontend panel surfaces sync badge +
+  retry button + new fields. Added to `Makefile::regression`.
+
+### Files touched
+* `memory/SICON_INTEGRATION_SPEC.md` — spec doc updates
+* `backend/utils/sicon_sync.py` — richer timeline entries
+* `frontend/src/pages/SiconServicePanel.js` — sync state UI + new fields
+* `backend/tests/test_iter_220bi_sicon_field_mapping.py` — new regression
+* `Makefile` — regression suite registration (TAB-indented row)
+
+### Verification
+* `pytest tests/test_iter_220bi_sicon_field_mapping.py` → 11 passed.
+* Doc-consistency regression unaffected (27 passed).
+* Frontend smoke screenshot OK (homepage renders).
+
+---
+
+
 ## Iter 220bh — Doc Consistency Polish (3 drift fixes) ✅
 
 Pure documentation pass — zero code changes.
