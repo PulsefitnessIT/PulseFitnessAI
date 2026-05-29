@@ -751,10 +751,6 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
         prompt = build_prompt(channel, topic)
     text = await _llm_chat(prompt)
 
-    # Alternate image variants A/B per post (count parity on the
-    # channel determines which one we use).
-    image_variant = "A" if n_existing % 2 == 0 else "B"
-
     image_url: Optional[str] = None
     image_model = "branded_card"
     if image_variant == "A":
@@ -776,6 +772,15 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
     hashtags = [h for h in (text.get("hashtags") or [])
                 if isinstance(h, str) and h.startswith("#")][:channel["hashtag_max"]]
     caption = (text.get("caption") or "")[:channel["caption_max_chars"]]
+
+    # Iter 220bx — pre-publish tone check. Runs the heuristic launch
+    # rulebook against the caption + hashtags so the UI can warn the
+    # operator about metric claims / social proof / established voice
+    # leakage BEFORE they hit Publish.
+    from utils.social_tone_check import check_draft_tone
+    tone_check = check_draft_tone(
+        caption, hashtags=hashtags, on_campaign=bool(is_on_campaign),
+    )
 
     doc = {
         "id": _id(),
@@ -804,6 +809,8 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
             "campaign_archetype": (archetype or {}).get("id"),
             "on_campaign": bool(is_on_campaign),
         },
+        # Iter 220bx — pre-publish tone check result.
+        "tone_check": tone_check,
     }
     await db.social_autopilot_posts.insert_one(doc)
     doc.pop("_id", None)

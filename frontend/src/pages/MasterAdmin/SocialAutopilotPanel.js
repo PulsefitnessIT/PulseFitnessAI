@@ -217,6 +217,102 @@ function VideoSection({ post, onChange }) {
   );
 }
 
+function ToneCheckBanner({ post, onRecheck }) {
+  const tc = post.tone_check;
+  const [busy, setBusy] = useState(false);
+  const recheck = async (deep = false) => {
+    setBusy(true);
+    try {
+      const r = await axios.post(
+        `${API}/api/marketing/social-autopilot/posts/${post.id}/recheck-tone?deep=${deep}`,
+        {},
+        { headers: auth() },
+      );
+      const newStatus = r.data?.status;
+      if (newStatus === 'ok') notify.success('Tone check passed', 'All clear.');
+      else notify.error(
+        newStatus === 'failed' ? 'Launch-tone violations found' : 'Tone warnings',
+        `${r.data?.findings?.length || 0} finding(s) — see the post card.`,
+      );
+      onRecheck && onRecheck();
+    } catch (e) {
+      notify.error('Recheck failed', e?.response?.data?.detail || e.message);
+    }
+    setBusy(false);
+  };
+
+  if (!tc || tc.status === 'ok') {
+    // Render a slim "passed" stripe only when we ran a check (so a
+    // legacy doc with no tone_check field shows nothing).
+    if (!tc) return null;
+    return (
+      <div
+        className="px-4 py-1.5 text-[11px] flex items-center justify-between gap-2 border-b border-emerald-100 bg-emerald-50/60 dark:bg-emerald-950/30 dark:border-emerald-900"
+        data-testid={`tone-check-ok-${post.id}`}
+      >
+        <span className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+          <Check size={11}/> Launch tone OK
+        </span>
+        <button
+          type="button" onClick={() => recheck(false)} disabled={busy}
+          className="text-emerald-700 dark:text-emerald-300 hover:underline"
+          data-testid={`tone-check-recheck-${post.id}`}
+        >
+          {busy ? 'Checking…' : 'Recheck'}
+        </button>
+      </div>
+    );
+  }
+
+  const isFail = tc.status === 'failed';
+  const tone = isFail
+    ? 'border-rose-200 bg-rose-50/70 dark:bg-rose-950/40 dark:border-rose-900'
+    : 'border-amber-200 bg-amber-50/70 dark:bg-amber-950/40 dark:border-amber-900';
+  const textTone = isFail ? 'text-rose-800 dark:text-rose-200' : 'text-amber-800 dark:text-amber-200';
+  return (
+    <div
+      className={`px-4 py-2 text-[12px] border-b ${tone}`}
+      data-testid={`tone-check-${tc.status}-${post.id}`}
+    >
+      <div className={`flex items-center justify-between gap-2 ${textTone}`}>
+        <span className="font-semibold flex items-center gap-1">
+          <AlertTriangle size={12}/>
+          {isFail ? 'Launch-tone violations' : 'Launch-tone warnings'} — {tc.findings.length} item{tc.findings.length === 1 ? '' : 's'}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button" onClick={() => recheck(false)} disabled={busy}
+            className="hover:underline"
+            data-testid={`tone-check-recheck-${post.id}`}
+          >
+            {busy ? 'Checking…' : 'Recheck'}
+          </button>
+          <button
+            type="button" onClick={() => recheck(true)} disabled={busy}
+            className="hover:underline opacity-80"
+            data-testid={`tone-check-deep-${post.id}`}
+          >
+            Deep recheck (LLM)
+          </button>
+        </div>
+      </div>
+      <ul className="mt-1.5 space-y-1 list-disc list-inside" data-testid={`tone-check-findings-${post.id}`}>
+        {tc.findings.slice(0, 4).map((f, i) => (
+          <li key={i} className={`${textTone} opacity-90`}>
+            <span className="font-mono text-[11px] bg-white/40 dark:bg-black/30 rounded px-1">
+              {f.matched || f.snippet?.slice(0, 40)}
+            </span>
+            <span className="ml-1">— {f.suggestion}</span>
+          </li>
+        ))}
+        {tc.findings.length > 4 && (
+          <li className={`${textTone} opacity-70 italic`}>+ {tc.findings.length - 4} more</li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
 function PostCard({ post, onChange }) {
   const channel = post.channel;
   const visual = CHANNEL_VISUAL[channel] || {};

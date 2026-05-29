@@ -546,6 +546,58 @@ async def trigger_crawler(user: dict = Depends(get_current_user)):
     return await crawl_due_tracked_posts(db)
 
 
+# ── Iter 220bx — Pre-publish tone check ──────────────────────────────
+
+
+@router.post("/posts/{post_id}/recheck-tone")
+async def recheck_post_tone(
+    post_id: str,
+    deep: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """Re-run the launch-tone rulebook against a saved draft. Useful
+    after the operator edits the caption inline. ``deep=true`` also
+    runs the LLM second-pass (costs LLM budget; defaults off).
+    """
+    _require_master_admin(user)
+    await rate_limit_async(
+        f"tone_recheck:{user.get('id')}", max_requests=60, window_seconds=600,
+    )
+    post = await db.social_autopilot_posts.find_one({"id": post_id}, {"_id": 0})
+    if not post:
+        raise HTTPException(404, "Post not found")
+    from utils.social_tone_check import (
+        check_draft_tone, check_draft_tone_with_llm,
+    )
+    on_campaign = (post.get("generation_meta") or {}).get("on_campaign", False)
+    tone_check = check_draft_tone(
+        post.get("caption", ""),
+        hashtags=post.get("hashtags") or [],
+        on_campaign=bool(on_campaign),
+    )
+    if deep:
+        llm_pass = await check_draft_tone_with_llm(post.get("caption", ""))
+        tone_check["llm_pass"] = llm_pass
+        # Promote LLM findings into the main findings list so the UI
+        # renders them next to the heuristic hits.
+        for f in llm_pass.get("findings", []):
+            tone_check["findings"].append({
+                "severity": f.get("severity", "medium"),
+                "rule": "llm",
+                "snippet": f.get("snippet", ""),
+                "suggestion": f.get("suggestion", ""),
+                "source": "llm",
+            })
+        if llm_pass.get("verdict") == "failed":
+            tone_check["status"] = "failed"
+        elif tone_check["status"] == "ok" and llm_pass.get("verdict") == "warnings":
+            tone_check["status"] = "warnings"
+    await db.social_autopilot_posts.update_one(
+        {"id": post_id}, {"$set": {"tone_check": tone_check}},
+    )
+    return tone_check
+
+
 __all__ = ["router", "run_daily_social_loop"]
 
 
