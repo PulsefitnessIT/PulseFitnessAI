@@ -108,18 +108,19 @@ function Header({ summary, statusFilter, setStatusFilter, onRefresh, loading }) 
   const slaWarn = summary?.sla?.warning || 0;
   const slaBreach = summary?.sla?.breached || 0;
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50">
+    <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 shrink-0">
             <Inbox size={18} className="text-blue-600" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold text-zinc-900">Communications inbox</h2>
-            <p className="text-xs text-zinc-500">Every sales enquiry from the public marketing site lands here.</p>
+            <p className="text-xs text-zinc-500 hidden sm:block">Every sales enquiry from the public marketing site lands here.</p>
+            <p className="text-xs text-zinc-500 sm:hidden">Public-site sales enquiries.</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
           {(slaWarn > 0 || slaBreach > 0) && (
             <div className="flex items-center gap-2 text-[11px] font-semibold" data-testid="comms-sla-roll-up">
               {slaWarn > 0 && (

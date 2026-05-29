@@ -353,29 +353,34 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
     <div className="space-y-5" data-testid="gymaxis-growth-hub">
       {/* Hero — explains this is GymAxis self-promo. */}
       <header
-        className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-5 py-4 flex items-center gap-4"
+        className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900 px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
         data-testid="growth-hub-hero"
       >
-        <span className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-blue-600 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(217,70,239,0.6)]">
-          <Rocket size={20} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.18em] font-bold text-fuchsia-700 dark:text-fuchsia-400">
-            Growth · Master Admin
-          </p>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight mt-0.5">
-            GymAxis Growth Hub
-          </h2>
-          <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 max-w-2xl">
-            How we&apos;re marketing GymAxis to fitness operators. Pulls live
-            numbers from Trials, SEO Autopilot, Outbound Emails, CRM Pipeline
-            and Sales Insights — no module is rebuilt here, every tile deep-links
-            into the existing tool.
-          </p>
+        <div className="flex items-start gap-3 sm:contents">
+          <span className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-blue-600 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(217,70,239,0.6)]">
+            <Rocket size={18} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.18em] font-bold text-fuchsia-700 dark:text-fuchsia-400">
+              Growth · Master Admin
+            </p>
+            <h2 className="text-lg sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight mt-0.5 leading-tight">
+              GymAxis Growth Hub
+            </h2>
+            <p className="hidden sm:block text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 max-w-2xl">
+              How we&apos;re marketing GymAxis to fitness operators. Pulls live
+              numbers from Trials, SEO Autopilot, Outbound Emails, CRM Pipeline
+              and Sales Insights — no module is rebuilt here, every tile deep-links
+              into the existing tool.
+            </p>
+            <p className="sm:hidden text-xs text-zinc-600 dark:text-zinc-300 mt-1 leading-snug">
+              Live numbers from Trials, SEO, Outbound, CRM &amp; Sales — every tile deep-links into the tool.
+            </p>
+          </div>
         </div>
         <button
           type="button" onClick={() => { load(); loadSparklines(); }} disabled={busy}
-          className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400 disabled:opacity-50"
+          className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400 disabled:opacity-50 bg-white dark:bg-zinc-950"
           data-testid="growth-hub-refresh"
         >
           {busy ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12} />}

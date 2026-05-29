@@ -1,3 +1,48 @@
+## Iter 220cc — Master Admin mobile optimisation ✅ (May 29, 2026)
+
+**User ask** (CEO running master admin mostly from phone):
+> "Master admin - Mobile optimise Social media as I will be running this mostly on my phone"
+>
+> Follow-up: "Yes continue mobile optimise more master admin"
+
+### What shipped
+
+Same responsive pattern applied across the most-used Master Admin
+panels (414px iPhone viewport verified):
+- **Hero header** — was `flex items-center gap-4` → now `flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4`. Icon shrinks (10×10 on mobile, 12×12 on desktop). Headlines use `text-lg sm:text-2xl`. Long marketing descriptions hidden on mobile and replaced with a 1-line summary.
+- **Action buttons** — full-width side-by-side on mobile (`flex-1 sm:flex-initial`, `w-full sm:w-auto`), inline-small on desktop. Refresh button always reachable.
+- **Filter rows** — `gap-x-2 gap-y-2 flex-wrap` so the second row of pills has breathing room. `STATUS` label drops left padding on mobile.
+
+### Panels touched
+
+1. **SocialAutopilotPanel.js** (started this iter as the user's
+   specific pain point) — hero, filters, post-card spacing.
+2. **GymAxisGrowthHub.js** — hero with Refresh button. Was
+   `hidden md:inline-flex` (no Refresh on mobile at all!) — now
+   full-width Refresh on mobile.
+3. **AdminCommunications.js** — inbox header. Refresh + SLA pills
+   row stacks below the title on mobile, status tabs wrap to 2
+   rows cleanly.
+4. **AdminTrials.js** — title row. Refresh shrinks to icon-only on
+   mobile (matches the master admin shell's pattern).
+
+### Untouched (already mobile-friendly)
+- **AdminEmails.js** — short title + 2-col stat grid already mobile-OK.
+- **SalesInsightsPanel.js** — `flex-wrap` with `ml-auto` was already responsive.
+- **AdminCommunications detail drawer** — `w-full max-w-2xl` correctly fills the viewport on mobile and grids inside are 2-col.
+- **SocialAutopilotCampaignsAndTracker.js** — already uses `grid sm:grid-cols-2` patterns.
+
+### Smoke
+End-to-end verified at 414px viewport — Growth Hub, Comms inbox,
+Trials and Social Autopilot all render cleanly: hero clean, stat
+tiles 2-col, filters wrap, action buttons accessible.
+
+Frontend lint clean. No backend / no test changes (pure CSS / JSX).
+
+---
+
+
+
 ## Iter 220ca / 220cb — Competitor signup defense ✅ (May 29, 2026)
 
 **User ask**:

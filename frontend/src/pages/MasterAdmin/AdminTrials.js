@@ -85,12 +85,13 @@ export default function AdminTrials() {
 
   return (
     <div className="space-y-5" data-testid="admin-trials">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-xl font-semibold text-zinc-900">Trial Management</h2>
-          <p className="text-sm text-zinc-500 mt-1">Track active trials, extend deadlines, and convert customers to paid subscriptions.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg sm:text-xl font-semibold text-zinc-900">Trial Management</h2>
+          <p className="text-xs sm:text-sm text-zinc-500 mt-1 hidden sm:block">Track active trials, extend deadlines, and convert customers to paid subscriptions.</p>
+          <p className="text-xs text-zinc-500 mt-1 sm:hidden">Extend trials &amp; convert to paid.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load}><RefreshCw size={12} className="mr-1" /> Refresh</Button>
+        <Button variant="outline" size="sm" onClick={load} className="shrink-0"><RefreshCw size={12} className="sm:mr-1" /><span className="hidden sm:inline">Refresh</span></Button>
       </div>
 
       {/* Summary tiles */}
