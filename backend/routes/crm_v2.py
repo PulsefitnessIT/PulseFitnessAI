@@ -1320,6 +1320,236 @@ async def dashboard(user=Depends(get_crm_user)):
 
 
 # ═══════════════════════════════════════════
+# UNIFIED TIMELINE — Iter 220bu
+# Merges activities + quotes + cases + tender events into a single
+# chronological feed, scoped to any one of company / opportunity /
+# tender. Powers the "360° view" timeline panel in the CRM UI.
+# ═══════════════════════════════════════════
+
+import asyncio as _asyncio_timeline  # noqa: E402  (local alias)
+
+
+def _ts(row: dict) -> str:
+    """Best-available occurrence timestamp for sorting."""
+    return (
+        row.get("completed_at")
+        or row.get("created_at")
+        or row.get("updated_at")
+        or ""
+    )
+
+
+def _norm_activity(a: dict) -> dict:
+    """Normalise an `crm2_activities` row to the timeline shape."""
+    return {
+        "id": f"act:{a['id']}",
+        "source_collection": "crm2_activities",
+        "source_id": a["id"],
+        "type": f"activity:{a.get('type', 'note')}",
+        "occurred_at": _ts(a),
+        "subject": a.get("subject", ""),
+        "body": a.get("body", ""),
+        "actor": a.get("owner_name", ""),
+        "icon_hint": a.get("type", "note"),
+        "status_hint": "completed" if a.get("completed_at") else None,
+        "deep_link": f"/crm/activities/{a['id']}",
+    }
+
+
+def _norm_quote(q: dict) -> dict:
+    cur = q.get("currency", "GBP")
+    total = q.get("total") or 0
+    return {
+        "id": f"qt:{q['id']}",
+        "source_collection": "crm_quotes",
+        "source_id": q["id"],
+        "type": f"quote:{q.get('status', 'draft')}",
+        "occurred_at": _ts(q),
+        "subject": f"Quote {q.get('quote_number', '')} — {q.get('title', '')}".strip(" —"),
+        "body": f"{cur} {total:,.0f} · status: {q.get('status', 'draft')}",
+        "actor": q.get("created_by_name", ""),
+        "icon_hint": "quote",
+        "status_hint": q.get("status"),
+        "deep_link": f"/crm/quotes/{q['id']}",
+    }
+
+
+def _norm_case(c: dict) -> dict:
+    return {
+        "id": f"case:{c['id']}",
+        "source_collection": "crm2_cases",
+        "source_id": c["id"],
+        "type": f"case:{c.get('status', 'open')}",
+        "occurred_at": _ts(c),
+        "subject": f"Case {c.get('case_number', '')} — {c.get('subject', '')}".strip(" —"),
+        "body": c.get("description", "")[:240] if c.get("description") else "",
+        "actor": c.get("owner_name", ""),
+        "icon_hint": "case",
+        "status_hint": c.get("status"),
+        "deep_link": f"/crm/cases/{c['id']}",
+    }
+
+
+def _norm_tender_event(t: dict, *, event: str) -> dict:
+    """Synthesise a tender event from the tender row itself.
+
+    Tenders don't have a dedicated event log so we emit two events per
+    tender — one ``tender:created`` at ``created_at`` and one
+    ``tender:status_changed`` at ``updated_at`` IF it differs from
+    ``created_at`` (i.e. the row has been touched after creation).
+    """
+    when = t.get("created_at", "") if event == "created" else t.get("updated_at", "")
+    return {
+        "id": f"tend:{t['id']}:{event}",
+        "source_collection": "crm2_tenders",
+        "source_id": t["id"],
+        "type": f"tender:{event}",
+        "occurred_at": when,
+        "subject": t.get("title", "") or "Untitled tender",
+        "body": f"Status: {t.get('status', 'draft')}",
+        "actor": t.get("bid_owner", "") or t.get("created_by", ""),
+        "icon_hint": "tender",
+        "status_hint": t.get("status"),
+        "deep_link": f"/crm/tenders/{t['id']}",
+    }
+
+
+@router.get("/timeline")
+async def unified_timeline(
+    company_id: str = "",
+    opportunity_id: str = "",
+    tender_id: str = "",
+    limit: int = 100,
+    skip: int = 0,
+    user=Depends(get_crm_user),
+):
+    """Unified chronological feed for one of the three top-level
+    entities. Pass exactly one of ``company_id`` / ``opportunity_id``
+    / ``tender_id``.
+
+    The feed merges:
+
+    * **Activities** (notes, calls, emails, meetings, tasks, system
+      events) from ``crm2_activities``.
+    * **Quotes** (any status, sorted by created_at) from
+      ``crm_quotes``.
+    * **Cases** (opened against the company) from ``crm2_cases`` —
+      only when scoped by company.
+    * **Tender events** (``created`` + ``status_changed`` synthetic
+      events) from ``crm2_tenders``.
+
+    All rows are org-scoped via ``_of(user)`` so cross-tenant access
+    is impossible. Results are sorted by ``occurred_at`` descending
+    and paginated via ``limit`` / ``skip``.
+    """
+    scopes = [bool(company_id), bool(opportunity_id), bool(tender_id)]
+    if sum(scopes) != 1:
+        raise HTTPException(
+            400, "Pass exactly one of company_id, opportunity_id, tender_id.",
+        )
+    if limit < 1 or limit > 500:
+        raise HTTPException(400, "limit must be between 1 and 500")
+    of = _of(user)
+
+    # ── Validate scope belongs to the requesting org ────────────────
+    if company_id:
+        scope_doc = await db.crm2_companies.find_one(
+            {"id": company_id, **of}, {"_id": 0, "id": 1, "name": 1},
+        )
+    elif opportunity_id:
+        scope_doc = await db.crm2_opportunities.find_one(
+            {"id": opportunity_id, **of},
+            {"_id": 0, "id": 1, "title": 1, "company_id": 1},
+        )
+    else:
+        scope_doc = await db.crm2_tenders.find_one(
+            {"id": tender_id, **of},
+            {"_id": 0, "id": 1, "title": 1, "company_id": 1, "opportunity_id": 1},
+        )
+    if not scope_doc:
+        raise HTTPException(404, "Scope entity not found in this organisation")
+
+    # ── Build per-source queries based on scope ─────────────────────
+    if company_id:
+        act_q = {"company_id": company_id, **of}
+        quote_q = {"company_id": company_id, "organization_id": user.get("organization_id")}
+        case_q = {"company_id": company_id, **of}
+        tender_q = {"company_id": company_id, **of}
+    elif opportunity_id:
+        act_q = {"opportunity_id": opportunity_id, **of}
+        # Quotes store the opportunity id on ``deal_id``.
+        quote_q = {"deal_id": opportunity_id, "organization_id": user.get("organization_id")}
+        case_q = None  # cases don't link directly to opportunities
+        tender_q = {"opportunity_id": opportunity_id, **of}
+    else:
+        # tender_id scope — activities don't link directly to tenders
+        # (yet); the related quotes carry the link instead.
+        act_q = None
+        quote_q = {"tender_id": tender_id, "organization_id": user.get("organization_id")}
+        case_q = None
+        # The tender events themselves come from the scope_doc.
+        tender_q = {"id": tender_id, **of}
+
+    async def _q_activities():
+        if act_q is None:
+            return []
+        return await db.crm2_activities.find(act_q, {"_id": 0}).sort(
+            "created_at", -1).limit(limit + skip).to_list(limit + skip)
+
+    async def _q_quotes():
+        return await db.crm_quotes.find(quote_q, {"_id": 0}).sort(
+            "created_at", -1).limit(limit + skip).to_list(limit + skip)
+
+    async def _q_cases():
+        if case_q is None:
+            return []
+        return await db.crm2_cases.find(case_q, {"_id": 0}).sort(
+            "created_at", -1).limit(limit + skip).to_list(limit + skip)
+
+    async def _q_tenders():
+        return await db.crm2_tenders.find(tender_q, {"_id": 0}).sort(
+            "created_at", -1).limit(limit + skip).to_list(limit + skip)
+
+    activities, quotes, cases, tenders = await _asyncio_timeline.gather(
+        _q_activities(), _q_quotes(), _q_cases(), _q_tenders(),
+    )
+
+    # ── Normalise everything to the timeline shape ──────────────────
+    events: list[dict] = []
+    for a in activities:
+        events.append(_norm_activity(a))
+    for q in quotes:
+        events.append(_norm_quote(q))
+    for c in cases:
+        events.append(_norm_case(c))
+    for t in tenders:
+        events.append(_norm_tender_event(t, event="created"))
+        # Only emit a status_changed event if updated_at meaningfully
+        # differs from created_at (avoids dupes for never-touched tenders).
+        upd = t.get("updated_at") or ""
+        crt = t.get("created_at") or ""
+        if upd and upd != crt:
+            events.append(_norm_tender_event(t, event="status_changed"))
+
+    # ── Sort + paginate ─────────────────────────────────────────────
+    events.sort(key=lambda e: e["occurred_at"], reverse=True)
+    total = len(events)
+    page = events[skip:skip + limit]
+
+    return {
+        "scope": {
+            "type": "company" if company_id else ("opportunity" if opportunity_id else "tender"),
+            "id": company_id or opportunity_id or tender_id,
+            "label": (scope_doc.get("name") or scope_doc.get("title", "")),
+        },
+        "events": page,
+        "total": total,
+        "limit": limit,
+        "skip": skip,
+    }
+
+
+# ═══════════════════════════════════════════
 # SERVICE REVENUE YTD — Iter 216h152
 # Aggregates `crm2_activities` of type "service_invoice" emitted by
 # the Service Ops billing flow (see utils/svc_crm_sync.py). Keeps the

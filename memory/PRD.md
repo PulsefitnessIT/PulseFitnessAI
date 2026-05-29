@@ -1,3 +1,82 @@
+## Iter 220bu — Cross-module unified timeline ✅ (Feb 2026)
+
+**Goal**: ship the chronological 360° feed per Company / Opportunity /
+Tender that combines activities, quotes, cases, and tender events
+into a single ordered stream the UI can render without N+1 round-trips.
+
+### What shipped
+
+1. **New endpoint** `GET /crm/v2/timeline` accepting exactly one of:
+   * `company_id` — pulls activities + quotes + cases + tender events.
+   * `opportunity_id` — pulls activities + quotes + tender events.
+   * `tender_id` — pulls linked quotes + synthesised tender events.
+   * Pagination: `limit` (1–500, default 100) + `skip`.
+   * Returns `{scope, events, total, limit, skip}`.
+
+2. **Parallel multi-source query** via `asyncio.gather` across
+   `crm2_activities`, `crm_quotes`, `crm2_cases`, `crm2_tenders` —
+   all org-scoped via `_of(user)`. The scope entity itself is
+   validated against the requesting org first (404 on mismatch).
+
+3. **Tender events synthesised** from the tender row itself —
+   `tender:created` always; `tender:status_changed` only when
+   `updated_at` ≠ `created_at` (no duplicate noise for never-touched
+   rows).
+
+4. **Normalised event shape** — every event carries the same 11 keys
+   regardless of source so the React renderer doesn't need a
+   per-source branch:
+   `{id, source_collection, source_id, type, occurred_at, subject,
+   body, actor, icon_hint, status_hint, deep_link}`. Deep links are
+   CRM-internal routes (`/crm/...`) so the UI can drill in without
+   parsing a full URL.
+
+### Files touched
+- `backend/routes/crm_v2.py` — new `unified_timeline` endpoint +
+  4 `_norm_*` helpers (`_norm_activity`, `_norm_quote`, `_norm_case`,
+  `_norm_tender_event`).
+- `backend/tests/test_iter_220bu_unified_timeline.py` — new, 10 tests:
+  scope validation, 404 on cross-tenant scope, limit guard, full
+  merge, sort order, org-scoped queries (defensive), tender event
+  synthesis (touched vs untouched), pagination, normalised shape
+  stability.
+- `Makefile` — registered under `regression:`.
+
+### Verified
+- `make regression` → **1475 passed, 0 failed, 15 skipped** (was 1465 → +10).
+- Live API:
+  * `GET /api/crm/v2/timeline?company_id=<real-id>` → 200 with
+    `{scope:{type:"company",id,label:"Third Space"},events:[],total:0,…}`.
+  * `GET /api/crm/v2/timeline` (no scope) → 400 "Pass exactly one of
+    company_id, opportunity_id, tender_id."
+  * `GET /api/crm/v2/timeline?company_id=nonexistent-id` → 404
+    "Scope entity not found in this organisation."
+
+### Design choices
+- **Sort happens in Python after the gather** — each source is queried
+  with its own `created_at` index then merged. The `limit+skip`
+  over-fetch (limit + skip per source) caps Mongo load at ~600 rows
+  for the default limit of 100.
+- **Status-changed event uses `updated_at`** — good enough for now;
+  a future iteration could record discrete status_history events
+  on the tender row and emit one event per transition.
+- **`opportunity_id` scope intentionally skips cases** — cases link
+  to companies, not deals, in our schema. Pulling cases via the
+  company would be a "noisy" mismatch (you'd see every case for the
+  company on the deal timeline).
+- **`tender_id` scope intentionally skips activities** — activities
+  don't carry a `tender_id` foreign key today. Linked quotes (which
+  do) carry the tender connection through.
+
+### Out of scope (tracked separately)
+- Frontend timeline component — the API surface is stable; a future
+  iteration plugs `<TimelinePanel scope={{type,id}}/>` into the
+  Company / Opportunity / Tender drawers.
+- Contract events (`crm_contracts`) — not yet merged into the feed.
+- Activity-to-tender direct link (would require a small schema
+  migration before adding `tender_id` to the activity create payload).
+
+
 ## Iter 220bt — Frontend picklist UX polish ✅ (Feb 2026)
 
 **Goal**: turn the new strict-picklist 400 from "punitive" into
