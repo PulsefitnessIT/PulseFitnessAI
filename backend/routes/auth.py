@@ -123,6 +123,22 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
         from utils.captcha import verify_captcha
         await verify_captcha(getattr(user, "cf_turnstile_response", None), action="trial_signup")
 
+    # Iter 220ca — competitor blocklist. Trial signups from known
+    # competitor domains (Orbit 4, ServiceSport, Mindbody, etc.) are
+    # rejected at the door with a "talk to sales" message so they
+    # can't casually snoop the dashboard. The list lives in
+    # ``utils.competitor_blocklist`` and ships with the same CI gate
+    # as the rest of the code.
+    if getattr(user, "is_trial", False):
+        from utils.competitor_blocklist import competitor_block_reason
+        reason = competitor_block_reason(user.email)
+        if reason:
+            logger.info(
+                "[competitor-block] rejected trial signup",
+                extra={"email_domain": (user.email or "").split("@", 1)[-1]},
+            )
+            raise HTTPException(status_code=400, detail=reason)
+
     # Password strength
     validate_password_strength(user.password)
 
