@@ -1,3 +1,48 @@
+## Iter 220br — Pre-launch ops hardening ✅ (Feb 2026)
+
+**Goal**: close the gaps an auditor / pen tester / enterprise customer
+will look at *first* — formal docs, single-page sign-off, and a
+locked-in footer that surfaces everything in one click.
+
+### What shipped
+
+| Artefact | Purpose |
+|---|---|
+| `memory/OPS/BACKUP_RESTORE_RUNBOOK.md` | Standalone restore procedure — RTO/RPO commitments, PITR / weekly / Glacier paths, single-tenant restore, quarterly drill protocol, drill log template. |
+| `memory/OPS/INCIDENT_RESPONSE_PLAYBOOK.md` | Severity matrix (P0–P3), notification ladder (incl. ICO 72-h clock for Art. 33), 6-stage incident lifecycle, 5 customer-facing comms templates (T-001 – T-005), blameless post-mortem template, external-contacts table. |
+| `memory/PRE_LAUNCH_CHECKLIST.md` | Single-page Go/No-Go — 30+ P0 gates across Security, Data & GDPR, Ops, Commercial; P1 30-day items; document inventory table; founder/CTO/DPO sign-off block. |
+| `frontend/src/components/shared/Footer.js` | Added `/status` link with `data-testid="footer-status-link"` so the status page is one click from every public page. |
+| `backend/tests/test_iter_220br_prelaunch_ops.py` | 8 new tests pinning doc contents, public-route reachability, footer link surface, and the audit-doc cross-reference. |
+
+### Already covered
+* Privacy, Terms, Refunds, DPA, DPIA, SLA, Sub-processors — all
+  public pages and `memory/LEGAL/*.md` sources of truth exist.
+* `OPS_RUNBOOK.md` (on-call rota, severity matrix, common failure
+  modes), `SECURITY_OPS.md` (env-var inventory, WAF guidance,
+  backup config, monitoring), `DOMAIN_CUTOVER_RUNBOOK.md`,
+  `EMAIL_DELIVERABILITY_RUNBOOK.md`.
+
+### Verified
+- `make regression` → **1442 passed, 0 failed, 15 skipped** (was 1434 → +8).
+- Frontend linter passes on the updated Footer.
+- The pre-launch checklist cross-references `SECURITY_AUDIT_2026Q1.md`
+  (the audit doc shipped in Iter 220bp) for the OWASP gate.
+
+### Notable design choices
+* The runbooks live **internal-only** in `memory/OPS/`; only `/status`,
+  `/security`, `/trust` are public from this set. Auditors get the
+  internal docs via signed NDA.
+* Drill cadence is "quarterly OR launch is a P0 gate" — written into
+  both the runbook and the checklist so it can't be quietly skipped.
+* T-005 (personal data breach template) explicitly names the DPO
+  email so the 72-hour ICO clock is visibly on the comms path.
+
+### Out of scope (tracked separately)
+- Bug-bounty programme (P2 in checklist).
+- SOC 2 evidence collection (P2).
+- ISO 27001 gap analysis (P2).
+
+
 ## Iter 220bq — GDPR Article 17 polish ✅ (Feb 2026)
 
 **Goal**: close four genuine gaps in the existing right-to-erasure

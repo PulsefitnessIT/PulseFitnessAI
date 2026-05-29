@@ -78,6 +78,10 @@ const Footer = () => {
             <FooterLink to="/sub-processors" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-subprocessors-link">
               Sub-processors
             </FooterLink>
+            <span className="text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>|</span>
+            <FooterLink to="/status" style={{ color: 'var(--theme-text-muted)' }} data-testid="footer-status-link">
+              Status
+            </FooterLink>
           </div>
           <p className="text-xs text-[var(--color-text-muted)]" style={{ color: 'var(--theme-text-muted)' }}>{t('footer.copyright')}</p>
         </div>
