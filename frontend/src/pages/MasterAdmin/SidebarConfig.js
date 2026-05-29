@@ -5,7 +5,7 @@ import {
   Wallet, Megaphone, Lock, FolderArchive, AlertCircle,
   Database, Image as ImageIcon, Activity, ScrollText, RotateCcw, RefreshCcw,
   Plug, MapPin, Building, Settings, BadgeCheck, Inbox, FileText, Globe,
-  ShieldOff,
+  ShieldOff, Share2,
 } from 'lucide-react';
 
 /**
