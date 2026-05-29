@@ -16,6 +16,9 @@ import re
 import json
 import logging
 
+# Iter 220bs — strict picklist enforcement at CRUD boundaries.
+from routes.crm_picklists import validate_picklist_fields
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crm/v2", tags=["CRM v2"])
@@ -500,6 +503,12 @@ async def list_contacts(
 
 @router.post("/contacts")
 async def create_contact(data: dict, user=Depends(get_crm_user)):
+    # Iter 220bs — strict picklist enforcement for contact metadata.
+    await validate_picklist_fields(data, {
+        "job_title": "job_title",
+        "department": "department",
+        "contact_role": "contact_role",
+    }, user.get("organization_id"))
     # Iter 216h223 — tighten email validation + stakeholder mapping.
     # Email is required by default; the `force=true` query/body flag
     # (master-admin only) keeps the legacy importer paths working for
@@ -673,6 +682,12 @@ async def update_contact(contact_id: str, data: dict, user=Depends(get_crm_user)
     existing = await db.crm2_contacts.find_one({"id": contact_id, **_of(user)})
     if not existing:
         raise HTTPException(404, "Contact not found")
+    # Iter 220bs — strict picklist enforcement (same fields as create).
+    await validate_picklist_fields(data, {
+        "job_title": "job_title",
+        "department": "department",
+        "contact_role": "contact_role",
+    }, user.get("organization_id"))
     updates = {k: v for k, v in data.items() if k not in ("id", "organization_id", "created_at")}
     updates["updated_at"] = _now()
     await db.crm2_contacts.update_one({"id": contact_id}, {"$set": updates})
@@ -1004,6 +1019,14 @@ async def list_opportunities(
 
 @router.post("/opportunities")
 async def create_opportunity(data: dict, user=Depends(get_crm_user)):
+    # Iter 220bs — strict picklist enforcement. Normalises casing and
+    # rejects values not in the org's picklist with a 400 listing the
+    # valid options.
+    await validate_picklist_fields(data, {
+        "lead_source": "lead_source",
+        "opportunity_type": "opportunity_type",
+        "lost_reason": "lost_reason",
+    }, user.get("organization_id"))
     stage = data.get("stage", "lead")
     stage_info = next((s for s in OPPORTUNITY_STAGES if s["id"] == stage), OPPORTUNITY_STAGES[0])
     opp = {
@@ -1089,6 +1112,12 @@ async def update_opportunity(opp_id: str, data: dict, user=Depends(get_crm_user)
     existing = await db.crm2_opportunities.find_one({"id": opp_id, **_of(user)})
     if not existing:
         raise HTTPException(404, "Opportunity not found")
+    # Iter 220bs — strict picklist enforcement (same fields as create).
+    await validate_picklist_fields(data, {
+        "lead_source": "lead_source",
+        "opportunity_type": "opportunity_type",
+        "lost_reason": "lost_reason",
+    }, user.get("organization_id"))
     updates = {k: v for k, v in data.items() if k not in ("id", "organization_id", "created_at", "stage_history")}
 
     if "stage" in updates and updates["stage"] != existing.get("stage"):
@@ -1399,6 +1428,10 @@ async def list_cases(
 
 @router.post("/cases")
 async def create_case(data: dict, user=Depends(get_crm_user)):
+    # Iter 220bs — strict picklist enforcement for case taxonomy.
+    await validate_picklist_fields(data, {
+        "case_type": "case_type",
+    }, user.get("organization_id"))
     case = {
         "id": _id(), "organization_id": user.get("organization_id"),
         "case_number": f"CS-{str(uuid.uuid4())[:6].upper()}",
@@ -2419,6 +2452,11 @@ async def create_tender(data: dict, user=Depends(get_crm_user)):
     # the same org before persisting, so we can never silently leak across
     # tenants.
     of = _of(user)
+    # Iter 220bs — strict picklist enforcement for tender taxonomy.
+    await validate_picklist_fields(data, {
+        "status": "tender_status",
+        "outcome_reason": "tender_outcome_reason",
+    }, user.get("organization_id"))
     if data.get("company_id"):
         co = await db.crm2_companies.find_one(
             {"id": data["company_id"], **of}, {"_id": 0, "id": 1},
@@ -2492,6 +2530,17 @@ async def get_tender(tender_id: str, user=Depends(get_crm_user)):
             {"_id": 0, "id": 1, "title": 1, "stage": 1, "value": 1,
              "close_date": 1, "company_id": 1},
         )
+    # Iter 220bs — Tender ↔ Quote deep-linking: surface every quote
+    # that names this tender as its source so the bid team can see
+    # commercial responses against the spec in one screen. Org-scoped
+    # so a crafted tender_id can never pull a sibling tenant's quotes.
+    quote_cur = db.crm_quotes.find(
+        {"tender_id": tender_id, "organization_id": user.get("organization_id")},
+        {"_id": 0, "id": 1, "quote_number": 1, "title": 1, "status": 1,
+         "total": 1, "currency": 1, "version": 1, "is_latest_version": 1,
+         "created_at": 1},
+    ).sort("created_at", -1)
+    t["quotes"] = await quote_cur.to_list(50)
     return t
 
 
@@ -2500,6 +2549,11 @@ async def update_tender(tender_id: str, data: dict, user=Depends(get_crm_user)):
     existing = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)})
     if not existing:
         raise HTTPException(404, "Tender not found")
+    # Iter 220bs — strict picklist enforcement on update too.
+    await validate_picklist_fields(data, {
+        "status": "tender_status",
+        "outcome_reason": "tender_outcome_reason",
+    }, user.get("organization_id"))
     # Iter 220an — deep-linking: when re-pointing a tender to a different
     # company / opportunity we must enforce same-org ownership so a tender
     # can't be silently leaked to another tenant via a crafted PUT.

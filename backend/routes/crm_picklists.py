@@ -147,6 +147,27 @@ PICKLIST_KEYS: dict[str, dict] = {
             "Finance", "IT", "HR", "Procurement", "Facilities", "Other",
         ],
     },
+    # Iter 220bs — Tender lifecycle picklists. Replaces the hard-coded
+    # TENDER_STATUSES list in crm_v2.py so operators can extend the
+    # workflow without a code change.
+    "tender_status": {
+        "label": "Tender Status",
+        "scope": "tender",
+        "defaults": [
+            "Draft", "Parsing", "In Progress", "Internal Review",
+            "Submitted", "Awarded", "Lost", "Withdrawn",
+        ],
+    },
+    "tender_outcome_reason": {
+        "label": "Tender Outcome Reason",
+        "scope": "tender",
+        "defaults": [
+            "Best technical answer", "Best commercial answer",
+            "Incumbent advantage", "Lost — price", "Lost — technical",
+            "Lost — relationship", "Lost — no decision",
+            "Withdrew — no fit", "Other",
+        ],
+    },
 }
 
 
@@ -207,6 +228,106 @@ async def seed_global_picklists() -> None:
         await db.crm_picklists.create_index([("key", 1), ("label", 1)])
     except Exception:
         logger.exception("seed_global_picklists failed (non-fatal)")
+
+
+# ── Enforcement helper (Iter 220bs) ─────────────────────────────────
+
+
+async def get_allowed_values(key: str, organization_id: str | None) -> list[str]:
+    """Return the canonical labels for a picklist key, merging global
+    defaults + org-specific values, with deprecated rows filtered. Used
+    by the strict-validation helper below.
+    """
+    if key not in PICKLIST_KEYS:
+        return []
+    rows = await db.crm_picklists.find(
+        {
+            "key": key,
+            "deprecated": False,
+            "$or": [{"organization_id": None}, {"organization_id": organization_id}],
+        },
+        {"_id": 0, "label": 1},
+    ).to_list(500)
+    return [r["label"] for r in rows if r.get("label")]
+
+
+async def validate_picklist_value(
+    key: str, value: str | None,
+    organization_id: str | None,
+    *, strict: bool = True,
+) -> str | None:
+    """Validate a single picklist-typed field.
+
+    * ``None`` / empty values pass through unchanged (picklists are
+      optional unless the caller enforces requiredness separately).
+    * Match is **case-insensitive** and trims whitespace; the canonical
+      label from the picklist row is returned so we normalise storage.
+    * ``strict=True`` (default) raises HTTPException(400) listing the
+      valid options when no match is found — clean error surface for
+      the operator UI.
+    * ``strict=False`` returns ``None`` on no-match so legacy callers
+      can warn-only and migrate gradually.
+
+    Designed to be cheap to call from every CRUD endpoint — a single
+    indexed Mongo query per (key, org) and an O(n) Python compare.
+    """
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    if not cleaned:
+        return None
+    allowed = await get_allowed_values(key, organization_id)
+    lookup = {a.casefold(): a for a in allowed}
+    canonical = lookup.get(cleaned.casefold())
+    if canonical is not None:
+        return canonical
+    if not strict:
+        return None
+    # Helpful 400 with the valid options listed (capped at 20 for sanity).
+    raise HTTPException(
+        status_code=400,
+        detail={
+            "error": "invalid_picklist_value",
+            "key": key,
+            "field_label": PICKLIST_KEYS.get(key, {}).get("label", key),
+            "received": cleaned,
+            "valid_examples": allowed[:20],
+            "hint": (
+                f"Pick one of the values from /api/crm/picklists/{key}. "
+                "If you need a new value, add it via the Settings → "
+                "Picklists screen first."
+            ),
+        },
+    )
+
+
+async def validate_picklist_fields(
+    payload: dict, fields: dict[str, str],
+    organization_id: str | None,
+    *, strict: bool = True,
+) -> dict:
+    """Bulk version — pass ``{payload_field: picklist_key}`` and the
+    payload is normalised in-place (returns the same dict for chaining).
+
+    Example::
+
+        await validate_picklist_fields(data, {
+            "lead_source": "lead_source",
+            "opportunity_type": "opportunity_type",
+        }, user.get("organization_id"))
+    """
+    for payload_field, picklist_key in fields.items():
+        if payload_field not in payload:
+            continue
+        canonical = await validate_picklist_value(
+            picklist_key, payload.get(payload_field),
+            organization_id, strict=strict,
+        )
+        # Only overwrite if we got a canonical match — preserves
+        # empty/None as-is.
+        if canonical is not None:
+            payload[payload_field] = canonical
+    return payload
 
 
 # ── Read endpoints ──────────────────────────────────────────────────

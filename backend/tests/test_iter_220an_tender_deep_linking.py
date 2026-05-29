@@ -54,6 +54,9 @@ def _fake_db():
         "crm2_companies", "crm2_opportunities", "crm2_quotes",
         "crm2_contacts", "crm2_cases", "crm2_assets", "crm2_contracts",
         "crm2_activities",
+        # Iter 220bs — CPQ quotes are stored in `crm_quotes` (not v2).
+        # get_tender now hydrates linked quotes from this collection.
+        "crm_quotes",
     ):
         c = getattr(fdb, coll)
         c.insert_one = AsyncMock()

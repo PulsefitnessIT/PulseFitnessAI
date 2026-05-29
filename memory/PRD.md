@@ -1,3 +1,94 @@
+## Iter 220bs — CRM evolution: strict picklists + Tender deep-linking ✅ (Feb 2026)
+
+**Goal**: close the last unaddressed strand of the original problem
+statement — "strict data typing, Picklists, cross-module relationships,
+Tenders deep-linking".
+
+### What shipped
+
+1. **`validate_picklist_value` + `validate_picklist_fields` helpers**
+   (`routes/crm_picklists.py`):
+   * Case-insensitive matching; returns the canonical label so storage
+     is normalised regardless of UI casing.
+   * `strict=True` (default) raises `HTTPException(400)` with a
+     structured detail: `error`, `key`, `field_label`, `received`,
+     `valid_examples`, `hint` (pointing at `/api/crm/picklists/{key}`).
+   * `strict=False` returns `None` on miss — escape hatch for legacy
+     importers.
+   * Empty / None passes through (picklists are optional unless the
+     caller enforces requiredness separately).
+   * `validate_picklist_fields(payload, {field: key}, org_id)` bulk
+     normalises a CRUD payload in-place — one call per endpoint.
+
+2. **Two new picklists** seeded:
+   * `tender_status` (Draft, Parsing, In Progress, Internal Review,
+     Submitted, Awarded, Lost, Withdrawn) — replaces the hard-coded
+     `TENDER_STATUSES` constant.
+   * `tender_outcome_reason` (Best technical answer, Best commercial
+     answer, Lost — price, Lost — technical, etc.) — for win/loss
+     analysis on the bid dashboard.
+
+3. **Enforcement wired at every CRUD boundary** in `crm_v2.py`:
+   * `create_opportunity` / `update_opportunity` — `lead_source`,
+     `opportunity_type`, `lost_reason`.
+   * `create_contact` / `update_contact` — `job_title`, `department`,
+     `contact_role`.
+   * `create_case` — `case_type`.
+   * `create_tender` / `update_tender` — `tender_status`,
+     `tender_outcome_reason`.
+
+4. **Quote ↔ Tender deep-linking** (`routes/crm_cpq.py` +
+   `routes/crm_v2.py`):
+   * `crm_quotes.tender_id` foreign key. `create_quote` and
+     `update_quote` both enforce same-org ownership when linking; a
+     crafted cross-tenant `tender_id` gets a 400 "Linked tender not
+     found in this organisation".
+   * Unlink path (`tender_id: None` on update) is allowed.
+   * `GET /crm/v2/tenders/{id}` now hydrates a `quotes` array (id,
+     number, title, status, total, version, latest-flag) so the bid
+     team can see every commercial response against the spec in one
+     screen.
+
+### Files touched
+- `backend/routes/crm_picklists.py` — 2 new keys, 2 new helpers.
+- `backend/routes/crm_v2.py` — picklist enforcement at 4 CRUD
+  endpoints; tender ↔ quote hydration on `get_tender`.
+- `backend/routes/crm_cpq.py` — `tender_id` schema field + same-org
+  guard on create/update.
+- `backend/tests/test_iter_220an_tender_deep_linking.py` — added
+  `crm_quotes` to the fake-db registry (existing 10 tests still pass).
+- `backend/tests/test_iter_220bs_crm_evolution.py` — new, 16 tests.
+- `Makefile` — registered under `regression:`.
+
+### Verified
+- `make regression` → **1458 passed, 0 failed, 15 skipped** (was 1442 → +16).
+- Live API:
+  * `GET /api/crm/picklists/tender_status` → 200 with 8 values seeded.
+  * `POST /api/crm/v2/opportunities` with `lead_source: "Supreme Overlord"`
+    → **400** with structured detail listing valid examples + hint.
+  * `POST /api/crm/v2/opportunities` with `lead_source: "linkedin"`
+    → **200** (canonical "LinkedIn" stored — case-insensitive match).
+
+### Design choices
+- Enforcement is **strict by default** to catch bad data at the door,
+  but the `strict=False` mode is available for the bulk-import path
+  if we ever need it (warn-only migration).
+- Errors return `detail` as a **dict** (not a string) — the React
+  picklist dropdown component reads `detail.valid_examples` to show
+  inline suggestions.
+- `tender_id` is **optional** on quotes — a freestanding commercial
+  quote (no source tender) is the normal case.
+
+### Out of scope (tracked separately)
+- Cross-module timeline endpoint (unified chronological feed per
+  company/opportunity/tender).
+- Picklist enforcement on `crm_v2.companies.industry` — the field
+  is currently called `sector` and the schema needs a small migration
+  before strict picklist applies cleanly.
+- UI surfaces (badge rendering of `tender_id` inside the Quote drawer)
+  — backend ready, frontend ticket separate.
+
+
 ## Iter 220br — Pre-launch ops hardening ✅ (Feb 2026)
 
 **Goal**: close the gaps an auditor / pen tester / enterprise customer

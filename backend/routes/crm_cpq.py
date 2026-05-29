@@ -189,6 +189,18 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
     quote_id = str(uuid.uuid4())
     quote_number = f"QT-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{quote_id[:4].upper()}"
 
+    # Iter 220bs — Quote ↔ Tender deep-linking. When the caller links a
+    # tender, enforce same-org ownership so a crafted tender_id can't
+    # silently leak a sibling tenant's tender into our quote.
+    tender_id = data.get("tender_id")
+    if tender_id:
+        tender = await db.crm2_tenders.find_one(
+            {"id": tender_id, "organization_id": user.get("organization_id")},
+            {"_id": 0, "id": 1, "title": 1},
+        )
+        if not tender:
+            raise HTTPException(400, "Linked tender not found in this organisation")
+
     line_items = data.get("line_items", []) or []
     line_items = await _hydrate_line_items(line_items, user)
     line_items = [_compute_line(li) for li in line_items]
@@ -208,6 +220,8 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
         "company_id": data.get("company_id"),
         "company_name": data.get("company_name", ""),
         "deal_id": data.get("deal_id"),
+        # Iter 220bs — Quote ↔ Tender deep link (optional).
+        "tender_id": tender_id,
         "status": "pending_approval" if needs_approval else "draft",
         "line_items": line_items,
         "currency": (data.get("currency") or "GBP").upper(),
@@ -269,6 +283,19 @@ async def update_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
                   "deal_id", "notes", "internal_notes", "valid_until"):
         if field in data:
             updates[field] = data[field]
+
+    # Iter 220bs — Quote ↔ Tender deep-link: allow re-pointing on
+    # update but enforce same-org ownership exactly like create.
+    if "tender_id" in data:
+        new_tender_id = data["tender_id"]
+        if new_tender_id:
+            tender = await db.crm2_tenders.find_one(
+                {"id": new_tender_id, "organization_id": user.get("organization_id")},
+                {"_id": 0, "id": 1},
+            )
+            if not tender:
+                raise HTTPException(400, "Linked tender not found in this organisation")
+        updates["tender_id"] = new_tender_id  # None to unlink is allowed
 
     # Explicit status overrides are honoured (e.g. send / accept paths
     # set this directly).
