@@ -1,3 +1,113 @@
+## Iter 220ca / 220cb — Competitor signup defense ✅ (May 29, 2026)
+
+**User ask**:
+> "The mandatory fields are because I'm worried about competitors on the free trial."
+
+The mandatory address fields alone don't stop a determined competitor.
+Real defenses target identity, not form length. User chose **b**
+(competitor-domain blocklist, named Orbit 4 + ServiceSport) and **e**
+(Companies House lookup with "flag for review" fallback for sole
+traders / non-UK / fresh businesses).
+
+### Iter 220ca — Competitor email-domain blocklist
+
+#### Backend
+1. **`utils/competitor_blocklist.py`** — static, suffix-aware
+   blocklist with two helper functions:
+   - `is_competitor_email(email)` → bool. Case-insensitive. Walks the
+     domain tree so `team.uk.orbit4.com` matches `orbit4.com`.
+     Prefix matches do NOT trip (`orbit4-fans.com` is fine).
+   - `competitor_block_reason(email)` → friendly "email sales" message
+     used as the 400 detail body.
+2. **Blocked domains** (15 total): orbit4.com/.co.uk, servicesport.co.uk/.com,
+   trainerize.com, mindbodyonline.com/.io/hq.com, perfectgym.com,
+   glofox.com, abcfitness.com, xplor.com/xplortechnologies.com/.io,
+   clubright.co.uk, gymmaster.com, wellnessliving.com, mywellness.com,
+   technogym.com, fitnessfix.co.uk, fitlock.co.uk, gymequipmentcare.co.uk.
+3. **`POST /api/auth/register`** — for trial signups only, calls
+   `competitor_block_reason()` before any state mutation. Blocked →
+   400 with a "talk to sales@gymaxisai.com" message. Non-trial CRM
+   invite path is untouched (the CRM team can still invite a
+   competitor employee as a B2B contact).
+
+#### Tests
+4. **`tests/test_iter_220ca_competitor_blocklist.py`** — 23 tests:
+   user-named + parametric across all 12 known-competitor domains,
+   sub-domain walk, prefix-doesn't-match safety, case + whitespace,
+   malformed-input doesn't-crash, integration with `/auth/register`
+   blocking trial signups + allowing non-trial signups from the same
+   domain + allowing clean emails.
+
+### Iter 220cb — Companies House verification on trial signup
+
+#### Backend
+5. **3 new endpoints at `/api/account/companies-house/*`** — same
+   client as the existing `/master-admin/companies-house/*` proxies
+   but reachable by ANY logged-in user (so the post-step-1 trial
+   user can search), rate-limited per-user (30 searches / 5 min,
+   15 profile fetches / 5 min) to stop a competitor harvesting our
+   key:
+   - `GET /account/companies-house/status` — health probe for the
+     frontend; falls back to manual entry when disabled.
+   - `GET /account/companies-house/search?q=...&limit=` — typeahead
+     search. Short-circuits at `len(q)<2` to avoid burning API calls
+     on every keystroke.
+   - `GET /account/companies-house/company/{number}` — full profile
+     so the form can auto-fill the registered address.
+6. **`ORG_ALLOWED_FIELDS`** extended with `company_number`,
+   `companies_house_verified`, `pending_review`,
+   `pending_review_reason` (whitelist-enforced — callers cannot
+   spoof their way to verified status).
+7. **`_serialise_org`** surfaces all 4 keys on `/auth/me` so the
+   Master Admin org drawer can render a "Pending review" badge.
+
+#### Frontend
+8. **`<CompaniesHouseSearch/>`** — new typeahead inside
+   `<ProfileCompletionFields/>` at the top of the Company section.
+   Debounced 350ms search → result list → click a match → fetches
+   full profile → auto-fills `address_line1/2/3 + city + postcode`
+   + stamps `company_number` + `companies_house_verified=true`.
+   Renders a green "verified" pill with a "Change" action.
+9. **"Can't find your company?" escape hatch** — clicking it
+   reveals the manual address inputs and stamps `pending_review=true`
+   with reason `manual_company_entry`. The operator sees an amber
+   banner explaining the review.
+10. **Graceful fallback** — when `/status` reports `enabled=false`,
+    the typeahead doesn't render and the operator gets plain manual
+    address entry (matches the pre-220cb experience).
+
+#### Persistence
+11. **`/api/account/complete-profile`** accepts and persists all 4
+    new keys; the whitelist still strips anything outside the
+    allowed set (e.g. a caller can't sneak in
+    `companies_house_verified_by_admin: true`).
+
+#### Tests
+12. **`tests/test_iter_220cb_companies_house_signup.py`** — 11 tests:
+    status enabled/disabled, search short-circuit, search rate-limit
+    key-scoping, profile happy-path, profile 503 when disabled, and
+    complete-profile persisting verified + pending-review states +
+    stripping spoofed keys.
+13. End-to-end smoke on preview: fresh trial → /complete-profile
+    auto-redirect → typed "orbit4" → 4 CH results → picked Orbit4
+    Group Limited (no. 12175398) → verified banner + address
+    "7 School Lane, Hartford" auto-filled from CH.
+
+### Combined Regression
+14. **Full `make regression` (1570 passed, 15 skipped, 0 failures, ~159s).**
+    Frontend + backend lint clean.
+
+### Notes for production
+15. The CH API key is **already configured on production**
+    (`gymaxisai.com/api/master-admin/companies-house/status` returns
+    `enabled: true`) — the new `/account/companies-house/*` routes
+    will work the moment we redeploy. Added the same key to the
+    preview `.env` so this iter could be tested live.
+
+---
+
+
+
 ## Iter 220bz — Mandatory trial-signup profile completion ✅ (May 29, 2026)
 
 **User ask** (verbatim from a frustrated screenshot):

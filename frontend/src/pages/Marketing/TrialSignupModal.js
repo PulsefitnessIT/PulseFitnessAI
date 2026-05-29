@@ -184,7 +184,11 @@ export default function TrialSignupModal() {
     try {
       // Strip the UI-only checkbox; clear company_phone when the
       // toggle is off so a stale value doesn't slip through.
-      const { has_different_company_phone, ...payload } = profile;
+      const {
+        has_different_company_phone,
+        company_search_query,
+        ...payload
+      } = profile;
       if (!has_different_company_phone) payload.company_phone = '';
       await axios.post(`${API}/account/complete-profile`, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },

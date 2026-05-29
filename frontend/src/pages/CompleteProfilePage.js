@@ -53,7 +53,11 @@ export default function CompleteProfilePage() {
     setLoading(true);
     try {
       // Only send the keys the server allows; strip the UI-only toggle.
-      const { has_different_company_phone, ...payload } = form;
+      const {
+        has_different_company_phone,
+        company_search_query,
+        ...payload
+      } = form;
       if (!has_different_company_phone) payload.company_phone = '';
       await axios.post(`${API}/account/complete-profile`, payload, {
         headers: { Authorization: `Bearer ${token}` },

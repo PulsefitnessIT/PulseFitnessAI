@@ -690,6 +690,16 @@ ORG_ALLOWED_FIELDS = {
     # If left blank we fall through to ``phone`` (the personal
     # contact's number) for any operator outreach.
     "company_phone",
+    # Iter 220cb — Companies House verification metadata captured on
+    # the trial signup profile-completion page. ``company_number`` is
+    # the CH 8-digit reference (e.g. "12345678"). When the operator
+    # picks a CH match it auto-fills the trading address and we stamp
+    # ``companies_house_verified=True``. When no match is found
+    # (sole trader, foreign company, fresh business yet-to-register)
+    # we stamp ``pending_review=True`` so master admin can vet the
+    # account before it gets full feature access.
+    "company_number", "companies_house_verified", "pending_review",
+    "pending_review_reason",
     # Stamped by /api/account/complete-profile once the mandatory
     # step-2 form is filled. The ProfileCompletionGate on the
     # frontend reads this to decide whether to block the dashboard.
@@ -723,6 +733,13 @@ def _serialise_org(org: dict | None) -> dict:
     # Iter 220bz — surface the completion stamp so the frontend
     # ProfileCompletionGate can short-circuit on already-filled orgs.
     payload["profile_completed_at"] = org.get("profile_completed_at") or ""
+    # Iter 220cb — CH verification + review-queue flags. Master Admin
+    # surfaces these on the org drawer so they can spot competitor-
+    # smelling signups before granting full module access.
+    payload["company_number"] = org.get("company_number") or ""
+    payload["companies_house_verified"] = bool(org.get("companies_house_verified", False))
+    payload["pending_review"] = bool(org.get("pending_review", False))
+    payload["pending_review_reason"] = org.get("pending_review_reason") or ""
     return payload
 
 
