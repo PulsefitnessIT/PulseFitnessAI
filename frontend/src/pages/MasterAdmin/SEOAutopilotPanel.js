@@ -16,7 +16,7 @@ import {
   Sparkles, Rocket, BookOpen, Loader2, Plus, RefreshCw,
   AlertTriangle, Eye, Send, Search, FileText, X,
   Share2, Copy, Check, Linkedin, MessageSquare, Clock, ExternalLink,
-  PlayCircle, Settings2, TrendingUp,
+  PlayCircle, Settings2, TrendingUp, Archive, Trash2,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -38,6 +38,7 @@ function StatusPill({ status }) {
     draft:     { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Draft' },
     scheduled: { bg: 'bg-indigo-100',text: 'text-indigo-800',label: 'Scheduled' },
     archived:  { bg: 'bg-rose-100',  text: 'text-rose-700',  label: 'Archived' },
+    needs_review: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Needs review' },
   };
   const c = map[status] || { bg: 'bg-zinc-100', text: 'text-zinc-700', label: status || '—' };
   return (
@@ -873,6 +874,10 @@ function ArticlesTab() {
   // operator sees just-published work first; toggle to "views" to
   // surface the most-trafficked articles.
   const [sortBy, setSortBy] = useState('recent');
+  // Iter 220bj — duplicate-content audit panel state.
+  const [dupes, setDupes] = useState(null);
+  const [dupesLoading, setDupesLoading] = useState(false);
+  const [archivingId, setArchivingId] = useState(null);
 
   const load = async () => {
     try {
@@ -891,6 +896,42 @@ function ArticlesTab() {
     }
   };
 
+  const findDuplicates = async () => {
+    setDupesLoading(true);
+    try {
+      const r = await axios.get(`${API}/api/marketing/seo/articles/duplicates?threshold=0.55`, { headers: auth() });
+      setDupes(r.data);
+      if (!r.data.pairs?.length) {
+        notify.success('No duplicates detected at this threshold');
+      }
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Duplicate scan failed');
+    } finally {
+      setDupesLoading(false);
+    }
+  };
+
+  const archive = async (id) => {
+    if (!window.confirm('Archive this article? It will disappear from the public blog immediately.')) return;
+    setArchivingId(id);
+    try {
+      await axios.post(`${API}/api/marketing/seo/articles/${id}/archive`, {}, { headers: auth() });
+      notify.success('Article archived');
+      await load();
+      // Refresh the duplicate panel too — the archived one will drop out.
+      if (dupes) {
+        setDupes({
+          ...dupes,
+          pairs: dupes.pairs.filter((p) => p.a.id !== id && p.b.id !== id),
+        });
+      }
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Archive failed');
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
   const sorted = [...list].sort((a, b) => {
     if (sortBy === 'views') {
       return (b.metrics?.views || 0) - (a.metrics?.views || 0);
@@ -900,6 +941,62 @@ function ArticlesTab() {
 
   return (
     <div className="space-y-5" data-testid="seo-articles">
+      {/* Iter 220bj — duplicate-content audit panel */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900/40 p-4" data-testid="seo-dup-audit">
+        <div className="flex items-start gap-3 flex-wrap">
+          <div className="shrink-0 w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <AlertTriangle size={16}/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-extrabold text-amber-900 dark:text-amber-200">Blog freshness check</p>
+            <p className="text-[12px] text-amber-800/80 dark:text-amber-200/70 mt-0.5">
+              Scan every published article for near-identical title + opener pairs. Useful for sweeping old duplicates that pre-dated the new freshness gate.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={findDuplicates}
+            disabled={dupesLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60"
+            data-testid="seo-find-duplicates-btn"
+          >
+            {dupesLoading ? <Loader2 size={12} className="animate-spin"/> : <Search size={12}/>}
+            {dupesLoading ? 'Scanning…' : 'Find duplicates'}
+          </button>
+        </div>
+        {dupes && dupes.pairs?.length > 0 ? (
+          <div className="mt-3 space-y-2" data-testid="seo-dup-pairs">
+            {dupes.pairs.map((p, i) => (
+              <div key={i} className="rounded-lg bg-white dark:bg-zinc-950 border border-amber-200 dark:border-amber-900/40 p-3 text-[12px]" data-testid={`seo-dup-pair-${i}`}>
+                <p className="font-bold text-amber-700 mb-1.5">Similarity {Math.round(p.score * 100)}%</p>
+                {[p.a, p.b].map((side, idx) => (
+                  <div key={side.id} className="flex items-center justify-between gap-2 py-1 border-t border-amber-100 first:border-t-0">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{side.title}</p>
+                      <p className="text-[10px] text-zinc-500">/{side.slug} · published {side.published_at?.slice(0, 10) || '—'}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => archive(side.id)}
+                      disabled={archivingId === side.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-bold border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-60 shrink-0"
+                      data-testid={`seo-dup-archive-${i}-${idx}`}
+                    >
+                      {archivingId === side.id ? <Loader2 size={11} className="animate-spin"/> : <Archive size={11}/>}
+                      Archive
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : dupes && dupes.pairs?.length === 0 ? (
+          <p className="mt-3 text-[12px] text-emerald-700 font-bold" data-testid="seo-dup-empty">
+            <Check size={12} className="inline mr-1"/> No duplicate pairs found at the current threshold.
+          </p>
+        ) : null}
+      </div>
+
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
         <div className="px-5 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-sm font-bold">Articles</p>
@@ -970,6 +1067,16 @@ function ArticlesTab() {
                 >
                   Edit
                 </button>
+                {a.status !== 'archived' ? (
+                  <button onClick={() => archive(a.id)}
+                    disabled={archivingId === a.id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                    data-testid={`seo-article-archive-${a.id}`}
+                    title="Archive this article (removes it from the public blog)"
+                  >
+                    {archivingId === a.id ? <Loader2 size={11} className="animate-spin"/> : <Trash2 size={11}/>}
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>

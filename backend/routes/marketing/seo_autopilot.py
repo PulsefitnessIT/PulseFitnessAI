@@ -43,6 +43,13 @@ from utils.ai_guardrails import (
     sanitize_prompt,
 )
 from utils.web_security import sanitize_rich_text
+from utils.seo_article_freshness import (
+    build_recent_articles_context,
+    check_article_uniqueness,
+    find_similar_keywords,
+    format_recent_articles_for_prompt,
+    pick_next_archetype,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/marketing/seo", tags=["marketing-seo"])
@@ -142,7 +149,7 @@ class KeywordResearchPayload(BaseModel):
 
 
 class KeywordPatch(BaseModel):
-    status: Optional[str] = Field(None, pattern="^(queued|in_use|published|ignored)$")
+    status: Optional[str] = Field(None, pattern="^(queued|in_use|published|ignored|needs_review)$")
     notes: Optional[str] = Field(None, max_length=600)
 
 
@@ -307,22 +314,28 @@ async def research_keywords(
 
     saved: list[dict] = []
     for it in items[: payload.count]:
+        term = (it.get("term") or "").strip()[:160]
+        if not term:
+            continue
+        # Iter 220bj — Layer 3: flag near-duplicate keywords at queue
+        # time. We still save them (so the admin can see the dup), but
+        # mark `near_duplicate_of` so the UI can warn before publish.
+        similar = await find_similar_keywords(db, term, threshold=0.7)
         doc = {
             "id": _id(),
-            "term": (it.get("term") or "").strip()[:160],
+            "term": term,
             "intent": it.get("intent") or "informational",
             "difficulty": it.get("difficulty") or "medium",
             "volume_estimate": it.get("volume_estimate") or "medium",
             "rationale": (it.get("rationale") or "")[:300],
             "seed_topic": payload.seed_topic,
             "audience": payload.audience,
-            "status": "queued",
+            "status": "needs_review" if similar else "queued",
             "target_article_id": None,
             "notes": "",
+            "near_duplicates": similar[:5] if similar else [],
             "created_at": _now(), "updated_at": _now(),
         }
-        if not doc["term"]:
-            continue
         await db.seo_keywords.insert_one(doc)
         saved.append(_scrub(dict(doc)))
     return {"keywords": saved, "count": len(saved)}
@@ -383,6 +396,9 @@ async def _generate_article_payload(
     secondary_keywords: list[str],
     angle: Optional[str],
     target_words: int,
+    *,
+    recent_context: str = "",
+    archetype: Optional[dict] = None,
 ) -> dict:
     """Return a structured article dict {title, excerpt, body_md,
     meta_description, qa_blocks, tags}."""
@@ -400,6 +416,19 @@ async def _generate_article_payload(
     )
     angle_block = f"Editorial angle: {angle}\n" if angle else ""
 
+    # Iter 220bj — Layer 1+2: feed the LLM (a) the last published
+    # articles so it can't echo them and (b) a least-recently-used
+    # editorial archetype so every article opens with a different
+    # scenario.
+    archetype_block = ""
+    if archetype:
+        archetype_block = (
+            f"Editorial archetype for THIS article (you MUST follow it): "
+            f"{archetype.get('label', '')}.\n"
+            f"Archetype guidance: {archetype.get('prompt_hint', '')}\n\n"
+        )
+    recent_block = (recent_context + "\n") if recent_context else ""
+
     prompt = (
         f"Write a long-form blog article for the GymAxis blog. "
         f"{DEFAULT_BRAND_BLURB}\n\n"
@@ -407,10 +436,13 @@ async def _generate_article_payload(
         f"Primary keyword: {primary_keyword}\n"
         f"{sec_block}{angle_block}"
         f"Target length: {target_words} words (±10%).\n\n"
+        f"{archetype_block}"
+        f"{recent_block}"
         "Structural rules:\n"
         "  • H1 must include the primary keyword.\n"
         "  • 5–7 H2 sub-sections; H3 only where genuinely useful.\n"
-        "  • Open with a concrete operator-life scenario (not 'In today's…').\n"
+        "  • Open with a concrete operator-life scenario (not 'In today's…') "
+        "    AND do not reuse the openers of the recent articles above.\n"
         "  • At least one numbered list and one bullet list.\n"
         "  • Close with a single 1-line CTA inviting the reader to book a "
         f"GymAxis demo at {GYMAXIS_BASE_URL}/demo-request.\n"
@@ -779,10 +811,45 @@ async def generate_article(
     # articles burn ~4 k tokens each; guard against runaway costs.
     await enforce_token_budget(user.get("organization_id"), est_tokens=4000)
 
+    # Iter 220bj — Layers 1 + 2: feed recent-articles context + a
+    # least-recently-used archetype so consecutive articles open with
+    # genuinely different scenarios.
+    recent_articles = await build_recent_articles_context(db, limit=8)
+    recent_context = format_recent_articles_for_prompt(recent_articles)
+    archetype = await pick_next_archetype(db)
+
     text = await _generate_article_payload(
         payload.primary_keyword, payload.secondary_keywords,
         payload.angle, payload.target_words,
+        recent_context=recent_context, archetype=archetype,
     )
+
+    # Iter 220bj — Layer 4: post-generation uniqueness gate. If the
+    # draft is too close to an existing published article, regenerate
+    # ONCE with a hardened "must be different" instruction. If still
+    # too similar, mark needs_review instead of auto-publishing.
+    uniq = await check_article_uniqueness(
+        db, title=text["title"], body_md=text["body_md"], threshold=0.6,
+    )
+    regenerated = False
+    if not uniq["ok"] and uniq.get("best_match"):
+        regenerated = True
+        match = uniq["best_match"]
+        harden_angle = (
+            f"{payload.angle or ''}\n\n"
+            "IMPORTANT: a previous draft was rejected for being too "
+            f"similar to '{match.get('title', '')}'. Take a FUNDAMENTALLY "
+            "different angle, audience, opener, and structural beats. "
+            "Do not echo that article in any way."
+        ).strip()
+        text = await _generate_article_payload(
+            payload.primary_keyword, payload.secondary_keywords,
+            harden_angle, payload.target_words,
+            recent_context=recent_context, archetype=archetype,
+        )
+        uniq = await check_article_uniqueness(
+            db, title=text["title"], body_md=text["body_md"], threshold=0.6,
+        )
 
     hero_url: Optional[str] = None
     if payload.generate_hero_image:
@@ -796,6 +863,18 @@ async def generate_article(
     # Uniqueness — append short id if slug exists.
     if await db.seo_articles.find_one({"slug": slug}, {"_id": 0, "id": 1}):
         slug = f"{slug}-{_id()[:6]}"
+
+    # Iter 220bj — when the post-generation uniqueness check still
+    # fails after a regenerate, downgrade to needs_review so master
+    # admin can decide rather than auto-publishing a near-duplicate.
+    publish_now = bool(payload.publish_now)
+    final_status: str
+    if publish_now and not uniq["ok"]:
+        final_status = "needs_review"
+    elif publish_now:
+        final_status = "published"
+    else:
+        final_status = "draft"
 
     doc = {
         "id": _id(),
@@ -812,10 +891,15 @@ async def generate_article(
         "secondary_keywords": payload.secondary_keywords,
         "hero_image_url": hero_url,
         "hero_image_alt": text["title"],
-        "status": "published" if payload.publish_now else "draft",
-        "published_at": now if payload.publish_now else None,
+        "status": final_status,
+        "published_at": now if final_status == "published" else None,
         "scheduled_for": None,
         "metrics": {"views": 0, "organic_visits": 0},
+        # Iter 220bj — freshness telemetry
+        "archetype_id": (archetype or {}).get("id"),
+        "regenerated_for_freshness": regenerated,
+        "uniqueness_score": uniq.get("best_score"),
+        "uniqueness_best_match_id": (uniq.get("best_match") or {}).get("id"),
         "created_by": user.get("id"),
         "created_at": now, "updated_at": now,
     }
@@ -1023,6 +1107,67 @@ async def update_autopilot_config(
         upsert=True,
     )
     return await _load_config()
+
+
+# ── Iter 220bj — Duplicate-content audit / archive ────────────────────
+
+
+@router.get("/articles/duplicates")
+async def list_duplicate_articles(
+    threshold: float = 0.6,
+    user: dict = Depends(get_current_user),
+):
+    """Scan all published articles and return pairs whose
+    title+opener overlap exceeds ``threshold`` (0.6 by default). Used
+    by master admin to find historical duplicates so they can be
+    archived or rewritten."""
+    _require_master_admin(user)
+    from utils.seo_article_freshness import article_similarity_score, _first_paragraph
+
+    cursor = db.seo_articles.find(
+        {"status": "published"},
+        {"_id": 0, "id": 1, "title": 1, "slug": 1, "body_md": 1, "published_at": 1},
+    )
+    articles = [a async for a in cursor]
+    pairs: list[dict] = []
+    for i, a in enumerate(articles):
+        a_open = _first_paragraph(a.get("body_md"), max_chars=600)
+        for b in articles[i + 1:]:
+            b_open = _first_paragraph(b.get("body_md"), max_chars=600)
+            score = article_similarity_score(
+                a.get("title", ""), a_open,
+                b.get("title", ""), b_open,
+            )
+            if score >= threshold:
+                pairs.append({
+                    "score": score,
+                    "a": {"id": a.get("id"), "slug": a.get("slug"),
+                          "title": a.get("title"),
+                          "published_at": a.get("published_at")},
+                    "b": {"id": b.get("id"), "slug": b.get("slug"),
+                          "title": b.get("title"),
+                          "published_at": b.get("published_at")},
+                })
+    pairs.sort(key=lambda p: -p["score"])
+    return {"pairs": pairs, "threshold": threshold, "scanned": len(articles)}
+
+
+@router.post("/articles/{article_id}/archive")
+async def archive_article(
+    article_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Hard-archive an article — public blog & list endpoints already
+    filter ``status=archived`` so the post disappears immediately."""
+    _require_master_admin(user)
+    res = await db.seo_articles.update_one(
+        {"id": article_id},
+        {"$set": {"status": "archived", "updated_at": _now(),
+                  "archived_by": user.get("id")}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Article not found")
+    return {"ok": True, "id": article_id, "status": "archived"}
 
 
 # ── Manual "Run now" trigger (Iter 220ai) ─────────────────────────

@@ -1,3 +1,74 @@
+## Iter 220bj — Blog freshness & duplicate-content guard ✅ (Feb 2026)
+
+**Problem**: The SEO autopilot was producing near-identical articles
+(e.g. "How to reduce gym equipment downtime…" and "Gym equipment
+downtime management software UK: a practical guide") because the
+article-generation prompt had zero awareness of what had already been
+published. The user spotted two articles on gymaxisai.com/blog with
+the same hook ("A broken treadmill at 6 am costs you more than a
+repair bill") and the same opening paragraph.
+
+**Solution** — Four layers of anti-repetition, all in
+`utils/seo_article_freshness.py`:
+
+1. **Recent-articles context**: `build_recent_articles_context()` loads
+   the last 8 published articles (title + opener + H2 list) and the
+   prompt now ends with an explicit DO-NOT-ECHO block listing them.
+2. **Archetype rotation**: 8 editorial archetypes (peak-hour failure,
+   member-churn data, RIDDOR/compliance, contract-renewal,
+   peer-benchmark, ops-director letter, data-led trends,
+   myth-busting). Each new article picks the least-recently-used one
+   and the prompt enforces it.
+3. **Keyword-queue dedup**: `find_similar_keywords()` (Jaccard token
+   overlap, stopwords stripped). New keywords above threshold 0.7 are
+   saved as `needs_review` with `near_duplicates[]` instead of
+   `queued`, so the autopilot won't auto-pick them.
+4. **Post-generation uniqueness gate**: `check_article_uniqueness()`
+   scores each new draft against every existing published article. If
+   composite (title + opener) similarity ≥ 0.6, the system regenerates
+   ONCE with hardened "must be different" instructions; if still
+   similar, the article publishes as `needs_review` (hidden from the
+   public blog).
+
+**Master admin endpoints**:
+- `GET /api/marketing/seo/articles/duplicates?threshold=0.6` — list
+  all duplicate pairs in the published corpus.
+- `POST /api/marketing/seo/articles/{id}/archive` — one-click archive.
+
+**Frontend (SEOAutopilotPanel.js)**:
+- New "Blog freshness check" panel at the top of the Articles tab
+  with a "Find duplicates" button.
+- Per-pair side-by-side display with one-click Archive buttons.
+- Per-row Archive button on every article in the list.
+- New `needs_review` status pill (yellow) for articles flagged by
+  the uniqueness gate.
+
+**Article doc extensions**:
+- `archetype_id` — which scenario archetype generated the article
+- `regenerated_for_freshness` — bool, true if Layer 4 forced a redo
+- `uniqueness_score` / `uniqueness_best_match_id` — telemetry
+- `status` can now be `needs_review` when post-gen similarity fails
+
+**Tests** (`test_iter_220bj_blog_freshness.py`): 19 passing tests
+covering all four layers using an in-memory fake DB.
+
+**Production duplicate cleanup**: The two duplicate articles the user
+screenshotted live on the prod MongoDB (not this preview pod). Lee can
+now log into Master Admin → Growth → SEO Autopilot → Articles, click
+"Find duplicates", and Archive the older one with one click.
+
+### Files touched
+- `backend/utils/seo_article_freshness.py` — new module
+- `backend/routes/marketing/seo_autopilot.py` — wire all 4 layers +
+  add `duplicates` + `archive` endpoints
+- `frontend/src/pages/MasterAdmin/SEOAutopilotPanel.js` — duplicate
+  audit UI + per-row archive button + `needs_review` pill
+- `backend/tests/test_iter_220bj_blog_freshness.py` — 19 tests
+- `Makefile` — regression registration (TAB-indented)
+
+---
+
+
 ## Iter 220bi — Sicon Integration Spec mapping + DB/UI uplift ✅ (Feb 2026)
 
 **Goal**: zero blank cells in the SICON_INTEGRATION_SPEC.md mapping
