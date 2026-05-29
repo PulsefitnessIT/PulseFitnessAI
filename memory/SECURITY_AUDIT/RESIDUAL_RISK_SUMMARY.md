@@ -167,7 +167,7 @@ post-pen-test process documented in
 
 ---
 
-*Prepared Iter 220bg (May 28, 2026) — Craig Henshall, sign-off.*
+*Prepared Iter 220bi (May 28, 2026) — Lee Somers, GymAxis Founder, sign-off.*
 
 **Final statement:** Based on the current Risk Register, Readiness
 Checklist and Residual Risk Summary, GymAxis / Pulse Fitness is

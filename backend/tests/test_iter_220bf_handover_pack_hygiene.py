@@ -168,7 +168,7 @@ def test_readiness_checklist_has_approval_and_post_pentest():
     assert "## H · Internal approval statement" in body, "missing §H approval statement"
     assert "F-34" in body, "post-pen-test process must reference F-34+ logging"
     assert "Approval date" in body, "approval statement must include a date"
-    assert "Craig Henshall" in body, "approval owner must be named"
+    assert "Lee Somers" in body, "approval owner must be named"
     # Severity-tied fix targets (Critical/High/Medium/Low).
     for sev in ("Critical", "High", "Medium", "Low"):
         assert sev in body, f"§G missing severity tier {sev}"

@@ -149,7 +149,7 @@ So you don't waste time on these (we know about them):
 ## 9 · Contact
 
 - **Security primary:** `security@gymaxisai.com` · phone confirmed at kickoff via 1Password share
-- **Founder / sign-off:** `craig@gymaxisai.com` (Craig Henshall — Founder)
+- **Founder / sign-off:** `lee@gymaxisai.com` (Lee Somers — Founder)
 - **Out-of-hours P0 only:** phone shared securely at kickoff via 1Password
 - **Slack Connect channel:** invite issued day-1 of test window
 

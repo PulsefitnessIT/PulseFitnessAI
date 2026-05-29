@@ -194,7 +194,7 @@ documented in §G.
 | Item | Value |
 |---|---|
 | Approval date | **28 May 2026 (Iter 220bg)** |
-| Approval owner | Craig Henshall · GymAxis Founder · `craig@gymaxisai.com` |
+| Approval owner | Lee Somers · GymAxis Founder · `lee@gymaxisai.com` |
 | Co-sign (security) | `security@gymaxisai.com` |
 | Next review date | Day +1 of the external engagement (post-kickoff sanity check) |
 | Retest cadence | Fixed-price retest of any Critical / High within 60 days of report delivery |

@@ -188,4 +188,4 @@ Severity rubric:
 *Hand this sheet (PDF) + the `PEN_TEST_SCOPE.md` (PDF) +
 `PEN_TEST_ONBOARDING.md` (PDF) over the 1Password share at kickoff.*
 
-*Prepared Iter 220bg (May 28, 2026) — Craig Henshall, GymAxis Founder.*
+*Prepared Iter 220bi (May 28, 2026) — Lee Somers, GymAxis Founder.*
