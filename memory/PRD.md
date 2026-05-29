@@ -1,3 +1,57 @@
+## Iter 220bo — SocialAutopilotPanel "Not Found" hotfix ✅ (Feb 2026)
+
+**Bug**: `SocialAutopilotPanel` (Master Admin → Growth → Social
+Autopilot) rendered a literal "Not Found" badge in its body even
+though the backend endpoints returned 200. The panel was unusable.
+
+**Root cause** (single line):
+The component destructured `const { API } = useAuth()` where `API`
+already includes the trailing `/api`, then prefixed `/api/marketing/...`
+itself → every fetch hit `${BACKEND_URL}/api/api/marketing/...` → 404
+→ FastAPI's default `{"detail": "Not Found"}` body → the panel's
+`setErr(e?.response?.data?.detail)` rendered the string verbatim.
+
+**Why the existing regression missed it**
+The 79 Pytest cases for `220bl/220bm/220bn` are all **backend-only**
+(they assert routes, scheduler behaviour, idempotency, etc.). They
+hit the FastAPI app directly so they never exercise the URL the
+frontend actually composes. There was no integration / E2E test
+that booted the browser, intercepted the network and verified the
+fetch path — so a typo in the client-side URL slipped through.
+
+**Fix**
+1. `SocialAutopilotPanel.js` now follows the SEOAutopilotPanel
+   convention — `const API = process.env.REACT_APP_BACKEND_URL`
+   (no `/api` suffix). The `useAuth` import and the `API` prop
+   drilled into `<VideoSection>`, `<PostCard>` and
+   `<LegacyLibrarySection>` are gone. Net diff: -8 lines.
+2. Stale companion regression in `_fake_db()` (`test_iter_220ad`)
+   updated to also stub `seo_autopilot_config` — two SEO tests
+   started failing once `_load_config()` awaited it; now green.
+3. **New regression guard** (`test_iter_220bo_no_double_api_prefix.py`,
+   3 cases):
+   * Scans every `frontend/src/**/*.js` file for the smell
+     "imports `API` from `useAuth()` AND also writes `${API}/api/...`"
+     and fails if any file combines both.
+   * Pins the SocialAutopilotPanel to the env-URL convention.
+   * Asserts `/api/api/` literal never re-appears in the panel.
+
+**Files touched**
+- `frontend/src/pages/MasterAdmin/SocialAutopilotPanel.js` —
+  swap API source, drop `useAuth`, drop API prop drilling.
+- `backend/tests/test_iter_220ad_seo_autopilot.py` — extend
+  `_fake_db` to cover `seo_autopilot_config`.
+- `backend/tests/test_iter_220bo_no_double_api_prefix.py` — new
+  3-test regression guard.
+- `Makefile` — register new test file under `regression:`.
+
+**Verified**
+- Network trace shows `200 OK` on `/api/marketing/social-autopilot/{status,posts,legacy-library}`.
+- Panel renders hero, channel cards, status filters, 3 draft cards
+  with imagery — no "Not Found" badge.
+- `make regression`: **1410 passed, 0 failed, 15 skipped**.
+
+
 ## Iter 220bn — Social Autopilot daily scheduler ✅ (Feb 2026)
 
 **Goal**: have three fresh social drafts (IG / TikTok / LinkedIn) waiting

@@ -14,8 +14,12 @@ import {
  Copy, Check, Download, Trash2, Archive, PlayCircle, AlertTriangle, Hash,
  ImageIcon, Wand2, Film, Clock, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
+
+// Match SEOAutopilotPanel convention — REACT_APP_BACKEND_URL is the
+// host root WITHOUT a trailing /api, every fetch URL prefixes the
+// /api/ segment itself. See test_iter_220bo for the regression guard.
+const API = process.env.REACT_APP_BACKEND_URL;
 
 const CHANNEL_VISUAL = {
   instagram: { icon: Instagram, accent: 'bg-gradient-to-br from-fuchsia-500 via-pink-500 to-amber-500', label: 'Instagram' },
@@ -88,7 +92,7 @@ function DownloadImage({ dataUrl, filename, testid }) {
   );
 }
 
-function VideoSection({ post, API, onChange }) {
+function VideoSection({ post, onChange }) {
   const status = post.video_status || (post.video_url ? 'ready' : 'idle');
   const [busy, setBusy] = useState(false);
   // Auto-poll while a video is generating so the operator doesn't
@@ -212,7 +216,7 @@ function VideoSection({ post, API, onChange }) {
   );
 }
 
-function PostCard({ post, API, onChange }) {
+function PostCard({ post, onChange }) {
   const channel = post.channel;
   const visual = CHANNEL_VISUAL[channel] || {};
   const caption = post.caption || '';
@@ -277,7 +281,7 @@ function PostCard({ post, API, onChange }) {
         </div>
       ) : null}
 
-      {channel === 'tiktok' ? <VideoSection post={post} API={API} onChange={onChange}/> : null}
+      {channel === 'tiktok' ? <VideoSection post={post} onChange={onChange}/> : null}
 
       <div className="px-4 py-3 space-y-3">
         <div>
@@ -359,7 +363,7 @@ function PostCard({ post, API, onChange }) {
   );
 }
 
-function LegacyLibrarySection({ API }) {
+function LegacyLibrarySection() {
   const [rows, setRows] = useState(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState('');
@@ -374,7 +378,7 @@ function LegacyLibrarySection({ API }) {
       setErr(e?.response?.data?.detail || 'Could not load legacy library');
       setRows([]);
     }
-  }, [API]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -453,7 +457,6 @@ function LegacyLibrarySection({ API }) {
 }
 
 export default function SocialAutopilotPanel() {
-  const { API } = useAuth();
   const [status, setStatus] = useState(null);
   const [posts, setPosts] = useState([]);
   const [err, setErr] = useState(null);
@@ -473,7 +476,7 @@ export default function SocialAutopilotPanel() {
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Could not load Social Autopilot');
     }
-  }, [API]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -643,14 +646,14 @@ export default function SocialAutopilotPanel() {
       ) : (
         <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4" data-testid="social-posts-grid">
           {filtered.map((p) => (
-            <PostCard key={p.id} post={p} API={API} onChange={load}/>
+            <PostCard key={p.id} post={p} onChange={load}/>
           ))}
         </div>
       )}
 
       {/* Legacy library cleanup section — only renders if there are
           orphaned rows in the old social_media_library collection. */}
-      <LegacyLibrarySection API={API}/>
+      <LegacyLibrarySection/>
     </div>
   );
 }

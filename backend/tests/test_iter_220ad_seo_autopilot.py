@@ -29,7 +29,12 @@ def _fake_db():
     the seo_autopilot module."""
     fdb = MagicMock()
     # Default no-op async methods so unrelated tests don't blow up.
-    for coll in ("seo_keywords", "seo_articles", "seo_article_view_snapshots"):
+    collections = (
+        "seo_keywords", "seo_articles", "seo_article_view_snapshots",
+        # Iter 220bo — autopilot config is awaited from `_load_config`.
+        "seo_autopilot_config",
+    )
+    for coll in collections:
         for op in ("insert_one", "update_one", "delete_one"):
             setattr(getattr(fdb, coll), op, AsyncMock())
         getattr(fdb, coll).find_one = AsyncMock(return_value=None)
