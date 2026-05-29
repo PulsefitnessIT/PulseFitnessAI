@@ -1,3 +1,82 @@
+## Iter 220bv — Frontend `<TimelinePanel/>` component ✅ (Feb 2026)
+
+**Goal**: ship the React component that consumes the new
+`/crm/v2/timeline` endpoint and wire it into the Company /
+Opportunity / Tender drawers so the chronological 360° feed is
+visible to operators.
+
+### What shipped
+
+1. **`frontend/src/components/CRM/TimelinePanel.js`** — single
+   reusable component:
+   * Props: `scope` (`{type, id}`), `API`, `headers`, `isDark`, `c`
+     (theme palette), `onDeepLink` (optional drill handler).
+   * Calls `${API}/api/crm/v2/timeline?{type}_id={id}&limit=30` with
+     incremental load-more pagination (skip-based).
+   * **Day grouping** with localised labels — "Today" / "Yesterday"
+     / `dd MMM yyyy` / `Older` for events with no timestamp.
+   * **Per-source icons** via `lucide-react` (Phone, Mail, Calendar,
+     DollarSign, AlertOctagon, Award) and per-type accent colours
+     from the design-token palette.
+   * **Status pills** (draft/sent/accepted/lost/open/resolved/…)
+     rendered alongside the type chip.
+   * **Loading / empty / error states** all rendered with stable
+     `data-testid` attributes for e2e.
+   * **Load more** button shows the remaining count.
+
+2. **Three drawer integrations**:
+   * `CRMPipeline.js` — opportunity drawer's `tab === 'timeline'`
+     branch replaced (was a 25-line inline activities-only map).
+   * `CRMTenders.js` — new "Timeline" tab between Overview and
+     Questions; renders `<TimelinePanel scope={{type:'tender'...}}/>`.
+   * `CRMCompanies.js` — new "Timeline" section added after the
+     focused "Activity" tab (kept for ops who prefer the focused
+     view); renders `<TimelinePanel scope={{type:'company'...}}/>`.
+
+3. **10 new regression tests** (`test_iter_220bv_timeline_panel.py`):
+   * Component exists with required props.
+   * Calls the correct endpoint (no double `/api/api/` regression).
+   * Day grouping + status pills + deep-link rendering present.
+   * All required `data-testid`s exist (panel, loading, empty,
+     error, load-more).
+   * All three drawers import + render with the right scope.
+   * No double-wired component (`exactly one default export`).
+   * Load-more pagination present.
+   * No `useAuth` / `/api/api/` smells (Iter 220bo guard rails).
+
+### Files touched
+- `frontend/src/components/CRM/TimelinePanel.js` — new component.
+- `frontend/src/pages/CRM/CRMPipeline.js` — import + scope wiring.
+- `frontend/src/pages/CRM/CRMTenders.js` — new tab + scope wiring.
+- `frontend/src/pages/CRM/CRMCompanies.js` — new section + scope wiring.
+- `backend/tests/test_iter_220bv_timeline_panel.py` — 10 new tests.
+- `Makefile` — registered under `regression:`.
+
+### Verified
+- `make regression` → **1485 passed, 0 failed, 15 skipped** (was 1475 → +10).
+- ESLint clean on all 4 touched JS files.
+- Static asserts: drawer wiring + scope payload + endpoint shape all
+  pinned by regression tests.
+
+### Design choices
+- **Companies keep BOTH the focused "Activity" tab AND the new
+  "Timeline" tab** — feedback from earlier iterations was that some
+  ops prefer the narrower focused view; the unified one is additive.
+- **Drill-in is wired via `onDeepLink` prop**, not hard-coded route
+  navigation — each parent drawer can choose what to do (e.g. swap
+  to the quote drawer inline, open in new tab, etc).
+- **Day groups display the count** ("3 events") so even at a glance
+  an operator sees how busy a day was.
+
+### Out of scope (tracked separately)
+- Wiring `onDeepLink` to actually navigate inside the CRM — currently
+  a no-op so clicking an event highlights it; real navigation is a
+  separate small ticket once we decide the destination drawer
+  contract.
+- Filtering / search on the timeline feed.
+- Contract events (`crm_contracts`) — backend not yet merged.
+
+
 ## Iter 220bu — Cross-module unified timeline ✅ (Feb 2026)
 
 **Goal**: ship the chronological 360° feed per Company / Opportunity /

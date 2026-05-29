@@ -10,6 +10,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import Button from '@/components/shared/Button';
 import { notify } from '@/components/notifications';
 import { notifyPicklistError } from '@/lib/picklistErrorHandler';
+import TimelinePanel from '@/components/CRM/TimelinePanel';
 import CRMAuditTrail from './CRMAuditTrail';
 import { AINextActionCard } from './CRMPhase3Panels';
 import { MEETING_LOCATION_PRESETS } from '@/utils/crmDropdowns';
@@ -248,28 +249,13 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
         )}
 
         {tab === 'timeline' && (
-          <div className="space-y-0">
-            {(opp.activities || []).map((act, i) => {
-              const Icon = actIcons[act.type] || Activity;
-              const time = new Date(act.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-              return (
-                <div key={act.id || i} className="flex gap-3 relative">
-                  {i < (opp.activities?.length || 0) - 1 && <div className="absolute left-3.5 top-8 w-px h-full" style={{ background: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} />}
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)' }}>
-                    <Icon size={12} style={{ color: c.textDim }} />
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium" style={{ color: c.text }}>{act.subject}</p>
-                      <span className="text-[10px]" style={{ color: c.textDim }}>{time}</span>
-                    </div>
-                    {act.body && <p className="text-xs mt-0.5" style={{ color: c.textDim }}>{act.body}</p>}
-                  </div>
-                </div>
-              );
-            })}
-            {(opp.activities || []).length === 0 && <p className="text-center py-6 text-sm" style={{ color: c.textDim }}>No activity yet</p>}
-          </div>
+          <TimelinePanel
+            scope={{ type: 'opportunity', id: oppId }}
+            API={API}
+            headers={headers}
+            isDark={isDark}
+            c={c}
+          />
         )}
 
         {tab === 'audit' && (

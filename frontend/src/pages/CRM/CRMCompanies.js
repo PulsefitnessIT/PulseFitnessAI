@@ -12,6 +12,7 @@ import { CrossModuleTimeline, EnrichFromWebsiteButton } from './CRMPhase3Panels'
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
+import TimelinePanel from '@/components/CRM/TimelinePanel';
 import {
   FITNESS_SECTOR_OPTIONS,
   UK_COUNTIES,
@@ -1049,6 +1050,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     // /companies/{id} timeline). Customer feedback: needed all
     // related activities in one 360° place.
     { id: 'activities', label: `Activity (${company.activities?.length || 0})` },
+    // Iter 220bv — Unified Timeline (activities + quotes + cases +
+    // tender events). The legacy "Activity" tab above is kept for
+    // ops who prefer the focused view; this one is the 360° feed.
+    { id: 'timeline', label: 'Timeline' },
     // Iter 216h196 — Phase 1 of the Ops↔CRM↔ServiceDesk linkage:
     // surfaces the company's linked-org sites + machines with live
     // contract-coverage badges, and lets operators attach aftersales
@@ -1282,6 +1287,17 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
               </p>
             )}
           </div>
+        )}
+
+        {/* Iter 220bv — Unified Timeline (activities + quotes + cases + tender events) */}
+        {activeSection === 'timeline' && (
+          <TimelinePanel
+            scope={{ type: 'company', id: companyId }}
+            API={API}
+            headers={headers}
+            isDark={isDark}
+            c={c}
+          />
         )}
 
         {activeSection === 'assets' && (

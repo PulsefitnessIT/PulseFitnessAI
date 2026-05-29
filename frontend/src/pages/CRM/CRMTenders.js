@@ -9,6 +9,7 @@ import axios from 'axios';
 import ListPanel from '@/components/shared/ListPanel';
 import CoverageBadge from '@/components/CRM/CoverageBadge';
 import TenderCoveragePanel from '@/components/CRM/TenderCoveragePanel';
+import TimelinePanel from '@/components/CRM/TimelinePanel';
 import { notify } from '@/components/notifications';
 import { notifyPicklistError } from '@/lib/picklistErrorHandler';
 
@@ -684,6 +685,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'timeline', label: 'Timeline' },
     { id: 'questions', label: `Questions (${questions.length})` },
     { id: 'documents', label: `Documents (${docs.length})` },
     { id: 'strategy', label: 'Strategy' },
@@ -839,6 +841,17 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
               tenderId={tenderId}
             />
           </div>
+        )}
+
+        {/* Iter 220bv — unified timeline */}
+        {activeTab === 'timeline' && (
+          <TimelinePanel
+            scope={{ type: 'tender', id: tenderId }}
+            API={API}
+            headers={headers}
+            isDark={isDark}
+            c={c}
+          />
         )}
 
         {/* Questions */}
