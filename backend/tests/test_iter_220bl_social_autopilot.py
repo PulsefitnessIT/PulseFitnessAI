@@ -138,6 +138,24 @@ def test_topic_alternation_independent_per_channel():
     assert t_li["kind"] == "industry"  # LinkedIn count = 1 → industry
 
 
+def test_three_channels_pick_different_feature_on_same_day():
+    """Iter 220bm guard — channel offset prevents identical-topic
+    posts across IG/TikTok/LinkedIn on day one (which actually
+    happened in the very first live generation)."""
+    db = _FakeDB(posts=[])
+    t_ig = drive_async(pick_topic_for(db, "instagram"))
+    t_tt = drive_async(pick_topic_for(db, "tiktok"))
+    t_li = drive_async(pick_topic_for(db, "linkedin"))
+    assert t_ig["kind"] == "feature"
+    assert t_tt["kind"] == "feature"
+    assert t_li["kind"] == "feature"
+    feature_ids = {t_ig.get("feature_id"), t_tt.get("feature_id"),
+                   t_li.get("feature_id")}
+    assert len(feature_ids) == 3, (
+        f"All three channels picked overlapping topics on day 1: {feature_ids}"
+    )
+
+
 # ── Prompt schema ────────────────────────────────────────────────────
 
 

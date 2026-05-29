@@ -186,13 +186,20 @@ async def _last_used_topics(db, channel_id: str, *, days: int = 14) -> set[str]:
 
 
 async def _pick_feature_topic(db, channel_id: str) -> dict:
-    """Pick the longest-not-posted feature pillar for this channel."""
+    """Pick the longest-not-posted feature pillar for this channel.
+
+    Iter 220bm — channel_id is folded into the index so the same
+    feature isn't picked across all three channels on the same day.
+    """
     used = await _last_used_topics(db, channel_id, days=14)
     eligible = [p for p in FEATURE_PILLARS if p["id"] not in used]
     if not eligible:
         eligible = FEATURE_PILLARS  # cooldown blocked all — fall back
     today_idx = datetime.now(timezone.utc).timetuple().tm_yday
-    chosen = eligible[today_idx % len(eligible)]
+    # Stable offset per channel so IG/TikTok/LinkedIn diverge on day 1
+    # while still rotating LRU-style across days.
+    channel_offset = sum(ord(c) for c in channel_id) % len(eligible)
+    chosen = eligible[(today_idx + channel_offset) % len(eligible)]
     return {
         "kind": "feature",
         "topic_id": f"feature:{chosen['id']}",
@@ -205,7 +212,11 @@ async def _pick_feature_topic(db, channel_id: str) -> dict:
 async def _pick_industry_topic(db, channel_id: str) -> dict:
     """Reuse the SEO industry-pillar deck to keep voices consistent
     across SEO articles and social posts. Picks the longest-not-posted
-    pillar on this channel."""
+    pillar on this channel.
+
+    Iter 220bm — channel offset added to prevent three-channel
+    same-topic collisions on a single day.
+    """
     from utils.seo_keyword_discovery import PILLARS as SEO_PILLARS
 
     used = await _last_used_topics(db, channel_id, days=14)
@@ -213,7 +224,8 @@ async def _pick_industry_topic(db, channel_id: str) -> dict:
     if not eligible:
         eligible = SEO_PILLARS
     today_idx = datetime.now(timezone.utc).timetuple().tm_yday
-    chosen = eligible[(today_idx + 3) % len(eligible)]
+    channel_offset = sum(ord(c) for c in channel_id) % len(eligible)
+    chosen = eligible[(today_idx + channel_offset + 3) % len(eligible)]
     return {
         "kind": "industry",
         "topic_id": f"industry:{chosen['id']}",
