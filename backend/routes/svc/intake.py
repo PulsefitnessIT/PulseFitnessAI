@@ -125,6 +125,15 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
         "tags": payload.get("tags") or [],
         "required_skills": list(payload.get("required_skills") or []),
         "source": source,
+        # Iter 220cp — cross-module channel unification. The engineer
+        # app reads ``intake_channel``; the operations portal / service
+        # desk write ``source``. Mirror the value so both modules speak
+        # the same language and the engineer detail page shows the right
+        # "Logged via" pill regardless of which entrypoint created the
+        # case. Engineer-self-create (`independence.py::jobs_self_create`)
+        # is the one path that sets ``intake_channel`` directly; it is
+        # not affected by this change.
+        "intake_channel": source,
         "source_meta": payload.get("source_meta") or {},
         "logged_by_id": user.get("id"),
         "logged_by_name": user.get("full_name") or user.get("email") or "",

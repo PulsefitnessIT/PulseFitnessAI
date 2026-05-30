@@ -1,3 +1,80 @@
+## Iter 220cp — Enquiry-channel dedup + cross-module unification ✅ (May 30, 2026)
+
+**User report** (with screenshot):
+> "Phone is shown twice on enquiry type. Portal — which would be
+> selected automatically if it's been pushed through from portal.
+> Ensure no gaps and all info is being passed between all modules."
+
+### Bug fix — duplicate phone option
+`EngineerNewJob.js` ➜ `CHANNELS` was showing:
+- *Walked in / phone*    (this label conflated two things)
+- *Email request*
+- *Phone call*           ← duplicate
+- *Other / referral*
+
+Now reads:
+- *Walked in / counter*
+- *Phone call*
+- *Email request*
+- *Other / referral*
+
+`portal`, `inbound_email`, `embed_widget`, `supplier_card`,
+`service_desk` are **deliberately not** in the engineer picker —
+those are auto-set by the backend when a case is pushed in from
+those modules.
+
+### New — `frontend/src/utils/channelLabel.js`
+Single source of truth for displaying `intake_channel` / `source`:
+
+| code            | label                |
+|-----------------|----------------------|
+| manual          | Walked in / counter  |
+| phone           | Phone call           |
+| email           | Email request        |
+| inbound_email   | Email inbox          |
+| portal          | Customer portal      |
+| embed_widget    | Embedded widget      |
+| supplier_card   | Supplier card        |
+| service_desk    | Service desk         |
+| other           | Other / referral     |
+
+`resolveChannel(case)` prefers `intake_channel`, falls back to
+`source`, returns `null` if neither is set. Each channel has a
+distinct chip colour so the engineer can eyeball provenance at a
+glance.
+
+### Engineer Job Detail header — new "Logged via" pill
+`EngineerJobDetailV2.js` header now renders the channel chip beside
+the case status. Test ID: `job-channel-pill-{code}`.
+*"Customer portal"* now shows automatically for any case the ops
+portal pushed in — the exact behaviour the user asked for.
+
+### Cross-module data unification
+`routes/svc/intake.py::_create_case` (used by
+`POST /api/svc/intake/{portal,phone,email}`) now writes BOTH
+`source` and `intake_channel` on every case doc — the engineer
+app reads `intake_channel`, the ops portal historically reads
+`source`, and they now match for every entrypoint.
+
+Untouched (already correctly set their channel):
+- `independence.py::jobs_self_create` — engineer self-create
+- `inbound_email.py::_auto_create_case` — mailbox poller
+- `independence.py` supplier-card accept
+
+### Tests
+- **Backend** `tests/test_iter_220cp_channel_unification.py` (5 tests):
+  portal / phone / email intake all set `intake_channel == source`;
+  engineer self-create round-trips `manual|phone|email|other`.
+- **Frontend** `src/utils/channelLabel.test.js` (6 tests, jest):
+  null guards, prefers `intake_channel`, falls back to `source`,
+  all known labels, case-insensitive, graceful unknown fallback.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c[m,n,o,p] suite: **20/20 green**. All frontend lint
+  clean.
+
+---
+
+
 ## Iter 220co — Parts cost per machine rollup ✅ (May 30, 2026)
 
 **Why now**: the previous iter (220cn) lets engineers tag every parts

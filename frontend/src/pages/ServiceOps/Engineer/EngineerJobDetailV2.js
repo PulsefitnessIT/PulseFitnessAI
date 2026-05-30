@@ -36,6 +36,7 @@ import EngineerDictationButton from './EngineerDictationButton';
 import WorkReportCustomFields from './WorkReportCustomFields';
 import WorkVisitMachinesCard from './WorkVisitMachinesCard';
 import useJobDraft from './useJobDraft';
+import { resolveChannel } from '@/utils/channelLabel';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -124,9 +125,24 @@ export default function EngineerJobDetailV2() {
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-blue-700">{job.reference}</p>
             <h1 className="text-base font-extrabold text-slate-900 truncate">{job.title}</h1>
-            <p className="text-xs text-slate-500 truncate">
-              {job.site_name || 'Unknown site'}{job.asset_name ? ` · ${job.asset_name}` : ''} · <span className="capitalize">{job.status}</span>
-            </p>
+            <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+              <p className="text-xs text-slate-500 truncate" data-testid="job-meta">
+                {job.site_name || 'Unknown site'}{job.asset_name ? ` · ${job.asset_name}` : ''} · <span className="capitalize">{job.status}</span>
+              </p>
+              {(() => {
+                const ch = resolveChannel(job);
+                if (!ch) return null;
+                return (
+                  <span
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${ch.cls}`}
+                    title={`Logged via ${ch.label}`}
+                    data-testid={`job-channel-pill-${ch.code}`}
+                  >
+                    {ch.label}
+                  </span>
+                );
+              })()}
+            </div>
           </div>
           {/* Iter 220c — autosave indicator. Lets engineers know the draft is safe. */}
           <DraftStatusPill saving={savingDraft} lastSavedAt={lastSavedAt} dirty={draftDirty} />
