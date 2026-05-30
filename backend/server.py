@@ -624,6 +624,9 @@ async def _create_indexes() -> None:
     # Iter 220d — Per-machine reports + note presets
     from routes.svc.per_machine_reports import ensure_indexes as ensure_per_machine_indexes
     await ensure_per_machine_indexes()
+    # Iter 220ci — Engineer Equipment list filters
+    from routes.svc.engineer_equipment import ensure_indexes as ensure_engineer_equipment_indexes
+    await ensure_engineer_equipment_indexes()
     # Iter 220g — Postcode geocode cache
     from routes.svc.scheduling_suggestions import ensure_indexes as ensure_scheduling_indexes
     await ensure_scheduling_indexes()

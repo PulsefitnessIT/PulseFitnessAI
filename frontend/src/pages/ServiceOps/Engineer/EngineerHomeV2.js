@@ -362,6 +362,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Users} label="My customers"
                              testid="qa-customers"
                              onClick={() => navigate('/svc/engineer/customers')} />
+                <QuickAction icon={Package} label="Equipment"
+                             testid="qa-equipment"
+                             onClick={() => navigate('/svc/engineer/equipment')} />
                 {payouts?.ready ? (
                   <QuickAction icon={CreditCard} label="Payouts"
                                testid="qa-payouts"

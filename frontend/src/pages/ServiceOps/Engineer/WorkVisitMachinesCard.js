@@ -18,9 +18,10 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import {
   Plus, Loader2, Trash2, Copy, Wrench, Sparkles, ChevronDown,
-  ChevronUp, Camera, X,
+  ChevronUp, Camera, X, PackagePlus,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import NotePresetChips from './NotePresetChips';
@@ -199,15 +200,25 @@ export default function WorkVisitMachinesCard({ caseId }) {
             One row per Erg. Tick what you serviced / cleaned · add a note.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => addRow({})}
-          disabled={adding}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold disabled:opacity-50"
-          data-testid="machines-add-btn"
-        >
-          {adding ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Add machine
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/svc/engineer/equipment/new?case_id=${encodeURIComponent(caseId || '')}`}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50"
+            data-testid="machines-new-asset-link"
+            title="Create a brand-new equipment record and attach it"
+          >
+            <PackagePlus size={12} /> New asset
+          </Link>
+          <button
+            type="button"
+            onClick={() => addRow({})}
+            disabled={adding}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold disabled:opacity-50"
+            data-testid="machines-add-btn"
+          >
+            {adding ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Add machine
+          </button>
+        </div>
       </div>
 
       {loading ? (

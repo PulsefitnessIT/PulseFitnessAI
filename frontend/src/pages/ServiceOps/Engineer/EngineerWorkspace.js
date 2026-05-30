@@ -31,6 +31,7 @@ import {
   Home, Wrench, Calendar, FileText, ReceiptPoundSterling as Receipt, CreditCard, Search,
   RefreshCw, Loader2, ChevronRight, AlertTriangle, Clock, MapPin,
   Keyboard, ExternalLink, X, PlayCircle, Inbox as InboxIcon, Hand,
+  Package as EquipmentIcon,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -113,6 +114,7 @@ const Sidebar = ({ onNav, onHelp }) => (
     <NavBtn icon={Calendar} label="Diary"    shortcut="d" onClick={() => onNav('/svc/engineer/diary')}     testid="ws-nav-diary" />
     <NavBtn icon={FileText} label="Quotes"   shortcut="c" onClick={() => onNav('/svc/engineer/quotes')}    testid="ws-nav-quotes" />
     <NavBtn icon={Receipt}  label="Invoices" shortcut="i" onClick={() => onNav('/svc/engineer/invoices')}  testid="ws-nav-invoices" />
+    <NavBtn icon={EquipmentIcon} label="Equipment" shortcut="e" onClick={() => onNav('/svc/engineer/equipment')} testid="ws-nav-equipment" />
     <NavBtn icon={CreditCard} label="Payouts" onClick={() => onNav('/svc/engineer/payouts')}               testid="ws-nav-payouts" />
     <div className="flex-1" />
     <NavBtn icon={Keyboard} label="Shortcuts" shortcut="?" onClick={onHelp} testid="ws-nav-help" />
