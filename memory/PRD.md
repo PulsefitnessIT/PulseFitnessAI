@@ -1,3 +1,81 @@
+## Iter 220dk — Mid-journey ETA drift re-notify ✅ (May 30, 2026)
+
+When traffic, a detour, or a tool-fetch swings an engineer's
+arrival time by ≥ 10 min from the last sent ETA, the customer now
+gets a fresh email automatically — without the engineer needing to
+remember to fire one. Closes a real-world friction point flagged
+in the operations audit.
+
+### Backend — `routes/svc/engineer_eta_update.py`
+
+**Refactor**
+- Extracted the email-rendering body of `send_eta_update` into a
+  reusable `_send_eta_email(*, case, user, eta_mins, message,
+  trigger)` helper. The manual endpoint + the new drift checker
+  share rendering, branding, logging, event emission, and the
+  case-stamp update — single source of truth for the ETA email
+  surface.
+
+**New `maybe_renotify_eta_drift(*, user)`**
+- Pulls the engineer's open `en_route` cases for their org (cap 5).
+- For each, computes a fresh haversine ETA via
+  `build_eta_minutes_estimate`. Skips when:
+  - `customer_email` missing / invalid
+  - `comms_auto_notify is False`
+  - No baseline `eta_last_minutes` yet (first email comes from the
+    `en_route` auto-comm, not from the drift checker — we don't
+    second-guess that transition email)
+  - Fresh estimate is `None` (stale ping / no coords)
+  - `|fresh - last| < DRIFT_THRESHOLD_MIN` (10 minutes)
+  - Cooldown < `DRIFT_COOLDOWN_SECONDS` (5 minutes) since last send
+- Fires `_send_eta_email` with `trigger='eta_drift_renotify'` for
+  qualifying cases and returns one result row per case touched.
+
+**Constants pinned**
+- `DRIFT_THRESHOLD_MIN = 10`
+- `DRIFT_COOLDOWN_SECONDS = 300`
+
+### Backend — `routes/svc/engineer_location.py`
+- After persisting the ping, run `maybe_renotify_eta_drift` and
+  return the renotified case IDs to the engineer mobile app
+  (so it can show a small "customer notified" toast).
+- The entire drift check is wrapped in try/except — a downstream
+  comms failure must never break the engineer's critical-path
+  location ping.
+
+### Tests / lint
+- `tests/test_iter_220dk_eta_drift_renotify.py` — **10 tests** green
+  covering:
+  - No baseline → quiet.
+  - Missing customer_email → quiet.
+  - `comms_auto_notify=False` → quiet.
+  - Drift under threshold → quiet.
+  - Cooldown active → quiet.
+  - Happy path → fires `_send_eta_email` with `trigger=eta_drift_renotify`
+    and a fresh ETA (≪ baseline of 30 min).
+  - Mongo filter pinned to `en_route` + assigned engineer.
+  - Constants pinned (10 / 300).
+  - Location ping invokes drift check + returns renotified IDs
+    in response.
+  - Location ping resilient to drift-check exceptions.
+- 220dg suite unaffected by refactor: **15/15 still green**.
+- Combined 220c+220d suite: **106/106 green**.
+- Backend ruff clean.
+- Live smoke: `POST /svc/engineer/location` → 401 (registered).
+
+### Out of scope (deferred)
+- "Significant slowdown / speedup" annotation in the renotify email
+  ("running 12 min later than planned" vs the silent number swap
+  the customer sees today).
+- SMS variant of the drift renotify (no Twilio creds; would reuse
+  the same trigger gate).
+- Customer-side "Pause notifications" link in the email footer
+  (would set `comms_auto_notify=False` on the case via a tokenised
+  URL).
+
+---
+
+
 ## Iter 220dj — Compliance evidence pack on service-report PDF ✅ (May 30, 2026)
 
 Every customer-facing service report now ships with a full audit

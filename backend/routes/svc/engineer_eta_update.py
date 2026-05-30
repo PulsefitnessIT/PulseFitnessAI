@@ -166,6 +166,131 @@ class EtaUpdateIn(BaseModel):
     )
 
 
+async def _send_eta_email(
+    *, case: dict, user: dict, eta_mins: Optional[int],
+    message: str = "", trigger: str = "manual_eta_update",
+) -> dict:
+    """Render + send a single ETA-update email for ``case``.
+
+    Used by:
+      * ``send_eta_update`` — engineer-driven manual nudge.
+      * ``maybe_renotify_eta_drift`` — automatic drift re-notify
+        triggered off a location-ping (Iter 220dk).
+
+    Caller has already verified the case is in scope (valid status,
+    has customer_email, comms not disabled). Returns the same
+    response shape as the manual endpoint so the location-ping
+    auditor can log it.
+    """
+    of = {"organization_id": case["organization_id"]}
+    case_id = case["id"]
+    to = (case.get("customer_email") or "").strip()
+    tracking_url = await build_tracking_url_for_case(case) or ""
+
+    from routes.svc.comms import (
+        _ensure_defaults,
+        _render,
+        _log_send,
+        _PRIORITY_LABEL,
+    )
+    from utils.email import send_email
+    from utils.svc_state import append_event
+
+    await _ensure_defaults(of)
+    template = await db.svc_email_templates.find_one(
+        {**of, "key": "engineer_en_route"}, {"_id": 0},
+    )
+    if not template or template.get("active") is False:
+        return {"ok": False, "reason": "template_inactive"}
+
+    msg = (message or "").strip()
+    ctx = {
+        **case,
+        "priority_label": _PRIORITY_LABEL.get(case.get("priority", "p3"), case.get("priority", "p3")),
+        "engineer_name": case.get("assigned_engineer_name") or user.get("full_name") or "Our engineer",
+        "scheduled_label": case.get("scheduled_at") or "shortly",
+        "eta_minutes": str(eta_mins) if eta_mins is not None else "",
+        "eta_label": eta_label_from_minutes(eta_mins),
+        "tracking_url": tracking_url,
+        "engineer_message": msg,
+        "engineer_message_html": (
+            f'<p style="background:#fef3c7;border-left:3px solid #f59e0b;'
+            f'padding:10px 14px;border-radius:6px">'
+            f'<strong>From your engineer:</strong> {msg}'
+            f'</p>'
+        ) if msg else "",
+        "tracking_link_html": (
+            f'<p style="margin-top:12px"><a href="{tracking_url}" '
+            f'style="background:#2563eb;color:#fff;padding:10px 18px;'
+            f'border-radius:8px;text-decoration:none;font-weight:700">'
+            f'Track live</a></p>'
+        ) if tracking_url else "",
+    }
+    try:
+        from routes.sites import _effective_site_branding
+        org_doc = await db.organizations.find_one({"id": of["organization_id"]}, {"_id": 0}) or {}
+        site_doc = None
+        if case.get("site_id"):
+            site_doc = await db.sites.find_one(
+                {"id": case["site_id"], "organization_id": of["organization_id"]},
+                {"_id": 0},
+            )
+        eff = _effective_site_branding(org_doc, site_doc)
+        ctx["org_name"] = eff.get("name") or org_doc.get("name") or "GymAxis"
+        ctx["brand_primary_color"] = eff.get("primary_color") or "#19CDFF"
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("eta-update branding resolve failed: %s", exc)
+        ctx.setdefault("org_name", "GymAxis")
+
+    subject = _render(template["subject"], ctx)
+    html = _render(template["body_html"], ctx)
+    if tracking_url and tracking_url not in html:
+        html += ctx["tracking_link_html"]
+
+    try:
+        ok = await send_email(to=to, subject=subject, html=html)
+    except Exception as exc:  # pragma: no cover
+        logger.warning("eta-update send failed for %s: %s", case_id, exc)
+        ok = False
+
+    log = await _log_send(
+        of=of, kind="case_eta_update", to=to, subject=subject,
+        template_key="engineer_en_route", ok=ok,
+        error=None if ok else "send_email returned False",
+        case_id=case_id, actor=user,
+    )
+    if ok:
+        await append_event(
+            case_id=case_id, organization_id=of["organization_id"],
+            event_type="comm", actor=user,
+            body=f"ETA update sent → {to} ({eta_label_from_minutes(eta_mins)})",
+            extra={
+                "template_key": "engineer_en_route",
+                "to": to,
+                "eta_minutes": eta_mins,
+                "message": msg,
+                "tracking_url": tracking_url,
+                "log_id": log["id"],
+                "trigger": trigger,
+                "visibility": "internal",
+            },
+        )
+        await db.svc_cases.update_one(
+            {"id": case_id, **of},
+            {"$set": {"eta_last_sent_at": _now(),
+                      "eta_last_minutes": eta_mins,
+                      "updated_at": _now()}},
+        )
+    return {
+        "ok": ok,
+        "to": to,
+        "eta_minutes": eta_mins,
+        "eta_label": eta_label_from_minutes(eta_mins),
+        "tracking_url": tracking_url,
+        "sent_at": _now() if ok else None,
+    }
+
+
 @router.post("/svc/engineer/jobs/{case_id}/eta-update")
 async def send_eta_update(
     case_id: str, body: EtaUpdateIn, user=Depends(get_current_user),
@@ -196,118 +321,93 @@ async def send_eta_update(
     if eta_mins is None:
         eta_mins = await build_eta_minutes_estimate(case)
 
-    tracking_url = await build_tracking_url_for_case(case) or ""
-
-    # Render via the existing "engineer_en_route" template.
-    from routes.svc.comms import (
-        _ensure_defaults,  # noqa: WPS437 (intentional reuse)
-        _render,           # noqa: WPS437
-        _log_send,         # noqa: WPS437
-        _PRIORITY_LABEL,   # noqa: WPS437
+    result = await _send_eta_email(
+        case=case, user=user, eta_mins=eta_mins,
+        message=(body.message or ""),
+        trigger="manual_eta_update",
     )
-    from utils.email import send_email
-    from utils.svc_state import append_event
-
-    await _ensure_defaults(of)
-    template = await db.svc_email_templates.find_one(
-        {**of, "key": "engineer_en_route"}, {"_id": 0},
-    )
-    if not template or template.get("active") is False:
+    if result.get("reason") == "template_inactive":
         raise HTTPException(409, "engineer_en_route template inactive")
+    return result
 
-    ctx = {
-        **case,
-        "priority_label": _PRIORITY_LABEL.get(case.get("priority", "p3"), case.get("priority", "p3")),
-        "engineer_name": case.get("assigned_engineer_name") or user.get("full_name") or "Our engineer",
-        "scheduled_label": case.get("scheduled_at") or "shortly",
-        "eta_minutes": str(eta_mins) if eta_mins is not None else "",
-        "eta_label": eta_label_from_minutes(eta_mins),
-        "tracking_url": tracking_url,
-        "engineer_message": (body.message or "").strip(),
-        "engineer_message_html": (
-            f'<p style="background:#fef3c7;border-left:3px solid #f59e0b;'
-            f'padding:10px 14px;border-radius:6px">'
-            f'<strong>From your engineer:</strong> {body.message.strip()}'
-            f'</p>'
-        ) if (body.message or "").strip() else "",
-        "tracking_link_html": (
-            f'<p style="margin-top:12px"><a href="{tracking_url}" '
-            f'style="background:#2563eb;color:#fff;padding:10px 18px;'
-            f'border-radius:8px;text-decoration:none;font-weight:700">'
-            f'Track live</a></p>'
-        ) if tracking_url else "",
-    }
-    # Branding (best effort — fall back to org).
+
+# ─────────────────────────────────────────────────────────────────
+# Iter 220dk — Automatic ETA drift re-notify
+# ─────────────────────────────────────────────────────────────────
+# When an engineer pings their live location, we recompute the ETA
+# for every ``en_route`` job they're currently driving to. If the
+# ETA has drifted by ≥ ``DRIFT_THRESHOLD_MIN`` minutes since the
+# last sent email AND the cooldown is respected, we send a fresh
+# email so the customer isn't waiting in the dark wondering.
+#
+# Rate limits (anti-spam):
+#   * 5 minutes between auto-renotifies on the same case.
+#   * Skip when ``comms_auto_notify`` is False.
+#   * Skip when customer_email missing.
+#   * Skip when no recent location ping (helper already returns None).
+
+
+DRIFT_THRESHOLD_MIN = 10
+DRIFT_COOLDOWN_SECONDS = 300
+
+
+def _seconds_since_iso(iso: Optional[str]) -> Optional[float]:
+    if not iso:
+        return None
     try:
-        from routes.sites import _effective_site_branding
-        org_doc = await db.organizations.find_one({"id": of["organization_id"]}, {"_id": 0}) or {}
-        site_doc = None
-        if case.get("site_id"):
-            site_doc = await db.sites.find_one(
-                {"id": case["site_id"], "organization_id": of["organization_id"]},
-                {"_id": 0},
-            )
-        eff = _effective_site_branding(org_doc, site_doc)
-        ctx["org_name"] = eff.get("name") or org_doc.get("name") or "GymAxis"
-        ctx["brand_primary_color"] = eff.get("primary_color") or "#19CDFF"
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("eta-update branding resolve failed: %s", exc)
-        ctx.setdefault("org_name", "GymAxis")
+        ts = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return (datetime.now(timezone.utc) - ts).total_seconds()
 
-    subject = _render(template["subject"], ctx)
-    html = _render(template["body_html"], ctx)
-    # Belt-and-braces: ensure the tracking link is in the email even
-    # if the operator has customised the template and stripped the
-    # ``{{tracking_link_html}}`` placeholder.
-    if tracking_url and tracking_url not in html:
-        html += ctx["tracking_link_html"]
 
-    try:
-        ok = await send_email(to=to, subject=subject, html=html)
-    except Exception as exc:  # pragma: no cover
-        logger.warning("eta-update send failed for %s: %s", case_id, exc)
-        ok = False
-
-    log = await _log_send(
-        of=of, kind="case_eta_update", to=to, subject=subject,
-        template_key="engineer_en_route", ok=ok,
-        error=None if ok else "send_email returned False",
-        case_id=case_id, actor=user,
-    )
-
-    if ok:
-        await append_event(
-            case_id=case_id, organization_id=of["organization_id"],
-            event_type="comm", actor=user,
-            body=f"ETA update sent → {to} ({eta_label_from_minutes(eta_mins)})",
-            extra={
-                "template_key": "engineer_en_route",
-                "to": to,
-                "eta_minutes": eta_mins,
-                "message": ctx["engineer_message"],
-                "tracking_url": tracking_url,
-                "log_id": log["id"],
-                "trigger": "manual_eta_update",
-                "visibility": "internal",
-            },
+async def maybe_renotify_eta_drift(*, user: dict) -> list[dict]:
+    """Inspect the calling engineer's open ``en_route`` cases and
+    fire a fresh ETA-update email when ETA has drifted by at least
+    ``DRIFT_THRESHOLD_MIN`` since the last sent value. Returns one
+    result dict per case touched (empty list when nothing fired).
+    """
+    org_id = user.get("organization_id")
+    if not org_id:
+        return []
+    cases = await db.svc_cases.find(
+        {
+            "organization_id": org_id,
+            "assigned_engineer_id": user["id"],
+            "status": "en_route",
+        },
+        {"_id": 0},
+    ).limit(5).to_list(5)
+    results: list[dict] = []
+    for case in cases:
+        # Skip when customer comms disabled or no email.
+        if case.get("comms_auto_notify") is False:
+            continue
+        to = (case.get("customer_email") or "").strip()
+        if not to or "@" not in to:
+            continue
+        fresh = await build_eta_minutes_estimate(case)
+        if fresh is None:
+            continue
+        last = case.get("eta_last_minutes")
+        # First-time auto re-notify? Only fire when we already had a
+        # baseline (otherwise the en_route auto-comm just went out).
+        if last is None:
+            continue
+        if abs(int(fresh) - int(last)) < DRIFT_THRESHOLD_MIN:
+            continue
+        cooldown = _seconds_since_iso(case.get("eta_last_sent_at"))
+        if cooldown is not None and cooldown < DRIFT_COOLDOWN_SECONDS:
+            continue
+        result = await _send_eta_email(
+            case=case, user=user, eta_mins=fresh, message="",
+            trigger="eta_drift_renotify",
         )
-        # Stamp the case so the engineer UI can show "last sent 2 min ago".
-        await db.svc_cases.update_one(
-            {"id": case_id, **of},
-            {"$set": {"eta_last_sent_at": _now(),
-                      "eta_last_minutes": eta_mins,
-                      "updated_at": _now()}},
-        )
-
-    return {
-        "ok": ok,
-        "to": to,
-        "eta_minutes": eta_mins,
-        "eta_label": eta_label_from_minutes(eta_mins),
-        "tracking_url": tracking_url,
-        "sent_at": _now() if ok else None,
-    }
+        results.append({"case_id": case["id"], **result})
+    return results
 
 
 __all__ = ["router", "build_tracking_url_for_case",
-           "build_eta_minutes_estimate", "eta_label_from_minutes"]
+           "build_eta_minutes_estimate", "eta_label_from_minutes",
+           "maybe_renotify_eta_drift",
+           "DRIFT_THRESHOLD_MIN", "DRIFT_COOLDOWN_SECONDS"]

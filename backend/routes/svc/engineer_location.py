@@ -60,7 +60,24 @@ async def post_location(body: dict, user=Depends(get_current_user)):
         {"$set": doc},
         upsert=True,
     )
-    return {"ok": True, "recorded_at": now}
+
+    # Iter 220dk — Mid-journey ETA drift re-notify. After the ping is
+    # persisted (so the freshly-computed haversine ETA reads the
+    # latest coords), run the auto-renotify check. Wrapped in
+    # try/except so a downstream comms error never breaks the
+    # location ping (this is the engineer-mobile critical path).
+    renotified: list[dict] = []
+    try:
+        from routes.svc.engineer_eta_update import maybe_renotify_eta_drift
+        renotified = await maybe_renotify_eta_drift(user=user)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("eta drift renotify check failed: %s", exc)
+
+    return {
+        "ok": True,
+        "recorded_at": now,
+        "eta_renotified_case_ids": [r["case_id"] for r in renotified if r.get("ok")],
+    }
 
 
 @router.get("/svc/engineer/location/me")
