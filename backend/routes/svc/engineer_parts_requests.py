@@ -206,6 +206,26 @@ class ApproveIn(BaseModel):
     ship_from: str = Field(default="warehouse")
     supplier_ref: Optional[str] = ""
     notes: Optional[str] = ""
+    # Iter 220dd — Backorder / ETA visibility. Admin can stamp the
+    # expected delivery date at approve-time so the engineer knows
+    # whether to expect the part for the next visit or push the job.
+    eta_date: Optional[str] = Field(
+        default=None,
+        description="ISO date (YYYY-MM-DD) the part is expected. Omit "
+                    "if available immediately from the warehouse.",
+    )
+    backordered: bool = Field(
+        default=False,
+        description="True when supplier confirms the part is out of "
+                    "stock at source — surfaces an amber chip to the "
+                    "engineer.",
+    )
+
+
+class EtaUpdateIn(BaseModel):
+    eta_date: Optional[str] = None
+    backordered: bool = False
+    eta_notes: Optional[str] = Field(default="", max_length=400)
 
 
 class RejectIn(BaseModel):
@@ -345,6 +365,9 @@ async def admin_approve(request_id: str, body: ApproveIn,
             "supplier_ref": (body.supplier_ref or "").strip() or None,
             "admin_notes": (body.notes or "").strip(),
             "allocation_id": allocation["id"],
+            # Iter 220dd — backorder / ETA visibility for the engineer.
+            "eta_date":    (body.eta_date or "").strip() or None,
+            "backordered": bool(body.backordered),
             "updated_at": _now(),
         }},
     )
@@ -385,6 +408,45 @@ async def admin_reject(request_id: str, body: RejectIn,
         event_type="note", actor=user,
         body=f"Parts request rejected: {body.reason[:120]}",
         extra={"kind": "parts_request_rejected", "request_id": request_id},
+    )
+    fresh = await db.svc_parts_requests.find_one({"id": request_id, **of}, {"_id": 0})
+    return fresh or {"ok": True}
+
+
+# Iter 220dd — Update ETA / backorder state after approval.
+# Admins frequently learn the supplier ETA AFTER they approve the
+# request (e.g. once the supplier portal confirms). This patch
+# endpoint lets them refresh the engineer-visible ETA without
+# re-approving the request.
+@admin_router.post("/{request_id}/eta")
+async def admin_update_eta(request_id: str, body: EtaUpdateIn,
+                           user=Depends(get_current_user)):
+    _require_admin(user)
+    of = _of(user)
+    req = await db.svc_parts_requests.find_one({"id": request_id, **of}, {"_id": 0})
+    if not req:
+        raise HTTPException(404, "Request not found")
+    if req["status"] not in {"pending", "approved"}:
+        raise HTTPException(409, f"Cannot update ETA on a {req['status']} request")
+    eta = (body.eta_date or "").strip() or None
+    await db.svc_parts_requests.update_one(
+        {"id": request_id, **of},
+        {"$set": {
+            "eta_date":    eta,
+            "backordered": bool(body.backordered),
+            "eta_notes":   (body.eta_notes or "").strip(),
+            "updated_at":  _now(),
+        }},
+    )
+    await append_event(
+        case_id=req["case_id"], organization_id=of["organization_id"],
+        event_type="note", actor=user,
+        body=(
+            f"Parts ETA updated for {req.get('part_sku')}: "
+            + ("backordered" if body.backordered else (f"ETA {eta}" if eta else "ETA cleared"))
+        ),
+        extra={"kind": "parts_request_eta", "request_id": request_id,
+               "eta_date": eta, "backordered": bool(body.backordered)},
     )
     fresh = await db.svc_parts_requests.find_one({"id": request_id, **of}, {"_id": 0})
     return fresh or {"ok": True}

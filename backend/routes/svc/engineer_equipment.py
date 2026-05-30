@@ -267,6 +267,77 @@ async def list_engineer_equipment(
     return {"equipment": rows, "count": len(rows)}
 
 
+# ─────────────────────────────────────────────────────────────────
+# Iter 220da — Barcode / QR / asset-tag lookup
+# ─────────────────────────────────────────────────────────────────
+# A field engineer scans a sticker on a machine and we need to jump
+# them straight to the right equipment row — without making them
+# type the serial. The frontend uses the browser's BarcodeDetector
+# (Chromium / Android) and falls back to a manual-entry input on
+# unsupported browsers; either path hits this endpoint with the
+# decoded string.
+#
+# Match strategy (in order):
+#   1.  exact match on ``serial_number`` / ``asset_tag`` / ``id``.
+#   2.  case-insensitive prefix/contains on the same three fields
+#       plus ``name`` (helps when the sticker reads "GA-12345 Belt"
+#       but the serial is just GA-12345).
+# A single fuzzy hit returns ``match="fuzzy"``; multiple fuzzy hits
+# return up to 5 options so the engineer can confirm which one.
+@router.get("/equipment/by-code/{code}")
+async def engineer_equipment_by_code(
+    code: str,
+    user=Depends(get_current_user),
+):
+    from re import escape as _re_escape
+
+    needle = (code or "").strip()
+    if not needle:
+        raise HTTPException(400, "Empty code")
+    if len(needle) > 200:
+        raise HTTPException(400, "Code too long")
+    of = _of(user)
+    projection = {
+        "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+        "manufacturer": 1, "model": 1, "serial_number": 1,
+        "asset_tag": 1, "location": 1, "status": 1, "site_id": 1,
+        "customer_id": 1, "customer_name": 1,
+    }
+    exact = await db.equipment.find_one(
+        {
+            **of,
+            "$or": [
+                {"serial_number": needle},
+                {"asset_tag": needle},
+                {"id": needle},
+            ],
+        },
+        projection,
+    )
+    if exact:
+        return {"match": "exact", "equipment": exact}
+    rgx = {"$regex": _re_escape(needle), "$options": "i"}
+    fuzzy = (
+        await db.equipment.find(
+            {
+                **of,
+                "$or": [
+                    {"serial_number": rgx},
+                    {"asset_tag": rgx},
+                    {"name": rgx},
+                ],
+            },
+            projection,
+        ).limit(5).to_list(5)
+    )
+    if not fuzzy:
+        raise HTTPException(404, "No equipment matched this code")
+    if len(fuzzy) == 1:
+        return {"match": "fuzzy", "equipment": fuzzy[0]}
+    return {"match": "multiple", "options": fuzzy}
+
+
+
 @router.post("/equipment")
 async def create_engineer_equipment(
     payload: EngineerEquipmentCreate,

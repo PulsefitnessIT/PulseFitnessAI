@@ -233,6 +233,11 @@ regression:
 	  tests/test_iter_220cw_voice_to_job.py \
 	  tests/test_iter_220cx_engineer_polish.py \
 	  tests/test_iter_220cy_feedback_request.py \
+	  tests/test_iter_220cz_engineer_gaps.py \
+	  tests/test_iter_220da_barcode_lookup.py \
+	  tests/test_iter_220db_image_compression.py \
+	  tests/test_iter_220dc_nearest_job.py \
+	  tests/test_iter_220dd_parts_eta.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

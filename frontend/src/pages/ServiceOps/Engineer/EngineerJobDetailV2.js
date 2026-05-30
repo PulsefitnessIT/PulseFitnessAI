@@ -28,7 +28,7 @@ import {
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
   Video, MapPin, Send, Download, Phone, Navigation, History, LogIn,
-  Wifi, WifiOff, CloudUpload,
+  Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
@@ -38,6 +38,7 @@ import WorkReportCustomFields from './WorkReportCustomFields';
 import WorkVisitMachinesCard from './WorkVisitMachinesCard';
 import useJobDraft from './useJobDraft';
 import { resolveChannel } from '@/utils/channelLabel';
+import { compressImage } from '@/utils/compressImage';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -389,6 +390,15 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
         </div>
       </div>
 
+      {/* Iter 220cz — Overrun warning, sibling-jobs warning, handoff notes. */}
+      <JobOverrunBanner overrun={job.overrun} />
+      <SiblingJobsBanner cases={job.sibling_jobs} />
+      <HandoffNotesPanel
+        caseId={job.id}
+        notes={job.handoff_notes || []}
+        onChange={onChange}
+      />
+
       {/* Big arrive button — only when not yet arrived and not closed. */}
       {!['closed', 'invoiced', 'awaiting_sign_off', 'repaired'].includes(job.status) && (
         <div className="border-t border-slate-100 p-2 bg-slate-50/40">
@@ -423,7 +433,203 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
   );
 }
 
-// Iter 220c — header pill that mirrors the autosave state.
+// ─── Iter 220cz · JobOverrunBanner ───────────────────────────────
+// Pulls `overrun` from the engineer endpoint and shows an amber
+// "approaching estimate" or rose "over estimate" banner. Hidden
+// when no estimate is set so the engineer doesn't see noise on
+// estimate-less jobs.
+function JobOverrunBanner({ overrun }) {
+  if (!overrun || !overrun.estimated_minutes) return null;
+  const { estimated_minutes, on_site_minutes, is_overrun, is_approaching, percent_used } = overrun;
+  if (!is_overrun && !is_approaching) return null;
+  const cls = is_overrun
+    ? 'bg-rose-50 text-rose-800 border-rose-200'
+    : 'bg-amber-50 text-amber-800 border-amber-200';
+  return (
+    <div
+      className={`mx-3 mb-2 p-2 rounded-lg border ${cls} flex items-start gap-2`}
+      data-testid={is_overrun ? 'jaag-overrun' : 'jaag-overrun-approaching'}
+    >
+      <Timer size={14} className="mt-0.5 shrink-0" />
+      <div className="text-xs leading-snug">
+        <p className="font-bold uppercase tracking-wide text-[10px]">
+          {is_overrun ? 'Over time estimate' : 'Approaching time estimate'}
+        </p>
+        <p>
+          <span data-testid="jaag-overrun-used">{fmtMins(on_site_minutes)}</span>
+          {' '}of{' '}
+          <span data-testid="jaag-overrun-est">{fmtMins(estimated_minutes)}</span>
+          {' '}on-site
+          {percent_used ? ` · ${percent_used}%` : ''}
+          {is_overrun ? ' — let dispatch know if the scope has grown.' : ''}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Iter 220cz · SiblingJobsBanner ──────────────────────────────
+// Lists up to 5 OTHER open cases at the same customer + same site.
+// Lets the engineer combine visits instead of bouncing between
+// half-finished jobs on the same trip.
+function SiblingJobsBanner({ cases }) {
+  if (!Array.isArray(cases) || cases.length === 0) return null;
+  const navigate = useNavigate();
+  return (
+    <div
+      className="mx-3 mb-2 p-2 rounded-lg border bg-amber-50 text-amber-900 border-amber-200"
+      data-testid="jaag-sibling-jobs"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <Users size={14} />
+        <p className="text-[10px] font-bold uppercase tracking-wide">
+          {cases.length} other open {cases.length === 1 ? 'job' : 'jobs'} at this site
+        </p>
+      </div>
+      <ul className="space-y-1" data-testid="jaag-sibling-jobs-list">
+        {cases.map((c) => (
+          <li key={c.id}>
+            <button
+              type="button"
+              onClick={() => navigate(`/svc/engineer/jobs/${c.id}`)}
+              className="w-full text-left text-xs px-2 py-1 rounded bg-white border border-amber-200 hover:bg-amber-100"
+              data-testid={`jaag-sibling-job-${c.id}`}
+            >
+              <span className="font-bold">{c.reference || c.id}</span>
+              {c.title ? <span className="text-amber-900/80"> · {c.title}</span> : null}
+              {c.status ? (
+                <span className="ml-2 text-[10px] uppercase font-bold text-amber-700">
+                  {String(c.status).replace(/_/g, ' ')}
+                </span>
+              ) : null}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ─── Iter 220cz · HandoffNotesPanel ──────────────────────────────
+// Reads existing `case.handoff_notes` and lets the engineer add
+// another. Posts to `POST /svc/engineer/jobs/{case_id}/handoff-note`.
+// Quiet when no notes exist and the composer is collapsed — one
+// tap reveals the textarea so the rare action doesn't clutter the
+// header on every job.
+function HandoffNotesPanel({ caseId, notes, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const list = Array.isArray(notes) ? notes : [];
+  const submit = async () => {
+    const note = text.trim();
+    if (!note) {
+      notify.error('Empty note', 'Type a quick handoff message first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await axios.post(
+        `${API}/svc/engineer/jobs/${caseId}/handoff-note`,
+        { note },
+        auth(),
+      );
+      setText('');
+      setOpen(false);
+      notify.success('Handoff note saved', 'The next engineer will see this on Job-at-a-Glance.');
+      await onChange();
+    } catch (e) {
+      notify.error('Could not save note', e?.response?.data?.detail || e?.message || 'Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (list.length === 0 && !open) {
+    return (
+      <div className="mx-3 mb-2" data-testid="jaag-handoff-empty">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
+          data-testid="jaag-handoff-add"
+        >
+          <MessageSquare size={11} /> Leave a handoff note
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mx-3 mb-2 p-2 rounded-lg border bg-blue-50/60 text-slate-800 border-blue-200"
+      data-testid="jaag-handoff-panel"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <MessageSquare size={14} className="text-blue-700" />
+        <p className="text-[10px] font-bold uppercase tracking-wide text-blue-800">
+          Handoff notes
+        </p>
+      </div>
+      {list.length > 0 && (
+        <ul className="space-y-1 mb-2" data-testid="jaag-handoff-list">
+          {list.slice().reverse().map((n) => (
+            <li
+              key={n.id || `${n.at}-${n.engineer_id}`}
+              className="text-xs bg-white border border-blue-100 rounded px-2 py-1"
+              data-testid={`jaag-handoff-${n.id || 'item'}`}
+            >
+              <p className="text-slate-800 leading-snug whitespace-pre-wrap">{n.note}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                {n.engineer_name || 'Engineer'}
+                {n.at ? ' · ' + new Date(n.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open ? (
+        <div className="space-y-1">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={2}
+            placeholder="What does the next engineer need to know?"
+            className="w-full text-xs px-2 py-1 rounded border border-blue-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+            data-testid="jaag-handoff-input"
+            maxLength={2000}
+          />
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setText(''); }}
+              className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded text-slate-600 hover:bg-slate-100"
+              data-testid="jaag-handoff-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={busy}
+              className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              data-testid="jaag-handoff-submit"
+            >
+              {busy ? 'Saving…' : 'Save note'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-[10px] font-bold uppercase tracking-wide text-blue-700 hover:text-blue-900 inline-flex items-center gap-1"
+          data-testid="jaag-handoff-add"
+        >
+          <Plus size={11} /> Add another handoff note
+        </button>
+      )}
+    </div>
+  );
+}
 function DraftStatusPill({ saving, lastSavedAt, dirty }) {
   if (saving) {
     return (
@@ -860,6 +1066,7 @@ async function probeVideoDuration(file) {
 
 function PhotosTab({ job, onChange }) {
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [caption, setCaption] = useState('');
   const [stage, setStage] = useState('progress'); // before / progress / after
   const photoInput = useRef(null);
@@ -889,9 +1096,14 @@ function PhotosTab({ job, onChange }) {
       }
     }
     setUploading(true);
+    setUploadPct(0);
     try {
+      // Iter 220db — compress images client-side so an engineer on a
+      // 4G connection isn't stuck waiting 30s for a 4 MB JPEG. Video
+      // is passed through untouched (already validated above).
+      const toSend = kind === 'video' ? file : await compressImage(file);
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', toSend);
       // Iter 216h257 — use `service-media` so the backend allow-list
       // covers BOTH images and videos. Old `photos|videos` categories
       // used the global MIME_ALL_ATTACHMENTS allow-list which silently
@@ -899,6 +1111,11 @@ function PhotosTab({ job, onChange }) {
       const u = await axios.post(`${API}/files/upload?category=service-media`, fd, {
         ...auth(),
         headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (e.total) {
+            setUploadPct(Math.round((e.loaded / e.total) * 100));
+          }
+        },
       });
       const fileUrl = u.data?.download_url || u.data?.storage_path;
       const prefix = stage === 'before' ? '[BEFORE] ' : stage === 'after' ? '[AFTER] ' : '';
@@ -921,7 +1138,7 @@ function PhotosTab({ job, onChange }) {
         || err?.message
         || 'Unknown error';
       notify.error('Upload failed', String(detail).slice(0, 200));
-    } finally { setUploading(false); }
+    } finally { setUploading(false); setUploadPct(0); }
   }, [stage, caption, job.id, onChange]);
 
   const onPhoto = async (e) => {
@@ -961,6 +1178,21 @@ function PhotosTab({ job, onChange }) {
             Video (≤{MAX_VIDEO_SECONDS}s)
           </button>
         </div>
+        {uploading && (
+          <div className="mt-3" data-testid="photo-upload-progress">
+            <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wide text-slate-500 mb-1">
+              <span>Uploading…</span>
+              <span data-testid="photo-upload-pct">{uploadPct}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-[width] duration-150"
+                style={{ width: `${uploadPct}%` }}
+                data-testid="photo-upload-bar"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {(['before', 'progress', 'after']).map(stage => (
@@ -1150,6 +1382,13 @@ function PartsTab({ job, onChange }) {
   const open = allocated.filter(a => !a.fulfilled);
   const used = allocated.filter(a => a.fulfilled);
   const pendingRequests = requests.filter(r => r.status === 'pending');
+  // Iter 220dd — Approved-but-not-yet-fulfilled with admin-supplied
+  // ETA / backorder flag. The allocation is on the case already
+  // (above) but the engineer wants to see the expected delivery
+  // signal up-front so they can plan / push the visit.
+  const incomingRequests = requests.filter(
+    r => r.status === 'approved' && (r.eta_date || r.backordered),
+  );
 
   return (
     <div className="space-y-4">
@@ -1167,6 +1406,60 @@ function PartsTab({ job, onChange }) {
                 <button onClick={() => consume(a.id)} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`parts-consume-${a.id}`}>
                   <Check size={12} /> Mark used
                 </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {incomingRequests.length > 0 && (
+        <div
+          className="bg-white rounded-2xl border border-blue-200 bg-blue-50 p-4"
+          data-testid="parts-incoming-requests"
+        >
+          <p className="text-[11px] uppercase font-bold tracking-wide text-blue-700 mb-2">
+            On the way ({incomingRequests.length})
+          </p>
+          <ul className="divide-y divide-blue-100">
+            {incomingRequests.map(r => (
+              <li
+                key={r.id}
+                className="py-2 flex items-start gap-3"
+                data-testid={`parts-incoming-${r.id}`}
+              >
+                <Package size={14} className="text-blue-600 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-blue-900">
+                    {r.qty} × {r.part_sku}
+                    {r.part_name ? <span className="text-blue-700 font-normal"> · {r.part_name}</span> : null}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {r.backordered ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold uppercase tracking-wide"
+                        data-testid={`parts-backordered-${r.id}`}
+                      >
+                        <AlertTriangle size={9} /> Backordered
+                      </span>
+                    ) : null}
+                    {r.eta_date ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 text-[10px] font-bold uppercase tracking-wide"
+                        data-testid={`parts-eta-${r.id}`}
+                      >
+                        <Clock size={9} /> ETA {r.eta_date}
+                      </span>
+                    ) : null}
+                    {r.machine_name ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-white text-slate-700 border border-slate-200 text-[10px] font-bold uppercase tracking-wide">
+                        {r.machine_name}
+                      </span>
+                    ) : null}
+                  </div>
+                  {r.eta_notes ? (
+                    <p className="text-[11px] text-blue-700 mt-1">{r.eta_notes}</p>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

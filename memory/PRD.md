@@ -1,3 +1,171 @@
+## Iter 220dd — Parts request: backorder / ETA visibility ✅ (May 30, 2026)
+
+Closes the engineer-side "is my part coming?" gap.
+
+### Backend
+- `ApproveIn` now accepts `eta_date` + `backordered`; persisted on the
+  request when admin approves.
+- New `POST /api/admin/parts-requests/{id}/eta` lets admin refresh
+  `eta_date`, `backordered`, `eta_notes` after approval (e.g. once
+  supplier confirms). Emits a case-event so it shows in the timeline.
+  409 if request is rejected/cancelled, 404 if missing.
+
+### Frontend — `EngineerJobDetailV2 PartsTab`
+- New "On the way" panel above the pending-approval list, surfacing
+  every approved request that has a `backordered` flag or an
+  `eta_date`. Each row shows:
+  - Amber **"Backordered"** chip when supplier confirmed delay.
+  - Blue **"ETA YYYY-MM-DD"** chip with admin's expected date.
+  - Per-machine attribution chip (re-uses 220cn).
+  - `eta_notes` shown beneath when admin left a note.
+- Test IDs: `parts-incoming-requests`, `parts-backordered-{id}`,
+  `parts-eta-{id}`.
+
+### Tests / lint
+- `tests/test_iter_220dd_parts_eta.py` — **6 tests** green: ApproveIn
+  shape, approve persists ETA, /eta updates approved request, 404/409
+  guards, frontend wiring.
+- Added to `Makefile regression:` (TAB-indented).
+- Backend ruff + frontend ESLint clean.
+- Live smoke: `/admin/parts-requests/x/eta` → 401 (registered).
+
+---
+
+
+## Iter 220dc — Nearest-of-my-jobs (engineer location-aware) ✅ (May 30, 2026)
+
+Engineer leaves Job A and wants to know which of their remaining
+stops is geographically closest — not the chronologically next one.
+
+### Backend — `GET /api/svc/engineer/queue/my-nearest`
+- Reuses the existing haversine + `_eta_minutes_from_km` helpers in
+  `engineer_queue.py`.
+- Sorts the engineer's open assignments by distance from
+  `lat`+`lon` (or `postcode` fallback), with coord-less jobs sinking
+  to the bottom. Returns `{nearest, jobs, count, origin_source, sort}`.
+- Without an origin, falls back to scheduled-time order.
+
+### Frontend — `EngineerHomeV2 NearestJobChip`
+- New chip below MyDayBriefing. Tap **"Find nearest stop"** →
+  browser geolocation prompt → backend call → renders an emerald
+  card with the nearest job's reference + site, `distance_km`,
+  `eta_minutes`, plus a one-tap **Go** button (Google Maps deeplink).
+- Test IDs: `nearest-job-chip`, `nearest-job-find`,
+  `nearest-job-card`, `nearest-job-open`, `nearest-job-navigate`.
+
+### Tests / lint
+- `tests/test_iter_220dc_nearest_job.py` — **6 tests** green:
+  haversine sort, coord-less last, scheduled fallback, scope guard,
+  empty payload, frontend wiring.
+- Added to `Makefile regression:` (TAB-indented).
+- Live smoke: endpoint returns 401 unauthenticated (registered).
+
+---
+
+
+## Iter 220db — Image compression + upload progress ✅ (May 30, 2026)
+
+Engineers on 4G burn 30s uploading a 4 MB job photo. We now
+client-side compress + show progress.
+
+### Frontend
+- New helper `frontend/src/utils/compressImage.js`. Defaults:
+  max-width 2048 px, JPEG q=0.8, skip-tiny < 400 KB. GIF + SVG pass
+  through untouched. Always falls back to the original blob on any
+  decoder error.
+- `EngineerJobDetailV2 PhotosTab.uploadFile` now calls
+  `compressImage(file)` before posting, and wires `onUploadProgress`
+  to a new percentage state.
+- Progress bar UI under the Photo / Video buttons while uploading:
+  test IDs `photo-upload-progress`, `photo-upload-pct`,
+  `photo-upload-bar`.
+- Video uploads are passed through (already size/duration validated).
+
+### Tests / lint
+- `tests/test_iter_220db_image_compression.py` — **4 tests** green
+  (static-source guards on helper + JobDetail wiring).
+- Added to `Makefile regression:` (TAB-indented).
+- Frontend ESLint clean.
+
+---
+
+
+## Iter 220da — Barcode / QR / asset-tag lookup ✅ (May 30, 2026)
+
+One-handed equipment lookup for field engineers.
+
+### Backend — `GET /api/svc/engineer/equipment/by-code/{code}`
+- Exact match on `serial_number` / `asset_tag` / `id` first.
+- Single fuzzy contains hit returns `match=fuzzy`.
+- Multiple fuzzy hits return up to 5 `options` for confirmation.
+- 404 on no match, 400 on empty / >200 char codes.
+
+### Frontend — `BarcodeScanModal.js`
+- New self-contained modal mounted onto `EngineerEquipment.js`.
+- Uses native `BarcodeDetector` (Chromium / Android) where available
+  with rear-camera preference + 2/3-square viewfinder overlay.
+- Falls back to a manual-entry input on browsers without it
+  (iOS Safari, Firefox) — engineer types the serial from the sticker.
+- On match → fills the equipment list search input with the matched
+  code (single-row filter).
+- Test IDs: `equipment-scan-btn`, `barcode-scan-modal`,
+  `barcode-scan-manual-input`, `barcode-scan-manual-submit`,
+  `barcode-scan-options`, etc.
+
+### Tests / lint
+- `tests/test_iter_220da_barcode_lookup.py` — **8 tests** green:
+  exact / fuzzy / multiple / 404 / 400 / query-shape /
+  frontend wiring.
+- Added to `Makefile regression:` (TAB-indented).
+- Frontend ESLint + backend ruff clean.
+- Live smoke: endpoint 401 unauthenticated (registered).
+
+---
+
+
+## Iter 220cz — Engineer P1 gaps: overrun warning, handoff notes, multi-job-same-site ✅ (May 30, 2026)
+
+Three top-impact dispatch-friction wins from the engineer-app process review.
+
+### Backend
+- `GET /api/svc/engineer/jobs/{case_id}` extended with two new fields:
+  - `overrun {estimated_minutes, on_site_minutes, is_overrun,
+    is_approaching, percent_used}` — flags jobs that have blown past
+    the estimate or are approaching it (≥85%).
+  - `sibling_jobs` — up to 5 OTHER open cases at the same customer
+    + same site, so the engineer can combine visits.
+- New endpoint `POST /api/svc/engineer/jobs/{case_id}/handoff-note`.
+  Appends `{id, engineer_id, engineer_name, note, at}` to
+  `case.handoff_notes` (truncated at 2000 chars). Emits a `note`
+  event for the timeline. 400 empty, 404 missing case.
+
+### Frontend — `EngineerJobDetailV2 JobAtAGlance`
+- **Overrun banner**: amber "approaching" / rose "over estimate"
+  banner showing `{on_site} of {estimate}` and percent used. Hidden
+  when no estimate set.
+- **Sibling-jobs banner**: amber list of other open jobs at this
+  site; each row navigates straight to that case.
+- **Handoff notes panel**: blue panel listing existing notes (newest
+  first, with author + timestamp) and an inline composer that posts
+  to the new endpoint. Collapses to a single "Leave a handoff note"
+  link when empty.
+- Test IDs: `jaag-overrun`, `jaag-overrun-approaching`,
+  `jaag-sibling-jobs`, `jaag-sibling-jobs-list`, `jaag-handoff-panel`,
+  `jaag-handoff-add`, `jaag-handoff-input`, `jaag-handoff-submit`.
+
+### Tests / lint
+- `tests/test_iter_220cz_engineer_gaps.py` — **10 tests** green
+  (overrun math, approaching threshold, no-estimate fallback,
+  sibling query, missing-key guard, handoff happy/empty/404/truncate,
+  frontend wiring).
+- Added to `Makefile regression:` (TAB-indented).
+- Frontend ESLint + backend ruff clean.
+- Combined 220c+220d series suite: **102/102 green**.
+- Live smoke: endpoints 401 unauthenticated (registered).
+
+---
+
+
 ## Iter 220cy — NPS customer feedback loop ✅ (May 30, 2026)
 
 Closes the engineer ↔ customer feedback gap. The public tracking

@@ -26,9 +26,10 @@ import {
 import {
   ArrowLeft, Plus, Loader2, Search, Wrench, MapPin, Building2,
   CheckCircle2, AlertTriangle, RefreshCw, ChevronDown, ChevronUp,
-  Sparkles, Camera, FileText, Clock, PoundSterling,
+  Sparkles, Camera, FileText, Clock, PoundSterling, QrCode,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import BarcodeScanModal from './BarcodeScanModal';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -58,6 +59,7 @@ export default function EngineerEquipment() {
   const [error, setError] = useState('');
   const [siteFilter, setSiteFilter] = useState(search.get('site_id') || '');
   const [q, setQ] = useState('');
+  const [scanOpen, setScanOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,6 +159,16 @@ export default function EngineerEquipment() {
           )}
           <button
             type="button"
+            onClick={() => setScanOpen(true)}
+            className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50"
+            data-testid="equipment-scan-btn"
+            aria-label="Scan barcode or QR"
+            title="Scan barcode or QR"
+          >
+            <QrCode size={14} />
+          </button>
+          <button
+            type="button"
             onClick={load}
             disabled={loading}
             className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-50"
@@ -167,6 +179,15 @@ export default function EngineerEquipment() {
           </button>
         </div>
       </div>
+
+      <BarcodeScanModal
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onMatch={(eq) => {
+          const code = eq.serial_number || eq.asset_tag || eq.name || '';
+          if (code) setQ(code);
+        }}
+      />
 
       {/* Body */}
       <div className="max-w-2xl mx-auto px-4 py-4">

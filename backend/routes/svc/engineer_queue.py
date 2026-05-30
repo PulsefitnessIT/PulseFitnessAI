@@ -191,6 +191,81 @@ async def list_unassigned(
     }
 
 
+# ─────────────────────────────────────────────────────────────────
+# Iter 220dc — "Nearest of MY jobs today" for the engineer home
+# screen. Different from /unassigned (which is up-for-grabs) — this
+# is the engineer's OWN open assignments sorted by distance from
+# where they actually are right now.
+# ─────────────────────────────────────────────────────────────────
+@router.get("/my-nearest")
+async def my_nearest_jobs(
+    lat: Optional[float] = Query(None, ge=-90, le=90),
+    lon: Optional[float] = Query(None, ge=-180, le=180),
+    postcode: Optional[str] = Query(None, max_length=16),
+    limit: int = Query(5, ge=1, le=20),
+    user=Depends(get_current_user),
+):
+    """Return the engineer's open jobs sorted by distance from
+    ``(lat, lon)`` (or ``postcode``). Falls back to scheduled-time
+    order when neither origin is provided.
+
+    Response: ``{nearest, jobs[], origin_source}``. ``jobs[]`` is the
+    full list (cap = ``limit``); ``nearest`` is the top result for
+    one-tap navigation from the home strip.
+    """
+    of = _of(user)
+    # Engineer's open assignments — today and any in-flight scheduled
+    # work. We pull a small superset (limit*3, capped at 30) and re-sort.
+    rows = await db.svc_cases.find(
+        {
+            **of,
+            "assigned_engineer_id": user["id"],
+            "status": {"$in": list(OPEN_STATES)},
+        },
+        {
+            "_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1,
+            "status": 1, "site_name": 1, "site_address": 1,
+            "site_postcode": 1, "site_latitude": 1, "site_longitude": 1,
+            "customer_name": 1, "scheduled_at": 1, "estimated_minutes": 1,
+        },
+    ).sort([("scheduled_at", 1)]).limit(min(30, limit * 3)).to_list(30)
+
+    origin: tuple[float, float] | None = None
+    origin_source: Optional[str] = None
+    if lat is not None and lon is not None:
+        origin = (float(lat), float(lon))
+        origin_source = "geolocation"
+    elif postcode:
+        origin = await _resolve_postcode_coords(postcode)
+        if origin:
+            origin_source = "postcode"
+
+    if origin:
+        ox, oy = origin
+        for r in rows:
+            coords = await _job_coords(r)
+            if coords:
+                d = _haversine_km(ox, oy, coords[0], coords[1])
+                r["distance_km"] = round(d, 1)
+                r["eta_minutes"] = _eta_minutes_from_km(d)
+            else:
+                r["distance_km"] = None
+                r["eta_minutes"] = None
+        rows.sort(key=lambda j: (
+            j.get("distance_km") is None,
+            j.get("distance_km") if j.get("distance_km") is not None else 0,
+        ))
+
+    rows = rows[:limit]
+    return {
+        "nearest": rows[0] if rows else None,
+        "jobs": rows,
+        "count": len(rows),
+        "origin_source": origin_source,
+        "sort": "nearest" if origin else "scheduled",
+    }
+
+
 @router.get("/stats")
 async def queue_stats(user=Depends(get_current_user)):
     of = _of(user)

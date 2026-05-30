@@ -319,6 +319,12 @@ export default function EngineerHomeV2() {
                   || briefing.not_invoiced_count > 0) && (
       <MyDayBriefing briefing={briefing} navigate={navigate} />
     )}
+    {/* Iter 220dc — Nearest-job chip. Engineer taps once, browser
+        prompts for geolocation, backend returns the nearest open
+        job. One-tap "navigate me to the closest stop" use-case. */}
+    {briefing && briefing.jobs_today_total > 0 && (
+      <NearestJobChip navigate={navigate} />
+    )}
     {/* Iter 220cx — Closed-but-not-invoiced recovery card. Catches
         the silent-failure case where the "I'm done" fast-path
         closed the job but the invoice step errored. */}
@@ -470,6 +476,120 @@ export default function EngineerHomeV2() {
         attention={attention}
         onChanged={() => { load(); attention.refresh(); }}
       />
+    </div>
+  );
+}
+
+
+// ─── NearestJobChip ───────────────────────────────────────────────
+// Iter 220dc. Engineers leaving a job want to know which of their
+// remaining stops is geographically closest, not the chronologically
+// next one. Tap → browser asks for location → backend returns the
+// nearest open assignment with distance + ETA → tap the chip to
+// open the job.
+function NearestJobChip({ navigate }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+
+  const find = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setError('Location not available in this browser.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const r = await axios.get(
+            `${API}/svc/engineer/queue/my-nearest`,
+            {
+              ...auth(),
+              params: { lat: pos.coords.latitude, lon: pos.coords.longitude, limit: 1 },
+            },
+          );
+          if (r.data?.nearest) {
+            setResult(r.data.nearest);
+          } else {
+            setError('No open jobs to route to.');
+          }
+        } catch (e) {
+          setError(e?.response?.data?.detail || e?.message || 'Lookup failed.');
+        } finally { setBusy(false); }
+      },
+      (geoErr) => {
+        setBusy(false);
+        setError(geoErr.message || 'Location permission denied.');
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+
+  if (result) {
+    const addr = [result.site_address, result.site_postcode].filter(Boolean).join(' ');
+    const mapsHref = addr
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}`
+      : null;
+    return (
+      <div
+        className="rounded-2xl bg-white border border-emerald-200 p-3 flex items-center gap-3"
+        data-testid="nearest-job-card"
+      >
+        <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+          <Navigation size={14} />
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate(`/svc/engineer/jobs/${result.id}`)}
+          className="flex-1 text-left min-w-0"
+          data-testid="nearest-job-open"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+            Nearest stop
+          </p>
+          <p className="text-sm font-bold text-slate-900 truncate">
+            {result.reference || 'Job'}
+            {result.site_name ? ` · ${result.site_name}` : ''}
+          </p>
+          <p className="text-xs text-slate-500">
+            {result.distance_km != null ? `${result.distance_km} km` : 'distance unknown'}
+            {result.eta_minutes != null ? ` · ~${result.eta_minutes} min` : ''}
+          </p>
+        </button>
+        {mapsHref && (
+          <a
+            href={mapsHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold whitespace-nowrap"
+            data-testid="nearest-job-navigate"
+          >
+            <Navigation size={12} /> Go
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-2xl bg-white border border-slate-200 p-3 flex items-center gap-2"
+      data-testid="nearest-job-chip"
+    >
+      <button
+        type="button"
+        onClick={find}
+        disabled={busy}
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200 disabled:opacity-50"
+        data-testid="nearest-job-find"
+      >
+        {busy ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+        Find nearest stop
+      </button>
+      {error && (
+        <p className="text-[11px] text-amber-700" data-testid="nearest-job-error">{error}</p>
+      )}
     </div>
   );
 }
