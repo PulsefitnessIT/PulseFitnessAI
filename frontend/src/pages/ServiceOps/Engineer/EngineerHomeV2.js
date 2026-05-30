@@ -325,10 +325,13 @@ export default function EngineerHomeV2() {
                        onClick={() => navigate('/svc/engineer/invoices')} />
             </div>
 
-            {/* Quick actions */}
+            {/* Quick actions — Iter 220cr: grouped by workflow
+                (jobs → quotes → invoices → records → other) so the
+                most-used actions cluster naturally. */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-quick-actions">
               <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-3">Quick actions</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {/* — Jobs — */}
                 <QuickAction icon={Wrench} primary label="New job"
                              testid="qa-new-job"
                              onClick={() => navigate('/svc/engineer/jobs/new')} />
@@ -338,33 +341,37 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Inbox} label="Inbox"
                              testid="qa-inbox"
                              onClick={() => navigate('/svc/engineer/inbox')} />
-                <QuickAction icon={Plus} label="New quote"
-                             testid="qa-new-quote"
-                             onClick={() => navigate('/svc/engineer/quotes/new')} />
-                <QuickAction icon={Receipt} label="New invoice"
-                             testid="qa-new-invoice"
-                             onClick={() => navigate('/svc/engineer/invoices/new')} />
                 <QuickAction icon={Calendar} label="View diary"
                              testid="qa-diary"
                              onClick={() => navigate('/svc/engineer/diary')} />
+                {/* — Quotes — */}
+                <QuickAction icon={Plus} label="New quote"
+                             testid="qa-new-quote"
+                             onClick={() => navigate('/svc/engineer/quotes/new')} />
                 <QuickAction icon={FileText} label="My quotes"
                              testid="qa-quotes"
                              onClick={() => navigate('/svc/engineer/quotes')} />
+                {/* — Invoices — */}
+                <QuickAction icon={Receipt} label="New invoice"
+                             testid="qa-new-invoice"
+                             onClick={() => navigate('/svc/engineer/invoices/new')} />
                 <QuickAction icon={Receipt} label="My invoices"
                              testid="qa-invoices"
                              onClick={() => navigate('/svc/engineer/invoices')} />
-                <QuickAction icon={Package} label="Parts"
-                             testid="qa-parts"
-                             onClick={() => navigate('/svc/engineer/jobs')} />
-                <QuickAction icon={FileSignature} label="Send report"
-                             testid="qa-report"
-                             onClick={() => navigate('/svc/engineer/jobs')} />
+                {/* — Records — */}
                 <QuickAction icon={Users} label="My customers"
                              testid="qa-customers"
                              onClick={() => navigate('/svc/engineer/customers')} />
                 <QuickAction icon={Package} label="Equipment"
                              testid="qa-equipment"
                              onClick={() => navigate('/svc/engineer/equipment')} />
+                <QuickAction icon={Package} label="Parts"
+                             testid="qa-parts"
+                             onClick={() => navigate('/svc/engineer/jobs')} />
+                {/* — Other — */}
+                <QuickAction icon={FileSignature} label="Send report"
+                             testid="qa-report"
+                             onClick={() => navigate('/svc/engineer/jobs')} />
                 {payouts?.ready ? (
                   <QuickAction icon={CreditCard} label="Payouts"
                                testid="qa-payouts"

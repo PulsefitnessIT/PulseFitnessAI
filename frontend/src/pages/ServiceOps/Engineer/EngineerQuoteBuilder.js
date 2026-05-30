@@ -40,6 +40,14 @@ const emptyLine = (kind = 'labour') => ({
   kind, description: '', quantity: 1, unit_price: 0, notes: '',
 });
 
+// Iter 220cr — labels for default-rate prefill so the engineer
+// can see WHICH preset filled the line.
+const DEFAULT_DESCRIPTIONS = {
+  callout: 'Callout fee',
+  labour:  'Labour',
+  travel:  'Mileage',
+};
+
 const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function computeTotals(lines, vatRate, discountPct) {
@@ -77,6 +85,10 @@ export default function EngineerQuoteBuilder() {
     site_address: '',
     asset_name: '',
     asset_serial: '',
+    // Iter 220cr — engineer can attach multiple machines to one
+    // quote (legacy `asset_name` / `asset_serial` stays for back-compat
+    // and is auto-populated from machines[0] on save).
+    machines: [],
     description_of_work: '',
     lines: [emptyLine('labour')],
     vat_rate: 20,
@@ -88,6 +100,49 @@ export default function EngineerQuoteBuilder() {
     status: 'draft',
   });
   const [_serverState, setServerState] = useState(null);
+  // Iter 220cr — partner-set pricing defaults. Pulled on mount,
+  // applied when the engineer picks a `callout`/`labour`/`travel`
+  // line kind so the £ auto-populates from Account Settings.
+  const [rates, setRates] = useState({
+    callout_fee: 0, labour_rate_per_hour: 0, mileage_rate: 0,
+  });
+
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API}/partners/me`, auth())
+      .then((r) => {
+        const r2 = r?.data?.partner?.rates || {};
+        if (alive) {
+          setRates({
+            callout_fee: Number(r2.callout_fee || 0),
+            labour_rate_per_hour: Number(r2.labour_rate_per_hour || 0),
+            mileage_rate: Number(r2.mileage_rate || 0),
+          });
+        }
+      })
+      .catch(() => { /* rates default to 0 — no auto-fill */ });
+    return () => { alive = false; };
+  }, []);
+
+  // Iter 220cr — once rates land on a fresh "new quote" form, prefill
+  // the lonely default labour line so engineers don't have to retype.
+  useEffect(() => {
+    if (!isNew) return;
+    setForm((f) => {
+      if (f.lines.length !== 1) return f;
+      const ln = f.lines[0];
+      if (ln.kind !== 'labour' || ln.description || Number(ln.unit_price) > 0) return f;
+      if (rates.labour_rate_per_hour <= 0) return f;
+      return {
+        ...f,
+        lines: [{
+          ...ln,
+          description: DEFAULT_DESCRIPTIONS.labour,
+          unit_price: rates.labour_rate_per_hour,
+        }],
+      };
+    });
+  }, [rates.labour_rate_per_hour, isNew]);
 
   const [emailBody, setEmailBody] = useState({ to: '', message: '' });
 
@@ -137,11 +192,52 @@ export default function EngineerQuoteBuilder() {
   const handleLineChange = (idx, key, value) => {
     setForm(f => ({
       ...f,
-      lines: f.lines.map((ln, i) => i === idx ? { ...ln, [key]: value } : ln),
+      lines: f.lines.map((ln, i) => {
+        if (i !== idx) return ln;
+        const next = { ...ln, [key]: value };
+        // Iter 220cr — when the engineer switches a line to
+        // callout / labour / travel and the line is still at its
+        // default (£0 + no description), auto-fill from saved rates.
+        if (key === 'kind') {
+          const isUntouched = (
+            (!ln.description || ln.description === DEFAULT_DESCRIPTIONS[ln.kind])
+            && (Number(ln.unit_price) || 0) === 0
+          );
+          if (isUntouched) {
+            if (value === 'callout' && rates.callout_fee > 0) {
+              next.description = DEFAULT_DESCRIPTIONS.callout;
+              next.unit_price = rates.callout_fee;
+              next.quantity = 1;
+            } else if (value === 'labour' && rates.labour_rate_per_hour > 0) {
+              next.description = DEFAULT_DESCRIPTIONS.labour;
+              next.unit_price = rates.labour_rate_per_hour;
+            } else if (value === 'travel' && rates.mileage_rate > 0) {
+              next.description = DEFAULT_DESCRIPTIONS.travel;
+              next.unit_price = rates.mileage_rate;
+            }
+          }
+        }
+        return next;
+      }),
     }));
   };
   const handleAddLine = (kind = 'labour') => {
-    setForm(f => ({ ...f, lines: [...f.lines, emptyLine(kind)] }));
+    setForm(f => {
+      const line = emptyLine(kind);
+      // Same prefill on a brand-new line so engineers can spam
+      // "Add line → Labour" and get sensible defaults each time.
+      if (kind === 'callout' && rates.callout_fee > 0) {
+        line.description = DEFAULT_DESCRIPTIONS.callout;
+        line.unit_price = rates.callout_fee;
+      } else if (kind === 'labour' && rates.labour_rate_per_hour > 0) {
+        line.description = DEFAULT_DESCRIPTIONS.labour;
+        line.unit_price = rates.labour_rate_per_hour;
+      } else if (kind === 'travel' && rates.mileage_rate > 0) {
+        line.description = DEFAULT_DESCRIPTIONS.travel;
+        line.unit_price = rates.mileage_rate;
+      }
+      return { ...f, lines: [...f.lines, line] };
+    });
   };
   const handleRemoveLine = (idx) => {
     setForm(f => ({
@@ -450,11 +546,25 @@ export default function EngineerQuoteBuilder() {
           </div>
         </Section>
 
-        {/* Asset */}
-        <Section title="Asset (optional)">
-          <div className="grid md:grid-cols-2 gap-3">
-            <TextField label="Asset name" value={form.asset_name} onChange={v => setForm(f => ({ ...f, asset_name: v }))} testid="qb-asset-name" readOnly={readOnly} />
-            <TextField label="Serial number" value={form.asset_serial} onChange={v => setForm(f => ({ ...f, asset_serial: v }))} testid="qb-asset-serial" readOnly={readOnly} />
+        {/* Machines — Iter 220cr: engineers can attach multiple
+            machines to a single quote (legacy asset_name / serial
+            fields below stay editable for back-compat). */}
+        <Section title="Machines">
+          <MachinesEditor
+            machines={form.machines || []}
+            onChange={(list) => setForm((f) => ({
+              ...f,
+              machines: list,
+              // Mirror first row into legacy single-asset fields so
+              // the PDF + Sicon push still has something to work with.
+              asset_name:   (list[0]?.name || f.asset_name) ?? '',
+              asset_serial: (list[0]?.serial || f.asset_serial) ?? '',
+            }))}
+            readOnly={readOnly}
+          />
+          <div className="grid md:grid-cols-2 gap-3 mt-3">
+            <TextField label="Asset name (legacy)" value={form.asset_name} onChange={v => setForm(f => ({ ...f, asset_name: v }))} testid="qb-asset-name" readOnly={readOnly} />
+            <TextField label="Serial number (legacy)" value={form.asset_serial} onChange={v => setForm(f => ({ ...f, asset_serial: v }))} testid="qb-asset-serial" readOnly={readOnly} />
           </div>
         </Section>
 
@@ -885,6 +995,85 @@ function CustomerPicker({ customer, onPick, onSaveCurrent }) {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+
+// ─── MachinesEditor ──────────────────────────────────────────────
+// Iter 220cr. Lets the engineer attach multiple machines to a
+// single quote (the legacy `asset_name` / `asset_serial` pair stays
+// editable below for back-compat with the PDF + Sicon payload).
+function MachinesEditor({ machines, onChange, readOnly }) {
+  const add = () => onChange([...(machines || []), { name: '', serial: '', notes: '' }]);
+  const update = (i, key, val) => onChange(
+    machines.map((m, idx) => idx === i ? { ...m, [key]: val } : m),
+  );
+  const remove = (i) => onChange(machines.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="space-y-2" data-testid="qb-machines">
+      {machines.length === 0 && (
+        <p className="text-[11px] text-slate-500 italic">
+          No machines attached. Add one or more — each will be listed on the quote PDF.
+        </p>
+      )}
+      {machines.map((m, i) => (
+        <div
+          key={i}
+          className="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5"
+          data-testid={`qb-machine-${i}`}
+        >
+          <input
+            type="text"
+            value={m.name || ''}
+            onChange={(e) => update(i, 'name', e.target.value)}
+            placeholder="Machine name (e.g. Treadmill #4)"
+            disabled={readOnly}
+            className="col-span-5 text-sm border border-slate-200 rounded px-2 py-1 bg-white"
+            data-testid={`qb-machine-${i}-name`}
+          />
+          <input
+            type="text"
+            value={m.serial || ''}
+            onChange={(e) => update(i, 'serial', e.target.value)}
+            placeholder="Serial"
+            disabled={readOnly}
+            className="col-span-3 text-sm border border-slate-200 rounded px-2 py-1 bg-white font-mono"
+            data-testid={`qb-machine-${i}-serial`}
+          />
+          <input
+            type="text"
+            value={m.notes || ''}
+            onChange={(e) => update(i, 'notes', e.target.value)}
+            placeholder="Notes (optional)"
+            disabled={readOnly}
+            className="col-span-3 text-sm border border-slate-200 rounded px-2 py-1 bg-white"
+            data-testid={`qb-machine-${i}-notes`}
+          />
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              className="col-span-1 p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 inline-flex items-center justify-center"
+              aria-label="Remove machine"
+              data-testid={`qb-machine-${i}-remove`}
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      ))}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-300 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50"
+          data-testid="qb-machine-add"
+        >
+          <Plus size={12} /> Add machine
+        </button>
+      )}
     </div>
   );
 }

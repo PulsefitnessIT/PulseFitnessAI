@@ -31,7 +31,7 @@ describe('resolveChannel', () => {
 
   it('labels each known channel correctly', () => {
     const cases = [
-      ['manual',        'Walked in / counter'],
+      ['manual',        'On-site'],
       ['phone',         'Phone call'],
       ['email',         'Email request'],
       ['inbound_email', 'Email inbox'],

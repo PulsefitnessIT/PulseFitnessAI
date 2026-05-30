@@ -124,6 +124,17 @@ class QuoteLine(BaseModel):
     part_id: str | None = None
 
 
+class QuoteMachine(BaseModel):
+    """Iter 220cr — multi-machine attachment on a quote.
+
+    Free-form so the engineer can scribble whatever they need in the
+    field; PDFs render this as a bullet list under the asset summary.
+    """
+    name: str | None = None
+    serial: str | None = None
+    notes: str | None = None
+
+
 class QuoteCreate(BaseModel):
     case_id: str | None = None
     customer_name: str | None = None
@@ -133,6 +144,7 @@ class QuoteCreate(BaseModel):
     site_address: str | None = None
     asset_name: str | None = None
     asset_serial: str | None = None
+    machines: list[QuoteMachine] = Field(default_factory=list)
     description_of_work: str | None = None
     lines: list[QuoteLine] = Field(default_factory=list)
     vat_rate: float = 20
@@ -151,6 +163,7 @@ class QuoteUpdate(BaseModel):
     site_address: str | None = None
     asset_name: str | None = None
     asset_serial: str | None = None
+    machines: list[QuoteMachine] | None = None
     description_of_work: str | None = None
     lines: list[QuoteLine] | None = None
     vat_rate: float | None = None
@@ -204,6 +217,8 @@ async def create_quote(body: QuoteCreate, user=Depends(get_current_user)):
         "site_address": body.site_address or "",
         "asset_name": body.asset_name or case.get("asset_name") or "",
         "asset_serial": body.asset_serial or case.get("asset_serial") or "",
+        # Iter 220cr — multi-machine attachment.
+        "machines": [m.model_dump() for m in (body.machines or [])],
         "description_of_work": body.description_of_work or "",
         "lines": lines_dicts,
         **totals,
@@ -323,6 +338,7 @@ async def update_quote(
     # Carry over all simple scalars
     for k in ("customer_name", "customer_email", "customer_phone",
               "site_name", "site_address", "asset_name", "asset_serial",
+              "machines",
               "description_of_work", "valid_until", "terms", "notes",
               "photo_ids", "vat_rate", "discount_pct"):
         if k in payload:

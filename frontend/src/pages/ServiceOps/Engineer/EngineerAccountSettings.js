@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
-  Sliders, Palette, Sparkles, Star, Percent,
+  Sliders, Palette, Sparkles, Star, Percent, PoundSterling,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -353,6 +353,23 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             </div>
           </section>
 
+          {/* Iter 220cr — Pricing defaults. Set callout + hourly rate
+              ONCE and every new quote/invoice line auto-fills. */}
+          {partner && (
+            <section data-testid="engineer-settings-section-pricing">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">
+                Pricing defaults
+              </p>
+              <RatesEditor
+                partner={partner}
+                onSaved={(updatedPartner) => {
+                  setPartner(updatedPartner);
+                  onChanged?.();
+                }}
+              />
+            </section>
+          )}
+
           {/* Iter 220 — Work-report custom fields */}
           <section data-testid="engineer-settings-section-work-reports">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Work reports</p>
@@ -439,6 +456,130 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
         </footer>
       </aside>
     </div>
+  );
+}
+
+
+// ─── RatesEditor ─────────────────────────────────────────────────
+// Iter 220cr. Lets the engineer set their callout fee + hourly
+// labour rate + mileage rate + parts markup ONCE, so every new
+// quote/invoice line auto-fills with the right number.
+function RatesEditor({ partner, onSaved }) {
+  const initial = partner?.rates || {};
+  const [callout, setCallout] = useState(initial.callout_fee ?? '');
+  const [hourly, setHourly] = useState(initial.labour_rate_per_hour ?? '');
+  const [mileage, setMileage] = useState(initial.mileage_rate ?? '');
+  const [markup, setMarkup] = useState(initial.parts_markup_pct ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+  const dirty = (
+    num(callout) !== (initial.callout_fee ?? null)
+    || num(hourly) !== (initial.labour_rate_per_hour ?? null)
+    || num(mileage) !== (initial.mileage_rate ?? null)
+    || num(markup) !== (initial.parts_markup_pct ?? null)
+  );
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = {};
+      if (callout !== '') payload.callout_fee = Number(callout);
+      if (hourly !== '')  payload.labour_rate_per_hour = Number(hourly);
+      if (mileage !== '') payload.mileage_rate = Number(mileage);
+      if (markup !== '')  payload.parts_markup_pct = Number(markup);
+      const r = await axios.put(`${API}/partners/me/rates`, payload, auth());
+      notify.success('Pricing saved', 'New quotes will use these defaults.');
+      onSaved?.(r.data?.partner || null);
+    } catch (e) {
+      notify.error('Save failed', e?.response?.data?.detail || e?.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="rounded-2xl border border-slate-200 bg-white p-3 space-y-3"
+      data-testid="engineer-rates-editor"
+    >
+      <p className="text-[11px] text-slate-500 leading-snug">
+        Auto-populate every new quote/invoice with your standard rates.
+        Leave a field blank to skip — you can still override per line.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <RateField
+          icon={PoundSterling}
+          label="Callout fee"
+          unit="£"
+          value={callout}
+          onChange={setCallout}
+          testid="engineer-rate-callout"
+        />
+        <RateField
+          icon={PoundSterling}
+          label="Hourly labour"
+          unit="£/hr"
+          value={hourly}
+          onChange={setHourly}
+          testid="engineer-rate-hourly"
+        />
+        <RateField
+          icon={PoundSterling}
+          label="Mileage"
+          unit="£/mi"
+          value={mileage}
+          onChange={setMileage}
+          testid="engineer-rate-mileage"
+        />
+        <RateField
+          icon={Percent}
+          label="Parts markup"
+          unit="%"
+          value={markup}
+          onChange={setMarkup}
+          testid="engineer-rate-parts-markup"
+        />
+      </div>
+      {dirty && (
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50"
+          data-testid="engineer-rates-save"
+        >
+          {saving ? <Loader2 size={12} className="animate-spin" /> : null}
+          {saving ? 'Saving…' : 'Save pricing defaults'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function RateField({ icon: Icon, label, unit, value, onChange, testid }) {
+  return (
+    <label className="block">
+      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 inline-flex items-center gap-1">
+        <Icon size={10} /> {label}
+      </span>
+      <div className="mt-1 relative">
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full text-sm tabular-nums border border-slate-200 rounded px-2 py-1.5 bg-white pr-12"
+          placeholder="0.00"
+          data-testid={testid}
+        />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400">
+          {unit}
+        </span>
+      </div>
+    </label>
   );
 }
 

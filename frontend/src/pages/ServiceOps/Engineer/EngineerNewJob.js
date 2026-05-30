@@ -37,13 +37,15 @@ const PRIORITIES = [
   { v: 'P4', label: 'P4 — Low'      },
 ];
 
-// Iter 220cp — Enquiry channels for ENGINEER-initiated jobs only.
-// `portal`, `inbound_email`, `embed_widget`, `supplier_card` and
-// `service_desk` are set automatically by the backend when a case
-// is pushed in from those modules, so we deliberately don't expose
-// them here — see `utils/channelLabel.js` for the display map.
+// Iter 220cp/cr — Enquiry channels for ENGINEER-initiated jobs.
+// Iter 220cr: dropped "counter" — engineers operate in the field,
+// not from a physical shop. The default "On-site" covers spotting
+// faults while attending a site or a customer flagging one to the
+// engineer in person. `portal`, `inbound_email`, `embed_widget`,
+// `supplier_card` and `service_desk` are set automatically by the
+// backend when a case is pushed in from those modules.
 const CHANNELS = [
-  { v: 'manual', label: 'Walked in / counter' },
+  { v: 'manual', label: 'On-site' },
   { v: 'phone',  label: 'Phone call' },
   { v: 'email',  label: 'Email request' },
   { v: 'other',  label: 'Other / referral' },

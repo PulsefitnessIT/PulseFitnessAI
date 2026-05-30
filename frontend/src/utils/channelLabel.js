@@ -22,7 +22,7 @@
  */
 
 const CHANNEL_MAP = {
-  manual:         { label: 'Walked in / counter', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
+  manual:         { label: 'On-site',              cls: 'bg-slate-100 text-slate-700 border-slate-200' },
   phone:          { label: 'Phone call',          cls: 'bg-blue-50 text-blue-700 border-blue-200' },
   email:          { label: 'Email request',       cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   inbound_email:  { label: 'Email inbox',         cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },

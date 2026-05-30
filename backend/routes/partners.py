@@ -1588,6 +1588,50 @@ async def update_my_tax_settings(body: dict = Body(...), user: dict = Depends(ge
     return {"ok": True, "partner": refreshed}
 
 
+# Iter 220cr — Engineer pricing defaults.
+# Lets the engineer set their callout fee + hourly labour rate +
+# mileage rate + parts markup ONCE in account settings, so every
+# new quote/invoice line auto-fills with the right number. These
+# values already exist on `partner_engineers.rates` because the
+# referral flow uses them — we just expose a setter.
+@router.put("/partners/me/rates")
+async def update_my_rates(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Body: `{callout_fee: float, labour_rate_per_hour: float,
+    mileage_rate: float, parts_markup_pct: float}`. All optional —
+    only supplied fields are updated. Values must be ≥ 0."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    rates = dict(partner.get("rates") or {})
+    allowed = {
+        "callout_fee", "labour_rate_per_hour",
+        "mileage_rate", "parts_markup_pct",
+    }
+    touched = False
+    for k in allowed:
+        if k in body:
+            try:
+                v = float(body[k])
+            except (TypeError, ValueError):
+                raise HTTPException(422, f"{k} must be a number")
+            if v < 0:
+                raise HTTPException(422, f"{k} must be >= 0")
+            rates[k] = round(v, 2)
+            touched = True
+    if not touched:
+        raise HTTPException(400, "Nothing to update")
+    await db.partner_engineers.update_one(
+        {"id": partner["id"]},
+        {"$set": {"rates": rates, "updated_at": _now()}},
+    )
+    await _audit(
+        partner_id=partner["id"], actor_id=user["id"],
+        action="rates_updated", after=rates,
+    )
+    refreshed = _public(await db.partner_engineers.find_one({"id": partner["id"]}))
+    return {"ok": True, "partner": refreshed, "rates": rates}
+
+
 # Iter 220m — Master-admin trigger for the monthly reputation report.
 # Operational hook for manual resends + a smoke target for tests.
 @router.post("/partners/admin/{partner_id}/send-reputation-report")

@@ -1,3 +1,74 @@
+## Iter 220cr — Engineer pricing defaults, multi-machine quotes, "On-site" channel + ordered Quick Actions ✅ (May 30, 2026)
+
+**User feedback (with screenshots)**:
+> 1. "Counter" should not be an option — there is no physical shop.
+> 2. Quotes — engineer should be able to add multiple machines.
+> 3. Account settings → engineer should set callout + per-hour to
+>    auto-populate quotes.
+> 4. Quick actions aren't quick, they're options — order them
+>    logically (quotes together, etc.).
+
+### 1. Channel rename — "On-site" replaces "Walked in / counter"
+- `EngineerNewJob.js` manual option renamed to **On-site** (covers
+  engineer-spotted faults + customer flagging during a site visit).
+- `frontend/src/utils/channelLabel.js` + jest test updated to match.
+- Backend `intake_channel="manual"` still maps to the new label
+  via the resolver — no DB migration needed.
+
+### 2. Multi-machine quotes
+- `EngineerQuoteBuilder.js` — new **Machines** section with an
+  inline list (Add machine pill, per-row name/serial/notes/remove).
+  Legacy single `asset_name` / `asset_serial` stays editable below
+  for back-compat with the PDF + Sicon push.
+- Backend `engineer_quotes.py` — new `QuoteMachine` Pydantic model
+  + `machines: list[QuoteMachine]` accepted on `QuoteCreate` and
+  `QuoteUpdate`. Persisted on `svc_engineer_quotes.machines`.
+  First machine mirrors into the legacy `asset_name` / `asset_serial`
+  fields on save so the PDF + Sicon payload still works.
+
+### 3. Pricing defaults — saved once in Account Settings, auto-fill on every quote
+- New backend endpoint **`PUT /api/partners/me/rates`** —
+  accepts `callout_fee`, `labour_rate_per_hour`, `mileage_rate`,
+  `parts_markup_pct`. Validates `≥ 0`. Persists onto
+  `partner_engineers.rates` (the dict the referral flow already
+  reads), audit-logged.
+- `EngineerAccountSettings.js` — new **Pricing defaults** section
+  with a 2×2 grid (`Callout £ · Hourly £/hr · Mileage £/mi ·
+  Parts markup %`). Inline Save button.
+- `EngineerQuoteBuilder.js`:
+  - Fetches `/partners/me` on mount, caches the rates.
+  - When the engineer picks `callout` / `labour` / `travel` on a
+    line (and the line is still at its £0 default) the description
+    + unit price auto-fill from saved rates.
+  - The opening default labour line auto-fills as soon as rates
+    arrive on a fresh "new quote".
+
+### 4. Quick Actions — grouped by workflow
+`EngineerHomeV2.js` regrouped the 12-ish actions so the grid reads
+naturally:
+- **Jobs**: New job · Up for grabs · Inbox · View diary
+- **Quotes**: New quote · My quotes
+- **Invoices**: New invoice · My invoices
+- **Records**: My customers · Equipment · Parts
+- **Other**: Send report · Payouts (conditional) · Analytics
+
+### Tests
+- `tests/test_iter_220cr_engineer_rates_and_machines.py` (7 tests):
+  - Rates: persists only supplied fields (merges with existing),
+    rejects negatives → 422, no fields → 400, no partner → 404.
+  - Machines: round-trips through Pydantic, `QuoteUpdate.machines`
+    is optional and nullable, `QuoteLine.kind="callout"` accepted.
+- Existing engineer-quote suite still **8/8 green**.
+- Combined 220c[n,o,p,q,r] suite: **23/23 green**.
+- Frontend lint clean. Backend ruff clean.
+
+### Live smoke
+- `PUT /api/partners/me/rates` registered (returns 401 without
+  auth — endpoint reachable end-to-end through the ingress).
+
+---
+
+
 ## Iter 220cq — Channel Performance reports tile ✅ (May 30, 2026)
 
 **Why now**: 220cp gave every case a normalised `intake_channel`.
