@@ -453,4 +453,51 @@ async def generate_invoice_draft(
     return invoice
 
 
+# Iter 220cz — Engineer-to-engineer handoff notes.
+# When a job is reassigned (admin or auto-route), the leaving engineer
+# can leave a freeform note that surfaces on the NEW engineer's
+# JobAtAGlance card. This was the #1 dispatch-friction win from the
+# process-analyst review.
+@router.post("/jobs/{case_id}/handoff-note")
+async def add_handoff_note(
+    case_id: str,
+    body: dict,
+    user=Depends(get_current_user),
+):
+    """Body: `{note: str}`. Appends a handoff note to `case.handoff_notes`."""
+    of = _of(user)
+    note = (body.get("note") or "").strip()
+    if not note:
+        raise HTTPException(400, "Empty handoff note")
+    if len(note) > 2000:
+        note = note[:2000]
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of}, {"_id": 0, "id": 1, "reference": 1},
+    )
+    if not case:
+        raise HTTPException(404, "Case not found")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    entry = {
+        "id": str(uuid.uuid4()),
+        "engineer_id": user["id"],
+        "engineer_name": user.get("full_name") or user.get("email") or "",
+        "note": note,
+        "at": now_iso,
+    }
+    await db.svc_cases.update_one(
+        {"id": case_id, **of},
+        {
+            "$push": {"handoff_notes": entry},
+            "$set":  {"updated_at": now_iso},
+        },
+    )
+    await append_event(
+        case_id=case_id, organization_id=of["organization_id"],
+        event_type="note", actor=user,
+        body=f"Handoff note left: {note[:80]}{'…' if len(note) > 80 else ''}",
+        extra={"kind": "handoff_note", "handoff_note_id": entry["id"]},
+    )
+    return {"ok": True, "entry": entry}
+
+
 __all__ = ["router"]

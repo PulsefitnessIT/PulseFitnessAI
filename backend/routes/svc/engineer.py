@@ -466,6 +466,58 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         from routes.svc.safety import _resolve_template
         tpl = await _resolve_template(of["organization_id"])
         safety_template = {"id": tpl["id"], "items": tpl["items"]}
+    # Iter 220cz — Job overrun + multi-job-same-site signal so the
+    # JobAtAGlance card can warn the engineer (a) when actual labour
+    # has run beyond the estimate and (b) when the same customer
+    # already has open jobs at this site.
+    on_site_minutes_used = 0
+    for e in time_entries:
+        if e.get("category") == "on_site":
+            on_site_minutes_used += int(e.get("duration_minutes") or 0)
+    estimated_minutes = int(case.get("estimated_minutes") or 0)
+    overrun = {
+        "estimated_minutes":  estimated_minutes,
+        "on_site_minutes":    on_site_minutes_used,
+        "is_overrun":         bool(estimated_minutes and on_site_minutes_used > estimated_minutes),
+        "is_approaching":     bool(
+            estimated_minutes
+            and on_site_minutes_used >= int(estimated_minutes * 0.85)
+            and on_site_minutes_used <= estimated_minutes
+        ),
+        "percent_used":       round((on_site_minutes_used / estimated_minutes) * 100, 1) if estimated_minutes else 0,
+    }
+
+    # Other open jobs at this site (same customer + same site name).
+    # Helps the engineer combine visits or hand off a job to themselves.
+    sibling_jobs: list = []
+    customer_key = (case.get("customer_email") or case.get("customer_name") or "").strip()
+    site_key = (case.get("site_name") or "").strip()
+    if customer_key and site_key:
+        from re import escape as _re_escape
+        sibling_jobs = (
+            await db.svc_cases.find(
+                {
+                    **of,
+                    "id": {"$ne": case_id},
+                    "status": {"$in": [
+                        "new", "scheduled", "in_progress", "on_hold", "awaiting_parts",
+                    ]},
+                    "$or": [
+                        {"customer_email": case.get("customer_email") or ""},
+                        {"customer_name": {
+                            "$regex": f"^{_re_escape(case.get('customer_name') or '')}$",
+                            "$options": "i",
+                        }},
+                    ],
+                    "site_name": {"$regex": f"^{_re_escape(site_key)}$", "$options": "i"},
+                },
+                {
+                    "_id": 0, "id": 1, "reference": 1, "title": 1,
+                    "priority": 1, "status": 1, "scheduled_at": 1,
+                },
+            ).sort([("scheduled_at", 1), ("created_at", 1)]).limit(5).to_list(5)
+        )
+
     return {
         **case,
         "events": events,
@@ -474,6 +526,8 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         "asset_history": asset_history,
         "safety_signoff": safety_signoff,
         "safety_template": safety_template,
+        "overrun": overrun,
+        "sibling_jobs": sibling_jobs,
     }
 
 
