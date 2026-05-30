@@ -22,7 +22,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Camera, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
@@ -52,23 +52,35 @@ const fmtMins = (m) => {
 };
 
 const TABS = [
-  // Iter 220cs — reorder to match the real-world arrival → diagnose
-  // → fix → close flow. Time runs passively (sticky ActiveTimerBar
-  // is always visible) so it no longer needs to be the first tab.
-  { id: 'equipment', label: 'Equipment', icon: Package },
-  { id: 'photos',    label: 'Photos',    icon: Camera },
-  { id: 'parts',     label: 'Parts',     icon: Wrench },
-  { id: 'time',      label: 'Time',      icon: Clock },
+  // Iter 220dn — engineer flow restructure (Feb 2026).
+  // The "Summary" tab now owns the customer/site/address/fault
+  // overview + the big "I'm on site" CTA. Other tabs are clean —
+  // no customer card redundancy, less scrolling to the actual work.
+  // Photos drop out as a top-level tab and live alongside their
+  // machine in Equipment (per-row) + a general site photos block
+  // on Summary, matching how an engineer actually thinks: every
+  // photo is *of* something specific (a machine, a part, a site).
+  { id: 'summary',   label: 'Summary',   icon: Users },
   { id: 'travel',    label: 'Travel',    icon: Car },
+  { id: 'time',      label: 'Time',      icon: Clock },
+  { id: 'equipment', label: 'Equipment', icon: Package },
+  { id: 'parts',     label: 'Parts',     icon: Wrench },
   { id: 'complete',  label: 'Complete',  icon: CheckCircle2 },
 ];
 
 export default function EngineerJobDetailV2() {
   const navigate = useNavigate();
   const { caseId } = useParams();
+  const [searchParams] = useSearchParams();
+  // Iter 220dn — when the engineer claims a job from Up-for-grabs we
+  // hand them straight into the detail; on back-press they expect
+  // to land back in the queue, not on Home.
+  const backHref = searchParams.get('from') === 'queue'
+    ? '/svc/engineer/queue'
+    : '/svc/engineer';
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('equipment');
+  const [activeTab, setActiveTab] = useState('summary');
   const [mileage, setMileage] = useState({ items: [], total_miles: 0, total_amount_gbp: 0 });
   const [busy, setBusy] = useState(false);
   // Iter 220c — Lift the draft state OUT of CompleteTab so it survives
@@ -82,8 +94,8 @@ export default function EngineerJobDetailV2() {
       const ok = window.confirm('You have unsaved work on this job. The draft is saved locally and will still be here when you return — leave anyway?');
       if (!ok) return;
     }
-    navigate('/svc/engineer');
-  }, [draftDirty, navigate]);
+    navigate(backHref);
+  }, [draftDirty, navigate, backHref]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -198,10 +210,17 @@ export default function EngineerJobDetailV2() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-5 pb-28 space-y-4">
-        <JobAtAGlance job={job} setBusy={setBusy} busy={busy} onChange={load} />
+        {/* Iter 220dn — JobAtAGlance + Photos live in the Summary tab
+            ONLY. Engineers stop having to scroll past the customer
+            card on every tab to reach the work surface. */}
+        {activeTab === 'summary' && (
+          <>
+            <JobAtAGlance job={job} setBusy={setBusy} busy={busy} onChange={load} />
+            <PhotosTab job={job} onChange={load} />
+          </>
+        )}
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
-        {activeTab === 'photos' && <PhotosTab job={job} onChange={load} />}
         {activeTab === 'equipment' && <EquipmentTab job={job} />}
         {activeTab === 'parts'  && <PartsTab job={job} onChange={load} />}
         {activeTab === 'complete' && (
@@ -1425,7 +1444,7 @@ function PartsTab({ job, onChange }) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [adhoc, setAdhoc] = useState({ part_sku: '', qty: 1, notes: '' });
+  const [adhoc, setAdhoc] = useState({ part_sku: '', qty: 1, notes: '', machine_id: '' });
   const [busy, setBusy] = useState(false);
   const [showRequest, setShowRequest] = useState(null); // {sku, name} or null
   const [requests, setRequests] = useState([]);
@@ -1480,14 +1499,21 @@ function PartsTab({ job, onChange }) {
     finally { setBusy(false); }
   };
 
-  const addPartUsage = async (sku, qty = 1) => {
+  const addPartUsage = async (sku, qty = 1, machineId = '', machineName = '') => {
     setBusy(true);
     try {
+      // Iter 220do — pass the machine the part was used on so the
+      // customer report links the spend to the specific asset.
+      const mid = machineId || adhoc.machine_id || '';
+      const m = machines.find(x => (x.id || x.machine_id) === mid);
+      const mname = machineName || m?.name || m?.title || '';
       await axios.post(`${API}/svc/engineer/jobs/${job.id}/parts/use`, {
         part_sku: sku, qty, notes: adhoc.notes || null,
+        machine_id: mid || null,
+        machine_name: mname || null,
       }, auth());
       notify.success(`${sku} × ${qty} added`);
-      setAdhoc({ part_sku: '', qty: 1, notes: '' });
+      setAdhoc({ part_sku: '', qty: 1, notes: '', machine_id: '' });
       setSearch('');
       setResults([]);
       await onChange();
@@ -1683,6 +1709,28 @@ function PartsTab({ job, onChange }) {
             </button>
           </div>
         </div>
+        {/* Iter 220do — tag the part to a specific machine so the
+            customer report links spend to the asset that was fixed. */}
+        {machines.length > 0 && (
+          <label className="block mt-3" data-testid="parts-adhoc-machine-wrap">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              For machine (optional)
+            </span>
+            <select
+              value={adhoc.machine_id}
+              onChange={e => setAdhoc(f => ({ ...f, machine_id: e.target.value }))}
+              className="w-full text-sm border border-slate-200 rounded-lg px-2 py-2 bg-white"
+              data-testid="parts-adhoc-machine"
+            >
+              <option value="">— Not machine-specific —</option>
+              {machines.map(m => (
+                <option key={m.id || m.machine_id} value={m.id || m.machine_id}>
+                  {m.name || m.title || m.equipment_name || m.id}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {used.length > 0 && (
@@ -1694,7 +1742,10 @@ function PartsTab({ job, onChange }) {
                 <CheckCircle2 size={16} className="text-emerald-500" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900">{a.qty} × {a.part_sku}</p>
-                  <p className="text-[11px] text-slate-500 truncate">{a.part_name}</p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {a.part_name}
+                    {a.machine_name ? <> · <span className="font-semibold text-slate-700">{a.machine_name}</span></> : null}
+                  </p>
                 </div>
                 {a.list_price_gbp ? <span className="text-xs font-bold text-slate-700 tabular-nums">{fmtGBP(a.list_price_gbp * (a.qty || 0))}</span> : null}
               </li>
@@ -1814,6 +1865,144 @@ function PartsRequestModal({ sku, name, machines = [], onCancel, onSubmit, busy 
 }
 
 // ─────────────────────────── Complete tab ───────────────────────────
+
+// Iter 220dp · ReturnToFixCard — top-of-Complete gate. "Yes" stays
+// out of the way (collapsed default state), "No, need to return"
+// expands into a date picker + reason + customer-notify toggle and
+// posts to the new ``return-to-fix`` endpoint.
+function ReturnToFixCard({ job, onRescheduled }) {
+  const existing = job.return_to_fix || null;
+  const [mode, setMode] = useState(existing ? 'no' : null);
+  const [busy, setBusy] = useState(false);
+  const defaultReturnAt = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    d.setHours(9, 0, 0, 0);
+    // datetime-local needs YYYY-MM-DDTHH:mm
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }, []);
+  const [returnAt, setReturnAt] = useState(
+    existing?.return_at ? existing.return_at.slice(0, 16) : defaultReturnAt,
+  );
+  const [reason, setReason] = useState(existing?.reason || '');
+  const [notifyCustomer, setNotifyCustomer] = useState(true);
+
+  const submit = async () => {
+    if (!returnAt) { notify.error('Pick a return date'); return; }
+    setBusy(true);
+    try {
+      const iso = new Date(returnAt).toISOString();
+      await axios.post(
+        `${API}/svc/engineer/jobs/${job.id}/return-to-fix`,
+        {
+          return_at: iso,
+          reason: reason.trim(),
+          notify_customer: notifyCustomer,
+        },
+        auth(),
+      );
+      await onRescheduled?.();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not schedule return');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="bg-white rounded-2xl border border-slate-200 p-4"
+      data-testid="complete-return-to-fix"
+    >
+      <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">
+        Did you fix it on this visit?
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('yes')}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+            mode === 'yes'
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+          }`}
+          data-testid="rtf-yes"
+        >
+          Yes — closing today
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('no')}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+            mode === 'no'
+              ? 'bg-rose-600 text-white border-rose-600'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+          }`}
+          data-testid="rtf-no"
+        >
+          No — need a return visit
+        </button>
+      </div>
+
+      {mode === 'no' && (
+        <div className="mt-3 space-y-2" data-testid="rtf-form">
+          <label className="block">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Return date
+            </span>
+            <input
+              type="datetime-local"
+              value={returnAt}
+              onChange={(e) => setReturnAt(e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+              data-testid="rtf-return-at"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Why a return visit?
+            </span>
+            <textarea
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Parts on order · waiting on spec · need 2-person lift…"
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+              data-testid="rtf-reason"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-700 select-none">
+            <input
+              type="checkbox"
+              checked={notifyCustomer}
+              onChange={(e) => setNotifyCustomer(e.target.checked)}
+              data-testid="rtf-notify-customer"
+            />
+            Notify the customer of the new return time
+          </label>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-rose-600 to-rose-700 text-white text-sm font-bold disabled:opacity-50"
+            data-testid="rtf-submit"
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            Reschedule + notify customer
+          </button>
+          {existing && (
+            <p className="text-[11px] text-slate-500" data-testid="rtf-existing">
+              A return is already booked — submitting again will refresh
+              the date and re-notify the customer.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDraft }) {
   // Iter 220c — Use the parent's lifted draft so tab switches NEVER
@@ -1968,6 +2157,20 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
 
   return (
     <div className="space-y-4">
+      {/* Iter 220dp — explicit "did you fix it on this visit?" gate.
+          Engineers regularly hit Complete on a job they actually need
+          to come back to; the customer report then mis-states reality.
+          Asking the question up-front lets us either run the normal
+          close-out OR route into a clean reschedule + notify flow. */}
+      <ReturnToFixCard
+        job={job}
+        onRescheduled={async () => {
+          notify.success('Return visit booked', 'Customer notified — the job is back in the diary.');
+          await clearDraft?.();
+          await onChange();
+        }}
+      />
+
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-summary-card">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Work summary *</p>
         <textarea rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder="What was repaired / replaced / advised…" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" data-testid="complete-summary" />

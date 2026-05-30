@@ -618,7 +618,11 @@ export default function EngineerQueue() {
       );
       notify.success(`Allocated ${r.data.reference}`);
       setClaimFor(null);
-      navigate(`/svc/engineer/jobs/${r.data.case_id}`);
+      // Iter 220dn — pass `from=queue` so the job-detail back button
+      // returns the engineer to Up-for-grabs instead of dumping them
+      // on Engineer Home. Fixes the "the job disappeared" feedback —
+      // the queue now visibly re-renders without the claimed row.
+      navigate(`/svc/engineer/jobs/${r.data.case_id}?from=queue`);
     } catch (e) {
       const detail = e?.response?.data?.detail;
       if (e?.response?.status === 409) {

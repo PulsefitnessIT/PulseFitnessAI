@@ -231,6 +231,11 @@ class PartUseIn(BaseModel):
     part_sku: str = Field(..., min_length=1)
     qty: int = Field(..., gt=0, le=999)
     notes: str | None = ""
+    # Iter 220do — engineers can now tag a used part to the specific
+    # machine it went into so the customer report shows
+    # "Belt £45 → Treadmill #14" rather than a flat parts list.
+    machine_id: str | None = None
+    machine_name: str | None = None
 
 
 @router.post("/jobs/{case_id}/parts/use", status_code=201)
@@ -295,6 +300,8 @@ async def use_part_ad_hoc(
         "allocated_by_name": user.get("full_name") or user.get("email") or "",
         "allocated_at": _now(),
         "notes": (body.notes or "").strip(),
+        "machine_id": (body.machine_id or None),
+        "machine_name": (body.machine_name or None),
         "idempotency_key": idempotency_key,
     }
     await db.svc_cases.update_one(
@@ -498,6 +505,111 @@ async def add_handoff_note(
         extra={"kind": "handoff_note", "handoff_note_id": entry["id"]},
     )
     return {"ok": True, "entry": entry}
+
+
+# ─── Iter 220dp · Return-to-fix ──────────────────────────────────
+#
+# When the engineer can't complete the repair on this visit (parts
+# on order, time ran out, asset needs spec work etc), the Complete
+# tab now offers an explicit **"Did you fix it on this visit?"**
+# question. Picking *No* pushes a single call that:
+#
+#   • Stamps the case with a `return_to_fix` block (date, reason,
+#     follow-up note) so the customer-facing report and admin
+#     dashboard can render the truthful "needs second visit" badge.
+#   • Re-schedules the case for the chosen ISO datetime.
+#   • Sets status back to ``scheduled`` so it re-enters the diary
+#     workflow instead of being closed prematurely.
+#   • (Optional) emits a customer ETA notification — re-uses the
+#     existing engineer→customer ETA push helper so the customer
+#     sees the same branded copy as a first-visit ETA, just with
+#     the "second visit" framing.
+#
+# Surgical fields only — the existing diary/handoff/SLA machinery
+# does the rest.
+
+class ReturnToFixIn(BaseModel):
+    return_at: str = Field(..., min_length=10,
+                           description="ISO datetime for the follow-up visit")
+    reason: str = Field("", max_length=400,
+                        description="Why a second visit is needed")
+    notify_customer: bool = True
+
+
+@router.post("/jobs/{case_id}/return-to-fix")
+async def return_to_fix(
+    case_id: str, body: ReturnToFixIn,
+    user=Depends(get_current_user),
+):
+    """Engineer flags the job as 'needs a return visit' and optionally
+    notifies the customer.
+
+    Idempotent on the same ``return_at`` — re-firing the same payload
+    just refreshes the stamp."""
+    of = _of(user)
+    case = await _case_for_engineer(case_id, user)
+    try:
+        datetime.fromisoformat(body.return_at.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(400, "return_at must be ISO datetime")
+
+    now_iso = _now()
+    rtf = {
+        "id": str(uuid.uuid4()),
+        "engineer_id": user["id"],
+        "engineer_name": user.get("full_name") or user.get("email") or "",
+        "reason": (body.reason or "").strip(),
+        "return_at": body.return_at,
+        "created_at": now_iso,
+    }
+    await db.svc_cases.update_one(
+        {"id": case_id, **of},
+        {
+            "$set": {
+                "return_to_fix": rtf,
+                "scheduled_at": body.return_at,
+                "status": "scheduled",
+                "updated_at": now_iso,
+            },
+        },
+    )
+    await append_event(
+        case_id=case_id, organization_id=of["organization_id"],
+        event_type="return_to_fix", actor=user,
+        body=(f"Return-to-fix scheduled for {body.return_at}"
+              + (f": {body.reason}" if body.reason else "")),
+        extra={"kind": "return_to_fix", "return_at": body.return_at,
+               "reason": body.reason, "rtf_id": rtf["id"]},
+    )
+
+    notified = False
+    if body.notify_customer and case.get("customer_email"):
+        try:
+            from routes.svc.notifications import create_notification
+            ref = case.get("reference") or case_id[:8]
+            site = case.get("site_name") or "your site"
+            try:
+                when_str = datetime.fromisoformat(
+                    body.return_at.replace("Z", "+00:00"),
+                ).strftime("%a %d %b · %H:%M")
+            except Exception:
+                when_str = body.return_at
+            await create_notification(
+                user_id=case.get("customer_user_id") or "",
+                organization_id=of["organization_id"],
+                kind="job_rescheduled",
+                title=f"Return visit booked · {ref}",
+                body=f"{site} — back on {when_str}"
+                     + (f" ({body.reason})" if body.reason else ""),
+                link=case.get("public_track_url"),
+                source_type="case",
+                source_id=case_id,
+            )
+            notified = True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("return-to-fix notify failed for case=%s: %s",
+                           case_id, exc)
+    return {"ok": True, "return_to_fix": rtf, "customer_notified": notified}
 
 
 __all__ = ["router"]

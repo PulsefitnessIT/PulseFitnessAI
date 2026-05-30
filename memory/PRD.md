@@ -1,3 +1,101 @@
+## Iter 220dn / 220do / 220dp — Engineer job-screen UX restructure ✅ (Feb 14, 2026)
+
+Three bundled iters driven by the engineer's Treadmill-slip
+screenshot feedback. The "customer card on every tab + tabs in the
+wrong order + no return-to-fix flow + parts not linked to a
+specific asset" complaints are all closed in one batch.
+
+### Iter 220dn · Tab restructure + Summary owns the customer card
+
+`EngineerJobDetailV2.js`
+- Tab order is now **Summary / Travel / Time / Equipment / Parts /
+  Complete** — matches the real-world arrival → diagnose → fix →
+  close flow that engineers walk through.
+- `JobAtAGlance` (customer / site / address / fault / handoff
+  notes / sibling jobs / I'm-on-site CTA) renders **only** on the
+  Summary tab. Other tabs no longer make the engineer scroll past
+  a redundant header to reach the work surface.
+- Standalone "Photos" tab dropped. Photos now live:
+  - On **Summary** as a site-wide block (general site evidence).
+  - On **Equipment** per-machine (per-row Photos picker via
+    `WorkVisitMachinesCard`).
+- Default landing tab on every open is **Summary**.
+
+`EngineerQueue.js` + `EngineerJobDetailV2.js`
+- After self-claim, the queue now navigates to
+  `/svc/engineer/jobs/{id}?from=queue`.
+- The job-detail back arrow honours `?from=queue` and routes the
+  engineer back to **Up-for-grabs** instead of dumping them on
+  Engineer Home. Fixes the "the job disappeared after I tapped
+  into it" feedback — the queue re-renders without the claimed
+  row, but the engineer can now visually confirm the move.
+
+### Iter 220do · Parts can be allocated to a specific machine
+
+Backend — `routes/svc/engineer_phase3.py`
+- `PartUseIn` model gains `machine_id` + `machine_name`.
+- `POST /api/svc/engineer/jobs/{case_id}/parts/use` persists the
+  machine link straight onto the case's `allocated_parts` row so
+  the customer report renders "Belt £45 → Treadmill #14" instead
+  of a flat parts list.
+
+Frontend — `EngineerJobDetailV2.js`
+- Parts ad-hoc form gains a "For machine (optional)" selector,
+  populated from `GET /svc/engineer/jobs/{id}/machines`.
+- "Used on this job" list now surfaces the machine name when set.
+- Parts-request modal already supported the machine link (Iter
+  220cn) — kept consistent.
+
+### Iter 220dp · Return-to-fix flow on Complete tab
+
+Backend — `routes/svc/engineer_phase3.py` (NEW endpoint)
+- `POST /api/svc/engineer/jobs/{case_id}/return-to-fix`
+  - `ReturnToFixIn { return_at, reason?, notify_customer=True }`
+  - Validates ISO datetime (400 on bad input).
+  - Stamps `case.return_to_fix = { engineer_id, reason, return_at,
+    created_at }`, reschedules `case.scheduled_at`, and flips
+    `status → scheduled`.
+  - Appends a `return_to_fix` event to the audit trail.
+  - If `notify_customer` AND `customer_email` exists, emits a
+    `job_rescheduled` notification with branded copy
+    ("Return visit booked · GA-100 — back on Thu 04 Jun · 09:30").
+
+Frontend — `EngineerJobDetailV2.js`
+- New `ReturnToFixCard` component renders at the **top** of the
+  Complete tab.
+- "Did you fix it on this visit?" → **Yes / No**.
+- "No" expands into datetime picker + reason field + customer-
+  notify toggle (default ON).
+- Submit posts to `return-to-fix`, clears the draft, toasts
+  "Return visit booked — customer notified", and refreshes.
+
+### Tests / lint
+
+- `tests/test_iter_220dn_engineer_job_ux.py` — **12 tests** green:
+  - Tab order pinned (Summary / Travel / Time / Equipment /
+    Parts / Complete).
+  - `JobAtAGlance` is Summary-only.
+  - Photos block lives inside Summary, no top-level Photos tab.
+  - Back-arrow honours `?from=queue`.
+  - Queue passes `?from=queue` on claim.
+  - `parts/use` persists `machine_id` + `machine_name`.
+  - Machine link is optional (`None` when not provided).
+  - Return-to-fix 400 on bad ISO.
+  - Return-to-fix stamps `return_to_fix`, reschedules + status,
+    fires `job_rescheduled` to customer.
+  - Return-to-fix respects `notify_customer=False`.
+  - Complete tab renders `ReturnToFixCard` with all expected
+    testids.
+  - Parts ad-hoc form has the machine selector + the used-list
+    surfaces the machine name.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1920 passed, 15 skipped, 0 failed**.
+- Engineer flow now matches operator's mental model end-to-end.
+
+
 ## Iter 220dm-hotfix — Regression hygiene cleanup ✅ (Feb 14, 2026)
 
 Cleared the last three pre-existing failures from the regression
