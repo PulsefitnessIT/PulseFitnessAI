@@ -1,3 +1,52 @@
+## Iter 220cv — Engineer one-tap close-out ("I'm done — send the invoice") ✅ (May 30, 2026)
+
+**Why this iter**: every other piece of the close-of-day flow is now
+in place (signature, work-summary autosave, invoice prefill, branded
+service report). The remaining UX gap was that the engineer still
+had to push 4 buttons across 2 screens to wrap a job. This collapses
+the whole sequence into one tap.
+
+### Frontend — `EngineerJobDetailV2.js`
+- New `completeAndSendInvoice()` action in `CompleteTab`. Runs the
+  full close-of-day sequence with each step wrapped in its own try
+  so a single failure (e.g. no chargeable lines yet) never blocks
+  the next step:
+  1. **Stop the timer** (any open `on_site` / `travel` entry) via
+     the existing offline-queue helper so a flaky signal doesn't
+     leak £ from the engineer's hours.
+  2. **Capture signature** (if drawn).
+  3. **Complete the job** with `target=closed`.
+  4. **Generate invoice draft** from time + mileage + parts via
+     the existing engineer_phase3 endpoint.
+  5. **Email branded service report** to the customer via
+     `POST /svc/cases/{case_id}/service-report/email` (default body
+     — endpoint already defaults to `case.customer_email`).
+- Bottom sticky bar now shows two CTAs:
+  - **"I'm done — close & send the invoice"** (big emerald primary).
+  - **"Or set status manually"** (secondary, falls back to the
+    original target-picker flow with the `awaiting_sign_off /
+    repaired / closed` chips).
+- Test IDs: `complete-fast-path`, `complete-submit` (preserved).
+
+### Tests / lint
+- `tests/test_iter_220cv_fast_path_close_out.py` (**5 tests**, all
+  green) — contract guards pinning the 4 endpoints the fast-path
+  CTA calls so a future refactor that renames any of them will
+  fail loud:
+  - `POST /svc/engineer/time/stop`
+  - `POST /svc/engineer/jobs/{case_id}/complete`
+  - `POST /svc/engineer/jobs/{case_id}/generate-invoice-draft`
+    (lives on `engineer_phase3.py` router)
+  - `POST /svc/cases/{case_id}/service-report/email`
+  - + a signature check that the report-email endpoint accepts an
+    empty body (so `axios.post(url, {}, …)` works).
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c-series suite: **50/50 green**.
+- Frontend lint clean (1 file touched).
+
+---
+
+
 ## Iter 220cu — Engineer P2 polish: My-day briefing, End-of-day rollup, Quote PDF machines table ✅ (May 30, 2026)
 
 Three engineer-review P2 wins from the process-analyst review.

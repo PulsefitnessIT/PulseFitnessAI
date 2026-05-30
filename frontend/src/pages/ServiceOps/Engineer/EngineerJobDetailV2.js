@@ -1422,6 +1422,74 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
     } finally { setBusy(false); }
   };
 
+  // Iter 220cv — "I'm done — send the invoice" one-tap close-out.
+  // Runs the full close-of-day sequence in one button: stop the
+  // on-site timer (if still running) → complete the job → generate
+  // the invoice draft → email the branded service report to the
+  // customer. Each step is wrapped in its own try so a single
+  // failure (e.g. no parts allocated yet) doesn't break the chain.
+  const completeAndSendInvoice = async () => {
+    if (!summary.trim()) { notify.error('Add a work summary first'); return; }
+    setBusy(true);
+    try {
+      // 1. Stop any active on-site timer.
+      const active = (job.time_entries || []).find(
+        e => !e.end_at && (e.category === 'on_site' || e.category === 'travel'),
+      );
+      if (active) {
+        try {
+          await engineerSendOrQueue({
+            method: 'POST',
+            path: '/svc/engineer/time/stop',
+            body: { entry_id: active.id },
+            label: 'Stop timer (close-out)',
+          });
+        } catch { /* non-blocking */ }
+      }
+      // 2. Capture signature if the engineer drew one.
+      if (signatureData && signatureName.trim()) {
+        try {
+          await axios.post(`${API}/svc/engineer/signature`, {
+            case_id: job.id, signed_by_name: signatureName.trim(),
+            image_data: signatureData, summary: summary.trim(),
+          }, auth());
+        } catch { /* non-blocking */ }
+      }
+      // 3. Complete the job (force target to closed when fast-pathing).
+      await axios.post(`${API}/svc/engineer/jobs/${job.id}/complete`, {
+        summary: summary.trim(), target: 'closed', chargeable: true,
+        custom_fields: customFields,
+      }, auth());
+      // 4. Generate the invoice draft.
+      let inv = null;
+      try {
+        const r = await axios.post(
+          `${API}/svc/engineer/jobs/${job.id}/generate-invoice-draft`, {}, auth(),
+        );
+        inv = r.data;
+        setDraftResult(inv);
+      } catch (e) {
+        notify.error('Invoice draft skipped', e?.response?.data?.detail || e?.message);
+      }
+      // 5. Email the branded service report (matches the "Email report"
+      // button on the report card — same backend endpoint).
+      try {
+        await axios.post(`${API}/svc/cases/${job.id}/service-report/email`, {}, auth());
+        notify.success(
+          'Sent to customer',
+          inv ? `Invoice ${inv.invoice_number} created · service report emailed.`
+              : 'Service report emailed.',
+        );
+      } catch (e) {
+        notify.error('Report email failed', e?.response?.data?.detail || e?.message);
+      }
+      await clearDraft?.();
+      await onChange();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not close the job');
+    } finally { setBusy(false); }
+  };
+
   if (locked) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-5 text-center" data-testid="complete-locked">
@@ -1520,10 +1588,27 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           without leaving the Complete screen. */}
       <ReportActionsCard job={job} />
 
-      <div className="sticky bottom-4">
-        <button onClick={complete} disabled={busy} className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow-md disabled:opacity-50" data-testid="complete-submit">
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-          Complete job
+      <div className="sticky bottom-4 space-y-2">
+        {/* Iter 220cv — Fast-path close-out. Stops the timer, completes
+            the job, generates the invoice draft and emails the branded
+            service report in one tap. */}
+        <button
+          onClick={completeAndSendInvoice}
+          disabled={busy}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-sm font-bold shadow-md disabled:opacity-50"
+          data-testid="complete-fast-path"
+        >
+          {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+          I'm done — close & send the invoice
+        </button>
+        <button
+          onClick={complete}
+          disabled={busy}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 text-xs font-bold disabled:opacity-50"
+          data-testid="complete-submit"
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+          Or set status manually
         </button>
       </div>
     </div>
