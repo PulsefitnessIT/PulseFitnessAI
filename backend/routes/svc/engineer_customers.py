@@ -314,6 +314,75 @@ async def lookup_customer(
     return {"found": False}
 
 
+# Iter 220ct — Open-cases probe for the New Job form.
+# Returns the count + a short list of currently-open svc_cases for
+# this customer so the engineer can spot duplicates BEFORE creating
+# another job. Matches on email or phone (strong signals) and falls
+# back to case-insensitive `customer_name` so it works even when the
+# customer hasn't been saved to the address book yet.
+_OPEN_STATUSES = ["new", "scheduled", "in_progress", "on_hold", "awaiting_parts"]
+
+
+@router.get("/open-cases")
+async def open_cases_for_customer(
+    user=Depends(get_current_user),
+    email: Optional[str] = Query(default=None, max_length=200),
+    phone: Optional[str] = Query(default=None, max_length=80),
+    name: Optional[str] = Query(default=None, max_length=200),
+    site_name: Optional[str] = Query(default=None, max_length=200),
+):
+    """``GET /api/svc/engineer/customers/open-cases``.
+
+    Body: any of ``email`` / ``phone`` / ``name`` / ``site_name``.
+    Returns ``{count: int, cases: [{id, reference, title, status, …}]}``.
+    Empty payload → ``{count: 0, cases: []}`` (never 400 — the New
+    Job form polls this opportunistically on every keystroke).
+    """
+    org_id = _of(user)
+    norm_email = _norm_email(email)
+    norm_phone = _norm_phone(phone)
+    needle_name = (name or "").strip()
+    needle_site = (site_name or "").strip()
+
+    or_clauses: list[dict] = []
+    if norm_email:
+        or_clauses.append({"customer_email": norm_email})
+    if norm_phone:
+        or_clauses.append({"customer_phone": norm_phone})
+    if needle_name:
+        or_clauses.append({
+            "customer_name": {
+                "$regex": f"^{re.escape(needle_name)}$", "$options": "i",
+            },
+        })
+    if not or_clauses:
+        return {"count": 0, "cases": []}
+
+    q: dict = {
+        "organization_id": org_id,
+        "status": {"$in": _OPEN_STATUSES},
+        "$or": or_clauses,
+    }
+    # Optional site disambiguation — drops cases at OTHER sites of
+    # the same multi-site customer.
+    if needle_site:
+        q["site_name"] = {
+            "$regex": f"^{re.escape(needle_site)}$", "$options": "i",
+        }
+
+    cur = db.svc_cases.find(
+        q,
+        {
+            "_id": 0, "id": 1, "reference": 1, "title": 1,
+            "status": 1, "priority": 1, "site_name": 1,
+            "assigned_engineer_id": 1, "assigned_engineer_name": 1,
+            "scheduled_at": 1, "created_at": 1, "asset_name": 1,
+        },
+    ).sort("created_at", -1).limit(5)
+    cases = await cur.to_list(length=5)
+    return {"count": len(cases), "cases": cases}
+
+
 @router.get("/search")
 async def search_customers(
     user=Depends(get_current_user),

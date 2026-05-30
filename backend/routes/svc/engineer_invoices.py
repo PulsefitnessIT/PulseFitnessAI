@@ -265,6 +265,146 @@ def _build_invoice_payload(
 # ─────────────────────────── Endpoints ─────────────────────────
 
 
+# Iter 220ct — Invoice prefill from a completed case.
+# Pulls labour hours (svc_time_entries.duration_minutes / 60 × hourly
+# rate), mileage (svc_mileage_entries × per-mile rate), and parts
+# (svc_cases.allocated_parts) into a ready-to-edit invoice body so
+# the engineer doesn't have to re-key anything at close-out.
+@router.get("/jobs/{case_id}/invoice-prefill")
+async def invoice_prefill_from_case(case_id: str, user=Depends(get_current_user)):
+    of = _of(user)
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of},
+        {"_id": 0},
+    )
+    if not case:
+        raise HTTPException(404, "Job not found")
+    # Engineers only see their own jobs.
+    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"] \
+            and not user.get("is_master_admin"):
+        raise HTTPException(404, "Job not found")
+
+    # Engineer pricing defaults — partner.rates set in Account Settings.
+    partner = None
+    try:
+        from routes.partners import _get_partner_by_user  # noqa: WPS433
+        partner = await _get_partner_by_user(user["id"])
+    except Exception:  # noqa: BLE001
+        partner = None
+    rates = (partner or {}).get("rates") or {}
+    hourly = float(rates.get("labour_rate_per_hour") or 0)
+    mileage_rate = float(rates.get("mileage_rate") or 0)
+    callout_fee = float(rates.get("callout_fee") or 0)
+
+    # Labour — sum on_site (and admin if engineer wants to bill it).
+    time_q = {**of, "case_id": case_id, "engineer_id": user["id"]}
+    minutes_by_cat: dict[str, int] = {}
+    async for e in db.svc_time_entries.find(time_q, {"_id": 0, "category": 1, "duration_minutes": 1}):
+        cat = e.get("category") or "on_site"
+        minutes_by_cat[cat] = minutes_by_cat.get(cat, 0) + int(e.get("duration_minutes") or 0)
+    on_site_mins = minutes_by_cat.get("on_site", 0)
+    on_site_hours = round(on_site_mins / 60.0, 2)
+
+    # Mileage — sum miles from svc_mileage_entries (already keyed by case).
+    total_miles = 0.0
+    try:
+        async for m in db.svc_mileage_entries.find(
+            {**of, "case_id": case_id, "engineer_id": user["id"]},
+            {"_id": 0, "miles": 1},
+        ):
+            total_miles += float(m.get("miles") or 0)
+    except Exception:  # noqa: BLE001 — degrade gracefully if collection missing
+        total_miles = 0.0
+
+    # Parts — svc_cases.allocated_parts (filled when admin approves a
+    # parts request and pushes it onto the case).
+    parts: list[dict] = list(case.get("allocated_parts") or [])
+
+    lines: list[dict] = []
+    # Callout (if rate set and engineer attended on-site).
+    if callout_fee > 0 and on_site_mins > 0:
+        lines.append({
+            "kind": "callout", "description": "Callout fee",
+            "quantity": 1, "unit_price": callout_fee,
+            "notes": None,
+        })
+    # Labour.
+    if on_site_hours > 0:
+        lines.append({
+            "kind": "labour",
+            "description": f"Labour — on-site ({on_site_hours} h)",
+            "quantity": on_site_hours,
+            "unit_price": hourly if hourly > 0 else 0,
+            "notes": None,
+        })
+    # Travel / mileage.
+    if total_miles > 0:
+        lines.append({
+            "kind": "travel",
+            "description": f"Mileage — {round(total_miles, 1)} mi",
+            "quantity": round(total_miles, 1),
+            "unit_price": mileage_rate if mileage_rate > 0 else 0,
+            "notes": None,
+        })
+    # Parts — one line per allocated part.
+    for p in parts:
+        qty = int(p.get("qty") or p.get("quantity") or 1)
+        unit = float(p.get("unit_price") or p.get("list_price_gbp") or 0)
+        desc = (p.get("name") or p.get("part_name")
+                or p.get("sku") or p.get("part_sku") or "Part").strip()
+        sku  = (p.get("sku") or p.get("part_sku") or "").strip()
+        machine = (p.get("machine_name") or "").strip()
+        notes_bits = []
+        if sku:
+            notes_bits.append(f"SKU {sku}")
+        if machine:
+            notes_bits.append(machine)
+        lines.append({
+            "kind": "part",
+            "description": desc,
+            "quantity": qty,
+            "unit_price": unit,
+            "notes": " · ".join(notes_bits) or None,
+        })
+
+    if not lines:
+        # No time, mileage, or parts yet — give the engineer a single
+        # default labour line so the form isn't empty.
+        lines.append({
+            "kind": "labour", "description": "Labour",
+            "quantity": 1, "unit_price": hourly if hourly > 0 else 0,
+            "notes": None,
+        })
+
+    return {
+        "case_id": case_id,
+        "case_reference": case.get("reference"),
+        "customer_name": case.get("customer_name") or "",
+        "customer_email": case.get("customer_email") or "",
+        "customer_phone": case.get("customer_phone") or "",
+        "site_name": case.get("site_name") or "",
+        "site_address": case.get("site_address") or "",
+        "asset_name": case.get("asset_name") or "",
+        "asset_serial": case.get("asset_serial") or "",
+        "description_of_work": (
+            case.get("resolution_notes")
+            or case.get("description")
+            or case.get("fault_summary")
+            or ""
+        ),
+        "lines": lines,
+        "totals_meta": {
+            "on_site_minutes": on_site_mins,
+            "on_site_hours":   on_site_hours,
+            "miles":           round(total_miles, 1),
+            "parts_count":     len(parts),
+            "callout_fee":     callout_fee,
+            "hourly_rate":     hourly,
+            "mileage_rate":    mileage_rate,
+        },
+    }
+
+
 @router.post("/invoices", status_code=201)
 async def create_invoice(body: InvoiceCreate, user=Depends(get_current_user)):
     case = await db.svc_cases.find_one(

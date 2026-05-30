@@ -1,3 +1,69 @@
+## Iter 220ct — Engineer-app P1 polish: sync chip, duplicate-job warning, invoice prefill ✅ (May 30, 2026)
+
+Three P1 wins from the process-analyst review.
+
+### 1. SyncStatusChip — offline queue made visible
+- New component in `EngineerJobDetailV2.js` rendered next to the
+  refresh button. Reads the existing `useEngineerOfflineQueue()` hook
+  (no new plumbing) and shows three states:
+  - **Online + 0 queued**  → green WiFi + "Synced"
+  - **Online + N queued**  → blue cloud-up + "Syncing · N" (animated)
+  - **Offline**            → amber WiFi-off + "Offline · N queued"
+- Hidden on mobile (`hidden sm:inline-flex`) to keep the cramped
+  phone header readable; the existing toast still fires on queue
+  events for mobile users.
+- Test IDs: `sync-status-synced`, `sync-status-syncing`, `sync-status-offline`.
+
+### 2. Duplicate-job warning on the New Job form
+- New endpoint **`GET /api/svc/engineer/customers/open-cases`** in
+  `engineer_customers.py`. Matches on email / phone / case-insensitive
+  name (plus optional site disambig) and returns up to 5 currently-open
+  cases with `status ∈ {new, scheduled, in_progress, on_hold, awaiting_parts}`.
+- `EngineerNewJob.js` debounces (400ms) on customer-name/email/phone/site
+  changes and renders an amber warning panel listing the open cases.
+  Each row is a button that navigates straight to that case so the
+  engineer can pick up the existing job instead of duplicating it.
+- Empty payload → returns `{count: 0, cases: []}` (never 400 — the
+  form polls opportunistically on every keystroke).
+- Test IDs: `newjob-open-cases-warning`, `newjob-open-cases-list`,
+  `newjob-open-case-{id}`.
+
+### 3. Quote/Job → Invoice continuity
+- New endpoint **`GET /api/svc/engineer/jobs/{case_id}/invoice-prefill`**
+  in `engineer_invoices.py`. Pulls everything needed to skip manual
+  re-keying at close-out:
+  - Labour: sum of `svc_time_entries.duration_minutes` (on_site) ÷ 60
+    × engineer's hourly rate.
+  - Travel: sum of `svc_mileage_entries.miles` × mileage rate.
+  - Parts: one line per `svc_cases.allocated_parts` row (SKU + machine
+    surfaced in line notes).
+  - Callout line auto-added when the engineer has a callout fee set.
+  - Falls back to a single labour line if there's nothing to bill yet.
+  - 404 on missing/cross-engineer case (defensive).
+  - Returns `totals_meta { on_site_minutes, on_site_hours, miles,
+    parts_count, … }` so the UI can show "Loaded 1.5h labour · 12 mi
+    · 1 part" in the success toast.
+- `EngineerInvoiceBuilder.js` now reads `?case_id=` from the URL on
+  mount and (when `isNew`) fetches the prefill, then deep-merges into
+  the form state. Manual input is never overwritten on subsequent edits.
+
+### Tests
+- `tests/test_iter_220ct_engineer_p1_polish.py` — **7 tests**, all
+  green. Coverage:
+  - **Open-cases**: matches on email + status `$in`; empty payload
+    returns zeros without a DB hit; name regex is case-insensitive.
+  - **Invoice prefill**: 4-line invoice (callout + labour + travel
+    + part) from a finished case with time/mileage/parts; empty case
+    falls back to one labour line; 404 on missing case; 404 on
+    cross-engineer access.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c-series suite: **39/39 green**.
+- Frontend lint clean (3 files touched). Backend ruff clean (2 files).
+- Live smoke: both new endpoints return 401 unauthorised (registered).
+
+---
+
+
 ## Iter 220cs — Job-at-a-glance + "I'm on site" + tab reorder ✅ (May 30, 2026)
 
 **From the engineer-app process review**: shipped the three P0 wins

@@ -28,9 +28,10 @@ import {
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
   Video, MapPin, Send, Download, Phone, Navigation, History, LogIn,
+  Wifi, WifiOff, CloudUpload,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
-import { engineerSendOrQueue } from '@/utils/engineerOfflineQueue';
+import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
 import SignatureCanvas from './SignatureCanvas';
 import EngineerDictationButton from './EngineerDictationButton';
 import WorkReportCustomFields from './WorkReportCustomFields';
@@ -149,6 +150,9 @@ export default function EngineerJobDetailV2() {
           </div>
           {/* Iter 220c — autosave indicator. Lets engineers know the draft is safe. */}
           <DraftStatusPill saving={savingDraft} lastSavedAt={lastSavedAt} dirty={draftDirty} />
+          {/* Iter 220ct — sync status chip. Turns the IndexedDB offline queue
+              from an invisible safety net into a visible reassurance. */}
+          <SyncStatusChip />
           <button onClick={load} aria-label="Refresh" className="p-2 rounded-full border border-slate-200 bg-white" data-testid="job-refresh">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -428,6 +432,45 @@ function DraftStatusPill({ saving, lastSavedAt, dirty }) {
   }
   return null;
 }
+
+// Iter 220ct — visible sync-status chip. Reads the existing
+// IndexedDB queue hook so we don't need any new plumbing.
+//   • Online + 0 queued        →   green WiFi + "Synced"
+//   • Online + N queued (replay) → blue cloud + "Syncing N"
+//   • Offline                  →   amber WiFi-off + "Offline N queued"
+function SyncStatusChip() {
+  const { online, pending } = useEngineerOfflineQueue();
+  let cls;
+  let icon;
+  let label;
+  let testid;
+  if (!online) {
+    cls   = 'bg-amber-50 text-amber-800 border-amber-200';
+    icon  = <WifiOff size={11} />;
+    label = pending > 0 ? `Offline · ${pending} queued` : 'Offline';
+    testid = 'sync-status-offline';
+  } else if (pending > 0) {
+    cls   = 'bg-blue-50 text-blue-800 border-blue-200';
+    icon  = <CloudUpload size={11} className="animate-pulse" />;
+    label = `Syncing · ${pending}`;
+    testid = 'sync-status-syncing';
+  } else {
+    cls   = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    icon  = <Wifi size={11} />;
+    label = 'Synced';
+    testid = 'sync-status-synced';
+  }
+  return (
+    <span
+      className={`hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${cls}`}
+      title={pending > 0 ? `${pending} pending write${pending === 1 ? '' : 's'} in the offline queue` : (online ? 'All changes synced' : 'No connection — your work is being saved locally')}
+      data-testid={testid}
+    >
+      {icon} {label}
+    </span>
+  );
+}
+
 
 // ─────────────────────────── Active timer bar ───────────────────────────
 

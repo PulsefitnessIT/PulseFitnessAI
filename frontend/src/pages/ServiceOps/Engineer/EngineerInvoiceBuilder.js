@@ -40,6 +40,10 @@ export default function EngineerInvoiceBuilder() {
   const navigate = useNavigate();
   const { id: invoiceId } = useParams();
   const isNew = !invoiceId;
+  // Iter 220ct — quote → invoice continuity. When the engineer
+  // taps "Create invoice" from a job, we land here with ?case_id=…
+  // and pull labour / mileage / parts directly from the case.
+  const caseHint = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('case_id');
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -78,6 +82,50 @@ export default function EngineerInvoiceBuilder() {
   }, [invoiceId, isNew]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Iter 220ct — prefill from case (labour/mileage/parts). Runs once
+  // on mount when ?case_id=… is present and we're creating a new
+  // invoice. Never overwrites manual input — only fires on isNew.
+  useEffect(() => {
+    if (!isNew || !caseHint) return;
+    let alive = true;
+    (async () => {
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/jobs/${caseHint}/invoice-prefill`,
+          auth(),
+        );
+        if (!alive) return;
+        const d = r.data || {};
+        setForm((f) => ({
+          ...f,
+          case_id: d.case_id || caseHint,
+          customer_name:  d.customer_name  || f.customer_name,
+          customer_email: d.customer_email || f.customer_email,
+          customer_phone: d.customer_phone || f.customer_phone,
+          site_name:      d.site_name      || f.site_name,
+          site_address:   d.site_address   || f.site_address,
+          asset_name:     d.asset_name     || f.asset_name,
+          asset_serial:   d.asset_serial   || f.asset_serial,
+          description_of_work: d.description_of_work || f.description_of_work,
+          lines: Array.isArray(d.lines) && d.lines.length ? d.lines : f.lines,
+        }));
+        const meta = d.totals_meta || {};
+        const bits = [];
+        if (meta.on_site_hours > 0) bits.push(`${meta.on_site_hours}h labour`);
+        if (meta.miles > 0)         bits.push(`${meta.miles} mi`);
+        if (meta.parts_count > 0)   bits.push(`${meta.parts_count} part${meta.parts_count === 1 ? '' : 's'}`);
+        notify.success(
+          'Pre-filled from job',
+          bits.length ? `Loaded ${bits.join(' · ')} — review before sending.` : 'Job details loaded.',
+        );
+      } catch (e) {
+        // Soft fail — engineer can still fill in manually.
+        notify.error('Could not prefill from job', e?.response?.data?.detail || e?.message);
+      }
+    })();
+    return () => { alive = false; };
+  }, [isNew, caseHint]);
 
   const totals = useMemo(
     () => computeTotals(form.lines, form.vat_rate, form.discount_pct),

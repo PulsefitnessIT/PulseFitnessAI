@@ -18,7 +18,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Loader2, Sparkles, Wand2, ClipboardPaste,
-  Wrench, Building2, AlertCircle, CheckCircle2,
+  Wrench, Building2, AlertCircle, CheckCircle2, AlertTriangle,
   Search, BookmarkPlus, History, X, MapPin, Calendar,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -70,6 +70,10 @@ export default function EngineerNewJob() {
   const [emailSubject, setEmailSubject] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [saveAsCustomer, setSaveAsCustomer] = useState(false);
+  // Iter 220ct — Open-jobs warning. Polls /open-cases as the
+  // engineer fills the customer fields so they can spot duplicates
+  // BEFORE creating a third "treadmill broken" case at the same site.
+  const [openCases, setOpenCases] = useState({ count: 0, cases: [] });
   const [form, setForm] = useState({
     title: '', description: '', priority: 'P3',
     customer_name: '', customer_email: '', customer_phone: '',
@@ -87,6 +91,33 @@ export default function EngineerNewJob() {
     }
     return next;
   });
+
+  // Iter 220ct — debounced open-cases lookup. Fires whenever the
+  // engineer changes the customer name / email / phone / site so the
+  // duplicate-warning panel reflects the latest typed values. We
+  // never block submission — the panel is purely informational.
+  useEffect(() => {
+    const name = (form.customer_name || '').trim();
+    const email = (form.customer_email || '').trim();
+    const phone = (form.customer_phone || '').trim();
+    const site = (form.site_name || '').trim();
+    const minName = name.length >= 2;
+    if (!minName && !email && !phone) {
+      setOpenCases({ count: 0, cases: [] });
+      return;
+    }
+    let alive = true;
+    const id = setTimeout(async () => {
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/customers/open-cases`,
+          { ...auth(), params: { name, email, phone, site_name: site } },
+        );
+        if (alive) setOpenCases(r.data || { count: 0, cases: [] });
+      } catch { /* silent — informational only */ }
+    }, 400);
+    return () => { alive = false; clearTimeout(id); };
+  }, [form.customer_name, form.customer_email, form.customer_phone, form.site_name]);
 
   const aiParse = async () => {
     if (!emailText.trim()) {
@@ -326,6 +357,47 @@ export default function EngineerNewJob() {
                 >
                   <X size={11} />
                 </button>
+              </div>
+            )}
+
+            {/* Iter 220ct — Duplicate-job warning. Lets the engineer
+                see existing open cases for this customer BEFORE creating
+                another one. Informational only — never blocks submit. */}
+            {openCases.count > 0 && (
+              <div
+                className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3"
+                data-testid="newjob-open-cases-warning"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={14} className="text-amber-700 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-amber-900">
+                      {openCases.count} open {openCases.count === 1 ? 'job' : 'jobs'} already at this customer
+                    </p>
+                    <p className="text-[11px] text-amber-800 mt-0.5">
+                      Open one of these instead of creating a duplicate, or carry on if it's truly a new fault.
+                    </p>
+                    <ul className="mt-2 space-y-1" data-testid="newjob-open-cases-list">
+                      {openCases.cases.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/svc/engineer/jobs/${c.id}`)}
+                            className="w-full text-left inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-white border border-amber-200 hover:border-amber-300 text-xs"
+                            data-testid={`newjob-open-case-${c.id}`}
+                          >
+                            <span className="font-bold text-blue-700 tabular-nums">{c.reference || c.id?.slice(0, 8)}</span>
+                            <span className="flex-1 truncate text-slate-700">{c.title || '(untitled)'}</span>
+                            {c.priority && (
+                              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{c.priority}</span>
+                            )}
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{c.status}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
             )}
 
