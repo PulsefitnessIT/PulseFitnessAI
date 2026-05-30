@@ -1534,7 +1534,14 @@ async def run_daily_autopilot_loop(*, hour: int = 9) -> None:
     Iter 220ai — reads ``seo_autopilot_config`` on every iteration so
     the UI's "Enabled" toggle + hour picker take effect without a
     backend restart. The ``hour`` kwarg is the env-var fallback used
-    on cold boots before the master admin saves a config row."""
+    on cold boots before the master admin saves a config row.
+
+    Iter 220cf — fires when ``london.hour >= cfg_hour`` (not ``==``)
+    so a 15-min wake-up cadence that skips past the exact hour due
+    to a backend restart, slow iteration, or even a one-off
+    monitoring stall still catches the day. Combined with
+    ``_autopilot_already_ran_today`` this remains idempotent — at
+    most one run per London-calendar-day."""
     while True:
         try:
             cfg = await _load_config()
@@ -1544,7 +1551,7 @@ async def run_daily_autopilot_loop(*, hour: int = 9) -> None:
             today = london.date().isoformat()
             if (
                 cfg_enabled
-                and london.hour == cfg_hour
+                and london.hour >= cfg_hour
                 and not await _autopilot_already_ran_today(today)
             ):
                 logger.info(
