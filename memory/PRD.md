@@ -1,3 +1,57 @@
+## Iter 220cy — NPS customer feedback loop ✅ (May 30, 2026)
+
+Closes the engineer ↔ customer feedback gap. The public tracking
+page already had a 5-star + 0–10 NPS form (iter 216h90); this iter
+**actually emails the customer asking them to use it**, then
+surfaces the captured rating on the engineer's Job Detail.
+
+### Backend — `POST /api/svc/cases/{case_id}/feedback-request/send`
+- Generates / reuses a public tracking token via the existing
+  `public_tracking._mint_or_get_token` helper.
+- Sends a short branded email via Resend (existing `utils.email`)
+  with a single "Leave feedback" CTA pointing at
+  `${PUBLIC_APP_URL}/track/{token}` — straight onto the form that's
+  already wired.
+- Idempotent: returns `{skipped: true, reason: "already_sent"}`
+  when the case has `feedback_request_sent_at`, and `reason:
+  "already_rated"` when the customer has already left a rating.
+  No spam.
+- Persists `feedback_request_sent_at` + `feedback_request_sent_to`
+  on the case and emits a `note` event with the track URL.
+- 400 on no customer email; 502 if Resend rejects.
+
+### Frontend — fast-path close-out wiring
+- `EngineerJobDetailV2` `completeAndSendInvoice()` now fires the
+  feedback request as **step 6** (after the service report email).
+  Soft-fails silently so missing customer emails never block the
+  close-out.
+
+### Frontend — captured rating chip on JobAtAGlance
+- The header card now shows a coloured chip with `★ N/5` when
+  `customer_rating` is set:
+  - 4–5 → emerald
+  - 3   → amber
+  - 1–2 → rose
+  Title attribute carries the customer comment so the engineer
+  can hover/tap for the full quote.
+- Test ID: `jaag-customer-rating`.
+
+### Tests / lint
+- `tests/test_iter_220cy_feedback_request.py` — **7 tests**, all
+  green:
+  - 404 on missing case, 400 on no email, 502 on mailer failure.
+  - Skips when already sent / already rated.
+  - Happy path: emails the customer with the tracking URL,
+    persists `feedback_request_sent_to`, emits the note event.
+  - Endpoint contract guard.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c-series: **67/67 green**.
+- Frontend lint clean (1 file). Backend ruff clean (1 file).
+- Live smoke: endpoint registered (401 without auth).
+
+---
+
+
 ## Iter 220cx — Engineer-review polish: closed-but-not-invoiced, global mic, voice confidence, in-progress badge ✅ (May 30, 2026)
 
 Five gaps from the post-review audit, shipped together.

@@ -370,6 +370,22 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
               <History size={9} /> Last visit: {lastVisit}
             </span>
           )}
+          {/* Iter 220cy — captured customer rating. */}
+          {typeof job.customer_rating === 'number' && job.customer_rating > 0 && (
+            <span
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${
+                job.customer_rating >= 4
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : job.customer_rating >= 3
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-rose-50 text-rose-800 border-rose-200'
+              }`}
+              title={job.customer_rating_comment || 'Customer rating'}
+              data-testid="jaag-customer-rating"
+            >
+              ★ {job.customer_rating}/5
+            </span>
+          )}
         </div>
       </div>
 
@@ -1483,6 +1499,13 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       } catch (e) {
         notify.error('Report email failed', e?.response?.data?.detail || e?.message);
       }
+      // 6. Iter 220cy — Fire the NPS feedback request. Lands the
+      // customer on the public tracking page where the 5-star + NPS
+      // form already lives. Soft-fail so a missing email never
+      // blocks the close-out.
+      try {
+        await axios.post(`${API}/svc/cases/${job.id}/feedback-request/send`, {}, auth());
+      } catch { /* non-blocking */ }
       await clearDraft?.();
       await onChange();
     } catch (e) {

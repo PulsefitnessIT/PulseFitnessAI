@@ -17,6 +17,7 @@ Endpoints (mounted ungated so both engineers and operators can use them
 from __future__ import annotations
 
 import io
+import os
 import logging
 import base64
 from datetime import datetime, timezone
@@ -811,4 +812,99 @@ async def service_report_email(case_id: str, data: dict | None = None, user=Depe
     }
 
 
+# Iter 220cy — NPS feedback request.
+# Fires a short "how did we do?" email pointing the customer at the
+# public tracking page where the rating + NPS + comment form already
+# lives (added in 216h90). Designed to be called from the fast-path
+# close-out so the engineer ↔ customer feedback loop closes itself.
+@router.post("/svc/cases/{case_id}/feedback-request/send")
+async def send_feedback_request(
+    case_id: str,
+    data: dict | None = None,
+    user=Depends(get_current_user),
+):
+    of_clause = {"organization_id": user.get("organization_id")}
+    case = await db.svc_cases.find_one({"id": case_id, **of_clause})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    if case.get("feedback_request_sent_at") and not (data or {}).get("force"):
+        # Already asked once — don't pester the customer twice.
+        return {
+            "ok": True, "skipped": True, "reason": "already_sent",
+            "sent_at": case["feedback_request_sent_at"],
+        }
+    to = (data or {}).get("to") or case.get("customer_email") or ""
+    if not to:
+        raise HTTPException(400, "No customer email on case")
+    if case.get("customer_rating"):
+        # Customer already left a rating — no need to ask.
+        return {"ok": True, "skipped": True, "reason": "already_rated"}
+
+    # Mint or reuse the public tracking token so the link lands them
+    # straight on the page that already has the feedback form.
+    from routes.svc.public_tracking import _mint_or_get_token  # noqa: WPS433
+    token = await _mint_or_get_token(case_id, of_clause)
+
+    # Public URL: prefer X-Forwarded-Host, else REACT_APP_BACKEND_URL.
+    base = (
+        os.environ.get("PUBLIC_APP_URL")
+        or os.environ.get("REACT_APP_BACKEND_URL")
+        or "https://app.gymaxis.ai"
+    ).rstrip("/")
+    track_url = f"{base}/track/{token}"
+
+    org_name = case.get("organization_name") or "GymAxis"
+    customer_first = (case.get("customer_name") or "").split()[0] or "there"
+    subject = f"How did we do? · {case.get('reference', '')}".strip()
+    html = (
+        f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;padding:16px'>"
+        f"<h2 style='color:#0f172a;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
+        f"<p style='color:#1f2937;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
+        f"Thanks for letting us take care of <b>{case.get('reference', '')}</b>. "
+        f"Could you spare 30 seconds to tell us how we did? Your feedback goes "
+        f"straight to the engineer who attended.</p>"
+        f"<p style='margin:24px 0'>"
+        f"<a href='{track_url}' style='display:inline-block;background:#1d4ed8;"
+        f"color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;"
+        f"font-weight:700;font-size:14px'>Leave feedback</a>"
+        f"</p>"
+        f"<p style='color:#64748B;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
+        f"Or paste this into your browser: <span style='word-break:break-all'>{track_url}</span>"
+        f"</p>"
+        f"<p style='color:#64748B;font-size:13px;line-height:1.5;margin:16px 0 0 0'>"
+        f"Thanks,<br/><b>{org_name}</b></p>"
+        f"</div>"
+    )
+    ok = await send_email(
+        to=to, subject=subject, html=html,
+        organization_id=user.get("organization_id"),
+    )
+    if not ok:
+        raise HTTPException(502, "Email send failed — check sender domain verification.")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.svc_cases.update_one(
+        {"id": case_id, **of_clause},
+        {"$set": {
+            "feedback_request_sent_at": now_iso,
+            "feedback_request_sent_to": to,
+            "updated_at": now_iso,
+        }},
+    )
+    try:
+        from utils.svc_state import append_event
+        await append_event(
+            case_id=case_id,
+            organization_id=user.get("organization_id"),
+            event_type="note",
+            actor=user,
+            body=f"Feedback request emailed to {to}",
+            extra={"kind": "feedback_request_sent", "to": to, "track_url": track_url},
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"feedback-request: append_event failed: {e!r}")
+    return {"ok": True, "to": to, "sent_at": now_iso, "track_url": track_url}
+
+
 __all__ = ["router"]
+
