@@ -29,6 +29,7 @@ import {
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
 import useEngineerAttention from './hooks/useEngineerAttention';
+import EngineerAppShellNudge from './EngineerAppShellNudge';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -325,6 +326,9 @@ export default function EngineerHomeV2() {
     {briefing && briefing.jobs_today_total > 0 && (
       <NearestJobChip navigate={navigate} />
     )}
+    {/* Iter 220df — PWA install + push subscribe nudge.
+        Quietly hides itself when both already done OR cooldown active. */}
+    <EngineerAppShellNudge />
     {/* Iter 220cx — Closed-but-not-invoiced recovery card. Catches
         the silent-failure case where the "I'm done" fast-path
         closed the job but the invoice step errored. */}

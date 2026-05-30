@@ -1,3 +1,54 @@
+## Iter 220df — PWA install + push nudge (engineer-app discoverability) ✅ (May 30, 2026)
+
+The PWA install prompt + Web Push subscribe + service-worker push
+handler all existed already; the gap was **discoverability**. The
+global PWA banner fires 30 seconds post-login with a 7-day cooldown
+(easy to miss while reading a job ticket), and the subscribe button
+lives inside the engineer notifications page (engineers rarely
+visit the bell icon). This iter closes the loop with a contextual
+home-screen nudge.
+
+### Frontend — `EngineerAppShellNudge.js` (new component)
+- Mounted on `EngineerHomeV2` directly under `NearestJobChip`.
+- Combines both affordances in one card:
+  - **Enable push alerts** — runs the same flow as
+    `EngineerNotifications.PushSubscribeButton` (registers
+    `/sw.js`, fetches `/svc/engineer/push/vapid-key`, subscribes,
+    POSTs to `/svc/engineer/push/subscribe`).
+  - **Install app** — listens to `beforeinstallprompt`; for iOS
+    Safari (no event), opens a 3-step share-sheet guide.
+- Auto-hides when:
+  - Both push is granted AND app is standalone.
+  - User dismissed within the last 14 days (cooldown).
+- Renders "All set ✓" emerald chip when both already done (rare —
+  only briefly visible until next page load when component hides).
+- Test IDs: `engineer-shell-nudge`, `engineer-shell-nudge-push`,
+  `engineer-shell-nudge-install`, `engineer-shell-nudge-dismiss`,
+  `engineer-shell-nudge-ios-guide`.
+
+### Backend (unchanged — already shipped)
+- `GET /api/svc/engineer/push/vapid-key`
+- `POST /api/svc/engineer/push/subscribe`
+- `DELETE /api/svc/engineer/push/subscriptions/{hash}`
+- `POST /api/svc/engineer/push/test`
+- Service worker `/sw.js` already handles `push` + `notificationclick`.
+
+### Tests / lint
+- `tests/test_iter_220df_pwa_push_nudge.py` — **8 tests** green:
+  - Backend push endpoints still registered.
+  - `get_vapid_key` returns `public_key`.
+  - Nudge component exists with all stable test IDs.
+  - Calls the correct endpoints + `beforeinstallprompt` + `sw.js`.
+  - Mounted on EngineerHomeV2.
+  - Respects 14-day cooldown.
+  - Global `PWAInstallPrompt` still mounted (additive).
+  - `manifest.json` + `sw.js` push handlers present.
+- Combined 220c+220d series: **58/58 green**.
+- Frontend ESLint clean.
+
+---
+
+
 ## Iter 220de — Compliance Pack: PTW, COSHH register, LOTO ✅ (May 30, 2026)
 
 Three field-engineering compliance gates shipped together. Required
