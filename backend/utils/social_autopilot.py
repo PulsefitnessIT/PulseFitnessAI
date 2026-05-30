@@ -551,24 +551,50 @@ def _pillow_branded_card_png(headline: str, channel: dict,
         b = int(c1[2] * (1 - t) + c2[2] * t)
         draw.line([(0, y), (w, y)], fill=(r, g, b))
 
-    # Decorative soft circles for depth.
-    draw.ellipse(
+    # Decorative soft circles for depth — render via alpha blending on
+    # an RGBA overlay so they're actually subtle (RGB mode silently
+    # ignores alpha, which is why operators were seeing a stark white
+    # ring in the top-right corner).
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    overlay_draw.ellipse(
         [int(w * 0.78), int(h * 0.06), int(w * 0.98), int(h * 0.26)],
-        fill=None, outline=(255, 255, 255, 30), width=int(h * 0.005),
+        fill=(255, 255, 255, 18),
     )
+    overlay_draw.ellipse(
+        [int(w * 0.04), int(h * 0.80), int(w * 0.18), int(h * 0.94)],
+        fill=(255, 255, 255, 12),
+    )
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    draw = ImageDraw.Draw(img)
     # Headline — fall back to default font if no TrueType is installed.
     try:
         from PIL import ImageFont  # type: ignore
         candidates = [
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
             "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+            # Iter 220ce — installed in slim Debian images by default
+            # via `fonts-freefont-ttf` / `fonts-liberation`. Add them
+            # so the headline renders at the intended pixel size
+            # instead of falling back to the 10px bitmap.
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
             "/Library/Fonts/Arial Bold.ttf",
         ]
         font_path = next((p for p in candidates if os.path.exists(p)), None)
+        # Pick the matching regular-weight font for the subtitle.
+        sub_candidates = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+        ]
+        sub_font_path = next((p for p in sub_candidates if os.path.exists(p)), None) or font_path
         font_size = int(h * 0.085)
         sub_size = int(h * 0.028)
         font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
-        sub_font = ImageFont.truetype(font_path, sub_size) if font_path else ImageFont.load_default()
+        sub_font = ImageFont.truetype(sub_font_path, sub_size) if sub_font_path else ImageFont.load_default()
     except Exception:  # pragma: no cover
         font = sub_font = None
 
@@ -594,11 +620,59 @@ def _pillow_branded_card_png(headline: str, channel: dict,
     if subtitle:
         draw.text((text_x, y0 + len(lines) * line_height + 20),
                   subtitle[:120], fill=(255, 255, 255, 200), font=sub_font)
-    # Brand mark bottom-left.
-    draw.text((text_x, int(h * 0.88)), BRAND["name"].upper(),
-              fill=(255, 255, 255), font=font)
-    draw.text((text_x, int(h * 0.94)), BRAND["domain"],
-              fill=(255, 255, 255, 170), font=sub_font)
+
+    # ── Brand mark (bottom-left) ───────────────────────────────────
+    # Iter 220ce — the logo PNGs ship with a white background baked
+    # in (no real alpha), so just pasting them onto a coloured
+    # gradient produced a hard white box that looked like a bug.
+    # Instead we render the full horizontal logo onto a rounded
+    # white "badge" — looks intentional, reads clearly on any brand
+    # colour, and matches how professional B2B Instagram cards do it.
+    brand_block_y = int(h * 0.84)
+    logo_paths = [
+        os.path.join(os.path.dirname(__file__), "..", "static", "brand", "gymaxis-full.png"),
+        "/app/frontend/public/brand/gymaxis-full-tight.png",
+    ]
+    logo_path = next((p for p in logo_paths if os.path.exists(p)), None)
+    if logo_path:
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            target_h = int(h * 0.07)
+            scale = target_h / logo.height
+            target_w = int(logo.width * scale)
+            logo = logo.resize((target_w, target_h), Image.LANCZOS)
+
+            # Build a rounded-corner white badge that wraps the logo.
+            pad_x = int(target_h * 0.55)
+            pad_y = int(target_h * 0.25)
+            badge_w = target_w + pad_x * 2
+            badge_h = target_h + pad_y * 2
+            badge = Image.new("RGBA", (badge_w, badge_h), (0, 0, 0, 0))
+            bdraw = ImageDraw.Draw(badge)
+            radius = int(badge_h * 0.3)
+            bdraw.rounded_rectangle(
+                [0, 0, badge_w, badge_h], radius=radius,
+                fill=(255, 255, 255, 245),
+            )
+            badge.paste(logo, (pad_x, pad_y), logo)
+
+            rgba = img.convert("RGBA")
+            rgba.paste(badge, (text_x, brand_block_y), badge)
+            img = rgba.convert("RGB")
+            draw = ImageDraw.Draw(img)
+            url_y = brand_block_y + badge_h + int(h * 0.012)
+            draw.text((text_x, url_y), BRAND["domain"],
+                      fill=(255, 255, 255), font=sub_font)
+        except Exception as exc:  # pragma: no cover
+            logger.info("[social] logo paste failed, falling back to text: %s", exc)
+            logo_path = None
+    if not logo_path:
+        # Text fallback — use the small font (not the headline font!)
+        # so the brand mark doesn't overlap the URL below.
+        draw.text((text_x, brand_block_y), BRAND["name"].upper(),
+                  fill=(255, 255, 255), font=sub_font)
+        draw.text((text_x, brand_block_y + int(h * 0.04)), BRAND["domain"],
+                  fill=(255, 255, 255), font=sub_font)
 
     import io
     buf = io.BytesIO()

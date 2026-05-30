@@ -563,8 +563,9 @@ export default function SocialAutopilotPanel() {
   const [channelFilter, setChannelFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts) => {
     setErr(null);
+    if (opts && opts.silent !== true) setBusy('refresh');
     try {
       const [s, p] = await Promise.all([
         axios.get(`${API}/api/marketing/social-autopilot/status`, { headers: auth() }),
@@ -572,12 +573,17 @@ export default function SocialAutopilotPanel() {
       ]);
       setStatus(s.data);
       setPosts(p.data?.posts || []);
+      if (opts && opts.silent !== true && opts !== undefined) {
+        notify.success(`Refreshed · ${p.data?.posts?.length || 0} posts loaded`);
+      }
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Could not load Social Autopilot');
+    } finally {
+      if (opts && opts.silent !== true) setBusy('');
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load({ silent: true }); }, [load]);
 
   const runDaily = async () => {
     if (busy) return;
@@ -589,7 +595,7 @@ export default function SocialAutopilotPanel() {
       } else {
         notify.info(r.data?.reason || 'Already ran today');
       }
-      await load();
+      await load({ silent: true });
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Run failed');
     } finally { setBusy(''); }
@@ -601,7 +607,7 @@ export default function SocialAutopilotPanel() {
       await axios.post(`${API}/api/marketing/social-autopilot/generate`,
         { channel }, { headers: auth() });
       notify.success(`${CHANNEL_VISUAL[channel]?.label || channel} draft generated`);
-      await load();
+      await load({ silent: true });
     } catch (e) {
       notify.error(e?.response?.data?.detail || 'Generation failed');
     } finally { setBusy(''); }
@@ -672,11 +678,13 @@ export default function SocialAutopilotPanel() {
               Run today
             </button>
             <button
-              type="button" onClick={load}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400 bg-white dark:bg-zinc-950"
+              type="button" onClick={() => load({ silent: false })}
+              disabled={busy === 'refresh'}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-100 hover:border-fuchsia-400 bg-white dark:bg-zinc-950 disabled:opacity-60"
               data-testid="social-refresh"
             >
-              <RefreshCw size={11}/> Refresh
+              {busy === 'refresh' ? <Loader2 size={11} className="animate-spin"/> : <RefreshCw size={11}/>}
+              {busy === 'refresh' ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
         </div>
