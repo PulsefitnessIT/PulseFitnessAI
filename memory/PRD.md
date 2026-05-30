@@ -1,3 +1,77 @@
+## Iter 220dl — Customer tracking page: compliance chips ✅ (May 30, 2026)
+
+Mirrors the PDF compliance evidence pack (Iter 220dj) on the
+public live-tracking page so customers see safety work landing in
+real time — not only when the post-visit report arrives. Builds
+real-time confidence on tendered contracts ("can we see the
+engineer's safety steps as they happen?" → "yes, here").
+
+### Backend — `routes/svc/public_tracking.py`
+
+**New helper `_public_compliance_summary(case)`**
+- Returns three keys (`ptw` / `loto` / `coshh`) with the same
+  customer-safe shape:
+  - `state`: `'none' | 'in_progress' | 'done'`
+  - `count`: integer
+  - `label`: human-readable phrase (`"2 permits completed"`,
+    `"1 isolation signoff"`, `"3 chemical logs"`, etc.)
+- PTW state rules:
+  - Any `status='completed'` → `done`.
+  - Else any `status='issued'` → `in_progress`.
+  - Else → `none`.
+- LOTO + COSHH: counts > 0 → `done`, else `none`.
+- Org + case scoped; safe for orphan / blank case dicts.
+- Trimmed deliberately — we expose **whether** evidence was
+  captured, not the operator's internal step labels or notes.
+
+**`/svc/public/track/{token}` payload**
+- New `compliance` block alongside `eta`, `events`, and
+  engineer position. Cached behaviour unchanged (existing
+  30-second poll cycle picks the new field up automatically).
+
+### Frontend — `PublicTracking/PublicTrackingPage.js`
+- New `ComplianceChip` component with three colour states:
+  - **emerald** with ✓ when `state === 'done'`.
+  - **amber** with • when `state === 'in_progress'`.
+  - **neutral** with ○ when `state === 'none'`.
+- Three chips render in a "Safety & compliance" section under
+  the engineer card, only when at least one of the three has data.
+- Icons via `lucide-react`: `ShieldCheck` (PTW),
+  `ClipboardCheck` (LOTO), `FlaskConical` (COSHH).
+- Test IDs: `track-compliance`, `track-compliance-{kind}`
+  (templated).
+
+### Tests / lint
+- `tests/test_iter_220dl_public_compliance_chips.py` — **9 tests**
+  green:
+  - All three kinds default to `none` when nothing captured.
+  - PTW prioritises `completed` over `issued`.
+  - PTW `in_progress` when only issued permits exist.
+  - LOTO + COSHH `done` when count > 0; labels pluralised
+    correctly.
+  - Orphan case dict returns `{ptw: None, loto: None, coshh: None}`.
+  - Mongo filters pinned org + case scoped (regression guard
+    against leaking other cases' data onto the public page).
+  - Public payload exposes `compliance`.
+  - Frontend wiring: `ComplianceChip` exists, three chips rendered,
+    payload key read.
+- 220dj suite unaffected: still **7/7 green**.
+- Combined 220c+220d suite: **115/115 green**.
+- Existing public_tracking suite: **7/7 still green**.
+- Backend ruff + frontend ESLint clean.
+
+### Out of scope (deferred)
+- "Recent activity" mini-timeline of compliance events ("Engineer
+  signed off LOTO 2 min ago") — current chip is a state snapshot;
+  a per-event timeline is a separate UX problem.
+- Localisation of the labels ("permits", "isolation signoff",
+  "chemical logs") — current copy is en-GB only.
+- Customer-side expandable "What does this mean?" drawer per chip
+  (currently we lean on the chip `title` tooltip).
+
+---
+
+
 ## Iter 220dk — Mid-journey ETA drift re-notify ✅ (May 30, 2026)
 
 When traffic, a detour, or a tool-fetch swings an engineer's

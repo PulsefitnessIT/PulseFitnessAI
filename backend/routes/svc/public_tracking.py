@@ -170,6 +170,79 @@ async def _engineer_public_stats(engineer_id: str, org_id: str | None) -> dict:
     }
 
 
+async def _public_compliance_summary(case: dict) -> dict:
+    """Customer-safe compliance status for the tracking page.
+
+    Mirrors the PDF evidence pack (Iter 220dj) but trimmed for the
+    public surface — we expose **whether** evidence was captured,
+    not the operator's internal step labels or notes. Three chips:
+
+      * ``ptw``    — issued / completed permits-to-work for this case.
+      * ``loto``   — lockout/tagout signoffs.
+      * ``coshh``  — chemical-usage logs.
+
+    Each kind returns ``{state: 'none'|'in_progress'|'done', count,
+    label}`` so the frontend can render an empty/amber/emerald chip
+    without per-row leakage.
+    """
+    of = {"organization_id": case.get("organization_id")}
+    case_id = case.get("id")
+    if not case_id or not of["organization_id"]:
+        return {"ptw": None, "loto": None, "coshh": None}
+
+    ptw_rows = await db.svc_ptw_requests.find(
+        {"case_id": case_id, **of}, {"_id": 0, "status": 1},
+    ).to_list(20)
+    ptw_done = sum(1 for r in ptw_rows if r.get("status") == "completed")
+    ptw_active = sum(1 for r in ptw_rows if r.get("status") == "issued")
+
+    loto_count = await db.svc_loto_checklists.count_documents(
+        {"case_id": case_id, **of},
+    )
+    coshh_count = await db.svc_coshh_usage.count_documents(
+        {"case_id": case_id, **of},
+    )
+
+    def _state(count: int) -> str:
+        if count <= 0:
+            return "none"
+        return "done"
+
+    ptw_state = (
+        "done" if ptw_done > 0 else
+        "in_progress" if ptw_active > 0 else
+        "none"
+    )
+    return {
+        "ptw": {
+            "state": ptw_state,
+            "count": ptw_done + ptw_active,
+            "label": (
+                f"{ptw_done} permit{'s' if ptw_done != 1 else ''} completed"
+                if ptw_done > 0 else
+                f"{ptw_active} permit{'s' if ptw_active != 1 else ''} in force"
+                if ptw_active > 0 else "No permits required"
+            ),
+        },
+        "loto": {
+            "state": _state(loto_count),
+            "count": loto_count,
+            "label": (
+                f"{loto_count} isolation signoff{'s' if loto_count != 1 else ''}"
+                if loto_count > 0 else "Not isolated"
+            ),
+        },
+        "coshh": {
+            "state": _state(coshh_count),
+            "count": coshh_count,
+            "label": (
+                f"{coshh_count} chemical log{'s' if coshh_count != 1 else ''}"
+                if coshh_count > 0 else "No chemicals logged"
+            ),
+        },
+    }
+
+
 def _origin(request: Request) -> str:
     """Best-effort public origin for the share URL."""
     import os
@@ -283,6 +356,12 @@ async def public_track(token: str):
         except (TypeError, ValueError):
             eta = None
 
+    # Iter 220dl — Live compliance chips for the customer.
+    # Mirrors the PDF compliance evidence pack (Iter 220dj) so the
+    # customer can see safety/regulatory work landing in real time
+    # rather than waiting for the post-visit report.
+    compliance = await _public_compliance_summary(case)
+
     return {
         "reference": case.get("reference") or case["id"][:8],
         "title": case.get("title") or "Service visit",
@@ -309,6 +388,7 @@ async def public_track(token: str):
             if site_lat is not None and site_lng is not None else None
         ),
         "eta": eta,
+        "compliance": compliance,
         "events": customer_safe_events,
         "rating_captured": bool(case.get("customer_rating")),
         "feedback_captured": bool(case.get("customer_feedback_at")),

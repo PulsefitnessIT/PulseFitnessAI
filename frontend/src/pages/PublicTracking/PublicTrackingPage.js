@@ -13,6 +13,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   MapPin, Clock, CheckCircle, CheckCircle2, Wrench, Loader2, Truck, Star, AlertCircle, Send,
+  ShieldCheck, ClipboardCheck, FlaskConical,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -38,6 +39,39 @@ function fmtTime(iso) {
   } catch {
     return iso;
   }
+}
+
+// Iter 220dl — Compliance chip mirroring the PDF evidence pack.
+// State drives colour:
+//   * ``done``         emerald — captured + signed off (✓)
+//   * ``in_progress``  amber — issued but not yet completed
+//   * ``none``         neutral — not required for this visit
+const CHIP_ICON = {
+  ptw: ShieldCheck,
+  loto: ClipboardCheck,
+  coshh: FlaskConical,
+};
+function ComplianceChip({ kind, label, state, detail }) {
+  const Icon = CHIP_ICON[kind] || ShieldCheck;
+  const tone =
+    state === 'done'
+      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+      : state === 'in_progress'
+        ? 'bg-amber-50 text-amber-800 border-amber-200'
+        : 'bg-slate-50 text-slate-500 border-slate-200';
+  const mark =
+    state === 'done' ? '✓' : state === 'in_progress' ? '•' : '○';
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${tone}`}
+      data-testid={`track-compliance-${kind}`}
+      title={detail || label}
+    >
+      <Icon size={11} />
+      <span>{label}</span>
+      <span aria-hidden="true">{mark}</span>
+    </span>
+  );
 }
 
 function fmtRelative(iso) {
@@ -257,6 +291,46 @@ export default function PublicTrackingPage() {
             </div>
           </div>
         </section>
+
+        {/* Iter 220dl — Compliance chips. Mirrors the PDF evidence pack
+            (PTW + LOTO + COSHH) so the customer can see safety work
+            landing in real time, not only in the post-visit report. */}
+        {data.compliance && (data.compliance.ptw || data.compliance.loto || data.compliance.coshh) ? (
+          <section
+            className="rounded-2xl bg-white shadow-sm border border-slate-200 p-4"
+            data-testid="track-compliance"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+              Safety & compliance
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {data.compliance.ptw && (
+                <ComplianceChip
+                  kind="ptw"
+                  label="Permit to Work"
+                  state={data.compliance.ptw.state}
+                  detail={data.compliance.ptw.label}
+                />
+              )}
+              {data.compliance.loto && (
+                <ComplianceChip
+                  kind="loto"
+                  label="Lockout / Tagout"
+                  state={data.compliance.loto.state}
+                  detail={data.compliance.loto.label}
+                />
+              )}
+              {data.compliance.coshh && (
+                <ComplianceChip
+                  kind="coshh"
+                  label="COSHH"
+                  state={data.compliance.coshh.state}
+                  detail={data.compliance.coshh.label}
+                />
+              )}
+            </div>
+          </section>
+        ) : null}
 
         {/* Engineer card */}
         {data.engineer ? (
