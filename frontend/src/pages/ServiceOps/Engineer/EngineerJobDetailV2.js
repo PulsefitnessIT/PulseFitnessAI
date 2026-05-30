@@ -48,11 +48,12 @@ const fmtMins = (m) => {
 };
 
 const TABS = [
-  { id: 'time',     label: 'Time',     icon: Clock },
-  { id: 'travel',   label: 'Travel',   icon: Car },
-  { id: 'photos',   label: 'Photos',   icon: Camera },
-  { id: 'parts',    label: 'Parts',    icon: Wrench },
-  { id: 'complete', label: 'Complete', icon: CheckCircle2 },
+  { id: 'time',      label: 'Time',      icon: Clock },
+  { id: 'travel',    label: 'Travel',    icon: Car },
+  { id: 'photos',    label: 'Photos',    icon: Camera },
+  { id: 'equipment', label: 'Equipment', icon: Package },
+  { id: 'parts',     label: 'Parts',     icon: Wrench },
+  { id: 'complete',  label: 'Complete',  icon: CheckCircle2 },
 ];
 
 export default function EngineerJobDetailV2() {
@@ -175,6 +176,7 @@ export default function EngineerJobDetailV2() {
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
         {activeTab === 'photos' && <PhotosTab job={job} onChange={load} />}
+        {activeTab === 'equipment' && <EquipmentTab job={job} />}
         {activeTab === 'parts'  && <PartsTab job={job} onChange={load} />}
         {activeTab === 'complete' && (
           <CompleteTab
@@ -735,6 +737,43 @@ function MediaTile({ item }) {
   );
 }
 
+// ─────────────────────────── Equipment tab (iter 220cn) ─────────────
+//
+// Auto-loads every equipment record for the case's site and lets the
+// engineer tick which ones they're working on. The picked rows fan
+// out as `svc_work_visit_machines` rows on the case — used by the
+// per-machine work report (serviced/cleaned/notes), the Parts tab
+// (parts can be assigned per row), and the Complete tab's
+// `WorkVisitMachinesCard` is now hosted here too.
+
+function EquipmentTab({ job }) {
+  return (
+    <div className="space-y-4" data-testid="equipment-tab">
+      <div className="bg-white rounded-2xl border border-slate-200 p-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <Package size={18} className="text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900">Site equipment</p>
+            <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+              Tap <strong>From site</strong> to pre-load every machine at this
+              gym, then tick the ones you'll service. Write your report and
+              tag parts against each row.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Iter 220cn — All machine actions for this job live in this
+          card: "From site" picker (multi-select), "New asset" link,
+          and per-row serviced/cleaned/notes. Moved out of Complete. */}
+      <WorkVisitMachinesCard caseId={job.id} />
+    </div>
+  );
+}
+
+
 // ─────────────────────────── Parts tab ───────────────────────────────
 
 function PartsTab({ job, onChange }) {
@@ -745,6 +784,9 @@ function PartsTab({ job, onChange }) {
   const [busy, setBusy] = useState(false);
   const [showRequest, setShowRequest] = useState(null); // {sku, name} or null
   const [requests, setRequests] = useState([]);
+  // Iter 220cn — load this case's machine rows so the request modal
+  // can show a machine picker (parts can be tagged per machine).
+  const [machines, setMachines] = useState([]);
 
   const loadRequests = useCallback(async () => {
     try {
@@ -755,6 +797,19 @@ function PartsTab({ job, onChange }) {
     } catch { /* noop */ }
   }, [job.id]);
   useEffect(() => { loadRequests(); }, [loadRequests]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/jobs/${job.id}/machines`, auth(),
+        );
+        if (!cancelled) setMachines(r.data?.machines || r.data || []);
+      } catch { /* noop — machine list is optional context */ }
+    })();
+    return () => { cancelled = true; };
+  }, [job.id]);
 
   const runSearch = useCallback(async (q) => {
     if (!q || q.length < 2) { setResults([]); return; }
@@ -796,12 +851,14 @@ function PartsTab({ job, onChange }) {
     } finally { setBusy(false); }
   };
 
-  const submitRequest = async (sku, name, qty, urgency, notes) => {
+  const submitRequest = async (sku, name, qty, urgency, notes, machineId, machineName) => {
     setBusy(true);
     try {
       await axios.post(`${API}/svc/engineer/parts-requests`, {
         case_id: job.id, part_sku: sku, part_name: name,
         qty, urgency, notes,
+        machine_id: machineId || null,
+        machine_name: machineName || null,
       }, auth());
       notify.success('Parts request sent to admin');
       setShowRequest(null);
@@ -943,7 +1000,13 @@ function PartsTab({ job, onChange }) {
         <PartsRequestModal
           sku={showRequest.sku}
           name={showRequest.name}
+          machines={machines}
           onCancel={() => setShowRequest(null)}
+          onSubmit={(q, u, n, mid, mname) =>
+            submitRequest(showRequest.sku, showRequest.name, q, u, n, mid, mname)
+          }
+          busy={busy}
+        />
           onSubmit={(qty, urgency, notes) => submitRequest(showRequest.sku, showRequest.name, qty, urgency, notes)}
           busy={busy}
         />
@@ -1107,8 +1170,11 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         onChange={setCustomFields}
       />
 
-      {/* Iter 220d — Per-machine work report (row-per-Erg, copy-down) */}
-      <WorkVisitMachinesCard caseId={job.id} />
+      {/* Iter 220cn — `WorkVisitMachinesCard` moved to the dedicated
+          Equipment tab. Keeping it out of Complete prevents engineers
+          from filling out the work-report twice and matches the
+          user-requested tab structure (Time / Travel / Photos /
+          Equipment / Parts / Complete). */}
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-signature-card">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Customer signature (optional)</p>

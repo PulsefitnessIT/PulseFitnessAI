@@ -85,6 +85,11 @@ class PartsRequestIn(BaseModel):
     qty: int = Field(..., gt=0, le=999)
     urgency: str = Field(default="normal")
     notes: Optional[str] = ""
+    # Iter 220cn — Optional machine attribution. When the engineer
+    # ticks a specific machine in the Equipment tab before raising
+    # the part, we tag it so the parts report rolls up by machine.
+    machine_id: Optional[str] = None
+    machine_name: Optional[str] = None
 
 
 @engineer_router.post("", status_code=201)
@@ -103,6 +108,17 @@ async def create_request(body: PartsRequestIn, user=Depends(get_current_user)):
     name = (body.part_name or "").strip() or (catalogue or {}).get("name") or sku
     list_price = float((catalogue or {}).get("list_price") or 0)
 
+    # Iter 220cn — resolve machine_name from the work-visit machines
+    # row when only the id was supplied (saves the UI a round-trip).
+    machine_name = (body.machine_name or "").strip() or None
+    if body.machine_id and not machine_name:
+        row = await db.svc_work_visit_machines.find_one(
+            {"id": body.machine_id, **of, "case_id": body.case_id},
+            {"_id": 0, "asset_name": 1},
+        )
+        if row:
+            machine_name = row.get("asset_name")
+
     doc = {
         "id": str(uuid.uuid4()),
         "organization_id": of["organization_id"],
@@ -118,6 +134,9 @@ async def create_request(body: PartsRequestIn, user=Depends(get_current_user)):
         "notes": (body.notes or "").strip(),
         "status": "pending",
         "in_catalogue": bool(catalogue),
+        # Iter 220cn — per-machine attribution.
+        "machine_id": body.machine_id or None,
+        "machine_name": machine_name,
         "created_at": _now(),
         "updated_at": _now(),
     }
@@ -126,8 +145,15 @@ async def create_request(body: PartsRequestIn, user=Depends(get_current_user)):
     await append_event(
         case_id=body.case_id, organization_id=of["organization_id"],
         event_type="note", actor=user,
-        body=f"Parts request: {body.qty} × {sku} ({name})",
-        extra={"kind": "parts_request", "request_id": doc["id"], "urgency": urgency},
+        body=(
+            f"Parts request: {body.qty} × {sku} ({name})"
+            + (f" — for {machine_name}" if machine_name else "")
+        ),
+        extra={
+            "kind": "parts_request", "request_id": doc["id"],
+            "urgency": urgency,
+            "machine_id": body.machine_id or None,
+        },
     )
     return doc
 
