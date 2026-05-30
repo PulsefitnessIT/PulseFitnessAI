@@ -1,3 +1,100 @@
+## Iter 220de — Compliance Pack: PTW, COSHH register, LOTO ✅ (May 30, 2026)
+
+Three field-engineering compliance gates shipped together. Required
+for MOD / NHS / national-chain contracts; HSE-mandated for hot work,
+electrical isolation, working at height. All endpoints registered;
+all gates lazy-seed sensible defaults on first read so the engineer
+can use them on day one without admin setup.
+
+### Backend — `routes/svc/compliance.py`
+
+**Permit to Work (PTW)**
+- 8 hazard categories (hot_work, electrical, height, confined_space,
+  asbestos, lifting, excavation, other).
+- 3 default templates lazy-seeded (Hot Work, Electrical Isolation,
+  Working at Height) each with hazards + controls + validity_hours.
+- Admin: `GET/POST/DELETE /svc/compliance/ptw/templates`.
+- Engineer: `POST /svc/engineer/jobs/{case_id}/ptw-requests` →
+  `GET /svc/engineer/jobs/{case_id}/ptw-requests`.
+- State machine: `requested → issued → completed`. Admin issues
+  via `POST /svc/admin/ptw-requests/{id}/issue` (stamps valid_from /
+  valid_until from `validity_hours`); engineer completes via
+  `POST /svc/engineer/ptw-requests/{id}/complete`. 409 on bad state.
+
+**COSHH register**
+- 8 hazard classes (flammable, corrosive, irritant, toxic, harmful,
+  environmental, oxidising, other).
+- 3 default chemicals lazy-seeded (WD-40, IPA, treadmill silicone)
+  with supplier + controls.
+- Admin: `GET/POST/DELETE /svc/compliance/coshh` (soft-delete).
+- Engineer picker: `GET /svc/engineer/coshh/active`.
+- Per-case usage: `POST /svc/engineer/jobs/{case_id}/coshh-used`
+  accepts 1–20 entry_ids and snapshots `{id, name, hazard_class}`
+  onto the usage doc (immutable record even if the register entry
+  is later renamed).
+
+**LOTO**
+- 7 default steps (notify, shutdown, isolate, lockout, tagout,
+  dissipate, verify) with 5 marked required.
+- `GET /svc/engineer/jobs/{case_id}/loto` returns the template
+  steps + history.
+- `POST /svc/engineer/jobs/{case_id}/loto` 400s if any required
+  step is missing; persists `{ticked_step_ids, energy_sources,
+  signature_url, notes}` and emits a `loto_checklist` event.
+
+**Compliance summary**
+- `GET /svc/engineer/jobs/{case_id}/compliance-summary` —
+  composes the three sections into one read for the JobAtAGlance
+  card: `{ptw:{requests, active, needs_action}, loto:{completed_count,
+  needs_action}, coshh:{recorded_count}}`.
+
+### Frontend — `ComplianceCard.js` (new component)
+- Single card mounted on `JobAtAGlance` between handoff notes and
+  the arrival button. Goes quiet when nothing needs attention,
+  collapses to a single "Log compliance" link when no records exist.
+- Amber header with chips when an action is needed:
+  - **PTW needed** (rose) / **PTW issued** (blue chip with state).
+  - **LOTO needed** (rose) / **LOTO ✓** (emerald) when complete.
+  - **COSHH ✓** (emerald) when usage logged.
+- Three modal dialogs (PTW / LOTO / COSHH) bottom-sheet on mobile:
+  - `PtwDialog`: template picker + notes + Request CTA + inline
+    "Complete" button per issued permit.
+  - `LotoDialog`: full checkbox list with required-* indicator,
+    energy-sources free-text, Submit gated on required steps.
+  - `CoshhDialog`: scrollable register picker (controls shown
+    inline) + notes + Log CTA.
+- All test IDs stable: `compliance-card`, `compliance-toggle`,
+  `compliance-ptw-*`, `compliance-loto-*`, `compliance-coshh-*`,
+  `ptw-template-select`, `ptw-request-submit`, `loto-steps`,
+  `loto-submit`, `coshh-list`, `coshh-submit`.
+
+### Tests / lint
+- `tests/test_iter_220de_compliance_pack.py` — **16 tests** green:
+  - PTW: lazy seed, admin gate, category validation, request emits
+    event, issue stamps validity, complete-from-non-issued 409.
+  - COSHH: lazy seed, usage snapshots names, empty-pick 400.
+  - LOTO: default steps, missing required → 400, happy path persists
+    + emits event.
+  - Summary: composes all three, PTW-needed flag respects
+    `case.ptw_required`.
+  - Frontend: ComplianceCard mounted, all dialogs + endpoints wired.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c+220d series: **50/50 green**.
+- Backend ruff + frontend ESLint clean.
+- Live smoke: 5 new endpoints all return 401 unauthenticated
+  (registered through the ingress).
+
+### Out of scope (deferred)
+- Admin-side React pages for editing PTW templates + COSHH register
+  (API surface is stable; admins can use the lazy-seeded defaults
+  until then).
+- Multi-engineer LOTO (group lockout) — current MVP is single-engineer.
+- Auto-attaching COSHH usage to the service report PDF (data is
+  captured; PDF integration is a small follow-on).
+
+---
+
+
 ## Iter 220dd — Parts request: backorder / ETA visibility ✅ (May 30, 2026)
 
 Closes the engineer-side "is my part coming?" gap.

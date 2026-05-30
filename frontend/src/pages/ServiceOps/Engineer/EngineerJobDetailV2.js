@@ -39,6 +39,7 @@ import WorkVisitMachinesCard from './WorkVisitMachinesCard';
 import useJobDraft from './useJobDraft';
 import { resolveChannel } from '@/utils/channelLabel';
 import { compressImage } from '@/utils/compressImage';
+import ComplianceCard from './ComplianceCard';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -398,6 +399,8 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
         notes={job.handoff_notes || []}
         onChange={onChange}
       />
+      {/* Iter 220de — Compliance pack (PTW / COSHH / LOTO). */}
+      <ComplianceCard caseId={job.id} onChange={onChange} />
 
       {/* Big arrive button — only when not yet arrived and not closed. */}
       {!['closed', 'invoiced', 'awaiting_sign_off', 'repaired'].includes(job.status) && (
