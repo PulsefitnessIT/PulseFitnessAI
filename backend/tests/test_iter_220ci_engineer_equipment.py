@@ -324,11 +324,14 @@ def test_list_filters_by_organization():
     async def go():
         with patch("routes.svc.engineer_equipment.db", fdb):
             return await list_engineer_equipment(
-                _user(), site_id=None, q=None, limit=200,
+                _user(), site_id=None, customer_id=None,
+                q=None, limit=200, include_unassigned=True,
             )
     out = _run(go())
     assert out["count"] == 1
     flt = fdb.equipment.find.call_args.args[0]
+    # Iter 220cl — default list path filters to customer-owned rows;
+    # this test opts back into the full org catalogue.
     assert flt == {"organization_id": "org-1"}
 
 
@@ -340,7 +343,8 @@ def test_list_applies_site_and_q_filters():
     async def go():
         with patch("routes.svc.engineer_equipment.db", fdb):
             return await list_engineer_equipment(
-                _user(), site_id="site-1", q="bike", limit=200,
+                _user(), site_id="site-1", customer_id=None,
+                q="bike", limit=200, include_unassigned=True,
             )
     _run(go())
     flt = fdb.equipment.find.call_args.args[0]
@@ -377,7 +381,10 @@ def test_list_requires_org_context():
 
     async def go():
         try:
-            await list_engineer_equipment({"id": "u"}, site_id=None, q=None, limit=200)
+            await list_engineer_equipment(
+                {"id": "u"}, site_id=None, customer_id=None,
+                q=None, limit=200, include_unassigned=True,
+            )
             return False
         except HTTPException as exc:
             return exc.status_code == 403

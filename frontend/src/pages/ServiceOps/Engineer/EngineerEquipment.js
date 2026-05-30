@@ -18,14 +18,14 @@
  *       /svc/engineer/equipment/new            (blank form)
  *       /svc/engineer/equipment/new?case_id=…  (from a job → auto-attach)
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   useNavigate, useSearchParams, Link,
 } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Loader2, Search, Wrench, MapPin, Building2,
-  CheckCircle2, AlertTriangle, RefreshCw, Download, Upload,
+  CheckCircle2, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -128,10 +128,6 @@ export default function EngineerEquipment() {
           >
             <Plus size={14} /> Add
           </Link>
-        </div>
-        {/* Iter 220cj — CSV template + import row */}
-        <div className="max-w-2xl mx-auto px-4 -mt-1 pb-2 flex items-center gap-2">
-          <CsvActions onImported={load} />
         </div>
         <div className="max-w-2xl mx-auto px-4 pb-3 flex items-center gap-2">
           <div className="relative flex-1">
@@ -600,112 +596,5 @@ function inputCls(hasError) {
     'w-full px-3 py-2.5 rounded-xl border text-sm bg-white focus:outline-none ' +
     'focus:ring-2 focus:ring-blue-500 ' +
     (hasError ? 'border-rose-400' : 'border-slate-200')
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────
-// Iter 220cj — CSV template download + bulk import. Re-uses the
-// operations portal's existing equipment-import pipeline so engineers
-// and Ops stay on a single canonical schema. The import is org-scoped
-// by the backend; engineers can't import for someone else's gym.
-// ─────────────────────────────────────────────────────────────────────
-
-function CsvActions({ onImported }) {
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
-  const inputRef = useRef(null);
-
-  const onDownload = async () => {
-    try {
-      const r = await axios.get(`${API}/equipment/template/csv`, {
-        ...auth(), responseType: 'blob',
-      });
-      const blob = new Blob([r.data], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'equipment-import-template.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      notify.success('Template downloaded');
-    } catch (err) {
-      notify.error('Could not download template',
-                   err?.response?.data?.detail || err?.message);
-    }
-  };
-
-  const onFileChosen = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      notify.error('CSV too large (max 2 MB)');
-      return;
-    }
-    setBusy(true);
-    setResult(null);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const r = await axios.post(`${API}/equipment/import/csv`, fd, {
-        ...auth(),
-        headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
-      });
-      setResult(r.data);
-      notify.success(
-        `Imported ${r.data?.inserted || 0} new, updated ${r.data?.updated || 0}`,
-      );
-      onImported?.();
-    } catch (err) {
-      const detail = err?.response?.data?.detail;
-      notify.error('Import failed', Array.isArray(detail)
-        ? detail.map((d) => d.msg || d.loc?.join('.')).join(', ')
-        : (detail || err?.message));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-2 flex-1" data-testid="equipment-csv-actions">
-      <button
-        type="button"
-        onClick={onDownload}
-        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-[11px] font-bold hover:bg-slate-50"
-        data-testid="equipment-csv-download"
-      >
-        <Download size={12} /> Template
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".csv,text/csv"
-        className="hidden"
-        onChange={onFileChosen}
-        data-testid="equipment-csv-file-input"
-      />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={busy}
-        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 disabled:opacity-50"
-        data-testid="equipment-csv-import"
-      >
-        {busy
-          ? <><Loader2 size={12} className="animate-spin" /> Importing…</>
-          : <><Upload size={12} /> Import CSV</>}
-      </button>
-      {result ? (
-        <span
-          className="text-[10px] text-slate-500 ml-1 whitespace-nowrap"
-          data-testid="equipment-csv-result"
-        >
-          +{result.inserted || 0} / ⟳{result.updated || 0}
-          {(result.skipped || 0) > 0 ? ` / skip ${result.skipped}` : ''}
-        </span>
-      ) : null}
-    </div>
   );
 }

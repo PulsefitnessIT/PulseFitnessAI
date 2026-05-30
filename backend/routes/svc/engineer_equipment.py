@@ -33,7 +33,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field, field_validator
 
 from utils.auth import get_current_user
@@ -216,16 +216,27 @@ async def get_picklists(user=Depends(get_current_user)):
 async def list_engineer_equipment(
     user=Depends(get_current_user),
     site_id: Optional[str] = Query(default=None),
+    customer_id: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None, max_length=120),
     limit: int = Query(default=200, ge=1, le=1000),
+    include_unassigned: bool = Query(default=False),
 ):
-    """List the org's equipment with optional site + free-text filters.
+    """List the org's equipment scoped to **customer-owned records**.
 
-    Returns a flat projection (no ``stats`` rollup) so the mobile list
-    renders snappily over flaky-3G connections.
+    Iter 220cl — User feedback: "the engineer should only be able to
+    see equipment that has been imported into the customer's account
+    via the onboarding process". So by default we now require a
+    ``customer_id`` column on the row (set by the customer-scoped CSV
+    import or the customer-detail "Add equipment" flow). To preserve
+    the original behaviour for any code-path that still needs the
+    full org catalogue, ``include_unassigned=true`` opts back in.
     """
     of = _of(user)
     flt: dict = {**of}
+    if not include_unassigned:
+        flt["customer_id"] = {"$exists": True, "$ne": None}
+    if customer_id:
+        flt["customer_id"] = customer_id
     if site_id:
         flt["site_id"] = site_id
     if q:
@@ -246,6 +257,7 @@ async def list_engineer_equipment(
                 "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
                 "manufacturer": 1, "model": 1, "serial_number": 1,
                 "location": 1, "status": 1, "site_id": 1,
+                "customer_id": 1, "customer_name": 1,
                 "created_at": 1, "created_by_id": 1, "created_via": 1,
             },
         )
@@ -360,6 +372,183 @@ async def create_engineer_equipment(
         attached_to_case = True
 
     return {**equipment_doc, "attached_to_case": attached_to_case}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Iter 220cl — Engineer-scoped CSV template + import bound to a
+# customer record. The "Orbit 4 Asset ID" and "Sicon Equipment ID"
+# columns from the operations-portal template are intentionally
+# omitted here — those are Pulse Fitness-only fields (their stock
+# system uses them for ERP round-tripping) and don't belong on a
+# generic engineer's import.
+# ─────────────────────────────────────────────────────────────────────
+
+
+_ENGINEER_CSV_HEADERS = [
+    "Name", "Type", "Manufacturer", "Model", "Serial Number",
+    "Purchase Date (YYYY-MM-DD)", "Warranty Expiry (YYYY-MM-DD)",
+    "Length (m)", "Width (m)", "Height (m)", "Location", "Notes",
+]
+
+_ENGINEER_CSV_FIELD_MAP = {
+    "name": "Name",
+    "type": "Type",
+    "manufacturer": "Manufacturer",
+    "model": "Model",
+    "serial": "Serial Number",
+    "purchase_date": "Purchase Date (YYYY-MM-DD)",
+    "warranty": "Warranty Expiry (YYYY-MM-DD)",
+    "length": "Length (m)",
+    "width": "Width (m)",
+    "height": "Height (m)",
+    "location": "Location",
+    "notes": "Notes",
+}
+
+
+@router.get("/equipment/template-csv")
+async def get_engineer_csv_template(user=Depends(get_current_user)):
+    """Slim CSV template — no Pulse-specific integration columns.
+
+    Engineers download this from the customer-onboarding flow,
+    populate it offline at the gym, and re-upload via
+    ``POST /svc/engineer/customers/{customer_id}/equipment/import-csv``
+    so every row is auto-tagged with the right customer.
+    """
+    _of(user)  # 403 if no org context.
+    import csv as _csv
+    import io as _io
+    from fastapi.responses import Response  # local import to avoid cycle
+
+    out = _io.StringIO()
+    writer = _csv.writer(out)
+    writer.writerow(_ENGINEER_CSV_HEADERS)
+    writer.writerow([
+        "Treadmill #1", "Treadmill", "Life Fitness", "Integrity DX",
+        "LF-12345", "2024-01-15", "2027-01-15", "2.1", "0.9", "1.6",
+        "Cardio Zone", "Captured during PM visit",
+    ])
+    return Response(
+        content=out.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition":
+                "attachment; filename=equipment-import-engineer.csv",
+        },
+    )
+
+
+def _parse_engineer_csv_row(row: dict, user: dict, *, customer: dict,
+                            now: str) -> Optional[dict]:
+    """Build an equipment doc from a single engineer-template CSV row.
+    Returns None for rows missing the mandatory ``Name`` cell so we
+    skip blank trailing lines silently."""
+    fm = _ENGINEER_CSV_FIELD_MAP
+    name = (row.get(fm["name"]) or "").strip()
+    if not name:
+        return None
+    of = _of(user)
+
+    def _opt(field: str) -> Optional[str]:
+        v = (row.get(fm[field]) or "").strip()
+        return v or None
+
+    def _float(field: str) -> Optional[float]:
+        v = (row.get(fm[field]) or "").strip()
+        if not v:
+            return None
+        try:
+            return float(v)
+        except ValueError:
+            return None
+
+    return {
+        "id": str(uuid.uuid4()),
+        **of,
+        "user_id": user.get("id"),
+        "created_by_id": user.get("id"),
+        "created_via": "engineer_customer_csv",
+        "customer_id": customer.get("id"),
+        "customer_name": customer.get("name"),
+        "site_id": customer.get("site_id"),
+        "name": name[:120],
+        "equipment_type": (_opt("type") or "Other")[:80],
+        "manufacturer": _opt("manufacturer"),
+        "model": _opt("model"),
+        "serial_number": _opt("serial"),
+        "location": _opt("location"),
+        "status": "in_service",
+        "purchase_date": _opt("purchase_date"),
+        "warranty_expiry": _opt("warranty"),
+        "length": _float("length"),
+        "width": _float("width"),
+        "height": _float("height"),
+        "notes": _opt("notes"),
+        "manuals": [],
+        "stats": {},
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+@router.post("/customers/{customer_id}/equipment/import-csv")
+async def import_customer_equipment_csv(
+    customer_id: str,
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    """Bulk-create equipment rows from a slim-template CSV, all tagged
+    with the supplied ``customer_id``. The customer must belong to the
+    engineer's org. Returns ``{inserted, skipped, rows}`` so the UI
+    can show a quick result toast.
+    """
+    of = _of(user)
+    customer = await db.svc_engineer_customers.find_one(
+        {"id": customer_id, **of},
+        {"_id": 0, "id": 1, "name": 1, "site_id": 1, "site_name": 1},
+    )
+    if not customer:
+        raise HTTPException(404, "Customer not found")
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Uploaded CSV is empty")
+    if len(raw) > 2 * 1024 * 1024:
+        raise HTTPException(400, "CSV too large (max 2 MB)")
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("latin-1")
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(400, "Couldn't decode CSV") from exc
+
+    import csv as _csv
+    import io as _io
+    reader = _csv.DictReader(_io.StringIO(text))
+    now = _now()
+    rows: list[dict] = []
+    skipped = 0
+    for raw_row in reader:
+        doc = _parse_engineer_csv_row(raw_row, user, customer=customer, now=now)
+        if doc is None:
+            skipped += 1
+            continue
+        rows.append(doc)
+
+    if rows:
+        await db.equipment.insert_many(rows)
+
+    return {
+        "inserted": len(rows),
+        "skipped": skipped,
+        "customer_id": customer_id,
+        "rows": [
+            {"id": r["id"], "name": r["name"],
+             "manufacturer": r.get("manufacturer"), "model": r.get("model")}
+            for r in rows[:100]
+        ],
+    }
 
 
 async def ensure_indexes() -> None:

@@ -22213,3 +22213,86 @@ and pre-fills structured fields when editing an existing customer
 - ``backend/tests/test_iter_220cj_engineer_extras_frontend.py``
   (updated — pinned new structured testids)
 - ``Makefile`` (regression entry — TAB-indented)
+
+---
+
+## Iter 220cl — Engineer CSV Move + Customer-Only Equipment Scope (Feb 2026)
+
+### Problem
+User feedback (screenshot of Engineer Equipment tab): "Remove
+Import template and Import. On the equipment tab the engineer
+should only be able to see equipment that has been imported into
+the customer's account via the on-boarding process. Also remove
+the Orbit 4 and Sicon ID from the engineer's import only — this
+is a Pulse Fitness only feature."
+
+### Backend
+- New endpoint ``GET /api/svc/engineer/equipment/template-csv`` —
+  slim 12-column template (Name, Type, Manufacturer, Model,
+  Serial, Purchase Date, Warranty Expiry, Length/Width/Height,
+  Location, Notes). **No Orbit 4 / Sicon columns** (those stay on
+  the operations-portal template at ``/api/equipment/template/csv``
+  for Pulse Fitness use only).
+- New endpoint
+  ``POST /api/svc/engineer/customers/{customer_id}/equipment/
+  import-csv`` — bulk-creates equipment rows from the slim
+  template, all tagged with ``customer_id`` + ``customer_name`` +
+  ``created_via='engineer_customer_csv'``. 404s for cross-tenant
+  customer ids; rejects empty / > 2 MB files; silently skips blank
+  rows.
+- ``GET /api/svc/engineer/equipment`` now defaults to
+  **customer-owned rows only** (``customer_id`` exists). An
+  ``include_unassigned=true`` query param opts back into the full
+  org catalogue when needed (e.g. by legacy admin paths).
+- Equipment list projection adds ``customer_id`` and
+  ``customer_name`` so the UI can attribute each machine.
+
+### Frontend
+- ``EngineerEquipment.js`` — deleted the entire ``CsvActions``
+  component and its invocation; the page is now a read-only list
+  of customer-owned equipment.
+- ``EngineerCustomers.js`` — added a new ``CustomerEquipmentCsv``
+  component inside the active customer drawer that exposes
+  per-customer "Template" + "Import equipment" buttons. The
+  imported CSV is automatically scoped to that customer
+  (``/customers/{id}/equipment/import-csv``), so every row lands
+  in the equipment tab tagged with the right owner.
+- Wizard step 3 hint text updated to point engineers to the
+  per-customer drawer flow.
+
+### Live verification
+- ``GET .../template-csv`` returns headers
+  ``Name,Type,Manufacturer,Model,Serial Number,Purchase Date
+  (YYYY-MM-DD),Warranty Expiry (YYYY-MM-DD),Length (m),Width (m),
+  Height (m),Location,Notes`` — confirmed no Orbit 4 / Sicon.
+- ``POST .../customers/<id>/equipment/import-csv`` ingested a 2-row
+  CSV → 2 equipment rows persisted, both tagged with the customer
+  id + ``created_via='engineer_customer_csv'``.
+- ``GET .../equipment`` (default) now lists the 2 customer-owned
+  rows. Without the import they returned an empty list — proves
+  the new customer-scoping filter is active.
+
+### Test coverage
+- **18 new pytest assertions** in
+  ``backend/tests/test_iter_220cl_engineer_csv_move.py`` covering
+  template headers, list filtering (default + opt-in), per-customer
+  CSV parsing, blank-row skipping, garbage numeric coercion, 404
+  for cross-tenant, empty/large-file rejection, router
+  registrations, and frontend wiring.
+- Iter 220ci list-filter tests updated (now pass
+  ``include_unassigned=True`` since the default scoping changed).
+- Backend + frontend lint clean. 103 pytest assertions across
+  220ci/220cj/220ck/220cl all pass.
+
+### Files changed
+- ``backend/routes/svc/engineer_equipment.py`` (+~170 LOC for the
+  slim template, per-customer import, and list filter change)
+- ``backend/tests/test_iter_220cl_engineer_csv_move.py`` (new)
+- ``backend/tests/test_iter_220ci_engineer_equipment.py`` (updated
+  for the new default list-filter signature)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerEquipment.js``
+  (removed CsvActions component + Download/Upload imports)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js``
+  (added CustomerEquipmentCsv component in customer drawer,
+  added Download/Upload icon imports, wizard hint text updated)
+- ``Makefile`` (regression entry — TAB-indented)

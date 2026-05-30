@@ -15,7 +15,7 @@ import {
   ArrowLeft, Users, Plus, Search, Loader2, Mail, Phone, MapPin,
   Trash2, Edit3, Save, X, Wrench, FileText, CalendarClock,
   ReceiptPoundSterling as Receipt, Building2, CheckCircle2, AlertTriangle,
-  ChevronRight,
+  ChevronRight, Download, Upload,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -586,6 +586,8 @@ export default function EngineerCustomers() {
                       >
                         <FileText size={12} /> Use in quote
                       </button>
+                      {/* Iter 220cl — Per-customer equipment CSV import. */}
+                      <CustomerEquipmentCsv customer={row} onImported={load} />
                       <button
                         type="button"
                         onClick={() => openEdit(row)}
@@ -844,8 +846,8 @@ export default function EngineerCustomers() {
                     <Wrench size={12} className="mt-0.5 flex-shrink-0 text-slate-400" />
                     <span>
                       Need to import dozens of machines? Save this customer, then open the
-                      Equipment tab and use <strong>Template</strong> + <strong>Import CSV</strong>
-                      to upload them in bulk.
+                      customer's drawer and use <strong>Template</strong> + <strong>Import
+                      equipment</strong> to upload them in bulk against this customer.
                     </span>
                   </div>
                 </div>
@@ -886,5 +888,108 @@ export default function EngineerCustomers() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Iter 220cl — Per-customer equipment CSV (slim template, no Pulse-
+// only columns). Lives on the customer-detail drawer so every
+// imported row is auto-tagged with this customer's id by the
+// backend, which is what makes ``/svc/engineer/equipment`` only
+// surface customer-owned rows.
+// ─────────────────────────────────────────────────────────────────────
+
+function CustomerEquipmentCsv({ customer, onImported }) {
+  const inputRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+
+  const onDownload = async () => {
+    try {
+      const r = await axios.get(`${API}/svc/engineer/equipment/template-csv`, {
+        ...auth(), responseType: 'blob',
+      });
+      const blob = new Blob([r.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `equipment-import-${customer.id}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      notify.success('Template downloaded');
+    } catch (err) {
+      notify.error('Could not download template',
+                   err?.response?.data?.detail || err?.message);
+    }
+  };
+
+  const onFileChosen = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      notify.error('CSV too large (max 2 MB)');
+      return;
+    }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await axios.post(
+        `${API}/svc/engineer/customers/${customer.id}/equipment/import-csv`,
+        fd,
+        {
+          ...auth(),
+          headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
+        },
+      );
+      const ins = r.data?.inserted || 0;
+      const skip = r.data?.skipped || 0;
+      notify.success(
+        `Imported ${ins} machine${ins === 1 ? '' : 's'}` +
+        (skip > 0 ? ` · ${skip} blank row${skip === 1 ? '' : 's'} skipped` : ''),
+      );
+      onImported?.();
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      notify.error('Import failed', Array.isArray(detail)
+        ? detail.map((d) => d.msg || d.loc?.join('.')).join(', ')
+        : (detail || err?.message));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onDownload}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold"
+        data-testid={`customer-csv-template-${customer.id}`}
+      >
+        <Download size={12} /> Template
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={onFileChosen}
+        data-testid={`customer-csv-file-${customer.id}`}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+        data-testid={`customer-csv-import-${customer.id}`}
+      >
+        {busy
+          ? <><Loader2 size={12} className="animate-spin" /> Importing…</>
+          : <><Upload size={12} /> Import equipment</>}
+      </button>
+    </>
   );
 }
