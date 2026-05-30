@@ -42,6 +42,7 @@ const OpsBilling   = lazy(() => import('./ServiceOps/BillingPage'));
 const OpsEngineers = lazy(() => import('./ServiceOps/EngineersAdminPage'));
 const OpsReports   = lazy(() => import('./ServiceOps/ServiceOpsReportsPage'));
 const OpsSafety    = lazy(() => import('./ServiceOps/SafetyTemplateAdmin'));
+const OpsCompliance = lazy(() => import('./ServiceOps/ComplianceAdmin'));
 
 // Sidebar order — matches Lee's spec verbatim.
 const TABS = [
@@ -61,6 +62,7 @@ const INSIGHTS_TABS = [
   { id: 'suppliers',  label: 'Supplier health', icon: TrendingDown },
   { id: 'reports',    label: 'Reports',         icon: ScrollText },
   { id: 'safety',     label: 'H&S checklist',   icon: ShieldCheck },
+  { id: 'compliance', label: 'Compliance',      icon: ShieldCheck },
   { id: 'audit',      label: 'Audit log',       icon: ScrollText },
 ];
 
@@ -148,6 +150,12 @@ export default function ServiceDeskPage() {
         return (
           <ServiceOpsEmbeddedContext.Provider value={true}>
             <Suspense fallback={<EmbedFallback />}><OpsSafety /></Suspense>
+          </ServiceOpsEmbeddedContext.Provider>
+        );
+      case 'compliance':
+        return (
+          <ServiceOpsEmbeddedContext.Provider value={true}>
+            <Suspense fallback={<EmbedFallback />}><OpsCompliance /></Suspense>
           </ServiceOpsEmbeddedContext.Provider>
         );
       default:

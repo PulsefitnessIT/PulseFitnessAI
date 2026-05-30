@@ -1,3 +1,76 @@
+## Iter 220di — Admin UI: PTW templates + COSHH register ✅ (May 30, 2026)
+
+Operator-facing React page that turns the Iter 220de lazy-seeded
+compliance defaults into something the safety officer can actually
+manage. Two tabs (Permit to Work, COSHH register) backed by the
+already-shipped API; no backend changes.
+
+### Frontend — `ServiceOps/ComplianceAdmin.js` (new)
+
+**Page structure**
+- Single embedded admin page with two tabs:
+  - `compliance-admin-tab-ptw` — Permit-to-Work templates.
+  - `compliance-admin-tab-coshh` — COSHH chemicals register.
+- Lives behind the **Compliance** footer item on `ServiceDeskPage`
+  (`INSIGHTS_TABS`), next to the H&S checklist editor — same
+  audience, same "compliance officer" hat.
+
+**PTW templates tab**
+- Add-template form: name, hazard category dropdown (loaded from
+  `/svc/compliance/ptw/templates.categories`), validity hours
+  (1–72), repeatable hazards + controls editors (`+ Add`, per-row
+  `X`). Client-side blank/empty filtering before POST.
+- List view: icon, name, hazard category, validity, hazard/control
+  counts. Per-row trash → confirm modal (warns existing requests
+  stay unaffected).
+
+**COSHH register tab**
+- Add-chemical form: name, supplier, hazard class dropdown
+  (loaded from `/svc/compliance/coshh.hazard_classes`), SDS URL
+  (optional), controls textarea.
+- List view: name, hazard class, supplier, controls preview,
+  one-tap link to SDS, retired counts. Soft-delete via existing
+  DELETE endpoint (sets `active=false`); retired entries dim &
+  hide their action button.
+- Confirm modal warns engineers won't see retired entries on new
+  jobs but past usage records are immutable.
+
+**Shared**
+- `DraftListEditor` reused across hazards + controls.
+- `ConfirmModal` reused across both delete confirmations with
+  test-id-pass-through (`{testId}-confirm`, `{testId}-cancel`).
+- All test IDs stable for fork-testing-agent.
+
+### `ServiceDeskPage.js` wiring
+- New `OpsCompliance` lazy import + `compliance` insights tab +
+  `case 'compliance':` route.
+
+### Tests / lint
+- `tests/test_iter_220di_compliance_admin_ui.py` — **7 tests** green:
+  - Component exists with both sub-components + default export.
+  - All 4 backend endpoints wired (POST/DELETE on both surfaces).
+  - 23 stable test IDs (literal + prop-passed) — pinned.
+  - `ServiceDeskPage` mounts the new tab.
+  - Backend prereqs still return expected `items` + `categories`/
+    `hazard_classes` payloads.
+  - COSHH delete is soft (`active=false`), not destructive — pinned.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c+220d suite: **89/89 green**.
+- Frontend ESLint clean.
+- Live end-to-end (Master-Admin token): GET returns 3 PTW
+  templates / 8 categories / 3 COSHH entries / 8 hazard classes.
+
+### Out of scope (deferred)
+- CSV import / export for PTW + COSHH (the H&S checklist admin has
+  this; could be cloned 1:1 in a quick follow-on).
+- Bulk import from an existing PTW PDF library (would need an LLM
+  parser; Emergent LLM key candidate).
+- Per-site overrides (current scope is org-level; multi-site chains
+  could need site-specific COSHH lists for refrigerants etc.).
+
+---
+
+
 ## Iter 220dh — Master-Admin unified Pending Review queue ✅ (May 30, 2026)
 
 A single inbox that surfaces every item needing Master-Admin action
