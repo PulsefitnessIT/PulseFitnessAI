@@ -1,3 +1,73 @@
+## Iter 220dj — Compliance evidence pack on service-report PDF ✅ (May 30, 2026)
+
+Every customer-facing service report now ships with a full audit
+trail of the safety / regulatory work the engineer did on the
+visit. Closes the loop opened by Iter 220de — the compliance pack
+data was being captured per case but never surfaced to the
+customer. This turns "we recorded it internally" into a tender-
+winning evidence pack.
+
+### Backend — `routes/svc/service_report.py`
+
+**`_gather_report_data` (extended)**
+- Pulls per-case `svc_ptw_requests` filtered to `status ∈ {issued,
+  completed}` (a stale "requested" permit isn't customer-visible
+  evidence).
+- Pulls per-case `svc_loto_checklists` (all of them — every isolation
+  signoff is evidence).
+- Pulls per-case `svc_coshh_usage` rows (which already snapshot the
+  chemical name + hazard class onto the usage doc, so the PDF
+  stays consistent even if the register entry is later renamed).
+- Includes a `loto_step_labels` map derived from `compliance.DEFAULT_LOTO_STEPS`
+  so the report can render human-readable step text from the stored
+  step IDs.
+
+**`_build_pdf` (new section)**
+- Renders a **COMPLIANCE EVIDENCE PACK** block between the existing
+  H&S signoff and the customer-rating star strip.
+- Three sub-blocks render independently — each only appears when
+  data exists. No empty headers, no orphaned dividers:
+  - **Permit to Work**: emerald "✓ completed" or blue "✓ issued"
+    chip + template name + hazard category + validity window + issuer.
+  - **Lockout / Tagout**: per-checklist line with engineer +
+    timestamp + step count + comma-separated tick labels (humanized
+    via `loto_step_labels`) + energy sources.
+  - **COSHH usage**: per-record line with engineer + timestamp +
+    chemical names with hazard classes + free-text notes (if any).
+- Entire section omitted when there is zero compliance data on
+  the case (so unrelated 5-minute callouts stay clean).
+
+### Tests / lint
+- `tests/test_iter_220dj_report_compliance_pack.py` — **7 tests** green:
+  - `_gather_report_data` PTW filter is pinned to `issued + completed`.
+  - All three buckets + `loto_step_labels` returned together.
+  - Empty case returns three empty buckets.
+  - `_build_pdf` renders full section when all three present
+    (pdf-text extracted via `pypdf` to assert literal content).
+  - PDF omits the section header entirely when no records exist.
+  - Partial data (LOTO only) renders just the present block.
+  - `DEFAULT_LOTO_STEPS` regression guard (required step IDs pinned).
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c+220d suite: **96/96 green**.
+- Existing service_report regression suite: **10/10 still green**.
+- Backend ruff clean.
+- Live smoke: `/svc/cases/x/service-report.pdf` → 401 (registered).
+
+### Out of scope (deferred)
+- Per-visit photo evidence for each PTW / COSHH record (we have
+  one global photos block; could attach per-permit photos if
+  tenders demand them).
+- Cryptographic signing of the PDF for non-repudiation
+  (Iter 220ad/ae already cover org-key signing for trust documents
+  — same machinery could sign service reports).
+- Customer email delivery template now references the evidence
+  pack ("Your engineer's permit-to-work + LOTO + COSHH evidence
+  is attached") — small content tweak; deferred for an operator
+  copy review.
+
+---
+
+
 ## Iter 220di — Admin UI: PTW templates + COSHH register ✅ (May 30, 2026)
 
 Operator-facing React page that turns the Iter 220de lazy-seeded

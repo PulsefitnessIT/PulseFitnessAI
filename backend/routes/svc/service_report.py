@@ -104,6 +104,31 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
     safety_signoff = await db.svc_case_safety_signoffs.find_one(
         {"case_id": case_id, **of}, {"_id": 0}, sort=[("signed_at", -1)],
     )
+    # Iter 220dj — Compliance evidence pack (PTW / LOTO / COSHH).
+    # All three were captured per-case by Iter 220de; we surface
+    # them on the customer-facing PDF so each visit ships with a
+    # complete audit trail. Only issued/completed PTWs are shown
+    # (a stale "requested" permit isn't evidence of anything).
+    ptw_records = await db.svc_ptw_requests.find(
+        {"case_id": case_id, **of,
+         "status": {"$in": ["issued", "completed"]}},
+        {"_id": 0, "template_name": 1, "hazard_category": 1,
+         "status": 1, "valid_from": 1, "valid_until": 1, "completed_at": 1,
+         "issued_by_name": 1, "requested_by_name": 1, "hazards_noted": 1,
+         "completed_by_id": 1},
+    ).sort([("issued_at", 1)]).to_list(20)
+    loto_records = await db.svc_loto_checklists.find(
+        {"case_id": case_id, **of}, {"_id": 0},
+    ).sort([("completed_at", 1)]).to_list(20)
+    coshh_records = await db.svc_coshh_usage.find(
+        {"case_id": case_id, **of}, {"_id": 0},
+    ).sort([("recorded_at", 1)]).to_list(20)
+    # Default LOTO step labels (Iter 220de) so we can render checked
+    # boxes even when the snapshot didn't preserve labels.
+    loto_step_labels = {
+        s["id"]: s["label"]
+        for s in __import__("routes.svc.compliance", fromlist=["DEFAULT_LOTO_STEPS"]).DEFAULT_LOTO_STEPS
+    }
     # Get post-visit rating if captured (iter 216h81).
     rating = case.get("customer_rating")
     rating_comment = case.get("customer_rating_comment")
@@ -143,6 +168,10 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         "org": org,
         "engineer": engineer,
         "safety_signoff": safety_signoff,
+        "ptw_records": ptw_records,
+        "loto_records": loto_records,
+        "coshh_records": coshh_records,
+        "loto_step_labels": loto_step_labels,
         "rating": rating,
         "rating_comment": rating_comment,
         "custom_field_defs": custom_field_defs,
@@ -203,6 +232,11 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     rating = payload["rating"]
     rating_comment = payload["rating_comment"]
     safety = payload.get("safety_signoff")
+    # Iter 220dj — Compliance evidence pack pulled per case.
+    ptw_records = payload.get("ptw_records") or []
+    loto_records = payload.get("loto_records") or []
+    coshh_records = payload.get("coshh_records") or []
+    loto_step_labels = payload.get("loto_step_labels") or {}
     # Iter 220i — engineer override beats org default for brand colour.
     eng_brand = payload.get("engineer_branding") or {}
     brand_primary = _hex(
@@ -607,6 +641,88 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
         )
         story.append(Paragraph(meta, muted))
         story.append(Spacer(1, 3 * mm))
+
+    # ── Iter 220dj — Compliance evidence pack ───────────────────
+    # Customer-facing audit trail of every safety/regulatory hurdle
+    # the engineer cleared on this visit. Mandatory for MOD / NHS /
+    # national-chain contracts; high-value differentiator on tenders.
+    if ptw_records or loto_records or coshh_records:
+        story.append(Paragraph("COMPLIANCE EVIDENCE PACK", h_section))
+        # PTW
+        if ptw_records:
+            ptw_lines = []
+            for p in ptw_records:
+                hz = (p.get("hazard_category") or "").replace("_", " ")
+                status_chip = (
+                    "<font color='#10b981'><b>✓ completed</b></font>"
+                    if p.get("status") == "completed"
+                    else "<font color='#0369a1'><b>✓ issued</b></font>"
+                )
+                valid = ""
+                if p.get("valid_until"):
+                    valid = (
+                        f" · valid until {_fmt_date(p.get('valid_until'))}"
+                    )
+                issuer = p.get("issued_by_name") or "Admin"
+                ptw_lines.append(
+                    f"{status_chip}&nbsp;"
+                    f"<b>{(p.get('template_name') or 'Permit')}</b>"
+                    f" <font color='#64748B'>({hz})</font>{valid}"
+                    f" · issued by {issuer}"
+                )
+            story.append(Paragraph(
+                "<b>Permit to Work</b><br/>" + "<br/>".join(ptw_lines), body,
+            ))
+            story.append(Spacer(1, 2 * mm))
+        # LOTO
+        if loto_records:
+            loto_lines = []
+            for rec in loto_records:
+                ticked = list(rec.get("ticked_step_ids") or [])
+                labels = [
+                    loto_step_labels.get(t, t).replace("&", "&amp;")
+                    for t in ticked
+                ]
+                step_str = (
+                    ", ".join(labels) if labels else "no steps recorded"
+                )
+                eng = rec.get("engineer_name") or "Engineer"
+                energy = ", ".join(rec.get("energy_sources") or [])
+                energy_html = f" · energy: <i>{energy}</i>" if energy else ""
+                loto_lines.append(
+                    f"<font color='#10b981'>✓</font>&nbsp;"
+                    f"<b>{eng}</b> "
+                    f"<font color='#64748B'>at {_fmt_date(rec.get('completed_at'))}</font>"
+                    f" — {len(ticked)} steps ticked{energy_html}"
+                    f"<br/><font size='8' color='#64748B'>{step_str}</font>"
+                )
+            story.append(Paragraph(
+                "<b>Lockout / Tagout</b><br/>" + "<br/>".join(loto_lines), body,
+            ))
+            story.append(Spacer(1, 2 * mm))
+        # COSHH
+        if coshh_records:
+            coshh_lines = []
+            for u in coshh_records:
+                chems = [
+                    f"{e.get('name', '')} <font color='#64748B'>({e.get('hazard_class', '')})</font>"
+                    for e in (u.get("entries") or [])
+                ]
+                eng = u.get("engineer_name") or "Engineer"
+                coshh_lines.append(
+                    f"<font color='#10b981'>✓</font>&nbsp;"
+                    f"<b>{eng}</b> "
+                    f"<font color='#64748B'>at {_fmt_date(u.get('recorded_at'))}</font>"
+                    f": {', '.join(chems) if chems else 'no chemicals'}"
+                    + (f"<br/><font size='8' color='#64748B'>{u['notes']}</font>"
+                       if u.get("notes") else "")
+                )
+            story.append(Paragraph(
+                "<b>COSHH usage</b><br/>" + "<br/>".join(coshh_lines), body,
+            ))
+            story.append(Spacer(1, 3 * mm))
+        else:
+            story.append(Spacer(1, 1 * mm))
 
     # ── Customer rating (h81) ─────────────────────────────────────
     if rating:
