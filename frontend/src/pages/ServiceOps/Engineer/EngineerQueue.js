@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, RefreshCw, Loader2, AlertTriangle, Clock, MapPin,
   Hand, CheckCircle2, X, ShieldCheck, Navigation, Crosshair,
+  Wrench, Building2, Camera, FileText, PoundSterling,
 } from 'lucide-react';
 import { List } from 'react-window';
 import { notify } from '@/components/notifications';
@@ -157,13 +158,214 @@ const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
   );
 };
 
+// ── Iter 220cj — Preview an unassigned job before claiming ──────────
+// Mobile-first detail sheet. Tap "View details" on a queue row to
+// pull richer context (site address, equipment lines, potential value
+// from any open quote, photo/event count) before deciding to claim.
+const PreviewModal = ({ job, onClose, onClaim }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!job?.id) { setData(null); return; }
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    (async () => {
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/queue/${job.id}/preview`, auth(),
+        );
+        if (!cancelled) setData(r.data);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e?.response?.data?.detail || e?.message || 'Failed to load');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [job?.id]);
+
+  if (!job) return null;
+  const c = data?.case || job;
+  const equipment = data?.site_equipment || [];
+  const potential = data?.potential_value;
+  const fmtGbp = (n) => new Intl.NumberFormat('en-GB', {
+    style: 'currency', currency: potential?.currency || 'GBP',
+    maximumFractionDigits: 0,
+  }).format(Number(n) || 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      data-testid="queue-preview-modal"
+    >
+      <div className="bg-white w-full sm:max-w-lg max-h-[92vh] sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-slate-200 flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              {c.reference || job.reference} · {c.priority || job.priority || 'P3'}
+            </p>
+            <h2 className="text-base font-bold text-slate-900 truncate">{c.title || job.title}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50"
+            aria-label="Close"
+            data-testid="queue-preview-close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          {loading ? (
+            <div className="flex items-center justify-center py-8 text-slate-400">
+              <Loader2 size={14} className="animate-spin mr-2" /> Loading job…
+            </div>
+          ) : error ? (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-700 flex items-start gap-2" data-testid="queue-preview-error">
+              <AlertTriangle size={12} className="mt-0.5" />
+              <p>{error}</p>
+            </div>
+          ) : (
+            <>
+              {/* Site */}
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Site</p>
+                <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <Building2 size={12} /> {c.site_name || c.customer_name || 'Site TBC'}
+                </p>
+                {(c.site_address || c.site_postcode) && (
+                  <p className="text-xs text-slate-600 mt-0.5 flex items-start gap-1">
+                    <MapPin size={11} className="mt-0.5 flex-shrink-0" />
+                    <span className="leading-snug">
+                      {c.site_address}{c.site_address && c.site_postcode ? ', ' : ''}{c.site_postcode}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              {/* Potential value */}
+              {potential && potential.total > 0 ? (
+                <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200" data-testid="queue-preview-potential-value">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Potential value</p>
+                  <p className="text-lg font-bold text-emerald-800 flex items-center gap-1">
+                    <PoundSterling size={14} /> {fmtGbp(potential.total)}
+                  </p>
+                  <p className="text-[11px] text-emerald-700 mt-0.5">
+                    Open quote · {potential.quote_status}
+                  </p>
+                </div>
+              ) : null}
+
+              {/* Fault description */}
+              {c.description ? (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Fault description</p>
+                  <p className="text-sm text-slate-800 whitespace-pre-wrap leading-snug">{c.description}</p>
+                </div>
+              ) : null}
+
+              {/* Asset */}
+              {(c.asset_name || c.asset_serial) ? (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Reported asset</p>
+                  <p className="text-sm text-slate-800 flex items-center gap-1">
+                    <Wrench size={12} /> {c.asset_name || ''} {c.asset_serial ? <span className="font-mono text-xs text-slate-500">· SN {c.asset_serial}</span> : null}
+                  </p>
+                </div>
+              ) : null}
+
+              {/* Site equipment lines */}
+              {equipment.length > 0 ? (
+                <div data-testid="queue-preview-site-equipment">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Site equipment ({equipment.length})
+                  </p>
+                  <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
+                    {equipment.slice(0, 6).map((eq) => (
+                      <li key={eq.id} className="px-3 py-1.5 text-xs flex items-center gap-2">
+                        <Wrench size={11} className="text-slate-400 flex-shrink-0" />
+                        <span className="truncate">
+                          <span className="font-semibold text-slate-800">{eq.name}</span>
+                          {eq.manufacturer ? <span className="text-slate-500"> · {eq.manufacturer}</span> : null}
+                          {eq.model ? <span className="text-slate-500"> {eq.model}</span> : null}
+                        </span>
+                        {eq.serial_number ? <span className="font-mono text-[10px] text-slate-400 ml-auto truncate">SN {eq.serial_number}</span> : null}
+                      </li>
+                    ))}
+                    {equipment.length > 6 ? (
+                      <li className="px-3 py-1.5 text-[11px] text-slate-500">+ {equipment.length - 6} more after claiming</li>
+                    ) : null}
+                  </ul>
+                </div>
+              ) : null}
+
+              {/* Meta strip */}
+              <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-500">
+                {c.estimated_minutes ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-white">
+                    <Clock size={10} /> Est. {Math.floor(c.estimated_minutes / 60)}h{c.estimated_minutes % 60 ? ` ${c.estimated_minutes % 60}m` : ''}
+                  </span>
+                ) : null}
+                {(data?.photos_count || 0) > 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-white">
+                    <Camera size={10} /> {data.photos_count} photo{data.photos_count === 1 ? '' : 's'}
+                  </span>
+                ) : null}
+                {(data?.events_count || 0) > 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-white">
+                    <FileText size={10} /> {data.events_count} note{data.events_count === 1 ? '' : 's'}
+                  </span>
+                ) : null}
+                {c.intake_channel ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-white">
+                    via {c.intake_channel}
+                  </span>
+                ) : null}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-slate-200 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 border border-slate-300 rounded-xl py-2 text-sm font-semibold"
+            data-testid="queue-preview-cancel"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={() => onClaim?.(job)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 text-sm font-bold inline-flex items-center justify-center gap-1.5"
+            data-testid="queue-preview-allocate"
+          >
+            <Hand size={12} /> Allocate to me
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Row ──────────────────────────────────────────────────────
 // Iter 216h176 — Row signature adapted for react-window v2.
 // react-window calls `rowComponent({ index, style, ariaAttributes, ...rowProps })`
 // for each visible row; we accept the full props bag, look up the
 // job by index from the `jobs` array, and apply the absolute-positioned
 // `style` the windowing engine hands us.
-const Row = ({ index, style, ariaAttributes, jobs, onClaim, viewMode, showDistance }) => {
+const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, viewMode, showDistance }) => {
   const job = jobs[index];
   if (!job) return null;
   // Iter 220p — "My gyms" rows are supplier_cases routed via the
@@ -254,14 +456,24 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, viewMode, showDistan
         Open ticket
       </a>
     ) : (
-      <button
-        type="button"
-        onClick={() => onClaim && onClaim(job)}
-        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 flex-shrink-0"
-        data-testid={`queue-claim-${rowKey}`}
-      >
-        <Hand size={12} /> Allocate to me
-      </button>
+      <div className="flex flex-col gap-1.5 items-end flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => onClaim && onClaim(job)}
+          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5"
+          data-testid={`queue-claim-${rowKey}`}
+        >
+          <Hand size={12} /> Allocate to me
+        </button>
+        <button
+          type="button"
+          onClick={() => onPreview && onPreview(job)}
+          className="text-blue-700 hover:bg-blue-50 text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
+          data-testid={`queue-preview-${rowKey}`}
+        >
+          View details →
+        </button>
+      </div>
     )}
   </div>
   );
@@ -275,6 +487,7 @@ export default function EngineerQueue() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [claimFor, setClaimFor] = useState(null);
+  const [previewFor, setPreviewFor] = useState(null);
   const [claimBusy, setClaimBusy] = useState(false);
   const [sortMode, setSortMode] = useState('default');   // 'default' | 'nearest'
   const [origin, setOrigin] = useState(null);            // { lat, lon } | { postcode }
@@ -594,6 +807,7 @@ export default function EngineerQueue() {
                   ariaAttributes={{}}
                   jobs={filtered}
                   onClaim={viewMode === 'my-gyms' ? null : setClaimFor}
+                  onPreview={viewMode === 'my-gyms' ? null : setPreviewFor}
                   viewMode={viewMode}
                   showDistance={sortMode === 'nearest'}
                 />
@@ -612,6 +826,7 @@ export default function EngineerQueue() {
                 rowProps={{
                   jobs: filtered,
                   onClaim: viewMode === 'my-gyms' ? null : setClaimFor,
+                  onPreview: viewMode === 'my-gyms' ? null : setPreviewFor,
                   viewMode,
                   showDistance: sortMode === 'nearest',
                 }}
@@ -636,6 +851,11 @@ export default function EngineerQueue() {
         onClose={() => setClaimFor(null)}
         onConfirm={onClaim}
         busy={claimBusy}
+      />
+      <PreviewModal
+        job={previewFor}
+        onClose={() => setPreviewFor(null)}
+        onClaim={(j) => { setPreviewFor(null); setClaimFor(j); }}
       />
     </div>
   );

@@ -8,13 +8,13 @@
  *
  * Routes: GET/POST/PATCH/DELETE /api/svc/engineer/customers
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   ArrowLeft, Users, Plus, Search, Loader2, Mail, Phone, MapPin,
   Trash2, Edit3, Save, X, Wrench, FileText, CalendarClock,
-  ReceiptPoundSterling as Receipt,
+  ReceiptPoundSterling as Receipt, Building2, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -76,6 +76,86 @@ export default function EngineerCustomers() {
   const [activeId, setActiveId] = useState(null);
   const [activeDetail, setActiveDetail] = useState(null); // { id, recent_quotes, recent_invoices }
   const [activeDetailLoading, setActiveDetailLoading] = useState(false);
+  // Iter 220cj — Companies House lookup + per-field validation.
+  const [formErrors, setFormErrors] = useState({});
+  const [chQuery, setChQuery] = useState('');
+  const [chResults, setChResults] = useState([]);
+  const [chLoading, setChLoading] = useState(false);
+  const [chEnabled, setChEnabled] = useState(false);
+  const [chPicked, setChPicked] = useState(null);
+  const chDebRef = useRef(null);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/account/companies-house/status`, auth());
+        if (!cancel) setChEnabled(Boolean(r.data?.enabled));
+      } catch {
+        if (!cancel) setChEnabled(false);
+      }
+    })();
+    return () => { cancel = true; };
+  }, []);
+
+  const runChSearch = async (q) => {
+    if (!chEnabled || !q || q.trim().length < 2) {
+      setChResults([]);
+      return;
+    }
+    setChLoading(true);
+    try {
+      const r = await axios.get(`${API}/account/companies-house/search`, {
+        ...auth(), params: { q: q.trim(), limit: 8 },
+      });
+      setChResults(r.data?.items || []);
+    } catch {
+      setChResults([]);
+    } finally {
+      setChLoading(false);
+    }
+  };
+
+  const onChQueryChange = (v) => {
+    setChQuery(v);
+    if (chDebRef.current) clearTimeout(chDebRef.current);
+    chDebRef.current = setTimeout(() => runChSearch(v), 250);
+  };
+
+  const pickFromCh = async (item) => {
+    try {
+      const r = await axios.get(
+        `${API}/account/companies-house/company/${item.company_number}`,
+        auth(),
+      );
+      const profile = r.data || {};
+      // Companies House profile returns `registered_office_address`
+      // (snake-case object) when configured. Stringify lightly.
+      const addr = profile.registered_office_address || profile.address || {};
+      const addressStr = [
+        addr.address_line_1, addr.address_line_2, addr.locality,
+        addr.region, addr.postal_code,
+      ].filter(Boolean).join(', ');
+      setForm((f) => ({
+        ...f,
+        name: profile.company_name || item.company_name || f.name,
+        site_address: addressStr || f.site_address,
+        company_number: item.company_number,
+      }));
+      setChPicked({
+        company_number: item.company_number,
+        company_name: profile.company_name || item.company_name,
+        status: profile.company_status || item.company_status,
+      });
+      setFormErrors((er) => ({ ...er, name: undefined, site_address: undefined }));
+      setChResults([]);
+      setChQuery('');
+      notify.success(`Filled from Companies House · ${item.company_name}`);
+    } catch (err) {
+      notify.error('Companies House lookup failed',
+                   err?.response?.data?.detail || err?.message);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,25 +201,44 @@ export default function EngineerCustomers() {
     setShowForm(false);
     setForm(EMPTY_FORM);
     setEditId(null);
+    setFormErrors({});
+    setChQuery('');
+    setChResults([]);
+    setChPicked(null);
   };
 
   const save = async () => {
-    if (!form.name.trim()) {
-      notify.error('Customer name is required');
+    // Iter 220cj — strict CRM-parity validation. Engineers can no
+    // longer save a partial customer; the New Customer modal now
+    // matches the CRM Add Customer form for data hygiene.
+    const errs = {};
+    if (!form.name.trim()) errs.name = 'Required';
+    const email = form.email.trim();
+    if (!email) errs.email = 'Required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email';
+    const phone = form.phone.trim();
+    if (!phone) errs.phone = 'Required';
+    else if (phone.replace(/[^0-9]/g, '').length < 7) errs.phone = 'Enter a valid phone';
+    if (!form.site_name.trim()) errs.site_name = 'Required';
+    if (!form.site_address.trim()) errs.site_address = 'Required';
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      notify.error('Please fix the highlighted fields');
       return;
     }
     setSaving(true);
     try {
       const payload = {
         name: form.name.trim(),
-        email: form.email.trim() || null,
-        phone: form.phone.trim() || null,
+        email: email || null,
+        phone: phone || null,
         site_name: form.site_name.trim() || null,
         site_address: form.site_address.trim() || null,
         notes: form.notes.trim() || null,
         equipment_list: form.equipment_list
           .split('\n').map((s) => s.trim()).filter(Boolean),
       };
+      if (form.company_number) payload.company_number = form.company_number;
       if (editId) {
         await axios.patch(`${API}/svc/engineer/customers/${editId}`, payload, auth());
         notify.success('Customer updated');
@@ -452,28 +551,116 @@ export default function EngineerCustomers() {
               </button>
             </header>
             <div className="p-4 space-y-3">
-              <Field label="Name *" value={form.name}
-                     onChange={(v) => setForm({ ...form, name: v })}
-                     placeholder="Acme Gyms Ltd"
-                     testid="customer-form-name" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Email" type="email" value={form.email}
-                       onChange={(v) => setForm({ ...form, email: v })}
-                       placeholder="manager@acme.co.uk"
-                       testid="customer-form-email" />
-                <Field label="Phone" value={form.phone}
-                       onChange={(v) => setForm({ ...form, phone: v })}
-                       placeholder="+44 …"
-                       testid="customer-form-phone" />
+              {/* Iter 220cj — Companies House lookup. Type to search;
+                  click a result to auto-fill Name + Address. */}
+              {chEnabled && !editId ? (
+                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3" data-testid="customer-form-ch-block">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 size={14} className="text-emerald-700" />
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                      Companies House lookup
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700/60 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={chQuery}
+                      onChange={(e) => onChQueryChange(e.target.value)}
+                      placeholder="Search company name or number…"
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      data-testid="customer-form-ch-search"
+                    />
+                  </div>
+                  {chLoading ? (
+                    <p className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1">
+                      <Loader2 size={11} className="animate-spin" /> Searching…
+                    </p>
+                  ) : null}
+                  {chResults.length > 0 ? (
+                    <div className="mt-2 max-h-44 overflow-y-auto bg-white border border-emerald-200 rounded-lg divide-y divide-emerald-100" data-testid="customer-form-ch-results">
+                      {chResults.map((item) => (
+                        <button
+                          type="button"
+                          key={item.company_number}
+                          onClick={() => pickFromCh(item)}
+                          className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-sm"
+                          data-testid={`customer-form-ch-pick-${item.company_number}`}
+                        >
+                          <div className="font-bold text-slate-900 truncate">{item.company_name}</div>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                            <span className="font-mono">Co. {item.company_number}</span>
+                            {item.address_snippet ? <span className="truncate">· {item.address_snippet}</span> : null}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {chPicked ? (
+                    <div className="mt-2 text-[11px] text-emerald-800 flex items-center gap-1" data-testid="customer-form-ch-picked">
+                      <CheckCircle2 size={11} /> Verified: {chPicked.company_name} (Co. {chPicked.company_number})
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div>
+                <Field label="Name *" value={form.name}
+                       onChange={(v) => { setForm({ ...form, name: v }); if (formErrors.name) setFormErrors({ ...formErrors, name: undefined }); }}
+                       placeholder="Acme Gyms Ltd"
+                       testid="customer-form-name" />
+                {formErrors.name && (
+                  <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-name-error">
+                    <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.name}
+                  </p>
+                )}
               </div>
-              <Field label="Site name" value={form.site_name}
-                     onChange={(v) => setForm({ ...form, site_name: v })}
-                     placeholder="Acme Gym · Leeds"
-                     testid="customer-form-site-name" />
-              <Field label="Site address" multiline value={form.site_address}
-                     onChange={(v) => setForm({ ...form, site_address: v })}
-                     placeholder="12 Industrial Way, Leeds LS10 1AB"
-                     testid="customer-form-site-address" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Field label="Email *" type="email" value={form.email}
+                         onChange={(v) => { setForm({ ...form, email: v }); if (formErrors.email) setFormErrors({ ...formErrors, email: undefined }); }}
+                         placeholder="manager@acme.co.uk"
+                         testid="customer-form-email" />
+                  {formErrors.email && (
+                    <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-email-error">
+                      <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.email}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Field label="Phone *" value={form.phone}
+                         onChange={(v) => { setForm({ ...form, phone: v }); if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined }); }}
+                         placeholder="+44 …"
+                         testid="customer-form-phone" />
+                  {formErrors.phone && (
+                    <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-phone-error">
+                      <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Field label="Site name *" value={form.site_name}
+                       onChange={(v) => { setForm({ ...form, site_name: v }); if (formErrors.site_name) setFormErrors({ ...formErrors, site_name: undefined }); }}
+                       placeholder="Acme Gym · Leeds"
+                       testid="customer-form-site-name" />
+                {formErrors.site_name && (
+                  <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-site-name-error">
+                    <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.site_name}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Field label="Site address *" multiline value={form.site_address}
+                       onChange={(v) => { setForm({ ...form, site_address: v }); if (formErrors.site_address) setFormErrors({ ...formErrors, site_address: undefined }); }}
+                       placeholder="12 Industrial Way, Leeds LS10 1AB"
+                       testid="customer-form-site-address" />
+                {formErrors.site_address && (
+                  <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-site-address-error">
+                    <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.site_address}
+                  </p>
+                )}
+              </div>
               <Field label="Equipment list (one per line)" multiline value={form.equipment_list}
                      onChange={(v) => setForm({ ...form, equipment_list: v })}
                      placeholder="Life Fitness 95Ti #1234&#10;Concept2 RowErg"

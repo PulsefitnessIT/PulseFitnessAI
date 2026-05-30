@@ -1,0 +1,62 @@
+{
+  "summary": "Iter 220cj - Tested 5 engineer-app features: Queue Preview Modal, EngineerNewJob hours/minutes dropdowns, New Customer modal validation, Equipment CSV buttons, and Site Equipment Picker. Fixed a bug where onPreview was not passed to virtualized list rows.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_220cj_api.py",
+    "/app/backend/tests/test_iter_220cj_engineer_extras.py",
+    "/app/backend/tests/test_iter_220cj_engineer_extras_frontend.py",
+    "/app/test_reports/pytest/pytest_iter_220cj.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js"
+  ],
+  "success_rate": {
+    "backend": "100% (22/22 API tests pass)",
+    "frontend": "100% (all 5 features verified)"
+  },
+  "test_credentials": "admin@gymaxisai.com / MasterAdmin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 5 iter 220cj features are working. Fixed a bug in EngineerQueue.js where onPreview was missing from the virtualized list rowProps (line 826-831). The fix adds onPreview to the rowProps so View details buttons work when queue has >30 items.",
+  "features_tested": {
+    "1_queue_preview_modal": {
+      "status": "PASS",
+      "details": "View details button opens modal showing site name, address, fault description, estimated time, notes count. Close and Allocate to me buttons work.",
+      "fix_applied": "Added onPreview to virtualized list rowProps in EngineerQueue.js"
+    },
+    "2_newjob_hours_minutes": {
+      "status": "PASS",
+      "details": "Two select dropdowns for hours (0-8) and minutes (0/15/30/45) replace the single number input. data-testid='newjob-estimated-hours' and 'newjob-estimated-minutes' present."
+    },
+    "3_new_customer_validation": {
+      "status": "PASS",
+      "details": "Companies House lookup block present with search input. 5 mandatory fields (Name, Email, Phone, Site Name, Site Address) show 'Required' errors. Email format validation shows 'Enter a valid email' error."
+    },
+    "4_equipment_csv_buttons": {
+      "status": "PASS",
+      "details": "Template download button (data-testid='equipment-csv-download') and Import CSV button (data-testid='equipment-csv-import') visible. Hidden file input present."
+    },
+    "5_site_equipment_picker": {
+      "status": "PASS",
+      "details": "From site button (data-testid='machines-load-from-site-btn') opens picker modal with search input, Select all toggle, and Add button. Shows 'No equipment for this site yet' when site has no equipment."
+    }
+  },
+  "api_tests": {
+    "queue_preview": "GET /api/svc/engineer/queue/{case_id}/preview - 401 without auth, 404 for nonexistent case",
+    "site_equipment": "GET /api/svc/engineer/jobs/{case_id}/site-equipment - 401 without auth, 404 for nonexistent case",
+    "bulk_attach": "POST /api/svc/engineer/jobs/{case_id}/machines/bulk-from-site - 401 without auth, 404 for nonexistent case, 400 for empty body",
+    "csv_template": "GET /api/equipment/template/csv - Returns CSV file with 200",
+    "csv_import": "POST /api/equipment/import/csv - 401 without auth"
+  }
+}

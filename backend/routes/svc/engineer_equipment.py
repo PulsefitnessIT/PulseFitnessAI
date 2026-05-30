@@ -375,3 +375,160 @@ async def ensure_indexes() -> None:
         await db.equipment.create_index([("organization_id", 1), ("created_at", -1)])
     except Exception:  # noqa: BLE001
         pass
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Iter 220cj — Site-equipment picker for the job's Machines tab
+# ─────────────────────────────────────────────────────────────────────
+
+
+class _BulkFromSiteBody(BaseModel):
+    """Engineer picks specific equipment IDs (or ``select_all=True``)
+    from a site's catalogue to fan out as machine rows on a job.
+    Idempotent — equipment already on the case as a machine row is
+    skipped so re-opening the picker doesn't create duplicates."""
+
+    equipment_ids: list[str] = Field(default_factory=list, max_length=200)
+    select_all: bool = False
+
+
+@router.get("/jobs/{case_id}/site-equipment", tags=[
+    "Service Ops · Engineer Equipment (iter 220cj)",
+])
+async def list_site_equipment_for_case(
+    case_id: str,
+    user=Depends(get_current_user),
+):
+    """Return the equipment catalogue for the job's site, annotated
+    with ``already_on_job`` so the mobile picker can ghost rows the
+    engineer has already added."""
+    of = _of(user)
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of}, {"_id": 0, "id": 1, "site_id": 1},
+    )
+    if not case:
+        raise HTTPException(404, "Case not found")
+    site_id = case.get("site_id")
+    if not site_id:
+        # No site → nothing to pre-load; the engineer can still add ad-hoc.
+        return {"site_equipment": [], "already_on_job": [], "site_id": None}
+
+    rows = (
+        await db.equipment.find(
+            {**of, "site_id": site_id},
+            {
+                "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+                "manufacturer": 1, "model": 1, "serial_number": 1,
+                "location": 1, "status": 1,
+            },
+        )
+        .sort([("equipment_type", 1), ("name", 1)])
+        .limit(500)
+        .to_list(500)
+    )
+    existing = await db.svc_work_visit_machines.find(
+        {**of, "case_id": case_id},
+        {"_id": 0, "asset_id": 1},
+    ).to_list(500)
+    existing_ids = {r.get("asset_id") for r in existing if r.get("asset_id")}
+    for r in rows:
+        r["already_on_job"] = r["id"] in existing_ids
+    return {
+        "site_equipment": rows,
+        "already_on_job": sorted(existing_ids),
+        "site_id": site_id,
+    }
+
+
+@router.post("/jobs/{case_id}/machines/bulk-from-site", tags=[
+    "Service Ops · Engineer Equipment (iter 220cj)",
+])
+async def bulk_attach_site_equipment(
+    case_id: str,
+    payload: _BulkFromSiteBody,
+    user=Depends(get_current_user),
+):
+    """Fan out one machine row on the case for each requested
+    equipment id. Idempotent against ``svc_work_visit_machines`` —
+    equipment already attached is skipped. Returns the count actually
+    inserted so the UI can show "Added 8 machines"."""
+    of = _of(user)
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of}, {"_id": 0, "id": 1, "site_id": 1},
+    )
+    if not case:
+        raise HTTPException(404, "Case not found")
+    site_id = case.get("site_id")
+
+    # Resolve the equipment set.
+    eq_filter: dict = {**of}
+    if payload.select_all:
+        if not site_id:
+            raise HTTPException(400, "Case has no site_id; can't select-all")
+        eq_filter["site_id"] = site_id
+    else:
+        ids = [e for e in (payload.equipment_ids or []) if e]
+        if not ids:
+            raise HTTPException(400, "Provide equipment_ids or select_all=true")
+        eq_filter["id"] = {"$in": ids}
+
+    candidates = await db.equipment.find(
+        eq_filter,
+        {
+            "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+            "manufacturer": 1, "model": 1, "serial_number": 1,
+        },
+    ).to_list(500)
+    if not candidates:
+        return {"inserted": 0, "skipped": 0, "machine_ids": []}
+
+    # Skip equipment already on the case.
+    existing = await db.svc_work_visit_machines.find(
+        {**of, "case_id": case_id, "asset_id": {"$in": [c["id"] for c in candidates]}},
+        {"_id": 0, "asset_id": 1},
+    ).to_list(500)
+    existing_ids = {r.get("asset_id") for r in existing if r.get("asset_id")}
+
+    order_index = await db.svc_work_visit_machines.count_documents(
+        {**of, "case_id": case_id},
+    )
+
+    now = _now()
+    inserted_rows: list[dict] = []
+    for eq in candidates:
+        if eq["id"] in existing_ids:
+            continue
+        label = (
+            f"{eq.get('manufacturer') or ''} {eq.get('model') or eq.get('name') or ''}"
+            .strip()
+            or eq.get("name") or "Equipment"
+        )
+        row = {
+            "id": str(uuid.uuid4()),
+            **of,
+            "case_id": case_id,
+            "asset_id": eq["id"],
+            "asset_name": label[:200],
+            "asset_serial": (eq.get("serial_number") or "")[:120] or None,
+            "asset_type": (eq.get("equipment_type") or "")[:120] or None,
+            "serviced": False,
+            "cleaned": False,
+            "notes": None,
+            "custom_fields": {},
+            "order_index": order_index,
+            "created_at": now,
+            "created_by_id": user.get("id"),
+            "updated_at": now,
+            "source": "site_equipment_bulk",
+        }
+        order_index += 1
+        inserted_rows.append(row)
+
+    if inserted_rows:
+        await db.svc_work_visit_machines.insert_many(inserted_rows)
+
+    return {
+        "inserted": len(inserted_rows),
+        "skipped": len(candidates) - len(inserted_rows),
+        "machine_ids": [r["id"] for r in inserted_rows],
+    }

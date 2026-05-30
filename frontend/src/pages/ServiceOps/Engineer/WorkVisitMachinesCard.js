@@ -21,7 +21,8 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import {
   Plus, Loader2, Trash2, Copy, Wrench, Sparkles, ChevronDown,
-  ChevronUp, Camera, X, PackagePlus,
+  ChevronUp, Camera, X, PackagePlus, Package, CheckSquare, Square,
+  ListChecks, Search,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import NotePresetChips from './NotePresetChips';
@@ -41,6 +42,8 @@ export default function WorkVisitMachinesCard({ caseId }) {
   const [expandedId, setExpandedId] = useState(null);
   const [assetOptions, setAssetOptions] = useState([]);
   const [assetSearch, setAssetSearch] = useState('');
+  // Iter 220cj — Site equipment picker (multi-select w/ Select All)
+  const [sitePickerOpen, setSitePickerOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!caseId) { setLoading(false); return; }
@@ -200,7 +203,17 @@ export default function WorkVisitMachinesCard({ caseId }) {
             One row per Erg. Tick what you serviced / cleaned · add a note.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Iter 220cj — Pre-load equipment from the job's site */}
+          <button
+            type="button"
+            onClick={() => setSitePickerOpen(true)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100"
+            data-testid="machines-load-from-site-btn"
+            title="Show all equipment for this site and pick which ones to work on"
+          >
+            <Package size={12} /> From site
+          </button>
           <Link
             to={`/svc/engineer/equipment/new?case_id=${encodeURIComponent(caseId || '')}`}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50"
@@ -255,6 +268,255 @@ export default function WorkVisitMachinesCard({ caseId }) {
           ))}
         </div>
       )}
+      {/* Iter 220cj — Site equipment picker modal */}
+      {sitePickerOpen ? (
+        <SiteEquipmentPicker
+          caseId={caseId}
+          onClose={() => setSitePickerOpen(false)}
+          onImported={() => { setSitePickerOpen(false); load(); }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Iter 220cj — SiteEquipmentPicker
+// Mobile-first multi-select sheet. Pulls every equipment record on the
+// case's site, lets the engineer tick 1 / many / all, and bulk-attaches
+// them as machine rows on the job. Already-attached items are ghosted.
+// ─────────────────────────────────────────────────────────────────────
+
+function SiteEquipmentPicker({ caseId, onClose, onImported }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [q, setQ] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/jobs/${caseId}/site-equipment`, auth(),
+        );
+        if (cancelled) return;
+        setItems(r.data?.site_equipment || []);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e?.response?.data?.detail || e?.message || 'Failed to load');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [caseId]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return items;
+    return items.filter((it) =>
+      (it.name || '').toLowerCase().includes(needle)
+      || (it.serial_number || '').toLowerCase().includes(needle)
+      || (it.manufacturer || '').toLowerCase().includes(needle)
+      || (it.equipment_type || '').toLowerCase().includes(needle),
+    );
+  }, [items, q]);
+
+  const selectable = filtered.filter((i) => !i.already_on_job);
+  const allSelected =
+    selectable.length > 0 && selectable.every((i) => selected.has(i.id));
+  const someSelected = selectable.some((i) => selected.has(i.id));
+
+  const toggle = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelected((prev) => {
+      if (allSelected) {
+        const next = new Set(prev);
+        selectable.forEach((i) => next.delete(i.id));
+        return next;
+      }
+      const next = new Set(prev);
+      selectable.forEach((i) => next.add(i.id));
+      return next;
+    });
+  };
+
+  const onAttach = async () => {
+    if (selected.size === 0) return;
+    setSubmitting(true);
+    try {
+      const r = await axios.post(
+        `${API}/svc/engineer/jobs/${caseId}/machines/bulk-from-site`,
+        { equipment_ids: Array.from(selected) },
+        auth(),
+      );
+      const inserted = r.data?.inserted || 0;
+      const skipped = r.data?.skipped || 0;
+      notify.success(
+        `Added ${inserted} machine${inserted === 1 ? '' : 's'}` +
+        (skipped > 0 ? ` · skipped ${skipped} already on job` : ''),
+      );
+      onImported?.();
+    } catch (e) {
+      notify.error('Could not attach',
+                   e?.response?.data?.detail || e?.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      data-testid="site-equipment-picker"
+    >
+      <div className="bg-white w-full sm:max-w-lg max-h-[92vh] sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900">Pre-load from site</p>
+            <p className="text-[11px] text-slate-500 leading-tight">
+              Tick one, several, or Select all
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50"
+            data-testid="site-equipment-picker-close"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-4 pt-3 pb-2 border-b border-slate-100 space-y-2">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Filter by name, serial, manufacturer…"
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              data-testid="site-equipment-picker-search"
+            />
+          </div>
+          {selectable.length > 0 ? (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              data-testid="site-equipment-picker-select-all"
+            >
+              {allSelected
+                ? <><CheckSquare size={12} /> Deselect all ({selectable.length})</>
+                : someSelected
+                  ? <><ListChecks size={12} /> Select all ({selectable.length})</>
+                  : <><Square size={12} /> Select all ({selectable.length})</>}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 text-slate-400">
+              <Loader2 size={14} className="animate-spin mr-2" /> Loading site equipment…
+            </div>
+          ) : error ? (
+            <div className="m-4 bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-700">
+              {error}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-10 text-center" data-testid="site-equipment-picker-empty">
+              <Package size={24} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-sm font-bold text-slate-900">
+                {q ? 'No matches' : 'No equipment for this site yet'}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                {q ? 'Adjust your search.' : 'Add some via the Equipment tab — they\'ll appear here on every future job.'}
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100" data-testid="site-equipment-picker-list">
+              {filtered.map((it) => {
+                const ticked = selected.has(it.id);
+                const disabled = it.already_on_job;
+                return (
+                  <li key={it.id}>
+                    <button
+                      type="button"
+                      onClick={() => !disabled && toggle(it.id)}
+                      disabled={disabled}
+                      className={`w-full text-left px-4 py-3 flex items-center gap-3 ${
+                        disabled
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ticked
+                            ? 'bg-blue-50'
+                            : 'hover:bg-slate-50'
+                      }`}
+                      data-testid={`site-equipment-item-${it.id}`}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0">
+                        {ticked
+                          ? <CheckSquare size={20} className="text-blue-600" />
+                          : <Square size={20} className="text-slate-400" />}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-900 truncate">
+                          {it.name}
+                          <span className="ml-1.5 text-[11px] font-medium text-slate-500">
+                            {it.manufacturer ? `${it.manufacturer} ` : ''}{it.model || ''}
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-slate-500 truncate flex items-center gap-2 flex-wrap">
+                          {it.equipment_type && <span>{it.equipment_type}</span>}
+                          {it.serial_number && <span className="font-mono">SN {it.serial_number}</span>}
+                          {it.location && <span>· {it.location}</span>}
+                          {disabled && <span className="text-emerald-700 font-bold">· Already on job</span>}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="px-4 py-3 border-t border-slate-200 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 border border-slate-300 rounded-xl py-2.5 text-sm font-semibold"
+            data-testid="site-equipment-picker-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={submitting || selected.size === 0}
+            onClick={onAttach}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl py-2.5 text-sm font-bold inline-flex items-center justify-center gap-1.5"
+            data-testid="site-equipment-picker-attach"
+          >
+            {submitting
+              ? <><Loader2 size={12} className="animate-spin" /> Adding…</>
+              : <><Plus size={12} /> Add {selected.size || ''}</>}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

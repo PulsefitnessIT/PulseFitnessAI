@@ -359,8 +359,39 @@ export default function EngineerNewJob() {
             <Field label="Scheduled for">
               <input type="datetime-local" value={form.scheduled_at} onChange={(e) => set('scheduled_at', e.target.value)} className={inputCls} data-testid="newjob-scheduled" />
             </Field>
-            <Field label="Estimated minutes">
-              <input type="number" min={15} max={600} step={15} value={form.estimated_minutes} onChange={(e) => set('estimated_minutes', e.target.value)} className={inputCls} data-testid="newjob-estimated" />
+            <Field label="Estimated time">
+              <div className="flex items-center gap-2" data-testid="newjob-estimated-wrap">
+                <select
+                  value={Math.floor((Number(form.estimated_minutes) || 0) / 60)}
+                  onChange={(e) => {
+                    const h = Number(e.target.value);
+                    const m = (Number(form.estimated_minutes) || 0) % 60;
+                    set('estimated_minutes', h * 60 + m);
+                  }}
+                  className={`${inputCls} flex-1`}
+                  data-testid="newjob-estimated-hours"
+                  aria-label="Hours"
+                >
+                  {Array.from({ length: 9 }, (_, i) => (
+                    <option key={i} value={i}>{i} hr{i === 1 ? '' : 's'}</option>
+                  ))}
+                </select>
+                <select
+                  value={(Number(form.estimated_minutes) || 0) % 60}
+                  onChange={(e) => {
+                    const m = Number(e.target.value);
+                    const h = Math.floor((Number(form.estimated_minutes) || 0) / 60);
+                    set('estimated_minutes', h * 60 + m);
+                  }}
+                  className={`${inputCls} flex-1`}
+                  data-testid="newjob-estimated-minutes"
+                  aria-label="Minutes"
+                >
+                  {[0, 15, 30, 45].map((m) => (
+                    <option key={m} value={m}>{m} min</option>
+                  ))}
+                </select>
+              </div>
             </Field>
           </div>
 

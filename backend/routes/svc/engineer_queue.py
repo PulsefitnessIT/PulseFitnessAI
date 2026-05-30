@@ -311,6 +311,111 @@ async def my_gyms_queue(user=Depends(get_current_user)):
     }
 
 
+# Iter 220cj — Preview an unassigned job before claiming it.
+# Returns the case fields the engineer cares about + related site
+# equipment + any existing quote value so they can decide.
+
+
+def _unassigned_filter(org_id: str) -> dict:
+    return _unassigned_query(org_id)
+
+
+@router.get("/{case_id}/preview")
+async def preview_unassigned_case(case_id: str, user=Depends(get_current_user)):
+    """Read-only preview of an *unassigned* job in the engineer's org.
+
+    Surfaces enough context for the engineer to decide whether to claim:
+    site name + address, asset summary, fault description, SLA timer,
+    photo/attachment count, related site-equipment lines, and the
+    potential value (open quote total) when one is on file.
+
+    Hardening: only returns cases that match ``_unassigned_query`` — an
+    already-claimed case 404s so engineers can't preview each other's
+    work via this endpoint.
+    """
+    of = _of(user)
+    # Re-use the same precondition as the queue list so the access
+    # surface is identical: org scope + assigned_engineer_id is null +
+    # status in OPEN_STATES.
+    flt = {**_unassigned_filter(of["organization_id"]), "id": case_id}
+    case = await db.svc_cases.find_one(
+        flt,
+        {
+            "_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1,
+            "status": 1, "description": 1,
+            "site_id": 1, "site_name": 1, "site_address": 1,
+            "site_postcode": 1, "site_latitude": 1, "site_longitude": 1,
+            "customer_id": 1, "customer_name": 1, "customer_email": 1,
+            "customer_phone": 1, "asset_id": 1, "asset_name": 1,
+            "asset_serial": 1, "fault_code": 1,
+            "scheduled_at": 1, "sla_resolve_at": 1, "estimated_minutes": 1,
+            "intake_channel": 1, "created_at": 1, "tags": 1,
+        },
+    )
+    if not case:
+        raise HTTPException(404, "Job not found")
+
+    # ── Related equipment for the case's site (or asset_id fallback) ──
+    eq_filter: dict = {"organization_id": of["organization_id"]}
+    if case.get("site_id"):
+        eq_filter["site_id"] = case["site_id"]
+    elif case.get("asset_id"):
+        eq_filter["id"] = case["asset_id"]
+    site_equipment: list[dict] = []
+    if "site_id" in eq_filter or "id" in eq_filter:
+        site_equipment = (
+            await db.equipment.find(
+                eq_filter,
+                {
+                    "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+                    "manufacturer": 1, "model": 1, "serial_number": 1,
+                    "location": 1, "status": 1,
+                },
+            )
+            .sort([("equipment_type", 1), ("name", 1)])
+            .limit(50)
+            .to_list(50)
+        )
+
+    # ── Potential value: latest open quote on this case ──
+    potential_value: Optional[dict] = None
+    try:
+        quote = await db.engineer_quotes.find_one(
+            {
+                **of, "case_id": case_id,
+                "status": {"$in": ["draft", "sent", "accepted"]},
+            },
+            {"_id": 0, "id": 1, "status": 1, "total": 1, "currency": 1},
+            sort=[("created_at", -1)],
+        )
+        if quote and quote.get("total") is not None:
+            potential_value = {
+                "total": float(quote.get("total") or 0),
+                "currency": quote.get("currency") or "GBP",
+                "quote_status": quote.get("status"),
+                "quote_id": quote.get("id"),
+            }
+    except Exception:  # noqa: BLE001 — analytics-only, never break preview
+        potential_value = None
+
+    # ── Attachment + photo counters ──
+    photos_count = await db.svc_engineer_photos.count_documents(
+        {**of, "case_id": case_id},
+    )
+    events_count = await db.svc_case_events.count_documents(
+        {**of, "case_id": case_id},
+    )
+
+    return {
+        "case": case,
+        "site_equipment": site_equipment,
+        "site_equipment_count": len(site_equipment),
+        "photos_count": photos_count,
+        "events_count": events_count,
+        "potential_value": potential_value,
+    }
+
+
 @router.post("/{case_id}/claim", dependencies=[Depends(require_engineer_compliance_to_claim)])
 async def claim_case(
     case_id: str,
