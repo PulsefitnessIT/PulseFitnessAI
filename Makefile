@@ -225,6 +225,7 @@ regression:
 	  tests/test_iter_220cn_parts_machine_tag.py \
 	  tests/test_iter_220co_parts_cost_rollup.py \
 	  tests/test_iter_220cp_channel_unification.py \
+	  tests/test_iter_220cq_channel_performance.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

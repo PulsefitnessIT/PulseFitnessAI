@@ -17,9 +17,11 @@ import {
   BarChart3, RefreshCw, Sparkles, Activity, Gauge,
   ShieldCheck, Wrench, ClipboardList, Timer, MapPin,
   Download, FileText, Bookmark, X, Mail, Send, Save, Loader2,
+  Inbox,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import ServiceOpsShell from './ServiceOpsShell';
+import { resolveChannel } from '@/utils/channelLabel';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -146,7 +148,7 @@ export default function ServiceOpsReportsPage() {
     setLoading(true);
     const params = { from: fromIso };
     try {
-      const [s, r, f, sl, ai, a, dt] = await Promise.all([
+      const [s, r, f, sl, ai, a, dt, ch] = await Promise.all([
         axios.get(`${API}/svc/reports/summary`, { ...auth(), params }),
         axios.get(`${API}/svc/reports/revenue-by-engineer`, { ...auth(), params }),
         axios.get(`${API}/svc/reports/ftfr`, { ...auth(), params }),
@@ -155,10 +157,12 @@ export default function ServiceOpsReportsPage() {
         axios.get(`${API}/svc/reports/audit`, { ...auth(), params: { ...params, limit: 50 } }),
         axios.get(`${API}/svc/reports/downtime`, { ...auth(), params: { days: range.days } })
           .catch(() => ({ data: { top_assets: [], top_sites: [], total_hours: 0, case_count: 0 } })),
+        axios.get(`${API}/svc/reports/channel-performance`, { ...auth(), params })
+          .catch(() => ({ data: { rows: [], totals: { case_count: 0, closed_count: 0, revenue_gbp: 0 } } })),
       ]);
       setData({
         summary: s.data, revenue: r.data, ftfr: f.data, sla: sl.data,
-        ai: ai.data, audit: a.data, downtime: dt.data,
+        ai: ai.data, audit: a.data, downtime: dt.data, channels: ch.data,
       });
     } catch (e) {
       notify.error('Failed to load reports', e?.response?.data?.detail || e.message);
@@ -175,6 +179,10 @@ export default function ServiceOpsReportsPage() {
   const aiRows = data.ai?.by_kind || [];
   const audit = data.audit?.events || [];
   const downtime = data.downtime || { top_assets: [], top_sites: [], total_hours: 0, case_count: 0 };
+  const channelData = data.channels || { rows: [], totals: { case_count: 0, closed_count: 0, revenue_gbp: 0 } };
+  const channelRows = channelData.rows || [];
+  const maxChannelCount = channelRows.reduce((m, r) => Math.max(m, r.count || 0), 0) || 1;
+  const maxChannelRevenue = channelRows.reduce((m, r) => Math.max(m, r.revenue_gbp || 0), 0) || 1;
   const topAssets = downtime.top_assets || [];
   const topSites = downtime.top_sites || [];
   const maxAssetHours = topAssets.reduce((m, r) => Math.max(m, r.downtime_hours || 0), 0) || 1;
@@ -385,6 +393,72 @@ export default function ServiceOpsReportsPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </Section>
+
+        {/* Iter 220cq — Channel performance (where work comes from) */}
+        <Section icon={Inbox} title="Where work comes from" testid="reports-channels">
+          {channelRows.length === 0 ? (
+            <p className="text-xs opacity-60 italic">No cases logged in this window.</p>
+          ) : (
+            <ul className="space-y-2" data-testid="channel-rows">
+              {channelRows.map((r) => {
+                const ch = resolveChannel({ intake_channel: r.channel });
+                const label = ch?.label || r.channel;
+                return (
+                  <li key={r.channel} data-testid={`channel-row-${r.channel}`}>
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="font-bold truncate">{label}</span>
+                      <span className="tabular-nums whitespace-nowrap">
+                        {r.count} case{r.count === 1 ? '' : 's'} ·{' '}
+                        {pct(r.close_rate)} closed
+                        {r.avg_hours != null ? ` · ${r.avg_hours}h avg` : ''}
+                        {r.revenue_gbp > 0 ? ` · ${gbp(r.revenue_gbp)}` : ''}
+                      </span>
+                    </div>
+                    <div
+                      className="h-1.5 rounded-full mt-1 overflow-hidden"
+                      style={{ background: 'var(--theme-border)' }}
+                    >
+                      <div
+                        className="h-full"
+                        style={{
+                          width: `${Math.max(2, Math.round((r.count / maxChannelCount) * 100))}%`,
+                          background: r.revenue_gbp > 0
+                            ? 'var(--color-brand-blue, #1d4ed8)'
+                            : '#94a3b8',
+                        }}
+                      />
+                    </div>
+                    {r.revenue_gbp > 0 && maxChannelRevenue > 0 && (
+                      <div
+                        className="h-1 rounded-full mt-1 overflow-hidden opacity-70"
+                        style={{ background: 'var(--theme-border)' }}
+                      >
+                        <div
+                          className="h-full"
+                          style={{
+                            width: `${Math.max(2, Math.round((r.revenue_gbp / maxChannelRevenue) * 100))}%`,
+                            background: '#10b981',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {channelData.totals?.case_count > 0 && (
+            <p
+              className="text-[11px] opacity-70 mt-2 inline-flex items-center gap-1.5"
+              data-testid="channel-totals"
+            >
+              <Activity size={11} />
+              {channelData.totals.case_count} total ·{' '}
+              {channelData.totals.closed_count} closed ·{' '}
+              {gbp(channelData.totals.revenue_gbp)} revenue
+            </p>
           )}
         </Section>
 

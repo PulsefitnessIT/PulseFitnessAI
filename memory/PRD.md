@@ -1,3 +1,71 @@
+## Iter 220cq — Channel Performance reports tile ✅ (May 30, 2026)
+
+**Why now**: 220cp gave every case a normalised `intake_channel`.
+The natural follow-up is *acting on the signal* — surfacing
+"Where work comes from" so the tenant operator can see whether
+their portal investment is shifting jobs off the (expensive)
+phone-call path.
+
+### Backend — `GET /api/svc/reports/channel-performance`
+New endpoint in `routes/svc/reports.py`. Aggregates `svc_cases` by
+`intake_channel` (fallback `source` for legacy rows) over a window
+(default 90 days) and joins invoiced quote totals per case so we
+can attribute revenue back to channel.
+
+Response shape:
+```json
+{
+  "from": "…", "to": "…",
+  "totals": { "case_count": N, "closed_count": N, "revenue_gbp": £ },
+  "rows": [{
+    "channel": "portal",
+    "count": 12,
+    "closed_count": 7,
+    "close_rate": 0.5833,
+    "avg_hours": 18.4,
+    "revenue_gbp": 1240.00
+  }, …]
+}
+```
+
+Rules:
+- Unknown channels collapse to `other` (closed taxonomy for the UI).
+- `avg_hours` only averages *closed* rows — open cases never blend
+  in as zero.
+- Window defaults to 90 days (longer than the 30-day summary because
+  the channel mix changes slowly).
+- Live smoke against the master-admin tenant: 526 cases bucketed as
+  phone (312), other (166), portal (35), email (10).
+
+### Frontend — `ServiceOpsReportsPage.js`
+Added a **"Where work comes from"** Section (Inbox icon) inside the
+existing reports grid, sitting between Downtime and AI observability.
+Per channel:
+- Channel label (rendered via the shared `resolveChannel` helper
+  introduced in 220cp).
+- Right-aligned stats: `N cases · X% closed · Yh avg · £Z`.
+- Blue bar = case-count share; green bar underneath = revenue share
+  (only shown when the channel has revenue, so unmonetised channels
+  don't carry a confusing zero-bar).
+- Footer summary chip with platform totals.
+
+Test IDs: `reports-channels`, `channel-row-{channel}`, `channel-totals`.
+
+### Tests
+- `tests/test_iter_220cq_channel_performance.py` (5 tests):
+  - Buckets by `intake_channel`, attributes invoice revenue, computes
+    close-rate.
+  - Falls back to `source` for legacy rows; missing both → `other`.
+  - `avg_hours` only averages closed rows.
+  - Unknown channels collapse to `other`.
+  - Empty window returns zero totals without crashing.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c[m,n,o,p,q] suite: **25/25 green**.
+- Pre-existing live-server reports suite still **27/27 green**.
+
+---
+
+
 ## Iter 220cp — Enquiry-channel dedup + cross-module unification ✅ (May 30, 2026)
 
 **User report** (with screenshot):

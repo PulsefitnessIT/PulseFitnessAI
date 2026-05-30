@@ -417,6 +417,124 @@ async def downtime(
     }
 
 
+# ─────────────────────────────────────────────────────────────────
+# Iter 220cq — Channel performance
+# Aggregates svc_cases by intake_channel (falls back to source so
+# legacy rows still bucket correctly) over the requested window and
+# returns:
+#   • count            — total cases logged via the channel
+#   • closed_count     — cases that reached a terminal state
+#   • close_rate       — closed_count / count (0..1)
+#   • avg_hours        — mean resolution time on the closed rows
+#   • revenue_gbp      — sum of invoiced quote totals on those cases
+# Designed for the tenant operator/manager — they want to see whether
+# the portal investment is shifting jobs away from the (expensive)
+# phone-call intake path.
+# ─────────────────────────────────────────────────────────────────
+
+# Channels we know how to label. Anything else is bucketed as
+# "other". Mirrors `frontend/src/utils/channelLabel.js`.
+_KNOWN_CHANNELS = {
+    "manual", "phone", "email", "inbound_email", "portal",
+    "embed_widget", "supplier_card", "service_desk", "other",
+}
+_CLOSED_STATUSES = ["closed", "invoiced", "repaired", "awaiting_sign_off"]
+
+
+@router.get("/channel-performance")
+async def channel_performance(
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None),
+    user=Depends(get_current_user),
+):
+    of = _of(user)
+    from_iso, to_iso = _window(from_, to, default_days=90)
+
+    # Pull only the fields we need so the pipeline stays light even on
+    # large tenants. We bucket in Python because Mongo's pipeline
+    # `$ifNull` for the channel fallback is cleanest here.
+    cursor = db.svc_cases.find(
+        {**of, "created_at": {"$gte": from_iso, "$lte": to_iso}},
+        {
+            "_id": 0, "id": 1, "status": 1, "intake_channel": 1,
+            "source": 1, "created_at": 1, "closed_at": 1,
+        },
+    )
+    cases: list[dict] = []
+    case_ids: list[str] = []
+    async for c in cursor:
+        cases.append(c)
+        if c.get("id"):
+            case_ids.append(c["id"])
+
+    # Revenue: sum invoiced quotes per case_id so we can attribute
+    # back to channel.
+    revenue_by_case: dict[str, float] = {}
+    if case_ids:
+        pipeline = [
+            {"$match": {**of, "status": "invoiced",
+                        "case_id": {"$in": case_ids}}},
+            {"$group": {"_id": "$case_id",
+                        "gross": {"$sum": {"$ifNull": ["$gross", "$total"]}}}},
+        ]
+        async for r in db.svc_quotes.aggregate(pipeline):
+            revenue_by_case[r.get("_id") or ""] = float(r.get("gross") or 0)
+
+    buckets: dict[str, dict] = {}
+    for c in cases:
+        raw = (c.get("intake_channel") or c.get("source") or "other") or "other"
+        ch = str(raw).lower().strip() or "other"
+        if ch not in _KNOWN_CHANNELS:
+            ch = "other"
+        b = buckets.setdefault(ch, {
+            "channel": ch, "count": 0, "closed_count": 0,
+            "total_hours_sum": 0.0, "revenue_gbp": 0.0,
+        })
+        b["count"] += 1
+        is_closed = c.get("status") in _CLOSED_STATUSES and c.get("closed_at")
+        if is_closed:
+            b["closed_count"] += 1
+            try:
+                started = datetime.fromisoformat(
+                    (c.get("created_at") or "").replace("Z", "+00:00"),
+                )
+                ended = datetime.fromisoformat(
+                    c["closed_at"].replace("Z", "+00:00"),
+                )
+                hours = max(0.0, (ended - started).total_seconds() / 3600.0)
+                b["total_hours_sum"] += hours
+            except (ValueError, AttributeError):
+                pass
+        if c.get("id") in revenue_by_case:
+            b["revenue_gbp"] += revenue_by_case[c["id"]]
+
+    rows: list[dict] = []
+    for b in buckets.values():
+        closed = b["closed_count"]
+        rows.append({
+            "channel":       b["channel"],
+            "count":         b["count"],
+            "closed_count":  closed,
+            "close_rate":    round(closed / b["count"], 4) if b["count"] else 0,
+            "avg_hours":     round(b["total_hours_sum"] / closed, 1) if closed else None,
+            "revenue_gbp":   round(b["revenue_gbp"], 2),
+        })
+    rows.sort(key=lambda r: r["count"], reverse=True)
+
+    totals = {
+        "case_count":   sum(r["count"] for r in rows),
+        "closed_count": sum(r["closed_count"] for r in rows),
+        "revenue_gbp":  round(sum(r["revenue_gbp"] for r in rows), 2),
+    }
+    return {
+        "from": from_iso,
+        "to": to_iso,
+        "totals": totals,
+        "rows": rows,
+    }
+
+
+
 __all__ = ["router"]
 
 
