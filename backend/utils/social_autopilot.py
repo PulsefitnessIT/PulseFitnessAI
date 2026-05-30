@@ -286,7 +286,12 @@ def build_prompt(channel: dict, topic: dict) -> str:
         "(2-3 sentence visual direction for a brand-coloured image — "
         f"aspect {channel['image_aspect']}),\n"
         '  "card_headline": string '
-        "(≤6 words, suitable for an over-image headline),\n"
+        "(a clear, COMPLETE 3-5 word headline that reads as a "
+        "standalone thought — NOT a teaser, NOT a truncation, NOT "
+        "starting mid-sentence. Title-case. No emoji. No quotes. "
+        "Examples that work: 'Cut Engineer Dispatch Time', 'Stop "
+        "Chasing PPMs Manually'. Examples that DON'T work: 'How "
+        "to...', 'The 5 things you...', 'Why we built...'),\n"
     )
     if channel["id"] == "tiktok":
         schema += (
@@ -597,29 +602,120 @@ def _pillow_branded_card_png(headline: str, channel: dict,
         sub_font = ImageFont.truetype(sub_font_path, sub_size) if sub_font_path else ImageFont.load_default()
     except Exception:  # pragma: no cover
         font = sub_font = None
+        font_path = sub_font_path = None  # type: ignore[assignment]
+        font_size = int(h * 0.085)
+        sub_size = int(h * 0.028)
 
-    # Word-wrap (≤18 chars/line, max 3 lines).
-    words = (headline or "").split()
-    lines: list[str] = []
-    cur = ""
-    for word in words:
-        if len(cur) + len(word) + 1 > 18 and cur:
-            lines.append(cur)
-            cur = word
-        else:
-            cur = (cur + " " + word).strip()
-    if cur:
-        lines.append(cur)
-    lines = lines[:3]
+    # Iter 220cg — pixel-aware word-wrap.
+    # The previous wrapper used a fixed 18-char budget. With TrueType
+    # rendering on portrait (9:16) channels the per-char pixel width
+    # can easily push lines past the safe right margin → "text falls
+    # off the edge". Now we:
+    #   1. Measure each candidate line with the selected font.
+    #   2. Wrap when the next word would exceed the safe width.
+    #   3. If the headline still doesn't fit in 3 lines OR any single
+    #      line is wider than the safe width, shrink the font size
+    #      and retry (down to 50% of original).
     text_x = int(w * 0.07)
-    line_height = int(h * 0.10)
-    y0 = int(h * 0.40) - (len(lines) - 1) * line_height // 2
+    safe_width = w - 2 * text_x  # left + right margins symmetrical
+    max_lines = 3
+
+    def _text_width(_font, _text: str) -> int:
+        if _font is None:
+            return len(_text) * 6  # crude fallback for bitmap font
+        try:
+            return int(_font.getlength(_text))  # type: ignore[attr-defined]
+        except Exception:
+            try:
+                bbox = _font.getbbox(_text)
+                return int(bbox[2] - bbox[0])
+            except Exception:
+                return len(_text) * 6
+
+    def _wrap(_font, _text: str) -> list[str]:
+        words_ = (_text or "").split()
+        out: list[str] = []
+        cur = ""
+        for word in words_:
+            candidate = (cur + " " + word).strip()
+            if _text_width(_font, candidate) <= safe_width:
+                cur = candidate
+            else:
+                if cur:
+                    out.append(cur)
+                # Single word longer than safe_width — hard-truncate so
+                # it doesn't run off the card. Better than overflow.
+                if _text_width(_font, word) > safe_width:
+                    # Cut character-by-character until it fits, leaving
+                    # room for a trailing ellipsis.
+                    while word and _text_width(_font, word + "…") > safe_width:
+                        word = word[:-1]
+                    word = word + "…" if word else word
+                cur = word
+        if cur:
+            out.append(cur)
+        return out
+
+    # Try the original font size; shrink down to 50% if it doesn't fit.
+    headline_text = (headline or "").strip()
+    cur_size = font_size
+    min_size = max(int(font_size * 0.5), 14)
+    lines: list[str] = []
+    while cur_size >= min_size:
+        try_font = font
+        if font_path:
+            try:
+                from PIL import ImageFont  # type: ignore
+                try_font = ImageFont.truetype(font_path, cur_size)
+            except Exception:
+                try_font = font
+        wrapped = _wrap(try_font, headline_text)
+        fits = (
+            len(wrapped) <= max_lines
+            and all(_text_width(try_font, ln) <= safe_width for ln in wrapped)
+        )
+        if fits:
+            font = try_font
+            font_size = cur_size
+            lines = wrapped
+            break
+        cur_size = int(cur_size * 0.9)
+    if not lines:
+        # Final fallback — hard-cap to ``max_lines`` even if oversized.
+        # Each line gets character-truncated so nothing reaches the edge.
+        wrapped = _wrap(font, headline_text)[:max_lines]
+        if wrapped:
+            # Drop the last word with an ellipsis if more text remains.
+            last = wrapped[-1]
+            while last and _text_width(font, last + "…") > safe_width:
+                # Trim the last word until it fits.
+                parts = last.rsplit(" ", 1)
+                if len(parts) == 1:
+                    last = last[:-1]
+                else:
+                    last = parts[0]
+            wrapped[-1] = (last + "…") if last else last
+        lines = wrapped
+
+    line_height = int(font_size * 1.15)
+    y0 = int(h * 0.42) - (len(lines) - 1) * line_height // 2
     for i, ln in enumerate(lines):
         draw.text((text_x, y0 + i * line_height), ln,
                   fill=(255, 255, 255), font=font)
     if subtitle:
+        # Subtitle is also pixel-aware: truncate at word boundary with
+        # an ellipsis if it would exceed safe_width.
+        sub_text = subtitle.strip()
+        while sub_text and _text_width(sub_font, sub_text) > safe_width:
+            parts = sub_text.rsplit(" ", 1)
+            if len(parts) == 1:
+                sub_text = sub_text[:-1]
+            else:
+                sub_text = parts[0]
+        if sub_text and sub_text != subtitle.strip():
+            sub_text = sub_text + "…"
         draw.text((text_x, y0 + len(lines) * line_height + 20),
-                  subtitle[:120], fill=(255, 255, 255, 200), font=sub_font)
+                  sub_text[:120], fill=(255, 255, 255, 200), font=sub_font)
 
     # ── Brand mark (bottom-left) ───────────────────────────────────
     # Iter 220ce — the logo PNGs ship with a white background baked
@@ -689,6 +785,73 @@ def render_branded_card_to_data_url(headline: str, channel: dict,
         return "data:image/png;base64," + base64.b64encode(png).decode()
     svg = _branded_card_svg(headline, channel, subtitle=subtitle)
     return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode()
+
+
+def clean_card_headline(raw: str, *, fallback: str = "") -> str:
+    """Iter 220cg — Normalise the LLM-supplied ``card_headline`` so the
+    over-image text always reads as a clean, complete thought.
+
+    The LLM occasionally returns:
+      • Leading/trailing quotes ("Cut downtime in half.")
+      • Trailing punctuation that looks weird on a hero card
+      • Truncation markers ("How to cut downtime...")
+      • Sentences starting mid-thought ("...the silent killer")
+      • All-caps shouting
+
+    We strip those, title-case, and clip to 6 words. If after cleaning
+    the headline is empty (or starts with a connector word like 'and'
+    / 'the' that suggests truncation), we fall back to ``fallback``.
+    """
+    s = (raw or "").strip()
+    # Strip wrapping quotes (straight + curly).
+    for q in ('"', "'", "“", "”", "‘", "’", "«", "»"):
+        if s.startswith(q):
+            s = s[1:]
+        if s.endswith(q):
+            s = s[:-1]
+    s = s.strip()
+    # Iter 220cg — detect mid-thought truncation BEFORE stripping. The
+    # LLM occasionally returns "How to cut downtime..." which is a
+    # classic clickbait teaser; we reject those wholesale.
+    had_ellipsis = s.endswith("...") or s.endswith("…")
+    # Trim trailing punctuation that looks bad on a hero card.
+    while s and s[-1] in ".,;:!?…-—–":
+        s = s[:-1].rstrip()
+    # Cap to 6 words.
+    words = s.split()
+    if len(words) > 6:
+        words = words[:6]
+    s = " ".join(words).strip()
+    # Detect truncation / mid-thought starts.
+    bad_starters = {
+        "and", "but", "or", "so", "the", "a", "an", "to", "of", "in",
+        "on", "for", "with", "that", "this", "these", "those", "you",
+        "your", "we", "our", "if", "when", "while", "because",
+    }
+    teaser_phrases = ("how to ", "why we ", "what is ", "what are ",
+                      "5 ways ", "3 ways ", "the 5 ", "the 3 ")
+    first = (words[0].lower() if words else "")
+    starts_teaser = any(s.lower().startswith(p) for p in teaser_phrases)
+    if not s or first in bad_starters or (had_ellipsis and starts_teaser):
+        return (fallback or "").strip()[:80]
+    # Title-case (preserve brand-style acronyms like PPM, RIDDOR, GymAxis).
+    def _smart_case(w: str) -> str:
+        if w.isupper() and len(w) <= 6:
+            return w  # likely an acronym
+        if w.lower() == "gymaxis":
+            return "GymAxis"
+        # Acronym with plural / suffix (PPMs, KPIs, MDs) — preserve
+        # if the leading run of uppercase letters is 2+.
+        upper_prefix = 0
+        for ch in w:
+            if ch.isupper():
+                upper_prefix += 1
+            else:
+                break
+        if upper_prefix >= 2:
+            return w
+        return w[:1].upper() + w[1:].lower()
+    return " ".join(_smart_case(w) for w in s.split())[:80]
 
 
 async def render_nano_banana_image(*, prompt: str, channel: dict) -> Optional[dict]:
@@ -825,6 +988,14 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
         prompt = build_prompt(channel, topic)
     text = await _llm_chat(prompt)
 
+    # Iter 220cg — normalise the over-image headline ONCE so both the
+    # rendered branded card AND the stored `card_headline` field agree
+    # (the UI shows this string under "Caption headline").
+    normalised_headline = clean_card_headline(
+        text.get("card_headline") or "",
+        fallback=topic["label"],
+    )
+
     # Alternate image variants A/B per post (count parity on the
     # channel determines which one we use).
     image_variant = "A" if n_existing % 2 == 0 else "B"
@@ -841,7 +1012,7 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
             image_model = nb["model"]
     if not image_url:
         image_url = render_branded_card_to_data_url(
-            headline=(text.get("card_headline") or topic["label"])[:80],
+            headline=normalised_headline,
             channel=channel,
             subtitle=BRAND["tagline"],
         )
@@ -870,7 +1041,7 @@ async def generate_post_for_channel(db, channel_id: str) -> dict:
         "caption": caption,
         "hashtags": hashtags,
         "video_script": text.get("video_script") or None,
-        "card_headline": text.get("card_headline") or topic["label"],
+        "card_headline": normalised_headline or topic["label"],
         "image_brief": text.get("image_brief") or "",
         "image_url": image_url,
         "image_variant": image_variant,
