@@ -22296,3 +22296,74 @@ is a Pulse Fitness only feature."
   (added CustomerEquipmentCsv component in customer drawer,
   added Download/Upload icon imports, wizard hint text updated)
 - ``Makefile`` (regression entry — TAB-indented)
+
+---
+
+## Iter 220cm — Per-Equipment Service History Rollup (Feb 2026)
+
+### Idea
+"Now that imported equipment is bound to a customer, the natural
+next step is a Service-history rollup on each equipment row —
+every PPM/repair visit auto-aggregates onto the asset card so the
+next engineer can scroll back through what's been done."
+
+### Backend
+New endpoint
+``GET /api/svc/engineer/equipment/{equipment_id}/service-history``
+that:
+
+  * Verifies the equipment belongs to the engineer's org (404
+    otherwise — cross-tenant safe).
+  * Pulls every ``svc_work_visit_machines`` row for ``asset_id ==
+    equipment_id``.
+  * Joins each row to its parent ``svc_cases`` for case reference,
+    title, status, priority, assigned engineer name, completion
+    date.
+  * Aggregates a per-case photo count via a single
+    ``$group`` on ``svc_engineer_photos`` — swallowed
+    defensively if the aggregate flakes (analytics-only, never
+    breaks the rollup).
+  * Returns a sorted-newest-first ``visits`` list + a ``totals``
+    strip (visit_count, serviced_count, cleaned_count,
+    last_visit) so the UI can render the asset's "what's been
+    done" badge without a second round-trip.
+  * Respects a ``limit`` query param (default 50, max 200) —
+    totals still reflect the full set even when the page is
+    clipped.
+
+### Frontend
+``EngineerEquipment.js`` rows are now **expandable**:
+
+  * Each row becomes a button — click toggles an inline panel.
+  * Service history is **lazy-loaded** on first expand only (a 200-
+    row org never hits the API for unread rows).
+  * Panel shows the 3-stat strip (Visits / Serviced / Last visit) +
+    a compact timeline card per visit (case ref + title, date,
+    engineer name, status pill, Serviced/Cleaned ticks, photo
+    count, notes excerpt). Older visits beyond 8 are summarised
+    inline.
+  * Empty state for assets with no history yet:
+    "No service visits logged for this asset yet."
+
+### Verification
+- **9 new pytest assertions** in
+  ``backend/tests/test_iter_220cm_service_history.py`` covering:
+  cross-tenant 404, no-org 403, empty-asset response, full join
+  with multi-visit timeline + sort + totals + photo count,
+  aggregate-error swallowing, ``limit`` clip with intact totals,
+  router registration, frontend lazy-load pin, frontend testid
+  pins.
+- Live e2e via curl: created equipment row → endpoint returned
+  the equipment + empty visits / zero totals cleanly.
+- Lint clean. 112 pytest assertions across iter 220ci/220cj/
+  220ck/220cl/220cm pass.
+
+### Files changed
+- ``backend/routes/svc/engineer_equipment.py`` (+~140 LOC for the
+  service-history endpoint + photo aggregate)
+- ``backend/tests/test_iter_220cm_service_history.py`` (new, 9
+  tests)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerEquipment.js``
+  (~+180 LOC: toggle + ServiceHistory + Stat components, new
+  lucide icons)
+- ``Makefile`` (regression entry — TAB-indented)

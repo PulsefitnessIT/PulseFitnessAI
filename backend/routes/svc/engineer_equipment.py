@@ -551,6 +551,154 @@ async def import_customer_equipment_csv(
     }
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Iter 220cm — Per-equipment Service History rollup
+# Aggregates every machine row across `svc_work_visit_machines` for a
+# given asset, joins to the parent `svc_cases` for context, and
+# returns a chronologically sorted timeline the engineer can scan
+# before going on-site. "What's been done to this treadmill?" in one
+# tap.
+# ─────────────────────────────────────────────────────────────────────
+
+
+@router.get("/equipment/{equipment_id}/service-history", tags=[
+    "Service Ops · Engineer Equipment (iter 220cm)",
+])
+async def get_equipment_service_history(
+    equipment_id: str,
+    user=Depends(get_current_user),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """Return the visit timeline for ``equipment_id``.
+
+    Each visit object packs the case context the engineer needs:
+    ``case_reference``, ``case_title``, ``case_status``,
+    ``engineer_name``, ``serviced``, ``cleaned``, ``notes``,
+    ``photos_count``, ``visit_date`` (case ``completed_at`` ──
+    falls back to ``updated_at`` ── falls back to ``created_at``).
+
+    Hardening: equipment must belong to the engineer's org (404
+    otherwise) so this endpoint can't be abused for cross-tenant
+    snooping.
+    """
+    of = _of(user)
+    equipment = await db.equipment.find_one(
+        {"id": equipment_id, **of},
+        {
+            "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+            "manufacturer": 1, "model": 1, "serial_number": 1,
+            "location": 1, "status": 1, "customer_id": 1,
+            "customer_name": 1, "site_id": 1, "created_at": 1,
+        },
+    )
+    if not equipment:
+        raise HTTPException(404, "Equipment not found")
+
+    # All machine rows for this asset, scoped to this org.
+    machine_rows = (
+        await db.svc_work_visit_machines.find(
+            {**of, "asset_id": equipment_id},
+            {
+                "_id": 0, "id": 1, "case_id": 1, "asset_name": 1,
+                "asset_serial": 1, "serviced": 1, "cleaned": 1,
+                "notes": 1, "created_at": 1, "created_by_id": 1,
+                "updated_at": 1, "source": 1,
+            },
+        )
+        .sort("created_at", -1)
+        .to_list(limit)
+    )
+    if not machine_rows:
+        return {
+            "equipment": equipment,
+            "visits": [],
+            "totals": {
+                "visit_count": 0, "serviced_count": 0,
+                "cleaned_count": 0, "last_visit": None,
+            },
+        }
+
+    case_ids = list({r["case_id"] for r in machine_rows if r.get("case_id")})
+    cases_by_id: dict[str, dict] = {}
+    if case_ids:
+        case_docs = await db.svc_cases.find(
+            {**of, "id": {"$in": case_ids}},
+            {
+                "_id": 0, "id": 1, "reference": 1, "title": 1,
+                "status": 1, "assigned_engineer_id": 1,
+                "assigned_engineer_name": 1, "completed_at": 1,
+                "updated_at": 1, "created_at": 1, "priority": 1,
+                "site_name": 1, "customer_name": 1,
+            },
+        ).to_list(len(case_ids))
+        cases_by_id = {c["id"]: c for c in case_docs}
+
+    # Photo counts per case in a single round-trip.
+    photos_by_case: dict[str, int] = {}
+    if case_ids:
+        try:
+            agg_cursor = db.svc_engineer_photos.aggregate([
+                {"$match": {**of, "case_id": {"$in": case_ids}}},
+                {"$group": {"_id": "$case_id", "n": {"$sum": 1}}},
+            ])
+            async for doc in agg_cursor:
+                photos_by_case[doc["_id"]] = int(doc.get("n") or 0)
+        except Exception:  # noqa: BLE001 — never break the rollup on a count flake
+            photos_by_case = {}
+
+    visits: list[dict] = []
+    serviced_count = 0
+    cleaned_count = 0
+    last_visit_iso: Optional[str] = None
+    for m in machine_rows:
+        case = cases_by_id.get(m.get("case_id") or "") or {}
+        visit_date = (
+            case.get("completed_at")
+            or case.get("updated_at")
+            or m.get("updated_at")
+            or m.get("created_at")
+        )
+        if m.get("serviced"):
+            serviced_count += 1
+        if m.get("cleaned"):
+            cleaned_count += 1
+        if visit_date and (last_visit_iso is None or visit_date > last_visit_iso):
+            last_visit_iso = visit_date
+        visits.append({
+            "machine_row_id": m["id"],
+            "case_id": m.get("case_id"),
+            "case_reference": case.get("reference"),
+            "case_title": case.get("title"),
+            "case_status": case.get("status"),
+            "case_priority": case.get("priority"),
+            "engineer_id": case.get("assigned_engineer_id"),
+            "engineer_name": case.get("assigned_engineer_name"),
+            "site_name": case.get("site_name"),
+            "customer_name": case.get("customer_name"),
+            "serviced": bool(m.get("serviced")),
+            "cleaned": bool(m.get("cleaned")),
+            "notes": m.get("notes"),
+            "source": m.get("source"),
+            "photos_count": photos_by_case.get(m.get("case_id") or "", 0),
+            "visit_date": visit_date,
+        })
+
+    # Sort newest-first (some legacy rows may have created_at but a
+    # later case.completed_at — re-sort here so the timeline is sane).
+    visits.sort(key=lambda v: v["visit_date"] or "", reverse=True)
+
+    return {
+        "equipment": equipment,
+        "visits": visits[:limit],
+        "totals": {
+            "visit_count": len(machine_rows),
+            "serviced_count": serviced_count,
+            "cleaned_count": cleaned_count,
+            "last_visit": last_visit_iso,
+        },
+    }
+
+
 async def ensure_indexes() -> None:
     """Lightweight indexes for the engineer-equipment list filters.
 

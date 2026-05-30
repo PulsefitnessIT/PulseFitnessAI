@@ -25,7 +25,8 @@ import {
 } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Loader2, Search, Wrench, MapPin, Building2,
-  CheckCircle2, AlertTriangle, RefreshCw,
+  CheckCircle2, AlertTriangle, RefreshCw, ChevronDown, ChevronUp,
+  Sparkles, Camera, FileText, Clock,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -214,47 +215,218 @@ function EquipmentRow({ item, sites }) {
     return (sites.find((s) => s.id === item.site_id) || {}).name || '';
   }, [item.site_id, sites]);
   const badge = STATUS_BADGE[item.status || 'in_service'] || STATUS_BADGE.in_service;
+  // Iter 220cm — Service-history rollup (lazy-loaded on expand).
+  const [open, setOpen] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && history === null && !loading) {
+      setLoading(true);
+      setError('');
+      try {
+        const r = await axios.get(
+          `${API}/svc/engineer/equipment/${item.id}/service-history`,
+          auth(),
+        );
+        setHistory(r.data);
+      } catch (e) {
+        setError(e?.response?.data?.detail || e?.message || 'Failed to load');
+        setHistory({ visits: [], totals: {} });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <div
-      className="bg-white rounded-2xl border border-slate-200 p-3"
+      className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
       data-testid={`equipment-row-${item.id}`}
     >
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-          <Wrench size={16} className="text-blue-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-900 truncate">
-            {item.name}
-            <span className="ml-2 text-[11px] font-medium text-slate-500">
-              {item.manufacturer ? `${item.manufacturer} ` : ''}{item.model || ''}
-            </span>
-          </p>
-          <div className="mt-1 flex items-center flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
-            {item.equipment_type && (
-              <span className="inline-flex items-center gap-1">{item.equipment_type}</span>
-            )}
-            {item.serial_number && (
-              <span className="font-mono">SN {item.serial_number}</span>
-            )}
-            {item.location && (
-              <span className="inline-flex items-center gap-1">
-                <MapPin size={10} /> {item.location}
-              </span>
-            )}
-            {siteName && (
-              <span className="inline-flex items-center gap-1">
-                <Building2 size={10} /> {siteName}
-              </span>
-            )}
+      <button
+        type="button"
+        onClick={toggle}
+        className="w-full text-left p-3 hover:bg-slate-50 transition-colors"
+        data-testid={`equipment-row-toggle-${item.id}`}
+        aria-expanded={open}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <Wrench size={16} className="text-blue-600" />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 truncate">
+              {item.name}
+              <span className="ml-2 text-[11px] font-medium text-slate-500">
+                {item.manufacturer ? `${item.manufacturer} ` : ''}{item.model || ''}
+              </span>
+            </p>
+            <div className="mt-1 flex items-center flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+              {item.equipment_type && (
+                <span className="inline-flex items-center gap-1">{item.equipment_type}</span>
+              )}
+              {item.serial_number && (
+                <span className="font-mono">SN {item.serial_number}</span>
+              )}
+              {item.location && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin size={10} /> {item.location}
+                </span>
+              )}
+              {siteName && (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 size={10} /> {siteName}
+                </span>
+              )}
+              {item.customer_name && (
+                <span className="inline-flex items-center gap-1 text-slate-600 font-semibold">
+                  · {item.customer_name}
+                </span>
+              )}
+            </div>
+          </div>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wide ${badge.cls}`}
+          >
+            {badge.label}
+          </span>
+          <span className="text-slate-400 ml-1" aria-hidden="true">
+            {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
         </div>
-        <span
-          className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wide ${badge.cls}`}
+      </button>
+
+      {open && (
+        <div
+          className="border-t border-slate-100 bg-slate-50/60 px-3 py-3 space-y-2"
+          data-testid={`equipment-history-${item.id}`}
         >
-          {badge.label}
-        </span>
+          {loading ? (
+            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+              <Loader2 size={11} className="animate-spin" /> Loading service history…
+            </div>
+          ) : error ? (
+            <p className="text-[11px] text-rose-600 flex items-center gap-1">
+              <AlertTriangle size={11} /> {error}
+            </p>
+          ) : history && history.visits && history.visits.length > 0 ? (
+            <ServiceHistory data={history} />
+          ) : (
+            <p
+              className="text-[11px] text-slate-500 italic"
+              data-testid={`equipment-history-empty-${item.id}`}
+            >
+              No service visits logged for this asset yet.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Iter 220cm — ServiceHistory panel
+// Renders the rollup: counters + a compact timeline of recent visits.
+// ─────────────────────────────────────────────────────────────────────
+
+function ServiceHistory({ data }) {
+  const totals = data.totals || {};
+  const visits = data.visits || [];
+  const fmtDate = (iso) => {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+      });
+    } catch {
+      return iso.slice(0, 10);
+    }
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-2">
+        <Stat icon={Sparkles} label="Visits" value={totals.visit_count || 0}
+              testid="equipment-history-visits" />
+        <Stat icon={Wrench} label="Serviced" value={totals.serviced_count || 0}
+              testid="equipment-history-serviced" />
+        <Stat icon={Clock} label="Last visit"
+              value={totals.last_visit ? fmtDate(totals.last_visit) : '—'}
+              testid="equipment-history-last" />
       </div>
+      <ol className="mt-1 space-y-1.5" data-testid="equipment-history-timeline">
+        {visits.slice(0, 8).map((v) => (
+          <li
+            key={v.machine_row_id}
+            className="bg-white rounded-xl border border-slate-200 p-2"
+            data-testid={`equipment-history-visit-${v.machine_row_id}`}
+          >
+            <div className="flex items-start gap-2">
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <FileText size={12} className="text-slate-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate">
+                  {v.case_reference || 'Job'}{v.case_title ? ` · ${v.case_title}` : ''}
+                </p>
+                <div className="mt-0.5 flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-500">
+                  <span>{fmtDate(v.visit_date)}</span>
+                  {v.engineer_name && <span>· {v.engineer_name}</span>}
+                  {v.case_status && (
+                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold uppercase tracking-wide">
+                      {v.case_status}
+                    </span>
+                  )}
+                  {v.serviced && (
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">
+                      ✓ Serviced
+                    </span>
+                  )}
+                  {v.cleaned && (
+                    <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">
+                      ✓ Cleaned
+                    </span>
+                  )}
+                  {(v.photos_count || 0) > 0 && (
+                    <span className="inline-flex items-center gap-0.5">
+                      <Camera size={10} /> {v.photos_count}
+                    </span>
+                  )}
+                </div>
+                {v.notes && (
+                  <p className="mt-1 text-[11px] text-slate-600 leading-snug line-clamp-2">
+                    {v.notes}
+                  </p>
+                )}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {visits.length > 8 && (
+        <p className="text-[10px] text-slate-400 italic mt-1">
+          + {visits.length - 8} older visit{visits.length - 8 === 1 ? '' : 's'} not shown
+        </p>
+      )}
+    </>
+  );
+}
+
+function Stat({ icon: Icon, label, value, testid }) {
+  return (
+    <div
+      className="bg-white rounded-lg border border-slate-200 p-2"
+      data-testid={testid}
+    >
+      <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <Icon size={10} /> {label}
+      </div>
+      <div className="text-sm font-bold text-slate-900 truncate">{value}</div>
     </div>
   );
 }
