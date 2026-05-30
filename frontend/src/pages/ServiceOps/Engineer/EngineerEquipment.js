@@ -26,7 +26,7 @@ import {
 import {
   ArrowLeft, Plus, Loader2, Search, Wrench, MapPin, Building2,
   CheckCircle2, AlertTriangle, RefreshCw, ChevronDown, ChevronUp,
-  Sparkles, Camera, FileText, Clock,
+  Sparkles, Camera, FileText, Clock, PoundSterling,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -337,6 +337,7 @@ function EquipmentRow({ item, sites }) {
 function ServiceHistory({ data }) {
   const totals = data.totals || {};
   const visits = data.visits || [];
+  const partsCost = totals.parts_cost || {};
   const fmtDate = (iso) => {
     if (!iso) return '—';
     try {
@@ -347,6 +348,12 @@ function ServiceHistory({ data }) {
       return iso.slice(0, 10);
     }
   };
+  const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', {
+    minimumFractionDigits: 0, maximumFractionDigits: 2,
+  })}`;
+  const approvedSpend = Number(partsCost.approved_gbp || 0);
+  const pendingSpend = Number(partsCost.pending_gbp || 0);
+  const hasSpend = approvedSpend > 0 || pendingSpend > 0;
 
   return (
     <>
@@ -359,8 +366,50 @@ function ServiceHistory({ data }) {
               value={totals.last_visit ? fmtDate(totals.last_visit) : '—'}
               testid="equipment-history-last" />
       </div>
+      {hasSpend && (
+        <div
+          className="rounded-xl border border-amber-200 bg-amber-50/60 px-2.5 py-2 flex items-center gap-2 flex-wrap"
+          data-testid="equipment-history-parts-cost"
+        >
+          <div className="w-7 h-7 rounded-lg bg-white border border-amber-200 flex items-center justify-center flex-shrink-0">
+            <PoundSterling size={12} className="text-amber-700" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-amber-700">
+              Parts spend on this machine
+            </p>
+            <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+              <span
+                className="text-sm font-bold text-slate-900 tabular-nums"
+                data-testid="equipment-history-parts-cost-approved"
+              >
+                {fmtGBP(approvedSpend)}
+                <span className="ml-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                  approved
+                </span>
+              </span>
+              {pendingSpend > 0 && (
+                <span
+                  className="text-[11px] text-amber-800 font-semibold tabular-nums"
+                  data-testid="equipment-history-parts-cost-pending"
+                >
+                  + {fmtGBP(pendingSpend)} pending
+                </span>
+              )}
+              <span className="text-[10px] text-slate-500">
+                across {partsCost.request_count || 0}{' '}
+                request{(partsCost.request_count || 0) === 1 ? '' : 's'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       <ol className="mt-1 space-y-1.5" data-testid="equipment-history-timeline">
-        {visits.slice(0, 8).map((v) => (
+        {visits.slice(0, 8).map((v) => {
+          const visitCost = v.parts_cost || {};
+          const visitApproved = Number(visitCost.approved_gbp || 0);
+          const visitPending = Number(visitCost.pending_gbp || 0);
+          return (
           <li
             key={v.machine_row_id}
             className="bg-white rounded-xl border border-slate-200 p-2"
@@ -397,6 +446,23 @@ function ServiceHistory({ data }) {
                       <Camera size={10} /> {v.photos_count}
                     </span>
                   )}
+                  {visitApproved > 0 && (
+                    <span
+                      className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 font-bold inline-flex items-center gap-0.5 tabular-nums"
+                      data-testid={`equipment-history-visit-cost-${v.machine_row_id}`}
+                    >
+                      <PoundSterling size={9} />{fmtGBP(visitApproved).replace('£', '')}
+                    </span>
+                  )}
+                  {visitApproved === 0 && visitPending > 0 && (
+                    <span
+                      className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-bold inline-flex items-center gap-0.5 tabular-nums"
+                      data-testid={`equipment-history-visit-cost-pending-${v.machine_row_id}`}
+                      title="Parts requested, awaiting admin approval"
+                    >
+                      <PoundSterling size={9} />{fmtGBP(visitPending).replace('£', '')} pending
+                    </span>
+                  )}
                 </div>
                 {v.notes && (
                   <p className="mt-1 text-[11px] text-slate-600 leading-snug line-clamp-2">
@@ -406,7 +472,8 @@ function ServiceHistory({ data }) {
               </div>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ol>
       {visits.length > 8 && (
         <p className="text-[10px] text-slate-400 italic mt-1">

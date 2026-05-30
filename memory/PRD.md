@@ -1,3 +1,53 @@
+## Iter 220co — Parts cost per machine rollup ✅ (May 30, 2026)
+
+**Why now**: the previous iter (220cn) lets engineers tag every parts
+request to a specific machine. The natural next move is *surfacing the
+spend* — "this Treadmill #4 has cost £X in parts over Y visits" turns
+the timeline into an upgrade-vs-repair conversation card.
+
+### Backend — `routes/svc/engineer_equipment.py`
+Extended `GET /api/svc/engineer/equipment/{equipment_id}/service-history`:
+- New aggregate against `svc_parts_requests` matching the equipment's
+  `svc_work_visit_machines.id` set, filtered to
+  `status ∈ {pending, approved, fulfilled}`. Each row contributes
+  `qty × list_price_gbp` to the bucket.
+- Response gains:
+  - `totals.parts_cost = { approved_gbp, pending_gbp, total_gbp,
+    approved_qty, pending_qty, request_count }` — all £ values rounded
+    to 2dp.
+  - `visits[i].parts_cost = { approved_gbp, pending_gbp, approved_qty,
+    pending_qty }` — same breakdown per case so the timeline can show
+    a £ chip beside each visit.
+- Aggregate is wrapped in `try/except` so a flaky Mongo $aggregate
+  never breaks the timeline (degrades to zeros, never 500s).
+
+### Frontend — `pages/ServiceOps/Engineer/EngineerEquipment.js`
+- Imported `PoundSterling` from lucide.
+- New amber "Parts spend on this machine" strip just under the
+  visit-count / serviced / last-visit grid; only renders when there
+  is spend. Shows `£approved` (bold) + `+ £pending` + request count.
+- Each visit card now shows a small amber chip with the £ for that
+  specific job (approved if any, else pending).
+- All new elements carry `data-testid`s
+  (`equipment-history-parts-cost`,
+  `equipment-history-parts-cost-approved`,
+  `equipment-history-parts-cost-pending`,
+  `equipment-history-visit-cost-{rowId}`).
+
+### Tests
+- `tests/test_iter_220co_parts_cost_rollup.py` (3 tests):
+  - Mixed approved/fulfilled + pending → totals split correctly,
+    per-visit bucket carries the right case totals, £ rounded.
+  - Empty machine-row list → `parts_cost` is still present, all zeros.
+  - Aggregate pipeline only `$match`es `status ∈ {pending, approved,
+    fulfilled}` (cancelled/rejected can never inflate spend).
+- Added to `Makefile regression:` block (TAB-indented). Combined
+  with the 220cm baseline (12 tests) the whole service-history suite
+  is **15/15 green**. Frontend lint clean.
+
+---
+
+
 ## Iter 220cn — Engineer Parts → per-Machine allocation ✅ (May 30, 2026)
 
 **User ask**:

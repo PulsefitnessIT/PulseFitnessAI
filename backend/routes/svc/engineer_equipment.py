@@ -615,10 +615,15 @@ async def get_equipment_service_history(
             "totals": {
                 "visit_count": 0, "serviced_count": 0,
                 "cleaned_count": 0, "last_visit": None,
+                "parts_cost": {
+                    "approved_gbp": 0.0, "pending_gbp": 0.0, "total_gbp": 0.0,
+                    "approved_qty": 0, "pending_qty": 0, "request_count": 0,
+                },
             },
         }
 
     case_ids = list({r["case_id"] for r in machine_rows if r.get("case_id")})
+    machine_row_ids = [r["id"] for r in machine_rows if r.get("id")]
     cases_by_id: dict[str, dict] = {}
     if case_ids:
         case_docs = await db.svc_cases.find(
@@ -645,6 +650,63 @@ async def get_equipment_service_history(
                 photos_by_case[doc["_id"]] = int(doc.get("n") or 0)
         except Exception:  # noqa: BLE001 — never break the rollup on a count flake
             photos_by_case = {}
+
+    # Iter 220co — Parts spend per machine. Aggregate parts requests
+    # tagged with any of this asset's machine_row ids. We split into:
+    #   • approved/fulfilled = realised cost (admin signed off)
+    #   • pending            = forecast cost (engineer asked, awaiting)
+    # We also bucket the per-case totals so the timeline can show a
+    # £ chip next to each visit.
+    parts_cost_by_case: dict[str, dict] = {}
+    parts_totals = {
+        "approved_gbp": 0.0,
+        "pending_gbp": 0.0,
+        "approved_qty": 0,
+        "pending_qty": 0,
+        "request_count": 0,
+    }
+    if machine_row_ids:
+        try:
+            agg_cursor = db.svc_parts_requests.aggregate([
+                {"$match": {
+                    **of,
+                    "machine_id": {"$in": machine_row_ids},
+                    "status": {"$in": ["pending", "approved", "fulfilled"]},
+                }},
+                {"$group": {
+                    "_id": {"case_id": "$case_id", "status": "$status"},
+                    "qty": {"$sum": "$qty"},
+                    "spend": {"$sum": {"$multiply": [
+                        {"$ifNull": ["$qty", 0]},
+                        {"$ifNull": ["$list_price_gbp", 0]},
+                    ]}},
+                    "n": {"$sum": 1},
+                }},
+            ])
+            async for doc in agg_cursor:
+                gid = doc.get("_id") or {}
+                case_id = gid.get("case_id") or ""
+                status = gid.get("status") or ""
+                spend = float(doc.get("spend") or 0)
+                qty = int(doc.get("qty") or 0)
+                n = int(doc.get("n") or 0)
+                bucket = parts_cost_by_case.setdefault(case_id, {
+                    "approved_gbp": 0.0, "pending_gbp": 0.0,
+                    "approved_qty": 0, "pending_qty": 0,
+                })
+                if status in ("approved", "fulfilled"):
+                    bucket["approved_gbp"] += spend
+                    bucket["approved_qty"] += qty
+                    parts_totals["approved_gbp"] += spend
+                    parts_totals["approved_qty"] += qty
+                elif status == "pending":
+                    bucket["pending_gbp"] += spend
+                    bucket["pending_qty"] += qty
+                    parts_totals["pending_gbp"] += spend
+                    parts_totals["pending_qty"] += qty
+                parts_totals["request_count"] += n
+        except Exception:  # noqa: BLE001 — degrade silently; counts are cosmetic
+            parts_cost_by_case = {}
 
     visits: list[dict] = []
     serviced_count = 0
@@ -680,12 +742,23 @@ async def get_equipment_service_history(
             "notes": m.get("notes"),
             "source": m.get("source"),
             "photos_count": photos_by_case.get(m.get("case_id") or "", 0),
+            "parts_cost": parts_cost_by_case.get(m.get("case_id") or "") or {
+                "approved_gbp": 0.0, "pending_gbp": 0.0,
+                "approved_qty": 0, "pending_qty": 0,
+            },
             "visit_date": visit_date,
         })
 
     # Sort newest-first (some legacy rows may have created_at but a
     # later case.completed_at — re-sort here so the timeline is sane).
     visits.sort(key=lambda v: v["visit_date"] or "", reverse=True)
+
+    # Round to 2dp for the UI — keep raw spend math in floats internally.
+    parts_totals["approved_gbp"] = round(parts_totals["approved_gbp"], 2)
+    parts_totals["pending_gbp"] = round(parts_totals["pending_gbp"], 2)
+    parts_totals["total_gbp"] = round(
+        parts_totals["approved_gbp"] + parts_totals["pending_gbp"], 2,
+    )
 
     return {
         "equipment": equipment,
@@ -695,6 +768,7 @@ async def get_equipment_service_history(
             "serviced_count": serviced_count,
             "cleaned_count": cleaned_count,
             "last_visit": last_visit_iso,
+            "parts_cost": parts_totals,
         },
     }
 
