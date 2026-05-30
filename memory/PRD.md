@@ -22061,3 +22061,83 @@ Testing agent ran full backend + frontend end-to-end:
 - ``frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js`` (+3 lines — quick action)
 - ``frontend/src/pages/ServiceOps/Engineer/WorkVisitMachinesCard.js` (+14 lines — New asset link)
 - ``Makefile`` (regression entries — TAB-indented)
+
+---
+
+## Iter 220cj — Engineer Field-Use 5-Item Batch (Feb 2026)
+
+### User-reported items (3 screenshots, red-circle annotations)
+
+1. **Queue → Job preview** — engineer can tap a queue row → modal
+   showing site name, address, fault description, equipment lines,
+   potential value (open quote), photo/event counters.
+2. **Estimated minutes → Hours/Minutes dropdowns** on
+   ``EngineerNewJob`` (replaces a free-text number input).
+3. **New Customer modal** — 5 mandatory fields (Name, Email, Phone,
+   Site Name, Site Address) with per-field inline errors + email
+   format check + Companies House lookup that auto-fills Name and
+   Address (matches CRM behaviour).
+4. **Engineer Equipment tab → CSV** — "Download template" + "Import
+   CSV" buttons that re-use the existing operations endpoints
+   ``/api/equipment/template/csv`` + ``/api/equipment/import/csv``.
+5. **Job → Machines tab → "From site" picker** — tapping fans out
+   every active equipment record for the case's site as a mobile-
+   first sheet with checkboxes; engineer can tick 1, multiple, or
+   "Select all"; already-on-job items are ghosted; bulk-attach via
+   one tap.
+
+### Backend additions
+- ``routes/svc/engineer_queue.py`` — ``GET /preview/{case_id}``:
+  unassigned-cases only (same precondition as ``/unassigned``), with
+  site equipment + open quote + photo/event counters. Quote lookup
+  swallows DB errors so analytics flakes never break the preview.
+- ``routes/svc/engineer_equipment.py`` — ``GET /jobs/{case_id}/site-
+  equipment`` (lists site catalogue annotated with
+  ``already_on_job``) and ``POST /jobs/{case_id}/machines/bulk-from-
+  site`` (idempotent bulk-attach; supports ``select_all=true`` OR
+  ``equipment_ids=[…]``).
+
+### Frontend additions
+- ``EngineerQueue.js`` — new ``PreviewModal``; "View details →"
+  link on every row; modal renders site/address/equipment/value;
+  also exposed in virtualised rowProps so 30+ row queues still
+  work.
+- ``EngineerNewJob.js`` — two ``<select>``s (hours 0–8, minutes
+  0/15/30/45) composing into ``estimated_minutes``.
+- ``EngineerCustomers.js`` — Companies House lookup block,
+  per-field ``formErrors`` state, mandatory-field validation,
+  email format check, auto-fill from CH profile.
+- ``EngineerEquipment.js`` — new ``CsvActions`` component (Template
+  + Import CSV buttons) re-using ops endpoints.
+- ``WorkVisitMachinesCard.js`` — new ``SiteEquipmentPicker``
+  modal with search, "Select all" toggle, ghosted disabled rows,
+  sticky bottom CTA; reachable via the new "From site" button.
+
+### Verification
+Testing agent ran full backend + frontend e2e:
+- **22 backend API integration tests pass** (new
+  ``test_iter_220cj_api.py``).
+- **14 backend unit tests + 6 wiring pins pass** (new
+  ``test_iter_220cj_engineer_extras*.py``).
+- **All 5 frontend features verified manually** by testing agent —
+  modals open, validation fires, dropdowns sum correctly, CSV
+  buttons trigger the right endpoints, site picker shows
+  ghosted/selectable rows correctly.
+- Bug found by testing agent + fixed: ``onPreview`` was missing
+  from the virtualised rowProps in ``EngineerQueue.js`` — without
+  the fix queues with >30 rows couldn't open the preview.
+- Backend + frontend lint clean. 42 pytest assertions for this
+  iter all pass.
+
+### Files changed
+- ``backend/routes/svc/engineer_queue.py`` (+~95 LOC)
+- ``backend/routes/svc/engineer_equipment.py`` (+~160 LOC for site picker)
+- ``backend/tests/test_iter_220cj_engineer_extras.py`` (new — 14 tests)
+- ``backend/tests/test_iter_220cj_engineer_extras_frontend.py`` (new — 6 pins)
+- ``backend/tests/test_iter_220cj_api.py`` (new by testing agent — 22 tests)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerNewJob.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerEquipment.js``
+- ``frontend/src/pages/ServiceOps/Engineer/WorkVisitMachinesCard.js``
+- ``Makefile`` (regression entries — TAB-indented)
