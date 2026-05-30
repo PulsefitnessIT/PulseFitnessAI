@@ -135,6 +135,8 @@ from routes.svc.compliance import router as svc_compliance_router
 from routes.svc.engineer_eta_update import router as svc_eta_update_router
 # Iter 220dh — Master Admin unified Pending Review queue
 from routes.master_admin_pending_review import router as mad_pending_review_router
+# Iter 220dm — PPM-due reminder sweeper
+from routes.svc.ppm_reminders import router as svc_ppm_reminders_router
 # Iter 216h91 — Engineer live location ping
 from routes.svc.engineer_location import router as svc_engineer_location_router
 # Iter 216h93 — Comprehensive platform vitals (master-admin only)
@@ -290,6 +292,8 @@ _UNGATED_ROUTERS = (
     svc_eta_update_router,
     # Iter 220dh — Master Admin unified Pending Review queue
     mad_pending_review_router,
+    # Iter 220dm — PPM-due reminder sweeper
+    svc_ppm_reminders_router,
     # Iter 216h91 — Engineer live location ping
     svc_engineer_location_router,
     # Iter 216h93 — Platform vitals dashboard (master admin)

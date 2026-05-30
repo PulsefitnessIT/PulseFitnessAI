@@ -426,6 +426,9 @@ async def admin_assign_case(
         pass
 
     # Iter 216h142 — fire a notification on assign / reassign / reschedule.
+    # Iter 220dm — switched from bare `pass` to logging so a regression
+    # that breaks notification creation can be seen in the logs instead
+    # of being silently swallowed.
     try:
         from routes.svc.notifications import create_notification
         when_str = datetime.fromisoformat(
@@ -470,8 +473,8 @@ async def admin_assign_case(
                     source_type="case",
                     source_id=case_id,
                 )
-    except Exception:
-        pass  # never let notifications break the dispatch flow.
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("dispatch notification failed for case=%s: %s", case_id, exc)
 
     # Iter 216h153 — Sicon outbox: dispatch updates the upstream call
     # with the new engineer/time and (when promoted) records the
