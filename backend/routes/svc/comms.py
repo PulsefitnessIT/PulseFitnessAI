@@ -118,7 +118,9 @@ _DEFAULTS: list[dict] = [
             "<p>Hi {{customer_name}},</p>"
             "<p><strong>{{engineer_name}}</strong> is on the way to "
             "<strong>{{site_name}}</strong> for case <strong>{{reference}}</strong>.</p>"
-            "<p>Estimated arrival: <strong>{{scheduled_label}}</strong>.</p>"
+            "<p>Estimated arrival: <strong>{{eta_label}}</strong>.</p>"
+            "{{engineer_message_html}}"
+            "{{tracking_link_html}}"
             "<p>If you need to reach us, reply to this email or call the desk.</p>"
             "<p>— The GymAxis service desk</p>"
         ),
@@ -509,6 +511,34 @@ async def auto_notify_on_transition(
         "engineer_name": case.get("assigned_engineer_name") or "Our engineer",
         "summary": case.get("repair_summary") or case.get("description") or "Service complete.",
     }
+    # Iter 220dg — outbound ETA + tracking URL. Lazy-imported to keep
+    # engineer_eta_update -> comms imports one-way.
+    try:
+        from routes.svc.engineer_eta_update import (
+            build_eta_minutes_estimate, build_tracking_url_for_case,
+            eta_label_from_minutes,
+        )
+        eta_mins = await build_eta_minutes_estimate(case)
+        tracking_url = await build_tracking_url_for_case(case) or ""
+        ctx["eta_minutes"] = str(eta_mins) if eta_mins is not None else ""
+        ctx["eta_label"]   = eta_label_from_minutes(eta_mins)
+        ctx["tracking_url"] = tracking_url
+        ctx["tracking_link_html"] = (
+            f'<p style="margin-top:12px"><a href="{tracking_url}" '
+            f'style="background:#2563eb;color:#fff;padding:10px 18px;'
+            f'border-radius:8px;text-decoration:none;font-weight:700">'
+            f'Track live</a></p>'
+        ) if tracking_url else ""
+        # No manual message on auto-comms.
+        ctx["engineer_message"] = ""
+        ctx["engineer_message_html"] = ""
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("auto-notify eta enrich failed for %s: %s", case_id, exc)
+        ctx.setdefault("eta_label", ctx.get("scheduled_label"))
+        ctx.setdefault("tracking_url", "")
+        ctx.setdefault("tracking_link_html", "")
+        ctx.setdefault("engineer_message", "")
+        ctx.setdefault("engineer_message_html", "")
     # Iter 216ag — honour per-site branding so the customer sees the venue's
     # name (e.g. "iGym Leeds") rather than the parent org (e.g. "Pulse").
     try:

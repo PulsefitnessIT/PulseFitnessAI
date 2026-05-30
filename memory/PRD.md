@@ -1,3 +1,97 @@
+## Iter 220dg — Engineer → customer outbound ETA push ✅ (May 30, 2026)
+
+We had inbound (customer-facing live tracking page via `track_token`)
+but the outbound nudge was thin: the auto-comm on `en_route` showed
+only the scheduled time and had no Track-live CTA. Closed both gaps:
+the auto-comm now renders a live ETA + Track-live button, and the
+engineer has a one-tap "Send ETA update" chip on JobAtAGlance.
+
+### Backend — `routes/svc/engineer_eta_update.py` (new)
+
+**Helpers (re-used by auto-notify + manual endpoint)**
+- `build_tracking_url_for_case(case)` — lazy-mints `track_token` if
+  missing; composes `{FRONTEND_URL}/track/{token}`. Single source of
+  truth so auto-comm + manual nudge always link to the same page.
+- `build_eta_minutes_estimate(case)` — haversine from latest
+  `svc_engineer_locations` ping to the case `site_lat`/`site_lng`,
+  divided by 35 km/h. Returns `None` when no recent (<5 min) ping,
+  case isn't `en_route`, or coords missing.
+- `eta_label_from_minutes(mins)` — friendly phrases ("in about 25
+  minutes", "in about 1 hour", "in about 2h 5m"); `None` collapses
+  to "shortly" so templates always render cleanly.
+
+**New endpoint `POST /api/svc/engineer/jobs/{case_id}/eta-update`**
+- Pre-conditions: case exists (404), caller is assigned engineer
+  or admin (403), status ∈ {assigned, en_route, on_site} (409),
+  customer_email present (400), `comms_auto_notify` not False (409).
+- Body: `{eta_minutes?: 0–480, message?: ≤400 chars}`. Engineer-
+  supplied minutes win over the live estimate; message renders as
+  a callout in the email.
+- Renders via the `engineer_en_route` template + auto-injects the
+  Track-live CTA (belt-and-braces if operator stripped the token).
+- Stamps `eta_last_sent_at` + `eta_last_minutes` on the case and
+  emits a `comm` event with full context (`tracking_url`,
+  `eta_minutes`, `message`).
+
+**Auto-notify enrichment (`auto_notify_on_transition`)**
+- Now populates `eta_label`, `eta_minutes`, `tracking_url`,
+  `tracking_link_html`, `engineer_message_html` in the email context.
+- Lazy import to keep the dependency one-way
+  (`engineer_eta_update → comms`).
+- Wrapped in try/except so any failure during ETA lookup falls back
+  cleanly to "shortly" + no Track-live button.
+
+**Default template update**
+- `engineer_en_route` body now references `{{eta_label}}`,
+  `{{engineer_message_html}}`, `{{tracking_link_html}}` so a
+  freshly-seeded org's first `en_route` transition includes a
+  Track-live CTA out of the box.
+
+### Frontend — `EngineerJobDetailV2 EtaUpdateChip`
+- New chip on JobAtAGlance, only renders when `status==='en_route'`
+  AND the case has a `customer_email`.
+- Collapsed state: sky-blue strip showing "Last sent HH:MM · 15 min"
+  or "Customer hasn't been updated yet" + a `Send` button.
+- Expanded state: 4 preset chips (+5, +10, +20, +30 min) plus a
+  numeric override input, an optional "what's happening" message
+  field, and a Send-to-customer CTA.
+- Success toast shows the rendered ETA label so the engineer sees
+  exactly what the customer received.
+- Test IDs: `jaag-eta-chip`, `jaag-eta-open`, `jaag-eta-panel`,
+  `jaag-eta-mins`, `jaag-eta-message`, `jaag-eta-submit`,
+  `jaag-eta-cancel`, `jaag-eta-preset-{5|10|20|30}`,
+  `jaag-eta-last`.
+
+### Tests / lint
+- `tests/test_iter_220dg_eta_outbound.py` — **15 tests** green:
+  - ETA label phrases (None/0/1/25/60/125 min).
+  - Tracking-URL helper: lazy-mints token, reuses existing token.
+  - ETA estimator: returns `None` when not en_route, when ping is
+    stale, when no coords; computes minutes with fresh ping.
+  - Endpoint guards: 404 missing, 403 wrong engineer, 409 wrong
+    status, 400 no customer_email, 409 comms disabled.
+  - Happy path: email actually sent via `send_email`, HTML contains
+    token + minutes + message, case stamped with timestamps, event
+    emitted.
+  - Auto-notify enrichment: tracking link + ETA label make it into
+    the rendered HTML.
+  - Default template references new tokens.
+  - Frontend wiring: component mounted, endpoint URL, all test IDs.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c+220d suite: **73/73 green**.
+- Backend ruff + frontend ESLint clean.
+- Live smoke: `/svc/engineer/jobs/x/eta-update` → 401 (registered).
+
+### Out of scope (deferred)
+- SMS channel for the outbound nudge (no Twilio creds in env;
+  emergency-only PARKED in roadmap).
+- Mid-journey automatic re-notify when the live ETA drifts more
+  than ±10 min from the last sent value. (Easy follow-on: hook
+  off the location-ping endpoint.)
+
+---
+
+
 ## Iter 220df — PWA install + push nudge (engineer-app discoverability) ✅ (May 30, 2026)
 
 The PWA install prompt + Web Push subscribe + service-worker push

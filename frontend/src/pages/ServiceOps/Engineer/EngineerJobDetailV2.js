@@ -401,6 +401,15 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
       />
       {/* Iter 220de — Compliance pack (PTW / COSHH / LOTO). */}
       <ComplianceCard caseId={job.id} onChange={onChange} />
+      {/* Iter 220dg — Engineer → customer outbound ETA push. */}
+      {job.status === 'en_route' && job.customer_email && (
+        <EtaUpdateChip
+          caseId={job.id}
+          lastSentAt={job.eta_last_sent_at}
+          lastMinutes={job.eta_last_minutes}
+          onChange={onChange}
+        />
+      )}
 
       {/* Big arrive button — only when not yet arrived and not closed. */}
       {!['closed', 'invoiced', 'awaiting_sign_off', 'repaired'].includes(job.status) && (
@@ -633,6 +642,139 @@ function HandoffNotesPanel({ caseId, notes, onChange }) {
     </div>
   );
 }
+
+// ─── Iter 220dg · EtaUpdateChip ──────────────────────────────────
+// Engineer is en_route and the customer is on the live tracking
+// page (or just received the auto-comm). This chip lets the
+// engineer fire a manual ETA refresh in two taps. We default to the
+// live haversine estimate; engineer can override with quick presets
+// (+10, +20 min) or a free-text "what's happening" note.
+function EtaUpdateChip({ caseId, lastSentAt, lastMinutes, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [mins, setMins] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const body = {};
+      const n = parseInt(mins, 10);
+      if (Number.isFinite(n) && n >= 0) body.eta_minutes = n;
+      if (message.trim()) body.message = message.trim();
+      const r = await axios.post(
+        `${API}/svc/engineer/jobs/${caseId}/eta-update`, body, auth(),
+      );
+      if (r.data?.ok) {
+        notify.success('ETA sent', `Customer notified · ${r.data.eta_label}`);
+        setOpen(false);
+        setMins('');
+        setMessage('');
+        await onChange();
+      } else {
+        notify.error('Send failed', 'Email did not go out — try again.');
+      }
+    } catch (e) {
+      notify.error('Send failed', e?.response?.data?.detail || e?.message);
+    } finally { setBusy(false); }
+  };
+  const lastSentLabel = lastSentAt
+    ? `Last sent ${new Date(lastSentAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}${lastMinutes ? ` · ${lastMinutes} min` : ''}`
+    : 'Customer hasn\'t been updated yet';
+  if (!open) {
+    return (
+      <div
+        className="mx-3 mb-2 p-2 rounded-lg border bg-sky-50 border-sky-200 flex items-center gap-2"
+        data-testid="jaag-eta-chip"
+      >
+        <Send size={14} className="text-sky-700 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-sky-800">
+            ETA update
+          </p>
+          <p className="text-[11px] text-sky-900/80 truncate" data-testid="jaag-eta-last">
+            {lastSentLabel}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="px-3 py-1 rounded-full bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold uppercase tracking-wide"
+          data-testid="jaag-eta-open"
+        >
+          Send
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mx-3 mb-2 p-2 rounded-lg border bg-sky-50 border-sky-200 space-y-1.5"
+      data-testid="jaag-eta-panel"
+    >
+      <div className="flex items-center gap-2">
+        <Send size={14} className="text-sky-700" />
+        <p className="text-[10px] font-bold uppercase tracking-wide text-sky-800 flex-1">
+          ETA update
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-sky-700/70 hover:text-sky-900"
+          data-testid="jaag-eta-cancel"
+          aria-label="Cancel"
+        >
+          <X size={13} />
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        {[5, 10, 20, 30].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setMins(String(n))}
+            className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
+              mins === String(n)
+                ? 'bg-sky-600 text-white border-sky-700'
+                : 'bg-white text-sky-800 border-sky-200 hover:bg-sky-100'
+            }`}
+            data-testid={`jaag-eta-preset-${n}`}
+          >
+            +{n} min
+          </button>
+        ))}
+        <input
+          type="number"
+          min={0}
+          max={480}
+          value={mins}
+          onChange={(e) => setMins(e.target.value)}
+          placeholder="or type"
+          className="w-20 px-2 py-1 rounded border border-sky-200 text-xs"
+          data-testid="jaag-eta-mins"
+        />
+      </div>
+      <input
+        type="text"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Optional message (e.g. stuck in traffic)"
+        maxLength={400}
+        className="w-full px-2 py-1 rounded border border-sky-200 text-xs"
+        data-testid="jaag-eta-message"
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={busy}
+        className="w-full px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold uppercase tracking-wide disabled:opacity-50"
+        data-testid="jaag-eta-submit"
+      >
+        {busy ? <Loader2 size={11} className="animate-spin inline" /> : 'Send to customer'}
+      </button>
+    </div>
+  );
+}
+
 function DraftStatusPill({ saving, lastSavedAt, dirty }) {
   if (saving) {
     return (

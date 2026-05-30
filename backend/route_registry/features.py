@@ -131,6 +131,8 @@ from routes.svc.public_tracking import router as svc_public_tracking_router
 from routes.svc.safety import router as svc_safety_router
 # Iter 220de — Compliance Pack (PTW, COSHH, LOTO)
 from routes.svc.compliance import router as svc_compliance_router
+# Iter 220dg — Engineer outbound ETA push to customer
+from routes.svc.engineer_eta_update import router as svc_eta_update_router
 # Iter 216h91 — Engineer live location ping
 from routes.svc.engineer_location import router as svc_engineer_location_router
 # Iter 216h93 — Comprehensive platform vitals (master-admin only)
@@ -282,6 +284,8 @@ _UNGATED_ROUTERS = (
     svc_safety_router,
     # Iter 220de — Compliance Pack (PTW, COSHH, LOTO)
     svc_compliance_router,
+    # Iter 220dg — Engineer outbound ETA push
+    svc_eta_update_router,
     # Iter 216h91 — Engineer live location ping
     svc_engineer_location_router,
     # Iter 216h93 — Platform vitals dashboard (master admin)
