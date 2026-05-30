@@ -918,6 +918,7 @@ function PartsTab({ job, onChange }) {
                   <p className="text-sm font-semibold text-amber-900">{r.qty} × {r.part_sku}</p>
                   <p className="text-[11px] text-amber-700 truncate">
                     {r.part_name} · <span className="capitalize">{r.urgency}</span>
+                    {r.machine_name ? <> · <span className="font-semibold">{r.machine_name}</span></> : null}
                   </p>
                 </div>
                 <button onClick={() => cancelRequest(r.id)} className="p-1 text-amber-700 hover:text-rose-600" aria-label="Cancel" data-testid={`parts-request-cancel-${r.id}`}>
@@ -1007,18 +1008,28 @@ function PartsTab({ job, onChange }) {
           }
           busy={busy}
         />
-          onSubmit={(qty, urgency, notes) => submitRequest(showRequest.sku, showRequest.name, qty, urgency, notes)}
-          busy={busy}
-        />
       )}
     </div>
   );
 }
 
-function PartsRequestModal({ sku, name, onCancel, onSubmit, busy }) {
+function PartsRequestModal({ sku, name, machines = [], onCancel, onSubmit, busy }) {
   const [qty, setQty] = useState(1);
   const [urgency, setUrgency] = useState('normal');
   const [notes, setNotes] = useState('');
+  // Iter 220cn — machine picker. Engineers can tag a parts request
+  // to a specific machine on this case so admin/CRM knows exactly
+  // which asset the spare is destined for. Optional — falls back to
+  // the case-level request when no machine is picked.
+  const [machineId, setMachineId] = useState('');
+  const selectedMachine = machines.find(m => (m.id || m._id) === machineId);
+  const machineName = selectedMachine
+    ? (selectedMachine.asset_name
+        || selectedMachine.name
+        || selectedMachine.machine_name
+        || selectedMachine.asset_serial
+        || '')
+    : '';
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4" data-testid="parts-request-modal">
       <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl border border-slate-200">
@@ -1035,6 +1046,34 @@ function PartsRequestModal({ sku, name, onCancel, onSubmit, busy }) {
             <Input label="Name" v={name} on={() => {}} testid="parts-request-name" fullWidth />
           ) : null}
           <Input label="Quantity" type="number" v={qty} on={v => setQty(Math.max(1, Number(v) || 1))} testid="parts-request-qty" fullWidth />
+          {machines.length > 0 && (
+            <div>
+              <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">
+                Machine (optional)
+              </label>
+              <select
+                value={machineId}
+                onChange={(e) => setMachineId(e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+                data-testid="parts-request-machine"
+              >
+                <option value="">— Case-level (no specific machine) —</option>
+                {machines.map(m => {
+                  const id = m.id || m._id;
+                  const label = m.asset_name || m.name || m.machine_name || m.model || m.asset_serial || id;
+                  const sub = [m.asset_serial, m.asset_type].filter(Boolean).join(' · ');
+                  return (
+                    <option key={id} value={id} data-testid={`parts-request-machine-opt-${id}`}>
+                      {label}{sub ? ` — ${sub}` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Tag this spare to the exact machine being worked on.
+              </p>
+            </div>
+          )}
           <div>
             <label className="text-[11px] uppercase font-bold tracking-wide text-slate-500 block mb-1">Urgency</label>
             <div className="flex gap-1">
@@ -1058,7 +1097,7 @@ function PartsRequestModal({ sku, name, onCancel, onSubmit, busy }) {
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-sm font-bold" data-testid="parts-request-cancel">Cancel</button>
-          <button onClick={() => onSubmit(qty, urgency, notes)} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-request-submit">
+          <button onClick={() => onSubmit(qty, urgency, notes, machineId || null, machineName || null)} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-request-submit">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             Send to admin
           </button>

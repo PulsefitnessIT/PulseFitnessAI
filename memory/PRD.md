@@ -1,3 +1,48 @@
+## Iter 220cn — Engineer Parts → per-Machine allocation ✅ (May 30, 2026)
+
+**User ask**:
+> Move Equipment from the Complete tab to its own tab, allow reporting
+> against machines, and **allocate parts to specific machines**.
+
+### Backend (was already in place, finalised)
+- `PartsRequestIn` accepts `machine_id` + `machine_name` (optional).
+- `POST /api/svc/engineer/parts-requests` resolves `machine_name` from
+  `svc_work_visit_machines` when only the id is supplied, persists both
+  on `svc_parts_requests`, and emits a case event whose `extra.machine_id`
+  matches. Body text reads
+  *"Parts request: 2 × ABC-123 (Belt) — for Treadmill A"* when tagged.
+
+### Frontend — `EngineerJobDetailV2.js`
+- **Fixed** the duplicate-`onSubmit` JSX block left mid-edit by the
+  previous agent (would not have compiled cleanly under stricter mode).
+- `PartsTab` already loaded `/svc/engineer/jobs/{case_id}/machines` and
+  passed `machines` to the modal. We finished:
+  - `PartsRequestModal` now renders a **Machine (optional)** dropdown,
+    populated from the case's `svc_work_visit_machines` rows. Each
+    option shows `asset_name — asset_serial · asset_type`.
+  - On submit the modal passes `machine_id` + `machine_name` up to
+    `submitRequest`, which forwards them in the POST body.
+  - The "Awaiting admin approval" list now surfaces `r.machine_name`
+    (bold suffix) so engineers can verify what they tagged.
+- All new elements carry `data-testid`s
+  (`parts-request-machine`, `parts-request-machine-opt-{id}`).
+
+### Tests
+- New `tests/test_iter_220cn_parts_machine_tag.py` (3 tests, all pass):
+  - `machine_id` only → server backfills `machine_name`.
+  - No machine → fields stay null; event body has no machine suffix.
+  - Both supplied → engineer-supplied name wins (no overwrite).
+- Added to `Makefile regression:` block (TAB-indented, lint-safe).
+- 47 related engineer tests (220ci, 220cj, 220cm, 220cn) all green.
+
+### Smoke
+Frontend lint clean. Backend test suite green. Smoke-test on
+`/svc/engineer/jobs/:caseId` deferred to user/QA — no rendering risk
+given pattern matches the existing modal exactly.
+
+---
+
+
 ## Iter 220cc — Master Admin mobile optimisation ✅ (May 29, 2026)
 
 **User ask** (CEO running master admin mostly from phone):
