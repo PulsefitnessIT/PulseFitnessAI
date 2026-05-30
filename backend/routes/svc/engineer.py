@@ -236,6 +236,42 @@ async def engineer_my_day_briefing(user=Depends(get_current_user)):
     except Exception:  # noqa: BLE001
         pending_quotes_count = 0
 
+    # Iter 220cx — Closed-but-not-invoiced alert. Jobs the engineer
+    # closed but for which no invoice was issued. Surfaces a recovery
+    # action card so we never silently lose billable work.
+    not_invoiced: list[dict] = []
+    try:
+        # We treat the case as "not invoiced" when:
+        #   • status ∈ {closed, repaired, awaiting_sign_off}
+        #   • closed within the last 7 days
+        #   • no draft invoice exists linked back to this case_id
+        from datetime import timedelta
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        async for c in db.svc_cases.find(
+            {
+                **of,
+                "assigned_engineer_id": user["id"],
+                "status": {"$in": ["closed", "repaired", "awaiting_sign_off"]},
+                "closed_at": {"$gte": cutoff_iso},
+            },
+            {
+                "_id": 0, "id": 1, "reference": 1, "title": 1,
+                "customer_name": 1, "closed_at": 1, "status": 1,
+            },
+            sort=[("closed_at", -1)],
+            limit=20,
+        ):
+            invoice = await db.svc_engineer_invoices.find_one(
+                {**of, "case_id": c["id"]},
+                {"_id": 0, "id": 1},
+            )
+            if not invoice:
+                not_invoiced.append(c)
+            if len(not_invoiced) >= 5:
+                break
+    except Exception:  # noqa: BLE001
+        not_invoiced = []
+
     # Total jobs scheduled today (open or closed) so we can say
     # "3 jobs today" even after the first one is done.
     jobs_today_total = await db.svc_cases.count_documents({
@@ -253,6 +289,9 @@ async def engineer_my_day_briefing(user=Depends(get_current_user)):
         "pending_parts_count":  pending_parts_count,
         "pending_quotes_count": pending_quotes_count,
         "unread_inbox_count":   unread_inbox_count,
+        # Iter 220cx — closed jobs that never got an invoice.
+        "not_invoiced":         not_invoiced,
+        "not_invoiced_count":   len(not_invoiced),
     }
 
 

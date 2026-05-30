@@ -29,7 +29,6 @@ import {
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
 import useEngineerAttention from './hooks/useEngineerAttention';
-import VoiceToJobButton from './VoiceToJobButton';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -310,15 +309,25 @@ export default function EngineerHomeV2() {
             {/* Iter 216h257 — Earnings hero card removed per user feedback.
                 Earnings live in the KPI grid + the new Analytics page. */}
 
-            {/* Iter 220cu — "My day" briefing strip. Composes the next
-                stop + miles + pending parts/quotes/inbox into one
-                glanceable line so the engineer knows the shape of their
-                day without tapping anything. */}
-            {briefing && (briefing.next_stop || briefing.jobs_today_total > 0
-                          || briefing.pending_parts_count > 0
-                          || briefing.pending_quotes_count > 0) && (
-              <MyDayBriefing briefing={briefing} navigate={navigate} />
-            )}
+    {/* Iter 220cu — "My day" briefing strip. Composes the next
+        stop + miles + pending parts/quotes/inbox into one
+        glanceable line so the engineer knows the shape of their
+        day without tapping anything. */}
+    {briefing && (briefing.next_stop || briefing.jobs_today_total > 0
+                  || briefing.pending_parts_count > 0
+                  || briefing.pending_quotes_count > 0
+                  || briefing.not_invoiced_count > 0) && (
+      <MyDayBriefing briefing={briefing} navigate={navigate} />
+    )}
+    {/* Iter 220cx — Closed-but-not-invoiced recovery card. Catches
+        the silent-failure case where the "I'm done" fast-path
+        closed the job but the invoice step errored. */}
+    {briefing?.not_invoiced_count > 0 && (
+      <NotInvoicedAlert
+        cases={briefing.not_invoiced || []}
+        navigate={navigate}
+      />
+    )}
 
             {/* KPI Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engineer-home-kpi-grid">
@@ -461,10 +470,6 @@ export default function EngineerHomeV2() {
         attention={attention}
         onChanged={() => { load(); attention.refresh(); }}
       />
-      {/* Iter 220cw — Voice-to-job floating mic (driver-friendly).
-          Mounts on the Home only — the EngineerNewJob form consumes
-          the draft from sessionStorage. */}
-      <VoiceToJobButton />
     </div>
   );
 }
@@ -561,6 +566,73 @@ function MyDayBriefing({ briefing, navigate }) {
           <Navigation size={12} /> Navigate
         </a>
       )}
+    </div>
+  );
+}
+
+
+// ─── NotInvoicedAlert ─────────────────────────────────────────────
+// Iter 220cx. Surfaces jobs the engineer closed in the last 7 days
+// that DON'T have an invoice attached — recovers from the silent
+// failure mode where the fast-path close-out closes the job but
+// the invoice-draft step errors (e.g. no chargeable lines yet).
+function NotInvoicedAlert({ cases, navigate }) {
+  if (!cases || cases.length === 0) return null;
+  const fmtDate = (iso) => {
+    try {
+      return new Date(iso).toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'short',
+      });
+    } catch { return ''; }
+  };
+  return (
+    <div
+      className="rounded-2xl bg-amber-50/80 border border-amber-200 p-4"
+      data-testid="engineer-home-not-invoiced"
+    >
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
+          <AlertTriangle size={16} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-800">
+            Closed but not invoiced
+          </p>
+          <p className="text-sm font-bold text-slate-900 mt-1">
+            {cases.length} job{cases.length === 1 ? '' : 's'} from the last 7 days have no invoice yet.
+          </p>
+          <p className="text-[11px] text-amber-900 mt-0.5">
+            Tap one to generate an invoice draft — your fast-path close-out probably failed silently.
+          </p>
+          <ul className="mt-2 space-y-1" data-testid="not-invoiced-list">
+            {cases.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/svc/engineer/invoices/new?case_id=${c.id}`)}
+                  className="w-full inline-flex items-center gap-2 text-left px-2 py-1 rounded-lg bg-white border border-amber-200 hover:border-amber-300 text-xs"
+                  data-testid={`not-invoiced-case-${c.id}`}
+                >
+                  <span className="font-bold text-blue-700 tabular-nums">
+                    {c.reference || c.id?.slice(0, 8)}
+                  </span>
+                  <span className="flex-1 truncate text-slate-700">
+                    {c.title || '(untitled)'}
+                  </span>
+                  {c.customer_name && (
+                    <span className="text-[10px] text-slate-500 truncate hidden sm:inline">
+                      {c.customer_name}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                    {fmtDate(c.closed_at)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

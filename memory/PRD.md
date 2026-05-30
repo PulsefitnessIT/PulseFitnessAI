@@ -1,3 +1,65 @@
+## Iter 220cx — Engineer-review polish: closed-but-not-invoiced, global mic, voice confidence, in-progress badge ✅ (May 30, 2026)
+
+Five gaps from the post-review audit, shipped together.
+
+### Gap 14 (P0 risk) — Closed-but-not-invoiced alert
+- `GET /api/svc/engineer/me/briefing` now also returns
+  `not_invoiced` (up to 5 cases) + `not_invoiced_count` —
+  jobs closed within the last 7 days with no linked invoice.
+- `EngineerHomeV2` renders a new `NotInvoicedAlert` amber card
+  beneath the My-day briefing. Each row is a one-tap button that
+  navigates to the InvoiceBuilder with `?case_id=…`, which (since
+  220ct) auto-prefills labour + mileage + parts.
+- Closes the silent-failure mode where the fast-path close-out
+  closes the job but the invoice-draft step errors and the
+  engineer never realises they didn't bill.
+- Test IDs: `engineer-home-not-invoiced`, `not-invoiced-list`,
+  `not-invoiced-case-{id}`.
+
+### Gap 9 — Mic FAB mounted globally
+- Moved `VoiceToJobButton` mount from `EngineerHomeV2` into
+  `AppRoutes.js` (next to the existing `EngineerOfflineIndicator`)
+  gated on `isEngineerRoute`. Engineers can now dictate a new
+  job from any engineer screen — JobDetail, Quotes, Equipment,
+  Inbox, etc.
+- Lazy-loaded with `Suspense` so it doesn't impact bundle.
+
+### Gap 13 — Voice-to-job confidence banner
+- `EngineerNewJob` now reads `parsed.confidence` from the
+  sessionStorage draft and renders an amber **"Low-confidence
+  dictation (XX%)"** banner above the form when it's below 0.6,
+  with the raw transcript shown as a quote so the engineer can
+  cross-check what was heard vs what was extracted.
+- Test ID: `newjob-voice-confidence-low`.
+
+### Gap 10 — Briefing refresh after close-out
+- (No code change required — `EngineerHomeV2.load()` already
+  fetches `/me/briefing`, and a navigate-back from JobDetail
+  re-runs `load`. The new "not-invoiced" card is the visible
+  proof that this works: close a job, return Home, see the row.)
+
+### Gap 6 — In-progress badge on the engineer job list
+- `EngineerHome.js` job cards now show a pulsing emerald
+  **"In progress"** chip when `status ∈ {in_progress, on_site}`
+  next to the priority/reference. Catches the weekend-leave-open
+  case.
+- Test ID: `job-{id}-in-progress`.
+
+### Tests / lint
+- `tests/test_iter_220cx_engineer_polish.py` — **4 tests**, all
+  green:
+  - Surfaces closed-no-invoice cases correctly.
+  - Returns empty when every case is invoiced.
+  - Handles "no closed jobs" without raising.
+  - Caps the list at 5 (UI safety).
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c-series: **60/60 green**.
+- Frontend lint clean (5 files). Backend ruff clean.
+- Live smoke: `/me/briefing` returns 401 unauthorised (registered).
+
+---
+
+
 ## Iter 220cw — Voice-to-job (driver-friendly mic FAB) ✅ (May 30, 2026)
 
 The big engineer-review remaining win: one-handed / driving voice

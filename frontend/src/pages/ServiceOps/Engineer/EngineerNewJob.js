@@ -74,6 +74,9 @@ export default function EngineerNewJob() {
   // engineer fills the customer fields so they can spot duplicates
   // BEFORE creating a third "treadmill broken" case at the same site.
   const [openCases, setOpenCases] = useState({ count: 0, cases: [] });
+  // Iter 220cx — Voice-to-job low-confidence indicator.
+  const [voiceConfidence, setVoiceConfidence] = useState(null);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
   const [form, setForm] = useState({
     title: '', description: '', priority: 'P3',
     customer_name: '', customer_email: '', customer_phone: '',
@@ -106,6 +109,12 @@ export default function EngineerNewJob() {
         site_postcode:  parsed.site_postcode  || f.site_postcode,
         scheduled_at:   parsed.scheduled_at_hint || f.scheduled_at,
       }));
+      // Iter 220cx — confidence banner. The parser self-rates the
+      // extraction; below 0.6 we tell the engineer to double-check
+      // every field before submitting.
+      const c = typeof parsed.confidence === 'number' ? parsed.confidence : 1;
+      setVoiceConfidence(c);
+      setVoiceTranscript(draft.transcript || '');
       sessionStorage.removeItem('svc.engineer.voiceJobDraft');
     } catch { /* private mode / corrupt JSON — fall through */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -278,6 +287,30 @@ export default function EngineerNewJob() {
           className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-5 space-y-4"
           data-testid="newjob-form"
         >
+          {/* Iter 220cx — Voice-to-job low-confidence banner.
+              The parser self-rates its extraction; below 0.6 we
+              warn the engineer to double-check every field. */}
+          {voiceConfidence != null && voiceConfidence < 0.6 && (
+            <div
+              className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 flex items-start gap-2"
+              data-testid="newjob-voice-confidence-low"
+            >
+              <AlertTriangle size={14} className="text-amber-700 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-amber-900">
+                  Low-confidence dictation ({Math.round(voiceConfidence * 100)}%)
+                </p>
+                <p className="text-[11px] text-amber-800 mt-0.5">
+                  Please double-check every field below — your transcript was:
+                </p>
+                {voiceTranscript && (
+                  <p className="text-[11px] italic text-slate-700 mt-1 line-clamp-3">
+                    "{voiceTranscript}"
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               <Field label="Job title" required>

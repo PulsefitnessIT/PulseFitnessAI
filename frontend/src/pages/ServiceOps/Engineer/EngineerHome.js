@@ -232,6 +232,21 @@ export default function EngineerHome() {
                     {(j.priority || 'p3').toUpperCase()}
                   </span>
                   <span className="text-xs font-bold opacity-70 tabular-nums">{j.reference}</span>
+                  {/* Iter 220cx — in-progress red dot. Engineers
+                      sometimes leave a job started but not closed
+                      over the weekend; this surfaces it visually. */}
+                  {(j.status === 'in_progress' || j.status === 'on_site') && (
+                    <span
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold uppercase tracking-wide"
+                      data-testid={`job-${j.id}-in-progress`}
+                    >
+                      <span className="relative inline-block w-1.5 h-1.5">
+                        <span className="absolute inset-0 rounded-full bg-emerald-500" />
+                        <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                      </span>
+                      In progress
+                    </span>
+                  )}
                 </div>
                 <SLAChip resolveAt={j.sla_resolve_at} />
               </div>

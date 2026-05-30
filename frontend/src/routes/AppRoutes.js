@@ -12,7 +12,7 @@
  * are all declared here. Auth gates are inline so each surface can
  * negotiate its own redirect.
  */
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
@@ -35,6 +35,9 @@ import ContactMarketingPage from '@/pages/Marketing/ContactMarketingPage';
 import TrustPage from '@/pages/TrustPage';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import EngineerOfflineIndicator from '@/components/engineer/EngineerOfflineIndicator';
+// Iter 220cx — mic FAB mounted globally on every engineer route
+// (not just Home) so engineers can dictate a new job from anywhere.
+const EngineerVoiceToJobButton = lazy(() => import('@/pages/ServiceOps/Engineer/VoiceToJobButton'));
 
 // Lazy-loaded authenticated app + secondary marketing pages.
 const DemoRequestPage = lazy(() => import('@/pages/DemoRequestPage'));
@@ -491,6 +494,11 @@ export default function AppRoutes({ user, login }) {
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     {user && isEngineerRoute ? <EngineerOfflineIndicator /> : null}
+    {user && isEngineerRoute ? (
+      <Suspense fallback={null}>
+        <EngineerVoiceToJobButton />
+      </Suspense>
+    ) : null}
     </>
   );
 }
