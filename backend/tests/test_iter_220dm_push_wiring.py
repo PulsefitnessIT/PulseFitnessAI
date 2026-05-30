@@ -211,7 +211,8 @@ def test_dispatch_fires_job_assigned_for_new_engineer():
         with patch("routes.svc.diary.db", fdb), \
              patch("utils.svc_state.append_event", AsyncMock()), \
              patch("routes.svc.notifications.create_notification", notify):
-            from routes.svc.diary import dispatch, DispatchIn
+            from routes.svc.diary import admin_assign_case as dispatch
+            from routes.svc.diary import AssignIn as DispatchIn
             return await dispatch(
                 case_id="case-1",
                 body=DispatchIn(
@@ -240,7 +241,8 @@ def test_dispatch_fires_job_rescheduled_when_same_engineer():
         with patch("routes.svc.diary.db", fdb), \
              patch("utils.svc_state.append_event", AsyncMock()), \
              patch("routes.svc.notifications.create_notification", notify):
-            from routes.svc.diary import dispatch, DispatchIn
+            from routes.svc.diary import admin_assign_case as dispatch
+            from routes.svc.diary import AssignIn as DispatchIn
             return await dispatch(
                 case_id="case-1",
                 body=DispatchIn(
@@ -266,7 +268,8 @@ def test_dispatch_fires_job_unassigned_to_previous_engineer():
         with patch("routes.svc.diary.db", fdb), \
              patch("utils.svc_state.append_event", AsyncMock()), \
              patch("routes.svc.notifications.create_notification", notify):
-            from routes.svc.diary import dispatch, DispatchIn
+            from routes.svc.diary import admin_assign_case as dispatch
+            from routes.svc.diary import AssignIn as DispatchIn
             return await dispatch(
                 case_id="case-1",
                 body=DispatchIn(
@@ -296,7 +299,8 @@ def test_dispatch_logs_but_does_not_raise_on_notification_failure():
         with patch("routes.svc.diary.db", fdb), \
              patch("utils.svc_state.append_event", AsyncMock()), \
              patch("routes.svc.notifications.create_notification", broken):
-            from routes.svc.diary import dispatch, DispatchIn
+            from routes.svc.diary import admin_assign_case as dispatch
+            from routes.svc.diary import AssignIn as DispatchIn
             return await dispatch(
                 case_id="case-1",
                 body=DispatchIn(

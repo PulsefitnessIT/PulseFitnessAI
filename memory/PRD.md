@@ -1,3 +1,65 @@
+## Iter 220dm — Push-backend wiring sweep ✅ (Feb 14, 2026)
+
+Closes the loop on the Web Push channel enabled in Iter 220df by
+guaranteeing the three highest-value engineer alert kinds actually
+fire from the producers — no more silent gaps where the badge
+shows zero because the dispatcher route forgot to insert a
+notification row.
+
+### Backend
+
+**`routes/svc/diary.py` — dispatcher push wiring**
+- `admin_assign_case` now fires three distinct notification kinds
+  from a single transition:
+  - `job_assigned` when a job lands on a new engineer (also fires
+    `job_unassigned` to the previous holder, if any).
+  - `job_rescheduled` when the same engineer keeps the job but the
+    scheduled time changes.
+- Notification-failure path now `logger.warning(...)`s instead of
+  the previous bare `pass` — regressions become visible in the
+  logs rather than being silently swallowed.
+
+**`routes/svc/ppm_reminders.py` (NEW)**
+- New admin sweep endpoint `POST /api/svc/admin/ppm/fire-due-reminders`
+  scans open PPM cases (`case_type='ppm'`, status ∈ {new,
+  scheduled, assigned}) scheduled within `hours_ahead` (1–168 h,
+  default 24) and emits one `ppm_due` notification per case to the
+  assigned engineer.
+- Dedupe guard (`DEDUPE_WINDOW_HOURS=18`): if a `ppm_due` already
+  fired for the same case + engineer within the window, the sweep
+  skips and increments `skipped_dupe` so a daily cron + manual
+  trigger don't double-notify.
+- Master Admin may target a single org via `?organization_id=`;
+  all other roles are scoped to their own org.
+- Returns counts (`scanned`, `fired`, `skipped_dupe`,
+  `skipped_unassigned`, `window_hours_ahead`) so the operator can
+  audit the sweep result.
+- Wired into `route_registry/features.py` (auto-mounted under
+  `/api`).
+
+### Tests / lint
+
+- `tests/test_iter_220dm_push_wiring.py` — **11 tests** green:
+  - PPM sweep requires admin/owner/manager (403 otherwise).
+  - Sweep fires one `ppm_due` per case + counts returned.
+  - Dedupe skip when `svc_notifications` already has a recent
+    matching row.
+  - Mongo filter pinned to `case_type='ppm'`, open states only,
+    assigned engineer required, window narrowed.
+  - Master-admin can target a different org explicitly.
+  - Dispatch fires `job_assigned` for a brand-new engineer.
+  - Dispatch fires `job_rescheduled` when the engineer is the same
+    but the time changes (and does NOT fire `job_assigned`).
+  - Dispatch fires `job_unassigned` to the previous engineer when
+    reassigning.
+  - Notification failures don't break dispatch (dispatch returns
+    success and logs the warning).
+  - `TOGGLEABLE_PUSH_KINDS` still contains all three pinned kinds.
+  - The bare `pass` → `logger.warning(...)` source-level swap is
+    audited.
+- Added to `Makefile` `regression:` block (TAB-indented).
+
+
 ## Iter 220dl — Customer tracking page: compliance chips ✅ (May 30, 2026)
 
 Mirrors the PDF compliance evidence pack (Iter 220dj) on the
