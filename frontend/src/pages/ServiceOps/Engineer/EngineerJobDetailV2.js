@@ -27,7 +27,7 @@ import {
   ArrowLeft, Clock, Camera, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
-  Video, MapPin, Send, Download,
+  Video, MapPin, Send, Download, Phone, Navigation, History, LogIn,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { engineerSendOrQueue } from '@/utils/engineerOfflineQueue';
@@ -49,11 +49,14 @@ const fmtMins = (m) => {
 };
 
 const TABS = [
+  // Iter 220cs — reorder to match the real-world arrival → diagnose
+  // → fix → close flow. Time runs passively (sticky ActiveTimerBar
+  // is always visible) so it no longer needs to be the first tab.
+  { id: 'equipment', label: 'Equipment', icon: Package },
+  { id: 'photos',    label: 'Photos',    icon: Camera },
+  { id: 'parts',     label: 'Parts',     icon: Wrench },
   { id: 'time',      label: 'Time',      icon: Clock },
   { id: 'travel',    label: 'Travel',    icon: Car },
-  { id: 'photos',    label: 'Photos',    icon: Camera },
-  { id: 'equipment', label: 'Equipment', icon: Package },
-  { id: 'parts',     label: 'Parts',     icon: Wrench },
   { id: 'complete',  label: 'Complete',  icon: CheckCircle2 },
 ];
 
@@ -62,7 +65,7 @@ export default function EngineerJobDetailV2() {
   const { caseId } = useParams();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('time');
+  const [activeTab, setActiveTab] = useState('equipment');
   const [mileage, setMileage] = useState({ items: [], total_miles: 0, total_amount_gbp: 0 });
   const [busy, setBusy] = useState(false);
   // Iter 220c — Lift the draft state OUT of CompleteTab so it survives
@@ -189,6 +192,7 @@ export default function EngineerJobDetailV2() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-5 pb-28 space-y-4">
+        <JobAtAGlance job={job} setBusy={setBusy} busy={busy} onChange={load} />
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
         {activeTab === 'photos' && <PhotosTab job={job} onChange={load} />}
@@ -206,6 +210,195 @@ export default function EngineerJobDetailV2() {
           />
         )}
       </main>
+    </div>
+  );
+}
+
+// ─── JobAtAGlance ─────────────────────────────────────────────────
+// Iter 220cs. The first thing an engineer sees when they open a
+// job: customer / site / address / fault summary + tap-to-call,
+// tap-to-navigate, and a big "I'm on site" button that starts the
+// on-site timer (with the existing H&S gate respected).
+function JobAtAGlance({ job, busy, setBusy, onChange }) {
+  const phone = job.customer_phone;
+  const email = job.customer_email;
+  const address = [job.site_address, job.site_postcode].filter(Boolean).join(' ');
+  const mapsHref = address
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+    : null;
+  const fault = job.description || job.fault_summary || job.summary || '';
+  // Iter 220cs — surface the most recent prior visit to the same
+  // asset (the engineer endpoint already returns `asset_history`).
+  const lastVisitDoc = Array.isArray(job.asset_history) ? job.asset_history[0] : null;
+  const lastVisit = lastVisitDoc
+    ? `${lastVisitDoc.reference || 'previous'}${lastVisitDoc.closed_at ? ' · ' + new Date(lastVisitDoc.closed_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''}`
+    : (job.last_visit_summary || null);
+  const machineCount = (job.machines_count ?? (Array.isArray(job.machines) ? job.machines.length : null));
+
+  // Has the engineer already arrived? We look for any on_site time
+  // entry on the case (the existing TimeTab.start uses the same
+  // /time/start endpoint).
+  const entries = job.time_entries || [];
+  const hasArrived = entries.some(e => e.category === 'on_site' || e.category === 'travel');
+  const activeOnSite = entries.find(e => !e.end_at && e.category === 'on_site');
+
+  const arrive = async () => {
+    setBusy(true);
+    try {
+      const r = await engineerSendOrQueue({
+        method: 'POST',
+        path: '/svc/engineer/time/start',
+        body: { case_id: job.id, category: 'on_site' },
+        label: 'Start on-site timer',
+      });
+      if (r.ok) {
+        notify.success('Arrived on site', 'On-site timer started.');
+      } else if (r.offline) {
+        notify.success('Arrival queued', 'Will sync when you reconnect.');
+      }
+      await onChange();
+    } catch (e) {
+      const d = e?.response?.data?.detail;
+      if (d?.code === 'safety_signoff_required') {
+        notify.error('H&S checklist required', 'Open the Complete tab and tick off the H&S items before starting work.');
+      } else {
+        notify.error('Could not record arrival', e?.message || 'Try again.');
+      }
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div
+      className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+      data-testid="job-at-a-glance"
+    >
+      <div className="p-3 space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Customer
+            </p>
+            <p className="text-sm font-bold text-slate-900 truncate" data-testid="jaag-customer-name">
+              {job.customer_name || 'Unknown customer'}
+            </p>
+            {job.site_name && (
+              <p className="text-xs text-slate-500 truncate">
+                {job.site_name}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {phone && (
+              <a
+                href={`tel:${phone.replace(/\s+/g, '')}`}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                title={`Call ${phone}`}
+                data-testid="jaag-call"
+              >
+                <Phone size={14} />
+              </a>
+            )}
+            {mapsHref && (
+              <a
+                href={mapsHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                title="Open in Maps"
+                data-testid="jaag-maps"
+              >
+                <Navigation size={14} />
+              </a>
+            )}
+            {email && (
+              <a
+                href={`mailto:${email}`}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
+                title={`Email ${email}`}
+                data-testid="jaag-email"
+              >
+                <Send size={14} />
+              </a>
+            )}
+          </div>
+        </div>
+
+        {address && (
+          <p className="text-xs text-slate-600 leading-snug" data-testid="jaag-address">
+            <MapPin size={11} className="inline mr-1 -mt-0.5 text-slate-400" />
+            {address}
+          </p>
+        )}
+
+        {fault && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2">
+              What we're here for
+            </p>
+            <p className="text-xs text-slate-700 leading-snug" data-testid="jaag-fault">
+              {fault}
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {job.priority && (
+            <span
+              className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${
+                String(job.priority).toLowerCase().startsWith('p1') || String(job.priority).toLowerCase() === 'critical'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : String(job.priority).toLowerCase().startsWith('p2') || String(job.priority).toLowerCase() === 'high'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-slate-50 text-slate-600 border-slate-200'
+              }`}
+              data-testid="jaag-priority"
+            >
+              {String(job.priority).toUpperCase()}
+            </span>
+          )}
+          {machineCount != null && machineCount > 0 && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-slate-50 text-slate-600 border-slate-200" data-testid="jaag-machines">
+              <Package size={9} /> {machineCount} {machineCount === 1 ? 'machine' : 'machines'}
+            </span>
+          )}
+          {lastVisit && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border-blue-200" data-testid="jaag-last-visit">
+              <History size={9} /> Last visit: {lastVisit}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Big arrive button — only when not yet arrived and not closed. */}
+      {!['closed', 'invoiced', 'awaiting_sign_off', 'repaired'].includes(job.status) && (
+        <div className="border-t border-slate-100 p-2 bg-slate-50/40">
+          {activeOnSite ? (
+            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-bold" data-testid="jaag-on-site-now">
+              <CheckCircle2 size={14} /> On site — timer running
+            </div>
+          ) : hasArrived ? (
+            <button
+              type="button"
+              onClick={arrive}
+              disabled={busy}
+              className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+              data-testid="jaag-resume"
+            >
+              <Play size={12} /> Resume on-site timer
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={arrive}
+              disabled={busy}
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-sm font-bold uppercase tracking-wide shadow-sm disabled:opacity-50"
+              data-testid="jaag-arrive"
+            >
+              <LogIn size={14} /> I'm on site
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,3 +1,62 @@
+## Iter 220cs — Job-at-a-glance + "I'm on site" + tab reorder ✅ (May 30, 2026)
+
+**From the engineer-app process review**: shipped the three P0 wins
+identified by the analyst review.
+
+### 1. JobAtAGlance card (always-on header above the tabs)
+- New component in `EngineerJobDetailV2.js` rendered before any tab.
+- Surfaces in one fold:
+  - Customer name + site name.
+  - **Tap-to-call** button (`tel:` deep link, strips whitespace).
+  - **Open in Maps** button (`https://www.google.com/maps/dir/?api=1&destination=…`).
+  - **Email** button (`mailto:`).
+  - Site address (with map-pin icon).
+  - "What we're here for" fault summary (pulls `description` /
+    `fault_summary` / `summary`).
+  - Chips: priority (P1/P2/P3 colour-coded), machine count,
+    "Last visit: GA-… · 14 May" (reads `asset_history[0]` already
+    returned by the engineer endpoint).
+
+### 2. "I'm on site" button (one-tap arrival)
+- Big emerald CTA at the bottom of the JobAtAGlance card.
+- Calls `POST /api/svc/engineer/time/start` with `category=on_site`
+  via the existing offline-queue helper — so it works even when
+  signal drops.
+- Respects the existing **H&S safety_signoff gate**: if the org has
+  a template and the engineer hasn't ticked it off, the backend's
+  `safety_signoff_required` error is caught and a clear toast
+  tells the engineer to open the Complete tab first.
+- Three states:
+  - **Not arrived** → big green `I'm on site` button.
+  - **Active on-site timer** → green confirmation chip "On site —
+    timer running" (no duplicate-tap risk).
+  - **Previously arrived, timer paused** → muted `Resume on-site
+    timer` button.
+- Hidden when the case is closed/invoiced/awaiting_sign_off/repaired
+  (no arrival action makes sense there).
+- All elements carry `data-testid`s: `job-at-a-glance`,
+  `jaag-customer-name`, `jaag-call`, `jaag-maps`, `jaag-email`,
+  `jaag-address`, `jaag-fault`, `jaag-priority`, `jaag-machines`,
+  `jaag-last-visit`, `jaag-arrive`, `jaag-resume`, `jaag-on-site-now`.
+
+### 3. Job Detail tab reorder
+Tabs now read in real-world flow order:
+`Equipment → Photos → Parts → Time → Travel → Complete`.
+
+The sticky `ActiveTimerBar` (already present in the header) means
+the timer is always visible regardless of which tab is selected,
+so Time no longer needs to be the default tab. Default tab is now
+`equipment` so the engineer lands on what they actually need to
+look at first.
+
+### Tests / lint
+- Frontend lint clean (`EngineerJobDetailV2.js`).
+- Combined 220c[m,n,o,p,q,r] backend regression: **32/32 green**.
+- No new backend changes — endpoint contract unchanged.
+
+---
+
+
 ## Iter 220cr — Engineer pricing defaults, multi-machine quotes, "On-site" channel + ordered Quick Actions ✅ (May 30, 2026)
 
 **User feedback (with screenshots)**:
