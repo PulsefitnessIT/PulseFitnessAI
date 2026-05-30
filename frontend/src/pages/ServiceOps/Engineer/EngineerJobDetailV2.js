@@ -25,7 +25,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Camera, Wrench, Car, Loader2, RefreshCw,
-  Play, Square, Plus, Trash2, Check, AlertTriangle, Receipt,
+  Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
   Video, MapPin, Send, Download,
 } from 'lucide-react';

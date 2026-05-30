@@ -28,7 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Home, Wrench, Calendar, FileText, Receipt, CreditCard, Search,
+  Home, Wrench, Calendar, FileText, ReceiptPoundSterling as Receipt, CreditCard, Search,
   RefreshCw, Loader2, ChevronRight, AlertTriangle, Clock, MapPin,
   Keyboard, ExternalLink, X, PlayCircle, Inbox as InboxIcon, Hand,
 } from 'lucide-react';

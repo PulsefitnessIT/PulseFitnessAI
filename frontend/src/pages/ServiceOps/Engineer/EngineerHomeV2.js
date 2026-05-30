@@ -22,7 +22,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
-  CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus, Receipt, FileSignature,
+  CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
+  ReceiptPoundSterling as Receipt, FileSignature,
   CreditCard, Inbox, Hand, Users, Menu,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

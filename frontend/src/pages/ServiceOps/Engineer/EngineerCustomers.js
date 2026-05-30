@@ -14,7 +14,7 @@ import axios from 'axios';
 import {
   ArrowLeft, Users, Plus, Search, Loader2, Mail, Phone, MapPin,
   Trash2, Edit3, Save, X, Wrench, FileText, CalendarClock,
-  Receipt,
+  ReceiptPoundSterling as Receipt,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Receipt, Plus, Loader2, RefreshCw, ChevronRight, Send,
+  ReceiptPoundSterling as Receipt, Plus, Loader2, RefreshCw, ChevronRight, Send,
   CheckCircle2, XCircle, ArrowLeft, FileText, AlertTriangle,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';

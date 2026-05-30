@@ -21857,3 +21857,118 @@ multiplies into ~10× audience without extra writing effort.
 - ``frontend/src/pages/MasterAdmin/SEOAutopilotPanel.js`` (+~200 LOC:
   ``CopyableBlock``, ``DistributionDrawer``, ``Distribute`` button)
 - ``Makefile`` (regression target)
+
+---
+
+## Iter 220cf — SEO Autopilot Daily Cron Catch-Up (Feb 2026)
+
+### Problem
+User reported "SEO Autopilot didn't fire today". The
+``run_daily_autopilot_loop`` in ``routes/marketing/seo_autopilot.py``
+used a strict ``london.hour == cfg_hour`` predicate. The 15-minute
+wake-up cadence can drift past the exact hour after a backend
+restart or a slow iteration — when that happened, the loop skipped
+the entire day silently.
+
+### Fix
+Swap the equality check to ``london.hour >= cfg_hour`` AND
+``not _autopilot_already_ran_today(today)``. The stamp row in
+``seo_autopilot_runs`` keeps the loop idempotent (still at most one
+run per London-calendar-day), but now the run is no longer skipped
+if the loop ticks late.
+
+### Verification
+- ``backend/tests/test_iter_220cf_seo_autopilot_cron_catchup.py`` —
+  7 new tests pin: fires at exact hour, catches up after hour,
+  skips before hour, skips if already-ran, skips if disabled,
+  module exposes idempotency helpers, ``_london_now`` is aware.
+- All 50 SEO autopilot tests pass (43 existing + 7 new).
+- Backend lint clean.
+
+### Files changed
+- ``backend/routes/marketing/seo_autopilot.py`` (already edited prior
+  to this session — verified syntactically sound)
+- ``backend/tests/test_iter_220cf_seo_autopilot_cron_catchup.py`` (new)
+- ``Makefile`` (regression entry — TAB-indented)
+
+---
+
+## Iter 220cg — Social Card Text Fall-Off + Headline Hygiene (Feb 2026)
+
+### Problem
+User reported "Social media AI text falling off the edge & not making
+sense". Two root causes:
+
+1. ``_pillow_branded_card_png`` used a fixed 18-char wrap budget.
+   On portrait (9:16) TikTok cards the pixel-width-per-character
+   easily exceeded the safe right margin → the headline literally
+   ran off the card.
+2. The over-image headline came verbatim from the LLM and was
+   sometimes a teaser ("How to cut downtime…"), a mid-sentence
+   fragment ("…the silent killer"), or wrapped in quotes — none of
+   which read as a clean standalone headline.
+
+### Fix
+- **Pixel-aware word wrap**: ``_pillow_branded_card_png`` now
+  measures each candidate line with ``font.getlength()`` against
+  a symmetrical safe-width (``w - 2 * text_x``). If the headline
+  doesn't fit in 3 lines OR any line exceeds the safe width, font
+  shrinks (down to 50% of original) and re-wraps. Single oversized
+  words are character-truncated with an ellipsis.
+- **Headline cleaner** (new ``clean_card_headline``): strips
+  wrapping quotes (straight + curly), trims trailing punctuation,
+  caps at 6 words, rejects mid-sentence starters (and/the/when…),
+  rejects teaser patterns (``How to …``, ``Why we …``, ``5 ways …``)
+  when an ellipsis flagged truncation, preserves brand acronyms
+  (PPM, KPIs, GymAxis). Falls back to topic label if cleanup
+  empties the string.
+- **Prompt tightening**: ``build_prompt`` now explicitly tells the
+  LLM the ``card_headline`` must be a "complete 3-5 word thought",
+  not a teaser/truncation, with positive + negative examples
+  inline.
+
+### Verification
+- ``backend/tests/test_iter_220cg_social_card_text_fit.py`` — 16
+  new tests pin: quote stripping, trailing-punctuation, 6-word cap,
+  bad-starter rejection, teaser-with-ellipsis rejection, brand
+  acronym preservation, title-casing, 80-char clip, no near-white
+  pixels in the right-margin band for short/long Instagram/TikTok/
+  LinkedIn cards, ellipsis truncation on pathological single words,
+  prompt schema mentions the headline guardrails, generated post
+  stores the CLEANED ``card_headline`` (not the raw LLM string).
+- All 62 social-autopilot tests still pass (46 existing + 16 new).
+
+### Files changed
+- ``backend/utils/social_autopilot.py`` (~+100 LOC: pixel-aware
+  wrap, ``clean_card_headline``, prompt tightening, plumbing in
+  ``generate_post_for_channel``)
+- ``backend/tests/test_iter_220cg_social_card_text_fit.py`` (new)
+- ``Makefile`` (regression entry — TAB-indented)
+
+---
+
+## Iter 220ch — Engineer App Currency Icon Localisation (Feb 2026)
+
+### Problem
+User shared a screenshot showing the engineer dashboard ("New
+invoice" quick action, "Invoiced" KPI tile, Workspace nav) using
+the Lucide ``Receipt`` icon — which renders a literal ``$`` glyph
+inside. UK fitness-industry product → must show ``£`` instead.
+
+### Fix
+Swap ``Receipt`` → ``ReceiptPoundSterling as Receipt`` across all
+six engineer-facing pages. Aliasing keeps every JSX call-site
+(``<Receipt size={…} />``, ``icon={Receipt}``) working without a
+further diff. Frontend lint clean on all six files.
+
+### Files changed
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerQuotes.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerInvoices.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerWorkspace.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js``
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js``
+- ``backend/tests/test_iter_220ch_engineer_pound_icon.py`` (new —
+  reads the source files and pins the alias import so a future
+  refactor can't accidentally revert)
+- ``Makefile`` (regression entry — TAB-indented)
