@@ -179,6 +179,154 @@ async def engineer_me(user=Depends(get_current_user)):
     }
 
 
+# Iter 220cu — "My day" briefing.
+# Composes the next stop + miles + pending parts + unread inbox into
+# a single one-glance summary for the EngineerHomeV2 strip. Reuses
+# data already in the engineer endpoints; no new collections.
+@router.get("/me/briefing")
+async def engineer_my_day_briefing(user=Depends(get_current_user)):
+    of = _of(user)
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    open_q = {**of, "assigned_engineer_id": user["id"],
+              "status": {"$in": list(OPEN_STATES)}}
+
+    # Next stop = earliest scheduled job today (or right now-ish for
+    # en_route / on_site jobs without a scheduled_at).
+    next_stop_doc = await db.svc_cases.find_one(
+        {
+            **open_q,
+            "$or": [
+                {"scheduled_at": {"$regex": f"^{today_iso}"}},
+                {"scheduled_at": None, "status": {"$in": [EN_ROUTE, ON_SITE]}},
+            ],
+        },
+        {
+            "_id": 0, "id": 1, "reference": 1, "title": 1,
+            "site_name": 1, "site_address": 1, "site_postcode": 1,
+            "scheduled_at": 1, "customer_name": 1, "asset_name": 1,
+            "priority": 1, "status": 1,
+        },
+        sort=[("scheduled_at", 1)],
+    )
+
+    # Pending parts requests the engineer raised (awaiting admin approval).
+    pending_parts_count = 0
+    try:
+        pending_parts_count = await db.svc_parts_requests.count_documents({
+            **of, "engineer_id": user["id"], "status": "pending",
+        })
+    except Exception:  # noqa: BLE001
+        pending_parts_count = 0
+
+    # Inbox unread count (engineer notifications).
+    unread_inbox_count = 0
+    try:
+        unread_inbox_count = await db.svc_engineer_notifications.count_documents({
+            **of, "engineer_id": user["id"], "read_at": None,
+        })
+    except Exception:  # noqa: BLE001
+        unread_inbox_count = 0
+
+    # Quotes awaiting customer reply / acceptance.
+    pending_quotes_count = 0
+    try:
+        pending_quotes_count = await db.svc_engineer_quotes.count_documents({
+            **of, "engineer_id": user["id"], "status": {"$in": ["sent", "viewed"]},
+        })
+    except Exception:  # noqa: BLE001
+        pending_quotes_count = 0
+
+    # Total jobs scheduled today (open or closed) so we can say
+    # "3 jobs today" even after the first one is done.
+    jobs_today_total = await db.svc_cases.count_documents({
+        **of, "assigned_engineer_id": user["id"],
+        "scheduled_at": {"$regex": f"^{today_iso}"},
+    })
+    jobs_today_remaining = await db.svc_cases.count_documents({
+        **open_q, "scheduled_at": {"$regex": f"^{today_iso}"},
+    })
+
+    return {
+        "jobs_today_total":     jobs_today_total,
+        "jobs_today_remaining": jobs_today_remaining,
+        "next_stop":            next_stop_doc,
+        "pending_parts_count":  pending_parts_count,
+        "pending_quotes_count": pending_quotes_count,
+        "unread_inbox_count":   unread_inbox_count,
+    }
+
+
+# Iter 220cu — End-of-day timesheet roll-up.
+# Single-screen daily summary for the EngineerEndOfDay page. Returns
+# hours by category, miles, jobs touched / closed, and revenue
+# invoiced today.
+@router.get("/me/today-rollup")
+async def engineer_today_rollup(user=Depends(get_current_user)):
+    of = _of(user)
+    now = datetime.now(timezone.utc)
+    today_iso = now.date().isoformat()
+
+    # Time entries that started today (whether or not they've ended).
+    minutes_by_cat: dict[str, int] = {"on_site": 0, "travel": 0, "admin": 0}
+    case_ids_touched: set[str] = set()
+    async for e in db.svc_time_entries.find(
+        {**of, "engineer_id": user["id"],
+         "start_at": {"$regex": f"^{today_iso}"}},
+        {"_id": 0, "category": 1, "duration_minutes": 1, "case_id": 1},
+    ):
+        cat = e.get("category") or "on_site"
+        minutes_by_cat[cat] = minutes_by_cat.get(cat, 0) + int(e.get("duration_minutes") or 0)
+        if e.get("case_id"):
+            case_ids_touched.add(e["case_id"])
+
+    # Mileage today.
+    miles_today = 0.0
+    try:
+        async for m in db.svc_mileage_entries.find(
+            {**of, "engineer_id": user["id"],
+             "created_at": {"$regex": f"^{today_iso}"}},
+            {"_id": 0, "miles": 1},
+        ):
+            miles_today += float(m.get("miles") or 0)
+    except Exception:  # noqa: BLE001
+        miles_today = 0.0
+
+    # Jobs closed today.
+    closed_today = await db.svc_cases.count_documents({
+        **of, "assigned_engineer_id": user["id"],
+        "status": {"$in": ["closed", "invoiced", "repaired", "awaiting_sign_off"]},
+        "closed_at": {"$regex": f"^{today_iso}"},
+    })
+
+    # Invoices issued today + revenue (gross).
+    revenue_today = 0.0
+    invoices_today = 0
+    try:
+        async for inv in db.svc_engineer_invoices.find(
+            {**of, "engineer_id": user["id"],
+             "issue_date": {"$regex": f"^{today_iso}"}},
+            {"_id": 0, "total": 1},
+        ):
+            invoices_today += 1
+            revenue_today += float(inv.get("total") or 0)
+    except Exception:  # noqa: BLE001
+        revenue_today = 0.0
+
+    return {
+        "date": today_iso,
+        "minutes_by_category": minutes_by_cat,
+        "hours_total": round(sum(minutes_by_cat.values()) / 60.0, 2),
+        "hours_on_site": round(minutes_by_cat.get("on_site", 0) / 60.0, 2),
+        "hours_travel":  round(minutes_by_cat.get("travel", 0) / 60.0, 2),
+        "hours_admin":   round(minutes_by_cat.get("admin", 0) / 60.0, 2),
+        "miles":         round(miles_today, 1),
+        "jobs_touched":  len(case_ids_touched),
+        "jobs_closed":   closed_today,
+        "invoices_today": invoices_today,
+        "revenue_today_gbp": round(revenue_today, 2),
+    }
+
+
 # ─────────────────────────────────────────────────────────────────
 # Today's jobs feed
 # ─────────────────────────────────────────────────────────────────

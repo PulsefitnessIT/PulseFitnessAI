@@ -1,3 +1,76 @@
+## Iter 220cu — Engineer P2 polish: My-day briefing, End-of-day rollup, Quote PDF machines table ✅ (May 30, 2026)
+
+Three engineer-review P2 wins from the process-analyst review.
+
+### 1. "My day" briefing (EngineerHomeV2)
+- New endpoint **`GET /api/svc/engineer/me/briefing`** —
+  composes the engineer's day into a single fetch:
+  - `next_stop`: earliest scheduled (or in-flight) open case today
+    with reference / title / site / address / postcode.
+  - `jobs_today_total` + `jobs_today_remaining` (so the strip can
+    say "3 of 5 jobs left today" or "all 4 done — nice one").
+  - `pending_parts_count` (engineer's pending parts requests).
+  - `pending_quotes_count` (sent/viewed quotes awaiting customer).
+  - `unread_inbox_count` (engineer notifications).
+- New `MyDayBriefing` component rendered above the KPI grid:
+  - Gradient blue→emerald card with sun icon.
+  - Headline line + clickable next-stop strip (navigates to job).
+  - Chip badges for pending parts / quotes / unread inbox — each a
+    one-tap navigation.
+  - Right-side **Navigate** pill (Google Maps deeplink) when the
+    next stop has an address.
+- Renders nothing when there's literally nothing to highlight.
+- Test IDs: `engineer-home-my-day`, `my-day-headline`,
+  `my-day-next-stop`, `my-day-pending-parts`, `my-day-pending-quotes`,
+  `my-day-unread-inbox`, `my-day-navigate`.
+
+### 2. End-of-day timesheet rollup
+- New endpoint **`GET /api/svc/engineer/me/today-rollup`**:
+  - Sums `svc_time_entries.duration_minutes` by category (on_site /
+    travel / admin) for entries that started today.
+  - Sums `svc_mileage_entries.miles` keyed to today.
+  - Counts `svc_cases` closed today (status ∈ closed/invoiced/
+    repaired/awaiting_sign_off).
+  - Sums `svc_engineer_invoices.total` for invoices issued today.
+- New `EngineerEndOfDay.js` page at `/svc/engineer/end-of-day`:
+  - Header with full date + back/refresh.
+  - 6 stat tiles (Hours total · Miles · Jobs touched · Jobs closed ·
+    Invoices · Revenue).
+  - Stacked bar for the on-site/travel/admin split with %.
+- Added to Quick Actions on EngineerHomeV2 in the "Other" group.
+- Routed in `AppRoutes.js`. Test IDs: `engineer-end-of-day`,
+  `eod-stats`, `eod-hours`, `eod-miles`, `eod-jobs-touched`,
+  `eod-jobs-closed`, `eod-invoices`, `eod-revenue`, `eod-breakdown`,
+  `eod-bar-on_site` / `eod-bar-travel` / `eod-bar-admin`.
+
+### 3. Quote PDF — "Machines this quote covers" table
+- `utils/engineer_quote_pdf.py` — renders a 4-column table
+  (# / Machine / Serial / Notes) just below the legacy ASSET line
+  when `quote.machines` is non-empty. Identical styling to the
+  existing line-items table for visual consistency.
+- Empty / absent `machines` list → table is skipped entirely.
+- Now that 220cr lets engineers attach multi-machine quotes, this
+  is the customer-facing pay-off — the PDF reads like a proper
+  professional service quote.
+
+### Tests / lint
+- `tests/test_iter_220cu_engineer_p2_rollup.py` — **6 tests**, all
+  green. Coverage:
+  - Briefing returns next stop + counts; gracefully handles empty.
+  - Rollup aggregates hours / miles / jobs / revenue correctly;
+    empty day → zeros.
+  - Quote PDF renders the machines table (verified via `pypdf`
+    text extraction: heading + each serial present); skipped when
+    list is empty.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c-series suite: **45/45 green**.
+- Frontend lint clean (3 files + new EndOfDay page). Backend ruff
+  clean (2 files).
+- Live smoke: both endpoints return 401 unauthorised (registered).
+
+---
+
+
 ## Iter 220ct — Engineer-app P1 polish: sync chip, duplicate-job warning, invoice prefill ✅ (May 30, 2026)
 
 Three P1 wins from the process-analyst review.

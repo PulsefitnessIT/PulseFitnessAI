@@ -238,6 +238,44 @@ def build_engineer_quote_pdf(quote: dict, *, is_mod: bool = False) -> bytes:
         ))
         flow.append(Spacer(1, 4 * mm))
 
+    # Iter 220cu — Multi-machine attachment table. Engineers can
+    # quote against several pieces of equipment in one document;
+    # render them as a 3-col table so the customer can see exactly
+    # which kit the price covers.
+    machines = quote.get("machines") or []
+    if machines:
+        flow.append(Paragraph("MACHINES THIS QUOTE COVERS", s["label"]))
+        m_rows = [["#", "Machine", "Serial", "Notes"]]
+        for i, m in enumerate(machines, start=1):
+            m_rows.append([
+                str(i),
+                Paragraph(_esc(m.get("name") or "—"), s["body"]),
+                Paragraph(_esc(m.get("serial") or "—"), s["body"]),
+                Paragraph(_esc(m.get("notes") or ""), s["body"]),
+            ])
+        m_table = Table(
+            m_rows,
+            colWidths=[10 * mm, 65 * mm, 35 * mm, 60 * mm],
+            repeatRows=1,
+        )
+        m_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), GX_PRIMARY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 10),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, GX_LIGHT]),
+            ("ALIGN", (0, 0), (0, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LINEBELOW", (0, 0), (-1, 0), 1, GX_PRIMARY),
+            ("GRID", (0, 1), (-1, -1), 0.25, GX_BORDER),
+        ]))
+        flow.append(m_table)
+        flow.append(Spacer(1, 4 * mm))
+
     if quote.get("description_of_work"):
         flow.append(Paragraph("DESCRIPTION OF WORK", s["label"]))
         flow.append(Paragraph(_esc(quote["description_of_work"]).replace("\n", "<br/>"),

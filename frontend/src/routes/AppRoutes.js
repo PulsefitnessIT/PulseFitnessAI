@@ -142,6 +142,8 @@ const EngineerReferralLanding  = lazy(() => import('@/pages/Public/EngineerRefer
 // Iter 216h159 — Engineer card-conversion analytics
 const ServiceOpsEngineerCardAnalytics = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCardAnalytics'));
 const ServiceOpsEngineerAnalytics = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerAnalyticsPage'));
+// Iter 220cu — End-of-day timesheet roll-up.
+const ServiceOpsEngineerEndOfDay = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerEndOfDay'));
 const ServiceOpsEngineerCustomers = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerCustomers'));
 // Iter 220ci — Engineer Equipment Tab (strict picklists, flows into Ops)
 const ServiceOpsEngineerEquipment = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerEquipment'));
@@ -431,6 +433,7 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 216h159 — Engineer card-conversion analytics */}
       <Route path="/svc/engineer/card-analytics" element={user ? <ServiceOpsEngineerCardAnalytics /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/analytics" element={user ? <ServiceOpsEngineerAnalytics /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/end-of-day" element={user ? <ServiceOpsEngineerEndOfDay /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/customers" element={user ? <ServiceOpsEngineerCustomers /> : <Navigate to="/login" replace />} />
       {/* Iter 220ci — Engineer Equipment Tab */}
       <Route path="/svc/engineer/equipment" element={user ? <ServiceOpsEngineerEquipment /> : <Navigate to="/login" replace />} />

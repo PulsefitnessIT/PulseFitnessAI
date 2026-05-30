@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
   ReceiptPoundSterling as Receipt, FileSignature,
-  CreditCard, Inbox, Hand, Users, Menu,
+  CreditCard, Inbox, Hand, Users, Menu, Sun, Navigation, ListChecks,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
@@ -167,21 +167,27 @@ export default function EngineerHomeV2() {
   const [loading, setLoading] = useState(true);
   const [payouts, setPayouts] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Iter 220cu — one-glance "My day" briefing (next stop, miles,
+  // pending parts, pending quotes, unread inbox).
+  const [briefing, setBriefing] = useState(null);
   // Iter 220j — pulsing-dot attention digest (compliance, sub, app status).
   const attention = useEngineerAttention({ poll: true });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [dRes, mRes, pRes] = await Promise.all([
+      const [dRes, mRes, pRes, bRes] = await Promise.all([
         axios.get(`${API}/svc/engineer/dashboard`, auth()),
         axios.get(`${API}/svc/engineer/me`, auth()),
         axios.get(`${API}/svc/engineer/stripe/connect/status`, auth())
+          .catch(() => ({ data: null })),
+        axios.get(`${API}/svc/engineer/me/briefing`, auth())
           .catch(() => ({ data: null })),
       ]);
       setData(dRes.data);
       setMe(mRes.data);
       setPayouts(pRes.data);
+      setBriefing(bRes.data);
     } catch (e) {
       notify.error('Failed to load home', e?.response?.data?.detail || e.message);
     } finally {
@@ -303,6 +309,16 @@ export default function EngineerHomeV2() {
             {/* Iter 216h257 — Earnings hero card removed per user feedback.
                 Earnings live in the KPI grid + the new Analytics page. */}
 
+            {/* Iter 220cu — "My day" briefing strip. Composes the next
+                stop + miles + pending parts/quotes/inbox into one
+                glanceable line so the engineer knows the shape of their
+                day without tapping anything. */}
+            {briefing && (briefing.next_stop || briefing.jobs_today_total > 0
+                          || briefing.pending_parts_count > 0
+                          || briefing.pending_quotes_count > 0) && (
+              <MyDayBriefing briefing={briefing} navigate={navigate} />
+            )}
+
             {/* KPI Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engineer-home-kpi-grid">
               <KPITile icon={Calendar} label="Today" value={kpis.today_jobs} accent="#1d4ed8"
@@ -372,6 +388,9 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={FileSignature} label="Send report"
                              testid="qa-report"
                              onClick={() => navigate('/svc/engineer/jobs')} />
+                <QuickAction icon={Sun} label="End of day"
+                             testid="qa-end-of-day"
+                             onClick={() => navigate('/svc/engineer/end-of-day')} />
                 {payouts?.ready ? (
                   <QuickAction icon={CreditCard} label="Payouts"
                                testid="qa-payouts"
@@ -441,6 +460,102 @@ export default function EngineerHomeV2() {
         attention={attention}
         onChanged={() => { load(); attention.refresh(); }}
       />
+    </div>
+  );
+}
+
+
+// ─── MyDayBriefing ────────────────────────────────────────────────
+// Iter 220cu. Single-line summary of the engineer's day. Falls
+// quietly silent when there's nothing to highlight.
+function MyDayBriefing({ briefing, navigate }) {
+  const ns = briefing.next_stop;
+  const address = ns ? [ns.site_address, ns.site_postcode].filter(Boolean).join(' ') : '';
+  const mapsHref = address
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+    : null;
+  const remaining = briefing.jobs_today_remaining || 0;
+  const total = briefing.jobs_today_total || 0;
+  return (
+    <div
+      className="rounded-2xl bg-gradient-to-br from-blue-50 via-white to-emerald-50/40 border border-blue-200 p-4 flex items-start gap-3"
+      data-testid="engineer-home-my-day"
+    >
+      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+        <Sun size={16} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-700">
+          Your day
+        </p>
+        {total > 0 ? (
+          <p className="text-sm font-bold text-slate-900" data-testid="my-day-headline">
+            {remaining > 0
+              ? `${remaining} of ${total} job${total === 1 ? '' : 's'} left today`
+              : `All ${total} job${total === 1 ? '' : 's'} done — nice one`}
+          </p>
+        ) : (
+          <p className="text-sm font-bold text-slate-900">No jobs scheduled today</p>
+        )}
+        {ns && (
+          <button
+            type="button"
+            onClick={() => navigate(`/svc/engineer/jobs/${ns.id}`)}
+            className="mt-1 inline-flex items-start gap-1.5 text-left hover:bg-white/50 rounded-lg px-1.5 py-1 -mx-1.5"
+            data-testid="my-day-next-stop"
+          >
+            <ListChecks size={11} className="text-emerald-700 mt-0.5" />
+            <span className="text-xs text-slate-700 leading-snug">
+              <span className="font-bold">Next: {ns.reference || 'Job'}</span>
+              {ns.site_name ? ` · ${ns.site_name}` : ''}
+              {ns.title ? ` — ${ns.title}` : ''}
+            </span>
+          </button>
+        )}
+        <div className="mt-1.5 flex items-center flex-wrap gap-1.5">
+          {briefing.pending_parts_count > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate('/svc/engineer/jobs')}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold uppercase tracking-wide"
+              data-testid="my-day-pending-parts"
+            >
+              <Package size={9} /> {briefing.pending_parts_count} part{briefing.pending_parts_count === 1 ? '' : 's'} pending
+            </button>
+          )}
+          {briefing.pending_quotes_count > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate('/svc/engineer/quotes')}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-bold uppercase tracking-wide"
+              data-testid="my-day-pending-quotes"
+            >
+              <FileText size={9} /> {briefing.pending_quotes_count} quote{briefing.pending_quotes_count === 1 ? '' : 's'} pending
+            </button>
+          )}
+          {briefing.unread_inbox_count > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate('/svc/engineer/inbox')}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold uppercase tracking-wide"
+              data-testid="my-day-unread-inbox"
+            >
+              <Inbox size={9} /> {briefing.unread_inbox_count} unread
+            </button>
+          )}
+        </div>
+      </div>
+      {mapsHref && (
+        <a
+          href={mapsHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold whitespace-nowrap"
+          data-testid="my-day-navigate"
+        >
+          <Navigation size={12} /> Navigate
+        </a>
+      )}
     </div>
   );
 }
