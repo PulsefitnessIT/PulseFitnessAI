@@ -15,6 +15,7 @@ import {
   ArrowLeft, Users, Plus, Search, Loader2, Mail, Phone, MapPin,
   Trash2, Edit3, Save, X, Wrench, FileText, CalendarClock,
   ReceiptPoundSterling as Receipt, Building2, CheckCircle2, AlertTriangle,
+  ChevronRight,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -26,9 +27,21 @@ const auth = () => ({
 });
 
 const EMPTY_FORM = {
-  name: '', email: '', phone: '', site_name: '', site_address: '',
+  name: '', email: '', phone: '', site_name: '',
+  // Iter 220ck — structured address (better reporting).
+  address_line1: '', address_line2: '', city: '', county: '',
+  postcode: '', country: 'United Kingdom',
+  company_number: '',
   notes: '', equipment_list: '',
 };
+
+// Iter 220ck — three-step wizard. The order matches how an engineer
+// thinks: who is this gym → where do I drive → what do they own.
+const WIZARD_STEPS = [
+  { id: 'identity', label: 'Identity' },
+  { id: 'site',     label: 'Site' },
+  { id: 'equip',    label: 'Equipment' },
+];
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
@@ -78,6 +91,7 @@ export default function EngineerCustomers() {
   const [activeDetailLoading, setActiveDetailLoading] = useState(false);
   // Iter 220cj — Companies House lookup + per-field validation.
   const [formErrors, setFormErrors] = useState({});
+  const [wizardStep, setWizardStep] = useState(0);  // 220ck — 3-step wizard
   const [chQuery, setChQuery] = useState('');
   const [chResults, setChResults] = useState([]);
   const [chLoading, setChLoading] = useState(false);
@@ -139,15 +153,26 @@ export default function EngineerCustomers() {
       setForm((f) => ({
         ...f,
         name: profile.company_name || item.company_name || f.name,
-        site_address: addressStr || f.site_address,
+        // Iter 220ck — populate structured address from CH fields so
+        // the new wizard's Site step renders pre-filled.
+        address_line1: addr.address_line_1 || f.address_line1,
+        address_line2: addr.address_line_2 || f.address_line2,
+        city: addr.locality || f.city,
+        county: addr.region || f.county,
+        postcode: addr.postal_code || f.postcode,
+        country: addr.country || f.country || 'United Kingdom',
         company_number: item.company_number,
       }));
       setChPicked({
         company_number: item.company_number,
         company_name: profile.company_name || item.company_name,
         status: profile.company_status || item.company_status,
+        address_str: addressStr,
       });
-      setFormErrors((er) => ({ ...er, name: undefined, site_address: undefined }));
+      setFormErrors((er) => ({
+        ...er, name: undefined,
+        address_line1: undefined, city: undefined, postcode: undefined,
+      }));
       setChResults([]);
       setChQuery('');
       notify.success(`Filled from Companies House · ${item.company_name}`);
@@ -180,6 +205,7 @@ export default function EngineerCustomers() {
   const openNew = () => {
     setForm(EMPTY_FORM);
     setEditId(null);
+    setWizardStep(0);
     setShowForm(true);
   };
 
@@ -189,11 +215,20 @@ export default function EngineerCustomers() {
       email: row.email || '',
       phone: row.phone || '',
       site_name: row.site_name || '',
-      site_address: row.site_address || '',
+      // Iter 220ck — structured address (with legacy fallback when
+      // the customer was created before this iter).
+      address_line1: row.address_line1 || row.site_address || '',
+      address_line2: row.address_line2 || '',
+      city: row.city || '',
+      county: row.county || '',
+      postcode: row.postcode || '',
+      country: row.country || 'United Kingdom',
+      company_number: row.company_number || '',
       notes: row.notes || '',
       equipment_list: (row.equipment_list || []).join('\n'),
     });
     setEditId(row.id);
+    setWizardStep(0);
     setShowForm(true);
   };
 
@@ -201,6 +236,7 @@ export default function EngineerCustomers() {
     setShowForm(false);
     setForm(EMPTY_FORM);
     setEditId(null);
+    setWizardStep(0);
     setFormErrors({});
     setChQuery('');
     setChResults([]);
@@ -208,21 +244,20 @@ export default function EngineerCustomers() {
   };
 
   const save = async () => {
-    // Iter 220cj — strict CRM-parity validation. Engineers can no
-    // longer save a partial customer; the New Customer modal now
-    // matches the CRM Add Customer form for data hygiene.
-    const errs = {};
-    if (!form.name.trim()) errs.name = 'Required';
-    const email = form.email.trim();
-    if (!email) errs.email = 'Required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email';
-    const phone = form.phone.trim();
-    if (!phone) errs.phone = 'Required';
-    else if (phone.replace(/[^0-9]/g, '').length < 7) errs.phone = 'Enter a valid phone';
-    if (!form.site_name.trim()) errs.site_name = 'Required';
-    if (!form.site_address.trim()) errs.site_address = 'Required';
-    setFormErrors(errs);
+    // Iter 220ck — wizard validation. Each step's required fields
+    // are checked before allowing forward navigation; ``save`` runs
+    // the full check one last time as a defence-in-depth.
+    const errs = validateAll();
     if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      // Jump to the earliest step containing an error.
+      const stepOfField = (k) => {
+        if (['name', 'email', 'phone'].includes(k)) return 0;
+        if (['site_name', 'address_line1', 'city', 'postcode'].includes(k)) return 1;
+        return 2;
+      };
+      const stepIdx = Math.min(...Object.keys(errs).map(stepOfField));
+      setWizardStep(stepIdx);
       notify.error('Please fix the highlighted fields');
       return;
     }
@@ -230,10 +265,16 @@ export default function EngineerCustomers() {
     try {
       const payload = {
         name: form.name.trim(),
-        email: email || null,
-        phone: phone || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
         site_name: form.site_name.trim() || null,
-        site_address: form.site_address.trim() || null,
+        // Iter 220ck — structured address fields (preferred for reporting).
+        address_line1: form.address_line1.trim() || null,
+        address_line2: form.address_line2.trim() || null,
+        city: form.city.trim() || null,
+        county: form.county.trim() || null,
+        postcode: form.postcode.trim() || null,
+        country: (form.country || 'United Kingdom').trim(),
         notes: form.notes.trim() || null,
         equipment_list: form.equipment_list
           .split('\n').map((s) => s.trim()).filter(Boolean),
@@ -254,6 +295,46 @@ export default function EngineerCustomers() {
       setSaving(false);
     }
   };
+
+  // Iter 220ck — wizard step validators.
+  const validateAll = () => {
+    const er = {};
+    if (!form.name.trim()) er.name = 'Required';
+    const email = form.email.trim();
+    if (!email) er.email = 'Required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) er.email = 'Enter a valid email';
+    const phone = form.phone.trim();
+    if (!phone) er.phone = 'Required';
+    else if (phone.replace(/[^0-9]/g, '').length < 7) er.phone = 'Enter a valid phone';
+    if (!form.site_name.trim()) er.site_name = 'Required';
+    if (!form.address_line1.trim()) er.address_line1 = 'Required';
+    if (!form.city.trim()) er.city = 'Required';
+    if (!form.postcode.trim()) er.postcode = 'Required';
+    return er;
+  };
+
+  const validateStep = (idx) => {
+    const all = validateAll();
+    const stepFields = {
+      0: ['name', 'email', 'phone'],
+      1: ['site_name', 'address_line1', 'city', 'postcode'],
+      2: [],  // equipment step is optional
+    }[idx] || [];
+    const er = {};
+    stepFields.forEach((k) => { if (all[k]) er[k] = all[k]; });
+    return er;
+  };
+
+  const goNext = () => {
+    const er = validateStep(wizardStep);
+    if (Object.keys(er).length > 0) {
+      setFormErrors((prev) => ({ ...prev, ...er }));
+      notify.error('Please fix the highlighted fields');
+      return;
+    }
+    setWizardStep((s) => Math.min(s + 1, WIZARD_STEPS.length - 1));
+  };
+  const goBack = () => setWizardStep((s) => Math.max(s - 1, 0));
 
   const removeRow = async (row) => {
     if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) return;
@@ -550,145 +631,256 @@ export default function EngineerCustomers() {
                 <X size={18} />
               </button>
             </header>
-            <div className="p-4 space-y-3">
-              {/* Iter 220cj — Companies House lookup. Type to search;
-                  click a result to auto-fill Name + Address. */}
-              {chEnabled && !editId ? (
-                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3" data-testid="customer-form-ch-block">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Building2 size={14} className="text-emerald-700" />
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-                      Companies House lookup
-                    </p>
+            <div className="p-4">
+              {/* Iter 220ck — Stepper */}
+              <div className="mb-4 flex items-center gap-2" data-testid="customer-wizard-stepper">
+                {WIZARD_STEPS.map((s, idx) => (
+                  <div key={s.id} className="flex-1 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => idx < wizardStep && setWizardStep(idx)}
+                      disabled={idx > wizardStep}
+                      className={`flex items-center gap-1.5 ${idx <= wizardStep ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
+                      data-testid={`customer-wizard-step-${idx}`}
+                    >
+                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-extrabold ${
+                        idx === wizardStep
+                          ? 'bg-blue-600 text-white'
+                          : idx < wizardStep
+                            ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-300'
+                            : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        {idx < wizardStep ? <CheckCircle2 size={14} /> : idx + 1}
+                      </span>
+                      <span className={`text-[11px] font-bold uppercase tracking-wider ${
+                        idx === wizardStep ? 'text-slate-900' : 'text-slate-500'
+                      }`}>{s.label}</span>
+                    </button>
+                    {idx < WIZARD_STEPS.length - 1 && (
+                      <div className={`flex-1 h-0.5 ${idx < wizardStep ? 'bg-emerald-300' : 'bg-slate-200'}`} />
+                    )}
                   </div>
-                  <div className="relative">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700/60 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={chQuery}
-                      onChange={(e) => onChQueryChange(e.target.value)}
-                      placeholder="Search company name or number…"
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      data-testid="customer-form-ch-search"
-                    />
-                  </div>
-                  {chLoading ? (
-                    <p className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1">
-                      <Loader2 size={11} className="animate-spin" /> Searching…
-                    </p>
-                  ) : null}
-                  {chResults.length > 0 ? (
-                    <div className="mt-2 max-h-44 overflow-y-auto bg-white border border-emerald-200 rounded-lg divide-y divide-emerald-100" data-testid="customer-form-ch-results">
-                      {chResults.map((item) => (
-                        <button
-                          type="button"
-                          key={item.company_number}
-                          onClick={() => pickFromCh(item)}
-                          className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-sm"
-                          data-testid={`customer-form-ch-pick-${item.company_number}`}
-                        >
-                          <div className="font-bold text-slate-900 truncate">{item.company_name}</div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                            <span className="font-mono">Co. {item.company_number}</span>
-                            {item.address_snippet ? <span className="truncate">· {item.address_snippet}</span> : null}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  {chPicked ? (
-                    <div className="mt-2 text-[11px] text-emerald-800 flex items-center gap-1" data-testid="customer-form-ch-picked">
-                      <CheckCircle2 size={11} /> Verified: {chPicked.company_name} (Co. {chPicked.company_number})
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+                ))}
+              </div>
 
-              <div>
-                <Field label="Name *" value={form.name}
-                       onChange={(v) => { setForm({ ...form, name: v }); if (formErrors.name) setFormErrors({ ...formErrors, name: undefined }); }}
-                       placeholder="Acme Gyms Ltd"
-                       testid="customer-form-name" />
-                {formErrors.name && (
-                  <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-name-error">
-                    <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.name}
-                  </p>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Field label="Email *" type="email" value={form.email}
-                         onChange={(v) => { setForm({ ...form, email: v }); if (formErrors.email) setFormErrors({ ...formErrors, email: undefined }); }}
-                         placeholder="manager@acme.co.uk"
-                         testid="customer-form-email" />
-                  {formErrors.email && (
-                    <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-email-error">
-                      <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.email}
-                    </p>
-                  )}
+              {/* Step 1 — Identity */}
+              {wizardStep === 0 && (
+                <div className="space-y-3" data-testid="customer-wizard-pane-identity">
+                  {chEnabled && !editId ? (
+                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3" data-testid="customer-form-ch-block">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building2 size={14} className="text-emerald-700" />
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                          Companies House lookup
+                        </p>
+                      </div>
+                      <div className="relative">
+                        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-700/60 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={chQuery}
+                          onChange={(e) => onChQueryChange(e.target.value)}
+                          placeholder="Search company name or number…"
+                          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          data-testid="customer-form-ch-search"
+                        />
+                      </div>
+                      {chLoading ? (
+                        <p className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1">
+                          <Loader2 size={11} className="animate-spin" /> Searching…
+                        </p>
+                      ) : null}
+                      {chResults.length > 0 ? (
+                        <div className="mt-2 max-h-44 overflow-y-auto bg-white border border-emerald-200 rounded-lg divide-y divide-emerald-100" data-testid="customer-form-ch-results">
+                          {chResults.map((item) => (
+                            <button
+                              type="button"
+                              key={item.company_number}
+                              onClick={() => pickFromCh(item)}
+                              className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-sm"
+                              data-testid={`customer-form-ch-pick-${item.company_number}`}
+                            >
+                              <div className="font-bold text-slate-900 truncate">{item.company_name}</div>
+                              <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                <span className="font-mono">Co. {item.company_number}</span>
+                                {item.address_snippet ? <span className="truncate">· {item.address_snippet}</span> : null}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      {chPicked ? (
+                        <div className="mt-2 text-[11px] text-emerald-800 flex items-center gap-1" data-testid="customer-form-ch-picked">
+                          <CheckCircle2 size={11} /> Verified: {chPicked.company_name} (Co. {chPicked.company_number})
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <Field label="Customer name *" value={form.name}
+                           onChange={(v) => { setForm({ ...form, name: v }); if (formErrors.name) setFormErrors({ ...formErrors, name: undefined }); }}
+                           placeholder="Acme Gyms Ltd"
+                           testid="customer-form-name" />
+                    {formErrors.name && (
+                      <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-name-error">
+                        <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.name}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Field label="Email *" type="email" value={form.email}
+                             onChange={(v) => { setForm({ ...form, email: v }); if (formErrors.email) setFormErrors({ ...formErrors, email: undefined }); }}
+                             placeholder="manager@acme.co.uk"
+                             testid="customer-form-email" />
+                      {formErrors.email && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-email-error">
+                          <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.email}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Field label="Phone *" value={form.phone}
+                             onChange={(v) => { setForm({ ...form, phone: v }); if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined }); }}
+                             placeholder="+44 …"
+                             testid="customer-form-phone" />
+                      {formErrors.phone && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-phone-error">
+                          <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Field label="Phone *" value={form.phone}
-                         onChange={(v) => { setForm({ ...form, phone: v }); if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined }); }}
-                         placeholder="+44 …"
-                         testid="customer-form-phone" />
-                  {formErrors.phone && (
-                    <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-phone-error">
-                      <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.phone}
-                    </p>
-                  )}
+              )}
+
+              {/* Step 2 — Site */}
+              {wizardStep === 1 && (
+                <div className="space-y-3" data-testid="customer-wizard-pane-site">
+                  <div>
+                    <Field label="Site name *" value={form.site_name}
+                           onChange={(v) => { setForm({ ...form, site_name: v }); if (formErrors.site_name) setFormErrors({ ...formErrors, site_name: undefined }); }}
+                           placeholder="Acme Gym · Leeds"
+                           testid="customer-form-site-name" />
+                    {formErrors.site_name && (
+                      <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-site-name-error">
+                        <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.site_name}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Field label="Address line 1 *" value={form.address_line1}
+                           onChange={(v) => { setForm({ ...form, address_line1: v }); if (formErrors.address_line1) setFormErrors({ ...formErrors, address_line1: undefined }); }}
+                           placeholder="12 Industrial Way"
+                           testid="customer-form-address-line1" />
+                    {formErrors.address_line1 && (
+                      <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-address-line1-error">
+                        <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.address_line1}
+                      </p>
+                    )}
+                  </div>
+                  <Field label="Address line 2" value={form.address_line2}
+                         onChange={(v) => setForm({ ...form, address_line2: v })}
+                         placeholder="Unit 4 (optional)"
+                         testid="customer-form-address-line2" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Field label="Town / City *" value={form.city}
+                             onChange={(v) => { setForm({ ...form, city: v }); if (formErrors.city) setFormErrors({ ...formErrors, city: undefined }); }}
+                             placeholder="Leeds"
+                             testid="customer-form-city" />
+                      {formErrors.city && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-city-error">
+                          <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.city}
+                        </p>
+                      )}
+                    </div>
+                    <Field label="County / Region" value={form.county}
+                           onChange={(v) => setForm({ ...form, county: v })}
+                           placeholder="West Yorkshire"
+                           testid="customer-form-county" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Field label="Postcode *" value={form.postcode}
+                             onChange={(v) => { setForm({ ...form, postcode: v.toUpperCase() }); if (formErrors.postcode) setFormErrors({ ...formErrors, postcode: undefined }); }}
+                             placeholder="LS10 1AB"
+                             testid="customer-form-postcode" />
+                      {formErrors.postcode && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-postcode-error">
+                          <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.postcode}
+                        </p>
+                      )}
+                    </div>
+                    <Field label="Country" value={form.country}
+                           onChange={(v) => setForm({ ...form, country: v })}
+                           placeholder="United Kingdom"
+                           testid="customer-form-country" />
+                  </div>
+                  <Field label="Access notes" multiline value={form.notes}
+                         onChange={(v) => setForm({ ...form, notes: v })}
+                         placeholder="Access via side gate. Manager: Sarah."
+                         testid="customer-form-notes" />
                 </div>
-              </div>
-              <div>
-                <Field label="Site name *" value={form.site_name}
-                       onChange={(v) => { setForm({ ...form, site_name: v }); if (formErrors.site_name) setFormErrors({ ...formErrors, site_name: undefined }); }}
-                       placeholder="Acme Gym · Leeds"
-                       testid="customer-form-site-name" />
-                {formErrors.site_name && (
-                  <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-site-name-error">
-                    <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.site_name}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Field label="Site address *" multiline value={form.site_address}
-                       onChange={(v) => { setForm({ ...form, site_address: v }); if (formErrors.site_address) setFormErrors({ ...formErrors, site_address: undefined }); }}
-                       placeholder="12 Industrial Way, Leeds LS10 1AB"
-                       testid="customer-form-site-address" />
-                {formErrors.site_address && (
-                  <p className="mt-1 text-[11px] font-semibold text-rose-600" data-testid="customer-form-site-address-error">
-                    <AlertTriangle size={10} className="inline mr-0.5" /> {formErrors.site_address}
-                  </p>
-                )}
-              </div>
-              <Field label="Equipment list (one per line)" multiline value={form.equipment_list}
-                     onChange={(v) => setForm({ ...form, equipment_list: v })}
-                     placeholder="Life Fitness 95Ti #1234&#10;Concept2 RowErg"
-                     testid="customer-form-equipment" />
-              <Field label="Notes" multiline value={form.notes}
-                     onChange={(v) => setForm({ ...form, notes: v })}
-                     placeholder="Access via side gate. Manager: Sarah."
-                     testid="customer-form-notes" />
+              )}
+
+              {/* Step 3 — Equipment */}
+              {wizardStep === 2 && (
+                <div className="space-y-3" data-testid="customer-wizard-pane-equipment">
+                  <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700 mb-1">
+                      Equipment
+                    </p>
+                    <p className="text-[11px] text-blue-900/80">
+                      Optional — paste a list now, or skip and add later from the customer's record.
+                    </p>
+                  </div>
+                  <Field label="Equipment list (one per line)" multiline value={form.equipment_list}
+                         onChange={(v) => setForm({ ...form, equipment_list: v })}
+                         placeholder="Life Fitness 95Ti #1234&#10;Concept2 RowErg&#10;Wattbike Atom"
+                         testid="customer-form-equipment" />
+                  <div className="text-[11px] text-slate-500 flex items-start gap-2 leading-snug">
+                    <Wrench size={12} className="mt-0.5 flex-shrink-0 text-slate-400" />
+                    <span>
+                      Need to import dozens of machines? Save this customer, then open the
+                      Equipment tab and use <strong>Template</strong> + <strong>Import CSV</strong>
+                      to upload them in bulk.
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
-            <footer className="px-4 py-3 border-t border-slate-200 flex justify-end gap-2 sticky bottom-0 bg-white">
+            <footer className="px-4 py-3 border-t border-slate-200 flex items-center justify-between gap-2 sticky bottom-0 bg-white">
               <button
                 type="button"
-                onClick={close}
+                onClick={wizardStep === 0 ? close : goBack}
                 className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-bold"
-                data-testid="customer-form-cancel"
+                data-testid="customer-wizard-back"
               >
-                Cancel
+                {wizardStep === 0 ? 'Cancel' : 'Back'}
               </button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50"
-                data-testid="customer-form-save"
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {editId ? 'Update' : 'Save'}
-              </button>
+              {wizardStep < WIZARD_STEPS.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                  data-testid="customer-wizard-next"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50"
+                  data-testid="customer-form-save"
+                >
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {editId ? 'Update customer' : 'Save customer'}
+                </button>
+              )}
             </footer>
           </div>
         </div>

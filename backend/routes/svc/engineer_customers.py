@@ -59,6 +59,16 @@ class CustomerIn(BaseModel):
     phone: Optional[str] = Field(default=None, max_length=80)
     site_name: Optional[str] = Field(default=None, max_length=200)
     site_address: Optional[str] = Field(default=None, max_length=500)
+    # Iter 220ck — Structured address fields (preferred for reporting).
+    # ``site_address`` is auto-derived from these when supplied so the
+    # legacy free-text column stays populated for older queries.
+    address_line1: Optional[str] = Field(default=None, max_length=200)
+    address_line2: Optional[str] = Field(default=None, max_length=200)
+    city: Optional[str] = Field(default=None, max_length=120)
+    county: Optional[str] = Field(default=None, max_length=120)
+    postcode: Optional[str] = Field(default=None, max_length=20)
+    country: Optional[str] = Field(default="United Kingdom", max_length=80)
+    company_number: Optional[str] = Field(default=None, max_length=20)
     notes: Optional[str] = Field(default=None, max_length=4000)
     equipment_list: Optional[list[str]] = None
 
@@ -69,6 +79,13 @@ class CustomerPatch(BaseModel):
     phone: Optional[str] = Field(default=None, max_length=80)
     site_name: Optional[str] = Field(default=None, max_length=200)
     site_address: Optional[str] = Field(default=None, max_length=500)
+    address_line1: Optional[str] = Field(default=None, max_length=200)
+    address_line2: Optional[str] = Field(default=None, max_length=200)
+    city: Optional[str] = Field(default=None, max_length=120)
+    county: Optional[str] = Field(default=None, max_length=120)
+    postcode: Optional[str] = Field(default=None, max_length=20)
+    country: Optional[str] = Field(default=None, max_length=80)
+    company_number: Optional[str] = Field(default=None, max_length=20)
     notes: Optional[str] = Field(default=None, max_length=4000)
     equipment_list: Optional[list[str]] = None
 
@@ -109,6 +126,8 @@ def _strip(doc: Optional[dict]) -> Optional[dict]:
 
 
 def _to_doc(payload: CustomerIn, *, org_id: str, user_id: str) -> dict:
+    # Compose legacy site_address from structured fields when not given.
+    site_addr = (payload.site_address or "").strip() or _compose_address(payload)
     return {
         "id": str(uuid.uuid4()),
         "organization_id": org_id,
@@ -117,13 +136,53 @@ def _to_doc(payload: CustomerIn, *, org_id: str, user_id: str) -> dict:
         "email": _norm_email(payload.email),
         "phone": _norm_phone(payload.phone),
         "site_name": (payload.site_name or "").strip() or None,
-        "site_address": (payload.site_address or "").strip() or None,
+        "site_address": site_addr or None,
+        # Iter 220ck — structured address columns.
+        "address_line1": (payload.address_line1 or "").strip() or None,
+        "address_line2": (payload.address_line2 or "").strip() or None,
+        "city": (payload.city or "").strip() or None,
+        "county": (payload.county or "").strip() or None,
+        "postcode": _norm_postcode(payload.postcode),
+        "country": (payload.country or "United Kingdom").strip() or "United Kingdom",
+        "company_number": (payload.company_number or "").strip() or None,
         "notes": (payload.notes or "").strip() or None,
         "equipment_list": [e.strip() for e in (payload.equipment_list or []) if e and e.strip()],
         "last_job_at": None,
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
     }
+
+
+def _norm_postcode(pc: Optional[str]) -> Optional[str]:
+    """UK postcodes — uppercase + single space before the in-bound code.
+    Non-UK postcodes (no UK letter+digit pattern) are returned
+    uppercased without rewrite. Empty/None → None."""
+    if not pc:
+        return None
+    s = re.sub(r"\s+", "", pc.strip().upper())
+    if not s:
+        return None
+    # UK postcode: must start with one or two letters and end with a
+    # digit followed by two letters (e.g. SW1A 1AA, LS10 1AB, B2 5QQ).
+    # We split when the suffix matches that pattern.
+    if 5 <= len(s) <= 7 and re.match(r"^[A-Z]{1,2}\d", s) and re.search(r"\d[A-Z]{2}$", s):
+        return f"{s[:-3]} {s[-3:]}"
+    return s
+
+
+def _compose_address(payload: "CustomerIn | CustomerPatch") -> Optional[str]:
+    """Iter 220ck — Stitch the structured address fields into the
+    legacy ``site_address`` string so old reports keep working. The
+    structured columns remain authoritative for new reports."""
+    parts = [
+        (payload.address_line1 or "").strip(),
+        (payload.address_line2 or "").strip(),
+        (payload.city or "").strip(),
+        (payload.county or "").strip(),
+        _norm_postcode(payload.postcode) or "",
+    ]
+    parts = [p for p in parts if p]
+    return ", ".join(parts) if parts else None
 
 
 async def _find_duplicate(org_id: str, email: Optional[str], phone: Optional[str]) -> Optional[dict]:
@@ -540,8 +599,12 @@ async def create_customer(payload: CustomerIn, user=Depends(get_current_user)):
     if dupe:
         updates = {
             k: v for k, v in doc.items()
-            if k in ("name", "email", "phone", "site_name", "site_address",
-                     "notes", "equipment_list") and v
+            if k in (
+                "name", "email", "phone", "site_name", "site_address",
+                "address_line1", "address_line2", "city", "county",
+                "postcode", "country", "company_number",
+                "notes", "equipment_list",
+            ) and v
         }
         updates["updated_at"] = _now_iso()
         await db.svc_engineer_customers.update_one(
@@ -579,10 +642,14 @@ async def update_customer(
         updates["email"] = _norm_email(raw["email"])
     if "phone" in raw:
         updates["phone"] = _norm_phone(raw["phone"])
-    for k in ("site_name", "site_address", "notes"):
+    for k in ("site_name", "site_address", "address_line1",
+              "address_line2", "city", "county", "country",
+              "company_number", "notes"):
         if k in raw:
             v = raw[k]
             updates[k] = (v or "").strip() or None
+    if "postcode" in raw:
+        updates["postcode"] = _norm_postcode(raw["postcode"])
     if "equipment_list" in raw and raw["equipment_list"] is not None:
         updates["equipment_list"] = [e.strip() for e in raw["equipment_list"] if e and e.strip()]
     if updates:

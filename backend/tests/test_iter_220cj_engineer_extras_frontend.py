@@ -53,20 +53,26 @@ def test_new_customer_modal_companies_house_and_mandatory():
     # Companies House lookup block.
     assert 'data-testid="customer-form-ch-block"' in src
     assert 'data-testid="customer-form-ch-search"' in src
-    # Per-field error testids — five mandatory fields covered.
+    # Per-field error testids — iter 220ck split the address into
+    # structured fields, so the legacy ``site-address-error`` was
+    # replaced by ``address-line1-error`` + ``city-error`` +
+    # ``postcode-error``. Required: name, email, phone, site_name,
+    # address_line1, city, postcode (7 fields).
     for tid in (
         "customer-form-name-error",
         "customer-form-email-error",
         "customer-form-phone-error",
         "customer-form-site-name-error",
-        "customer-form-site-address-error",
+        "customer-form-address-line1-error",
+        "customer-form-city-error",
+        "customer-form-postcode-error",
     ):
         assert tid in src, f"missing {tid}"
     # Required asterisks on labels (defensive — match the CRM form).
     assert "Email *" in src
     assert "Phone *" in src
     assert "Site name *" in src
-    assert "Site address *" in src
+    assert "Address line 1 *" in src
     # Email-format regex actually present.
     assert "/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/" in src
 

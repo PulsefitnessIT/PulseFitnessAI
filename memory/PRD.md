@@ -22141,3 +22141,75 @@ Testing agent ran full backend + frontend e2e:
 - ``frontend/src/pages/ServiceOps/Engineer/EngineerEquipment.js``
 - ``frontend/src/pages/ServiceOps/Engineer/WorkVisitMachinesCard.js``
 - ``Makefile`` (regression entries — TAB-indented)
+
+---
+
+## Iter 220ck — Engineer Customer Onboarding Redesign (Feb 2026)
+
+### Problem
+User feedback (2 screenshots): "this section needs to be similar to
+how we on board on Master Admin. Quick/easy but in stages. Break the
+address box up into separate fields, easier for reporting. Equipment
+import within the customer modal (a separate tab). Think logically
+how a fitness equipment engineer would like to work."
+
+### Backend
+- ``CustomerIn`` / ``CustomerPatch`` schemas now accept the structured
+  address fields: ``address_line1``, ``address_line2``, ``city``,
+  ``county``, ``postcode``, ``country`` (defaults to "United
+  Kingdom") + ``company_number``.
+- ``_norm_postcode`` enforces UK formatting (``"ls101ab" → "LS10
+  1AB"``) using a regex that requires letters+digits — won't
+  accidentally split US zip codes.
+- ``_compose_address`` stitches the structured fields back into the
+  legacy ``site_address`` column so old reports keep working
+  (back-compat with everything before this iter).
+- ``_to_doc`` writes both structured + legacy columns and preserves
+  an explicit ``site_address`` when the engineer supplies one.
+- ``create_customer`` / ``update_customer`` merge/PATCH paths
+  whitelist the new columns so structured fields are persisted on
+  duplicate-merge as well.
+
+### Frontend — 3-step wizard
+``EngineerCustomers.js`` now opens a **3-step wizard** modelled on
+the Master Admin onboarding (numbered stepper + Back/Next nav):
+
+1. **Identity** — Companies House lookup (auto-fills name,
+   address_line1, line2, city, county, postcode, country, company
+   number) → Name + Email + Phone (all mandatory, inline errors).
+2. **Site** — Site name + structured address: line1*, line2, City*,
+   County, Postcode* (UK formatted), Country (defaults to UK), plus
+   access notes.
+3. **Equipment** — paste-list textarea + hint pointing to the
+   Equipment tab's CSV template + Import (iter 220cj's bulk-import
+   path) for engineers with dozens of machines.
+
+The wizard validates per-step (forward blocked until required
+fields are filled), jumps to the earliest erroring step on submit,
+and pre-fills structured fields when editing an existing customer
+(with a legacy fallback to ``site_address`` for pre-220ck rows).
+
+### Verification
+- **12 new backend tests pass** in
+  ``backend/tests/test_iter_220ck_customer_wizard.py`` covering
+  schema, postcode normalisation, address composition, country
+  default, create-endpoint persistence, and 4 frontend wiring pins.
+- Live e2e test via curl created a customer with `address_line1`,
+  `address_line2`, `city`, `county`, `postcode` (normalised),
+  `country`, `company_number` → all 7 structured columns stored
+  alongside the composed legacy `site_address`.
+- Iter 220cj frontend pin updated to reflect the new structured
+  fields (legacy `customer-form-site-address-error` removed).
+- Backend + frontend lint clean.
+
+### Files changed
+- ``backend/routes/svc/engineer_customers.py``
+  (CustomerIn/CustomerPatch, _norm_postcode, _compose_address,
+   _to_doc, create + patch merge logic)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js``
+  (EMPTY_FORM, openEdit, save with structured payload, 3-step
+  wizard UI with stepper + Back/Next + per-step validation)
+- ``backend/tests/test_iter_220ck_customer_wizard.py`` (new)
+- ``backend/tests/test_iter_220cj_engineer_extras_frontend.py``
+  (updated — pinned new structured testids)
+- ``Makefile`` (regression entry — TAB-indented)
