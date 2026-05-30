@@ -23,6 +23,8 @@ const AdminSidebar = ({
 }) => {
  const _navigate = useNavigate();
  const [openCases, setOpenCases] = useState(0);
+ // Iter 220dh — Pending Review queue total (partner applications + PTW + parts).
+ const [pendingReview, setPendingReview] = useState(0);
 
  useEffect(() => {
  const API = process.env.REACT_APP_BACKEND_URL;
@@ -36,8 +38,15 @@ const AdminSidebar = ({
  if (!cancelled) setOpenCases((data.cases || []).length);
  } catch { /* ignore — sidebar shouldn't crash on a missed poll */ }
  };
+ const fetchPending = async () => {
+   try {
+     const { data } = await axios.get(`${API}/api/master-admin/pending-review/count`, { headers });
+     if (!cancelled) setPendingReview(data?.total || 0);
+   } catch { /* ignore — sidebar shouldn't crash on a missed poll */ }
+ };
  fetchOpen();
- const tid = setInterval(fetchOpen, 60_000);
+ fetchPending();
+ const tid = setInterval(() => { fetchOpen(); fetchPending(); }, 60_000);
  return () => { cancelled = true; clearInterval(tid); };
  }, []);
 
@@ -118,6 +127,16 @@ const AdminSidebar = ({
  title={`${openCases} open enquir${openCases === 1 ? 'y' : 'ies'} need attention`}
  >
  {openCases > 99 ? '99+' : openCases}
+ </span>
+ )}
+ {/* Iter 220dh — Pending-review queue badge on the Overview group. */}
+ {item.id === 'overview' && pendingReview > 0 && (
+ <span
+ className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none"
+ data-testid="sidebar-pending-review-badge"
+ title={`${pendingReview} item${pendingReview === 1 ? '' : 's'} pending master-admin action`}
+ >
+ {pendingReview > 99 ? '99+' : pendingReview}
  </span>
  )}
  </button>

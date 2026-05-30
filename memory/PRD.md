@@ -1,3 +1,91 @@
+## Iter 220dh — Master-Admin unified Pending Review queue ✅ (May 30, 2026)
+
+A single inbox that surfaces every item needing Master-Admin action
+across the platform — partner-engineer applications, PTW requests,
+and parts requests — with inline Approve / Reject. Stops items
+getting lost across three separate panels.
+
+### Backend — `routes/master_admin_pending_review.py` (new)
+
+**Endpoints**
+- `GET /api/master-admin/pending-review` — unified list. Optional
+  `?kind=` filter. Returns rows sorted newest-first with stable
+  shape `{id, kind, title, subtitle, created_at, link, approve_url,
+  reject_url, organization_id, organization_name}`.
+- `GET /api/master-admin/pending-review/count` — `{total,
+  by_kind:{partner_application, ptw_request, parts_request}}` for
+  the sidebar badge.
+
+**Sources surfaced**
+- `partner_applications` where `status ∈ {pending, in_review}` →
+  approve/reject deep-link to the existing
+  `/partners/applications/{id}/approve` and `…/reject` endpoints.
+- `svc_ptw_requests` where `status='requested'` → approve via
+  `/svc/admin/ptw-requests/{id}/issue` (no reject endpoint today).
+- `svc_parts_requests` where `status='pending'` → approve/reject
+  via `/admin/parts-requests/{id}/approve|reject`.
+- Org IDs from PTW/parts rows resolved to names in a single
+  `organizations.find` lookup for context in the inbox.
+
+**Auth**
+- Both endpoints 403 anyone without `is_master_admin`.
+
+### Frontend — `MasterAdmin/PendingReviewPanel.js` (new)
+- New section `pending-review` under the Overview group. Routed via
+  the existing switch-on-section pattern in `MasterAdminPage.js`.
+- UI:
+  - **Header** with total count badge + Refresh button.
+  - **Filter chips**: All · Partner applications · PTW · Parts —
+    each with its per-kind count.
+  - **Row list**: icon + title + subtitle + created_at + org name.
+    Inline Approve (emerald) + Reject (rose) + Open-detail buttons.
+    Approve fires the row's `approve_url` and optimistically drops
+    the row from the list + decrements counts. Reject opens a
+    modal asking for a reason (required), then posts the reason.
+  - **Empty state** with green tick when the queue is empty.
+- All test IDs stable for fork-testing-agent: `pending-review-panel`,
+  `pending-review-total`, `pending-review-filter-*`,
+  `pending-review-row-{id}`, `pending-review-approve-{id}`,
+  `pending-review-reject-{id}`, `pending-review-open-{id}`,
+  `pending-review-reject-modal`, `pending-review-reject-reason`,
+  `pending-review-reject-submit`.
+
+### Sidebar wiring (`MasterAdmin/AdminSidebar.js`)
+- New 60-second poll against `/master-admin/pending-review/count`
+  alongside the existing ask-support poll.
+- Amber pill on the **Overview** group item when total > 0, capped
+  at "99+" for readability. Test ID `sidebar-pending-review-badge`.
+- Sub-tab added to the Overview group: `Pending review` with
+  `AlertCircle` icon.
+
+### Tests / lint
+- `tests/test_iter_220dh_pending_review.py` — **9 tests** green:
+  - Auth gate (list + count both 403 non-admin).
+  - Counts: total + per-kind buckets.
+  - Partner filter pins both `pending` AND `in_review` statuses.
+  - Unified list returns all three kinds, sorted newest-first,
+    org-name-enriched.
+  - `kind` filter narrows correctly.
+  - Approve / reject URL shapes pinned per kind (PTW has no reject).
+  - Empty state.
+  - Frontend wiring (panel mounted, routed, sub-tab, sidebar badge).
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c+220d suite: **82/82 green**.
+- Backend ruff + frontend ESLint clean.
+- Live smoke (Master-Admin token): count = `{total: 1621, by_kind:
+  {partner_application: 1621, ptw_request: 0, parts_request: 0}}`
+  → real backlog the admin can now actually clear.
+
+### Out of scope (deferred)
+- Bulk approve / reject across selected rows (UI surfaces one at a
+  time; high-volume backlog clearance could follow if needed).
+- Quote approvals (`svc/billing.py`), refunds (`AdminRefundsPanel`),
+  Pulse-upgrade requests — easy to add as new `_source()` helpers
+  if you want them in the same inbox.
+
+---
+
+
 ## Iter 220dg — Engineer → customer outbound ETA push ✅ (May 30, 2026)
 
 We had inbound (customer-facing live tracking page via `track_token`)

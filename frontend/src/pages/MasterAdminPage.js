@@ -32,6 +32,7 @@ const SocialAutopilotPanel = lazy(() => import('./MasterAdmin/SocialAutopilotPan
 const AdminArchive = lazy(() => import('./MasterAdmin/AdminArchive'));
 // Iter 220ao — GDPR Article 17 Data Subject Erasure Requests
 const GdprErasurePanel = lazy(() => import('../components/GDPR/GdprErasurePanel'));
+const PendingReviewPanel = lazy(() => import('./MasterAdmin/PendingReviewPanel'));
 const AdminTasks = lazy(() => import('./MasterAdmin/AdminTasks'));
 const AdminRoles = lazy(() => import('./MasterAdmin/AdminRoles'));
 const AdminPayments = lazy(() => import('./MasterAdmin/AdminPayments'));
@@ -409,6 +410,9 @@ const MasterAdminPage = ({ _onBack }) => {
       case 'gdpr-erasure':
         // Iter 220ao — GDPR Article 17 Data Subject Erasure workflow.
         return <GdprErasurePanel />;
+      case 'pending-review':
+        // Iter 220dh — Unified Master-Admin Pending Review queue.
+        return <PendingReviewPanel />;
       case 'ask-support':
         return <AskSupportDesk />;
       case 'analytics':

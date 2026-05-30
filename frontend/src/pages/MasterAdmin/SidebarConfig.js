@@ -36,6 +36,7 @@ export const SIDEBAR_ITEMS = [
     id: 'overview', label: 'Overview', icon: LayoutDashboard, group: 'main',
     subTabs: [
       { id: 'overview',  label: 'Dashboard',     icon: LayoutDashboard },
+      { id: 'pending-review', label: 'Pending review', icon: AlertCircle },
       { id: 'trust',     label: 'System Health', icon: ShieldCheck },
       { id: 'tasks',     label: 'Setup checklist', icon: ListChecks },
     ],
@@ -251,10 +252,12 @@ export const LEGACY_SECTION_REDIRECTS = {
   'emails':             'growth',
   'trust':              'overview',
   'tasks':              'overview',
+  'pending-review':     'overview',
 };
 
 export const sectionTitles = {
   overview: 'Dashboard Overview',
+  'pending-review': 'Pending review',
   tasks: 'Setup checklist',                     // Iter 216h17 — terminology cleanup
   pricing: 'Pricing',
   'org-billing': 'Org billing',
@@ -312,6 +315,7 @@ export const sectionTitles = {
 
 export const sectionDescriptions = {
   overview: 'High-level platform metrics — Operations Portal & CRM',
+  'pending-review': 'Unified inbox: partner applications, PTW requests, parts requests.',
   tasks: 'Auto-ticks itself as integrations + bulk imports complete',
   pricing: 'Module + bundle prices for both brands. Edits flow live to public homepages.',
   'org-billing': 'Per-org subscriptions, manual invoices, BACS payments, bill-to-date balance.',
