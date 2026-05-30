@@ -186,14 +186,28 @@ def test_ai_check_parses_valid_json_and_flags_match(monkeypatch):
     mod.ImageContent = lambda **kw: kw
     parent = types.ModuleType("emergentintegrations")
     parent.llm = types.ModuleType("emergentintegrations.llm")
-    sys.modules.setdefault("emergentintegrations", parent)
-    sys.modules.setdefault("emergentintegrations.llm", parent.llm)
+    # Snapshot what was already loaded so we can restore on teardown
+    # (cf. iter 220dm — leaving fake stubs in ``sys.modules`` was
+    # poisoning unrelated tests that legitimately import the real
+    # emergentintegrations package).
+    _prev = {
+        k: sys.modules.get(k) for k in (
+            "emergentintegrations",
+            "emergentintegrations.llm",
+            "emergentintegrations.llm.chat",
+        )
+    }
+    sys.modules["emergentintegrations"] = parent
+    sys.modules["emergentintegrations.llm"] = parent.llm
     sys.modules["emergentintegrations.llm.chat"] = mod
     try:
         out = _run(pcd.ai_check_document(b"\x89PNG\r\n", "image/png", expected_kind="dbs"))
     finally:
-        for k in ("emergentintegrations.llm.chat",):
-            sys.modules.pop(k, None)
+        for k, v in _prev.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
     assert out["status"] == "ok"
     assert out["confidence"] >= 0.9
     assert out["matches_expected"] is True

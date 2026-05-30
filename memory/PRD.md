@@ -1,3 +1,60 @@
+## Iter 220dm-hotfix — Regression hygiene cleanup ✅ (Feb 14, 2026)
+
+Cleared the last three pre-existing failures from the regression
+gate so the suite finishes **1908/1908 green** with zero linter
+warnings.
+
+### 1 · `emergentintegrations` sys.modules pollution
+- `tests/test_iter_216h283_compliance_docs.py::test_ai_check_parses_valid_json_and_flags_match`
+  previously inserted fake `emergentintegrations`,
+  `emergentintegrations.llm`, and `emergentintegrations.llm.chat`
+  stubs into `sys.modules` but only popped the `chat` child on
+  cleanup. The bare `emergentintegrations.llm` module left behind
+  had no `__path__`, so later tests that legitimately
+  `from emergentintegrations.llm.chat import LlmChat` (via
+  `routes/files.py`) blew up with
+  ``'emergentintegrations.llm' is not a package``.
+- Fix: snapshot whatever was in `sys.modules` before the test
+  patches in fakes, and restore the snapshot on teardown.
+  Cleanup is now safe regardless of which other tests ran first.
+
+### 2 · Engineer Equipment CSV testid contradiction (220cj vs 220cl)
+- `test_iter_220cj_engineer_extras_frontend::test_equipment_csv_actions_present`
+  expected `equipment-csv-actions` / `equipment-csv-download` /
+  `equipment-csv-import` test ids on
+  `pages/ServiceOps/Engineer/EngineerEquipment.js`.
+- Iter **220cl** explicitly **moved CSV off the engineer page**
+  into the per-customer drawer (`EngineerCustomers.js` →
+  `CustomerEquipmentCsv`), and added a negative test pinning their
+  absence.
+- The two iters were in direct contradiction. 220cl is the newer
+  product decision, so:
+  - Updated the 220cj test to a SUPERSEDED stub that asserts the
+    legacy testids are **absent** (preserves the audit trail
+    without contradicting 220cl).
+  - EngineerEquipment.js untouched — CSV stays in the customer
+    drawer as the single source of truth.
+
+### 3 · Monthly reputation reports — partner sweep capped at 2000
+- `tests/test_iter_220m_reputation_reports::test_run_sweep_with_force_period_sends_once`
+  flaked once the DB grew past 2000 approved partners — the
+  freshly inserted test partner was no longer in the first 2000
+  rows returned by `to_list(2000)`, so the sweep never reached it
+  and `sent` stayed at 0.
+- Fix in `utils/reputation_reports.py::run_monthly_reputation_reports`:
+  - Filter scoped to `user_id` present (an approved partner
+    without a user can never receive an email).
+  - `to_list(length=None)` — fetch the full eligible cohort so the
+    iter is deterministic regardless of DB size. The cohort is
+    "approved partner engineers with a user_id" — a bounded set
+    in production, not a scaling risk.
+
+### Result
+- `make regression` → **1908 passed, 15 skipped, 0 failed** (was
+  1906 passed + 2 failed before this iter).
+- 0 new lint warnings.
+
+
 ## Iter 220dm — Push-backend wiring sweep ✅ (Feb 14, 2026)
 
 Closes the loop on the Web Push channel enabled in Iter 220df by

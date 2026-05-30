@@ -78,13 +78,16 @@ def test_new_customer_modal_companies_house_and_mandatory():
 
 
 def test_equipment_csv_actions_present():
+    """SUPERSEDED by Iter 220cl — CSV actions were moved off the
+    Engineer Equipment page and into the per-customer drawer
+    (see ``test_iter_220cl_engineer_csv_move.py``). Kept as a stub
+    so the iter trail stays auditable but no longer asserts the
+    legacy testids."""
     src = _read("pages/ServiceOps/Engineer/EngineerEquipment.js")
-    assert 'data-testid="equipment-csv-actions"' in src
-    assert 'data-testid="equipment-csv-download"' in src
-    assert 'data-testid="equipment-csv-import"' in src
-    # Reuses the operations endpoints — single source of truth.
-    assert "/equipment/template/csv" in src
-    assert "/equipment/import/csv" in src
+    # Sanity: the legacy testids really are gone.
+    assert 'data-testid="equipment-csv-actions"' not in src
+    assert 'data-testid="equipment-csv-download"' not in src
+    assert 'data-testid="equipment-csv-import"' not in src
 
 
 def test_machines_card_has_from_site_picker():

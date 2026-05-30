@@ -308,10 +308,10 @@ async def run_monthly_reputation_reports(*, force_period: Optional[str] = None) 
     period = _period_label(year, month)
 
     cursor = db.partner_engineers.find(
-        {"status": "approved"},
+        {"status": "approved", "user_id": {"$exists": True, "$ne": None}},
         {"_id": 0, "id": 1, "user_id": 1, "reputation_reports": 1},
     )
-    partners = await cursor.to_list(2000)
+    partners = await cursor.to_list(length=None)
     summary = {"checked": 0, "sent": 0, "skipped": 0, "period": period}
     for p in partners:
         summary["checked"] += 1
