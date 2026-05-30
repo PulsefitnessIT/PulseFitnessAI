@@ -21972,3 +21972,92 @@ further diff. Frontend lint clean on all six files.
   reads the source files and pins the alias import so a future
   refactor can't accidentally revert)
 - ``Makefile`` (regression entry — TAB-indented)
+
+---
+
+## Iter 220ci — Engineer Equipment Tab (Feb 2026)
+
+### Problem
+Until now, engineers in the field could only PICK from existing
+equipment (via the asset combobox inside ``WorkVisitMachinesCard``).
+When a machine wasn't already in the operations portal they'd type
+a free-text name on the report row, and the asset was never
+persisted as a first-class record — leaving the master admin's
+equipment list and the field-team's reality out of sync.
+
+User spec: "Engineers must be able to add machines (all fields
+mandatory with dropdown boxes to keep text clean). Show the
+equipment on the report and job automatically. It should flow
+from the operations portal."
+
+### Implementation
+
+**Backend** — new module ``routes/svc/engineer_equipment.py``:
+- ``GET /api/svc/engineer/equipment/picklists`` — returns the
+  canonical ``equipment_type_options`` (16 entries),
+  ``location_options`` (16 entries), ``status_options`` (4 entries)
+  + the engineer's org sites for the form.
+- ``GET /api/svc/engineer/equipment`` — list scoped to the org with
+  optional ``?site_id=`` and ``?q=`` (case-insensitive contains
+  across name/serial/model/manufacturer).
+- ``POST /api/svc/engineer/equipment`` — strict-validation create:
+    - **5 mandatory fields** (server-validated): name,
+      equipment_type, manufacturer, model, location.
+    - **Strict picklists** (server-rejected when off-list):
+      equipment_type, location, status.
+    - Multi-site safety: when the org has multiple active sites a
+      ``site_id`` is required (400 otherwise); single-site orgs
+      auto-inherit the lone site.
+    - Optional ``?case_id=`` query — if supplied AND valid for the
+      org, ALSO inserts a matching row into
+      ``svc_work_visit_machines`` so the new asset auto-appears on
+      the current job's report (``attached_to_case=True``).
+      Unknown case_id surfaces ``case_skip_reason='case_not_found'``
+      without aborting the primary create.
+- Writes to the platform-wide ``equipment`` collection (tagged
+  ``created_via='engineer_app'``) so the operations portal / master
+  admin / customer dashboard see the new row immediately.
+
+**Frontend** — new ``pages/ServiceOps/Engineer/EngineerEquipment.js``:
+- List page (default export) — mobile-first card list with site
+  filter, search, refresh, "Add" CTA, empty state, status pills.
+- Form page (named export ``EngineerEquipmentForm``) — strict
+  picklists wired to the backend picklists endpoint, manufacturer
+  combobox fed by ``/api/equipment/manufacturers`` with an "Other"
+  freetext fallback, inline "Required" errors, site auto-select
+  when single-site, ``case_id`` query-param threading for the
+  "auto-attach to current job" flow, success toasts and back-nav.
+
+**Wiring**:
+- Routes added in ``routes/AppRoutes.js`` for
+  ``/svc/engineer/equipment`` (list) and
+  ``/svc/engineer/equipment/new`` (form).
+- ``EngineerWorkspace.js`` sidebar gets a new nav button
+  (``ws-nav-equipment``, shortcut ``e``).
+- ``EngineerHomeV2.js`` Quick Actions grid gets an Equipment tile
+  (``qa-equipment``).
+- ``WorkVisitMachinesCard.js`` (the in-job machines tab) gets a
+  "New asset" link (``machines-new-asset-link``) that pre-fills
+  ``case_id=`` so creating an asset from a job auto-attaches it.
+
+### Verification
+Testing agent ran full backend + frontend end-to-end:
+- **43 backend tests pass** (21 unit + 16 API + 6 wiring).
+- **12 frontend UI tests pass** — list, form, validation,
+  navigation, search, site filter, refresh, mandatory-field
+  enforcement.
+- ``make lint-backend`` + ``make lint-frontend`` clean.
+
+### Files changed
+- ``backend/routes/svc/engineer_equipment.py`` (new, ~330 LOC)
+- ``backend/route_registry/features.py`` (+2 lines — import + tuple)
+- ``backend/server.py`` (+3 lines — ensure_indexes wiring)
+- ``backend/tests/test_iter_220ci_engineer_equipment.py`` (new — 21 unit tests)
+- ``backend/tests/test_iter_220ci_engineer_equipment_frontend.py`` (new — 6 wiring pins)
+- ``backend/tests/test_iter_220ci_engineer_equipment_api.py`` (new, by testing agent — 16 integration tests)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerEquipment.js`` (new, ~480 LOC — list + form)
+- ``frontend/src/routes/AppRoutes.js`` (+8 lines — lazy imports + routes)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerWorkspace.js`` (+2 lines — sidebar)
+- ``frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js`` (+3 lines — quick action)
+- ``frontend/src/pages/ServiceOps/Engineer/WorkVisitMachinesCard.js` (+14 lines — New asset link)
+- ``Makefile`` (regression entries — TAB-indented)
