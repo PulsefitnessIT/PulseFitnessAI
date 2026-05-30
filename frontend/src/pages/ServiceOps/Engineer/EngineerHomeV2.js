@@ -29,6 +29,7 @@ import {
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
 import useEngineerAttention from './hooks/useEngineerAttention';
+import VoiceToJobButton from './VoiceToJobButton';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -460,6 +461,10 @@ export default function EngineerHomeV2() {
         attention={attention}
         onChanged={() => { load(); attention.refresh(); }}
       />
+      {/* Iter 220cw — Voice-to-job floating mic (driver-friendly).
+          Mounts on the Home only — the EngineerNewJob form consumes
+          the draft from sessionStorage. */}
+      <VoiceToJobButton />
     </div>
   );
 }

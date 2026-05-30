@@ -251,4 +251,68 @@ async def dictate_summary(
     return {"transcript": transcript, "summary": polished}
 
 
+# Iter 220cw — Voice-to-job. Engineers talk into the mic while
+# driving (or one-handed at a customer site); we transcribe with
+# Whisper and run the transcript through the existing GPT-5.2
+# email-parse extractor so the New Job form auto-fills.
+@router.post("/voice-to-job")
+async def voice_to_job(
+    audio: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    """Audio in → transcript + parsed job fields out.
+
+    Reuses the proven ``jobs_parse_email`` pipeline (same prompt,
+    same JSON schema) so the engineer's spoken brief produces the
+    exact same field shape as a pasted customer email.
+    """
+    mime = (audio.content_type or "").lower()
+    if not any(mime.startswith(p) for p in ALLOWED_AUDIO_MIME_PREFIXES):
+        raise HTTPException(415, f"Unsupported audio type: {mime or 'unknown'}")
+    data = await audio.read()
+    size_mb = len(data) / (1024 * 1024)
+    if size_mb > MAX_AUDIO_MB:
+        raise HTTPException(413, f"Audio too large ({size_mb:.1f} MB > {MAX_AUDIO_MB} MB)")
+    start = time.perf_counter()
+    transcript = await _transcribe_audio(data, audio.filename or "audio.webm")
+    if not transcript.strip():
+        raise HTTPException(422, "Could not transcribe audio — please try again.")
+
+    # Reuse the email-parse extractor so the field shape matches what
+    # the New Job form already knows how to consume.
+    from routes.svc.independence import jobs_parse_email, ParseEmailIn
+    try:
+        # Send a tiny synthesised "email" carrying just the transcript.
+        # The extractor is robust enough to find customer / fault / etc.
+        parsed_out = await jobs_parse_email(
+            body=ParseEmailIn(
+                email_body=transcript,
+                subject="Voice-to-job (engineer dictation)",
+            ),
+            user=user,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[voice-to-job] parse failed: %s", exc)
+        # Soft-fail — engineer still gets the transcript, just no parsed fields.
+        parsed_out = {"parsed": {}, "raw": ""}
+
+    latency_ms = int((time.perf_counter() - start) * 1000)
+    await _log_call(
+        organization_id=user.get("organization_id"),
+        kind="engineer_voice_to_job",
+        prompt_chars=len(data), response_chars=len(transcript),
+        latency_ms=latency_ms, ok=True,
+        extra={"transcript_chars": len(transcript),
+               "size_mb": round(size_mb, 2)},
+    )
+    return {
+        "transcript": transcript,
+        "parsed": parsed_out.get("parsed") or {},
+        "raw": parsed_out.get("raw") or "",
+    }
+
+
 __all__ = ["router"]
+

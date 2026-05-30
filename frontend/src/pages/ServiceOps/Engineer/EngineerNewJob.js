@@ -82,6 +82,35 @@ export default function EngineerNewJob() {
     intake_channel: 'manual', source_note: '',
   });
 
+  // Iter 220cw — Voice-to-job consumer. When VoiceToJobButton
+  // navigates here with ?from=voice we read the parsed payload it
+  // stashed in sessionStorage and merge it onto the form.
+  useEffect(() => {
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    if (params.get('from') !== 'voice') return;
+    try {
+      const raw = sessionStorage.getItem('svc.engineer.voiceJobDraft');
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      const parsed = draft.parsed || {};
+      setForm((f) => ({
+        ...f,
+        title:          parsed.title          || f.title,
+        description:    parsed.description    || draft.transcript || f.description,
+        priority:       parsed.priority       || f.priority,
+        customer_name:  parsed.customer_name  || f.customer_name,
+        customer_email: parsed.customer_email || f.customer_email,
+        customer_phone: parsed.customer_phone || f.customer_phone,
+        site_name:      parsed.site_name      || f.site_name,
+        site_address:   parsed.site_address   || f.site_address,
+        site_postcode:  parsed.site_postcode  || f.site_postcode,
+        scheduled_at:   parsed.scheduled_at_hint || f.scheduled_at,
+      }));
+      sessionStorage.removeItem('svc.engineer.voiceJobDraft');
+    } catch { /* private mode / corrupt JSON — fall through */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const set = (k, v) => setForm((s) => {
     const next = { ...s, [k]: v };
     // Iter 220f — auto-enable the "save as customer" tickbox the first

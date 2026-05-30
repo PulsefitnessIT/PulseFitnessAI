@@ -1,3 +1,69 @@
+## Iter 220cw — Voice-to-job (driver-friendly mic FAB) ✅ (May 30, 2026)
+
+The big engineer-review remaining win: one-handed / driving voice
+capture that ends with a pre-filled New Job form.
+
+### Backend — `POST /api/svc/engineer/ai/voice-to-job`
+- New endpoint on `engineer_ai.py`. Pipeline:
+  1. **Validate** audio mime (webm / mp4 / ogg / mp3 / wav / m4a)
+     and size (≤ 20 MB) — same gate as the existing `/transcribe`
+     and `/dictate-summary` endpoints.
+  2. **Whisper** transcription via the existing
+     `_transcribe_audio` helper (Emergent LLM Key, model
+     `whisper-1`). 422 returned on empty transcript so the engineer
+     gets a clear retry prompt.
+  3. **GPT-5.2 extraction** by re-using
+     `routes/svc/independence.py::jobs_parse_email` — same JSON
+     schema as the paste-email helper, so the field shape matches
+     what the New Job form already knows how to consume.
+     Soft-fails to `{parsed: {}}` if the LLM errors so the engineer
+     never loses the transcript.
+  4. **Audit-logs** via the existing `_log_call` hook
+     (`kind="engineer_voice_to_job"`).
+- Returns `{transcript, parsed, raw}`.
+
+### Frontend — `VoiceToJobButton.js`
+- Brand-new component. Floating gradient-blue mic FAB pinned to the
+  bottom-right of EngineerHomeV2.
+- Reuses the proven MediaRecorder pattern from
+  `EngineerDictationButton`:
+  - Auto-detects best supported codec (`audio/webm;codecs=opus`
+    preferred).
+  - 90s auto-stop cap (longer than the dictate-summary 60s — voice
+    job briefings tend to be richer).
+  - Pulsing red ring while recording, tap-to-stop.
+- On success:
+  - Stashes `{transcript, parsed}` in
+    `sessionStorage["svc.engineer.voiceJobDraft"]`.
+  - Navigates to `/svc/engineer/jobs/new?from=voice`.
+  - Notifies engineer with the field count pre-filled.
+- Falls back to `null` (no FAB) on browsers without MediaRecorder.
+
+### Frontend — `EngineerNewJob.js`
+- New `useEffect` reads `?from=voice` on mount, pulls the draft from
+  sessionStorage, deep-merges `{customer_*, site_*, title,
+  description, priority, scheduled_at}` onto the form, and clears
+  the draft so a refresh doesn't replay the prefill.
+- `description` falls back to the raw transcript when the parser
+  couldn't synthesise one — so the engineer always has something
+  usable.
+
+### Tests / lint
+- `tests/test_iter_220cw_voice_to_job.py` — **6 tests**, all green:
+  - Happy path returns transcript + parsed fields.
+  - 415 on unsupported mime.
+  - 413 on > 20 MB audio.
+  - 422 on empty transcript.
+  - Soft-fail on parser error (transcript still returned).
+  - Endpoint contract guard.
+- Added to `Makefile regression:` (TAB-indented).
+- Combined 220c-series suite: **56/56 green**.
+- Frontend lint clean (3 files). Backend ruff clean.
+- Live smoke: endpoint registered (401 unauthorised, expected).
+
+---
+
+
 ## Iter 220cv — Engineer one-tap close-out ("I'm done — send the invoice") ✅ (May 30, 2026)
 
 **Why this iter**: every other piece of the close-of-day flow is now
