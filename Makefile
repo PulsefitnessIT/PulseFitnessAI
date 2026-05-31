@@ -269,6 +269,7 @@ regression:
 	  tests/test_iter_220e5_workspace_and_feedback.py \
 	  tests/test_iter_220e5_workspace_and_feedback_frontend.py \
 	  tests/test_iter_220e6_release_readiness_engineer_app.py \
+	  tests/test_iter_220e7_engineer_push_wiring.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

@@ -1,3 +1,55 @@
+## Iter 220e7 — Engineer Web Push wiring ✅ (Feb 14, 2026)
+
+Closes the final release-readiness gap (#5) flagged in iter 220e6.
+
+### What changed
+
+Backend was already complete (`routes/svc/notifications.py` ships
+`/svc/engineer/push/vapid-key`, `/subscribe`, `/subscriptions/{hash}`,
+`/test` + `/notification-prefs` GET/PUT + `/notification-prefs/snooze`
+POST/DELETE plus a `svc_push_subscriptions` collection). This iter is
+**pure frontend wire-up** of that infrastructure.
+
+- New `utils/engineerPush.js` — single browser-side helper around the
+  Push API + Service Worker. Exports `isPushSupported`, `getPushStatus`,
+  `enablePush`, `disablePush`, `sendPushTest`, `getNotificationPrefs`,
+  `saveNotificationPrefs`, `snoozeNotifications`, `clearSnooze`.
+  Handles the URL-safe base64 → Uint8Array dance and computes the
+  endpoint hash (first 24 chars of SHA-256) for unsubscribe lookup so
+  it matches the backend's `_endpoint_hash`.
+- New `pages/ServiceOps/Engineer/NotificationSettings.js` — drawer
+  with three cards:
+  1. **Subscribe master toggle** with browser-support detection,
+     denied-permission help text, and a self-test push button.
+  2. **Snooze all** (30 / 60 / 120 min one-tap) with a "Wake" pill
+     that surfaces when DND is active.
+  3. **Per-kind toggles** for the kinds returned by
+     `/notification-prefs` (new_job, job_update, …).
+- Wired a **Notifications** row into `EngineerAccountSettings.js`'s
+  new "Alerts" section that opens the drawer.
+
+### Tests (4)
+
+`test_iter_220e7_engineer_push_wiring.py`:
+- Push helper exports the canonical surface and targets the existing
+  backend endpoints (not a parallel scheme).
+- Drawer mounts subscribe/test/snooze/kind test-ids.
+- Account Settings imports and renders the drawer.
+- Service worker still has `push` + `notificationclick` listeners.
+
+Lint clean. Frontend compiles cleanly. `vapid-key` endpoint returns
+the expected 401 (auth-gated route registered).
+
+### Release status
+
+**All audit gaps from iter 220e5 are now closed** — #1 boundary,
+#2 outbox, #3 legacy redirect, #4 error reporter, **#5 push wiring
+(this iter)**, #11 contract-less neutral. Deferred items
+(#7 dedicated E2E, #8 load test, #10 i18n) remain ops/infra.
+
+---
+
+
 ## Iter 220e6 — Engineer App release-readiness sweep ✅ (Feb 14, 2026)
 
 Closed every gap I flagged in the previous "release-ready?" honest

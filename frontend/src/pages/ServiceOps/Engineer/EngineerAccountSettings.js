@@ -21,9 +21,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
-  Sliders, Palette, Sparkles, Star, Percent, PoundSterling,
+  Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+// Iter 220e7 — Web Push subscribe + per-kind notification prefs.
+import NotificationSettings from './NotificationSettings';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -70,6 +72,8 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
   const [partner, setPartner] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [partnerLoading, setPartnerLoading] = useState(false);
+  // Iter 220e7 — Web Push & notification preferences drawer.
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const attentionItems = (attention?.items) || [];
 
   useEffect(() => {
@@ -423,6 +427,20 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             </section>
           )}
 
+          {/* Iter 220e7 — Notifications */}
+          <section data-testid="engineer-settings-section-notifications">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Alerts</p>
+            <Row
+              icon={Bell}
+              accent="#059669"
+              title="Notifications"
+              subtitle="Enable push for new jobs and customer responses, snooze, and per-type toggles."
+              onClick={() => setNotificationOpen(true)}
+              testid="engineer-settings-notifications-row"
+              right={<ChevronRight size={16} className="text-slate-300 flex-shrink-0" />}
+            />
+          </section>
+
           {/* Support */}
           <section data-testid="engineer-settings-section-support">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Help</p>
@@ -455,6 +473,11 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           GymAxis Engineer · v2
         </footer>
       </aside>
+
+      {/* Iter 220e7 — Notification drawer */}
+      {notificationOpen && (
+        <NotificationSettings onClose={() => setNotificationOpen(false)} />
+      )}
     </div>
   );
 }
