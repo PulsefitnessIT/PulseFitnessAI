@@ -337,10 +337,12 @@ export default function EngineerJobDetailV2() {
         {activeTab === 'summary' && (
           <JobAtAGlance
             job={job}
+            mileage={mileage}
             setBusy={setBusy}
             busy={busy}
             onChange={load}
             onJumpToSafety={() => setActiveTab('complete')}
+            onJumpToTab={setActiveTab}
           />
         )}
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
@@ -368,7 +370,15 @@ export default function EngineerJobDetailV2() {
 // job: customer / site / address / fault summary + tap-to-call,
 // tap-to-navigate, and a big "I'm on site" button that starts the
 // on-site timer (with the existing H&S gate respected).
-function JobAtAGlance({ job, busy: _busy, setBusy, onChange, onJumpToSafety }) {
+//
+// Iter 220ea·6 (Feb 2026) — Summary tab redesign. The card now
+// opens with three explicit blocks: a Status Pill row (status +
+// SLA countdown + priority), an Action Row (Call, Navigate,
+// Email, Photo), and a 2x3 Stats Grid (on-site time, photos,
+// parts, machines, safety, handoff). The old customer/site
+// context block + chip row remain below so the surface stays
+// information-dense without being noisy.
+function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSafety, onJumpToTab }) {
   const phone = job.customer_phone;
   const email = job.customer_email;
   const address = [job.site_address, job.site_postcode].filter(Boolean).join(' ');
@@ -464,54 +474,44 @@ function JobAtAGlance({ job, busy: _busy, setBusy, onChange, onJumpToSafety }) {
         </button>
       )}
 
-      <div className="p-3 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Customer
-            </p>
-            <p className="text-sm font-bold text-slate-900 truncate" data-testid="jaag-customer-name">
-              {job.customer_name || 'Unknown customer'}
-            </p>
-            {job.site_name && (
-              <p className="text-xs text-slate-500 truncate">
-                {job.site_name}
+      <div className="p-3 space-y-3">
+        {/* Iter 220ea·6 — Status pill row: job status badge,
+            live SLA countdown, priority. The one-glance answer to
+            "what state is this job in?". */}
+        <SummaryStatusPill job={job} cover={cover} />
+
+        {/* Iter 220ea·6 — Action row: 4 equal-width touch targets
+            for the actions an engineer reaches for most (Call,
+            Navigate, Email, Photo). Replaces the cluster of small
+            round icons that used to sit next to the customer name. */}
+        <SummaryActionRow
+          job={job}
+          phone={phone}
+          email={email}
+          mapsHref={mapsHref}
+          onJumpToTab={onJumpToTab}
+        />
+
+        {/* Iter 220ea·6 — Stats grid: 2x3 compact dashboard with
+            the metrics the engineer wants at a glance (on-site
+            time, photos, parts, machines, safety, handoff notes). */}
+        <SummaryStatsGrid job={job} mileage={mileage} />
+
+        <div className="pt-1 border-t border-slate-100">
+          <div className="flex items-start justify-between gap-3 pt-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Customer
               </p>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            {phone && (
-              <a
-                href={`tel:${phone.replace(/\s+/g, '')}`}
-                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
-                title={`Call ${phone}`}
-                data-testid="jaag-call"
-              >
-                <Phone size={14} />
-              </a>
-            )}
-            {mapsHref && (
-              <a
-                href={mapsHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                title="Open in Maps"
-                data-testid="jaag-maps"
-              >
-                <Navigation size={14} />
-              </a>
-            )}
-            {email && (
-              <a
-                href={`mailto:${email}`}
-                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
-                title={`Email ${email}`}
-                data-testid="jaag-email"
-              >
-                <Send size={14} />
-              </a>
-            )}
+              <p className="text-sm font-bold text-slate-900 truncate" data-testid="jaag-customer-name">
+                {job.customer_name || 'Unknown customer'}
+              </p>
+              {job.site_name && (
+                <p className="text-xs text-slate-500 truncate">
+                  {job.site_name}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -724,6 +724,307 @@ function JobAtAGlance({ job, busy: _busy, setBusy, onChange, onJumpToSafety }) {
     </div>
   );
 }
+
+// ─── Iter 220ea·6 · Summary tab redesign ─────────────────────────
+// Three small components that own the top of the JobAtAGlance
+// card on the Summary tab: a status pill row, an action row, and
+// a compact stats grid. Lifted out as their own components so
+// the JobAtAGlance return stays readable and these can be unit-
+// tested in isolation.
+
+const STATUS_TONE = {
+  new:              { label: 'New',              cls: 'bg-slate-100 text-slate-700 border-slate-300', dot: 'bg-slate-400' },
+  scheduled:        { label: 'Scheduled',        cls: 'bg-indigo-100 text-indigo-800 border-indigo-300', dot: 'bg-indigo-500' },
+  en_route:         { label: 'En route',         cls: 'bg-sky-100 text-sky-800 border-sky-300', dot: 'bg-sky-500' },
+  in_progress:      { label: 'In progress',      cls: 'bg-blue-100 text-blue-800 border-blue-300', dot: 'bg-blue-500 animate-pulse' },
+  on_hold:          { label: 'On hold',          cls: 'bg-amber-100 text-amber-900 border-amber-300', dot: 'bg-amber-500' },
+  awaiting_parts:   { label: 'Awaiting parts',   cls: 'bg-amber-100 text-amber-900 border-amber-300', dot: 'bg-amber-500' },
+  awaiting_sign_off:{ label: 'Awaiting sign-off',cls: 'bg-violet-100 text-violet-800 border-violet-300', dot: 'bg-violet-500' },
+  repaired:         { label: 'Repaired',         cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
+  closed:           { label: 'Closed',           cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
+  invoiced:         { label: 'Invoiced',         cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
+};
+
+function _formatSlaCountdown(targetIso) {
+  if (!targetIso) return null;
+  const target = new Date(targetIso).getTime();
+  if (Number.isNaN(target)) return null;
+  const diffMs = target - Date.now();
+  const overdue = diffMs < 0;
+  const absMs = Math.abs(diffMs);
+  const mins = Math.floor(absMs / 60000);
+  const hrs = Math.floor(mins / 60);
+  const days = Math.floor(hrs / 24);
+  let label;
+  if (days >= 1) label = `${days}d ${hrs % 24}h`;
+  else if (hrs >= 1) label = `${hrs}h ${mins % 60}m`;
+  else label = `${mins}m`;
+  return { label, overdue, urgent: !overdue && absMs < 60 * 60 * 1000 };
+}
+
+function SummaryStatusPill({ job, cover }) {
+  const status = String(job?.status || 'new').toLowerCase();
+  const tone = STATUS_TONE[status] || STATUS_TONE.new;
+  const sla = _formatSlaCountdown(job?.sla_resolve_at);
+  const priority = job?.priority ? String(job.priority).toUpperCase() : null;
+  const isHighPriority = priority && (
+    priority.startsWith('P1') || priority === 'CRITICAL' || priority === 'HIGH'
+  );
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1.5"
+      data-testid="summary-status-pill-row"
+    >
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-extrabold ${tone.cls}`}
+        data-testid="summary-status-pill"
+        data-status={status}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
+        {tone.label}
+      </span>
+      {sla && (
+        <span
+          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-bold ${
+            sla.overdue
+              ? 'bg-rose-100 text-rose-900 border-rose-300'
+              : sla.urgent
+                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                : 'bg-slate-50 text-slate-700 border-slate-200'
+          }`}
+          data-testid="summary-sla-pill"
+          data-sla-state={sla.overdue ? 'overdue' : sla.urgent ? 'urgent' : 'ok'}
+          title={`SLA target: ${new Date(job.sla_resolve_at).toLocaleString('en-GB')}`}
+        >
+          <Timer size={11} />
+          {sla.overdue ? `${sla.label} over SLA` : `${sla.label} to SLA`}
+        </span>
+      )}
+      {priority && (
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider ${
+            isHighPriority
+              ? 'bg-rose-50 text-rose-700 border-rose-200'
+              : 'bg-slate-50 text-slate-600 border-slate-200'
+          }`}
+          data-testid="summary-priority-pill"
+        >
+          {priority}
+        </span>
+      )}
+      {cover?.tone === 'red' && (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider bg-rose-50 text-rose-700 border-rose-200"
+          data-testid="summary-chargeable-pill"
+          title={cover.detail}
+        >
+          <ShieldCheck size={10} /> Chargeable
+        </span>
+      )}
+    </div>
+  );
+}
+
+function SummaryActionRow({ job, phone, email, mapsHref, onJumpToTab }) {
+  const machines = Array.isArray(job?.machines) ? job.machines : [];
+  const firstMachineId = machines[0]?.id || null;
+  const photoHref = firstMachineId ? `?tab=equipment&machine=${firstMachineId}` : '?tab=equipment';
+  const actions = [
+    {
+      key: 'call',
+      label: 'Call',
+      icon: Phone,
+      href: phone ? `tel:${String(phone).replace(/\s+/g, '')}` : null,
+      tone: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+      testid: 'jaag-call',
+    },
+    {
+      key: 'navigate',
+      label: 'Navigate',
+      icon: Navigation,
+      href: mapsHref,
+      external: true,
+      tone: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
+      testid: 'jaag-maps',
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      icon: Send,
+      href: email ? `mailto:${email}` : null,
+      tone: 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
+      testid: 'jaag-email',
+    },
+    {
+      key: 'photo',
+      label: 'Photo',
+      icon: Camera,
+      onClick: () => { if (onJumpToTab) onJumpToTab('equipment'); },
+      altHref: photoHref,
+      tone: 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100',
+      testid: 'summary-action-photo',
+    },
+  ];
+  return (
+    <div className="grid grid-cols-4 gap-2" data-testid="summary-action-row">
+      {actions.map((a) => {
+        const Icon = a.icon;
+        const disabled = !a.href && !a.onClick;
+        const sharedCls = `flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-colors ${a.tone} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`;
+        if (a.onClick) {
+          return (
+            <button
+              key={a.key}
+              type="button"
+              onClick={a.onClick}
+              disabled={disabled}
+              className={sharedCls}
+              data-testid={a.testid}
+            >
+              <Icon size={16} />
+              <span>{a.label}</span>
+            </button>
+          );
+        }
+        if (disabled) {
+          return (
+            <span
+              key={a.key}
+              className={sharedCls}
+              data-testid={`${a.testid}-disabled`}
+              aria-disabled="true"
+            >
+              <Icon size={16} />
+              <span>{a.label}</span>
+            </span>
+          );
+        }
+        return (
+          <a
+            key={a.key}
+            href={a.href}
+            target={a.external ? '_blank' : undefined}
+            rel={a.external ? 'noopener noreferrer' : undefined}
+            className={sharedCls}
+            data-testid={a.testid}
+          >
+            <Icon size={16} />
+            <span>{a.label}</span>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+function SummaryStatsGrid({ job, mileage }) {
+  // On-site minutes — accumulate completed + currently-running entry.
+  const entries = Array.isArray(job?.time_entries) ? job.time_entries : [];
+  let onSiteMins = 0;
+  let activeOnSiteStart = null;
+  for (const e of entries) {
+    if (e.category !== 'on_site') continue;
+    if (e.end_at) {
+      onSiteMins += Number(e.duration_minutes || 0);
+    } else if (e.start_at) {
+      activeOnSiteStart = new Date(e.start_at).getTime();
+    }
+  }
+  if (activeOnSiteStart) {
+    onSiteMins += Math.max(0, Math.round((Date.now() - activeOnSiteStart) / 60000));
+  }
+  const photoCount = Array.isArray(job?.photos) ? job.photos.length : 0;
+  const parts = Array.isArray(job?.allocated_parts) ? job.allocated_parts : [];
+  const partsConsumed = parts.filter(p => p.fulfilled).length;
+  const partsTotal = parts.length;
+  const machineCount = job?.machines_count
+    ?? (Array.isArray(job?.machines) ? job.machines.length : 0);
+  // Safety: ticked items vs template items
+  const ticked = Array.isArray(job?.safety_signoff?.ticked_item_ids)
+    ? job.safety_signoff.ticked_item_ids.length : 0;
+  const safetyTotal = job?.safety_template?.items?.length ?? ticked;
+  const safetyLabel = job?.safety_signoff
+    ? 'Signed off'
+    : safetyTotal > 0 ? `${ticked}/${safetyTotal}` : '—';
+  // Handoff notes count (from any engineer) — visible context the
+  // engineer should be aware of before/after this visit.
+  const handoffCount = Array.isArray(job?.handoff_notes) ? job.handoff_notes.length : 0;
+  // Mileage — fall back to 0 if not loaded yet.
+  const miles = Number(mileage?.total_miles || 0);
+  const stats = [
+    {
+      key: 'time',
+      label: 'On site',
+      value: fmtMins(onSiteMins),
+      sub: activeOnSiteStart ? 'Running' : (onSiteMins > 0 ? 'Logged' : 'Not started'),
+      tone: activeOnSiteStart ? 'text-emerald-700' : 'text-slate-900',
+      testid: 'summary-stat-time',
+    },
+    {
+      key: 'photos',
+      label: 'Photos',
+      value: String(photoCount),
+      sub: photoCount === 0 ? 'None yet' : (photoCount === 1 ? '1 captured' : `${photoCount} captured`),
+      tone: 'text-slate-900',
+      testid: 'summary-stat-photos',
+    },
+    {
+      key: 'parts',
+      label: 'Parts',
+      value: partsTotal > 0 ? `${partsConsumed}/${partsTotal}` : '0',
+      sub: partsTotal === 0 ? 'None allocated' : (partsConsumed === partsTotal ? 'All fitted' : 'In progress'),
+      tone: partsTotal > 0 && partsConsumed === partsTotal ? 'text-emerald-700' : 'text-slate-900',
+      testid: 'summary-stat-parts',
+    },
+    {
+      key: 'machines',
+      label: 'Machines',
+      value: String(machineCount),
+      sub: machineCount === 0 ? 'Not set' : (machineCount === 1 ? '1 asset' : `${machineCount} assets`),
+      tone: 'text-slate-900',
+      testid: 'summary-stat-machines',
+    },
+    {
+      key: 'safety',
+      label: 'H&S',
+      value: safetyLabel,
+      sub: job?.safety_signoff ? 'Cleared' : (safetyTotal > 0 ? 'Required' : 'No checklist'),
+      tone: job?.safety_signoff ? 'text-emerald-700' : (safetyTotal > 0 ? 'text-amber-700' : 'text-slate-900'),
+      testid: 'summary-stat-safety',
+    },
+    {
+      key: 'mileage',
+      label: 'Mileage',
+      value: miles > 0 ? `${miles.toFixed(1)} mi` : (handoffCount > 0 ? String(handoffCount) : '0'),
+      sub: miles > 0 ? 'Logged' : (handoffCount > 0 ? `${handoffCount} handoff${handoffCount === 1 ? '' : 's'}` : 'Not yet'),
+      tone: 'text-slate-900',
+      testid: 'summary-stat-mileage',
+    },
+  ];
+  return (
+    <div
+      className="grid grid-cols-3 gap-1.5 rounded-xl bg-slate-50 border border-slate-200 p-1.5"
+      data-testid="summary-stats-grid"
+    >
+      {stats.map((s) => (
+        <div
+          key={s.key}
+          className="rounded-lg bg-white border border-slate-100 px-2 py-2 min-w-0"
+          data-testid={s.testid}
+        >
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 truncate">
+            {s.label}
+          </p>
+          <p className={`text-sm font-extrabold tabular-nums truncate ${s.tone}`}>
+            {s.value}
+          </p>
+          <p className="text-[10px] text-slate-500 truncate">{s.sub}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 
 // ─── Iter 220cz · JobOverrunBanner ───────────────────────────────
 // Pulls `overrun` from the engineer endpoint and shows an amber

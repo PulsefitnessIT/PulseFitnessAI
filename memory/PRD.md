@@ -1,3 +1,53 @@
+## Iter 220ea·6 — Engineer App Summary tab redesign ✅ (Feb 14, 2026)
+
+Deeper Summary surface in `EngineerJobDetailV2.js`. Three new
+sub-components added at the top of `JobAtAGlance`:
+
+### 1 · `SummaryStatusPill` — status, SLA countdown, priority
+- Job status badge with status-specific tone (`STATUS_TONE` map for
+  `new → invoiced`), with a live dot (pulsing on `in_progress`).
+- SLA pill driven by `_formatSlaCountdown(sla_resolve_at)` — three
+  tones via `data-sla-state`: `overdue` (rose), `urgent <1h` (amber),
+  `ok` (slate). Always displays "Xh Ym to SLA" / "Xh Ym over SLA".
+- Priority pill — P1/CRITICAL/HIGH get a rose treatment, rest muted.
+- Chargeable pill — surfaces when the cover tone is red so the
+  engineer reads "Chargeable" in the same glance as the status.
+
+### 2 · `SummaryActionRow` — 4 equal-width touch targets
+Call · Navigate · Email · Photo. Test-ids:
+- `jaag-call`, `jaag-maps`, `jaag-email` (preserved from the old
+  small-icon row so the existing E2E suite still passes).
+- `summary-action-photo` (new) — jumps to the Equipment tab where
+  per-machine capture lives. Falls back to plain `?tab=equipment`.
+- Disabled state (`opacity-40 cursor-not-allowed` + `aria-disabled`)
+  for any action whose target is missing — the 4-up grid stays
+  geometrically stable even on data-poor jobs.
+
+### 3 · `SummaryStatsGrid` — 2x3 compact dashboard
+Time · Photos · Parts · Machines · H&S · Mileage. Per stat:
+- Heading, big value, sub-line. Test-ids `summary-stat-{key}`.
+- **Time** counts BOTH closed on-site entries' `duration_minutes`
+  AND any currently-running entry's `Date.now() - start_at` so the
+  number ticks while the engineer is on the clock.
+- **Parts** shows `consumed/total` from `allocated_parts.fulfilled`.
+- **H&S** shows `ticked/total` from `safety_signoff` +
+  `safety_template`, or "Signed off" once cleared.
+- **Mileage** reads from the existing engineer-job `mileage` payload
+  the parent already loads — passed through as a prop.
+
+### Plumbing
+`JobAtAGlance` now receives `mileage` and `onJumpToTab` props from
+`EngineerJobDetailV2`. The duplicated small phone/maps/email
+icon-row next to the customer name is removed (the Action Row owns
+those CTAs now). The customer/site/fault block remains immediately
+below the stats grid so context is still one scroll away.
+
+### Tests
+`backend/tests/test_iter_220ea_6_summary_redesign.py` (14 source-
+level guards, all green). Added to `Makefile` regression target
+(tab-indented).
+
+
 ## Iter 220ea·5 — Engineer App UX fixes ✅ (Feb 14, 2026)
 
 Three engineer-app pain points from a live user report, plus a
