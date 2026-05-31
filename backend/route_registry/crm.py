@@ -14,6 +14,10 @@ from routes.crm_contracts import router as crm_contracts_router
 from routes.crm_contract_templates import router as crm_contract_templates_router
 from routes.crm_contract_send import router as crm_contract_send_router
 from routes.crm_contract_lifecycle import router as crm_contract_lifecycle_router
+from routes.crm_contract_workspace import (
+    router as crm_contract_workspace_router,
+    engineer_router as crm_contract_engineer_router,
+)
 from routes.crm_modes import router as crm_modes_router
 from routes.crm_territories import router as crm_territories_router
 from routes.crm_audit import router as crm_audit_router
@@ -36,6 +40,7 @@ def register_crm(api_router: APIRouter) -> None:
         crm_sage200_router, crm_documents_router, crm_v2_router,
         crm_contracts_router, crm_contract_templates_router,
         crm_contract_send_router, crm_contract_lifecycle_router,
+        crm_contract_workspace_router, crm_contract_engineer_router,
         crm_modes_router, crm_territories_router,
         crm_audit_router, crm_permissions_router, crm_forecast_router,
         crm_picklists_router, crm_stakeholders_router, crm_products_router,

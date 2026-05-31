@@ -266,6 +266,8 @@ regression:
 	  tests/test_iter_220e3_contracts_phase_def_g_frontend.py \
 	  tests/test_iter_220e4_auto_renewal_autopilot.py \
 	  tests/test_iter_220e4_auto_renew_toggle.py \
+	  tests/test_iter_220e5_workspace_and_feedback.py \
+	  tests/test_iter_220e5_workspace_and_feedback_frontend.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

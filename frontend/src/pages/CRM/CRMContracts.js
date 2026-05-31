@@ -15,6 +15,7 @@ import ContractWizard from './Contracts/ContractWizard';
 import { ContractMatrix } from './Contracts/ContractMatrix';
 import { useContractCatalog, useContractTemplates } from './Contracts/contractCatalog';
 import { ContractsReportsDashboard, ContractsRenewalsDashboard } from './Contracts/ContractDashboards';
+import { ContractReviewQueue, useWorkspaceMode } from './Contracts/ContractReviewQueue';
 
 const TIER_COLORS = { warranty: 'var(--color-text-faint-alt)', bronze: 'var(--color-bronze)', silver: 'var(--color-silver)', gold: 'var(--color-gold)', platinum: '#E5E4E2', bespoke: 'var(--color-accent-violet)' };
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', sent: 'var(--color-info-ios)', negotiation: 'var(--color-accent-magenta)', signed: 'var(--color-success-alt)', active: 'var(--color-info-ios)', expiring: 'var(--color-accent-amber)', expired: 'var(--color-danger-alt)', renewed: 'var(--color-success-alt)', cancelled: 'var(--color-danger)', amended: 'var(--color-accent-violet)' };
@@ -1435,7 +1436,8 @@ export default function CRMContracts() {
   const crm = useCRM();
   const { navTarget, setNavTarget } = crm;
   const [selectedId, setSelectedId] = useState(null);
-  const [view, setView] = useState('list'); // 'list' | 'renewals' | 'reports'
+  const [view, setView] = useState('list'); // 'list' | 'renewals' | 'reports' | 'review'
+  const workspace = useWorkspaceMode(crm.API, crm.headers);
 
   useEffect(() => {
     if (navTarget?.type === 'contract' && navTarget?.id) {
@@ -1444,7 +1446,7 @@ export default function CRMContracts() {
     }
   }, [navTarget, setNavTarget]);
 
-  if (selectedId) return <ContractDetail contractId={selectedId} onBack={() => setSelectedId(null)} {...crm} />;
+  if (selectedId) return <ContractDetail contractId={selectedId} onBack={() => setSelectedId(null)} workspace={workspace} {...crm} />;
 
   const c = crm.c;
   const isDark = crm.isDark;
@@ -1458,12 +1460,22 @@ export default function CRMContracts() {
 
   return (
     <div>
-      <div className="flex gap-1 mb-4">
+      <div className="flex gap-1 mb-4 flex-wrap items-center">
         {tabBtn('list', 'Contracts', 'view-tab-list')}
         {tabBtn('renewals', 'Renewals', 'view-tab-renewals')}
         {tabBtn('reports', 'Reports', 'view-tab-reports')}
+        {workspace.capabilities?.show_review_queue && tabBtn('review', 'Review Queue', 'view-tab-review')}
+        {!workspace.loading && (
+          <span className="ml-auto text-[10px] uppercase tracking-wider px-2 py-1 rounded"
+                data-testid="workspace-mode-badge"
+                data-mode={workspace.mode}
+                style={{ background: workspace.mode === 'solo' ? 'var(--color-success-alt)15' : 'var(--color-info-ios)15',
+                         color:      workspace.mode === 'solo' ? 'var(--color-success-alt)' : 'var(--color-info-ios)' }}>
+            {workspace.mode === 'solo' ? 'Solo workspace' : 'Enterprise workspace'}
+          </span>
+        )}
       </div>
-      {view === 'list' && <ContractList onSelect={setSelectedId} {...crm} />}
+      {view === 'list' && <ContractList onSelect={setSelectedId} workspace={workspace} {...crm} />}
       {view === 'renewals' && (
         <ContractsRenewalsDashboard
           API={crm.API} headers={crm.headers} c={c} isDark={isDark}
@@ -1472,6 +1484,12 @@ export default function CRMContracts() {
       )}
       {view === 'reports' && (
         <ContractsReportsDashboard API={crm.API} headers={crm.headers} c={c} isDark={isDark} />
+      )}
+      {view === 'review' && (
+        <ContractReviewQueue
+          API={crm.API} headers={crm.headers} c={c} isDark={isDark}
+          onOpenContract={(id) => setSelectedId(id)}
+        />
       )}
     </div>
   );

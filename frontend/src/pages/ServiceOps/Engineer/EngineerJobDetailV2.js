@@ -45,6 +45,7 @@ import useJobDraft from './useJobDraft';
 import { resolveChannel } from '@/utils/channelLabel';
 import { compressImage } from '@/utils/compressImage';
 import ComplianceCard from './ComplianceCard';
+import EngineerEntitlementPanel from './EngineerEntitlementPanel';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -609,6 +610,15 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
           </div>
         </div>
       </div>
+
+      {/* Iter 220e5 — Engineer App entitlement panel.
+          Read-only view of the linked CRM contract's structured cover,
+          plus a "Send feedback to coordinator" composer that feeds the
+          CRM Contract Review Queue. Source of truth stays in CRM. */}
+      <EngineerEntitlementPanel
+        caseId={job.id}
+        getAuthHeaders={() => auth().headers}
+      />
 
       {/* Iter 220cz — Overrun warning, sibling-jobs warning.
           Iter 220ds — Handoff notes on Summary are read-only and

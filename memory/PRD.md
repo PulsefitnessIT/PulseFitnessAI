@@ -1,3 +1,90 @@
+## Iter 220e5 — Workspace mode + Engineer ↔ CRM feedback loop ✅ (Feb 14, 2026)
+
+Closes the operator's "must work for both enterprise + one-man-band"
+brief on top of the iter 220e3/e4 contracts overhaul. The brief
+called for a single connected module that adapts to org size and a
+two-way information flow between the CRM contract record and the
+Engineer App — neither requirement involved new data domains, so
+everything below builds on existing collections.
+
+### What changed
+
+**Backend** (`routes/crm_contract_workspace.py`):
+
+- New `GET /api/crm/v2/contracts/workspace` returns the computed
+  workspace mode (`solo` vs `enterprise`) based on user count, site
+  count, and active approval rules. Ships a `capabilities` map so
+  the frontend can drive feature visibility from a single source.
+  - Solo (1 user, ≤2 sites, no active approval rules):
+    `show_approval_queue=false`, `show_team_assignment=false`,
+    `show_finance_review=false`, `default_engineer_to_self=true`,
+    `primary_cta="Create Contract"`.
+  - Enterprise: opposite, plus region filters once site count > 5.
+- New `crm2_contract_feedback` collection — single canonical store
+  for engineer-submitted contract feedback. Rows reference the
+  existing `svc_cases` job + `crm2_contracts` row + engineer record.
+  No data duplication.
+- New `POST /api/svc/engineer/jobs/{case_id}/contract-feedback`
+  (under the existing engineer entitlement wall) — engineer posts
+  observations (`asset_condition / exclusion_recommended /
+  upgrade_recommended / renewal_review / repeated_fault /
+  capex_replacement / upsell_opportunity / contract_dispute /
+  chargeable_flag / pricing_review / general_note`). Drops a system
+  activity on the contract feed so coordinators see it in context.
+- New `GET /api/crm/v2/contracts/feedback-queue?status=` — Contract
+  Review Queue. Filterable by status (open / actioned / rejected /
+  reviewed / all).
+- New `POST /api/crm/v2/contracts/feedback/{id}/action` —
+  coordinators accept / reject / note / mark_reviewed. On `accept`
+  for renewal-relevant kinds, drops a `contract_renewal` task
+  activity so the renewal pipeline picks it up.
+- New `GET /api/svc/engineer/jobs/{case_id}/contract-entitlement` —
+  mobile-friendly entitlement payload (plain-English `Covered` /
+  `Chargeable` fields for callout, labour, major parts, wear & tear,
+  treadmill belts/beds, upholstery + exclusion labels + emergency SLA).
+
+**Frontend**:
+
+- `pages/CRM/Contracts/ContractReviewQueue.js` — new coordinator
+  surface listing engineer feedback with accept / reject / note
+  actions and status / kind filters. Reachable from a new
+  **Review Queue** tab in CRM → Contracts.
+- `pages/CRM/CRMContracts.js` — new `useWorkspaceMode` hook drives a
+  visible **Solo / Enterprise workspace** badge top-right and the
+  Review Queue tab visibility. Workspace object is also passed into
+  `ContractDetail` for downstream consumers.
+- `pages/ServiceOps/Engineer/EngineerEntitlementPanel.js` —
+  read-only panel mounted on the Engineer App job Summary,
+  immediately below the cover banner. Renders the entitlement
+  endpoint as plain-English coverage pills. Includes a "Send
+  feedback to coordinator" composer that posts the feedback row.
+
+### Tests (15)
+
+- `test_iter_220e5_workspace_and_feedback.py` (11) — mode trichotomy,
+  capability gating, region-filter unlock, engineer feedback round
+  trip + kind validation, queue filtering, accept-creates-renewal-
+  task, reject does not, entitlement panel red/green branches +
+  catalog label resolution.
+- `test_iter_220e5_workspace_and_feedback_frontend.py` (4) —
+  review queue test-ids, workspace badge mounted, entitlement panel
+  endpoint wiring, panel mounts after cover banner / before overrun.
+
+Regression: **2064 passed, 15 skipped, 0 failed** (`make regression`,
+3 min). Lint clean (ruff + ESLint).
+
+### Important non-duplications
+
+- Contract record stays in `crm2_contracts` (single source of truth).
+- Engineer feedback rows reference the existing `svc_cases` job, not
+  a parallel job record.
+- Engineer App entitlement panel READS the CRM contract — no copies.
+- Activities land on the existing `crm2_activities` feed.
+- Audit via `record_audit` (existing).
+
+---
+
+
 ## Iter 220e4-followup — Discoverable auto-renew toggle ✅ (Feb 14, 2026)
 
 Operator continuation of iter 220e4 improvement teaser:
