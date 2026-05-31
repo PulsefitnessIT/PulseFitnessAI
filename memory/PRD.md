@@ -1,3 +1,45 @@
+## Iter 220ea·9 — Inline H&S checklist on Summary ✅ (Feb 14, 2026)
+
+**Bug found from live user QA:** tapping the Pre-job H&S banner
+on the Summary tab jumped to the Complete tab — but the H&S
+checklist UI had never been ported from the legacy
+`EngineerJobDetail.js` (Iter 216h89) into `EngineerJobDetailV2.js`.
+Engineers were landing on a dead-end with no way to actually tick
+off the checklist or sign off, despite the amber banner saying
+"Tap to complete 8 items".
+
+### Fix — `SafetyChecklistInline`
+Built a new `SafetyChecklistInline` component that renders
+**inline on Summary** when the engineer taps the amber banner:
+
+- Banner is now an `aria-expanded` toggle (`setSafetyOpen(v => !v)`)
+  — no tab navigation; the chevron rotates `90°` when open.
+- Inline card renders each template item with a tickbox and `*`
+  for required items; outstanding-required counter in the header
+  ("0/8 ticked · 5 REQUIRED OUTSTANDING").
+- Remarks textarea (max 2000 chars, optional).
+- "Add signature" opens the existing fullscreen `SignatureCanvas`
+  modal; signature is staged into local state and confirmed
+  before submit.
+- "Sign off & continue" POSTs `/svc/engineer/jobs/{caseId}/safety/signoff`
+  with `ticked_item_ids` + `signature_image` + `remarks`. On
+  success the parent reloads, the banner collapses (because
+  `safetyNeeded` flips false), and the stats-grid H&S tile turns
+  green ("Cleared").
+- Graceful empty-template state when no checklist is configured.
+- `onJumpToSafety` prop deleted from `JobAtAGlance`. Stale
+  "Open the Complete tab" copy in the arrival-error toast updated
+  to point at the Summary banner.
+
+### Tests
+`backend/tests/test_iter_220ea_9_inline_safety_checklist.py`
+(9 source-level guards). Old `test_iter_220ea_5` test
+`test_safety_banner_is_clickable_to_complete_tab` updated to
+assert the new inline-toggle behaviour. Added to `Makefile`
+regression target (tab-indented). 71/71 nearby tests + 8/8
+legacy safety/RAMS backend tests pass.
+
+
 ## Iter 220ea·8 — Priority key + Case Type pill ✅ (Feb 14, 2026)
 
 Three further Summary-tab cleanups from a live user report on

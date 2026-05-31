@@ -27,7 +27,7 @@ import {
   ArrowLeft, Clock, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
-  Video, MapPin, Send, Download, Phone, Navigation,
+  Video, MapPin, Send, Download, Phone, Navigation, Edit3,
   Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer, ShieldCheck, QrCode,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -340,7 +340,6 @@ export default function EngineerJobDetailV2() {
             setBusy={setBusy}
             busy={busy}
             onChange={load}
-            onJumpToSafety={() => setActiveTab('complete')}
             onJumpToTab={setActiveTab}
           />
         )}
@@ -377,7 +376,7 @@ export default function EngineerJobDetailV2() {
 // parts, machines, safety, handoff). The old customer/site
 // context block + chip row remain below so the surface stays
 // information-dense without being noisy.
-function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSafety, onJumpToTab }) {
+function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTab }) {
   const phone = job.customer_phone;
   const email = job.customer_email;
   const address = [job.site_address, job.site_postcode].filter(Boolean).join(' ');
@@ -421,7 +420,7 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSa
     } catch (e) {
       const d = e?.response?.data?.detail;
       if (d?.code === 'safety_signoff_required') {
-        notify.error('H&S checklist required', 'Open the Complete tab and tick off the H&S items before starting work.');
+        notify.error('H&S checklist required', 'Tap the amber banner at the top of Summary to tick off the H&S items first.');
       } else {
         notify.error('Could not record arrival', e?.message || 'Try again.');
       }
@@ -433,37 +432,64 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSa
   // queued retry path warm.
   void arrive;
 
+  // Iter 220ea·9 — Inline H&S checklist on Summary. The previous
+  // banner jumped to the Complete tab, but the Complete tab in V2
+  // never had the checklist UI ported from the legacy detail
+  // page — engineers landed on a dead-end. Now the banner toggles
+  // an expandable checklist right here on Summary; once signed
+  // off it collapses into a green "Cleared" pill (and the cover
+  // banner / stats grid update on the next `onChange` reload).
+  const [safetyOpen, setSafetyOpen] = useState(false);
+
   return (
     <div
       className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"
       data-testid="job-at-a-glance"
     >
-      {/* Iter 220ea·5 — Pre-job H&S checklist call-out. Surfacing
-          it at the very top of Summary means the engineer can't
-          miss it. The whole banner is a button that jumps to the
-          Complete tab where the checklist UI lives. */}
+      {/* Iter 220ea·9 — Pre-job H&S banner now expands an inline
+          checklist instead of bouncing the engineer to Complete.
+          The whole banner is a `<button>` so the existing
+          `summary-safety-checklist-banner` test-id still works. */}
       {safetyNeeded && (
-        <button
-          type="button"
-          onClick={onJumpToSafety}
-          className="w-full px-3 py-2.5 bg-amber-50 hover:bg-amber-100 border-b border-amber-200 flex items-center gap-2 text-left transition-colors"
-          data-testid="summary-safety-checklist-banner"
-        >
-          <div className="w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-            <AlertTriangle size={16} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900">
-              Pre-job H&amp;S checklist
-            </p>
-            <p className="text-xs text-amber-900 leading-snug">
-              {safetyItemCount > 0
-                ? <>Tap to complete <b>{safetyItemCount} item{safetyItemCount === 1 ? '' : 's'}</b> before starting work.</>
-                : <>Tap to complete the checklist before starting work.</>}
-            </p>
-          </div>
-          <ChevronRight size={16} className="text-amber-700 shrink-0" />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setSafetyOpen(v => !v)}
+            className="w-full px-3 py-2.5 bg-amber-50 hover:bg-amber-100 border-b border-amber-200 flex items-center gap-2 text-left transition-colors"
+            data-testid="summary-safety-checklist-banner"
+            aria-expanded={safetyOpen}
+            aria-controls="summary-safety-checklist-inline"
+          >
+            <div className="w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <AlertTriangle size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900">
+                Pre-job H&amp;S checklist
+              </p>
+              <p className="text-xs text-amber-900 leading-snug">
+                {safetyItemCount > 0
+                  ? <>Tap to {safetyOpen ? 'collapse' : 'complete'} <b>{safetyItemCount} item{safetyItemCount === 1 ? '' : 's'}</b> before starting work.</>
+                  : <>Tap to {safetyOpen ? 'collapse the' : 'complete the'} checklist before starting work.</>}
+              </p>
+            </div>
+            <ChevronRight
+              size={16}
+              className={`text-amber-700 shrink-0 transition-transform ${safetyOpen ? 'rotate-90' : ''}`}
+            />
+          </button>
+          {safetyOpen && (
+            <SafetyChecklistInline
+              caseId={job.id}
+              items={job?.safety_template?.items || []}
+              onClose={() => setSafetyOpen(false)}
+              onSignedOff={async () => {
+                setSafetyOpen(false);
+                await onChange();
+              }}
+            />
+          )}
+        </>
       )}
 
       <div className="p-3 space-y-3">
@@ -1042,6 +1068,206 @@ function SummaryStatsGrid({ job, mileage }) {
           <p className="text-[10px] text-slate-500 truncate">{s.sub}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+// ─── Iter 220ea·9 · SafetyChecklistInline ─────────────────────────
+// Inline H&S checklist that sits inside JobAtAGlance on the
+// Summary tab. Ports the tickbox + signature flow that previously
+// only existed in the legacy `EngineerJobDetail.js`, with a
+// lighter shadcn-ish look matching the rest of V2. POSTs to
+// `/api/svc/engineer/jobs/{caseId}/safety/signoff` and bubbles
+// the result up via `onSignedOff` so the parent can reload the
+// job (collapsing the banner + flipping the H&S stat to green).
+function SafetyChecklistInline({ caseId, items, onClose, onSignedOff }) {
+  const [ticked, setTicked] = useState(() => new Set());
+  const [remarks, setRemarks] = useState('');
+  const [sig, setSig] = useState('');
+  const [showSig, setShowSig] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const toggle = (id) => {
+    setTicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const requiredIds = (items || []).filter(i => i.required).map(i => i.id);
+  const missingRequired = requiredIds.filter(id => !ticked.has(id)).length;
+  const totalTicked = ticked.size;
+  const totalItems = (items || []).length;
+
+  const submit = async () => {
+    if (missingRequired > 0) {
+      notify.error(
+        'Missing required items',
+        `Tick all ${missingRequired} remaining required item${missingRequired === 1 ? '' : 's'} before signing off.`,
+      );
+      return;
+    }
+    if (!sig) {
+      notify.error('Signature required', 'Tap "Add signature" and sign below.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await axios.post(
+        `${API}/svc/engineer/jobs/${caseId}/safety/signoff`,
+        {
+          ticked_item_ids: Array.from(ticked),
+          signature_image: sig,
+          remarks: remarks.trim(),
+        },
+        auth(),
+      );
+      notify.success('H&S signed off', 'You can now start the on-site timer.');
+      await onSignedOff?.();
+    } catch (e) {
+      notify.error(
+        'Could not save signoff',
+        e?.response?.data?.detail || e?.message || 'Try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if ((items || []).length === 0) {
+    return (
+      <div
+        id="summary-safety-checklist-inline"
+        className="px-3 py-3 border-b border-amber-200 bg-amber-50/40 text-xs text-amber-900"
+        data-testid="summary-safety-checklist-empty"
+      >
+        No checklist template is configured for this organisation yet.
+        Ask ops to set one up in Master Admin → Service Ops → H&amp;S templates.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      id="summary-safety-checklist-inline"
+      className="px-3 py-3 border-b border-amber-200 bg-amber-50/40 space-y-2.5"
+      data-testid="summary-safety-checklist-inline"
+    >
+      <div className="flex items-center gap-2">
+        <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 flex-1">
+          {totalTicked}/{totalItems} ticked
+          {missingRequired > 0 && (
+            <span className="ml-2 text-rose-700">
+              · {missingRequired} required outstanding
+            </span>
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-amber-700/80 hover:text-amber-900 p-1 rounded"
+          aria-label="Collapse checklist"
+          data-testid="summary-safety-checklist-close"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <ul className="space-y-1.5" data-testid="summary-safety-checklist-items">
+        {items.map((item) => {
+          const isTicked = ticked.has(item.id);
+          return (
+            <li
+              key={item.id}
+              className={`flex items-start gap-2 px-2 py-1.5 rounded-lg border ${
+                isTicked
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : 'bg-white border-amber-200'
+              }`}
+            >
+              <label
+                htmlFor={`summary-safety-${item.id}`}
+                className="flex items-start gap-2 cursor-pointer flex-1 min-w-0"
+              >
+                <input
+                  id={`summary-safety-${item.id}`}
+                  type="checkbox"
+                  checked={isTicked}
+                  onChange={() => toggle(item.id)}
+                  className="mt-0.5 shrink-0 h-4 w-4 accent-emerald-600"
+                  data-testid={`summary-safety-tick-${item.id}`}
+                />
+                <span className={`text-xs leading-snug flex-1 ${isTicked ? 'text-emerald-900' : 'text-slate-800'}`}>
+                  {item.label}
+                  {item.required && (
+                    <span className="ml-1 text-rose-600 font-extrabold" title="Required">*</span>
+                  )}
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+
+      <textarea
+        value={remarks}
+        onChange={(e) => setRemarks(e.target.value)}
+        rows={2}
+        placeholder="Remarks (optional) — any hazards spotted, RAMS deviations, etc."
+        maxLength={2000}
+        className="w-full text-xs px-2 py-1.5 rounded-lg border border-amber-200 bg-white focus:outline-none focus:ring-1 focus:ring-amber-300"
+        data-testid="summary-safety-remarks"
+      />
+
+      <div className="flex items-center gap-2">
+        {sig ? (
+          <div className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50">
+            <Check size={14} className="text-emerald-700 shrink-0" />
+            <span className="text-xs text-emerald-900 font-bold">Signature captured</span>
+            <button
+              type="button"
+              onClick={() => { setSig(''); setShowSig(true); }}
+              className="ml-auto text-[10px] underline text-emerald-800 hover:text-emerald-900"
+              data-testid="summary-safety-sig-redo"
+            >
+              Re-sign
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowSig(true)}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 bg-white text-amber-900 text-xs font-extrabold hover:bg-amber-100"
+            data-testid="summary-safety-sig-open"
+          >
+            <Edit3 size={13} /> Add signature
+          </button>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={submit}
+        disabled={busy}
+        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-sm font-extrabold disabled:opacity-50"
+        data-testid="summary-safety-submit"
+      >
+        {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+        {busy ? 'Saving…' : 'Sign off & continue'}
+      </button>
+
+      {showSig && (
+        <SignatureCanvas
+          onCancel={() => setShowSig(false)}
+          onSubmit={(dataUrl) => {
+            setSig(dataUrl);
+            setShowSig(false);
+          }}
+        />
+      )}
     </div>
   );
 }

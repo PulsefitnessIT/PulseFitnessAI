@@ -40,14 +40,18 @@ def test_summary_renders_safety_checklist_banner_when_needed():
     assert "Pre-job H&amp;S checklist" in src
 
 
-def test_safety_banner_is_clickable_to_complete_tab():
-    """The banner must be a real button that switches activeTab to
-    'complete' — that's where the checklist UI lives."""
+def test_safety_banner_is_clickable_to_open_inline_checklist():
+    """Iter 220ea·9 — The banner is a real button that toggles an
+    INLINE checklist on Summary (no longer jumps to Complete tab,
+    which never had the checklist UI ported from V1)."""
     src = JOB_DETAIL.read_text()
-    # The parent passes a tab-switch callback to JobAtAGlance.
-    assert "onJumpToSafety={() => setActiveTab('complete')}" in src
-    # And the banner button wires it as its onClick.
-    assert "onClick={onJumpToSafety}" in src
+    # The banner is now an aria-expanded button that toggles
+    # `safetyOpen` and renders SafetyChecklistInline below it.
+    assert "setSafetyOpen(v => !v)" in src
+    assert "aria-expanded={safetyOpen}" in src
+    assert "<SafetyChecklistInline" in src
+    # The old jump-to-complete wiring is gone.
+    assert "onJumpToSafety" not in src
 
 
 def test_safety_banner_appears_above_customer_block_in_summary():

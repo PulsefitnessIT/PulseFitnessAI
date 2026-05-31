@@ -280,6 +280,7 @@ regression:
 	  tests/test_iter_220ea_6_summary_redesign.py \
 	  tests/test_iter_220ea_7_summary_followups.py \
 	  tests/test_iter_220ea_8_priority_key_and_case_type.py \
+	  tests/test_iter_220ea_9_inline_safety_checklist.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
