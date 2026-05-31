@@ -1,3 +1,65 @@
+## Iter 220ea·14 — Starter Field Templates ✅ (Feb 14, 2026)
+
+Cuts the cold-start "what fields should I even ask the engineer
+to capture?" problem for new operators. Six platform-shipped
+templates, one-tap apply, idempotent.
+
+### Catalogue (6 starter templates)
+
+| Template ID | Scope | Job types | Fields |
+|---|---|---|---|
+| `treadmill_ppm` | `equipment_type=Treadmill` | `ppm` | 6 (Belt tension, wear, motor brush, deck wax, firmware, incline cal) |
+| `treadmill_repair` | `equipment_type=Treadmill` | `repair` | 5 (Fault code, motor amps, belt slip, drive belt, harness) |
+| `cycle_ppm` | `equipment_type=Indoor Cycle` | `ppm` | 5 (Crank play, brake pads, BB grease, saddle, batteries) |
+| `rower_ppm` | `equipment_type=Rower` | `ppm` | 5 (Drag factor, chain lube, shock cord, rollers, firmware) |
+| `strength_ppm` | `equipment_type=Strength` | `ppm` | 5 (Cable, pulleys, weight pin, upholstery, guide rods) |
+| `installation_handover` | `global` | `install` | 5 (SN photo, customer name, warranty, floor, cleaning) |
+
+### Backend (`routes/svc/work_report_fields.py`)
+
+* **`FIELD_TEMPLATES`** — in-code catalogue (editorial content,
+  ships with platform). Each template is `(id, name, summary,
+  scope_kind, scope_value, job_types, fields[])`.
+* **`GET /api/svc/work-report-fields/templates`** — read-only
+  catalogue endpoint; returns template metadata + full field
+  preview so the modal can render the `<details>` preview.
+* **`POST /api/svc/work-report-fields/apply-template`** —
+  seeds the fields. Accepts optional `scope_kind` /
+  `scope_value` / `job_types` overrides so operators with their
+  own taxonomy can re-map at apply time. Idempotent: skips any
+  field whose `(name, scope_kind, scope_value)` already exists
+  (non-archived) on the org. Returns `created_count` +
+  `skipped_count` so the toast can report both. Stamps each
+  seeded field with `created_via_template` for observability.
+
+### Frontend (`EngineerWorkReportFields.js`)
+
+* New **Templates** button in the page header
+  (`wrf-templates-btn`), and an **Or pick a starter template**
+  CTA on the empty state (`wrf-empty-templates-btn`).
+* New **`FieldTemplatesModal`** — bottom-sheet on mobile, modal
+  on desktop. Each template card shows name, field count
+  badge, scope chip (e.g. "TREADMILL"), job-type chip(s) (e.g.
+  "PPM"), summary, and a collapsible `<details>` preview that
+  lists every field with its type + required marker. Apply
+  button per card, with `Loader2` → `Check` transition.
+* On apply: re-loads the parent field list so the seeded rows
+  appear inline immediately. Confirms via `notify.success`
+  with skipped-count breakdown when re-applying.
+
+### Tests
+
+`backend/tests/test_iter_220ea_14_field_templates.py` (7 tests):
+* Source-level catalogue sanity
+* Live `GET /templates` returns ≥6
+* Live two-step E2E: apply seeds fields → re-apply skips them
+* 404 on unknown `template_id`
+* Invalid `job_types` are filtered (not 400)
+* Frontend modal + endpoints wired correctly
+
+93/93 nearby tests pass. Lint clean.
+
+
 ## Iter 220ea·13 — Custom Fields react to Case Type ✅ (Feb 14, 2026)
 
 **User confirmation request** — "Custom Fields must also react to

@@ -59,6 +59,127 @@ JOB_TYPES = ("repair", "ppm", "install", "inspection", "callout", "audit")
 MAX_NAME_LEN = 60
 MAX_FIELDS_PER_ORG = 200
 
+# ─── Iter 220ea·14 · Suggested-field templates ────────────────────
+# Out-of-the-box presets for new operators — pick a template and
+# get 5–8 sensible custom fields seeded in one tap. Saves the
+# cold-start "what should I even ask the engineer to capture?"
+# problem for fitness-equipment operators who are setting up
+# GymAxis for the first time. Templates are scoped to a single
+# (scope_kind, scope_value) — typically `equipment_type=Treadmill`
+# — and a job_types filter so engineers see the right set at the
+# right moment.
+#
+# Templates are stored in code (not in the DB) because they're
+# editorial content that ships with the platform; operators can
+# subsequently edit/archive any seeded field like a normal field.
+
+FIELD_TEMPLATES: list[dict] = [
+    {
+        "id": "treadmill_ppm",
+        "name": "Treadmill PPM checklist",
+        "scope_kind": "equipment_type",
+        "scope_value": "Treadmill",
+        "job_types": ["ppm"],
+        "summary": "6 standard checks for a treadmill preventative maintenance visit.",
+        "fields": [
+            {"name": "Walking-belt tension (mm)", "field_type": "number", "required": True,
+             "help_text": "Manufacturer spec usually 12-15 mm of deflection mid-belt."},
+            {"name": "Walking-belt wear (cm)", "field_type": "number", "required": False,
+             "help_text": "Measure thickness with calipers; replace if <2 mm thinner than new."},
+            {"name": "Motor brush length (mm)", "field_type": "number", "required": False},
+            {"name": "Deck waxed", "field_type": "checkbox", "required": True},
+            {"name": "Console firmware version", "field_type": "text", "required": False},
+            {"name": "Incline calibration verified", "field_type": "checkbox", "required": True},
+        ],
+    },
+    {
+        "id": "treadmill_repair",
+        "name": "Treadmill repair report",
+        "scope_kind": "equipment_type",
+        "scope_value": "Treadmill",
+        "job_types": ["repair"],
+        "summary": "Fault-finding data points common to most treadmill repairs.",
+        "fields": [
+            {"name": "Fault code on console", "field_type": "text", "required": False,
+             "help_text": "E.g. E02 / E06. Helps the customer report read clearly."},
+            {"name": "Motor amp draw at 8 km/h (A)", "field_type": "number", "required": False},
+            {"name": "Belt slip observed", "field_type": "checkbox", "required": False},
+            {"name": "Drive belt condition",
+             "field_type": "dropdown", "required": True,
+             "options": ["New", "Good", "Acceptable", "Worn", "Replace"]},
+            {"name": "Cable harness OK", "field_type": "checkbox", "required": False},
+        ],
+    },
+    {
+        "id": "cycle_ppm",
+        "name": "Indoor cycle PPM",
+        "scope_kind": "equipment_type",
+        "scope_value": "Indoor Cycle",
+        "job_types": ["ppm"],
+        "summary": "5 checks for a Spinner / Indoor Cycle preventative service.",
+        "fields": [
+            {"name": "Crank-arm play",
+             "field_type": "dropdown", "required": True,
+             "options": ["None", "Slight", "Excessive — replace"]},
+            {"name": "Brake-pad wear (mm)", "field_type": "number", "required": False},
+            {"name": "Bottom bracket greased", "field_type": "checkbox", "required": True},
+            {"name": "Saddle rail OK", "field_type": "checkbox", "required": False},
+            {"name": "Console batteries replaced", "field_type": "checkbox", "required": False},
+        ],
+    },
+    {
+        "id": "rower_ppm",
+        "name": "Rower PPM (Concept2 et al)",
+        "scope_kind": "equipment_type",
+        "scope_value": "Rower",
+        "job_types": ["ppm"],
+        "summary": "Standard Concept2/WaterRower PPM data points.",
+        "fields": [
+            {"name": "Drag factor (low)", "field_type": "number", "required": True,
+             "help_text": "Concept2 PM5: target 100-130 at damper setting 1."},
+            {"name": "Chain lubricated", "field_type": "checkbox", "required": True},
+            {"name": "Shock cord tension OK", "field_type": "checkbox", "required": True},
+            {"name": "Seat rollers worn", "field_type": "checkbox", "required": False},
+            {"name": "PM monitor firmware", "field_type": "text", "required": False},
+        ],
+    },
+    {
+        "id": "strength_ppm",
+        "name": "Strength station PPM",
+        "scope_kind": "equipment_type",
+        "scope_value": "Strength",
+        "job_types": ["ppm"],
+        "summary": "Cable, pulley, weight-stack PPM checklist.",
+        "fields": [
+            {"name": "Cable condition",
+             "field_type": "dropdown", "required": True,
+             "options": ["New", "Good", "Frayed — monitor", "Replace"]},
+            {"name": "Pulleys spin freely", "field_type": "checkbox", "required": True},
+            {"name": "Weight-pin chain OK", "field_type": "checkbox", "required": False},
+            {"name": "Upholstery cracks", "field_type": "checkbox", "required": False},
+            {"name": "Stack guide rods greased", "field_type": "checkbox", "required": True},
+        ],
+    },
+    {
+        "id": "installation_handover",
+        "name": "Installation hand-over",
+        "scope_kind": "global",
+        "scope_value": None,
+        "job_types": ["install"],
+        "summary": "Final hand-over capture for any newly installed asset.",
+        "fields": [
+            {"name": "Serial number photographed", "field_type": "file", "required": True},
+            {"name": "Customer present at hand-over",
+             "field_type": "text", "required": True,
+             "help_text": "Full name of person who signed off."},
+            {"name": "Warranty terms explained", "field_type": "checkbox", "required": True},
+            {"name": "Floor protector fitted", "field_type": "checkbox", "required": False},
+            {"name": "Cleaning instructions given", "field_type": "checkbox", "required": True},
+        ],
+    },
+]
+
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -446,6 +567,156 @@ async def archive_work_report_field(field_id: str, user=Depends(get_current_user
     if not res.matched_count:
         raise HTTPException(404, "Field not found")
     return {"ok": True, "id": field_id, "archived": True}
+
+
+# ─── Iter 220ea·14 · Template endpoints ───────────────────────────
+
+
+@router.get("/work-report-fields/templates")
+async def list_field_templates(_user=Depends(get_current_user)):
+    """List the catalogue of suggested-field templates an operator
+    can one-tap apply. Read-only; templates ship with the platform
+    so every org sees the same set. Returns the template metadata
+    plus a count of fields each template seeds."""
+    return {
+        "templates": [
+            {
+                "id": t["id"],
+                "name": t["name"],
+                "summary": t["summary"],
+                "scope_kind": t["scope_kind"],
+                "scope_value": t["scope_value"],
+                "job_types": list(t["job_types"]),
+                "field_count": len(t["fields"]),
+                "fields": [
+                    {
+                        "name": f["name"],
+                        "field_type": f["field_type"],
+                        "required": bool(f.get("required")),
+                        "help_text": f.get("help_text"),
+                        "options": list(f.get("options") or []),
+                    }
+                    for f in t["fields"]
+                ],
+            }
+            for t in FIELD_TEMPLATES
+        ],
+        "count": len(FIELD_TEMPLATES),
+    }
+
+
+class TemplateApplyIn(BaseModel):
+    template_id: str = Field(..., min_length=1)
+    # Optional overrides. The operator picked a Treadmill template
+    # but they call them "Cardio · Belt" in their taxonomy → let
+    # them override scope_value at apply time.
+    scope_kind: Optional[str] = None
+    scope_value: Optional[str] = None
+    job_types: Optional[list[str]] = None
+
+
+@router.post("/work-report-fields/apply-template", status_code=201)
+async def apply_field_template(
+    payload: TemplateApplyIn,
+    user=Depends(get_current_user),
+):
+    """Seed the operator's field set with one of the platform's
+    suggested-field templates. Idempotent: if a non-archived field
+    already exists with the same (name, scope_kind, scope_value)
+    for the org, it's skipped — we don't create duplicates.
+    """
+    of = _of(user)
+    template = next((t for t in FIELD_TEMPLATES if t["id"] == payload.template_id), None)
+    if not template:
+        raise HTTPException(404, f"Template '{payload.template_id}' not found")
+
+    scope_kind = (payload.scope_kind or template["scope_kind"]).strip()
+    if scope_kind not in SCOPE_KINDS:
+        raise HTTPException(400, f"scope_kind must be one of {SCOPE_KINDS}")
+    scope_value = (
+        (payload.scope_value or template.get("scope_value") or "").strip()
+        if scope_kind != "global"
+        else None
+    )
+    job_types = [
+        jt for jt in (payload.job_types if payload.job_types is not None else template["job_types"])
+        if jt in JOB_TYPES
+    ]
+
+    # Respect the per-org field cap.
+    total = await db.svc_work_report_field_defs.count_documents(
+        {**of, "archived": {"$ne": True}},
+    )
+    if total + len(template["fields"]) > MAX_FIELDS_PER_ORG:
+        raise HTTPException(
+            400,
+            f"Applying this template would exceed the field cap "
+            f"({MAX_FIELDS_PER_ORG}). Archive unused fields first.",
+        )
+
+    created: list[dict] = []
+    skipped: list[dict] = []
+    now = _now()
+    for idx, spec in enumerate(template["fields"]):
+        # Skip if an identical field already lives at this scope.
+        dup = await db.svc_work_report_field_defs.find_one(
+            {
+                **of,
+                "name": spec["name"],
+                "scope_kind": scope_kind,
+                "scope_value": scope_value,
+                "archived": {"$ne": True},
+            },
+            {"_id": 0, "id": 1},
+        )
+        if dup:
+            skipped.append({"name": spec["name"], "existing_id": dup["id"]})
+            continue
+        # Generate a unique slug within the scope.
+        key = _slug(spec["name"])
+        base_key, suffix = key, 1
+        while await db.svc_work_report_field_defs.find_one(
+            {**of, "key": key, "scope_kind": scope_kind,
+             "scope_value": scope_value, "archived": {"$ne": True}},
+            {"_id": 1},
+        ):
+            suffix += 1
+            key = f"{base_key}_{suffix}"
+        doc = {
+            "id": str(uuid.uuid4()),
+            **of,
+            "name": spec["name"].strip(),
+            "key": key,
+            "field_type": spec["field_type"],
+            "scope_kind": scope_kind,
+            "scope_value": scope_value,
+            "job_types": job_types,
+            "options": list(spec.get("options") or []),
+            "required": bool(spec.get("required")),
+            "help_text": (spec.get("help_text") or "").strip() or None,
+            "archived": False,
+            "position": total + idx,
+            "created_at": now,
+            "created_by_id": user.get("id"),
+            "created_by_name": user.get("full_name") or user.get("email") or "",
+            "created_via_template": template["id"],
+            "updated_at": now,
+        }
+        await db.svc_work_report_field_defs.insert_one(doc)
+        doc.pop("_id", None)
+        created.append(doc)
+    return {
+        "ok": True,
+        "template_id": template["id"],
+        "scope_kind": scope_kind,
+        "scope_value": scope_value,
+        "job_types": job_types,
+        "created": created,
+        "created_count": len(created),
+        "skipped": skipped,
+        "skipped_count": len(skipped),
+    }
+
 
 
 @router.get("/work-report-fields/history/{case_id}")

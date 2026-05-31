@@ -19,7 +19,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Loader2, Archive, Edit3, Save, X,
-  Eye, EyeOff,
+  Eye, EyeOff, Sparkles, Check, ChevronRight,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -64,6 +64,8 @@ export default function EngineerWorkReportFields() {
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(null); // id under edit
   const [creating, setCreating] = useState(false);
+  // Iter 220ea·14 — Templates modal toggle.
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,6 +103,14 @@ export default function EngineerWorkReportFields() {
               Add machine-specific questions to your work reports.
             </p>
           </div>
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-bold hover:bg-indigo-100"
+            data-testid="wrf-templates-btn"
+            title="Pick a starter template (e.g. Treadmill PPM) to seed common fields in one tap"
+          >
+            <Sparkles size={14} /> Templates
+          </button>
           <button
             onClick={() => setCreating(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
@@ -156,6 +166,13 @@ export default function EngineerWorkReportFields() {
             >
               <Plus size={14} /> Create first field
             </button>
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-bold hover:bg-indigo-100"
+              data-testid="wrf-empty-templates-btn"
+            >
+              <Sparkles size={14} /> Or pick a starter template
+            </button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -198,6 +215,13 @@ export default function EngineerWorkReportFields() {
           </div>
         )}
       </main>
+
+      {showTemplates && (
+        <FieldTemplatesModal
+          onClose={() => setShowTemplates(false)}
+          onApplied={() => { setShowTemplates(false); load(); }}
+        />
+      )}
     </div>
   );
 }
@@ -529,6 +553,206 @@ export function FieldEditor({ mode, row, onCancel, onSaved }) {
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           {isEdit ? 'Save changes' : 'Create field'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Iter 220ea·14 · FieldTemplatesModal ─────────────────────────
+// Bottom-sheet style modal listing the platform's starter
+// templates. Each card is one-tap apply: the engineer can tweak
+// scope_value (e.g. their own taxonomy "Cardio · Belt") before
+// applying. Skips fields with the same name in the same scope so
+// it's safe to re-apply without creating duplicates.
+function FieldTemplatesModal({ onClose, onApplied }) {
+  const [loading, setLoading] = useState(true);
+  const [templates, setTemplates] = useState([]);
+  const [appliedId, setAppliedId] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/svc/work-report-fields/templates`, auth());
+        if (!cancelled) setTemplates(r.data?.templates || []);
+      } catch (e) {
+        if (!cancelled) notify.error('Could not load templates', e?.response?.data?.detail || e?.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const apply = async (t) => {
+    if (!window.confirm(
+      `Apply "${t.name}"?\n\nThis seeds ${t.field_count} field${t.field_count === 1 ? '' : 's'} `
+      + `into your custom-fields library (scope: ${t.scope_kind === 'global'
+        ? 'all machines'
+        : `${t.scope_kind} = ${t.scope_value}`}).`
+      + `\n\nYou can edit or archive any field afterwards.`,
+    )) return;
+    setBusyId(t.id);
+    try {
+      const r = await axios.post(`${API}/svc/work-report-fields/apply-template`, {
+        template_id: t.id,
+      }, auth());
+      const created = r.data?.created_count || 0;
+      const skipped = r.data?.skipped_count || 0;
+      notify.success(
+        'Template applied',
+        `${created} field${created === 1 ? '' : 's'} created${skipped > 0 ? ` · ${skipped} already existed (skipped)` : ''}.`,
+      );
+      setAppliedId(t.id);
+      onApplied?.();
+    } catch (e) {
+      notify.error('Could not apply template', e?.response?.data?.detail || e?.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-3"
+      onClick={onClose}
+      data-testid="wrf-templates-modal"
+    >
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+            <Sparkles size={18} className="text-indigo-700" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-extrabold text-slate-900">
+              Starter templates
+            </h2>
+            <p className="text-xs text-slate-500">
+              Tap any template to seed common fields. You can edit, rename, or archive them after.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-slate-100"
+            aria-label="Close"
+            data-testid="wrf-templates-close"
+          >
+            <X size={16} />
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 text-slate-400">
+              <Loader2 size={18} className="animate-spin mr-2" />
+              Loading templates…
+            </div>
+          ) : templates.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-8">
+              No templates available.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {templates.map((t) => {
+                const isApplied = appliedId === t.id;
+                const isBusy = busyId === t.id;
+                return (
+                  <li
+                    key={t.id}
+                    className={`rounded-xl border bg-white p-3 transition-colors ${
+                      isApplied ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                    data-testid={`wrf-template-card-${t.id}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-extrabold text-slate-900">{t.name}</p>
+                          <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                            {t.field_count} field{t.field_count === 1 ? '' : 's'}
+                          </span>
+                          {t.scope_kind !== 'global' && t.scope_value && (
+                            <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              {t.scope_value}
+                            </span>
+                          )}
+                          {(t.job_types || []).map((jt) => (
+                            <span
+                              key={jt}
+                              className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                            >
+                              {jt}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 leading-snug">{t.summary}</p>
+                        <details className="mt-2 group">
+                          <summary className="text-[11px] text-slate-500 cursor-pointer hover:text-slate-700 inline-flex items-center gap-1">
+                            <ChevronRight size={10} className="transition-transform group-open:rotate-90" />
+                            Preview {t.field_count} field{t.field_count === 1 ? '' : 's'}
+                          </summary>
+                          <ul className="mt-1.5 space-y-1 pl-3">
+                            {(t.fields || []).map((f, i) => (
+                              <li
+                                key={i}
+                                className="text-[11px] text-slate-700 flex items-center gap-2"
+                                data-testid={`wrf-template-${t.id}-field-${i}`}
+                              >
+                                <span className="font-mono text-slate-400">{i + 1}.</span>
+                                <span className="font-bold text-slate-900">{f.name}</span>
+                                <span className="text-slate-400">·</span>
+                                <span className="uppercase tracking-wide text-[9px] text-slate-500">{f.field_type}</span>
+                                {f.required && <span className="text-rose-600 font-extrabold">*</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => apply(t)}
+                        disabled={isBusy || isApplied}
+                        className={`shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-extrabold transition-colors ${
+                          isApplied
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'
+                        }`}
+                        data-testid={`wrf-template-apply-${t.id}`}
+                      >
+                        {isBusy ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : isApplied ? (
+                          <Check size={12} />
+                        ) : (
+                          <Plus size={12} />
+                        )}
+                        {isApplied ? 'Applied' : isBusy ? 'Applying…' : 'Apply'}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <footer className="px-5 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+          <p className="text-[10px] text-slate-500">
+            Templates are safe to re-apply — duplicates are skipped automatically.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50"
+          >
+            Done
+          </button>
+        </footer>
       </div>
     </div>
   );
