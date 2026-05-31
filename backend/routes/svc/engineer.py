@@ -109,6 +109,88 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ── Iter 220dr · Auto-attach customer-logged machines ─────────────
+#
+# When a case is created via the customer portal / inbound email /
+# service-desk intake the operator picks the affected machine(s)
+# via ``asset_id`` (single) or ``equipment_ids`` (multi). The
+# engineer used to land on an empty Equipment tab because nothing
+# fanned those IDs out into ``svc_work_visit_machines`` until the
+# engineer tapped "From site" manually.
+#
+# This helper closes the gap: on every engineer GET of the case it
+# ensures the customer-logged machines are mirrored as work-visit
+# rows — idempotent (skips IDs already attached) and best-effort
+# (failures log and continue; never break the case load).
+
+async def _ensure_customer_machines_attached(case: dict, of: dict) -> None:
+    candidate_ids: list[str] = []
+    primary = case.get("asset_id")
+    if primary:
+        candidate_ids.append(primary)
+    for eq_id in (case.get("equipment_ids") or []):
+        if eq_id and eq_id not in candidate_ids:
+            candidate_ids.append(eq_id)
+    if not candidate_ids:
+        return
+    case_id = case["id"]
+    try:
+        existing = await db.svc_work_visit_machines.find(
+            {**of, "case_id": case_id, "asset_id": {"$in": candidate_ids}},
+            {"_id": 0, "asset_id": 1},
+        ).to_list(100)
+        existing_ids = {r.get("asset_id") for r in existing if r.get("asset_id")}
+        to_attach = [eid for eid in candidate_ids if eid not in existing_ids]
+        if not to_attach:
+            return
+        equipment_rows = await db.equipment.find(
+            {**of, "id": {"$in": to_attach}},
+            {"_id": 0, "id": 1, "name": 1, "equipment_type": 1,
+             "manufacturer": 1, "model": 1, "serial_number": 1},
+        ).to_list(100)
+        eq_by_id = {r["id"]: r for r in equipment_rows}
+        order_index = await db.svc_work_visit_machines.count_documents(
+            {**of, "case_id": case_id},
+        )
+        now = _now()
+        rows = []
+        for eid in to_attach:
+            eq = eq_by_id.get(eid) or {}
+            label = (
+                f"{eq.get('manufacturer') or ''} {eq.get('model') or eq.get('name') or ''}".strip()
+                or eq.get("name")
+                or case.get("asset_name")
+                or "Equipment"
+            )
+            rows.append({
+                "id": str(uuid.uuid4()),
+                **of,
+                "case_id": case_id,
+                "asset_id": eid,
+                "asset_name": label[:200],
+                "asset_serial": (eq.get("serial_number") or "")[:120] or None,
+                "asset_type": (eq.get("equipment_type") or "")[:120] or None,
+                "manufacturer": eq.get("manufacturer") or None,
+                "model": eq.get("model") or None,
+                "serviced": False,
+                "cleaned": False,
+                "notes": None,
+                "custom_fields": {},
+                "order_index": order_index,
+                "created_at": now,
+                "updated_at": now,
+                "source": "customer_logged",
+            })
+            order_index += 1
+        if rows:
+            await db.svc_work_visit_machines.insert_many(rows)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "[engineer] customer-machine auto-attach failed for case=%s: %s",
+            case.get("id"), exc,
+        )
+
+
 def _of(user: dict) -> dict:
     org = user.get("organization_id")
     if not org:
@@ -416,6 +498,10 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         # jobs. Return 404 (not 403) so attackers can't enumerate
         # case IDs by status code.
         raise HTTPException(404, "Job not found")
+    # Iter 220dr — auto-attach the customer-logged asset(s) the very
+    # first time the engineer opens the case, so the Equipment tab
+    # is never empty when the operator already picked the machine.
+    await _ensure_customer_machines_attached(case, of)
     events = (
         await db.svc_case_events
         .find({"case_id": case_id, **of}, {"_id": 0})

@@ -210,14 +210,13 @@ export default function EngineerJobDetailV2() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-5 pb-28 space-y-4">
-        {/* Iter 220dn — JobAtAGlance + Photos live in the Summary tab
-            ONLY. Engineers stop having to scroll past the customer
-            card on every tab to reach the work surface. */}
+        {/* Iter 220dn — JobAtAGlance lives in the Summary tab ONLY.
+            Iter 220dr — Capture-media (PhotosTab) moved OUT of
+            Summary into Equipment (per-machine evidence) and the
+            "After-photos" gate in Complete. Summary is now strictly
+            customer / site / fault context. */}
         {activeTab === 'summary' && (
-          <>
-            <JobAtAGlance job={job} setBusy={setBusy} busy={busy} onChange={load} />
-            <PhotosTab job={job} onChange={load} />
-          </>
+          <JobAtAGlance job={job} setBusy={setBusy} busy={busy} onChange={load} />
         )}
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
@@ -1411,8 +1410,99 @@ function MediaTile({ item }) {
 // `WorkVisitMachinesCard` is now hosted here too.
 
 function EquipmentTab({ job }) {
+  // Iter 220dr — surface the customer-logged context at the top of
+  // Equipment so the engineer knows *which* machine the fault was
+  // reported against without scrolling back to Summary. Pulls from
+  // the case fields the operator picks at intake (asset_name +
+  // attachments) and from the engineer-facing case payload.
+  const customerAttachments = useMemo(() => {
+    const raw = job?.attachments;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(a => a && (a.url || a.file_id));
+  }, [job?.attachments]);
+  const customerPhotos = customerAttachments.filter(
+    a => (a.mime_type || a.content_type || '').startsWith('image/'),
+  );
+  const customerFiles = customerAttachments.filter(
+    a => !(a.mime_type || a.content_type || '').startsWith('image/'),
+  );
+  const customerSummary = (job?.description || '').trim();
+  const reporterName = (job?.customer_name || '').trim();
+
   return (
     <div className="space-y-4" data-testid="equipment-tab">
+      {(customerSummary || customerPhotos.length || customerFiles.length || job?.asset_name) ? (
+        <div
+          className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3"
+          data-testid="equipment-customer-context"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+            What the customer logged
+          </p>
+          {job?.asset_name ? (
+            <p
+              className="text-sm font-extrabold text-slate-900 mt-0.5"
+              data-testid="equipment-customer-asset"
+            >
+              {job.asset_name}
+            </p>
+          ) : null}
+          {customerSummary ? (
+            <p
+              className="text-xs text-slate-700 leading-snug mt-1"
+              data-testid="equipment-customer-summary"
+            >
+              {customerSummary}
+            </p>
+          ) : null}
+          {reporterName ? (
+            <p className="text-[11px] text-slate-500 mt-1">
+              Reported by {reporterName}
+            </p>
+          ) : null}
+          {customerPhotos.length > 0 ? (
+            <div
+              className="grid grid-cols-3 gap-2 mt-3"
+              data-testid="equipment-customer-photos"
+            >
+              {customerPhotos.slice(0, 9).map((p, idx) => (
+                <a
+                  key={p.id || p.file_id || idx}
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block aspect-square rounded-lg overflow-hidden border border-blue-200 bg-white"
+                  data-testid={`equipment-customer-photo-${idx}`}
+                >
+                  <img
+                    src={p.url}
+                    alt={p.caption || `Customer photo ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {customerFiles.length > 0 ? (
+            <ul className="mt-3 space-y-1" data-testid="equipment-customer-files">
+              {customerFiles.map((f, idx) => (
+                <li key={f.id || f.file_id || idx}>
+                  <a
+                    href={f.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-blue-700 hover:underline inline-flex items-center gap-1"
+                  >
+                    <Download size={12} /> {f.filename || f.name || 'Attachment'}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="bg-white rounded-2xl border border-slate-200 p-3">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">

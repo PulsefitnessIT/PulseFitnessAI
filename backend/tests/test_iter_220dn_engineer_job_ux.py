@@ -77,13 +77,17 @@ def test_job_at_a_glance_only_renders_on_summary_tab():
 
 
 def test_photos_block_lives_inside_summary_tab():
+    """SUPERSEDED by Iter 220dr — operator feedback (Feb 2026)
+    explicitly removed the Capture-Media block from Summary. The
+    Summary tab is now strictly customer / site / fault context;
+    photos belong to a machine on the Equipment tab (per-row) and
+    to the engineer's per-job evidence on Complete."""
     src = _read("pages/ServiceOps/Engineer/EngineerJobDetailV2.js")
-    # The Photos block is now rendered alongside JobAtAGlance inside
-    # the Summary conditional — not as its own activeTab branch.
+    # Photos must NOT be mounted as a standalone tab branch.
     assert "activeTab === 'photos'" not in src
-    # PhotosTab is still mounted (inside Summary) so the component
-    # is reachable.
-    assert "<PhotosTab" in src
+    # PhotosTab component still exists in source (used by Complete /
+    # equipment per-machine flow), it just isn't a Summary child.
+    assert "function PhotosTab" in src
 
 
 # ── 2 · Back-arrow returns to queue when ?from=queue ──────────────

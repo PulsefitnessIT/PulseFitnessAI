@@ -1,3 +1,84 @@
+## Iter 220dr — Equipment auto-populate + Summary capture-media removal ✅ (Feb 14, 2026)
+
+Driven by the operator screenshot on the Treadmill-belt-slip job:
+
+1. **Capture-Media block still appeared on Summary** → removed.
+2. **Equipment tab was empty** when a customer had logged a fault
+   against a specific machine via the portal / inbound email /
+   service desk → now auto-populated.
+3. **Customer-logged context** (asset name + fault description +
+   customer-uploaded photos/files) now visible at the top of the
+   Equipment tab.
+
+### Backend — `routes/svc/engineer.py`
+
+**New helper `_ensure_customer_machines_attached(case, of)`**
+- Reads `case.asset_id` (single) + `case.equipment_ids[]` (multi).
+- For each unique ID not already in `svc_work_visit_machines` for
+  this case, inserts one row populated from the canonical
+  `equipment` collection (serial, manufacturer, model,
+  equipment_type, asset_name).
+- Falls back to `case.asset_name` when the equipment row is
+  missing (free-text customer-described asset).
+- Idempotent — re-runs on every engineer GET, but already-attached
+  IDs are skipped. `source='customer_logged'` so the audit trail
+  distinguishes auto-attached rows from manual `From site` picks.
+- Best-effort — exception just logs `[engineer] customer-machine
+  auto-attach failed for case=…` and continues. Never breaks
+  the case load.
+
+**`GET /api/svc/engineer/jobs/{case_id}`**
+- Calls the helper after the access check, before any expensive
+  enrichment. Engineer-side semantics unchanged — `machines` list
+  the engineer fetches separately just naturally returns the new
+  rows.
+
+### Frontend — `EngineerJobDetailV2.js`
+
+**Summary tab**
+- `PhotosTab` removed from Summary fragment. Summary now renders
+  *only* `<JobAtAGlance>` — strictly customer / site / fault /
+  handoff / I'm-on-site CTA.
+
+**Equipment tab**
+- New "What the customer logged" card (blue panel) renders when
+  the case has any of: `asset_name`, `description`, or
+  `attachments`.
+- Surfaces: asset name (`equipment-customer-asset`), fault summary
+  (`equipment-customer-summary`), reporter name, customer photos
+  grid (up to 9, `equipment-customer-photos` + per-photo testids),
+  non-image attachments as download links
+  (`equipment-customer-files`).
+- All open in a new tab — engineer can see customer evidence
+  side-by-side with the machine row they're filling in.
+
+### Tests / lint
+
+- `tests/test_iter_220dr_equipment_autopopulate.py` — **8 tests** green:
+  - Summary no longer renders PhotosTab (the fragment is gone).
+  - Auto-attach no-op when case has no `asset_id`/`equipment_ids`.
+  - Auto-attach creates a row for `asset_id` with full equipment
+    info (serial, manufacturer, model).
+  - Multi-asset intakes (`equipment_ids[]`) fan out, deduped
+    against `asset_id`.
+  - Already-attached IDs are skipped (idempotency).
+  - All-present case → zero inserts.
+  - Orphan `asset_id` (no matching `equipment` row) falls back to
+    `case.asset_name`.
+  - Frontend renders the customer-context card with all 5 testids.
+- 220dn test updated: `test_photos_block_lives_inside_summary_tab`
+  is now SUPERSEDED-stub asserting Photos is NOT in Summary
+  (preserves audit trail).
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1934 passed, 15 skipped, 0 failed**.
+- Engineer opens a customer-logged fault → walks into the site →
+  taps Equipment → sees the exact machine + serial + customer's
+  photo of the fault. Zero "which machine am I going to?" calls.
+
+
 ## Iter 220dq — Public live-tracking surfaces Return-to-fix ✅ (Feb 14, 2026)
 
 Customer-side of the Iter 220dp loop. When the engineer flags a
