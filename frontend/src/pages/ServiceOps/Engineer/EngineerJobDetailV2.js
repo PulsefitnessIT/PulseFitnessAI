@@ -56,6 +56,25 @@ const fmtMins = (m) => {
   return h > 0 ? `${h}h ${r}m` : `${r}m`;
 };
 
+// Iter 220dt — friendly labels for the case_type / job_type
+// taxonomy. Customer portal + service desk + intake all use the
+// short slug; this maps it to the customer-facing label shown on
+// engineer Summary and the public live-tracking page.
+export const CASE_TYPE_LABELS = {
+  repair: 'Repair',
+  ppm: 'PPM Service',
+  install: 'Installation',
+  inspection: 'Inspection',
+  callout: 'Emergency callout',
+  audit: 'Asset audit',
+};
+
+export function labelForCaseType(slug) {
+  if (!slug) return '';
+  return CASE_TYPE_LABELS[String(slug).toLowerCase()] || slug;
+}
+
+
 const TABS = [
   // Iter 220dn — engineer flow restructure (Feb 2026).
   // The "Summary" tab now owns the customer/site/address/fault
@@ -385,6 +404,18 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
               {String(job.priority).toUpperCase()}
             </span>
           )}
+          {/* Iter 220dt — Job-type chip. Customer + service desk
+              picks the type at intake; engineer sees it on Summary
+              so they know up-front whether to grab tools for a
+              repair, a PPM checklist, an install kit, etc. */}
+          {job.case_type && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-indigo-50 text-indigo-700 border-indigo-200"
+              data-testid="jaag-case-type"
+            >
+              <Wrench size={9} /> {labelForCaseType(job.case_type)}
+            </span>
+          )}
           {machineCount != null && machineCount > 0 && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-slate-50 text-slate-600 border-slate-200" data-testid="jaag-machines">
               <Package size={9} /> {machineCount} {machineCount === 1 ? 'machine' : 'machines'}
@@ -441,34 +472,20 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
         />
       )}
 
-      {/* Big arrive button — only when not yet arrived and not closed. */}
-      {!['closed', 'invoiced', 'awaiting_sign_off', 'repaired'].includes(job.status) && (
+      {/* Iter 220dt — the big "I'm on site" arrive button was
+          removed from Summary; the Time tab now owns starting the
+          on-site timer (one canonical entry point). We still
+          surface a passive "On site — timer running" badge here
+          while the timer is active so Summary stays informative
+          without offering competing controls. */}
+      {!['closed', 'invoiced', 'awaiting_sign_off', 'repaired'].includes(job.status) && activeOnSite && (
         <div className="border-t border-slate-100 p-2 bg-slate-50/40">
-          {activeOnSite ? (
-            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-bold" data-testid="jaag-on-site-now">
-              <CheckCircle2 size={14} /> On site — timer running
-            </div>
-          ) : hasArrived ? (
-            <button
-              type="button"
-              onClick={arrive}
-              disabled={busy}
-              className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
-              data-testid="jaag-resume"
-            >
-              <Play size={12} /> Resume on-site timer
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={arrive}
-              disabled={busy}
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-sm font-bold uppercase tracking-wide shadow-sm disabled:opacity-50"
-              data-testid="jaag-arrive"
-            >
-              <LogIn size={14} /> I'm on site
-            </button>
-          )}
+          <div
+            className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-bold"
+            data-testid="jaag-on-site-now"
+          >
+            <CheckCircle2 size={14} /> On site — timer running
+          </div>
         </div>
       )}
     </div>

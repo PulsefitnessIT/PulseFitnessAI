@@ -135,6 +135,20 @@ class IssueCreate(BaseModel):
     # for grouped display in the fault list and a single bundled
     # supplier email. Defaults to None for legacy single-machine logs.
     job_id: Optional[str] = None
+    # Iter 220dt — Customer-facing job-type taxonomy (Repair / PPM /
+    # Install / Inspection / Callout / Audit). Drives the engineer
+    # Summary chip, ops reporting, and (next) auto-loaded custom
+    # fields per machine + job type. Defaults to "repair" because
+    # the original Log-a-Fault flow only ever meant "something is
+    # broken — fix it".
+    case_type: Optional[str] = "repair"
+    # Iter 220dt — Serial unknown escape hatch. Used when a
+    # machine's serial sticker has rubbed off / is unreadable. The
+    # intake stamps a `capture_serial` flag on the case so the
+    # engineer's app raises a "snap the serial plate on visit 1"
+    # task; the missing serial doesn't block customer intake.
+    serial_unknown: Optional[bool] = False
+    serial_unknown_reason: Optional[str] = None
 
 
 class IssueBatchCreate(BaseModel):

@@ -79,7 +79,11 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
     # / chargeable). Defaulting to "repair" matches the historic implicit
     # behaviour for back-compat with intake calls that omit the field.
     case_type = (payload.get("case_type") or "repair").lower()
-    if case_type not in {"repair", "ppm", "install"}:
+    # Iter 220dt — extended job-type taxonomy.
+    # ``inspection`` / ``callout`` / ``audit`` give customers and
+    # service desk more accurate intent labels so reporting (and
+    # auto-loaded custom fields) can branch correctly.
+    if case_type not in {"repair", "ppm", "install", "inspection", "callout", "audit"}:
         case_type = "repair"
 
     sla = await compute_sla_targets(
@@ -122,6 +126,14 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
         "quote_required": bool(payload.get("quote_required") or False),
         "customer_po_number": (payload.get("customer_po_number") or "").strip(),
         "attachments": payload.get("attachments") or [],
+        # Iter 220dt — Serial-unknown escape hatch. When the
+        # operator / customer can't read the serial plate (rubbed
+        # off, behind cladding, never had one) the case carries a
+        # `capture_serial_required` flag so the engineer's app
+        # raises a "Snap the serial plate on visit 1" task without
+        # blocking intake.
+        "capture_serial_required": bool(payload.get("capture_serial_required") or False),
+        "capture_serial_reason": (payload.get("capture_serial_reason") or "").strip() or None,
         "tags": payload.get("tags") or [],
         "required_skills": list(payload.get("required_skills") or []),
         "source": source,

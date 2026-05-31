@@ -67,7 +67,13 @@ const fmtSLA = (iso) => {
 // ── Claim modal ──────────────────────────────────────────────
 const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
   const [when, setWhen] = useState('');
-  const [mins, setMins] = useState(job?.estimated_minutes || 60);
+  // Iter 220dt — Hours + Minutes dropdowns instead of a single
+  // free-text minutes field. Engineers think in hours, not 90
+  // minutes, and the typing pad was awkward on mobile.
+  const initialMins = job?.estimated_minutes || 60;
+  const [hours, setHours] = useState(() => Math.floor(initialMins / 60));
+  const [mins, setMins] = useState(() => initialMins % 60);
+  const totalMins = (Number(hours) || 0) * 60 + (Number(mins) || 0);
   if (!job) return null;
   return (
     <div
@@ -113,21 +119,42 @@ const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
               data-testid="claim-time-input"
             />
           </label>
-          <label className="block">
+          <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1 inline-block">
-              Estimated minutes
+              Estimated time
             </span>
-            <input
-              type="number"
-              min={15}
-              max={600}
-              step={15}
-              value={mins}
-              onChange={(e) => setMins(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-              data-testid="claim-minutes-input"
-            />
-          </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <select
+                  value={hours}
+                  onChange={(e) => setHours(Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                  data-testid="claim-hours-input"
+                  aria-label="Hours"
+                >
+                  {Array.from({ length: 11 }, (_, h) => (
+                    <option key={h} value={h}>{h} {h === 1 ? 'hour' : 'hours'}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <select
+                  value={mins}
+                  onChange={(e) => setMins(Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                  data-testid="claim-minutes-input"
+                  aria-label="Minutes"
+                >
+                  {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
+                    <option key={m} value={m}>{m} mins</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1" data-testid="claim-total-minutes">
+              Total · {totalMins} mins
+            </p>
+          </div>
         </div>
         <div className="flex gap-2 mt-4">
           <button
@@ -139,11 +166,11 @@ const ClaimModal = ({ job, onClose, onConfirm, busy }) => {
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || totalMins < 15}
             onClick={() =>
               onConfirm({
                 scheduled_at: when ? new Date(when).toISOString() : null,
-                estimated_minutes: Number(mins) || 60,
+                estimated_minutes: Math.max(15, Math.min(600, totalMins)),
               })
             }
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg py-2 text-sm font-bold flex items-center justify-center gap-2"

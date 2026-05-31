@@ -1,3 +1,89 @@
+## Iter 220dt — Job-type taxonomy + serial-unknown + Summary cleanup ✅ (Feb 14, 2026)
+
+Four operator-driven changes from the new screenshots:
+
+### 1 · "I'm on site" removed from Engineer Summary
+
+- Big green arrive CTA + Resume on-site button gone. Time tab now
+  owns starting the on-site timer — one canonical entry point.
+- Passive **"On site — timer running"** badge stays so Summary
+  remains informative without competing controls.
+
+### 2 · Allocate-to-me: Hours + Minutes dropdowns
+
+- Replaced the free-form number input with two side-by-side
+  selects (Hours 0–10, Minutes in 5-min steps).
+- Total preview chip (`Total · 75 mins`) so engineers can sanity
+  check before tapping "Allocate to me".
+- Submission floor stays at 15 minutes (matches backend bounds);
+  silent clamp to ``max=600`` on submit.
+
+### 3 · Job-type taxonomy
+
+- Backend whitelist extended to:
+  `repair` / `ppm` / `install` / `inspection` / `callout` / `audit`.
+- `models/schemas.py::IssueCreate` gains `case_type` (default
+  `"repair"`).
+- `routes/issues.py` propagates `case_type` from the operations-
+  portal fault doc into both the issue row and the mirrored
+  `svc_case` — engineer Summary, reporting, and source-meta audit
+  trail all see it.
+- `routes/svc/intake.py` accepts + persists the slug; both
+  service-desk + customer paths funnel through the same field.
+- Frontend `EngineerJobDetailV2.js` exports a
+  `CASE_TYPE_LABELS` map + `labelForCaseType(slug)` helper.
+- Summary card renders an indigo `<Wrench> {label}` chip
+  (`data-testid="jaag-case-type"`).
+- ServiceDeskIntakeForm dropdown re-labelled to **"Job type"**
+  with the full 6-slug taxonomy (was 3-slug `repair|ppm|install`).
+
+### 4 · Serial-unknown escape hatch (rubbed-off plates)
+
+- `IssueCreate` gains `serial_unknown: bool` +
+  `serial_unknown_reason: str|None`.
+- `_build_issue_doc` persists both onto the issue row.
+- `_mirror_issue_to_svc_case` stamps the case with
+  `capture_serial_required` + `capture_serial_reason`
+  (also kept in `source_meta` for audit).
+- `routes/svc/intake.py` persists the flags on every case
+  regardless of intake source, so the future engineer-side
+  "Snap the serial plate on visit 1" task can find them.
+
+### 5 · Custom Fields → Account Settings (planned, partial)
+
+- Iter 220ds already removed the Complete-tab render. Concept,
+  state + payload field still wired. Admin UI to manage custom
+  fields by `job_type` × `equipment` is queued as the next
+  follow-up — needs Account Settings UI + backend CRUD.
+
+### Tests / lint
+
+- `tests/test_iter_220dt_job_types_and_serial_unknown.py` —
+  **9 tests** green:
+  - Summary no longer has the arrive/resume buttons, passive
+    badge stays.
+  - Claim modal has hours + minutes dropdowns + total preview.
+  - Engineer Summary renders the `jaag-case-type` chip with
+    label map + helper.
+  - Service Desk form offers the extended taxonomy.
+  - Intake whitelist accepts the new slugs.
+  - Intake persists `capture_serial_required` +
+    `capture_serial_reason`.
+  - `IssueCreate` schema carries `case_type` + serial-unknown
+    fields.
+  - Mirror propagates both into the svc_case payload.
+  - `_build_issue_doc` persists the slugs onto the issue row.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1952 passed, 15 skipped, 0 failed**.
+- Customer / service desk pick a job type → engineer sees a
+  Summary chip → reporting + future custom-field auto-load can
+  branch on it. Serial-unknown is a soft-flag that never blocks
+  intake but follows the engineer onto site.
+
+
 ## Iter 220ds — Handoff / Time / Custom-fields UX adjustments ✅ (Feb 14, 2026)
 
 Three additional UX pins from the same screenshot feedback round:

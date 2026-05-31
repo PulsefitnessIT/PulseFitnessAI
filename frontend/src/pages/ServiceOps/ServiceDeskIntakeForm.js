@@ -408,7 +408,9 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
               setCustomerPONumber={setCustomerPONumber}
             />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-              <Field label="Case type">
+              <Field label="Job type">
+                {/* Iter 220dt — surface friendly labels (the customer
+                    + engineer Summary reads from the same source). */}
                 <select
                   value={caseType}
                   onChange={(e) => setCaseType(e.target.value)}
@@ -416,8 +418,11 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
                   data-testid="intake-case-type"
                 >
                   <option value="repair">Repair</option>
-                  <option value="ppm">PPM</option>
-                  <option value="install">Install</option>
+                  <option value="ppm">Preventative Maintenance Service</option>
+                  <option value="install">Installation</option>
+                  <option value="inspection">Safety / compliance inspection</option>
+                  <option value="callout">Emergency callout</option>
+                  <option value="audit">Asset audit</option>
                 </select>
               </Field>
               <Field label="Cover type">

@@ -144,6 +144,14 @@ def _build_issue_doc(issue: IssueCreate, user: dict) -> dict:
         "selected_fix_title": issue.selected_fix_title,
         "fix_method": issue.fix_method,
         "fault_code": issue.fault_code,
+        # Iter 220dt — Job-type taxonomy + serial-unknown escape
+        # hatch. Both propagate into the mirrored svc_case via
+        # ``_mirror_issue_to_svc_case``.
+        "case_type": (getattr(issue, "case_type", None) or "repair"),
+        "serial_unknown": bool(getattr(issue, "serial_unknown", False)),
+        "serial_unknown_reason": sanitise_string(
+            getattr(issue, "serial_unknown_reason", "") or "",
+        ) or None,
         # KPI timestamps (auto-captured)
         "created_at": now,
         "updated_at": now,
@@ -294,6 +302,12 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
             "description": issue_doc.get("issue_description") or "",
             "priority": priority,
             "cover_type": resolved_cover,
+            # Iter 220dt — propagate the customer's chosen job-type
+            # (Repair / PPM / Install / Inspection / Callout / Audit)
+            # so the engineer Summary chip and downstream reporting
+            # both see it. Defaults to "repair" when the legacy form
+            # didn't pick one.
+            "case_type": issue_doc.get("case_type") or "repair",
             "site_id": site_id,
             "site_name": site_name,
             "site_postcode": site_postcode,
@@ -306,10 +320,20 @@ async def _mirror_issue_to_svc_case(issue_doc: dict, user: dict) -> None:
             "customer_name": user.get("full_name") or "",
             "customer_email": user.get("email") or "",
             "customer_phone": user.get("phone") or "",
+            # Iter 220dt — Serial-unknown escape hatch (rubbed-off
+            # plate etc). Triggers an engineer-side "Capture serial
+            # on visit 1" follow-up task; never blocks intake.
+            "capture_serial_required": bool(issue_doc.get("serial_unknown")),
+            "capture_serial_reason": issue_doc.get("serial_unknown_reason") or None,
             "source_meta": {
                 "issue_id": issue_doc["id"],
                 "channel": "operations_portal",
                 "severity": issue_doc.get("severity"),
+                # Iter 220dt — keep the case_type slug on the audit
+                # trail too so we can re-key historic data later.
+                "case_type": issue_doc.get("case_type") or "repair",
+                "serial_unknown": bool(issue_doc.get("serial_unknown")),
+                "serial_unknown_reason": issue_doc.get("serial_unknown_reason") or "",
                 # Iter 216h199 — full coverage snapshot so the Service
                 # Desk UI can render "✓ Under GOLD contract until
                 # 31/12/2027" badges without a second round-trip.
