@@ -48,6 +48,20 @@ export default function VoiceToJobButton() {
     && typeof window !== 'undefined'
     && 'MediaRecorder' in window;
 
+  // Iter 220ea·5 — Listen for the SpeedDial's open event so the
+  // single consolidated launcher can drive this modal.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('gx:open-voice', onOpen);
+    return () => window.removeEventListener('gx:open-voice', onOpen);
+  }, []);
+
+  // Iter 220ea·5 — The engineer SpeedDial owns the launcher on
+  // engineer routes; suppress the floating mic so we don't show
+  // two buttons at the same corner.
+  const isEngineerRoute = typeof window !== 'undefined'
+    && /^\/svc\/engineer/.test(window.location.pathname);
+
   const cleanup = useCallback(() => {
     if (tickRef.current) {
       clearInterval(tickRef.current);
@@ -160,16 +174,20 @@ export default function VoiceToJobButton() {
 
   return (
     <>
-      {/* Floating action button — bottom right */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
-        aria-label="Voice-to-job"
-        data-testid="voice-to-job-fab"
-      >
-        <Mic size={22} />
-      </button>
+      {/* Floating action button — bottom right. Hidden on engineer
+          routes where the SpeedDial provides the consolidated
+          launcher. */}
+      {!isEngineerRoute && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
+          aria-label="Voice-to-job"
+          data-testid="voice-to-job-fab"
+        >
+          <Mic size={22} />
+        </button>
+      )}
 
       {/* Modal */}
       {open && (

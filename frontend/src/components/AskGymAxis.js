@@ -552,8 +552,22 @@ export default function AskGymAxis() {
  return () => window.removeEventListener('keydown', handler);
  }, [open]);
 
+ // Iter 220ea·5 — Listen for the SpeedDial's open event so the
+ // consolidated launcher on engineer routes can drive this modal.
+ useEffect(() => {
+   const onOpen = () => setOpen(true);
+   window.addEventListener('gx:open-ask', onOpen);
+   return () => window.removeEventListener('gx:open-ask', onOpen);
+ }, []);
+
+ // Iter 220ea·5 — Suppress the floating orb on engineer routes;
+ // the SpeedDial provides the consolidated launcher.
+ const isEngineerRoute = typeof window !== 'undefined'
+   && /^\/svc\/engineer/.test(window.location.pathname);
+
  return (
  <>
+ {!isEngineerRoute && (
  <button
  type="button"
  onClick={() => setOpen(true)}
@@ -565,6 +579,7 @@ export default function AskGymAxis() {
  <Sparkles size={22} className="text-white group-hover:rotate-12 transition-transform" />
  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-emerald-400 border-2 border-white" />
  </button>
+ )}
  {open && <AskGymAxisSheet onClose={() => setOpen(false)} />}
  </>
  );

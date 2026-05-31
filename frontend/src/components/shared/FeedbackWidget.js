@@ -31,7 +31,21 @@ export default function FeedbackWidget() {
     return undefined;
   }, []);
 
+  // Iter 220ea·5 — Listen for the engineer SpeedDial's open event so
+  // the consolidated launcher can drive this widget.
+  useEffect(() => {
+    const onOpen = () => { setHidden(false); setOpen(true); };
+    window.addEventListener('gx:open-feedback', onOpen);
+    return () => window.removeEventListener('gx:open-feedback', onOpen);
+  }, []);
+
   if (hidden) return null;
+
+  // Iter 220ea·5 — Suppress the launcher on engineer routes; the
+  // SpeedDial provides the consolidated entry point. The panel
+  // (`open` branch) still renders so an event-driven open works.
+  const isEngineerRoute = typeof window !== 'undefined'
+    && /^\/svc\/engineer/.test(window.location.pathname);
 
   const submit = async () => {
     if (!sentiment) return;
@@ -55,7 +69,7 @@ export default function FeedbackWidget() {
 
   return (
     <>
-      {!open && (
+      {!open && !isEngineerRoute && (
         <button
           type="button"
           onClick={() => setOpen(true)}

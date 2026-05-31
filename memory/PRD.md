@@ -1,3 +1,78 @@
+## Iter 220ea·5 — Engineer App UX fixes ✅ (Feb 14, 2026)
+
+Three engineer-app pain points from a live user report, plus a
+visual cleanup of the bottom-right FAB stack.
+
+### 1 · Pre-job H&S checklist banner on Summary
+
+Previously the engineer only saw "checklist required" when they
+tried to start the on-site timer (on the Time tab). Now the
+amber banner is the FIRST thing on the Summary tab when the job
+requires a signoff:
+
+- New `summary-safety-checklist-banner` test-id, prominent amber
+  warning-icon avatar, count of outstanding items.
+- Whole banner is a `<button>` — tapping it jumps activeTab to
+  `complete` where the checklist UI lives.
+- Detection is "no `safety_signoff` yet AND a `safety_template`
+  exists" so it only nags on jobs that actually need it.
+
+### 2 · Equipment-new round-trip stays on Equipment tab
+
+After adding a new asset from the Equipment tab, the engineer
+was being bounced to Summary. Two-part fix:
+
+- `EngineerEquipment.handleSave` (the new-asset flow) now
+  navigates back with `?tab=equipment` instead of the bare
+  `/svc/engineer/jobs/{id}`.
+- `EngineerJobDetailV2` now reads `?tab=` from
+  `useSearchParams` on mount, validates against the known
+  `TABS` ids, and lands on the requested tab (falling back to
+  `summary` for unknown / missing query).
+
+### 3 · One SpeedDial replaces three FABs
+
+The bottom-right corner had three independently-positioned
+launchers (voice mic, AskGymAxis sparkle, FeedbackWidget). On a
+mobile screen they were stacked tightly and visually crowded.
+Now there's a single FAB that expands into a labelled vertical
+arc on tap.
+
+- **New `EngineerSpeedDial.js`** — single launcher
+  (`engineer-speed-dial-launcher`), expandable arc with three
+  labelled options (`engineer-speed-dial-voice/ask/feedback`).
+- Closes on outside-tap, Escape, or after selecting an action.
+- Each action dispatches a `gx:open-{voice|ask|feedback}` window
+  event. The three existing modal components were modified to
+  (a) listen for the corresponding event and open programmatically,
+  and (b) suppress their own launcher render when
+  `/^\/svc\/engineer/.test(location.pathname)` — so the engineer
+  sees exactly one launcher (the SpeedDial), not four.
+- Mounted in `AppRoutes.js` alongside the existing
+  `EngineerVoiceToJobButton` (whose modal logic is now driven by
+  the SpeedDial event).
+
+### Tests
+
+- New `test_iter_220ea_5_engineer_ux_fixes.py` — 11 wiring guards
+  covering safety-banner render conditions / click target,
+  equipment round-trip query, SpeedDial action triplet + event
+  contract + outside-tap/Escape dismiss, and the suppression of
+  the three legacy launchers on engineer routes.
+- Updated `test_iter_220dn_engineer_job_ux.py::test_tab_order_matches_user_requested_flow`
+  for the new `?tab=` query-string-aware default-tab pattern.
+
+### Verified
+
+- Frontend compiles cleanly.
+- `make lint-backend` ✅, `make lint-frontend` ✅.
+- pytest regression **2140 / 2140 passing**.
+- Smoke: SpeedDial launcher renders on `/svc/engineer`, the
+  three legacy FABs correctly hide on the same route.
+
+---
+
+
 ## Iter 220ea·4 — Resume-failed-upload UX ✅ (Feb 14, 2026)
 
 Closes the loop on iter 220e9: when a chunked upload fails halfway

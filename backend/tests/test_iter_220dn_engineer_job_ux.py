@@ -60,8 +60,9 @@ def test_tab_order_matches_user_requested_flow():
         assert needle in src, f"missing tab id {needle}"
     # The legacy standalone Photos tab must be gone.
     assert "id: 'photos'" not in src
-    # And "Summary" is the default landing tab on every open.
-    assert "useState('summary')" in src
+    # And "Summary" is the default landing tab on every open
+    # (when no explicit `?tab=` query string overrides it).
+    assert "validTabs.has(initialTab) ? initialTab : 'summary'" in src
 
 
 def test_job_at_a_glance_only_renders_on_summary_tab():

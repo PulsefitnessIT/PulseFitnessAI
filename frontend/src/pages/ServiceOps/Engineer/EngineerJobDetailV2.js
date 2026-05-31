@@ -192,7 +192,14 @@ export default function EngineerJobDetailV2() {
     : '/svc/engineer';
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('summary');
+  // Iter 220ea·5 — Honour `?tab=` so deep-links and the
+  // equipment-new round-trip both land on the right tab instead of
+  // bouncing the engineer to Summary every time.
+  const validTabs = new Set(TABS.map(t => t.id));
+  const initialTab = (searchParams.get('tab') || '').toLowerCase();
+  const [activeTab, setActiveTab] = useState(
+    validTabs.has(initialTab) ? initialTab : 'summary',
+  );
   const [mileage, setMileage] = useState({ items: [], total_miles: 0, total_amount_gbp: 0 });
   const [busy, setBusy] = useState(false);
   // Iter 220c — Lift the draft state OUT of CompleteTab so it survives
@@ -328,7 +335,13 @@ export default function EngineerJobDetailV2() {
             "After-photos" gate in Complete. Summary is now strictly
             customer / site / fault context. */}
         {activeTab === 'summary' && (
-          <JobAtAGlance job={job} setBusy={setBusy} busy={busy} onChange={load} />
+          <JobAtAGlance
+            job={job}
+            setBusy={setBusy}
+            busy={busy}
+            onChange={load}
+            onJumpToSafety={() => setActiveTab('complete')}
+          />
         )}
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
@@ -355,7 +368,7 @@ export default function EngineerJobDetailV2() {
 // job: customer / site / address / fault summary + tap-to-call,
 // tap-to-navigate, and a big "I'm on site" button that starts the
 // on-site timer (with the existing H&S gate respected).
-function JobAtAGlance({ job, busy: _busy, setBusy, onChange }) {
+function JobAtAGlance({ job, busy: _busy, setBusy, onChange, onJumpToSafety }) {
   const phone = job.customer_phone;
   const email = job.customer_email;
   const address = [job.site_address, job.site_postcode].filter(Boolean).join(' ');
@@ -374,6 +387,13 @@ function JobAtAGlance({ job, busy: _busy, setBusy, onChange }) {
   // engineer know up-front whether to crack on or wait for spend
   // authorisation.
   const cover = computeCoverState(job);
+
+  // Iter 220ea·5 — Pre-job H&S signoff state. Surfacing this on the
+  // Summary tab (not just Time) means the engineer sees the form
+  // they need to fill out the moment they open the job, rather
+  // than discovering it when they try to start the timer.
+  const safetyNeeded = !job.safety_signoff && !!job?.safety_template;
+  const safetyItemCount = job?.safety_template?.items?.length || 0;
 
   // The arrival timer is driven by `setBusy` / `onChange` from the
   // parent's start-on-site button; we keep the active timer surface
@@ -416,6 +436,34 @@ function JobAtAGlance({ job, busy: _busy, setBusy, onChange }) {
       className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"
       data-testid="job-at-a-glance"
     >
+      {/* Iter 220ea·5 — Pre-job H&S checklist call-out. Surfacing
+          it at the very top of Summary means the engineer can't
+          miss it. The whole banner is a button that jumps to the
+          Complete tab where the checklist UI lives. */}
+      {safetyNeeded && (
+        <button
+          type="button"
+          onClick={onJumpToSafety}
+          className="w-full px-3 py-2.5 bg-amber-50 hover:bg-amber-100 border-b border-amber-200 flex items-center gap-2 text-left transition-colors"
+          data-testid="summary-safety-checklist-banner"
+        >
+          <div className="w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <AlertTriangle size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900">
+              Pre-job H&amp;S checklist
+            </p>
+            <p className="text-xs text-amber-900 leading-snug">
+              {safetyItemCount > 0
+                ? <>Tap to complete <b>{safetyItemCount} item{safetyItemCount === 1 ? '' : 's'}</b> before starting work.</>
+                : <>Tap to complete the checklist before starting work.</>}
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-amber-700 shrink-0" />
+        </button>
+      )}
+
       <div className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

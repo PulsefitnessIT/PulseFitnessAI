@@ -39,6 +39,7 @@ import EngineerOfflineIndicator from '@/components/engineer/EngineerOfflineIndic
 // Iter 220cx — mic FAB mounted globally on every engineer route
 // (not just Home) so engineers can dictate a new job from anywhere.
 const EngineerVoiceToJobButton = lazy(() => import('@/pages/ServiceOps/Engineer/VoiceToJobButton'));
+const EngineerSpeedDial        = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerSpeedDial'));
 
 // Lazy-loaded authenticated app + secondary marketing pages.
 const DemoRequestPage = lazy(() => import('@/pages/DemoRequestPage'));
@@ -500,6 +501,11 @@ export default function AppRoutes({ user, login }) {
     {user && isEngineerRoute ? <EngineerOfflineIndicator /> : null}
     {user && isEngineerRoute ? (
       <Suspense fallback={null}>
+        {/* Iter 220ea·5 — Single consolidated SpeedDial replaces
+            the three independent FABs on engineer routes. The
+            modals themselves (voice / ask / feedback) listen for
+            `gx:open-*` events fired by the dial. */}
+        <EngineerSpeedDial />
         <EngineerVoiceToJobButton />
       </Suspense>
     ) : null}

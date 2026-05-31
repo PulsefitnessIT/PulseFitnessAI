@@ -636,7 +636,10 @@ export function EngineerEquipmentForm() {
           : `Saved ${form.name} to equipment`,
       );
       if (caseId) {
-        navigate(`/svc/engineer/jobs/${caseId}`);
+        // Iter 220ea·5 — Land back on the Equipment tab instead of
+        // bouncing the engineer to Summary every time they add an
+        // asset. EngineerJobDetailV2 reads ?tab= on mount.
+        navigate(`/svc/engineer/jobs/${caseId}?tab=equipment`);
       } else {
         navigate('/svc/engineer/equipment');
       }
