@@ -43,7 +43,7 @@ export default function NotificationSettings({ onClose }) {
     }
   };
 
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { reload();   }, []);
 
   const toggleSubscribe = async () => {
     setBusy(true); setErr(null);

@@ -174,7 +174,7 @@ function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
                       type="button"
                       onClick={(e) => { e.stopPropagation(); navigateTo && navigateTo('opportunity', t.opportunity_id); }}
                       className="text-[10px] font-medium px-1.5 py-0.5 rounded inline-flex items-center gap-1 hover:underline"
-                      style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-accent-magenta-15, #f3e8ff)', color: 'var(--color-accent-magenta)' }}
+                      style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-accent-magenta-15)', color: 'var(--color-accent-magenta)' }}
                       data-testid={`tender-row-${t.id}-opportunity-link`}
                       title={`Open linked deal · ${t.opportunity_stage || ''}`}
                     >

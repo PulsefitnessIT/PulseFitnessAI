@@ -664,13 +664,14 @@ function PublishButton({ articleId, channel, index, onPosted, label }) {
       notify.error(e?.response?.data?.detail || 'Publish failed');
     } finally { setBusy(false); }
   };
-  const colour = channel === 'linkedin'
-    ? 'bg-[#0a66c2] hover:bg-[#084d92]'
-    : 'bg-zinc-900 hover:bg-black';
+  const isLinkedIn = channel === 'linkedin';
   return (
     <button
       type="button" onClick={publish} disabled={busy}
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold text-white ${colour} disabled:opacity-50`}
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold text-white ${isLinkedIn ? '' : 'bg-zinc-900 hover:bg-black'} disabled:opacity-50`}
+      style={isLinkedIn ? { backgroundColor: 'var(--color-brand-linkedin)' } : undefined}
+      onMouseEnter={isLinkedIn ? (e) => { e.currentTarget.style.backgroundColor = 'var(--color-brand-linkedin-deep)'; } : undefined}
+      onMouseLeave={isLinkedIn ? (e) => { e.currentTarget.style.backgroundColor = 'var(--color-brand-linkedin)'; } : undefined}
       data-testid={`seo-publish-${channel}-${index}`}
       title={`Open ${label} composer with this post pre-filled`}
     >
@@ -699,7 +700,8 @@ function DistributionDrawer({ article, onClose }) {
       setDist(null);
     } finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [article.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load();   }, [article.id]);
 
   const spin = async () => {
     setSpinning(true);
@@ -768,7 +770,7 @@ function DistributionDrawer({ article, onClose }) {
               {dist.content?.linkedin?.length ? (
                 <section data-testid="seo-distribution-linkedin">
                   <div className="flex items-center gap-2 mb-3">
-                    <Linkedin size={14} className="text-[#0a66c2]"/>
+                    <Linkedin size={14} style={{ color: 'var(--color-brand-linkedin)' }}/>
                     <h3 className="text-sm font-bold">LinkedIn · 5 angles</h3>
                   </div>
                   <div className="space-y-3">

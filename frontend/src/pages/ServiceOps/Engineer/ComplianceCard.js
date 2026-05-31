@@ -43,7 +43,8 @@ export default function ComplianceCard({ caseId, onChange }) {
       setSummary(null);
     } finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [caseId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load();   }, [caseId]);
 
   if (loading || !summary) return null;
   const ptwActive = summary.ptw?.active;

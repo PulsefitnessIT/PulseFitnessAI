@@ -158,7 +158,7 @@ export default function PartnerApplicationDrawer({
       if (s?.level) setLevel(s.level);
     } catch (e) {
       // Silent — the panel just collapses if the helper is unavailable.
-      // eslint-disable-next-line no-console
+       
       console.debug('AI suggestion failed', e?.response?.status);
     } finally {
       setSuggestionLoading(false);

@@ -1,3 +1,4 @@
+/* global TextEncoder */
 /**
  * Iter 220e7 — Engineer App Web Push helper.
  *

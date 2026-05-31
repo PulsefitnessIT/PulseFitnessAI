@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Plus, Pin, PinOff, Trash2, Search, X, Loader2, Save } from 'lucide-react';
+import { Plus, Pin, PinOff, Search, X, Loader2, Save } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
 const API = process.env.REACT_APP_BACKEND_URL

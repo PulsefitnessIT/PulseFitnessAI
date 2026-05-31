@@ -23,7 +23,7 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-export default function MachineRowCustomFields({ caseId, row, onPatch }) {
+export default function MachineRowCustomFields({ caseId: _caseId, row, onPatch }) {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);

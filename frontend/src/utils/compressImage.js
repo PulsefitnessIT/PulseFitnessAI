@@ -1,3 +1,4 @@
+/* global createImageBitmap */
 /**
  * compressImage — Iter 220db.
  *

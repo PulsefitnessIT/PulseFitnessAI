@@ -186,7 +186,7 @@ export default function TrialSignupModal() {
       // toggle is off so a stale value doesn't slip through.
       const {
         has_different_company_phone,
-        company_search_query,
+        company_search_query: _company_search_query,
         ...payload
       } = profile;
       if (!has_different_company_phone) payload.company_phone = '';

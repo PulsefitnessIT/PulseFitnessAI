@@ -182,7 +182,6 @@ export default function PartnerWallShareCard() {
           >
             <div className="shrink-0 rounded-lg overflow-hidden border border-zinc-100">
               {qrUrl ? (
-                /* eslint-disable-next-line jsx-a11y/img-redundant-alt */
                 <img
                   src={qrUrl}
                   alt="QR code for your reviews wall"

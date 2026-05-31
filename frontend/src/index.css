@@ -101,6 +101,9 @@
   --color-accent-indigo:     #5856D6;
   --color-accent-violet:     #8B5CF6;
   --color-accent-magenta:    #AF52DE;
+  --color-accent-magenta-15: #F3E8FF;   /* 15% magenta on white — soft chip background */
+  --color-brand-linkedin:    #0A66C2;
+  --color-brand-linkedin-deep:#084D92;
   --color-accent-amber:      #FF9500;
 
   /* Additional neutrals surfaced during codemod */

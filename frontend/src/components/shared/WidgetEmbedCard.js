@@ -43,7 +43,8 @@ export default function WidgetEmbedCard({ ownerType = 'partner_engineer' }) {
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load();   }, []);
 
   const create = async () => {
     setCreating(true); setError(null);
@@ -93,7 +94,7 @@ export default function WidgetEmbedCard({ ownerType = 'partner_engineer' }) {
 
   if (embeds === null && !error) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 flex items-center justify-center">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[var(--theme-surface)] p-6 flex items-center justify-center">
         <Loader2 className="animate-spin text-blue-600" size={20} />
       </div>
     );

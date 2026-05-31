@@ -114,7 +114,8 @@ export default function IncidentsTab() {
     }
   }, [API, headers, filters, picklists]);
 
-  useEffect(() => { loadAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadAll();   }, [filters]);
 
   return (
     <div className="space-y-6" data-testid="incidents-tab">
@@ -335,7 +336,7 @@ function QuickLogDialog({ open, onClose, picklists, onCreated }) {
     if (open) {
       setShowDetails(form.kind === 'accident' || form.kind === 'dangerous_occurrence');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, form.kind]);
 
   const submit = async () => {

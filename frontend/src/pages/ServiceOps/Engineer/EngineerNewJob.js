@@ -117,7 +117,7 @@ export default function EngineerNewJob() {
       setVoiceTranscript(draft.transcript || '');
       sessionStorage.removeItem('svc.engineer.voiceJobDraft');
     } catch { /* private mode / corrupt JSON — fall through */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   const set = (k, v) => setForm((s) => {

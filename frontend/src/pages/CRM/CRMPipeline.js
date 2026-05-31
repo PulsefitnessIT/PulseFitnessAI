@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCRM } from './CRMApp';
 import {
-  Plus, Search, Target, DollarSign, Calendar, User, Building2, ArrowLeft, GripVertical, List, LayoutGrid, X, Activity, FileText, Phone, Mail, CheckCircle, Edit2, Printer,
+  Plus, Search, Target, DollarSign, Calendar, User, Building2, ArrowLeft, GripVertical, List, LayoutGrid, X, FileText, CheckCircle, Edit2, Printer,
   GitBranch, Award,
 } from 'lucide-react';
 import axios from 'axios';
@@ -90,7 +90,6 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
   };
 
   const stageColor = STAGE_COLORS[opp.stage] || 'var(--color-text-faint-alt)';
-  const actIcons = { note: FileText, call: Phone, email: Mail, meeting: Calendar, task: CheckCircle, system: Activity };
 
   return (
     <div data-testid="crm-opportunity-detail">

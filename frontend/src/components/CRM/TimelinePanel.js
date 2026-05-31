@@ -139,7 +139,8 @@ export default function TimelinePanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope?.type, scope?.id, API]);
 
-  useEffect(() => { load(true); /* eslint-disable-next-line */ }, [scope?.type, scope?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(true);   }, [scope?.type, scope?.id]);
 
   const grouped = useMemo(() => {
     const g = new Map();

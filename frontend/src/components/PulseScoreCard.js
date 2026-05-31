@@ -15,7 +15,7 @@
  *     a slow, gentle scale loop on the inner halo. No box-shadow.
  *   - Component bars inside the breakdown sit on pure white.
  */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/App';
@@ -103,6 +103,7 @@ export const PulseScoreCard = ({ siteId }) => {
       .then(r => { setData(r.data); setError(null); })
       .catch(e => setError(e.response?.data?.detail || COPY.error))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);
 
   if (loading) {

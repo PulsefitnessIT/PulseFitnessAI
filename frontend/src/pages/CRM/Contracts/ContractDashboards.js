@@ -98,7 +98,8 @@ export function ContractsRenewalsDashboard({ API, headers, c, isDark, onOpen }) 
       .catch(() => setData({ buckets: { '30': [], '60': [], '90': [] }, totals: {} }))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { reload();   }, []);
 
   const runReminders = async () => {
     setRunning(true);

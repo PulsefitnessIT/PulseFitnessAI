@@ -74,8 +74,8 @@ export default function PublicContractAcceptPage() {
   };
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="p-6 max-w-md rounded-2xl border bg-white text-center">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[var(--theme-canvas)]">
+      <div className="p-6 max-w-md rounded-2xl border bg-white dark:bg-[var(--theme-surface)] text-center">
         <p className="text-base font-semibold text-rose-700" data-testid="accept-error">{error}</p>
       </div>
     </div>
@@ -83,8 +83,8 @@ export default function PublicContractAcceptPage() {
   if (!data) return <div className="min-h-screen flex items-center justify-center text-sm text-slate-500">Loading contract…</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4" data-testid="public-accept-page">
-      <div className="max-w-3xl mx-auto bg-white rounded-2xl border shadow-sm overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-[var(--theme-canvas)] py-8 px-4" data-testid="public-accept-page">
+      <div className="max-w-3xl mx-auto bg-white dark:bg-[var(--theme-surface)] rounded-2xl border shadow-sm overflow-hidden">
         {/* Brand header */}
         <header className="px-6 py-4 border-b flex items-center justify-between"
                 style={{ background: 'linear-gradient(135deg, #0055FF, #003db8)' }}>
@@ -147,8 +147,8 @@ export default function PublicContractAcceptPage() {
                      data-testid="accept-signer-name"
                      className="w-full px-3 py-2 rounded border text-sm" />
               <canvas ref={canvasRef} data-testid="accept-canvas"
-                      className="w-full rounded border bg-white cursor-crosshair touch-none"
-                      style={{ height: 150 }}
+                      className="w-full rounded border cursor-crosshair touch-none"
+                      style={{ height: 150, backgroundColor: '#FFFFFF' }}
                       onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
                       onTouchStart={start} onTouchMove={move} onTouchEnd={end} />
               <button onClick={submit} disabled={signing || !signerName.trim()}

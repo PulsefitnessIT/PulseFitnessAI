@@ -55,7 +55,7 @@ export default function CompleteProfilePage() {
       // Only send the keys the server allows; strip the UI-only toggle.
       const {
         has_different_company_phone,
-        company_search_query,
+        company_search_query: _company_search_query,
         ...payload
       } = form;
       if (!has_different_company_phone) payload.company_phone = '';

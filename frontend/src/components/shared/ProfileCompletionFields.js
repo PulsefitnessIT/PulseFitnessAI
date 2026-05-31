@@ -273,7 +273,7 @@ function CompaniesHouseSearch({ form, setForm }) {
           <button
             type="button"
             onClick={switchToManual}
-            className="mt-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 underline"
+            className="mt-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 underline"
             data-testid="profile-co-ch-no-match"
           >
             Can&apos;t find your company? Enter manually (sole trader / foreign / new business)
@@ -472,7 +472,7 @@ export default function ProfileCompletionFields({ form, setForm }) {
             <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-zinc-200">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 focus:ring-slate-400"
                 checked={!!form.has_different_company_phone}
                 onChange={toggle('has_different_company_phone')}
                 data-testid="profile-co-phone-toggle"

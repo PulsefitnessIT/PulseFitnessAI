@@ -51,7 +51,7 @@ const TEMPLATE_TONE_HINTS = {
   'lost-revival': 'Low-pressure, news-led',
 };
 
-function KpiTile({ label, value, hint, icon: Icon, accent = 'text-zinc-900', series, accentStroke = '#a21caf' }) {
+function KpiTile({ label, value, hint, icon: Icon, accent = 'text-zinc-900', series, accentStroke = 'var(--color-accent-magenta)' }) {
   // Iter 220aj — inline SVG sparkline. We render the last 30 days of
   // the metric directly under the headline number so the master admin
   // can answer "are we growing this month?" without clicking through.
@@ -469,7 +469,7 @@ export default function GymAxisGrowthHub({ onJumpSection }) {
           hint={`${data.outbound.failed_30d} failed`}
           icon={Mail}
           series={spark?.emails_sent}
-          accentStroke="#e11d48"
+          accentStroke="var(--color-rose)"
         />
         <KpiTile
           label="Pipeline £" value={`£${Number(data.pipeline.pipeline_value_gbp || 0).toLocaleString()}`}

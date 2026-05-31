@@ -176,7 +176,6 @@ export default function EmbedFaultForm() {
         <header className="mb-5" data-testid="embed-header">
           <div className="flex items-center gap-3">
             {config.owner?.photo_url ? (
-              /* eslint-disable-next-line jsx-a11y/img-redundant-alt */
               <img
                 src={config.owner.photo_url}
                 alt={config.owner.name}

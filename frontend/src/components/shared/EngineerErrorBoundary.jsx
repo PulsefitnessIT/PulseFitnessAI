@@ -53,13 +53,13 @@ export default class EngineerErrorBoundary extends Component {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-6"
            data-testid="engineer-error-boundary">
-        <div className="max-w-md w-full rounded-2xl border bg-white shadow-sm p-6 text-center"
+        <div className="max-w-md w-full rounded-2xl border bg-white dark:bg-[var(--theme-surface)] shadow-sm p-6 text-center"
              style={{ borderColor: '#FECACA' }}>
           <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3"
                style={{ background: '#FEF2F2' }}>
             <AlertOctagon size={20} className="text-rose-600" />
           </div>
-          <h2 className="text-base font-extrabold text-slate-900 mb-1">
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100 mb-1">
             Something went wrong on this screen
           </h2>
           <p className="text-xs text-slate-500 mb-4">
@@ -72,7 +72,7 @@ export default class EngineerErrorBoundary extends Component {
               <RefreshCcw size={12} /> Reload this screen
             </button>
             <button onClick={() => { window.location.href = '/svc/engineer'; }} data-testid="engineer-eb-home-btn"
-                    className="w-full py-2 rounded-md text-sm font-semibold border border-slate-200 text-slate-700">
+                    className="w-full py-2 rounded-md text-sm font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
               Back to engineer home
             </button>
           </div>

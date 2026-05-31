@@ -9,7 +9,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import {
-  AlertTriangle, CheckCircle, X, MessageSquare, Wrench,
+  AlertTriangle, CheckCircle, MessageSquare, Wrench,
   ChevronRight, RefreshCw,
 } from 'lucide-react';
 

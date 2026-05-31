@@ -27,7 +27,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  X, ChevronLeft, ChevronRight, Check, Building2, MapPin,
+  X, ChevronLeft, ChevronRight, Check, Building2,
   Wrench, Shield, ListChecks, Slash, Package, Clock,
   DollarSign, FileText, Eye,
 } from 'lucide-react';
@@ -346,7 +346,7 @@ function CoverStep({ form, setForm, templates, catalog, c, isDark }) {
 }
 
 // ── Step 4 · Inclusions ──────────────────────────────────────
-function InclusionsStep({ form, setForm, catalog, c, isDark }) {
+function InclusionsStep({ form, setForm, catalog, c, isDark: _isDark }) {
   const toggle = (groupKey, itemKey) => {
     const current = new Set(form.inclusions?.[groupKey] || []);
     if (current.has(itemKey)) current.delete(itemKey); else current.add(itemKey);

@@ -61,7 +61,7 @@ export default function EngineerRatings() {
 
   useEffect(() => { load(); }, [load]);
 
-  const summary = data?.summary || {};
+  const summary = useMemo(() => data?.summary || {}, [data]);
   const ratings = data?.ratings || [];
   const maxBar = useMemo(() => {
     const dist = summary.distribution || {};

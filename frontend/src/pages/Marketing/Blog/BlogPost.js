@@ -75,7 +75,9 @@ export default function BlogPost() {
     return () => { cancelled = true; };
   }, [slug, staticPost]);
 
-  const post = staticPost || (dbPost ? {
+  // Iter 220ea·3 — wrap derived `post` in useMemo so the
+  // document-title useEffect below doesn't churn on every render.
+  const post = React.useMemo(() => staticPost || (dbPost ? {
     slug: dbPost.slug,
     title: dbPost.title,
     excerpt: dbPost.excerpt,
@@ -89,12 +91,12 @@ export default function BlogPost() {
           <img
             src={dbPost.hero_image_url}
             alt={dbPost.hero_image_alt || dbPost.title}
-            className="w-full rounded-2xl border border-slate-200 mb-8"
+            className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 mb-8"
             data-testid="blog-hero"
           />
         ) : null}
         <div
-          // eslint-disable-next-line react/no-danger
+           
           dangerouslySetInnerHTML={{ __html: mdToHtml(dbPost.body_md) }}
         />
         {dbPost.qa_blocks?.length ? (
@@ -112,7 +114,7 @@ export default function BlogPost() {
     ),
     qa_blocks: dbPost.qa_blocks,
     meta_description: dbPost.meta_description,
-  } : null);
+  } : null), [staticPost, dbPost]);
 
   React.useEffect(() => {
     if (!post) return undefined;
@@ -167,13 +169,13 @@ export default function BlogPost() {
     <MarketingShell>
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
+         
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
       />
       {faqJsonLd ? (
         <script
           type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
+           
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       ) : null}

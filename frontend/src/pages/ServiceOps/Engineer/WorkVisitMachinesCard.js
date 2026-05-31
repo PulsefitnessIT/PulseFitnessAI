@@ -61,7 +61,7 @@ export default function WorkVisitMachinesCard({ caseId }) {
     }
   }, [caseId, expandedId]);
 
-  useEffect(() => { load(); }, [load]); // eslint-disable-line
+  useEffect(() => { load(); }, [load]);  
 
   // Load equipment list for the asset picker — once per session is enough.
   useEffect(() => {
@@ -626,7 +626,7 @@ function MachineAssetPicker({ row, assetOptions, onPatch }) {
 function MachineRow({
   row, index, expanded, onExpand, onPatch, onDelete, onCopyDown,
   onAttachPhoto, onRemovePhoto,
-  showCopyDown, assetOptions, assetSearch, setAssetSearch,
+  showCopyDown, assetOptions, assetSearch: _assetSearch, setAssetSearch: _setAssetSearch,
 }) {
   const notesRef = useRef(null);
   const photoInputRef = useRef(null);
