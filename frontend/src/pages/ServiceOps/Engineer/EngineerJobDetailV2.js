@@ -2594,21 +2594,10 @@ function EquipmentTab({ job, onChange }) {
         </div>
       ) : null}
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-3">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <Package size={18} className="text-blue-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-slate-900">Site equipment</p>
-            <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
-              Tap <strong>From site</strong> to pre-load every machine at this
-              gym, then tick the ones you'll service. Write your report and
-              tag parts against each row.
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Iter 220ea·11 — "Site equipment" info card removed.
+          The Machines card below carries the "From site" /
+          "New asset" actions; the help text was redundant
+          and ate vertical space on a phone. */}
 
       {/* Iter 220cn — All machine actions for this job live in this
           card: "From site" picker (multi-select), "New asset" link,

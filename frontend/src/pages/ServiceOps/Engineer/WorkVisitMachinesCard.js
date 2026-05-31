@@ -251,7 +251,13 @@ export default function WorkVisitMachinesCard({ caseId }) {
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        {/* Iter 220ea·11 — "Add machine" removed. Every machine
+            must be backed by a real asset record so the engineer
+            picks "From site" (existing equipment for this gym)
+            or "New asset" (create + attach). The old blank-row
+            "Add machine" path created orphan rows with no asset
+            linkage. */}
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setSitePickerOpen(true)}
@@ -271,16 +277,6 @@ export default function WorkVisitMachinesCard({ caseId }) {
             <PackagePlus size={16} />
             <span>New asset</span>
           </Link>
-          <button
-            type="button"
-            onClick={() => addRow({})}
-            disabled={adding}
-            className="inline-flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-extrabold hover:bg-blue-700 disabled:opacity-50"
-            data-testid="machines-add-btn"
-          >
-            {adding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            <span>Add machine</span>
-          </button>
         </div>
       </div>
 

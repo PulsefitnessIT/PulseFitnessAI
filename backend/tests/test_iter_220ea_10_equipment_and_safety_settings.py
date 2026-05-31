@@ -41,15 +41,15 @@ def _read(p: Path) -> str:
 
 
 def test_machines_action_row_uses_grid_layout():
-    """The 3 actions (From site · New asset · Add machine) now
-    sit in a `grid grid-cols-3` so they're equal-width and never
-    stack vertically on a phone."""
+    """The action buttons (From site · New asset) now sit in a
+    `grid grid-cols-2` so they're equal-width and never stack
+    vertically on a phone. Iter 220ea·11 dropped the "Add
+    machine" button — see test_iter_220ea_11_equipment_cleanups."""
     src = _read(MACHINES)
-    assert 'className="grid grid-cols-3 gap-2"' in src
-    # All three test-ids still present.
+    assert 'className="grid grid-cols-2 gap-2"' in src
+    # Two surviving test-ids.
     assert 'data-testid="machines-load-from-site-btn"' in src
     assert 'data-testid="machines-new-asset-link"' in src
-    assert 'data-testid="machines-add-btn"' in src
 
 
 def test_machine_row_name_no_longer_truncated():

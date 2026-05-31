@@ -1,3 +1,30 @@
+## Iter 220ea·11 — Equipment tab cleanups #2 ✅ (Feb 14, 2026)
+
+Two more cleanups from live user feedback on the Equipment tab:
+
+1. **"Site equipment" info card removed** from `EquipmentTab` in
+   `EngineerJobDetailV2.js`. The blue help-bubble at the top of the
+   tab explaining "Tap From site to pre-load every machine…" ate
+   ~120 px of vertical space on a phone; the action buttons on
+   the Machines card make the flow self-explanatory.
+2. **"Add machine" button removed** from
+   `WorkVisitMachinesCard.js`. Every machine must be backed by a
+   real asset record; the old blank-row path created orphans
+   with no asset linkage. Two surviving entry points cover all
+   cases:
+   - **From site** — picker shows all equipment for this gym
+   - **New asset** — create + attach a brand-new equipment record
+   Grid collapses from `grid-cols-3` to `grid-cols-2`. The
+   `addRow` helper is retained (still used by the "From site"
+   picker's confirm flow).
+
+### Tests
+`backend/tests/test_iter_220ea_11_equipment_cleanups.py`
+(5 source-level guards). The iter 220ea·10 grid-layout test
+updated to assert `grid-cols-2` and no `machines-add-btn`. Added
+to `Makefile` regression target. 60/60 nearby tests pass.
+
+
 ## Iter 220ea·10 — Equipment redesign + H&S editor + per-job waiver ✅ (Feb 14, 2026)
 
 Three connected fixes off a live user report.
