@@ -93,18 +93,18 @@ export default function EngineerInvoices() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-5 pb-24 space-y-4">
-        <div className="grid grid-cols-3 gap-3" data-testid="engineer-invoices-kpis">
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500">Outstanding</p>
-            <p className="text-2xl font-extrabold text-amber-600 mt-1 tabular-nums">{fmtGBP(totals.outstanding)}</p>
+        <div className="grid grid-cols-3 gap-2" data-testid="engineer-invoices-kpis">
+          <div className="min-w-0 bg-white rounded-2xl border border-slate-200 p-3">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500 truncate">Outstanding</p>
+            <p className="text-base sm:text-lg font-extrabold text-amber-600 mt-1 tabular-nums truncate">{fmtGBP(totals.outstanding)}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500">Paid</p>
-            <p className="text-2xl font-extrabold text-emerald-600 mt-1 tabular-nums">{fmtGBP(totals.paid)}</p>
+          <div className="min-w-0 bg-white rounded-2xl border border-slate-200 p-3">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500 truncate">Paid</p>
+            <p className="text-base sm:text-lg font-extrabold text-emerald-600 mt-1 tabular-nums truncate">{fmtGBP(totals.paid)}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500">Count</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">{totals.count}</p>
+          <div className="min-w-0 bg-white rounded-2xl border border-slate-200 p-3">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500 truncate">Count</p>
+            <p className="text-base sm:text-lg font-extrabold text-slate-900 mt-1 tabular-nums truncate">{totals.count}</p>
           </div>
         </div>
 

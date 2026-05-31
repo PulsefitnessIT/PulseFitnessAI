@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { useIsEngineerRoute } from '@/utils/useIsEngineerRoute';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { Sparkles, X, Send, Loader2, Check, ExternalLink, User, Bot, ThumbsUp, ThumbsDown } from 'lucide-react';
@@ -560,10 +561,13 @@ export default function AskGymAxis() {
    return () => window.removeEventListener('gx:open-ask', onOpen);
  }, []);
 
- // Iter 220ea·5 — Suppress the floating orb on engineer routes;
- // the SpeedDial provides the consolidated launcher.
- const isEngineerRoute = typeof window !== 'undefined'
-   && /^\/svc\/engineer/.test(window.location.pathname);
+ // Iter 220ea·5/·6 — Suppress the floating orb on engineer routes;
+ // the SpeedDial provides the consolidated launcher. AskGymAxis is
+ // mounted OUTSIDE the BrowserRouter (see App.js — sits at the
+ // outer container alongside CookieConsent), so we can't call
+ // `useLocation()` here. The custom hook gives the same reactivity
+ // via a history-pushState patch.
+ const isEngineerRoute = useIsEngineerRoute();
 
  return (
  <>

@@ -20,6 +20,7 @@ import {
   Mic, MicOff, Loader2, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { useIsEngineerRoute } from '@/utils/useIsEngineerRoute';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -56,11 +57,11 @@ export default function VoiceToJobButton() {
     return () => window.removeEventListener('gx:open-voice', onOpen);
   }, []);
 
-  // Iter 220ea·5 — The engineer SpeedDial owns the launcher on
+  // Iter 220ea·5/·6 — The engineer SpeedDial owns the launcher on
   // engineer routes; suppress the floating mic so we don't show
-  // two buttons at the same corner.
-  const isEngineerRoute = typeof window !== 'undefined'
-    && /^\/svc\/engineer/.test(window.location.pathname);
+  // two buttons at the same corner. Router-agnostic hook handles
+  // both inside-Router and outside-Router mountings reactively.
+  const isEngineerRoute = useIsEngineerRoute();
 
   const cleanup = useCallback(() => {
     if (tickRef.current) {

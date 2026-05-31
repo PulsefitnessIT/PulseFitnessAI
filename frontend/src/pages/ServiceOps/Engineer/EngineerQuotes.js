@@ -114,19 +114,19 @@ export default function EngineerQuotes() {
 
       <main className="max-w-5xl mx-auto px-4 py-5 pb-24 space-y-4">
         {/* Pipeline summary */}
-        <div className="grid grid-cols-3 gap-3" data-testid="engineer-quotes-kpis">
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500">Pipeline</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">{fmtGBP(totals.pipeline)}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Draft + Sent</p>
+        <div className="grid grid-cols-3 gap-2" data-testid="engineer-quotes-kpis">
+          <div className="min-w-0 bg-white rounded-2xl border border-slate-200 p-3">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500 truncate">Pipeline</p>
+            <p className="text-base sm:text-lg font-extrabold text-slate-900 mt-1 tabular-nums truncate">{fmtGBP(totals.pipeline)}</p>
+            <p className="text-[11px] text-slate-400 mt-1 truncate">Draft + Sent</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500">Accepted</p>
-            <p className="text-2xl font-extrabold text-emerald-600 mt-1 tabular-nums">{fmtGBP(totals.accepted)}</p>
+          <div className="min-w-0 bg-white rounded-2xl border border-slate-200 p-3">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500 truncate">Accepted</p>
+            <p className="text-base sm:text-lg font-extrabold text-emerald-600 mt-1 tabular-nums truncate">{fmtGBP(totals.accepted)}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500">Count</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">{totals.count}</p>
+          <div className="min-w-0 bg-white rounded-2xl border border-slate-200 p-3">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-slate-500 truncate">Count</p>
+            <p className="text-base sm:text-lg font-extrabold text-slate-900 mt-1 tabular-nums truncate">{totals.count}</p>
           </div>
         </div>
 

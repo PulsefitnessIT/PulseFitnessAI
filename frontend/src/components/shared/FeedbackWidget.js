@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useIsEngineerRoute } from '@/utils/useIsEngineerRoute';
 import { ThumbsUp, ThumbsDown, MessageSquarePlus, X, Send, Check } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -39,13 +40,16 @@ export default function FeedbackWidget() {
     return () => window.removeEventListener('gx:open-feedback', onOpen);
   }, []);
 
-  if (hidden) return null;
+  // Iter 220ea·5/·6 — Suppress the launcher on engineer routes;
+  // the SpeedDial provides the consolidated entry point. Uses the
+  // router-agnostic hook because some App.js mountings sit outside
+  // <BrowserRouter> and the hook must work in either spot.
+  //
+  // ⚠️ Called BEFORE the `if (hidden) return null` short-circuit —
+  // hooks must always run in the same order on every render.
+  const isEngineerRoute = useIsEngineerRoute();
 
-  // Iter 220ea·5 — Suppress the launcher on engineer routes; the
-  // SpeedDial provides the consolidated entry point. The panel
-  // (`open` branch) still renders so an event-driven open works.
-  const isEngineerRoute = typeof window !== 'undefined'
-    && /^\/svc\/engineer/.test(window.location.pathname);
+  if (hidden) return null;
 
   const submit = async () => {
     if (!sentiment) return;
