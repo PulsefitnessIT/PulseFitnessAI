@@ -92,6 +92,11 @@ export function EngineerEntitlementPanel({ caseId, getAuthHeaders }) {
     );
   }
 
+  // Iter 220e6 — Solo/contract-less tenants don't see the panel at
+  // all so it doesn't sit red on every job. The cover banner above
+  // is the engineer's billability signal in that mode.
+  if (data.tenant_has_contracts === false) return null;
+
   const cardStyle = data.active
     ? { borderColor: 'var(--color-success-alt)30', background: 'var(--color-success-alt)05' }
     : { borderColor: 'var(--color-danger)30', background: 'var(--color-danger)05' };

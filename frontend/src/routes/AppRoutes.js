@@ -14,6 +14,7 @@
  */
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
 // to avoid a Suspense fallback on landing.
@@ -407,10 +408,10 @@ export default function AppRoutes({ user, login }) {
       <Route path="/service-ops/billing" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/reports" element={<Navigate to="/service-desk" replace />} />
       <Route path="/service-ops/comms" element={<Navigate to="/service-desk" replace />} />
-      <Route path="/svc/engineer" element={user ? <ServiceOpsEngineerHome /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/jobs" element={user ? <ServiceOpsEngineerJobsList /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/jobs/:caseId" element={user ? <ServiceOpsEngineerJob /> : <Navigate to="/login" replace />} />
-      <Route path="/svc/engineer/jobs/:caseId/legacy" element={user ? <ServiceOpsEngineerJobLegacy /> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerHome /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/jobs" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerJobsList /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/jobs/:caseId" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerJob /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
+      <Route path="/svc/engineer/jobs/:caseId/legacy" element={user ? <EngineerErrorBoundary><ServiceOpsEngineerJobLegacy /></EngineerErrorBoundary> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/quotes" element={user ? <ServiceOpsEngineerQuotes /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/quotes/new" element={user ? <ServiceOpsEngineerQuoteBuilder /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/quotes/:id" element={user ? <ServiceOpsEngineerQuoteBuilder /> : <Navigate to="/login" replace />} />

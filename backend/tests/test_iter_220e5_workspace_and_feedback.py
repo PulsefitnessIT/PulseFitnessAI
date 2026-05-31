@@ -211,7 +211,9 @@ def test_entitlement_panel_returns_red_when_no_contract():
     fdb.svc_cases.find_one = AsyncMock(return_value={
         "id": "case-1", "organization_id": "org-1",
     })
-    fdb.crm2_contracts.find_one = AsyncMock(return_value=None)
+    # First (and only) crm2_contracts.find_one call is the
+    # any_contract scan inside the new contract-less guard.
+    fdb.crm2_contracts.find_one = AsyncMock(return_value={"id": "other-contract"})
     with patch("routes.crm_contract_workspace.db", fdb):
         out = _run(engineer_entitlement("case-1", user=USER))
     assert out["active"] is False

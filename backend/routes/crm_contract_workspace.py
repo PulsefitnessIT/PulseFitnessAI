@@ -354,11 +354,29 @@ async def engineer_entitlement(case_id: str, user=Depends(get_current_user)):
     """
     case, contract = await _resolve_case_and_contract(case_id)
     if not contract:
-        # No contract on file — return chargeable shape.
+        # Iter 220e6 — for solo / contract-less tenants, suppress the
+        # panel entirely so it doesn't sit red on every job. Engineer
+        # cover signals are still carried by the iter 220e1 cover chip
+        # + banner on Summary which always render.
+        any_contract = await db.crm2_contracts.find_one(
+            {"organization_id": case.get("organization_id")},
+            {"_id": 0, "id": 1},
+        )
+        if not any_contract:
+            return {
+                "active": False,
+                "label": "",
+                "tone": "neutral",
+                "tenant_has_contracts": False,
+                "fields": [],
+            }
+        # Tenant uses contracts but this case isn't linked to one —
+        # surface the chargeable warning as before.
         return {
             "active": False,
             "label": "No contract on file — chargeable visit",
             "tone": "red",
+            "tenant_has_contracts": True,
             "fields": [],
         }
     # Resolve labels via the canonical catalog.

@@ -28,6 +28,8 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
+// Iter 220e6 — Release readiness: outbox pill + global error reporter.
+import { OutboxStatusPill, installEngineerErrorReporters } from '@/utils/engineerStatusBoot';
 import useEngineerAttention from './hooks/useEngineerAttention';
 import EngineerAppShellNudge from './EngineerAppShellNudge';
 
@@ -197,6 +199,9 @@ export default function EngineerHomeV2() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  // Iter 220e6 — Install global JS error reporter once the Engineer
+  // App home is reached. Idempotent.
+  useEffect(() => { installEngineerErrorReporters(); }, []);
 
   const kpis = data?.kpis || {};
 
@@ -217,6 +222,9 @@ export default function EngineerHomeV2() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Iter 220e6 — Offline outbox status pill. Only renders
+                when offline or there are queued mutations. */}
+            <OutboxStatusPill />
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/workspace')}

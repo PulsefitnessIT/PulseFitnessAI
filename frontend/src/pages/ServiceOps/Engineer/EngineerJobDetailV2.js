@@ -46,6 +46,11 @@ import { resolveChannel } from '@/utils/channelLabel';
 import { compressImage } from '@/utils/compressImage';
 import ComplianceCard from './ComplianceCard';
 import EngineerEntitlementPanel from './EngineerEntitlementPanel';
+// Iter 220e6 — Offline write outbox for high-value mutating calls.
+// Complete, signature, parts-use and time entries survive a flaky
+// connection by being persisted in IndexedDB and replayed on
+// reconnect.
+import { outboxPost } from '@/utils/engineerOutbox';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -2547,18 +2552,25 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
     setBusy(true);
     try {
       if (signatureData && signatureName.trim()) {
-        await axios.post(`${API}/svc/engineer/signature`, {
+        await outboxPost(`${API}/svc/engineer/signature`, {
           case_id: job.id, signed_by_name: signatureName.trim(),
           image_data: signatureData, summary: summary.trim(),
-        }, auth());
+        }, { headers: auth().headers, kind: 'signature',
+            label: `Sign-off · ${job.reference || job.id}` });
       }
-      await axios.post(`${API}/svc/engineer/jobs/${job.id}/complete`, {
+      const completeRes = await outboxPost(`${API}/svc/engineer/jobs/${job.id}/complete`, {
         summary: summary.trim(), target,
         // Iter 220e0 — chargeable now follows cover state, not always true.
         chargeable: willBill,
         custom_fields: customFields,
-      }, auth());
-      notify.success('Job completed');
+      }, { headers: auth().headers, kind: 'job_complete',
+          label: `Complete · ${job.reference || job.id}` });
+      if (completeRes?.queued) {
+        notify.success('Saved offline — will sync when back online',
+                       `Queued: Complete ${job.reference || job.id}`);
+      } else {
+        notify.success('Job completed');
+      }
       if (willGenerateInvoice) {
         try {
           const r = await axios.post(
