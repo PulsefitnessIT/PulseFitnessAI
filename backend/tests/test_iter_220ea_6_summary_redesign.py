@@ -72,9 +72,9 @@ def test_action_row_component_exists():
     assert 'data-testid="summary-action-row"' in src
 
 
-def test_action_row_has_four_canonical_actions():
-    """Call · Navigate · Email · Photo. Test-ids are stable so the
-    e2e suite and any future analytics taps can pin them."""
+def test_action_row_has_three_canonical_actions():
+    """Iter 220ea·7 — Call · Navigate · Email. The Photo action
+    was removed (Equipment tab owns per-machine capture)."""
     src = _read()
     # Call / Navigate / Email reuse the pre-existing jaag-* test-ids
     # so existing E2E assertions keep working. The IDs are set
@@ -82,15 +82,17 @@ def test_action_row_has_four_canonical_actions():
     assert "testid: 'jaag-call'" in src
     assert "testid: 'jaag-maps'" in src
     assert "testid: 'jaag-email'" in src
-    # Photo is a new action and jumps to the Equipment tab where
-    # per-machine capture lives.
-    assert "testid: 'summary-action-photo'" in src
+    # Photo action is gone — both the descriptor and the route.
+    assert "testid: 'summary-action-photo'" not in src
+    assert "summary-action-photo" not in src
+    # Grid stays geometrically stable — 3 columns now, not 4.
+    assert "grid grid-cols-3 gap-2\" data-testid=\"summary-action-row\"" in src
 
 
 def test_photo_action_jumps_to_equipment_tab():
+    """Photo action has been removed in iter 220ea·7."""
     src = _read()
-    # The Photo button calls onJumpToTab('equipment').
-    assert "onJumpToTab('equipment')" in src
+    assert "onJumpToTab('equipment')" not in src
 
 
 def test_action_row_disabled_state_when_no_target():

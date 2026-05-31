@@ -1,3 +1,33 @@
+## Iter 220ea·7 — Summary tab follow-up cleanups ✅ (Feb 14, 2026)
+
+Four small fixes off a live user report on the Engineer App Summary
+tab. All in `EngineerJobDetailV2.js`.
+
+1. **Cover banner moved to the top of the Summary card.** The
+   "Chargeable visit · confirm spend" rose card (and its
+   warranty/contract green/amber siblings) now sits right under
+   the safety banner — first thing the engineer reads after H&S.
+2. **Photo action removed from the Summary action row.** Grid
+   collapsed from 4-up to 3-up (Call · Navigate · Email). The
+   Equipment tab owns per-machine capture; a duplicate entry
+   point was clutter on a 412 px screen.
+3. **`EngineerEntitlementPanel` removed from Summary.** The "No
+   contract on file · Send feedback to coordinator" card lived
+   here and confused engineers on jobs without a CRM contract
+   link. CRM-feedback flows live on the Complete tab; cover
+   context is conveyed by the cover banner + chargeable pill.
+4. **Time tab H&S "checklist required" warning deleted.** The
+   Summary tab's amber banner is now the single source of truth
+   for the pre-job signoff requirement — duplication on Time
+   was redundant.
+
+### Tests
+`backend/tests/test_iter_220ea_7_summary_followups.py` (7 source-
+level guards, all green). Added to `Makefile` regression target
+(tab-indented). Pre-existing iter 220ea·6 tests updated to assert
+3-column action row + Photo-action removed.
+
+
 ## Iter 220ea·6 — Engineer App Summary tab redesign ✅ (Feb 14, 2026)
 
 Deeper Summary surface in `EngineerJobDetailV2.js`. Three new

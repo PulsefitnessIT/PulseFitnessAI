@@ -24,7 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, Clock, Camera, Wrench, Car, Loader2, RefreshCw,
+  ArrowLeft, Clock, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
   Video, MapPin, Send, Download, Phone, Navigation, History,
@@ -46,7 +46,6 @@ import { resolveChannel } from '@/utils/channelLabel';
 import { compressImage } from '@/utils/compressImage';
 import { chunkedUpload } from '@/utils/chunkedUpload';
 import ComplianceCard from './ComplianceCard';
-import EngineerEntitlementPanel from './EngineerEntitlementPanel';
 // Iter 220e6 — Offline write outbox for high-value mutating calls.
 // Complete, signature, parts-use and time entries survive a flaky
 // connection by being persisted in IndexedDB and replayed on
@@ -475,15 +474,74 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSa
       )}
 
       <div className="p-3 space-y-3">
+        {/* Iter 220ea·7 — Cover banner moved to the top of the
+            Summary card (right under the tabs / safety banner).
+            The engineer needs to read "Chargeable visit · confirm
+            spend" before they look at anything else when the
+            customer doesn't have cover. */}
+        <div
+          className={`rounded-2xl border p-3 ${
+            cover.tone === 'green'
+              ? 'bg-emerald-50 border-emerald-200'
+              : cover.tone === 'amber'
+                ? 'bg-amber-50 border-amber-300'
+                : 'bg-rose-50 border-rose-300'
+          }`}
+          data-testid="jaag-cover-banner"
+          data-tone={cover.tone}
+        >
+          <div className="flex items-start gap-2">
+            <ShieldCheck
+              size={16}
+              className={`mt-0.5 shrink-0 ${
+                cover.tone === 'green'
+                  ? 'text-emerald-700'
+                  : cover.tone === 'amber'
+                    ? 'text-amber-700'
+                    : 'text-rose-700'
+              }`}
+            />
+            <div className="flex-1 min-w-0">
+              <p
+                className={`text-xs font-extrabold ${
+                  cover.tone === 'green'
+                    ? 'text-emerald-900'
+                    : cover.tone === 'amber'
+                      ? 'text-amber-900'
+                      : 'text-rose-900'
+                }`}
+                data-testid="jaag-cover-banner-label"
+              >
+                {cover.label}
+              </p>
+              {cover.detail && (
+                <p
+                  className={`text-[11px] mt-0.5 ${
+                    cover.tone === 'green'
+                      ? 'text-emerald-800'
+                      : cover.tone === 'amber'
+                        ? 'text-amber-800'
+                        : 'text-rose-800'
+                  }`}
+                  data-testid="jaag-cover-banner-detail"
+                >
+                  {cover.detail}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Iter 220ea·6 — Status pill row: job status badge,
             live SLA countdown, priority. The one-glance answer to
             "what state is this job in?". */}
         <SummaryStatusPill job={job} cover={cover} />
 
-        {/* Iter 220ea·6 — Action row: 4 equal-width touch targets
+        {/* Iter 220ea·6 — Action row: 3 equal-width touch targets
             for the actions an engineer reaches for most (Call,
-            Navigate, Email, Photo). Replaces the cluster of small
-            round icons that used to sit next to the customer name. */}
+            Navigate, Email). Iter 220ea·7 — Photo dropped; the
+            Equipment tab owns per-machine capture and a second
+            entry-point on Summary was clutter on a 412px screen. */}
         <SummaryActionRow
           job={job}
           phone={phone}
@@ -610,73 +668,15 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSa
         </div>
       </div>
 
-      {/* Iter 220e1 — Detailed cover banner. Chip says *what* (Warranty
-          / Contract / Chargeable); banner says *what the engineer
-          should do* about it. Sits between the chip row and the
-          existing overrun/sibling/handoff warnings so it's the first
-          actionable signal the engineer reads.
-          Iter 220e2 — Tone-driven palette: green/amber/red. */}
-      <div
-        className={`rounded-2xl border p-3 ${
-          cover.tone === 'green'
-            ? 'bg-emerald-50 border-emerald-200'
-            : cover.tone === 'amber'
-              ? 'bg-amber-50 border-amber-300'
-              : 'bg-rose-50 border-rose-300'
-        }`}
-        data-testid="jaag-cover-banner"
-        data-tone={cover.tone}
-      >
-        <div className="flex items-start gap-2">
-          <ShieldCheck
-            size={16}
-            className={`mt-0.5 shrink-0 ${
-              cover.tone === 'green'
-                ? 'text-emerald-700'
-                : cover.tone === 'amber'
-                  ? 'text-amber-700'
-                  : 'text-rose-700'
-            }`}
-          />
-          <div className="flex-1 min-w-0">
-            <p
-              className={`text-xs font-extrabold ${
-                cover.tone === 'green'
-                  ? 'text-emerald-900'
-                  : cover.tone === 'amber'
-                    ? 'text-amber-900'
-                    : 'text-rose-900'
-              }`}
-              data-testid="jaag-cover-banner-label"
-            >
-              {cover.label}
-            </p>
-            {cover.detail && (
-              <p
-                className={`text-[11px] mt-0.5 ${
-                  cover.tone === 'green'
-                    ? 'text-emerald-800'
-                    : cover.tone === 'amber'
-                      ? 'text-amber-800'
-                      : 'text-rose-800'
-                }`}
-                data-testid="jaag-cover-banner-detail"
-              >
-                {cover.detail}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Iter 220e5 — Engineer App entitlement panel.
-          Read-only view of the linked CRM contract's structured cover,
-          plus a "Send feedback to coordinator" composer that feeds the
-          CRM Contract Review Queue. Source of truth stays in CRM. */}
-      <EngineerEntitlementPanel
-        caseId={job.id}
-        getAuthHeaders={() => auth().headers}
-      />
+      {/* Iter 220ea·7 — Cover banner moved to the top of the
+          card (above the status pill row); removed from this
+          slot to avoid two copies on Summary.
+          EngineerEntitlementPanel also removed — the engineer
+          gets entitlement context from the CRM-driven cover
+          banner + chargeable pill; the "No contract on file ·
+          send feedback to coordinator" surface lived here but
+          was confusing on Summary. CRM feedback flows live on
+          the Complete tab. */}
 
       {/* Iter 220cz — Overrun warning, sibling-jobs warning.
           Iter 220ds — Handoff notes on Summary are read-only and
@@ -825,10 +825,10 @@ function SummaryStatusPill({ job, cover }) {
   );
 }
 
-function SummaryActionRow({ job, phone, email, mapsHref, onJumpToTab }) {
-  const machines = Array.isArray(job?.machines) ? job.machines : [];
-  const firstMachineId = machines[0]?.id || null;
-  const photoHref = firstMachineId ? `?tab=equipment&machine=${firstMachineId}` : '?tab=equipment';
+function SummaryActionRow({ job: _job, phone, email, mapsHref, onJumpToTab: _onJumpToTab }) {
+  // Iter 220ea·7 — Photo action removed (Equipment tab owns
+  // per-machine capture). The row is now a 3-column grid:
+  // Call · Navigate · Email.
   const actions = [
     {
       key: 'call',
@@ -855,18 +855,9 @@ function SummaryActionRow({ job, phone, email, mapsHref, onJumpToTab }) {
       tone: 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
       testid: 'jaag-email',
     },
-    {
-      key: 'photo',
-      label: 'Photo',
-      icon: Camera,
-      onClick: () => { if (onJumpToTab) onJumpToTab('equipment'); },
-      altHref: photoHref,
-      tone: 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100',
-      testid: 'summary-action-photo',
-    },
   ];
   return (
-    <div className="grid grid-cols-4 gap-2" data-testid="summary-action-row">
+    <div className="grid grid-cols-3 gap-2" data-testid="summary-action-row">
       {actions.map((a) => {
         const Icon = a.icon;
         const disabled = !a.href && !a.onClick;
@@ -1502,7 +1493,6 @@ function ActiveTimerBar({ timer, onStop }) {
 function TimeTab({ job, busy, setBusy, onChange }) {
   const entries = job.time_entries || [];
   const active = entries.find(e => !e.end_at);
-  const blockedBySafety = !job.safety_signoff && job?.safety_template;
 
   const start = async (category) => {
     setBusy(true);
@@ -1537,12 +1527,12 @@ function TimeTab({ job, busy, setBusy, onChange }) {
 
   return (
     <div className="space-y-4">
-      {blockedBySafety && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2" data-testid="time-safety-warning">
-          <AlertTriangle size={14} className="mt-0.5" />
-          <span>Pre-job H&amp;S checklist required before starting the <b>on-site</b> timer.</span>
-        </div>
-      )}
+      {/* Iter 220ea·7 — H&S "checklist required" warning removed
+          from the Time tab. The Summary tab's amber banner is now
+          the single source of truth for the pre-job H&S signoff
+          requirement — duplicating it here was redundant and
+          competed for screen real estate with the Start a Timer
+          card on a 412px phone. */}
 
       <div className="grid grid-cols-3 gap-2" data-testid="time-totals">
         <Totals label="On site"   value={fmtMins(totalsByCategory.on_site)} color="#1d4ed8" />
