@@ -548,7 +548,13 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         sort=[("signed_at", -1)],
     )
     safety_template = None
-    if not safety_signoff:
+    # Iter 220ea·10 — Skip template attachment when the engineer
+    # has explicitly waived the H&S signoff on this job. The
+    # Summary banner reads `safety_template` to decide whether to
+    # show; suppressing it here means the banner disappears the
+    # moment the waiver is recorded.
+    safety_waived = bool(case.get("safety_signoff_waived"))
+    if not safety_signoff and not safety_waived:
         from routes.svc.safety import _resolve_template
         tpl = await _resolve_template(of["organization_id"])
         safety_template = {"id": tpl["id"], "items": tpl["items"]}
@@ -670,7 +676,13 @@ async def time_start(
     # Iter 216h89 — H&S gate. Engineers must complete the pre-job safety
     # signoff before starting the on_site timer. Travel/admin timers are
     # not gated (the gate fires when the engineer arrives on site).
-    if (data.get("category") or "on_site") == "on_site" and not case.get("safety_signoff_at"):
+    # Iter 220ea·10 — Waiver bypasses the gate when the engineer
+    # explicitly marked this visit as not needing H&S.
+    if (
+        (data.get("category") or "on_site") == "on_site"
+        and not case.get("safety_signoff_at")
+        and not case.get("safety_signoff_waived")
+    ):
         raise HTTPException(
             status_code=412,
             detail={

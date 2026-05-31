@@ -22,7 +22,7 @@ import { Link } from 'react-router-dom';
 import {
   Plus, Loader2, Trash2, Copy, Wrench, Sparkles, ChevronDown,
   ChevronUp, Camera, X, PackagePlus, Package, CheckSquare, Square,
-  ListChecks, Search,
+  ListChecks, Search, Check,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { chunkedUpload } from '@/utils/chunkedUpload';
@@ -235,43 +235,51 @@ export default function WorkVisitMachinesCard({ caseId }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200" data-testid="machines-card">
-      <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Wrench size={14} className="text-blue-600" />
-            Machines on this visit
-          </p>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            One row per Erg. Tick what you serviced / cleaned · add a note.
-          </p>
+      {/* Iter 220ea·10 — Header + action bar redesign. The three
+          actions used to sit in a wrap-cluster that stacked
+          vertically on a 412 px phone; now they're an evenly
+          spaced 3-up grid with clear labels. */}
+      <div className="p-4 border-b border-slate-100">
+        <div className="flex items-start gap-2 mb-3">
+          <Wrench size={14} className="text-blue-600 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900">
+              Machines on this visit
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+              One row per machine. Tick what you serviced or cleaned, then add notes.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Iter 220cj — Pre-load equipment from the job's site */}
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => setSitePickerOpen(true)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100"
+            className="inline-flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-extrabold hover:bg-blue-100"
             data-testid="machines-load-from-site-btn"
             title="Show all equipment for this site and pick which ones to work on"
           >
-            <Package size={12} /> From site
+            <Package size={16} />
+            <span>From site</span>
           </button>
           <Link
             to={`/svc/engineer/equipment/new?case_id=${encodeURIComponent(caseId || '')}`}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50"
+            className="inline-flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-extrabold hover:bg-slate-50"
             data-testid="machines-new-asset-link"
             title="Create a brand-new equipment record and attach it"
           >
-            <PackagePlus size={12} /> New asset
+            <PackagePlus size={16} />
+            <span>New asset</span>
           </Link>
           <button
             type="button"
             onClick={() => addRow({})}
             disabled={adding}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold disabled:opacity-50"
+            className="inline-flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-extrabold hover:bg-blue-700 disabled:opacity-50"
             data-testid="machines-add-btn"
           >
-            {adding ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Add machine
+            {adding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            <span>Add machine</span>
           </button>
         </div>
       </div>
@@ -680,50 +688,75 @@ function MachineRow({
     setTimeout(() => notesRef.current?.focus(), 50);
   };
 
+  // Iter 220ea·10 — Row header redesign. Name no longer truncates;
+  // serial + type sit on a dedicated meta line. Serviced / Cleaned
+  // pills moved to their own action row so the header can use the
+  // full row width and read cleanly on a 412 px phone.
   const labelChip = (
-    <div className="flex items-center gap-2 min-w-0 flex-1">
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold flex-shrink-0">
+    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-extrabold flex-shrink-0 mt-0.5">
         {index + 1}
       </span>
-      <p className="text-sm font-bold text-slate-900 truncate" data-testid={`machine-row-name-${row.id}`}>
-        {row.asset_name || 'Unnamed machine'}
-      </p>
-      {row.asset_serial && (
-        <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-          {row.asset_serial}
-        </span>
-      )}
+      <div className="min-w-0 flex-1">
+        <p
+          className="text-sm font-extrabold text-slate-900 leading-snug break-words"
+          data-testid={`machine-row-name-${row.id}`}
+        >
+          {row.asset_name || 'Unnamed machine'}
+        </p>
+        {(row.asset_serial || row.asset_type) && (
+          <p
+            className="text-[11px] text-slate-500 leading-snug mt-0.5 break-words"
+            data-testid={`machine-row-meta-${row.id}`}
+          >
+            {row.asset_type && (
+              <span className="font-semibold uppercase tracking-wide text-slate-400">
+                {row.asset_type}
+              </span>
+            )}
+            {row.asset_type && row.asset_serial && <span className="mx-1.5">·</span>}
+            {row.asset_serial && (
+              <span className="font-mono">SN {row.asset_serial}</span>
+            )}
+          </p>
+        )}
+      </div>
     </div>
   );
 
   return (
-    <div className="p-3" data-testid={`machine-row-${row.id}`}>
-      <div className="flex items-center gap-2">
+    <div className="p-3 space-y-2" data-testid={`machine-row-${row.id}`}>
+      <div className="flex items-start gap-2">
         {labelChip}
         <button
           type="button"
-          onClick={() => onPatch({ serviced: !row.serviced })}
-          className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full transition-colors ${row.serviced ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
-          data-testid={`machine-serviced-${row.id}`}
-        >
-          {row.serviced ? '✓ Serviced' : 'Serviced'}
-        </button>
-        <button
-          type="button"
-          onClick={() => onPatch({ cleaned: !row.cleaned })}
-          className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full transition-colors ${row.cleaned ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-500'}`}
-          data-testid={`machine-cleaned-${row.id}`}
-        >
-          {row.cleaned ? '✓ Cleaned' : 'Cleaned'}
-        </button>
-        <button
-          type="button"
           onClick={onExpand}
-          className="p-1.5 rounded-lg hover:bg-slate-100"
+          className="p-1.5 rounded-lg hover:bg-slate-100 mt-0.5"
           aria-label={expanded ? 'Collapse' : 'Expand'}
           data-testid={`machine-expand-${row.id}`}
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+      </div>
+      {/* Action row — Serviced / Cleaned status pills. Sits on
+          its own line so the header can show the full machine
+          name without competing for horizontal space. */}
+      <div className="flex items-center gap-2 pl-9">
+        <button
+          type="button"
+          onClick={() => onPatch({ serviced: !row.serviced })}
+          className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full transition-colors ${row.serviced ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+          data-testid={`machine-serviced-${row.id}`}
+        >
+          {row.serviced && <Check size={10} />} Serviced
+        </button>
+        <button
+          type="button"
+          onClick={() => onPatch({ cleaned: !row.cleaned })}
+          className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full transition-colors ${row.cleaned ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+          data-testid={`machine-cleaned-${row.id}`}
+        >
+          {row.cleaned && <Check size={10} />} Cleaned
         </button>
       </div>
 

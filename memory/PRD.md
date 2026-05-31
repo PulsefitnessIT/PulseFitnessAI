@@ -1,3 +1,49 @@
+## Iter 220ea·10 — Equipment redesign + H&S editor + per-job waiver ✅ (Feb 14, 2026)
+
+Three connected fixes off a live user report.
+
+### 1 · Equipment tab redesign — `WorkVisitMachinesCard.js`
+- Action row: From site · New asset · Add machine now sit in a
+  `grid grid-cols-3 gap-2` of equal-width tile-buttons (icon on
+  top, label below) — no more vertical stacking on a 412 px phone.
+- Machine row header: name uses `break-words` (no truncate) so
+  long brand+model names wrap cleanly. A new meta line shows
+  `ASSET_TYPE · SN <serial>` in monospace for the serial.
+- Serviced / Cleaned action pills moved to their own row (with a
+  `pl-9` indent to align under the row body) so the header has
+  the full width for the machine identity.
+
+### 2 · H&S template editor reachable from Engineer Account Settings
+- New `Row` in `EngineerAccountSettings.js` under a new
+  "Health & Safety" section → navigates to `/svc/engineer/h-s-checklist`.
+- New lazy route mounts the existing `SafetyTemplateAdmin`
+  component (no duplication; same admin UI ops have had access
+  to from Service Desk).
+
+### 3 · Per-job H&S waiver — new `safety/waive` endpoint
+- New backend endpoint `POST /api/svc/engineer/jobs/{case_id}/safety/waive`
+  in `routes/svc/safety.py`. Records an audit trail
+  (`safety_signoff_waived_by_id`, `_by_name`, `_at`, `_reason`)
+  and emits a `note` case event so ops can audit waivers.
+  Idempotent; rejects if the job is already signed off; rejects
+  if assigned to a different engineer.
+- `engineer.engineer_job_detail` now suppresses `safety_template`
+  when `safety_signoff_waived` is true → Summary banner collapses.
+- The on-site timer gate (PRECONDITION 412 `safety_signoff_required`)
+  also honours the waiver flag → on-site timer unlocks immediately.
+- `SafetyChecklistInline` gains a "Not needed for this job?" link
+  below the submit button. Tapping opens a small inline panel
+  with an optional reason input (≤500 chars), "Cancel" + "Waive &
+  continue" buttons.
+
+### Tests
+`backend/tests/test_iter_220ea_10_equipment_and_safety_settings.py`
+(8 source-level guards + 1 E2E placeholder). Added to `Makefile`
+regression target. 87/87 nearby tests pass. Backend endpoint
+verified end-to-end via curl: waiving sets the flag, the next
+detail call returns `safety_template: null`, banner disappears.
+
+
 ## Iter 220ea·9 — Inline H&S checklist on Summary ✅ (Feb 14, 2026)
 
 **Bug found from live user QA:** tapping the Pre-job H&S banner

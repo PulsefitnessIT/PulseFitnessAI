@@ -162,6 +162,7 @@ const ServiceOpsEngineerWorkReportFields = lazy(() => import('@/pages/ServiceOps
 // Iter 220i — Upcoming jobs list (drill-in from home tile)
 const ServiceOpsEngineerUpcoming = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerUpcomingList'));
 const ServiceOpsEngineerBranding = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerBrandingSettings'));
+const ServiceOpsSafetyTemplateAdmin = lazy(() => import('@/pages/ServiceOps/SafetyTemplateAdmin'));
 const ServiceOpsEngineerRatings = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerRatings'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
 const _MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
@@ -451,6 +452,8 @@ export default function AppRoutes({ user, login }) {
       {/* Iter 220i — Upcoming jobs list */}
       <Route path="/svc/engineer/upcoming" element={user ? <ServiceOpsEngineerUpcoming /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/branding" element={user ? <ServiceOpsEngineerBranding /> : <Navigate to="/login" replace />} />
+      {/* Iter 220ea·10 — Engineer Account Settings → H&S checklist editor */}
+      <Route path="/svc/engineer/h-s-checklist" element={user ? <ServiceOpsSafetyTemplateAdmin /> : <Navigate to="/login" replace />} />
       <Route path="/svc/engineer/ratings" element={user ? <ServiceOpsEngineerRatings /> : <Navigate to="/login" replace />} />
 
       {/* ─── Public no-login quote-accept landing ─── */}

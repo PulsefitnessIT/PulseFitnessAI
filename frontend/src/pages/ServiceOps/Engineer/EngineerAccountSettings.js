@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
-  Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell,
+  Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell, ShieldCheck,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
@@ -397,6 +397,24 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               subtitle="Used on every PDF you email and across your engineer portal."
               onClick={() => { onClose(); navigate('/svc/engineer/branding'); }}
               testid="engineer-settings-branding-row"
+            />
+          </section>
+
+          {/* Iter 220ea·10 — Health & Safety template editor. Lets
+              owners / managers edit the pre-job checklist items
+              (label + required flag) from the same drawer they
+              configure rates + branding in. */}
+          <section data-testid="engineer-settings-section-safety">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">
+              Health &amp; Safety
+            </p>
+            <Row
+              icon={ShieldCheck}
+              accent="#f59e0b"
+              title="Pre-job H&S checklist"
+              subtitle="Edit the tickable items engineers see on Summary before starting work."
+              onClick={() => { onClose(); navigate('/svc/engineer/h-s-checklist'); }}
+              testid="engineer-settings-safety-row"
             />
           </section>
 

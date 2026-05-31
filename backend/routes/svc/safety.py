@@ -242,6 +242,70 @@ async def engineer_safety_signoff(case_id: str, body: dict, user=Depends(get_cur
     return doc
 
 
+# ── Per-job waiver (iter 220ea·10) ───────────────────────────────
+# Some visits don't actually need an H&S signoff (a quick courtesy
+# check-in, a documentation-only visit, a Saturday parts drop).
+# Rather than force the engineer to invent ticks + a fake signature
+# we let them mark the job as "not needed" with an audit trail.
+# The engineer endpoint then stops attaching the template, the
+# Summary banner collapses, and the on-site timer is unblocked.
+
+
+@router.post("/svc/engineer/jobs/{case_id}/safety/waive")
+async def engineer_safety_waive(case_id: str, body: dict | None = None, user=Depends(get_current_user)):
+    """Mark this case as not requiring an H&S signoff.
+
+    Body (optional): {"reason": str (max 500 chars)}
+    Idempotent: re-calling on an already-waived case is a no-op.
+    Engineers can waive; ops/master-admin can too. The case must
+    not be assigned to a different engineer.
+    """
+    of = _of(user)
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of},
+        {"_id": 0, "id": 1, "reference": 1, "assigned_engineer_id": 1,
+         "safety_signoff_waived": 1, "safety_signoff_at": 1},
+    )
+    if not case:
+        raise HTTPException(404, "Case not found")
+    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"] \
+            and not user.get("is_master_admin"):
+        raise HTTPException(404, "Job not found")
+    if case.get("safety_signoff_at"):
+        raise HTTPException(400, "H&S is already signed off on this job — no need to waive.")
+    reason = ((body or {}).get("reason") or "").strip()[:500]
+    now = _now()
+    await db.svc_cases.update_one(
+        {"id": case_id, **of},
+        {"$set": {
+            "safety_signoff_waived": True,
+            "safety_signoff_waived_by_id": user["id"],
+            "safety_signoff_waived_by_name": (user.get("full_name") or user.get("email") or "").strip(),
+            "safety_signoff_waived_at": now,
+            "safety_signoff_waived_reason": reason or None,
+            "updated_at": now,
+        }},
+    )
+    try:
+        await append_event(
+            case_id=case_id, organization_id=of["organization_id"],
+            event_type="note", actor=user,
+            body="H&S marked as not required for this visit"
+                 + (f" · Reason: {reason}" if reason else ""),
+            extra={"kind": "safety_waived"},
+        )
+    except Exception as e:
+        logger.warning(f"safety: failed to append waive event: {e!r}")
+    return {
+        "ok": True,
+        "safety_signoff_waived": True,
+        "safety_signoff_waived_at": now,
+        "safety_signoff_waived_reason": reason or None,
+    }
+
+
+
+
 # ── CSV import / export (iter 216h92) ────────────────────────────
 
 @router.get("/svc/safety/template/export.csv")

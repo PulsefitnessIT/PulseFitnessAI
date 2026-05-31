@@ -1087,6 +1087,11 @@ function SafetyChecklistInline({ caseId, items, onClose, onSignedOff }) {
   const [sig, setSig] = useState('');
   const [showSig, setShowSig] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Iter 220ea·10 — Per-job waiver. When the engineer ticks
+  // "not needed for this job" we POST to /safety/waive instead of
+  // /safety/signoff and the parent reloads (banner collapses).
+  const [showWaive, setShowWaive] = useState(false);
+  const [waiveReason, setWaiveReason] = useState('');
 
   const toggle = (id) => {
     setTicked((prev) => {
@@ -1130,6 +1135,29 @@ function SafetyChecklistInline({ caseId, items, onClose, onSignedOff }) {
     } catch (e) {
       notify.error(
         'Could not save signoff',
+        e?.response?.data?.detail || e?.message || 'Try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Iter 220ea·10 — Mark H&S as not needed for this job. Records
+  // an audit trail (who waived + when + optional reason) and
+  // unblocks the on-site timer just like a regular signoff.
+  const waive = async () => {
+    setBusy(true);
+    try {
+      await axios.post(
+        `${API}/svc/engineer/jobs/${caseId}/safety/waive`,
+        { reason: waiveReason.trim() },
+        auth(),
+      );
+      notify.success('H&S waived', 'On-site timer is now unblocked.');
+      await onSignedOff?.();
+    } catch (e) {
+      notify.error(
+        'Could not save waiver',
         e?.response?.data?.detail || e?.message || 'Try again.',
       );
     } finally {
@@ -1258,6 +1286,62 @@ function SafetyChecklistInline({ caseId, items, onClose, onSignedOff }) {
         {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
         {busy ? 'Saving…' : 'Sign off & continue'}
       </button>
+
+      {/* Iter 220ea·10 — Per-job waiver. Some visits don't need
+          H&S (a quick courtesy check, parts drop, doc-only). The
+          engineer can tick "not needed" with an optional reason
+          and the banner disappears + the on-site timer unblocks. */}
+      {!showWaive ? (
+        <button
+          type="button"
+          onClick={() => setShowWaive(true)}
+          className="w-full text-center text-[11px] font-bold text-amber-800 hover:text-amber-900 underline underline-offset-2"
+          data-testid="summary-safety-waive-open"
+        >
+          Not needed for this job?
+        </button>
+      ) : (
+        <div
+          className="rounded-lg border border-amber-300 bg-white p-2.5 space-y-2"
+          data-testid="summary-safety-waive-panel"
+        >
+          <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900">
+            Mark H&amp;S as not needed
+          </p>
+          <p className="text-[11px] text-slate-700 leading-snug">
+            We&apos;ll record who waived this and when, so ops have an audit trail.
+            The on-site timer unlocks immediately.
+          </p>
+          <input
+            type="text"
+            value={waiveReason}
+            onChange={(e) => setWaiveReason(e.target.value)}
+            placeholder="Reason (optional, e.g. parts drop only)"
+            maxLength={500}
+            className="w-full text-xs px-2 py-1.5 rounded-lg border border-amber-200 bg-white focus:outline-none focus:ring-1 focus:ring-amber-300"
+            data-testid="summary-safety-waive-reason"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowWaive(false); setWaiveReason(''); }}
+              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] font-extrabold uppercase tracking-wider"
+              data-testid="summary-safety-waive-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={waive}
+              disabled={busy}
+              className="flex-1 px-3 py-2 rounded-lg bg-amber-600 text-white text-[11px] font-extrabold uppercase tracking-wider hover:bg-amber-700 disabled:opacity-50"
+              data-testid="summary-safety-waive-confirm"
+            >
+              {busy ? 'Saving…' : 'Waive & continue'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showSig && (
         <SignatureCanvas
