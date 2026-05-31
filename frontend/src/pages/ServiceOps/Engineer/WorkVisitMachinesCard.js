@@ -25,6 +25,8 @@ import {
   ListChecks, Search,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import { chunkedUpload } from '@/utils/chunkedUpload';
+import { stashPausedUpload } from '@/utils/engineerUploadStash';
 import NotePresetChips from './NotePresetChips';
 import MachineRowCustomFields from './MachineRowCustomFields';
 
@@ -144,18 +146,38 @@ export default function WorkVisitMachinesCard({ caseId }) {
   const attachPhoto = async (rowId, file, caption = '') => {
     if (!file) return;
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const u = await axios.post(`${API}/files/upload?category=service-media`, fd, {
-        ...auth(),
-        headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
+      // Iter 220ea·4 — Route through chunkedUpload so a 4G blip
+      // drops one 1 MB chunk, not the entire upload. The stash
+      // captures the session blob the moment init succeeds so
+      // the engineer can resume from the paused-uploads pill if
+      // the connection (or the tab) dies mid-flight.
+      const uploaded = await chunkedUpload({
+        baseURL: API,
+        file,
+        category: 'service-media',
+        authHeaders: auth().headers,
+        onSession: async ({ uploadId, totalChunks }) => {
+          await stashPausedUpload({
+            upload_id: uploadId,
+            total_chunks: totalChunks,
+            case_id: caseId,
+            machine_row_id: rowId,
+            filename: file.name || `photo-${Date.now()}.jpg`,
+            size: file.size,
+            content_type: file.type || 'image/jpeg',
+            blob: file,
+            caption: caption || '',
+            kind: 'photo',
+            saved_at: Date.now(),
+          });
+        },
       });
-      const fileUrl = u.data?.download_url || u.data?.storage_path;
+      const fileUrl = uploaded?.download_url || uploaded?.storage_path;
       const r = await axios.post(`${API}/svc/engineer/photos`, {
         case_id: caseId,
         machine_row_id: rowId,
         file_url: fileUrl,
-        mime_type: u.data?.content_type || 'image/jpeg',
+        mime_type: uploaded?.content_type || 'image/jpeg',
         caption: caption || '',
       }, auth());
       // Optimistic insert into the row.
@@ -163,8 +185,28 @@ export default function WorkVisitMachinesCard({ caseId }) {
         ? { ...r2, photos: [...(r2.photos || []), r.data] }
         : r2,
       ));
+      // Upload landed cleanly — drop the stash row so it stops
+      // counting against the paused-uploads pill.
+      if (uploaded?.upload_method === 'chunked' && uploaded?.id) {
+        // chunked path: session was stashed under upload_id which we
+        // captured via onSession; we can't know it back here, so
+        // delegate to a best-effort cleanup that walks the stash
+        // for any row referencing this same case+filename+size and
+        // drops it. Cheap, scoped, idempotent.
+        try {
+          const { listPausedUploads, dropPausedUpload: drop } = await import('@/utils/engineerUploadStash');
+          for (const row of await listPausedUploads()) {
+            if (row.case_id === caseId
+                && row.filename === (file.name || '')
+                && row.size === file.size) {
+              await drop(row.upload_id);
+            }
+          }
+        } catch { /* swallow */ }
+      }
       notify.success('Photo attached');
     } catch (e) {
+      // Stash row stays put — the resume sheet will pick it up.
       notify.error('Upload failed', e?.response?.data?.detail || e?.message);
     }
   };

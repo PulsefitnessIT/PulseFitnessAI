@@ -30,6 +30,7 @@ import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
 // Iter 220e6 — Release readiness: outbox pill + global error reporter.
 import { OutboxStatusPill, installEngineerErrorReporters } from '@/utils/engineerStatusBoot';
+import PausedUploadsPill from './PausedUploadsPill';
 import useEngineerAttention from './hooks/useEngineerAttention';
 import EngineerAppShellNudge from './EngineerAppShellNudge';
 
@@ -225,6 +226,10 @@ export default function EngineerHomeV2() {
             {/* Iter 220e6 — Offline outbox status pill. Only renders
                 when offline or there are queued mutations. */}
             <OutboxStatusPill />
+            {/* Iter 220ea·4 — Paused-uploads pill. Only renders when
+                there are media uploads sitting in the stash. Lets
+                the engineer resume from where they left off. */}
+            <PausedUploadsPill />
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/workspace')}

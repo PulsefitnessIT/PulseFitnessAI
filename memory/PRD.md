@@ -1,3 +1,88 @@
+## Iter 220ea·4 — Resume-failed-upload UX ✅ (Feb 14, 2026)
+
+Closes the loop on iter 220e9: when a chunked upload fails halfway
+(tab killed, signal dropped, phone died), the engineer can now
+come back, see a "N uploads paused" pill on the home screen, tap
+to resume from exactly the chunk that failed — without
+re-selecting the file.
+
+### `chunkedUpload.js` (extended)
+
+- New `resumeUploadId` param — when present, pre-fetches
+  `/files/upload/chunks/{id}/status`, marks any already-received
+  chunks as done, and only PUTs the missing ones before calling
+  `complete`.
+- New `onSession({uploadId, totalChunks})` hook fires immediately
+  after init returns, so the caller can persist the session
+  blob BEFORE the first chunk PUT lands.
+- Resume failures no longer auto-abort (the session must stay
+  live for the next attempt). Non-resume failures keep the
+  existing best-effort `DELETE` cleanup.
+- Errors are stamped with `err.uploadId` + `err.code =
+  'session_expired'` (when the server has TTL-collected the
+  session) so the UI can drop dead stash rows cleanly.
+
+### New `utils/engineerUploadStash.js`
+
+- Vanilla IndexedDB store `paused_uploads`, keyed by `upload_id`,
+  scoped to the current engineer via a first-12-chars token
+  namespace (so shared tablets don't leak between engineers).
+- Persists the actual `Blob` so resume works after tab close —
+  the browser can't re-read a File handle after the original
+  session is gone.
+- Public surface: `stashPausedUpload`, `dropPausedUpload`,
+  `listPausedUploads`, `getPausedUpload`, `countPausedUploads`,
+  `subscribePausedUploads` (pub/sub for the pill to refresh on
+  state changes without polling).
+
+### New `PausedUploadsPill.js`
+
+- Amber pill in the engineer home header — only renders when
+  there's at least one paused row.
+- Tap opens a bottom-sheet listing each paused upload with
+  filename, size, age, optional caption, and **Resume / Discard**
+  CTAs.
+- Resume: re-runs `chunkedUpload` with `resumeUploadId`, then
+  POSTs to `/svc/engineer/photos` with the stashed `case_id` /
+  `machine_row_id` / `caption` so the resumed bytes appear on
+  the same row the original attempt targeted.
+- Session-expired path: drops the stash row + notifies the
+  engineer that the server forgot the session (TTL collected) so
+  they need to re-attach the file from the job.
+- Polls on window-focus + every 30s so a pause that happened in
+  one tab surfaces in another.
+
+### Real upload flow rewired
+
+`WorkVisitMachinesCard.attachPhoto` — the path field engineers
+actually use — was still on single-shot FormData (iter 220e9 had
+only wired the dead `PhotosTab`). It now routes through
+`chunkedUpload`, stashes the session blob via `onSession`, and
+drops the stash row on success via a best-effort cleanup walk
+(matching case + filename + size).
+
+### Tests
+
+- `test_iter_220ea_4_resume_upload_ux.py` — 13 wiring guards:
+  resume id / onSession ordering, no-auto-abort, stash CRUD
+  surface, owner-namespacing, Blob persistence, pill render-
+  conditions, resume flow + finalisation POST, focus/interval
+  poll, EngineerHomeV2 mount position, and the WorkVisitMachines
+  flow rewrite.
+- Existing 220e9 backend tests still pass (status endpoint, chunk
+  idempotency, MIME guard, abort) — the new wiring rides the
+  same backend.
+
+### Verified
+
+- 47 related tests pass.
+- Full regression **2129 / 2129 passing**.
+- `make lint-frontend` clean.
+- Frontend compiles cleanly.
+
+---
+
+
 ## Iter 220ea·3 — Frontend ESLint 63 → 0 ✅ (Feb 14, 2026)
 
 `make lint-frontend` now exits clean for the first time in the

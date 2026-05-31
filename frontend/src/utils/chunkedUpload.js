@@ -81,37 +81,90 @@ async function uploadOneChunk({ baseURL, uploadId, index, blob, authHeaders }) {
 
 export async function chunkedUpload({
   baseURL, file, category = 'general', authHeaders = {},
-  onProgress, chunkSize = CHUNK_SIZE_BYTES, threshold = CHUNK_THRESHOLD_BYTES,
+  onProgress, onSession, resumeUploadId,
+  chunkSize = CHUNK_SIZE_BYTES, threshold = CHUNK_THRESHOLD_BYTES,
 }) {
   if (!file || !(file instanceof Blob)) {
     throw new Error('chunkedUpload: a File/Blob is required');
   }
 
-  // Small enough → ride the legacy path.
-  if (file.size <= threshold) {
+  // Small enough → ride the legacy path. Resume only ever applies
+  // to chunked uploads, so if a tiny file is presented for resume
+  // the caller almost certainly didn't mean to — fall through to
+  // single-shot anyway and let the server re-accept it cleanly.
+  if (file.size <= threshold && !resumeUploadId) {
     return singleShotUpload({ baseURL, file, category, authHeaders, onProgress });
   }
 
   const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
+  let uploadId = resumeUploadId || null;
+  const alreadyHave = new Set();
 
-  // 1. Reserve a session.
-  const initRes = await axios.post(
-    `${baseURL}/files/upload/chunks/init`,
-    {
-      filename: file.name || 'upload.bin',
-      size: file.size,
-      content_type: file.type || 'application/octet-stream',
-      category,
-      total_chunks: totalChunks,
-    },
-    { headers: authHeaders },
-  );
-  const uploadId = initRes.data?.upload_id;
-  if (!uploadId) throw new Error('chunkedUpload: init returned no upload_id');
+  if (resumeUploadId) {
+    // Iter 220ea·4 — Resume path. Ask the server which chunks
+    // landed in the previous attempt and skip those entirely. The
+    // session TTL on the backend is 60 min so anything older has
+    // already been collected and the resume will 404 — surface that
+    // clearly so the caller can drop it from the local stash.
+    try {
+      const statusRes = await axios.get(
+        `${baseURL}/files/upload/chunks/${resumeUploadId}/status`,
+        { headers: authHeaders },
+      );
+      const data = statusRes.data || {};
+      if (data.status !== 'in_progress') {
+        throw new Error(`chunkedUpload: cannot resume — session is ${data.status}`);
+      }
+      if (Number(data.total_chunks) !== totalChunks) {
+        throw new Error(
+          `chunkedUpload: cannot resume — chunk count mismatch ` +
+          `(server expected ${data.total_chunks}, file produces ${totalChunks})`,
+        );
+      }
+      const missing = new Set((data.missing || []).map(Number));
+      for (let i = 0; i < totalChunks; i += 1) {
+        if (!missing.has(i)) alreadyHave.add(i);
+      }
+    } catch (err) {
+      // Bubble a clearer error so the resume sheet can offer the
+      // engineer a "discard" option when the session has expired.
+      if (err?.response?.status === 404) {
+        const e = new Error('chunkedUpload: session expired (404 from /status)');
+        e.code = 'session_expired';
+        throw e;
+      }
+      throw err;
+    }
+  } else {
+    // 1. Reserve a fresh session.
+    const initRes = await axios.post(
+      `${baseURL}/files/upload/chunks/init`,
+      {
+        filename: file.name || 'upload.bin',
+        size: file.size,
+        content_type: file.type || 'application/octet-stream',
+        category,
+        total_chunks: totalChunks,
+      },
+      { headers: authHeaders },
+    );
+    uploadId = initRes.data?.upload_id;
+    if (!uploadId) throw new Error('chunkedUpload: init returned no upload_id');
+    // Surface the session straight away so the caller can stash it
+    // BEFORE we start pushing chunks. That way even if the very
+    // first PUT fails, the engineer can come back and pick up
+    // where they left off.
+    if (typeof onSession === 'function') {
+      try {
+        await onSession({ uploadId, totalChunks });
+      } catch { /* don't let stashing errors block the upload */ }
+    }
+  }
 
   // 2. Drive chunks with a small parallel pool — 2 in-flight is a
   // good 4G compromise (faster than serial, won't oversaturate).
   const completed = new Array(totalChunks).fill(false);
+  alreadyHave.forEach(idx => { completed[idx] = true; });
   let cursor = 0;
 
   const reportProgress = () => {
@@ -119,12 +172,17 @@ export async function chunkedUpload({
     const done = completed.filter(Boolean).length;
     onProgress(Math.round((done / totalChunks) * 100));
   };
+  reportProgress();  // reflect the head-start when resuming.
 
   async function worker() {
     while (true) {
-      const idx = cursor;
-      if (idx >= totalChunks) break;
-      cursor += 1;
+      let idx = -1;
+      while (cursor < totalChunks) {
+        const candidate = cursor;
+        cursor += 1;
+        if (!alreadyHave.has(candidate)) { idx = candidate; break; }
+      }
+      if (idx < 0) break;
       const start = idx * chunkSize;
       const blob = file.slice(start, Math.min(start + chunkSize, file.size));
       await uploadOneChunk({ baseURL, uploadId, index: idx, blob, authHeaders });
@@ -138,10 +196,16 @@ export async function chunkedUpload({
       Array.from({ length: Math.min(CHUNK_PARALLEL, totalChunks) }, () => worker()),
     );
   } catch (err) {
-    // Best-effort abort so server-side TTL doesn't have to wait an hour.
-    try {
-      await axios.delete(`${baseURL}/files/upload/chunks/${uploadId}`, { headers: authHeaders });
-    } catch { /* swallow — TTL will collect it */ }
+    // Iter 220ea·4 — Do NOT auto-abort on resumable uploads. The
+    // server-side session is still live for the next attempt. For
+    // a non-resume run, abort opportunistically so the TTL doesn't
+    // have to wait an hour.
+    if (!resumeUploadId) {
+      try {
+        await axios.delete(`${baseURL}/files/upload/chunks/${uploadId}`, { headers: authHeaders });
+      } catch { /* swallow — TTL will collect it */ }
+    }
+    err.uploadId = uploadId;
     throw err;
   }
 
