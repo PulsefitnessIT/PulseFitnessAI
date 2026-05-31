@@ -76,14 +76,31 @@ export function labelForCaseType(slug) {
 
 // Iter 220e1 — Cover state shared between Summary chip and Complete-
 // tab outcome banner. Reads the case's coverage meta and returns a
-// `{covered, kind, label, detail}` shape so both surfaces tell the
-// same story to engineer + ops without drifting.
+// `{covered, kind, label, detail, tone}` shape so both surfaces tell
+// the same story to engineer + ops without drifting.
 //
 // Engineer Summary uses this to know up-front whether to crack on
 // (cover present → fit parts, no auth needed) or call ops first
 // (chargeable → confirm spend with customer).
+//
+// Iter 220e2 — Three-tone signal:
+//   • red   → chargeable (engineer must confirm spend before fitting)
+//   • amber → cover ends within 90 days (still proceed, but flag the
+//             renewal conversation to ops)
+//   • green → comfortable runway on warranty/contract
+function _daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(String(dateStr).slice(0, 10) + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  const utcToday = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  return Math.round((d.getTime() - utcToday) / 86400000);
+}
+
 export function computeCoverState(job) {
-  if (!job) return { covered: false, kind: 'chargeable', label: 'Chargeable visit' };
+  if (!job) {
+    return { covered: false, kind: 'chargeable', tone: 'red', label: 'Chargeable visit' };
+  }
   const meta = job.source_meta || {};
   const status = (meta.coverage_status || job.coverage_status || '').toLowerCase();
   const warrantyActive = !!meta.warranty_active;
@@ -94,28 +111,47 @@ export function computeCoverState(job) {
     return {
       covered: false,
       kind: 'chargeable',
+      tone: 'red',
+      expiringSoon: false,
+      daysRemaining: null,
       label: 'Chargeable visit',
       detail: 'Confirm any spend with the customer before fitting parts.',
     };
   }
   if (warrantyActive) {
     const exp = (meta.warranty_expiry || '').slice(0, 10);
+    const days = _daysUntil(exp);
+    const expiringSoon = days !== null && days >= 0 && days <= 90;
     return {
       covered: true,
       kind: 'warranty',
+      tone: expiringSoon ? 'amber' : 'green',
+      expiringSoon,
+      daysRemaining: days,
       label: 'Under manufacturer warranty' + (exp ? ` until ${exp}` : ''),
-      short: 'Warranty',
-      detail: 'Parts + labour are warranty-funded. Proceed without spend approval.',
+      short: expiringSoon ? `Warranty · ${days}d` : 'Warranty',
+      detail: expiringSoon
+        ? `Warranty ends in ${days} day${days === 1 ? '' : 's'} — flag renewal to ops after this visit.`
+        : 'Parts + labour are warranty-funded. Proceed without spend approval.',
     };
   }
   const tier = (meta.contract_tier || '').toUpperCase();
   const end = (meta.contract_end_date || '').slice(0, 10);
+  const days = _daysUntil(end);
+  const expiringSoon = days !== null && days >= 0 && days <= 90;
   return {
     covered: true,
     kind: 'contract',
+    tone: expiringSoon ? 'amber' : 'green',
+    expiringSoon,
+    daysRemaining: days,
     label: 'Under ' + (tier ? `${tier} ` : '') + 'service contract' + (end ? ` until ${end}` : ''),
-    short: tier ? `${tier} contract` : 'Contract',
-    detail: 'Parts + labour covered by the contract. Proceed without spend approval.',
+    short: expiringSoon
+      ? `${tier || 'Contract'} · ${days}d`
+      : (tier ? `${tier} contract` : 'Contract'),
+    detail: expiringSoon
+      ? `Contract ends in ${days} day${days === 1 ? '' : 's'} — flag renewal to ops after this visit.`
+      : 'Parts + labour covered by the contract. Proceed without spend approval.',
   };
 }
 
@@ -468,14 +504,19 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
           {/* Iter 220e1 — Cover chip. Engineer sees this on Summary
               alongside Priority + Job-type so they can crack on
               (covered) or hold off and ring ops (chargeable)
-              before fitting parts. */}
+              before fitting parts.
+              Iter 220e2 — Tone trichotomy: red (chargeable) /
+              amber (cover expiring ≤90d) / green (comfortable cover). */}
           <span
             className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${
-              cover.covered
+              cover.tone === 'green'
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-amber-50 text-amber-800 border-amber-300'
+                : cover.tone === 'amber'
+                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                  : 'bg-rose-50 text-rose-800 border-rose-300'
             }`}
             data-testid="jaag-cover-chip"
+            data-tone={cover.tone}
             title={cover.label}
           >
             <ShieldCheck size={9} />
@@ -514,30 +555,52 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
           / Contract / Chargeable); banner says *what the engineer
           should do* about it. Sits between the chip row and the
           existing overrun/sibling/handoff warnings so it's the first
-          actionable signal the engineer reads. */}
+          actionable signal the engineer reads.
+          Iter 220e2 — Tone-driven palette: green/amber/red. */}
       <div
         className={`rounded-2xl border p-3 ${
-          cover.covered
+          cover.tone === 'green'
             ? 'bg-emerald-50 border-emerald-200'
-            : 'bg-amber-50 border-amber-300'
+            : cover.tone === 'amber'
+              ? 'bg-amber-50 border-amber-300'
+              : 'bg-rose-50 border-rose-300'
         }`}
         data-testid="jaag-cover-banner"
+        data-tone={cover.tone}
       >
         <div className="flex items-start gap-2">
           <ShieldCheck
             size={16}
-            className={`mt-0.5 shrink-0 ${cover.covered ? 'text-emerald-700' : 'text-amber-700'}`}
+            className={`mt-0.5 shrink-0 ${
+              cover.tone === 'green'
+                ? 'text-emerald-700'
+                : cover.tone === 'amber'
+                  ? 'text-amber-700'
+                  : 'text-rose-700'
+            }`}
           />
           <div className="flex-1 min-w-0">
             <p
-              className={`text-xs font-extrabold ${cover.covered ? 'text-emerald-900' : 'text-amber-900'}`}
+              className={`text-xs font-extrabold ${
+                cover.tone === 'green'
+                  ? 'text-emerald-900'
+                  : cover.tone === 'amber'
+                    ? 'text-amber-900'
+                    : 'text-rose-900'
+              }`}
               data-testid="jaag-cover-banner-label"
             >
               {cover.label}
             </p>
             {cover.detail && (
               <p
-                className={`text-[11px] mt-0.5 ${cover.covered ? 'text-emerald-800' : 'text-amber-800'}`}
+                className={`text-[11px] mt-0.5 ${
+                  cover.tone === 'green'
+                    ? 'text-emerald-800'
+                    : cover.tone === 'amber'
+                      ? 'text-amber-800'
+                      : 'text-rose-800'
+                }`}
                 data-testid="jaag-cover-banner-detail"
               >
                 {cover.detail}

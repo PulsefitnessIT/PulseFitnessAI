@@ -196,8 +196,10 @@ def test_public_track_does_not_leak_contract_numbers_to_customer():
 
 def test_public_tracking_page_renders_cover_chip():
     src = _read("pages/PublicTracking/PublicTrackingPage.js")
-    # Conditional render — only when `cover.covered` is true.
-    assert "data.cover?.covered ? (" in src
+    # Conditional render — present whenever the payload includes a
+    # cover block (iter 220e2 added the chargeable red variant, so
+    # we no longer gate on `covered` truthiness).
+    assert "data.cover ? (" in src
     assert 'data-testid="track-cover-chip"' in src
     assert 'data-testid="track-cover-label"' in src
     # Uses ShieldCheck (we imported it for the broader cover ux).

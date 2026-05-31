@@ -1,3 +1,60 @@
+## Iter 220e2 — Cover banner three-tone trichotomy ✅ (Feb 14, 2026)
+
+Operator follow-up:
+
+> Chargeable red banner — Warranty/Contract green banner.
+> Orange banner if the warranty/contract is due to end within 3 months.
+
+### What changed
+
+Extended the iter 220e1 cover chip/banner with a `tone` discriminator
+that drives a 3-way palette on both the Engineer Summary and the
+Public Tracking page:
+
+- `tone: 'red'`   → chargeable (engineer must confirm spend; customer warned visit is billable)
+- `tone: 'amber'` → covered but ≤90 days runway on warranty/contract
+- `tone: 'green'` → comfortably covered
+
+### Backend (`routes/svc/public_tracking.py`)
+
+`cover` payload on `/api/svc/public/track/{token}` now carries:
+
+```
+{ covered, kind, tone, expiring_soon, days_remaining, label }
+```
+
+Threshold lives in a small `_days_until` helper. Amber labels embed
+the countdown (e.g. "Service contract ends in 27 days") so the
+customer has explicit context for the renewal conversation.
+
+### Frontend
+
+- `pages/ServiceOps/Engineer/EngineerJobDetailV2.js` — `computeCoverState`
+  now returns `tone`, `expiringSoon`, `daysRemaining`. Chip + banner
+  Tailwind classes switch on `cover.tone` (emerald / amber / rose).
+  Short chip label includes `· Nd` when expiring.
+- `pages/PublicTracking/PublicTrackingPage.js` — chip now always renders
+  when `data.cover` is present (chargeable shown in rose), with the
+  same 3-tone palette.
+
+### Tests
+
+`tests/test_iter_220e2_cover_tone_trichotomy.py` — 11 tests covering:
+
+- Red tone for chargeable cases
+- Green tone with `_today_plus(365)` runway (contract + warranty)
+- Amber tone within 30/45/90 days for contract + warranty
+- 90-day inclusive boundary, 91-day green
+- Helper/UI assertions on the three-tone palette wiring
+
+Adjusted the iter 220e1 chip-render assertion to reflect the new
+always-render conditional (chargeable variant added).
+
+Regression: **2012 passed, 15 skipped, 0 failed** (`make regression`).
+
+---
+
+
 ## Iter 220e1 — Cover chip + banner on Summary, cover chip on public tracking ✅ (Feb 14, 2026)
 
 Operator follow-up:

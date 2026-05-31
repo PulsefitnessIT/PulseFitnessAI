@@ -385,27 +385,64 @@ async def public_track(token: str):
     # short, reassuring label ("Covered by service contract · no
     # charge") + the chargeable opposite ("Chargeable visit"). No
     # contract numbers or PII bleed onto the public payload.
+    #
+    # Iter 220e2 — Three-tone signal:
+    #   • red   → chargeable
+    #   • amber → covered, but warranty/contract expires within 90 days
+    #             (gives the customer a heads-up to renew rather than
+    #              surfacing the bad news with the next visit).
+    #   • green → covered with comfortable runway
     cover_meta = case.get("source_meta") or {}
     cover_status = (cover_meta.get("coverage_status") or case.get("coverage_status") or "").lower()
     warranty_active = bool(cover_meta.get("warranty_active"))
     cover_slug = (case.get("cover_type") or "").lower()
     explicit_cover = cover_slug and cover_slug not in {"chargeable", "none"}
+
+    def _days_until(date_str: str) -> int | None:
+        if not date_str:
+            return None
+        try:
+            # accept "YYYY-MM-DD" or ISO with time
+            d = datetime.fromisoformat(str(date_str)[:10])
+            return (d.date() - datetime.now(timezone.utc).date()).days
+        except (TypeError, ValueError):
+            return None
+
     if warranty_active:
+        days = _days_until(cover_meta.get("warranty_expiry") or "")
+        expiring = days is not None and 0 <= days <= 90
         cover_public = {
             "covered": True,
             "kind": "warranty",
-            "label": "Under manufacturer warranty",
+            "tone": "amber" if expiring else "green",
+            "expiring_soon": bool(expiring),
+            "days_remaining": days,
+            "label": (
+                f"Warranty ends in {days} day{'s' if days != 1 else ''}"
+                if expiring else "Under manufacturer warranty"
+            ),
         }
     elif cover_status == "covered" or explicit_cover:
+        days = _days_until(cover_meta.get("contract_end_date") or "")
+        expiring = days is not None and 0 <= days <= 90
         cover_public = {
             "covered": True,
             "kind": "contract",
-            "label": "Covered by service contract · no charge",
+            "tone": "amber" if expiring else "green",
+            "expiring_soon": bool(expiring),
+            "days_remaining": days,
+            "label": (
+                f"Service contract ends in {days} day{'s' if days != 1 else ''}"
+                if expiring else "Covered by service contract · no charge"
+            ),
         }
     else:
         cover_public = {
             "covered": False,
             "kind": "chargeable",
+            "tone": "red",
+            "expiring_soon": False,
+            "days_remaining": None,
             "label": "Chargeable visit",
         }
 

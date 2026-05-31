@@ -307,15 +307,39 @@ export default function PublicTrackingPage() {
         {/* Iter 220e1 — Cover chip. Short reassurance line above the
             return-to-fix / compliance sections — answers the silent
             "am I going to get a bill for this?" question before the
-            customer has to ask. */}
-        {data.cover?.covered ? (
+            customer has to ask.
+            Iter 220e2 — Tone-driven trichotomy: red (chargeable),
+            amber (cover expiring ≤90d), green (cover with runway). */}
+        {data.cover ? (
           <section
-            className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 flex items-center gap-2"
+            className={`rounded-xl px-4 py-2.5 flex items-center gap-2 border ${
+              data.cover.tone === 'green'
+                ? 'bg-emerald-50 border-emerald-200'
+                : data.cover.tone === 'amber'
+                  ? 'bg-amber-50 border-amber-300'
+                  : 'bg-rose-50 border-rose-300'
+            }`}
             data-testid="track-cover-chip"
+            data-tone={data.cover.tone || (data.cover.covered ? 'green' : 'red')}
           >
-            <ShieldCheck size={14} className="text-emerald-700 shrink-0" />
+            <ShieldCheck
+              size={14}
+              className={`shrink-0 ${
+                data.cover.tone === 'green'
+                  ? 'text-emerald-700'
+                  : data.cover.tone === 'amber'
+                    ? 'text-amber-700'
+                    : 'text-rose-700'
+              }`}
+            />
             <span
-              className="text-xs font-extrabold text-emerald-900 tracking-tight"
+              className={`text-xs font-extrabold tracking-tight ${
+                data.cover.tone === 'green'
+                  ? 'text-emerald-900'
+                  : data.cover.tone === 'amber'
+                    ? 'text-amber-900'
+                    : 'text-rose-900'
+              }`}
               data-testid="track-cover-label"
             >
               {data.cover.label}
