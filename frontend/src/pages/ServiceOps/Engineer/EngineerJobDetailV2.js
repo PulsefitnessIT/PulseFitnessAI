@@ -34,7 +34,12 @@ import { notify } from '@/components/notifications';
 import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
 import SignatureCanvas from './SignatureCanvas';
 import EngineerDictationButton from './EngineerDictationButton';
-import WorkReportCustomFields from './WorkReportCustomFields';
+// Iter 220ds — WorkReportCustomFields temporarily not rendered on
+// Complete; the concept is retained (state, payload field) but the
+// per-machine rendering needs a rework, planned for Equipment tab.
+// Import intentionally left commented to make the future re-add
+// trivial.
+// import WorkReportCustomFields from './WorkReportCustomFields';
 import WorkVisitMachinesCard from './WorkVisitMachinesCard';
 import useJobDraft from './useJobDraft';
 import { resolveChannel } from '@/utils/channelLabel';
@@ -409,13 +414,20 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
         </div>
       </div>
 
-      {/* Iter 220cz — Overrun warning, sibling-jobs warning, handoff notes. */}
+      {/* Iter 220cz — Overrun warning, sibling-jobs warning.
+          Iter 220ds — Handoff notes on Summary are read-only and
+          only render when a PREVIOUS engineer left context (true
+          second-visit case). The composer moves to the Complete
+          tab where leaving handoff is the natural close-out
+          action. */}
       <JobOverrunBanner overrun={job.overrun} />
       <SiblingJobsBanner cases={job.sibling_jobs} />
       <HandoffNotesPanel
         caseId={job.id}
         notes={job.handoff_notes || []}
         onChange={onChange}
+        mode="read-only"
+        currentUserId={job.viewer_user_id}
       />
       {/* Iter 220de — Compliance pack (PTW / COSHH / LOTO). */}
       <ComplianceCard caseId={job.id} onChange={onChange} />
@@ -543,14 +555,26 @@ function SiblingJobsBanner({ cases }) {
 // ─── Iter 220cz · HandoffNotesPanel ──────────────────────────────
 // Reads existing `case.handoff_notes` and lets the engineer add
 // another. Posts to `POST /svc/engineer/jobs/{case_id}/handoff-note`.
-// Quiet when no notes exist and the composer is collapsed — one
-// tap reveals the textarea so the rare action doesn't clutter the
-// header on every job.
-function HandoffNotesPanel({ caseId, notes, onChange }) {
+//
+// Iter 220ds (Feb 2026): split into two operating modes.
+//   * ``mode="read-only"`` — surfaces previous engineers' notes
+//     on the **Summary** tab so a returning engineer sees the
+//     context. Hidden entirely when no prior notes exist (Summary
+//     stays clean on first-visit jobs).
+//   * ``mode="compose"`` — full composer + list. Lives on the
+//     **Complete** tab so leaving handoff is part of wrapping up.
+function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentUserId }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const list = Array.isArray(notes) ? notes : [];
+  const readOnly = mode === 'read-only';
+  // Read-only Summary mode: only surface notes left by SOMEONE ELSE.
+  // The current engineer's own notes don't count as "handover I
+  // need to read", they're their own work.
+  const visibleNotes = readOnly
+    ? list.filter(n => (n.engineer_id || '') !== (currentUserId || ''))
+    : list;
   const submit = async () => {
     const note = text.trim();
     if (!note) {
@@ -574,6 +598,40 @@ function HandoffNotesPanel({ caseId, notes, onChange }) {
       setBusy(false);
     }
   };
+  // Summary mode: render only when there's something to surface,
+  // and never show the composer.
+  if (readOnly) {
+    if (visibleNotes.length === 0) return null;
+    return (
+      <div
+        className="mx-3 mb-2 p-2 rounded-lg border bg-blue-50/60 text-slate-800 border-blue-200"
+        data-testid="jaag-handoff-panel"
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <MessageSquare size={14} className="text-blue-700" />
+          <p className="text-[10px] font-bold uppercase tracking-wide text-blue-800">
+            From the previous engineer
+          </p>
+        </div>
+        <ul className="space-y-1" data-testid="jaag-handoff-list">
+          {visibleNotes.slice().reverse().map((n) => (
+            <li
+              key={n.id || `${n.at}-${n.engineer_id}`}
+              className="text-xs bg-white border border-blue-100 rounded px-2 py-1"
+              data-testid={`jaag-handoff-${n.id || 'item'}`}
+            >
+              <p className="text-slate-800 leading-snug whitespace-pre-wrap">{n.note}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                {n.engineer_name || 'Engineer'}
+                {n.at ? ' · ' + new Date(n.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  // Compose mode (Complete tab) — list + composer.
   if (list.length === 0 && !open) {
     return (
       <div className="mx-3 mb-2" data-testid="jaag-handoff-empty">
@@ -944,12 +1002,14 @@ function TimeTab({ job, busy, setBusy, onChange }) {
       {!active ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="time-start-card">
           <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Start a timer</p>
-          <div className="grid grid-cols-3 gap-2">
+          {/* Iter 220ds — Travel button removed from the Time tab.
+              The Travel tab's "Start trip" is the better entry point
+              (it captures distance + auto-mileage). Time stays scoped
+              to on-site + admin so engineers can't pick between two
+              competing travel timers. */}
+          <div className="grid grid-cols-2 gap-2">
             <button disabled={busy} onClick={() => start('on_site')} className="flex flex-col items-center gap-1 py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 disabled:opacity-50" data-testid="time-start-on_site">
               <Play size={16} /><span className="text-xs font-bold">On site</span>
-            </button>
-            <button disabled={busy} onClick={() => start('travel')} className="flex flex-col items-center gap-1 py-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100 disabled:opacity-50" data-testid="time-start-travel">
-              <Car size={16} /><span className="text-xs font-bold">Travel</span>
             </button>
             <button disabled={busy} onClick={() => start('admin')} className="flex flex-col items-center gap-1 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 disabled:opacity-50" data-testid="time-start-admin">
               <Clock size={16} /><span className="text-xs font-bold">Admin</span>
@@ -2276,12 +2336,30 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         }}
       />
 
-      {/* Iter 220 — Machine-specific custom fields (engineer-managed) */}
-      <WorkReportCustomFields
-        caseId={job.id}
-        values={customFields}
-        onChange={setCustomFields}
-      />
+      {/* Iter 220ds — Handoff-note composer lives here, not on
+          Summary. Leaving notes is part of wrapping up, so it
+          belongs alongside the summary + signature + outcome. */}
+      <div
+        className="bg-white rounded-2xl border border-slate-200 p-4"
+        data-testid="complete-handoff-card"
+      >
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">
+          Handoff for the next engineer
+        </p>
+        <HandoffNotesPanel
+          caseId={job.id}
+          notes={job.handoff_notes || []}
+          onChange={onChange}
+          mode="compose"
+        />
+      </div>
+
+      {/* Iter 220ds — WorkReportCustomFields temporarily removed
+          from Complete. The concept is still required (machine-
+          specific fields for compliance / asset-specific
+          reporting), but the placement needs a rework — likely
+          per-machine on the Equipment tab. Component intentionally
+          NOT deleted. */}
 
       {/* Iter 220cn — `WorkVisitMachinesCard` moved to the dedicated
           Equipment tab. Keeping it out of Complete prevents engineers

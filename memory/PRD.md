@@ -1,3 +1,73 @@
+## Iter 220ds — Handoff / Time / Custom-fields UX adjustments ✅ (Feb 14, 2026)
+
+Three additional UX pins from the same screenshot feedback round:
+
+### 1 · Handoff notes — Summary read-only, Complete composer
+
+- `HandoffNotesPanel` now takes a `mode` prop.
+  - `mode="read-only"` (Summary): filters out the current
+    engineer's own notes (`currentUserId` filter), renders the
+    remaining list with a "From the previous engineer" header.
+    Returns `null` when the visible list is empty — first-visit
+    jobs see a completely clean Summary.
+  - `mode="compose"` (Complete): full composer + list. Now the
+    natural place to leave a handoff while you wrap up.
+- Backend — `routes/svc/engineer.py::engineer_job_detail` returns
+  `viewer_user_id` so the panel can do the filter without an
+  extra API call.
+
+### 2 · Travel button removed from the Time tab
+
+- The Time tab had a `Travel` timer button alongside `On site` and
+  `Admin`, and the Travel tab itself has `Start trip` — two
+  competing entry points for the same action.
+- Time tab grid drops from `grid-cols-3` to `grid-cols-2`
+  (on-site + admin). Travel timing is now ONLY on the Travel tab.
+- Travel tab itself is unchanged.
+
+### 3 · WorkReportCustomFields off Complete (concept retained)
+
+- `<WorkReportCustomFields ... />` removed from Complete.
+- Import commented out (NOT deleted) — a single-line revert.
+- `custom_fields` state + payload field still wired through the
+  complete request, ready for the future per-machine
+  reposition on the Equipment tab.
+- `WorkReportCustomFields.js` component file retained — test pins
+  it must exist.
+
+### Tests / lint
+
+- `tests/test_iter_220ds_handoff_time_customfields.py` —
+  **9 tests** green:
+  - HandoffNotesPanel supports `mode` + `currentUserId`.
+  - Summary renders read-only with viewer-id filter.
+  - Complete renders composer card with testid.
+  - Read-only branch early-returns null when empty.
+  - Engineer backend payload pins `viewer_user_id`.
+  - Time tab no longer has the Travel button.
+  - Travel tab still mounted as canonical entry point.
+  - Complete no longer instantiates `<WorkReportCustomFields>`.
+  - Concept retained: import commented (not deleted), state +
+    payload still wired, component file still exists.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1943 passed, 15 skipped, 0 failed**.
+- Engineer flow: Summary clean except when there's previous-
+  engineer context to read, handoff lives where it belongs (close
+  out), no duplicate travel timer.
+
+### Note on serial-number rub-off (deferred)
+
+Operator flagged that some machines have rubbed-off serials so
+customer portal can't enforce serials as a hard required field.
+The previous iter's potential-improvement suggestion (enforce
+serials on customer portal) needs an "unreadable / rubbed off"
+escape hatch with engineer-on-first-visit capture. Logged for the
+next pass on the customer portal intake form.
+
+
 ## Iter 220dr — Equipment auto-populate + Summary capture-media removal ✅ (Feb 14, 2026)
 
 Driven by the operator screenshot on the Treadmill-belt-slip job:

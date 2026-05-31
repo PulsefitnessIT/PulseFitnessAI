@@ -614,6 +614,10 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         "safety_template": safety_template,
         "overrun": overrun,
         "sibling_jobs": sibling_jobs,
+        # Iter 220ds — surface the current viewer's id so the
+        # Engineer App can filter handoff notes to "from the
+        # previous engineer" on the Summary tab.
+        "viewer_user_id": user.get("id"),
     }
 
 
