@@ -1,3 +1,44 @@
+## Iter 220ea·13 — Custom Fields react to Case Type ✅ (Feb 14, 2026)
+
+**User confirmation request** — "Custom Fields must also react to
+Case Types — a repair will need different custom fields than a
+Preventative Maintenance Service." This iter confirms (and locks
+in with regression tests) that the existing wiring already does
+this end-to-end.
+
+### Existing wiring (Iter 220du, already shipped)
+
+* Admin editor (`EngineerWorkReportFields.js`) exposes the
+  multi-select **Only on these job types (leave empty for all)**
+  with chips: Repair · PPM Service · Installation · Inspection ·
+  Emergency callout · Asset audit (`id`s `repair`, `ppm`,
+  `install`, `inspection`, `callout`, `audit`).
+* Backend `WorkReportFieldIn` / `WorkReportFieldPatch` accept
+  `job_types: list[str]`.
+* `GET /svc/work-report-fields/for-case/{case_id}` and
+  `GET /svc/work-report-fields/for-machine-row/{row_id}`
+  filter the result set against the case's `case_type` — an
+  empty/missing `job_types` list still returns the field
+  (backward-compat) but a non-empty list must include the
+  current case's `case_type` for the field to surface.
+* `case_type` defaults to `"repair"` for legacy cases without a
+  stamped type so behaviour stays sensible.
+
+### Verified end-to-end (Feb 14, 2026)
+
+```
+case_type=repair → field with job_types=["repair"]      ✓ shown
+case_type=ppm     → field with job_types=["repair"]      ✗ hidden
+```
+
+### Tests
+`backend/tests/test_iter_220ea_13_custom_fields_react_to_case_type.py`
+(5 source-level guards) added to `Makefile` regression target.
+Lock-in tests for: admin UI chips, both Pydantic models, allowed
+job types, and both `for-case` + `for-machine-row` resolvers
+applying the filter correctly.
+
+
 ## Iter 220ea·12 — Per-machine parts + further-work + clean row ✅ (Feb 14, 2026)
 
 Four connected changes to the Equipment tab's expanded machine
