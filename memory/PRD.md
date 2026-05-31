@@ -1,3 +1,38 @@
+## Iter 220e4-followup — Discoverable auto-renew toggle ✅ (Feb 14, 2026)
+
+Operator continuation of iter 220e4 improvement teaser:
+
+> Expose `auto_renew` as a one-click switch on Contract Detail (and in
+> the wizard) so the autopilot is far more discoverable for contract
+> coordinators.
+
+### What changed
+
+- **Wizard Step 1** now shows a clearly-labelled "Auto-renew this
+  contract" checkbox card with the autopilot promise inline so
+  coordinators know exactly what they're opting into. Carried
+  through to the POST payload (`auto_renew: !!form.auto_renew`).
+- **Contract Detail header** gets a one-click toggle pill
+  (`Auto-renew: On/Off`) that calls the existing
+  `PUT /api/crm/v2/contracts/{id}` endpoint with `{ auto_renew }`.
+  Optimistic UI; reverts on server error.
+
+Both surfaces persist to the same flag already consumed by the
+autopilot endpoint shipped in iter 220e4 — so toggling on the
+Detail page is enough to enrol a contract in the 30-day
+auto-dispatch flow.
+
+### Tests (2)
+
+`test_iter_220e4_auto_renew_toggle.py` — wizard test-id present
+with autopilot prose + form/payload wiring; detail toggle test-id,
+optimistic handler, and PUT endpoint usage.
+
+Lint clean.
+
+---
+
+
 ## Iter 220e4 — Auto-renewal autopilot ✅ (Feb 14, 2026)
 
 Operator continuation of the "potential improvement" suggested at

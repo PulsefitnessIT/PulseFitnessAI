@@ -57,6 +57,7 @@ function emptyForm() {
     start_date: '', end_date: '', renewal_date: '',
     contract_length_months: 12,
     billing_frequency: 'annual',
+    auto_renew: false,
     selected_asset_ids: [],
     asset_filter: { type: '', manufacturer: '' },
     template_id: '',
@@ -199,6 +200,20 @@ function CustomerStep({ form, setForm, companies, contacts, sites, engineers, in
       <Field label="Renewal Date" span={2}>
         <input type="date" value={form.renewal_date} {...inp}
                onChange={e => setForm({ ...form, renewal_date: e.target.value })} />
+      </Field>
+      <Field label="Auto-renew" span={2}>
+        <label className="flex items-center gap-2 text-xs cursor-pointer px-3 py-2 rounded-md border"
+               data-testid="wizard-auto-renew-toggle"
+               style={{ borderColor: form.auto_renew ? 'var(--color-success-alt)' : 'var(--color-border-alt)',
+                        background: form.auto_renew ? 'var(--color-success-alt)10' : 'transparent' }}>
+          <input type="checkbox" checked={!!form.auto_renew}
+                 onChange={e => setForm({ ...form, auto_renew: e.target.checked })} />
+          <span>
+            <strong>Auto-renew this contract.</strong> The autopilot will draft a renewal at +5–12% uplift,
+            email the customer the branded PDF, and create an accept link 30 days before expiry. The customer
+            still needs to sign — nothing activates automatically.
+          </span>
+        </label>
       </Field>
     </div>
   );
@@ -663,6 +678,7 @@ export default function ContractWizard({ open, onClose, onCreated, API, headers,
         annual_value: form.pricing.annual_value,
         total_value: form.pricing.annual_value,
         billing_frequency: form.billing_frequency,
+        auto_renew: !!form.auto_renew,
         template_id: form.template_id,
         inclusions: form.inclusions,
         exclusions_structured: form.exclusions_structured,

@@ -1186,6 +1186,21 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
     } catch (e) { alert(e.response?.data?.detail || 'Send failed'); }
   };
 
+  // Iter 220e4-followup — one-click auto-renew toggle. Optimistic UI
+  // so the engineer/coordinator gets immediate feedback; reverts on
+  // server error.
+  const toggleAutoRenew = async () => {
+    const next = !contract.auto_renew;
+    setContract({ ...contract, auto_renew: next });
+    try {
+      await axios.put(`${API}/crm/v2/contracts/${contractId}`,
+                      { auto_renew: next }, { headers: headers() });
+    } catch (e) {
+      setContract({ ...contract, auto_renew: !next });
+      alert(e.response?.data?.detail || 'Failed to update auto-renew');
+    }
+  };
+
   if (!contract) return <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
   const sc = STATUS_COLORS[contract.status] || 'var(--color-text-faint-alt)';
@@ -1227,6 +1242,18 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <button onClick={toggleAutoRenew}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-md border flex items-center gap-1"
+                  data-testid="contract-auto-renew-toggle"
+                  data-auto-renew={contract.auto_renew ? 'on' : 'off'}
+                  title="When on, the autopilot drafts + emails a renewal 30 days before expiry."
+                  style={{
+                    borderColor: contract.auto_renew ? 'var(--color-success-alt)' : c.border,
+                    color: contract.auto_renew ? 'var(--color-success-alt)' : c.textMuted,
+                    background: contract.auto_renew ? 'var(--color-success-alt)15' : 'transparent',
+                  }}>
+            <Zap size={12} /> Auto-renew: {contract.auto_renew ? 'On' : 'Off'}
+          </button>
           <button onClick={handleDownloadPdf} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="contract-download-pdf-btn">
             <FileText size={12} className="inline mr-1" />PDF
           </button>
