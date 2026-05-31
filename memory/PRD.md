@@ -1,3 +1,75 @@
+## Iter 220e3 — CRM → Contracts: Premium overhaul (Phases A–G) ✅ (Feb 14, 2026)
+
+Operator brief:
+
+> Evolve the existing CRM → Contracts module into a premium,
+> enterprise-grade service-contract management system for the
+> fitness industry — without duplicating customers, sites, assets,
+> contacts, engineers, contracts, quotes, invoices, jobs or CRM data
+> already in the system.
+
+### What changed (all phases shipped in a single iter)
+
+#### Phase A — Foundation schema + Templates
+- **New collection** `crm2_contract_templates` (admin-renameable Silver/Gold/Platinum/Custom). System defaults seed lazily on first list call so empty tenants always have a starting point. Slug is immutable; name is freely editable so tenants can rebrand to "Basic / Standard / Premium / Labour Only" etc.
+- **New endpoint** `GET /api/crm/v2/contract-catalog` returns the canonical inclusion / exclusion / consumable / response-time catalog. Per-tenant `PUT /contract-catalog/labels` for label overrides (slugs never change).
+- **Contract schema extension** — `crm_contracts._build_contract_doc` now carries `inclusions{}`, `exclusions_structured[]`, `consumables[]`, `response_times{}`, `pricing{}`, `terms_md`, `template_id`, `billing_contact_id`, `assigned_engineer_id`, `site_id`, `renewal_date`, `contract_length_months`. Additive — legacy contracts continue to work.
+- **Apply-template endpoint** overlays cover fields onto a draft without clobbering customer / dates / assets.
+
+#### Phase B — 10-step Create Contract Wizard (frontend)
+- New `pages/CRM/Contracts/ContractWizard.js` replaces the 1-screen modal as the primary "New Contract" CTA. Steps: Customer & Site → Assets → Cover Type → Inclusions → Exclusions → Consumables → Response Times → Pricing (with computed margin %) → Terms (auto-generated from cover) → Review.
+- Wizard consumes the existing `companies / contacts / sites-and-equipment` endpoints — **no duplicated data**. Quick-Create modal kept as a fallback path.
+- "From Template" picker on step 3 pre-fills inclusions/exclusions/consumables/response-times.
+
+#### Phase C — Comparison Matrix
+- New `pages/CRM/Contracts/ContractMatrix.js` renders a grouped tick / cross / response-time matrix.
+- Visible in the wizard's Review step **and** as a new **Compare** tab on Contract Detail (templates vs. this contract — perfect for upsell at renewal).
+
+#### Phase D — Branded PDF + Send + E-sign
+- New `utils/crm_contract_pdf.py` (reportlab) renders a branded contract PDF with header / parties / cover summary / inclusions / exclusions / consumables / response-times / pricing / T&Cs / signature box.
+- **New endpoints** `GET /contracts/{id}/pdf` (auth'd download), `POST /contracts/{id}/send` (Resend + accept-token mint), `GET /public/contracts/{token}` (customer snapshot — strips cost / margin), `POST /public/contracts/{token}/sign` (idempotent accept).
+- New **Public Accept page** at `/contracts/accept/:token` with signature canvas. Marks contract `active` + fires the existing `contract_activated` integration event on sign.
+- **Download PDF** + **Send** buttons added to the Contract Detail header.
+
+#### Phase E — Renewals pipeline + reminders
+- New `GET /contracts/renewals/pipeline` buckets active contracts by 30/60/90-day windows with suggested uplift (heuristic baseline: 5% CPI + 3% if cost/annual > 70%, capped 12%).
+- New `POST /contracts/renewals/run-reminders` — operator-triggered, **idempotent per (contract_id, threshold)**.
+- New **Renewals** view in CRM → Contracts (top-level toggle alongside the list) shows the three buckets with per-card uplift suggestions and a "Run reminders now" button.
+
+#### Phase F — Reports / Analytics
+- New `GET /contracts/reports/dashboard` aggregates ARR / MRR / at-risk value by 30/60/90 / tier breakdown / status / coverage gap (assets without an active contract).
+- New **Reports** view in CRM → Contracts presents ARR, MRR, at-risk pipeline, tier breakdown, and the uncovered-assets upsell signal.
+
+#### Phase G — AI assistance
+- New endpoints `POST /contracts/{id}/ai/recommend-cover`, `/ai/suggest-uplift`, `/ai/draft-terms` — use the Emergent LLM key (gpt-4o-mini) when configured, fall back to deterministic baselines otherwise. **Never auto-send, auto-sign or auto-activate** — the spec was explicit and the code enforces it.
+
+### Files
+
+Backend:
+- New: `routes/crm_contract_templates.py` · `routes/crm_contract_send.py` · `routes/crm_contract_lifecycle.py` · `utils/crm_contract_pdf.py`
+- Updated: `routes/crm_contracts.py` (build_contract_doc carries new fields) · `route_registry/crm.py` (three new routers)
+
+Frontend:
+- New: `pages/CRM/Contracts/{contractCatalog,ContractWizard,ContractMatrix,ContractDashboards,PublicContractAcceptPage}.js`
+- Updated: `pages/CRM/CRMContracts.js` (Cover & Compare tabs · view switcher · PDF/Send buttons) · `routes/AppRoutes.js` (public accept route)
+
+### Tests
+
+- `test_iter_220e3_contracts_phase_a_templates.py` (12 tests) — catalog, template seeding, CRUD, apply-template, build_contract_doc fields.
+- `test_iter_220e3_contracts_phase_a_frontend.py` (4 tests) — wizard step labels, matrix surfaces, CRM page wiring, fallback catalog.
+- `test_iter_220e3_contracts_phase_def_g.py` (9 tests) — PDF byte output, renewal buckets, idempotent reminders, reports dashboard math, AI fallback baselines, public sign idempotency, internal pricing strip.
+- `test_iter_220e3_contracts_phase_def_g_frontend.py` (5 tests) — public accept page, route, dashboards & buttons.
+
+Regression: **2042 passed, 15 skipped, 0 failed** (`make regression`). Lint clean (ruff + ESLint).
+
+### What's intentionally NOT in this iter
+- Engineer App "entitlement panel" on the job (the cover chip + 3-tone banner from iter 220e1/e2 already shows the engineer billability stance).
+- DocuSign wiring — uses in-app signature canvas; DocuSign blocked on creds.
+- Sage 200 ledger posting — separate P2 task on the backlog.
+
+---
+
+
 ## Iter 220e2 — Cover banner three-tone trichotomy ✅ (Feb 14, 2026)
 
 Operator follow-up:

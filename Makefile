@@ -260,6 +260,10 @@ regression:
 	  tests/test_iter_220dz_engineer_ux_polish.py \
 	  tests/test_iter_220e1_cover_chip_summary_and_public.py \
 	  tests/test_iter_220e2_cover_tone_trichotomy.py \
+	  tests/test_iter_220e3_contracts_phase_a_templates.py \
+	  tests/test_iter_220e3_contracts_phase_a_frontend.py \
+	  tests/test_iter_220e3_contracts_phase_def_g.py \
+	  tests/test_iter_220e3_contracts_phase_def_g_frontend.py \
 	  -q --tb=line --no-header
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.

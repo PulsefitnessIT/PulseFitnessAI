@@ -106,6 +106,8 @@ const PartnerEngineerLanding = lazy(() => import('@/pages/Marketing/PartnerEngin
 const PartnerApplyPublic = lazy(() => import('@/pages/Marketing/PartnerApplyPublic'));
 // Iter 216h83 — public customer live-tracking
 const PublicTrackingPage = lazy(() => import('@/pages/PublicTracking/PublicTrackingPage'));
+// Iter 220e3 — public contract accept (Phase D)
+const PublicContractAcceptPage = lazy(() => import('@/pages/CRM/Contracts/PublicContractAcceptPage'));
 const _ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
 const IntegrationsConsole = lazy(() => import('@/pages/Admin/IntegrationsConsole'));
 const IntegrationsSiconConnect = lazy(() => import('@/pages/Admin/IntegrationsSiconConnect'));
@@ -276,6 +278,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/m/:slug/join/success" element={<JoinSuccess />} />
       {/* Iter 216h83 — public live tracking (no auth, token-gated) */}
       <Route path="/track/:token" element={<PublicTrackingPage />} />
+      <Route path="/contracts/accept/:token" element={<PublicContractAcceptPage />} />
       {/* Iter 216h88 — public Engineer Partner marketing landing */}
       <Route path="/partners/engineers" element={<PartnerEngineerLanding />} />
       {/* Iter 216h286 — Gap 8: public review submission page.

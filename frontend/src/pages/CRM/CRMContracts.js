@@ -5,12 +5,16 @@ import {
   Calendar, DollarSign, Shield, Clock, CheckCircle, AlertTriangle,
   Edit2, Trash2, X, Wrench, Activity, Copy, Send, ThumbsUp,
   ThumbsDown, RefreshCw, Link2, PenTool, BarChart3,
-  Settings2, ExternalLink, Zap
+  Settings2, ExternalLink, Zap, Sparkles
 } from 'lucide-react';
 import axios from 'axios';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';
 import ListPanel from '@/components/shared/ListPanel';
+import ContractWizard from './Contracts/ContractWizard';
+import { ContractMatrix } from './Contracts/ContractMatrix';
+import { useContractCatalog, useContractTemplates } from './Contracts/contractCatalog';
+import { ContractsReportsDashboard, ContractsRenewalsDashboard } from './Contracts/ContractDashboards';
 
 const TIER_COLORS = { warranty: 'var(--color-text-faint-alt)', bronze: 'var(--color-bronze)', silver: 'var(--color-silver)', gold: 'var(--color-gold)', platinum: '#E5E4E2', bespoke: 'var(--color-accent-violet)' };
 const STATUS_COLORS = { draft: 'var(--color-text-faint-alt)', pending_approval: 'var(--color-warning)', approved: 'var(--color-success-alt-2)', sent: 'var(--color-info-ios)', negotiation: 'var(--color-accent-magenta)', signed: 'var(--color-success-alt)', active: 'var(--color-info-ios)', expiring: 'var(--color-accent-amber)', expired: 'var(--color-danger-alt)', renewed: 'var(--color-success-alt)', cancelled: 'var(--color-danger)', amended: 'var(--color-accent-violet)' };
@@ -74,6 +78,7 @@ function ContractList({ c, isDark, API, headers, onSelect }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [form, setForm] = useState({ title: '', type: 'service', tier: 'silver', company_id: '', contact_id: '', start_date: '', end_date: '', annual_value: '', billing_frequency: 'annual' });
@@ -146,7 +151,10 @@ function ContractList({ c, isDark, API, headers, onSelect }) {
       <ListPanel
         search={{ value: search, onChange: setSearch, placeholder: 'Search contracts...', testId: 'contracts-search' }}
         count={{ value: total, label: 'contract' }}
-        primaryAction={{ label: 'New Contract', icon: Plus, onClick: openCreate, testId: 'create-contract-btn' }}
+        primaryAction={{ label: 'New (Wizard)', icon: Sparkles, onClick: () => setShowWizard(true), testId: 'open-contract-wizard-btn' }}
+        secondaryActions={[
+          <Button key="quick" variant="ghost" size="sm" onClick={openCreate} icon={Plus} data-testid="create-contract-btn">Quick Create</Button>,
+        ]}
         empty={{
           when: filtered.length === 0,
           icon: FileText,
@@ -246,6 +254,17 @@ function ContractList({ c, isDark, API, headers, onSelect }) {
           <button onClick={handleCreate} disabled={saving || !form.title.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" data-testid="save-contract-btn">{saving ? 'Creating...' : 'Create Contract'}</button>
         </div>
       </Modal>
+
+      {/* Iter 220e3 — 10-step wizard (Phase B). */}
+      <ContractWizard
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+        onCreated={(id) => { setShowWizard(false); onSelect(id); }}
+        API={API}
+        headers={headers}
+        c={c}
+        isDark={isDark}
+      />
     </div>
   );
 }
@@ -782,6 +801,144 @@ function ApprovalTab({ contract, contractId, API, headers, isDark, c, reload, _u
 }
 
 
+/* ═══ COVER TAB (iter 220e3 — Phase A read surface) ═══ */
+function CoverTab({ contract, contractId, API, headers, isDark, c, reload }) {
+  const { catalog } = useContractCatalog(API, headers);
+  const { templates } = useContractTemplates(API, headers);
+  const [saving, setSaving] = useState(false);
+  const includedCount = Object.values(contract.inclusions || {}).reduce((n, arr) => n + (arr?.length || 0), 0);
+  const excCount = (contract.exclusions_structured || []).length;
+  const conCount = (contract.consumables || []).length;
+  const rtCount = Object.keys(contract.response_times || {}).length;
+
+  const applyTemplate = async (tpl) => {
+    if (!window.confirm(`Overlay "${tpl.name}" onto this contract? Customer / dates / assets stay untouched.`)) return;
+    setSaving(true);
+    try {
+      await axios.post(`${API}/crm/v2/contract-templates/${tpl.id}/apply/${contractId}`, {}, { headers: headers() });
+      reload();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    setSaving(false);
+  };
+
+  return (
+    <div data-testid="cover-tab">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        {[
+          { l: 'Inclusions', v: includedCount, icon: CheckCircle, color: 'var(--color-success-alt)' },
+          { l: 'Exclusions', v: excCount, icon: X, color: 'var(--color-danger)' },
+          { l: 'Consumables', v: conCount, icon: FileText, color: 'var(--color-info-ios)' },
+          { l: 'Response bands', v: rtCount, icon: Clock, color: 'var(--color-accent-amber)' },
+        ].map(k => (
+          <div key={k.l} className="p-3 rounded-lg border" style={{ background: isDark ? '#111' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+            <k.icon size={13} style={{ color: k.color }} />
+            <p className="text-lg font-bold mt-1" style={{ color: c.text }}>{k.v}</p>
+            <p className="text-[10px] uppercase" style={{ color: c.textDim }}>{k.l}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Template overlay buttons */}
+      <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: c.textDim }}>Apply template</p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {templates.map(tpl => (
+          <button key={tpl.id} onClick={() => applyTemplate(tpl)} disabled={saving}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md border"
+                  style={{ borderColor: c.border, color: c.text, background: isDark ? '#111' : '#fff' }}
+                  data-testid={`apply-template-${tpl.tier_slug}-btn`}>
+            <Shield size={11} className="inline mr-1" />{tpl.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Inclusions read-out */}
+      <div className="space-y-3">
+        {catalog.inclusion_groups.map(group => {
+          const checked = contract.inclusions?.[group.key] || [];
+          const visibleItems = group.items.filter(i => checked.includes(i.key));
+          if (!visibleItems.length) return null;
+          return (
+            <div key={group.key} className="p-3 rounded-lg border" style={{ background: isDark ? '#111' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={`cover-group-${group.key}`}>
+              <p className="text-[10px] uppercase tracking-wider font-bold mb-1.5" style={{ color: c.textDim }}>{group.label}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {visibleItems.map(item => (
+                  <span key={item.key} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--color-success-alt)15', color: 'var(--color-success-alt)' }}>
+                    <CheckCircle size={10} /> {item.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {(contract.exclusions_structured || []).length > 0 && (
+          <div className="p-3 rounded-lg border" style={{ background: isDark ? '#0F0A0A' : 'var(--color-rose-50)', borderColor: isDark ? '#3D1F1F' : '#FECACA' }} data-testid="cover-exclusions">
+            <p className="text-[10px] uppercase tracking-wider font-bold mb-1.5" style={{ color: 'var(--color-danger)' }}>Exclusions</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(contract.exclusions_structured || []).map(key => {
+                const item = catalog.exclusion_items.find(e => e.key === key);
+                return (
+                  <span key={key} className="text-[11px] px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--color-danger)15', color: 'var(--color-danger)' }}>
+                    {item?.label || key}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {Object.keys(contract.response_times || {}).length > 0 && (
+          <div className="p-3 rounded-lg border" style={{ background: isDark ? '#111' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid="cover-response-times">
+            <p className="text-[10px] uppercase tracking-wider font-bold mb-1.5" style={{ color: c.textDim }}>Response times</p>
+            <div className="grid grid-cols-3 gap-2">
+              {catalog.response_time_bands.map(band => {
+                const rt = contract.response_times?.[band.key];
+                if (!rt) return null;
+                return (
+                  <div key={band.key} className="text-[11px]">
+                    <p style={{ color: c.textDim }}>{band.label}</p>
+                    <p className="font-bold" style={{ color: c.text }}>{rt.hours}h</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+/* ═══ COMPARE TAB (iter 220e3 — Phase C matrix) ═══ */
+function CompareTab({ contract, API, headers, isDark, c }) {
+  const { catalog } = useContractCatalog(API, headers);
+  const { templates } = useContractTemplates(API, headers);
+  const columns = [
+    ...templates.map(t => ({
+      id: t.id, name: t.name, tier_slug: t.tier_slug,
+      inclusions: t.inclusions, response_times: t.response_times, exclusions: t.exclusions,
+    })),
+    {
+      id: contract.id,
+      name: `This contract`,
+      tier_slug: contract.tier || 'custom',
+      inclusions: contract.inclusions || {},
+      response_times: contract.response_times || {},
+      exclusions: contract.exclusions_structured || [],
+    },
+  ];
+  return (
+    <div data-testid="compare-tab">
+      <p className="text-xs mb-3" style={{ color: c.textDim }}>
+        How this contract compares to your standard templates. Useful for upsell conversations at renewal.
+      </p>
+      <ContractMatrix catalog={catalog} columns={columns} isDark={isDark} c={c} />
+    </div>
+  );
+}
+
+
 /* ═══ BILLING TAB ═══ */
 function BillingTab({ contract, isDark, c }) {
   const billingPeriod = {
@@ -1005,6 +1162,30 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
     } catch (e) { alert(e.response?.data?.detail || 'Cannot delete'); }
   };
 
+  const handleDownloadPdf = () => {
+    // Authenticated download — open in a new tab with token header? We use a
+    // bearer-aware fetch + blob so the download works through axios headers().
+    axios.get(`${API}/crm/v2/contracts/${contractId}/pdf`, {
+      headers: headers(), responseType: 'blob',
+    }).then(res => {
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${contract.contract_number || contractId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    }).catch(e => alert(e.response?.data?.detail || 'Download failed'));
+  };
+
+  const handleSendToCustomer = async () => {
+    const to = window.prompt('Send contract PDF to (leave blank to use billing contact):', '');
+    if (to === null) return;
+    try {
+      const res = await axios.post(`${API}/crm/v2/contracts/${contractId}/send`,
+                                   { to: to || undefined }, { headers: headers() });
+      alert(`Contract sent. Customer accept link: ${res.data.accept_path}${res.data.email_dispatched ? '' : '\n(Email queue is unavailable — share the link manually.)'}`);
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Send failed'); }
+  };
+
   if (!contract) return <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
   const sc = STATUS_COLORS[contract.status] || 'var(--color-text-faint-alt)';
@@ -1013,6 +1194,8 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
     { id: 'overview', label: 'Overview', icon: FileText },
     { id: 'sites', label: `Sites (${contract.sites?.length || 0})`, icon: MapPin },
     { id: 'assets', label: `Assets (${contract.covered_assets?.length || 0})`, icon: Wrench },
+    { id: 'cover', label: 'Cover', icon: Shield },
+    { id: 'compare', label: 'Compare', icon: BarChart3 },
     { id: 'sla', label: 'SLA & Coverage', icon: Shield },
     { id: 'service', label: 'Service Integration', icon: Link2 },
     { id: 'billing', label: 'Billing', icon: DollarSign },
@@ -1044,6 +1227,12 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <button onClick={handleDownloadPdf} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="contract-download-pdf-btn">
+            <FileText size={12} className="inline mr-1" />PDF
+          </button>
+          <button onClick={handleSendToCustomer} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: 'var(--color-info-ios)40', color: 'var(--color-info-ios)' }} data-testid="contract-send-btn">
+            <Send size={12} className="inline mr-1" />Send
+          </button>
           {canSign && (
             <button onClick={() => setShowSign(true)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--color-success-alt)] text-white" data-testid="sign-contract-btn">
               <PenTool size={12} /> Sign
@@ -1149,6 +1338,8 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
       {/* Tabs Content */}
       {activeTab === 'sites' && <SitesTab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
       {activeTab === 'assets' && <AssetsTab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
+      {activeTab === 'cover' && <CoverTab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
+      {activeTab === 'compare' && <CompareTab contract={contract} API={API} headers={headers} isDark={isDark} c={c} />}
       {activeTab === 'sla' && <SLATab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
       {activeTab === 'service' && <ServiceTab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
       {activeTab === 'billing' && <BillingTab contract={contract} isDark={isDark} c={c} />}
@@ -1217,6 +1408,7 @@ export default function CRMContracts() {
   const crm = useCRM();
   const { navTarget, setNavTarget } = crm;
   const [selectedId, setSelectedId] = useState(null);
+  const [view, setView] = useState('list'); // 'list' | 'renewals' | 'reports'
 
   useEffect(() => {
     if (navTarget?.type === 'contract' && navTarget?.id) {
@@ -1226,5 +1418,34 @@ export default function CRMContracts() {
   }, [navTarget, setNavTarget]);
 
   if (selectedId) return <ContractDetail contractId={selectedId} onBack={() => setSelectedId(null)} {...crm} />;
-  return <ContractList onSelect={setSelectedId} {...crm} />;
+
+  const c = crm.c;
+  const isDark = crm.isDark;
+  const tabBtn = (id, label, testId) => (
+    <button key={id} onClick={() => setView(id)} data-testid={testId}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${view === id ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
+            style={view !== id ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div>
+      <div className="flex gap-1 mb-4">
+        {tabBtn('list', 'Contracts', 'view-tab-list')}
+        {tabBtn('renewals', 'Renewals', 'view-tab-renewals')}
+        {tabBtn('reports', 'Reports', 'view-tab-reports')}
+      </div>
+      {view === 'list' && <ContractList onSelect={setSelectedId} {...crm} />}
+      {view === 'renewals' && (
+        <ContractsRenewalsDashboard
+          API={crm.API} headers={crm.headers} c={c} isDark={isDark}
+          onOpen={(id) => { setView('list'); setSelectedId(id); }}
+        />
+      )}
+      {view === 'reports' && (
+        <ContractsReportsDashboard API={crm.API} headers={crm.headers} c={c} isDark={isDark} />
+      )}
+    </div>
+  );
 }
