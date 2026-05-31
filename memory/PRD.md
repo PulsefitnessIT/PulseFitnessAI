@@ -1,3 +1,55 @@
+## Iter 220dq — Public live-tracking surfaces Return-to-fix ✅ (Feb 14, 2026)
+
+Customer-side of the Iter 220dp loop. When the engineer flags a
+case as "needs a second visit", the customer's live-tracking page
+now renders a friendly amber **"Return visit booked"** banner — so
+the customer doesn't phone in to ask "when are they coming back?".
+
+### Backend — `routes/svc/public_tracking.py`
+
+- `find_one` projection grows by `return_to_fix: 1`.
+- New customer-safe summary block builder:
+  - `return_at` (passes through)
+  - `reason` (truncated to 240 chars; blank → `None`)
+  - Internal-only fields (`engineer_id`, `engineer_name`,
+    `created_at`, `id`) explicitly **NOT** included — the engineer
+    name is *not* an attribute the customer needs to know about
+    return scheduling.
+- Guard: a corrupt `return_to_fix` block (no `return_at`) yields
+  `None` so the customer never sees a useless banner.
+
+### Frontend — `PublicTracking/PublicTrackingPage.js`
+
+- New section between the status header and the compliance chips,
+  styled amber (`bg-amber-50` + `border-amber-200`) so it draws
+  the right amount of attention without competing with the live
+  ETA/Truck chip.
+- `<CalendarClock>` icon from `lucide-react`.
+- `fmtReturnAt` helper renders the booked date as
+  *"Thu 04 Jun · 09:30"* (locale-aware, falls back to raw ISO).
+- Test ids: `track-return-to-fix`, `track-return-to-fix-date`,
+  `track-return-to-fix-reason`.
+
+### Tests / lint
+
+- `tests/test_iter_220dq_public_return_to_fix.py` — **6 tests** green:
+  - `return_to_fix` is `null` when not flagged.
+  - Surfaces correctly when set, with reason intact.
+  - Internal-only fields don't leak into the public payload.
+  - Reason truncated to 240 chars (defensive — engineer-authored).
+  - Blank reason coerced to `None` (no empty banner).
+  - Corrupt `return_to_fix` without `return_at` → `None`.
+  - Frontend banner pinned with all 3 testids + `fmtReturnAt`.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1926 passed, 15 skipped, 0 failed**.
+- Customer trust loop closed: engineer flags return → reschedule
+  fires → branded email goes out → customer's live page shows the
+  banner. Zero phone calls back to ops.
+
+
 ## Iter 220dn / 220do / 220dp — Engineer job-screen UX restructure ✅ (Feb 14, 2026)
 
 Three bundled iters driven by the engineer's Treadmill-slip

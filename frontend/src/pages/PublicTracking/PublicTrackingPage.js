@@ -13,7 +13,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   MapPin, Clock, CheckCircle, CheckCircle2, Wrench, Loader2, Truck, Star, AlertCircle, Send,
-  ShieldCheck, ClipboardCheck, FlaskConical,
+  ShieldCheck, ClipboardCheck, FlaskConical, CalendarClock,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -36,6 +36,18 @@ function fmtTime(iso) {
   if (!iso) return '';
   try {
     return new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return iso;
+  }
+}
+
+// Iter 220dp — friendly "Thu 04 Jun · 09:30" formatting for the
+// return-to-fix banner. Falls back to the raw ISO if parsing blows up.
+function fmtReturnAt(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
   } catch {
     return iso;
   }
@@ -291,6 +303,40 @@ export default function PublicTrackingPage() {
             </div>
           </div>
         </section>
+
+        {/* Iter 220dp — Return-to-fix banner. When the engineer
+            flagged the job as "needs a second visit" we surface the
+            booked return date + reason here so the customer has a
+            single source of truth and doesn't need to phone ops. */}
+        {data.return_to_fix?.return_at ? (
+          <section
+            className="rounded-2xl bg-amber-50 border border-amber-200 shadow-sm p-4"
+            data-testid="track-return-to-fix"
+          >
+            <div className="flex items-start gap-3">
+              <CalendarClock size={18} className="text-amber-700 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                  Return visit booked
+                </p>
+                <p
+                  className="text-sm font-extrabold text-amber-900 leading-tight mt-0.5"
+                  data-testid="track-return-to-fix-date"
+                >
+                  {fmtReturnAt(data.return_to_fix.return_at)}
+                </p>
+                {data.return_to_fix.reason ? (
+                  <p
+                    className="text-xs text-amber-800 mt-1"
+                    data-testid="track-return-to-fix-reason"
+                  >
+                    {data.return_to_fix.reason}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {/* Iter 220dl — Compliance chips. Mirrors the PDF evidence pack
             (PTW + LOTO + COSHH) so the customer can see safety work

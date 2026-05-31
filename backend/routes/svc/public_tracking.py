@@ -293,6 +293,7 @@ async def public_track(token: str):
             "service_report_sent_at": 1,
             "customer_feedback_at": 1,
             "site_lat": 1, "site_lng": 1, "latitude": 1, "longitude": 1,
+            "return_to_fix": 1,
         },
     )
     if not case:
@@ -362,6 +363,19 @@ async def public_track(token: str):
     # rather than waiting for the post-visit report.
     compliance = await _public_compliance_summary(case)
 
+    # Iter 220dp — Customer-safe Return-to-fix summary. Surfaces the
+    # rescheduled return when the engineer flagged the job as
+    # "needs a second visit" so the customer doesn't have to call
+    # ops to ask "when are they coming back?". The reason is shown
+    # verbatim (engineer-authored, customer-visible by design).
+    rtf = case.get("return_to_fix") or None
+    rtf_public = None
+    if rtf and rtf.get("return_at"):
+        rtf_public = {
+            "return_at": rtf.get("return_at"),
+            "reason": (rtf.get("reason") or "")[:240] or None,
+        }
+
     return {
         "reference": case.get("reference") or case["id"][:8],
         "title": case.get("title") or "Service visit",
@@ -389,6 +403,7 @@ async def public_track(token: str):
         ),
         "eta": eta,
         "compliance": compliance,
+        "return_to_fix": rtf_public,
         "events": customer_safe_events,
         "rating_captured": bool(case.get("customer_rating")),
         "feedback_captured": bool(case.get("customer_feedback_at")),
