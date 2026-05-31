@@ -612,4 +612,101 @@ async def return_to_fix(
     return {"ok": True, "return_to_fix": rtf, "customer_notified": notified}
 
 
+# ─── Iter 220dx · Engineer "Capture serial on visit 1" task ───────
+#
+# When the customer flags a rubbed-off / unreadable serial via the
+# Log-a-Fault dialog (iter 220dw), the case is stamped with
+# ``capture_serial_required=True`` + a reason. This endpoint lets
+# the engineer fulfil that task in one call: post the serial they
+# actually read off the plate (plus an optional photo file id),
+# stamp the case + back-fill the canonical equipment row so the
+# next case for the same asset has the right serial.
+
+class CaptureSerialIn(BaseModel):
+    serial: str = Field(..., min_length=1, max_length=120)
+    photo_file_id: str | None = None
+    asset_id: str | None = None
+
+
+@router.post("/jobs/{case_id}/capture-serial")
+async def capture_serial(
+    case_id: str, body: CaptureSerialIn,
+    user=Depends(get_current_user),
+):
+    """Engineer captures the previously-unknown serial on visit 1.
+
+    Updates the case + (when possible) the canonical equipment row
+    so the customer-portal serial datalist has the right value on
+    every future fault."""
+    of = _of(user)
+    case = await _case_for_engineer(case_id, user)
+    if not case.get("capture_serial_required"):
+        raise HTTPException(409, "Case does not require serial capture")
+
+    serial_value = body.serial.strip()
+    now_iso = _now()
+    case_update = {
+        "captured_serial": serial_value,
+        "serial_captured_at": now_iso,
+        "serial_capture_engineer_id": user["id"],
+        "serial_capture_engineer_name": (
+            user.get("full_name") or user.get("email") or ""
+        ),
+        # Iter 220dx — clearing the flag flips the Equipment-tab
+        # banner off without losing the audit trail (we just stamped
+        # who captured + when).
+        "capture_serial_required": False,
+        "updated_at": now_iso,
+    }
+    if body.photo_file_id:
+        case_update["serial_capture_photo_id"] = body.photo_file_id
+
+    await db.svc_cases.update_one(
+        {"id": case_id, **of},
+        {"$set": case_update},
+    )
+
+    # Back-fill the canonical equipment row when we can identify the
+    # asset and it doesn't already have a serial set. We never
+    # overwrite an existing serial — the engineer may have captured
+    # the secondary plate and the primary record is still right.
+    equipment_id = (body.asset_id or case.get("asset_id") or "").strip()
+    equipment_updated = False
+    if equipment_id:
+        existing = await db.equipment.find_one(
+            {"id": equipment_id, **of},
+            {"_id": 0, "id": 1, "serial_number": 1},
+        )
+        if existing and not (existing.get("serial_number") or "").strip():
+            await db.equipment.update_one(
+                {"id": equipment_id, **of},
+                {"$set": {
+                    "serial_number": serial_value,
+                    "serial_captured_at": now_iso,
+                    "serial_captured_by_engineer_id": user["id"],
+                    "updated_at": now_iso,
+                }},
+            )
+            equipment_updated = True
+
+    await append_event(
+        case_id=case_id, organization_id=of["organization_id"],
+        event_type="serial_captured", actor=user,
+        body=f"Serial captured on visit 1: {serial_value}",
+        extra={
+            "kind": "serial_captured",
+            "serial": serial_value,
+            "equipment_updated": equipment_updated,
+            "asset_id": equipment_id or None,
+            "photo_file_id": body.photo_file_id or None,
+        },
+    )
+    return {
+        "ok": True,
+        "serial": serial_value,
+        "equipment_updated": equipment_updated,
+        "captured_at": now_iso,
+    }
+
+
 __all__ = ["router"]

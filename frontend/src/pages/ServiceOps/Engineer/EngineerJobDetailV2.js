@@ -244,7 +244,7 @@ export default function EngineerJobDetailV2() {
         )}
         {activeTab === 'time'   && <TimeTab job={job} busy={busy} setBusy={setBusy} onChange={load} />}
         {activeTab === 'travel' && <TravelTab job={job} mileage={mileage} onChange={load} />}
-        {activeTab === 'equipment' && <EquipmentTab job={job} />}
+        {activeTab === 'equipment' && <EquipmentTab job={job} onChange={load} />}
         {activeTab === 'parts'  && <PartsTab job={job} onChange={load} />}
         {activeTab === 'complete' && (
           <CompleteTab
@@ -1486,7 +1486,147 @@ function MediaTile({ item }) {
 // (parts can be assigned per row), and the Complete tab's
 // `WorkVisitMachinesCard` is now hosted here too.
 
-function EquipmentTab({ job }) {
+// Iter 220dx — CaptureSerialCard pins the rubbed-off / unknown
+// serial follow-up task at the top of the Equipment tab. The
+// engineer reads the plate on site, types it, optionally attaches
+// a photo, and the case + canonical equipment row both back-fill
+// in one call. After successful capture the card disappears
+// (`capture_serial_required` flips off).
+function CaptureSerialCard({ job, onChange }) {
+  const REASON_LABELS = {
+    rubbed_off: 'Plate rubbed off / unreadable',
+    not_visible: 'Plate not visible / behind cladding',
+    never_had_one: 'Machine has no serial plate',
+  };
+  const [serial, setSerial] = useState('');
+  const [photoFileId, setPhotoFileId] = useState(null);
+  const [photoName, setPhotoName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const reasonLabel =
+    REASON_LABELS[(job.capture_serial_reason || '').toLowerCase()] ||
+    'Customer couldn\'t read the serial at fault log';
+
+  const uploadPhoto = async (file) => {
+    if (!file) return;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await axios.post(`${API}/files/upload`, fd, {
+        ...auth(), headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
+      });
+      const fid = r.data?.file_id || r.data?.id;
+      if (fid) {
+        setPhotoFileId(fid);
+        setPhotoName(file.name);
+      } else {
+        notify.error('Photo upload returned no id');
+      }
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Photo upload failed');
+    }
+  };
+
+  const submit = async () => {
+    const trimmed = serial.trim();
+    if (!trimmed) { notify.error('Type the serial first'); return; }
+    setBusy(true);
+    try {
+      const r = await axios.post(
+        `${API}/svc/engineer/jobs/${job.id}/capture-serial`,
+        {
+          serial: trimmed,
+          photo_file_id: photoFileId,
+          asset_id: job.asset_id || null,
+        },
+        auth(),
+      );
+      notify.success(
+        'Serial captured',
+        r?.data?.equipment_updated
+          ? 'Saved to the case + back-filled on the equipment record.'
+          : 'Saved to the case audit trail.',
+      );
+      await onChange?.();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not capture serial');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="rounded-2xl border border-amber-300 bg-amber-50 p-4"
+      data-testid="capture-serial-card"
+    >
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+          <QrCode size={18} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+            Action required · Capture serial on visit 1
+          </p>
+          <p className="text-sm font-extrabold text-amber-900 mt-0.5">
+            Customer couldn't read the serial when logging this fault
+          </p>
+          <p className="text-xs text-amber-800 mt-0.5" data-testid="capture-serial-reason">
+            {reasonLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        <label className="block">
+          <span className="block text-[10px] font-bold uppercase tracking-wider text-amber-900 mb-1">
+            Serial read off the plate
+          </span>
+          <input
+            type="text"
+            value={serial}
+            onChange={(e) => setSerial(e.target.value)}
+            placeholder="e.g. LF-22-12345-A"
+            className="w-full text-sm border border-amber-300 rounded-lg px-3 py-2 bg-white"
+            data-testid="capture-serial-input"
+            autoComplete="off"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-[10px] font-bold uppercase tracking-wider text-amber-900 mb-1">
+            Plate photo (optional)
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => uploadPhoto(e.target.files?.[0])}
+            className="block w-full text-xs"
+            data-testid="capture-serial-photo"
+          />
+          {photoName && (
+            <p className="text-[11px] text-amber-700 mt-1" data-testid="capture-serial-photo-name">
+              <Camera size={11} className="inline-block mr-1" /> {photoName}
+            </p>
+          )}
+        </label>
+
+        <button
+          type="button"
+          onClick={submit}
+          disabled={busy || !serial.trim()}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 text-white text-sm font-bold disabled:opacity-50"
+          data-testid="capture-serial-submit"
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+          Mark serial captured
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EquipmentTab({ job, onChange }) {
   // Iter 220dr — surface the customer-logged context at the top of
   // Equipment so the engineer knows *which* machine the fault was
   // reported against without scrolling back to Summary. Pulls from
@@ -1508,6 +1648,15 @@ function EquipmentTab({ job }) {
 
   return (
     <div className="space-y-4" data-testid="equipment-tab">
+      {/* Iter 220dx — Capture-serial task pinned at the very top of
+          Equipment when the customer flagged a rubbed-off / missing
+          serial on intake. Engineer reads the plate on site, types
+          the serial, optionally snaps a photo, and the case + the
+          canonical equipment row both back-fill in one call. */}
+      {job?.capture_serial_required ? (
+        <CaptureSerialCard job={job} onChange={onChange} />
+      ) : null}
+
       {(customerSummary || customerPhotos.length || customerFiles.length || job?.asset_name) ? (
         <div
           className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3"

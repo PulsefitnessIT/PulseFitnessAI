@@ -1,3 +1,83 @@
+## Iter 220dx — Engineer "Capture serial on visit 1" auto-task ✅ (Feb 14, 2026)
+
+Closes the rubbed-off-serial loop end-to-end. Three iters
+combined produce a complete experience:
+
+1. **220dw** — Customer ticks "Serial unknown" on Log-a-Fault →
+   case stamped with `capture_serial_required=True` + reason.
+2. **220dx** (this iter) — Engineer's Equipment tab shows an
+   amber "Action required · Capture serial on visit 1" card with
+   the customer's reason; engineer reads the plate on site, types
+   the serial, optionally snaps a photo, taps submit.
+3. **Backend** stamps the case, flips the flag off, and back-
+   fills the canonical equipment row when it doesn't already
+   have a serial.
+
+### Backend — `routes/svc/engineer_phase3.py`
+
+**`POST /api/svc/engineer/jobs/{case_id}/capture-serial`**
+- `CaptureSerialIn { serial, photo_file_id?, asset_id? }`.
+- 409 when the case doesn't require capture (idempotency guard —
+  prevents accidental re-stamping).
+- Stamps the case with `captured_serial`, `serial_captured_at`,
+  `serial_capture_engineer_id`, `serial_capture_engineer_name`,
+  optional `serial_capture_photo_id`, and flips
+  `capture_serial_required: False`.
+- Back-fills the canonical equipment row when:
+  - `asset_id` resolves to an equipment doc.
+  - The doc has no existing `serial_number`.
+  We never overwrite an existing serial — engineer may be
+  capturing a secondary plate; the primary record stays
+  authoritative.
+- Appends a `serial_captured` event with serial value, photo id,
+  and equipment-update outcome for full audit traceability.
+
+### Frontend — `EngineerJobDetailV2.js`
+
+**`CaptureSerialCard` component** pinned at the very top of the
+Equipment tab when `case.capture_serial_required` is true:
+- Amber visual treatment (reuses the return-to-fix palette so
+  engineers recognise it as an "action required" surface).
+- `<QrCode>` icon. Header line: *"Action required · Capture
+  serial on visit 1"*.
+- Reason rendered from a `REASON_LABELS` map (rubbed_off /
+  not_visible / never_had_one).
+- Serial text input (autoComplete off, `capture-serial-input`).
+- Photo upload (`capture="environment"` so phones jump straight
+  to the rear camera; `capture-serial-photo`).
+- Submit button toasts either "Saved to the case + back-filled
+  on the equipment record" or "Saved to the case audit trail"
+  depending on the backend's `equipment_updated` flag.
+- Card disappears after success (the case's flag flipped off →
+  the conditional render hides it on the next case fetch).
+
+### Tests / lint
+
+- `tests/test_iter_220dx_capture_serial.py` — **7 tests** green:
+  - 409 when case doesn't require capture.
+  - Case is stamped + flag flipped off.
+  - Equipment row back-filled when serial was missing.
+  - Existing equipment serial is NOT overwritten.
+  - No asset_id → no equipment lookup attempted.
+  - Audit event recorded with serial, photo, equipment outcome.
+  - Frontend renders the card + has all 5 testids + handles all
+    3 reason slugs/labels.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **1977 passed, 15 skipped, 0 failed**.
+
+### Customer → Engineer → Equipment loop now complete
+
+`220dt` (backend taxonomy + escape hatch) →
+`220dw` (customer-portal form fields) →
+`220dx` (engineer-side task) →
+Engineer captures → equipment record back-filled →
+Next fault by the same gym shows the right serial in the
+datalist on the Log-a-Fault dialog. Zero phone calls.
+
+
 ## Iter 220dw — Customer-portal Log-a-Fault: case_type + serial_unknown ✅ (Feb 14, 2026)
 
 Surfaces the iter 220dt backend fields on the dashboard's
