@@ -74,6 +74,51 @@ export function labelForCaseType(slug) {
   return CASE_TYPE_LABELS[String(slug).toLowerCase()] || slug;
 }
 
+// Iter 220e1 — Cover state shared between Summary chip and Complete-
+// tab outcome banner. Reads the case's coverage meta and returns a
+// `{covered, kind, label, detail}` shape so both surfaces tell the
+// same story to engineer + ops without drifting.
+//
+// Engineer Summary uses this to know up-front whether to crack on
+// (cover present → fit parts, no auth needed) or call ops first
+// (chargeable → confirm spend with customer).
+export function computeCoverState(job) {
+  if (!job) return { covered: false, kind: 'chargeable', label: 'Chargeable visit' };
+  const meta = job.source_meta || {};
+  const status = (meta.coverage_status || job.coverage_status || '').toLowerCase();
+  const warrantyActive = !!meta.warranty_active;
+  const cover = (job.cover_type || '').toLowerCase();
+  const explicitCover = cover && cover !== 'chargeable' && cover !== 'none';
+  const covered = status === 'covered' || warrantyActive || explicitCover;
+  if (!covered) {
+    return {
+      covered: false,
+      kind: 'chargeable',
+      label: 'Chargeable visit',
+      detail: 'Confirm any spend with the customer before fitting parts.',
+    };
+  }
+  if (warrantyActive) {
+    const exp = (meta.warranty_expiry || '').slice(0, 10);
+    return {
+      covered: true,
+      kind: 'warranty',
+      label: 'Under manufacturer warranty' + (exp ? ` until ${exp}` : ''),
+      short: 'Warranty',
+      detail: 'Parts + labour are warranty-funded. Proceed without spend approval.',
+    };
+  }
+  const tier = (meta.contract_tier || '').toUpperCase();
+  const end = (meta.contract_end_date || '').slice(0, 10);
+  return {
+    covered: true,
+    kind: 'contract',
+    label: 'Under ' + (tier ? `${tier} ` : '') + 'service contract' + (end ? ` until ${end}` : ''),
+    short: tier ? `${tier} contract` : 'Contract',
+    detail: 'Parts + labour covered by the contract. Proceed without spend approval.',
+  };
+}
+
 
 const TABS = [
   // Iter 220dn — engineer flow restructure (Feb 2026).
@@ -282,6 +327,10 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
     ? `${lastVisitDoc.reference || 'previous'}${lastVisitDoc.closed_at ? ' · ' + new Date(lastVisitDoc.closed_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''}`
     : (job.last_visit_summary || null);
   const machineCount = (job.machines_count ?? (Array.isArray(job.machines) ? job.machines.length : null));
+  // Iter 220e1 — Cover state for the chip + the banner. Lets the
+  // engineer know up-front whether to crack on or wait for spend
+  // authorisation.
+  const cover = computeCoverState(job);
 
   // Has the engineer already arrived? We look for any on_site time
   // entry on the case (the existing TimeTab.start uses the same
@@ -416,6 +465,22 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
               <Wrench size={9} /> {labelForCaseType(job.case_type)}
             </span>
           )}
+          {/* Iter 220e1 — Cover chip. Engineer sees this on Summary
+              alongside Priority + Job-type so they can crack on
+              (covered) or hold off and ring ops (chargeable)
+              before fitting parts. */}
+          <span
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${
+              cover.covered
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-amber-50 text-amber-800 border-amber-300'
+            }`}
+            data-testid="jaag-cover-chip"
+            title={cover.label}
+          >
+            <ShieldCheck size={9} />
+            {cover.covered ? (cover.short || 'Covered') : 'Chargeable'}
+          </span>
           {machineCount != null && machineCount > 0 && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-slate-50 text-slate-600 border-slate-200" data-testid="jaag-machines">
               <Package size={9} /> {machineCount} {machineCount === 1 ? 'machine' : 'machines'}
@@ -442,6 +507,43 @@ function JobAtAGlance({ job, busy, setBusy, onChange }) {
               ★ {job.customer_rating}/5
             </span>
           )}
+        </div>
+      </div>
+
+      {/* Iter 220e1 — Detailed cover banner. Chip says *what* (Warranty
+          / Contract / Chargeable); banner says *what the engineer
+          should do* about it. Sits between the chip row and the
+          existing overrun/sibling/handoff warnings so it's the first
+          actionable signal the engineer reads. */}
+      <div
+        className={`rounded-2xl border p-3 ${
+          cover.covered
+            ? 'bg-emerald-50 border-emerald-200'
+            : 'bg-amber-50 border-amber-300'
+        }`}
+        data-testid="jaag-cover-banner"
+      >
+        <div className="flex items-start gap-2">
+          <ShieldCheck
+            size={16}
+            className={`mt-0.5 shrink-0 ${cover.covered ? 'text-emerald-700' : 'text-amber-700'}`}
+          />
+          <div className="flex-1 min-w-0">
+            <p
+              className={`text-xs font-extrabold ${cover.covered ? 'text-emerald-900' : 'text-amber-900'}`}
+              data-testid="jaag-cover-banner-label"
+            >
+              {cover.label}
+            </p>
+            {cover.detail && (
+              <p
+                className={`text-[11px] mt-0.5 ${cover.covered ? 'text-emerald-800' : 'text-amber-800'}`}
+                data-testid="jaag-cover-banner-detail"
+              >
+                {cover.detail}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2351,35 +2453,9 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   // "Close & invoice" — the gym already pays for cover. Engineers
   // can still tick "Misuse — bill anyway" for chargeable misuse, but
   // that's now an explicit override rather than the default.
-  const coverState = useMemo(() => {
-    const meta = job.source_meta || {};
-    const status = (meta.coverage_status || job.coverage_status || '').toLowerCase();
-    const warrantyActive = !!meta.warranty_active;
-    const cover = (job.cover_type || '').toLowerCase();
-    const explicitCover = cover && cover !== 'chargeable' && cover !== 'none';
-    const covered = status === 'covered' || warrantyActive || explicitCover;
-    if (!covered) return { covered: false, label: '', kind: 'chargeable' };
-    if (warrantyActive) {
-      const exp = meta.warranty_expiry || '';
-      return {
-        covered: true,
-        kind: 'warranty',
-        label: 'Under manufacturer warranty' + (exp ? ` until ${String(exp).slice(0, 10)}` : ''),
-        detail: 'No invoice will be sent unless this is logged as misuse.',
-      };
-    }
-    const tier = (meta.contract_tier || '').toUpperCase();
-    const end = (meta.contract_end_date || '').slice(0, 10);
-    return {
-      covered: true,
-      kind: 'contract',
-      label: 'Under '
-        + (tier ? `${tier} ` : '')
-        + 'service contract'
-        + (end ? ` until ${end}` : ''),
-      detail: 'No invoice will be sent unless this is logged as misuse.',
-    };
-  }, [job.source_meta, job.coverage_status, job.cover_type]);
+  // Iter 220e1 — shared with the JobAtAGlance cover banner so both
+  // surfaces tell the same story.
+  const coverState = useMemo(() => computeCoverState(job), [job]);
 
   // When the case is covered we treat "misuse" as the chargeable
   // override. Stored on the draft so it autosaves like any other

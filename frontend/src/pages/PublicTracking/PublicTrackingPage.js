@@ -304,6 +304,25 @@ export default function PublicTrackingPage() {
           </div>
         </section>
 
+        {/* Iter 220e1 — Cover chip. Short reassurance line above the
+            return-to-fix / compliance sections — answers the silent
+            "am I going to get a bill for this?" question before the
+            customer has to ask. */}
+        {data.cover?.covered ? (
+          <section
+            className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 flex items-center gap-2"
+            data-testid="track-cover-chip"
+          >
+            <ShieldCheck size={14} className="text-emerald-700 shrink-0" />
+            <span
+              className="text-xs font-extrabold text-emerald-900 tracking-tight"
+              data-testid="track-cover-label"
+            >
+              {data.cover.label}
+            </span>
+          </section>
+        ) : null}
+
         {/* Iter 220dp — Return-to-fix banner. When the engineer
             flagged the job as "needs a second visit" we surface the
             booked return date + reason here so the customer has a

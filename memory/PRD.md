@@ -1,3 +1,91 @@
+## Iter 220e1 — Cover chip + banner on Summary, cover chip on public tracking ✅ (Feb 14, 2026)
+
+Operator follow-up:
+
+> The engineer also needs to see what type of cover if any the
+> gym has on the summary screen so they know they can work on the
+> machines and fit parts or they have to wait for authorisation.
+
+### Shared helper: `computeCoverState(job)`
+
+Extracted from the iter 220e0 Complete-tab logic into a single
+exported function. Reads `case.source_meta.coverage_status`,
+`source_meta.warranty_active`, and `case.cover_type` and returns
+a `{covered, kind, label, short, detail}` shape. Recognises:
+
+- Active warranty → `kind='warranty'`, short label
+  *"Warranty"*, detail *"Parts + labour are warranty-funded.
+  Proceed without spend approval."*
+- Active contract → `kind='contract'`, short label
+  *"GOLD contract"* (or *"Contract"* when no tier), detail
+  *"Parts + labour covered by the contract. Proceed without
+  spend approval."*
+- Otherwise (no contract, no warranty, `cover_type` empty /
+  `chargeable` / `none`) → `kind='chargeable'`, detail
+  *"Confirm any spend with the customer before fitting parts."*
+
+### Engineer Summary (JobAtAGlance)
+
+- **Chip** added to the chip row next to Priority + Job-type
+  (`jaag-cover-chip`). Green when covered, amber when
+  chargeable. Title attribute shows the full long-form label.
+- **Banner** added above the existing overrun / sibling /
+  handoff warnings (`jaag-cover-banner` + `-label` + `-detail`).
+  First actionable signal the engineer reads on every job:
+  *"Under GOLD service contract until 31/12/2027 — Parts +
+  labour covered by the contract. Proceed without spend
+  approval."*
+- Chargeable cases get the same banner in amber with the
+  *"Confirm spend"* detail so the engineer knows to ring ops.
+
+### Complete tab refactor
+
+- The iter 220e0 `coverState` memo was duplicating the cover
+  logic. Now a one-liner that delegates to `computeCoverState`,
+  so future tweaks land in one place and the two surfaces can't
+  drift.
+
+### Public live-tracking customer chip
+
+- Backend `public_track` payload exposes a customer-safe `cover`
+  block (`{covered, kind, label}`). Customer-visible label only —
+  contract numbers / titles / ids / warranty expiry stay
+  internal.
+- Frontend renders a green emerald chip
+  (`track-cover-chip` + `track-cover-label`) above the return-
+  to-fix / compliance sections when `cover.covered` is true.
+  Says *"Covered by service contract · no charge"* or *"Under
+  manufacturer warranty"*.
+- Chargeable cases render NO chip — no point worrying the
+  customer pre-quote.
+
+### Tests / lint
+
+- `tests/test_iter_220e1_cover_chip_summary_and_public.py` —
+  **9 tests** green:
+  - `computeCoverState` exported with correct logic for
+    warranty / contract / explicit / chargeable / "none" slugs.
+  - Complete tab reuses the shared helper.
+  - Summary renders the chip with correct conditional label.
+  - Summary renders the banner with actionable detail (proven
+    via the helper detail strings).
+  - Public payload returns contract / warranty / chargeable
+    labels.
+  - Public payload doesn't leak contract numbers, titles, ids,
+    or warranty expiry.
+  - Public tracking page renders the cover chip when covered.
+- Added to `Makefile` regression block (TAB indent).
+- 0 new lint warnings.
+
+### Result
+- `make regression` → **2002 passed**, 15 skipped, 0 failed.
+- 2 000-test milestone reached.
+- Engineer + customer + ops now all see the same cover signal.
+  Engineer never accidentally invoices a covered gym; customer
+  never wonders if they're getting billed; ops never gets a
+  "wait — what's the cover here?" radio call.
+
+
 ## Iter 220dz + 220e0 — Empty custom fields hidden + cover-aware close-out ✅ (Feb 14, 2026)
 
 Two screenshot-driven UX polish pins.

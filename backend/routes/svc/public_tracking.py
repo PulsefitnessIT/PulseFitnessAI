@@ -294,6 +294,10 @@ async def public_track(token: str):
             "customer_feedback_at": 1,
             "site_lat": 1, "site_lng": 1, "latitude": 1, "longitude": 1,
             "return_to_fix": 1,
+            # Iter 220e1 — surface cover state to the customer so they
+            # see "Covered by service contract · no charge" before the
+            # final report lands.
+            "cover_type": 1, "coverage_status": 1, "source_meta": 1,
         },
     )
     if not case:
@@ -376,6 +380,35 @@ async def public_track(token: str):
             "reason": (rtf.get("reason") or "")[:240] or None,
         }
 
+    # Iter 220e1 — Customer-safe cover summary. The engineer Summary
+    # already shows the cover detail; the customer page only needs a
+    # short, reassuring label ("Covered by service contract · no
+    # charge") + the chargeable opposite ("Chargeable visit"). No
+    # contract numbers or PII bleed onto the public payload.
+    cover_meta = case.get("source_meta") or {}
+    cover_status = (cover_meta.get("coverage_status") or case.get("coverage_status") or "").lower()
+    warranty_active = bool(cover_meta.get("warranty_active"))
+    cover_slug = (case.get("cover_type") or "").lower()
+    explicit_cover = cover_slug and cover_slug not in {"chargeable", "none"}
+    if warranty_active:
+        cover_public = {
+            "covered": True,
+            "kind": "warranty",
+            "label": "Under manufacturer warranty",
+        }
+    elif cover_status == "covered" or explicit_cover:
+        cover_public = {
+            "covered": True,
+            "kind": "contract",
+            "label": "Covered by service contract · no charge",
+        }
+    else:
+        cover_public = {
+            "covered": False,
+            "kind": "chargeable",
+            "label": "Chargeable visit",
+        }
+
     return {
         "reference": case.get("reference") or case["id"][:8],
         "title": case.get("title") or "Service visit",
@@ -404,6 +437,7 @@ async def public_track(token: str):
         "eta": eta,
         "compliance": compliance,
         "return_to_fix": rtf_public,
+        "cover": cover_public,
         "events": customer_safe_events,
         "rating_captured": bool(case.get("customer_rating")),
         "feedback_captured": bool(case.get("customer_feedback_at")),
