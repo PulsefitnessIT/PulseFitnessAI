@@ -27,7 +27,7 @@ import {
   ArrowLeft, Clock, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
-  Video, MapPin, Send, Download, Phone, Navigation, History,
+  Video, MapPin, Send, Download, Phone, Navigation,
   Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer, ShieldCheck, QrCode,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -385,13 +385,6 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSa
     ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
     : null;
   const fault = job.description || job.fault_summary || job.summary || '';
-  // Iter 220cs — surface the most recent prior visit to the same
-  // asset (the engineer endpoint already returns `asset_history`).
-  const lastVisitDoc = Array.isArray(job.asset_history) ? job.asset_history[0] : null;
-  const lastVisit = lastVisitDoc
-    ? `${lastVisitDoc.reference || 'previous'}${lastVisitDoc.closed_at ? ' · ' + new Date(lastVisitDoc.closed_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''}`
-    : (job.last_visit_summary || null);
-  const machineCount = (job.machines_count ?? (Array.isArray(job.machines) ? job.machines.length : null));
   // Iter 220e1 — Cover state for the chip + the banner. Lets the
   // engineer know up-front whether to crack on or wait for spend
   // authorisation.
@@ -591,81 +584,13 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToSa
           </div>
         )}
 
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {job.priority && (
-            <span
-              className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${
-                String(job.priority).toLowerCase().startsWith('p1') || String(job.priority).toLowerCase() === 'critical'
-                  ? 'bg-rose-50 text-rose-700 border-rose-200'
-                  : String(job.priority).toLowerCase().startsWith('p2') || String(job.priority).toLowerCase() === 'high'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-slate-50 text-slate-600 border-slate-200'
-              }`}
-              data-testid="jaag-priority"
-            >
-              {String(job.priority).toUpperCase()}
-            </span>
-          )}
-          {/* Iter 220dt — Job-type chip. Customer + service desk
-              picks the type at intake; engineer sees it on Summary
-              so they know up-front whether to grab tools for a
-              repair, a PPM checklist, an install kit, etc. */}
-          {job.case_type && (
-            <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-indigo-50 text-indigo-700 border-indigo-200"
-              data-testid="jaag-case-type"
-            >
-              <Wrench size={9} /> {labelForCaseType(job.case_type)}
-            </span>
-          )}
-          {/* Iter 220e1 — Cover chip. Engineer sees this on Summary
-              alongside Priority + Job-type so they can crack on
-              (covered) or hold off and ring ops (chargeable)
-              before fitting parts.
-              Iter 220e2 — Tone trichotomy: red (chargeable) /
-              amber (cover expiring ≤90d) / green (comfortable cover). */}
-          <span
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${
-              cover.tone === 'green'
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : cover.tone === 'amber'
-                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                  : 'bg-rose-50 text-rose-800 border-rose-300'
-            }`}
-            data-testid="jaag-cover-chip"
-            data-tone={cover.tone}
-            title={cover.label}
-          >
-            <ShieldCheck size={9} />
-            {cover.covered ? (cover.short || 'Covered') : 'Chargeable'}
-          </span>
-          {machineCount != null && machineCount > 0 && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-slate-50 text-slate-600 border-slate-200" data-testid="jaag-machines">
-              <Package size={9} /> {machineCount} {machineCount === 1 ? 'machine' : 'machines'}
-            </span>
-          )}
-          {lastVisit && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border-blue-200" data-testid="jaag-last-visit">
-              <History size={9} /> Last visit: {lastVisit}
-            </span>
-          )}
-          {/* Iter 220cy — captured customer rating. */}
-          {typeof job.customer_rating === 'number' && job.customer_rating > 0 && (
-            <span
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${
-                job.customer_rating >= 4
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : job.customer_rating >= 3
-                    ? 'bg-amber-50 text-amber-800 border-amber-200'
-                    : 'bg-rose-50 text-rose-800 border-rose-200'
-              }`}
-              title={job.customer_rating_comment || 'Customer rating'}
-              data-testid="jaag-customer-rating"
-            >
-              ★ {job.customer_rating}/5
-            </span>
-          )}
-        </div>
+        {/* Iter 220ea·8 — Lower chip row removed. Priority + cover
+            are already in the top status-pill row; case-type was
+            promoted there too. Machine count lives in the stats
+            grid above. Last-visit + customer-rating chips were
+            infrequent and dropped to keep Summary uncluttered;
+            if a returning engineer needs that context, the
+            Asset History panel below has it. */}
       </div>
 
       {/* Iter 220ea·7 — Cover banner moved to the top of the
@@ -762,17 +687,54 @@ function _formatSlaCountdown(targetIso) {
   return { label, overdue, urgent: !overdue && absMs < 60 * 60 * 1000 };
 }
 
+// Iter 220ea·8 — Human-friendly priority legend. Surfaced as a
+// popover when the engineer taps the priority pill on Summary, so
+// a new starter doesn't have to guess what "P2" means. Wording
+// pulled from the ops handbook; intentionally short so it reads
+// at a glance on a 412 px phone.
+const PRIORITY_KEY = [
+  { code: 'P1', label: 'Critical',  detail: 'Equipment down or safety risk — respond within 4 hours.', cls: 'bg-rose-50 text-rose-800 border-rose-200' },
+  { code: 'P2', label: 'High',      detail: 'Major service impact — respond same day (within 24 hours).', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
+  { code: 'P3', label: 'Standard',  detail: 'Routine fault — respond within 3 working days.', cls: 'bg-slate-50 text-slate-700 border-slate-200' },
+  { code: 'P4', label: 'Low',       detail: 'Cosmetic or scheduled work — respond within 7 working days.', cls: 'bg-slate-50 text-slate-600 border-slate-200' },
+];
+
 function SummaryStatusPill({ job, cover }) {
+  const [showKey, setShowKey] = useState(false);
+  // Iter 220ea·8 — Close the legend on outside-tap so it doesn't
+  // get stuck open if the engineer scrolls away.
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!showKey) return undefined;
+    const onDoc = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setShowKey(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('touchstart', onDoc);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('touchstart', onDoc);
+    };
+  }, [showKey]);
+
   const status = String(job?.status || 'new').toLowerCase();
   const tone = STATUS_TONE[status] || STATUS_TONE.new;
   const sla = _formatSlaCountdown(job?.sla_resolve_at);
-  const priority = job?.priority ? String(job.priority).toUpperCase() : null;
-  const isHighPriority = priority && (
-    priority.startsWith('P1') || priority === 'CRITICAL' || priority === 'HIGH'
-  );
+  const priorityRaw = job?.priority ? String(job.priority).toUpperCase() : null;
+  const priorityCode = (() => {
+    if (!priorityRaw) return null;
+    if (priorityRaw.startsWith('P1') || priorityRaw === 'CRITICAL') return 'P1';
+    if (priorityRaw.startsWith('P2') || priorityRaw === 'HIGH')     return 'P2';
+    if (priorityRaw.startsWith('P3') || priorityRaw === 'STANDARD' || priorityRaw === 'MEDIUM') return 'P3';
+    if (priorityRaw.startsWith('P4') || priorityRaw === 'LOW')      return 'P4';
+    return priorityRaw;
+  })();
+  const isHighPriority = priorityCode === 'P1' || priorityCode === 'P2';
+  const caseTypeLabel = job?.case_type ? labelForCaseType(job.case_type) : null;
   return (
     <div
-      className="flex flex-wrap items-center gap-1.5"
+      ref={wrapRef}
+      className="relative flex flex-wrap items-center gap-1.5"
       data-testid="summary-status-pill-row"
     >
       <span
@@ -800,16 +762,39 @@ function SummaryStatusPill({ job, cover }) {
           {sla.overdue ? `${sla.label} over SLA` : `${sla.label} to SLA`}
         </span>
       )}
-      {priority && (
-        <span
-          className={`inline-flex items-center px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider ${
+      {priorityCode && (
+        <button
+          type="button"
+          onClick={() => setShowKey((v) => !v)}
+          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider transition-colors ${
             isHighPriority
-              ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-slate-50 text-slate-600 border-slate-200'
+              ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
           }`}
           data-testid="summary-priority-pill"
+          data-expanded={showKey ? 'true' : 'false'}
+          aria-expanded={showKey}
+          aria-haspopup="dialog"
+          title="Tap for priority key"
         >
-          {priority}
+          {priorityCode}
+          <ChevronRight
+            size={10}
+            className={`transition-transform ${showKey ? 'rotate-90' : ''}`}
+          />
+        </button>
+      )}
+      {/* Iter 220ea·8 — Case Type pill (Repair / PPM / Install /
+          Inspection / Callout / Audit). Was previously in the
+          lower chip row; promoted to the top so the engineer
+          knows up-front what kind of visit this is. */}
+      {caseTypeLabel && (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200"
+          data-testid="summary-case-type-pill"
+          title={`Job type · ${caseTypeLabel}`}
+        >
+          <Wrench size={10} /> {caseTypeLabel}
         </span>
       )}
       {cover?.tone === 'red' && (
@@ -820,6 +805,51 @@ function SummaryStatusPill({ job, cover }) {
         >
           <ShieldCheck size={10} /> Chargeable
         </span>
+      )}
+      {showKey && (
+        <div
+          className="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-xl bg-white border border-slate-200 shadow-lg p-2.5 space-y-1.5"
+          data-testid="summary-priority-key"
+          role="dialog"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+              Priority key
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowKey(false)}
+              className="text-slate-400 hover:text-slate-700"
+              aria-label="Close priority key"
+              data-testid="summary-priority-key-close"
+            >
+              <X size={12} />
+            </button>
+          </div>
+          <ul className="space-y-1">
+            {PRIORITY_KEY.map((p) => (
+              <li
+                key={p.code}
+                className={`flex items-start gap-2 rounded-lg px-2 py-1.5 border ${
+                  p.code === priorityCode ? p.cls : 'bg-white border-slate-100'
+                }`}
+                data-testid={`summary-priority-key-row-${p.code}`}
+              >
+                <span className={`inline-flex items-center justify-center w-7 h-5 rounded-full text-[10px] font-extrabold border ${p.cls}`}>
+                  {p.code}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-extrabold text-slate-900 leading-tight">
+                    {p.label}
+                  </p>
+                  <p className="text-[10px] text-slate-600 leading-snug">
+                    {p.detail}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

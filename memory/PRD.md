@@ -1,3 +1,39 @@
+## Iter 220ea·8 — Priority key + Case Type pill ✅ (Feb 14, 2026)
+
+Three further Summary-tab cleanups from a live user report on
+`EngineerJobDetailV2.js`.
+
+1. **Lower chip row deleted.** The `jaag-priority` + `jaag-cover-chip`
+   chips were duplicates of the top status-pill row, and the whole
+   row (`jaag-case-type`, `jaag-machines`, `jaag-last-visit`,
+   `jaag-customer-rating`) was clutter on a 412 px phone. Removed
+   entirely; dead locals (`lastVisitDoc`, `machineCount`) pruned and
+   the `History` lucide icon dropped from imports.
+2. **Case Type pill promoted to the top status row.** New
+   `summary-case-type-pill` renders right after the priority pill,
+   surfacing the case_type label (Repair / PPM / Installation /
+   Inspection / Callout / Audit) via the existing `labelForCaseType`
+   helper.
+3. **Priority pill is now an accessible button with a popover.**
+   Tapping the priority pill (e.g. "P2 ›") opens a `summary-priority-
+   key` legend listing all four tiers with human-readable detail:
+   - P1 Critical — Equipment down or safety risk · respond within 4 hours
+   - P2 High — Major service impact · respond same day (24 hours)
+   - P3 Standard — Routine fault · respond within 3 working days
+   - P4 Low — Cosmetic or scheduled work · respond within 7 working days
+
+   The current tier is visually highlighted. Closes on outside tap
+   (mousedown + touchstart listeners via a `wrapRef`), Escape via the
+   close button, or another tap on the pill.
+
+### Tests
+`backend/tests/test_iter_220ea_8_priority_key_and_case_type.py`
+(8 source-level guards). Added to `Makefile` regression target
+(tab-indented). Snapshot screenshot confirmed: status pill row now
+reads `[New] [P2 ›] [REPAIR] [CHARGEABLE]` with the priority popover
+opening cleanly.
+
+
 ## Iter 220ea·7 — Summary tab follow-up cleanups ✅ (Feb 14, 2026)
 
 Four small fixes off a live user report on the Engineer App Summary
