@@ -12,6 +12,7 @@ import { notify } from '@/components/notifications';
 import { notifyPicklistError } from '@/lib/picklistErrorHandler';
 import TimelinePanel from '@/components/CRM/TimelinePanel';
 import CRMAuditTrail from './CRMAuditTrail';
+import LeadConversionModal from './LeadConversionModal';
 import { AINextActionCard } from './CRMPhase3Panels';
 import { MEETING_LOCATION_PRESETS } from '@/utils/crmDropdowns';
 
@@ -33,6 +34,7 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [showConvert, setShowConvert] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -110,6 +112,20 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
         <button onClick={openEdit} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="opp-edit-btn">
           <Edit2 size={12} className="inline mr-1" /> Edit
         </button>
+        {!opp.converted_at && !['closed_won', 'closed_lost'].includes(opp.stage) && (
+          <button onClick={() => setShowConvert(true)} data-testid="opp-convert-btn"
+                  className="px-3 py-1.5 text-xs font-bold rounded-md text-white"
+                  style={{ background: 'var(--color-success-alt)' }}>
+            <GitBranch size={12} className="inline mr-1" /> Convert lead
+          </button>
+        )}
+        {opp.converted_at && (
+          <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-md tracking-wider"
+                style={{ background: 'var(--color-success-alt)15', color: 'var(--color-success-alt)' }}
+                data-testid="opp-converted-badge">
+            <CheckCircle size={10} className="inline mr-1" /> Converted
+          </span>
+        )}
         <button onClick={() => setShowAddNote(true)} className="px-3 py-1.5 bg-[var(--color-info-ios)] text-white text-xs font-medium rounded-md hover:bg-[var(--color-brand-blue-deep)]" data-testid="opp-add-activity-btn">
           <Plus size={12} className="inline mr-1" /> Activity
         </button>
@@ -316,6 +332,18 @@ function OpportunityDetail({ oppId, onBack, c, isDark, API, headers, _setActiveT
           </div>
         </div>
       )}
+
+      {/* Lead Conversion Modal */}
+      <LeadConversionModal
+        opp={opp}
+        open={showConvert}
+        onClose={() => setShowConvert(false)}
+        onConverted={() => load()}
+        API={API}
+        headers={headers}
+        c={c}
+        isDark={isDark}
+      />
 
       {/* Add Activity Dialog */}
       {showAddNote && (

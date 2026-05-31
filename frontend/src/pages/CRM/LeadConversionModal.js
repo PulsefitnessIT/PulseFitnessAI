@@ -32,14 +32,16 @@ const ARTIFACTS = [
 
 const TARGET_STAGES = ['qualified', 'proposal', 'negotiation'];
 
-export default function LeadConversionModal({ deal, open, onClose, onConverted, API, headers, c, isDark }) {
+export default function LeadConversionModal({ opp, open, onClose, onConverted, API, headers, c, isDark }) {
   const [companies, setCompanies] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [sites, setSites] = useState([]);
   const [form, setForm] = useState({
-    company:  { mode: 'create', data: { name: deal?.company_name || '' } },
-    contact:  { mode: 'create', data: { first_name: (deal?.contact_name || '').split(' ')[0] || '',
-                                        last_name: (deal?.contact_name || '').split(' ').slice(1).join(' ') } },
+    company:  { mode: 'create', data: { name: opp?.company_name || opp?.company?.name || '' } },
+    contact:  { mode: 'create', data: { first_name: (opp?.contact_name || '').split(' ')[0]
+                                                    || opp?.contact?.first_name || '',
+                                        last_name: (opp?.contact_name || '').split(' ').slice(1).join(' ')
+                                                    || opp?.contact?.last_name || '' } },
     site:     { mode: 'skip', data: {} },
     artifact: { kind: 'contract_draft' },
     target_stage: 'qualified',
@@ -81,7 +83,7 @@ export default function LeadConversionModal({ deal, open, onClose, onConverted, 
   const submit = async () => {
     setSubmitting(true); setError(null);
     try {
-      const res = await axios.post(`${API}/crm/deals/${deal.id}/convert`, form, { headers: headers() });
+      const res = await axios.post(`${API}/crm/v2/opportunities/${opp.id}/convert`, form, { headers: headers() });
       setResult(res.data);
       onConverted?.(res.data);
     } catch (e) {
@@ -168,7 +170,7 @@ export default function LeadConversionModal({ deal, open, onClose, onConverted, 
                 style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', borderColor: c.border }}>
           <div>
             <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: c.textDim }}>Convert lead</p>
-            <h2 className="text-base font-extrabold" style={{ color: c.text }}>{deal?.title || 'Deal'}</h2>
+            <h2 className="text-base font-extrabold" style={{ color: c.text }}>{opp?.title || 'Opportunity'}</h2>
           </div>
           <button onClick={onClose} data-testid="lead-convert-close"
                   className="p-1.5" style={{ color: c.textDim }}><XIcon size={16} /></button>

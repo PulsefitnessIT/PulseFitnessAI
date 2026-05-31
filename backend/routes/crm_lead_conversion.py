@@ -1,12 +1,13 @@
 """Iter 220e8 — CRM lead conversion flow.
 
-Converts a deal at the ``lead`` (or any pre-won) stage into a fully
-qualified Company + Contact (+ optional Site, + optional starter
-artifact: quote draft or contract draft). Bridges the legacy
-``crm_*`` deal/contact/company collections used by the pipeline UI
-with the ``crm2_*`` v2 collections that the Contracts module
-consumes — so a deal closing on Friday lands in the Monday-morning
-contract drafting queue without any data being retyped.
+Converts an opportunity at the ``lead`` (or any pre-won) stage into
+a fully qualified Company + Contact (+ optional Site, + optional
+starter artifact: quote draft or contract draft). Operates on the
+v2 ``crm2_opportunities`` collection (the source of truth for the
+Pipeline UI) and mirrors into the legacy ``crm_*`` collections so
+list views stay in lockstep — landing a Friday-closing lead in the
+Monday-morning contract drafting queue without any data being
+retyped.
 
 Behaviour:
 
@@ -17,9 +18,10 @@ Behaviour:
   deal so the conversion is traceable.
 * Idempotent: a deal that's already converted returns the previously
   created IDs instead of re-creating duplicate records.
-* On success, the deal is stamped with ``converted_at``,
-  ``conversion_company_id``, ``conversion_contact_id`` etc. and moved
-  to the operator-chosen pipeline stage (default ``qualified``).
+* On success, the opportunity is stamped with ``converted_at``,
+  ``conversion_company_id``, ``conversion_contact_id`` etc. and
+  moved to the operator-chosen pipeline stage (default
+  ``qualified``).
 """
 from __future__ import annotations
 
@@ -33,7 +35,7 @@ from routes.crm_core import log_audit
 from utils.database import db
 
 
-router = APIRouter(prefix="/crm", tags=["CRM Lead Conversion"])
+router = APIRouter(prefix="/crm/v2", tags=["CRM Lead Conversion"])
 
 
 def _now() -> str:
@@ -49,13 +51,13 @@ def _of(user: dict) -> dict:
     return {"organization_id": org if org else "__NO_ORG__"}
 
 
-async def _resolve_or_create_company(payload: dict, deal: dict, user: dict) -> dict:
+async def _resolve_or_create_company(payload: dict, opp: dict, user: dict) -> dict:
     """Return ``{id, name, source}`` for the company step.
 
     ``payload`` may be:
       {"mode": "existing", "company_id": "..."}
       {"mode": "create",   "data": {name, industry, website, ...}}
-      {"mode": "skip"}    → reuse deal.company_id/name
+      {"mode": "skip"}    → reuse opp.company_id/name
     """
     mode = (payload or {}).get("mode") or "skip"
     of = _of(user)
@@ -69,7 +71,7 @@ async def _resolve_or_create_company(payload: dict, deal: dict, user: dict) -> d
         return {"id": co["id"], "name": co.get("name"), "source": "existing"}
     if mode == "create":
         data = payload.get("data") or {}
-        name = (data.get("name") or deal.get("company_name") or "").strip()
+        name = (data.get("name") or opp.get("company_name") or "").strip()
         if not name:
             raise HTTPException(400, "Company name is required")
         co = {
@@ -83,7 +85,7 @@ async def _resolve_or_create_company(payload: dict, deal: dict, user: dict) -> d
             "country": data.get("country", "GB"),
             "owner_id": user.get("id"),
             "owner_name": user.get("full_name", ""),
-            "created_from_deal_id": deal["id"],
+            "created_from_opportunity_id": opp["id"],
             "created_at": _now(),
             "updated_at": _now(),
         }
@@ -95,10 +97,10 @@ async def _resolve_or_create_company(payload: dict, deal: dict, user: dict) -> d
         )
         return {"id": co["id"], "name": co["name"], "source": "created"}
     # mode == skip
-    return {"id": deal.get("company_id"), "name": deal.get("company_name"), "source": "skip"}
+    return {"id": opp.get("company_id"), "name": opp.get("company_name"), "source": "skip"}
 
 
-async def _resolve_or_create_contact(payload: dict, deal: dict, company: dict, user: dict) -> dict:
+async def _resolve_or_create_contact(payload: dict, opp: dict, company: dict, user: dict) -> dict:
     mode = (payload or {}).get("mode") or "skip"
     of = _of(user)
     if mode == "existing":
@@ -113,8 +115,8 @@ async def _resolve_or_create_contact(payload: dict, deal: dict, company: dict, u
                 "source": "existing"}
     if mode == "create":
         data = payload.get("data") or {}
-        first = (data.get("first_name") or deal.get("contact_name", "").split(" ")[0] or "").strip()
-        last = (data.get("last_name") or " ".join(deal.get("contact_name", "").split(" ")[1:]) or "").strip()
+        first = (data.get("first_name") or opp.get("contact_name", "").split(" ")[0] or "").strip()
+        last = (data.get("last_name") or " ".join(opp.get("contact_name", "").split(" ")[1:]) or "").strip()
         email = (data.get("email") or "").strip().lower()
         if not first and not email:
             raise HTTPException(400, "Contact requires at least a first name or email")
@@ -129,7 +131,7 @@ async def _resolve_or_create_contact(payload: dict, deal: dict, company: dict, u
             "company_name": company.get("name", ""),
             "owner_id": user.get("id"),
             "owner_name": user.get("full_name", ""),
-            "created_from_deal_id": deal["id"],
+            "created_from_opportunity_id": opp["id"],
             "created_at": _now(),
             "updated_at": _now(),
         }
@@ -138,10 +140,10 @@ async def _resolve_or_create_contact(payload: dict, deal: dict, company: dict, u
             {"id": ct["id"]}, {"$setOnInsert": {**ct, "tags": []}}, upsert=True,
         )
         return {"id": ct["id"], "name": f"{first} {last}".strip(), "source": "created"}
-    return {"id": deal.get("contact_id"), "name": deal.get("contact_name"), "source": "skip"}
+    return {"id": opp.get("contact_id"), "name": opp.get("contact_name"), "source": "skip"}
 
 
-async def _resolve_or_create_site(payload: dict, deal: dict, company: dict, user: dict) -> dict | None:
+async def _resolve_or_create_site(payload: dict, opp: dict, company: dict, user: dict) -> dict | None:
     mode = (payload or {}).get("mode") or "skip"
     if mode == "skip":
         return None
@@ -166,7 +168,7 @@ async def _resolve_or_create_site(payload: dict, deal: dict, company: dict, user
             "city": data.get("city", ""),
             "postcode": data.get("postcode", ""),
             "country": data.get("country", "GB"),
-            "created_from_deal_id": deal["id"],
+            "created_from_opportunity_id": opp["id"],
             "created_at": _now(),
             "updated_at": _now(),
         }
@@ -175,11 +177,11 @@ async def _resolve_or_create_site(payload: dict, deal: dict, company: dict, user
     return None
 
 
-async def _create_starter_artifact(kind: str, deal: dict, company: dict,
+async def _create_starter_artifact(kind: str, opp: dict, company: dict,
                                    contact: dict, site: dict | None, user: dict) -> dict | None:
     """Create an optional starter quote OR contract draft so the
-    deal lands with a usable next-action artifact, not just a record
-    update."""
+    opportunity lands with a usable next-action artifact, not just a
+    record update."""
     if kind not in ("contract_draft", "quote_draft"):
         return None
     if kind == "contract_draft":
@@ -190,16 +192,16 @@ async def _create_starter_artifact(kind: str, deal: dict, company: dict,
         except ImportError:
             return None
         contract = _build_contract_doc({
-            "title": f"{company.get('name') or deal.get('title')} — Service Contract",
+            "title": f"{company.get('name') or opp.get('title')} — Service Contract",
             "company_id": company.get("id", ""),
             "company_name": company.get("name", ""),
             "contact_id": contact.get("id", ""),
             "billing_contact_id": contact.get("id", ""),
             "site_id": (site or {}).get("id", ""),
-            "annual_value": float(deal.get("value") or 0),
-            "total_value":  float(deal.get("value") or 0),
+            "annual_value": float(opp.get("value") or 0),
+            "total_value":  float(opp.get("value") or 0),
             "tier": "silver",
-            "opportunity_id": deal["id"],
+            "opportunity_id": opp["id"],
         }, user)
         await db.crm2_contracts.insert_one(contract)
         return {"type": "contract_draft", "id": contract["id"],
@@ -209,13 +211,13 @@ async def _create_starter_artifact(kind: str, deal: dict, company: dict,
         "id": _id(),
         "organization_id": user.get("organization_id"),
         "number": f"QUOTE-{_id()[:6].upper()}",
-        "title": f"{company.get('name') or deal.get('title')} — Quote",
+        "title": f"{company.get('name') or opp.get('title')} — Quote",
         "company_id": company.get("id", ""),
         "company_name": company.get("name", ""),
         "contact_id": contact.get("id", ""),
         "status": "draft",
-        "amount": float(deal.get("value") or 0),
-        "opportunity_id": deal["id"],
+        "amount": float(opp.get("value") or 0),
+        "opportunity_id": opp["id"],
         "created_by": user.get("full_name", ""),
         "created_at": _now(), "updated_at": _now(),
     }
@@ -223,9 +225,9 @@ async def _create_starter_artifact(kind: str, deal: dict, company: dict,
     return {"type": "quote_draft", "id": quote["id"], "number": quote["number"]}
 
 
-@router.post("/deals/{deal_id}/convert")
-async def convert_lead(deal_id: str, data: dict, user: dict = Depends(get_crm_user)):
-    """Convert a lead/early-stage deal into qualified Company +
+@router.post("/opportunities/{opp_id}/convert")
+async def convert_lead(opp_id: str, data: dict, user: dict = Depends(get_crm_user)):
+    """Convert a lead/early-stage opportunity into qualified Company +
     Contact + (optional) Site + (optional) Quote/Contract draft.
 
     Body:
@@ -238,33 +240,36 @@ async def convert_lead(deal_id: str, data: dict, user: dict = Depends(get_crm_us
         }
     """
     of = _of(user)
-    deal = await db.crm_deals.find_one({"id": deal_id, **of}, {"_id": 0})
-    if not deal:
-        raise HTTPException(404, "Deal not found")
+    opp = await db.crm2_opportunities.find_one({"id": opp_id, **of}, {"_id": 0})
+    if not opp:
+        raise HTTPException(404, "Opportunity not found")
 
     # Idempotency: if already converted, return previous IDs.
-    if deal.get("converted_at"):
+    if opp.get("converted_at"):
         return {
-            "deal_id": deal_id,
-            "company_id":  deal.get("conversion_company_id"),
-            "contact_id":  deal.get("conversion_contact_id"),
-            "site_id":     deal.get("conversion_site_id"),
-            "artifact":    deal.get("conversion_artifact"),
+            "opportunity_id": opp_id,
+            "company_id":  opp.get("conversion_company_id"),
+            "company_name": opp.get("conversion_company_name"),
+            "contact_id":  opp.get("conversion_contact_id"),
+            "contact_name": opp.get("conversion_contact_name"),
+            "site_id":     opp.get("conversion_site_id"),
+            "artifact":    opp.get("conversion_artifact"),
             "stage_moved": False,
+            "target_stage": opp.get("stage"),
             "already_converted": True,
         }
 
-    if deal.get("stage") in ("won", "lost"):
-        raise HTTPException(400, "Cannot convert a closed deal")
+    if opp.get("stage") in ("closed_won", "closed_lost", "won", "lost"):
+        raise HTTPException(400, "Cannot convert a closed opportunity")
 
-    company = await _resolve_or_create_company(data.get("company") or {}, deal, user)
-    contact = await _resolve_or_create_contact(data.get("contact") or {}, deal, company, user)
-    site = await _resolve_or_create_site(data.get("site") or {}, deal, company, user)
+    company = await _resolve_or_create_company(data.get("company") or {}, opp, user)
+    contact = await _resolve_or_create_contact(data.get("contact") or {}, opp, company, user)
+    site = await _resolve_or_create_site(data.get("site") or {}, opp, company, user)
     artifact_kind = ((data.get("artifact") or {}).get("kind") or "none")
-    artifact = await _create_starter_artifact(artifact_kind, deal, company, contact, site, user)
+    artifact = await _create_starter_artifact(artifact_kind, opp, company, contact, site, user)
 
     target_stage = (data.get("target_stage") or "qualified").lower()
-    deal_updates = {
+    opp_updates = {
         "converted_at": _now(),
         "converted_by": user.get("id"),
         "converted_by_name": user.get("full_name", ""),
@@ -274,16 +279,16 @@ async def convert_lead(deal_id: str, data: dict, user: dict = Depends(get_crm_us
         "conversion_contact_name": contact.get("name"),
         "conversion_site_id": (site or {}).get("id"),
         "conversion_artifact": artifact,
-        "company_id": company.get("id") or deal.get("company_id"),
-        "company_name": company.get("name") or deal.get("company_name"),
-        "contact_id": contact.get("id") or deal.get("contact_id"),
-        "contact_name": contact.get("name") or deal.get("contact_name"),
+        "company_id": company.get("id") or opp.get("company_id"),
+        "company_name": company.get("name") or opp.get("company_name"),
+        "contact_id": contact.get("id") or opp.get("contact_id"),
+        "contact_name": contact.get("name") or opp.get("contact_name"),
         "stage": target_stage,
         "updated_at": _now(),
     }
-    await db.crm_deals.update_one({"id": deal_id}, {"$set": deal_updates})
+    await db.crm2_opportunities.update_one({"id": opp_id}, {"$set": opp_updates})
 
-    # Activity row so the deal timeline tells the story.
+    # Activity row so the opportunity timeline tells the story.
     summary_parts = []
     if company.get("source") == "created":
         summary_parts.append(f"created company {company['name']}")
@@ -299,18 +304,21 @@ async def convert_lead(deal_id: str, data: dict, user: dict = Depends(get_crm_us
         summary_parts.append(f"drafted {artifact['type'].replace('_', ' ')} {artifact.get('contract_number') or artifact.get('number') or artifact['id'][:8]}")
     summary = "Lead converted: " + ", ".join(summary_parts) if summary_parts else "Lead converted"
 
-    await db.crm_activities.insert_one({
+    await db.crm2_activities.insert_one({
         "id": _id(),
-        "type": "lead_converted",
-        "deal_id": deal_id,
+        "organization_id": user.get("organization_id"),
+        "type": "system",
+        "subject": "Lead converted",
+        "body": summary,
+        "opportunity_id": opp_id,
         "contact_id": contact.get("id"),
         "company_id": company.get("id"),
-        "description": summary,
-        "created_by": user.get("id"),
-        "created_by_name": user.get("full_name", ""),
+        "owner_id": user.get("id"),
+        "owner_name": user.get("full_name", ""),
         "created_at": _now(),
+        "updated_at": _now(),
     })
-    await log_audit(user, "deal", deal_id, "converted", {
+    await log_audit(user, "opportunity", opp_id, "converted", {
         "company_id": company.get("id"),
         "contact_id": contact.get("id"),
         "site_id": (site or {}).get("id"),
@@ -319,7 +327,7 @@ async def convert_lead(deal_id: str, data: dict, user: dict = Depends(get_crm_us
     })
 
     return {
-        "deal_id": deal_id,
+        "opportunity_id": opp_id,
         "company_id":  company.get("id"),
         "company_name": company.get("name"),
         "contact_id":  contact.get("id"),

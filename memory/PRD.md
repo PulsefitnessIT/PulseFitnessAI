@@ -1,3 +1,52 @@
+## Iter 220e8 — CRM Lead Conversion flow ✅ (Feb 14, 2026)
+
+Bridges the v2 Pipeline (`crm2_opportunities`) into the Contracts /
+Quotes drafting flow so a lead closes on Friday and the operator
+finds a ready-to-edit artifact on Monday — no rekeying.
+
+### Backend (`routes/crm_lead_conversion.py`)
+
+- New `POST /api/crm/v2/opportunities/{opp_id}/convert` endpoint.
+- Body: `{company, contact, site, artifact, target_stage}` — each
+  step picks one of `create | existing | skip` (artifact: `none |
+  contract_draft | quote_draft`).
+- Creates `crm2_companies / crm2_contacts / crm2_sites` rows + mirrors
+  into legacy `crm_companies / crm_contacts` so existing list views
+  stay in lockstep.
+- Lazy-imports `_build_contract_doc` from `crm_contracts` to mint a
+  Silver-tier draft pre-linked to the opportunity (annual_value
+  carried from `opp.value`); quote_draft path inserts a minimal
+  `crm2_quotes` stub.
+- Idempotent — re-running on an already-converted opportunity returns
+  the previously-created IDs (`already_converted: true`) instead of
+  duplicating records.
+- Guards: 404 unknown opp, 400 closed_won/closed_lost, 400 missing
+  company name (create mode), 400 missing company_id (existing mode).
+- Audit row via `log_audit` + Activity row in `crm2_activities` with
+  a human-readable summary stitched from the source/action of each
+  step.
+
+### Frontend
+
+- New `pages/CRM/LeadConversionModal.js` — single-screen wizard with
+  Company/Contact/Site/Artifact sections, mode pickers, success
+  panel that lists the created records and links forward.
+- Wired into `pages/CRM/CRMPipeline.js` (OpportunityDetail header):
+  - **Convert lead** CTA shown when `!converted_at` and stage is
+    not closed.
+  - **Converted** badge replaces the CTA once stamped.
+
+### Tests
+
+- `tests/test_iter_220e8_lead_conversion.py` — 9 scenarios: create
+  happy path, existing-company link, site create + quote_draft,
+  404, closed-state guard, idempotency, missing-name, missing
+  existing-id, full skip-mode.
+- Regression suite **2086 / 2086** passing (up from 2073).
+
+---
+
+
 ## Iter 220e7 — Engineer Web Push wiring ✅ (Feb 14, 2026)
 
 Closes the final release-readiness gap (#5) flagged in iter 220e6.
