@@ -131,3 +131,19 @@ def test_package_json_exposes_mobile_regression_script():
     pkg = Path("/app/frontend/package.json").read_text()
     assert "test:mobile-regression" in pkg
     assert "playwright" in pkg
+
+
+def test_makefile_exposes_e2e_targets():
+    """Engineer App smoke must be reachable via `make e2e-engineer`
+    and the broader Playwright suite via `make e2e`, so the muscle
+    memory matches `make regression`."""
+    mk = Path("/app/Makefile").read_text()
+    assert "e2e-engineer:" in mk
+    assert "\ne2e:" in mk
+    # .PHONY entry so the targets aren't shadowed by accidental files.
+    assert "e2e e2e-engineer" in mk or "e2e-engineer e2e" in mk
+    # And both surface in `make help`.
+    assert "make e2e-engineer" in mk
+    assert "make e2e " in mk
+    # The Engineer-only target must point at the new spec.
+    assert "engineer-smoke.spec.js" in mk

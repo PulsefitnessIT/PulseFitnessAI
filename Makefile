@@ -3,7 +3,7 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
-.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health uptime-check install-hooks docs-verify brand-preview
+.PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health uptime-check install-hooks docs-verify brand-preview e2e e2e-engineer
 
 help:
 	@echo "GymAxis make targets:"
@@ -22,6 +22,8 @@ help:
 	@echo "  make post-deploy         # 6-probe HTTP smoke against \$$POST_DEPLOY_BASE_URL (Resend on result)"
 	@echo "  make lint-health         # weekly codebase-health snapshot to /app/reports/ (Resend opt-in)"
 	@echo "  make uptime-check        # single uptime probe (state-change-only emails; cron-friendly)"
+	@echo "  make e2e-engineer        # Playwright Engineer App smoke (7 tests, ~50s; needs preview reachable)"
+	@echo "  make e2e                 # full mobile-regression Playwright suite"
 
 # Iter 216h291 — install the git pre-commit hook so ESLint warnings
 # can't sneak past local commits. Idempotent — re-running just
@@ -344,3 +346,22 @@ lint-health:
 #   */5 * * * * cd /app && UPTIME_NOTIFY_EMAIL=ops@yourco.com make uptime-check
 uptime-check:
 	@cd /app/backend && python3 /app/scripts/uptime_monitor.py
+
+# Iter 220ea — Playwright E2E smoke for the Engineer PWA. Runs the 7
+# tests in `frontend/tests/mobile-regression/engineer-smoke.spec.js`
+# at iPhone 13 Pro viewport against the live preview backend.
+# Requires the Chromium playwright browser bundle in /pw-browsers
+# (installed in the dev container by default).
+#
+# Override creds / URL with env vars:
+#   E2E_ADMIN_EMAIL=...  E2E_ADMIN_PASSWORD=...  E2E_BASE_URL=...  make e2e-engineer
+e2e-engineer:
+	@cd /app/frontend && PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
+	  npx playwright test tests/mobile-regression/engineer-smoke.spec.js \
+	  --project="iPhone 13 Pro" --reporter=list
+
+# Iter 220ea — full mobile-regression Playwright suite. Engineer
+# smoke + the existing nav-parity / master-admin specs.
+e2e:
+	@cd /app/frontend && PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
+	  npx playwright test --config=playwright.config.js --reporter=list

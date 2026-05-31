@@ -1,3 +1,34 @@
+## Iter 220ea·1 — Make targets for the Engineer E2E suite ✅ (Feb 14, 2026)
+
+Wires the Engineer App Playwright smoke into the same Make muscle
+memory as `make regression`, so Lee never has to remember the
+`yarn test:mobile-regression` incantation when running a quick
+sanity check before a release.
+
+### New targets
+
+- `make e2e-engineer` — runs only the Engineer smoke (7 tests,
+  ~50 s). Overridable via `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`,
+  `E2E_BASE_URL`.
+- `make e2e` — runs the full mobile-regression Playwright suite
+  (Engineer smoke + nav-parity + master-admin).
+
+### Static guard
+
+`test_iter_220ea_engineer_e2e_smoke.py` got a new check
+(`test_makefile_exposes_e2e_targets`) so the Make targets can't be
+quietly removed during a future cleanup.
+
+### Verified
+
+- `make help` lists both targets cleanly.
+- `make e2e-engineer` ran the 7 tests against the live preview —
+  all green in 48.5 s.
+- pytest regression **2116 / 2116 passing**.
+
+---
+
+
 ## Iter 220ea — Engineer App Playwright E2E smoke suite ✅ (Feb 14, 2026)
 
 Closes the deferred release-readiness gap from iter 220e6: real
